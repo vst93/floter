@@ -10,7 +10,7 @@ use commands::terminal::{pty_close, pty_resize, pty_spawn, pty_write, PtyState};
 use std::sync::{Arc, Mutex};
 use terminal::pty::PtyManager;
 use tauri::{LogicalSize, Manager};
-use tauri_plugin_global_shortcut::ShortcutState;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 #[tauri::command]
 fn show_terminal(window: tauri::Window) -> Result<(), String> {
@@ -57,31 +57,19 @@ pub fn run() {
         .manage(CommandState::new())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
+            let window_clone = window.clone();
 
-            use tauri_plugin_global_shortcut::GlobalShortcutExt;
-            if let Err(e) = app.global_shortcut()
-                .register("CmdOrCtrl+Shift+Space") {
-                eprintln!("⚠️  Global shortcut failed: {}. Grant Accessibility in System Settings → Privacy & Security → Accessibility.", e);
-            } else {
-                let wc = window.clone();
-                let visible = Arc::new(Mutex::new(false));
-                let visible_clone = visible.clone();
-                let _ = app.global_shortcut()
-                    .on_shortcut("CmdOrCtrl+Shift+Space", move |_app, _shortcut, event| {
-                        if event.state == ShortcutState::Pressed {
-                            let mut vis = visible_clone.lock().unwrap();
-                            if *vis {
-                                let _ = wc.hide();
-                                *vis = false;
-                            } else {
-                                let _ = wc.show();
-                                let _ = wc.set_focus();
-                                *vis = true;
-                            }
+            app.global_shortcut()
+                .on_shortcut("CmdOrCtrl+Shift+Space", move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        if window_clone.is_visible().unwrap_or(false) {
+                            let _ = window_clone.hide();
+                        } else {
+                            let _ = window_clone.show();
+                            let _ = window_clone.set_focus();
                         }
-                    });
-                println!("✅ Global shortcut registered: Cmd+Shift+Space");
-            }
+                    }
+                })?;
 
             let window = app.get_webview_window("main").unwrap();
             window.on_window_event(move |event| {
