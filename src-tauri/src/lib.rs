@@ -43,12 +43,12 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
 fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), String> {
     let mode = if state.terminal_mode.load(Ordering::SeqCst) {
         window
-            .set_size(LogicalSize::new(820.0, 520.0))
+            .set_size(LogicalSize::new(860.0, 540.0))
             .map_err(|e| e.to_string())?;
         "terminal"
     } else {
         window
-            .set_size(LogicalSize::new(640.0, 60.0))
+            .set_size(LogicalSize::new(740.0, 72.0))
             .map_err(|e| e.to_string())?;
         "collapsed"
     };
@@ -62,7 +62,7 @@ fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), Str
 #[tauri::command]
 fn show_terminal(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     window
-        .set_size(LogicalSize::new(820.0, 520.0))
+        .set_size(LogicalSize::new(860.0, 540.0))
         .map_err(|e| e.to_string())?;
     reveal_window(&window)?;
     state.terminal_mode.store(true, Ordering::SeqCst);
@@ -86,7 +86,7 @@ fn start_drag(window: WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     window
-        .set_size(LogicalSize::new(640.0, 60.0))
+        .set_size(LogicalSize::new(740.0, 72.0))
         .map_err(|e| e.to_string())?;
     reveal_window(&window)?;
     state.terminal_mode.store(false, Ordering::SeqCst);
