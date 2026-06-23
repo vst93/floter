@@ -30,6 +30,10 @@ impl PtyManager {
         app: AppHandle,
         shell: Option<String>,
     ) -> Result<(), String> {
+        if self.sessions.contains_key(&id) {
+            return Ok(());
+        }
+
         let pair = self
             .pty_system
             .openpty(PtySize {

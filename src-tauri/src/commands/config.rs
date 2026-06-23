@@ -12,7 +12,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            hotkey: "CmdOrCtrl+Shift+Space".to_string(),
+            hotkey: "Ctrl+Shift+Space".to_string(),
             hide_on_blur: true,
             theme: "dark".to_string(),
             font_size: 14,
