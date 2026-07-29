@@ -7,16 +7,12 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
 
 use alacritty_terminal::event::{Event, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
@@ -38,6 +34,9 @@ const COALESCE: Duration = Duration::from_millis(8);
 
 /// Poll interval for the render thread's shutdown check.
 const POLL: Duration = Duration::from_millis(100);
+
+/// Number of entries kept in the shared history file.
+const HIST_SIZE: &str = "10000";
 
 /// Payload emitted to the frontend on every rendered frame.
 #[derive(Clone, Serialize)]
@@ -131,6 +130,9 @@ pub struct TerminalSession {
     alive: Arc<AtomicBool>,
     /// PID of the spawned shell, used to look up its working directory.
     shell_pid: u32,
+    /// Shared history file handed to this shell, replayed into any external
+    /// terminal opened from the session. `None` if no cache dir was usable.
+    histfile: Option<PathBuf>,
 }
 
 impl TerminalSession {
@@ -162,6 +164,17 @@ impl TerminalSession {
             tty_options.shell = Some(Shell::new(program, Vec::new()));
         }
 
+        // Point the shell at floter's own history file. Every floter shell —
+        // embedded or spawned into an external terminal — reads and writes the
+        // same file, which is what makes the external window feel like a
+        // continuation rather than a fresh login.
+        let histfile = shared_history_file();
+        if let Some(path) = &histfile {
+            for (key, value) in history_env(path) {
+                tty_options.env.insert(key.to_string(), value);
+            }
+        }
+
         let window_size = WindowSize {
             num_lines: size.rows as u16,
             num_cols: size.cols as u16,
@@ -187,6 +200,7 @@ impl TerminalSession {
             wakeup: tx,
             alive,
             shell_pid,
+            histfile,
         })
     }
 
@@ -259,7 +273,7 @@ impl TerminalSession {
     /// system's default terminal, so work can continue there.
     pub fn open_in_default_terminal(&self) -> Result<(), String> {
         let cwd = read_cwd(self.shell_pid).unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
-        open_terminal_at(&cwd)
+        open_terminal_at(&cwd, self.histfile.as_deref())
     }
 }
 
@@ -416,10 +430,50 @@ impl TerminalManager {
             None => Ok(()),
         }
     }
+
+    /// Tear down every live session. Called once on application exit.
+    pub fn shutdown_all(&self) {
+        if let Ok(mut sessions) = self.sessions.lock() {
+            for (_, session) in sessions.drain() {
+                session.close();
+            }
+        }
+    }
 }
 
-/// Resolve the current working directory of `pid` via `lsof`.
+/// Path to the command-history file shared by every floter shell.
+///
+/// Returns `None` when the platform has no usable cache directory; callers
+/// then simply fall back to the shell's own default history.
+fn shared_history_file() -> Option<PathBuf> {
+    let dir = dirs::cache_dir()?.join("floter");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("history"))
+}
+
+/// Environment that points a shell at the shared history file.
+///
+/// `HISTFILE`/`HISTSIZE`/`HISTFILESIZE` cover bash; zsh imports `HISTFILE` and
+/// `SAVEHIST` from the environment as ordinary parameters.
+fn history_env(histfile: &Path) -> [(&'static str, String); 4] {
+    let path = histfile.to_string_lossy().into_owned();
+    [
+        ("HISTFILE", path),
+        ("HISTSIZE", HIST_SIZE.to_string()),
+        ("HISTFILESIZE", HIST_SIZE.to_string()),
+        ("SAVEHIST", HIST_SIZE.to_string()),
+    ]
+}
+
+/// Resolve the current working directory of `pid`.
+///
+/// Uses `/proc` where available and falls back to `lsof` elsewhere (macOS).
 fn read_cwd(pid: u32) -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    if let Ok(path) = std::fs::read_link(format!("/proc/{pid}/cwd")) {
+        return Some(path);
+    }
+
     let output = Command::new("lsof")
         .args(["-a", "-p", &pid.to_string(), "-d", "cwd", "-Fn"])
         .output()
@@ -432,27 +486,124 @@ fn read_cwd(pid: u32) -> Option<PathBuf> {
     })
 }
 
+/// Wrap `value` in single quotes for safe interpolation into a `/bin/sh` script.
+#[cfg(target_os = "macos")]
+fn sh_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
 /// Open a Terminal.app window at `dir` by writing an executable `.command`
-/// shim and handing it to `open` (the system's default handler for
-/// `.command` files).
-fn open_terminal_at(dir: &std::path::Path) -> Result<(), String> {
+/// shim and handing it to `open`.
+#[cfg(target_os = "macos")]
+fn open_terminal_at(dir: &Path, histfile: Option<&Path>) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+
     let cache_dir = dirs::cache_dir()
         .ok_or_else(|| "no cache directory".to_string())?
         .join("floter");
-    fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
 
     let shim = cache_dir.join("open-here.command");
-    let escaped = dir.to_string_lossy().replace('\'', "'\\''");
-    let content = format!("#!/bin/sh\ncd '{}'\nexec \"$SHELL\" -l\n", escaped);
-    fs::write(&shim, content).map_err(|e| e.to_string())?;
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
 
-    #[cfg(unix)]
-    {
-        fs::set_permissions(&shim, fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
+    let mut content = String::from("#!/bin/sh\n");
+    content.push_str(&format!("cd {}\n", sh_quote(&dir.to_string_lossy())));
+    if let Some(path) = histfile {
+        for (key, value) in history_env(path) {
+            content.push_str(&format!("export {key}={}\n", sh_quote(&value)));
+        }
     }
+    // Plain `exec`, not `exec -l`: a login shell re-runs the whole profile
+    // chain and prints its banner, which is what made the new window look like
+    // it was dumping text instead of showing a prompt.
+    content.push_str(&format!("exec {}\n", sh_quote(&shell)));
 
+    std::fs::write(&shim, content).map_err(|e| e.to_string())?;
+    std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755))
+        .map_err(|e| e.to_string())?;
+
+    // `-a Terminal` pins the handler: a bare `open` follows whatever app the
+    // user has associated with `.command`, which may be an editor that just
+    // displays the script.
     Command::new("open")
+        .args(["-a", "Terminal"])
         .arg(&shim)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Terminal emulators tried in order when `$TERMINAL` is unset.
+#[cfg(target_os = "linux")]
+const TERMINALS: &[&str] = &[
+    "x-terminal-emulator",
+    "gnome-terminal",
+    "konsole",
+    "xfce4-terminal",
+    "kitty",
+    "alacritty",
+    "wezterm",
+    "ghostty",
+    "foot",
+    "tilix",
+    "terminator",
+    "urxvt",
+    "xterm",
+];
+
+/// Locate `name` on `$PATH`, or treat it as a path if it contains a separator.
+#[cfg(target_os = "linux")]
+fn which(name: &str) -> Option<PathBuf> {
+    if name.contains('/') {
+        let path = PathBuf::from(name);
+        return path.is_file().then_some(path);
+    }
+    let paths = std::env::var_os("PATH")?;
+    std::env::split_paths(&paths)
+        .map(|dir| dir.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+/// Spawn the first available terminal emulator at `dir`.
+#[cfg(target_os = "linux")]
+fn open_terminal_at(dir: &Path, histfile: Option<&Path>) -> Result<(), String> {
+    let preferred = std::env::var("TERMINAL").ok();
+    let candidates = preferred
+        .as_deref()
+        .into_iter()
+        .chain(TERMINALS.iter().copied());
+
+    for name in candidates {
+        if which(name).is_none() {
+            continue;
+        }
+        let mut command = Command::new(name);
+        // All of these inherit their shell's cwd, so no per-emulator flag is
+        // needed to land in the right directory.
+        command.current_dir(dir);
+        if let Some(path) = histfile {
+            for (key, value) in history_env(path) {
+                command.env(key, value);
+            }
+        }
+        if command.spawn().is_ok() {
+            return Ok(());
+        }
+    }
+    Err("no terminal emulator found".to_string())
+}
+
+/// Open Windows Terminal (or `cmd` as a fallback) at `dir`.
+///
+/// `histfile` is unused: `cmd` keeps no on-disk command history to share.
+#[cfg(target_os = "windows")]
+fn open_terminal_at(dir: &Path, _histfile: Option<&Path>) -> Result<(), String> {
+    if Command::new("wt").arg("-d").arg(dir).spawn().is_ok() {
+        return Ok(());
+    }
+    Command::new("cmd")
+        .args(["/C", "start", "cmd"])
+        .current_dir(dir)
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())

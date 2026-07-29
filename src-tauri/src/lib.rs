@@ -2,7 +2,10 @@ mod commands;
 mod terminal;
 
 use commands::apps::{application_icon, list_applications, open_application, ApplicationState};
-use commands::config::{get_settings, load_settings, save_settings};
+use commands::config::{
+    get_settings, get_shortcuts, load_settings, resolved_shortcuts, save_settings, update_shortcut,
+    DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
+};
 use commands::custom::{
     add_custom_command, delete_custom_command, execute_custom_command, get_custom_commands,
     update_custom_command, CommandState,
@@ -13,11 +16,13 @@ use commands::terminal::{
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+#[cfg(target_os = "macos")]
+use tauri::UserAttentionType;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
-    UserAttentionType, WebviewWindow, Wry,
+    WebviewWindow, Wry,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use terminal::session::TerminalManager;
@@ -40,6 +45,15 @@ struct AppState {
     /// the collapsed input anchors against.
     terminal_height: Mutex<f64>,
     tray_items: Mutex<Option<TrayMenuItems>>,
+    /// The toggle shortcut currently held with the OS, which is not always the
+    /// one in the settings file: a stored binding another app owns falls back to
+    /// the default, and the next rebind has to release what was really taken.
+    toggle_shortcut: Mutex<String>,
+    /// Physical origin of the monitor the panel was last seen on, used to
+    /// identify that monitor again in `available_monitors()`. Wayland hands out
+    /// no cursor position at all, so remembering where the panel was dismissed
+    /// is the only way a later summon can return to the screen the user chose.
+    last_monitor: Mutex<Option<PhysicalPosition<i32>>>,
 }
 
 impl AppState {
@@ -48,6 +62,16 @@ impl AppState {
             .lock()
             .map(|height| *height)
             .unwrap_or(TERMINAL_WINDOW_HEIGHT)
+    }
+
+    fn remembered_monitor(&self) -> Option<PhysicalPosition<i32>> {
+        self.last_monitor.lock().ok().and_then(|origin| *origin)
+    }
+
+    fn set_remembered_monitor(&self, origin: Option<PhysicalPosition<i32>>) {
+        if let Ok(mut last) = self.last_monitor.lock() {
+            *last = origin;
+        }
     }
 }
 
@@ -72,20 +96,178 @@ pub fn apply_tray_language(app: &AppHandle, language: &str) {
     }
 }
 
-/// The monitor the user is working on. Follows the mouse cursor, which is what
-/// macOS itself uses to decide where Spotlight-style panels appear, and falls
-/// back to the window's own monitor when the cursor position is unavailable.
-fn focused_monitor(window: &WebviewWindow) -> Option<Monitor> {
-    if let Ok(cursor) = window.cursor_position() {
-        if let Ok(Some(monitor)) = window.monitor_from_point(cursor.x, cursor.y) {
+/// The monitor the user is working on, answered by the first strategy that can.
+///
+/// 1. The mouse cursor, which is what macOS itself uses to decide where
+///    Spotlight-style panels appear, and is equally right on Windows and X11.
+/// 2. The monitor the panel was last dismissed from. This is the Wayland path:
+///    there is no cursor position to be had there, so the panel returns to the
+///    screen the user last left it on instead of jumping back to the primary.
+/// 3. The focused X11 window, for the keyboard-driven case where the mouse was
+///    left behind on another screen. Best-effort, and deliberately behind the
+///    cache because it shells out on a latency-sensitive path.
+/// 4. The panel's own monitor, then the primary one.
+fn focused_monitor(window: &WebviewWindow, state: &AppState) -> Option<Monitor> {
+    if let Some(monitor) = cursor_monitor(window) {
+        return Some(monitor);
+    }
+
+    // A remembered monitor that has since been unplugged matches nothing and
+    // simply falls through to the next strategy.
+    if let Some(origin) = state.remembered_monitor() {
+        let remembered = window
+            .available_monitors()
+            .unwrap_or_default()
+            .into_iter()
+            .find(|monitor| *monitor.position() == origin);
+        if remembered.is_some() {
+            return remembered;
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(monitor) = active_window_monitor(window) {
             return Some(monitor);
         }
     }
+
     window
         .current_monitor()
         .ok()
         .flatten()
         .or_else(|| window.primary_monitor().ok().flatten())
+}
+
+/// The monitor under the mouse, or `None` when the platform will not say where
+/// the mouse is. Wayland is the awkward case: `tao` returns a hardcoded
+/// `(0, 0)` there rather than an error, so on Wayland a zero reading has to be
+/// taken as "unknown" instead of as the top-left corner.
+fn cursor_monitor(window: &WebviewWindow) -> Option<Monitor> {
+    let cursor = window.cursor_position().ok()?;
+    if cursor.x == 0.0 && cursor.y == 0.0 && on_wayland() {
+        return None;
+    }
+    window.monitor_from_point(cursor.x, cursor.y).ok().flatten()
+}
+
+#[cfg(target_os = "linux")]
+fn on_wayland() -> bool {
+    std::env::var_os("WAYLAND_DISPLAY").is_some()
+        || std::env::var("XDG_SESSION_TYPE").is_ok_and(|kind| kind.eq_ignore_ascii_case("wayland"))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn on_wayland() -> bool {
+    false
+}
+
+/// The monitor holding the focused window, asked of X11 through `xprop` and
+/// then `xdotool` or `xwininfo`. This is the keyboard user's answer to "which
+/// screen am I on": it stays right even when the mouse was left elsewhere.
+///
+/// Every step is best-effort. Missing tools, a session with no X server, or a
+/// focused window that is not an X11 client all just return `None`, and the
+/// caller moves on to the next strategy.
+#[cfg(target_os = "linux")]
+fn active_window_monitor(window: &WebviewWindow) -> Option<Monitor> {
+    let id = x11_active_window_id()?;
+    let (x, y, width, height) = xdotool_geometry(&id).or_else(|| xwininfo_geometry(&id))?;
+    // The center rather than the origin: a window straddling two screens belongs
+    // to the one showing most of it, and a maximized window's top-left corner
+    // can sit a pixel outside its own monitor.
+    window
+        .monitor_from_point(x + width / 2.0, y + height / 2.0)
+        .ok()
+        .flatten()
+}
+
+#[cfg(target_os = "linux")]
+fn x11_active_window_id() -> Option<String> {
+    let output = std::process::Command::new("xprop")
+        .args(["-root", "_NET_ACTIVE_WINDOW"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    // "_NET_ACTIVE_WINDOW(WINDOW): window id # 0x3400007"
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let digits: String = stdout
+        .split("0x")
+        .nth(1)?
+        .chars()
+        .take_while(char::is_ascii_hexdigit)
+        .collect();
+    // 0x0 means nothing is focused, which is how every native Wayland client
+    // looks from Xwayland's side of the fence.
+    if digits.trim_start_matches('0').is_empty() {
+        return None;
+    }
+    // Keep the 0x prefix: both tools parse the id with base 0, so a bare
+    // "3400007" would silently be read as decimal and name the wrong window.
+    Some(format!("0x{digits}"))
+}
+
+/// Parses `X=1920 / Y=100 / WIDTH=800 / HEIGHT=600` out of `--shell` output.
+#[cfg(target_os = "linux")]
+fn xdotool_geometry(id: &str) -> Option<(f64, f64, f64, f64)> {
+    let output = std::process::Command::new("xdotool")
+        .args(["getwindowgeometry", "--shell", id])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let field = |key: &str| {
+        text.lines()
+            .find_map(|line| line.strip_prefix(key)?.trim().parse::<f64>().ok())
+    };
+    Some((
+        field("X=")?,
+        field("Y=")?,
+        field("WIDTH=")?,
+        field("HEIGHT=")?,
+    ))
+}
+
+/// Parses the same four numbers out of `xwininfo`'s `Key: value` listing, for
+/// the many systems that ship `xprop` and `xwininfo` but not `xdotool`.
+#[cfg(target_os = "linux")]
+fn xwininfo_geometry(id: &str) -> Option<(f64, f64, f64, f64)> {
+    let output = std::process::Command::new("xwininfo")
+        .args(["-id", id])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let field = |key: &str| {
+        text.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            if name.trim() != key {
+                return None;
+            }
+            value.trim().parse::<f64>().ok()
+        })
+    };
+    Some((
+        field("Absolute upper-left X")?,
+        field("Absolute upper-left Y")?,
+        field("Width")?,
+        field("Height")?,
+    ))
+}
+
+/// Note which screen the panel is on before it disappears. `current_monitor()`
+/// only means anything while the window is mapped, so this has to run *before*
+/// `hide()`.
+fn remember_monitor(window: &WebviewWindow, state: &AppState) {
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        state.set_remembered_monitor(Some(*monitor.position()));
+    }
 }
 
 /// Where the window belongs when summoned: horizontally centered on the focused
@@ -100,9 +282,10 @@ fn focused_monitor(window: &WebviewWindow) -> Option<Monitor> {
 fn default_position(
     window: &WebviewWindow,
     logical_width: f64,
-    terminal_height: f64,
+    state: &AppState,
 ) -> Option<LogicalPosition<f64>> {
-    let monitor = focused_monitor(window)?;
+    let monitor = focused_monitor(window, state)?;
+    let terminal_height = state.terminal_height();
     let scale = monitor.scale_factor();
     if scale <= 0.0 {
         return None;
@@ -128,7 +311,7 @@ fn move_to_default_position(
     logical_width: f64,
     state: &AppState,
 ) -> Result<(), String> {
-    match default_position(window, logical_width, state.terminal_height()) {
+    match default_position(window, logical_width, state) {
         Some(position) => window.set_position(position).map_err(|e| e.to_string()),
         None => window.center().map_err(|e| e.to_string()),
     }
@@ -142,8 +325,19 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
         let _ = window.set_always_on_top(true);
         let _ = window.unminimize();
     }
+    // Windows and Linux have no dependable cross-workspace equivalent (X11 only
+    // through window-manager hints, Wayland not at all), so the panel is simply
+    // raised on the desktop the user is already on.
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window.set_always_on_top(true);
+        let _ = window.unminimize();
+    }
     window.show().map_err(|e| e.to_string())?;
     window.set_focus().map_err(|e| e.to_string())?;
+    // On macOS this is the subtle cue that says where the panel appeared.
+    // Elsewhere it flashes the taskbar entry, which a `skipTaskbar` window
+    // either cannot do or should not do.
     #[cfg(target_os = "macos")]
     {
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
@@ -230,13 +424,18 @@ fn set_terminal_height(height: f64, state: tauri::State<'_, AppState>) {
 
 #[tauri::command]
 fn hide_window(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    remember_monitor(&window, &state);
     window.hide().map_err(|e| e.to_string())?;
     state.window_visible.store(false, Ordering::SeqCst);
     Ok(())
 }
 
 #[tauri::command]
-fn start_drag(window: WebviewWindow) -> Result<(), String> {
+fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    // The user is about to pick a screen by hand, which makes the monitor
+    // remembered from the last dismissal stale. It is refilled on the next hide,
+    // from wherever the drag left the panel.
+    state.set_remembered_monitor(None);
     window.start_dragging().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -257,6 +456,64 @@ fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     Ok(())
 }
 
+/// Show the panel when it is hidden, hide it when it is up: the behaviour bound
+/// to the global toggle shortcut.
+fn toggle_window_visibility(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    let state = app.state::<AppState>();
+    if state.window_visible.load(Ordering::SeqCst) {
+        remember_monitor(&window, &state);
+        let _ = window.hide();
+        state.window_visible.store(false, Ordering::SeqCst);
+    } else {
+        let _ = reveal_saved_mode(&window, &state);
+    }
+}
+
+/// Register `shortcut` with the OS as the global toggle.
+pub fn register_toggle_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> {
+    let handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(shortcut, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                toggle_window_visibility(&handle);
+            }
+        })
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(mut active) = app.state::<AppState>().toggle_shortcut.lock() {
+        *active = shortcut.to_string();
+    }
+    Ok(())
+}
+
+/// Move the global toggle to `next`.
+///
+/// A combination another application already owns is refused by the OS; the
+/// previous binding is restored in that case, so the panel never ends up with
+/// no way to be summoned.
+pub fn rebind_toggle_shortcut(app: &AppHandle, next: &str) -> Result<(), String> {
+    let previous = app
+        .state::<AppState>()
+        .toggle_shortcut
+        .lock()
+        .map(|active| active.clone())
+        .unwrap_or_default();
+
+    if !previous.is_empty() {
+        let _ = app.global_shortcut().unregister(previous.as_str());
+    }
+    if let Err(error) = register_toggle_shortcut(app, next) {
+        if !previous.is_empty() {
+            let _ = register_toggle_shortcut(app, previous.as_str());
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -272,10 +529,12 @@ pub fn run() {
             terminal_mode: AtomicBool::new(false),
             terminal_height: Mutex::new(TERMINAL_WINDOW_HEIGHT),
             tray_items: Mutex::new(None),
+            toggle_shortcut: Mutex::new(String::new()),
+            last_monitor: Mutex::new(None),
         })
         .setup(|app| {
-            let language = load_settings().language;
-            let (show_label, quit_label) = tray_labels(&language);
+            let settings = load_settings();
+            let (show_label, quit_label) = tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
             let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
@@ -321,25 +580,19 @@ pub fn run() {
                 }
             });
 
-            let shortcuts = vec!["Control+Shift+Space"];
+            let shortcut = resolved_shortcuts(&settings)
+                .remove(TOGGLE_WINDOW)
+                .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
 
-            for shortcut in shortcuts {
-                let app_handle = app.handle().clone();
-                app.global_shortcut()
-                    .on_shortcut(shortcut, move |_app, _shortcut, event| {
-                        if event.state == ShortcutState::Pressed {
-                            eprintln!("global shortcut triggered");
-                            let state = app_handle.state::<AppState>();
-                            if let Some(window) = app_handle.get_webview_window("main") {
-                                if state.window_visible.load(Ordering::SeqCst) {
-                                    let _ = window.hide();
-                                    state.window_visible.store(false, Ordering::SeqCst);
-                                } else {
-                                    let _ = reveal_saved_mode(&window, &state);
-                                }
-                            }
-                        }
-                    })?;
+            if let Err(error) = register_toggle_shortcut(app.handle(), &shortcut) {
+                // A stored combination can be rejected by the OS (another app
+                // owns it, or the settings file was hand-edited); fall back to
+                // the default so the panel stays reachable.
+                eprintln!("failed to register global shortcut {shortcut}: {error}");
+                if shortcut != DEFAULT_TOGGLE_WINDOW {
+                    let _ = register_toggle_shortcut(app.handle(), DEFAULT_TOGGLE_WINDOW);
+                }
+            } else {
                 eprintln!("registered global shortcut: {shortcut}");
             }
 
@@ -358,6 +611,8 @@ pub fn run() {
             term_close,
             get_settings,
             save_settings,
+            get_shortcuts,
+            update_shortcut,
             get_custom_commands,
             add_custom_command,
             update_custom_command,
@@ -369,6 +624,16 @@ pub fn run() {
             set_terminal_height,
             start_drag,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            // Quitting is the only moment the terminal sessions are really
+            // gone; returning to input mode deliberately keeps them (and any
+            // tmux session behind them) alive.
+            if let tauri::RunEvent::Exit = event {
+                if let Ok(manager) = app.state::<TerminalState>().0.lock() {
+                    manager.shutdown_all();
+                }
+            }
+        });
 }

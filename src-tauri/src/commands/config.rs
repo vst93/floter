@@ -1,4 +1,26 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Action ids for the configurable shortcuts. They are the keys of the
+/// `shortcuts` map both on disk and in the frontend, so the two sides stay in
+/// step through these constants rather than through scattered string literals.
+pub const TOGGLE_WINDOW: &str = "toggle_window";
+pub const NEW_COMMAND: &str = "new_command";
+pub const OPEN_EXTERNAL_TERMINAL: &str = "open_external_terminal";
+pub const COPY_SELECTION: &str = "copy_selection";
+pub const PASTE: &str = "paste";
+pub const OPEN_SETTINGS: &str = "open_settings";
+pub const SELECT_RESULT: &str = "select_result";
+
+/// Shortcut fallback for the window toggle, which is registered with the OS and
+/// therefore must not collide with the platform's own bindings.
+pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Shift+Space";
+
+/// The modifier apps use for their own commands: Cmd on macOS, Ctrl elsewhere.
+#[cfg(target_os = "macos")]
+const APP_MODIFIER: &str = "Cmd";
+#[cfg(not(target_os = "macos"))]
+const APP_MODIFIER: &str = "Ctrl";
 
 /// Missing keys fall back to `Default`, so settings files written by older
 /// builds keep working when new fields are introduced.
@@ -14,20 +36,59 @@ pub struct AppSettings {
     pub cursor_shape: String,
     /// UI language: "en" | "zh".
     pub language: String,
+    /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
+    pub shortcuts: HashMap<String, String>,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            hotkey: "Ctrl+Shift+Space".to_string(),
+            hotkey: DEFAULT_TOGGLE_WINDOW.to_string(),
             hide_on_blur: true,
             theme: "dark".to_string(),
             font_size: 14,
             font_family: "monospace".to_string(),
             cursor_shape: "beam".to_string(),
             language: "en".to_string(),
+            shortcuts: default_shortcuts(),
         }
     }
+}
+
+/// Platform defaults for every configurable shortcut.
+///
+/// `select_result` holds the binding for the *first* result; the digits 2-9
+/// reuse its modifiers, so recording `Cmd+1` rebinds the whole 1-9 range.
+pub fn default_shortcuts() -> HashMap<String, String> {
+    [
+        (TOGGLE_WINDOW, DEFAULT_TOGGLE_WINDOW.to_string()),
+        (NEW_COMMAND, format!("{APP_MODIFIER}+W")),
+        (OPEN_EXTERNAL_TERMINAL, format!("{APP_MODIFIER}+N")),
+        (COPY_SELECTION, format!("{APP_MODIFIER}+C")),
+        (PASTE, format!("{APP_MODIFIER}+V")),
+        (OPEN_SETTINGS, format!("{APP_MODIFIER}+Comma")),
+        (SELECT_RESULT, format!("{APP_MODIFIER}+1")),
+    ]
+    .into_iter()
+    .map(|(action, shortcut)| (action.to_string(), shortcut))
+    .collect()
+}
+
+/// The stored shortcuts with every missing action filled in, which is the shape
+/// both the frontend and the global-shortcut registration expect.
+pub fn resolved_shortcuts(settings: &AppSettings) -> HashMap<String, String> {
+    let mut shortcuts = default_shortcuts();
+    // A hotkey customized before the shortcuts map existed still applies.
+    if !settings.hotkey.trim().is_empty() {
+        shortcuts.insert(TOGGLE_WINDOW.to_string(), settings.hotkey.trim().to_string());
+    }
+    for (action, shortcut) in &settings.shortcuts {
+        let shortcut = shortcut.trim();
+        if shortcuts.contains_key(action) && !shortcut.is_empty() {
+            shortcuts.insert(action.clone(), shortcut.to_string());
+        }
+    }
+    shortcuts
 }
 
 /// Load settings from disk, falling back to defaults when missing or invalid.
@@ -44,19 +105,79 @@ pub fn load_settings() -> AppSettings {
     AppSettings::default()
 }
 
-#[tauri::command]
-pub fn get_settings() -> Result<AppSettings, String> {
-    Ok(load_settings())
-}
-
-#[tauri::command]
-pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
+fn write_settings(settings: &AppSettings) -> Result<(), String> {
     let config_dir = dirs::config_dir().ok_or("Cannot find config directory")?;
     let floter_dir = config_dir.join("floter");
     std::fs::create_dir_all(&floter_dir).map_err(|e| e.to_string())?;
     let config_path = floter_dir.join("settings.json");
-    let content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    std::fs::write(config_path, content).map_err(|e| e.to_string())?;
+    let content = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    std::fs::write(config_path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_settings() -> Result<AppSettings, String> {
+    let mut settings = load_settings();
+    // Hand the frontend a complete map so it never has to guess a default.
+    settings.shortcuts = resolved_shortcuts(&settings);
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
+    let mut settings = settings;
+    // Callers that only touch one field (the language picker) may send the
+    // settings object without shortcuts; keep the stored ones in that case.
+    if settings.shortcuts.is_empty() {
+        settings.shortcuts = load_settings().shortcuts;
+    }
+    // `hotkey` predates the shortcuts map and is still read as a fallback. A
+    // caller that sends its whole settings object may be carrying a `hotkey`
+    // from before the last rebind, so it is re-derived rather than trusted.
+    if let Some(toggle) = settings.shortcuts.get(TOGGLE_WINDOW) {
+        settings.hotkey = toggle.clone();
+    }
+    write_settings(&settings)?;
     crate::apply_tray_language(&app, &settings.language);
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_shortcuts() -> Result<HashMap<String, String>, String> {
+    Ok(resolved_shortcuts(&load_settings()))
+}
+
+/// Rebind one action and persist it.
+///
+/// The window toggle is owned by the OS, so it is re-registered *before* the
+/// change is written: if the combination is already taken by another app the
+/// old binding stays in place and the error travels back to the UI.
+#[tauri::command]
+pub fn update_shortcut(
+    app: tauri::AppHandle,
+    action: String,
+    shortcut: String,
+) -> Result<(), String> {
+    let shortcut = shortcut.trim().to_string();
+    if shortcut.is_empty() {
+        return Err("Shortcut cannot be empty".to_string());
+    }
+
+    let mut settings = load_settings();
+    let mut shortcuts = resolved_shortcuts(&settings);
+    let Some(previous) = shortcuts.get(&action).cloned() else {
+        return Err(format!("Unknown shortcut action: {action}"));
+    };
+    if previous == shortcut {
+        return Ok(());
+    }
+
+    if action == TOGGLE_WINDOW {
+        crate::rebind_toggle_shortcut(&app, &shortcut)?;
+        // Keep the legacy field in step so both readers agree.
+        settings.hotkey = shortcut.clone();
+    }
+
+    shortcuts.insert(action, shortcut);
+    settings.shortcuts = shortcuts;
+    write_settings(&settings)
 }

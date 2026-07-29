@@ -10,7 +10,21 @@ import {
   LANGUAGE_OPTIONS,
   type Language,
   type MessageKey,
+  type Translate,
 } from "./i18n";
+import {
+  DEFAULT_SHORTCUTS,
+  formatResultShortcut,
+  formatShortcut,
+  IS_MAC,
+  matchesResultShortcut,
+  matchesShortcut,
+  SHORTCUT_ACTIONS,
+  shortcutFromEvent,
+  withShortcutDefaults,
+  type ShortcutAction,
+  type ShortcutMap,
+} from "./shortcuts";
 import "./App.css";
 
 type ViewMode = "collapsed" | "terminal" | "settings";
@@ -20,6 +34,7 @@ type LocalApplication = {
   localizedName?: string | null;
   path: string;
   iconPath?: string | null;
+  comment?: string | null;
 };
 
 type LauncherItem =
@@ -34,6 +49,7 @@ type AppSettings = {
   font_family: string;
   cursor_shape: string;
   language: Language;
+  shortcuts: ShortcutMap;
 };
 
 const FONT_FAMILY =
@@ -81,12 +97,117 @@ const scoreApp = (query: string, app: LocalApplication) => {
   return Math.max(...names.map((name) => scoreText(query, name)), 0);
 };
 
+// Where an application came from, read off the shape of its path: `.app`
+// bundles on macOS, `.desktop` entries on Linux, Start Menu shortcuts on
+// Windows.
 const appSubtitleKey = (path: string): MessageKey => {
-  if (path.startsWith("/Applications/")) return "launcher.application";
-  if (path.startsWith("/System/Applications/")) return "launcher.systemApplication";
-  if (path.includes("/Applications/")) return "launcher.userApplication";
+  if (IS_MAC) {
+    if (path.startsWith("/Applications/")) return "launcher.application";
+    if (path.startsWith("/System/Applications/")) return "launcher.systemApplication";
+    if (path.includes("/Applications/")) return "launcher.userApplication";
+    return "launcher.application";
+  }
+  if (/^([A-Za-z]:)?[\\/]Users[\\/]/.test(path)) return "launcher.userApplication";
+  if (path.startsWith("/home/") || path.startsWith("/root/")) return "launcher.userApplication";
+  if (/^\/(usr|opt|var)\//.test(path)) return "launcher.systemApplication";
   return "launcher.application";
 };
+
+/** Lucide `keyboard`, sized like the settings gear next to it. */
+const KeyboardIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M10 8h.01" />
+    <path d="M12 12h.01" />
+    <path d="M14 8h.01" />
+    <path d="M16 12h.01" />
+    <path d="M18 8h.01" />
+    <path d="M6 8h.01" />
+    <path d="M7 16h10" />
+    <path d="M8 12h.01" />
+    <rect width="20" height="16" x="2" y="4" rx="2" />
+  </svg>
+);
+
+type ShortcutRecorderProps = {
+  action: ShortcutAction;
+  shortcut: string;
+  recording: boolean;
+  onToggle: (action: ShortcutAction) => void;
+  onCapture: (action: ShortcutAction, shortcut: string) => void;
+  onCancel: () => void;
+  t: Translate;
+};
+
+/**
+ * A single rebindable shortcut.
+ *
+ * While recording it owns the keyboard: the listener runs in the capture phase
+ * and stops propagation, so neither the app's own handler nor the browser sees
+ * the combination being pressed. A press without any modifier is ignored —
+ * binding a bare letter would swallow it everywhere in the app.
+ */
+function ShortcutRecorder({
+  action,
+  shortcut,
+  recording,
+  onToggle,
+  onCapture,
+  onCancel,
+  t,
+}: ShortcutRecorderProps) {
+  useEffect(() => {
+    if (!recording) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const bare = !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
+      if (event.key === "Escape" && bare) {
+        onCancel();
+        return;
+      }
+      const next = shortcutFromEvent(event);
+      if (!next) return;
+      if (bare && !/^F\d{1,2}$/.test(next)) return;
+      onCapture(action, next);
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [action, onCancel, onCapture, recording]);
+
+  return (
+    <button
+      type="button"
+      className={`shortcut-recorder${recording ? " shortcut-recorder--recording" : ""}`}
+      aria-label={t("settings.shortcut.record")}
+      title={t("settings.shortcut.record")}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onToggle(action)}
+    >
+      {recording ? (
+        <span className="shortcut-recorder__prompt">{t("settings.shortcut.recording")}</span>
+      ) : (
+        <>
+          <KeyboardIcon />
+          <span className="shortcut-recorder__keys">{formatShortcut(shortcut)}</span>
+        </>
+      )}
+    </button>
+  );
+}
+
 
 type FramePayload = { id: string; frame: string };
 type ExitPayload = { id: string; code: number | null };
@@ -98,6 +219,7 @@ export default function App() {
   const mountRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const settingsBodyRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<TerminalCanvas | null>(null);
   const frameRef = useRef<Uint8Array | null>(null);
   const blinkRef = useRef(true);
@@ -130,11 +252,18 @@ export default function App() {
     font_family: "monospace",
     cursor_shape: "beam",
     language: "en",
+    shortcuts: DEFAULT_SHORTCUTS,
   });
+  const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
+  const [rejectedAction, setRejectedAction] = useState<ShortcutAction | null>(null);
   const suppressBlurUntil = useRef(0);
 
   const language = normalizeLanguage(settings.language);
   const t = useMemo(() => createTranslator(language), [language]);
+  const shortcuts = useMemo(
+    () => withShortcutDefaults(settings.shortcuts),
+    [settings.shortcuts],
+  );
 
   const launcherItems = useMemo<LauncherItem[]>(() => {
     const command = query.trim();
@@ -156,7 +285,10 @@ export default function App() {
         type: "app",
         id: app.path,
         title: app.localizedName || app.name,
-        subtitle: app.localizedName ? app.name : t(appSubtitleKey(app.path)),
+        // Showing the original name next to a localized title is the most
+        // useful subtitle; failing that, whatever description the platform
+        // ships, and only then the generic category.
+        subtitle: (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
         app,
       }));
 
@@ -328,7 +460,11 @@ export default function App() {
   useEffect(() => {
     invoke<AppSettings>("get_settings")
       .then((loaded) =>
-        setSettings({ ...loaded, language: normalizeLanguage(loaded.language) }),
+        setSettings({
+          ...loaded,
+          language: normalizeLanguage(loaded.language),
+          shortcuts: withShortcutDefaults(loaded.shortcuts),
+        }),
       )
       .catch(() => undefined);
   }, []);
@@ -408,24 +544,41 @@ export default function App() {
   }, [terminalMounted]);
 
   // The settings panel drives the window height from its own content, so new
-  // rows can be added later without hand-tuning a constant.
+  // rows can be added later without hand-tuning a constant. The body's
+  // scrollHeight is measured rather than the card's box: the card is capped to
+  // the screen, and measuring the cap would keep the window at its old size.
   useEffect(() => {
     if (mode !== "settings") return;
     const panel = settingsRef.current;
-    if (!panel) return;
+    const body = settingsBodyRef.current;
+    if (!panel || !body) return;
 
     const applyHeight = () => {
-      const height = Math.ceil(panel.getBoundingClientRect().height);
+      const header = panel.getBoundingClientRect().height - body.getBoundingClientRect().height;
+      const height = Math.ceil(header + body.scrollHeight);
       if (height <= 0) return;
+      const limit = Math.round(window.screen.availHeight * 0.85);
       getCurrentWindow()
-        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, Math.min(height, limit)))
         .catch(() => undefined);
     };
 
     applyHeight();
     const observer = new ResizeObserver(applyHeight);
     observer.observe(panel);
+    observer.observe(body);
     return () => observer.disconnect();
+  }, [mode]);
+
+  // An armed recorder unmounts with the panel, but the flag that hands it the
+  // keyboard lives here. Leaving it set would mute every key handler in the app,
+  // so it is cleared on the way out of settings — the panel can be left by the
+  // close button, the global toggle or the tray, and each of those would
+  // otherwise need its own reset.
+  useEffect(() => {
+    if (mode === "settings") return;
+    setRecordingAction(null);
+    setRejectedAction(null);
   }, [mode]);
 
   useEffect(() => {
@@ -668,6 +821,15 @@ export default function App() {
         await navigator.clipboard.writeText(text);
       } catch {
         // Clipboard unavailable; selection remains highlighted.
+        return;
+      }
+      // Where the copy shortcut is Ctrl-based it is also the shell's interrupt,
+      // so the highlight is dropped after a copy: the next press then reaches
+      // the shell instead of copying the same text again. macOS copies with Cmd
+      // and keeps its selection.
+      if (!IS_MAC) {
+        selectionRef.current = null;
+        render();
       }
     }
   };
@@ -697,31 +859,37 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
+      // The recorder listens in the capture phase; this is only a safety net.
+      if (recordingAction) return;
 
       if (mode === "terminal") {
-        // Cmd-level app shortcuts; Ctrl combos are forwarded to the shell.
-        if (event.metaKey && !event.altKey) {
-          if (key === "w") {
-            event.preventDefault();
-            returnToInputMode();
-            return;
-          }
-          if (key === "n") {
-            event.preventDefault();
-            openInTerminal();
-            return;
-          }
-          if (key === "c") {
-            event.preventDefault();
-            copySelection();
-            return;
-          }
-          if (key === "v") {
-            event.preventDefault();
-            pasteClipboard();
-            return;
-          }
+        // App shortcuts first, everything else is forwarded to the shell.
+        if (matchesShortcut(event, shortcuts.new_command)) {
+          event.preventDefault();
+          returnToInputMode();
+          return;
+        }
+        if (matchesShortcut(event, shortcuts.open_external_terminal)) {
+          event.preventDefault();
+          openInTerminal();
+          return;
+        }
+        // Copy only claims the combination when there is something to copy, so
+        // a Ctrl+C binding still interrupts the foreground process otherwise.
+        if (selectionRef.current && matchesShortcut(event, shortcuts.copy_selection)) {
+          event.preventDefault();
+          copySelection();
+          return;
+        }
+        if (matchesShortcut(event, shortcuts.paste)) {
+          event.preventDefault();
+          pasteClipboard();
+          return;
+        }
+        // macOS keeps swallowing every other Cmd combo: those are window-level
+        // shortcuts, never shell input. Ctrl combos on Windows and Linux are
+        // the shell's (Ctrl+C, Ctrl+D, Ctrl+L, ...) and fall through.
+        if (IS_MAC && event.metaKey && !event.altKey) {
           return;
         }
         if (event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) {
@@ -743,7 +911,7 @@ export default function App() {
       }
 
       if (mode === "settings") {
-        if (event.key === "Escape" || (event.metaKey && !event.altKey && key === "w")) {
+        if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
           event.preventDefault();
           closeSettings();
         }
@@ -751,24 +919,24 @@ export default function App() {
       }
 
       // Collapsed-mode input handling.
-      if (event.metaKey && !event.altKey && event.key === ",") {
+      if (matchesShortcut(event, shortcuts.open_settings)) {
         event.preventDefault();
         openSettings();
         return;
       }
 
-      if (event.key === "Escape" || (event.metaKey && !event.altKey && key === "w")) {
+      if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
         event.preventDefault();
         invoke("hide_window");
         return;
       }
 
       const inputFocused = document.activeElement === inputRef.current;
-      if (!inputFocused && event.metaKey && !event.altKey && /^[1-9]$/.test(event.key)) {
-        const index = Number(event.key) - 1;
-        if (launcherItems[index]) {
+      const resultNumber = inputFocused ? null : matchesResultShortcut(event, shortcuts.select_result);
+      if (resultNumber !== null) {
+        if (launcherItems[resultNumber - 1]) {
           event.preventDefault();
-          runLauncherItem(launcherItems[index]);
+          runLauncherItem(launcherItems[resultNumber - 1]);
         }
         return;
       }
@@ -792,7 +960,7 @@ export default function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [launcherItems, mode, query]);
+  }, [launcherItems, mode, query, recordingAction, shortcuts]);
 
   const startDrag = (event: React.MouseEvent) => {
     if ((event.target as HTMLElement).closest("button") || (event.target as HTMLElement).closest("input")) {
@@ -837,6 +1005,35 @@ export default function App() {
     invoke("save_settings", { settings: updated }).catch(() => undefined);
   };
 
+  const toggleRecording = (action: ShortcutAction) => {
+    setRejectedAction(null);
+    setRecordingAction((current) => (current === action ? null : action));
+  };
+
+  const cancelRecording = () => setRecordingAction(null);
+
+  // Store the new binding optimistically; the backend is the authority on
+  // whether a system-wide combination can actually be taken.
+  const captureShortcut = (action: ShortcutAction, next: string) => {
+    setRecordingAction(null);
+    setRejectedAction(null);
+    const previous = shortcuts[action];
+    if (next === previous) return;
+
+    setSettings((current) => ({
+      ...current,
+      shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: next },
+    }));
+    suppressBlurUntil.current = Date.now() + 400;
+    invoke("update_shortcut", { action, shortcut: next }).catch(() => {
+      setSettings((current) => ({
+        ...current,
+        shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
+      }));
+      setRejectedAction(action);
+    });
+  };
+
   const runCommand = async () => {
     const command = query.trim();
     if (!command) return;
@@ -875,16 +1072,17 @@ export default function App() {
   };
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.metaKey && !event.altKey && /^[1-9]$/.test(event.key)) {
-      const index = Number(event.key) - 1;
-      if (launcherItems[index]) {
+    const native = event.nativeEvent;
+    const resultNumber = matchesResultShortcut(native, shortcuts.select_result);
+    if (resultNumber !== null) {
+      if (launcherItems[resultNumber - 1]) {
         event.preventDefault();
-        runLauncherItem(launcherItems[index]);
+        runLauncherItem(launcherItems[resultNumber - 1]);
       }
       return;
     }
 
-    if (event.key === "Escape" || (event.metaKey && !event.altKey && event.key.toLowerCase() === "w")) {
+    if (event.key === "Escape" || matchesShortcut(native, shortcuts.new_command)) {
       event.preventDefault();
       invoke("hide_window");
       return;
@@ -953,7 +1151,7 @@ export default function App() {
             </button>
           </header>
 
-          <div className="settings-card__body">
+          <div className="settings-card__body" ref={settingsBodyRef}>
             <section className="settings-section">
               <h2 className="settings-section__label">{t("settings.language")}</h2>
               <div
@@ -987,6 +1185,41 @@ export default function App() {
                 })}
               </div>
               <p className="settings-section__hint">{t("settings.languageHint")}</p>
+            </section>
+
+            <section className="settings-section">
+              <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
+              <div className="settings-options">
+                {SHORTCUT_ACTIONS.map((action) => {
+                  const labelKey: MessageKey = `shortcut.${action}`;
+                  const descriptionKey: MessageKey = `shortcut.${action}.description`;
+                  const rejected = rejectedAction === action;
+                  return (
+                    <div key={action} className="settings-option settings-option--static">
+                      <span className="settings-option__main">
+                        <span className="settings-option__label">{t(labelKey)}</span>
+                        <span
+                          className={`settings-option__description${
+                            rejected ? " settings-option__description--warning" : ""
+                          }`}
+                        >
+                          {rejected ? t("settings.shortcut.rejected") : t(descriptionKey)}
+                        </span>
+                      </span>
+                      <ShortcutRecorder
+                        action={action}
+                        shortcut={shortcuts[action]}
+                        recording={recordingAction === action}
+                        onToggle={toggleRecording}
+                        onCapture={captureShortcut}
+                        onCancel={cancelRecording}
+                        t={t}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
           </div>
         </div>
@@ -1025,7 +1258,7 @@ export default function App() {
               type="button"
               className="collapsed-card__settings"
               aria-label={t("settings.open")}
-              title={t("settings.openHint")}
+              title={t("settings.openHint", { shortcut: formatShortcut(shortcuts.open_settings) })}
               onMouseDown={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1075,7 +1308,9 @@ export default function App() {
                     <span className="launcher-result__title">{item.title}</span>
                     <span className="launcher-result__subtitle">{item.subtitle}</span>
                   </span>
-                  <span className="launcher-result__action">⌘{index + 1}</span>
+                  <span className="launcher-result__action">
+                    {formatResultShortcut(shortcuts.select_result, index + 1)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1094,7 +1329,9 @@ export default function App() {
             <button
               className="toolbar-button toolbar-button--popout"
               aria-label={t("terminal.openInTerminal")}
-              title={t("terminal.openInTerminalHint")}
+              title={t("terminal.openInTerminalHint", {
+                shortcut: formatShortcut(shortcuts.open_external_terminal),
+              })}
               onClick={openInTerminal}
             >
               ↗
@@ -1102,7 +1339,9 @@ export default function App() {
             <button
               className="toolbar-button toolbar-button--close"
               aria-label={t("terminal.newCommand")}
-              title={t("terminal.newCommandHint")}
+              title={t("terminal.newCommandHint", {
+                shortcut: formatShortcut(shortcuts.new_command),
+              })}
               onClick={returnToInputMode}
             >
               ×

@@ -1,98 +1,14 @@
-use serde::Serialize;
+//! macOS application discovery: `.app` bundles read through `Info.plist`.
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Manager, State};
+use tauri::AppHandle;
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LocalApplication {
-    pub name: String,
-    pub localized_name: Option<String>,
-    pub path: String,
-    pub icon_path: Option<String>,
-}
+use super::{icon_cache_path, LocalApplication};
 
-#[derive(Default)]
-pub struct ApplicationState {
-    cache: Mutex<ApplicationCache>,
-}
-
-impl ApplicationState {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-#[derive(Default)]
-struct ApplicationCache {
-    signature: u64,
-    apps: Vec<LocalApplication>,
-}
-
-#[tauri::command]
-pub fn list_applications(
-    state: State<'_, ApplicationState>,
-    force_refresh: Option<bool>,
-) -> Result<Vec<LocalApplication>, String> {
-    let roots = application_roots();
-    let signature = roots_signature(&roots);
-    let force_refresh = force_refresh.unwrap_or(false);
-
-    let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
-    if !force_refresh && !cache.apps.is_empty() && cache.signature == signature {
-        return Ok(cache.apps.clone());
-    }
-
-    let apps = scan_applications(&roots);
-    cache.signature = signature;
-    cache.apps = apps.clone();
-    Ok(apps)
-}
-
-#[tauri::command]
-pub fn application_icon(app: AppHandle, path: String) -> Result<Option<String>, String> {
-    Ok(app_icon_path(&app, Path::new(&path)))
-}
-
-#[tauri::command]
-pub fn open_application(path: String) -> Result<(), String> {
-    if !Path::new(&path).exists() {
-        return Err("Application not found".to_string());
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .arg(path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        Command::new(path).spawn().map_err(|e| e.to_string())?;
-        Ok(())
-    }
-}
-
-fn scan_applications(roots: &[PathBuf]) -> Vec<LocalApplication> {
-    let mut apps = Vec::new();
-    let mut seen = HashSet::new();
-
-    for dir in roots {
-        collect_apps(dir, 0, &mut seen, &mut apps);
-    }
-
-    apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    apps
-}
-
-fn application_roots() -> Vec<PathBuf> {
+pub fn roots() -> Vec<PathBuf> {
     let mut roots = vec![
         PathBuf::from("/Applications"),
         PathBuf::from("/System/Applications"),
@@ -106,34 +22,23 @@ fn application_roots() -> Vec<PathBuf> {
     roots
 }
 
-fn roots_signature(roots: &[PathBuf]) -> u64 {
-    roots
-        .iter()
-        .map(|root| dir_signature(root))
-        .fold(0_u64, |signature, value| signature.wrapping_mul(31).wrapping_add(value))
+pub fn scan(roots: &[PathBuf]) -> Vec<LocalApplication> {
+    let mut apps = Vec::new();
+    let mut seen = HashSet::new();
+
+    for dir in roots {
+        collect_apps(dir, 0, &mut seen, &mut apps);
+    }
+
+    apps
 }
 
-fn dir_signature(dir: &Path) -> u64 {
-    let metadata = match fs::metadata(dir) {
-        Ok(metadata) => metadata,
-        Err(_) => return 0,
-    };
-
-    let modified = metadata
-        .modified()
-        .ok()
-        .and_then(system_time_secs)
-        .unwrap_or(0);
-
-    let entry_count = fs::read_dir(dir)
-        .map(|entries| entries.flatten().count() as u64)
-        .unwrap_or(0);
-
-    modified ^ entry_count.rotate_left(17)
-}
-
-fn system_time_secs(time: SystemTime) -> Option<u64> {
-    time.duration_since(UNIX_EPOCH).ok().map(|duration| duration.as_secs())
+pub fn open(path: &Path) -> Result<(), String> {
+    Command::new("open")
+        .arg(path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn collect_apps(
@@ -156,13 +61,14 @@ fn collect_apps(
         if is_app_bundle(&path) {
             let canonical = path.to_string_lossy().to_string();
             if seen.insert(canonical.clone()) {
-                    let (name, localized_name) = app_names(&path);
-                    apps.push(LocalApplication {
-                        name,
-                        localized_name,
-                        path: canonical,
-                        icon_path: None,
-                    });
+                let (name, localized_name) = app_names(&path);
+                apps.push(LocalApplication {
+                    name,
+                    localized_name,
+                    path: canonical,
+                    icon_path: None,
+                    comment: None,
+                });
             }
             continue;
         }
@@ -201,10 +107,17 @@ fn app_names(path: &Path) -> (String, Option<String>) {
 
 fn localized_app_name(path: &Path) -> Option<String> {
     let resource_dir = path.join("Contents").join("Resources");
-    let preferred = ["zh-Hans.lproj", "zh_CN.lproj", "zh-Hant.lproj", "zh_TW.lproj", "Base.lproj"];
+    let preferred = [
+        "zh-Hans.lproj",
+        "zh_CN.lproj",
+        "zh-Hant.lproj",
+        "zh_TW.lproj",
+        "Base.lproj",
+    ];
 
     for locale in preferred {
-        let value = localized_name_from_strings(&resource_dir.join(locale).join("InfoPlist.strings"));
+        let value =
+            localized_name_from_strings(&resource_dir.join(locale).join("InfoPlist.strings"));
         if value.is_some() {
             return value;
         }
@@ -312,12 +225,9 @@ fn decode_strings_escapes(value: &str) -> String {
     output
 }
 
-fn app_icon_path(app: &AppHandle, path: &Path) -> Option<String> {
-    let source = app_icon_source(path)?;
-    let cache_dir = app.path().app_cache_dir().ok()?.join("app-icons");
-    fs::create_dir_all(&cache_dir).ok()?;
-    let filename = sanitize_filename(&path.to_string_lossy());
-    let target = cache_dir.join(format!("{filename}.png"));
+pub fn icon_path(app: &AppHandle, path: &Path) -> Option<String> {
+    let source = icon_source(path)?;
+    let target = icon_cache_path(app, path, "png")?;
 
     if target.exists() {
         return Some(target.to_string_lossy().to_string());
@@ -338,7 +248,7 @@ fn app_icon_path(app: &AppHandle, path: &Path) -> Option<String> {
     }
 }
 
-fn app_icon_source(path: &Path) -> Option<PathBuf> {
+fn icon_source(path: &Path) -> Option<PathBuf> {
     let resource_dir = path.join("Contents").join("Resources");
     let info_path = path.join("Contents").join("Info.plist");
 
@@ -363,11 +273,4 @@ fn app_icon_source(path: &Path) -> Option<PathBuf> {
                 .and_then(|ext| ext.to_str())
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("icns"))
         })
-}
-
-fn sanitize_filename(value: &str) -> String {
-    value
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect()
 }
