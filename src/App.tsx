@@ -1,14 +1,30 @@
-import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import "@xterm/xterm/css/xterm.css";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
+import { encodeKey } from "./terminal/input";
+import {
+  createTranslator,
+  normalizeLanguage,
+  LANGUAGE_OPTIONS,
+  type Language,
+  type MessageKey,
+} from "./i18n";
 import "./App.css";
 
-type ViewMode = "collapsed" | "terminal";
+type ViewMode = "collapsed" | "terminal" | "settings";
+
+type LocalApplication = {
+  name: string;
+  localizedName?: string | null;
+  path: string;
+  iconPath?: string | null;
+};
+
+type LauncherItem =
+  | { type: "app"; id: string; title: string; subtitle: string; app: LocalApplication }
+  | { type: "command"; id: string; title: string; subtitle: string };
 
 type AppSettings = {
   hotkey: string;
@@ -16,38 +32,83 @@ type AppSettings = {
   theme: string;
   font_size: number;
   font_family: string;
+  cursor_shape: string;
+  language: Language;
 };
 
-const THEME = {
-  background: "#101216",
-  foreground: "#d7dae0",
-  cursor: "#8bd5ca",
-  cursorAccent: "#101216",
-  selectionBackground: "#2c3140",
-  black: "#4b5563",
-  red: "#f38ba8",
-  green: "#a6e3a1",
-  yellow: "#f9e2af",
-  blue: "#89b4fa",
-  magenta: "#f5c2e7",
-  cyan: "#94e2d5",
-  white: "#cdd6f4",
-  brightBlack: "#6b7280",
-  brightRed: "#f38ba8",
-  brightGreen: "#a6e3a1",
-  brightYellow: "#f9e2af",
-  brightBlue: "#89b4fa",
-  brightMagenta: "#f5c2e7",
-  brightCyan: "#94e2d5",
-  brightWhite: "#eef2ff",
+const FONT_FAMILY =
+  "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
+const FONT_SIZE = 13;
+const LINE_HEIGHT = 1.4;
+const PADDING_X = 3;
+const PADDING_Y = 3;
+const TARGET_ROWS = 24;
+const INPUT_WINDOW_WIDTH = 720;
+const TERMINAL_WINDOW_WIDTH = 860;
+const INPUT_ROW_HEIGHT = 56;
+const RESULT_ROW_HEIGHT = 42;
+const RESULT_LIST_PADDING = 8;
+const RESULT_ROW_GAP = 1;
+const MAX_RESULTS = 6;
+const WINDOW_FRAME_PADDING = 0;
+const BRACKETED_PASTE = 1 << 4;
+
+const normalizeSearch = (value: string) =>
+  value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+const scoreText = (query: string, value: string) => {
+  const needle = normalizeSearch(query);
+  const haystack = normalizeSearch(value);
+  if (!needle || !haystack) return 0;
+  if (haystack === needle) return 1000;
+  if (haystack.startsWith(needle)) return 900 - haystack.length;
+  if (haystack.includes(needle)) return 700 - haystack.indexOf(needle);
+
+  let score = 0;
+  let cursor = 0;
+  for (const char of needle) {
+    const index = haystack.indexOf(char, cursor);
+    if (index === -1) return 0;
+    score += index === cursor ? 12 : 5;
+    cursor = index + 1;
+  }
+  return score;
 };
+
+const scoreApp = (query: string, app: LocalApplication) => {
+  const names = [app.name, app.localizedName, `${app.localizedName ?? ""} ${app.name}`]
+    .filter(Boolean) as string[];
+  return Math.max(...names.map((name) => scoreText(query, name)), 0);
+};
+
+const appSubtitleKey = (path: string): MessageKey => {
+  if (path.startsWith("/Applications/")) return "launcher.application";
+  if (path.startsWith("/System/Applications/")) return "launcher.systemApplication";
+  if (path.includes("/Applications/")) return "launcher.userApplication";
+  return "launcher.application";
+};
+
+type FramePayload = { id: string; frame: string };
+type ExitPayload = { id: string; code: number | null };
+
+type DragMode = "none" | "select" | "scroll";
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const termRef = useRef<HTMLDivElement>(null);
-  const xterm = useRef<Terminal | null>(null);
-  const fit = useRef<FitAddon | null>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<TerminalCanvas | null>(null);
+  const frameRef = useRef<Uint8Array | null>(null);
+  const blinkRef = useRef(true);
+  const dimsRef = useRef<{ cols: number; rows: number }>({ cols: 80, rows: 24 });
+  const selectionRef = useRef<Selection | null>(null);
+  const dragRef = useRef<{ mode: DragMode }>({ mode: "none" });
+  const lastScrollAt = useRef(0);
+  const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
+
   const ptyReady = useRef(false);
+  const sessionClosePromise = useRef<Promise<unknown> | null>(null);
   const termOpened = useRef(false);
   const pendingCommand = useRef<string | null>(null);
   const draftBeforeHistory = useRef("");
@@ -58,14 +119,113 @@ export default function App() {
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [applications, setApplications] = useState<LocalApplication[]>([]);
+  const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
+  const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [settings, setSettings] = useState<AppSettings>({
     hotkey: "Ctrl+Shift+Space",
     hide_on_blur: true,
     theme: "dark",
     font_size: 14,
     font_family: "monospace",
+    cursor_shape: "beam",
+    language: "en",
   });
   const suppressBlurUntil = useRef(0);
+
+  const language = normalizeLanguage(settings.language);
+  const t = useMemo(() => createTranslator(language), [language]);
+
+  const launcherItems = useMemo<LauncherItem[]>(() => {
+    const command = query.trim();
+    if (!command) return [];
+
+    const commandItem: LauncherItem = {
+      type: "command",
+      id: "command",
+      title: command,
+      subtitle: t("launcher.runInShell"),
+    };
+
+    const appItems = applications
+      .map((app) => ({ app, score: scoreApp(command, app) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || a.app.name.localeCompare(b.app.name))
+      .slice(0, MAX_RESULTS - 1)
+      .map<LauncherItem>(({ app }) => ({
+        type: "app",
+        id: app.path,
+        title: app.localizedName || app.name,
+        subtitle: app.localizedName ? app.name : t(appSubtitleKey(app.path)),
+        app,
+      }));
+
+    if (!appItems.length) return [commandItem];
+    return [appItems[0], commandItem, ...appItems.slice(1)].slice(0, MAX_RESULTS);
+  }, [applications, query, t]);
+
+  useEffect(() => {
+    invoke<LocalApplication[]>("list_applications", { forceRefresh: false })
+      .then(setApplications)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    setSelectedItemIndex(0);
+  }, [query]);
+
+  useEffect(() => {
+    setSelectedItemIndex((index) => {
+      if (!launcherItems.length) return 0;
+      return Math.min(index, launcherItems.length - 1);
+    });
+  }, [launcherItems.length]);
+
+  useEffect(() => {
+    if (mode !== "collapsed") return;
+    const resultHeight = launcherItems.length
+      ? RESULT_LIST_PADDING +
+        launcherItems.length * RESULT_ROW_HEIGHT +
+        Math.max(0, launcherItems.length - 1) * RESULT_ROW_GAP
+      : 0;
+    getCurrentWindow()
+      .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, INPUT_ROW_HEIGHT + resultHeight))
+      .catch(() => undefined);
+  }, [launcherItems.length, mode]);
+
+  useEffect(() => {
+    const missing = launcherItems
+      .filter((item): item is Extract<LauncherItem, { type: "app" }> => item.type === "app")
+      .filter((item) => !appIconUrls[item.app.path])
+      .slice(0, 6);
+
+    if (!missing.length) return;
+    let cancelled = false;
+
+    for (const item of missing) {
+      invoke<string | null>("application_icon", { path: item.app.path })
+        .then((path) => {
+          if (!path || cancelled) return;
+          setAppIconUrls((current) => ({
+            ...current,
+            [item.app.path]: convertFileSrc(path),
+          }));
+        })
+        .catch(() => undefined);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appIconUrls, launcherItems]);
+
+  const render = () => {
+    const renderer = rendererRef.current;
+    const frame = frameRef.current;
+    if (renderer && frame) {
+      renderer.draw(frame, blinkRef.current, selectionRef.current);
+    }
+  };
 
   const focusCollapsedInput = (delay = 0) => {
     window.setTimeout(() => {
@@ -79,23 +239,46 @@ export default function App() {
 
   const focusTerminalView = (delay = 0) => {
     window.setTimeout(() => {
-      fit.current?.fit();
-      const dimensions = fit.current?.proposeDimensions();
-      if (dimensions) {
-        invoke("pty_resize", { id: "main", rows: dimensions.rows, cols: dimensions.cols });
-      }
-      xterm.current?.focus();
+      relayoutAndResize();
+      canvasRef.current?.focus();
     }, delay);
+  };
+
+  const relayoutAndResize = () => {
+    const renderer = rendererRef.current;
+    const mount = mountRef.current;
+    if (!renderer || !mount) return;
+    const rect = mount.getBoundingClientRect();
+    const layout = renderer.relayout(rect.width, rect.height);
+    dimsRef.current = layout;
+    invoke("term_resize", { id: "main", cols: layout.cols, rows: layout.rows });
+    render();
+  };
+
+  // Resize the window so the terminal area holds an integer number of rows,
+  // eliminating the bottom gap from row rounding. The drag bar is an overlay
+  // (out of flow), so the terminal fills the full window height.
+  const fitWindow = async () => {
+    const renderer = rendererRef.current;
+    if (!renderer || renderer.cellHeight <= 0) return;
+    const exactHeight = WINDOW_FRAME_PADDING * 2 + PADDING_Y * 2 + TARGET_ROWS * renderer.cellHeight;
+    try {
+      await getCurrentWindow().setSize(new LogicalSize(TERMINAL_WINDOW_WIDTH, exactHeight));
+      // The summon anchor centers the *expanded* terminal, so the backend needs
+      // the height rows actually round to rather than the nominal constant.
+      invoke("set_terminal_height", { height: exactHeight });
+    } catch {
+      // setSize may be unavailable; relayout will still adapt rows to the
+      // current window size.
+    }
   };
 
   const flushPendingCommand = (delay = 0) => {
     if (!pendingCommand.current) return;
-
     const command = pendingCommand.current;
     pendingCommand.current = null;
-
     window.setTimeout(() => {
-      invoke("pty_write", {
+      invoke("term_input", {
         id: "main",
         data: Array.from(new TextEncoder().encode(`${command}\n`)),
       });
@@ -103,105 +286,157 @@ export default function App() {
     }, delay);
   };
 
-  const createTerminal = () => {
-    xterm.current?.dispose();
+  const resetTerminalFrontendState = () => {
+    frameRef.current = null;
+    selectionRef.current = null;
+    dragRef.current = { mode: "none" };
+    clickSeq.current = { count: 0, time: 0, col: -1, row: -1 };
+  };
 
-    const terminal = new Terminal({
-      cursorBlink: true,
-      fontSize: 13,
-      fontFamily: "'SF Mono','Menlo','Monaco','Consolas',monospace",
-      theme: THEME,
-      lineHeight: 1.35,
-      scrollback: 10000,
-      allowTransparency: false,
+  const closeTerminalSession = () => {
+    ptyReady.current = false;
+    resetTerminalFrontendState();
+    const closing = invoke("term_close", { id: "main" }).catch(() => undefined);
+    sessionClosePromise.current = closing;
+    closing.finally(() => {
+      if (sessionClosePromise.current === closing) {
+        sessionClosePromise.current = null;
+      }
     });
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.loadAddon(new WebLinksAddon());
+  };
 
-    terminal.onData((data) => {
-      invoke("pty_write", {
-        id: "main",
-        data: Array.from(new TextEncoder().encode(data)),
-      });
-    });
+  const ensureTerminalSession = async () => {
+    if (sessionClosePromise.current) {
+      await sessionClosePromise.current;
+    }
+    if (ptyReady.current) return;
+    const { cols, rows } = dimsRef.current;
+    await invoke("term_spawn", { id: "main", shell: null, cols, rows });
+    ptyReady.current = true;
+  };
 
-    xterm.current = terminal;
-    fit.current = fitAddon;
-    return { terminal, fitAddon };
+  const handleTerminalExit = () => {
+    closeTerminalSession();
+    pendingCommand.current = null;
+    setQuery("");
+    setTerminalMounted(false);
+    setMode("collapsed");
+    focusCollapsedInput(90);
+    focusCollapsedInput(140);
   };
 
   useEffect(() => {
     invoke<AppSettings>("get_settings")
-      .then(setSettings)
+      .then((loaded) =>
+        setSettings({ ...loaded, language: normalizeLanguage(loaded.language) }),
+      )
       .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (ptyReady.current) return;
-    ptyReady.current = true;
+    const unlistenFramePromise = listen<FramePayload>("term://frame", (event) => {
+      if (event.payload.id !== "main") return;
+      frameRef.current = decodeFrame(event.payload.frame);
+      blinkRef.current = true;
+      render();
+    });
 
-    invoke("pty_spawn", { id: "main", shell: null });
-
-    const unlistenPromise = listen<[string, number[]]>("pty-output", (event) => {
-      if (event.payload[0] === "main") {
-        xterm.current?.write(new TextDecoder().decode(new Uint8Array(event.payload[1])));
-      }
+    const unlistenExitPromise = listen<ExitPayload>("term://exit", (event) => {
+      if (event.payload.id !== "main") return;
+      handleTerminalExit();
     });
 
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-      xterm.current?.dispose();
-      xterm.current = null;
-      fit.current = null;
+      unlistenFramePromise.then((unlisten) => unlisten());
+      unlistenExitPromise.then((unlisten) => unlisten());
+      rendererRef.current = null;
+      frameRef.current = null;
       termOpened.current = false;
       pendingCommand.current = null;
+      ptyReady.current = false;
     };
   }, []);
 
   useEffect(() => {
     if (!terminalMounted) {
       termOpened.current = false;
-      xterm.current?.dispose();
-      xterm.current = null;
-      fit.current = null;
+      rendererRef.current = null;
       return;
     }
-    if (!termRef.current || termOpened.current) return;
+    if (!canvasRef.current || !mountRef.current || termOpened.current) return;
 
-    const terminalElement = termRef.current;
-    const { terminal, fitAddon } = createTerminal();
-
-    terminal.open(terminalElement);
+    const renderer = new TerminalCanvas(canvasRef.current, {
+      fontFamily: FONT_FAMILY,
+      fontSize: FONT_SIZE,
+      lineHeight: LINE_HEIGHT,
+      paddingX: PADDING_X,
+      paddingY: PADDING_Y,
+    });
+    rendererRef.current = renderer;
     termOpened.current = true;
 
-    const syncSize = () => {
-      fitAddon.fit();
-      const dimensions = fitAddon.proposeDimensions();
-      if (dimensions) {
-        invoke("pty_resize", { id: "main", rows: dimensions.rows, cols: dimensions.cols });
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(syncSize);
-    resizeObserver.observe(terminalElement);
-    syncSize();
+    relayoutAndResize();
+    void fitWindow();
     flushPendingCommand(40);
 
+    const resizeObserver = new ResizeObserver(() => relayoutAndResize());
+    resizeObserver.observe(mountRef.current);
+
+    const onWheelNative = (e: WheelEvent) => {
+      const renderer = rendererRef.current;
+      if (!renderer || renderer.historySize <= 0) return;
+      const delta =
+        -Math.sign(e.deltaY) * Math.max(1, Math.round(Math.abs(e.deltaY) / 40));
+      if (delta === 0) return;
+      e.preventDefault();
+      invoke("term_scroll", { id: "main", delta });
+    };
+    canvasRef.current.addEventListener("wheel", onWheelNative, { passive: false });
+
+    const blink = window.setInterval(() => {
+      blinkRef.current = !blinkRef.current;
+      render();
+    }, 530);
+
     return () => {
+      window.clearInterval(blink);
       resizeObserver.disconnect();
+      canvasRef.current?.removeEventListener("wheel", onWheelNative);
       termOpened.current = false;
-      terminal.dispose();
-      if (xterm.current === terminal) {
-        xterm.current = null;
-        fit.current = null;
-      }
+      rendererRef.current = null;
     };
   }, [terminalMounted]);
+
+  // The settings panel drives the window height from its own content, so new
+  // rows can be added later without hand-tuning a constant.
+  useEffect(() => {
+    if (mode !== "settings") return;
+    const panel = settingsRef.current;
+    if (!panel) return;
+
+    const applyHeight = () => {
+      const height = Math.ceil(panel.getBoundingClientRect().height);
+      if (height <= 0) return;
+      getCurrentWindow()
+        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+        .catch(() => undefined);
+    };
+
+    applyHeight();
+    const observer = new ResizeObserver(applyHeight);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [mode]);
 
   useEffect(() => {
     const isRestoring = restoringMode.current === mode;
     suppressBlurUntil.current = Date.now() + 400;
+
+    if (mode === "settings") {
+      // Opened from the collapsed card: the window is already visible and keeps
+      // its top edge, so only the panel height changes.
+      return;
+    }
 
     if (mode === "collapsed") {
       if (!isRestoring) {
@@ -232,6 +467,7 @@ export default function App() {
   useEffect(() => {
     const unlistenModePromise = listen<string>("floter://mode", (event) => {
       if (event.payload === "collapsed") {
+        closeTerminalSession();
         pendingCommand.current = null;
         setQuery("");
         setTerminalMounted(false);
@@ -255,6 +491,7 @@ export default function App() {
 
       restoringMode.current = "collapsed";
       pendingCommand.current = null;
+      setQuery("");
       setTerminalMounted(false);
       setMode("collapsed");
       focusCollapsedInput(90);
@@ -285,7 +522,7 @@ export default function App() {
         if (mode === "collapsed") {
           focusCollapsedInput(20);
           focusCollapsedInput(80);
-        } else {
+        } else if (mode === "terminal") {
           focusTerminalView(40);
         }
         return;
@@ -304,31 +541,237 @@ export default function App() {
     };
   }, [mode, settings.hide_on_blur]);
 
+  // ---- selection / scroll helpers ---------------------------------------
+
+  const clampCell = (px: number, py: number): CellPoint | null => {
+    const renderer = rendererRef.current;
+    if (!renderer) return null;
+    let col = Math.floor((px - PADDING_X) / renderer.cellWidth);
+    let row = Math.floor((py - PADDING_Y) / renderer.cellHeight);
+    col = Math.max(0, Math.min(renderer.cols - 1, col));
+    row = Math.max(0, Math.min(renderer.rows - 1, row));
+    return { col, row };
+  };
+
+  const applyScrollbar = (py: number) => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    const now = Date.now();
+    if (now - lastScrollAt.current < 24) return;
+    lastScrollAt.current = now;
+    invoke("term_scroll_to", { id: "main", offset: renderer.offsetFromDragY(py) });
+  };
+
+  const onWindowMouseMove = (e: MouseEvent) => {
+    const canvas = canvasRef.current;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const drag = dragRef.current;
+    if (drag.mode === "scroll") {
+      applyScrollbar(py);
+      return;
+    }
+    if (drag.mode === "select") {
+      const cell = clampCell(px, py);
+      const sel = selectionRef.current;
+      if (sel && cell) {
+        selectionRef.current = { ...sel, endCol: cell.col, endRow: cell.row };
+        render();
+      }
+    }
+  };
+
+  const onWindowMouseUp = () => {
+    dragRef.current = { mode: "none" };
+    window.removeEventListener("mousemove", onWindowMouseMove);
+    window.removeEventListener("mouseup", onWindowMouseUp);
+  };
+
+  const beginDrag = () => {
+    window.addEventListener("mousemove", onWindowMouseMove);
+    window.addEventListener("mouseup", onWindowMouseUp);
+  };
+
+  const onCanvasMouseDown = (e: React.MouseEvent) => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    canvasRef.current?.focus();
+    const px = e.nativeEvent.offsetX;
+    const py = e.nativeEvent.offsetY;
+
+    if (renderer.hitScrollbar(px, py)) {
+      dragRef.current = { mode: "scroll" };
+      applyScrollbar(py);
+      beginDrag();
+      e.preventDefault();
+      return;
+    }
+
+    const cell = renderer.pixelToCell(px, py);
+    const now = Date.now();
+    const seq = clickSeq.current;
+    const sameCell = cell && seq.col === cell.col && seq.row === cell.row && now - seq.time < 400;
+    const count = sameCell ? seq.count + 1 : 1;
+    clickSeq.current = {
+      count,
+      time: now,
+      col: cell?.col ?? -1,
+      row: cell?.row ?? -1,
+    };
+
+    if (!cell) {
+      selectionRef.current = null;
+      render();
+      return;
+    }
+
+    if (count === 2) {
+      selectionRef.current = renderer.wordSelection(cell);
+      render();
+      e.preventDefault();
+      return;
+    }
+    if (count >= 3) {
+      selectionRef.current = {
+        startCol: 0,
+        startRow: cell.row,
+        endCol: renderer.cols - 1,
+        endRow: cell.row,
+      };
+      render();
+      e.preventDefault();
+      return;
+    }
+
+    selectionRef.current = {
+      startCol: cell.col,
+      startRow: cell.row,
+      endCol: cell.col,
+      endRow: cell.row,
+    };
+    dragRef.current = { mode: "select" };
+    render();
+    beginDrag();
+    e.preventDefault();
+  };
+
+  const copySelection = async () => {
+    const renderer = rendererRef.current;
+    const sel = selectionRef.current;
+    if (!renderer || !sel) return;
+    const text = renderer.selectionText(sel);
+    if (text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Clipboard unavailable; selection remains highlighted.
+      }
+    }
+  };
+
+  const pasteClipboard = async () => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      return;
+    }
+    if (!text) return;
+    const bracketed = (renderer.mode & BRACKETED_PASTE) !== 0;
+    const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
+    invoke("term_input", {
+      id: "main",
+      data: Array.from(new TextEncoder().encode(payload)),
+    });
+  };
+
+  // Open the current shell's working directory in the system default terminal.
+  const openInTerminal = () => {
+    invoke("open_in_default_terminal", { id: "main" });
+  };
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
-      const hasCommandModifier = event.metaKey || event.ctrlKey;
 
-      if (mode === "terminal" && hasCommandModifier && !event.altKey && (key === "w" || key === "n")) {
-        event.preventDefault();
-        returnToInputMode();
+      if (mode === "terminal") {
+        // Cmd-level app shortcuts; Ctrl combos are forwarded to the shell.
+        if (event.metaKey && !event.altKey) {
+          if (key === "w") {
+            event.preventDefault();
+            returnToInputMode();
+            return;
+          }
+          if (key === "n") {
+            event.preventDefault();
+            openInTerminal();
+            return;
+          }
+          if (key === "c") {
+            event.preventDefault();
+            copySelection();
+            return;
+          }
+          if (key === "v") {
+            event.preventDefault();
+            pasteClipboard();
+            return;
+          }
+          return;
+        }
+        if (event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) {
+          event.preventDefault();
+          const lines = dimsRef.current.rows;
+          invoke("term_scroll", {
+            id: "main",
+            delta: event.key === "PageUp" ? lines : -lines,
+          });
+          return;
+        }
+        const renderer = rendererRef.current;
+        const encoded = renderer ? encodeKey(event, renderer.mode) : null;
+        if (encoded) {
+          event.preventDefault();
+          invoke("term_input", { id: "main", data: Array.from(encoded) });
+        }
         return;
       }
 
-      if (mode !== "collapsed") return;
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        if (query.trim()) {
-          setQuery("");
-          setHistoryIndex(-1);
-          return;
+      if (mode === "settings") {
+        if (event.key === "Escape" || (event.metaKey && !event.altKey && key === "w")) {
+          event.preventDefault();
+          closeSettings();
         }
+        return;
+      }
+
+      // Collapsed-mode input handling.
+      if (event.metaKey && !event.altKey && event.key === ",") {
+        event.preventDefault();
+        openSettings();
+        return;
+      }
+
+      if (event.key === "Escape" || (event.metaKey && !event.altKey && key === "w")) {
+        event.preventDefault();
         invoke("hide_window");
         return;
       }
 
       const inputFocused = document.activeElement === inputRef.current;
+      if (!inputFocused && event.metaKey && !event.altKey && /^[1-9]$/.test(event.key)) {
+        const index = Number(event.key) - 1;
+        if (launcherItems[index]) {
+          event.preventDefault();
+          runLauncherItem(launcherItems[index]);
+        }
+        return;
+      }
       if (inputFocused) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
@@ -349,7 +792,7 @@ export default function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, query]);
+  }, [launcherItems, mode, query]);
 
   const startDrag = (event: React.MouseEvent) => {
     if ((event.target as HTMLElement).closest("button") || (event.target as HTMLElement).closest("input")) {
@@ -366,27 +809,106 @@ export default function App() {
   };
 
   const returnToInputMode = () => {
+    closeTerminalSession();
     pendingCommand.current = null;
     setQuery("");
     setTerminalMounted(false);
     setMode("collapsed");
   };
 
-  const runCommand = () => {
+  const openSettings = () => {
+    // Resizing the window steals focus for a moment; don't treat that as a blur.
+    suppressBlurUntil.current = Date.now() + 400;
+    setMode("settings");
+  };
+
+  const closeSettings = () => {
+    // The window is already anchored; letting the collapsed layout effect restore
+    // the height keeps a pending query's result list intact.
+    restoringMode.current = "collapsed";
+    setMode("collapsed");
+  };
+
+  const changeLanguage = (next: Language) => {
+    if (next === language) return;
+    const updated: AppSettings = { ...settings, language: next };
+    setSettings(updated);
+    suppressBlurUntil.current = Date.now() + 400;
+    invoke("save_settings", { settings: updated }).catch(() => undefined);
+  };
+
+  const runCommand = async () => {
     const command = query.trim();
     if (!command) return;
 
     rememberCommand(command);
     pendingCommand.current = command;
+    try {
+      await ensureTerminalSession();
+    } catch {
+      pendingCommand.current = null;
+      return;
+    }
     setTerminalMounted(true);
     setQuery("");
     setMode("terminal");
   };
 
+  const launchApplication = async (app: LocalApplication) => {
+    try {
+      await invoke("open_application", { path: app.path });
+      setQuery("");
+      setHistoryIndex(-1);
+      invoke("hide_window");
+    } catch {
+      // Keep the launcher open so the user can revise the query.
+    }
+  };
+
+  const runLauncherItem = (item: LauncherItem | undefined) => {
+    if (!item) return;
+    if (item.type === "app") {
+      void launchApplication(item.app);
+      return;
+    }
+    void runCommand();
+  };
+
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.metaKey && !event.altKey && /^[1-9]$/.test(event.key)) {
+      const index = Number(event.key) - 1;
+      if (launcherItems[index]) {
+        event.preventDefault();
+        runLauncherItem(launcherItems[index]);
+      }
+      return;
+    }
+
+    if (event.key === "Escape" || (event.metaKey && !event.altKey && event.key.toLowerCase() === "w")) {
+      event.preventDefault();
+      invoke("hide_window");
+      return;
+    }
+
     if (event.key === "Enter") {
       event.preventDefault();
-      runCommand();
+      runLauncherItem(launcherItems[selectedItemIndex]);
+      return;
+    }
+
+    if (launcherItems.length && event.key === "ArrowUp") {
+      event.preventDefault();
+      setSelectedItemIndex((index) =>
+        index <= 0 ? launcherItems.length - 1 : index - 1,
+      );
+      return;
+    }
+
+    if (launcherItems.length && event.key === "ArrowDown") {
+      event.preventDefault();
+      setSelectedItemIndex((index) =>
+        index >= launcherItems.length - 1 ? 0 : index + 1,
+      );
       return;
     }
 
@@ -414,30 +936,150 @@ export default function App() {
     }
   };
 
+  if (mode === "settings") {
+    return (
+      <div className="settings-shell">
+        <div className="settings-card" ref={settingsRef} onMouseDown={startDrag}>
+          <header className="settings-card__header">
+            <span className="settings-card__title">{t("settings.title")}</span>
+            <button
+              type="button"
+              className="toolbar-button toolbar-button--close"
+              aria-label={t("settings.close")}
+              title={t("settings.closeHint")}
+              onClick={closeSettings}
+            >
+              ×
+            </button>
+          </header>
+
+          <div className="settings-card__body">
+            <section className="settings-section">
+              <h2 className="settings-section__label">{t("settings.language")}</h2>
+              <div
+                className="settings-options"
+                role="radiogroup"
+                aria-label={t("settings.language")}
+              >
+                {LANGUAGE_OPTIONS.map((option) => {
+                  const active = option.value === language;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`settings-option${active ? " settings-option--active" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => changeLanguage(option.value)}
+                    >
+                      <span className="settings-option__main">
+                        <span className="settings-option__label">{option.label}</span>
+                        <span className="settings-option__description">
+                          {t(option.descriptionKey)}
+                        </span>
+                      </span>
+                      <span className="settings-option__check" aria-hidden="true">
+                        {active ? "✓" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="settings-section__hint">{t("settings.languageHint")}</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (mode === "collapsed") {
+    const hasQuery = query.trim().length > 0;
+
     return (
       <div className="collapsed-shell">
         <div
-          className="collapsed-card"
+          className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
           onMouseDown={startDrag}
           onClick={() => focusCollapsedInput()}
         >
-          <div className="collapsed-card__prompt">›</div>
-          <input
-            ref={inputRef}
-            className="collapsed-card__input"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setHistoryIndex(-1);
-            }}
-            onKeyDown={onInputKeyDown}
-            placeholder={history[0] ? `Run a shell command · ↑ ${history[0]}` : "Run a shell command"}
-            autoFocus
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-          />
+          <div className="collapsed-card__input-row">
+            <div className="collapsed-card__aura" aria-hidden="true" />
+            <input
+              ref={inputRef}
+              className="collapsed-card__input"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setHistoryIndex(-1);
+              }}
+              onKeyDown={onInputKeyDown}
+              placeholder={t("input.placeholder")}
+              autoFocus
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+            <button
+              type="button"
+              className="collapsed-card__settings"
+              aria-label={t("settings.open")}
+              title={t("settings.openHint")}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                openSettings();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+          {launcherItems.length > 0 && (
+            <div className="launcher-results" role="listbox" aria-label="Launcher results">
+              {launcherItems.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`launcher-result${index === selectedItemIndex ? " launcher-result--selected" : ""}`}
+                  role="option"
+                  aria-selected={index === selectedItemIndex}
+                  onMouseEnter={() => setSelectedItemIndex(index)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => runLauncherItem(item)}
+                >
+                  <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
+                    {item.type === "app" && appIconUrls[item.app.path] ? (
+                      <img src={appIconUrls[item.app.path]} alt="" />
+                    ) : (
+                      <span>{item.type === "app" ? item.title.slice(0, 1) : "$"}</span>
+                    )}
+                  </span>
+                  <span className="launcher-result__main">
+                    <span className="launcher-result__title">{item.title}</span>
+                    <span className="launcher-result__subtitle">{item.subtitle}</span>
+                  </span>
+                  <span className="launcher-result__action">⌘{index + 1}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -446,14 +1088,36 @@ export default function App() {
   return (
     <div className="terminal-shell">
       <section className="terminal-panel terminal-panel--entered">
-        <header className="terminal-panel__header" onMouseDown={startDrag}>
+        <header className="terminal-bar" onMouseDown={startDrag}>
+          <div className="terminal-bar__frost" />
           <div className="terminal-panel__actions">
-            <button className="toolbar-button toolbar-button--close" aria-label="New command" onClick={returnToInputMode}>×</button>
+            <button
+              className="toolbar-button toolbar-button--popout"
+              aria-label={t("terminal.openInTerminal")}
+              title={t("terminal.openInTerminalHint")}
+              onClick={openInTerminal}
+            >
+              ↗
+            </button>
+            <button
+              className="toolbar-button toolbar-button--close"
+              aria-label={t("terminal.newCommand")}
+              title={t("terminal.newCommandHint")}
+              onClick={returnToInputMode}
+            >
+              ×
+            </button>
           </div>
         </header>
 
         <div className="terminal-panel__body">
-          <div ref={termRef} className="terminal-panel__mount" onMouseDown={() => xterm.current?.focus()} />
+          <div
+            ref={mountRef}
+            className="terminal-panel__mount"
+            onMouseDown={onCanvasMouseDown}
+          >
+            <canvas ref={canvasRef} className="terminal-canvas" tabIndex={0} />
+          </div>
         </div>
       </section>
     </div>

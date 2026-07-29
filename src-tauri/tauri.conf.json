@@ -15,10 +15,10 @@
       {
         "label": "main",
         "title": "floter",
-        "width": 560,
+        "width": 720,
         "height": 56,
         "decorations": false,
-        "transparent": false,
+        "transparent": true,
         "alwaysOnTop": true,
         "visible": false,
         "center": true,
@@ -27,7 +27,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPCACHE/app-icons/**"]
+      }
     }
   },
   "bundle": {
