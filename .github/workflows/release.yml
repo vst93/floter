@@ -35,7 +35,6 @@ jobs:
           if [ -n "$INPUT" ]; then
             VERSION="$INPUT"
           else
-            # Bump patch: 0.1.0 -> 0.1.1, 1.2.3 -> 1.2.4
             MAJOR=$(echo "$CURRENT" | cut -d. -f1)
             MINOR=$(echo "$CURRENT" | cut -d. -f2)
             PATCH=$(echo "$CURRENT" | cut -d. -f3)
@@ -48,11 +47,8 @@ jobs:
       - name: Update version in files
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # tauri.conf.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # package.json
           sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
-          # Cargo.toml
           sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
 
       - name: Generate release notes
@@ -61,7 +57,6 @@ jobs:
           if [ -n "${{ inputs.notes }}" ]; then
             NOTES="${{ inputs.notes }}"
           else
-            # Get commits since last tag, or all if no tags
             LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -n "$LAST_TAG" ]; then
               NOTES=$(git log "$LAST_TAG..HEAD" --pretty=format:"- %s" --no-merges)
@@ -69,7 +64,6 @@ jobs:
               NOTES=$(git log --pretty=format:"- %s" --no-merges -20)
             fi
           fi
-          # Escape for GitHub Actions output
           NOTES="${NOTES//'%'/'%25'}"
           NOTES="${NOTES//$'\n'/'%0A'}"
           NOTES="${NOTES//$'\r'/'%0D'}"
@@ -81,9 +75,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          # The version files may already be at the target version (e.g. first
-          # release), so there is nothing to commit — skip the commit step but
-          # still create the tag.
           if git diff --cached --quiet; then
             echo "No version changes to commit (already at $VERSION)"
           else
@@ -102,28 +93,28 @@ jobs:
         include:
           - os: macos-14
             target: aarch64-apple-darwin
-            label: macOS-Apple-Silicon
-            artifact: floter_*_aarch64.app.tar.gz
+            label: macos-apple-silicon
+            display: macOS-Apple-Silicon
           - os: macos-13
             target: x86_64-apple-darwin
-            label: macOS-Intel
-            artifact: floter_*_x86_64.app.tar.gz
+            label: macos-intel
+            display: macOS-Intel
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            label: Linux-x86_64
-            artifact: floter_*.deb
+            label: linux-x86_64
+            display: Linux-x86_64
           - os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
-            label: Linux-ARM64
-            artifact: floter_*.deb
+            label: linux-arm64
+            display: Linux-ARM64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            label: Windows-x86_64
-            artifact: floter_*_x64-setup.exe
+            label: windows-x86_64
+            display: Windows-x86_64
           - os: windows-11-arm
             target: aarch64-pc-windows-msvc
-            label: Windows-ARM64
-            artifact: floter_*_arm64-setup.exe
+            label: windows-arm64
+            display: Windows-ARM64
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -162,13 +153,65 @@ jobs:
           prerelease: false
           args: --target ${{ matrix.target }}
 
+      # ── Rename artifacts with clear platform names ────────────────────────
+      # Tauri's default names (floter_0.1.0_amd64.deb, floter_0.1.0_x64-setup.exe)
+      # don't tell a non-technical user which file to download. Rename them to
+      # floter-0.1.0-macos-apple-silicon.dmg etc.
+      - name: Rename artifacts (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          LABEL="${{ matrix.label }}"
+          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle"
+          mkdir -p renamed
+
+          # .dmg (macOS)
+          for f in "$BUNDLE_DIR"/**/*.dmg; do
+            [ -f "$f" ] && cp "$f" "renamed/floter-${VERSION}-${LABEL}.dmg"
+          done
+
+          # .deb (Linux)
+          for f in "$BUNDLE_DIR"/**/*.deb; do
+            [ -f "$f" ] && cp "$f" "renamed/floter-${VERSION}-${LABEL}.deb"
+          done
+
+          # .app.tar.gz (macOS, if present)
+          for f in "$BUNDLE_DIR"/**/*.app.tar.gz; do
+            [ -f "$f" ] && cp "$f" "renamed/floter-${VERSION}-${LABEL}.app.tar.gz"
+          done
+
+          ls -la renamed/
+
+      - name: Rename artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $VERSION = "${{ needs.prepare.outputs.version }}"
+          $LABEL = "${{ matrix.label }}"
+          $BUNDLE_DIR = "src-tauri/target/${{ matrix.target }}/release/bundle"
+          New-Item -ItemType Directory -Force -Path renamed
+
+          # .exe (NSIS installer)
+          Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*.exe" | ForEach-Object {
+            Copy-Item $_.FullName "renamed/floter-$VERSION-$LABEL-setup.exe"
+          }
+
+          # .msi (if present)
+          Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*.msi" | ForEach-Object {
+            Copy-Item $_.FullName "renamed/floter-$VERSION-$LABEL.msi"
+          }
+
+          Get-ChildItem renamed/
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          files: renamed/*
+          fail_on_unmatched_files: true
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: floter-${{ matrix.label }}
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
+          path: renamed/*
