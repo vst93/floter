@@ -14,7 +14,7 @@ pub const SELECT_RESULT: &str = "select_result";
 
 /// Shortcut fallback for the window toggle, which is registered with the OS and
 /// therefore must not collide with the platform's own bindings.
-pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Shift+Space";
+pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Space";
 
 /// The modifier apps use for their own commands: Cmd on macOS, Ctrl elsewhere.
 #[cfg(target_os = "macos")]

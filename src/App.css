@@ -536,6 +536,17 @@ input:focus {
   gap: 2px;
 }
 
+.launcher-action-bar__hint {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--icon-surface);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
 .launcher-action-bar__title,
 .launcher-action-bar__subtitle {
   overflow: hidden;

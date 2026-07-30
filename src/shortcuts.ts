@@ -1,7 +1,7 @@
 // Keyboard shortcuts shared between the settings panel and the key handlers.
 //
 // A shortcut is stored as the string Tauri's global-shortcut plugin parses
-// ("Ctrl+Shift+Space", "Cmd+W"), so the same value works for the bindings the
+// ("Ctrl+Space", "Cmd+W"), so the same value works for the bindings the
 // OS owns and for the ones the webview handles.
 
 export type ShortcutAction =
@@ -23,7 +23,7 @@ const APP_MODIFIER = IS_MAC ? "Cmd" : "Ctrl";
 
 /** Mirrors `default_shortcuts()` in `commands/config.rs`. */
 export const DEFAULT_SHORTCUTS: ShortcutMap = {
-  toggle_window: "Ctrl+Shift+Space",
+  toggle_window: "Ctrl+Space",
   new_command: `${APP_MODIFIER}+W`,
   open_external_terminal: `${APP_MODIFIER}+N`,
   copy_selection: `${APP_MODIFIER}+C`,
@@ -219,7 +219,10 @@ export const shortcutFromEvent = (event: KeyboardEvent): string | null => {
   if (event.ctrlKey) parts.push("Ctrl");
   if (event.altKey) parts.push("Alt");
   if (event.shiftKey) parts.push("Shift");
-  if (event.metaKey) parts.push("Cmd");
+  // `metaKey` is the Windows key on Windows and the Super key on Linux.
+  // Tauri's global-shortcut plugin expects "Super" (not "Win") for this
+  // modifier on non-macOS platforms, and "Cmd" on macOS.
+  if (event.metaKey) parts.push(IS_MAC ? "Cmd" : "Super");
   parts.push(key);
   return parts.join("+");
 };

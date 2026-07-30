@@ -107,7 +107,7 @@ const WINDOW_FRAME_PADDING = 0;
 const BRACKETED_PASTE = 1 << 4;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
-const ICON_LOAD_DELAY = 150;
+const ICON_LOAD_DELAY = 250;
 
 /** A URL to hand the browser. Only the schemes a launcher can be certain about:
  * `mailto:` or an application's own registered scheme would open something the
@@ -465,13 +465,19 @@ export default function App() {
   const [appsLoading, setAppsLoading] = useState(true);
   const [appVersion, setAppVersion] = useState("DEV");
   const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
+  // Ref mirror of `appIconUrls` so the icon-loading effect can check which
+  // icons are already resolved without subscribing to the state change —
+  // without this, every icon that resolves re-triggers the effect, which
+  // re-sets the timer, which delays every subsequent icon.
+  const appIconUrlsRef = useRef(appIconUrls);
+  useEffect(() => { appIconUrlsRef.current = appIconUrls; }, [appIconUrls]);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
    * Enter runs. The two selections are exclusive but kept apart, because the
    * action bar is not a result: it is never numbered and never in `Ctrl+N`. */
   const [selectedActionBar, setSelectedActionBar] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
-    hotkey: "Ctrl+Shift+Space",
+    hotkey: "Ctrl+Space",
     hide_on_blur: true,
     theme: "dark",
     font_size: 14,
@@ -718,7 +724,7 @@ export default function App() {
   useEffect(() => {
     const missing = launcherResults
       .filter((item): item is Extract<LauncherItem, { type: "app" }> => item.type === "app")
-      .filter((item) => !appIconUrls[item.app.path])
+      .filter((item) => !appIconUrlsRef.current[item.app.path])
       .slice(0, 6);
 
     if (!missing.length) return;
@@ -728,24 +734,33 @@ export default function App() {
     // waits for the query to settle: every keystroke changes the result list,
     // and the only list worth fetching for is the one the user stops on.
     const timer = window.setTimeout(() => {
-      for (const item of missing) {
-        invoke<string | null>("application_icon", { path: item.app.path })
-          .then((path) => {
-            if (!path || cancelled) return;
-            setAppIconUrls((current) => ({
-              ...current,
-              [item.app.path]: convertFileSrc(path),
-            }));
-          })
-          .catch(() => undefined);
-      }
+      // Parallel: all icons resolve at once, and a single state update
+      // carries every result so the renderer is not kicked once per icon.
+      Promise.all(
+        missing.map((item) =>
+          invoke<string | null>("application_icon", { path: item.app.path })
+            .then((path) => ({ path: item.app.path, icon: path }))
+            .catch(() => null),
+        ),
+      ).then((results) => {
+        if (cancelled) return;
+        const newIcons: Record<string, string> = {};
+        for (const result of results) {
+          if (result?.icon) {
+            newIcons[result.path] = convertFileSrc(result.icon);
+          }
+        }
+        if (Object.keys(newIcons).length) {
+          setAppIconUrls((current) => ({ ...current, ...newIcons }));
+        }
+      });
     }, ICON_LOAD_DELAY);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [appIconUrls, launcherResults]);
+  }, [launcherResults]);
 
   const render = () => {
     const renderer = rendererRef.current;
@@ -1887,6 +1902,9 @@ export default function App() {
                   <span className="launcher-action-bar__main">
                     <span className="launcher-action-bar__title">{actionBar.value}</span>
                     <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
+                  </span>
+                  <span className="launcher-action-bar__hint">
+                    {selectedActionBar ? "⏎" : "Tab"}
                   </span>
                 </button>
               )}

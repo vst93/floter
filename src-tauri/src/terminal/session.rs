@@ -661,12 +661,19 @@ fn open_terminal_at(dir: &Path) -> Result<(), String> {
 /// Open Windows Terminal (or `cmd` as a fallback) at `dir`.
 #[cfg(target_os = "windows")]
 fn open_terminal_at(dir: &Path) -> Result<(), String> {
+    // Windows Terminal (preferred, but not pre-installed on all systems).
     if Command::new("wt").arg("-d").arg(dir).spawn().is_ok() {
         return Ok(());
     }
+    // Fallback: a new cmd window. `start cmd /K "cd /D <dir>"` explicitly
+    // changes directory rather than relying on `current_dir` inheritance,
+    // which `start` does not always forward to the spawned child.
+    let dir_str = dir.to_string_lossy();
     Command::new("cmd")
-        .args(["/C", "start", "cmd"])
-        .current_dir(dir)
+        .args([
+            "/C", "start", "cmd", "/K",
+            &format!("cd /D \"{dir_str}\""),
+        ])
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())
