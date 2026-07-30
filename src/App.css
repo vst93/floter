@@ -10,6 +10,11 @@
 :root {
   color-scheme: dark;
 
+  /* Window corner radius. DWM rounding is disabled on Windows (see
+     `disable_dwm_rounding` in lib.rs), so CSS is the sole source of the
+     corner shape on every platform. */
+  --window-radius: 10px;
+
   /* Card surfaces */
   --input-bg: rgba(18, 19, 22, 0.98);
   --input-bg-active: rgba(19, 20, 23, 0.99);
@@ -252,7 +257,7 @@ input:focus {
   align-items: stretch;
   padding: 0;
   border: 1px solid var(--input-stroke);
-  border-radius: 10px;
+  border-radius: var(--window-radius);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--input-bg);
@@ -569,7 +574,7 @@ input:focus {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--input-stroke);
-  border-radius: 10px;
+  border-radius: var(--window-radius);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--input-bg);
@@ -822,7 +827,7 @@ input:focus {
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 10px;
+  border-radius: var(--window-radius);
   background: var(--terminal-bg);
   border: 1px solid var(--input-stroke);
   box-shadow: inset 0 1px 0 var(--keycap-highlight), inset 0 -1px 0 var(--keycap-shadow);

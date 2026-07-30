@@ -532,6 +532,27 @@ fn force_activate(window: &WebviewWindow) {
     });
 }
 
+/// On Windows 11, tell DWM not to paint its own rounded corners. The CSS
+/// `border-radius` is the sole source of the corner shape, so the two never
+/// disagree and leave a seam. On Windows 10 this is a no-op (DWM already
+/// uses square corners), and the call fails silently.
+#[cfg(target_os = "windows")]
+fn disable_dwm_rounding(window: &WebviewWindow) {
+    use windows::Win32::Graphics::Dwm::{
+        DwmSetWindowAttribute, DWMWCP_DONOTROUND, DWM_WINDOW_CORNER_PREFERENCE,
+    };
+    use windows::Win32::Foundation::HWND;
+
+    let hwnd = HWND(window.hwnd().expect("window handle") as _);
+    let preference = DWM_WINDOW_CORNER_PREFERENCE(DWMWCP_DONOTROUND as i32);
+    let _ = DwmSetWindowAttribute(
+        hwnd,
+        33, // DWMWA_WINDOW_CORNER_PREFERENCE
+        &preference as *const _ as _,
+        std::mem::size_of_val(&preference) as u32,
+    );
+}
+
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     // Windows and Linux get no equivalent of the two calls below: neither has a
     // dependable cross-workspace story (X11 only through window-manager hints,
@@ -558,6 +579,8 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     // re-stating it once the panel is really on screen costs nothing.
     #[cfg(not(target_os = "macos"))]
     {
+        #[cfg(target_os = "windows")]
+        disable_dwm_rounding(window);
         let _ = window.set_always_on_top(true);
         window.set_focus().map_err(|e| e.to_string())?;
     }

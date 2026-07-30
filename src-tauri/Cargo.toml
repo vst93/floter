@@ -53,3 +53,16 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSResponder",
   "NSWindow",
 ] }
+
+# DWM corner-radius control on Windows 11. `DwmSetWindowAttribute` with
+# `DWM_WINDOW_CORNER_PREFERENCE` lets us turn off the system's rounded
+# corners so the CSS `border-radius` is the only one painting — a mismatch
+# between the two leaves a visible seam at the window edge.
+#
+# `Win32_Graphics_Dwm` is the only feature needed; it pulls in the FFI
+# bindings for `DwmSetWindowAttribute` and the corner-preference constants.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", default-features = false, features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+] }
