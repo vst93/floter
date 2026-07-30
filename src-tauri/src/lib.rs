@@ -539,16 +539,15 @@ fn force_activate(window: &WebviewWindow) {
 #[cfg(target_os = "windows")]
 fn disable_dwm_rounding(window: &WebviewWindow) {
     use windows::Win32::Graphics::Dwm::{
-        DwmSetWindowAttribute, DWMWCP_DONOTROUND, DWM_WINDOW_CORNER_PREFERENCE,
+        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
-    use windows::Win32::Foundation::HWND;
 
-    let hwnd = HWND(window.hwnd().expect("window handle") as _);
-    let preference = DWM_WINDOW_CORNER_PREFERENCE(DWMWCP_DONOTROUND as i32);
+    let hwnd = window.hwnd().expect("window handle");
+    let preference = DWMWCP_DONOTROUND;
     let _ = DwmSetWindowAttribute(
         hwnd,
-        33, // DWMWA_WINDOW_CORNER_PREFERENCE
-        &preference as *const _ as _,
+        DWMWA_WINDOW_CORNER_PREFERENCE,
+        &preference as *const _ as *const _,
         std::mem::size_of_val(&preference) as u32,
     );
 }
@@ -690,6 +689,11 @@ fn hide_window(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resu
     window.hide().map_err(|e| e.to_string())?;
     state.window_visible.store(false, Ordering::SeqCst);
     Ok(())
+}
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -940,6 +944,7 @@ pub fn run() {
             execute_custom_command,
             show_terminal,
             hide_window,
+            quit_app,
             show_input,
             set_terminal_height,
             start_drag,

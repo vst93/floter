@@ -1661,22 +1661,38 @@ export default function App() {
               {t("settings.title")}
               <span className="settings-card__version">v{appVersion}</span>
             </span>
-            <button
-              type="button"
-              className="toolbar-button toolbar-button--close"
-              aria-label={t("settings.close")}
-              title={t("settings.closeHint")}
-              onClick={closeSettings}
-            >
-              ×
-            </button>
+            <div className="settings-card__actions">
+              <button
+                type="button"
+                className="toolbar-button toolbar-button--quit"
+                aria-label={t("settings.quit")}
+                title={t("settings.quitHint")}
+                onClick={() => invoke("quit_app")}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <line x1="16" y1="17" x2="21" y2="12" />
+                  <line x1="21" y1="17" x2="16" y2="12" />
+                  <line x1="21" y1="12" x2="16" y2="7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="toolbar-button toolbar-button--close"
+                aria-label={t("settings.close")}
+                title={t("settings.closeHint")}
+                onClick={closeSettings}
+              >
+                ×
+              </button>
+            </div>
           </header>
 
           <div className="settings-card__body" ref={settingsBodyRef}>
             <section className="settings-section">
               <h2 className="settings-section__label">{t("settings.theme")}</h2>
               <div
-                className="settings-options"
+                className="settings-options settings-options--inline"
                 role="radiogroup"
                 aria-label={t("settings.theme")}
               >
@@ -1708,7 +1724,7 @@ export default function App() {
             <section className="settings-section">
               <h2 className="settings-section__label">{t("settings.language")}</h2>
               <div
-                className="settings-options"
+                className="settings-options settings-options--inline"
                 role="radiogroup"
                 aria-label={t("settings.language")}
               >

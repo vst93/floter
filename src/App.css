@@ -674,6 +674,13 @@ input:focus {
   gap: 4px;
 }
 
+/* Horizontal layout for compact option groups (theme, language).
+   Each option is a pill that sits inline rather than a full-width row. */
+.settings-options--inline {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+}
+
 .settings-option {
   width: 100%;
   min-height: 44px;
@@ -974,8 +981,19 @@ input:focus {
   outline-offset: 2px;
 }
 
+.settings-card__actions {
+  display: flex;
+  gap: 4px;
+}
+
 .toolbar-button--close {
   font-size: 16px;
+}
+
+.toolbar-button--quit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toolbar-button--popout {
