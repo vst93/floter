@@ -1,4 +1,6 @@
 mod commands;
+#[cfg(target_os = "linux")]
+pub mod ipc;
 mod terminal;
 
 use commands::apps::{application_icon, list_applications, open_application, ApplicationState};
@@ -514,6 +516,19 @@ pub fn rebind_toggle_shortcut(app: &AppHandle, next: &str) -> Result<(), String>
     Ok(())
 }
 
+/// Point the user at the `--toggle` escape hatch.
+///
+/// Wayland hands global key bindings to the compositor and to nobody else, so
+/// the X11 grab the shortcut plugin performs either fails outright or — with
+/// Xwayland in the picture — is accepted and then never fires. Either way the
+/// panel needs a compositor-owned binding, and the user is the only one who can
+/// create it.
+#[cfg(target_os = "linux")]
+fn print_toggle_hint(reason: &str) {
+    eprintln!("{reason}");
+    eprintln!("Bind 'floter --toggle' as a custom shortcut in your compositor settings.");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -584,6 +599,13 @@ pub fn run() {
                 .remove(TOGGLE_WINDOW)
                 .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
 
+            // Start the control socket before the shortcut attempt: under
+            // Wayland it is the only route by which a key press can ever reach
+            // the panel, so it should already be listening if the grab below
+            // turns out to be useless.
+            #[cfg(target_os = "linux")]
+            ipc::serve(app.handle());
+
             if let Err(error) = register_toggle_shortcut(app.handle(), &shortcut) {
                 // A stored combination can be rejected by the OS (another app
                 // owns it, or the settings file was hand-edited); fall back to
@@ -592,8 +614,22 @@ pub fn run() {
                 if shortcut != DEFAULT_TOGGLE_WINDOW {
                     let _ = register_toggle_shortcut(app.handle(), DEFAULT_TOGGLE_WINDOW);
                 }
+                #[cfg(target_os = "linux")]
+                if on_wayland() {
+                    print_toggle_hint(
+                        "Global shortcut registration failed (likely Wayland - X11 grabs don't work there).",
+                    );
+                }
             } else {
                 eprintln!("registered global shortcut: {shortcut}");
+                // The grab was accepted by Xwayland, which is not the same as it
+                // ever being delivered: the compositor keeps the key to itself.
+                #[cfg(target_os = "linux")]
+                if on_wayland() {
+                    print_toggle_hint(
+                        "Running under Wayland, where an X11 grab is accepted but never fires.",
+                    );
+                }
             }
 
             Ok(())
@@ -634,6 +670,10 @@ pub fn run() {
                 if let Ok(manager) = app.state::<TerminalState>().0.lock() {
                     manager.shutdown_all();
                 }
+                // The socket node outlives the process that made it, so the next
+                // start would have to reclaim it as stale.
+                #[cfg(target_os = "linux")]
+                ipc::cleanup();
             }
         });
 }

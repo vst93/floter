@@ -6,10 +6,11 @@
 //! directories and copied into the app cache, which is the only location the
 //! asset protocol is allowed to serve from.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{Mutex, OnceLock};
 use tauri::AppHandle;
 
 use super::{icon_cache_path, LocalApplication};
@@ -377,7 +378,41 @@ fn strip_field_codes(exec: &str) -> String {
     output.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Memo table for [`resolve_icon`], keyed by the raw `Icon=` value.
+///
+/// Resolving one name walks the pixmap directories and then every theme
+/// directory installed on the machine, and the launcher asks for the same
+/// handful of names again and again as the user retypes a query. Misses are
+/// cached alongside hits, because a name that resolves to nothing is the most
+/// expensive lookup there is: it exhausts the entire search path, including the
+/// recursive walk at the end.
+///
+/// Icon themes change about as often as applications are installed, and the
+/// process is a long-lived tray app, so the table is never invalidated — a
+/// newly themed icon shows up on the next start.
+fn icon_cache() -> &'static Mutex<HashMap<String, Option<PathBuf>>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Option<PathBuf>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// [`resolve_icon_uncached`], memoized. A poisoned lock degrades to an uncached
+/// lookup rather than taking the launcher down with it.
 fn resolve_icon(icon: &str) -> Option<PathBuf> {
+    if let Ok(cache) = icon_cache().lock() {
+        if let Some(cached) = cache.get(icon) {
+            return cached.clone();
+        }
+    }
+
+    let resolved = resolve_icon_uncached(icon);
+
+    if let Ok(mut cache) = icon_cache().lock() {
+        cache.insert(icon.to_string(), resolved.clone());
+    }
+    resolved
+}
+
+fn resolve_icon_uncached(icon: &str) -> Option<PathBuf> {
     // An absolute path is used verbatim, which also covers flatpak entries that
     // point straight into their export directory.
     if icon.starts_with('/') {

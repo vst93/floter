@@ -68,17 +68,31 @@ const RESULT_ROW_GAP = 1;
 const MAX_RESULTS = 6;
 const WINDOW_FRAME_PADDING = 0;
 const BRACKETED_PASTE = 1 << 4;
+/** Idle window before an icon is fetched, so the intermediate result lists that
+ * flash past while a query is still being typed cost nothing. */
+const ICON_LOAD_DELAY = 150;
 
 const normalizeSearch = (value: string) =>
   value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
-const scoreText = (query: string, value: string) => {
-  const needle = normalizeSearch(query);
-  const haystack = normalizeSearch(value);
+/**
+ * Fuzzy match score for a needle and haystack that are *already* normalized.
+ *
+ * Normalization is the expensive half of a match — NFKC plus a Unicode-property
+ * regex — and the launcher runs one query against a few hundred installed
+ * applications on every keystroke. So it happens once per query and once per
+ * application name, never inside the scoring loop.
+ */
+const scoreNormalized = (needle: string, haystack: string) => {
   if (!needle || !haystack) return 0;
+  // Nothing shorter than the needle can equal it, start with it, contain it, or
+  // hold it as a subsequence — so one integer compare rejects most of the list
+  // before any of the string scans below run.
+  if (haystack.length < needle.length) return 0;
   if (haystack === needle) return 1000;
   if (haystack.startsWith(needle)) return 900 - haystack.length;
-  if (haystack.includes(needle)) return 700 - haystack.indexOf(needle);
+  const contained = haystack.indexOf(needle);
+  if (contained !== -1) return 700 - contained;
 
   let score = 0;
   let cursor = 0;
@@ -91,10 +105,16 @@ const scoreText = (query: string, value: string) => {
   return score;
 };
 
-const scoreApp = (query: string, app: LocalApplication) => {
-  const names = [app.name, app.localizedName, `${app.localizedName ?? ""} ${app.name}`]
-    .filter(Boolean) as string[];
-  return Math.max(...names.map((name) => scoreText(query, name)), 0);
+/** An application with its searchable names normalized once, up front. */
+type SearchableApp = { app: LocalApplication; names: string[] };
+
+const scoreApp = (needle: string, names: string[]) => {
+  let best = 0;
+  for (const name of names) {
+    const score = scoreNormalized(needle, name);
+    if (score > best) best = score;
+  }
+  return best;
 };
 
 // Where an application came from, read off the shape of its path: `.app`
@@ -265,6 +285,27 @@ export default function App() {
     [settings.shortcuts],
   );
 
+  // Normalizing every application name is done once per application list rather
+  // than once per keystroke: it is the dominant cost of a search, and the list
+  // only changes when applications are installed or removed.
+  const searchableApps = useMemo<SearchableApp[]>(
+    () =>
+      applications.map((app) => ({
+        app,
+        // Deduplicated: an application with no localized name yields the same
+        // normalized string from all three candidates.
+        names: [
+          ...new Set(
+            [app.name, app.localizedName, `${app.localizedName ?? ""} ${app.name}`]
+              .filter((name): name is string => Boolean(name))
+              .map(normalizeSearch)
+              .filter(Boolean),
+          ),
+        ],
+      })),
+    [applications],
+  );
+
   const launcherItems = useMemo<LauncherItem[]>(() => {
     const command = query.trim();
     if (!command) return [];
@@ -276,25 +317,31 @@ export default function App() {
       subtitle: t("launcher.runInShell"),
     };
 
-    const appItems = applications
-      .map((app) => ({ app, score: scoreApp(command, app) }))
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score || a.app.name.localeCompare(b.app.name))
-      .slice(0, MAX_RESULTS - 1)
-      .map<LauncherItem>(({ app }) => ({
-        type: "app",
-        id: app.path,
-        title: app.localizedName || app.name,
-        // Showing the original name next to a localized title is the most
-        // useful subtitle; failing that, whatever description the platform
-        // ships, and only then the generic category.
-        subtitle: (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
-        app,
-      }));
+    // A query of nothing but punctuation normalizes away entirely; it can only
+    // ever be a shell command.
+    const needle = normalizeSearch(command);
+    const appItems = !needle
+      ? []
+      : searchableApps
+          .map((entry) => ({ app: entry.app, score: scoreApp(needle, entry.names) }))
+          .filter((entry) => entry.score > 0)
+          .sort((a, b) => b.score - a.score || a.app.name.localeCompare(b.app.name))
+          .slice(0, MAX_RESULTS - 1)
+          .map<LauncherItem>(({ app }) => ({
+            type: "app",
+            id: app.path,
+            title: app.localizedName || app.name,
+            // Showing the original name next to a localized title is the most
+            // useful subtitle; failing that, whatever description the platform
+            // ships, and only then the generic category.
+            subtitle:
+              (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
+            app,
+          }));
 
     if (!appItems.length) return [commandItem];
     return [appItems[0], commandItem, ...appItems.slice(1)].slice(0, MAX_RESULTS);
-  }, [applications, query, t]);
+  }, [query, searchableApps, t]);
 
   useEffect(() => {
     invoke<LocalApplication[]>("list_applications", { forceRefresh: false })
@@ -334,20 +381,26 @@ export default function App() {
     if (!missing.length) return;
     let cancelled = false;
 
-    for (const item of missing) {
-      invoke<string | null>("application_icon", { path: item.app.path })
-        .then((path) => {
-          if (!path || cancelled) return;
-          setAppIconUrls((current) => ({
-            ...current,
-            [item.app.path]: convertFileSrc(path),
-          }));
-        })
-        .catch(() => undefined);
-    }
+    // Resolving an icon means walking the platform's icon directories, so it
+    // waits for the query to settle: every keystroke changes the result list,
+    // and the only list worth fetching for is the one the user stops on.
+    const timer = window.setTimeout(() => {
+      for (const item of missing) {
+        invoke<string | null>("application_icon", { path: item.app.path })
+          .then((path) => {
+            if (!path || cancelled) return;
+            setAppIconUrls((current) => ({
+              ...current,
+              [item.app.path]: convertFileSrc(path),
+            }));
+          })
+          .catch(() => undefined);
+      }
+    }, ICON_LOAD_DELAY);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [appIconUrls, launcherItems]);
 

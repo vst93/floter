@@ -77,6 +77,27 @@ impl EventListener for RenderListener {
     }
 }
 
+/// Point `TERM` at a terminfo entry the machine really has.
+///
+/// [`tty::setup_env`] writes `TERM=alacritty` whenever it can find that entry,
+/// and its search path is narrower than the one ncurses actually uses: it misses
+/// `/usr/local/share/terminfo` and the Homebrew prefixes, and it looks in
+/// `~/.terminfo` only when `$TERMINFO` is unset. So it can settle on `alacritty`
+/// on a system where a TUI program will not find the description — and a program
+/// that cannot resolve `TERM` spends seconds walking the terminfo database
+/// before it gives up and degrades to dumb-terminal behaviour.
+///
+/// `xterm-256color` ships with ncurses itself, so it is present everywhere and
+/// close enough to what this emulator implements. It has to be written *after*
+/// `setup_env`, which overwrites `TERM` unconditionally; the `COLORTERM` that
+/// call also sets is left alone.
+fn prefer_portable_terminfo() {
+    if std::env::var("TERM").as_deref() != Ok("alacritty") {
+        return;
+    }
+    std::env::set_var("TERM", "xterm-256color");
+}
+
 /// Terminal dimensions used when constructing / resizing the `Term`.
 struct TermSize {
     cols: usize,
@@ -139,6 +160,7 @@ impl TerminalSession {
         rows: u16,
     ) -> Result<Self, String> {
         tty::setup_env();
+        prefer_portable_terminfo();
 
         let size = TermSize {
             cols: cols.max(2) as usize,
