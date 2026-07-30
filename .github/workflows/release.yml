@@ -53,10 +53,12 @@ jobs:
 
       - name: Generate release notes
         id: notes
+        env:
+          INPUT_NOTES: ${{ inputs.notes }}
         run: |
-          INPUT_NOTES="${{ inputs.notes }}"
           if [ -n "$INPUT_NOTES" ]; then
-            # User provided notes — use as-is.
+            # User provided notes — use as-is, via env var to avoid shell
+            # interpretation of backticks and $ in markdown content.
             NOTES="$INPUT_NOTES"
           else
             LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -65,8 +67,6 @@ jobs:
             else
               COMMITS=$(git log --pretty=format:"- %s" --no-merges -20)
             fi
-            # Build the notes with proper formatting. printf to avoid heredoc
-            # quoting issues; %s is the commit list.
             NOTES=$(printf '## Changes\n\n%s\n\n---\n\n## Install\n\nDownload the file for your platform:\n\n| File | Platform |\n|------|----------|\n| `*-macos-apple-silicon.dmg` | macOS (M1/M2/M3/M4) |\n| `*-macos-intel.dmg` | macOS (Intel) |\n| `*-linux-x86_64.deb` | Linux (x86_64) |\n| `*-linux-arm64.deb` | Linux (ARM64) |\n| `*-windows-x86_64-setup.exe` | Windows (x86_64) |\n| `*-windows-arm64-setup.exe` | Windows (ARM64) |\n' "$COMMITS")
           fi
           # Escape for GitHub Actions output
