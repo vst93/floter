@@ -34,17 +34,22 @@ base64 = "0.22"
 # which is a static table per style that nothing here would ever read.
 pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 
-# Raw `NSWindow` access, for the one window property Tauri does not expose: the
-# window level. `set_always_on_top` is fixed at NSFloatingWindowLevel, which is
-# not high enough to clear a fullscreen app — see `raise_window_level`.
+# Raw `NSWindow`/`NSApplication` access, for the two things Tauri does not
+# expose: the window level, and activating an accessory application in place.
+# `set_always_on_top` is fixed at NSFloatingWindowLevel, which is not high
+# enough to clear a fullscreen app, and `set_focus` is a no-op against a window
+# the window server has not mapped yet — see `raise_window_level` and
+# `force_activate`.
 #
-# Not a new crate in the tree: tao already builds this exact version, and the
+# Not new crates in the tree: tao already builds these exact versions, and the
 # feature set below is a subset of the one it asks for, so cargo's feature
 # unification leaves the build unchanged. `default-features = false` keeps it
 # that way — the default set is all of AppKit.
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
+  "NSApplication",
   "NSResponder",
   "NSWindow",
 ] }

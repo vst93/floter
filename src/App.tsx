@@ -164,24 +164,40 @@ const scoreApp = (needle: string, names: string[], initials: string) => {
  * typed on, so "restart" has to find the entry on a Chinese UI and "关机" on an
  * English one. They are normalized here, once, for the same reason application
  * names are — see [`scoreNormalized`].
+ *
+ * `initials` is the pinyin key, the same shorthand [`compute_initials`] builds
+ * for an application in the backend, and it exists for the same reason: a
+ * Chinese name is unreachable from a Latin keyboard otherwise. It is written out
+ * by hand because these two entries are the only names the frontend owns, and
+ * shipping a pinyin table to the webview to spell four of them would cost more
+ * than it saves. Only the Chinese spellings are covered — the English ones are
+ * already whole entries in `searchNames`.
  */
 const SYSTEM_COMMANDS: {
   action: SystemAction;
   titleKey: MessageKey;
   subtitleKey: MessageKey;
   searchNames: string[];
+  initials: string;
 }[] = [
   {
     action: "restart",
     titleKey: "system.restart",
     subtitleKey: "system.restartSubtitle",
     searchNames: ["restart", "reboot", "重启", "重新启动"].map(normalizeSearch),
+    // 重启 → cq, 重新启动 → cxqd, then both again under 重's other reading. 重 is
+    // chóng here and zhòng when it means "heavy", and which one a person reaches
+    // for is a coin toss — an IME trains either. Both spellings are keys to the
+    // same action, so both are in.
+    initials: "cqcxqdzqzxqd",
   },
   {
     action: "shutdown",
     titleKey: "system.shutdown",
     subtitleKey: "system.shutdownSubtitle",
     searchNames: ["shutdown", "shut down", "power off", "关机", "关闭电脑"].map(normalizeSearch),
+    // 关机 → gj, 关闭电脑 → gbdn. Neither character has a second reading.
+    initials: "gjgbdn",
   },
 ];
 
@@ -489,9 +505,13 @@ export default function App() {
 
     for (const entry of SYSTEM_COMMANDS) {
       const title = t(entry.titleKey);
-      // No initials of their own: `searchNames` already carries every spelling a
-      // power action is reached by, in each language.
-      const score = scoreApp(needle, [normalizeSearch(title), ...entry.searchNames], "");
+      // Scored exactly like an application: the names in every language, plus the
+      // pinyin key that `gj` and `cq` reach the entry through.
+      const score = scoreApp(
+        needle,
+        [normalizeSearch(title), ...entry.searchNames],
+        entry.initials,
+      );
       if (!score) continue;
       matches.push({
         item: {

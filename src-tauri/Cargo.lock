@@ -1044,6 +1044,7 @@ dependencies = [
  "alacritty_terminal",
  "base64 0.22.1",
  "dirs 5.0.1",
+ "objc2",
  "objc2-app-kit",
  "parking_lot",
  "pinyin",

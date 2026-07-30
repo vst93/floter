@@ -20,7 +20,9 @@ use commands::terminal::{
     term_spawn, TerminalState,
 };
 #[cfg(target_os = "macos")]
-use objc2_app_kit::{NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior};
+use objc2::MainThreadMarker;
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSApp, NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
@@ -481,6 +483,53 @@ fn raise_window_level(window: &WebviewWindow) {
     });
 }
 
+/// Bring the panel forward and give it the keyboard, on a fullscreen app's space.
+///
+/// This replaces [`WebviewWindow::set_focus`] on macOS, which cannot do the job
+/// for an accessory application:
+///
+/// * tao guards its whole implementation behind `isVisible()`, and a window the
+///   window server has accepted but not yet placed on the current space reads as
+///   *not* visible — so the activation is silently skipped in exactly the case
+///   it is needed.
+/// * It then calls `makeKeyAndOrderFront:` *before* activating. That method is
+///   documented to order a window in front of its own application's windows
+///   only, when the application is not the active one; an accessory app summoned
+///   over a fullscreen editor is never the active one at that moment, so the
+///   call lands and does nothing.
+///
+/// The order here is the fix. Activating first makes the ordering below mean
+/// something globally, `orderFrontRegardless` raises the window whether or not
+/// the activation was honoured — it is the one AppKit call that ignores the
+/// active-application rule — and `makeKeyAndOrderFront:` then makes it the key
+/// window, which is what actually routes keystrokes into the webview.
+///
+/// `activateIgnoringOtherApps:` is deprecated in favour of `activate`, which is
+/// not used here for two reasons: it only exists on macOS 14 and later, and
+/// objc2 performs no availability check, so an older system would take an
+/// unrecognized selector. It is also the weaker call by design — `activate`
+/// waits for the frontmost application to yield, which a fullscreen app has no
+/// reason to do.
+#[cfg(target_os = "macos")]
+fn force_activate(window: &WebviewWindow) {
+    let panel = window.clone();
+    // Main-thread-only, for the same reason as `raise_window_level`; see the
+    // note there on why this is a synchronous call in practice.
+    let _ = window.run_on_main_thread(move || {
+        let (Ok(ns_window), Some(mtm)) = (panel.ns_window(), MainThreadMarker::new()) else {
+            return;
+        };
+        // SAFETY: `ns_window` is the panel's live NSWindow, borrowed for the
+        // duration of these calls only, on the main thread as NSWindow requires.
+        // Tauri hands the pointer back autoreleased, so it outlives this closure.
+        let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+        #[allow(deprecated)]
+        NSApp(mtm).activateIgnoringOtherApps(true);
+        ns_window.orderFrontRegardless();
+        ns_window.makeKeyAndOrderFront(None);
+    });
+}
+
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     // Windows and Linux get no equivalent of the two calls below: neither has a
     // dependable cross-workspace story (X11 only through window-manager hints,
@@ -496,7 +545,7 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     // the two calls answer different questions. The one *before* `show()` decides
     // which space the window server hands the window to as it appears — a window
     // mapped at the default level onto the desktop's space has already lost,
-    // whatever is done to it afterwards. The one after `set_focus()` re-states it
+    // whatever is done to it afterwards. The one after activation re-states it
     // against a window that is really on screen and has just been activated,
     // which is the moment AppKit is most likely to have had its own opinion.
     #[cfg(target_os = "macos")]
@@ -508,10 +557,13 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     {
         let _ = window.set_always_on_top(true);
+        window.set_focus().map_err(|e| e.to_string())?;
     }
-    window.set_focus().map_err(|e| e.to_string())?;
     #[cfg(target_os = "macos")]
     {
+        // `set_focus` deliberately not called here — see [`force_activate`] for
+        // why it cannot raise an accessory app's window onto a fullscreen space.
+        force_activate(window);
         raise_window_level(window);
         // On macOS this is the subtle cue that says where the panel appeared.
         // Elsewhere it flashes the taskbar entry, which a `skipTaskbar` window
