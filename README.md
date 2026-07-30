@@ -7,11 +7,13 @@ A floating terminal and app launcher — one hotkey away. macOS, Linux, Windows.
 ## Features
 
 - **One hotkey away** — summon from anywhere, hides when you're done
-- **App launcher** — fuzzy-search installed apps, launch instantly
+- **App launcher** — fuzzy-search installed apps, pinyin initials supported
+- **Smart action bar** — types a URL? opens browser. A path? opens file manager. Anything else? runs as a shell command
 - **Built-in terminal** — full shell with 256-color support
-- **Run anything** — not an app? It runs as a shell command
 - **Multi-monitor** — appears on the screen you're on
-- **Pop out** — hand off the current session to your system terminal
+- **Pop out** — hand off to your system terminal
+- **System commands** — restart or shut down right from the launcher
+- **Dark / Light / Auto** — follows your system or pick your own
 - **Customizable** — rebind every shortcut to your liking
 
 ## Download
@@ -25,11 +27,13 @@ Build from source: see [Development](#development).
 | Action | macOS | Linux / Windows |
 |--------|-------|-----------------|
 | Show / hide | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
+| Run as command | `Tab` | `Tab` |
+| Navigate results | `↑` `↓` | `↑` `↓` |
+| Select result | `Cmd+1`–`5` | `Ctrl+1`–`5` |
 | New command | `Cmd+W` | `Ctrl+W` |
 | External terminal | `Cmd+N` | `Ctrl+N` |
 | Copy / Paste | `Cmd+C` / `Cmd+V` | `Ctrl+C` / `Ctrl+V` |
 | Settings | `Cmd+,` | `Ctrl+,` |
-| Select result | `Cmd+1`–`9` | `Ctrl+1`–`9` |
 
 All rebindable in **Settings → Shortcuts**.
 
