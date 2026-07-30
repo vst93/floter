@@ -112,7 +112,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
             label: Linux-x86_64
             artifact: floter_*.deb
-          - os: ubuntu-22.04
+          - os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             label: Linux-ARM64
             artifact: floter_*.deb
@@ -120,7 +120,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             label: Windows-x86_64
             artifact: floter_*_x64-setup.exe
-          - os: windows-latest
+          - os: windows-11-arm
             target: aarch64-pc-windows-msvc
             label: Windows-ARM64
             artifact: floter_*_arm64-setup.exe
@@ -141,19 +141,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
-          # ARM64 cross-compilation: install the cross toolchain and set up
-          # pkg-config and linker so cargo can target aarch64 from x86_64.
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-            # Tauri's build.rs uses pkg-config for system libs; point it at the
-            # ARM64 sysroot so it doesn't pick up the host's x86_64 libraries.
-            sudo dpkg --add-architecture arm64
-            sudo apt-get update
-            sudo apt-get install -y libgtk-3-dev:arm64 libwebkit2gtk-4.1-dev:arm64 librsvg2-dev:arm64 libssl-dev:arm64
-            echo 'CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc' >> "$GITHUB_ENV"
-            echo 'PKG_CONFIG_SYSROOT_DIR=/' >> "$GITHUB_ENV"
-            echo 'PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig' >> "$GITHUB_ENV"
-          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
