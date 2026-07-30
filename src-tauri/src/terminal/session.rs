@@ -54,10 +54,19 @@ enum RenderEvent {
     ChildExit(Option<i32>),
 }
 
-/// Event listener that forwards redraw-worthy events to the render thread.
+/// Event listener that forwards redraw-worthy events to the render thread, and
+/// routes terminal query responses (`PtyWrite`) back into the PTY.
 #[derive(Clone)]
 struct RenderListener {
     tx: Sender<RenderEvent>,
+    /// The PTY sender, filled in once the event loop has been created.
+    ///
+    /// `Arc<Mutex<Option<_>>>` because the listener is cloned — it is handed to
+    /// both `Term::new` and `EventLoop::new` — while the sender only exists
+    /// *after* the event loop it belongs to, i.e. after both of those clones
+    /// have been made. The shared cell lets the later assignment reach the
+    /// copies that were already given away.
+    pty_sender: Arc<Mutex<Option<EventLoopSender>>>,
 }
 
 impl EventListener for RenderListener {
@@ -70,6 +79,25 @@ impl EventListener for RenderListener {
                 let _ = self.tx.send(RenderEvent::ChildExit(None));
             }
             Event::Wakeup | Event::Bell | Event::CursorBlinkingChange => {
+                let _ = self.tx.send(RenderEvent::Wake);
+            }
+            Event::PtyWrite(text) => {
+                // Every reply the emulator owes the program on the other end of
+                // the PTY arrives here: DA1/DA2 device attributes, DSR status
+                // and cursor position reports, DECRQM mode queries (how a TUI
+                // probes for synchronized output or bracketed paste), kitty
+                // keyboard protocol queries, cell-size reports. Dropping them
+                // does not fail loudly — the program simply waits out its own
+                // timeout, so every TUI that asks what it is talking to stalls
+                // for a second or three before drawing its first frame.
+                if let Ok(guard) = self.pty_sender.lock() {
+                    if let Some(sender) = guard.as_ref() {
+                        let _ = sender.send(Msg::Input(Cow::Owned(text.into_bytes())));
+                    }
+                }
+                // The reply itself changes nothing on screen, but whatever the
+                // program does once unblocked will, and a spurious wake costs
+                // one coalesced frame.
                 let _ = self.tx.send(RenderEvent::Wake);
             }
             _ => {}
@@ -166,7 +194,11 @@ impl TerminalSession {
         };
 
         let (tx, rx) = mpsc::channel::<RenderEvent>();
-        let listener = RenderListener { tx: tx.clone() };
+        let pty_sender = Arc::new(Mutex::new(None));
+        let listener = RenderListener {
+            tx: tx.clone(),
+            pty_sender: pty_sender.clone(),
+        };
 
         let config = terminal_config();
         let term = Term::new(config, &size, listener.clone());
@@ -202,6 +234,12 @@ impl TerminalSession {
         let event_loop = EventLoop::new(terminal.clone(), listener, pty, false, false)
             .map_err(|e| e.to_string())?;
         let sender = event_loop.channel();
+        // Hand the listener its write path before the loop starts reading, so
+        // that a query arriving in the child's very first output has somewhere
+        // to send its answer.
+        if let Ok(mut slot) = pty_sender.lock() {
+            *slot = Some(sender.clone());
+        }
         // Detach: the loop owns itself and exits on `Msg::Shutdown`.
         let _ = event_loop.spawn();
 

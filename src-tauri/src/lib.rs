@@ -360,8 +360,13 @@ fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), Str
         INPUT_WINDOW_WIDTH
     };
 
-    let _ = move_to_default_position(window, width, state);
+    // Reveal first, position second: macOS' window server ignores geometry set
+    // on an unmapped window, so a `set_position` made while hidden is discarded
+    // and `show()` puts the panel back wherever it last was. Doing it in this
+    // order costs nothing on the other platforms — both calls land in the same
+    // event loop tick, so there is no visible jump.
     reveal_window(window)?;
+    let _ = move_to_default_position(window, width, state);
     state.window_visible.store(true, Ordering::SeqCst);
     let _ = window.emit("floter://revealed", mode);
     Ok(())
@@ -372,7 +377,6 @@ fn resize_window(
     width: f64,
     height: f64,
     preserve_anchor: bool,
-    state: &AppState,
 ) -> Result<(), String> {
     let previous_position = window.outer_position().ok();
     let previous_size = window.outer_size().ok();
@@ -389,11 +393,14 @@ fn resize_window(
             window
                 .set_position(PhysicalPosition::new(next_x, position.y))
                 .map_err(|e| e.to_string())?;
-            return Ok(());
         }
     }
 
-    move_to_default_position(window, width, state)
+    // No default-position fallback here: this runs while the window may still be
+    // hidden, and macOS drops geometry set on an unmapped window. Callers that
+    // are not preserving an anchor place the window themselves, after revealing
+    // it.
+    Ok(())
 }
 
 #[tauri::command]
@@ -404,9 +411,11 @@ fn show_terminal(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Re
         TERMINAL_WINDOW_WIDTH,
         TERMINAL_WINDOW_HEIGHT,
         preserve_anchor,
-        &state,
     )?;
     reveal_window(&window)?;
+    if !preserve_anchor {
+        let _ = move_to_default_position(&window, TERMINAL_WINDOW_WIDTH, &state);
+    }
     state.terminal_mode.store(true, Ordering::SeqCst);
     state.window_visible.store(true, Ordering::SeqCst);
     Ok(())
@@ -450,9 +459,11 @@ fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
         INPUT_WINDOW_WIDTH,
         INPUT_WINDOW_HEIGHT,
         preserve_anchor,
-        &state,
     )?;
     reveal_window(&window)?;
+    if !preserve_anchor {
+        let _ = move_to_default_position(&window, INPUT_WINDOW_WIDTH, &state);
+    }
     state.terminal_mode.store(false, Ordering::SeqCst);
     state.window_visible.store(true, Ordering::SeqCst);
     Ok(())
