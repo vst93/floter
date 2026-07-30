@@ -601,6 +601,14 @@ input:focus {
   letter-spacing: 0.005em;
 }
 
+.settings-card__version {
+  margin-left: 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
 .settings-card__body {
   padding: 14px;
   display: grid;

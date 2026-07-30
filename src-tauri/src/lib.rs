@@ -8,7 +8,8 @@ use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
 use commands::config::{
-    get_settings, get_shortcuts, load_settings, resolved_shortcuts, save_settings, update_shortcut,
+    app_version, get_settings, get_shortcuts, load_settings, resolved_shortcuts, save_settings,
+    update_shortcut,
     DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
 use commands::custom::{
@@ -906,6 +907,7 @@ pub fn run() {
             term_close,
             get_settings,
             save_settings,
+            app_version,
             get_shortcuts,
             update_shortcut,
             get_custom_commands,

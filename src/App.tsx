@@ -463,6 +463,7 @@ export default function App() {
   const [applications, setApplications] = useState<LocalApplication[]>([]);
   /** True until the first scan settles, whether it hit the cache or not. */
   const [appsLoading, setAppsLoading] = useState(true);
+  const [appVersion, setAppVersion] = useState("DEV");
   const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
@@ -861,6 +862,12 @@ export default function App() {
           shortcuts: withShortcutDefaults(loaded.shortcuts),
         }),
       )
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    invoke<string>("app_version")
+      .then(setAppVersion)
       .catch(() => undefined);
   }, []);
 
@@ -1635,7 +1642,10 @@ export default function App() {
       <div className="settings-shell">
         <div className="settings-card" ref={settingsRef} onMouseDown={startDrag}>
           <header className="settings-card__header">
-            <span className="settings-card__title">{t("settings.title")}</span>
+            <span className="settings-card__title">
+              {t("settings.title")}
+              <span className="settings-card__version">v{appVersion}</span>
+            </span>
             <button
               type="button"
               className="toolbar-button toolbar-button--close"

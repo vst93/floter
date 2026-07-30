@@ -183,3 +183,18 @@ pub fn update_shortcut(
     settings.shortcuts = shortcuts;
     write_settings(&settings)
 }
+
+/// Build version injected at compile time.
+///
+/// `CARGO_PKG_VERSION` comes from `Cargo.toml`, which the release workflow
+/// rewrites before tagging. In `tauri dev` the crate version is whatever is
+/// in the working copy and debug assertions are on, so we show "DEV" instead
+/// of a meaningless 0.0.0-something that has nothing to do with a release.
+#[tauri::command]
+pub fn app_version() -> String {
+    if cfg!(debug_assertions) {
+        "DEV".to_string()
+    } else {
+        env!("CARGO_PKG_VERSION").to_string()
+    }
+}
