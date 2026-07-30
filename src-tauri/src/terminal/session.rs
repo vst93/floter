@@ -229,7 +229,14 @@ impl TerminalSession {
         };
 
         let pty = tty::new(&tty_options, window_size, 0).map_err(|e| e.to_string())?;
+        // `Pty::child()` is Unix-only: alacritty_terminal's Windows backend does
+        // not expose the child process handle. The PID is used solely by
+        // `open_in_default_terminal` to read the shell's cwd, which is itself a
+        // Unix-only path — on Windows the feature falls back to the home dir.
+        #[cfg(unix)]
         let shell_pid = pty.child().id();
+        #[cfg(not(unix))]
+        let shell_pid = 0u32;
 
         let event_loop = EventLoop::new(terminal.clone(), listener, pty, false, false)
             .map_err(|e| e.to_string())?;
