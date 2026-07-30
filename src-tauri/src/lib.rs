@@ -16,6 +16,8 @@ use commands::terminal::{
     open_in_default_terminal, term_close, term_input, term_resize, term_scroll, term_scroll_to,
     term_spawn, TerminalState,
 };
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
@@ -426,23 +428,75 @@ fn move_to_default_position(
     }
 }
 
+/// Raise the panel to a window level that clears a fullscreen app, and let it
+/// share that app's space.
+///
+/// [`WebviewWindow::set_always_on_top`] is not enough on macOS: it is fixed at
+/// `NSFloatingWindowLevel` (3), which wins against ordinary windows and loses
+/// against a fullscreen one — the panel is summoned over a fullscreen editor or
+/// browser and simply does not appear. `NSStatusWindowLevel` (25) is where the
+/// menu bar and Spotlight sit, which is the company a summoned panel wants to
+/// keep; it stays deliberately below `NSPopUpMenuWindowLevel` (101) so a native
+/// menu opened *from* the panel still draws over it.
+///
+/// The level alone only settles the stacking order. `CanJoinAllSpaces` is what
+/// puts the window on the fullscreen app's space at all — [`reveal_window`] has
+/// already asked for that, and it is repeated here because the two flags are one
+/// decision — and `FullScreenAuxiliary` is what lets it *share* that space
+/// instead of pushing macOS to switch away to the desktop the panel belongs to.
+/// Both are OR-ed into the current behaviour rather than replacing it, because
+/// tao keeps its own bits in the same field.
+///
+/// This is why `set_always_on_top` is not called on macOS at all: tao implements
+/// it by deferring `setLevel:` onto the main dispatch queue, so its level 3
+/// would land *after* the 25 set here and quietly undo it.
+#[cfg(target_os = "macos")]
+fn raise_window_level(window: &WebviewWindow) {
+    let panel = window.clone();
+    // AppKit window state is main-thread-only, and this is reached from Tauri
+    // commands, the tray handler and the global-shortcut callback alike — not all
+    // of which are the main thread. When the caller already is, Tauri runs the
+    // closure inline rather than posting it, so the level is set before this
+    // returns and nothing else can slip in between.
+    let _ = window.run_on_main_thread(move || {
+        let Ok(ns_window) = panel.ns_window() else {
+            return;
+        };
+        // SAFETY: `ns_window` is the panel's live NSWindow, borrowed for the
+        // duration of these two calls only, on the main thread as NSWindow
+        // requires. Tauri hands the pointer back autoreleased, so it outlives
+        // this closure.
+        let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+        ns_window.setLevel(NSStatusWindowLevel);
+        ns_window.setCollectionBehavior(
+            ns_window.collectionBehavior()
+                | NSWindowCollectionBehavior::CanJoinAllSpaces
+                | NSWindowCollectionBehavior::FullScreenAuxiliary,
+        );
+    });
+}
+
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
+    // Windows and Linux get no equivalent of the two calls below: neither has a
+    // dependable cross-workspace story (X11 only through window-manager hints,
+    // Wayland not at all), so the panel is simply raised on the desktop the user
+    // is already on.
     #[cfg(target_os = "macos")]
     {
         let _ = window.app_handle().show();
         let _ = window.set_visible_on_all_workspaces(true);
-        let _ = window.set_always_on_top(true);
-        let _ = window.unminimize();
     }
-    // Windows and Linux have no dependable cross-workspace equivalent (X11 only
-    // through window-manager hints, Wayland not at all), so the panel is simply
-    // raised on the desktop the user is already on.
+    let _ = window.unminimize();
+    window.show().map_err(|e| e.to_string())?;
+    // Asked for after `show()` rather than before: a request made against a
+    // hidden window depends on the window manager carrying it across the map, and
+    // re-stating it once the panel is really on screen costs nothing.
     #[cfg(not(target_os = "macos"))]
     {
         let _ = window.set_always_on_top(true);
-        let _ = window.unminimize();
     }
-    window.show().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    raise_window_level(window);
     window.set_focus().map_err(|e| e.to_string())?;
     // On macOS this is the subtle cue that says where the panel appeared.
     // Elsewhere it flashes the taskbar entry, which a `skipTaskbar` window
