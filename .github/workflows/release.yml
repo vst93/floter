@@ -133,6 +133,12 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -143,11 +149,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install npm dependencies
         run: npm ci
 
       - name: Build Tauri app
+        id: build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,6 +166,22 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
+
+      # DMG bundling on macOS can fail intermittently on GitHub runners
+      # (hdiutil attach races, stale detach, etc.). Retry once without the
+      # DMG bundle type so at least the .app.tar.gz ships.
+      - name: Retry without DMG (macOS only)
+        if: failure() && runner.os == 'macOS'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ needs.prepare.outputs.version }}
+          releaseName: floter v${{ needs.prepare.outputs.version }}
+          releaseBody: ${{ needs.prepare.outputs.notes }}
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }} --bundles app
 
       # ── Rename artifacts with clear platform names ────────────────────────
       # Tauri's default names (floter_0.1.0_amd64.deb, floter_0.1.0_x64-setup.exe)
