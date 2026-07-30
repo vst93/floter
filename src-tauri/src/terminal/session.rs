@@ -546,17 +546,26 @@ fn applescript_quote(value: &str) -> String {
 /// Open a Terminal.app window at `dir`.
 #[cfg(target_os = "macos")]
 fn open_terminal_at(dir: &Path) -> Result<(), String> {
-    // Terminal opens every window through `login` and `do script` types its
-    // argument into that window, so the first two lines would otherwise be the
-    // "Last login:" banner and an echo of this command. `clear` wipes both and
-    // leaves the window sitting on a bare prompt in the right directory — the
-    // point of the whole feature.
+    // Deliberately no `clear`. Terminal opens every window through `login` and
+    // `do script` types its argument into it, so the window starts with the "Last
+    // login:" banner and an echo of the `cd` — and that echo is the only thing on
+    // screen saying which directory the new prompt is in. Wiping it left the
+    // window looking empty, which reads as "the session was lost" rather than
+    // "you are somewhere else now".
+    //
+    // What cannot be carried over is the session itself: the PTY and its shell
+    // stay with floter, and a second shell cannot be attached to them. Nor is the
+    // command history there yet — zsh only writes its in-memory history on exit,
+    // so the new window sees everything from *previous* sessions and nothing from
+    // the one still open. Forcing a flush is what the removed `fc -AI` injection
+    // did, and it cost a stray line in floter's own terminal every time; running
+    // the shell under tmux is the only way to genuinely hand the session over.
     //
     // No `exec $SHELL`: `do script` already runs inside the shell Terminal is
     // configured to launch, so re-execing would only source the user's rc files
     // a second time. That is also why the old `.command` shim looked so noisy —
     // Terminal ran it as `<path to shim> ; exit;` and echoed that line.
-    let command = format!("cd {}; clear", sh_quote(&dir.to_string_lossy()));
+    let command = format!("cd {}", sh_quote(&dir.to_string_lossy()));
     let script = format!(
         "tell application \"Terminal\"\nactivate\ndo script \"{}\"\nend tell",
         applescript_quote(&command)

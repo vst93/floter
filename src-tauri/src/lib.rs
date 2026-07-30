@@ -24,7 +24,7 @@ use objc2_app_kit::{NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
-use tauri::UserAttentionType;
+use tauri::{ActivationPolicy, UserAttentionType};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
@@ -451,16 +451,18 @@ fn move_to_default_position(
 /// tao keeps its own bits in the same field.
 ///
 /// This is why `set_always_on_top` is not called on macOS at all: tao implements
-/// it by deferring `setLevel:` onto the main dispatch queue, so its level 3
-/// would land *after* the 25 set here and quietly undo it.
+/// it with `set_level_async`, which posts `setLevel:` to the main dispatch queue
+/// *even when it is already on the main thread*, so its level 3 would land after
+/// the 25 set here and quietly undo it.
 #[cfg(target_os = "macos")]
 fn raise_window_level(window: &WebviewWindow) {
     let panel = window.clone();
     // AppKit window state is main-thread-only, and this is reached from Tauri
-    // commands, the tray handler and the global-shortcut callback alike — not all
-    // of which are the main thread. When the caller already is, Tauri runs the
-    // closure inline rather than posting it, so the level is set before this
-    // returns and nothing else can slip in between.
+    // commands, the tray handler and the global-shortcut callback alike. All
+    // three of those *are* the main thread on macOS, and Tauri's
+    // `run_on_main_thread` runs the closure inline rather than posting it in that
+    // case — so this is a synchronous call that has taken effect by the time it
+    // returns, and the wrapper only costs a hop if that ever stops being true.
     let _ = window.run_on_main_thread(move || {
         let Ok(ns_window) = panel.ns_window() else {
             return;
@@ -490,6 +492,15 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
         let _ = window.set_visible_on_all_workspaces(true);
     }
     let _ = window.unminimize();
+    // Level and collection behaviour are asserted on both sides of the map, and
+    // the two calls answer different questions. The one *before* `show()` decides
+    // which space the window server hands the window to as it appears — a window
+    // mapped at the default level onto the desktop's space has already lost,
+    // whatever is done to it afterwards. The one after `set_focus()` re-states it
+    // against a window that is really on screen and has just been activated,
+    // which is the moment AppKit is most likely to have had its own opinion.
+    #[cfg(target_os = "macos")]
+    raise_window_level(window);
     window.show().map_err(|e| e.to_string())?;
     // Asked for after `show()` rather than before: a request made against a
     // hidden window depends on the window manager carrying it across the map, and
@@ -498,14 +509,13 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     {
         let _ = window.set_always_on_top(true);
     }
-    #[cfg(target_os = "macos")]
-    raise_window_level(window);
     window.set_focus().map_err(|e| e.to_string())?;
-    // On macOS this is the subtle cue that says where the panel appeared.
-    // Elsewhere it flashes the taskbar entry, which a `skipTaskbar` window
-    // either cannot do or should not do.
     #[cfg(target_os = "macos")]
     {
+        raise_window_level(window);
+        // On macOS this is the subtle cue that says where the panel appeared.
+        // Elsewhere it flashes the taskbar entry, which a `skipTaskbar` window
+        // either cannot do or should not do.
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }
     Ok(())
@@ -723,6 +733,24 @@ pub fn run() {
             last_monitor: Mutex::new(None),
         })
         .setup(|app| {
+            // The window level in [`raise_window_level`] settles where the panel
+            // draws; this settles whether the user is still looking at the same
+            // screen when it does. `set_focus` ends in
+            // `NSApp.activateIgnoringOtherApps:`, and a *regular* application
+            // answers that by bringing its own space forward — so summoning the
+            // panel over a fullscreen editor switched the user out of it, which
+            // is the half of the problem no window level can fix. An accessory
+            // application activates in place, leaving the fullscreen space where
+            // it is for the panel to appear on.
+            //
+            // The Dock icon and the app's own menu bar go with it, which is the
+            // shape floter already has: a tray-resident panel that starts hidden
+            // and is quit from the tray. The default menu Tauri installs on macOS
+            // stays in place, so Cmd+C / Cmd+V keep working in the webview even
+            // though the menu bar is no longer drawn.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(ActivationPolicy::Accessory);
+
             let settings = load_settings();
             let (show_label, quit_label) = tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;

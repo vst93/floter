@@ -2,25 +2,159 @@
   box-sizing: border-box;
 }
 
+/* Dark is the default set; `[data-theme="light"]` below overrides only what has
+   to change. `auto` never reaches CSS — App.tsx resolves it against
+   `prefers-color-scheme` and writes the concrete value onto <html>, so this file
+   holds each palette exactly once and the terminal renderer (which reads these
+   same variables through getComputedStyle) always sees a resolved answer. */
 :root {
   color-scheme: dark;
-  --surface-window: rgba(26, 27, 30, 0.9);
-  --surface-window-active: rgba(30, 31, 35, 0.94);
-  --surface-control: rgba(255, 255, 255, 0.055);
-  --surface-control-hover: rgba(255, 255, 255, 0.105);
-  --stroke-window: rgba(255, 255, 255, 0.095);
-  --stroke-control: rgba(255, 255, 255, 0.075);
-  --text-primary: #f2f3f5;
-  --text-secondary: rgba(238, 239, 242, 0.62);
-  --text-tertiary: rgba(238, 239, 242, 0.38);
-  --accent: #8fb7ff;
+
+  /* Card surfaces */
   --input-bg: rgba(18, 19, 22, 0.98);
   --input-bg-active: rgba(19, 20, 23, 0.99);
   --input-stroke: rgba(255, 255, 255, 0.08);
   --input-stroke-active: rgba(143, 183, 255, 0.24);
+  /* Recessed areas inside a card: the result strip and the settings body. */
+  --surface-sunken: rgba(17, 18, 20, 0.72);
+  --surface-sunken-soft: rgba(17, 18, 20, 0.52);
+  /* Stand-in for the whole stack where transparency is turned off. */
+  --surface-opaque: rgba(28, 29, 32, 0.98);
+
+  /* Controls */
+  --surface-control: rgba(255, 255, 255, 0.055);
+  --surface-control-hover: rgba(255, 255, 255, 0.105);
+  --surface-control-active: rgba(255, 255, 255, 0.14);
+  --stroke-control: rgba(255, 255, 255, 0.075);
+
+  /* Glass: the top-down gradient and the 1px edges that give a card depth. */
+  --sheen-top: rgba(255, 255, 255, 0.046);
+  --sheen-bottom: rgba(255, 255, 255, 0.01);
+  --sheen-top-active: rgba(255, 255, 255, 0.056);
+  --sheen-bottom-active: rgba(255, 255, 255, 0.012);
+  --edge-highlight: rgba(255, 255, 255, 0.11);
+  --edge-highlight-active: rgba(255, 255, 255, 0.13);
+  --edge-shadow: rgba(0, 0, 0, 0.22);
+  --hairline: rgba(255, 255, 255, 0.055);
+  /* A key cap reads as one because of these two, not because of its border. */
+  --keycap-highlight: rgba(255, 255, 255, 0.07);
+  --keycap-shadow: rgba(0, 0, 0, 0.28);
+
+  /* Text */
+  --text-primary: #f2f3f5;
+  --text-strong: rgba(244, 245, 247, 0.94);
+  --text-secondary: rgba(238, 239, 242, 0.66);
+  --text-muted: rgba(238, 239, 242, 0.42);
+  --text-tertiary: rgba(238, 239, 242, 0.36);
+  --text-placeholder: rgba(238, 239, 242, 0.4);
+  --text-warning: rgba(255, 173, 158, 0.72);
+
+  /* Accent */
+  --accent: #8fb7ff;
+  --accent-tint: rgba(143, 183, 255, 0.13);
+  --accent-tint-hover: rgba(143, 183, 255, 0.19);
+  --accent-edge: rgba(143, 183, 255, 0.3);
+  --accent-edge-strong: rgba(143, 183, 255, 0.72);
+  --accent-glow: rgba(143, 183, 255, 0.08);
+  --accent-wash: rgba(143, 183, 255, 0.055);
+  --accent-ring: rgba(122, 167, 255, 0.78);
+
+  /* Result icons */
+  --icon-surface: rgba(255, 255, 255, 0.055);
+  --icon-edge: rgba(255, 255, 255, 0.055);
+  /* Warm rather than the accent blue: a power action is the one launcher entry
+     that cannot be undone by closing a window. */
+  --system-icon-surface: rgba(255, 176, 132, 0.115);
+  --system-icon-text: rgba(255, 209, 178, 0.82);
+
+  /* Terminal. `--terminal-fg` and `--terminal-cursor` are read by the canvas
+     renderer, not by any rule here: the frame the backend sends marks a cell as
+     "default coloured" and the renderer paints those in the theme's colours. */
   --terminal-bg: #111214;
+  --terminal-fg: #d7dae0;
+  --terminal-cursor: #8bd5ca;
+  --terminal-selection: rgba(255, 255, 255, 0.16);
+  --terminal-scrollbar: rgba(255, 255, 255, 0.32);
   --terminal-bar: rgba(27, 28, 31, 0.72);
-  --shadow-window: none;
+  --terminal-bar-top: rgba(41, 42, 46, 0.74);
+  --terminal-bar-bottom: rgba(23, 24, 27, 0.52);
+
+  --scrollbar-thumb: rgba(238, 239, 242, 0.16);
+
+  /* Borders used only under `prefers-contrast: more`. */
+  --stroke-contrast: rgba(255, 255, 255, 0.42);
+  --stroke-contrast-soft: rgba(255, 255, 255, 0.34);
+  --text-placeholder-contrast: rgba(242, 243, 245, 0.58);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --input-bg: rgba(250, 250, 252, 0.92);
+  --input-bg-active: rgba(253, 253, 255, 0.96);
+  --input-stroke: rgba(0, 0, 0, 0.1);
+  --input-stroke-active: rgba(10, 108, 255, 0.28);
+  --surface-sunken: rgba(243, 244, 247, 0.82);
+  --surface-sunken-soft: rgba(243, 244, 247, 0.58);
+  --surface-opaque: rgba(250, 250, 252, 0.99);
+
+  --surface-control: rgba(0, 0, 0, 0.04);
+  --surface-control-hover: rgba(0, 0, 0, 0.075);
+  --surface-control-active: rgba(0, 0, 0, 0.11);
+  --stroke-control: rgba(0, 0, 0, 0.08);
+
+  /* The sheen inverts: on a light card the highlight is the opaque white and
+     the shadow is what has to stay subtle, or every edge turns into a groove. */
+  --sheen-top: rgba(255, 255, 255, 0.66);
+  --sheen-bottom: rgba(255, 255, 255, 0.22);
+  --sheen-top-active: rgba(255, 255, 255, 0.78);
+  --sheen-bottom-active: rgba(255, 255, 255, 0.28);
+  --edge-highlight: rgba(255, 255, 255, 0.92);
+  --edge-highlight-active: rgba(255, 255, 255, 0.96);
+  --edge-shadow: rgba(0, 0, 0, 0.055);
+  --hairline: rgba(0, 0, 0, 0.07);
+  --keycap-highlight: rgba(255, 255, 255, 0.9);
+  --keycap-shadow: rgba(0, 0, 0, 0.09);
+
+  --text-primary: #1d1d1f;
+  --text-strong: rgba(23, 23, 26, 0.94);
+  --text-secondary: rgba(60, 60, 67, 0.66);
+  --text-muted: rgba(60, 60, 67, 0.5);
+  --text-tertiary: rgba(60, 60, 67, 0.4);
+  --text-placeholder: rgba(60, 60, 67, 0.42);
+  --text-warning: #b3261e;
+
+  /* Darker than the dark theme's accent: the same pastel blue that reads as
+     bright on near-black is barely there on white, and it has to carry the
+     check mark and the recording pill's text. */
+  --accent: #0a6cff;
+  --accent-tint: rgba(10, 108, 255, 0.1);
+  --accent-tint-hover: rgba(10, 108, 255, 0.15);
+  --accent-edge: rgba(10, 108, 255, 0.34);
+  --accent-edge-strong: rgba(10, 108, 255, 0.66);
+  --accent-glow: rgba(10, 108, 255, 0.1);
+  --accent-wash: rgba(10, 108, 255, 0.05);
+  --accent-ring: rgba(10, 108, 255, 0.8);
+
+  --icon-surface: rgba(0, 0, 0, 0.05);
+  --icon-edge: rgba(0, 0, 0, 0.06);
+  --system-icon-surface: rgba(214, 118, 44, 0.13);
+  --system-icon-text: #a24d15;
+
+  --terminal-bg: #fbfbfd;
+  --terminal-fg: #26262b;
+  --terminal-cursor: #12857a;
+  --terminal-selection: rgba(10, 108, 255, 0.18);
+  --terminal-scrollbar: rgba(60, 60, 67, 0.34);
+  --terminal-bar: rgba(238, 239, 243, 0.78);
+  --terminal-bar-top: rgba(252, 252, 254, 0.86);
+  --terminal-bar-bottom: rgba(236, 237, 241, 0.6);
+
+  --scrollbar-thumb: rgba(60, 60, 67, 0.26);
+
+  --stroke-contrast: rgba(0, 0, 0, 0.5);
+  --stroke-contrast-soft: rgba(0, 0, 0, 0.36);
+  --text-placeholder-contrast: rgba(28, 28, 32, 0.68);
 }
 
 html,
@@ -100,9 +234,9 @@ input:focus {
   border: 1px solid var(--input-stroke);
   border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.01)),
+    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--input-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
   -webkit-backdrop-filter: blur(26px) saturate(160%);
   backdrop-filter: blur(26px) saturate(160%);
   user-select: none;
@@ -114,12 +248,12 @@ input:focus {
 .collapsed-card:focus-within {
   border-color: var(--input-stroke-active);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.056), rgba(255, 255, 255, 0.012)),
+    linear-gradient(180deg, var(--sheen-top-active), var(--sheen-bottom-active)),
     var(--input-bg-active);
   box-shadow:
-    0 0 0 1px rgba(143, 183, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.13),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+    0 0 0 1px var(--accent-glow),
+    inset 0 1px 0 var(--edge-highlight-active),
+    inset 0 -1px 0 var(--edge-shadow);
 }
 
 .collapsed-card:active {
@@ -138,7 +272,7 @@ input:focus {
 .collapsed-card__aura {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(143, 183, 255, 0.055), transparent 42%);
+  background: linear-gradient(90deg, var(--accent-wash), transparent 42%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 140ms ease;
@@ -165,7 +299,7 @@ input:focus {
 }
 
 .collapsed-card__input::placeholder {
-  color: rgba(238, 239, 242, 0.4);
+  color: var(--text-placeholder);
 }
 
 .collapsed-card__settings {
@@ -180,14 +314,14 @@ input:focus {
   justify-content: center;
   border-radius: 7px;
   background: transparent;
-  color: rgba(238, 239, 242, 0.32);
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: color 120ms ease, background 120ms ease, transform 80ms ease;
 }
 
 .collapsed-card__settings:hover {
   background: var(--surface-control-hover);
-  color: rgba(242, 243, 245, 0.86);
+  color: var(--text-strong);
 }
 
 .collapsed-card__settings:active {
@@ -195,7 +329,7 @@ input:focus {
 }
 
 .collapsed-card__settings:focus-visible {
-  outline: 1px solid rgba(122, 167, 255, 0.78);
+  outline: 1px solid var(--accent-ring);
   outline-offset: 2px;
 }
 
@@ -205,8 +339,8 @@ input:focus {
   display: grid;
   gap: 1px;
   padding: 3px 4px 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.055);
-  background: rgba(17, 18, 20, 0.72);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-sunken);
 }
 
 .launcher-result {
@@ -225,7 +359,7 @@ input:focus {
 }
 
 .launcher-result--selected {
-  background: rgba(143, 183, 255, 0.13);
+  background: var(--accent-tint);
 }
 
 .launcher-result__icon {
@@ -235,11 +369,11 @@ input:focus {
   place-items: center;
   overflow: hidden;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.055);
-  color: rgba(238, 239, 242, 0.62);
+  background: var(--icon-surface);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 650;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+  box-shadow: inset 0 0 0 1px var(--icon-edge);
 }
 
 .launcher-result__icon img {
@@ -250,15 +384,15 @@ input:focus {
 
 .launcher-result__icon--command {
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  background: rgba(143, 183, 255, 0.105);
-  color: rgba(238, 239, 242, 0.72);
+  background: var(--accent-tint);
+  color: var(--text-secondary);
 }
 
 /* Warm rather than the accent blue: a power action is the one launcher entry
    that cannot be undone by closing a window. */
 .launcher-result__icon--system {
-  background: rgba(255, 176, 132, 0.115);
-  color: rgba(255, 209, 178, 0.82);
+  background: var(--system-icon-surface);
+  color: var(--system-icon-text);
 }
 
 .launcher-result__main {
@@ -275,14 +409,14 @@ input:focus {
 }
 
 .launcher-result__title {
-  color: rgba(244, 245, 247, 0.94);
+  color: var(--text-strong);
   font-size: 13px;
   font-weight: 580;
   line-height: 1.2;
 }
 
 .launcher-result__subtitle {
-  color: rgba(238, 239, 242, 0.42);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 510;
   line-height: 1.15;
@@ -290,14 +424,14 @@ input:focus {
 
 .launcher-result__action {
   min-width: 30px;
-  color: rgba(238, 239, 242, 0.38);
+  color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 620;
   text-align: right;
 }
 
 .launcher-result--selected .launcher-result__action {
-  color: rgba(238, 239, 242, 0.7);
+  color: var(--text-secondary);
 }
 
 .launcher-result:active {
@@ -315,9 +449,9 @@ input:focus {
   border: 1px solid var(--input-stroke);
   border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.01)),
+    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--input-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
   -webkit-backdrop-filter: blur(26px) saturate(160%);
   backdrop-filter: blur(26px) saturate(160%);
   user-select: none;
@@ -335,11 +469,11 @@ input:focus {
   justify-content: space-between;
   gap: 10px;
   padding: 0 10px 0 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .settings-card__title {
-  color: rgba(244, 245, 247, 0.94);
+  color: var(--text-strong);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.005em;
@@ -351,7 +485,7 @@ input:focus {
   gap: 14px;
   min-height: 0;
   overflow-y: auto;
-  background: rgba(17, 18, 20, 0.52);
+  background: var(--surface-sunken-soft);
 }
 
 .settings-section {
@@ -361,7 +495,7 @@ input:focus {
 
 .settings-section__label {
   margin: 0;
-  color: rgba(238, 239, 242, 0.42);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 620;
   letter-spacing: 0.06em;
@@ -400,12 +534,12 @@ input:focus {
 }
 
 .settings-option--active {
-  background: rgba(143, 183, 255, 0.13);
-  box-shadow: inset 0 0 0 1px rgba(143, 183, 255, 0.28);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
 .settings-option:focus-visible {
-  outline: 1px solid rgba(122, 167, 255, 0.78);
+  outline: 1px solid var(--accent-ring);
   outline-offset: 2px;
 }
 
@@ -416,14 +550,14 @@ input:focus {
 }
 
 .settings-option__label {
-  color: rgba(244, 245, 247, 0.94);
+  color: var(--text-strong);
   font-size: 13px;
   font-weight: 580;
   line-height: 1.2;
 }
 
 .settings-option__description {
-  color: rgba(238, 239, 242, 0.42);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 510;
   line-height: 1.15;
@@ -451,7 +585,7 @@ input:focus {
 }
 
 .settings-option__description--warning {
-  color: rgba(255, 173, 158, 0.72);
+  color: var(--text-warning);
 }
 
 .shortcut-recorder {
@@ -463,12 +597,12 @@ input:focus {
   gap: 6px;
   padding: 0 9px;
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--surface-control);
   /* Border, top highlight and bottom edge together read as a key cap rather
      than a flat pill, which is what tells the row apart from a plain label. */
-  box-shadow: inset 0 0 0 1px var(--stroke-control), inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.28);
-  color: rgba(238, 239, 242, 0.72);
+  box-shadow: inset 0 0 0 1px var(--stroke-control), inset 0 1px 0 var(--keycap-highlight),
+    inset 0 -1px 0 var(--keycap-shadow);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 620;
   white-space: nowrap;
@@ -478,11 +612,11 @@ input:focus {
 
 .shortcut-recorder:hover {
   background: var(--surface-control-hover);
-  color: rgba(244, 245, 247, 0.94);
+  color: var(--text-strong);
 }
 
 .shortcut-recorder:focus-visible {
-  outline: 1px solid rgba(122, 167, 255, 0.78);
+  outline: 1px solid var(--accent-ring);
   outline-offset: 2px;
 }
 
@@ -490,24 +624,24 @@ input:focus {
    obvious where the keystrokes are going, and breathes so it stays legible as
    "waiting" rather than "selected". */
 .shortcut-recorder--recording {
-  background: rgba(143, 183, 255, 0.15);
-  box-shadow: inset 0 0 0 1px rgba(143, 183, 255, 0.38);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
   color: var(--accent);
   animation: shortcut-recording 1.4s ease-in-out infinite;
 }
 
 .shortcut-recorder--recording:hover {
-  background: rgba(143, 183, 255, 0.19);
+  background: var(--accent-tint-hover);
   color: var(--accent);
 }
 
 @keyframes shortcut-recording {
   0%,
   100% {
-    box-shadow: inset 0 0 0 1px rgba(143, 183, 255, 0.38);
+    box-shadow: inset 0 0 0 1px var(--accent-edge);
   }
   50% {
-    box-shadow: inset 0 0 0 1px rgba(143, 183, 255, 0.72);
+    box-shadow: inset 0 0 0 1px var(--accent-edge-strong);
   }
 }
 
@@ -524,7 +658,7 @@ input:focus {
 
 .settings-section__hint {
   margin: 2px 0 0;
-  color: rgba(238, 239, 242, 0.34);
+  color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 500;
   line-height: 1.35;
@@ -539,9 +673,9 @@ input:focus {
   width: 100%;
   height: 100%;
   border-radius: 10px;
-  background: #111214;
+  background: var(--terminal-bg);
   border: 1px solid var(--input-stroke);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 1px 0 var(--keycap-highlight), inset 0 -1px 0 var(--keycap-shadow);
   overflow: hidden;
 }
 
@@ -585,11 +719,11 @@ input:focus {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(41, 42, 46, 0.74), rgba(23, 24, 27, 0.52)),
+    linear-gradient(180deg, var(--terminal-bar-top), var(--terminal-bar-bottom)),
     var(--terminal-bar);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid var(--hairline);
   opacity: 0;
   transition: opacity 130ms ease;
   pointer-events: none;

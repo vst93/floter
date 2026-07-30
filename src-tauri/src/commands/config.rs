@@ -29,6 +29,8 @@ const APP_MODIFIER: &str = "Ctrl";
 pub struct AppSettings {
     pub hotkey: String,
     pub hide_on_blur: bool,
+    /// UI theme: "dark" | "light" | "auto". Only the frontend reads it — "auto"
+    /// is resolved there against the system appearance.
     pub theme: String,
     pub font_size: u32,
     pub font_family: String,
@@ -45,7 +47,7 @@ impl Default for AppSettings {
         Self {
             hotkey: DEFAULT_TOGGLE_WINDOW.to_string(),
             hide_on_blur: true,
-            theme: "dark".to_string(),
+            theme: "auto".to_string(),
             font_size: 14,
             font_family: "monospace".to_string(),
             cursor_shape: "beam".to_string(),
