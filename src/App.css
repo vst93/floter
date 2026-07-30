@@ -66,6 +66,12 @@
      that cannot be undone by closing a window. */
   --system-icon-surface: rgba(255, 176, 132, 0.115);
   --system-icon-text: rgba(255, 209, 178, 0.82);
+  /* The selected action bar, when it holds a shell command. Green rather than the
+     accent blue the result rows are selected in: the two selections are moved
+     between with the same arrow keys, and the colour is what says which of them
+     Enter is about to reach. A URL or a path keeps the blue — those open
+     something, the way a result does. */
+  --action-shell-tint: rgba(72, 187, 120, 0.13);
 
   /* Terminal. `--terminal-fg` and `--terminal-cursor` are read by the canvas
      renderer, not by any rule here: the frame the backend sends marks a cell as
@@ -146,6 +152,9 @@
   --icon-edge: rgba(0, 0, 0, 0.06);
   --system-icon-surface: rgba(214, 118, 44, 0.13);
   --system-icon-text: #a24d15;
+  /* Darker and a shade less saturated than the dark theme's: the same green over
+     a light surface reads as a much stronger wash than it does over a dark one. */
+  --action-shell-tint: rgba(28, 138, 78, 0.12);
 
   /* A soft warm gray rather than near-white: the terminal is the one surface
      that is filled edge to edge with a command's own colours, and many of them
@@ -344,14 +353,23 @@ input:focus {
   outline-offset: 2px;
 }
 
-.launcher-results {
+/* The whole area below the input: the result list, the action bar, or both. The
+   sunken field and the hairline that separates it from the input live here
+   rather than on the list, so that an action bar with nothing matched above it
+   sits in the same panel a list would have. */
+.launcher-bottom {
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 1px;
+  gap: 0;
   padding: 3px 4px 8px;
   border-top: 1px solid var(--hairline);
   background: var(--surface-sunken);
+}
+
+.launcher-results {
+  display: grid;
+  gap: 1px;
 }
 
 .launcher-result {
@@ -450,6 +468,95 @@ input:focus {
 }
 
 .launcher-result:active {
+  transform: scale(0.997);
+}
+
+/* The action bar: what the query does when it is not the name of anything
+   installed. Deliberately the same metrics as a result row — it is selected with
+   the same keys and run with the same Enter, so it should read as one more row
+   and not as a footer. */
+.launcher-action-bar {
+  width: 100%;
+  height: 42px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 0 9px 0 11px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Only divided from a list that is actually there: with nothing matched the
+   action bar is the panel's only row, and a second hairline 3px under the one
+   below the input would read as an empty list rather than as no list. */
+.launcher-results + .launcher-action-bar {
+  margin-top: 3px;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0 0 7px 7px;
+}
+
+.launcher-action-bar--selected {
+  background: var(--accent-tint);
+}
+
+.launcher-action-bar--selected.launcher-action-bar--shell {
+  background: var(--action-shell-tint);
+}
+
+.launcher-action-bar__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px var(--icon-edge);
+}
+
+/* The `$` is a prompt, so it is set in the font a prompt is set in. */
+.launcher-action-bar--shell .launcher-action-bar__icon {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+.launcher-action-bar__main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.launcher-action-bar__title,
+.launcher-action-bar__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Monospace, unlike a result's title: this row shows the string as it will be
+   handed over — a command line, a URL, a path — and the proportional face the
+   application names use hides the difference between a space and two. */
+.launcher-action-bar__title {
+  color: var(--text-strong);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  font-weight: 520;
+  line-height: 1.2;
+}
+
+.launcher-action-bar__subtitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 510;
+  line-height: 1.15;
+}
+
+.launcher-action-bar:active {
   transform: scale(0.997);
 }
 

@@ -49,6 +49,17 @@ type LauncherItem =
   | { type: "command"; id: string; title: string; subtitle: string }
   | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction };
 
+/**
+ * What the query does when it is not the name of anything installed.
+ *
+ * This is the row below the results, and unlike them there is always exactly one
+ * of it for a non-empty query: every string is *something* the shell can be
+ * handed, and a few shapes of string are better answered by the browser or the
+ * file manager instead.
+ */
+type ActionBarKind = "shell" | "url" | "path";
+type ActionBar = { type: ActionBarKind; label: string; value: string };
+
 type AppSettings = {
   hotkey: string;
   hide_on_blur: boolean;
@@ -88,12 +99,51 @@ const INPUT_ROW_HEIGHT = 56;
 const RESULT_ROW_HEIGHT = 42;
 const RESULT_LIST_PADDING = 8;
 const RESULT_ROW_GAP = 1;
+/** The gap above the action bar that holds its divider hairline; only paid for
+ * when there is a result list above it to be divided from. */
+const ACTION_BAR_DIVIDER = 3;
 const MAX_RESULTS = 6;
 const WINDOW_FRAME_PADDING = 0;
 const BRACKETED_PASTE = 1 << 4;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 150;
+
+/** A URL to hand the browser. Only the schemes a launcher can be certain about:
+ * `mailto:` or an application's own registered scheme would open something the
+ * query does not look like it is asking for. */
+const URL_QUERY = /^(?:https?|ftp):\/\//i;
+
+/**
+ * A filesystem path: absolute, home-relative, explicitly relative, or a Windows
+ * drive letter.
+ *
+ * A bare word is deliberately not one. `Documents` is both a plausible
+ * application name and an ambiguous directory, while `./Documents` says which of
+ * the two was meant.
+ */
+const PATH_QUERY = /^[/~.]|^[A-Za-z]:[\\/]/;
+
+/**
+ * First words that mean "this is a command line", not an application name.
+ *
+ * Matched as a whole word rather than as a prefix: `git` is a command, but
+ * `gitkraken`, `nodejs`, `psql` and `manjaro` all *start* with one and are
+ * applications people search for. Nothing is lost by being strict, because a
+ * command with an argument after it already reads as one from its whitespace
+ * alone — this list only has to catch the bare invocations (`ls`, `top`, `make`).
+ */
+const COMMAND_WORDS = new Set([
+  "cd", "git", "npm", "ls", "cat", "echo", "curl", "wget", "ssh",
+  "cp", "mv", "rm", "mkdir", "touch", "chmod", "grep", "find",
+  "sed", "awk", "make", "docker", "kubectl", "python", "python3",
+  "node", "go", "cargo", "brew", "apt", "yum", "pip", "yarn",
+  "pnpm", "tar", "gzip", "unzip", "head", "tail", "wc", "sort",
+  "uniq", "diff", "kill", "ps", "top", "df", "du", "free", "uname",
+  "whoami", "hostname", "ping", "ifconfig", "ip", "netstat", "lsof",
+  "systemctl", "journalctl", "man", "which", "whereis", "export",
+  "source", "alias", "history", "sudo",
+]);
 
 const normalizeSearch = (value: string) =>
   value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -269,6 +319,41 @@ const SystemActionIcon = ({ action }: { action: "restart" | "shutdown" }) => (
   </svg>
 );
 
+/**
+ * The action bar's icon: Lucide `external-link` for a URL, `folder` for a path,
+ * and a shell prompt for everything else.
+ *
+ * The `$` is a glyph rather than Lucide's `terminal` because it is what the row
+ * below it in the terminal will actually say, and it reads as "a command line"
+ * to anyone who has ever seen one.
+ */
+const ActionBarIcon = ({ kind }: { kind: ActionBarKind }) => {
+  if (kind === "shell") return <span>$</span>;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === "url" ? (
+        <>
+          <path d="M15 3h6v6" />
+          <path d="M10 14 21 3" />
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        </>
+      ) : (
+        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+      )}
+    </svg>
+  );
+};
+
 type ShortcutRecorderProps = {
   action: ShortcutAction;
   shortcut: string;
@@ -379,7 +464,11 @@ export default function App() {
   /** True until the first scan settles, whether it hit the cache or not. */
   const [appsLoading, setAppsLoading] = useState(true);
   const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
-  const [selectedItemIndex, setSelectedItemIndex] = useState(0);
+  const [selectedResultIndex, setSelectedResultIndex] = useState(0);
+  /** Whether the action bar, rather than a row of the result list, is the thing
+   * Enter runs. The two selections are exclusive but kept apart, because the
+   * action bar is not a result: it is never numbered and never in `Ctrl+N`. */
+  const [selectedActionBar, setSelectedActionBar] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
     hotkey: "Ctrl+Shift+Space",
     hide_on_blur: true,
@@ -462,21 +551,22 @@ export default function App() {
     [applications],
   );
 
-  const launcherItems = useMemo<LauncherItem[]>(() => {
+  /**
+   * The numbered result list: applications and the built-in system actions.
+   *
+   * Running the query as a command used to live in here too, wedged into the
+   * second slot. It is the action bar now — a command is not a search result, it
+   * is what to do with a search that found nothing, and giving it a row of its
+   * own leaves every numbered slot for something that was actually matched.
+   */
+  const launcherResults = useMemo<LauncherItem[]>(() => {
     const command = query.trim();
     if (!command) return [];
 
-    const commandItem: LauncherItem = {
-      type: "command",
-      id: "command",
-      title: command,
-      subtitle: t("launcher.runInShell"),
-    };
-
     // A query of nothing but punctuation normalizes away entirely; it can only
-    // ever be a shell command.
+    // ever be an action-bar command.
     const needle = normalizeSearch(command);
-    if (!needle) return [commandItem];
+    if (!needle) return [];
 
     // Applications and the power actions are scored the same way and ranked
     // against each other, so "restart" reaches the power action while "restic"
@@ -525,16 +615,49 @@ export default function App() {
       });
     }
 
-    const items = matches
+    return matches
       .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+      // One row short of the window's worth, because the action bar takes the
+      // last one.
       .slice(0, MAX_RESULTS - 1)
       .map((match) => match.item);
-
-    if (!items.length) return [commandItem];
-    // The best match keeps the top slot and the shell command the one below it,
-    // so running the query as typed is always exactly one row away.
-    return [items[0], commandItem, ...items.slice(1)].slice(0, MAX_RESULTS);
   }, [query, searchableApps, t]);
+
+  const actionBar = useMemo<ActionBar | null>(() => {
+    const value = query.trim();
+    if (!value) return null;
+    if (URL_QUERY.test(value)) {
+      return { type: "url", label: t("launcher.openInBrowser"), value };
+    }
+    if (PATH_QUERY.test(value)) {
+      return { type: "path", label: t("launcher.openInFiles"), value };
+    }
+    return { type: "shell", label: t("launcher.runInShell"), value };
+  }, [query, t]);
+
+  /**
+   * Whether a fresh query starts out on the action bar rather than on the first
+   * result.
+   *
+   * A boolean rather than something the effect below recomputes, so that the
+   * effect fires when the *answer* changes and not merely when the result list is
+   * rebuilt. Every summon rescans applications in the background, and that gives
+   * `launcherResults` a new identity even when nothing about it changed —
+   * depending on the list itself would throw away a selection the user had
+   * already moved with the arrow keys.
+   */
+  const defaultsToActionBar = useMemo(() => {
+    const value = query.trim();
+    if (!value) return false;
+    // A URL or a path is not the name of anything installed, and the action bar
+    // is the only row that knows what to do with one.
+    if (actionBar && actionBar.type !== "shell") return true;
+    // Nothing matched, so there is nothing else to select.
+    if (!launcherResults.length) return true;
+    // An argument or a pipe makes it a command line whatever else it resembles.
+    if (/\s/.test(value) || /[|>&]/.test(value)) return true;
+    return COMMAND_WORDS.has(value.toLowerCase());
+  }, [actionBar, launcherResults.length, query]);
 
   // A full scan walks every application directory, so the two callers below
   // share one: the initial load and a refresh after a summon must never end up
@@ -555,31 +678,44 @@ export default function App() {
     scanApplications(false);
   }, []);
 
+  // A new query starts from its own default: the first result for a name, the
+  // action bar for a command line, a URL or a path. See `defaultsToActionBar`.
   useEffect(() => {
-    setSelectedItemIndex(0);
-  }, [query]);
+    setSelectedResultIndex(0);
+    setSelectedActionBar(defaultsToActionBar);
+  }, [defaultsToActionBar, query]);
 
   useEffect(() => {
-    setSelectedItemIndex((index) => {
-      if (!launcherItems.length) return 0;
-      return Math.min(index, launcherItems.length - 1);
+    setSelectedResultIndex((index) => {
+      if (!launcherResults.length) return 0;
+      return Math.min(index, launcherResults.length - 1);
     });
-  }, [launcherItems.length]);
+  }, [launcherResults.length]);
 
   useEffect(() => {
     if (mode !== "collapsed") return;
-    const resultHeight = launcherItems.length
-      ? RESULT_LIST_PADDING +
-        launcherItems.length * RESULT_ROW_HEIGHT +
-        Math.max(0, launcherItems.length - 1) * RESULT_ROW_GAP
+    const listHeight = launcherResults.length
+      ? launcherResults.length * RESULT_ROW_HEIGHT +
+        (launcherResults.length - 1) * RESULT_ROW_GAP
       : 0;
+    // The action bar is a row of the same height, plus its divider — but only
+    // when there is a list above it to be divided from.
+    const actionBarHeight = actionBar
+      ? RESULT_ROW_HEIGHT + (launcherResults.length ? ACTION_BAR_DIVIDER : 0)
+      : 0;
+    const bottomHeight = listHeight + actionBarHeight;
     getCurrentWindow()
-      .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, INPUT_ROW_HEIGHT + resultHeight))
+      .setSize(
+        new LogicalSize(
+          INPUT_WINDOW_WIDTH,
+          INPUT_ROW_HEIGHT + (bottomHeight ? RESULT_LIST_PADDING + bottomHeight : 0),
+        ),
+      )
       .catch(() => undefined);
-  }, [launcherItems.length, mode]);
+  }, [actionBar, launcherResults.length, mode]);
 
   useEffect(() => {
-    const missing = launcherItems
+    const missing = launcherResults
       .filter((item): item is Extract<LauncherItem, { type: "app" }> => item.type === "app")
       .filter((item) => !appIconUrls[item.app.path])
       .slice(0, 6);
@@ -608,7 +744,7 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [appIconUrls, launcherItems]);
+  }, [appIconUrls, launcherResults]);
 
   const render = () => {
     const renderer = rendererRef.current;
@@ -1204,9 +1340,9 @@ export default function App() {
       const inputFocused = document.activeElement === inputRef.current;
       const resultNumber = inputFocused ? null : matchesResultShortcut(event, shortcuts.select_result);
       if (resultNumber !== null) {
-        if (launcherItems[resultNumber - 1]) {
+        if (launcherResults[resultNumber - 1]) {
           event.preventDefault();
-          runLauncherItem(launcherItems[resultNumber - 1]);
+          runLauncherItem(launcherResults[resultNumber - 1]);
         }
         return;
       }
@@ -1230,7 +1366,7 @@ export default function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [launcherItems, mode, query, recordingAction, shortcuts]);
+  }, [launcherResults, mode, query, recordingAction, shortcuts]);
 
   const startDrag = (event: React.MouseEvent) => {
     if ((event.target as HTMLElement).closest("button") || (event.target as HTMLElement).closest("input")) {
@@ -1340,6 +1476,36 @@ export default function App() {
     }
   };
 
+  /**
+   * Hand the query to the system and close, unless the system refused it.
+   *
+   * A path that does not exist is the common refusal, and closing on one would
+   * throw away the path that has just been typed — so the launcher stays up for
+   * it to be corrected, exactly as a failed application launch does.
+   */
+  const openWithSystem = async (command: "open_url" | "open_path", args: Record<string, string>) => {
+    try {
+      await invoke(command, args);
+    } catch {
+      return;
+    }
+    setQuery("");
+    setHistoryIndex(-1);
+    invoke("hide_window");
+  };
+
+  const executeActionBar = (action: ActionBar) => {
+    if (action.type === "url") {
+      void openWithSystem("open_url", { url: action.value });
+      return;
+    }
+    if (action.type === "path") {
+      void openWithSystem("open_path", { path: action.value });
+      return;
+    }
+    void runCommand();
+  };
+
   const runLauncherItem = (item: LauncherItem | undefined) => {
     if (!item) return;
     if (item.type === "app") {
@@ -1361,11 +1527,13 @@ export default function App() {
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const native = event.nativeEvent;
+    // Numbered results only: the action bar has no number, so `Ctrl+1` can never
+    // run a command by mistake.
     const resultNumber = matchesResultShortcut(native, shortcuts.select_result);
     if (resultNumber !== null) {
-      if (launcherItems[resultNumber - 1]) {
+      if (launcherResults[resultNumber - 1]) {
         event.preventDefault();
-        runLauncherItem(launcherItems[resultNumber - 1]);
+        runLauncherItem(launcherResults[resultNumber - 1]);
       }
       return;
     }
@@ -1378,24 +1546,64 @@ export default function App() {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      runLauncherItem(launcherItems[selectedItemIndex]);
+      // The list can empty out between a keystroke and the effect that moves the
+      // selection off it, so an empty one falls back to the action bar rather
+      // than running nothing at all.
+      if (actionBar && (selectedActionBar || !launcherResults.length)) {
+        executeActionBar(actionBar);
+      } else {
+        runLauncherItem(launcherResults[selectedResultIndex]);
+      }
       return;
     }
 
-    if (launcherItems.length && event.key === "ArrowUp") {
-      event.preventDefault();
-      setSelectedItemIndex((index) =>
-        index <= 0 ? launcherItems.length - 1 : index - 1,
-      );
-      return;
-    }
+    // The results and the action bar are navigated as one loop that wraps at
+    // both ends. With no query there is neither, and the arrows fall through to
+    // the shell history below.
+    if (actionBar || launcherResults.length) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        if (selectedActionBar) {
+          // Past the action bar is the top of the list again.
+          if (launcherResults.length) {
+            setSelectedActionBar(false);
+            setSelectedResultIndex(0);
+          }
+        } else if (selectedResultIndex < launcherResults.length - 1) {
+          setSelectedResultIndex((index) => index + 1);
+        } else {
+          setSelectedActionBar(Boolean(actionBar));
+        }
+        return;
+      }
 
-    if (launcherItems.length && event.key === "ArrowDown") {
-      event.preventDefault();
-      setSelectedItemIndex((index) =>
-        index >= launcherItems.length - 1 ? 0 : index + 1,
-      );
-      return;
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        if (selectedActionBar) {
+          if (launcherResults.length) {
+            setSelectedActionBar(false);
+            setSelectedResultIndex(launcherResults.length - 1);
+          }
+        } else if (selectedResultIndex > 0) {
+          setSelectedResultIndex((index) => index - 1);
+        } else {
+          setSelectedActionBar(Boolean(actionBar));
+        }
+        return;
+      }
+
+      // Tab is the direct way across, for when the list is long enough that
+      // arrowing to the bottom of it is work.
+      if (event.key === "Tab") {
+        event.preventDefault();
+        if (!selectedActionBar) {
+          setSelectedActionBar(Boolean(actionBar));
+        } else if (launcherResults.length) {
+          setSelectedActionBar(false);
+          setSelectedResultIndex(0);
+        }
+        return;
+      }
     }
 
     if (event.key === "ArrowUp") {
@@ -1608,41 +1816,70 @@ export default function App() {
               </svg>
             </button>
           </div>
-          {launcherItems.length > 0 && (
-            <div className="launcher-results" role="listbox" aria-label="Launcher results">
-              {launcherItems.map((item, index) => (
+          {(launcherResults.length > 0 || actionBar) && (
+            <div className="launcher-bottom">
+              {launcherResults.length > 0 && (
+                <div className="launcher-results" role="listbox" aria-label="Launcher results">
+                  {launcherResults.map((item, index) => {
+                    const selected = !selectedActionBar && index === selectedResultIndex;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`launcher-result${selected ? " launcher-result--selected" : ""}`}
+                        role="option"
+                        aria-selected={selected}
+                        onMouseEnter={() => {
+                          setSelectedActionBar(false);
+                          setSelectedResultIndex(index);
+                        }}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => runLauncherItem(item)}
+                      >
+                        <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
+                          {item.type === "app" && appIconUrls[item.app.path] ? (
+                            <img src={appIconUrls[item.app.path]} alt="" />
+                          ) : item.type === "system" ? (
+                            <SystemActionIcon action={item.action} />
+                          ) : (
+                            // The placeholder for an application whose icon has
+                            // not resolved yet: a first letter over a real icon
+                            // reads as a different application rather than as a
+                            // pending one.
+                            <span>$</span>
+                          )}
+                        </span>
+                        <span className="launcher-result__main">
+                          <span className="launcher-result__title">{item.title}</span>
+                          <span className="launcher-result__subtitle">{item.subtitle}</span>
+                        </span>
+                        <span className="launcher-result__action">
+                          {formatResultShortcut(shortcuts.select_result, index + 1)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {actionBar && (
                 <button
-                  key={item.id}
                   type="button"
-                  className={`launcher-result${index === selectedItemIndex ? " launcher-result--selected" : ""}`}
-                  role="option"
-                  aria-selected={index === selectedItemIndex}
-                  onMouseEnter={() => setSelectedItemIndex(index)}
+                  className={`launcher-action-bar launcher-action-bar--${actionBar.type}${
+                    selectedActionBar ? " launcher-action-bar--selected" : ""
+                  }`}
+                  onMouseEnter={() => setSelectedActionBar(true)}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => runLauncherItem(item)}
+                  onClick={() => executeActionBar(actionBar)}
                 >
-                  <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
-                    {item.type === "app" && appIconUrls[item.app.path] ? (
-                      <img src={appIconUrls[item.app.path]} alt="" />
-                    ) : item.type === "system" ? (
-                      <SystemActionIcon action={item.action} />
-                    ) : (
-                      // An application whose icon has not resolved yet and the
-                      // shell command share the same placeholder: both are "run
-                      // this", and a first letter over a real icon reads as a
-                      // different application rather than as a pending one.
-                      <span>$</span>
-                    )}
+                  <span className="launcher-action-bar__icon">
+                    <ActionBarIcon kind={actionBar.type} />
                   </span>
-                  <span className="launcher-result__main">
-                    <span className="launcher-result__title">{item.title}</span>
-                    <span className="launcher-result__subtitle">{item.subtitle}</span>
-                  </span>
-                  <span className="launcher-result__action">
-                    {formatResultShortcut(shortcuts.select_result, index + 1)}
+                  <span className="launcher-action-bar__main">
+                    <span className="launcher-action-bar__title">{actionBar.value}</span>
+                    <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
                   </span>
                 </button>
-              ))}
+              )}
             </div>
           )}
         </div>

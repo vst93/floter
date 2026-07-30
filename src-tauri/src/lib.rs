@@ -3,6 +3,7 @@ mod commands;
 pub mod ipc;
 mod terminal;
 
+use commands::actions::{open_path, open_url};
 use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
@@ -900,6 +901,8 @@ pub fn run() {
             list_applications,
             open_application,
             open_in_default_terminal,
+            open_path,
+            open_url,
             term_close,
             get_settings,
             save_settings,
