@@ -6,9 +6,25 @@
 // fully replaces the previous one. Selection overlay + scrollbar are drawn
 // from geometry the renderer exposes to the host component.
 
-const BG = 0x101216;
-const FG = 0xd7dae0;
-const CURSOR = 0x8bd5ca;
+// Fallbacks for the theme colours below, matching the dark palette in App.css.
+// They are only reached when the stylesheet has not applied yet — a canvas
+// painted in a colour nothing else on screen uses would be the more visible
+// failure.
+const FALLBACK_BG = 0x111214;
+const FALLBACK_FG = 0xd7dae0;
+const FALLBACK_CURSOR = 0x8bd5ca;
+const FALLBACK_SELECTION = "rgba(255, 255, 255, 0.16)";
+const FALLBACK_SCROLLBAR = "rgba(255, 255, 255, 0.32)";
+
+// What a cell carrying *no* colour of its own looks like on the wire: the
+// backend resolves the default foreground and background to these exact values
+// (`DEFAULT_FG` / `DEFAULT_BG` in `src-tauri/src/terminal/color.rs`), so they
+// are sentinels to compare against, never colours to paint with. Every cell
+// that matches is painted in the current theme instead, which is what lets one
+// frame render in either palette — a program that picked its own colours keeps
+// them, because those arrive as themselves.
+const WIRE_BG = 0x101216;
+const WIRE_FG = 0xd7dae0;
 
 // Cell flag bits (must match `frame.rs`).
 const FLAG_BOLD = 1 << 0;
@@ -80,6 +96,15 @@ export class TerminalCanvas {
   private lastFont = "";
   private colorCache = new Map<number, string>();
 
+  // The palette in use, refreshed by `updateTheme`. Held here rather than read
+  // per frame: `getComputedStyle` forces a style resolution, and a frame arrives
+  // for every burst of terminal output.
+  private bg = FALLBACK_BG;
+  private fg = FALLBACK_FG;
+  private cursor = FALLBACK_CURSOR;
+  private selection = FALLBACK_SELECTION;
+  private scrollbar = FALLBACK_SCROLLBAR;
+
   constructor(
     private canvas: HTMLCanvasElement,
     private opts: RendererOptions,
@@ -87,7 +112,30 @@ export class TerminalCanvas {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("2d canvas context unavailable");
     this.ctx = ctx;
+    this.updateTheme();
     this.measureCell();
+  }
+
+  /**
+   * Re-read the palette from the document's CSS custom properties.
+   *
+   * The variables are declared on `:root` and `[data-theme="light"]`, so the
+   * document element is what has to be measured — they are inherited by the
+   * canvas but the renderer wants whichever block currently applies, and asking
+   * the root is how a `data-theme` switch is observed at all.
+   *
+   * Public because a theme change repaints in place: rebuilding the renderer
+   * would take the scroll position and the last frame with it.
+   */
+  updateTheme(): void {
+    const style = getComputedStyle(document.documentElement);
+    this.bg = packedColor(style, "--terminal-bg", FALLBACK_BG);
+    this.fg = packedColor(style, "--terminal-fg", FALLBACK_FG);
+    this.cursor = packedColor(style, "--terminal-cursor", FALLBACK_CURSOR);
+    // Kept as CSS strings: both are deliberately translucent, and the packed
+    // integers the cell colours use have nowhere to put an alpha channel.
+    this.selection = cssColor(style, "--terminal-selection", FALLBACK_SELECTION);
+    this.scrollbar = cssColor(style, "--terminal-scrollbar", FALLBACK_SCROLLBAR);
   }
 
   private fontString(bold: boolean, italic: boolean): string {
@@ -147,8 +195,10 @@ export class TerminalCanvas {
   draw(bytes: Uint8Array, blinkOn: boolean, selection: Selection | null = null): void {
     const ctx = this.ctx;
     const { paddingX, paddingY } = this.opts;
+    const themeBg = this.bg;
+    const themeFg = this.fg;
 
-    ctx.fillStyle = this.color(BG);
+    ctx.fillStyle = this.color(themeBg);
     ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
 
     this.lastBytes = bytes;
@@ -175,8 +225,8 @@ export class TerminalCanvas {
     const glyphOffset = Math.round((ch - this.opts.fontSize) / 2);
 
     let cursorChar = 0x20;
-    let cursorFg = FG;
-    let cursorBg = BG;
+    let cursorFg = WIRE_FG;
+    let cursorBg = WIRE_BG;
     let cursorFlags = 0;
 
     let off = HEADER_BYTES;
@@ -204,21 +254,31 @@ export class TerminalCanvas {
         const x = paddingX + col * cw;
         const w = wide ? cw * 2 : cw;
 
-        if (bg !== BG) {
+        // A default background needs no fill at all: the whole canvas was
+        // already painted in it above.
+        if (bg !== WIRE_BG) {
           ctx.fillStyle = this.color(bg);
           ctx.fillRect(x, y, w, ch);
         }
 
+        // Resolved before the early return below so an underline or a strike on
+        // an otherwise blank cell is drawn in the theme's colour too.
+        const cellFg = fg === WIRE_FG ? themeFg : fg;
+
         const hidden = (flags & FLAG_HIDDEN) !== 0;
         if (hidden || char === 0x20) {
-          this.drawUnderlineStrike(x, y, w, fg, flags);
+          this.drawUnderlineStrike(x, y, w, cellFg, flags);
           continue;
         }
 
         const bold = (flags & FLAG_BOLD) !== 0;
         const italic = (flags & FLAG_ITALIC) !== 0;
         const dim = (flags & FLAG_DIM) !== 0;
-        const effectiveFg = dim ? mix(fg, bg === BG ? BG : bg, 0.5) : fg;
+        // Dim halves the distance to whatever is actually behind the glyph, so
+        // the theme background is what a default-background cell mixes toward.
+        const effectiveFg = dim
+          ? mix(cellFg, bg === WIRE_BG ? themeBg : bg, 0.5)
+          : cellFg;
 
         if (bold !== fontBold || italic !== fontItalic) {
           fontBold = bold;
@@ -229,7 +289,7 @@ export class TerminalCanvas {
         ctx.fillStyle = this.color(effectiveFg);
         ctx.fillText(String.fromCodePoint(char), x, y + glyphOffset);
 
-        this.drawUnderlineStrike(x, y, w, fg, flags);
+        this.drawUnderlineStrike(x, y, w, cellFg, flags);
       }
     }
 
@@ -267,7 +327,7 @@ export class TerminalCanvas {
     const { startCol, startRow, endCol, endRow } = normalizeSelection(sel, this.cols, this.rows);
     if (endRow < startRow) return;
 
-    ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
+    ctx.fillStyle = this.selection;
     for (let row = startRow; row <= endRow; row++) {
       const y = paddingY + row * ch;
       const colStart = row === startRow ? startCol : 0;
@@ -303,8 +363,11 @@ export class TerminalCanvas {
     row: number,
     shape: number,
     cellChar: number,
-    cellBg: number,
-    _cellFg: number,
+    // The foreground and background of the cell the cursor sits on, in the order
+    // the call site passes them. Only the foreground is used — a block cursor
+    // redraws the glyph over its own fill.
+    cellFg: number,
+    _cellBg: number,
     cellFlags: number,
   ): void {
     const ctx = this.ctx;
@@ -318,10 +381,10 @@ export class TerminalCanvas {
     ctx.save();
     switch (shape) {
       case CURSOR_BLOCK: {
-        ctx.fillStyle = this.color(CURSOR);
+        ctx.fillStyle = this.color(this.cursor);
         ctx.fillRect(x, y, cw, ch);
         if (!(cellFlags & FLAG_HIDDEN) && cellChar !== 0x20) {
-          ctx.fillStyle = this.color(cellBg === BG ? BG : cellBg);
+          ctx.fillStyle = this.color(cellFg === WIRE_FG ? this.fg : cellFg);
           this.setFont(false, false);
           ctx.textBaseline = "top";
           ctx.fillText(String.fromCodePoint(cellChar), x, y + glyphOffset);
@@ -329,18 +392,18 @@ export class TerminalCanvas {
         break;
       }
       case CURSOR_BEAM: {
-        ctx.fillStyle = this.color(CURSOR);
+        ctx.fillStyle = this.color(this.cursor);
         ctx.fillRect(x, y, Math.max(2, Math.round(cw * 0.18)), ch);
         break;
       }
       case CURSOR_UNDERLINE: {
         const h = Math.max(2, Math.round(ch * 0.18));
-        ctx.fillStyle = this.color(CURSOR);
+        ctx.fillStyle = this.color(this.cursor);
         ctx.fillRect(x, y + ch - h, cw, h);
         break;
       }
       case CURSOR_HOLLOW: {
-        ctx.strokeStyle = this.color(CURSOR);
+        ctx.strokeStyle = this.color(this.cursor);
         ctx.lineWidth = 1.5;
         ctx.strokeRect(x + 0.75, y + 0.75, cw - 1.5, ch - 1.5);
         break;
@@ -357,7 +420,7 @@ export class TerminalCanvas {
     const rect = this.scrollbarRect();
     if (!rect) return;
 
-    ctx.fillStyle = "rgba(255, 255, 255, 0.32)";
+    ctx.fillStyle = this.scrollbar;
     const thumbH = Math.max(rect.h * 0.1, rect.thumbH);
     roundRectPath(ctx, rect.x, rect.thumbY, rect.w, thumbH, rect.w / 2);
     ctx.fill();
@@ -464,6 +527,49 @@ export class TerminalCanvas {
 
 function isSpace(char: number): boolean {
   return char === 0x20 || char === 0x09;
+}
+
+/**
+ * A `--terminal-*` custom property as a packed `0xrrggbb`.
+ *
+ * Packed rather than kept as a string because these three take part in
+ * arithmetic — [`mix`] blends a dim glyph toward its background — and because
+ * they are compared against the integers the frame carries.
+ *
+ * Only the notations App.css actually uses are understood (`#rrggbb`, `#rgb`
+ * and `rgb()`/`rgba()`); anything else falls back rather than painting a
+ * half-parsed colour. Note that a `getPropertyValue` on a *custom* property
+ * returns the declaration verbatim, not a normalized `rgb()` triple, so the hex
+ * branch is the one that runs today.
+ */
+function packedColor(style: CSSStyleDeclaration, name: string, fallback: number): number {
+  const value = style.getPropertyValue(name).trim();
+  if (!value) return fallback;
+
+  if (value.startsWith("#")) {
+    const hex = value.slice(1);
+    // `#abc` is shorthand for `#aabbcc`.
+    const expanded =
+      hex.length === 3
+        ? hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
+        : hex;
+    if (expanded.length === 6) {
+      const packed = Number.parseInt(expanded, 16);
+      if (!Number.isNaN(packed)) return packed;
+    }
+    return fallback;
+  }
+
+  const rgb = value.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+  if (rgb) {
+    return (Number(rgb[1]) << 16) | (Number(rgb[2]) << 8) | Number(rgb[3]);
+  }
+  return fallback;
+}
+
+/** A `--terminal-*` custom property left as written, for translucent overlays. */
+function cssColor(style: CSSStyleDeclaration, name: string, fallback: string): string {
+  return style.getPropertyValue(name).trim() || fallback;
 }
 
 /// Path for a rounded rectangle (canvas `roundRect` fallback).

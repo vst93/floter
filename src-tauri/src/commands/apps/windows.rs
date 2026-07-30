@@ -176,6 +176,9 @@ fn collect_shortcuts(
             path: path.to_string_lossy().to_string(),
             icon_path: None,
             comment: None,
+            // Filled in by `list_applications` once the scan is done, so the
+            // pinyin lookup lives in one place rather than in every scanner.
+            initials: String::new(),
         });
     }
 }
@@ -218,6 +221,9 @@ fn collect_registry_programs(
                 path,
                 icon_path: None,
                 comment: None,
+                // Filled in by `list_applications` once the scan is done, so the
+                // pinyin lookup lives in one place rather than in every scanner.
+                initials: String::new(),
             });
         }
     }

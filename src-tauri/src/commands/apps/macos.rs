@@ -68,6 +68,10 @@ fn collect_apps(
                     path: canonical,
                     icon_path: None,
                     comment: None,
+                    // Filled in by `list_applications` once the scan is done, so
+                    // the pinyin lookup lives in one place rather than in every
+                    // scanner.
+                    initials: String::new(),
                 });
             }
             continue;

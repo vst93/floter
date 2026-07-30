@@ -35,6 +35,8 @@ type LocalApplication = {
   path: string;
   iconPath?: string | null;
   comment?: string | null;
+  /** Latin search key built by the backend; see `compute_initials` there. */
+  initials: string;
 };
 
 /** Answer to `check_applications`: whether a rescan would find anything new. */
@@ -57,6 +59,21 @@ type AppSettings = {
   language: Language;
   shortcuts: ShortcutMap;
 };
+
+/**
+ * The appearance choices, in the order they are offered.
+ *
+ * `auto` first because it is the default and the one most people want. Unlike
+ * `LANGUAGE_OPTIONS` these live here rather than in i18n.ts: a language is
+ * always named in itself ("English", "中文"), while a theme name is ordinary
+ * prose that has to be translated, so there is nothing to keep beside the
+ * dictionaries.
+ */
+const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
+  { value: "auto", labelKey: "settings.theme.auto" },
+  { value: "dark", labelKey: "settings.theme.dark" },
+  { value: "light", labelKey: "settings.theme.light" },
+];
 
 const FONT_FAMILY =
   "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
@@ -112,13 +129,29 @@ const scoreNormalized = (needle: string, haystack: string) => {
 };
 
 /** An application with its searchable names normalized once, up front. */
-type SearchableApp = { app: LocalApplication; names: string[] };
+type SearchableApp = { app: LocalApplication; names: string[]; initials: string };
 
-const scoreApp = (needle: string, names: string[]) => {
+/**
+ * Best score for a needle across an application's names and its initials.
+ *
+ * The initials are a separate key rather than another entry in `names` because
+ * they need their own ceiling. `wyyyy` *is* the whole of "网易云音乐"'s key, so it
+ * would otherwise score a perfect 1000 and outrank an application whose actual
+ * name the query spells out in full — initials are a shorthand, and a real name
+ * match is always the more certain of the two.
+ */
+const scoreApp = (needle: string, names: string[], initials: string) => {
   let best = 0;
   for (const name of names) {
     const score = scoreNormalized(needle, name);
     if (score > best) best = score;
+  }
+  if (initials) {
+    const score = scoreNormalized(needle, initials);
+    // Below an exact name match, above a prefix one: typing an application's
+    // initials is deliberate enough to beat a name that merely starts the same.
+    const capped = score >= 1000 ? 950 : score;
+    if (capped > best) best = capped;
   }
   return best;
 };
@@ -190,6 +223,33 @@ const KeyboardIcon = () => (
     <path d="M7 16h10" />
     <path d="M8 12h.01" />
     <rect width="20" height="16" x="2" y="4" rx="2" />
+  </svg>
+);
+
+/** Lucide `rotate-cw` for restart, `power` for shutdown. */
+const SystemActionIcon = ({ action }: { action: "restart" | "shutdown" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {action === "restart" ? (
+      <>
+        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+        <path d="M21 3v6h-6" />
+      </>
+    ) : (
+      <>
+        <path d="M12 2v10" />
+        <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
+      </>
+    )}
   </svg>
 );
 
@@ -325,6 +385,42 @@ export default function App() {
     [settings.shortcuts],
   );
 
+  // The system appearance, tracked whether or not it is currently being followed.
+  // Subscribing unconditionally rather than only in `auto` mode keeps this from
+  // going stale: a listener attached on entering `auto` would miss every change
+  // that happened while the theme was pinned, and would then report the wrong
+  // answer for as long as it took the appearance to change again.
+  const [systemTheme, setSystemTheme] = useState<"dark" | "light">(() =>
+    window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = (event: MediaQueryListEvent) =>
+      setSystemTheme(event.matches ? "light" : "dark");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  // `auto` is resolved here rather than in CSS: the canvas renderer reads the
+  // same custom properties through `getComputedStyle` and needs a concrete
+  // answer, so a single resolved value drives both and they cannot disagree.
+  const resolvedTheme = settings.theme === "auto" ? systemTheme : settings.theme;
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", resolvedTheme);
+    // After the attribute, never before: the renderer resolves `--terminal-*`
+    // off the document element, so it has to be asked once the attribute has
+    // selected the palette. Only reachable while the terminal is open — the
+    // settings panel unmounts it, and a renderer built later reads the current
+    // theme in its constructor.
+    const renderer = rendererRef.current;
+    if (renderer) {
+      renderer.updateTheme();
+      render();
+    }
+  }, [resolvedTheme]);
+
   // Normalizing every application name is done once per application list rather
   // than once per keystroke: it is the dominant cost of a search, and the list
   // only changes when applications are installed or removed.
@@ -342,6 +438,10 @@ export default function App() {
               .filter(Boolean),
           ),
         ],
+        // Already lowercase and separator-free from the backend, so it needs no
+        // normalizing of its own. Defensive against a cached list written before
+        // the field existed.
+        initials: app.initials || "",
       })),
     [applications],
   );
@@ -368,7 +468,7 @@ export default function App() {
     const matches: { item: LauncherItem; score: number }[] = [];
 
     for (const entry of searchableApps) {
-      const score = scoreApp(needle, entry.names);
+      const score = scoreApp(needle, entry.names, entry.initials);
       if (!score) continue;
       const app = entry.app;
       matches.push({
@@ -389,7 +489,9 @@ export default function App() {
 
     for (const entry of SYSTEM_COMMANDS) {
       const title = t(entry.titleKey);
-      const score = scoreApp(needle, [normalizeSearch(title), ...entry.searchNames]);
+      // No initials of their own: `searchNames` already carries every spelling a
+      // power action is reached by, in each language.
+      const score = scoreApp(needle, [normalizeSearch(title), ...entry.searchNames], "");
       if (!score) continue;
       matches.push({
         item: {
@@ -1145,6 +1247,14 @@ export default function App() {
     setMode("collapsed");
   };
 
+  const changeTheme = (theme: string) => {
+    if (theme === settings.theme) return;
+    const updated: AppSettings = { ...settings, theme };
+    setSettings(updated);
+    suppressBlurUntil.current = Date.now() + 400;
+    invoke("save_settings", { settings: updated }).catch(() => undefined);
+  };
+
   const changeLanguage = (next: Language) => {
     if (next === language) return;
     const updated: AppSettings = { ...settings, language: next };
@@ -1311,6 +1421,38 @@ export default function App() {
 
           <div className="settings-card__body" ref={settingsBodyRef}>
             <section className="settings-section">
+              <h2 className="settings-section__label">{t("settings.theme")}</h2>
+              <div
+                className="settings-options"
+                role="radiogroup"
+                aria-label={t("settings.theme")}
+              >
+                {THEME_OPTIONS.map((option) => {
+                  const active = option.value === settings.theme;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`settings-option${active ? " settings-option--active" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => changeTheme(option.value)}
+                    >
+                      <span className="settings-option__main">
+                        <span className="settings-option__label">{t(option.labelKey)}</span>
+                      </span>
+                      <span className="settings-option__check" aria-hidden="true">
+                        {active ? "✓" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="settings-section__hint">{t("settings.themeHint")}</p>
+            </section>
+
+            <section className="settings-section">
               <h2 className="settings-section__label">{t("settings.language")}</h2>
               <div
                 className="settings-options"
@@ -1462,8 +1604,14 @@ export default function App() {
                   <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
                     {item.type === "app" && appIconUrls[item.app.path] ? (
                       <img src={appIconUrls[item.app.path]} alt="" />
+                    ) : item.type === "system" ? (
+                      <SystemActionIcon action={item.action} />
                     ) : (
-                      <span>{item.type === "command" ? "$" : item.title.slice(0, 1)}</span>
+                      // An application whose icon has not resolved yet and the
+                      // shell command share the same placeholder: both are "run
+                      // this", and a first letter over a real icon reads as a
+                      // different application rather than as a pending one.
+                      <span>$</span>
                     )}
                   </span>
                   <span className="launcher-result__main">

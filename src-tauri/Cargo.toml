@@ -25,6 +25,14 @@ tokio = { version = "1", features = ["full"] }
 alacritty_terminal = "0.26"
 parking_lot = "0.12"
 base64 = "0.22"
+# Pinyin initials for the launcher: a Chinese application name is unreachable
+# from a Latin keyboard otherwise, and typing the initials is how it is searched
+# for everywhere else on the system.
+#
+# `first_letter` is the only thing needed, and it lives behind `plain` — the
+# default feature set also compiles the tone-marked and numbered-tone tables,
+# which is a static table per style that nothing here would ever read.
+pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 
 # Raw `NSWindow` access, for the one window property Tauri does not expose: the
 # window level. `set_always_on_top` is fixed at NSFloatingWindowLevel, which is

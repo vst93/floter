@@ -322,6 +322,9 @@ impl DesktopEntry {
             path: path.to_string_lossy().to_string(),
             icon_path: None,
             comment: self.comment.filter(|value| !value.is_empty()),
+            // Filled in by `list_applications` once the scan is done, so the
+            // pinyin lookup lives in one place rather than in every scanner.
+            initials: String::new(),
         })
     }
 }

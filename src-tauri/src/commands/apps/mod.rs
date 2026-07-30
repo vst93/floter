@@ -59,6 +59,11 @@ pub struct LocalApplication {
     /// One-line description, when the platform ships one (Linux `.desktop`
     /// entries carry `Comment=`); used as the launcher subtitle.
     pub comment: Option<String>,
+    /// Search key for a Latin keyboard: every letter and digit of the name with
+    /// the separators removed, and each CJK character replaced by the first
+    /// letter of its pinyin. Filled in by [`list_applications`], not by the
+    /// platform scanners — see [`compute_initials`].
+    pub initials: String,
 }
 
 #[derive(Default)]
@@ -140,6 +145,9 @@ pub async fn list_applications(
     let apps = tauri::async_runtime::spawn_blocking(|| {
         let roots = platform::roots();
         let mut apps = platform::scan(&roots);
+        for app in &mut apps {
+            app.initials = compute_initials(&app.name, &app.localized_name);
+        }
         apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         apps
     })
@@ -150,6 +158,47 @@ pub async fn list_applications(
     cache.signature = signature;
     cache.apps = apps.clone();
     Ok(apps)
+}
+
+/// The launcher's Latin search key for an application name.
+///
+/// Two things a plain fuzzy match over the display name cannot do:
+///
+/// * A Chinese name has no letters at all, so on a Latin keyboard it can only be
+///   reached through pinyin. Only the *first letter* of each character is kept —
+///   "网易云音乐" becomes `wyyyy`, which is how it is typed into every other
+///   launcher, and the full spelling would drown the initials in a subsequence
+///   match.
+/// * Separators are dropped rather than preserved, so a query typed as one word
+///   still matches across them: `visualstudio` reaches "Visual Studio Code".
+///
+/// The original and the localized name are folded into one key. They are
+/// searched together because either can be the one the user thinks in, and a
+/// single key means one score instead of two.
+///
+/// Computed once per scan rather than per keystroke — the frontend receives the
+/// finished string, and the pinyin table lookup never runs inside a search.
+fn compute_initials(name: &str, localized_name: &Option<String>) -> String {
+    use pinyin::ToPinyin;
+
+    let combined = match localized_name {
+        Some(localized) if !localized.is_empty() => format!("{name} {localized}"),
+        _ => name.to_string(),
+    };
+
+    let mut initials = String::with_capacity(combined.len());
+    for c in combined.chars() {
+        if c.is_ascii_alphanumeric() {
+            initials.push(c.to_ascii_lowercase());
+        } else if let Some(pinyin) = c.to_pinyin() {
+            // `first_letter` is ASCII for every entry in the table, so the
+            // lowercase mapping below is a byte operation.
+            initials.extend(pinyin.first_letter().chars().map(|c| c.to_ascii_lowercase()));
+        }
+        // Anything else — whitespace, punctuation, a CJK character with no
+        // pinyin — is a separator and contributes nothing.
+    }
+    initials
 }
 
 #[tauri::command]

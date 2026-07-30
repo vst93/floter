@@ -338,7 +338,7 @@ input:focus {
   z-index: 1;
   display: grid;
   gap: 1px;
-  padding: 3px 4px 4px;
+  padding: 3px 4px 8px;
   border-top: 1px solid var(--hairline);
   background: var(--surface-sunken);
 }
