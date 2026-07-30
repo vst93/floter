@@ -77,26 +77,19 @@ impl EventListener for RenderListener {
     }
 }
 
-/// Point `TERM` at a terminfo entry the machine really has.
+/// Terminfo entry advertised to the shell and everything it runs.
 ///
 /// [`tty::setup_env`] writes `TERM=alacritty` whenever it can find that entry,
 /// and its search path is narrower than the one ncurses actually uses: it misses
 /// `/usr/local/share/terminfo` and the Homebrew prefixes, and it looks in
 /// `~/.terminfo` only when `$TERMINFO` is unset. So it can settle on `alacritty`
 /// on a system where a TUI program will not find the description — and a program
-/// that cannot resolve `TERM` spends seconds walking the terminfo database
-/// before it gives up and degrades to dumb-terminal behaviour.
+/// that cannot resolve `TERM` falls back to dumb-terminal behaviour after
+/// searching for the description it was promised.
 ///
 /// `xterm-256color` ships with ncurses itself, so it is present everywhere and
-/// close enough to what this emulator implements. It has to be written *after*
-/// `setup_env`, which overwrites `TERM` unconditionally; the `COLORTERM` that
-/// call also sets is left alone.
-fn prefer_portable_terminfo() {
-    if std::env::var("TERM").as_deref() != Ok("alacritty") {
-        return;
-    }
-    std::env::set_var("TERM", "xterm-256color");
-}
+/// close enough to what this emulator implements.
+const TERMINFO: &str = "xterm-256color";
 
 /// Terminal dimensions used when constructing / resizing the `Term`.
 struct TermSize {
@@ -160,7 +153,12 @@ impl TerminalSession {
         rows: u16,
     ) -> Result<Self, String> {
         tty::setup_env();
-        prefer_portable_terminfo();
+        // Written *after* `setup_env`, which overwrites `TERM` unconditionally
+        // (with either `alacritty` or `xterm-256color`, so there is nothing of
+        // the user's to preserve here); the `COLORTERM` it also sets is left
+        // alone. This only covers readers inside our own process — the child
+        // gets its copy from `tty_options.env` below.
+        std::env::set_var("TERM", TERMINFO);
 
         let size = TermSize {
             cols: cols.max(2) as usize,
@@ -176,6 +174,17 @@ impl TerminalSession {
 
         let mut tty_options = TtyOptions::default();
         tty_options.working_directory = dirs::home_dir();
+        // `tty::new` never puts `TERM` on the command it builds, so without this
+        // the child would only pick the variable up by inheriting our process
+        // environment. Everything in this map goes through `Command::env`, which
+        // sets it on the child directly: no dependence on a process-wide global
+        // that any other thread in a Tauri app may have rewritten between here
+        // and the fork, and an explicit value for `login` to carry over on
+        // macOS, where the shell is started as
+        // `login -flp <user> /bin/zsh -fc 'exec -a -zsh <shell>'`.
+        tty_options
+            .env
+            .insert("TERM".to_string(), TERMINFO.to_string());
         if let Some(program) = shell {
             tty_options.shell = Some(Shell::new(program, Vec::new()));
         }
@@ -472,39 +481,58 @@ fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
-/// Open a Terminal.app window at `dir` by writing an executable `.command`
-/// shim and handing it to `open`.
+/// Escape `value` for interpolation into a double-quoted AppleScript string.
+///
+/// Applied *on top of* [`sh_quote`]: the shell quoting protects the path from
+/// the shell that ends up running the line, this protects the surrounding
+/// AppleScript literal from the quoting itself. macOS allows `"` and `\` in file
+/// names, and either one would otherwise end the literal early.
+#[cfg(target_os = "macos")]
+fn applescript_quote(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Open a Terminal.app window at `dir`.
 #[cfg(target_os = "macos")]
 fn open_terminal_at(dir: &Path) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
+    // Terminal opens every window through `login` and `do script` types its
+    // argument into that window, so the first two lines would otherwise be the
+    // "Last login:" banner and an echo of this command. `clear` wipes both and
+    // leaves the window sitting on a bare prompt in the right directory — the
+    // point of the whole feature.
+    //
+    // No `exec $SHELL`: `do script` already runs inside the shell Terminal is
+    // configured to launch, so re-execing would only source the user's rc files
+    // a second time. That is also why the old `.command` shim looked so noisy —
+    // Terminal ran it as `<path to shim> ; exit;` and echoed that line.
+    let command = format!("cd {}; clear", sh_quote(&dir.to_string_lossy()));
+    let script = format!(
+        "tell application \"Terminal\"\nactivate\ndo script \"{}\"\nend tell",
+        applescript_quote(&command)
+    );
+    let dir = dir.to_path_buf();
 
-    let cache_dir = dirs::cache_dir()
-        .ok_or_else(|| "no cache directory".to_string())?
-        .join("floter");
-    std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
-
-    let shim = cache_dir.join("open-here.command");
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-
-    let mut content = String::from("#!/bin/sh\n");
-    content.push_str(&format!("cd {}\n", sh_quote(&dir.to_string_lossy())));
-    // Plain `exec`, not `exec -l`: a login shell re-runs the whole profile
-    // chain and prints its banner, which is what made the new window look like
-    // it was dumping text instead of showing a prompt.
-    content.push_str(&format!("exec {}\n", sh_quote(&shell)));
-
-    std::fs::write(&shim, content).map_err(|e| e.to_string())?;
-    std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755))
-        .map_err(|e| e.to_string())?;
-
-    // `-a Terminal` pins the handler: a bare `open` follows whatever app the
-    // user has associated with `.command`, which may be an editor that just
-    // displays the script.
-    Command::new("open")
-        .args(["-a", "Terminal"])
-        .arg(&shim)
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    // Detached, because this is called from a synchronous Tauri command — i.e.
+    // on the main thread, holding the session manager's lock. The first Apple
+    // event floter sends raises the Automation consent dialog, and `osascript`
+    // sits there until it is answered.
+    std::thread::spawn(move || {
+        let delivered = Command::new("osascript")
+            .args(["-e", &script])
+            .output()
+            .is_ok_and(|out| out.status.success());
+        if delivered {
+            return;
+        }
+        // Consent refused, or Terminal rejected the event: `open` needs no
+        // Apple events, and Terminal treats a directory argument as "new window
+        // rooted here". Only the login banner comes back. `-a Terminal` pins the
+        // handler — a bare `open` on a directory goes to Finder.
+        let _ = Command::new("open")
+            .args(["-a", "Terminal"])
+            .arg(dir)
+            .spawn();
+    });
     Ok(())
 }
 
