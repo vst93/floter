@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  # ── Determine version, update files, create tag ──────────────────────────
+  # ── Determine version, update files, create tag, create release ──────────
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -57,8 +57,6 @@ jobs:
           INPUT_NOTES: ${{ inputs.notes }}
         run: |
           if [ -n "$INPUT_NOTES" ]; then
-            # User provided notes — use as-is, via env var to avoid shell
-            # interpretation of backticks and $ in markdown content.
             NOTES="$INPUT_NOTES"
           else
             LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -69,7 +67,6 @@ jobs:
             fi
             NOTES=$(printf '## Changes\n\n%s\n\n---\n\n## Install\n\nDownload the file for your platform:\n\n| File | Platform |\n|------|----------|\n| `*-macos-apple-silicon.dmg` | macOS (M1/M2/M3/M4) |\n| `*-macos-intel.dmg` | macOS (Intel) |\n| `*-linux-x86_64.deb` | Linux (x86_64) |\n| `*-linux-arm64.deb` | Linux (ARM64) |\n| `*-windows-x86_64-setup.exe` | Windows (x86_64) |\n| `*-windows-arm64-setup.exe` | Windows (ARM64) |\n' "$COMMITS")
           fi
-          # Escape for GitHub Actions output
           NOTES="${NOTES//'%'/'%25'}"
           NOTES="${NOTES//$'\n'/'%0A'}"
           NOTES="${NOTES//$'\r'/'%0D'}"
@@ -90,6 +87,19 @@ jobs:
           git push origin main
           git push origin "v$VERSION"
 
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NOTES="${{ steps.notes.outputs.notes }}"
+          # Decode the percent-encoded notes back to real newlines
+          NOTES=$(printf '%b' "${NOTES//%/\\x}")
+          gh release create "v$VERSION" \
+            --title "floter v$VERSION" \
+            --notes "$NOTES" \
+            --verify-tag
+
   # ── Build for each platform ──────────────────────────────────────────────
   build:
     needs: prepare
@@ -100,27 +110,21 @@ jobs:
           - os: macos-14
             target: aarch64-apple-darwin
             label: macos-apple-silicon
-            display: macOS-Apple-Silicon
           - os: macos-13
             target: x86_64-apple-darwin
             label: macos-intel
-            display: macOS-Intel
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             label: linux-x86_64
-            display: Linux-x86_64
           - os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             label: linux-arm64
-            display: Linux-ARM64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             label: windows-x86_64
-            display: Windows-x86_64
           - os: windows-11-arm
             target: aarch64-pc-windows-msvc
             label: windows-arm64
-            display: Windows-ARM64
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -154,65 +158,72 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      # Build only — no tagName so tauri-action does NOT auto-upload.
+      # We rename and upload ourselves in the next step to control file names.
       - name: Build Tauri app
-        id: build
         uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v${{ needs.prepare.outputs.version }}
-          releaseName: floter v${{ needs.prepare.outputs.version }}
-          releaseBody: ${{ needs.prepare.outputs.notes }}
-          releaseDraft: false
-          prerelease: false
           args: --target ${{ matrix.target }}
 
-      # DMG bundling on macOS can fail intermittently on GitHub runners
-      # (hdiutil attach races, stale detach, etc.). Retry once without the
-      # DMG bundle type so at least the .app.tar.gz ships.
+      # DMG bundling on macOS can fail intermittently on GitHub runners.
+      # Retry once without DMG so at least the .app.tar.gz ships.
       - name: Retry without DMG (macOS only)
         if: failure() && runner.os == 'macOS'
         uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v${{ needs.prepare.outputs.version }}
-          releaseName: floter v${{ needs.prepare.outputs.version }}
-          releaseBody: ${{ needs.prepare.outputs.notes }}
-          releaseDraft: false
-          prerelease: false
           args: --target ${{ matrix.target }} --bundles app
 
       # ── Rename artifacts with clear platform names ────────────────────────
-      # Tauri's default names (floter_0.1.0_amd64.deb, floter_0.1.0_x64-setup.exe)
-      # don't tell a non-technical user which file to download. Rename them to
-      # floter-0.1.0-macos-apple-silicon.dmg etc.
-      - name: Rename artifacts (Unix)
-        if: runner.os != 'Windows'
+      # Only upload ONE file per platform (the installer), not the raw
+      # Tauri names. Users should see:
+      #   floter-0.1.0-macos-apple-silicon.dmg
+      #   floter-0.1.0-linux-x86_64.deb
+      #   floter-0.1.0-windows-x86_64-setup.exe
+      # etc. No duplicates.
+      - name: Collect and rename artifacts (Unix)
+        if: runner.os != 'Windows' && success() || runner.os != 'Windows'
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
           LABEL="${{ matrix.label }}"
           BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle"
           mkdir -p renamed
 
-          # .dmg (macOS)
-          for f in "$BUNDLE_DIR"/**/*.dmg; do
-            [ -f "$f" ] && cp "$f" "renamed/floter-${VERSION}-${LABEL}.dmg"
-          done
+          # .dmg (macOS — preferred installer)
+          found_dmg=$(find "$BUNDLE_DIR" -name "*.dmg" -type f | head -1)
+          if [ -n "$found_dmg" ]; then
+            cp "$found_dmg" "renamed/floter-${VERSION}-${LABEL}.dmg"
+          fi
 
-          # .deb (Linux)
-          for f in "$BUNDLE_DIR"/**/*.deb; do
-            [ -f "$f" ] && cp "$f" "renamed/floter-${VERSION}-${LABEL}.deb"
-          done
+          # .deb (Linux — preferred installer)
+          found_deb=$(find "$BUNDLE_DIR" -name "*.deb" -type f | head -1)
+          if [ -n "$found_deb" ]; then
+            cp "$found_deb" "renamed/floter-${VERSION}-${LABEL}.deb"
+          fi
 
-          # .app.tar.gz (macOS, if present)
-          for f in "$BUNDLE_DIR"/**/*.app.tar.gz; do
-            [ -f "$f" ] && cp "$f" "renamed/floter-${VERSION}-${LABEL}.app.tar.gz"
-          done
+          # .rpm (Linux — secondary)
+          found_rpm=$(find "$BUNDLE_DIR" -name "*.rpm" -type f | head -1)
+          if [ -n "$found_rpm" ]; then
+            cp "$found_rpm" "renamed/floter-${VERSION}-${LABEL}.rpm"
+          fi
 
+          # .AppImage (Linux — secondary)
+          found_appimage=$(find "$BUNDLE_DIR" -name "*.AppImage" -type f | head -1)
+          if [ -n "$found_appimage" ]; then
+            cp "$found_appimage" "renamed/floter-${VERSION}-${LABEL}.AppImage"
+          fi
+
+          # .app.tar.gz (macOS — for updater, only if no DMG)
+          if [ -z "$found_dmg" ]; then
+            found_targz=$(find "$BUNDLE_DIR" -name "*.app.tar.gz" -type f | head -1)
+            if [ -n "$found_targz" ]; then
+              cp "$found_targz" "renamed/floter-${VERSION}-${LABEL}.app.tar.gz"
+            fi
+          fi
+
+          echo "=== Renamed files ==="
           ls -la renamed/
 
-      - name: Rename artifacts (Windows)
+      - name: Collect and rename artifacts (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -221,16 +232,16 @@ jobs:
           $BUNDLE_DIR = "src-tauri/target/${{ matrix.target }}/release/bundle"
           New-Item -ItemType Directory -Force -Path renamed
 
-          # .exe (NSIS installer)
-          Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*.exe" | ForEach-Object {
-            Copy-Item $_.FullName "renamed/floter-$VERSION-$LABEL-setup.exe"
+          # .exe (NSIS installer — preferred)
+          $exe = Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $exe) {
+            $exe = Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*.exe" | Select-Object -First 1
+          }
+          if ($exe) {
+            Copy-Item $exe.FullName "renamed/floter-$VERSION-$LABEL-setup.exe"
           }
 
-          # .msi (if present)
-          Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*.msi" | ForEach-Object {
-            Copy-Item $_.FullName "renamed/floter-$VERSION-$LABEL.msi"
-          }
-
+          echo "=== Renamed files ==="
           Get-ChildItem renamed/
 
       - name: Upload to GitHub Release
@@ -239,9 +250,3 @@ jobs:
           tag_name: v${{ needs.prepare.outputs.version }}
           files: renamed/*
           fail_on_unmatched_files: true
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: floter-${{ matrix.label }}
-          path: renamed/*
