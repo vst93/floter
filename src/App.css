@@ -254,6 +254,13 @@ input:focus {
   color: rgba(238, 239, 242, 0.72);
 }
 
+/* Warm rather than the accent blue: a power action is the one launcher entry
+   that cannot be undone by closing a window. */
+.launcher-result__icon--system {
+  background: rgba(255, 176, 132, 0.115);
+  color: rgba(255, 209, 178, 0.82);
+}
+
 .launcher-result__main {
   min-width: 0;
   display: grid;

@@ -4,10 +4,15 @@ export type Language = "en" | "zh";
 // translation is a type error rather than a blank label at runtime.
 const en = {
   "input.placeholder": "Type a command or app name",
+  "input.scanning": "Scanning applications…",
   "launcher.runInShell": "Run in shell",
   "launcher.application": "Application",
   "launcher.systemApplication": "System application",
   "launcher.userApplication": "User application",
+  "system.restart": "Restart",
+  "system.restartSubtitle": "Restart the computer",
+  "system.shutdown": "Shut Down",
+  "system.shutdownSubtitle": "Turn off the computer",
   "terminal.openInTerminal": "Open Current Directory in Terminal",
   "terminal.openInTerminalHint": "Open Current Directory in Terminal ({shortcut})",
   "terminal.newCommand": "New command",
@@ -47,10 +52,15 @@ export type MessageKey = keyof typeof en;
 
 const zh: Record<MessageKey, string> = {
   "input.placeholder": "输入命令或应用名称",
+  "input.scanning": "正在扫描应用…",
   "launcher.runInShell": "在终端中运行",
   "launcher.application": "应用程序",
   "launcher.systemApplication": "系统应用",
   "launcher.userApplication": "用户应用",
+  "system.restart": "重启",
+  "system.restartSubtitle": "重启电脑",
+  "system.shutdown": "关机",
+  "system.shutdownSubtitle": "关闭电脑",
   "terminal.openInTerminal": "在终端中打开当前目录",
   "terminal.openInTerminalHint": "在终端中打开当前目录（{shortcut}）",
   "terminal.newCommand": "新建命令",

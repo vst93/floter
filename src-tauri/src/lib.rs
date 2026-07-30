@@ -3,7 +3,9 @@ mod commands;
 pub mod ipc;
 mod terminal;
 
-use commands::apps::{application_icon, list_applications, open_application, ApplicationState};
+use commands::apps::{
+    application_icon, check_applications, list_applications, open_application, ApplicationState,
+};
 use commands::config::{
     get_settings, get_shortcuts, load_settings, resolved_shortcuts, save_settings, update_shortcut,
     DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
@@ -12,6 +14,7 @@ use commands::custom::{
     add_custom_command, delete_custom_command, execute_custom_command, get_custom_commands,
     update_custom_command, CommandState,
 };
+use commands::system::system_power;
 use commands::terminal::{
     open_in_default_terminal, term_close, term_input, term_resize, term_scroll, term_scroll_to,
     term_spawn, TerminalState,
@@ -813,6 +816,7 @@ pub fn run() {
             term_scroll,
             term_scroll_to,
             application_icon,
+            check_applications,
             list_applications,
             open_application,
             open_in_default_terminal,
@@ -831,6 +835,7 @@ pub fn run() {
             show_input,
             set_terminal_height,
             start_drag,
+            system_power,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

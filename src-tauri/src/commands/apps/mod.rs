@@ -78,22 +78,75 @@ struct ApplicationCache {
     apps: Vec<LocalApplication>,
 }
 
+/// Whether the cached application list still matches what is on disk.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplicationsStatus {
+    pub up_to_date: bool,
+    pub count: usize,
+}
+
+/// Ask whether a rescan would find anything new, without performing one.
+///
+/// This is what the frontend calls on every summon. It only stats the
+/// application directories — no directory is walked and no `.desktop` file or
+/// `Info.plist` is parsed — so it stays well under a millisecond and can run on
+/// a path where the panel is already being shown. An empty cache counts as out
+/// of date, so the very first call after startup still asks for a scan.
 #[tauri::command]
-pub fn list_applications(
+pub fn check_applications(state: State<'_, ApplicationState>) -> Result<ApplicationsStatus, String> {
+    let roots = platform::roots();
+    let signature = roots_signature(&roots);
+    let cache = state.cache.lock().map_err(|e| e.to_string())?;
+    Ok(ApplicationsStatus {
+        up_to_date: !cache.apps.is_empty() && cache.signature == signature,
+        count: cache.apps.len(),
+    })
+}
+
+/// The application list, from the cache when it is still current.
+///
+/// `async` for one reason: a cold scan walks every application directory and
+/// reads a metadata file per entry, which is far too much to do on the thread
+/// that also drives the window. Tauri polls async commands on its own runtime,
+/// and the walk itself is handed to [`tauri::async_runtime::spawn_blocking`] so
+/// it never occupies an async worker either.
+///
+/// The lock is taken twice — once to test the cache, once to fill it — rather
+/// than being held across the scan: a guard living across an `.await` would make
+/// this future `!Send`, and it would also block [`check_applications`] for the
+/// whole duration of a scan.
+#[tauri::command]
+pub async fn list_applications(
     state: State<'_, ApplicationState>,
     force_refresh: Option<bool>,
 ) -> Result<Vec<LocalApplication>, String> {
-    let roots = platform::roots();
-    let signature = roots_signature(&roots);
     let force_refresh = force_refresh.unwrap_or(false);
 
-    let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
-    if !force_refresh && !cache.apps.is_empty() && cache.signature == signature {
-        return Ok(cache.apps.clone());
+    // Read before the scan rather than after it: this is the state of the
+    // directories the scan below is about to observe. Storing a *later* reading
+    // would let an application installed while the scan was running pass for one
+    // the scan already saw, and it would then stay missing until the next
+    // unrelated change to the same directory.
+    let signature = roots_signature(&platform::roots());
+
+    {
+        let cache = state.cache.lock().map_err(|e| e.to_string())?;
+        if !force_refresh && !cache.apps.is_empty() && cache.signature == signature {
+            return Ok(cache.apps.clone());
+        }
     }
 
-    let mut apps = platform::scan(&roots);
-    apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    let apps = tauri::async_runtime::spawn_blocking(|| {
+        let roots = platform::roots();
+        let mut apps = platform::scan(&roots);
+        apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        apps
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
     cache.signature = signature;
     cache.apps = apps.clone();
     Ok(apps)

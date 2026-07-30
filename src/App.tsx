@@ -37,9 +37,15 @@ type LocalApplication = {
   comment?: string | null;
 };
 
+/** Answer to `check_applications`: whether a rescan would find anything new. */
+type ApplicationsStatus = { upToDate: boolean; count: number };
+
+type SystemAction = "restart" | "shutdown";
+
 type LauncherItem =
   | { type: "app"; id: string; title: string; subtitle: string; app: LocalApplication }
-  | { type: "command"; id: string; title: string; subtitle: string };
+  | { type: "command"; id: string; title: string; subtitle: string }
+  | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction };
 
 type AppSettings = {
   hotkey: string;
@@ -116,6 +122,35 @@ const scoreApp = (needle: string, names: string[]) => {
   }
   return best;
 };
+
+/**
+ * The built-in power actions, searched like applications.
+ *
+ * `searchNames` carries the wording of *every* language rather than only the
+ * current one: the UI language says nothing about the keyboard the query is
+ * typed on, so "restart" has to find the entry on a Chinese UI and "关机" on an
+ * English one. They are normalized here, once, for the same reason application
+ * names are — see [`scoreNormalized`].
+ */
+const SYSTEM_COMMANDS: {
+  action: SystemAction;
+  titleKey: MessageKey;
+  subtitleKey: MessageKey;
+  searchNames: string[];
+}[] = [
+  {
+    action: "restart",
+    titleKey: "system.restart",
+    subtitleKey: "system.restartSubtitle",
+    searchNames: ["restart", "reboot", "重启", "重新启动"].map(normalizeSearch),
+  },
+  {
+    action: "shutdown",
+    titleKey: "system.shutdown",
+    subtitleKey: "system.shutdownSubtitle",
+    searchNames: ["shutdown", "shut down", "power off", "关机", "关闭电脑"].map(normalizeSearch),
+  },
+];
 
 // Where an application came from, read off the shape of its path: `.app`
 // bundles on macOS, `.desktop` entries on Linux, Start Menu shortcuts on
@@ -255,6 +290,9 @@ export default function App() {
   const pendingCommand = useRef<string | null>(null);
   const draftBeforeHistory = useRef("");
   const restoringMode = useRef<ViewMode | null>(null);
+  /** Guards against two scans overlapping: a cold cache reads as out of date, so
+   * a summon during the very first scan would otherwise start a second one. */
+  const appScanning = useRef(false);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
   const [query, setQuery] = useState("");
@@ -262,6 +300,8 @@ export default function App() {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [applications, setApplications] = useState<LocalApplication[]>([]);
+  /** True until the first scan settles, whether it hit the cache or not. */
+  const [appsLoading, setAppsLoading] = useState(true);
   const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [settings, setSettings] = useState<AppSettings>({
@@ -320,33 +360,77 @@ export default function App() {
     // A query of nothing but punctuation normalizes away entirely; it can only
     // ever be a shell command.
     const needle = normalizeSearch(command);
-    const appItems = !needle
-      ? []
-      : searchableApps
-          .map((entry) => ({ app: entry.app, score: scoreApp(needle, entry.names) }))
-          .filter((entry) => entry.score > 0)
-          .sort((a, b) => b.score - a.score || a.app.name.localeCompare(b.app.name))
-          .slice(0, MAX_RESULTS - 1)
-          .map<LauncherItem>(({ app }) => ({
-            type: "app",
-            id: app.path,
-            title: app.localizedName || app.name,
-            // Showing the original name next to a localized title is the most
-            // useful subtitle; failing that, whatever description the platform
-            // ships, and only then the generic category.
-            subtitle:
-              (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
-            app,
-          }));
+    if (!needle) return [commandItem];
 
-    if (!appItems.length) return [commandItem];
-    return [appItems[0], commandItem, ...appItems.slice(1)].slice(0, MAX_RESULTS);
+    // Applications and the power actions are scored the same way and ranked
+    // against each other, so "restart" reaches the power action while "restic"
+    // still reaches the application.
+    const matches: { item: LauncherItem; score: number }[] = [];
+
+    for (const entry of searchableApps) {
+      const score = scoreApp(needle, entry.names);
+      if (!score) continue;
+      const app = entry.app;
+      matches.push({
+        item: {
+          type: "app",
+          id: app.path,
+          title: app.localizedName || app.name,
+          // Showing the original name next to a localized title is the most
+          // useful subtitle; failing that, whatever description the platform
+          // ships, and only then the generic category.
+          subtitle:
+            (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
+          app,
+        },
+        score,
+      });
+    }
+
+    for (const entry of SYSTEM_COMMANDS) {
+      const title = t(entry.titleKey);
+      const score = scoreApp(needle, [normalizeSearch(title), ...entry.searchNames]);
+      if (!score) continue;
+      matches.push({
+        item: {
+          type: "system",
+          id: `system-${entry.action}`,
+          title,
+          subtitle: t(entry.subtitleKey),
+          action: entry.action,
+        },
+        score,
+      });
+    }
+
+    const items = matches
+      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+      .slice(0, MAX_RESULTS - 1)
+      .map((match) => match.item);
+
+    if (!items.length) return [commandItem];
+    // The best match keeps the top slot and the shell command the one below it,
+    // so running the query as typed is always exactly one row away.
+    return [items[0], commandItem, ...items.slice(1)].slice(0, MAX_RESULTS);
   }, [query, searchableApps, t]);
 
-  useEffect(() => {
-    invoke<LocalApplication[]>("list_applications", { forceRefresh: false })
+  // A full scan walks every application directory, so the two callers below
+  // share one: the initial load and a refresh after a summon must never end up
+  // running at the same time.
+  const scanApplications = (forceRefresh: boolean) => {
+    if (appScanning.current) return;
+    appScanning.current = true;
+    invoke<LocalApplication[]>("list_applications", { forceRefresh })
       .then(setApplications)
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        appScanning.current = false;
+        setAppsLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    scanApplications(false);
   }, []);
 
   useEffect(() => {
@@ -682,6 +766,17 @@ export default function App() {
     });
 
     const unlistenRevealPromise = listen<string>("floter://revealed", (event) => {
+      // Every summon asks whether the application directories have changed since
+      // the last scan. The check only stats them, so a machine where nothing was
+      // installed pays nothing and the user never sees a refresh they did not
+      // need; a changed one rescans in the background, with the old list still
+      // usable until the new one lands.
+      invoke<ApplicationsStatus>("check_applications")
+        .then((status) => {
+          if (!status.upToDate) scanApplications(true);
+        })
+        .catch(() => undefined);
+
       if (event.payload === "terminal") {
         restoringMode.current = "terminal";
         setTerminalMounted(true);
@@ -1121,6 +1216,16 @@ export default function App() {
       void launchApplication(item.app);
       return;
     }
+    if (item.type === "system") {
+      invoke("system_power", { action: item.action }).catch(() => undefined);
+      // Hidden without waiting for the answer: the panel sits at a window level
+      // above almost everything, and macOS confirms a restart with a dialog that
+      // would otherwise appear behind it.
+      setQuery("");
+      setHistoryIndex(-1);
+      invoke("hide_window");
+      return;
+    }
     void runCommand();
   };
 
@@ -1282,6 +1387,10 @@ export default function App() {
 
   if (mode === "collapsed") {
     const hasQuery = query.trim().length > 0;
+    // The first scan runs before there is anything to search, so the input says
+    // so rather than inviting a query that would match nothing.
+    const placeholder =
+      appsLoading && !applications.length ? t("input.scanning") : t("input.placeholder");
 
     return (
       <div className="collapsed-shell">
@@ -1301,7 +1410,7 @@ export default function App() {
                 setHistoryIndex(-1);
               }}
               onKeyDown={onInputKeyDown}
-              placeholder={t("input.placeholder")}
+              placeholder={placeholder}
               autoFocus
               spellCheck={false}
               autoCapitalize="off"
@@ -1354,7 +1463,7 @@ export default function App() {
                     {item.type === "app" && appIconUrls[item.app.path] ? (
                       <img src={appIconUrls[item.app.path]} alt="" />
                     ) : (
-                      <span>{item.type === "app" ? item.title.slice(0, 1) : "$"}</span>
+                      <span>{item.type === "command" ? "$" : item.title.slice(0, 1)}</span>
                     )}
                   </span>
                   <span className="launcher-result__main">
