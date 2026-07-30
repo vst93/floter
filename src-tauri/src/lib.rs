@@ -544,12 +544,14 @@ fn disable_dwm_rounding(window: &WebviewWindow) {
 
     let hwnd = window.hwnd().expect("window handle");
     let preference = DWMWCP_DONOTROUND;
-    let _ = DwmSetWindowAttribute(
-        hwnd,
-        DWMWA_WINDOW_CORNER_PREFERENCE,
-        &preference as *const _ as *const _,
-        std::mem::size_of_val(&preference) as u32,
-    );
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference as *const _ as *const _,
+            std::mem::size_of_val(&preference) as u32,
+        );
+    }
 }
 
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
