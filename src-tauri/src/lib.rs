@@ -145,12 +145,108 @@ fn focused_monitor(window: &WebviewWindow, state: &AppState) -> Option<Monitor> 
 /// the mouse is. Wayland is the awkward case: `tao` returns a hardcoded
 /// `(0, 0)` there rather than an error, so on Wayland a zero reading has to be
 /// taken as "unknown" instead of as the top-left corner.
+///
+/// Deliberately does *not* fall back to the primary monitor: the callers behind
+/// [`focused_monitor`] — the remembered monitor, the focused X11 window — are
+/// better answers than "the primary one", and returning a monitor here would
+/// hide them.
 fn cursor_monitor(window: &WebviewWindow) -> Option<Monitor> {
     let cursor = window.cursor_position().ok()?;
     if cursor.x == 0.0 && cursor.y == 0.0 && on_wayland() {
         return None;
     }
-    window.monitor_from_point(cursor.x, cursor.y).ok().flatten()
+    // Matched by hand first; `monitor_from_point` is only the fallback for a
+    // reading that lands outside every monitor's bounds. See
+    // [`monitor_containing`] for why tao's own answer cannot be trusted.
+    let monitor = monitor_containing(window, cursor)
+        .or_else(|| window.monitor_from_point(cursor.x, cursor.y).ok().flatten());
+    eprintln!(
+        "floter: cursor {:?} -> monitor {:?}",
+        (cursor.x, cursor.y),
+        monitor
+            .as_ref()
+            .map(|found| (found.name(), *found.position(), found.scale_factor())),
+    );
+    monitor
+}
+
+/// The monitor whose bounds contain the cursor.
+///
+/// This exists because `monitor_from_point` compares the two values in
+/// *different coordinate spaces* on both macOS and Linux, so it answers wrongly
+/// — or, worse, not at all — as soon as a scale factor other than 1 is
+/// involved. In `tao`:
+///
+/// - `cursor_position()` reads the pointer in points and multiplies by the
+///   **primary** monitor's scale factor.
+/// - A monitor's `position()`/`size()` are points multiplied by **that
+///   monitor's own** scale factor.
+/// - `monitor_from_point()` hands the value straight to `CGRectContainsPoint`
+///   against `CGDisplayBounds` (macOS) or `gdk_display_monitor_at_point`
+///   (Linux), both of which are quoted in **points**.
+///
+/// So on a Retina laptop (scale 2) with an external display to its right, a
+/// cursor at point 2400 is reported as 4800, which is past the right edge of
+/// every display: `monitor_from_point` returns `None` and the panel falls back
+/// to the primary screen. Dividing each reading by the scale factor that was
+/// applied to it puts them back in one shared space, where the comparison
+/// means something.
+///
+/// Windows needs none of this — every value there is already in one physical
+/// pixel space — hence the platform-dependent divisors below.
+fn monitor_containing(window: &WebviewWindow, cursor: PhysicalPosition<f64>) -> Option<Monitor> {
+    let cursor_scale = cursor_bounds_scale(window);
+    if cursor_scale <= 0.0 {
+        return None;
+    }
+    let x = cursor.x / cursor_scale;
+    let y = cursor.y / cursor_scale;
+
+    window
+        .available_monitors()
+        .ok()?
+        .into_iter()
+        .find(|monitor| {
+            let scale = monitor_bounds_scale(monitor);
+            if scale <= 0.0 {
+                return false;
+            }
+            let position = monitor.position();
+            let size = monitor.size();
+            let min_x = f64::from(position.x) / scale;
+            let min_y = f64::from(position.y) / scale;
+            // Half-open, so a cursor on the seam between two screens belongs to
+            // exactly one of them.
+            let max_x = min_x + f64::from(size.width) / scale;
+            let max_y = min_y + f64::from(size.height) / scale;
+            x >= min_x && x < max_x && y >= min_y && y < max_y
+        })
+}
+
+/// The factor `cursor_position()` applied to the pointer's position in points.
+#[cfg(target_os = "windows")]
+fn cursor_bounds_scale(_window: &WebviewWindow) -> f64 {
+    1.0
+}
+
+#[cfg(not(target_os = "windows"))]
+fn cursor_bounds_scale(window: &WebviewWindow) -> f64 {
+    window
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map_or(1.0, |monitor| monitor.scale_factor())
+}
+
+/// The factor a monitor's reported bounds were multiplied by.
+#[cfg(target_os = "windows")]
+fn monitor_bounds_scale(_monitor: &Monitor) -> f64 {
+    1.0
+}
+
+#[cfg(not(target_os = "windows"))]
+fn monitor_bounds_scale(monitor: &Monitor) -> f64 {
+    monitor.scale_factor()
 }
 
 #[cfg(target_os = "linux")]
@@ -178,10 +274,13 @@ fn active_window_monitor(window: &WebviewWindow) -> Option<Monitor> {
     // The center rather than the origin: a window straddling two screens belongs
     // to the one showing most of it, and a maximized window's top-left corner
     // can sit a pixel outside its own monitor.
-    window
-        .monitor_from_point(x + width / 2.0, y + height / 2.0)
-        .ok()
-        .flatten()
+    //
+    // Both tools report X11 pixels, i.e. the same physical space a cursor
+    // reading is in, so the match goes through [`monitor_containing`] for the
+    // same coordinate-space reason.
+    let center = PhysicalPosition::new(x + width / 2.0, y + height / 2.0);
+    monitor_containing(window, center)
+        .or_else(|| window.monitor_from_point(center.x, center.y).ok().flatten())
 }
 
 #[cfg(target_os = "linux")]
@@ -304,6 +403,14 @@ fn default_position(
     let max_y = area_y + (area_height - terminal_height).max(0.0);
     let x = (area_x + (area_width - logical_width) / 2.0).clamp(area_x, max_x);
     let y = (area_y + (area_height - terminal_height) / 2.0).clamp(area_y, max_y);
+
+    eprintln!(
+        "floter: placing on {:?} at {:?} work_area {:?}/{:?} scale {scale} -> ({x}, {y})",
+        monitor.name(),
+        *monitor.position(),
+        area.position,
+        area.size,
+    );
 
     Some(LogicalPosition::new(x, y))
 }

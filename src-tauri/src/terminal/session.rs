@@ -35,6 +35,11 @@ const COALESCE: Duration = Duration::from_millis(8);
 /// Poll interval for the render thread's shutdown check.
 const POLL: Duration = Duration::from_millis(100);
 
+/// How long the shell is given to write its history out before the external
+/// terminal is started. See [`TerminalSession::flush_history`].
+#[cfg(unix)]
+const HISTORY_FLUSH_GRACE: Duration = Duration::from_millis(120);
+
 /// Payload emitted to the frontend on every rendered frame.
 #[derive(Clone, Serialize)]
 struct FrameEvent<'a> {
@@ -323,8 +328,59 @@ impl TerminalSession {
     /// Open the current working directory of the session's shell in the
     /// system's default terminal, so work can continue there.
     pub fn open_in_default_terminal(&self) -> Result<(), String> {
+        // Before the directory is looked up, so the `lsof` call below runs during
+        // the grace period rather than after it.
+        #[cfg(unix)]
+        self.flush_history();
         let cwd = read_cwd(self.shell_pid).unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
         open_terminal_at(&cwd)
+    }
+
+    /// Ask the shell to write its in-memory history to `$HISTFILE` now, so the
+    /// terminal about to open can recall it.
+    ///
+    /// zsh and bash both keep the running session's history in memory and write
+    /// it out only when the shell exits. This shell is still running, so a window
+    /// opened beside it comes up with nothing behind the Up arrow: it is at the
+    /// right directory and otherwise knows nothing about the work it is supposed
+    /// to be continuing.
+    ///
+    /// `fc -AI` is zsh's spelling of "append what has not been written yet" and
+    /// `history -a` is bash's; each shell rejects the other's, so both are sent
+    /// and their complaints are discarded. Appending rather than zsh's plain
+    /// `fc -W`, which *replaces* the file with the in-memory list and so quietly
+    /// truncates a history longer than `$HISTSIZE`.
+    ///
+    /// There is no quiet way to do this — the line is typed at the prompt like
+    /// any other and stays on screen — and it is appended to whatever the user
+    /// had half-typed there, which is the one case this cannot detect.
+    ///
+    /// Windows is left out: neither builtin exists there, and `cmd` and
+    /// PowerShell do not share a history file with anything.
+    #[cfg(unix)]
+    fn flush_history(&self) {
+        // A full-screen program — an editor, a pager, tmux — is on the alternate
+        // screen, and these bytes would reach *it* as keystrokes rather than a
+        // command line. `2>` alone reindents two lines in vim, so the user's
+        // buffer is not worth a shared history.
+        let on_alt_screen = self
+            .terminal
+            .lock()
+            .mode()
+            .contains(alacritty_terminal::term::TermMode::ALT_SCREEN);
+        if on_alt_screen {
+            return;
+        }
+
+        let line: &[u8] = b"fc -AI 2>/dev/null; history -a 2>/dev/null\n";
+        if self.sender.send(Msg::Input(Cow::Borrowed(line))).is_err() {
+            return;
+        }
+        let _ = self.wakeup.send(RenderEvent::Wake);
+        // The new shell reads `$HISTFILE` once, at startup, so it has to start
+        // *after* the write above has landed. A builtin at an idle prompt takes
+        // microseconds; this is deliberately generous.
+        std::thread::sleep(HISTORY_FLUSH_GRACE);
     }
 }
 
