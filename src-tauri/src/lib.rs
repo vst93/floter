@@ -479,7 +479,7 @@ fn raise_window_level(window: &WebviewWindow) {
         ns_window.setLevel(NSStatusWindowLevel);
         ns_window.setCollectionBehavior(
             ns_window.collectionBehavior()
-                | NSWindowCollectionBehavior::MoveToActiveSpace
+                | NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary,
         );
     });
@@ -555,32 +555,14 @@ fn disable_dwm_rounding(window: &WebviewWindow) {
 }
 
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
-    // Windows and Linux get no equivalent of the two calls below: neither has a
-    // dependable cross-workspace story (X11 only through window-manager hints,
-    // Wayland not at all), so the panel is simply raised on the desktop the user
-    // is already on.
     #[cfg(target_os = "macos")]
     {
         let _ = window.app_handle().show();
-        // Collection behavior is set entirely by `raise_window_level`, which
-        // uses MoveToActiveSpace instead of CanJoinAllSpaces - the two are
-        // mutually exclusive and CanJoinAllSpaces does not move the window
-        // to the active Space, only makes it visible on all of them.
     }
     let _ = window.unminimize();
-    // Level and collection behaviour are asserted on both sides of the map, and
-    // the two calls answer different questions. The one *before* `show()` decides
-    // which space the window server hands the window to as it appears — a window
-    // mapped at the default level onto the desktop's space has already lost,
-    // whatever is done to it afterwards. The one after activation re-states it
-    // against a window that is really on screen and has just been activated,
-    // which is the moment AppKit is most likely to have had its own opinion.
     #[cfg(target_os = "macos")]
     raise_window_level(window);
     window.show().map_err(|e| e.to_string())?;
-    // Asked for after `show()` rather than before: a request made against a
-    // hidden window depends on the window manager carrying it across the map, and
-    // re-stating it once the panel is really on screen costs nothing.
     #[cfg(not(target_os = "macos"))]
     {
         #[cfg(target_os = "windows")]
@@ -590,13 +572,8 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        // `set_focus` deliberately not called here — see [`force_activate`] for
-        // why it cannot raise an accessory app's window onto a fullscreen space.
         force_activate(window);
         raise_window_level(window);
-        // On macOS this is the subtle cue that says where the panel appeared.
-        // Elsewhere it flashes the taskbar entry, which a `skipTaskbar` window
-        // either cannot do or should not do.
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }
     Ok(())
