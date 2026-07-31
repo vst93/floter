@@ -269,31 +269,6 @@ const appSubtitleKey = (path: string): MessageKey => {
   return "launcher.application";
 };
 
-/** Lucide `keyboard`, sized like the settings gear next to it. */
-const KeyboardIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="14"
-    height="14"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M10 8h.01" />
-    <path d="M12 12h.01" />
-    <path d="M14 8h.01" />
-    <path d="M16 12h.01" />
-    <path d="M18 8h.01" />
-    <path d="M6 8h.01" />
-    <path d="M7 16h10" />
-    <path d="M8 12h.01" />
-    <rect width="20" height="16" x="2" y="4" rx="2" />
-  </svg>
-);
-
 /** Lucide `rotate-cw` for restart, `power` for shutdown. */
 const SystemActionIcon = ({ action }: { action: "restart" | "shutdown" }) => (
   <svg
@@ -401,8 +376,17 @@ function ShortcutRecorder({
       onCapture(action, next);
     };
 
+    // If the window loses focus while recording (user clicked away, Cmd-Tab,
+    // etc.), cancel immediately and restore shortcuts. Otherwise the global
+    // shortcuts stay suspended and the user's hotkey is dead.
+    const onBlur = () => onCancel();
+
     window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("blur", onBlur);
+    };
   }, [action, onCancel, onCapture, recording]);
 
   return (
@@ -417,10 +401,7 @@ function ShortcutRecorder({
       {recording ? (
         <span className="shortcut-recorder__prompt">{t("settings.shortcut.recording")}</span>
       ) : (
-        <>
-          <KeyboardIcon />
-          <span className="shortcut-recorder__keys">{formatShortcut(shortcut)}</span>
-        </>
+        <span className="shortcut-recorder__keys">{formatShortcut(shortcut)}</span>
       )}
     </button>
   );

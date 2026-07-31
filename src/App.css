@@ -762,29 +762,26 @@ input:focus {
 }
 
 .shortcut-recorder {
-  min-width: 84px;
-  min-height: 28px;
+  min-width: 72px;
+  min-height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 0 9px;
-  border-radius: 7px;
+  padding: 0 10px;
+  border-radius: 5px;
   background: var(--surface-control);
-  /* Border, top highlight and bottom edge together read as a key cap rather
-     than a flat pill, which is what tells the row apart from a plain label. */
-  box-shadow: inset 0 0 0 1px var(--stroke-control), inset 0 1px 0 var(--keycap-highlight),
-    inset 0 -1px 0 var(--keycap-shadow);
+  border: 1px solid var(--stroke-control);
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 620;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .shortcut-recorder:hover {
   background: var(--surface-control-hover);
+  border-color: var(--accent-edge, var(--stroke-control));
   color: var(--text-strong);
 }
 
@@ -793,12 +790,9 @@ input:focus {
   outline-offset: 2px;
 }
 
-/* Listening for the next combination: the pill takes the accent so it is
-   obvious where the keystrokes are going, and breathes so it stays legible as
-   "waiting" rather than "selected". */
 .shortcut-recorder--recording {
   background: var(--accent-tint);
-  box-shadow: inset 0 0 0 1px var(--accent-edge);
+  border-color: var(--accent-edge);
   color: var(--accent);
   animation: shortcut-recording 1.4s ease-in-out infinite;
 }
@@ -811,10 +805,10 @@ input:focus {
 @keyframes shortcut-recording {
   0%,
   100% {
-    box-shadow: inset 0 0 0 1px var(--accent-edge);
+    border-color: var(--accent-edge);
   }
   50% {
-    box-shadow: inset 0 0 0 1px var(--accent-edge-strong);
+    border-color: var(--accent-edge-strong, var(--accent-edge));
   }
 }
 
