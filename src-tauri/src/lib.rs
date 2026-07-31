@@ -24,7 +24,7 @@ use commands::terminal::{
 #[cfg(target_os = "macos")]
 use objc2::MainThreadMarker;
 #[cfg(target_os = "macos")]
-use objc2_app_kit::{NSApp, NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior};
+use objc2_app_kit::{NSApp, NSPopUpMenuWindowLevel, NSWindow, NSWindowCollectionBehavior};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
@@ -469,7 +469,7 @@ fn raise_window_level(window: &WebviewWindow) {
         return;
     };
     let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-    ns_window.setLevel(NSStatusWindowLevel);
+    ns_window.setLevel(NSPopUpMenuWindowLevel);
     ns_window.setCollectionBehavior(
         NSWindowCollectionBehavior::CanJoinAllSpaces
             | NSWindowCollectionBehavior::FullScreenAuxiliary,
