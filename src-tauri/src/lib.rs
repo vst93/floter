@@ -460,28 +460,20 @@ fn move_to_default_position(
 /// the 25 set here and quietly undo it.
 #[cfg(target_os = "macos")]
 fn raise_window_level(window: &WebviewWindow) {
-    let panel = window.clone();
-    // AppKit window state is main-thread-only, and this is reached from Tauri
-    // commands, the tray handler and the global-shortcut callback alike. All
-    // three of those *are* the main thread on macOS, and Tauri's
-    // `run_on_main_thread` runs the closure inline rather than posting it in that
-    // case — so this is a synchronous call that has taken effect by the time it
-    // returns, and the wrapper only costs a hop if that ever stops being true.
-    let _ = window.run_on_main_thread(move || {
-        let Ok(ns_window) = panel.ns_window() else {
-            return;
-        };
-        // SAFETY: `ns_window` is the panel's live NSWindow, borrowed for the
-        // duration of these two calls only, on the main thread as NSWindow
-        // requires. Tauri hands the pointer back autoreleased, so it outlives
-        // this closure.
-        let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-        ns_window.setLevel(NSStatusWindowLevel);
-        ns_window.setCollectionBehavior(
-            NSWindowCollectionBehavior::CanJoinAllSpaces
-                | NSWindowCollectionBehavior::FullScreenAuxiliary,
-        );
-    });
+    // Direct synchronous call — NOT run_on_main_thread. The deferred hop
+    // means the level lands after tao's show() already reset it to the
+    // default (NSFloatingWindowLevel = 3), which is below fullscreen apps.
+    // Tauri commands, tray handlers and global-shortcut callbacks all run
+    // on the main thread on macOS, so this is safe to call directly.
+    let Ok(ns_window) = window.ns_window() else {
+        return;
+    };
+    let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+    ns_window.setLevel(NSStatusWindowLevel);
+    ns_window.setCollectionBehavior(
+        NSWindowCollectionBehavior::CanJoinAllSpaces
+            | NSWindowCollectionBehavior::FullScreenAuxiliary,
+    );
 }
 
 /// Bring the panel forward and give it the keyboard, on a fullscreen app's space.
@@ -513,22 +505,14 @@ fn raise_window_level(window: &WebviewWindow) {
 /// reason to do.
 #[cfg(target_os = "macos")]
 fn force_activate(window: &WebviewWindow) {
-    let panel = window.clone();
-    // Main-thread-only, for the same reason as `raise_window_level`; see the
-    // note there on why this is a synchronous call in practice.
-    let _ = window.run_on_main_thread(move || {
-        let (Ok(ns_window), Some(mtm)) = (panel.ns_window(), MainThreadMarker::new()) else {
-            return;
-        };
-        // SAFETY: `ns_window` is the panel's live NSWindow, borrowed for the
-        // duration of these calls only, on the main thread as NSWindow requires.
-        // Tauri hands the pointer back autoreleased, so it outlives this closure.
-        let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-        ns_window.orderFrontRegardless();
-        #[allow(deprecated)]
-        NSApp(mtm).activateIgnoringOtherApps(true);
-        ns_window.makeKeyAndOrderFront(None);
-    });
+    let (Ok(ns_window), Some(mtm)) = (window.ns_window(), MainThreadMarker::new()) else {
+        return;
+    };
+    let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+    ns_window.orderFrontRegardless();
+    #[allow(deprecated)]
+    NSApp(mtm).activateIgnoringOtherApps(true);
+    ns_window.makeKeyAndOrderFront(None);
 }
 
 /// On Windows 11, tell DWM not to paint its own rounded corners. The CSS
@@ -559,6 +543,8 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
         let _ = window.app_handle().show();
     }
     let _ = window.unminimize();
+    #[cfg(target_os = "macos")]
+    raise_window_level(window);
     window.show().map_err(|e| e.to_string())?;
     #[cfg(not(target_os = "macos"))]
     {
@@ -570,7 +556,6 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         force_activate(window);
-        raise_window_level(window);
         raise_window_level(window);
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }
