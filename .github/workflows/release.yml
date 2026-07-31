@@ -90,9 +90,9 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTES: ${{ steps.notes.outputs.notes }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          NOTES="${{ steps.notes.outputs.notes }}"
           # Decode the percent-encoded notes back to real newlines
           NOTES=$(printf '%b' "${NOTES//%/\\x}")
           gh release create "v$VERSION" \
