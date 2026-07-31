@@ -1075,3 +1075,76 @@ canvas {
     color: var(--text-primary);
   }
 }
+
+/* ── Update banner ─────────────────────────────────────────────────────── */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--accent-tint);
+  border: 1px solid var(--icon-edge);
+}
+
+.update-banner__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-banner__title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.update-banner__desc {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.update-banner__button {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent, #5b7cfa);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.update-banner__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.update-banner__button:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+/* ── Quit button hover ────────────────────────────────────────────────── */
+
+.toolbar-button--quit {
+  color: var(--text-tertiary);
+}
+
+.toolbar-button--quit:hover {
+  color: #e05555;
+}
+
+.toolbar-button--quit:active {
+  transform: scale(0.92);
+}
+
+/* ── Action bar hint: wider for "Shift+Enter" ──────────────────────────── */
+
+.launcher-action-bar__hint {
+  white-space: nowrap;
+}

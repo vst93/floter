@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 /// Action ids for the configurable shortcuts. They are the keys of the
 /// `shortcuts` map both on disk and in the frontend, so the two sides stay in
@@ -197,4 +198,20 @@ pub fn app_version() -> String {
     } else {
         env!("CARGO_PKG_VERSION").to_string()
     }
+}
+
+/// Temporarily unregister all global shortcuts so the shortcut recorder can
+/// capture the current binding without the app toggling itself.
+#[tauri::command]
+pub fn suspend_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
+    app.global_shortcut().unregister_all().map_err(|e| e.to_string())
+}
+
+/// Re-register the toggle shortcut from saved settings after recording ends.
+#[tauri::command]
+pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
+    let settings = load_settings();
+    let shortcuts = resolved_shortcuts(&settings);
+    let toggle = shortcuts.get(TOGGLE_WINDOW).cloned().unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+    crate::register_toggle_shortcut(&app, &toggle)
 }

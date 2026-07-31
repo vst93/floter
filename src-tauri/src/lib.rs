@@ -9,7 +9,7 @@ use commands::apps::{
 };
 use commands::config::{
     app_version, get_settings, get_shortcuts, load_settings, resolved_shortcuts, save_settings,
-    update_shortcut,
+    suspend_shortcuts, resume_shortcuts, update_shortcut,
     DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
 use commands::custom::{
@@ -480,7 +480,8 @@ fn raise_window_level(window: &WebviewWindow) {
         ns_window.setCollectionBehavior(
             ns_window.collectionBehavior()
                 | NSWindowCollectionBehavior::CanJoinAllSpaces
-                | NSWindowCollectionBehavior::FullScreenAuxiliary,
+                | NSWindowCollectionBehavior::FullScreenAuxiliary
+                | NSWindowCollectionBehavior::MovesToActiveSpace,
         );
     });
 }
@@ -804,6 +805,8 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(ApplicationState::new())
         .manage(TerminalState(Arc::new(Mutex::new(TerminalManager::new()))))
         .manage(CommandState::new())
@@ -939,6 +942,8 @@ pub fn run() {
             app_version,
             get_shortcuts,
             update_shortcut,
+            suspend_shortcuts,
+            resume_shortcuts,
             get_custom_commands,
             add_custom_command,
             update_custom_command,

@@ -58,6 +58,9 @@ const en = {
   "shortcut.open_settings.description": "Opens this panel",
   "shortcut.select_result": "Select result 1-9",
   "shortcut.select_result.description": "The other digits use the same modifiers",
+  "settings.updateAvailable": "Update available",
+  "settings.installUpdate": "Download & Install",
+  "settings.updating": "Updating…",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -117,6 +120,9 @@ const zh: Record<MessageKey, string> = {
   "shortcut.open_settings.description": "打开当前面板",
   "shortcut.select_result": "选择第 1-9 项结果",
   "shortcut.select_result.description": "其余数字沿用相同的修饰键",
+  "settings.updateAvailable": "有新版本可用",
+  "settings.installUpdate": "下载并安装",
+  "settings.updating": "更新中…",
 };
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, zh };

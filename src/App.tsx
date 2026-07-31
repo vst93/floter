@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
 import { encodeKey } from "./terminal/input";
 import {
@@ -488,6 +490,8 @@ export default function App() {
   });
   const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
   const [rejectedAction, setRejectedAction] = useState<ShortcutAction | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
+  const [updateDownloading, setUpdateDownloading] = useState(false);
   const suppressBlurUntil = useRef(0);
 
   const language = normalizeLanguage(settings.language);
@@ -1413,9 +1417,31 @@ export default function App() {
   };
 
   const openSettings = () => {
-    // Resizing the window steals focus for a moment; don't treat that as a blur.
     suppressBlurUntil.current = Date.now() + 400;
     setMode("settings");
+    invoke("set_terminal_height", { height: 440 }).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    check().then((update) => {
+      if (update?.available) {
+        setUpdateInfo({ version: update.version });
+      }
+    }).catch(() => undefined);
+  }, []);
+
+  const downloadAndInstallUpdate = async () => {
+    if (updateDownloading) return;
+    setUpdateDownloading(true);
+    try {
+      const update = await check();
+      if (update?.available) {
+        await update.downloadAndInstall();
+        await relaunch();
+      }
+    } catch {
+      setUpdateDownloading(false);
+    }
   };
 
   const closeSettings = () => {
@@ -1443,10 +1469,20 @@ export default function App() {
 
   const toggleRecording = (action: ShortcutAction) => {
     setRejectedAction(null);
-    setRecordingAction((current) => (current === action ? null : action));
+    setRecordingAction((current) => {
+      if (current === action) {
+        invoke("resume_shortcuts").catch(() => undefined);
+        return null;
+      }
+      invoke("suspend_shortcuts").catch(() => undefined);
+      return action;
+    });
   };
 
-  const cancelRecording = () => setRecordingAction(null);
+  const cancelRecording = () => {
+    setRecordingAction(null);
+    invoke("resume_shortcuts").catch(() => undefined);
+  };
 
   // Store the new binding optimistically; the backend is the authority on
   // whether a system-wide combination can actually be taken.
@@ -1454,19 +1490,25 @@ export default function App() {
     setRecordingAction(null);
     setRejectedAction(null);
     const previous = shortcuts[action];
-    if (next === previous) return;
+    if (next === previous) {
+      invoke("resume_shortcuts").catch(() => undefined);
+      return;
+    }
 
     setSettings((current) => ({
       ...current,
       shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: next },
     }));
     suppressBlurUntil.current = Date.now() + 400;
-    invoke("update_shortcut", { action, shortcut: next }).catch(() => {
+    invoke("update_shortcut", { action, shortcut: next }).then(() => {
+      invoke("resume_shortcuts").catch(() => undefined);
+    }).catch(() => {
       setSettings((current) => ({
         ...current,
         shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
       }));
       setRejectedAction(action);
+      invoke("resume_shortcuts").catch(() => undefined);
     });
   };
 
@@ -1563,6 +1605,14 @@ export default function App() {
     if (event.key === "Escape" || matchesShortcut(native, shortcuts.new_command)) {
       event.preventDefault();
       invoke("hide_window");
+      return;
+    }
+
+    if (event.key === "Enter" && event.shiftKey) {
+      event.preventDefault();
+      if (actionBar) {
+        executeActionBar(actionBar);
+      }
       return;
     }
 
@@ -1669,11 +1719,10 @@ export default function App() {
                 title={t("settings.quitHint")}
                 onClick={() => invoke("quit_app")}
               >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <line x1="16" y1="17" x2="21" y2="12" />
-                  <line x1="21" y1="17" x2="16" y2="12" />
-                  <line x1="21" y1="12" x2="16" y2="7" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
               </button>
               <button
@@ -1790,6 +1839,25 @@ export default function App() {
               </div>
               <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
+
+            {updateInfo && (
+              <section className="settings-section">
+                <div className="update-banner">
+                  <div className="update-banner__info">
+                    <span className="update-banner__title">floter v{updateInfo.version}</span>
+                    <span className="update-banner__desc">{t("settings.updateAvailable")}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="update-banner__button"
+                    disabled={updateDownloading}
+                    onClick={downloadAndInstallUpdate}
+                  >
+                    {updateDownloading ? t("settings.updating") : t("settings.installUpdate")}
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </div>
@@ -1920,7 +1988,7 @@ export default function App() {
                     <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
                   </span>
                   <span className="launcher-action-bar__hint">
-                    {selectedActionBar ? "⏎" : "Tab"}
+                    {selectedActionBar ? "⏎" : "Shift+Enter"}
                   </span>
                 </button>
               )}

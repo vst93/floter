@@ -9,6 +9,8 @@
     "global-shortcut:default",
     "store:default",
     "shell:default",
+    "updater:default",
+    "process:allow-restart",
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-minimize",
