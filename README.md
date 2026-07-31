@@ -1,83 +1,53 @@
 # floter
 
-A floating terminal and app launcher — one hotkey away. macOS, Linux, Windows.
+A cross-platform floating terminal and app launcher, always one shortcut away.
 
-[English](#features) · [中文文档](README.zh-CN.md)
+**English** · [简体中文](README.zh-CN.md)
 
 ## Features
 
-- **One hotkey away** — summon from anywhere, hides when you're done
-- **App launcher** — fuzzy-search installed apps, pinyin initials supported
-- **Smart action bar** — types a URL? opens browser. A path? opens file manager. Anything else? runs as a shell command
-- **Built-in terminal** — full shell with 256-color support
-- **Multi-monitor** — appears on the screen you're on
-- **Pop out** — hand off to your system terminal
-- **System commands** — restart or shut down right from the launcher
-- **Dark / Light / Auto** — follows your system or pick your own
-- **Customizable** — rebind every shortcut to your liking
+- **Floating terminal** — summon a full 256-color shell from anywhere, then hide it when you are done.
+- **Smart app launcher** — scans installed apps on macOS, Linux, and Windows; supports fuzzy matching and pinyin initials for Chinese names.
+- **Action bar** — opens URLs in your browser, paths in your file manager, and other input as shell commands.
+- **Multi-monitor support** — opens on the display you are currently using, with an option to continue in the system terminal.
+- **Personalized controls** — choose dark, light, or system theme and rebind shortcuts in Settings.
+- **Built-in updates** — checks for new releases and installs them from inside the app.
 
-## Download & Installation
+## Install
 
-Pre-built binaries: [Releases](https://github.com/vst93/floter/releases)
+Download the latest version from [GitHub Releases](https://github.com/vst93/floter/releases).
 
-### macOS
+| Platform | Download | Install |
+| --- | --- | --- |
+| macOS | `.dmg` | Open the image and drag **floter** to **Applications**. |
+| Linux | `.deb`, `.rpm`, or `.AppImage` | Use the package for your distribution, or make the AppImage executable and run it. |
+| Windows | `.exe` | Run the setup file. |
 
-Download the `.dmg`, drag floter to Applications. Since the app is not code-signed, macOS shows "damaged":
+### macOS: unsigned app
+
+floter is not currently code-signed. If macOS reports that the app is damaged after installation, run:
 
 ```bash
 xattr -cr /Applications/floter.app
 ```
 
-### Linux
+Then open floter again from **Applications**.
 
-Download `.deb` (Debian/Ubuntu), `.rpm` (Fedora), or `.AppImage`.
+## Updates
 
-### Windows
-
-Download the `.exe` setup file and run.
-
-Build from source: see [Development](#development).
-
-## Shortcuts
-
-| Action | macOS | Linux / Windows |
-|--------|-------|-----------------|
-| Show / hide | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
-| Run as command | `Tab` | `Tab` |
-| Navigate results | `↑` `↓` | `↑` `↓` |
-| Select result | `Cmd+1`–`5` | `Ctrl+1`–`5` |
-| New command | `Cmd+W` | `Ctrl+W` |
-| External terminal | `Cmd+N` | `Ctrl+N` |
-| Copy / Paste | `Cmd+C` / `Cmd+V` | `Ctrl+C` / `Ctrl+V` |
-| Settings | `Cmd+,` | `Ctrl+,` |
-
-All rebindable in **Settings → Shortcuts**.
+floter checks for updates automatically. When a new version is available, open **Settings** and choose **Download & Install**; floter relaunches after the update completes.
 
 ## Wayland
 
-Global hotkeys are managed by the compositor. Bind `floter --toggle` as a custom shortcut:
+Wayland compositors manage global shortcuts. Bind the following command as a custom shortcut:
+
+```bash
+floter --toggle
+```
 
 - **GNOME:** Settings → Keyboard → Custom Shortcuts
-- **KDE:** System Settings → Shortcuts → Custom
-
----
-
-## Development
-
-```bash
-git clone https://github.com/vst93/floter.git
-cd floter
-npm install
-npm run tauri dev      # dev
-npm run tauri build    # build
-```
-
-Requires [Rust](https://rustup.rs/), Node.js 18+. Linux: `gtk3`, `librsvg`. macOS: Xcode CLT.
-
-```bash
-cargo check --all-targets && npx tsc --noEmit && cargo test
-```
+- **KDE:** System Settings → Shortcuts → Custom Shortcuts
 
 ## License
 
-GPL-3.0
+[GPL-3.0](LICENSE)
