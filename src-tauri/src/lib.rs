@@ -479,9 +479,8 @@ fn raise_window_level(window: &WebviewWindow) {
         ns_window.setLevel(NSStatusWindowLevel);
         ns_window.setCollectionBehavior(
             ns_window.collectionBehavior()
-                | NSWindowCollectionBehavior::CanJoinAllSpaces
-                | NSWindowCollectionBehavior::FullScreenAuxiliary
-                | NSWindowCollectionBehavior::MoveToActiveSpace,
+                | NSWindowCollectionBehavior::MoveToActiveSpace
+                | NSWindowCollectionBehavior::FullScreenAuxiliary,
         );
     });
 }
@@ -563,7 +562,10 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let _ = window.app_handle().show();
-        let _ = window.set_visible_on_all_workspaces(true);
+        // Collection behavior is set entirely by `raise_window_level`, which
+        // uses MoveToActiveSpace instead of CanJoinAllSpaces - the two are
+        // mutually exclusive and CanJoinAllSpaces does not move the window
+        // to the active Space, only makes it visible on all of them.
     }
     let _ = window.unminimize();
     // Level and collection behaviour are asserted on both sides of the map, and
