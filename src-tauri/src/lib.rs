@@ -7,6 +7,7 @@ use commands::actions::{open_path, open_url};
 use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
+use commands::autostart::{ensure_launch_at_startup, set_launch_at_startup};
 use commands::config::{
     app_version, get_settings, get_shortcuts, load_settings, reset_shortcuts, resolved_shortcuts,
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
@@ -537,26 +538,107 @@ fn hide_macos_panel(window: &WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
-/// On Windows 11, tell DWM not to paint its own rounded corners. The CSS
-/// `border-radius` is the sole source of the corner shape, so the two never
-/// disagree and leave a seam. On Windows 10 this is a no-op (DWM already
-/// uses square corners), and the call fails silently.
+/// Windows can add both an undecorated-window shadow (which includes a 1px
+/// square border) and a DWM border. Disable both so the CSS surface is the only
+/// visible window edge.
 #[cfg(target_os = "windows")]
-fn disable_dwm_rounding(window: &WebviewWindow) {
+fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
     use windows::Win32::Graphics::Dwm::{
-        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+        DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
+        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
 
-    let hwnd = window.hwnd().expect("window handle");
+    window
+        .set_shadow(false)
+        .map_err(|error| error.to_string())?;
+    let hwnd = window.hwnd().map_err(|error| error.to_string())?;
     let preference = DWMWCP_DONOTROUND;
+    let border_color = DWMWA_COLOR_NONE;
     unsafe {
+        // These attributes were added in Windows 11. Their failure is expected
+        // and harmless on Windows 10, where DWM does not apply rounded corners.
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_WINDOW_CORNER_PREFERENCE,
             &preference as *const _ as *const _,
             std::mem::size_of_val(&preference) as u32,
         );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &border_color as *const _ as *const _,
+            std::mem::size_of_val(&border_color) as u32,
+        );
     }
+    suppress_alt_space_system_menu(window)
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn floter_window_subclass(
+    hwnd: windows::Win32::Foundation::HWND,
+    message: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+    _subclass_id: usize,
+    _reference_data: usize,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::Foundation::LRESULT;
+    use windows::Win32::UI::Input::KeyboardAndMouse::VK_SPACE;
+    use windows::Win32::UI::Shell::DefSubclassProc;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        KF_ALTDOWN, SC_KEYMENU, WM_SYSCHAR, WM_SYSCOMMAND, WM_SYSKEYDOWN,
+    };
+
+    let alt_is_down = ((lparam.0 as usize >> 16) & KF_ALTDOWN as usize) != 0;
+    let alt_space_key = matches!(message, WM_SYSKEYDOWN | WM_SYSCHAR)
+        && wparam.0 == VK_SPACE.0 as usize
+        && alt_is_down;
+    // WebView2 can translate the child-window key event before the top-level
+    // window sees the resulting system command. Catch that final path too.
+    let alt_space_menu = message == WM_SYSCOMMAND
+        && wparam.0 & 0xfff0 == SC_KEYMENU as usize
+        && lparam.0 == VK_SPACE.0 as isize;
+    if alt_space_key || alt_space_menu {
+        return LRESULT(0);
+    }
+
+    unsafe { DefSubclassProc(hwnd, message, wparam, lparam) }
+}
+
+#[cfg(target_os = "windows")]
+fn suppress_alt_space_system_menu(window: &WebviewWindow) -> Result<(), String> {
+    use windows::Win32::UI::Shell::SetWindowSubclass;
+
+    // SetWindowSubclass keys registrations by callback + id, so calling this
+    // again on reveal reasserts the handler without stacking another callback.
+    const SUBCLASS_ID: usize = 0x464c_4f54;
+    let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+    let installed =
+        unsafe { SetWindowSubclass(hwnd, Some(floter_window_subclass), SUBCLASS_ID, 0) };
+    if installed.as_bool() {
+        Ok(())
+    } else {
+        Err("Failed to install the Windows message handler".to_string())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn start_windows_drag(window: &WebviewWindow) -> Result<(), String> {
+    use windows::Win32::Foundation::WPARAM;
+    use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+    use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, HTCAPTION, WM_NCLBUTTONDOWN};
+
+    let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+    unsafe {
+        let _ = ReleaseCapture();
+        SendMessageW(
+            hwnd,
+            WM_NCLBUTTONDOWN,
+            Some(WPARAM(HTCAPTION as usize)),
+            None,
+        );
+    }
+    Ok(())
 }
 
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
@@ -565,9 +647,9 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     {
         let _ = window.unminimize();
-        window.show().map_err(|e| e.to_string())?;
         #[cfg(target_os = "windows")]
-        disable_dwm_rounding(window);
+        configure_windows_frame(window)?;
+        window.show().map_err(|e| e.to_string())?;
         let _ = window.set_always_on_top(true);
         window.set_focus().map_err(|e| e.to_string())?;
     }
@@ -683,6 +765,9 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     // remembered from the last dismissal stale. It is refilled on the next hide,
     // from wherever the drag left the panel.
     state.set_remembered_monitor(None);
+    #[cfg(target_os = "windows")]
+    start_windows_drag(&window)?;
+    #[cfg(not(target_os = "windows"))]
     window.start_dragging().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -812,6 +897,11 @@ pub fn run() {
             app.set_activation_policy(ActivationPolicy::Accessory);
 
             let settings = load_settings();
+            if settings.launch_at_startup {
+                if let Err(error) = ensure_launch_at_startup(true) {
+                    eprintln!("failed to restore launch-at-startup registration: {error}");
+                }
+            }
             let (show_label, quit_label) = tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
@@ -854,6 +944,8 @@ pub fn run() {
             let window = app.get_webview_window("main").unwrap();
             #[cfg(target_os = "macos")]
             configure_macos_panel(&window)?;
+            #[cfg(target_os = "windows")]
+            configure_windows_frame(&window).map_err(std::io::Error::other)?;
             window.set_resizable(false)?;
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -920,6 +1012,7 @@ pub fn run() {
             term_close,
             get_settings,
             save_settings,
+            set_launch_at_startup,
             app_version,
             get_shortcuts,
             reset_shortcuts,

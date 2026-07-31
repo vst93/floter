@@ -19,6 +19,7 @@ import {
   formatResultShortcut,
   formatShortcut,
   IS_MAC,
+  IS_WINDOWS,
   matchesResultShortcut,
   matchesShortcut,
   matchesShortcutModifiers,
@@ -29,6 +30,10 @@ import {
   type ShortcutMap,
 } from "./shortcuts";
 import "./App.css";
+
+if (IS_WINDOWS) {
+  document.documentElement.setAttribute("data-platform", "windows");
+}
 
 type ViewMode = "collapsed" | "terminal" | "settings";
 
@@ -66,6 +71,7 @@ type ActionBar = { type: ActionBarKind; label: string; value: string };
 type AppSettings = {
   hotkey: string;
   hide_on_blur: boolean;
+  launch_at_startup: boolean;
   theme: string;
   font_size: number;
   font_family: string;
@@ -533,6 +539,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>({
     hotkey: "Ctrl+Space",
     hide_on_blur: true,
+    launch_at_startup: false,
     theme: "dark",
     font_size: 14,
     font_family: "monospace",
@@ -542,8 +549,11 @@ export default function App() {
     terminal_opacity: 92,
     shortcuts: DEFAULT_SHORTCUTS,
   });
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
   const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
   const [rejectedAction, setRejectedAction] = useState<ShortcutAction | null>(null);
+  const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
   /** Suppress the Enter that IME emits right after compositionend. */
@@ -948,6 +958,7 @@ export default function App() {
         setSettings({
           ...loaded,
           language: normalizeLanguage(loaded.language),
+          launch_at_startup: loaded.launch_at_startup ?? false,
           main_opacity: normalizeOpacity(loaded.main_opacity ?? 94),
           terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
@@ -1669,6 +1680,30 @@ export default function App() {
     invoke("save_settings", { settings: updated }).catch(() => undefined);
   };
 
+  const changeLaunchAtStartup = async (enabled: boolean) => {
+    if (autostartUpdating || enabled === settings.launch_at_startup) return;
+    const previous = settings.launch_at_startup;
+    const updated: AppSettings = { ...settings, launch_at_startup: enabled };
+    settingsRef.current = updated;
+    setSettings(updated);
+    setAutostartUpdating(true);
+    suppressBlurUntil.current = Date.now() + 400;
+    try {
+      await invoke("set_launch_at_startup", { enabled });
+      const latest = { ...settingsRef.current, launch_at_startup: enabled };
+      await invoke("save_settings", { settings: latest });
+    } catch {
+      await invoke("set_launch_at_startup", { enabled: previous }).catch(() => undefined);
+      setSettings((current) =>
+        current.launch_at_startup === enabled
+          ? { ...current, launch_at_startup: previous }
+          : current,
+      );
+    } finally {
+      setAutostartUpdating(false);
+    }
+  };
+
   const toggleRecording = (action: ShortcutAction) => {
     setRejectedAction(null);
     setRecordingAction((current) => {
@@ -2036,6 +2071,31 @@ export default function App() {
                 <p className="settings-section__hint">{t("settings.languageHint")}</p>
               </section>
             </div>
+
+            <section className="settings-section">
+              <div className="settings-option settings-option--static">
+                <span className="settings-option__main">
+                  <span className="settings-option__label">
+                    {t("settings.launchAtStartup")}
+                  </span>
+                  <span className="settings-option__description">
+                    {t("settings.launchAtStartupHint")}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={`settings-switch${settings.launch_at_startup ? " settings-switch--active" : ""}`}
+                  role="switch"
+                  aria-checked={settings.launch_at_startup}
+                  aria-label={t("settings.launchAtStartup")}
+                  disabled={autostartUpdating}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void changeLaunchAtStartup(!settings.launch_at_startup)}
+                >
+                  <span className="settings-switch__thumb" />
+                </button>
+              </div>
+            </section>
 
             <section className="settings-section settings-section--material">
               <h2 className="settings-section__label">{t("settings.opacity")}</h2>

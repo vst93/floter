@@ -17,6 +17,8 @@ export type ShortcutMap = Record<ShortcutAction, string>;
 
 export const IS_MAC =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+export const IS_WINDOWS =
+  typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent);
 
 /** Cmd on macOS, Ctrl everywhere else — the modifier apps use for their own commands. */
 const APP_MODIFIER = IS_MAC ? "Cmd" : "Ctrl";

@@ -41,6 +41,7 @@ const APP_MODIFIER: &str = "Ctrl";
 pub struct AppSettings {
     pub hotkey: String,
     pub hide_on_blur: bool,
+    pub launch_at_startup: bool,
     /// UI theme: "dark" | "light" | "auto". Only the frontend reads it — "auto"
     /// is resolved there against the system appearance.
     pub theme: String,
@@ -66,6 +67,7 @@ impl Default for AppSettings {
         Self {
             hotkey: DEFAULT_TOGGLE_WINDOW.to_string(),
             hide_on_blur: true,
+            launch_at_startup: false,
             theme: "auto".to_string(),
             font_size: 14,
             font_family: "monospace".to_string(),
@@ -303,6 +305,12 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn older_settings_do_not_enable_autostart() {
+        let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(!settings.launch_at_startup);
+    }
 
     #[test]
     fn terminal_size_is_finite_and_within_usable_bounds() {

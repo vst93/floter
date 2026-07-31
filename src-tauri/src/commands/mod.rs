@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod apps;
+pub mod autostart;
 pub mod config;
 pub mod custom;
 pub mod system;
