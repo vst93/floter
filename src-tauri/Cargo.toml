@@ -56,6 +56,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSResponder",
   "NSWindow",
 ] }
+libc = "0.2"
 
 # DWM corner-radius control on Windows 11. `DwmSetWindowAttribute` with
 # `DWM_WINDOW_CORNER_PREFERENCE` lets us turn off the system's rounded

@@ -460,14 +460,18 @@ fn move_to_default_position(
 /// the 25 set here and quietly undo it.
 #[cfg(target_os = "macos")]
 fn raise_window_level(window: &WebviewWindow) {
+    if !is_main_thread() {
+        let window = window.clone();
+        let handle = window.app_handle().clone();
+        let _ = handle.run_on_main_thread(move || {
+            raise_window_level(&window);
+        });
+        return;
+    }
     let Ok(ns_window) = window.ns_window() else {
         return;
     };
     let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-    // NSPopUpMenuWindowLevel (101) is above fullscreen app shielding.
-    // CanJoinAllSpaces puts the window on every Space including fullscreen ones.
-    // FullScreenAuxiliary lets it share a fullscreen Space instead of pushing
-    // macOS to switch away to the desktop the panel belongs to.
     ns_window.setLevel(NSPopUpMenuWindowLevel);
     ns_window.setCollectionBehavior(
         NSWindowCollectionBehavior::CanJoinAllSpaces
@@ -503,7 +507,23 @@ fn raise_window_level(window: &WebviewWindow) {
 /// waits for the frontmost application to yield, which a fullscreen app has no
 /// reason to do.
 #[cfg(target_os = "macos")]
+fn is_main_thread() -> bool {
+    // pthread_main_np returns 1 if called on the main thread
+    unsafe { libc::pthread_main_np() == 1 }
+}
+
+#[cfg(target_os = "macos")]
 fn force_activate(window: &WebviewWindow) {
+    if !is_main_thread() {
+        // Global shortcut callbacks may fire on a background thread.
+        // NSWindow calls require the main thread - re-dispatch synchronously.
+        let window = window.clone();
+        let handle = window.app_handle().clone();
+        let _ = handle.run_on_main_thread(move || {
+            force_activate(&window);
+        });
+        return;
+    }
     let (Ok(ns_window), Some(mtm)) = (window.ns_window(), MainThreadMarker::new()) else {
         return;
     };
@@ -539,22 +559,21 @@ fn disable_dwm_rounding(window: &WebviewWindow) {
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
+        if !is_main_thread() {
+            let window = window.clone();
+            let handle = window.app_handle().clone();
+            let _ = handle.run_on_main_thread(move || {
+                let _ = reveal_window(&window);
+            });
+            return Ok(());
+        }
         let _ = window.app_handle().show();
-        // Set level + collection behavior BEFORE showing the window.
-        // The window server uses these to decide which Space to map the
-        // window onto as it appears.
         raise_window_level(window);
-        // orderFrontRegardless shows the window on the current Space
-        // regardless of activation state - this is the one AppKit call
-        // that ignores the active-application rule, which is exactly
-        // what an accessory app needs over a fullscreen Space.
         if let Ok(ns_window) = window.ns_window() {
             let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
             ns_window.orderFrontRegardless();
         }
         force_activate(window);
-        // Re-assert level after activation: activateIgnoringOtherApps
-        // and makeKeyAndOrderFront may reset the level to the default.
         raise_window_level(window);
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }

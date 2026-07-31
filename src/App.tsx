@@ -473,6 +473,9 @@ export default function App() {
   const [rejectedAction, setRejectedAction] = useState<ShortcutAction | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
+  /** Suppress the Enter that IME emits right after compositionend. */
+  const skipNextEnter = useRef(false);
+  const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
 
   const language = normalizeLanguage(settings.language);
@@ -1571,10 +1574,14 @@ export default function App() {
   };
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    // When a CJK IME is composing (user is picking characters from the
-    // candidate window), Enter and Escape belong to the IME, not us.
-    // isComposing is true while the IME session is active.
-    if (event.nativeEvent.isComposing) return;
+    // CJK IME: while composing (user picking candidates), all keys go to
+    // the IME. After compositionend the browser fires a stray Enter that
+    // is NOT part of isComposing — suppress it via the ref flag.
+    if (isComposing.current) return;
+    if (event.key === "Enter" && skipNextEnter.current) {
+      skipNextEnter.current = false;
+      return;
+    }
 
     const native = event.nativeEvent;
 
@@ -1882,6 +1889,11 @@ export default function App() {
                 setHistoryIndex(-1);
               }}
               onKeyDown={onInputKeyDown}
+              onCompositionStart={() => { isComposing.current = true; }}
+              onCompositionEnd={() => {
+                isComposing.current = false;
+                skipNextEnter.current = true;
+              }}
               onKeyUp={(event) => {
                 if (event.key === "Shift" && actionBar && selectedActionBar) {
                   setSelectedActionBar(false);
