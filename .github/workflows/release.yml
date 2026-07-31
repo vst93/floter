@@ -65,7 +65,7 @@ jobs:
             else
               COMMITS=$(git log --pretty=format:"- %s" --no-merges -20)
             fi
-            NOTES=$(printf '## Changes\n\n%s\n\n---\n\n## Install\n\nDownload the file for your platform:\n\n| File | Platform |\n|------|----------|\n| `*-macos-apple-silicon.dmg` | macOS (M1/M2/M3/M4) |\n| `*-macos-intel.dmg` | macOS (Intel) |\n| `*-linux-x86_64.deb` | Linux (x86_64) |\n| `*-linux-arm64.deb` | Linux (ARM64) |\n| `*-windows-x86_64-setup.exe` | Windows (x86_64) |\n| `*-windows-arm64-setup.exe` | Windows (ARM64) |\n' "$COMMITS")
+            NOTES=$(printf '## Changes\n\n%s\n\n---\n\n## Install\n\nDownload the file for your platform:\n\n| File | Platform |\n|------|----------|\n| `*-macos-apple-silicon.dmg` | macOS (M1/M2/M3/M4) |\n| `*-macos-intel.dmg` | macOS (Intel) |\n| `*-linux-x86_64.deb` | Linux (x86_64) |\n| `*-linux-arm64.deb` | Linux (ARM64) |\n| `*-windows-x86_64-setup.exe` | Windows (x86_64) |\n| `*-windows-arm64-setup.exe` | Windows (ARM64) |\n\n> **macOS note:** This app is not code-signed with an Apple Developer certificate, so macOS reports it as damaged. Run this in Terminal to fix:\n>\n> ```\n> xattr -cr /Applications/floter.app\n> ```\n' "$COMMITS")
           fi
           NOTES="${NOTES//'%'/'%25'}"
           NOTES="${NOTES//$'\n'/'%0A'}"
@@ -152,7 +152,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install npm dependencies
@@ -162,6 +162,9 @@ jobs:
       # We rename and upload ourselves in the next step to control file names.
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: --target ${{ matrix.target }}
 
@@ -170,6 +173,9 @@ jobs:
       - name: Retry without DMG (macOS only)
         if: failure() && runner.os == 'macOS'
         uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: --target ${{ matrix.target }} --bundles app
 

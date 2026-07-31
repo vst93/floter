@@ -16,9 +16,25 @@ A floating terminal and app launcher — one hotkey away. macOS, Linux, Windows.
 - **Dark / Light / Auto** — follows your system or pick your own
 - **Customizable** — rebind every shortcut to your liking
 
-## Download
+## Download & Installation
 
 Pre-built binaries: [Releases](https://github.com/vst93/floter/releases)
+
+### macOS
+
+Download the `.dmg`, drag floter to Applications. Since the app is not code-signed, macOS shows "damaged":
+
+```bash
+xattr -cr /Applications/floter.app
+```
+
+### Linux
+
+Download `.deb` (Debian/Ubuntu), `.rpm` (Fedora), or `.AppImage`.
+
+### Windows
+
+Download the `.exe` setup file and run.
 
 Build from source: see [Development](#development).
 
@@ -64,4 +80,4 @@ cargo check --all-targets && npx tsc --noEmit && cargo test
 
 ## License
 
-MIT
+GPL-3.0

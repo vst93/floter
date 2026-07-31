@@ -16,9 +16,25 @@
 - **深色 / 浅色 / 自动** — 跟随系统或手动选择
 - **自定义快捷键** — 所有快捷键均可重绑
 
-## 下载
+## 下载与安装
 
 预编译二进制：[Releases](https://github.com/vst93/floter/releases)
+
+### macOS
+
+下载 `.dmg`，将 floter 拖到「应用程序」文件夹。由于应用没有 Apple 签名，macOS 会提示「已损坏」：
+
+```bash
+xattr -cr /Applications/floter.app
+```
+
+### Linux
+
+下载 `.deb`（Debian/Ubuntu）、`.rpm`（Fedora）或 `.AppImage`。
+
+### Windows
+
+下载 `.exe` 安装包运行即可。
 
 源码构建：见[开发说明](#开发说明)。
 
@@ -64,4 +80,4 @@ cargo check --all-targets && npx tsc --noEmit && cargo test
 
 ## 许可证
 
-MIT
+GPL-3.0
