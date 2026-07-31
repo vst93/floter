@@ -478,8 +478,7 @@ fn raise_window_level(window: &WebviewWindow) {
         let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
         ns_window.setLevel(NSStatusWindowLevel);
         ns_window.setCollectionBehavior(
-            ns_window.collectionBehavior()
-                | NSWindowCollectionBehavior::CanJoinAllSpaces
+            NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary,
         );
     });
@@ -525,9 +524,9 @@ fn force_activate(window: &WebviewWindow) {
         // duration of these calls only, on the main thread as NSWindow requires.
         // Tauri hands the pointer back autoreleased, so it outlives this closure.
         let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+        ns_window.orderFrontRegardless();
         #[allow(deprecated)]
         NSApp(mtm).activateIgnoringOtherApps(true);
-        ns_window.orderFrontRegardless();
         ns_window.makeKeyAndOrderFront(None);
     });
 }
