@@ -44,16 +44,25 @@ const OPENER: Option<&str> = None;
 /// three schemes, so nothing a user can actually ask for is refused.
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
-    let web = ["http://", "https://", "ftp://"].iter().any(|scheme| {
+    if !is_web_url(&url) {
+        return Err(format!("Refusing to open a non-web URL: {url}"));
+    }
+    spawn_opener(&url)
+}
+
+/// Whether the query carries one of the three schemes a link may be followed
+/// through.
+///
+/// Kept apart from [`open_url`] so the decision can be exercised on its own: the
+/// command spawns a browser the moment it says yes, which is the one thing a
+/// test must not reach.
+fn is_web_url(url: &str) -> bool {
+    ["http://", "https://", "ftp://"].iter().any(|scheme| {
         // `get` rather than a slice: a URL can be cut short mid-character by the
         // scheme's length, and indexing off a char boundary would panic.
         url.get(..scheme.len())
             .is_some_and(|head| head.eq_ignore_ascii_case(scheme))
-    });
-    if !web {
-        return Err(format!("Refusing to open a non-web URL: {url}"));
-    }
-    spawn_opener(&url)
+    })
 }
 
 /// Open a filesystem path in the file manager, or in whatever application owns

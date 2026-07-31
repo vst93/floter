@@ -270,3 +270,50 @@ fn sanitize_filename(value: &str) -> String {
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The Latin part of a name is kept in full rather than reduced to its
+    /// initials, and the separators come out — a query typed as one word has to
+    /// reach across them.
+    #[test]
+    fn keeps_latin_letters_and_drops_separators() {
+        assert_eq!(
+            compute_initials("Visual Studio Code", &None),
+            "visualstudiocode"
+        );
+    }
+
+    /// A Chinese name carries no letters, so each character contributes the
+    /// first letter of its pinyin — the form it is typed as on a Latin keyboard.
+    #[test]
+    fn reduces_chinese_characters_to_pinyin_initials() {
+        assert_eq!(compute_initials("网易云音乐", &None), "wyyyl");
+    }
+
+    /// Both halves of a mixed name land in the same key, in the order typed.
+    #[test]
+    fn folds_a_mixed_name_into_one_key() {
+        assert_eq!(compute_initials("VSCode 编辑器", &None), "vscodebjq");
+    }
+
+    /// The localized name is appended to the same key instead of being scored
+    /// separately: either name can be the one the user thinks in.
+    #[test]
+    fn appends_the_localized_name() {
+        assert_eq!(
+            compute_initials("Code", &Some("代码".to_string())),
+            "codedm"
+        );
+    }
+
+    /// An empty localized name is not a name. It must not contribute the
+    /// separator that the `format!` above would otherwise put between the two.
+    #[test]
+    fn ignores_an_empty_localized_name() {
+        assert_eq!(compute_initials("Code", &Some(String::new())), "code");
+        assert_eq!(compute_initials("Code", &None), "code");
+    }
+}
