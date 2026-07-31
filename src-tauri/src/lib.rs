@@ -481,7 +481,7 @@ fn raise_window_level(window: &WebviewWindow) {
             ns_window.collectionBehavior()
                 | NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary
-                | NSWindowCollectionBehavior::MovesToActiveSpace,
+                | NSWindowCollectionBehavior::MoveToActiveSpace,
         );
     });
 }
