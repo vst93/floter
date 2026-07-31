@@ -460,15 +460,14 @@ fn move_to_default_position(
 /// the 25 set here and quietly undo it.
 #[cfg(target_os = "macos")]
 fn raise_window_level(window: &WebviewWindow) {
-    // Direct synchronous call — NOT run_on_main_thread. The deferred hop
-    // means the level lands after tao's show() already reset it to the
-    // default (NSFloatingWindowLevel = 3), which is below fullscreen apps.
-    // Tauri commands, tray handlers and global-shortcut callbacks all run
-    // on the main thread on macOS, so this is safe to call directly.
     let Ok(ns_window) = window.ns_window() else {
         return;
     };
     let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+    // NSPopUpMenuWindowLevel (101) is above fullscreen app shielding.
+    // CanJoinAllSpaces puts the window on every Space including fullscreen ones.
+    // FullScreenAuxiliary lets it share a fullscreen Space instead of pushing
+    // macOS to switch away to the desktop the panel belongs to.
     ns_window.setLevel(NSPopUpMenuWindowLevel);
     ns_window.setCollectionBehavior(
         NSWindowCollectionBehavior::CanJoinAllSpaces
@@ -541,23 +540,32 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let _ = window.app_handle().show();
+        // Set level + collection behavior BEFORE showing the window.
+        // The window server uses these to decide which Space to map the
+        // window onto as it appears.
+        raise_window_level(window);
+        // orderFrontRegardless shows the window on the current Space
+        // regardless of activation state - this is the one AppKit call
+        // that ignores the active-application rule, which is exactly
+        // what an accessory app needs over a fullscreen Space.
+        if let Ok(ns_window) = window.ns_window() {
+            let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
+            ns_window.orderFrontRegardless();
+        }
+        force_activate(window);
+        // Re-assert level after activation: activateIgnoringOtherApps
+        // and makeKeyAndOrderFront may reset the level to the default.
+        raise_window_level(window);
+        let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }
-    let _ = window.unminimize();
-    #[cfg(target_os = "macos")]
-    raise_window_level(window);
-    window.show().map_err(|e| e.to_string())?;
     #[cfg(not(target_os = "macos"))]
     {
+        let _ = window.unminimize();
+        window.show().map_err(|e| e.to_string())?;
         #[cfg(target_os = "windows")]
         disable_dwm_rounding(window);
         let _ = window.set_always_on_top(true);
         window.set_focus().map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        force_activate(window);
-        raise_window_level(window);
-        let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }
     Ok(())
 }

@@ -1571,6 +1571,11 @@ export default function App() {
   };
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // When a CJK IME is composing (user is picking characters from the
+    // candidate window), Enter and Escape belong to the IME, not us.
+    // isComposing is true while the IME session is active.
+    if (event.nativeEvent.isComposing) return;
+
     const native = event.nativeEvent;
 
     // Holding Shift highlights the action bar so the user sees what
