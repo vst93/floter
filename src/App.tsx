@@ -1591,6 +1591,13 @@ export default function App() {
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const native = event.nativeEvent;
+
+    // Holding Shift highlights the action bar so the user sees what
+    // Shift+Enter will run. The highlight follows Shift state live.
+    if (event.key === "Shift" && actionBar && !selectedActionBar) {
+      setSelectedActionBar(true);
+      return;
+    }
     // Numbered results only: the action bar has no number, so `Ctrl+1` can never
     // run a command by mistake.
     const resultNumber = matchesResultShortcut(native, shortcuts.select_result);
@@ -1889,6 +1896,11 @@ export default function App() {
                 setHistoryIndex(-1);
               }}
               onKeyDown={onInputKeyDown}
+              onKeyUp={(event) => {
+                if (event.key === "Shift" && actionBar && selectedActionBar) {
+                  setSelectedActionBar(false);
+                }
+              }}
               placeholder={placeholder}
               autoFocus
               spellCheck={false}

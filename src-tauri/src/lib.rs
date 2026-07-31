@@ -559,8 +559,6 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
         let _ = window.app_handle().show();
     }
     let _ = window.unminimize();
-    #[cfg(target_os = "macos")]
-    raise_window_level(window);
     window.show().map_err(|e| e.to_string())?;
     #[cfg(not(target_os = "macos"))]
     {
@@ -572,6 +570,7 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         force_activate(window);
+        raise_window_level(window);
         raise_window_level(window);
         let _ = window.request_user_attention(Some(UserAttentionType::Informational));
     }
