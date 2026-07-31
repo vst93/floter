@@ -4,9 +4,10 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 use tauri::AppHandle;
 
-use super::{icon_cache_path, LocalApplication};
+use super::{icon_cache_path, paths_signature, LocalApplication};
 
 pub fn roots() -> Vec<PathBuf> {
     let mut roots = vec![
@@ -31,6 +32,22 @@ pub fn scan(roots: &[PathBuf]) -> Vec<LocalApplication> {
     }
 
     apps
+}
+
+pub fn source_signature(roots: &[PathBuf]) -> u64 {
+    let mut sources = roots.to_vec();
+    for root in roots {
+        collect_signature_paths(root, 0, &mut sources);
+    }
+    paths_signature(sources)
+}
+
+pub fn signature_check_interval() -> Duration {
+    Duration::from_secs(30)
+}
+
+pub fn max_cache_age() -> Option<Duration> {
+    None
 }
 
 pub fn open(path: &Path) -> Result<(), String> {
@@ -61,12 +78,12 @@ fn collect_apps(
         if is_app_bundle(&path) {
             let canonical = path.to_string_lossy().to_string();
             if seen.insert(canonical.clone()) {
-                let (name, localized_name) = app_names(&path);
+                let (name, localized_name, icon_path) = app_metadata(&path);
                 apps.push(LocalApplication {
                     name,
                     localized_name,
                     path: canonical,
-                    icon_path: None,
+                    icon_path,
                     comment: None,
                     // Filled in by `list_applications` once the scan is done, so
                     // the pinyin lookup lives in one place rather than in every
@@ -83,6 +100,24 @@ fn collect_apps(
     }
 }
 
+fn collect_signature_paths(dir: &Path, depth: usize, paths: &mut Vec<PathBuf>) {
+    if depth > 2 || !dir.is_dir() {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if is_app_bundle(&path) {
+            paths.push(path.join("Contents/Info.plist"));
+        } else if depth < 2 && path.is_dir() && !path_is_bundle(&path) {
+            paths.push(path.clone());
+            collect_signature_paths(&path, depth + 1, paths);
+        }
+    }
+}
+
 fn is_app_bundle(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
@@ -93,7 +128,7 @@ fn path_is_bundle(path: &Path) -> bool {
     path.extension().and_then(|ext| ext.to_str()).is_some()
 }
 
-fn app_names(path: &Path) -> (String, Option<String>) {
+fn app_metadata(path: &Path) -> (String, Option<String>, Option<String>) {
     let fallback = path
         .file_stem()
         .and_then(|name| name.to_str())
@@ -101,12 +136,19 @@ fn app_names(path: &Path) -> (String, Option<String>) {
         .to_string();
 
     let info_path = path.join("Contents").join("Info.plist");
-    let bundle_name = plist_key(&info_path, "CFBundleDisplayName")
-        .or_else(|| plist_key(&info_path, "CFBundleName"))
+    let info = plist::Value::from_file(&info_path).ok();
+    let bundle_name = info
+        .as_ref()
+        .and_then(|value| plist_value_first_string(value, &["CFBundleDisplayName", "CFBundleName"]))
         .unwrap_or_else(|| fallback.clone());
+    let icon_name = info
+        .as_ref()
+        .and_then(|value| plist_value_first_string(value, &["CFBundleIconFile"]));
     let localized_name = localized_app_name(path).filter(|name| name != &bundle_name);
+    let icon_path = icon_source_with_name(path, icon_name.as_deref())
+        .map(|source| source.to_string_lossy().to_string());
 
-    (bundle_name, localized_name)
+    (bundle_name, localized_name, icon_path)
 }
 
 fn localized_app_name(path: &Path) -> Option<String> {
@@ -129,8 +171,11 @@ fn localized_app_name(path: &Path) -> Option<String> {
 
     let entries = fs::read_dir(resource_dir).ok()?;
     for entry in entries.flatten() {
-        let path = entry.path().join("InfoPlist.strings");
-        let value = localized_name_from_strings(&path);
+        let locale_dir = entry.path();
+        if locale_dir.extension().and_then(|ext| ext.to_str()) != Some("lproj") {
+            continue;
+        }
+        let value = localized_name_from_strings(&locale_dir.join("InfoPlist.strings"));
         if value.is_some() {
             return value;
         }
@@ -140,8 +185,7 @@ fn localized_app_name(path: &Path) -> Option<String> {
 }
 
 fn localized_name_from_strings(path: &Path) -> Option<String> {
-    plist_key(path, "CFBundleDisplayName")
-        .or_else(|| plist_key(path, "CFBundleName"))
+    plist_first_string(path, &["CFBundleDisplayName", "CFBundleName"])
         .or_else(|| localized_name_from_strings_text(path))
 }
 
@@ -167,21 +211,21 @@ fn localized_name_from_strings_text(path: &Path) -> Option<String> {
         .or_else(|| plist_strings_value(&content, "CFBundleName"))
 }
 
-fn plist_key(path: &Path, key: &str) -> Option<String> {
-    let output = Command::new("/usr/bin/plutil")
-        .args(["-extract", key, "raw"])
-        .arg(path)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if value.is_empty() || value == "(null)" {
-        None
-    } else {
-        Some(value)
-    }
+fn plist_first_string(path: &Path, keys: &[&str]) -> Option<String> {
+    let value = plist::Value::from_file(path).ok()?;
+    plist_value_first_string(&value, keys)
+}
+
+fn plist_value_first_string(value: &plist::Value, keys: &[&str]) -> Option<String> {
+    let dictionary = value.as_dictionary()?;
+    keys.iter().find_map(|key| {
+        dictionary
+            .get(key)
+            .and_then(plist::Value::as_string)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    })
 }
 
 fn plist_strings_value(content: &str, key: &str) -> Option<String> {
@@ -229,14 +273,20 @@ fn decode_strings_escapes(value: &str) -> String {
     output
 }
 
-pub fn icon_path(app: &AppHandle, path: &Path) -> Option<String> {
-    let source = icon_source(path)?;
+pub fn icon_path(
+    app: &AppHandle,
+    path: &Path,
+    source_hint: Option<&str>,
+) -> Option<String> {
     let target = icon_cache_path(app, path, "png")?;
-
     if target.exists() {
         return Some(target.to_string_lossy().to_string());
     }
 
+    let source = source_hint
+        .map(PathBuf::from)
+        .filter(|source| source.is_file())
+        .or_else(|| icon_source(path))?;
     let status = Command::new("/usr/bin/sips")
         .args(["-s", "format", "png"])
         .arg(&source)
@@ -253,12 +303,16 @@ pub fn icon_path(app: &AppHandle, path: &Path) -> Option<String> {
 }
 
 fn icon_source(path: &Path) -> Option<PathBuf> {
-    let resource_dir = path.join("Contents").join("Resources");
     let info_path = path.join("Contents").join("Info.plist");
+    let icon_name = plist_first_string(&info_path, &["CFBundleIconFile"]);
+    icon_source_with_name(path, icon_name.as_deref())
+}
 
-    if let Some(icon_name) = plist_key(&info_path, "CFBundleIconFile") {
+fn icon_source_with_name(path: &Path, icon_name: Option<&str>) -> Option<PathBuf> {
+    let resource_dir = path.join("Contents").join("Resources");
+    if let Some(icon_name) = icon_name {
         let icon_file = if icon_name.ends_with(".icns") {
-            icon_name
+            icon_name.to_string()
         } else {
             format!("{icon_name}.icns")
         };

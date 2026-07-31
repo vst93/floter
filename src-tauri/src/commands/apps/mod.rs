@@ -5,11 +5,11 @@
 //! (`.app` bundles, `.desktop` entries, Start Menu shortcuts) is delegated to
 //! the `platform` module picked at compile time.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, State};
 
 #[cfg(target_os = "macos")]
@@ -40,7 +40,23 @@ mod platform {
         Vec::new()
     }
 
-    pub fn icon_path(_app: &AppHandle, _path: &Path) -> Option<String> {
+    pub fn source_signature(_roots: &[PathBuf]) -> u64 {
+        0
+    }
+
+    pub fn signature_check_interval() -> std::time::Duration {
+        std::time::Duration::from_secs(60)
+    }
+
+    pub fn max_cache_age() -> Option<std::time::Duration> {
+        None
+    }
+
+    pub fn icon_path(
+        _app: &AppHandle,
+        _path: &Path,
+        _source_hint: Option<&str>,
+    ) -> Option<String> {
         None
     }
 
@@ -49,12 +65,16 @@ mod platform {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalApplication {
     pub name: String,
     pub localized_name: Option<String>,
     pub path: String,
+    /// Platform-specific icon source discovered during the application scan:
+    /// an `.icns` path on macOS, an `Icon=` value on Linux, or a shortcut/
+    /// executable target on Windows. The frontend never loads this directly;
+    /// [`application_icon`] turns it into an asset-cache path.
     pub icon_path: Option<String>,
     /// One-line description, when the platform ships one (Linux `.desktop`
     /// entries carry `Comment=`); used as the launcher subtitle.
@@ -81,6 +101,16 @@ impl ApplicationState {
 struct ApplicationCache {
     signature: u64,
     apps: Vec<LocalApplication>,
+    scanned_at: u64,
+    persistent_loaded: bool,
+    last_signature_check: Option<Instant>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PersistentApplicationCache {
+    signature: u64,
+    scanned_at: u64,
+    apps: Vec<LocalApplication>,
 }
 
 /// Whether the cached application list still matches what is on disk.
@@ -93,15 +123,48 @@ pub struct ApplicationsStatus {
 
 /// Ask whether a rescan would find anything new, without performing one.
 ///
-/// This is what the frontend calls on every summon. It only stats the
-/// application directories — no directory is walked and no `.desktop` file or
-/// `Info.plist` is parsed — so it stays well under a millisecond and can run on
-/// a path where the panel is already being shown. An empty cache counts as out
-/// of date, so the very first call after startup still asks for a scan.
+/// Calls are cheap during the platform-specific cooldown. Once it expires, the
+/// relevant application entries are walked on a blocking thread and compared
+/// with the cached signature. Windows also expires the cache on a timer as a
+/// fallback for registry value edits that do not update the parent key.
 #[tauri::command]
-pub fn check_applications(state: State<'_, ApplicationState>) -> Result<ApplicationsStatus, String> {
+pub async fn check_applications(
+    app: AppHandle,
+    state: State<'_, ApplicationState>,
+) -> Result<ApplicationsStatus, String> {
+    let now = Instant::now();
+    {
+        let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
+        load_persistent_cache(&app, &mut cache);
+        if cache.apps.is_empty() {
+            return Ok(ApplicationsStatus {
+                up_to_date: false,
+                count: 0,
+            });
+        }
+        if cache_is_expired(cache.scanned_at, platform::max_cache_age()) {
+            return Ok(ApplicationsStatus {
+                up_to_date: false,
+                count: cache.apps.len(),
+            });
+        }
+        if cache.last_signature_check.is_some_and(|checked| {
+            now.duration_since(checked) < platform::signature_check_interval()
+        }) {
+            return Ok(ApplicationsStatus {
+                up_to_date: true,
+                count: cache.apps.len(),
+            });
+        }
+        // Mark before starting the walk so concurrent summons coalesce.
+        cache.last_signature_check = Some(now);
+    }
+
     let roots = platform::roots();
-    let signature = roots_signature(&roots);
+    let signature =
+        tauri::async_runtime::spawn_blocking(move || platform::source_signature(&roots))
+            .await
+            .map_err(|error| error.to_string())?;
     let cache = state.cache.lock().map_err(|e| e.to_string())?;
     Ok(ApplicationsStatus {
         up_to_date: !cache.apps.is_empty() && cache.signature == signature,
@@ -123,40 +186,62 @@ pub fn check_applications(state: State<'_, ApplicationState>) -> Result<Applicat
 /// whole duration of a scan.
 #[tauri::command]
 pub async fn list_applications(
+    app: AppHandle,
     state: State<'_, ApplicationState>,
     force_refresh: Option<bool>,
 ) -> Result<Vec<LocalApplication>, String> {
     let force_refresh = force_refresh.unwrap_or(false);
+    {
+        let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
+        load_persistent_cache(&app, &mut cache);
+    }
 
     // Read before the scan rather than after it: this is the state of the
-    // directories the scan below is about to observe. Storing a *later* reading
-    // would let an application installed while the scan was running pass for one
-    // the scan already saw, and it would then stay missing until the next
-    // unrelated change to the same directory.
-    let signature = roots_signature(&platform::roots());
+    // sources the scan below is about to observe. A later reading could claim
+    // that an application installed mid-scan was already included.
+    let roots = platform::roots();
+    let signature_roots = roots.clone();
+    let signature =
+        tauri::async_runtime::spawn_blocking(move || platform::source_signature(&signature_roots))
+            .await
+            .map_err(|error| error.to_string())?;
 
     {
-        let cache = state.cache.lock().map_err(|e| e.to_string())?;
-        if !force_refresh && !cache.apps.is_empty() && cache.signature == signature {
+        let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
+        let current = !cache.apps.is_empty()
+            && cache.signature == signature
+            && !cache_is_expired(cache.scanned_at, platform::max_cache_age());
+        cache.last_signature_check = Some(Instant::now());
+        if !force_refresh && current {
             return Ok(cache.apps.clone());
         }
     }
 
-    let apps = tauri::async_runtime::spawn_blocking(|| {
-        let roots = platform::roots();
+    let apps = tauri::async_runtime::spawn_blocking(move || {
         let mut apps = platform::scan(&roots);
         for app in &mut apps {
             app.initials = compute_initials(&app.name, &app.localized_name);
         }
-        apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        apps.sort_by_cached_key(|application| application.name.to_lowercase());
         apps
     })
     .await
     .map_err(|e| e.to_string())?;
 
-    let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
-    cache.signature = signature;
-    cache.apps = apps.clone();
+    let scanned_at = unix_now();
+    let snapshot = PersistentApplicationCache {
+        signature,
+        scanned_at,
+        apps: apps.clone(),
+    };
+    {
+        let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
+        cache.signature = signature;
+        cache.scanned_at = scanned_at;
+        cache.last_signature_check = Some(Instant::now());
+        cache.apps = apps.clone();
+    }
+    save_persistent_cache(&app, &snapshot);
     Ok(apps)
 }
 
@@ -202,8 +287,25 @@ fn compute_initials(name: &str, localized_name: &Option<String>) -> String {
 }
 
 #[tauri::command]
-pub fn application_icon(app: AppHandle, path: String) -> Result<Option<String>, String> {
-    Ok(platform::icon_path(&app, Path::new(&path)))
+pub fn application_icon(
+    app: AppHandle,
+    state: State<'_, ApplicationState>,
+    path: String,
+) -> Result<Option<String>, String> {
+    let source_hint = {
+        let mut cache = state.cache.lock().map_err(|error| error.to_string())?;
+        load_persistent_cache(&app, &mut cache);
+        cache
+            .apps
+            .iter()
+            .find(|application| application.path == path)
+            .and_then(|application| application.icon_path.clone())
+    };
+    Ok(platform::icon_path(
+        &app,
+        Path::new(&path),
+        source_hint.as_deref(),
+    ))
 }
 
 #[tauri::command]
@@ -215,38 +317,114 @@ pub fn open_application(path: String) -> Result<(), String> {
     platform::open(&path)
 }
 
-fn roots_signature(roots: &[PathBuf]) -> u64 {
-    roots
-        .iter()
-        .map(|root| dir_signature(root))
-        .fold(0_u64, |signature, value| {
-            signature.wrapping_mul(31).wrapping_add(value)
-        })
+const APPLICATION_CACHE_FILE: &str = "applications-v2.json";
+const LEGACY_APPLICATION_CACHE_FILE: &str = "applications-v1.json";
+
+fn application_cache_path(app: &AppHandle) -> Option<PathBuf> {
+    Some(
+        app.path()
+            .app_cache_dir()
+            .ok()?
+            .join(APPLICATION_CACHE_FILE),
+    )
 }
 
-fn dir_signature(dir: &Path) -> u64 {
-    let metadata = match fs::metadata(dir) {
-        Ok(metadata) => metadata,
-        Err(_) => return 0,
+fn load_persistent_cache(app: &AppHandle, cache: &mut ApplicationCache) {
+    if cache.persistent_loaded {
+        return;
+    }
+    cache.persistent_loaded = true;
+
+    let Some(path) = application_cache_path(app) else {
+        return;
     };
+    let Ok(bytes) = fs::read(path) else {
+        return;
+    };
+    let Ok(snapshot) = serde_json::from_slice::<PersistentApplicationCache>(&bytes) else {
+        return;
+    };
+    cache.signature = snapshot.signature;
+    cache.scanned_at = snapshot.scanned_at;
+    cache.apps = snapshot.apps;
+}
 
-    let modified = metadata
-        .modified()
-        .ok()
-        .and_then(system_time_secs)
-        .unwrap_or(0);
+fn save_persistent_cache(app: &AppHandle, snapshot: &PersistentApplicationCache) {
+    let Some(path) = application_cache_path(app) else {
+        return;
+    };
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    let Ok(bytes) = serde_json::to_vec(snapshot) else {
+        return;
+    };
+    if fs::create_dir_all(parent).is_ok() && fs::write(&path, bytes).is_ok() {
+        let _ = fs::remove_file(parent.join(LEGACY_APPLICATION_CACHE_FILE));
+    }
+}
 
-    let entry_count = fs::read_dir(dir)
-        .map(|entries| entries.flatten().count() as u64)
-        .unwrap_or(0);
+fn cache_is_expired(scanned_at: u64, max_age: Option<Duration>) -> bool {
+    let Some(max_age) = max_age else {
+        return false;
+    };
+    scanned_at == 0 || unix_now().saturating_sub(scanned_at) >= max_age.as_secs()
+}
 
-    modified ^ entry_count.rotate_left(17)
+fn unix_now() -> u64 {
+    system_time_secs(SystemTime::now()).unwrap_or(0)
 }
 
 fn system_time_secs(time: SystemTime) -> Option<u64> {
     time.duration_since(UNIX_EPOCH)
         .ok()
         .map(|duration| duration.as_secs())
+}
+
+/// Deterministic signature for platform-selected application sources.
+///
+/// Platform scanners supply only paths that can change the launcher list (for
+/// example `.desktop` files, not every icon below `/usr/share`). Sorting makes
+/// the result stable even though `read_dir` order is unspecified.
+pub(super) fn paths_signature(mut paths: Vec<PathBuf>) -> u64 {
+    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+
+    paths.sort_unstable();
+    paths.dedup();
+    let mut hash = FNV_OFFSET;
+    for path in paths {
+        for byte in path.to_string_lossy().as_bytes() {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        match fs::metadata(&path) {
+            Ok(metadata) => {
+                let modified = metadata
+                    .modified()
+                    .ok()
+                    .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+                    .map(|duration| duration.as_nanos())
+                    .unwrap_or(0);
+                for byte in metadata
+                    .len()
+                    .to_le_bytes()
+                    .into_iter()
+                    .chain(modified.to_le_bytes())
+                {
+                    hash ^= u64::from(byte);
+                    hash = hash.wrapping_mul(FNV_PRIME);
+                }
+                hash ^= u64::from(metadata.is_dir());
+                hash = hash.wrapping_mul(FNV_PRIME);
+            }
+            Err(_) => {
+                hash ^= 0xff;
+                hash = hash.wrapping_mul(FNV_PRIME);
+            }
+        }
+    }
+    hash
 }
 
 /// Path of the cached icon for `key`, created lazily under the app cache dir.
@@ -315,5 +493,40 @@ mod tests {
     fn ignores_an_empty_localized_name() {
         assert_eq!(compute_initials("Code", &Some(String::new())), "code");
         assert_eq!(compute_initials("Code", &None), "code");
+    }
+
+    #[test]
+    fn path_signature_is_stable_and_tracks_path_changes() {
+        let dir = std::env::temp_dir().join(format!(
+            "floter-app-signature-{}-{}",
+            std::process::id(),
+            unix_now()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let first_path = dir.join("first.desktop");
+        fs::write(&first_path, b"application").unwrap();
+
+        let expected = paths_signature(vec![dir.clone(), first_path.clone()]);
+        assert_eq!(
+            expected,
+            paths_signature(vec![first_path.clone(), dir.clone(), first_path.clone()])
+        );
+
+        let second_path = dir.join("second.desktop");
+        fs::rename(&first_path, &second_path).unwrap();
+        assert_ne!(expected, paths_signature(vec![dir.clone(), second_path]));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn cache_expiry_respects_the_platform_max_age() {
+        let now = unix_now();
+        assert!(!cache_is_expired(0, None));
+        assert!(cache_is_expired(0, Some(Duration::from_secs(60))));
+        assert!(!cache_is_expired(now, Some(Duration::from_secs(60))));
+        assert!(cache_is_expired(
+            now.saturating_sub(61),
+            Some(Duration::from_secs(60))
+        ));
     }
 }

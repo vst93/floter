@@ -1,5 +1,7 @@
 // Canvas renderer for the alacritty-backed terminal.
 //
+import { ALT_SCREEN } from "./input";
+
 // Consumes the binary frame produced by the Rust backend (see
 // `src-tauri/src/terminal/frame.rs` for the wire format) and paints it onto a
 // <canvas>. The frontend is intentionally stateless per-frame: every frame
@@ -100,6 +102,7 @@ export class TerminalCanvas {
   // per frame: `getComputedStyle` forces a style resolution, and a frame arrives
   // for every burst of terminal output.
   private bg = FALLBACK_BG;
+  private bgOpacity = 1;
   private fg = FALLBACK_FG;
   private cursor = FALLBACK_CURSOR;
   private selection = FALLBACK_SELECTION;
@@ -109,7 +112,7 @@ export class TerminalCanvas {
     private canvas: HTMLCanvasElement,
     private opts: RendererOptions,
   ) {
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) throw new Error("2d canvas context unavailable");
     this.ctx = ctx;
     this.updateTheme();
@@ -130,6 +133,7 @@ export class TerminalCanvas {
   updateTheme(): void {
     const style = getComputedStyle(document.documentElement);
     this.bg = packedColor(style, "--terminal-bg", FALLBACK_BG);
+    this.bgOpacity = cssNumber(style, "--terminal-opacity", 1);
     this.fg = packedColor(style, "--terminal-fg", FALLBACK_FG);
     this.cursor = packedColor(style, "--terminal-cursor", FALLBACK_CURSOR);
     // Kept as CSS strings: both are deliberately translucent, and the packed
@@ -175,7 +179,13 @@ export class TerminalCanvas {
     };
   }
 
-  private color(packed: number): string {
+  private color(packed: number, alpha = 1): string {
+    if (alpha !== 1) {
+      const red = (packed >> 16) & 0xff;
+      const green = (packed >> 8) & 0xff;
+      const blue = packed & 0xff;
+      return `rgb(${red} ${green} ${blue} / ${alpha})`;
+    }
     let s = this.colorCache.get(packed);
     if (s) return s;
     s = `#${(packed & 0xffffff).toString(16).padStart(6, "0")}`;
@@ -198,7 +208,8 @@ export class TerminalCanvas {
     const themeBg = this.bg;
     const themeFg = this.fg;
 
-    ctx.fillStyle = this.color(themeBg);
+    ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
+    ctx.fillStyle = this.color(themeBg, this.bgOpacity);
     ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
 
     this.lastBytes = bytes;
@@ -415,7 +426,7 @@ export class TerminalCanvas {
   }
 
   private drawScrollbar(): void {
-    if (this.historySize <= 0) return;
+    if ((this.mode & ALT_SCREEN) !== 0 || this.historySize <= 0) return;
     const ctx = this.ctx;
     const rect = this.scrollbarRect();
     if (!rect) return;
@@ -436,7 +447,7 @@ export class TerminalCanvas {
 
   /** True if the pixel is within the scrollbar track. */
   hitScrollbar(px: number, _py: number): boolean {
-    if (this.historySize <= 0) return false;
+    if ((this.mode & ALT_SCREEN) !== 0 || this.historySize <= 0) return false;
     const rect = this.scrollbarRect();
     if (!rect) return false;
     return px >= rect.x && px <= rect.x + rect.w;
@@ -570,6 +581,11 @@ function packedColor(style: CSSStyleDeclaration, name: string, fallback: number)
 /** A `--terminal-*` custom property left as written, for translucent overlays. */
 function cssColor(style: CSSStyleDeclaration, name: string, fallback: string): string {
   return style.getPropertyValue(name).trim() || fallback;
+}
+
+function cssNumber(style: CSSStyleDeclaration, name: string, fallback: number): number {
+  const value = Number.parseFloat(style.getPropertyValue(name));
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
 }
 
 /// Path for a rounded rectangle (canvas `roundRect` fallback).

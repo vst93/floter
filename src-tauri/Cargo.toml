@@ -37,25 +37,13 @@ base64 = "0.22"
 # which is a static table per style that nothing here would ever read.
 pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 
-# Raw `NSWindow`/`NSApplication` access, for the two things Tauri does not
-# expose: the window level, and activating an accessory application in place.
-# `set_always_on_top` is fixed at NSFloatingWindowLevel, which is not high
-# enough to clear a fullscreen app, and `set_focus` is a no-op against a window
-# the window server has not mapped yet — see `raise_window_level` and
-# `force_activate`.
-#
-# Not new crates in the tree: tao already builds these exact versions, and the
-# feature set below is a subset of the one it asks for, so cargo's feature
-# unification leaves the build unchanged. `default-features = false` keeps it
-# that way — the default set is all of AppKit.
+# A launcher needs NSPanel's non-activating semantics to appear inside another
+# app's fullscreen Space without switching away from it. The plugin subclasses
+# Tauri's existing NSWindow in place, so the WebView and Tauri window handle stay
+# intact. Pin the revision so builds do not follow changes on the v2.1 branch.
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = { version = "0.6", default-features = false, features = ["std"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
-  "std",
-  "NSApplication",
-  "NSResponder",
-  "NSWindow",
-] }
+tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "a3122e894383aa068ec5365a42994e3ac94ba1b6" }
+plist = "1"
 libc = "0.2"
 
 # DWM corner-radius control on Windows 11. `DwmSetWindowAttribute` with
@@ -69,4 +57,5 @@ libc = "0.2"
 windows = { version = "0.61", default-features = false, features = [
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
+  "Win32_System_Registry",
 ] }

@@ -8,9 +8,9 @@ use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
 use commands::config::{
-    app_version, get_settings, get_shortcuts, load_settings, resolved_shortcuts, save_settings,
-    suspend_shortcuts, resume_shortcuts, update_shortcut,
-    DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
+    app_version, get_settings, get_shortcuts, load_settings, reset_shortcuts, resolved_shortcuts,
+    resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
+    saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
 use commands::custom::{
     add_custom_command, delete_custom_command, execute_custom_command, get_custom_commands,
@@ -18,30 +18,42 @@ use commands::custom::{
 };
 use commands::system::system_power;
 use commands::terminal::{
-    open_in_default_terminal, term_close, term_input, term_resize, term_scroll, term_scroll_to,
-    term_spawn, TerminalState,
+    open_in_default_terminal, term_close, term_input, term_mouse, term_resize, term_scroll,
+    term_scroll_to, term_set_theme, term_spawn, term_wheel, TerminalState,
 };
-#[cfg(target_os = "macos")]
-use objc2::MainThreadMarker;
-#[cfg(target_os = "macos")]
-use objc2_app_kit::{NSApp, NSPopUpMenuWindowLevel, NSWindow, NSWindowCollectionBehavior};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
-use tauri::{ActivationPolicy, UserAttentionType};
+use tauri::ActivationPolicy;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
     WebviewWindow, Wry,
 };
+#[cfg(target_os = "macos")]
+use tauri_nspanel::{
+    tauri_panel, CollectionBehavior, ManagerExt as NSPanelManagerExt, PanelLevel, StyleMask,
+    WebviewWindowExt as NSPanelWebviewWindowExt,
+};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use terminal::session::TerminalManager;
 
 const INPUT_WINDOW_WIDTH: f64 = 720.0;
-const TERMINAL_WINDOW_WIDTH: f64 = 860.0;
 const INPUT_WINDOW_HEIGHT: f64 = 56.0;
-const TERMINAL_WINDOW_HEIGHT: f64 = 460.0;
+const TERMINAL_WINDOW_HEIGHT: f64 = 600.0;
+
+#[cfg(target_os = "macos")]
+tauri_panel! {
+    panel!(FloterPanel {
+        config: {
+            can_become_main_window: false,
+            can_become_key_window: true,
+            becomes_key_only_if_needed: false,
+            is_floating_panel: true
+        }
+    })
+}
 
 struct TrayMenuItems {
     show: MenuItem<Wry>,
@@ -435,103 +447,94 @@ fn move_to_default_position(
     }
 }
 
-/// Raise the panel to a window level that clears a fullscreen app, and let it
-/// share that app's space.
-///
-/// [`WebviewWindow::set_always_on_top`] is not enough on macOS: it is fixed at
-/// `NSFloatingWindowLevel` (3), which wins against ordinary windows and loses
-/// against a fullscreen one — the panel is summoned over a fullscreen editor or
-/// browser and simply does not appear. `NSStatusWindowLevel` (25) is where the
-/// menu bar and Spotlight sit, which is the company a summoned panel wants to
-/// keep; it stays deliberately below `NSPopUpMenuWindowLevel` (101) so a native
-/// menu opened *from* the panel still draws over it.
-///
-/// The level alone only settles the stacking order. `CanJoinAllSpaces` is what
-/// puts the window on the fullscreen app's space at all — [`reveal_window`] has
-/// already asked for that, and it is repeated here because the two flags are one
-/// decision — and `FullScreenAuxiliary` is what lets it *share* that space
-/// instead of pushing macOS to switch away to the desktop the panel belongs to.
-/// Both are OR-ed into the current behaviour rather than replacing it, because
-/// tao keeps its own bits in the same field.
-///
-/// This is why `set_always_on_top` is not called on macOS at all: tao implements
-/// it with `set_level_async`, which posts `setLevel:` to the main dispatch queue
-/// *even when it is already on the main thread*, so its level 3 would land after
-/// the 25 set here and quietly undo it.
-#[cfg(target_os = "macos")]
-fn raise_window_level(window: &WebviewWindow) {
-    if !is_main_thread() {
-        let window = window.clone();
-        let handle = window.app_handle().clone();
-        let _ = handle.run_on_main_thread(move || {
-            raise_window_level(&window);
-        });
-        return;
-    }
-    let Ok(ns_window) = window.ns_window() else {
-        return;
-    };
-    let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-    ns_window.setLevel(NSPopUpMenuWindowLevel);
-    ns_window.setCollectionBehavior(
-        NSWindowCollectionBehavior::CanJoinAllSpaces
-            | NSWindowCollectionBehavior::FullScreenAuxiliary,
-    );
-}
-
-/// Bring the panel forward and give it the keyboard, on a fullscreen app's space.
-///
-/// This replaces [`WebviewWindow::set_focus`] on macOS, which cannot do the job
-/// for an accessory application:
-///
-/// * tao guards its whole implementation behind `isVisible()`, and a window the
-///   window server has accepted but not yet placed on the current space reads as
-///   *not* visible — so the activation is silently skipped in exactly the case
-///   it is needed.
-/// * It then calls `makeKeyAndOrderFront:` *before* activating. That method is
-///   documented to order a window in front of its own application's windows
-///   only, when the application is not the active one; an accessory app summoned
-///   over a fullscreen editor is never the active one at that moment, so the
-///   call lands and does nothing.
-///
-/// The order here is the fix. Activating first makes the ordering below mean
-/// something globally, `orderFrontRegardless` raises the window whether or not
-/// the activation was honoured — it is the one AppKit call that ignores the
-/// active-application rule — and `makeKeyAndOrderFront:` then makes it the key
-/// window, which is what actually routes keystrokes into the webview.
-///
-/// `activateIgnoringOtherApps:` is deprecated in favour of `activate`, which is
-/// not used here for two reasons: it only exists on macOS 14 and later, and
-/// objc2 performs no availability check, so an older system would take an
-/// unrecognized selector. It is also the weaker call by design — `activate`
-/// waits for the frontmost application to yield, which a fullscreen app has no
-/// reason to do.
 #[cfg(target_os = "macos")]
 fn is_main_thread() -> bool {
-    // pthread_main_np returns 1 if called on the main thread
     unsafe { libc::pthread_main_np() == 1 }
 }
 
+/// Convert Tauri's NSWindow into the same non-activating NSPanel shape used by
+/// native launchers. The WebView and Tauri handle remain attached to the object;
+/// only its Objective-C class and panel behavior change.
 #[cfg(target_os = "macos")]
-fn force_activate(window: &WebviewWindow) {
+fn configure_macos_panel(window: &WebviewWindow) -> Result<(), String> {
+    let panel = window
+        .to_panel::<FloterPanel>()
+        .map_err(|error| error.to_string())?;
+
+    panel.set_level(PanelLevel::Floating.value());
+    panel.set_style_mask(
+        StyleMask::empty()
+            .nonactivating_panel()
+            .resizable()
+            .into(),
+    );
+    panel.set_collection_behavior(
+        CollectionBehavior::new()
+            .can_join_all_spaces()
+            .full_screen_auxiliary()
+            .into(),
+    );
+    panel.set_floating_panel(true);
+    panel.set_hides_on_deactivate(false);
+    panel.set_works_when_modal(true);
+    panel.set_released_when_closed(false);
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn show_macos_panel(window: &WebviewWindow) -> Result<(), String> {
     if !is_main_thread() {
-        // Global shortcut callbacks may fire on a background thread.
-        // NSWindow calls require the main thread - re-dispatch synchronously.
         let window = window.clone();
         let handle = window.app_handle().clone();
-        let _ = handle.run_on_main_thread(move || {
-            force_activate(&window);
-        });
-        return;
+        handle
+            .run_on_main_thread(move || {
+                let _ = show_macos_panel(&window);
+            })
+            .map_err(|error| error.to_string())?;
+        return Ok(());
     }
-    let (Ok(ns_window), Some(mtm)) = (window.ns_window(), MainThreadMarker::new()) else {
-        return;
-    };
-    let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-    ns_window.orderFrontRegardless();
-    #[allow(deprecated)]
-    NSApp(mtm).activateIgnoringOtherApps(true);
-    ns_window.makeKeyAndOrderFront(None);
+
+    let panel = window
+        .app_handle()
+        .get_webview_panel(window.label())
+        .map_err(|_| "macOS panel is not initialized".to_string())?;
+    panel.show_and_make_key();
+    panel.order_front_regardless();
+
+    // A panel summoned before the accessory app has ever activated can lose the
+    // first key request. Tinycast reasserts it on the next main-loop turn too.
+    let label = window.label().to_string();
+    let handle = window.app_handle().clone();
+    let retry_handle = handle.clone();
+    let _ = handle.run_on_main_thread(move || {
+        if let Ok(panel) = retry_handle.get_webview_panel(&label) {
+            if panel.is_visible() && !panel.as_panel().isKeyWindow() {
+                panel.show_and_make_key();
+            }
+        }
+    });
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn hide_macos_panel(window: &WebviewWindow) -> Result<(), String> {
+    if !is_main_thread() {
+        let window = window.clone();
+        let handle = window.app_handle().clone();
+        handle
+            .run_on_main_thread(move || {
+                let _ = hide_macos_panel(&window);
+            })
+            .map_err(|error| error.to_string())?;
+        return Ok(());
+    }
+
+    window
+        .app_handle()
+        .get_webview_panel(window.label())
+        .map_err(|_| "macOS panel is not initialized".to_string())?
+        .hide();
+    Ok(())
 }
 
 /// On Windows 11, tell DWM not to paint its own rounded corners. The CSS
@@ -558,25 +561,7 @@ fn disable_dwm_rounding(window: &WebviewWindow) {
 
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
-    {
-        if !is_main_thread() {
-            let window = window.clone();
-            let handle = window.app_handle().clone();
-            let _ = handle.run_on_main_thread(move || {
-                let _ = reveal_window(&window);
-            });
-            return Ok(());
-        }
-        let _ = window.app_handle().show();
-        raise_window_level(window);
-        if let Ok(ns_window) = window.ns_window() {
-            let ns_window: &NSWindow = unsafe { &*ns_window.cast::<NSWindow>() };
-            ns_window.orderFrontRegardless();
-        }
-        force_activate(window);
-        raise_window_level(window);
-        let _ = window.request_user_attention(Some(UserAttentionType::Informational));
-    }
+    show_macos_panel(window)?;
     #[cfg(not(target_os = "macos"))]
     {
         let _ = window.unminimize();
@@ -597,10 +582,11 @@ fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), Str
     let terminal = state.terminal_mode.load(Ordering::SeqCst);
     let mode = if terminal { "terminal" } else { "collapsed" };
     let width = if terminal {
-        TERMINAL_WINDOW_WIDTH
+        saved_terminal_size().0
     } else {
         INPUT_WINDOW_WIDTH
     };
+    let _ = window.set_resizable(terminal);
 
     // Reveal first, position second: macOS' window server ignores geometry set
     // on an unmapped window, so a `set_position` made while hidden is discarded
@@ -648,36 +634,39 @@ fn resize_window(
 #[tauri::command]
 fn show_terminal(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
-    resize_window(
-        &window,
-        TERMINAL_WINDOW_WIDTH,
-        TERMINAL_WINDOW_HEIGHT,
-        preserve_anchor,
-    )?;
+    let (width, height) = saved_terminal_size();
+    window.set_resizable(true).map_err(|error| error.to_string())?;
+    resize_window(&window, width, height, preserve_anchor)?;
     reveal_window(&window)?;
     if !preserve_anchor {
-        let _ = move_to_default_position(&window, TERMINAL_WINDOW_WIDTH, &state);
+        let _ = move_to_default_position(&window, width, &state);
     }
     state.terminal_mode.store(true, Ordering::SeqCst);
     state.window_visible.store(true, Ordering::SeqCst);
     Ok(())
 }
 
-/// Record the terminal's real height (rows rounded to whole cells) so the
-/// summon anchor centers the terminal exactly rather than approximately.
+/// Persist the terminal dimensions after an edge resize, and use the new
+/// height when positioning the compact launcher above its expanded counterpart.
 #[tauri::command]
-fn set_terminal_height(height: f64, state: tauri::State<'_, AppState>) {
-    if !height.is_finite() || height <= 0.0 {
-        return;
-    }
+fn save_terminal_size(
+    width: f64,
+    height: f64,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let (_, height) = persist_terminal_size(width, height)?;
     if let Ok(mut current) = state.terminal_height.lock() {
         *current = height;
     }
+    Ok(())
 }
 
 #[tauri::command]
 fn hide_window(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     remember_monitor(&window, &state);
+    #[cfg(target_os = "macos")]
+    hide_macos_panel(&window)?;
+    #[cfg(not(target_os = "macos"))]
     window.hide().map_err(|e| e.to_string())?;
     state.window_visible.store(false, Ordering::SeqCst);
     Ok(())
@@ -701,6 +690,7 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
+    window.set_resizable(false).map_err(|error| error.to_string())?;
     resize_window(
         &window,
         INPUT_WINDOW_WIDTH,
@@ -725,6 +715,9 @@ fn toggle_window_visibility(app: &AppHandle) {
     let state = app.state::<AppState>();
     if state.window_visible.load(Ordering::SeqCst) {
         remember_monitor(&window, &state);
+        #[cfg(target_os = "macos")]
+        let _ = hide_macos_panel(&window);
+        #[cfg(not(target_os = "macos"))]
         let _ = window.hide();
         state.window_visible.store(false, Ordering::SeqCst);
     } else {
@@ -789,7 +782,11 @@ fn print_toggle_hint(reason: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -802,27 +799,15 @@ pub fn run() {
         .manage(AppState {
             window_visible: AtomicBool::new(false),
             terminal_mode: AtomicBool::new(false),
-            terminal_height: Mutex::new(TERMINAL_WINDOW_HEIGHT),
+            terminal_height: Mutex::new(saved_terminal_size().1),
             tray_items: Mutex::new(None),
             toggle_shortcut: Mutex::new(String::new()),
             last_monitor: Mutex::new(None),
         })
         .setup(|app| {
-            // The window level in [`raise_window_level`] settles where the panel
-            // draws; this settles whether the user is still looking at the same
-            // screen when it does. `set_focus` ends in
-            // `NSApp.activateIgnoringOtherApps:`, and a *regular* application
-            // answers that by bringing its own space forward — so summoning the
-            // panel over a fullscreen editor switched the user out of it, which
-            // is the half of the problem no window level can fix. An accessory
-            // application activates in place, leaving the fullscreen space where
-            // it is for the panel to appear on.
-            //
-            // The Dock icon and the app's own menu bar go with it, which is the
-            // shape floter already has: a tray-resident panel that starts hidden
-            // and is quit from the tray. The default menu Tauri installs on macOS
-            // stays in place, so Cmd+C / Cmd+V keep working in the webview even
-            // though the menu bar is no longer drawn.
+            // floter is tray-resident, and the non-activating NSPanel must not
+            // promote the process or switch away from another app's fullscreen
+            // Space when it takes key focus.
             #[cfg(target_os = "macos")]
             app.set_activation_policy(ActivationPolicy::Accessory);
 
@@ -867,6 +852,9 @@ pub fn run() {
                 .build(app)?;
 
             let window = app.get_webview_window("main").unwrap();
+            #[cfg(target_os = "macos")]
+            configure_macos_panel(&window)?;
+            window.set_resizable(false)?;
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
@@ -917,7 +905,11 @@ pub fn run() {
             term_input,
             term_resize,
             term_scroll,
+            term_set_theme,
+            term_wheel,
+            term_mouse,
             term_scroll_to,
+            save_terminal_size,
             application_icon,
             check_applications,
             list_applications,
@@ -930,6 +922,7 @@ pub fn run() {
             save_settings,
             app_version,
             get_shortcuts,
+            reset_shortcuts,
             update_shortcut,
             suspend_shortcuts,
             resume_shortcuts,
@@ -942,7 +935,6 @@ pub fn run() {
             hide_window,
             quit_app,
             show_input,
-            set_terminal_height,
             start_drag,
             system_power,
         ])

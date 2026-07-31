@@ -13,6 +13,17 @@ pub const PASTE: &str = "paste";
 pub const OPEN_SETTINGS: &str = "open_settings";
 pub const SELECT_RESULT: &str = "select_result";
 
+const DEFAULT_TERMINAL_WIDTH: f64 = 860.0;
+const DEFAULT_TERMINAL_HEIGHT: f64 = 600.0;
+const MIN_TERMINAL_WIDTH: f64 = 640.0;
+const MIN_TERMINAL_HEIGHT: f64 = 360.0;
+const MAX_TERMINAL_WIDTH: f64 = 2_560.0;
+const MAX_TERMINAL_HEIGHT: f64 = 1_800.0;
+const DEFAULT_MAIN_OPACITY: u8 = 94;
+const DEFAULT_TERMINAL_OPACITY: u8 = 92;
+const MIN_WINDOW_OPACITY: u8 = 10;
+const MAX_WINDOW_OPACITY: u8 = 100;
+
 /// Shortcut fallback for the window toggle, which is registered with the OS and
 /// therefore must not collide with the platform's own bindings.
 pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Space";
@@ -39,6 +50,13 @@ pub struct AppSettings {
     pub cursor_shape: String,
     /// UI language: "en" | "zh".
     pub language: String,
+    /// Last user-selected terminal window dimensions, in logical pixels.
+    pub terminal_width: f64,
+    pub terminal_height: f64,
+    /// Background opacity percentages for the launcher/settings surface and
+    /// terminal canvas. Values are clamped before persistence.
+    pub main_opacity: u8,
+    pub terminal_opacity: u8,
     /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
     pub shortcuts: HashMap<String, String>,
 }
@@ -53,6 +71,10 @@ impl Default for AppSettings {
             font_family: "monospace".to_string(),
             cursor_shape: "beam".to_string(),
             language: "en".to_string(),
+            terminal_width: DEFAULT_TERMINAL_WIDTH,
+            terminal_height: DEFAULT_TERMINAL_HEIGHT,
+            main_opacity: DEFAULT_MAIN_OPACITY,
+            terminal_opacity: DEFAULT_TERMINAL_OPACITY,
             shortcuts: default_shortcuts(),
         }
     }
@@ -108,6 +130,44 @@ pub fn load_settings() -> AppSettings {
     AppSettings::default()
 }
 
+/// The persisted terminal size, normalized defensively so a hand-edited
+/// settings file cannot create an unusable off-screen panel.
+pub fn saved_terminal_size() -> (f64, f64) {
+    let settings = load_settings();
+    normalize_terminal_size(settings.terminal_width, settings.terminal_height)
+}
+
+pub fn save_terminal_size(width: f64, height: f64) -> Result<(f64, f64), String> {
+    let (width, height) = normalize_terminal_size(width, height);
+    let mut settings = load_settings();
+    settings.terminal_width = width;
+    settings.terminal_height = height;
+    write_settings(&settings)?;
+    Ok((width, height))
+}
+
+fn normalize_window_opacity(value: u8, default: u8) -> u8 {
+    if value == 0 {
+        default
+    } else {
+        value.clamp(MIN_WINDOW_OPACITY, MAX_WINDOW_OPACITY)
+    }
+}
+
+fn normalize_terminal_size(width: f64, height: f64) -> (f64, f64) {
+    let width = if width.is_finite() {
+        width.clamp(MIN_TERMINAL_WIDTH, MAX_TERMINAL_WIDTH)
+    } else {
+        DEFAULT_TERMINAL_WIDTH
+    };
+    let height = if height.is_finite() {
+        height.clamp(MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT)
+    } else {
+        DEFAULT_TERMINAL_HEIGHT
+    };
+    (width, height)
+}
+
 fn write_settings(settings: &AppSettings) -> Result<(), String> {
     let config_dir = dirs::config_dir().ok_or("Cannot find config directory")?;
     let floter_dir = config_dir.join("floter");
@@ -122,6 +182,9 @@ pub fn get_settings() -> Result<AppSettings, String> {
     let mut settings = load_settings();
     // Hand the frontend a complete map so it never has to guess a default.
     settings.shortcuts = resolved_shortcuts(&settings);
+    settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
+    settings.terminal_opacity =
+        normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
     Ok(settings)
 }
 
@@ -139,6 +202,9 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
     if let Some(toggle) = settings.shortcuts.get(TOGGLE_WINDOW) {
         settings.hotkey = toggle.clone();
     }
+    settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
+    settings.terminal_opacity =
+        normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
     write_settings(&settings)?;
     crate::apply_tray_language(&app, &settings.language);
     Ok(())
@@ -147,6 +213,24 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
 #[tauri::command]
 pub fn get_shortcuts() -> Result<HashMap<String, String>, String> {
     Ok(resolved_shortcuts(&load_settings()))
+}
+
+/// Restore every shortcut to its platform default. Rebind the global toggle
+/// first so a system conflict leaves the existing settings untouched.
+#[tauri::command]
+pub fn reset_shortcuts(app: tauri::AppHandle) -> Result<HashMap<String, String>, String> {
+    let shortcuts = default_shortcuts();
+    let toggle = shortcuts
+        .get(TOGGLE_WINDOW)
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+    crate::rebind_toggle_shortcut(&app, &toggle)?;
+
+    let mut settings = load_settings();
+    settings.hotkey = toggle;
+    settings.shortcuts = shortcuts.clone();
+    write_settings(&settings)?;
+    Ok(shortcuts)
 }
 
 /// Rebind one action and persist it.
@@ -214,4 +298,28 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
     let shortcuts = resolved_shortcuts(&settings);
     let toggle = shortcuts.get(TOGGLE_WINDOW).cloned().unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
     crate::register_toggle_shortcut(&app, &toggle)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terminal_size_is_finite_and_within_usable_bounds() {
+        assert_eq!(
+            normalize_terminal_size(f64::NAN, f64::INFINITY),
+            (DEFAULT_TERMINAL_WIDTH, DEFAULT_TERMINAL_HEIGHT)
+        );
+        assert_eq!(
+            normalize_terminal_size(1.0, 9_999.0),
+            (MIN_TERMINAL_WIDTH, MAX_TERMINAL_HEIGHT)
+        );
+    }
+
+    #[test]
+    fn window_opacity_keeps_surfaces_legible() {
+        assert_eq!(normalize_window_opacity(0, DEFAULT_MAIN_OPACITY), DEFAULT_MAIN_OPACITY);
+        assert_eq!(normalize_window_opacity(1, DEFAULT_MAIN_OPACITY), MIN_WINDOW_OPACITY);
+        assert_eq!(normalize_window_opacity(255, DEFAULT_MAIN_OPACITY), MAX_WINDOW_OPACITY);
+    }
 }

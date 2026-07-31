@@ -188,11 +188,19 @@ const modifiersMatch = (event: KeyboardEvent, shortcut: Modifiers) =>
   event.metaKey === shortcut.meta;
 
 /** Whether `event` is exactly the combination `value` describes. */
-export const matchesShortcut = (event: KeyboardEvent, value: string | undefined): boolean => {
+export const matchesShortcutModifiers = (
+  event: KeyboardEvent,
+  value: string | undefined,
+): boolean => {
   if (!value) return false;
   const shortcut = parseShortcut(value);
-  if (!shortcut || !modifiersMatch(event, shortcut)) return false;
-  return keyTokensFromEvent(event).includes(shortcut.key.toLowerCase());
+  return Boolean(shortcut && modifiersMatch(event, shortcut));
+};
+
+export const matchesShortcut = (event: KeyboardEvent, value: string | undefined): boolean => {
+  if (!value || !matchesShortcutModifiers(event, value)) return false;
+  const shortcut = parseShortcut(value);
+  return Boolean(shortcut && keyTokensFromEvent(event).includes(shortcut.key.toLowerCase()));
 };
 
 /**

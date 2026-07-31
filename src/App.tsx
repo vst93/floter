@@ -5,7 +5,7 @@ import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
-import { encodeKey } from "./terminal/input";
+import { encodeKey, FOCUS_IN_OUT, MOUSE_MOTION, usesMouseReporting } from "./terminal/input";
 import {
   createTranslator,
   normalizeLanguage,
@@ -21,6 +21,7 @@ import {
   IS_MAC,
   matchesResultShortcut,
   matchesShortcut,
+  matchesShortcutModifiers,
   SHORTCUT_ACTIONS,
   shortcutFromEvent,
   withShortcutDefaults,
@@ -70,6 +71,8 @@ type AppSettings = {
   font_family: string;
   cursor_shape: string;
   language: Language;
+  main_opacity: number;
+  terminal_opacity: number;
   shortcuts: ShortcutMap;
 };
 
@@ -88,15 +91,28 @@ const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
   { value: "light", labelKey: "settings.theme.light" },
 ];
 
+const MIN_OPACITY = 10;
+const MAX_OPACITY = 100;
+const OPACITY_PRESETS = [25, 50, 75, 100];
+const OPACITY_SNAP_DISTANCE = 2;
+
+const normalizeOpacity = (value: number): number => {
+  const safeValue = Number.isFinite(value) ? value : MAX_OPACITY;
+  const clamped = Math.round(Math.min(MAX_OPACITY, Math.max(MIN_OPACITY, safeValue)));
+  return OPACITY_PRESETS.find((preset) => Math.abs(preset - clamped) <= OPACITY_SNAP_DISTANCE)
+    ?? clamped;
+};
+
 const FONT_FAMILY =
   "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
 const FONT_SIZE = 13;
 const LINE_HEIGHT = 1.4;
 const PADDING_X = 3;
 const PADDING_Y = 3;
-const TARGET_ROWS = 24;
 const INPUT_WINDOW_WIDTH = 720;
-const TERMINAL_WINDOW_WIDTH = 860;
+const SETTINGS_WINDOW_HEIGHT = 580;
+const SETTINGS_MIN_HEIGHT = 420;
+const TERMINAL_SIZE_SAVE_DELAY = 280;
 const INPUT_ROW_HEIGHT = 56;
 const RESULT_ROW_HEIGHT = 42;
 const RESULT_LIST_PADDING = 8;
@@ -105,11 +121,21 @@ const RESULT_ROW_GAP = 1;
  * when there is a result list above it to be divided from. */
 const ACTION_BAR_DIVIDER = 3;
 const MAX_RESULTS = 6;
-const WINDOW_FRAME_PADDING = 0;
 const BRACKETED_PASTE = 1 << 4;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
+
+type ModifierEvent = {
+  shiftKey: boolean;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+};
+
+function terminalMouseModifiers(event: ModifierEvent): number {
+  return (event.shiftKey ? 4 : 0) | (event.altKey || event.metaKey ? 8 : 0) | (event.ctrlKey ? 16 : 0);
+}
 
 /** A URL to hand the browser. Only the schemes a launcher can be certain about:
  * `mailto:` or an application's own registered scheme would open something the
@@ -331,6 +357,46 @@ const ActionBarIcon = ({ kind }: { kind: ActionBarKind }) => {
   );
 };
 
+type OpacityControlProps = {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+};
+
+function OpacityControl({ label, value, onChange }: OpacityControlProps) {
+  return (
+    <div className="opacity-control">
+      <div className="opacity-control__header">
+        <label className="opacity-control__label">{label}</label>
+        <output className="opacity-control__value">{value}%</output>
+      </div>
+      <input
+        className="opacity-control__range"
+        type="range"
+        min={MIN_OPACITY}
+        max={MAX_OPACITY}
+        step="1"
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
+      />
+      <div className="opacity-control__presets" aria-label={label}>
+        {OPACITY_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            className={`opacity-control__preset${value === preset ? " opacity-control__preset--active" : ""}`}
+            aria-pressed={value === preset}
+            onClick={() => onChange(preset)}
+          >
+            {preset}%
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type ShortcutRecorderProps = {
   action: ShortcutAction;
   shortcut: string;
@@ -411,21 +477,25 @@ function ShortcutRecorder({
 type FramePayload = { id: string; frame: string };
 type ExitPayload = { id: string; code: number | null };
 
-type DragMode = "none" | "select" | "scroll";
+type DragState =
+  | { mode: "none" | "select" | "scroll" }
+  | { mode: "mouse"; button: number };
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const settingsBodyRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<TerminalCanvas | null>(null);
   const frameRef = useRef<Uint8Array | null>(null);
   const blinkRef = useRef(true);
   const dimsRef = useRef<{ cols: number; rows: number }>({ cols: 80, rows: 24 });
   const selectionRef = useRef<Selection | null>(null);
-  const dragRef = useRef<{ mode: DragMode }>({ mode: "none" });
+  const dragRef = useRef<DragState>({ mode: "none" });
   const lastScrollAt = useRef(0);
+  const lastMouseReportAt = useRef(0);
+  const wheelRemainder = useRef(0);
+  const terminalSizeSaveTimer = useRef<number | null>(null);
+  const opacitySaveTimer = useRef<number | null>(null);
   const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
@@ -453,6 +523,7 @@ export default function App() {
   // without this, every icon that resolves re-triggers the effect, which
   // re-sets the timer, which delays every subsequent icon.
   const appIconUrlsRef = useRef(appIconUrls);
+  const appIconAttempts = useRef(new Set<string>());
   useEffect(() => { appIconUrlsRef.current = appIconUrls; }, [appIconUrls]);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
@@ -467,6 +538,8 @@ export default function App() {
     font_family: "monospace",
     cursor_shape: "beam",
     language: "en",
+    main_opacity: 94,
+    terminal_opacity: 92,
     shortcuts: DEFAULT_SHORTCUTS,
   });
   const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
@@ -483,6 +556,10 @@ export default function App() {
   const shortcuts = useMemo(
     () => withShortcutDefaults(settings.shortcuts),
     [settings.shortcuts],
+  );
+  const actionBarShortcut = useMemo(
+    () => formatShortcut(shortcuts.select_result).replace(/\d$/, "↩"),
+    [shortcuts.select_result],
   );
 
   // The system appearance, tracked whether or not it is currently being followed.
@@ -508,6 +585,17 @@ export default function App() {
   const resolvedTheme = settings.theme === "auto" ? systemTheme : settings.theme;
 
   useEffect(() => {
+    const root = document.documentElement.style;
+    root.setProperty("--main-opacity", String(normalizeOpacity(settings.main_opacity) / 100));
+    root.setProperty("--terminal-opacity", String(normalizeOpacity(settings.terminal_opacity) / 100));
+    const renderer = rendererRef.current;
+    if (renderer) {
+      renderer.updateTheme();
+      render();
+    }
+  }, [settings.main_opacity, settings.terminal_opacity]);
+
+  useEffect(() => {
     document.documentElement.setAttribute("data-theme", resolvedTheme);
     // After the attribute, never before: the renderer resolves `--terminal-*`
     // off the document element, so it has to be asked once the attribute has
@@ -518,6 +606,7 @@ export default function App() {
     if (renderer) {
       renderer.updateTheme();
       render();
+      invoke("term_set_theme", { id: "main", theme: resolvedTheme }).catch(() => undefined);
     }
   }, [resolvedTheme]);
 
@@ -636,8 +725,8 @@ export default function App() {
    *
    * A boolean rather than something the effect below recomputes, so that the
    * effect fires when the *answer* changes and not merely when the result list is
-   * rebuilt. Every summon rescans applications in the background, and that gives
-   * `launcherResults` a new identity even when nothing about it changed —
+   * rebuilt. A background application refresh can give `launcherResults` a new
+   * identity even when nothing about the visible matches changed —
    * depending on the list itself would throw away a selection the user had
    * already moved with the arrow keys.
    */
@@ -712,7 +801,11 @@ export default function App() {
   useEffect(() => {
     const missing = launcherResults
       .filter((item): item is Extract<LauncherItem, { type: "app" }> => item.type === "app")
-      .filter((item) => !appIconUrlsRef.current[item.app.path])
+      .filter(
+        (item) =>
+          !appIconUrlsRef.current[item.app.path] &&
+          !appIconAttempts.current.has(item.app.path),
+      )
       .slice(0, 6);
 
     if (!missing.length) return;
@@ -722,6 +815,10 @@ export default function App() {
     // waits for the query to settle: every keystroke changes the result list,
     // and the only list worth fetching for is the one the user stops on.
     const timer = window.setTimeout(() => {
+      // A missing icon is still a completed lookup. Remember it so an app that
+      // has no platform icon does not trigger the same work on every query.
+      for (const item of missing) appIconAttempts.current.add(item.app.path);
+
       // Parallel: all icons resolve at once, and a single state update
       // carries every result so the renderer is not kicked once per icon.
       Promise.all(
@@ -786,24 +883,6 @@ export default function App() {
     render();
   };
 
-  // Resize the window so the terminal area holds an integer number of rows,
-  // eliminating the bottom gap from row rounding. The drag bar is an overlay
-  // (out of flow), so the terminal fills the full window height.
-  const fitWindow = async () => {
-    const renderer = rendererRef.current;
-    if (!renderer || renderer.cellHeight <= 0) return;
-    const exactHeight = WINDOW_FRAME_PADDING * 2 + PADDING_Y * 2 + TARGET_ROWS * renderer.cellHeight;
-    try {
-      await getCurrentWindow().setSize(new LogicalSize(TERMINAL_WINDOW_WIDTH, exactHeight));
-      // The summon anchor centers the *expanded* terminal, so the backend needs
-      // the height rows actually round to rather than the nominal constant.
-      invoke("set_terminal_height", { height: exactHeight });
-    } catch {
-      // setSize may be unavailable; relayout will still adapt rows to the
-      // current window size.
-    }
-  };
-
   const flushPendingCommand = (delay = 0) => {
     if (!pendingCommand.current) return;
     const command = pendingCommand.current;
@@ -836,13 +915,20 @@ export default function App() {
     });
   };
 
-  const ensureTerminalSession = async () => {
+  const ensureTerminalSession = async (initialCommand: string | null = null) => {
     if (sessionClosePromise.current) {
       await sessionClosePromise.current;
     }
     if (ptyReady.current) return;
     const { cols, rows } = dimsRef.current;
-    await invoke("term_spawn", { id: "main", shell: null, cols, rows });
+    await invoke("term_spawn", {
+      id: "main",
+      shell: null,
+      initialCommand,
+      theme: resolvedTheme,
+      cols,
+      rows,
+    });
     ptyReady.current = true;
   };
 
@@ -862,6 +948,8 @@ export default function App() {
         setSettings({
           ...loaded,
           language: normalizeLanguage(loaded.language),
+          main_opacity: normalizeOpacity(loaded.main_opacity ?? 94),
+          terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
         }),
       )
@@ -917,21 +1005,42 @@ export default function App() {
     termOpened.current = true;
 
     relayoutAndResize();
-    void fitWindow();
     flushPendingCommand(40);
 
     const resizeObserver = new ResizeObserver(() => relayoutAndResize());
     resizeObserver.observe(mountRef.current);
 
-    const onWheelNative = (e: WheelEvent) => {
+    const onWheelNative = (event: WheelEvent) => {
       const renderer = rendererRef.current;
-      if (!renderer || renderer.historySize <= 0) return;
-      const delta =
-        -Math.sign(e.deltaY) * Math.max(1, Math.round(Math.abs(e.deltaY) / 40));
-      if (delta === 0) return;
-      e.preventDefault();
-      invoke("term_scroll", { id: "main", delta });
+      if (!renderer || event.deltaY === 0) return;
+      event.preventDefault();
+
+      const page = renderer.cellHeight * Math.max(1, renderer.rows);
+      const pixels =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? event.deltaY * renderer.cellHeight
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? event.deltaY * page
+            : event.deltaY;
+      const unit = Math.max(24, renderer.cellHeight * 1.5);
+      wheelRemainder.current += pixels;
+      const rawSteps = Math.trunc(wheelRemainder.current / unit);
+      if (rawSteps === 0) return;
+      wheelRemainder.current -= rawSteps * unit;
+
+      const point = renderer.pixelToCell(event.offsetX, event.offsetY) ?? {
+        col: Math.max(0, Math.min(renderer.cols - 1, Math.floor(event.offsetX / renderer.cellWidth))),
+        row: Math.max(0, Math.min(renderer.rows - 1, Math.floor(event.offsetY / renderer.cellHeight))),
+      };
+      invoke("term_wheel", {
+        id: "main",
+        delta: Math.max(-8, Math.min(8, -rawSteps)),
+        column: point.col,
+        row: point.row,
+        modifiers: terminalMouseModifiers(event),
+      });
     };
+    wheelRemainder.current = 0;
     canvasRef.current.addEventListener("wheel", onWheelNative, { passive: false });
 
     const blink = window.setInterval(() => {
@@ -948,31 +1057,58 @@ export default function App() {
     };
   }, [terminalMounted]);
 
-  // The settings panel drives the window height from its own content, so new
-  // rows can be added later without hand-tuning a constant. The body's
-  // scrollHeight is measured rather than the card's box: the card is capped to
-  // the screen, and measuring the cap would keep the window at its old size.
+  // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
+  // grid current; this listener persists the logical window dimensions after a
+  // short idle period, so a single drag writes once rather than every frame.
+  useEffect(() => {
+    if (!terminalMounted) return;
+    const currentWindow = getCurrentWindow();
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    currentWindow.onResized(async ({ payload }) => {
+      if (disposed) return;
+      const scale = await currentWindow.scaleFactor().catch(() => window.devicePixelRatio || 1);
+      const width = payload.width / scale;
+      const height = payload.height / scale;
+      if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+      if (terminalSizeSaveTimer.current !== null) {
+        window.clearTimeout(terminalSizeSaveTimer.current);
+      }
+      terminalSizeSaveTimer.current = window.setTimeout(() => {
+        terminalSizeSaveTimer.current = null;
+        invoke("save_terminal_size", { width, height }).catch(() => undefined);
+      }, TERMINAL_SIZE_SAVE_DELAY);
+    }).then((dispose) => {
+      if (disposed) {
+        dispose();
+      } else {
+        unlisten = dispose;
+      }
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+      if (terminalSizeSaveTimer.current !== null) {
+        window.clearTimeout(terminalSizeSaveTimer.current);
+        terminalSizeSaveTimer.current = null;
+      }
+    };
+  }, [terminalMounted]);
+
+  // Settings is a compact work panel, not a document. Its header stays fixed
+  // while the body scrolls; smaller displays get a proportional cap.
   useEffect(() => {
     if (mode !== "settings") return;
-    const panel = settingsRef.current;
-    const body = settingsBodyRef.current;
-    if (!panel || !body) return;
-
-    const applyHeight = () => {
-      const header = panel.getBoundingClientRect().height - body.getBoundingClientRect().height;
-      const height = Math.ceil(header + body.scrollHeight);
-      if (height <= 0) return;
-      const limit = Math.round(window.screen.availHeight * 0.85);
-      getCurrentWindow()
-        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, Math.min(height, limit)))
-        .catch(() => undefined);
-    };
-
-    applyHeight();
-    const observer = new ResizeObserver(applyHeight);
-    observer.observe(panel);
-    observer.observe(body);
-    return () => observer.disconnect();
+    const available = window.screen.availHeight;
+    const height = Math.min(
+      SETTINGS_WINDOW_HEIGHT,
+      Math.max(SETTINGS_MIN_HEIGHT, Math.floor(available * 0.72)),
+    );
+    getCurrentWindow()
+      .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+      .catch(() => undefined);
   }, [mode]);
 
   // An armed recorder unmounts with the panel, but the flag that hands it the
@@ -1034,17 +1170,6 @@ export default function App() {
     });
 
     const unlistenRevealPromise = listen<string>("floter://revealed", (event) => {
-      // Every summon asks whether the application directories have changed since
-      // the last scan. The check only stats them, so a machine where nothing was
-      // installed pays nothing and the user never sees a refresh they did not
-      // need; a changed one rescans in the background, with the old list still
-      // usable until the new one lands.
-      invoke<ApplicationsStatus>("check_applications")
-        .then((status) => {
-          if (!status.upToDate) scanApplications(true);
-        })
-        .catch(() => undefined);
-
       if (event.payload === "terminal") {
         restoringMode.current = "terminal";
         setTerminalMounted(true);
@@ -1057,6 +1182,15 @@ export default function App() {
         }, 160);
         return;
       }
+
+      // Only the launcher needs applications. The backend coalesces checks
+      // inside a platform-specific cooldown and performs any directory walk on
+      // a blocking thread; a changed source refreshes behind the existing list.
+      invoke<ApplicationsStatus>("check_applications")
+        .then((status) => {
+          if (!status.upToDate) scanApplications(true);
+        })
+        .catch(() => undefined);
 
       restoringMode.current = "collapsed";
       pendingCommand.current = null;
@@ -1093,8 +1227,14 @@ export default function App() {
           focusCollapsedInput(80);
         } else if (mode === "terminal") {
           focusTerminalView(40);
+          if ((rendererRef.current?.mode ?? 0) & FOCUS_IN_OUT) {
+            invoke("term_input", { id: "main", data: [27, 91, 73] });
+          }
         }
         return;
+      }
+      if (mode === "terminal" && (rendererRef.current?.mode ?? 0) & FOCUS_IN_OUT) {
+        invoke("term_input", { id: "main", data: [27, 91, 79] });
       }
       if (Date.now() < suppressBlurUntil.current) {
         return;
@@ -1131,14 +1271,44 @@ export default function App() {
     invoke("term_scroll_to", { id: "main", offset: renderer.offsetFromDragY(py) });
   };
 
-  const onWindowMouseMove = (e: MouseEvent) => {
+  const reportTerminalMouse = (
+    kind: "press" | "release" | "move",
+    button: number,
+    clientX: number,
+    clientY: number,
+    modifiers: ModifierEvent,
+  ) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cell = clampCell(clientX - rect.left, clientY - rect.top);
+    if (!cell) return;
+    invoke("term_mouse", {
+      id: "main",
+      kind,
+      button,
+      column: cell.col,
+      row: cell.row,
+      modifiers: terminalMouseModifiers(modifiers),
+    });
+  };
+
+  const onWindowMouseMove = (event: MouseEvent) => {
     const canvas = canvasRef.current;
     const renderer = rendererRef.current;
     if (!canvas || !renderer) return;
     const rect = canvas.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const px = event.clientX - rect.left;
+    const py = event.clientY - rect.top;
     const drag = dragRef.current;
+    if (drag.mode === "mouse") {
+      const now = performance.now();
+      if (now - lastMouseReportAt.current >= 16) {
+        lastMouseReportAt.current = now;
+        reportTerminalMouse("move", drag.button, event.clientX, event.clientY, event);
+      }
+      return;
+    }
     if (drag.mode === "scroll") {
       applyScrollbar(py);
       return;
@@ -1153,7 +1323,11 @@ export default function App() {
     }
   };
 
-  const onWindowMouseUp = () => {
+  const onWindowMouseUp = (event: MouseEvent) => {
+    const drag = dragRef.current;
+    if (drag.mode === "mouse") {
+      reportTerminalMouse("release", drag.button, event.clientX, event.clientY, event);
+    }
     dragRef.current = { mode: "none" };
     window.removeEventListener("mousemove", onWindowMouseMove);
     window.removeEventListener("mouseup", onWindowMouseUp);
@@ -1180,6 +1354,15 @@ export default function App() {
     }
 
     const cell = renderer.pixelToCell(px, py);
+    if (cell && usesMouseReporting(renderer.mode) && !e.shiftKey) {
+      selectionRef.current = null;
+      dragRef.current = { mode: "mouse", button: e.button };
+      reportTerminalMouse("press", e.button, e.clientX, e.clientY, e);
+      beginDrag();
+      e.preventDefault();
+      return;
+    }
+
     const now = Date.now();
     const seq = clickSeq.current;
     const sameCell = cell && seq.col === cell.col && seq.row === cell.row && now - seq.time < 400;
@@ -1225,6 +1408,22 @@ export default function App() {
     render();
     beginDrag();
     e.preventDefault();
+  };
+
+  const onCanvasMouseMove = (event: React.MouseEvent) => {
+    const renderer = rendererRef.current;
+    if (
+      !renderer ||
+      dragRef.current.mode !== "none" ||
+      event.shiftKey ||
+      (renderer.mode & MOUSE_MOTION) === 0
+    ) {
+      return;
+    }
+    const now = performance.now();
+    if (now - lastMouseReportAt.current < 16) return;
+    lastMouseReportAt.current = now;
+    reportTerminalMouse("move", 3, event.clientX, event.clientY, event);
   };
 
   const copySelection = async () => {
@@ -1403,7 +1602,6 @@ export default function App() {
   const openSettings = () => {
     suppressBlurUntil.current = Date.now() + 400;
     setMode("settings");
-    invoke("set_terminal_height", { height: 440 }).catch(() => undefined);
   };
 
   useEffect(() => {
@@ -1433,6 +1631,26 @@ export default function App() {
     // the height keeps a pending query's result list intact.
     restoringMode.current = "collapsed";
     setMode("collapsed");
+  };
+
+  useEffect(() => () => {
+    if (opacitySaveTimer.current !== null) {
+      window.clearTimeout(opacitySaveTimer.current);
+    }
+  }, []);
+
+  const changeOpacity = (field: "main_opacity" | "terminal_opacity", next: number) => {
+    const value = normalizeOpacity(next);
+    if (value === settings[field]) return;
+    const updated: AppSettings = { ...settings, [field]: value };
+    setSettings(updated);
+    if (opacitySaveTimer.current !== null) {
+      window.clearTimeout(opacitySaveTimer.current);
+    }
+    opacitySaveTimer.current = window.setTimeout(() => {
+      opacitySaveTimer.current = null;
+      invoke("save_settings", { settings: updated }).catch(() => undefined);
+    }, 180);
   };
 
   const changeTheme = (theme: string) => {
@@ -1466,6 +1684,24 @@ export default function App() {
   const cancelRecording = () => {
     setRecordingAction(null);
     invoke("resume_shortcuts").catch(() => undefined);
+  };
+
+  const restoreDefaultShortcuts = async () => {
+    if (recordingAction) {
+      await invoke("resume_shortcuts").catch(() => undefined);
+    }
+    try {
+      const shortcuts = await invoke<ShortcutMap>("reset_shortcuts");
+      setSettings((current) => ({
+        ...current,
+        hotkey: shortcuts.toggle_window,
+        shortcuts,
+      }));
+      setRecordingAction(null);
+      setRejectedAction(null);
+    } catch {
+      // Keep the current shortcuts if the system rejects the default toggle.
+    }
   };
 
   // Store the new binding optimistically; the backend is the authority on
@@ -1503,7 +1739,7 @@ export default function App() {
     rememberCommand(command);
     pendingCommand.current = command;
     try {
-      await ensureTerminalSession();
+      await ensureTerminalSession(command);
     } catch {
       pendingCommand.current = null;
       return;
@@ -1585,14 +1821,19 @@ export default function App() {
 
     const native = event.nativeEvent;
 
-    // Holding Shift highlights the action bar so the user sees what
-    // Shift+Enter will run. The highlight follows Shift state live.
-    if (event.key === "Shift" && actionBar && !selectedActionBar) {
+    // Holding the same modifier as the numbered-result shortcut highlights the
+    // command row. It makes Cmd/Ctrl+Enter discoverable without giving the row a
+    // competing number.
+    if (
+      actionBar &&
+      ["Meta", "Control", "Alt", "Shift"].includes(event.key) &&
+      matchesShortcutModifiers(native, shortcuts.select_result)
+    ) {
       setSelectedActionBar(true);
       return;
     }
-    // Numbered results only: the action bar has no number, so `Ctrl+1` can never
-    // run a command by mistake.
+    // Numbered results only: the action bar has no number, so `Cmd/Ctrl+1` can
+    // never run a command by mistake.
     const resultNumber = matchesResultShortcut(native, shortcuts.select_result);
     if (resultNumber !== null) {
       if (launcherResults[resultNumber - 1]) {
@@ -1608,11 +1849,13 @@ export default function App() {
       return;
     }
 
-    if (event.key === "Enter" && event.shiftKey) {
+    if (
+      event.key === "Enter" &&
+      actionBar &&
+      matchesShortcutModifiers(native, shortcuts.select_result)
+    ) {
       event.preventDefault();
-      if (actionBar) {
-        executeActionBar(actionBar);
-      }
+      executeActionBar(actionBar);
       return;
     }
 
@@ -1705,7 +1948,7 @@ export default function App() {
   if (mode === "settings") {
     return (
       <div className="settings-shell">
-        <div className="settings-card" ref={settingsRef} onMouseDown={startDrag}>
+        <div className="settings-card" onMouseDown={startDrag}>
           <header className="settings-card__header">
             <span className="settings-card__title">
               {t("settings.title")}
@@ -1737,92 +1980,107 @@ export default function App() {
             </div>
           </header>
 
-          <div className="settings-card__body" ref={settingsBodyRef}>
-            <section className="settings-section">
-              <h2 className="settings-section__label">{t("settings.theme")}</h2>
-              <div
-                className="settings-options settings-options--inline"
-                role="radiogroup"
-                aria-label={t("settings.theme")}
-              >
-                {THEME_OPTIONS.map((option) => {
-                  const active = option.value === settings.theme;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      className={`settings-option${active ? " settings-option--active" : ""}`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => changeTheme(option.value)}
-                    >
-                      <span className="settings-option__main">
+          <div className="settings-card__body">
+            <div className="settings-preferences">
+              <section className="settings-section">
+                <h2 className="settings-section__label">{t("settings.theme")}</h2>
+                <div
+                  className="settings-options settings-options--inline"
+                  role="radiogroup"
+                  aria-label={t("settings.theme")}
+                >
+                  {THEME_OPTIONS.map((option) => {
+                    const active = option.value === settings.theme;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`settings-option${active ? " settings-option--active" : ""}`}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => changeTheme(option.value)}
+                      >
                         <span className="settings-option__label">{t(option.labelKey)}</span>
-                      </span>
-                      <span className="settings-option__check" aria-hidden="true">
-                        {active ? "✓" : ""}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="settings-section__hint">{t("settings.themeHint")}</p>
-            </section>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="settings-section__hint">{t("settings.themeHint")}</p>
+              </section>
 
-            <section className="settings-section">
-              <h2 className="settings-section__label">{t("settings.language")}</h2>
-              <div
-                className="settings-options settings-options--inline"
-                role="radiogroup"
-                aria-label={t("settings.language")}
-              >
-                {LANGUAGE_OPTIONS.map((option) => {
-                  const active = option.value === language;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      className={`settings-option${active ? " settings-option--active" : ""}`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => changeLanguage(option.value)}
-                    >
-                      <span className="settings-option__main">
+              <section className="settings-section">
+                <h2 className="settings-section__label">{t("settings.language")}</h2>
+                <div
+                  className="settings-options settings-options--inline"
+                  role="radiogroup"
+                  aria-label={t("settings.language")}
+                >
+                  {LANGUAGE_OPTIONS.map((option) => {
+                    const active = option.value === language;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`settings-option${active ? " settings-option--active" : ""}`}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => changeLanguage(option.value)}
+                      >
                         <span className="settings-option__label">{option.label}</span>
-                        <span className="settings-option__description">
-                          {t(option.descriptionKey)}
-                        </span>
-                      </span>
-                      <span className="settings-option__check" aria-hidden="true">
-                        {active ? "✓" : ""}
-                      </span>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="settings-section__hint">{t("settings.languageHint")}</p>
+              </section>
+            </div>
+
+            <section className="settings-section settings-section--material">
+              <h2 className="settings-section__label">{t("settings.opacity")}</h2>
+              <div className="opacity-controls">
+                <OpacityControl
+                  label={t("settings.opacity.main")}
+                  value={normalizeOpacity(settings.main_opacity)}
+                  onChange={(value) => changeOpacity("main_opacity", value)}
+                />
+                <OpacityControl
+                  label={t("settings.opacity.terminal")}
+                  value={normalizeOpacity(settings.terminal_opacity)}
+                  onChange={(value) => changeOpacity("terminal_opacity", value)}
+                />
               </div>
-              <p className="settings-section__hint">{t("settings.languageHint")}</p>
+              <p className="settings-section__hint">{t("settings.opacityHint")}</p>
             </section>
 
             <section className="settings-section">
-              <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
+              <div className="settings-section__heading">
+                <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
+                <button
+                  type="button"
+                  className="settings-reset"
+                  title={t("settings.shortcutsResetHint")}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void restoreDefaultShortcuts()}
+                >
+                  <span className="settings-reset__icon" aria-hidden="true">↺</span>
+                  <span>{t("settings.shortcutsReset")}</span>
+                </button>
+              </div>
               <div className="settings-options">
                 {SHORTCUT_ACTIONS.map((action) => {
                   const labelKey: MessageKey = `shortcut.${action}`;
-                  const descriptionKey: MessageKey = `shortcut.${action}.description`;
                   const rejected = rejectedAction === action;
                   return (
                     <div key={action} className="settings-option settings-option--static">
                       <span className="settings-option__main">
                         <span className="settings-option__label">{t(labelKey)}</span>
-                        <span
-                          className={`settings-option__description${
-                            rejected ? " settings-option__description--warning" : ""
-                          }`}
-                        >
-                          {rejected ? t("settings.shortcut.rejected") : t(descriptionKey)}
-                        </span>
+                        {rejected && (
+                          <span className="settings-option__description settings-option__description--warning">
+                            {t("settings.shortcut.rejected")}
+                          </span>
+                        )}
                       </span>
                       <ShortcutRecorder
                         action={action}
@@ -1895,7 +2153,12 @@ export default function App() {
                 skipNextEnter.current = true;
               }}
               onKeyUp={(event) => {
-                if (event.key === "Shift" && actionBar && selectedActionBar) {
+                if (
+                  ["Meta", "Control", "Alt", "Shift"].includes(event.key) &&
+                  actionBar &&
+                  selectedActionBar &&
+                  !matchesShortcutModifiers(event.nativeEvent, shortcuts.select_result)
+                ) {
                   setSelectedActionBar(false);
                 }
               }}
@@ -1998,7 +2261,7 @@ export default function App() {
                     <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
                   </span>
                   <span className="launcher-action-bar__hint">
-                    {selectedActionBar ? "⏎" : "Shift+Enter"}
+                    {actionBarShortcut}
                   </span>
                 </button>
               )}
@@ -2043,6 +2306,8 @@ export default function App() {
             ref={mountRef}
             className="terminal-panel__mount"
             onMouseDown={onCanvasMouseDown}
+            onMouseMove={onCanvasMouseMove}
+            onContextMenu={(event) => event.preventDefault()}
           >
             <canvas ref={canvasRef} className="terminal-canvas" tabIndex={0} />
           </div>

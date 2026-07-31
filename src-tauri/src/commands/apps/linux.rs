@@ -11,9 +11,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 use tauri::AppHandle;
 
-use super::{icon_cache_path, LocalApplication};
+use super::{icon_cache_path, paths_signature, LocalApplication};
 
 /// Icon sizes to try, largest first, in both the `48x48` and the `48` spelling
 /// (hicolor/Adwaita use the former, breeze-style themes the latter).
@@ -70,6 +71,22 @@ pub fn scan(roots: &[PathBuf]) -> Vec<LocalApplication> {
     apps
 }
 
+pub fn source_signature(roots: &[PathBuf]) -> u64 {
+    let mut sources = roots.to_vec();
+    for root in roots {
+        collect_desktop_paths(root, 0, &mut sources);
+    }
+    paths_signature(sources)
+}
+
+pub fn signature_check_interval() -> Duration {
+    Duration::from_secs(30)
+}
+
+pub fn max_cache_age() -> Option<Duration> {
+    None
+}
+
 pub fn open(path: &Path) -> Result<(), String> {
     if path.extension().and_then(|ext| ext.to_str()) != Some("desktop") {
         return Command::new("xdg-open")
@@ -104,9 +121,22 @@ pub fn open(path: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-pub fn icon_path(app: &AppHandle, path: &Path) -> Option<String> {
-    let entry = DesktopEntry::parse(path)?;
-    let icon = entry.icon?;
+pub fn icon_path(
+    app: &AppHandle,
+    path: &Path,
+    source_hint: Option<&str>,
+) -> Option<String> {
+    for extension in ["png", "svg"] {
+        let target = icon_cache_path(app, path, extension)?;
+        if target.exists() {
+            return Some(target.to_string_lossy().to_string());
+        }
+    }
+
+    let icon = match source_hint {
+        Some(icon) => icon.to_string(),
+        None => DesktopEntry::parse(path)?.icon?,
+    };
     let source = resolve_icon(&icon)?;
     let extension = source
         .extension()
@@ -184,6 +214,23 @@ fn collect_entries(
             continue;
         };
         apps.push(app);
+    }
+}
+
+fn collect_desktop_paths(dir: &Path, depth: usize, paths: &mut Vec<PathBuf>) {
+    if depth > 3 || !dir.is_dir() {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_desktop_paths(&path, depth + 1, paths);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("desktop") {
+            paths.push(path);
+        }
     }
 }
 
@@ -320,7 +367,7 @@ impl DesktopEntry {
             name,
             localized_name,
             path: path.to_string_lossy().to_string(),
-            icon_path: None,
+            icon_path: self.icon,
             comment: self.comment.filter(|value| !value.is_empty()),
             // Filled in by `list_applications` once the scan is done, so the
             // pinyin lookup lives in one place rather than in every scanner.

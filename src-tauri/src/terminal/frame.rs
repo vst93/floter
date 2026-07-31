@@ -153,7 +153,7 @@ mod tests {
     use super::*;
     use alacritty_terminal::event::VoidListener;
     use alacritty_terminal::grid::Dimensions;
-    use alacritty_terminal::term::Config;
+    use alacritty_terminal::term::{Config, TermMode};
     use alacritty_terminal::vte::ansi::Processor;
 
     struct Size(usize, usize);
@@ -201,5 +201,17 @@ mod tests {
 
         // Mode word is present and readable.
         let _mode = u32::from_le_bytes([frame[11], frame[12], frame[13], frame[14]]);
+    }
+
+    #[test]
+    fn carries_alternate_screen_mode_to_the_frontend() {
+        let size = Size(10, 4);
+        let mut term = Term::new(Config::default(), &size, VoidListener);
+        let mut processor: Processor = Processor::new();
+        processor.advance(&mut term, b"\x1b[?1049h");
+
+        let frame = serialize(&term);
+        let mode = u32::from_le_bytes([frame[11], frame[12], frame[13], frame[14]]);
+        assert_ne!(mode & TermMode::ALT_SCREEN.bits(), 0);
     }
 }

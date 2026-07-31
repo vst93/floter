@@ -11,14 +11,22 @@ use std::fs;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 use tauri::AppHandle;
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::FILETIME;
+use windows::Win32::System::Registry::{
+    RegCloseKey, RegOpenKeyExW, RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE,
+    KEY_READ,
+};
 
-use super::{icon_cache_path, LocalApplication};
+use super::{icon_cache_path, paths_signature, LocalApplication};
 
 /// Keeps the helper processes (`reg`, `powershell`) from flashing a console.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-const UNINSTALL_KEYS: [&str; 2] = [
+const UNINSTALL_KEYS: [&str; 3] = [
+    r"HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
     r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
     r"HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
 ];
@@ -50,6 +58,30 @@ pub fn scan(roots: &[PathBuf]) -> Vec<LocalApplication> {
     apps
 }
 
+pub fn source_signature(roots: &[PathBuf]) -> u64 {
+    let mut sources = roots.to_vec();
+    for root in roots {
+        collect_shortcut_paths(root, 0, &mut sources);
+    }
+    UNINSTALL_KEYS
+        .iter()
+        .map(|key| registry_key_last_write(key))
+        .fold(paths_signature(sources), |signature, last_write| {
+            signature.rotate_left(11) ^ last_write
+        })
+}
+
+pub fn signature_check_interval() -> Duration {
+    Duration::from_secs(60)
+}
+
+/// Parent-key timestamps catch normal installs and uninstalls. Keep a periodic
+/// rebuild as a fallback for installers that only edit values in an existing
+/// child key, which does not necessarily update the parent timestamp.
+pub fn max_cache_age() -> Option<Duration> {
+    Some(Duration::from_secs(30 * 60))
+}
+
 pub fn open(path: &Path) -> Result<(), String> {
     let is_executable = path
         .extension()
@@ -77,15 +109,20 @@ pub fn open(path: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-pub fn icon_path(app: &AppHandle, path: &Path) -> Option<String> {
+pub fn icon_path(
+    app: &AppHandle,
+    path: &Path,
+    source_hint: Option<&str>,
+) -> Option<String> {
     let target = icon_cache_path(app, path, "png")?;
     if target.exists() {
         return Some(target.to_string_lossy().to_string());
     }
 
-    // Resolving the shortcut is left to the shell here: `WScript.Shell` also
-    // expands the environment-variable form of a target, which the binary
-    // parser below deliberately does not.
+    // Old caches may not carry a target hint. Leave shortcut resolution to the
+    // shell in that case: `WScript.Shell` expands environment variables too.
+    let fallback_source = path.to_string_lossy();
+    let source = source_hint.unwrap_or(fallback_source.as_ref());
     let script = format!(
         "$ErrorActionPreference='Stop';\
          $source='{source}';\
@@ -98,7 +135,7 @@ pub fn icon_path(app: &AppHandle, path: &Path) -> Option<String> {
          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($source);\
          if (-not $icon) {{ exit 1 }};\
          $icon.ToBitmap().Save('{target}', [System.Drawing.Imaging.ImageFormat]::Png);",
-        source = powershell_literal(&path.to_string_lossy()),
+        source = powershell_literal(source),
         target = powershell_literal(&target.to_string_lossy()),
     );
 
@@ -174,12 +211,33 @@ fn collect_shortcuts(
             name: name.to_string(),
             localized_name: None,
             path: path.to_string_lossy().to_string(),
-            icon_path: None,
+            icon_path: target,
             comment: None,
             // Filled in by `list_applications` once the scan is done, so the
             // pinyin lookup lives in one place rather than in every scanner.
             initials: String::new(),
         });
+    }
+}
+
+fn collect_shortcut_paths(dir: &Path, depth: usize, paths: &mut Vec<PathBuf>) {
+    if depth > 4 || !dir.is_dir() {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_shortcut_paths(&path, depth + 1, paths);
+        } else if path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("lnk"))
+        {
+            paths.push(path);
+        }
     }
 }
 
@@ -191,19 +249,19 @@ fn collect_registry_programs(
     seen_names: &mut HashSet<String>,
     apps: &mut Vec<LocalApplication>,
 ) {
-    for key in UNINSTALL_KEYS {
-        let Ok(output) = Command::new("reg")
-            .args(["query", key, "/s"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-        else {
-            continue;
-        };
-        if !output.status.success() {
-            continue;
-        }
+    let outputs = std::thread::scope(|scope| {
+        let queries = UNINSTALL_KEYS
+            .iter()
+            .map(|key| scope.spawn(move || query_registry(key)))
+            .collect::<Vec<_>>();
+        queries
+            .into_iter()
+            .filter_map(|query| query.join().ok().flatten())
+            .collect::<Vec<_>>()
+    });
 
-        let text = String::from_utf8_lossy(&output.stdout);
+    for output in outputs {
+        let text = String::from_utf8_lossy(&output);
         for program in parse_registry_programs(&text) {
             let Some(executable) = program.executable() else {
                 continue;
@@ -218,8 +276,8 @@ fn collect_registry_programs(
             apps.push(LocalApplication {
                 name: program.display_name,
                 localized_name: None,
-                path,
-                icon_path: None,
+                path: path.clone(),
+                icon_path: Some(path),
                 comment: None,
                 // Filled in by `list_applications` once the scan is done, so the
                 // pinyin lookup lives in one place rather than in every scanner.
@@ -227,6 +285,65 @@ fn collect_registry_programs(
             });
         }
     }
+}
+
+fn registry_key_last_write(key: &str) -> u64 {
+    let (root, subkey) = if let Some(subkey) = key.strip_prefix("HKCU\\") {
+        (HKEY_CURRENT_USER, subkey)
+    } else if let Some(subkey) = key.strip_prefix("HKLM\\") {
+        (HKEY_LOCAL_MACHINE, subkey)
+    } else {
+        return 0;
+    };
+    let wide = subkey
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let mut handle = HKEY(std::ptr::null_mut());
+    let opened = unsafe {
+        RegOpenKeyExW(
+            root,
+            PCWSTR(wide.as_ptr()),
+            None,
+            KEY_READ,
+            &mut handle,
+        )
+    };
+    if opened.0 != 0 {
+        return 0;
+    }
+
+    let mut last_write = FILETIME::default();
+    let queried = unsafe {
+        RegQueryInfoKeyW(
+            handle,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(&mut last_write),
+        )
+    };
+    let _ = unsafe { RegCloseKey(handle) };
+    if queried.0 != 0 {
+        return 0;
+    }
+    (u64::from(last_write.dwHighDateTime) << 32) | u64::from(last_write.dwLowDateTime)
+}
+
+fn query_registry(key: &str) -> Option<Vec<u8>> {
+    let output = Command::new("reg")
+        .args(["query", key, "/s"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    output.status.success().then_some(output.stdout)
 }
 
 #[derive(Default)]
