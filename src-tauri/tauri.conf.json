@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "floter",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "identifier": "com.v.floter",
   "build": {
     "beforeDevCommand": "npm run dev",
