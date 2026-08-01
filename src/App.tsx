@@ -937,8 +937,18 @@ export default function App() {
       (parseFloat(style.borderTopWidth) || 0) +
       (parseFloat(style.borderBottomWidth) || 0) +
       (parseFloat(style.paddingBottom) || 0);
-    const height = Math.ceil(last.offsetTop + last.offsetHeight + frame);
+    let height = Math.ceil(last.offsetTop + last.offsetHeight + frame);
     if (!height) return;
+    // The shell wrapping the card may carry padding (Windows uses it to give
+    // the CSS box-shadow room outside the card), and the window has to be
+    // that much taller for the padding to actually show.
+    const shell = card.parentElement;
+    if (shell) {
+      const shellStyle = getComputedStyle(shell);
+      height +=
+        (parseFloat(shellStyle.paddingTop) || 0) +
+        (parseFloat(shellStyle.paddingBottom) || 0);
+    }
     getCurrentWindow()
       .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
       .catch(() => undefined);

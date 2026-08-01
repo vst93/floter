@@ -1302,13 +1302,16 @@ canvas {
 
 /* The native frame is off (`shadow: false` in tauri.conf.json), so the gray
    DWM outline around the corners is gone with it - and so is the drop shadow
-   it doubled as. The window would be exactly as large as the card, leaving no
-   room for an outward shadow to land, so the shell is given a small margin on
-   every side: the window is that much larger, the card sits inside it, and
-   the box-shadow below has space to fade into the transparent area around
-   it. The inward edge strokes that gave the card definition on every other
-   platform are kept here too - they ride alongside the outward shadow. */
-.platform-windows .collapsed-shell,
+   it doubled as.  The shell is given asymmetric padding - more at the bottom
+   and right, less at the top and left - so an outward box-shadow has room to
+   land on the sides a panel naturally casts a shadow toward (it hangs from
+   the top of the screen and lights from above-left), while the sides it sits
+   flush against need almost none.  The inward edge strokes that gave the card
+   definition on every other platform are kept here too. */
+.platform-windows .collapsed-shell {
+  padding: 2px 8px 10px 2px;
+}
+
 .platform-windows .settings-shell,
 .platform-windows .terminal-shell {
   padding: 8px;
@@ -1319,8 +1322,8 @@ canvas {
 .platform-windows .terminal-panel {
   border: 0;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.28),
-    0 1px 4px rgba(0, 0, 0, 0.16),
+    0 2px 12px rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.12),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1328,8 +1331,8 @@ canvas {
 
 .platform-windows .collapsed-card:focus-within {
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.28),
-    0 1px 4px rgba(0, 0, 0, 0.16),
+    0 2px 12px rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.12),
     inset 0 0 0 1px var(--input-stroke-active),
     inset 0 1px 0 var(--edge-highlight-active),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1337,8 +1340,8 @@ canvas {
 
 .platform-windows .terminal-panel {
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.28),
-    0 1px 4px rgba(0, 0, 0, 0.16),
+    0 2px 12px rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.12),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--keycap-highlight),
     inset 0 -1px 0 var(--keycap-shadow);
@@ -1349,8 +1352,8 @@ canvas {
   .platform-windows .settings-card,
   .platform-windows .terminal-panel {
     box-shadow:
-      0 4px 16px rgba(0, 0, 0, 0.28),
-      0 1px 4px rgba(0, 0, 0, 0.16),
+      0 2px 12px rgba(0, 0, 0, 0.18),
+      0 1px 3px rgba(0, 0, 0, 0.12),
       inset 0 0 0 1px var(--stroke-contrast);
   }
 }
