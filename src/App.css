@@ -1300,14 +1300,27 @@ canvas {
   --window-radius: 8px;
 }
 
+/* The native frame is off (`shadow: false` in tauri.conf.json), so the gray
+   DWM outline around the corners is gone with it - and so is the drop shadow
+   it doubled as. The window would be exactly as large as the card, leaving no
+   room for an outward shadow to land, so the shell is given a small margin on
+   every side: the window is that much larger, the card sits inside it, and
+   the box-shadow below has space to fade into the transparent area around
+   it. The inward edge strokes that gave the card definition on every other
+   platform are kept here too - they ride alongside the outward shadow. */
+.platform-windows .collapsed-shell,
+.platform-windows .settings-shell,
+.platform-windows .terminal-shell {
+  padding: 8px;
+}
+
 .platform-windows .collapsed-card,
 .platform-windows .settings-card,
 .platform-windows .terminal-panel {
   border: 0;
-}
-
-.platform-windows .collapsed-card {
   box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    0 1px 4px rgba(0, 0, 0, 0.16),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1315,48 +1328,30 @@ canvas {
 
 .platform-windows .collapsed-card:focus-within {
   box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    0 1px 4px rgba(0, 0, 0, 0.16),
     inset 0 0 0 1px var(--input-stroke-active),
     inset 0 1px 0 var(--edge-highlight-active),
     inset 0 -1px 0 var(--edge-shadow);
 }
 
-.platform-windows .settings-card {
-  box-shadow:
-    inset 0 0 0 1px var(--input-stroke),
-    inset 0 1px 0 var(--edge-highlight),
-    inset 0 -1px 0 var(--edge-shadow);
-}
-
 .platform-windows .terminal-panel {
   box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    0 1px 4px rgba(0, 0, 0, 0.16),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--keycap-highlight),
     inset 0 -1px 0 var(--keycap-shadow);
-}
-
-/* The native frame is off (`shadow: false` in tauri.conf.json), so the gray
-   DWM outline around the corners is gone with it — and so is the drop shadow
-   it doubled as. The window is exactly as large as the card, which is why the
-   depth has to be drawn *inside* the edge: an outward shadow would start
-   outside the viewport and be clipped away. This pseudo-element, pinned to
-   the same rounded rectangle, lays a soft falloff along the inner edge that
-   reads as the panel floating instead of sitting on the desktop. */
-.platform-windows .collapsed-card::after,
-.platform-windows .settings-card::after,
-.platform-windows .terminal-panel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.2);
-  pointer-events: none;
 }
 
 @media (prefers-contrast: more) {
   .platform-windows .collapsed-card,
   .platform-windows .settings-card,
   .platform-windows .terminal-panel {
-    box-shadow: inset 0 0 0 1px var(--stroke-contrast);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.28),
+      0 1px 4px rgba(0, 0, 0, 0.16),
+      inset 0 0 0 1px var(--stroke-contrast);
   }
 }
 

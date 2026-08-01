@@ -124,6 +124,12 @@ const SETTINGS_MIN_HEIGHT = 420;
 const TERMINAL_SIZE_SAVE_DELAY = 280;
 const MAX_RESULTS = 6;
 const BRACKETED_PASTE = 1 << 4;
+/** How long the panel ignores a blur after a Windows drag; see `startDrag`.
+ *  `start_dragging()` opens a modal move loop the webview spends unfocused,
+ *  just like the old `WM_NCLBUTTONDOWN` path did - so the same grace period is
+ *  still needed to keep the hide-on-blur listener from dismissing the panel
+ *  out from under the drag. */
+const DRAG_BLUR_GRACE = 600;
 /** Second attempt at handing the terminal canvas the keyboard on Windows, where
  * the window is still being shown and focused when the first one lands. */
 const TERMINAL_FOCUS_RETRY = 180;
@@ -1708,11 +1714,22 @@ export default function App() {
       return;
     }
     event.preventDefault();
-    // One path on every platform: the backend hands the click to the OS as a
-    // caption drag. On Windows that is the same WM_NCLBUTTONDOWN hand-off the
-    // old native path used to make by hand, minus the blur-grace bookkeeping
-    // around the modal move loop.
-    void invoke("start_drag").catch(() => undefined);
+    if (!IS_WINDOWS) {
+      invoke("start_drag");
+      return;
+    }
+    // `start_dragging()` on Windows opens a modal move loop the webview spends
+    // unfocused, which is indistinguishable from the user leaving - and the
+    // hide-on-blur listener would put the panel away out from under the drag.
+    // The command returns when the loop ends, so the grace period is armed once
+    // for the blur on the way in and once for the focus handed back on the way
+    // out.
+    suppressBlurUntil.current = Date.now() + DRAG_BLUR_GRACE;
+    void invoke("start_drag")
+      .catch(() => undefined)
+      .finally(() => {
+        suppressBlurUntil.current = Date.now() + DRAG_BLUR_GRACE;
+      });
   };
 
   const rememberCommand = (command: string) => {
