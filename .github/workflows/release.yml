@@ -221,12 +221,22 @@ jobs:
             cp "$found_appimage" "renamed/floter-${VERSION}-${LABEL}.AppImage"
           fi
 
-          # .app.tar.gz (macOS — for updater, only if no DMG)
-          if [ -z "$found_dmg" ]; then
-            found_targz=$(find "$BUNDLE_DIR" -name "*.app.tar.gz" -type f | head -1)
-            if [ -n "$found_targz" ]; then
-              cp "$found_targz" "renamed/floter-${VERSION}-${LABEL}.app.tar.gz"
-            fi
+          # .app.tar.gz (macOS — for updater, always upload)
+          found_targz=$(find "$BUNDLE_DIR" -name "*.app.tar.gz" -type f | head -1)
+          if [ -n "$found_targz" ]; then
+            cp "$found_targz" "renamed/floter-${VERSION}-${LABEL}.app.tar.gz"
+          fi
+
+          # .app.tar.gz.sig (macOS — updater signature)
+          found_targz_sig=$(find "$BUNDLE_DIR" -name "*.app.tar.gz.sig" -type f | head -1)
+          if [ -n "$found_targz_sig" ]; then
+            cp "$found_targz_sig" "renamed/floter-${VERSION}-${LABEL}.app.tar.gz.sig"
+          fi
+
+          # .AppImage.sig (Linux — updater signature)
+          found_appimage_sig=$(find "$BUNDLE_DIR" -name "*.AppImage.sig" -type f | head -1)
+          if [ -n "$found_appimage_sig" ]; then
+            cp "$found_appimage_sig" "renamed/floter-${VERSION}-${LABEL}.AppImage.sig"
           fi
 
           echo "=== Renamed files ==="
@@ -250,6 +260,15 @@ jobs:
             Copy-Item $exe.FullName "renamed/floter-$VERSION-$LABEL-setup.exe"
           }
 
+          # .exe.sig (Windows — updater signature)
+          $exeSig = Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*-setup.exe.sig" | Select-Object -First 1
+          if (-not $exeSig) {
+            $exeSig = Get-ChildItem -Path $BUNDLE_DIR -Recurse -Filter "*.exe.sig" | Select-Object -First 1
+          }
+          if ($exeSig) {
+            Copy-Item $exeSig.FullName "renamed/floter-$VERSION-$LABEL-setup.exe.sig"
+          }
+
           echo "=== Renamed files ==="
           Get-ChildItem renamed/
 
@@ -259,3 +278,89 @@ jobs:
           tag_name: v${{ needs.prepare.outputs.version }}
           files: renamed/*
           fail_on_unmatched_files: true
+
+  # ── Generate latest.json updater manifest ────────────────────────────────
+  manifest:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.prepare.outputs.version }}
+
+      - name: Generate and upload latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          TAG="v$VERSION"
+          REPO="vst93/floter"
+
+          # Download all .sig files from the release
+          gh release download "$TAG" --repo "$REPO" --pattern "*.sig" --dir sigs/ || true
+
+          # Read signature contents (each .sig is a single-line base64 string)
+          macos_arm_sig=$(cat "sigs/floter-${VERSION}-macos-apple-silicon.app.tar.gz.sig" 2>/dev/null | tr -d '\n' || echo "")
+          macos_x86_sig=$(cat "sigs/floter-${VERSION}-macos-intel.app.tar.gz.sig" 2>/dev/null | tr -d '\n' || echo "")
+          linux_x86_sig=$(cat "sigs/floter-${VERSION}-linux-x86_64.AppImage.sig" 2>/dev/null | tr -d '\n' || echo "")
+          linux_arm_sig=$(cat "sigs/floter-${VERSION}-linux-arm64.AppImage.sig" 2>/dev/null | tr -d '\n' || echo "")
+          win_x86_sig=$(cat "sigs/floter-${VERSION}-windows-x86_64-setup.exe.sig" 2>/dev/null | tr -d '\n' || echo "")
+          win_arm_sig=$(cat "sigs/floter-${VERSION}-windows-arm64-setup.exe.sig" 2>/dev/null | tr -d '\n' || echo "")
+
+          BASE="https://github.com/${REPO}/releases/download/${TAG}"
+
+          # Pass signature values to the Python script via environment variables
+          export VERSION="${VERSION}"
+          export BASE="${BASE}"
+          export MACOS_ARM_SIG="${macos_arm_sig}"
+          export MACOS_X86_SIG="${macos_x86_sig}"
+          export LINUX_X86_SIG="${linux_x86_sig}"
+          export LINUX_ARM_SIG="${linux_arm_sig}"
+          export WIN_X86_SIG="${win_x86_sig}"
+          export WIN_ARM_SIG="${win_arm_sig}"
+
+          # Use python3 to generate valid JSON
+          python3 << 'PYEOF'
+          import json, datetime, os
+
+          version = os.environ['VERSION']
+          base = os.environ['BASE']
+
+          sigs = {
+              "darwin-aarch64": os.environ.get('MACOS_ARM_SIG', ''),
+              "darwin-x86_64": os.environ.get('MACOS_X86_SIG', ''),
+              "linux-x86_64": os.environ.get('LINUX_X86_SIG', ''),
+              "linux-aarch64": os.environ.get('LINUX_ARM_SIG', ''),
+              "windows-x86_64": os.environ.get('WIN_X86_SIG', ''),
+              "windows-aarch64": os.environ.get('WIN_ARM_SIG', ''),
+          }
+          urls = {
+              "darwin-aarch64": f"{base}/floter-{version}-macos-apple-silicon.app.tar.gz",
+              "darwin-x86_64": f"{base}/floter-{version}-macos-intel.app.tar.gz",
+              "linux-x86_64": f"{base}/floter-{version}-linux-x86_64.AppImage",
+              "linux-aarch64": f"{base}/floter-{version}-linux-arm64.AppImage",
+              "windows-x86_64": f"{base}/floter-{version}-windows-x86_64-setup.exe",
+              "windows-aarch64": f"{base}/floter-{version}-windows-arm64-setup.exe",
+          }
+          manifest = {
+              "version": version,
+              "notes": f"floter v{version}",
+              "pub_date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "platforms": {
+                  k: {"signature": sigs[k], "url": urls[k]}
+                  for k in sigs
+              }
+          }
+          with open("latest.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+          PYEOF
+
+          echo "=== latest.json ==="
+          cat latest.json
+          python3 -m json.tool latest.json > /dev/null && echo "JSON valid" || echo "JSON INVALID"
+
+      - name: Upload latest.json to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          files: latest.json
