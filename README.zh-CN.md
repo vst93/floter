@@ -13,6 +13,12 @@
 - **个性化设置：** 可选择深色、浅色或自动主题，调整透明度和界面语言，并重新绑定快捷键。
 - **内置更新：** 自动检查新版本，并可直接在应用内完成安装。
 
+## 截图
+
+![终端模式](docs/screenshots/screenshot-1.png)
+
+![应用启动器](docs/screenshots/screenshot-2.png)
+
 ## 安装
 
 前往 [GitHub Releases](https://github.com/vst93/floter/releases) 下载最新版本。
