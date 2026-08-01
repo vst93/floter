@@ -112,6 +112,14 @@ const normalizeOpacity = (value: number): number => {
     ?? clamped;
 };
 
+const formatBytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / 1024 ** index;
+  return `${index === 0 ? Math.round(value) : value.toFixed(1)} ${units[index]}`;
+};
+
 const FONT_FAMILY =
   "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
 const FONT_SIZE = 13;
@@ -597,6 +605,8 @@ export default function App() {
   const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number } | null>(null);
+  const [updateFailed, setUpdateFailed] = useState(false);
   /** Suppress the Enter that IME emits right after compositionend. */
   const skipNextEnter = useRef(false);
   const isComposing = useRef(false);
@@ -1754,6 +1764,8 @@ export default function App() {
     setQuery("");
     setTerminalMounted(false);
     setMode("collapsed");
+    focusCollapsedInput(50);
+    focusCollapsedInput(120);
   };
 
   const openSettings = () => {
@@ -1772,14 +1784,37 @@ export default function App() {
   const downloadAndInstallUpdate = async () => {
     if (updateDownloading) return;
     setUpdateDownloading(true);
+    setUpdateFailed(false);
+    setUpdateProgress(null);
     try {
       const update = await check();
-      if (update?.available) {
-        await update.downloadAndInstall();
-        await relaunch();
+      if (!update?.available) {
+        setUpdateDownloading(false);
+        return;
       }
+      // The plugin reports each chunk's size rather than a running total, so
+      // the cumulative progress is summed here; `Started` carries the total.
+      let downloaded = 0;
+      let total = 0;
+      await update.download((event) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength ?? 0;
+          downloaded = 0;
+          setUpdateProgress({ downloaded: 0, total });
+        } else if (event.event === "Progress") {
+          downloaded += event.data.chunkLength;
+          setUpdateProgress({ downloaded, total });
+        }
+      });
+      // Download finished; the panel now shows "Installing…" until the
+      // relaunch below takes over.
+      setUpdateProgress(null);
+      await update.install();
+      await relaunch();
     } catch {
+      setUpdateFailed(true);
       setUpdateDownloading(false);
+      setUpdateProgress(null);
     }
   };
 
@@ -2137,6 +2172,10 @@ export default function App() {
     handleLauncherKey(event.nativeEvent);
 
   if (mode === "settings") {
+    const updatePercent =
+      updateProgress && updateProgress.total > 0
+        ? Math.min(100, (updateProgress.downloaded / updateProgress.total) * 100)
+        : 0;
     return (
       <div className="settings-shell">
         <div className="settings-card" onMouseDown={startDrag}>
@@ -2314,24 +2353,57 @@ export default function App() {
               <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
 
-            {updateInfo && (
-              <section className="settings-section">
-                <div className="update-banner">
-                  <div className="update-banner__info">
-                    <span className="update-banner__title">floter v{updateInfo.version}</span>
-                    <span className="update-banner__desc">{t("settings.updateAvailable")}</span>
+            <section className="settings-section">
+              <div className="update-banner">
+                <div className="update-banner__info">
+                  <span className="update-banner__title">
+                    {t("settings.currentVersion")}: v{appVersion}
+                  </span>
+                  <span className="update-banner__desc">
+                    {updateFailed
+                      ? t("settings.updateFailed")
+                      : updateInfo
+                        ? `${t("settings.latestVersion")}: v${updateInfo.version}`
+                        : t("settings.upToDate")}
+                  </span>
+                </div>
+                {updateProgress ? (
+                  <div className="update-banner__progress">
+                    <div className="update-banner__progress-track">
+                      <div
+                        className="update-banner__progress-bar"
+                        style={{ width: `${updatePercent}%` }}
+                      />
+                    </div>
+                    <span className="update-banner__progress-label">
+                      {updateProgress.total > 0
+                        ? `${Math.round(updatePercent)}% · ${formatBytes(updateProgress.downloaded)} / ${formatBytes(updateProgress.total)}`
+                        : formatBytes(updateProgress.downloaded)}
+                    </span>
                   </div>
+                ) : updateDownloading ? (
+                  <button type="button" className="update-banner__button" disabled>
+                    {t("settings.installing")}
+                  </button>
+                ) : updateFailed ? (
                   <button
                     type="button"
                     className="update-banner__button"
-                    disabled={updateDownloading}
                     onClick={downloadAndInstallUpdate}
                   >
-                    {updateDownloading ? t("settings.updating") : t("settings.installUpdate")}
+                    {t("settings.retry")}
                   </button>
-                </div>
-              </section>
-            )}
+                ) : updateInfo ? (
+                  <button
+                    type="button"
+                    className="update-banner__button"
+                    onClick={downloadAndInstallUpdate}
+                  >
+                    {t("settings.downloadUpdate")}
+                  </button>
+                ) : null}
+              </div>
+            </section>
           </div>
         </div>
       </div>

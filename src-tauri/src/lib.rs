@@ -34,6 +34,7 @@ use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
     WebviewWindow, Wry,
 };
+#[cfg(target_os = "windows")]
 use tauri::webview::Color;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{

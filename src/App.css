@@ -750,8 +750,6 @@ input:focus {
 
 .settings-section--material {
   padding: 10px 0;
-  border-top: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
 }
 
 .opacity-controls {
@@ -911,10 +909,6 @@ input:focus {
   border-radius: 0;
   border-bottom: 1px solid var(--hairline);
   cursor: default;
-}
-
-.settings-option--static:first-child {
-  border-top: 1px solid var(--hairline);
 }
 
 .settings-option--static:hover {
@@ -1322,8 +1316,8 @@ canvas {
 .platform-windows .terminal-panel {
   border: 0;
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.18),
-    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.10),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1331,8 +1325,8 @@ canvas {
 
 .platform-windows .collapsed-card:focus-within {
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.18),
-    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.10),
     inset 0 0 0 1px var(--input-stroke-active),
     inset 0 1px 0 var(--edge-highlight-active),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1340,8 +1334,8 @@ canvas {
 
 .platform-windows .terminal-panel {
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.18),
-    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.10),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--keycap-highlight),
     inset 0 -1px 0 var(--keycap-shadow);
@@ -1352,8 +1346,8 @@ canvas {
   .platform-windows .settings-card,
   .platform-windows .terminal-panel {
     box-shadow:
-      0 2px 12px rgba(0, 0, 0, 0.18),
-      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 2px 12px rgba(0, 0, 0, 0.15),
+      0 1px 3px rgba(0, 0, 0, 0.10),
       inset 0 0 0 1px var(--stroke-contrast);
   }
 }
@@ -1409,6 +1403,36 @@ canvas {
 
 .update-banner__button:not(:disabled):hover {
   opacity: 0.9;
+}
+
+.update-banner__progress {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 5px;
+  min-width: 180px;
+}
+
+.update-banner__progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-control-active);
+  overflow: hidden;
+}
+
+.update-banner__progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 120ms ease;
+}
+
+.update-banner__progress-label {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-align: right;
+  white-space: nowrap;
 }
 
 /* ── Quit button hover ────────────────────────────────────────────────── */

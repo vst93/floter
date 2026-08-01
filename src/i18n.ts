@@ -59,7 +59,7 @@ const en = {
   "shortcut.open_external_terminal.description":
     "Reopens the active command in the system terminal",
   "shortcut.copy_selection": "Copy selection",
-  "shortcut.copy_selection.description": "Without a selection the key goes to the shell",
+  "shortcut.copy_selection.description": "Copies the selection. Without one, Ctrl+C interrupts the shell",
   "shortcut.paste": "Paste",
   "shortcut.paste.description": "Pastes the clipboard into the terminal",
   "shortcut.open_settings": "Open settings",
@@ -69,6 +69,13 @@ const en = {
   "settings.updateAvailable": "Update available",
   "settings.installUpdate": "Download & Install",
   "settings.updating": "Updating…",
+  "settings.currentVersion": "Current version",
+  "settings.latestVersion": "Latest version",
+  "settings.upToDate": "Up to date",
+  "settings.downloadUpdate": "Download",
+  "settings.installing": "Installing…",
+  "settings.updateFailed": "Update failed, retry?",
+  "settings.retry": "Retry",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -129,7 +136,7 @@ const zh: Record<MessageKey, string> = {
   "shortcut.open_external_terminal": "在系统终端中继续",
   "shortcut.open_external_terminal.description": "在系统终端中重新打开当前任务",
   "shortcut.copy_selection": "复制所选内容",
-  "shortcut.copy_selection.description": "没有选中内容时，按键会转发给 shell",
+  "shortcut.copy_selection.description": "复制选中内容。未选中时 Ctrl+C 会中断 shell",
   "shortcut.paste": "粘贴",
   "shortcut.paste.description": "把剪贴板内容粘贴到终端",
   "shortcut.open_settings": "打开设置",
@@ -139,6 +146,13 @@ const zh: Record<MessageKey, string> = {
   "settings.updateAvailable": "有新版本可用",
   "settings.installUpdate": "下载并安装",
   "settings.updating": "更新中…",
+  "settings.currentVersion": "当前版本",
+  "settings.latestVersion": "最新版本",
+  "settings.upToDate": "已是最新版本",
+  "settings.downloadUpdate": "下载",
+  "settings.installing": "安装中…",
+  "settings.updateFailed": "更新失败，重试？",
+  "settings.retry": "重试",
 };
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, zh };
