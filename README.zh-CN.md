@@ -19,6 +19,8 @@
 
 ![应用启动器](docs/screenshots/screenshot-2.png)
 
+![设置](docs/screenshots/screenshot-3.png)
+
 ## 安装
 
 前往 [GitHub Releases](https://github.com/vst93/floter/releases) 下载最新版本。

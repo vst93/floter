@@ -19,6 +19,8 @@ A cross-platform floating terminal and app launcher, always one shortcut away.
 
 ![App launcher](docs/screenshots/screenshot-2.png)
 
+![Settings](docs/screenshots/screenshot-3.png)
+
 ## Install
 
 Download the latest version from [GitHub Releases](https://github.com/vst93/floter/releases).
