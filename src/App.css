@@ -11,8 +11,12 @@
   color-scheme: dark;
 
   /* Window corner radius. DWM rounding is disabled on Windows (see
-     `configure_windows_frame` in lib.rs), so CSS is the sole source of the
-     corner shape on every platform. */
+     `configure_windows_frame` in lib.rs) and macOS never rounds a borderless
+     window, so CSS is the sole source of the corner shape on every platform —
+     and the drop shadow around it belongs to the window server, never to a
+     surface below. A `box-shadow` cast by a card that fills its own window has
+     nowhere to land: it is clipped at the window edge, and what survives reads
+     as a square outline around the rounded corners. */
   --window-radius: 10px;
 
   /* Card surfaces. The values are supplied by the settings panel and clamped
@@ -255,7 +259,14 @@ input:focus {
 .collapsed-card {
   position: relative;
   width: 100%;
-  height: 100%;
+  /* Not `height`: the window is sized to this card (see the measuring layout
+     effect in App.tsx), so the card has to be free to be taller than the window
+     it currently sits in. Pinned to an exact height it would instead squeeze its
+     own rows — a flex item with nothing to give — and the bottom of the action
+     bar would be cut off by the window edge. `min-height` still fills a window
+     that happens to be larger, which is what the moment between a shrinking
+     result list and the resize landing looks like. */
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -279,8 +290,10 @@ input:focus {
   background:
     linear-gradient(180deg, var(--sheen-top-active), var(--sheen-bottom-active)),
     var(--input-bg-active);
+  /* Inward, like every other edge here: a ring drawn outside the card lands
+     outside the window and is clipped away, corners first. */
   box-shadow:
-    0 0 0 1px var(--accent-glow),
+    inset 0 0 0 1px var(--accent-glow),
     inset 0 1px 0 var(--edge-highlight-active),
     inset 0 -1px 0 var(--edge-shadow);
 }
@@ -365,13 +378,16 @@ input:focus {
 /* The whole area below the input: the result list, the action bar, or both. The
    sunken field and the hairline that separates it from the input live here
    rather than on the list, so that an action bar with nothing matched above it
-   sits in the same panel a list would have. */
+   sits in the same panel a list would have. The inset is the same on all four
+   sides: a selected row is a tinted rectangle, and an even margin around it is
+   the difference between a row sitting in a field and a row resting on the
+   bottom edge of one. */
 .launcher-bottom {
   position: relative;
   z-index: 1;
   display: grid;
   gap: 0;
-  padding: 3px 4px 8px;
+  padding: 4px;
   border-top: 1px solid var(--hairline);
   background: var(--surface-sunken);
 }
@@ -595,7 +611,6 @@ input:focus {
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--input-bg);
   box-shadow:
-    0 14px 40px rgba(0, 0, 0, 0.12),
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
   -webkit-backdrop-filter: blur(26px) saturate(160%);
@@ -1041,7 +1056,6 @@ input:focus {
   background: transparent;
   border: 1px solid var(--input-stroke);
   box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.14),
     inset 0 1px 0 var(--keycap-highlight),
     inset 0 -1px 0 var(--keycap-shadow);
   overflow: hidden;
@@ -1278,7 +1292,14 @@ canvas {
 
 /* An undecorated Windows window reaches exactly to these surfaces. Its edge is
    therefore painted inward so no square pixel can survive outside the radius.
-   Other platforms retain the border and shadows declared above. */
+   Other platforms retain the border declared above. The radius follows the
+   system's own: Windows 11 rounds an application window at 8px, and floter
+   draws its corners itself there (DWM rounding is off), so it should round to
+   the same figure rather than to macOS' slightly larger one. */
+html[data-platform="windows"] {
+  --window-radius: 8px;
+}
+
 html[data-platform="windows"] .collapsed-card,
 html[data-platform="windows"] .settings-card,
 html[data-platform="windows"] .terminal-panel {

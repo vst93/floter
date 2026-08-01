@@ -47,6 +47,19 @@ const HEADER_BYTES = 23;
 const CELL_BYTES = 13;
 const SCROLLBAR_WIDTH = 5;
 const SCROLLBAR_GAP = 0;
+/**
+ * How long the scrollbar stays up after the last thing that moved it.
+ *
+ * It is an overlay — it reserves no columns, so the grid is the same width
+ * whether it is there or not — which also means it paints *over* whatever the
+ * program below is drawing. A full-width background or a centred box in a
+ * program that does not use the alternate screen would wear a permanent notch
+ * down its right edge, so the bar is only up while it is telling the user
+ * something: during a scroll, a drag, or a hover over its own strip.
+ */
+const SCROLLBAR_LINGER = 1100;
+/** Final stretch of the linger, spent fading rather than simply vanishing. */
+const SCROLLBAR_FADE = 260;
 
 export interface RendererOptions {
   fontFamily: string;
@@ -107,6 +120,12 @@ export class TerminalCanvas {
   private cursor = FALLBACK_CURSOR;
   private selection = FALLBACK_SELECTION;
   private scrollbar = FALLBACK_SCROLLBAR;
+  /** Timestamp the scrollbar stays visible until; see `SCROLLBAR_LINGER`. */
+  private scrollbarUntil = 0;
+  /** Display offset of the previous frame, to notice a scroll without being
+   * told about one: any frame that moved it is a frame worth showing the bar
+   * for, whoever caused it — wheel, keyboard, or the program itself. */
+  private lastDisplayOffset = -1;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -226,6 +245,10 @@ export class TerminalCanvas {
     this.mode = dv.getUint32(11, true);
     this.historySize = dv.getUint32(15, true);
     this.displayOffset = dv.getUint32(19, true);
+    if (this.displayOffset !== this.lastDisplayOffset) {
+      if (this.lastDisplayOffset !== -1) this.showScrollbar();
+      this.lastDisplayOffset = this.displayOffset;
+    }
     this.cols = cols;
     this.rows = rows;
 
@@ -425,16 +448,39 @@ export class TerminalCanvas {
     ctx.restore();
   }
 
+  /** Bring the scrollbar up, or keep it up. */
+  showScrollbar(): void {
+    this.scrollbarUntil = Date.now() + SCROLLBAR_LINGER;
+  }
+
+  /** How solid the bar should be drawn right now, 0 when it is not up. */
+  private scrollbarAlpha(): number {
+    const remaining = this.scrollbarUntil - Date.now();
+    if (remaining <= 0) return 0;
+    return remaining >= SCROLLBAR_FADE ? 1 : remaining / SCROLLBAR_FADE;
+  }
+
+  /** Whether another frame is owed to finish the fade; see `TerminalCanvas`
+   * callers, which keep repainting while this is true. */
+  scrollbarFading(): boolean {
+    return this.scrollbarAlpha() > 0;
+  }
+
   private drawScrollbar(): void {
     if ((this.mode & ALT_SCREEN) !== 0 || this.historySize <= 0) return;
+    const alpha = this.scrollbarAlpha();
+    if (alpha <= 0) return;
     const ctx = this.ctx;
     const rect = this.scrollbarRect();
     if (!rect) return;
 
+    ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = this.scrollbar;
     const thumbH = Math.max(rect.h * 0.1, rect.thumbH);
     roundRectPath(ctx, rect.x, rect.thumbY, rect.w, thumbH, rect.w / 2);
     ctx.fill();
+    ctx.restore();
   }
 
   /** Map a canvas-space pixel to a cell, or null when outside the text area. */

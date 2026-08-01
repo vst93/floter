@@ -20,8 +20,13 @@
 | 平台 | 下载文件 | 安装方式 |
 | --- | --- | --- |
 | macOS | `.dmg` | 打开镜像，将 **floter** 拖入「应用程序」。 |
-| Linux | `.deb`、`.rpm` 或 `.AppImage` | 选择适合发行版的安装包；AppImage 添加执行权限后即可运行。 |
+| Linux | `.deb` 或 `.rpm` | 用发行版的包管理器安装。 |
+| Arch / CachyOS / Manjaro | — | `cd packaging/arch && makepkg -si`（[PKGBUILD](packaging/arch/PKGBUILD)，基于发布的 `.deb` 重新打包）。 |
 | Windows | `.exe` | 运行安装程序。 |
+
+同时也提供 `.AppImage`，供上述安装包都不适用的发行版使用。能用原生包就用原生包：AppImage
+自带构建时的 GTK 与 WebKit 库，在滚动发行版上，这些库会比系统里的显卡驱动更旧——下面那个
+EGL 报错通常就是这么来的。
 
 ### macOS：未签名应用
 
@@ -32,6 +37,33 @@ xattr -cr /Applications/floter.app
 ```
 
 然后从「应用程序」中重新打开 floter。
+
+### Linux：floter 启动不起来
+
+如果窗口始终不出现，终端里出现类似这样的报错：
+
+```text
+Could not create default EGL display: EGL_BAD_PARAMETER
+```
+
+说明 WebKitGTK 拿不到 GPU。这在 Wayland + AMD 显卡 + 较新 Mesa 的组合上很常见。
+
+floter 会识别出「上一次启动没能走到窗口」，并让下一次启动自动不用 GPU，所以**先再启动一次**
+试试。也可以直接指定：
+
+```bash
+floter --software-rendering   # 始终不用 GPU
+floter --gpu                  # 始终用 GPU，即使上次启动失败
+```
+
+同样的开关也可以写成环境变量 `FLOTER_SOFTWARE_RENDERING=1`（或 `=0`），便于写进桌面项或
+service 文件。如果软件渲染也无济于事，可以让 floter 走 XWayland：
+
+```bash
+GDK_BACKEND=x11 floter
+```
+
+如果你用的是 AppImage，请改装发行版对应的安装包——用系统自身的库链接出来的 WebKit 才是根治办法。
 
 ## 更新
 

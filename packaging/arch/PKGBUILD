@@ -1,0 +1,55 @@
+# Maintainer: floter contributors <https://github.com/vst93/floter>
+#
+# Repackages the official release build. floter's own dependencies are linked
+# against the system libraries at run time — WebKitGTK above all — which is what
+# makes the native package the right choice on a rolling distribution: the
+# AppImage carries the GTK/WebKit stack it was built with, and that copy cannot
+# keep up with Arch's Mesa. If floter fails to start from an AppImage with
+# "Could not create default EGL display", this package is the fix.
+#
+# Build and install:
+#   cd packaging/arch && makepkg -si
+#
+# Bump `pkgver`, run `updpkgsums` to refresh the checksums, then `makepkg -si`.
+
+pkgname=floter-bin
+_pkgname=floter
+pkgver=0.2.1
+pkgrel=1
+pkgdesc="A floating terminal and application launcher, always one shortcut away"
+arch=('x86_64' 'aarch64')
+url="https://github.com/vst93/floter"
+license=('GPL-3.0-or-later')
+# webkit2gtk-4.1 is the webview, libappindicator-gtk3 the tray icon, and
+# xdg-utils the fallback used to open files and links.
+depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'xdg-utils')
+# Optional, and only for X11: floter asks these where the focused window is so a
+# keyboard summon lands on the screen the user is working on rather than on the
+# one the mouse was left behind on.
+optdepends=(
+  'xorg-xprop: multi-monitor placement on X11'
+  'xdotool: multi-monitor placement on X11'
+  'xorg-xwininfo: multi-monitor placement on X11 (alternative to xdotool)'
+)
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+options=('!strip' '!emptydirs')
+
+source_x86_64=("$_pkgname-$pkgver-x86_64.deb::$url/releases/download/v$pkgver/$_pkgname-$pkgver-linux-x86_64.deb")
+source_aarch64=("$_pkgname-$pkgver-aarch64.deb::$url/releases/download/v$pkgver/$_pkgname-$pkgver-linux-arm64.deb")
+# Release artifacts are rebuilt per tag; run `updpkgsums` after a version bump.
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+prepare() {
+  # A .deb is an ar archive of control/data tarballs; only the second one
+  # carries files.
+  bsdtar -xf "$srcdir"/*.deb -C "$srcdir"
+}
+
+package() {
+  # The .deb lays out /usr exactly as this package wants it: the binary, the
+  # desktop entry and the icon theme directories. The compression of the inner
+  # tarball is the bundler's choice, hence the glob.
+  bsdtar -xf "$srcdir"/data.tar.* -C "$pkgdir"
+}

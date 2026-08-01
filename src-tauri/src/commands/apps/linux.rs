@@ -247,10 +247,13 @@ fn desktop_file_id(root: &Path, path: &Path) -> String {
 struct DesktopEntry {
     name: Option<String>,
     localized_name: Option<String>,
+    generic_name: Option<String>,
     comment: Option<String>,
     exec: Option<String>,
     icon: Option<String>,
     try_exec: Option<String>,
+    keywords: Option<String>,
+    startup_wm_class: Option<String>,
     entry_type: Option<String>,
     hidden: bool,
     no_display: bool,
@@ -262,10 +265,13 @@ impl DesktopEntry {
         let mut entry = Self {
             name: None,
             localized_name: None,
+            generic_name: None,
             comment: None,
             exec: None,
             icon: None,
             try_exec: None,
+            keywords: None,
+            startup_wm_class: None,
             entry_type: None,
             hidden: false,
             no_display: false,
@@ -330,6 +336,12 @@ impl DesktopEntry {
                 ("Exec", None) => entry.exec = Some(unescape(value)),
                 ("Icon", None) => entry.icon = Some(value.to_string()),
                 ("TryExec", None) => entry.try_exec = Some(unescape(value)),
+                // The untranslated spellings only: these are search keys for a
+                // Latin keyboard, and the localized variants are already covered
+                // by the name and its pinyin initials.
+                ("GenericName", None) => entry.generic_name = Some(unescape(value)),
+                ("Keywords", None) => entry.keywords = Some(unescape(value)),
+                ("StartupWMClass", None) => entry.startup_wm_class = Some(unescape(value)),
                 ("Type", None) => entry.entry_type = Some(value.to_string()),
                 ("Hidden", None) => entry.hidden = value == "true",
                 ("NoDisplay", None) => entry.no_display = value == "true",
@@ -363,6 +375,29 @@ impl DesktopEntry {
         });
         let localized_name = self.localized_name.filter(|value| value != &name);
 
+        // What a query can reach the entry by besides its name: the program it
+        // runs, the class its window reports, the words the entry advertises
+        // itself with, and the application half of its desktop-file id. All are
+        // Latin by convention, which is what a Chinese-named entry needs.
+        let mut candidates = Vec::new();
+        candidates.extend(self.generic_name);
+        candidates.extend(self.startup_wm_class);
+        candidates.extend(executable_name(self.exec.as_deref()));
+        candidates.extend(executable_name(self.try_exec.as_deref()));
+        candidates.extend(
+            self.keywords
+                .iter()
+                .flat_map(|keywords| keywords.split(';'))
+                .map(str::to_string),
+        );
+        candidates.extend(
+            path.file_stem()
+                .and_then(|stem| stem.to_str())
+                .map(super::identifier_aliases)
+                .unwrap_or_default(),
+        );
+        let aliases = super::build_aliases(&name, localized_name.as_deref(), candidates);
+
         Some(LocalApplication {
             name,
             localized_name,
@@ -372,8 +407,21 @@ impl DesktopEntry {
             // Filled in by `list_applications` once the scan is done, so the
             // pinyin lookup lives in one place rather than in every scanner.
             initials: String::new(),
+            aliases,
         })
     }
+}
+
+/// The program an `Exec=`/`TryExec=` line runs, without its path or arguments:
+/// `/usr/bin/google-chrome-stable %U` is searchable as `google-chrome-stable`.
+fn executable_name(exec: Option<&str>) -> Option<String> {
+    let command = strip_field_codes(exec?);
+    // Wrappers take the real program as an argument, so the first word is not
+    // always the interesting one — but it is the one the entry is identified by
+    // everywhere else, and guessing further would be worse than not guessing.
+    let program = command.split_whitespace().next()?.trim_matches('"');
+    let stem = Path::new(program).file_name()?.to_str()?;
+    (!stem.is_empty()).then(|| stem.to_string())
 }
 
 /// Desktop-entry string escapes (`\s`, `\n`, `\t`, `\r`, `\\`).

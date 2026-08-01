@@ -50,6 +50,9 @@ jobs:
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
           sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
           sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          # The Arch package downloads the release artifacts of its own pkgver,
+          # so a stale one here points at a version that no longer exists.
+          sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
 
       - name: Generate release notes
         id: notes

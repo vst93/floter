@@ -84,6 +84,19 @@ pub struct LocalApplication {
     /// letter of its pinyin. Filled in by [`list_applications`], not by the
     /// platform scanners — see [`compute_initials`].
     pub initials: String,
+    /// The other names the platform knows the application by: its bundle
+    /// identifier and executable on macOS, the `Exec`/`Keywords`/`StartupWMClass`
+    /// of a `.desktop` entry on Linux, the shortcut's target program on Windows.
+    ///
+    /// None of these are ever shown. They exist because an application's visible
+    /// name is frequently the only one it has — "企业微信" ships no Latin name at
+    /// all — while the thing behind it is still called `WXWork`, and a query has
+    /// to be able to reach it from a keyboard that cannot type the name.
+    ///
+    /// `default` so that a cache written before this field existed still loads;
+    /// the entries in it simply have no aliases until the next scan.
+    #[serde(default)]
+    pub aliases: Vec<String>,
 }
 
 #[derive(Default)]
@@ -286,6 +299,69 @@ fn compute_initials(name: &str, localized_name: &Option<String>) -> String {
     initials
 }
 
+/// Reduce the raw strings a platform scanner collected to the alias set stored
+/// on a [`LocalApplication`].
+///
+/// Dropped: anything that repeats a name the user can already see, anything
+/// already in the list, and anything with no ASCII letter or digit in it —
+/// being reachable from a Latin keyboard is the whole purpose of the field, so
+/// a second Chinese spelling adds nothing the name and its pinyin initials do
+/// not already cover.
+pub(super) fn build_aliases<I, S>(
+    name: &str,
+    localized_name: Option<&str>,
+    candidates: I,
+) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut aliases: Vec<String> = Vec::new();
+
+    for candidate in candidates {
+        let candidate = candidate.as_ref().trim();
+        if candidate.is_empty() || !candidate.chars().any(|c| c.is_ascii_alphanumeric()) {
+            continue;
+        }
+        if candidate.eq_ignore_ascii_case(name)
+            || localized_name.is_some_and(|localized| candidate.eq_ignore_ascii_case(localized))
+            || aliases
+                .iter()
+                .any(|existing| existing.eq_ignore_ascii_case(candidate))
+        {
+            continue;
+        }
+        aliases.push(candidate.to_string());
+    }
+
+    aliases
+}
+
+/// The searchable halves of a reverse-DNS identifier.
+///
+/// `com.tencent.WeWorkMac` is worth knowing as `WeWorkMac` and as `tencent`,
+/// and never as `com`: a leading `com`/`org`/`io` is shared by half the
+/// machine, so indexing it would put every installed application behind the
+/// letter `c`.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub(super) fn identifier_aliases(identifier: &str) -> Vec<String> {
+    let segments: Vec<&str> = identifier
+        .split('.')
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .collect();
+
+    match segments.as_slice() {
+        [] => Vec::new(),
+        // The vendor is only dropped when there is a domain suffix in front of
+        // it to identify it by; `firefox` and `mozilla.firefox` keep everything.
+        [.., vendor, application] if segments.len() > 2 => {
+            vec![application.to_string(), vendor.to_string()]
+        }
+        [.., application] => vec![application.to_string()],
+    }
+}
+
 #[tauri::command]
 pub fn application_icon(
     app: AppHandle,
@@ -317,8 +393,13 @@ pub fn open_application(path: String) -> Result<(), String> {
     platform::open(&path)
 }
 
-const APPLICATION_CACHE_FILE: &str = "applications-v2.json";
-const LEGACY_APPLICATION_CACHE_FILE: &str = "applications-v1.json";
+const APPLICATION_CACHE_FILE: &str = "applications-v3.json";
+/// Caches from earlier schemas. They are readable — every field added since has
+/// a `default` — but the entries in them were scanned without knowing about the
+/// fields, so they are dropped rather than migrated, and the first summon after
+/// an upgrade rescans. Removed once the new file has been written.
+const LEGACY_APPLICATION_CACHE_FILES: [&str; 2] =
+    ["applications-v1.json", "applications-v2.json"];
 
 fn application_cache_path(app: &AppHandle) -> Option<PathBuf> {
     Some(
@@ -360,7 +441,9 @@ fn save_persistent_cache(app: &AppHandle, snapshot: &PersistentApplicationCache)
         return;
     };
     if fs::create_dir_all(parent).is_ok() && fs::write(&path, bytes).is_ok() {
-        let _ = fs::remove_file(parent.join(LEGACY_APPLICATION_CACHE_FILE));
+        for legacy in LEGACY_APPLICATION_CACHE_FILES {
+            let _ = fs::remove_file(parent.join(legacy));
+        }
     }
 }
 
@@ -493,6 +576,64 @@ mod tests {
     fn ignores_an_empty_localized_name() {
         assert_eq!(compute_initials("Code", &Some(String::new())), "code");
         assert_eq!(compute_initials("Code", &None), "code");
+    }
+
+    /// The point of an alias: an application whose only visible name is Chinese
+    /// is still reachable by whatever the platform calls the thing behind it.
+    #[test]
+    fn keeps_the_latin_names_behind_a_chinese_one() {
+        assert_eq!(
+            build_aliases("企业微信", None, ["WXWork", "WeWorkMac", "tencent"]),
+            ["WXWork", "WeWorkMac", "tencent"],
+        );
+    }
+
+    /// A name the user can already see scores on its own; repeating it as an
+    /// alias would only score the same match again, under a lower ceiling.
+    #[test]
+    fn drops_aliases_that_repeat_a_visible_name() {
+        assert_eq!(
+            build_aliases("Code", Some("代码"), ["code", "代码", "vscode"]),
+            ["vscode"],
+        );
+    }
+
+    /// Aliases exist to be typed on a Latin keyboard. One with nothing typable
+    /// in it is covered by the name's own pinyin initials instead.
+    #[test]
+    fn drops_aliases_with_nothing_latin_in_them() {
+        assert_eq!(
+            build_aliases("Player", None, ["播放器", "  ", "mpv"]),
+            ["mpv"],
+        );
+    }
+
+    /// Duplicates within the list itself go too, whatever their case.
+    #[test]
+    fn keeps_one_spelling_of_each_alias() {
+        assert_eq!(build_aliases("Firefox", None, ["mozilla", "Mozilla"]), ["mozilla"]);
+    }
+
+    /// A reverse-DNS identifier is searched by the application and its vendor.
+    /// The domain suffix in front of them is not a name — it is shared by half
+    /// the machine, and indexing it would put every application behind `c`.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn splits_an_identifier_into_application_and_vendor() {
+        assert_eq!(
+            identifier_aliases("com.tencent.WeWorkMac"),
+            ["WeWorkMac", "tencent"],
+        );
+        assert_eq!(identifier_aliases("org.mozilla.firefox"), ["firefox", "mozilla"]);
+    }
+
+    /// Nothing is dropped from an identifier that has no suffix to drop.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn keeps_every_segment_of_a_short_identifier() {
+        assert_eq!(identifier_aliases("google-chrome"), ["google-chrome"]);
+        assert_eq!(identifier_aliases("mozilla.firefox"), ["firefox"]);
+        assert!(identifier_aliases("").is_empty());
     }
 
     #[test]

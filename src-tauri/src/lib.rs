@@ -1,6 +1,8 @@
 mod commands;
 #[cfg(target_os = "linux")]
 pub mod ipc;
+#[cfg(target_os = "linux")]
+mod linux_render;
 mod terminal;
 
 use commands::actions::{open_path, open_url};
@@ -538,9 +540,19 @@ fn hide_macos_panel(window: &WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
-/// Windows can add both an undecorated-window shadow (which includes a 1px
-/// square border) and a DWM border. Disable both so the CSS surface is the only
-/// visible window edge.
+/// Windows draws two independent edges around an undecorated window: the DWM
+/// border, a hard line the CSS surface would otherwise disagree with, and the
+/// drop shadow. Only the border is turned off — a panel without a shadow reads
+/// as pasted onto the desktop rather than floating above it.
+///
+/// The shadow is also what leaves the terminal something to resize by. tao only
+/// insets the client rect (its `WM_NCCALCSIZE` handler) for an undecorated
+/// window that has one; without that inset the client area covers the entire
+/// window, WebView2's child window takes every mouse message inside it, and no
+/// frame is left for `WM_NCHITTEST` to report a sizing border on. Which windows
+/// may actually be resized stays a matter of `set_resizable`: the sizing border
+/// (`WS_SIZEBOX`) only exists on the terminal, so the launcher keeps its fixed
+/// size while the terminal can be dragged by any edge.
 #[cfg(target_os = "windows")]
 fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
     use windows::Win32::Graphics::Dwm::{
@@ -548,9 +560,7 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
         DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
 
-    window
-        .set_shadow(false)
-        .map_err(|error| error.to_string())?;
+    window.set_shadow(true).map_err(|error| error.to_string())?;
     let hwnd = window.hwnd().map_err(|error| error.to_string())?;
     let preference = DWMWCP_DONOTROUND;
     let border_color = DWMWA_COLOR_NONE;
@@ -571,6 +581,31 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
         );
     }
     suppress_alt_space_system_menu(window)
+}
+
+/// Whether the settings panel is recording a shortcut right now.
+///
+/// The subclass below swallows Alt+Space so the system menu never opens over
+/// the panel, which also means the combination never reaches the webview — and
+/// a shortcut the recorder cannot see is a shortcut that cannot be bound. The
+/// flag opens that door for exactly as long as the recorder is listening. It is
+/// a static rather than a field of [`AppState`] because a window procedure is
+/// handed nothing but its `HWND`.
+#[cfg(target_os = "windows")]
+static SHORTCUT_RECORDING: AtomicBool = AtomicBool::new(false);
+
+/// Hand Alt+Space to the webview while a shortcut is being recorded.
+///
+/// Windows is the only platform that intercepts the combination at all: the X11
+/// grab Linux uses is made by the shortcut plugin itself, and macOS has no
+/// window menu on that key. The frontend therefore only calls this there, and
+/// the command is a no-op everywhere else.
+#[tauri::command]
+fn set_recording_flag(on: bool) {
+    #[cfg(target_os = "windows")]
+    SHORTCUT_RECORDING.store(on, Ordering::SeqCst);
+    #[cfg(not(target_os = "windows"))]
+    let _ = on;
 }
 
 #[cfg(target_os = "windows")]
@@ -598,7 +633,15 @@ unsafe extern "system" fn floter_window_subclass(
     let alt_space_menu = message == WM_SYSCOMMAND
         && wparam.0 & 0xfff0 == SC_KEYMENU as usize
         && lparam.0 == VK_SPACE.0 as isize;
-    if alt_space_key || alt_space_menu {
+    // The key messages are released to the webview while the recorder is
+    // listening, so Alt+Space can be bound like any other combination. The
+    // system command never is: it is not what carries the key to the page, and
+    // the menu it opens would take focus and cancel the recording it was meant
+    // to serve.
+    if alt_space_key && !SHORTCUT_RECORDING.load(Ordering::SeqCst) {
+        return LRESULT(0);
+    }
+    if alt_space_menu {
         return LRESULT(0);
     }
 
@@ -639,6 +682,29 @@ fn start_windows_drag(window: &WebviewWindow) -> Result<(), String> {
         );
     }
     Ok(())
+}
+
+/// Tell the window server to recompute the panel's shadow.
+///
+/// macOS derives the shadow of a transparent window from the alpha of what it
+/// draws, but only when it is asked to: a window that has been resized keeps
+/// the shadow of the shape it used to be. The launcher changes height on every
+/// keystroke that changes the result list, and the settings and terminal
+/// windows are resized the moment they open, so the leftover is a square
+/// outline standing a little way outside the rounded card — an edge nobody
+/// drew, along the sides and around the bottom corners.
+#[cfg(target_os = "macos")]
+fn refresh_macos_shadow(window: &WebviewWindow) {
+    if !is_main_thread() {
+        let window = window.clone();
+        let handle = window.app_handle().clone();
+        let _ = handle.run_on_main_thread(move || refresh_macos_shadow(&window));
+        return;
+    }
+
+    if let Ok(panel) = window.app_handle().get_webview_panel(window.label()) {
+        panel.as_panel().invalidateShadow();
+    }
 }
 
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
@@ -692,13 +758,26 @@ fn resize_window(
     let previous_size = window.outer_size().ok();
     let scale_factor = window.scale_factor().unwrap_or(1.0);
 
+    // The anchor below compares two *outer* readings against the width being
+    // set, which is an inner one. On Windows the undecorated shadow puts a
+    // frame between the two, and left uncorrected that difference is added to
+    // the window's x on every collapse and expand — the panel walks across the
+    // screen a few pixels at a time. Everywhere else the two are the same size
+    // and this is zero.
+    #[cfg(target_os = "windows")]
+    let frame_width = previous_size
+        .zip(window.inner_size().ok())
+        .map_or(0, |(outer, inner)| outer.width as i32 - inner.width as i32);
+    #[cfg(not(target_os = "windows"))]
+    let frame_width = 0;
+
     window
         .set_size(LogicalSize::new(width, height))
         .map_err(|e| e.to_string())?;
 
     if preserve_anchor {
         if let (Some(position), Some(size)) = (previous_position, previous_size) {
-            let next_width = (width * scale_factor).round() as i32;
+            let next_width = (width * scale_factor).round() as i32 + frame_width;
             let next_x = position.x + (size.width as i32 - next_width) / 2;
             window
                 .set_position(PhysicalPosition::new(next_x, position.y))
@@ -867,6 +946,12 @@ fn print_toggle_hint(reason: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before the builder, and therefore before anything initializes GTK: this
+    // is the last point at which the renderer WebKitGTK will use can still be
+    // chosen. See `linux_render` for why that choice cannot be made later.
+    #[cfg(target_os = "linux")]
+    linux_render::prepare(std::env::args_os());
+
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
@@ -932,7 +1017,18 @@ pub fn run() {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { .. } = event {
+                    if let TrayIconEvent::Click { button, .. } = event {
+                        // Windows reports both buttons through this event, and
+                        // the right one is the one that just opened the context
+                        // menu: revealing the panel takes the focus the menu is
+                        // holding, and the menu closes before it can be read.
+                        // The other platforms are left exactly as they were.
+                        #[cfg(target_os = "windows")]
+                        if button != tauri::tray::MouseButton::Left {
+                            return;
+                        }
+                        #[cfg(not(target_os = "windows"))]
+                        let _ = button;
                         if let Some(window) = tray.app_handle().get_webview_window("main") {
                             let state = tray.app_handle().state::<AppState>();
                             let _ = reveal_saved_mode(&window, &state);
@@ -942,16 +1038,30 @@ pub fn run() {
                 .build(app)?;
 
             let window = app.get_webview_window("main").unwrap();
+            // The webview exists, which is as far as a machine with a broken EGL
+            // ever gets — so this run counts as a successful start and the next
+            // one is free to use the GPU again.
+            #[cfg(target_os = "linux")]
+            linux_render::mark_started();
             #[cfg(target_os = "macos")]
             configure_macos_panel(&window)?;
             #[cfg(target_os = "windows")]
             configure_windows_frame(&window).map_err(std::io::Error::other)?;
             window.set_resizable(false)?;
+            let shadow_window = window.clone();
             window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
+                match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => api.prevent_close(),
+                    // Every resize the panel goes through — the frontend sizing
+                    // the launcher to its rows, an edge drag on the terminal,
+                    // the settings panel opening.
+                    #[cfg(target_os = "macos")]
+                    tauri::WindowEvent::Resized(_) => refresh_macos_shadow(&shadow_window),
+                    _ => {}
                 }
             });
+            #[cfg(not(target_os = "macos"))]
+            let _ = shadow_window;
 
             let shortcut = resolved_shortcuts(&settings)
                 .remove(TOGGLE_WINDOW)
@@ -1019,6 +1129,7 @@ pub fn run() {
             update_shortcut,
             suspend_shortcuts,
             resume_shortcuts,
+            set_recording_flag,
             get_custom_commands,
             add_custom_command,
             update_custom_command,

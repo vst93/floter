@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
@@ -45,6 +45,9 @@ type LocalApplication = {
   comment?: string | null;
   /** Latin search key built by the backend; see `compute_initials` there. */
   initials: string;
+  /** Other names the platform knows the app by — bundle identifier, executable,
+   * desktop-entry keywords. Never shown; see `aliases` in the backend. */
+  aliases?: string[] | null;
 };
 
 /** Answer to `check_applications`: whether a rescan would find anything new. */
@@ -119,15 +122,13 @@ const INPUT_WINDOW_WIDTH = 720;
 const SETTINGS_WINDOW_HEIGHT = 580;
 const SETTINGS_MIN_HEIGHT = 420;
 const TERMINAL_SIZE_SAVE_DELAY = 280;
-const INPUT_ROW_HEIGHT = 56;
-const RESULT_ROW_HEIGHT = 42;
-const RESULT_LIST_PADDING = 8;
-const RESULT_ROW_GAP = 1;
-/** The gap above the action bar that holds its divider hairline; only paid for
- * when there is a result list above it to be divided from. */
-const ACTION_BAR_DIVIDER = 3;
 const MAX_RESULTS = 6;
 const BRACKETED_PASTE = 1 << 4;
+/** How long the panel ignores a blur after a Windows drag; see `startDrag`. */
+const DRAG_BLUR_GRACE = 600;
+/** Second attempt at handing the terminal canvas the keyboard on Windows, where
+ * the window is still being shown and focused when the first one lands. */
+const TERMINAL_FOCUS_RETRY = 180;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
@@ -213,18 +214,30 @@ const scoreNormalized = (needle: string, haystack: string) => {
 };
 
 /** An application with its searchable names normalized once, up front. */
-type SearchableApp = { app: LocalApplication; names: string[]; initials: string };
+type SearchableApp = {
+  app: LocalApplication;
+  names: string[];
+  initials: string;
+  aliases: string[];
+};
 
 /**
- * Best score for a needle across an application's names and its initials.
+ * Best score for a needle across an application's names, its initials and the
+ * aliases the platform knows it by.
  *
- * The initials are a separate key rather than another entry in `names` because
- * they need their own ceiling. `wyyyy` *is* the whole of "网易云音乐"'s key, so it
- * would otherwise score a perfect 1000 and outrank an application whose actual
- * name the query spells out in full — initials are a shorthand, and a real name
- * match is always the more certain of the two.
+ * The three are separate keys rather than one list because they need different
+ * ceilings. The initials are a shorthand: `wyyyy` *is* the whole of
+ * "网易云音乐"'s key, so it would otherwise score a perfect 1000 and outrank an
+ * application whose actual name the query spells out in full. An alias is
+ * weaker still — nobody looking at the launcher can see that "企业微信" is also
+ * `WXWork`, so a match on one is a guess about intent, and it is capped below
+ * every visible-name match. Loose subsequence hits are dropped there entirely
+ * for the same reason: a bundle identifier is long enough that some scattered
+ * subsequence of almost any query can be found in one.
  */
-const scoreApp = (needle: string, names: string[], initials: string) => {
+const ALIAS_SCORE_CAP = 690;
+
+const scoreApp = (needle: string, names: string[], initials: string, aliases: string[]) => {
   let best = 0;
   for (const name of names) {
     const score = scoreNormalized(needle, name);
@@ -235,6 +248,14 @@ const scoreApp = (needle: string, names: string[], initials: string) => {
     // Below an exact name match, above a prefix one: typing an application's
     // initials is deliberate enough to beat a name that merely starts the same.
     const capped = score >= 1000 ? 950 : score;
+    if (capped > best) best = capped;
+  }
+  for (const alias of aliases) {
+    const score = scoreNormalized(needle, alias);
+    // 700 is `scoreNormalized`'s floor for "contains"; anything below it is a
+    // subsequence, which is too weak a signal to spend an invisible key on.
+    if (score < 700) continue;
+    const capped = Math.min(score, ALIAS_SCORE_CAP);
     if (capped > best) best = capped;
   }
   return best;
@@ -430,6 +451,20 @@ function ShortcutRecorder({
   onCancel,
   t,
 }: ShortcutRecorderProps) {
+  // Windows swallows Alt+Space so its window menu never opens over the panel,
+  // which also keeps the combination from ever reaching this recorder. The flag
+  // lifts that for as long as one is listening; the cleanup runs on capture, on
+  // cancel and on unmount, so it cannot be left raised. Kept in its own effect,
+  // keyed on nothing but `recording`, so a re-render of the settings panel does
+  // not lower and raise it again mid-recording.
+  useEffect(() => {
+    if (!IS_WINDOWS || !recording) return;
+    invoke("set_recording_flag", { on: true }).catch(() => undefined);
+    return () => {
+      invoke("set_recording_flag", { on: false }).catch(() => undefined);
+    };
+  }, [recording]);
+
   useEffect(() => {
     if (!recording) return;
 
@@ -489,6 +524,8 @@ type DragState =
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
+  /** The launcher card, measured to size the window around it. */
+  const collapsedCardRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<TerminalCanvas | null>(null);
@@ -641,6 +678,16 @@ export default function App() {
         // normalizing of its own. Defensive against a cached list written before
         // the field existed.
         initials: app.initials || "",
+        // Normalized like the names, and deduplicated against them: an alias
+        // that repeats a name would only score the same match a second time,
+        // under a lower ceiling.
+        aliases: [
+          ...new Set(
+            (app.aliases ?? [])
+              .map(normalizeSearch)
+              .filter(Boolean),
+          ),
+        ],
       })),
     [applications],
   );
@@ -668,7 +715,7 @@ export default function App() {
     const matches: { item: LauncherItem; score: number }[] = [];
 
     for (const entry of searchableApps) {
-      const score = scoreApp(needle, entry.names, entry.initials);
+      const score = scoreApp(needle, entry.names, entry.initials, entry.aliases);
       if (!score) continue;
       const app = entry.app;
       matches.push({
@@ -695,6 +742,9 @@ export default function App() {
         needle,
         [normalizeSearch(title), ...entry.searchNames],
         entry.initials,
+        // The power actions have no alias to speak of: their names are already
+        // written out in every language the launcher searches.
+        [],
       );
       if (!score) continue;
       matches.push({
@@ -786,26 +836,24 @@ export default function App() {
     });
   }, [launcherResults.length]);
 
-  useEffect(() => {
+  // The launcher window is exactly as tall as the rows inside it, measured
+  // rather than predicted.
+  //
+  // The height used to be added up from constants — one row height, one gap,
+  // one padding — and the sum came out a few pixels short of what the
+  // stylesheet actually produced, so the bottom of the action bar was cut off
+  // by the window edge. Every one of those numbers duplicated a CSS value that
+  // could be changed without anyone thinking to come back here; reading the
+  // laid-out rows keeps the two in step by construction, and covers the
+  // platform differences (Windows draws no card border) for free.
+  //
+  // `useLayoutEffect` so the measurement happens on the frame the rows were
+  // committed, before the window is painted at the old size. Offsets rather
+  // than `getBoundingClientRect`, because the shell plays a scale animation on
+  // entry and a rect measured mid-animation is a rect scaled by 0.986.
+  useLayoutEffect(() => {
     if (mode !== "collapsed") return;
-    const listHeight = launcherResults.length
-      ? launcherResults.length * RESULT_ROW_HEIGHT +
-        (launcherResults.length - 1) * RESULT_ROW_GAP
-      : 0;
-    // The action bar is a row of the same height, plus its divider — but only
-    // when there is a list above it to be divided from.
-    const actionBarHeight = actionBar
-      ? RESULT_ROW_HEIGHT + (launcherResults.length ? ACTION_BAR_DIVIDER : 0)
-      : 0;
-    const bottomHeight = listHeight + actionBarHeight;
-    getCurrentWindow()
-      .setSize(
-        new LogicalSize(
-          INPUT_WINDOW_WIDTH,
-          INPUT_ROW_HEIGHT + (bottomHeight ? RESULT_LIST_PADDING + bottomHeight : 0),
-        ),
-      )
-      .catch(() => undefined);
+    syncLauncherHeight();
   }, [actionBar, launcherResults.length, mode]);
 
   useEffect(() => {
@@ -863,6 +911,33 @@ export default function App() {
     if (renderer && frame) {
       renderer.draw(frame, blinkRef.current, selectionRef.current);
     }
+  };
+
+  /**
+   * Size the launcher window to the rows currently laid out inside it.
+   *
+   * Measured to the bottom of the card's last child rather than from the card's
+   * own box: the card is at least as tall as the window it sits in, so its
+   * height says what the window *is* rather than what it should be. `offsetTop`
+   * starts inside the card's border, so both borders are added back on — and
+   * offsets rather than `getBoundingClientRect`, because the shell plays a
+   * scale animation on entry and a rect measured mid-animation is a rect
+   * scaled by 0.986.
+   */
+  const syncLauncherHeight = () => {
+    const card = collapsedCardRef.current;
+    const last = card?.lastElementChild as HTMLElement | null;
+    if (!card || !last) return;
+    const style = getComputedStyle(card);
+    const frame =
+      (parseFloat(style.borderTopWidth) || 0) +
+      (parseFloat(style.borderBottomWidth) || 0) +
+      (parseFloat(style.paddingBottom) || 0);
+    const height = Math.ceil(last.offsetTop + last.offsetHeight + frame);
+    if (!height) return;
+    getCurrentWindow()
+      .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+      .catch(() => undefined);
   };
 
   const focusCollapsedInput = (delay = 0) => {
@@ -1145,7 +1220,11 @@ export default function App() {
 
     if (mode === "collapsed") {
       if (!isRestoring) {
-        invoke("show_input");
+        // `show_input` resizes to the bare input row, which is the right height
+        // for an empty query and a couple of pixels short of one with results
+        // (or of a card that draws a border). It lands after the layout effect
+        // above, so the measured height is applied again once it has.
+        invoke("show_input").then(syncLauncherHeight).catch(() => undefined);
       }
       focusCollapsedInput(90);
       focusCollapsedInput(140);
@@ -1161,12 +1240,36 @@ export default function App() {
       invoke("show_terminal");
     }
     focusTerminalView(80);
+    // Windows shows and focuses the window around the time that first attempt
+    // lands, and a canvas that missed the keyboard swallows the first key
+    // pressed into it. Chased a second time, exactly as the collapsed input is.
+    if (IS_WINDOWS) focusTerminalView(TERMINAL_FOCUS_RETRY);
     const timer = window.setTimeout(() => {
       if (restoringMode.current === "terminal") {
         restoringMode.current = null;
       }
     }, 160);
     return () => window.clearTimeout(timer);
+  }, [mode]);
+
+  // The launcher's keyboard belongs to its input, and nothing else in the card
+  // has any use for it: the result rows and the settings button all decline
+  // focus on mousedown, so anything that takes it away — a click landing on the
+  // card itself, an element unmounting under the caret, a reveal that raced the
+  // field into existence — is an accident. Focus is simply taken back.
+  //
+  // Deferred by a tick because at `focusout` time the incoming element has not
+  // been focused yet, and the check has to see where the keyboard ended up.
+  useEffect(() => {
+    if (mode !== "collapsed") return;
+    const onFocusOut = () => {
+      window.setTimeout(() => {
+        if (document.activeElement === inputRef.current) return;
+        focusCollapsedInput();
+      }, 0);
+    };
+    document.addEventListener("focusout", onFocusOut);
+    return () => document.removeEventListener("focusout", onFocusOut);
   }, [mode]);
 
   useEffect(() => {
@@ -1186,6 +1289,9 @@ export default function App() {
         setTerminalMounted(true);
         setMode("terminal");
         focusTerminalView(80);
+        // The reveal that brought the window back is still settling on Windows;
+        // see the mode effect above for why the canvas is chased twice there.
+        if (IS_WINDOWS) focusTerminalView(TERMINAL_FOCUS_RETRY);
         window.setTimeout(() => {
           if (restoringMode.current === "terminal") {
             restoringMode.current = null;
@@ -1567,21 +1673,32 @@ export default function App() {
         return;
       }
       if (inputFocused) return;
+
+      // Below here the input does not have the keyboard, which in this mode is
+      // never what the user meant: the launcher is one text field and a list
+      // that is driven from it. Whatever the key was, it takes the field back —
+      // and then does what it would have done had the field never lost it.
+      focusCollapsedInput();
+
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (event.key === "Backspace") {
         event.preventDefault();
         setQuery((current) => current.slice(0, -1));
-        focusCollapsedInput();
         return;
       }
 
+      // A printable key is typed into the query by hand: the field was not
+      // focused when the press happened, so nothing else will insert it.
       if (event.key.length === 1) {
         event.preventDefault();
         setQuery((current) => `${current}${event.key}`);
         setHistoryIndex(-1);
-        focusCollapsedInput();
+        return;
       }
+
+      // Enter, the arrows, Tab — the keys the field's own handler owns.
+      handleLauncherKey(event);
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -1593,7 +1710,23 @@ export default function App() {
       return;
     }
     event.preventDefault();
-    invoke("start_drag");
+    if (!IS_WINDOWS) {
+      invoke("start_drag");
+      return;
+    }
+    // Windows drags the panel the way the OS does it, by handing the click to
+    // `WM_NCLBUTTONDOWN`. That opens a modal move loop the webview spends
+    // unfocused, which is indistinguishable from the user leaving — and the
+    // hide-on-blur listener would put the panel away out from under the drag.
+    // The command returns when the loop ends, so the grace period is armed once
+    // for the blur on the way in and once for the focus handed back on the way
+    // out.
+    suppressBlurUntil.current = Date.now() + DRAG_BLUR_GRACE;
+    void invoke("start_drag")
+      .catch(() => undefined)
+      .finally(() => {
+        suppressBlurUntil.current = Date.now() + DRAG_BLUR_GRACE;
+      });
   };
 
   const rememberCommand = (command: string) => {
@@ -1844,17 +1977,24 @@ export default function App() {
     void runCommand();
   };
 
-  const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  /**
+   * Everything the launcher does with a key press.
+   *
+   * Reached two ways: from the input's own handler, and from the window
+   * listener when the input has somehow lost the keyboard — a stray click, a
+   * reveal that landed before the element was there. The second path is why
+   * this takes a plain `KeyboardEvent` rather than React's wrapper.
+   */
+  const handleLauncherKey = (event: KeyboardEvent) => {
     // CJK IME: while composing (user picking candidates), all keys go to
-    // the IME. After compositionend the browser fires a stray Enter that
-    // is NOT part of isComposing — suppress it via the ref flag.
+    // the IME. On WebKit a committed composition is followed by a stray Enter
+    // that is NOT part of isComposing — suppressed through the ref flag, which
+    // is only armed on the platforms that send one (see `onCompositionEnd`).
     if (isComposing.current) return;
     if (event.key === "Enter" && skipNextEnter.current) {
       skipNextEnter.current = false;
       return;
     }
-
-    const native = event.nativeEvent;
 
     // Holding the same modifier as the numbered-result shortcut highlights the
     // command row. It makes Cmd/Ctrl+Enter discoverable without giving the row a
@@ -1862,14 +2002,14 @@ export default function App() {
     if (
       actionBar &&
       ["Meta", "Control", "Alt", "Shift"].includes(event.key) &&
-      matchesShortcutModifiers(native, shortcuts.select_result)
+      matchesShortcutModifiers(event, shortcuts.select_result)
     ) {
       setSelectedActionBar(true);
       return;
     }
     // Numbered results only: the action bar has no number, so `Cmd/Ctrl+1` can
     // never run a command by mistake.
-    const resultNumber = matchesResultShortcut(native, shortcuts.select_result);
+    const resultNumber = matchesResultShortcut(event, shortcuts.select_result);
     if (resultNumber !== null) {
       if (launcherResults[resultNumber - 1]) {
         event.preventDefault();
@@ -1878,7 +2018,7 @@ export default function App() {
       return;
     }
 
-    if (event.key === "Escape" || matchesShortcut(native, shortcuts.new_command)) {
+    if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
       event.preventDefault();
       invoke("hide_window");
       return;
@@ -1887,7 +2027,7 @@ export default function App() {
     if (
       event.key === "Enter" &&
       actionBar &&
-      matchesShortcutModifiers(native, shortcuts.select_result)
+      matchesShortcutModifiers(event, shortcuts.select_result)
     ) {
       event.preventDefault();
       executeActionBar(actionBar);
@@ -1979,6 +2119,9 @@ export default function App() {
       }
     }
   };
+
+  const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) =>
+    handleLauncherKey(event.nativeEvent);
 
   if (mode === "settings") {
     return (
@@ -2192,6 +2335,7 @@ export default function App() {
     return (
       <div className="collapsed-shell">
         <div
+          ref={collapsedCardRef}
           className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
           onMouseDown={startDrag}
           onClick={() => focusCollapsedInput()}
@@ -2210,7 +2354,13 @@ export default function App() {
               onCompositionStart={() => { isComposing.current = true; }}
               onCompositionEnd={() => {
                 isComposing.current = false;
-                skipNextEnter.current = true;
+                // WebKit — macOS' WKWebView and Linux' WebKitGTK — follows a
+                // committed composition with a second, non-composing Enter that
+                // would run whatever the user was still choosing between.
+                // Chromium sends no such thing, so on Windows the flag would
+                // instead swallow the deliberate Enter that comes next and the
+                // selected result would need Enter pressed twice to launch.
+                skipNextEnter.current = !IS_WINDOWS;
               }}
               onKeyUp={(event) => {
                 if (

@@ -211,11 +211,15 @@ fn collect_shortcuts(
             name: name.to_string(),
             localized_name: None,
             path: path.to_string_lossy().to_string(),
-            icon_path: target,
+            icon_path: target.clone(),
             comment: None,
             // Filled in by `list_applications` once the scan is done, so the
             // pinyin lookup lives in one place rather than in every scanner.
             initials: String::new(),
+            // A shortcut named in Chinese still points at a program with a Latin
+            // name — "企业微信.lnk" runs `WXWork.exe` — so the target is what
+            // keeps the entry reachable from a Latin keyboard.
+            aliases: super::build_aliases(name, None, executable_name(target.as_deref())),
         });
     }
 }
@@ -273,18 +277,33 @@ fn collect_registry_programs(
             if !seen_names.insert(program.display_name.to_lowercase()) {
                 continue;
             }
+            // The registry lists a program by its display name and its
+            // executable; the second is the Latin key for the first.
+            let aliases = super::build_aliases(
+                &program.display_name,
+                None,
+                executable_name(Some(path.as_str())),
+            );
             apps.push(LocalApplication {
                 name: program.display_name,
                 localized_name: None,
                 path: path.clone(),
-                icon_path: Some(path),
+                icon_path: Some(path.clone()),
                 comment: None,
                 // Filled in by `list_applications` once the scan is done, so the
                 // pinyin lookup lives in one place rather than in every scanner.
                 initials: String::new(),
+                aliases,
             });
         }
     }
+}
+
+/// The program a shortcut points at, without its path or extension:
+/// `C:\Program Files\WXWork\WXWork.exe` is searchable as `WXWork`.
+fn executable_name(target: Option<&str>) -> Option<String> {
+    let stem = Path::new(target?).file_stem()?.to_str()?;
+    (!stem.is_empty()).then(|| stem.to_string())
 }
 
 fn registry_key_last_write(key: &str) -> u64 {

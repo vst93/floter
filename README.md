@@ -20,8 +20,15 @@ Download the latest version from [GitHub Releases](https://github.com/vst93/flot
 | Platform | Download | Install |
 | --- | --- | --- |
 | macOS | `.dmg` | Open the image and drag **floter** to **Applications**. |
-| Linux | `.deb`, `.rpm`, or `.AppImage` | Use the package for your distribution, or make the AppImage executable and run it. |
+| Linux | `.deb` or `.rpm` | Install with your package manager. |
+| Arch / CachyOS / Manjaro | — | `cd packaging/arch && makepkg -si` ([PKGBUILD](packaging/arch/PKGBUILD), repackages the release `.deb`). |
 | Windows | `.exe` | Run the setup file. |
+
+An `.AppImage` is published as well, for distributions none of the packages fit.
+Prefer a native package where you can: the AppImage carries the GTK and WebKit
+libraries it was built with, and on a rolling distribution those are older than
+the graphics drivers installed on the system — which is what the EGL failure
+below is usually about.
 
 ### macOS: unsigned app
 
@@ -32,6 +39,37 @@ xattr -cr /Applications/floter.app
 ```
 
 Then open floter again from **Applications**.
+
+### Linux: floter does not start
+
+If the window never appears and the terminal shows something like
+
+```text
+Could not create default EGL display: EGL_BAD_PARAMETER
+```
+
+then WebKitGTK could not reach the GPU. This is common on AMD hardware under
+Wayland with a recent Mesa.
+
+floter notices a start that never reached its window and runs the next one
+without the GPU by itself, so **try starting it a second time** first. To decide
+for it:
+
+```bash
+floter --software-rendering   # never use the GPU
+floter --gpu                  # always use it, even after a failed start
+```
+
+The same choice is available as `FLOTER_SOFTWARE_RENDERING=1` (or `=0`), for a
+desktop entry or a service file. If software rendering does not help either,
+run floter through XWayland:
+
+```bash
+GDK_BACKEND=x11 floter
+```
+
+And if you are on the AppImage, install the package for your distribution
+instead — a WebKit built against your own system's libraries is the real fix.
 
 ## Updates
 
