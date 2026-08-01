@@ -34,6 +34,7 @@ use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
     WebviewWindow, Wry,
 };
+use tauri::webview::Color;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt as NSPanelManagerExt, PanelLevel, StyleMask,
@@ -541,18 +542,18 @@ fn hide_macos_panel(window: &WebviewWindow) -> Result<(), String> {
 }
 
 /// Windows draws two independent edges around an undecorated window: the DWM
-/// border, a hard line the CSS surface would otherwise disagree with, and the
-/// drop shadow. Only the border is turned off — a panel without a shadow reads
-/// as pasted onto the desktop rather than floating above it.
+/// border — a hard line the CSS surface would otherwise disagree with — and
+/// the drop shadow, which is the gray outline that shows around the rounded
+/// corners of a transparent window. Both are native frame, so both are off:
+/// the edge is drawn by CSS (an inset ring in `App.css`) and the depth the
+/// shadow used to give is drawn there too, by a pseudo-element falloff. The
+/// webview's own background is cleared to transparent in `setup` so no opaque
+/// fill can peek around the radius.
 ///
-/// The shadow is also what leaves the terminal something to resize by. tao only
-/// insets the client rect (its `WM_NCCALCSIZE` handler) for an undecorated
-/// window that has one; without that inset the client area covers the entire
-/// window, WebView2's child window takes every mouse message inside it, and no
-/// frame is left for `WM_NCHITTEST` to report a sizing border on. Which windows
-/// may actually be resized stays a matter of `set_resizable`: the sizing border
-/// (`WS_SIZEBOX`) only exists on the terminal, so the launcher keeps its fixed
-/// size while the terminal can be dragged by any edge.
+/// The DWM attributes below stay: the corners keep following the system's own
+/// rounding — floter draws them itself (`DWMWCP_DONOTROUND`) so CSS is the
+/// sole source of the corner shape — and the border colour is pinned to none
+/// so no residual edge can survive the CSS one.
 #[cfg(target_os = "windows")]
 fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
     use windows::Win32::Graphics::Dwm::{
@@ -560,7 +561,7 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
         DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
 
-    window.set_shadow(true).map_err(|error| error.to_string())?;
+    window.set_shadow(false).map_err(|error| error.to_string())?;
     let hwnd = window.hwnd().map_err(|error| error.to_string())?;
     let preference = DWMWCP_DONOTROUND;
     let border_color = DWMWA_COLOR_NONE;
@@ -665,25 +666,6 @@ fn suppress_alt_space_system_menu(window: &WebviewWindow) -> Result<(), String> 
     }
 }
 
-#[cfg(target_os = "windows")]
-fn start_windows_drag(window: &WebviewWindow) -> Result<(), String> {
-    use windows::Win32::Foundation::WPARAM;
-    use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
-    use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, HTCAPTION, WM_NCLBUTTONDOWN};
-
-    let hwnd = window.hwnd().map_err(|error| error.to_string())?;
-    unsafe {
-        let _ = ReleaseCapture();
-        SendMessageW(
-            hwnd,
-            WM_NCLBUTTONDOWN,
-            Some(WPARAM(HTCAPTION as usize)),
-            None,
-        );
-    }
-    Ok(())
-}
-
 /// Tell the window server to recompute the panel's shadow.
 ///
 /// macOS derives the shadow of a transparent window from the alpha of what it
@@ -759,16 +741,12 @@ fn resize_window(
     let scale_factor = window.scale_factor().unwrap_or(1.0);
 
     // The anchor below compares two *outer* readings against the width being
-    // set, which is an inner one. On Windows the undecorated shadow puts a
-    // frame between the two, and left uncorrected that difference is added to
-    // the window's x on every collapse and expand — the panel walks across the
-    // screen a few pixels at a time. Everywhere else the two are the same size
-    // and this is zero.
-    #[cfg(target_os = "windows")]
-    let frame_width = previous_size
-        .zip(window.inner_size().ok())
-        .map_or(0, |(outer, inner)| outer.width as i32 - inner.width as i32);
-    #[cfg(not(target_os = "windows"))]
+    // set, which is an inner one. On Windows the undecorated DWM shadow used to
+    // put a frame between the two, and left uncorrected that difference was
+    // added to the window's x on every collapse and expand — the panel walked
+    // across the screen a few pixels at a time. The native frame is gone now
+    // (`shadow: false`), so outer and inner are the same size everywhere and
+    // the correction is zero.
     let frame_width = 0;
 
     window
@@ -844,9 +822,9 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     // remembered from the last dismissal stale. It is refilled on the next hide,
     // from wherever the drag left the panel.
     state.set_remembered_monitor(None);
-    #[cfg(target_os = "windows")]
-    start_windows_drag(&window)?;
-    #[cfg(not(target_os = "windows"))]
+    // One path on every platform: `start_dragging` hands the click to the OS as
+    // a caption drag — on Windows it performs the same WM_NCLBUTTONDOWN
+    // hand-off the removed `start_windows_drag` used to make by hand.
     window.start_dragging().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -1047,6 +1025,14 @@ pub fn run() {
             configure_macos_panel(&window)?;
             #[cfg(target_os = "windows")]
             configure_windows_frame(&window).map_err(std::io::Error::other)?;
+            // The webview paints its own opaque background by default; with the
+            // native frame gone, that fill would be what shows around the CSS
+            // radius instead of the desktop. Clear it so the window's own
+            // transparency is the only background there is.
+            #[cfg(target_os = "windows")]
+            window
+                .set_background_color(Some(Color(0, 0, 0, 0)))
+                .map_err(std::io::Error::other)?;
             window.set_resizable(false)?;
             let shadow_window = window.clone();
             window.on_window_event(move |event| {
