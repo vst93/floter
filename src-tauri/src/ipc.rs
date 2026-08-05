@@ -57,10 +57,18 @@ fn uid() -> u32 {
 /// cheap: one connect, one write, exit. No window, no tray, no event loop —
 /// a compositor shortcut has to feel like a key press, not like a launch.
 pub fn send_toggle() -> Result<(), String> {
-    send_toggle_to(&socket_path())
+    send_command_to(&socket_path(), "toggle")
 }
 
-fn send_toggle_to(path: &Path) -> Result<(), String> {
+pub fn send_show() -> Result<(), String> {
+    send_command_to(&socket_path(), "show")
+}
+
+pub fn send_ping() -> Result<(), String> {
+    send_command_to(&socket_path(), "ping")
+}
+
+fn send_command_to(path: &Path, command: &str) -> Result<(), String> {
     let mut stream = UnixStream::connect(path).map_err(|error| {
         format!(
             "cannot reach a running floter at {}: {error}",
@@ -68,7 +76,7 @@ fn send_toggle_to(path: &Path) -> Result<(), String> {
         )
     })?;
     stream
-        .write_all(b"toggle\n")
+        .write_all(format!("{command}\n").as_bytes())
         .and_then(|()| stream.flush())
         .map_err(|error| error.to_string())
 }
@@ -139,13 +147,25 @@ fn bind(path: &Path) -> std::io::Result<UnixListener> {
 fn serve_connection(app: &AppHandle, stream: UnixStream) {
     let reader = BufReader::new(stream);
     for line in reader.lines().map_while(Result::ok) {
-        if line.trim() != "toggle" {
+        let command = line.trim();
+        if command == "ping" {
             continue;
         }
+        if command != "toggle" && command != "show" {
+            continue;
+        }
+        let toggle = command == "toggle";
         // Showing and hiding windows has to happen on the main thread; this is
         // an arbitrary background thread.
         let handle = app.clone();
-        let _ = app.run_on_main_thread(move || crate::toggle_window_visibility(&handle));
+        let _ = app.run_on_main_thread(move || {
+            if toggle {
+                crate::toggle_window_visibility(&handle);
+            } else if let Some(window) = handle.get_webview_window("main") {
+                let state = handle.state::<crate::AppState>();
+                let _ = crate::reveal_saved_mode(&window, &state);
+            }
+        });
     }
 }
 
@@ -176,7 +196,11 @@ mod tests {
 
     #[test]
     fn recognizes_the_toggle_flag() {
-        let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_string()).collect::<Vec<_>>();
+        let args = |list: &[&str]| {
+            list.iter()
+                .map(|arg| (*arg).to_string())
+                .collect::<Vec<_>>()
+        };
 
         assert!(wants_toggle(args(&["floter", "--toggle"])));
         assert!(!wants_toggle(args(&["floter"])));
@@ -190,7 +214,7 @@ mod tests {
         let path = scratch_path("delivers");
         let listener = bind(&path).expect("bind");
 
-        send_toggle_to(&path).expect("send");
+        send_command_to(&path, "toggle").expect("send");
 
         let (stream, _) = listener.accept().expect("accept");
         let lines: Vec<String> = BufReader::new(stream)

@@ -1,0 +1,11 @@
+[package]
+name = "qscreen-shared"
+version = "0.3.0"
+edition = "2024"
+license = "MIT"
+description = "Shared endpoint helpers for qscreen, namespaced for Floter"
+repository = "https://github.com/dualface/qscreen"
+
+[lib]
+name = "qscreen_shared"
+path = "src/lib.rs"

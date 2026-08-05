@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::process::Command;
 use std::sync::Mutex;
 use tauri::State;
@@ -56,8 +57,15 @@ fn save_commands_to_config(commands: &[CustomCommand]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let content = serde_json::to_string_pretty(commands).map_err(|e| e.to_string())?;
-    std::fs::write(path, content).map_err(|e| e.to_string())
+    let content = serde_json::to_vec_pretty(commands).map_err(|e| e.to_string())?;
+    let parent = path.parent().ok_or("Invalid config path")?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+    temporary.write_all(&content).map_err(|e| e.to_string())?;
+    temporary.flush().map_err(|e| e.to_string())?;
+    temporary
+        .persist(path)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -72,8 +80,14 @@ pub fn add_custom_command(
     command: CustomCommand,
 ) -> Result<(), String> {
     let mut commands = state.commands.lock().map_err(|e| e.to_string())?;
-    commands.push(command);
-    save_commands_to_config(&commands)
+    if commands.iter().any(|existing| existing.id == command.id) {
+        return Err("Command id already exists".to_string());
+    }
+    let mut updated = commands.clone();
+    updated.push(command);
+    save_commands_to_config(&updated)?;
+    *commands = updated;
+    Ok(())
 }
 
 #[tauri::command]
@@ -83,9 +97,15 @@ pub fn update_custom_command(
     command: CustomCommand,
 ) -> Result<(), String> {
     let mut commands = state.commands.lock().map_err(|e| e.to_string())?;
+    if command.id != id && commands.iter().any(|existing| existing.id == command.id) {
+        return Err("Command id already exists".to_string());
+    }
     if let Some(pos) = commands.iter().position(|c| c.id == id) {
-        commands[pos] = command;
-        save_commands_to_config(&commands)
+        let mut updated = commands.clone();
+        updated[pos] = command;
+        save_commands_to_config(&updated)?;
+        *commands = updated;
+        Ok(())
     } else {
         Err("Command not found".to_string())
     }
@@ -94,8 +114,17 @@ pub fn update_custom_command(
 #[tauri::command]
 pub fn delete_custom_command(state: State<'_, CommandState>, id: String) -> Result<(), String> {
     let mut commands = state.commands.lock().map_err(|e| e.to_string())?;
-    commands.retain(|c| c.id != id);
-    save_commands_to_config(&commands)
+    if !commands.iter().any(|command| command.id == id) {
+        return Err("Command not found".to_string());
+    }
+    let updated = commands
+        .iter()
+        .filter(|command| command.id != id)
+        .cloned()
+        .collect::<Vec<_>>();
+    save_commands_to_config(&updated)?;
+    *commands = updated;
+    Ok(())
 }
 
 #[tauri::command]

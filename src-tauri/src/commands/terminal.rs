@@ -1,4 +1,4 @@
-use crate::terminal::session::TerminalManager;
+use crate::terminal::session::{ExternalTerminalOutcome, TerminalManager};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, State};
 
@@ -12,6 +12,7 @@ pub fn term_spawn(
     state: State<'_, TerminalState>,
     app: AppHandle,
     id: String,
+    generation: u64,
     shell: Option<String>,
     initial_command: Option<String>,
     theme: Option<String>,
@@ -21,6 +22,7 @@ pub fn term_spawn(
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     manager.spawn(
         id,
+        generation,
         app,
         shell,
         initial_command,
@@ -105,9 +107,29 @@ pub fn term_scroll_to(
 }
 
 #[tauri::command]
-pub fn open_in_default_terminal(state: State<'_, TerminalState>, id: String) -> Result<(), String> {
-    let manager = state.0.lock().map_err(|e| e.to_string())?;
-    manager.open_in_terminal(&id)
+pub async fn open_in_default_terminal(
+    state: State<'_, TerminalState>,
+    id: String,
+) -> Result<ExternalTerminalOutcome, String> {
+    let terminal_state = state.0.clone();
+    let request = {
+        let manager = terminal_state.lock().map_err(|e| e.to_string())?;
+        manager.external_terminal_request(&id)?
+    };
+    let generation = request.generation();
+    let preserve_session = request.preserves_session();
+    let outcome = tauri::async_runtime::spawn_blocking(move || request.open())
+        .await
+        .map_err(|error| error.to_string())??;
+
+    // Detach the source client immediately after the external host has accepted
+    // the session. The frontend still performs its idempotent cleanup to reset
+    // renderer state.
+    if outcome.session_handed_off {
+        let manager = terminal_state.lock().map_err(|e| e.to_string())?;
+        manager.close_if_generation(&id, generation, preserve_session)?;
+    }
+    Ok(outcome)
 }
 
 #[tauri::command]

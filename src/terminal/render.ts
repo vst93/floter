@@ -45,6 +45,7 @@ const CURSOR_HIDDEN = 4;
 
 const HEADER_BYTES = 23;
 const CELL_BYTES = 13;
+const COMBINING_RECORD_HEADER_BYTES = 6;
 const SCROLLBAR_WIDTH = 5;
 const SCROLLBAR_GAP = 0;
 /**
@@ -108,6 +109,7 @@ export class TerminalCanvas {
   historySize = 0;
   displayOffset = 0;
   private lastBytes: Uint8Array | null = null;
+  private combining = new Map<number, string>();
   private lastFont = "";
   private colorCache = new Map<number, string>();
 
@@ -237,6 +239,7 @@ export class TerminalCanvas {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const cols = dv.getUint16(0, true);
     const rows = dv.getUint16(2, true);
+    this.combining = readCombining(bytes, cols * rows);
     const cursorCol = dv.getUint16(4, true);
     const cursorRow = dv.getUint16(6, true);
     const cursorShape = dv.getUint8(8);
@@ -259,6 +262,7 @@ export class TerminalCanvas {
     const glyphOffset = Math.round((ch - this.opts.fontSize) / 2);
 
     let cursorChar = 0x20;
+    let cursorCombining = "";
     let cursorFg = WIRE_FG;
     let cursorBg = WIRE_BG;
     let cursorFlags = 0;
@@ -279,6 +283,7 @@ export class TerminalCanvas {
 
         if (row === cursorRow && col === cursorCol) {
           cursorChar = char;
+          cursorCombining = this.combining.get(row * cols + col) ?? "";
           cursorFg = fg;
           cursorBg = bg;
           cursorFlags = flags;
@@ -321,7 +326,8 @@ export class TerminalCanvas {
         }
 
         ctx.fillStyle = this.color(effectiveFg);
-        ctx.fillText(String.fromCodePoint(char), x, y + glyphOffset);
+        const cellIndex = row * cols + col;
+        ctx.fillText(String.fromCodePoint(char) + (this.combining.get(cellIndex) ?? ""), x, y + glyphOffset);
 
         this.drawUnderlineStrike(x, y, w, cellFg, flags);
       }
@@ -344,6 +350,7 @@ export class TerminalCanvas {
         cursorRow,
         cursorShape,
         cursorChar,
+        cursorCombining,
         cursorFg,
         cursorBg,
         cursorFlags,
@@ -397,6 +404,7 @@ export class TerminalCanvas {
     row: number,
     shape: number,
     cellChar: number,
+    combining: string,
     // The foreground and background of the cell the cursor sits on, in the order
     // the call site passes them. Only the foreground is used — a block cursor
     // redraws the glyph over its own fill.
@@ -421,7 +429,7 @@ export class TerminalCanvas {
           ctx.fillStyle = this.color(cellFg === WIRE_FG ? this.fg : cellFg);
           this.setFont(false, false);
           ctx.textBaseline = "top";
-          ctx.fillText(String.fromCodePoint(cellChar), x, y + glyphOffset);
+          ctx.fillText(String.fromCodePoint(cellChar) + combining, x, y + glyphOffset);
         }
         break;
       }
@@ -446,6 +454,9 @@ export class TerminalCanvas {
         break;
     }
     ctx.restore();
+    // restore() also restores the font. Keep the cache synchronized with the
+    // actual context after a block cursor temporarily selected the regular face.
+    this.lastFont = ctx.font;
   }
 
   /** Bring the scrollbar up, or keep it up. */
@@ -548,7 +559,7 @@ export class TerminalCanvas {
         if (char === 0x20) {
           line += " ";
         } else {
-          line += String.fromCodePoint(char);
+          line += String.fromCodePoint(char) + (this.combining.get(row * this.cols + col) ?? "");
           if (flags & FLAG_WIDE) col++; // skip the wide-char spacer
         }
       }
@@ -584,6 +595,22 @@ export class TerminalCanvas {
 
 function isSpace(char: number): boolean {
   return char === 0x20 || char === 0x09;
+}
+
+function readCombining(bytes: Uint8Array, cellCount: number): Map<number, string> {
+  const values = new Map<number, string>();
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = HEADER_BYTES + cellCount * CELL_BYTES;
+  const decoder = new TextDecoder();
+  while (offset + COMBINING_RECORD_HEADER_BYTES <= bytes.byteLength) {
+    const cellIndex = dv.getUint32(offset, true);
+    const byteLength = dv.getUint16(offset + 4, true);
+    offset += COMBINING_RECORD_HEADER_BYTES;
+    if (cellIndex >= cellCount || offset + byteLength > bytes.byteLength) break;
+    values.set(cellIndex, decoder.decode(bytes.subarray(offset, offset + byteLength)));
+    offset += byteLength;
+  }
+  return values;
 }
 
 /**

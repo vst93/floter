@@ -18,11 +18,13 @@ import {
   DEFAULT_SHORTCUTS,
   formatResultShortcut,
   formatShortcut,
+  IS_LINUX,
   IS_MAC,
   IS_WINDOWS,
   matchesResultShortcut,
   matchesShortcut,
   matchesShortcutModifiers,
+  normalizeResultShortcut,
   SHORTCUT_ACTIONS,
   shortcutFromEvent,
   withShortcutDefaults,
@@ -33,9 +35,14 @@ import "./App.css";
 
 if (IS_WINDOWS) {
   document.documentElement.classList.add("platform-windows");
+} else if (IS_MAC) {
+  document.documentElement.classList.add("platform-macos");
+} else if (IS_LINUX) {
+  document.documentElement.classList.add("platform-linux");
 }
 
 type ViewMode = "collapsed" | "terminal" | "settings";
+type ExternalTerminalOutcome = { session_handed_off: boolean };
 
 type LocalApplication = {
   name: string;
@@ -169,7 +176,7 @@ const URL_QUERY = /^(?:https?|ftp):\/\//i;
  * application name and an ambiguous directory, while `./Documents` says which of
  * the two was meant.
  */
-const PATH_QUERY = /^[/~.]|^[A-Za-z]:[\\/]/;
+const PATH_QUERY = /^[/~.]|^[A-Za-z]:[\\/]|^\\\\/;
 
 /**
  * First words that mean "this is a command line", not an application name.
@@ -527,8 +534,8 @@ function ShortcutRecorder({
 }
 
 
-type FramePayload = { id: string; frame: string };
-type ExitPayload = { id: string; code: number | null };
+type FramePayload = { id: string; generation: number; frame: string };
+type ExitPayload = { id: string; generation: number; code: number | null };
 
 type DragState =
   | { mode: "none" | "select" | "scroll" }
@@ -550,13 +557,17 @@ export default function App() {
   const lastMouseReportAt = useRef(0);
   const wheelRemainder = useRef(0);
   const terminalSizeSaveTimer = useRef<number | null>(null);
+  const pendingTerminalSize = useRef<{ width: number; height: number } | null>(null);
   const opacitySaveTimer = useRef<number | null>(null);
   const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
+  const terminalGeneration = useRef<number | null>(null);
+  const nextTerminalGeneration = useRef(Date.now());
   const sessionClosePromise = useRef<Promise<unknown> | null>(null);
   const termOpened = useRef(false);
-  const pendingCommand = useRef<string | null>(null);
+  const terminalOpening = useRef(false);
+  const externalTerminalOpening = useRef(false);
   const draftBeforeHistory = useRef("");
   const restoringMode = useRef<ViewMode | null>(null);
   /** Guards against two scans overlapping: a cold cache reads as out of date, so
@@ -619,7 +630,7 @@ export default function App() {
     [settings.shortcuts],
   );
   const actionBarShortcut = useMemo(
-    () => formatShortcut(shortcuts.select_result).replace(/\d$/, "↩"),
+    () => formatResultShortcut(shortcuts.select_result, "Enter"),
     [shortcuts.select_result],
   );
 
@@ -992,19 +1003,6 @@ export default function App() {
     render();
   };
 
-  const flushPendingCommand = (delay = 0) => {
-    if (!pendingCommand.current) return;
-    const command = pendingCommand.current;
-    pendingCommand.current = null;
-    window.setTimeout(() => {
-      invoke("term_input", {
-        id: "main",
-        data: Array.from(new TextEncoder().encode(`${command}\n`)),
-      });
-      focusTerminalView();
-    }, delay);
-  };
-
   const resetTerminalFrontendState = () => {
     frameRef.current = null;
     selectionRef.current = null;
@@ -1014,6 +1012,7 @@ export default function App() {
 
   const closeTerminalSession = () => {
     ptyReady.current = false;
+    terminalGeneration.current = null;
     resetTerminalFrontendState();
     const closing = invoke("term_close", { id: "main" }).catch(() => undefined);
     sessionClosePromise.current = closing;
@@ -1030,20 +1029,31 @@ export default function App() {
     }
     if (ptyReady.current) return;
     const { cols, rows } = dimsRef.current;
-    await invoke("term_spawn", {
-      id: "main",
-      shell: null,
-      initialCommand,
-      theme: resolvedTheme,
-      cols,
-      rows,
-    });
-    ptyReady.current = true;
+    const generation = ++nextTerminalGeneration.current;
+    terminalGeneration.current = generation;
+    try {
+      await invoke("term_spawn", {
+        id: "main",
+        generation,
+        shell: null,
+        initialCommand,
+        theme: resolvedTheme,
+        cols,
+        rows,
+      });
+      if (terminalGeneration.current === generation) {
+        ptyReady.current = true;
+      }
+    } catch (error) {
+      if (terminalGeneration.current === generation) {
+        terminalGeneration.current = null;
+      }
+      throw error;
+    }
   };
 
   const handleTerminalExit = () => {
     closeTerminalSession();
-    pendingCommand.current = null;
     setQuery("");
     setTerminalMounted(false);
     setMode("collapsed");
@@ -1074,14 +1084,22 @@ export default function App() {
 
   useEffect(() => {
     const unlistenFramePromise = listen<FramePayload>("term://frame", (event) => {
-      if (event.payload.id !== "main") return;
+      if (
+        event.payload.id !== "main" ||
+        event.payload.generation !== terminalGeneration.current
+      )
+        return;
       frameRef.current = decodeFrame(event.payload.frame);
       blinkRef.current = true;
       render();
     });
 
     const unlistenExitPromise = listen<ExitPayload>("term://exit", (event) => {
-      if (event.payload.id !== "main") return;
+      if (
+        event.payload.id !== "main" ||
+        event.payload.generation !== terminalGeneration.current
+      )
+        return;
       handleTerminalExit();
     });
 
@@ -1091,8 +1109,8 @@ export default function App() {
       rendererRef.current = null;
       frameRef.current = null;
       termOpened.current = false;
-      pendingCommand.current = null;
       ptyReady.current = false;
+      terminalGeneration.current = null;
     };
   }, []);
 
@@ -1115,7 +1133,6 @@ export default function App() {
     termOpened.current = true;
 
     relayoutAndResize();
-    flushPendingCommand(40);
 
     const resizeObserver = new ResizeObserver(() => relayoutAndResize());
     resizeObserver.observe(mountRef.current);
@@ -1182,12 +1199,15 @@ export default function App() {
       const width = payload.width / scale;
       const height = payload.height / scale;
       if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+      pendingTerminalSize.current = { width, height };
       if (terminalSizeSaveTimer.current !== null) {
         window.clearTimeout(terminalSizeSaveTimer.current);
       }
       terminalSizeSaveTimer.current = window.setTimeout(() => {
         terminalSizeSaveTimer.current = null;
-        invoke("save_terminal_size", { width, height }).catch(() => undefined);
+        const pending = pendingTerminalSize.current;
+        pendingTerminalSize.current = null;
+        if (pending) invoke("save_terminal_size", pending).catch(() => undefined);
       }, TERMINAL_SIZE_SAVE_DELAY);
     }).then((dispose) => {
       if (disposed) {
@@ -1204,6 +1224,9 @@ export default function App() {
         window.clearTimeout(terminalSizeSaveTimer.current);
         terminalSizeSaveTimer.current = null;
       }
+      const pending = pendingTerminalSize.current;
+      pendingTerminalSize.current = null;
+      if (pending) invoke("save_terminal_size", pending).catch(() => undefined);
     };
   }, [terminalMounted]);
 
@@ -1215,6 +1238,7 @@ export default function App() {
     const height = Math.min(
       SETTINGS_WINDOW_HEIGHT,
       Math.max(SETTINGS_MIN_HEIGHT, Math.floor(available * 0.72)),
+      Math.max(240, available - 24),
     );
     getCurrentWindow()
       .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
@@ -1248,7 +1272,13 @@ export default function App() {
         // for an empty query and a couple of pixels short of one with results
         // (or of a card that draws a border). It lands after the layout effect
         // above, so the measured height is applied again once it has.
-        invoke("show_input").then(syncLauncherHeight).catch(() => undefined);
+        invoke("show_input")
+          .then(() => {
+            syncLauncherHeight();
+            focusCollapsedInput();
+            if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
+          })
+          .catch(() => undefined);
       }
       focusCollapsedInput(90);
       focusCollapsedInput(140);
@@ -1300,7 +1330,6 @@ export default function App() {
     const unlistenModePromise = listen<string>("floter://mode", (event) => {
       if (event.payload === "collapsed") {
         closeTerminalSession();
-        pendingCommand.current = null;
         setQuery("");
         setTerminalMounted(false);
         setMode("collapsed");
@@ -1334,7 +1363,6 @@ export default function App() {
         .catch(() => undefined);
 
       restoringMode.current = "collapsed";
-      pendingCommand.current = null;
       setQuery("");
       setTerminalMounted(false);
       setMode("collapsed");
@@ -1608,9 +1636,28 @@ export default function App() {
     });
   };
 
-  // Open the current shell's working directory in the system default terminal.
-  const openInTerminal = () => {
-    invoke("open_in_default_terminal", { id: "main" });
+  // Hand the broker-owned PTY to the system terminal without restarting it.
+  const openInTerminal = async () => {
+    if (externalTerminalOpening.current || !ptyReady.current) return;
+    externalTerminalOpening.current = true;
+    try {
+      const outcome = await invoke<ExternalTerminalOutcome>("open_in_default_terminal", {
+        id: "main",
+      });
+      if (outcome.session_handed_off) {
+        restoringMode.current = "collapsed";
+        closeTerminalSession();
+        setQuery("");
+        setTerminalMounted(false);
+        setMode("collapsed");
+        await invoke("show_input");
+      }
+      await invoke("hide_window");
+    } catch {
+      focusTerminalView();
+    } finally {
+      externalTerminalOpening.current = false;
+    }
   };
 
   useEffect(() => {
@@ -1627,7 +1674,7 @@ export default function App() {
         }
         if (matchesShortcut(event, shortcuts.open_external_terminal)) {
           event.preventDefault();
-          openInTerminal();
+          void openInTerminal();
           return;
         }
         // Copy only claims the combination when there is something to copy, so
@@ -1758,14 +1805,27 @@ export default function App() {
     draftBeforeHistory.current = "";
   };
 
-  const returnToInputMode = () => {
+  const returnToInputMode = async () => {
+    // Resizing a native window can temporarily move keyboard focus back to the
+    // webview itself. Mark this as an explicit restoration so the mode effect
+    // does not race a second `show_input` call, then focus only after the native
+    // resize/reveal has completed.
+    restoringMode.current = "collapsed";
+    suppressBlurUntil.current = Date.now() + 400;
     closeTerminalSession();
-    pendingCommand.current = null;
     setQuery("");
     setTerminalMounted(false);
     setMode("collapsed");
-    focusCollapsedInput(50);
-    focusCollapsedInput(120);
+    try {
+      await invoke("show_input");
+      syncLauncherHeight();
+    } catch {
+      // The DOM still transitions back to a usable launcher even if the native
+      // resize failed; keep the keyboard recovery below independent of IPC.
+    }
+    focusCollapsedInput();
+    focusCollapsedInput(80);
+    if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
   };
 
   const openSettings = () => {
@@ -1841,7 +1901,7 @@ export default function App() {
     }
     opacitySaveTimer.current = window.setTimeout(() => {
       opacitySaveTimer.current = null;
-      invoke("save_settings", { settings: updated }).catch(() => undefined);
+      invoke("save_settings", { settings: settingsRef.current }).catch(() => undefined);
     }, 180);
   };
 
@@ -1925,7 +1985,24 @@ export default function App() {
   const captureShortcut = (action: ShortcutAction, next: string) => {
     setRecordingAction(null);
     setRejectedAction(null);
+    if (action === "select_result") {
+      const normalized = normalizeResultShortcut(next);
+      if (!normalized) {
+        setRejectedAction(action);
+        invoke("resume_shortcuts").catch(() => undefined);
+        return;
+      }
+      next = normalized;
+    }
     const previous = shortcuts[action];
+    const conflict = SHORTCUT_ACTIONS.some(
+      (candidate) => candidate !== action && shortcuts[candidate].toLowerCase() === next.toLowerCase(),
+    );
+    if (conflict) {
+      setRejectedAction(action);
+      invoke("resume_shortcuts").catch(() => undefined);
+      return;
+    }
     if (next === previous) {
       invoke("resume_shortcuts").catch(() => undefined);
       return;
@@ -1950,19 +2027,23 @@ export default function App() {
 
   const runCommand = async () => {
     const command = query.trim();
-    if (!command) return;
+    if (!command || terminalOpening.current) return;
 
-    rememberCommand(command);
-    pendingCommand.current = command;
+    terminalOpening.current = true;
+    setTerminalMounted(true);
+    setMode("terminal");
     try {
       await ensureTerminalSession(command);
+      rememberCommand(command);
+      setQuery("");
+      focusTerminalView();
     } catch {
-      pendingCommand.current = null;
-      return;
+      setTerminalMounted(false);
+      setMode("collapsed");
+      focusCollapsedInput(50);
+    } finally {
+      terminalOpening.current = false;
     }
-    setTerminalMounted(true);
-    setQuery("");
-    setMode("terminal");
   };
 
   const launchApplication = async (app: LocalApplication) => {
@@ -2192,7 +2273,7 @@ export default function App() {
                 title={t("settings.quitHint")}
                 onClick={() => invoke("quit_app")}
               >
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -2579,7 +2660,7 @@ export default function App() {
               title={t("terminal.openInTerminalHint", {
                 shortcut: formatShortcut(shortcuts.open_external_terminal),
               })}
-              onClick={openInTerminal}
+              onClick={() => void openInTerminal()}
             >
               ↗
             </button>

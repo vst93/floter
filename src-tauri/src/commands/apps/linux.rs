@@ -14,7 +14,9 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::AppHandle;
 
-use super::{icon_cache_path, paths_signature, LocalApplication};
+use super::{
+    cached_icon_is_fresh, icon_cache_path, mark_icon_cached, paths_signature, LocalApplication,
+};
 
 /// Icon sizes to try, largest first, in both the `48x48` and the `48` spelling
 /// (hicolor/Adwaita use the former, breeze-style themes the latter).
@@ -27,12 +29,7 @@ const ICON_EXTENSIONS: [&str; 3] = ["png", "svg", "xpm"];
 
 /// Themes searched before falling back to whatever else is installed.
 const PREFERRED_THEMES: [&str; 6] = [
-    "hicolor",
-    "Adwaita",
-    "breeze",
-    "Papirus",
-    "gnome",
-    "default",
+    "hicolor", "Adwaita", "breeze", "Papirus", "gnome", "default",
 ];
 
 pub fn roots() -> Vec<PathBuf> {
@@ -98,41 +95,34 @@ pub fn open(path: &Path) -> Result<(), String> {
 
     // `gio launch` is the only launcher that honours the full entry semantics
     // (field codes, `Terminal=`, D-Bus activation), so it is the happy path.
-    if Command::new("gio").arg("launch").arg(path).spawn().is_ok() {
+    if Command::new("gio")
+        .arg("launch")
+        .arg(path)
+        .status()
+        .is_ok_and(|status| status.success())
+    {
         return Ok(());
     }
 
-    // No glib tooling installed: run the `Exec=` line ourselves. Its quoting
-    // rules are shell-compatible, so `sh -c` reproduces them faithfully.
+    // No glib tooling installed: parse the `Exec=` line according to the
+    // desktop-entry rules. It is an argv declaration, not shell syntax.
     // `Terminal=true` entries are not wrapped here — that is the fallback of a
     // fallback, and the command still runs, just without a visible terminal.
     let entry = DesktopEntry::parse(path).ok_or("Cannot read desktop entry")?;
     let exec = entry.exec.ok_or("Desktop entry has no Exec line")?;
-    let command = strip_field_codes(&exec);
-    if command.is_empty() {
+    let argv = parse_exec_argv(&exec).ok_or("Invalid desktop entry Exec line")?;
+    let Some((program, arguments)) = argv.split_first() else {
         return Err("Desktop entry has an empty Exec line".to_string());
-    }
+    };
 
-    Command::new("sh")
-        .arg("-c")
-        .arg(&command)
+    Command::new(program)
+        .args(arguments)
         .spawn()
         .map(|_| ())
         .map_err(|e| e.to_string())
 }
 
-pub fn icon_path(
-    app: &AppHandle,
-    path: &Path,
-    source_hint: Option<&str>,
-) -> Option<String> {
-    for extension in ["png", "svg"] {
-        let target = icon_cache_path(app, path, extension)?;
-        if target.exists() {
-            return Some(target.to_string_lossy().to_string());
-        }
-    }
-
+pub fn icon_path(app: &AppHandle, path: &Path, source_hint: Option<&str>) -> Option<String> {
     let icon = match source_hint {
         Some(icon) => icon.to_string(),
         None => DesktopEntry::parse(path)?.icon?,
@@ -148,8 +138,9 @@ pub fn icon_path(
     }
 
     let target = icon_cache_path(app, path, &extension)?;
-    if !target.exists() {
+    if !cached_icon_is_fresh(&target, &source) {
         fs::copy(&source, &target).ok()?;
+        mark_icon_cached(&target, &source);
     }
     Some(target.to_string_lossy().to_string())
 }
@@ -163,14 +154,7 @@ fn data_home() -> Option<PathBuf> {
 
 fn data_dirs() -> Vec<PathBuf> {
     std::env::var_os("XDG_DATA_DIRS")
-        .map(|value| {
-            value
-                .to_string_lossy()
-                .split(':')
-                .filter(|part| !part.is_empty())
-                .map(PathBuf::from)
-                .collect()
-        })
+        .map(|value| std::env::split_paths(&value).collect())
         .unwrap_or_default()
 }
 
@@ -356,13 +340,17 @@ impl DesktopEntry {
         if self.hidden || self.no_display {
             return None;
         }
-        if self.entry_type.as_deref().is_some_and(|t| t != "Application") {
+        if self
+            .entry_type
+            .as_deref()
+            .is_some_and(|t| t != "Application")
+        {
             return None;
         }
         self.exec.as_ref()?;
         // `TryExec` is the entry's own "is this installed" probe.
         if let Some(try_exec) = self.try_exec.as_deref() {
-            if try_exec.starts_with('/') && !Path::new(try_exec).exists() {
+            if !executable_available(try_exec) {
                 return None;
             }
         }
@@ -415,13 +403,62 @@ impl DesktopEntry {
 /// The program an `Exec=`/`TryExec=` line runs, without its path or arguments:
 /// `/usr/bin/google-chrome-stable %U` is searchable as `google-chrome-stable`.
 fn executable_name(exec: Option<&str>) -> Option<String> {
-    let command = strip_field_codes(exec?);
+    let command = parse_exec_argv(exec?)?;
     // Wrappers take the real program as an argument, so the first word is not
     // always the interesting one — but it is the one the entry is identified by
     // everywhere else, and guessing further would be worse than not guessing.
-    let program = command.split_whitespace().next()?.trim_matches('"');
+    let program = command.first()?;
     let stem = Path::new(program).file_name()?.to_str()?;
     (!stem.is_empty()).then(|| stem.to_string())
+}
+
+fn executable_available(program: &str) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+
+    let is_executable = |path: &Path| {
+        fs::metadata(path).ok().is_some_and(|metadata| {
+            metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
+        })
+    };
+    if program.contains(std::path::is_separator) {
+        return is_executable(Path::new(program));
+    }
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|dir| is_executable(&dir.join(program))))
+        .unwrap_or(false)
+}
+
+fn parse_exec_argv(exec: &str) -> Option<Vec<String>> {
+    let mut arguments = Vec::new();
+    let mut current = String::new();
+    let mut chars = exec.chars();
+    let mut quoted = false;
+    while let Some(character) = chars.next() {
+        match character {
+            '"' => quoted = !quoted,
+            '\\' => current.push(chars.next()?),
+            character if character.is_whitespace() && !quoted => {
+                if !current.is_empty() {
+                    let value = strip_field_codes(&current);
+                    if !value.is_empty() {
+                        arguments.push(value);
+                    }
+                    current.clear();
+                }
+            }
+            _ => current.push(character),
+        }
+    }
+    if quoted {
+        return None;
+    }
+    if !current.is_empty() {
+        let value = strip_field_codes(&current);
+        if !value.is_empty() {
+            arguments.push(value);
+        }
+    }
+    Some(arguments)
 }
 
 /// Desktop-entry string escapes (`\s`, `\n`, `\t`, `\r`, `\\`).
@@ -473,7 +510,7 @@ fn strip_field_codes(exec: &str) -> String {
             None => {}
         }
     }
-    output.split_whitespace().collect::<Vec<_>>().join(" ")
+    output
 }
 
 /// Memo table for [`resolve_icon`], keyed by the raw `Icon=` value.

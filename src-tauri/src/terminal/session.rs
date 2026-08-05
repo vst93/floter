@@ -5,7 +5,6 @@
 //! terminal's `Wakeup` events, serializes the visible grid, and pushes binary
 //! frames to the frontend.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -14,18 +13,16 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use alacritty_terminal::event::{Event, EventListener, WindowSize};
-use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
+use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::{Config, Term, TermMode};
-use alacritty_terminal::tty;
-use alacritty_terminal::tty::{Options as TtyOptions, Shell};
 use alacritty_terminal::vte::ansi::{CursorShape, CursorStyle, Processor, Rgb};
 use base64::Engine;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
+use super::broker::{self, BrokerCallbacks, BrokerInput, BrokerSession};
 use super::frame;
 
 /// Maximum render rate cap, expressed as the idle window used to coalesce a
@@ -35,10 +32,16 @@ const COALESCE: Duration = Duration::from_millis(8);
 /// Poll interval for the render thread's shutdown check.
 const POLL: Duration = Duration::from_millis(100);
 
+/// qscreen disconnects a byte client when its own 16-event queue fills. Drain
+/// IPC into a bounded parsing queue first so ordinary large logs cannot trip
+/// that limit, while still placing a hard cap on Floter's buffered output.
+const PARSE_QUEUE_CAPACITY: usize = 512;
+
 /// Payload emitted to the frontend on every rendered frame.
 #[derive(Clone, Serialize)]
 struct FrameEvent<'a> {
     id: &'a str,
+    generation: u64,
     frame: String,
 }
 
@@ -46,6 +49,7 @@ struct FrameEvent<'a> {
 #[derive(Clone, Serialize)]
 struct ExitEvent<'a> {
     id: &'a str,
+    generation: u64,
     code: Option<i32>,
 }
 
@@ -54,19 +58,30 @@ enum RenderEvent {
     ChildExit(Option<i32>),
 }
 
+enum ParserEvent {
+    Output(Vec<u8>),
+    Exit(Option<i32>),
+}
+
+#[derive(Clone)]
+struct SessionIdentity {
+    id: String,
+    generation: u64,
+}
+
 /// Event listener that forwards redraw-worthy events to the render thread, and
 /// routes terminal query responses (`PtyWrite`) back into the PTY.
 #[derive(Clone)]
 struct RenderListener {
     tx: Sender<RenderEvent>,
-    /// The PTY sender, filled in once the event loop has been created.
+    /// The broker write path, filled in once its attach stream is ready.
     ///
     /// `Arc<Mutex<Option<_>>>` because the listener is cloned — it is handed to
     /// both `Term::new` and `EventLoop::new` — while the sender only exists
     /// *after* the event loop it belongs to, i.e. after both of those clones
     /// have been made. The shared cell lets the later assignment reach the
     /// copies that were already given away.
-    pty_sender: Arc<Mutex<Option<EventLoopSender>>>,
+    pty_sender: Arc<Mutex<Option<BrokerInput>>>,
 }
 
 impl EventListener for RenderListener {
@@ -92,7 +107,7 @@ impl EventListener for RenderListener {
                 // for a second or three before drawing its first frame.
                 if let Ok(guard) = self.pty_sender.lock() {
                     if let Some(sender) = guard.as_ref() {
-                        let _ = sender.send(Msg::Input(Cow::Owned(text.into_bytes())));
+                        let _ = sender.send(text.into_bytes());
                     }
                 }
                 // The reply itself changes nothing on screen, but whatever the
@@ -104,20 +119,6 @@ impl EventListener for RenderListener {
         }
     }
 }
-
-/// Terminfo entry advertised to the shell and everything it runs.
-///
-/// [`tty::setup_env`] writes `TERM=alacritty` whenever it can find that entry,
-/// and its search path is narrower than the one ncurses actually uses: it misses
-/// `/usr/local/share/terminfo` and the Homebrew prefixes, and it looks in
-/// `~/.terminfo` only when `$TERMINFO` is unset. So it can settle on `alacritty`
-/// on a system where a TUI program will not find the description — and a program
-/// that cannot resolve `TERM` falls back to dumb-terminal behaviour after
-/// searching for the description it was promised.
-///
-/// `xterm-256color` ships with ncurses itself, so it is present everywhere and
-/// close enough to what this emulator implements.
-const TERMINFO: &str = "xterm-256color";
 
 /// Terminal dimensions used when constructing / resizing the `Term`.
 struct TermSize {
@@ -141,22 +142,86 @@ impl TerminalTheme {
 }
 
 const LIGHT_ANSI: [Rgb; 16] = [
-    Rgb { r: 0x1d, g: 0x1f, b: 0x21 },
-    Rgb { r: 0xc7, g: 0x2e, b: 0x3c },
-    Rgb { r: 0x19, g: 0x73, b: 0x3a },
-    Rgb { r: 0x7a, g: 0x5c, b: 0x00 },
-    Rgb { r: 0x16, g: 0x59, b: 0xb7 },
-    Rgb { r: 0x9c, g: 0x2c, b: 0xa0 },
-    Rgb { r: 0x00, g: 0x7c, b: 0x86 },
-    Rgb { r: 0x53, g: 0x57, b: 0x62 },
-    Rgb { r: 0x76, g: 0x7b, b: 0x86 },
-    Rgb { r: 0xd6, g: 0x3d, b: 0x4b },
-    Rgb { r: 0x1a, g: 0x6e, b: 0x38 },
-    Rgb { r: 0x7a, g: 0x59, b: 0x00 },
-    Rgb { r: 0x24, g: 0x6f, b: 0xd1 },
-    Rgb { r: 0xac, g: 0x38, b: 0xa9 },
-    Rgb { r: 0x00, g: 0x6e, b: 0x7a },
-    Rgb { r: 0x2c, g: 0x30, b: 0x37 },
+    Rgb {
+        r: 0x1d,
+        g: 0x1f,
+        b: 0x21,
+    },
+    Rgb {
+        r: 0xc7,
+        g: 0x2e,
+        b: 0x3c,
+    },
+    Rgb {
+        r: 0x19,
+        g: 0x73,
+        b: 0x3a,
+    },
+    Rgb {
+        r: 0x7a,
+        g: 0x5c,
+        b: 0x00,
+    },
+    Rgb {
+        r: 0x16,
+        g: 0x59,
+        b: 0xb7,
+    },
+    Rgb {
+        r: 0x9c,
+        g: 0x2c,
+        b: 0xa0,
+    },
+    Rgb {
+        r: 0x00,
+        g: 0x7c,
+        b: 0x86,
+    },
+    Rgb {
+        r: 0x53,
+        g: 0x57,
+        b: 0x62,
+    },
+    Rgb {
+        r: 0x76,
+        g: 0x7b,
+        b: 0x86,
+    },
+    Rgb {
+        r: 0xd6,
+        g: 0x3d,
+        b: 0x4b,
+    },
+    Rgb {
+        r: 0x1a,
+        g: 0x6e,
+        b: 0x38,
+    },
+    Rgb {
+        r: 0x7a,
+        g: 0x59,
+        b: 0x00,
+    },
+    Rgb {
+        r: 0x24,
+        g: 0x6f,
+        b: 0xd1,
+    },
+    Rgb {
+        r: 0xac,
+        g: 0x38,
+        b: 0xa9,
+    },
+    Rgb {
+        r: 0x00,
+        g: 0x6e,
+        b: 0x7a,
+    },
+    Rgb {
+        r: 0x2c,
+        g: 0x30,
+        b: 0x37,
+    },
 ];
 
 /// Build the alacritty `Config`, applying the user-configured default cursor
@@ -209,28 +274,22 @@ impl Dimensions for TermSize {
     }
 }
 
-/// A single live terminal backed by alacritty_terminal.
-///
-/// The PTY event loop and render thread run detached; both self-terminate on
-/// [`TerminalSession::close`] (via `Msg::Shutdown` and the `alive` flag).
+/// A single Alacritty terminal view attached to a broker-owned PTY.
 pub struct TerminalSession {
+    identity: SessionIdentity,
+    broker: BrokerSession,
+    preserve_broker: AtomicBool,
+    closed: AtomicBool,
     terminal: Arc<FairMutex<Term<RenderListener>>>,
-    sender: EventLoopSender,
     /// Manual wake channel (e.g. after an out-of-band resize).
     wakeup: Sender<RenderEvent>,
     alive: Arc<AtomicBool>,
-    /// PID of the spawned shell, used to look up its working directory and
-    /// whether the launcher-started command is still running.
-    shell_pid: u32,
-    /// Command entered in the launcher. A system terminal can restart this when
-    /// it is still the shell's foreground job; the PTY itself cannot be moved.
-    initial_command: Option<String>,
 }
 
 impl TerminalSession {
     /// Spawn a new terminal session running `shell` (or the user's default).
-    pub fn new(
-        id: String,
+    fn new(
+        identity: SessionIdentity,
         app: AppHandle,
         shell: Option<String>,
         initial_command: Option<String>,
@@ -238,14 +297,6 @@ impl TerminalSession {
         cols: u16,
         rows: u16,
     ) -> Result<Self, String> {
-        tty::setup_env();
-        // Written *after* `setup_env`, which overwrites `TERM` unconditionally
-        // (with either `alacritty` or `xterm-256color`, so there is nothing of
-        // the user's to preserve here); the `COLORTERM` it also sets is left
-        // alone. This only covers readers inside our own process — the child
-        // gets its copy from `tty_options.env` below.
-        std::env::set_var("TERM", TERMINFO);
-
         let size = TermSize {
             cols: cols.max(2) as usize,
             rows: rows.max(1) as usize,
@@ -262,63 +313,53 @@ impl TerminalSession {
         let mut term = Term::new(config, &size, listener.clone());
         apply_terminal_theme(&mut term, TerminalTheme::from_name(theme.as_deref()));
         let terminal = Arc::new(FairMutex::new(term));
+        let (parser_tx, parser_rx) = mpsc::sync_channel(PARSE_QUEUE_CAPACITY);
+        let output_tx = parser_tx.clone();
+        let broker = broker::spawn_session(
+            format!("floter-{}-{}", std::process::id(), identity.generation),
+            shell,
+            dirs::home_dir().unwrap_or_default(),
+            initial_command,
+            cols,
+            rows,
+            BrokerCallbacks {
+                output: Box::new(move |output| {
+                    let _ = output_tx.send(ParserEvent::Output(output));
+                }),
+                exit: Box::new(move |code| {
+                    let _ = parser_tx.send(ParserEvent::Exit(code));
+                }),
+            },
+        )?;
 
-        let mut tty_options = TtyOptions::default();
-        tty_options.working_directory = dirs::home_dir();
-        // `tty::new` never puts `TERM` on the command it builds, so without this
-        // the child would only pick the variable up by inheriting our process
-        // environment. Everything in this map goes through `Command::env`, which
-        // sets it on the child directly: no dependence on a process-wide global
-        // that any other thread in a Tauri app may have rewritten between here
-        // and the fork, and an explicit value for `login` to carry over on
-        // macOS, where the shell is started as
-        // `login -flp <user> /bin/zsh -fc 'exec -a -zsh <shell>'`.
-        tty_options
-            .env
-            .insert("TERM".to_string(), TERMINFO.to_string());
-        if let Some(program) = shell {
-            tty_options.shell = Some(Shell::new(program, Vec::new()));
-        }
-
-        let window_size = WindowSize {
-            num_lines: size.rows as u16,
-            num_cols: size.cols as u16,
-            cell_width: 0,
-            cell_height: 0,
-        };
-
-        let pty = tty::new(&tty_options, window_size, 0).map_err(|e| e.to_string())?;
-        // `Pty::child()` is Unix-only: alacritty_terminal's Windows backend does
-        // not expose the child process handle. The PID is used solely by
-        // `open_in_default_terminal` to read the shell's cwd, which is itself a
-        // Unix-only path — on Windows the feature falls back to the home dir.
-        #[cfg(unix)]
-        let shell_pid = pty.child().id();
-        #[cfg(not(unix))]
-        let shell_pid = 0u32;
-
-        let event_loop = EventLoop::new(terminal.clone(), listener, pty, false, false)
-            .map_err(|e| e.to_string())?;
-        let sender = event_loop.channel();
-        // Hand the listener its write path before the loop starts reading, so
-        // that a query arriving in the child's very first output has somewhere
-        // to send its answer.
+        // Install the terminal-query reply path before parsing any queued PTY
+        // output. Programs probing terminal capabilities can write immediately.
         if let Ok(mut slot) = pty_sender.lock() {
-            *slot = Some(sender.clone());
+            *slot = Some(broker.writer());
         }
-        // Detach: the loop owns itself and exits on `Msg::Shutdown`.
-        let _ = event_loop.spawn();
 
         let alive = Arc::new(AtomicBool::new(true));
-        spawn_render_thread(id.clone(), app, terminal.clone(), rx, alive.clone());
+        if let Err(error) =
+            spawn_broker_parser_thread(terminal.clone(), parser_rx, tx.clone(), alive.clone())
+        {
+            broker.kill();
+            return Err(error);
+        }
+        if let Err(error) =
+            spawn_render_thread(identity.clone(), app, terminal.clone(), rx, alive.clone())
+        {
+            broker.kill();
+            return Err(error);
+        }
 
         Ok(Self {
+            identity,
+            broker,
+            preserve_broker: AtomicBool::new(false),
+            closed: AtomicBool::new(false),
             terminal,
-            sender,
             wakeup: tx,
             alive,
-            shell_pid,
-            initial_command,
         })
     }
 
@@ -329,9 +370,7 @@ impl TerminalSession {
     }
 
     fn send_pty(&self, data: Vec<u8>) -> Result<(), String> {
-        self.sender
-            .send(Msg::Input(Cow::Owned(data)))
-            .map_err(|error| error.to_string())?;
+        self.broker.input(data)?;
         let _ = self.wakeup.send(RenderEvent::Wake);
         Ok(())
     }
@@ -352,13 +391,7 @@ impl TerminalSession {
     /// Full-screen applications either receive mouse-wheel reports or, when
     /// alternate scrolling is enabled, cursor-key input. Only the normal screen
     /// moves through the emulator's scrollback history.
-    pub fn wheel(
-        &self,
-        delta: i32,
-        column: u16,
-        row: u16,
-        modifiers: u8,
-    ) -> Result<(), String> {
+    pub fn wheel(&self, delta: i32, column: u16, row: u16, modifiers: u8) -> Result<(), String> {
         let delta = delta.clamp(-32, 32);
         if delta == 0 {
             return Ok(());
@@ -426,47 +459,85 @@ impl TerminalSession {
 
     /// Resize both the terminal grid and the PTY.
     pub fn resize(&self, cols: u16, rows: u16) -> Result<(), String> {
+        let cols = cols.max(2);
+        let rows = rows.max(1);
         let size = TermSize {
-            cols: cols.max(2) as usize,
-            rows: rows.max(1) as usize,
+            cols: cols as usize,
+            rows: rows as usize,
         };
         {
             let mut term = self.terminal.lock();
             term.resize(size);
         }
-        self.sender
-            .send(Msg::Resize(WindowSize {
-                num_lines: rows,
-                num_cols: cols,
-                cell_width: 0,
-                cell_height: 0,
-            }))
-            .map_err(|e| e.to_string())?;
+        self.broker.resize(cols, rows)?;
         // Prompt an immediate re-render so the new dimensions show up.
         let _ = self.wakeup.send(RenderEvent::Wake);
         Ok(())
     }
 
-    /// Shut the session down: stop the PTY event loop and render thread.
+    /// Shut down the view and either kill or detach its broker session.
     pub fn close(&self) {
+        if self.closed.swap(true, Ordering::SeqCst) {
+            return;
+        }
         self.alive.store(false, Ordering::SeqCst);
-        let _ = self.sender.send(Msg::Shutdown);
         let _ = self.wakeup.send(RenderEvent::Wake);
+        if self.preserve_broker.load(Ordering::SeqCst) {
+            self.broker.detach();
+        } else {
+            self.broker.kill();
+        }
     }
 
-    /// Continue in the system terminal as closely as a standalone PTY allows.
-    ///
-    /// A PTY's controlling process and live screen cannot be attached to a
-    /// second terminal without a persistent session broker. We carry over the
-    /// working directory and restart the launcher command only while its direct
-    /// foreground child still matches it, avoiding stale command replay.
-    pub fn open_in_default_terminal(&self) -> Result<(), String> {
-        let cwd = read_cwd(self.shell_pid).unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
-        let command = self
-            .initial_command
-            .as_deref()
-            .filter(|command| initial_command_is_running(self.shell_pid, command));
-        open_terminal_at(&cwd, command)
+    fn detach_for_handoff(&self) {
+        self.preserve_broker.store(true, Ordering::SeqCst);
+        self.close();
+    }
+
+    /// Continue the same broker-owned PTY in the system terminal.
+    fn external_terminal_request(&self) -> ExternalTerminalRequest {
+        ExternalTerminalRequest {
+            generation: self.identity.generation,
+            cwd: dirs::home_dir().unwrap_or_default(),
+            session_id: self.broker.session_id().to_string(),
+        }
+    }
+}
+
+/// Everything needed to open a system terminal, copied out while the session
+/// manager is locked so the potentially slow platform launcher runs without
+/// blocking terminal input or another IPC command.
+pub struct ExternalTerminalRequest {
+    generation: u64,
+    cwd: PathBuf,
+    session_id: String,
+}
+
+#[derive(Serialize)]
+pub struct ExternalTerminalOutcome {
+    pub session_handed_off: bool,
+}
+
+impl ExternalTerminalRequest {
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn preserves_session(&self) -> bool {
+        true
+    }
+
+    pub fn open(self) -> Result<ExternalTerminalOutcome, String> {
+        #[cfg(unix)]
+        let external_command = broker::attach_command(&self.session_id)?;
+        #[cfg(unix)]
+        let session_handed_off = open_terminal_at(&self.cwd, Some(&external_command))?;
+        #[cfg(windows)]
+        let session_handed_off = {
+            broker::open_windows_terminal(&self.session_id, &self.cwd)?;
+            true
+        };
+        Ok(ExternalTerminalOutcome { session_handed_off })
     }
 }
 
@@ -543,7 +614,11 @@ fn encode_mouse_report(
     if kind == "release" {
         code = 3 | modifiers;
     }
-    let values = [u32::from(code) + 32, u32::from(column) + 33, u32::from(row) + 33];
+    let values = [
+        u32::from(code) + 32,
+        u32::from(column) + 33,
+        u32::from(row) + 33,
+    ];
     let mut report = b"\x1b[M".to_vec();
     if mode.contains(TermMode::UTF8_MOUSE) {
         for value in values {
@@ -565,22 +640,58 @@ impl Drop for TerminalSession {
     }
 }
 
+fn spawn_broker_parser_thread(
+    terminal: Arc<FairMutex<Term<RenderListener>>>,
+    rx: Receiver<ParserEvent>,
+    wakeup: Sender<RenderEvent>,
+    alive: Arc<AtomicBool>,
+) -> Result<(), String> {
+    std::thread::Builder::new()
+        .name("term-parser".into())
+        .spawn(move || {
+            let mut processor: Processor = Processor::new();
+            while alive.load(Ordering::SeqCst) {
+                match rx.recv_timeout(POLL) {
+                    Ok(ParserEvent::Output(output)) => {
+                        {
+                            let mut term = terminal.lock();
+                            processor.advance(&mut *term, &output);
+                        }
+                        let _ = wakeup.send(RenderEvent::Wake);
+                    }
+                    Ok(ParserEvent::Exit(code)) => {
+                        let _ = wakeup.send(RenderEvent::ChildExit(code));
+                        break;
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        let _ = wakeup.send(RenderEvent::ChildExit(None));
+                        break;
+                    }
+                }
+            }
+        })
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 #[allow(clippy::needless_pass_by_value)]
 fn spawn_render_thread(
-    id: String,
+    identity: SessionIdentity,
     app: AppHandle,
     terminal: Arc<FairMutex<Term<RenderListener>>>,
     rx: Receiver<RenderEvent>,
     alive: Arc<AtomicBool>,
-) {
+) -> Result<(), String> {
     std::thread::Builder::new()
         .name("term-render".into())
-        .spawn(move || render_loop(id, app, terminal, rx, alive))
-        .expect("spawn render thread");
+        .spawn(move || render_loop(identity, app, terminal, rx, alive))
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn render_loop(
-    id: String,
+    identity: SessionIdentity,
     app: AppHandle,
     terminal: Arc<FairMutex<Term<RenderListener>>>,
     rx: Receiver<RenderEvent>,
@@ -616,14 +727,22 @@ fn render_loop(
                 let _ = app.emit(
                     "term://frame",
                     FrameEvent {
-                        id: &id,
+                        id: &identity.id,
+                        generation: identity.generation,
                         frame: encoded,
                     },
                 );
 
                 if let Some(code) = child_exit {
                     alive.store(false, Ordering::SeqCst);
-                    let _ = app.emit("term://exit", ExitEvent { id: &id, code });
+                    let _ = app.emit(
+                        "term://exit",
+                        ExitEvent {
+                            id: &identity.id,
+                            generation: identity.generation,
+                            code,
+                        },
+                    );
                     break;
                 }
             }
@@ -650,6 +769,7 @@ impl TerminalManager {
     pub fn spawn(
         &self,
         id: String,
+        generation: u64,
         app: AppHandle,
         shell: Option<String>,
         initial_command: Option<String>,
@@ -661,15 +781,12 @@ impl TerminalManager {
         if let Some(session) = sessions.remove(&id) {
             session.close();
         }
-        let session = TerminalSession::new(
-            id.clone(),
-            app,
-            shell,
-            initial_command,
-            theme,
-            cols,
-            rows,
-        )?;
+        let identity = SessionIdentity {
+            id: id.clone(),
+            generation,
+        };
+        let session =
+            TerminalSession::new(identity, app, shell, initial_command, theme, cols, rows)?;
         sessions.insert(id, session);
         Ok(())
     }
@@ -756,11 +873,33 @@ impl TerminalManager {
         Ok(())
     }
 
-    pub fn open_in_terminal(&self, id: &str) -> Result<(), String> {
+    pub fn close_if_generation(
+        &self,
+        id: &str,
+        generation: u64,
+        preserve_session: bool,
+    ) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if sessions
+            .get(id)
+            .is_some_and(|session| session.identity.generation == generation)
+        {
+            if let Some(session) = sessions.remove(id) {
+                if preserve_session {
+                    session.detach_for_handoff();
+                } else {
+                    session.close();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn external_terminal_request(&self, id: &str) -> Result<ExternalTerminalRequest, String> {
         let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
         match sessions.get(id) {
-            Some(session) => session.open_in_default_terminal(),
-            None => Ok(()),
+            Some(session) => Ok(session.external_terminal_request()),
+            None => Err("terminal session is not running".to_string()),
         }
     }
 
@@ -774,168 +913,67 @@ impl TerminalManager {
     }
 }
 
-/// Whether the shell's direct foreground child still matches the command that
-/// opened this launcher session. Complex shell expressions are deliberately not
-/// resumed: carrying the directory is better than replaying a pipeline or a
-/// partially completed command in a second terminal.
-fn initial_command_is_running(pid: u32, command: &str) -> bool {
-    let Some(expected) = resumable_program(command) else {
-        return false;
-    };
-    direct_child_programs(pid)
-        .into_iter()
-        .any(|program| program == expected)
-}
-
-fn resumable_program(command: &str) -> Option<String> {
-    let command = command.trim();
-    if command.is_empty() || command.contains(['|', ';', '&', '>', '<', '`', '$', '\n']) {
-        return None;
-    }
-    let program = command.split_whitespace().next()?;
-    if program.contains('=') {
-        return None;
-    }
-    Path::new(program)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(str::to_string)
-}
-
-#[cfg(target_os = "linux")]
-fn direct_child_programs(pid: u32) -> Vec<String> {
-    let children = std::fs::read_to_string(format!("/proc/{pid}/task/{pid}/children"))
-        .unwrap_or_default();
-    children
-        .split_whitespace()
-        .filter_map(|child| std::fs::read_to_string(format!("/proc/{child}/comm")).ok())
-        .map(|program| program.trim().to_string())
-        .collect()
-}
-
-#[cfg(target_os = "macos")]
-fn direct_child_programs(pid: u32) -> Vec<String> {
-    if pid == 0 {
-        return Vec::new();
-    }
-    let Ok(children) = Command::new("pgrep")
-        .args(["-P", &pid.to_string()])
-        .output()
-    else {
-        return Vec::new();
-    };
-    if !children.status.success() {
-        return Vec::new();
-    }
-    children
-        .stdout
-        .split(|byte| *byte == b'\n')
-        .filter_map(|child| std::str::from_utf8(child).ok()?.trim().parse::<u32>().ok())
-        .filter_map(|child| {
-            Command::new("ps")
-                .args(["-p", &child.to_string(), "-o", "comm="])
-                .output()
-                .ok()
-        })
-        .filter(|output| output.status.success())
-        .filter_map(|output| {
-            let program = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            Path::new(&program)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(str::to_string)
-        })
-        .collect()
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
-fn direct_child_programs(_pid: u32) -> Vec<String> {
-    Vec::new()
-}
-
-/// Resolve the current working directory of `pid`.
-///
-/// Uses `/proc` where available and falls back to `lsof` elsewhere (macOS).
-fn read_cwd(pid: u32) -> Option<PathBuf> {
-    #[cfg(target_os = "linux")]
-    if let Ok(path) = std::fs::read_link(format!("/proc/{pid}/cwd")) {
-        return Some(path);
-    }
-
-    let output = Command::new("lsof")
-        .args(["-a", "-p", &pid.to_string(), "-d", "cwd", "-Fn"])
-        .output()
-        .ok()?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout.lines().find_map(|line| {
-        line.strip_prefix('n')
-            .filter(|p| !p.is_empty())
-            .map(PathBuf::from)
-    })
-}
-
 /// Wrap `value` in single quotes for safe interpolation into a `/bin/sh` script.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
-/// Escape `value` for interpolation into a double-quoted AppleScript string.
-///
-/// Applied *on top of* [`sh_quote`]: the shell quoting protects the path from
-/// the shell that ends up running the line, this protects the surrounding
-/// AppleScript literal from the quoting itself. macOS allows `"` and `\` in file
-/// names, and either one would otherwise end the literal early.
+/// AppleScript used to start Floter's attach helper in Terminal.app's
+/// interactive shell. It avoids a temporary `.command` file and keeps the tab
+/// open after the brokered shell exits.
 #[cfg(target_os = "macos")]
-fn applescript_quote(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
-}
+const MACOS_TERMINAL_SCRIPT: &str = r#"on run argv
+    set workingDirectory to item 1 of argv
+    set commandText to item 2 of argv
+    tell application id "com.apple.Terminal"
+        activate
+        set targetTab to do script ("cd -- " & quoted form of workingDirectory)
+        repeat 40 times
+            if not busy of targetTab then exit repeat
+            delay 0.05
+        end repeat
+        do script commandText in targetTab
+    end tell
+end run"#;
 
-/// Open a Terminal.app window at `dir`.
+/// Open the macOS system Terminal at `dir`. Active commands are entered through
+/// its interactive shell so the command is visible and saved in shell history.
+/// If Automation permission is unavailable, open the directory without moving
+/// the command and report that the internal session must remain alive.
 #[cfg(target_os = "macos")]
-fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<(), String> {
-    // Terminal owns the new PTY, so the live emulator state cannot be copied.
-    // Re-running a still-active launcher command after `cd` gives full-screen
-    // applications a visually continuous handoff without keeping every shell
-    // behind a session broker.
-    let mut command = format!("cd {}", sh_quote(&dir.to_string_lossy()));
-    if let Some(resume_command) = resume_command {
-        command.push_str(" && ");
-        command.push_str(resume_command);
-    }
-    let script = format!(
-        "tell application \"Terminal\"\nactivate\ndo script \"{}\"\nend tell",
-        applescript_quote(&command)
-    );
-    let dir = dir.to_path_buf();
-
-    // Detached, because this is called from a synchronous Tauri command — i.e.
-    // on the main thread, holding the session manager's lock. The first Apple
-    // event floter sends raises the Automation consent dialog, and `osascript`
-    // sits there until it is answered.
-    std::thread::spawn(move || {
-        let delivered = Command::new("osascript")
-            .args(["-e", &script])
-            .output()
-            .is_ok_and(|out| out.status.success());
-        if delivered {
-            return;
-        }
-        // Consent refused, or Terminal rejected the event: `open` needs no
-        // Apple events, and Terminal treats a directory argument as "new window
-        // rooted here". Only the login banner comes back. `-a Terminal` pins the
-        // handler — a bare `open` on a directory goes to Finder.
-        let _ = Command::new("open")
-            .args(["-a", "Terminal"])
+fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, String> {
+    if let Some(command) = resume_command {
+        let status = Command::new("/usr/bin/osascript")
+            .args(["-e", MACOS_TERMINAL_SCRIPT, "--"])
             .arg(dir)
-            .spawn();
-    });
-    Ok(())
+            .arg(command)
+            .status()
+            .map_err(|error| error.to_string())?;
+        if status.success() {
+            return Ok(true);
+        }
+        return Err(format!(
+            "Terminal did not accept the session handoff (osascript exited with {status})"
+        ));
+    }
+
+    let status = Command::new("/usr/bin/open")
+        .args(["-b", "com.apple.Terminal"])
+        .arg(dir)
+        .status()
+        .map_err(|error| error.to_string())?;
+    if status.success() {
+        Ok(false)
+    } else {
+        Err(format!("system terminal opener exited with {status}"))
+    }
 }
 
 /// Terminal emulators tried in order when `$TERMINAL` is unset.
 #[cfg(target_os = "linux")]
 const TERMINALS: &[&str] = &[
+    "xdg-terminal-exec",
     "x-terminal-emulator",
     "gnome-terminal",
     "konsole",
@@ -966,7 +1004,7 @@ fn which(name: &str) -> Option<PathBuf> {
 
 /// Spawn the first available terminal emulator at `dir`.
 #[cfg(target_os = "linux")]
-fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<(), String> {
+fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, String> {
     let preferred = std::env::var("TERMINAL").ok();
     let candidates = preferred
         .as_deref()
@@ -978,77 +1016,98 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<(), Stri
             continue;
         }
         let mut command = Command::new(name);
-        // All of these inherit their shell's cwd, so no per-emulator flag is
-        // needed to land in the right directory.
         command.current_dir(dir);
-        if let Some(resume_command) = resume_command {
-            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-            let script = format!("{resume_command}\nexec {} -l", sh_quote(&shell));
-            let terminal = Path::new(name)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or(name);
-            match terminal {
-                "gnome-terminal" => {
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        let script = resume_command
+            .map(|resume_command| format!("{resume_command}\nexec {} -l", sh_quote(&shell)));
+        let terminal = Path::new(name)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(name);
+        let dir_arg = dir.to_string_lossy();
+
+        match terminal {
+            "gnome-terminal" => {
+                command.arg(format!("--working-directory={dir_arg}"));
+                if let Some(script) = script.as_deref() {
                     command.args(["--", &shell, "-lc", &script]);
                 }
-                "kitty" | "foot" => {
+            }
+            "konsole" => {
+                command.args(["--workdir", dir_arg.as_ref()]);
+                if let Some(script) = script.as_deref() {
+                    command.args(["-e", &shell, "-lc", script]);
+                }
+            }
+            "kitty" => {
+                command.args(["--directory", dir_arg.as_ref()]);
+                if let Some(script) = script.as_deref() {
                     command.args([&shell, "-lc", &script]);
                 }
-                "wezterm" => {
-                    command.args(["start", "--", &shell, "-lc", &script]);
+            }
+            "alacritty" => {
+                command.args(["--working-directory", dir_arg.as_ref()]);
+                if let Some(script) = script.as_deref() {
+                    command.args(["-e", &shell, "-lc", script]);
                 }
-                "xfce4-terminal" | "tilix" => {
-                    command
-                        .arg("--command")
-                        .arg(format!("{} -lc {}", sh_quote(&shell), sh_quote(&script)));
+            }
+            "wezterm" => {
+                command.args(["start", "--cwd", dir_arg.as_ref()]);
+                if let Some(script) = script.as_deref() {
+                    command.args(["--", &shell, "-lc", script]);
                 }
-                "terminator" => {
+            }
+            "xfce4-terminal" | "tilix" => {
+                command.arg(format!("--working-directory={dir_arg}"));
+                if let Some(script) = script.as_deref() {
+                    command.arg("--command").arg(format!(
+                        "{} -lc {}",
+                        sh_quote(&shell),
+                        sh_quote(&script)
+                    ));
+                }
+            }
+            "terminator" => {
+                command.arg(format!("--working-directory={dir_arg}"));
+                if let Some(script) = script.as_deref() {
                     command.args(["-x", &shell, "-lc", &script]);
                 }
-                _ => {
+            }
+            "ghostty" => {
+                command.arg(format!("--working-directory={dir_arg}"));
+                if let Some(script) = script.as_deref() {
                     command.args(["-e", &shell, "-lc", &script]);
+                }
+            }
+            "xdg-terminal-exec" => {
+                if let Some(script) = script.as_deref() {
+                    command.args(["--", &shell, "-lc", script]);
+                }
+            }
+            _ => {
+                if let Some(script) = script.as_deref() {
+                    command.args(["-e", &shell, "-lc", script]);
                 }
             }
         }
         if command.spawn().is_ok() {
-            return Ok(());
+            return Ok(resume_command.is_some());
         }
     }
     Err("no terminal emulator found".to_string())
 }
 
-/// Open Windows Terminal (or `cmd` as a fallback) at `dir`.
-#[cfg(target_os = "windows")]
-fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<(), String> {
-    // Windows Terminal (preferred, but not pre-installed on all systems).
-    let mut windows_terminal = Command::new("wt");
-    windows_terminal.arg("-d").arg(dir);
-    if let Some(resume_command) = resume_command {
-        windows_terminal.args(["cmd", "/K", resume_command]);
-    }
-    if windows_terminal.spawn().is_ok() {
-        return Ok(());
-    }
-    // Fallback: a new cmd window. `start cmd /K "cd /D <dir>"` explicitly
-    // changes directory rather than relying on `current_dir` inheritance,
-    // which `start` does not always forward to the spawned child.
-    let dir_str = dir.to_string_lossy();
-    let mut script = format!("cd /D \"{dir_str}\"");
-    if let Some(resume_command) = resume_command {
-        script.push_str(" && ");
-        script.push_str(resume_command);
-    }
-    Command::new("cmd")
-        .args(["/C", "start", "cmd", "/K", &script])
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_terminal_uses_an_interactive_shell_command() {
+        assert!(MACOS_TERMINAL_SCRIPT.contains("quoted form of workingDirectory"));
+        assert!(MACOS_TERMINAL_SCRIPT.contains("if not busy of targetTab then exit repeat"));
+        assert!(MACOS_TERMINAL_SCRIPT.contains("do script commandText in targetTab"));
+    }
 
     #[test]
     fn alternate_scroll_uses_the_active_cursor_mode() {
@@ -1083,28 +1142,6 @@ mod tests {
             vec![0x1b, b'[', b'M', 32, 36, 35]
         );
         assert!(mouse_input(mode, "move", 0, 3, 2, 0).is_none());
-    }
-
-    #[test]
-    fn only_simple_launcher_commands_are_resumable() {
-        assert_eq!(resumable_program("ttm --all"), Some("ttm".to_string()));
-        assert_eq!(
-            resumable_program("/usr/local/bin/ttm --all"),
-            Some("ttm".to_string())
-        );
-        assert_eq!(resumable_program("ttm | less"), None);
-        assert_eq!(resumable_program("ttm && echo done"), None);
-        assert_eq!(resumable_program("FOO=bar ttm"), None);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn recognizes_a_matching_direct_child() {
-        let mut child = Command::new("sleep").arg("5").spawn().unwrap();
-        std::thread::sleep(Duration::from_millis(20));
-        assert!(initial_command_is_running(std::process::id(), "sleep 5"));
-        let _ = child.kill();
-        let _ = child.wait();
     }
 
     #[test]

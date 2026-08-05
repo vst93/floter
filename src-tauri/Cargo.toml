@@ -5,6 +5,7 @@ description = "A floating terminal application"
 license = "GPL-3.0"
 authors = ["you"]
 edition = "2021"
+default-run = "floter"
 
 [lib]
 name = "floter_lib"
@@ -21,6 +22,7 @@ tauri-plugin-store = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "5"
@@ -28,6 +30,16 @@ tokio = { version = "1", features = ["full"] }
 alacritty_terminal = "0.26"
 parking_lot = "0.12"
 base64 = "0.22"
+tempfile = "3"
+anyhow = "1"
+crossterm = "0.28"
+# qscreen owns the persistent PTY while Floter remains responsible for input
+# encoding and rendering. Pin the audited revision: these crates are not yet
+# published on crates.io and following main would make the wire protocol
+# nondeterministic between releases.
+qscreen-daemon = { path = "vendor/qscreen-daemon" }
+qscreen-protocol = { git = "https://github.com/dualface/qscreen.git", rev = "3783e78b47875c7714e4b85a2e0c806b27c75a6a" }
+qscreen-shared = { path = "vendor/qscreen-shared" }
 # Pinyin initials for the launcher: a Chinese application name is unreachable
 # from a Latin keyboard otherwise, and typing the initials is how it is searched
 # for everywhere else on the system.

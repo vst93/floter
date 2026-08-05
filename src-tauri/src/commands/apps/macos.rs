@@ -7,7 +7,9 @@ use std::process::Command;
 use std::time::Duration;
 use tauri::AppHandle;
 
-use super::{icon_cache_path, paths_signature, LocalApplication};
+use super::{
+    cached_icon_is_fresh, icon_cache_path, mark_icon_cached, paths_signature, LocalApplication,
+};
 
 pub fn roots() -> Vec<PathBuf> {
     let mut roots = vec![
@@ -126,7 +128,14 @@ fn is_app_bundle(path: &Path) -> bool {
 }
 
 fn path_is_bundle(path: &Path) -> bool {
-    path.extension().and_then(|ext| ext.to_str()).is_some()
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "app" | "bundle" | "framework" | "plugin" | "prefpane" | "appex"
+            )
+        })
 }
 
 /// What a scan needs out of one `.app` bundle.
@@ -210,7 +219,12 @@ fn app_metadata(path: &Path) -> AppMetadata {
 /// last: it is the development language, which is English for most bundles but
 /// not for all of them, so a real `en.lproj` is the better answer when present.
 const ENGLISH_LOCALES: [&str; 4] = ["en.lproj", "en_US.lproj", "English.lproj", "Base.lproj"];
-const CHINESE_LOCALES: [&str; 4] = ["zh-Hans.lproj", "zh_CN.lproj", "zh-Hant.lproj", "zh_TW.lproj"];
+const CHINESE_LOCALES: [&str; 4] = [
+    "zh-Hans.lproj",
+    "zh_CN.lproj",
+    "zh-Hant.lproj",
+    "zh_TW.lproj",
+];
 
 /// Split a bundle's names into the one to show and the one to show under it.
 ///
@@ -334,6 +348,7 @@ fn plist_value_first_string(value: &plist::Value, keys: &[&str]) -> Option<Strin
 /// assignment, which is what keeps the key's own name inside a comment (every
 /// one of these files opens with one) from being read as an entry.
 fn plist_strings_value(content: &str, key: &str) -> Option<String> {
+    let content = strip_strings_comments(content);
     let mut cursor = 0;
 
     while let Some(offset) = content[cursor..].find(key) {
@@ -341,20 +356,27 @@ fn plist_strings_value(content: &str, key: &str) -> Option<String> {
         let end = start + key.len();
         cursor = end;
 
+        let statement_start = content[..start].rfind(';').map_or(0, |index| index + 1);
+        let prefix = content[statement_start..start].trim();
+        if !prefix.is_empty() && prefix != "\"" {
+            continue;
+        }
         let preceding = content[..start].chars().next_back();
         if preceding.is_some_and(|c| c.is_alphanumeric() || c == '_') {
             continue;
         }
 
-        let rest = content[end..].trim_start();
-        let rest = rest.strip_prefix('"').unwrap_or(rest).trim_start();
+        let mut rest = content[end..].trim_start();
+        if prefix == "\"" {
+            rest = rest.strip_prefix('"')?.trim_start();
+        }
         let Some(rest) = rest.strip_prefix('=') else {
             continue;
         };
         let Some(rest) = rest.trim_start().strip_prefix('"') else {
             continue;
         };
-        let Some((value, _)) = rest.split_once('"') else {
+        let Some(value) = quoted_strings_value(rest) else {
             continue;
         };
         let value = value.trim();
@@ -366,28 +388,110 @@ fn plist_strings_value(content: &str, key: &str) -> Option<String> {
     None
 }
 
+fn strip_strings_comments(content: &str) -> String {
+    let mut output = String::with_capacity(content.len());
+    let mut chars = content.chars().peekable();
+    let mut quoted = false;
+    let mut escaped = false;
+    while let Some(character) = chars.next() {
+        if quoted {
+            output.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                quoted = false;
+            }
+            continue;
+        }
+        if character == '"' {
+            quoted = true;
+            output.push(character);
+        } else if character == '/' && chars.peek() == Some(&'/') {
+            chars.next();
+            for next in chars.by_ref() {
+                if next == '\n' {
+                    output.push('\n');
+                    break;
+                }
+            }
+        } else if character == '/' && chars.peek() == Some(&'*') {
+            chars.next();
+            let mut previous = '\0';
+            for next in chars.by_ref() {
+                if previous == '*' && next == '/' {
+                    break;
+                }
+                previous = next;
+            }
+            output.push(' ');
+        } else {
+            output.push(character);
+        }
+    }
+    output
+}
+
+fn quoted_strings_value(content: &str) -> Option<String> {
+    let mut output = String::new();
+    let mut escaped = false;
+    for character in content.chars() {
+        if character == '"' && !escaped {
+            return Some(output);
+        }
+        output.push(character);
+        if escaped {
+            escaped = false;
+        } else if character == '\\' {
+            escaped = true;
+        }
+    }
+    None
+}
+
 fn decode_strings_escapes(value: &str) -> String {
     let mut output = String::new();
-    let mut chars = value.chars().peekable();
-
-    while let Some(ch) = chars.next() {
+    let chars = value.chars().collect::<Vec<_>>();
+    let mut index = 0;
+    while index < chars.len() {
+        let ch = chars[index];
+        index += 1;
         if ch != '\\' {
             output.push(ch);
             continue;
         }
 
-        match chars.next() {
+        let escaped = chars.get(index).copied();
+        index += usize::from(escaped.is_some());
+        match escaped {
             Some('"') => output.push('"'),
             Some('\\') => output.push('\\'),
             Some('n') => output.push('\n'),
             Some('r') => output.push('\r'),
             Some('t') => output.push('\t'),
             Some('U') | Some('u') => {
-                let hex = chars.by_ref().take(4).collect::<String>();
-                if let Ok(code) = u32::from_str_radix(&hex, 16) {
-                    if let Some(decoded) = char::from_u32(code) {
-                        output.push(decoded);
+                let Some(code) = decode_hex_quad(&chars, index) else {
+                    continue;
+                };
+                index += 4;
+                let code = if (0xd800..=0xdbff).contains(&code)
+                    && chars.get(index) == Some(&'\\')
+                    && matches!(chars.get(index + 1), Some('u' | 'U'))
+                {
+                    if let Some(low) = decode_hex_quad(&chars, index + 2)
+                        .filter(|low| (0xdc00..=0xdfff).contains(low))
+                    {
+                        index += 6;
+                        0x1_0000 + ((code - 0xd800) << 10) + (low - 0xdc00)
+                    } else {
+                        code
                     }
+                } else {
+                    code
+                };
+                if let Some(decoded) = char::from_u32(code) {
+                    output.push(decoded);
                 }
             }
             Some(other) => output.push(other),
@@ -398,20 +502,20 @@ fn decode_strings_escapes(value: &str) -> String {
     output
 }
 
-pub fn icon_path(
-    app: &AppHandle,
-    path: &Path,
-    source_hint: Option<&str>,
-) -> Option<String> {
-    let target = icon_cache_path(app, path, "png")?;
-    if target.exists() {
-        return Some(target.to_string_lossy().to_string());
-    }
+fn decode_hex_quad(chars: &[char], start: usize) -> Option<u32> {
+    let value = chars.get(start..start + 4)?.iter().collect::<String>();
+    u32::from_str_radix(&value, 16).ok()
+}
 
+pub fn icon_path(app: &AppHandle, path: &Path, source_hint: Option<&str>) -> Option<String> {
+    let target = icon_cache_path(app, path, "png")?;
     let source = source_hint
         .map(PathBuf::from)
         .filter(|source| source.is_file())
         .or_else(|| icon_source(path))?;
+    if cached_icon_is_fresh(&target, &source) {
+        return Some(target.to_string_lossy().to_string());
+    }
     let status = Command::new("/usr/bin/sips")
         .args(["-s", "format", "png"])
         .arg(&source)
@@ -421,6 +525,7 @@ pub fn icon_path(
         .ok()?;
 
     if status.success() && target.exists() {
+        mark_icon_cached(&target, &source);
         Some(target.to_string_lossy().to_string())
     } else {
         None
@@ -466,7 +571,10 @@ mod tests {
     #[test]
     fn reads_a_quoted_key() {
         assert_eq!(
-            plist_strings_value("\"CFBundleDisplayName\" = \"WeCom\";", "CFBundleDisplayName"),
+            plist_strings_value(
+                "\"CFBundleDisplayName\" = \"WeCom\";",
+                "CFBundleDisplayName"
+            ),
             Some("WeCom".to_string()),
         );
     }
@@ -485,7 +593,7 @@ mod tests {
     /// of them name the keys in it. A mention is not an entry.
     #[test]
     fn ignores_the_key_inside_a_comment() {
-        let content = "/* CFBundleDisplayName is set below */\nCFBundleDisplayName = \"WeCom\";";
+        let content = "/* CFBundleDisplayName = \"Wrong\"; */\nCFBundleDisplayName = \"WeCom\";";
         assert_eq!(
             plist_strings_value(content, "CFBundleDisplayName"),
             Some("WeCom".to_string()),
@@ -511,11 +619,32 @@ mod tests {
         );
     }
 
+    #[test]
+    fn keeps_escaped_quotes_and_utf16_surrogate_pairs() {
+        assert_eq!(
+            plist_strings_value(
+                r#"CFBundleName = "Say \"Hi\" \uD83D\uDE80";"#,
+                "CFBundleName"
+            ),
+            Some("Say \"Hi\" 🚀".to_string()),
+        );
+    }
+
+    #[test]
+    fn dotted_directories_are_not_automatically_bundles() {
+        assert!(!path_is_bundle(Path::new("Company.Tools")));
+        assert!(path_is_bundle(Path::new("Widget.framework")));
+    }
+
     /// The ordinary case: an English bundle with a Chinese localization.
     #[test]
     fn titles_a_localized_bundle_with_its_localization() {
         assert_eq!(
-            resolve_names("Safari".into(), Some("Safari".into()), Some("Safari浏览器".into())),
+            resolve_names(
+                "Safari".into(),
+                Some("Safari".into()),
+                Some("Safari浏览器".into())
+            ),
             ("Safari".to_string(), Some("Safari浏览器".to_string())),
         );
     }
@@ -537,7 +666,11 @@ mod tests {
     #[test]
     fn ignores_a_localization_that_repeats_the_latin_name() {
         assert_eq!(
-            resolve_names("企业微信".into(), Some("WeCom".into()), Some("WeCom".into())),
+            resolve_names(
+                "企业微信".into(),
+                Some("WeCom".into()),
+                Some("WeCom".into())
+            ),
             ("WeCom".to_string(), Some("企业微信".to_string())),
         );
     }
@@ -555,7 +688,8 @@ mod tests {
 
     /// One name and nothing else: there is no second line to show.
     #[test]
-    fn leaves_a_single_name_alone() {        assert_eq!(
+    fn leaves_a_single_name_alone() {
+        assert_eq!(
             resolve_names("小米互联服务".into(), None, None),
             ("小米互联服务".to_string(), None),
         );

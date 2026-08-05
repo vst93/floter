@@ -26,6 +26,8 @@ use commands::terminal::{
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+#[cfg(target_os = "windows")]
+use tauri::webview::Color;
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
 use tauri::{
@@ -34,8 +36,6 @@ use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
     WebviewWindow, Wry,
 };
-#[cfg(target_os = "windows")]
-use tauri::webview::Color;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt as NSPanelManagerExt, PanelLevel, StyleMask,
@@ -47,6 +47,13 @@ use terminal::session::TerminalManager;
 const INPUT_WINDOW_WIDTH: f64 = 720.0;
 const INPUT_WINDOW_HEIGHT: f64 = 56.0;
 const TERMINAL_WINDOW_HEIGHT: f64 = 600.0;
+
+/// Configure and, when requested, run the terminal broker's process-only
+/// modes before any GUI runtime is initialized.
+pub fn prepare_terminal_process(arguments: &[String]) -> Option<Result<(), String>> {
+    terminal::broker::initialize_environment();
+    terminal::broker::run_helper(arguments).map(|result| result.map_err(|error| error.to_string()))
+}
 
 #[cfg(target_os = "macos")]
 tauri_panel! {
@@ -467,12 +474,7 @@ fn configure_macos_panel(window: &WebviewWindow) -> Result<(), String> {
         .map_err(|error| error.to_string())?;
 
     panel.set_level(PanelLevel::Floating.value());
-    panel.set_style_mask(
-        StyleMask::empty()
-            .nonactivating_panel()
-            .resizable()
-            .into(),
-    );
+    panel.set_style_mask(StyleMask::empty().nonactivating_panel().resizable().into());
     panel.set_collection_behavior(
         CollectionBehavior::new()
             .can_join_all_spaces()
@@ -483,6 +485,11 @@ fn configure_macos_panel(window: &WebviewWindow) -> Result<(), String> {
     panel.set_hides_on_deactivate(false);
     panel.set_works_when_modal(true);
     panel.set_released_when_closed(false);
+    // `shadow: false` is required by the Windows frame path in tauri.conf.json,
+    // but macOS panels should use the window server's native soft shadow. It
+    // follows the alpha outline and is recomputed after every resize below.
+    window.set_shadow(true).map_err(|error| error.to_string())?;
+    refresh_macos_shadow(window);
     Ok(())
 }
 
@@ -562,7 +569,9 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
         DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
 
-    window.set_shadow(false).map_err(|error| error.to_string())?;
+    window
+        .set_shadow(false)
+        .map_err(|error| error.to_string())?;
     let hwnd = window.hwnd().map_err(|error| error.to_string())?;
     let preference = DWMWCP_DONOTROUND;
     let border_color = DWMWA_COLOR_NONE;
@@ -771,11 +780,36 @@ fn resize_window(
     Ok(())
 }
 
+fn terminal_size_for_monitor(
+    window: &WebviewWindow,
+    state: &AppState,
+    width: f64,
+    height: f64,
+) -> (f64, f64) {
+    let Some(monitor) = focused_monitor(window, state) else {
+        return (width, height);
+    };
+    let scale = monitor.scale_factor();
+    if scale <= 0.0 {
+        return (width, height);
+    }
+    let area = monitor.work_area();
+    let available_width = (area.size.width as f64 / scale - 24.0).max(320.0);
+    let available_height = (area.size.height as f64 / scale - 24.0).max(240.0);
+    (width.min(available_width), height.min(available_height))
+}
+
 #[tauri::command]
 fn show_terminal(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
     let (width, height) = saved_terminal_size();
-    window.set_resizable(true).map_err(|error| error.to_string())?;
+    let (width, height) = terminal_size_for_monitor(&window, &state, width, height);
+    if let Ok(mut current) = state.terminal_height.lock() {
+        *current = height;
+    }
+    window
+        .set_resizable(true)
+        .map_err(|error| error.to_string())?;
     resize_window(&window, width, height, preserve_anchor)?;
     reveal_window(&window)?;
     if !preserve_anchor {
@@ -833,7 +867,9 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
-    window.set_resizable(false).map_err(|error| error.to_string())?;
+    window
+        .set_resizable(false)
+        .map_err(|error| error.to_string())?;
     resize_window(
         &window,
         INPUT_WINDOW_WIDTH,
@@ -859,10 +895,12 @@ fn toggle_window_visibility(app: &AppHandle) {
     if state.window_visible.load(Ordering::SeqCst) {
         remember_monitor(&window, &state);
         #[cfg(target_os = "macos")]
-        let _ = hide_macos_panel(&window);
+        let hidden = hide_macos_panel(&window);
         #[cfg(not(target_os = "macos"))]
-        let _ = window.hide();
-        state.window_visible.store(false, Ordering::SeqCst);
+        let hidden = window.hide().map_err(|error| error.to_string());
+        if hidden.is_ok() {
+            state.window_visible.store(false, Ordering::SeqCst);
+        }
     } else {
         let _ = reveal_saved_mode(&window, &state);
     }
@@ -931,7 +969,20 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     linux_render::prepare(std::env::args_os());
 
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default().plugin(tauri_plugin_single_instance::init(
+        |app, arguments, _working_directory| {
+            if arguments.iter().any(|argument| argument == "--background") {
+                return;
+            }
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Some(window) = handle.get_webview_window("main") {
+                    let state = handle.state::<AppState>();
+                    let _ = reveal_saved_mode(&window, &state);
+                }
+            });
+        },
+    ));
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
@@ -961,10 +1012,8 @@ pub fn run() {
             app.set_activation_policy(ActivationPolicy::Accessory);
 
             let settings = load_settings();
-            if settings.launch_at_startup {
-                if let Err(error) = ensure_launch_at_startup(true) {
-                    eprintln!("failed to restore launch-at-startup registration: {error}");
-                }
+            if let Err(error) = ensure_launch_at_startup(settings.launch_at_startup) {
+                eprintln!("failed to reconcile launch-at-startup registration: {error}");
             }
             let (show_label, quit_label) = tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
@@ -997,17 +1046,9 @@ pub fn run() {
                 })
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click { button, .. } = event {
-                        // Windows reports both buttons through this event, and
-                        // the right one is the one that just opened the context
-                        // menu: revealing the panel takes the focus the menu is
-                        // holding, and the menu closes before it can be read.
-                        // The other platforms are left exactly as they were.
-                        #[cfg(target_os = "windows")]
                         if button != tauri::tray::MouseButton::Left {
                             return;
                         }
-                        #[cfg(not(target_os = "windows"))]
-                        let _ = button;
                         if let Some(window) = tray.app_handle().get_webview_window("main") {
                             let state = tray.app_handle().state::<AppState>();
                             let _ = reveal_saved_mode(&window, &state);
@@ -1016,7 +1057,9 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            let window = app.get_webview_window("main").unwrap();
+            let window = app
+                .get_webview_window("main")
+                .ok_or("missing main webview window")?;
             // The webview exists, which is as far as a machine with a broken EGL
             // ever gets — so this run counts as a successful start and the next
             // one is free to use the GPU again.
@@ -1132,13 +1175,13 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| {
-            // Quitting is the only moment the terminal sessions are really
-            // gone; returning to input mode deliberately keeps them (and any
-            // tmux session behind them) alive.
+            // Shut down sessions still owned by Floter. A broker session handed
+            // to a system terminal has already left the manager and stays alive.
             if let tauri::RunEvent::Exit = event {
                 if let Ok(manager) = app.state::<TerminalState>().0.lock() {
                     manager.shutdown_all();
                 }
+                terminal::broker::shutdown_if_idle();
                 // The socket node outlives the process that made it, so the next
                 // start would have to reclaim it as stale.
                 #[cfg(target_os = "linux")]

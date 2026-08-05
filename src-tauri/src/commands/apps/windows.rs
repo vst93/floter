@@ -13,14 +13,18 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 use tauri::AppHandle;
-use windows::core::PCWSTR;
+use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::FILETIME;
 use windows::Win32::System::Registry::{
     RegCloseKey, RegOpenKeyExW, RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE,
     KEY_READ,
 };
+use windows::Win32::UI::Shell::ShellExecuteW;
+use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
-use super::{icon_cache_path, paths_signature, LocalApplication};
+use super::{
+    cached_icon_is_fresh, icon_cache_path, mark_icon_cached, paths_signature, LocalApplication,
+};
 
 /// Keeps the helper processes (`reg`, `powershell`) from flashing a console.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -83,46 +87,39 @@ pub fn max_cache_age() -> Option<Duration> {
 }
 
 pub fn open(path: &Path) -> Result<(), String> {
-    let is_executable = path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"));
+    use std::os::windows::ffi::OsStrExt;
 
-    if is_executable {
-        // Many programs expect to start from their own directory.
-        let mut command = Command::new(path);
-        if let Some(parent) = path.parent() {
-            command.current_dir(parent);
-        }
-        return command.spawn().map(|_| ()).map_err(|e| e.to_string());
-    }
-
-    // `start` hands the file to the shell, which resolves shortcuts and
-    // launches documents with their registered handler. The empty argument is
-    // the window title `start` would otherwise take from the path.
-    Command::new("cmd")
-        .args(["/C", "start", ""])
-        .arg(path)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    let wide = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            PCWSTR(wide.as_ptr()),
+            PCWSTR::null(),
+            PCWSTR::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    let code = result.0 as isize;
+    (code > 32)
+        .then_some(())
+        .ok_or_else(|| format!("ShellExecuteW failed with code {code}"))
 }
 
-pub fn icon_path(
-    app: &AppHandle,
-    path: &Path,
-    source_hint: Option<&str>,
-) -> Option<String> {
+pub fn icon_path(app: &AppHandle, path: &Path, source_hint: Option<&str>) -> Option<String> {
     let target = icon_cache_path(app, path, "png")?;
-    if target.exists() {
-        return Some(target.to_string_lossy().to_string());
-    }
-
     // Old caches may not carry a target hint. Leave shortcut resolution to the
     // shell in that case: `WScript.Shell` expands environment variables too.
     let fallback_source = path.to_string_lossy();
     let source = source_hint.unwrap_or(fallback_source.as_ref());
+    let source_path = Path::new(source);
+    if cached_icon_is_fresh(&target, source_path) {
+        return Some(target.to_string_lossy().to_string());
+    }
     let script = format!(
         "$ErrorActionPreference='Stop';\
          $source='{source}';\
@@ -140,13 +137,20 @@ pub fn icon_path(
     );
 
     let status = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command"])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+        ])
         .arg(&script)
         .creation_flags(CREATE_NO_WINDOW)
         .status()
         .ok()?;
 
     if status.success() && target.exists() {
+        mark_icon_cached(&target, source_path);
         Some(target.to_string_lossy().to_string())
     } else {
         None
@@ -195,17 +199,26 @@ fn collect_shortcuts(
         };
 
         let target = shortcut_target(&path);
+        let target_key = target.as_deref().map(str::to_lowercase);
         if let Some(target) = target.as_deref() {
             if !is_launchable_target(target) {
                 continue;
             }
-            if !seen_targets.insert(target.to_lowercase()) {
+            if target_key
+                .as_ref()
+                .is_some_and(|key| seen_targets.contains(key))
+            {
                 continue;
             }
         }
-        if !seen_names.insert(name.to_lowercase()) {
+        let name_key = name.to_lowercase();
+        if seen_names.contains(&name_key) {
             continue;
         }
+        if let Some(target_key) = target_key {
+            seen_targets.insert(target_key);
+        }
+        seen_names.insert(name_key);
 
         apps.push(LocalApplication {
             name: name.to_string(),
@@ -265,18 +278,22 @@ fn collect_registry_programs(
     });
 
     for output in outputs {
-        let text = String::from_utf8_lossy(&output);
+        let text = decode_registry_output(&output);
         for program in parse_registry_programs(&text) {
             let Some(executable) = program.executable() else {
                 continue;
             };
             let path = executable.to_string_lossy().to_string();
-            if !seen_targets.insert(path.to_lowercase()) {
+            let target_key = path.to_lowercase();
+            let name_key = program.display_name.to_lowercase();
+            if seen_targets.contains(&target_key) {
                 continue;
             }
-            if !seen_names.insert(program.display_name.to_lowercase()) {
+            if seen_names.contains(&name_key) {
                 continue;
             }
+            seen_targets.insert(target_key);
+            seen_names.insert(name_key);
             // The registry lists a program by its display name and its
             // executable; the second is the Latin key for the first.
             let aliases = super::build_aliases(
@@ -319,15 +336,7 @@ fn registry_key_last_write(key: &str) -> u64 {
         .chain(std::iter::once(0))
         .collect::<Vec<_>>();
     let mut handle = HKEY(std::ptr::null_mut());
-    let opened = unsafe {
-        RegOpenKeyExW(
-            root,
-            PCWSTR(wide.as_ptr()),
-            None,
-            KEY_READ,
-            &mut handle,
-        )
-    };
+    let opened = unsafe { RegOpenKeyExW(root, PCWSTR(wide.as_ptr()), None, KEY_READ, &mut handle) };
     if opened.0 != 0 {
         return 0;
     }
@@ -357,12 +366,53 @@ fn registry_key_last_write(key: &str) -> u64 {
 }
 
 fn query_registry(key: &str) -> Option<Vec<u8>> {
-    let output = Command::new("reg")
-        .args(["query", key, "/s"])
+    let temporary = tempfile::NamedTempFile::new().ok()?;
+    let output_path = temporary.path().to_string_lossy();
+    let script = format!(
+        "& reg.exe query '{}' /s | Out-File -LiteralPath '{}' -Encoding Unicode",
+        powershell_literal(key),
+        powershell_literal(&output_path),
+    );
+    let status = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+        ])
+        .arg(script)
         .creation_flags(CREATE_NO_WINDOW)
-        .output()
+        .status()
         .ok()?;
-    output.status.success().then_some(output.stdout)
+    status
+        .success()
+        .then(|| fs::read(temporary.path()).ok())
+        .flatten()
+}
+
+fn decode_registry_output(bytes: &[u8]) -> String {
+    let (bytes, little_endian) = if bytes.starts_with(&[0xff, 0xfe]) {
+        (&bytes[2..], true)
+    } else if bytes.starts_with(&[0xfe, 0xff]) {
+        (&bytes[2..], false)
+    } else {
+        let pairs = bytes.chunks_exact(2).take(64).collect::<Vec<_>>();
+        let looks_utf16 =
+            !pairs.is_empty() && pairs.iter().filter(|pair| pair[1] == 0).count() > pairs.len() / 2;
+        if !looks_utf16 {
+            return String::from_utf8_lossy(bytes).into_owned();
+        }
+        (bytes, true)
+    };
+    let units = bytes.chunks_exact(2).map(|chunk| {
+        if little_endian {
+            u16::from_le_bytes([chunk[0], chunk[1]])
+        } else {
+            u16::from_be_bytes([chunk[0], chunk[1]])
+        }
+    });
+    String::from_utf16_lossy(&units.collect::<Vec<_>>())
 }
 
 #[derive(Default)]
@@ -384,7 +434,14 @@ impl RegistryProgram {
         if let Some(icon) = self.display_icon.as_deref() {
             let icon = icon.trim().trim_matches('"');
             let candidate = match icon.rsplit_once(',') {
-                Some((path, index)) if index.trim_start_matches('-').chars().all(|c| c.is_ascii_digit()) => path,
+                Some((path, index))
+                    if index
+                        .trim_start_matches('-')
+                        .chars()
+                        .all(|c| c.is_ascii_digit()) =>
+                {
+                    path
+                }
                 _ => icon,
             };
             let candidate = PathBuf::from(candidate.trim().trim_matches('"'));
@@ -532,15 +589,29 @@ fn shortcut_target(path: &Path) -> Option<String> {
         return None;
     }
 
-    // The unicode offsets only exist in the extended header.
-    let (base_offset, suffix_offset, unicode) = if header_size >= 0x24 {
-        (read_u32(info, 28)? as usize, read_u32(info, 32)? as usize, true)
+    let ansi_base = read_u32(info, 16)? as usize;
+    let ansi_suffix = read_u32(info, 24)? as usize;
+    let unicode_base = if header_size >= 0x24 {
+        read_u32(info, 28)? as usize
     } else {
-        (read_u32(info, 16)? as usize, read_u32(info, 24)? as usize, false)
+        0
     };
-
-    let base = read_link_string(info, base_offset, unicode)?;
-    let suffix = read_link_string(info, suffix_offset, unicode).unwrap_or_default();
+    let unicode_suffix = if header_size >= 0x24 {
+        read_u32(info, 32)? as usize
+    } else {
+        0
+    };
+    let base = if unicode_base == 0 {
+        read_link_string(info, ansi_base, false)
+    } else {
+        read_link_string(info, unicode_base, true)
+    }?;
+    let suffix = if unicode_suffix == 0 {
+        read_link_string(info, ansi_suffix, false)
+    } else {
+        read_link_string(info, unicode_suffix, true)
+    }
+    .unwrap_or_default();
     let target = format!("{base}{suffix}");
     (!target.is_empty()).then_some(target)
 }
@@ -560,7 +631,10 @@ fn read_link_string(info: &[u8], offset: usize, unicode: bool) -> Option<String>
         return Some(String::from_utf16_lossy(&units));
     }
 
-    let end = bytes.iter().position(|byte| *byte == 0).unwrap_or(bytes.len());
+    let end = bytes
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(bytes.len());
     Some(String::from_utf8_lossy(&bytes[..end]).to_string())
 }
 

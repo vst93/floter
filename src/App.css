@@ -47,6 +47,8 @@
   --edge-highlight: rgba(255, 255, 255, 0.11);
   --edge-highlight-active: rgba(255, 255, 255, 0.13);
   --edge-shadow: rgba(0, 0, 0, 0.22);
+  --window-shadow-ambient: rgba(0, 0, 0, 0.3);
+  --window-shadow-contact: rgba(0, 0, 0, 0.2);
   --hairline: rgba(255, 255, 255, 0.055);
   /* A key cap reads as one because of these two, not because of its border. */
   --keycap-highlight: rgba(255, 255, 255, 0.07);
@@ -130,6 +132,8 @@
   --edge-highlight: rgba(255, 255, 255, 0.92);
   --edge-highlight-active: rgba(255, 255, 255, 0.96);
   --edge-shadow: rgba(0, 0, 0, 0.055);
+  --window-shadow-ambient: rgba(0, 0, 0, 0.18);
+  --window-shadow-contact: rgba(0, 0, 0, 0.12);
   --hairline: rgba(0, 0, 0, 0.07);
   --keycap-highlight: rgba(255, 255, 255, 0.9);
   --keycap-shadow: rgba(0, 0, 0, 0.09);
@@ -1303,12 +1307,12 @@ canvas {
    flush against need almost none.  The inward edge strokes that gave the card
    definition on every other platform are kept here too. */
 .platform-windows .collapsed-shell {
-  padding: 2px 8px 10px 2px;
+  padding: 4px 10px 12px 4px;
 }
 
 .platform-windows .settings-shell,
 .platform-windows .terminal-shell {
-  padding: 8px;
+  padding: 10px;
 }
 
 .platform-windows .collapsed-card,
@@ -1316,8 +1320,8 @@ canvas {
 .platform-windows .terminal-panel {
   border: 0;
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.15),
-    0 1px 3px rgba(0, 0, 0, 0.10),
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1325,8 +1329,8 @@ canvas {
 
 .platform-windows .collapsed-card:focus-within {
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.15),
-    0 1px 3px rgba(0, 0, 0, 0.10),
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
     inset 0 0 0 1px var(--input-stroke-active),
     inset 0 1px 0 var(--edge-highlight-active),
     inset 0 -1px 0 var(--edge-shadow);
@@ -1334,8 +1338,8 @@ canvas {
 
 .platform-windows .terminal-panel {
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.15),
-    0 1px 3px rgba(0, 0, 0, 0.10),
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
     inset 0 0 0 1px var(--input-stroke),
     inset 0 1px 0 var(--keycap-highlight),
     inset 0 -1px 0 var(--keycap-shadow);
@@ -1346,10 +1350,39 @@ canvas {
   .platform-windows .settings-card,
   .platform-windows .terminal-panel {
     box-shadow:
-      0 2px 12px rgba(0, 0, 0, 0.15),
-      0 1px 3px rgba(0, 0, 0, 0.10),
+      0 4px 16px var(--window-shadow-ambient),
+      0 1px 4px var(--window-shadow-contact),
       inset 0 0 0 1px var(--stroke-contrast);
   }
+}
+
+/* Linux compositors disagree on whether a transparent undecorated window gets
+   a native shadow. Keep the depth inside the transparent webview allocation so
+   X11 and Wayland render the same edge, with symmetric room because neither
+   compositor exposes a stable light direction to the application. */
+.platform-linux .collapsed-shell,
+.platform-linux .settings-shell,
+.platform-linux .terminal-shell {
+  padding: 10px;
+}
+
+.platform-linux .collapsed-card,
+.platform-linux .settings-card,
+.platform-linux .terminal-panel {
+  box-shadow:
+    0 4px 18px var(--window-shadow-ambient),
+    0 1px 5px var(--window-shadow-contact),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-linux .collapsed-card:focus-within {
+  box-shadow:
+    0 4px 18px var(--window-shadow-ambient),
+    0 1px 5px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--accent-glow),
+    inset 0 1px 0 var(--edge-highlight-active),
+    inset 0 -1px 0 var(--edge-shadow);
 }
 
 /* ── Update banner ─────────────────────────────────────────────────────── */

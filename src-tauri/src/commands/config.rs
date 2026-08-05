@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write;
+use std::sync::Mutex;
+use tauri::Manager;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 /// Action ids for the configurable shortcuts. They are the keys of the
@@ -23,6 +26,20 @@ const DEFAULT_MAIN_OPACITY: u8 = 94;
 const DEFAULT_TERMINAL_OPACITY: u8 = 92;
 const MIN_WINDOW_OPACITY: u8 = 10;
 const MAX_WINDOW_OPACITY: u8 = 100;
+const MIN_FONT_SIZE: u32 = 8;
+const MAX_FONT_SIZE: u32 = 48;
+
+static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
+
+const SHORTCUT_ACTIONS: [&str; 7] = [
+    TOGGLE_WINDOW,
+    NEW_COMMAND,
+    OPEN_EXTERNAL_TERMINAL,
+    COPY_SELECTION,
+    PASTE,
+    OPEN_SETTINGS,
+    SELECT_RESULT,
+];
 
 /// Shortcut fallback for the window toggle, which is registered with the OS and
 /// therefore must not collide with the platform's own bindings.
@@ -91,8 +108,22 @@ pub fn default_shortcuts() -> HashMap<String, String> {
         (TOGGLE_WINDOW, DEFAULT_TOGGLE_WINDOW.to_string()),
         (NEW_COMMAND, format!("{APP_MODIFIER}+W")),
         (OPEN_EXTERNAL_TERMINAL, format!("{APP_MODIFIER}+N")),
-        (COPY_SELECTION, format!("{APP_MODIFIER}+C")),
-        (PASTE, format!("{APP_MODIFIER}+V")),
+        (
+            COPY_SELECTION,
+            if cfg!(target_os = "macos") {
+                "Cmd+C".to_string()
+            } else {
+                "Ctrl+Shift+C".to_string()
+            },
+        ),
+        (
+            PASTE,
+            if cfg!(target_os = "macos") {
+                "Cmd+V".to_string()
+            } else {
+                "Ctrl+Shift+V".to_string()
+            },
+        ),
         (OPEN_SETTINGS, format!("{APP_MODIFIER}+Comma")),
         (SELECT_RESULT, format!("{APP_MODIFIER}+1")),
     ]
@@ -105,17 +136,36 @@ pub fn default_shortcuts() -> HashMap<String, String> {
 /// both the frontend and the global-shortcut registration expect.
 pub fn resolved_shortcuts(settings: &AppSettings) -> HashMap<String, String> {
     let mut shortcuts = default_shortcuts();
-    // A hotkey customized before the shortcuts map existed still applies.
-    if !settings.hotkey.trim().is_empty() {
-        shortcuts.insert(TOGGLE_WINDOW.to_string(), settings.hotkey.trim().to_string());
+    for action in SHORTCUT_ACTIONS {
+        if let Some(shortcut) = settings.shortcuts.get(action) {
+            if let Some(shortcut) = normalize_shortcut(action, shortcut) {
+                insert_shortcut_if_available(&mut shortcuts, action, shortcut);
+            }
+        }
     }
-    for (action, shortcut) in &settings.shortcuts {
-        let shortcut = shortcut.trim();
-        if shortcuts.contains_key(action) && !shortcut.is_empty() {
-            shortcuts.insert(action.clone(), shortcut.to_string());
+    // A non-default hotkey customized before the shortcuts map existed still
+    // applies. Modern saves keep both fields synchronized, so this only wins
+    // when deserialization filled a missing map with platform defaults.
+    if settings.hotkey.trim() != DEFAULT_TOGGLE_WINDOW {
+        if let Some(hotkey) = normalize_shortcut(TOGGLE_WINDOW, &settings.hotkey) {
+            insert_shortcut_if_available(&mut shortcuts, TOGGLE_WINDOW, hotkey);
         }
     }
     shortcuts
+}
+
+fn insert_shortcut_if_available(
+    shortcuts: &mut HashMap<String, String>,
+    action: &str,
+    candidate: String,
+) {
+    let available = shortcuts.iter().all(|(existing_action, existing)| {
+        existing_action == action
+            || !shortcut_conflicts(action, &candidate, existing_action, existing)
+    });
+    if available {
+        shortcuts.insert(action.to_string(), candidate);
+    }
 }
 
 /// Load settings from disk, falling back to defaults when missing or invalid.
@@ -141,6 +191,7 @@ pub fn saved_terminal_size() -> (f64, f64) {
 
 pub fn save_terminal_size(width: f64, height: f64) -> Result<(f64, f64), String> {
     let (width, height) = normalize_terminal_size(width, height);
+    let _guard = settings_lock()?;
     let mut settings = load_settings();
     settings.terminal_width = width;
     settings.terminal_height = height;
@@ -170,43 +221,155 @@ fn normalize_terminal_size(width: f64, height: f64) -> (f64, f64) {
     (width, height)
 }
 
+fn normalize_settings(mut settings: AppSettings) -> AppSettings {
+    settings.theme = match settings.theme.as_str() {
+        "dark" | "light" | "auto" => settings.theme,
+        _ => AppSettings::default().theme,
+    };
+    settings.language = match settings.language.as_str() {
+        "en" | "zh" => settings.language,
+        _ => AppSettings::default().language,
+    };
+    settings.cursor_shape = match settings.cursor_shape.as_str() {
+        "beam" | "block" | "underline" => settings.cursor_shape,
+        _ => AppSettings::default().cursor_shape,
+    };
+    settings.font_size = settings.font_size.clamp(MIN_FONT_SIZE, MAX_FONT_SIZE);
+    if settings.font_family.trim().is_empty() {
+        settings.font_family = AppSettings::default().font_family;
+    } else {
+        settings.font_family = settings.font_family.trim().to_string();
+    }
+    (settings.terminal_width, settings.terminal_height) =
+        normalize_terminal_size(settings.terminal_width, settings.terminal_height);
+    settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
+    settings.terminal_opacity =
+        normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
+    settings.shortcuts = resolved_shortcuts(&settings);
+    settings.hotkey = settings
+        .shortcuts
+        .get(TOGGLE_WINDOW)
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+    settings
+}
+
+fn settings_lock() -> Result<std::sync::MutexGuard<'static, ()>, String> {
+    SETTINGS_LOCK
+        .lock()
+        .map_err(|_| "Settings lock is poisoned".to_string())
+}
+
+fn modifier_name(value: &str) -> Option<&'static str> {
+    match value.to_ascii_lowercase().as_str() {
+        "ctrl" | "control" => Some("Ctrl"),
+        "alt" | "option" => Some("Alt"),
+        "shift" => Some("Shift"),
+        "cmd" | "command" | "meta" | "super" | "win" => Some(if cfg!(target_os = "macos") {
+            "Cmd"
+        } else {
+            "Super"
+        }),
+        "commandorcontrol" | "cmdorctrl" => Some(if cfg!(target_os = "macos") {
+            "Cmd"
+        } else {
+            "Ctrl"
+        }),
+        _ => None,
+    }
+}
+
+fn normalize_shortcut(action: &str, value: &str) -> Option<String> {
+    let mut modifiers = Vec::new();
+    let mut key = None;
+    for part in value.split('+').map(str::trim) {
+        if part.is_empty() {
+            return None;
+        }
+        if let Some(modifier) = modifier_name(part) {
+            if modifiers.contains(&modifier) {
+                return None;
+            }
+            modifiers.push(modifier);
+        } else if key.replace(part).is_some() {
+            return None;
+        }
+    }
+    let mut key = key?;
+    if action == SELECT_RESULT {
+        if modifiers.is_empty() {
+            return None;
+        }
+        key = "1";
+    }
+    modifiers.push(key);
+    Some(modifiers.join("+"))
+}
+
+fn shortcut_conflicts(
+    candidate_action: &str,
+    candidate: &str,
+    existing_action: &str,
+    existing: &str,
+) -> bool {
+    if candidate.eq_ignore_ascii_case(existing) {
+        return true;
+    }
+    let result_and_other = if candidate_action == SELECT_RESULT {
+        Some((candidate, existing))
+    } else if existing_action == SELECT_RESULT {
+        Some((existing, candidate))
+    } else {
+        None
+    };
+    let Some((result, other)) = result_and_other else {
+        return false;
+    };
+    let Some((result_modifiers, _)) = result.rsplit_once('+') else {
+        return false;
+    };
+    let Some((other_modifiers, other_key)) = other.rsplit_once('+') else {
+        return false;
+    };
+    result_modifiers.eq_ignore_ascii_case(other_modifiers)
+        && matches!(
+            other_key,
+            "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+        )
+}
+
 fn write_settings(settings: &AppSettings) -> Result<(), String> {
     let config_dir = dirs::config_dir().ok_or("Cannot find config directory")?;
     let floter_dir = config_dir.join("floter");
     std::fs::create_dir_all(&floter_dir).map_err(|e| e.to_string())?;
     let config_path = floter_dir.join("settings.json");
-    let content = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-    std::fs::write(config_path, content).map_err(|e| e.to_string())
+    let content = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
+    let mut temporary = tempfile::NamedTempFile::new_in(&floter_dir).map_err(|e| e.to_string())?;
+    temporary.write_all(&content).map_err(|e| e.to_string())?;
+    temporary.flush().map_err(|e| e.to_string())?;
+    temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+    temporary
+        .persist(config_path)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn get_settings() -> Result<AppSettings, String> {
-    let mut settings = load_settings();
-    // Hand the frontend a complete map so it never has to guess a default.
-    settings.shortcuts = resolved_shortcuts(&settings);
-    settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
-    settings.terminal_opacity =
-        normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
-    Ok(settings)
+    Ok(normalize_settings(load_settings()))
 }
 
 #[tauri::command]
 pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
+    let _guard = settings_lock()?;
     let mut settings = settings;
-    // Callers that only touch one field (the language picker) may send the
-    // settings object without shortcuts; keep the stored ones in that case.
-    if settings.shortcuts.is_empty() {
-        settings.shortcuts = load_settings().shortcuts;
-    }
-    // `hotkey` predates the shortcuts map and is still read as a fallback. A
-    // caller that sends its whole settings object may be carrying a `hotkey`
-    // from before the last rebind, so it is re-derived rather than trusted.
-    if let Some(toggle) = settings.shortcuts.get(TOGGLE_WINDOW) {
-        settings.hotkey = toggle.clone();
-    }
-    settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
-    settings.terminal_opacity =
-        normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
+    // Shortcut changes have their own command because the global binding and
+    // disk must change transactionally. A delayed general settings save must
+    // never restore an older shortcut map.
+    let stored = load_settings();
+    settings.shortcuts = resolved_shortcuts(&stored);
+    settings.hotkey = stored.hotkey;
+    let settings = normalize_settings(settings);
     write_settings(&settings)?;
     crate::apply_tray_language(&app, &settings.language);
     Ok(())
@@ -221,6 +384,7 @@ pub fn get_shortcuts() -> Result<HashMap<String, String>, String> {
 /// first so a system conflict leaves the existing settings untouched.
 #[tauri::command]
 pub fn reset_shortcuts(app: tauri::AppHandle) -> Result<HashMap<String, String>, String> {
+    let _guard = settings_lock()?;
     let shortcuts = default_shortcuts();
     let toggle = shortcuts
         .get(TOGGLE_WINDOW)
@@ -231,7 +395,14 @@ pub fn reset_shortcuts(app: tauri::AppHandle) -> Result<HashMap<String, String>,
     let mut settings = load_settings();
     settings.hotkey = toggle;
     settings.shortcuts = shortcuts.clone();
-    write_settings(&settings)?;
+    if let Err(error) = write_settings(&settings) {
+        let previous = resolved_shortcuts(&load_settings())
+            .get(TOGGLE_WINDOW)
+            .cloned()
+            .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+        let _ = crate::rebind_toggle_shortcut(&app, &previous);
+        return Err(error);
+    }
     Ok(shortcuts)
 }
 
@@ -246,10 +417,9 @@ pub fn update_shortcut(
     action: String,
     shortcut: String,
 ) -> Result<(), String> {
-    let shortcut = shortcut.trim().to_string();
-    if shortcut.is_empty() {
-        return Err("Shortcut cannot be empty".to_string());
-    }
+    let _guard = settings_lock()?;
+    let shortcut =
+        normalize_shortcut(&action, &shortcut).ok_or_else(|| "Invalid shortcut".to_string())?;
 
     let mut settings = load_settings();
     let mut shortcuts = resolved_shortcuts(&settings);
@@ -260,15 +430,28 @@ pub fn update_shortcut(
         return Ok(());
     }
 
+    if shortcuts.iter().any(|(existing_action, existing)| {
+        existing_action != &action
+            && shortcut_conflicts(&action, &shortcut, existing_action, existing)
+    }) {
+        return Err("Shortcut conflicts with another action".to_string());
+    }
+
     if action == TOGGLE_WINDOW {
         crate::rebind_toggle_shortcut(&app, &shortcut)?;
         // Keep the legacy field in step so both readers agree.
         settings.hotkey = shortcut.clone();
     }
 
-    shortcuts.insert(action, shortcut);
+    shortcuts.insert(action.clone(), shortcut.clone());
     settings.shortcuts = shortcuts;
-    write_settings(&settings)
+    if let Err(error) = write_settings(&normalize_settings(settings)) {
+        if action == TOGGLE_WINDOW {
+            let _ = crate::rebind_toggle_shortcut(&app, &previous);
+        }
+        return Err(error);
+    }
+    Ok(())
 }
 
 /// Build version injected at compile time.
@@ -290,7 +473,9 @@ pub fn app_version() -> String {
 /// capture the current binding without the app toggling itself.
 #[tauri::command]
 pub fn suspend_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
-    app.global_shortcut().unregister_all().map_err(|e| e.to_string())
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| e.to_string())
 }
 
 /// Re-register the toggle shortcut from saved settings after recording ends.
@@ -298,7 +483,23 @@ pub fn suspend_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
 pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
     let settings = load_settings();
     let shortcuts = resolved_shortcuts(&settings);
-    let toggle = shortcuts.get(TOGGLE_WINDOW).cloned().unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+    let toggle = shortcuts
+        .get(TOGGLE_WINDOW)
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+    let active = app
+        .state::<crate::AppState>()
+        .toggle_shortcut
+        .lock()
+        .map(|value| value.clone())
+        .unwrap_or_default();
+    if active.eq_ignore_ascii_case(&toggle) && app.global_shortcut().is_registered(toggle.as_str())
+    {
+        return Ok(());
+    }
+    if !active.is_empty() && app.global_shortcut().is_registered(active.as_str()) {
+        let _ = app.global_shortcut().unregister(active.as_str());
+    }
     crate::register_toggle_shortcut(&app, &toggle)
 }
 
@@ -326,8 +527,73 @@ mod tests {
 
     #[test]
     fn window_opacity_keeps_surfaces_legible() {
-        assert_eq!(normalize_window_opacity(0, DEFAULT_MAIN_OPACITY), DEFAULT_MAIN_OPACITY);
-        assert_eq!(normalize_window_opacity(1, DEFAULT_MAIN_OPACITY), MIN_WINDOW_OPACITY);
-        assert_eq!(normalize_window_opacity(255, DEFAULT_MAIN_OPACITY), MAX_WINDOW_OPACITY);
+        assert_eq!(
+            normalize_window_opacity(0, DEFAULT_MAIN_OPACITY),
+            DEFAULT_MAIN_OPACITY
+        );
+        assert_eq!(
+            normalize_window_opacity(1, DEFAULT_MAIN_OPACITY),
+            MIN_WINDOW_OPACITY
+        );
+        assert_eq!(
+            normalize_window_opacity(255, DEFAULT_MAIN_OPACITY),
+            MAX_WINDOW_OPACITY
+        );
+    }
+
+    #[test]
+    fn result_shortcuts_require_modifiers_and_always_store_one() {
+        assert_eq!(
+            normalize_shortcut(SELECT_RESULT, "Ctrl+K").as_deref(),
+            Some("Ctrl+1")
+        );
+        assert_eq!(
+            normalize_shortcut(SELECT_RESULT, "Alt+9").as_deref(),
+            Some("Alt+1")
+        );
+        assert_eq!(normalize_shortcut(SELECT_RESULT, "F1"), None);
+    }
+
+    #[test]
+    fn result_family_conflicts_with_every_number_using_its_modifiers() {
+        assert!(shortcut_conflicts(
+            SELECT_RESULT,
+            "Ctrl+1",
+            NEW_COMMAND,
+            "Ctrl+7"
+        ));
+        assert!(!shortcut_conflicts(
+            SELECT_RESULT,
+            "Ctrl+1",
+            NEW_COMMAND,
+            "Alt+7"
+        ));
+        assert!(!shortcut_conflicts(
+            SELECT_RESULT,
+            "Ctrl+1",
+            NEW_COMMAND,
+            "Ctrl+W"
+        ));
+    }
+
+    #[test]
+    fn normalizes_all_persisted_setting_ranges() {
+        let settings = normalize_settings(AppSettings {
+            theme: "unknown".into(),
+            language: "xx".into(),
+            cursor_shape: "square".into(),
+            font_size: 1_000,
+            font_family: "  ".into(),
+            terminal_width: f64::NAN,
+            terminal_height: f64::INFINITY,
+            ..AppSettings::default()
+        });
+        assert_eq!(settings.theme, "auto");
+        assert_eq!(settings.language, "en");
+        assert_eq!(settings.cursor_shape, "beam");
+        assert_eq!(settings.font_size, MAX_FONT_SIZE);
+        assert_eq!(settings.font_family, "monospace");
+        assert_eq!(settings.terminal_width, DEFAULT_TERMINAL_WIDTH);
+        assert_eq!(settings.terminal_height, DEFAULT_TERMINAL_HEIGHT);
     }
 }

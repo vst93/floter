@@ -25,3 +25,6 @@ dist-ssr
 
 # Rust
 src-tauri/target/
+
+# Local working scratch (separate cloned repo, not part of this project)
+.codex-qscreen-audit/

@@ -19,6 +19,10 @@
 //! u32 bg               // 0x00RRGGBB
 //! u8  flags            // bit0 bold, 1 italic, 2 underline, 3 strike,
 //!                      //     4 dim, 5 hidden, 6 wide
+//! // optional combining-character records until EOF:
+//! u32 cell_index
+//! u16 utf8_byte_length
+//! u8[utf8_byte_length] characters
 //! ```
 
 use alacritty_terminal::grid::Dimensions;
@@ -63,8 +67,22 @@ pub fn serialize<T>(term: &Term<T>) -> Vec<u8> {
     out.extend_from_slice(&(grid.history_size() as u32).to_le_bytes());
     out.extend_from_slice(&(grid.display_offset() as u32).to_le_bytes());
 
-    for indexed in grid.display_iter() {
+    let mut combining = Vec::new();
+    for (cell_index, indexed) in grid.display_iter().enumerate() {
         write_cell(&mut out, indexed.cell, colors);
+        if let Some(characters) = indexed.cell.zerowidth().filter(|value| !value.is_empty()) {
+            let text: String = characters.iter().collect();
+            combining.push((cell_index, text));
+        }
+    }
+    for (cell_index, text) in combining {
+        let bytes = text.as_bytes();
+        let Ok(byte_length) = u16::try_from(bytes.len()) else {
+            continue;
+        };
+        out.extend_from_slice(&(cell_index as u32).to_le_bytes());
+        out.extend_from_slice(&byte_length.to_le_bytes());
+        out.extend_from_slice(bytes);
     }
 
     out
@@ -213,5 +231,26 @@ mod tests {
         let frame = serialize(&term);
         let mode = u32::from_le_bytes([frame[11], frame[12], frame[13], frame[14]]);
         assert_ne!(mode & TermMode::ALT_SCREEN.bits(), 0);
+    }
+
+    #[test]
+    fn appends_combining_characters_to_their_cell() {
+        let size = Size(4, 2);
+        let mut term = Term::new(Config::default(), &size, VoidListener);
+        let mut processor: Processor = Processor::new();
+        processor.advance(&mut term, "e\u{301}".as_bytes());
+
+        let frame = serialize(&term);
+        let tail = 23 + 4 * 2 * 13;
+        assert!(frame.len() > tail + 6);
+        assert_eq!(
+            u32::from_le_bytes(frame[tail..tail + 4].try_into().unwrap()),
+            0
+        );
+        let length = u16::from_le_bytes(frame[tail + 4..tail + 6].try_into().unwrap()) as usize;
+        assert_eq!(
+            std::str::from_utf8(&frame[tail + 6..tail + 6 + length]).unwrap(),
+            "\u{301}"
+        );
     }
 }

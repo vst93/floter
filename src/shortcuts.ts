@@ -19,6 +19,8 @@ export const IS_MAC =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 export const IS_WINDOWS =
   typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent);
+export const IS_LINUX =
+  typeof navigator !== "undefined" && /Linux/.test(navigator.userAgent);
 
 /** Cmd on macOS, Ctrl everywhere else — the modifier apps use for their own commands. */
 const APP_MODIFIER = IS_MAC ? "Cmd" : "Ctrl";
@@ -28,8 +30,8 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   toggle_window: "Ctrl+Space",
   new_command: `${APP_MODIFIER}+W`,
   open_external_terminal: `${APP_MODIFIER}+N`,
-  copy_selection: `${APP_MODIFIER}+C`,
-  paste: `${APP_MODIFIER}+V`,
+  copy_selection: IS_MAC ? "Cmd+C" : "Ctrl+Shift+C",
+  paste: IS_MAC ? "Cmd+V" : "Ctrl+Shift+V",
   open_settings: `${APP_MODIFIER}+Comma`,
   select_result: `${APP_MODIFIER}+1`,
 };
@@ -189,6 +191,32 @@ const modifiersMatch = (event: KeyboardEvent, shortcut: Modifiers) =>
   event.shiftKey === shortcut.shift &&
   event.metaKey === shortcut.meta;
 
+const hasModifier = (shortcut: Modifiers) =>
+  shortcut.ctrl || shortcut.alt || shortcut.shift || shortcut.meta;
+
+const shortcutWithKey = (shortcut: Modifiers, key: string): string =>
+  [
+    shortcut.ctrl && "Ctrl",
+    shortcut.alt && "Alt",
+    shortcut.shift && "Shift",
+    shortcut.meta && (IS_MAC ? "Cmd" : "Super"),
+    key,
+  ]
+    .filter(Boolean)
+    .join("+");
+
+/**
+ * Result selection is a shortcut family, not one literal key: the recording
+ * stores its modifiers and the first digit. Reject a modifier-less binding so
+ * normal number entry and Enter can never launch something unexpectedly.
+ */
+export const normalizeResultShortcut = (value: string | undefined): string | null => {
+  if (!value) return null;
+  const shortcut = parseShortcut(value);
+  if (!shortcut || !hasModifier(shortcut)) return null;
+  return shortcutWithKey(shortcut, "1");
+};
+
 /** Whether `event` is exactly the combination `value` describes. */
 export const matchesShortcutModifiers = (
   event: KeyboardEvent,
@@ -214,7 +242,8 @@ export const matchesResultShortcut = (
   value: string | undefined,
 ): number | null => {
   if (!value) return null;
-  const shortcut = parseShortcut(value);
+  const normalized = normalizeResultShortcut(value);
+  const shortcut = normalized ? parseShortcut(normalized) : null;
   if (!shortcut || !modifiersMatch(event, shortcut)) return null;
   const digit = keyTokensFromEvent(event).find((token) => /^[1-9]$/.test(token));
   return digit ? Number(digit) : null;
@@ -264,20 +293,15 @@ export const formatShortcut = (value: string | undefined): string => {
 };
 
 /** The launcher badge: the result shortcut with its digit swapped in. */
-export const formatResultShortcut = (value: string | undefined, digit: number): string => {
-  const shortcut = parseShortcut(value ?? DEFAULT_SHORTCUTS.select_result);
-  if (!shortcut) return String(digit);
-  return formatShortcut(
-    [
-      shortcut.ctrl && "Ctrl",
-      shortcut.alt && "Alt",
-      shortcut.shift && "Shift",
-      shortcut.meta && "Cmd",
-      String(digit),
-    ]
-      .filter(Boolean)
-      .join("+"),
-  );
+export const formatResultShortcut = (
+  value: string | undefined,
+  key: number | "Enter",
+): string => {
+  const normalized = normalizeResultShortcut(value ?? DEFAULT_SHORTCUTS.select_result);
+  const shortcut = normalized ? parseShortcut(normalized) : null;
+  if (!shortcut) return String(key);
+  const formatted = formatShortcut(shortcutWithKey(shortcut, String(key)));
+  return key === "Enter" ? formatted.replace(/Enter$/, "↩") : formatted;
 };
 
 /** Fill in the platform defaults for anything the settings file omits. */
@@ -288,7 +312,12 @@ export const withShortcutDefaults = (
   if (!shortcuts) return resolved;
   for (const action of SHORTCUT_ACTIONS) {
     const value = shortcuts[action];
-    if (value && value.trim()) resolved[action] = value.trim();
+    if (!value || !value.trim()) continue;
+    if (action === "select_result") {
+      resolved[action] = normalizeResultShortcut(value) ?? DEFAULT_SHORTCUTS.select_result;
+    } else {
+      resolved[action] = value.trim();
+    }
   }
   return resolved;
 };

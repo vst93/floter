@@ -1,0 +1,23 @@
+[package]
+name = "qscreen-daemon"
+version = "0.3.0"
+edition = "2024"
+license = "MIT"
+description = "qscreen PTY daemon pinned and capacity-patched for Floter"
+repository = "https://github.com/dualface/qscreen"
+
+[lib]
+name = "qscreen_daemon"
+path = "src/lib.rs"
+
+[dependencies]
+qscreen-protocol = { git = "https://github.com/dualface/qscreen.git", rev = "3783e78b47875c7714e4b85a2e0c806b27c75a6a" }
+qscreen-shared = { path = "../qscreen-shared" }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+tracing = "0.1"
+anyhow = "1"
+bytes = "1"
+chrono = { version = "0.4", features = ["serde"] }
+portable-pty = "0.8"
+vt100 = { git = "https://github.com/dualface/qscreen.git", rev = "3783e78b47875c7714e4b85a2e0c806b27c75a6a", package = "vt100-psmux" }

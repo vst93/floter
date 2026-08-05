@@ -16,7 +16,8 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
         let mut command = Vec::new();
         command.push(u16::from(b'"'));
         command.extend(executable.as_os_str().encode_wide());
-        command.extend([u16::from(b'"'), 0]);
+        command.extend("\" --background".encode_utf16());
+        command.push(0);
 
         let status = unsafe {
             RegCreateKeyW(
@@ -94,7 +95,10 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
     );
     document.insert(
         "ProgramArguments".to_string(),
-        Value::Array(vec![Value::String(executable.to_string())]),
+        Value::Array(vec![
+            Value::String(executable.to_string()),
+            Value::String("--background".to_string()),
+        ]),
     );
     document.insert("RunAtLoad".to_string(), Value::Boolean(true));
     document.insert(
@@ -130,7 +134,7 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
         .replace('`', "\\`")
         .replace('$', "\\$");
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName=floter\nExec=\"{escaped}\"\nTerminal=false\nHidden=false\nX-GNOME-Autostart-enabled=true\n"
+        "[Desktop Entry]\nType=Application\nName=floter\nExec=\"{escaped}\" --background\nTerminal=false\nHidden=false\nX-GNOME-Autostart-enabled=true\n"
     );
     std::fs::create_dir_all(&autostart_dir).map_err(|error| error.to_string())?;
     std::fs::write(path, entry).map_err(|error| error.to_string())

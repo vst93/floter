@@ -73,11 +73,12 @@ fn is_web_url(url: &str) -> bool {
 /// up so it can be corrected".
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
-    let expanded = expand_tilde(&path);
-    if !std::path::Path::new(&expanded).exists() {
-        return Err(format!("Path does not exist: {expanded}"));
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let resolved = resolve_path(&path, &home);
+    if !resolved.exists() {
+        return Err(format!("Path does not exist: {}", resolved.display()));
     }
-    spawn_opener(&expanded)
+    spawn_opener(&resolved)
 }
 
 /// `~` and `~/…` resolved against the home directory.
@@ -88,27 +89,29 @@ pub fn open_path(path: String) -> Result<(), String> {
 /// shell `~alice` is another user's home, which nothing portable can resolve,
 /// and a directory really called `~alice` is the likelier thing a launcher is
 /// being asked about.
-fn expand_tilde(path: &str) -> String {
+fn resolve_path(path: &str, home: &std::path::Path) -> std::path::PathBuf {
     let Some(rest) = path.strip_prefix('~') else {
-        return path.to_string();
+        let path = std::path::Path::new(path);
+        return if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            home.join(path)
+        };
     };
     if !rest.is_empty() && !rest.starts_with(std::path::is_separator) {
-        return path.to_string();
+        return home.join(path);
     }
-    let Some(home) = dirs::home_dir() else {
-        return path.to_string();
-    };
     // The separators have to come off before joining: joining a path that starts
     // with one discards everything to its left and yields the filesystem root.
     // Once they are gone, `~` and `~/` are both simply the home directory.
     let rest = rest.trim_start_matches(std::path::is_separator);
     if rest.is_empty() {
-        return home.to_string_lossy().into_owned();
+        return home.to_path_buf();
     }
-    home.join(rest).to_string_lossy().into_owned()
+    home.join(rest)
 }
 
-fn spawn_opener(target: &str) -> Result<(), String> {
+fn spawn_opener(target: impl AsRef<std::ffi::OsStr>) -> Result<(), String> {
     let Some(opener) = OPENER else {
         return Err("Opening links is not supported on this platform".to_string());
     };
@@ -117,4 +120,19 @@ fn spawn_opener(target: &str) -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|error| format!("{opener}: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn resolves_explicit_relative_paths_from_home() {
+        let home = Path::new("/users/example");
+        assert_eq!(resolve_path("./Documents", home), home.join("./Documents"));
+        assert_eq!(resolve_path("../Shared", home), home.join("../Shared"));
+        assert_eq!(resolve_path("~/Downloads", home), home.join("Downloads"));
+        assert_eq!(resolve_path("/tmp/file", home), Path::new("/tmp/file"));
+    }
 }

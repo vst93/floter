@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -52,11 +53,7 @@ mod platform {
         None
     }
 
-    pub fn icon_path(
-        _app: &AppHandle,
-        _path: &Path,
-        _source_hint: Option<&str>,
-    ) -> Option<String> {
+    pub fn icon_path(_app: &AppHandle, _path: &Path, _source_hint: Option<&str>) -> Option<String> {
         None
     }
 
@@ -291,7 +288,12 @@ fn compute_initials(name: &str, localized_name: &Option<String>) -> String {
         } else if let Some(pinyin) = c.to_pinyin() {
             // `first_letter` is ASCII for every entry in the table, so the
             // lowercase mapping below is a byte operation.
-            initials.extend(pinyin.first_letter().chars().map(|c| c.to_ascii_lowercase()));
+            initials.extend(
+                pinyin
+                    .first_letter()
+                    .chars()
+                    .map(|c| c.to_ascii_lowercase()),
+            );
         }
         // Anything else — whitespace, punctuation, a CJK character with no
         // pinyin — is a separator and contributes nothing.
@@ -398,8 +400,7 @@ const APPLICATION_CACHE_FILE: &str = "applications-v3.json";
 /// a `default` — but the entries in them were scanned without knowing about the
 /// fields, so they are dropped rather than migrated, and the first summon after
 /// an upgrade rescans. Removed once the new file has been written.
-const LEGACY_APPLICATION_CACHE_FILES: [&str; 2] =
-    ["applications-v1.json", "applications-v2.json"];
+const LEGACY_APPLICATION_CACHE_FILES: [&str; 2] = ["applications-v1.json", "applications-v2.json"];
 
 fn application_cache_path(app: &AppHandle) -> Option<PathBuf> {
     Some(
@@ -440,7 +441,18 @@ fn save_persistent_cache(app: &AppHandle, snapshot: &PersistentApplicationCache)
     let Ok(bytes) = serde_json::to_vec(snapshot) else {
         return;
     };
-    if fs::create_dir_all(parent).is_ok() && fs::write(&path, bytes).is_ok() {
+    let saved = fs::create_dir_all(parent).is_ok()
+        && tempfile::NamedTempFile::new_in(parent)
+            .and_then(|mut temporary| {
+                temporary.write_all(&bytes)?;
+                temporary.flush()?;
+                temporary
+                    .persist(&path)
+                    .map(|_| ())
+                    .map_err(|error| error.error)
+            })
+            .is_ok();
+    if saved {
         for legacy in LEGACY_APPLICATION_CACHE_FILES {
             let _ = fs::remove_file(parent.join(legacy));
         }
@@ -520,16 +532,52 @@ pub(super) fn paths_signature(mut paths: Vec<PathBuf>) -> u64 {
 fn icon_cache_path(app: &AppHandle, key: &Path, extension: &str) -> Option<PathBuf> {
     let dir = app.path().app_cache_dir().ok()?.join("app-icons");
     fs::create_dir_all(&dir).ok()?;
-    let name = sanitize_filename(&key.to_string_lossy());
-    Some(dir.join(format!("{name}.{extension}")))
+    let hash = stable_hash(key.to_string_lossy().as_bytes());
+    Some(dir.join(format!("{hash:016x}.{extension}")))
 }
 
 #[allow(dead_code)]
-fn sanitize_filename(value: &str) -> String {
-    value
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect()
+fn cached_icon_is_fresh(target: &Path, source: &Path) -> bool {
+    let Some(source_signature) = icon_source_signature(source) else {
+        return false;
+    };
+    target.is_file()
+        && fs::read_to_string(icon_signature_path(target))
+            .ok()
+            .as_deref()
+            == Some(source_signature.as_str())
+}
+
+#[allow(dead_code)]
+fn mark_icon_cached(target: &Path, source: &Path) {
+    if let Some(signature) = icon_source_signature(source) {
+        let _ = fs::write(icon_signature_path(target), signature);
+    }
+}
+
+fn icon_signature_path(target: &Path) -> PathBuf {
+    let mut path = target.as_os_str().to_os_string();
+    path.push(".source");
+    PathBuf::from(path)
+}
+
+fn icon_source_signature(source: &Path) -> Option<String> {
+    let metadata = fs::metadata(source).ok()?;
+    let modified = metadata
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()?
+        .as_nanos();
+    Some(format!("{}:{modified}", metadata.len()))
+}
+
+fn stable_hash(bytes: &[u8]) -> u64 {
+    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    bytes.iter().fold(FNV_OFFSET, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(FNV_PRIME)
+    })
 }
 
 #[cfg(test)]
@@ -611,7 +659,10 @@ mod tests {
     /// Duplicates within the list itself go too, whatever their case.
     #[test]
     fn keeps_one_spelling_of_each_alias() {
-        assert_eq!(build_aliases("Firefox", None, ["mozilla", "Mozilla"]), ["mozilla"]);
+        assert_eq!(
+            build_aliases("Firefox", None, ["mozilla", "Mozilla"]),
+            ["mozilla"]
+        );
     }
 
     /// A reverse-DNS identifier is searched by the application and its vendor.
@@ -624,7 +675,10 @@ mod tests {
             identifier_aliases("com.tencent.WeWorkMac"),
             ["WeWorkMac", "tencent"],
         );
-        assert_eq!(identifier_aliases("org.mozilla.firefox"), ["firefox", "mozilla"]);
+        assert_eq!(
+            identifier_aliases("org.mozilla.firefox"),
+            ["firefox", "mozilla"]
+        );
     }
 
     /// Nothing is dropped from an identifier that has no suffix to drop.
