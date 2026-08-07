@@ -920,20 +920,30 @@ fn sh_quote(value: &str) -> String {
 }
 
 /// AppleScript used to start Floter's attach helper in Terminal.app's
-/// interactive shell. It avoids a temporary `.command` file and keeps the tab
-/// open after the brokered shell exits.
+/// interactive shell. Terminal creates a default window while cold-starting,
+/// before it handles even the first `do script` Apple Event. Reuse that window
+/// only on a cold start; when Terminal was already running, a target-less
+/// `do script` creates a separate window without touching the user's current
+/// shell. Either branch leaves its shell open after the brokered session exits.
 #[cfg(target_os = "macos")]
 const MACOS_TERMINAL_SCRIPT: &str = r#"on run argv
     set workingDirectory to item 1 of argv
     set commandText to item 2 of argv
+    set handoffCommand to "cd -- " & quoted form of workingDirectory & " && " & commandText
+    set terminalWasRunning to application id "com.apple.Terminal" is running
     tell application id "com.apple.Terminal"
+        if terminalWasRunning then
+            do script handoffCommand
+        else
+            activate
+            repeat 40 times
+                if exists window 1 then exit repeat
+                delay 0.05
+            end repeat
+            if not (exists window 1) then error "Terminal did not create its initial window"
+            do script handoffCommand in selected tab of window 1
+        end if
         activate
-        set targetTab to do script ("cd -- " & quoted form of workingDirectory)
-        repeat 40 times
-            if not busy of targetTab then exit repeat
-            delay 0.05
-        end repeat
-        do script commandText in targetTab
     end tell
 end run"#;
 
@@ -1103,10 +1113,14 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn macos_terminal_uses_an_interactive_shell_command() {
+    fn macos_terminal_reuses_only_its_cold_start_window() {
         assert!(MACOS_TERMINAL_SCRIPT.contains("quoted form of workingDirectory"));
-        assert!(MACOS_TERMINAL_SCRIPT.contains("if not busy of targetTab then exit repeat"));
-        assert!(MACOS_TERMINAL_SCRIPT.contains("do script commandText in targetTab"));
+        assert!(MACOS_TERMINAL_SCRIPT.contains("application id \"com.apple.Terminal\" is running"));
+        assert!(MACOS_TERMINAL_SCRIPT
+            .contains("if terminalWasRunning then\n            do script handoffCommand"));
+        assert!(
+            MACOS_TERMINAL_SCRIPT.contains("do script handoffCommand in selected tab of window 1")
+        );
     }
 
     #[test]

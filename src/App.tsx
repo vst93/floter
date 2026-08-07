@@ -618,8 +618,6 @@ export default function App() {
   const [updateDownloading, setUpdateDownloading] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number } | null>(null);
   const [updateFailed, setUpdateFailed] = useState(false);
-  /** Suppress the Enter that IME emits right after compositionend. */
-  const skipNextEnter = useRef(false);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
 
@@ -979,11 +977,23 @@ export default function App() {
     window.setTimeout(() => {
       const input = inputRef.current;
       if (!input) return;
-      input.focus();
+      input.focus({ preventScroll: true });
       const length = input.value.length;
       input.setSelectionRange(length, length);
     }, delay);
   };
+
+  // The terminal canvas is the active element when collapsed mode is committed.
+  // Focus the newly mounted input in that same commit instead of relying only on
+  // timers that can race the native terminal-to-launcher resize.
+  useLayoutEffect(() => {
+    if (mode !== "collapsed") return;
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const length = input.value.length;
+    input.setSelectionRange(length, length);
+  }, [mode]);
 
   const focusTerminalView = (delay = 0) => {
     window.setTimeout(() => {
@@ -1669,6 +1679,17 @@ export default function App() {
         // App shortcuts first, everything else is forwarded to the shell.
         if (matchesShortcut(event, shortcuts.new_command)) {
           event.preventDefault();
+          // On macOS the panel can update its first responder once more when Cmd
+          // is released. Reassert the input after the complete shortcut is up.
+          const onShortcutRelease = (release: KeyboardEvent) => {
+            if (release.metaKey || release.ctrlKey || release.altKey || release.shiftKey) return;
+            window.removeEventListener("keyup", onShortcutRelease);
+            focusCollapsedInput();
+          };
+          window.addEventListener("keyup", onShortcutRelease);
+          window.setTimeout(() => {
+            window.removeEventListener("keyup", onShortcutRelease);
+          }, 1500);
           returnToInputMode();
           return;
         }
@@ -2115,15 +2136,12 @@ export default function App() {
    * this takes a plain `KeyboardEvent` rather than React's wrapper.
    */
   const handleLauncherKey = (event: KeyboardEvent) => {
-    // CJK IME: while composing (user picking candidates), all keys go to
-    // the IME. On WebKit a committed composition is followed by a stray Enter
-    // that is NOT part of isComposing — suppressed through the ref flag, which
-    // is only armed on the platforms that send one (see `onCompositionEnd`).
-    if (isComposing.current) return;
-    if (event.key === "Enter" && skipNextEnter.current) {
-      skipNextEnter.current = false;
-      return;
-    }
+    // CJK IME: while composing (user picking candidates), all keys go to the
+    // IME. WebKit clears `isComposing` too early for the Enter that confirms a
+    // candidate, but keeps the conventional IME keyCode (229) on that event.
+    // Checking the event itself avoids leaving a flag behind that swallows the
+    // user's next deliberate Enter after composition has already finished.
+    if (isComposing.current || event.isComposing || event.keyCode === 229) return;
 
     // Holding the same modifier as the numbered-result shortcut highlights the
     // command row. It makes Cmd/Ctrl+Enter discoverable without giving the row a
@@ -2520,13 +2538,6 @@ export default function App() {
               onCompositionStart={() => { isComposing.current = true; }}
               onCompositionEnd={() => {
                 isComposing.current = false;
-                // WebKit — macOS' WKWebView and Linux' WebKitGTK — follows a
-                // committed composition with a second, non-composing Enter that
-                // would run whatever the user was still choosing between.
-                // Chromium sends no such thing, so on Windows the flag would
-                // instead swallow the deliberate Enter that comes next and the
-                // selected result would need Enter pressed twice to launch.
-                skipNextEnter.current = !IS_WINDOWS;
               }}
               onKeyUp={(event) => {
                 if (
@@ -2587,7 +2598,7 @@ export default function App() {
                         className={`launcher-result${selected ? " launcher-result--selected" : ""}`}
                         role="option"
                         aria-selected={selected}
-                        onMouseEnter={() => {
+                        onMouseMove={() => {
                           setSelectedActionBar(false);
                           setSelectedResultIndex(index);
                         }}
@@ -2625,7 +2636,7 @@ export default function App() {
                   className={`launcher-action-bar launcher-action-bar--${actionBar.type}${
                     selectedActionBar ? " launcher-action-bar--selected" : ""
                   }`}
-                  onMouseEnter={() => setSelectedActionBar(true)}
+                  onMouseMove={() => setSelectedActionBar(true)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => executeActionBar(actionBar)}
                 >

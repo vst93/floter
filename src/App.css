@@ -416,8 +416,7 @@ input:focus {
   cursor: pointer;
 }
 
-.launcher-result--selected,
-.launcher-result:hover {
+.launcher-result--selected {
   background: var(--accent-tint);
 }
 
@@ -529,13 +528,11 @@ input:focus {
   border-radius: 0 0 7px 7px;
 }
 
-.launcher-action-bar--selected,
-.launcher-action-bar:hover {
+.launcher-action-bar--selected {
   background: var(--accent-tint);
 }
 
-.launcher-action-bar--selected.launcher-action-bar--shell,
-.launcher-action-bar--shell:hover {
+.launcher-action-bar--selected.launcher-action-bar--shell {
   background: var(--action-shell-tint);
 }
 
