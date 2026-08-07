@@ -1,0 +1,31 @@
+{
+  "protocolVersion": "1.0",
+  "provider": {
+    "id": "io.github.vst93.v",
+    "name": "V Tools",
+    "version": "0.0.12",
+    "description": "Gadgets under the terminal"
+  },
+  "commands": [
+    {
+      "id": "jv",
+      "name": "JSON Viewer",
+      "description": "View, format and edit JSON",
+      "aliases": [],
+      "keywords": ["json", "format"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["jv"],
+        "mode": "pty",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        { "names": ["-f"], "kind": "flag", "description": "Format JSON" },
+        { "names": ["-c"], "kind": "flag", "description": "Compress JSON" },
+        { "names": ["-file"], "kind": "path", "takesValue": true, "description": "Read from file" },
+        { "names": ["-url"], "kind": "url", "takesValue": true, "description": "Read from URL" },
+        { "names": ["-tui"], "kind": "flag", "description": "Open interactive viewer" }
+      ]
+    }
+  ]
+}
