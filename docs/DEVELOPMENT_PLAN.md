@@ -633,6 +633,8 @@ Docker Provider     2.1.0     有更新    [开关] [更新] [更多]
 - 插件都有名称、版本、描述、命令和参数信息，接口位于 `service/plugin.go:17`。
 - 例如 `jv` 已经声明了完整参数说明，`plugin/jv/jv.go:24`。
 - `v` 的整体版本已经能够独立输出，`service/help.go:9`。
+- 配置文件由 `setting/ini.go` 管理，存储在 `~/.v_tools/settings.ini`。
+- `main.go` 中定义了快捷别名 `gp`、`gc`、`cc` 等，这些也应进入 Descriptor 成为单一信息源。
 
 当前 `v` 的插件接口：
 
@@ -643,6 +645,23 @@ GetDescription()
 GetCommand()
 GetArgs() map[string]string
 ```
+
+#### 当前已知插件清单（Codex 审计确认）
+
+| 插件 | 命令 | 说明 | 参数声明方式 |
+|------|------|------|-------------|
+| jv | `jv` | JSON 查看/格式化/编辑 | `GetArgs()` map |
+| codec | `codec` | 编解码工具 | `GetArgs()` map |
+| genpwd | `genpwd` | 密码生成 | `GetArgs()` map |
+| diff | `diff` | 差异对比 (Myers 算法) | `GetArgs()` map |
+| tt | `tt` | 时间戳转换 | `GetArgs()` map |
+| json2excel | `json2excel` | JSON 转 Excel | `GetArgs()` map |
+| gcm | `gcm` | Git Commit Message 生成 | `GetArgs()` map |
+| vc | `vc` | 视频合并 | `GetArgs()` map |
+| translate | `tr` | 翻译 | `GetArgs()` map |
+| cp | `cp` | 复制增强 | `GetArgs()` map |
+
+所有插件当前都使用 `GetArgs() map[string]string` 声明参数，迁移到 `DescriptorProvider` 接口时需逐个覆盖。第一版 V Adapter 静态适配器应优先覆盖 `jv`、`diff`、`codec`、`genpwd`、`tt` 这 5 个核心插件。
 
 ### 8.2 不足与改进
 
@@ -657,6 +676,20 @@ GetArgs() map[string]string
 - 动态补全方式
 
 ### 8.3 V 内部改进方案
+
+#### 接入分两步走
+
+**第一步：静态适配器，完全不改 `v`**
+
+在 Floter 侧维护一个 V Adapter，检测 PATH 中的 `v`，把 `jv`、`diff`、`codec`、`genpwd`、`tt` 等导出成 Floter 顶级命令。这一步不需要修改 `v` 的任何代码，纯粹在 Floter 侧用静态 Manifest 声明命令和参数。
+
+适用场景：快速验证端到端流程，用户只需要已安装 `v` 即可。
+
+**第二步：给 `v` 增加 `--describe-json`**
+
+现有 `GetArgs() map[string]string` 能提供初级联想，但因为 map 没有顺序，也缺少参数类型、是否需要值、枚举范围等信息。后续增加一个可选的结构化描述接口。原有 `PluginTemplate` 不需要破坏性修改。
+
+#### CommandDescriptor 单一信息源
 
 不要为 Floter 再维护第二套插件列表，而是让插件元数据成为唯一信息源：
 
@@ -737,14 +770,34 @@ V 每次发布新版本时同时发布：
 
 **真正需要新增的是「命令目录和解析层」，终端本身不需要重新设计。**
 
-### 9.3 旧自定义命令（不直接扩展）
+### 9.3 旧自定义命令（不直接扩展，需迁移）
 
 现有 `custom.rs`（`src-tauri/src/commands/custom.rs:7`）可以作为早期原型参考，但不适合直接扩展成平台协议：
 - 它目前只有命令字符串，并通过 `sh -c`/`cmd /C` 执行（`custom.rs:130`）
 - 正式平台应保存 `program + args[]`，避免字符串拼接、转义差异和命令注入问题
 - 旧自定义命令保持隔离，新扩展平台以独立 `extensions` 模块实现
 
-### 9.4 Cargo 依赖可用
+**重要发现**：Codex 审计确认，`commands.json` 后端**目前根本没有接入前端**——`get_custom_commands` 在 `App.tsx` 中没有对应的调用逻辑，搜索流程只加入了应用和系统操作。这意味着旧自定义命令功能实际上是一个未完成的功能，迁移时不需要考虑前端兼容性，可以直接用新的扩展平台替代。
+
+**迁移策略**：
+1. 保留 `custom.rs` 代码但标记为 deprecated
+2. 新建 `src-tauri/src/extensions/` 模块，完全独立实现
+3. 如果用户有旧 `commands.json`，提供一个一次性迁移工具转换为本地 Adapter 配置
+4. 确认无用户依赖后删除 `custom.rs`
+
+### 9.4 前端集成点
+
+Codex 审计了现有前端代码结构，以下是扩展平台需要接入的具体位置：
+
+| 功能 | 文件 | 位置 | 说明 |
+|------|------|------|------|
+| 搜索结果类型 | `src/App.tsx:65` | `LauncherItem` 类型 | 已预留 `command` 类型，需补全搜索和渲染逻辑 |
+| 搜索流程入口 | `src/App.tsx:726` | 搜索结果构建 | 目前只加入应用和系统操作，需接入 `catalog_search` |
+| 终端创建 | `src/App.tsx:2049` | 命令执行 | 已有创建内置终端的逻辑，需改为接收结构化执行计划 |
+| Settings 面板 | `src/App.tsx` | settings/settings-tab 模式 | 插件管理页面应作为 Settings 的一个新 tab 接入 |
+| i18n | `src/i18n.ts` | 国际化 | 新增管理页面需要 en + zh 字符串 |
+
+### 9.5 Cargo 依赖可用
 
 Cargo.lock 中已有以下依赖，无需额外引入：
 - `reqwest 0.13.4` — HTTP 客户端（NPM Registry API）
@@ -752,6 +805,32 @@ Cargo.lock 中已有以下依赖，无需额外引入：
 - `sha2 0.10.9` — integrity 校验
 - `tar 0.4.46` — 解包
 - `flate2 1.1.9` — gzip 解压
+
+**注意**：Codex 额外检查了 `shell-words` crate（用于跨平台命令行参数解析/转义），在 Cargo 缓存中**未找到**。如果需要跨平台 argv 处理，需在 `Cargo.toml` 中新增此依赖，或使用 `std::process::Command` 直接传 argv（推荐后者，避免额外依赖）。
+
+### 9.6 项目目录结构
+
+Codex 审计了现有目录结构，扩展平台应新增的目录：
+
+```
+floter/
+├─ src-tauri/src/
+│  ├─ commands/
+│  │  └─ extensions.rs        # 新增：Tauri commands 入口
+│  ├─ extensions/             # 新增：扩展平台核心模块
+│  │  ├─ mod.rs
+│  │  ├─ manifest.rs          # Manifest 加载与校验
+│  │  ├─ provider.rs          # Provider 调用与缓存
+│  │  ├─ catalog.rs           # 统一命令目录
+│  │  ├─ install.rs           # 安装生命周期
+│  │  └─ lock.rs              # extensions.lock.json 管理
+│  └─ lib.rs                  # 注册新 commands
+├─ src/
+│  ├─ App.tsx                 # 接入 catalog_search 和联想 UI
+│  ├─ ExtensionsPanel.tsx     # 新增：插件管理页面
+│  └─ i18n.ts                 # 新增 en + zh 字符串
+└─ docs/extensions/           # ✅ 已完成：协议文档
+```
 
 ---
 
@@ -807,6 +886,7 @@ Cargo.lock 中已有以下依赖，无需额外引入：
    - 支持 `pty` / `capture` / `external` 三种模式
    - workingDirectory 处理
    - 环境变量传递
+   - 使用 `std::process::Command` 直接传 argv，不引入 `shell-words` 依赖
 
 5. **安装生命周期**
    - NPM Registry API 调用（下载 `.tgz`）
@@ -817,17 +897,28 @@ Cargo.lock 中已有以下依赖，无需额外引入：
    - `extensions.lock.json` 管理
    - 状态机实现
 
-6. **Tauri Commands**
-   - `extensions_list` — 列出已安装扩展
-   - `extensions_install` — 安装扩展
-   - `extensions_uninstall` — 删除扩展
+6. **声明式配置支持**
+   - 解析 Provider `config` 输出的声明式 schema
+   - Host 侧渲染表单并保存配置值
+   - 工具自管理配置时只提供「打开配置」入口
+
+7. **旧自定义命令迁移**
+   - 保留 `custom.rs` 但标记 deprecated
+   - 提供一次性迁移工具：旧 `commands.json` -> 本地 Adapter 配置
+   - 新扩展平台完全独立，不依赖旧代码
+
+8. **Tauri Commands**
+   - `extensions_list` - 列出已安装扩展
+   - `extensions_install` - 安装扩展
+   - `extensions_uninstall` - 删除扩展
    - `extensions_enable` / `extensions_disable`
-   - `extensions_update` — 更新扩展
-   - `extensions_describe` — 获取 Provider 命令
-   - `extensions_diagnose` — 运行诊断
-   - `extensions_search` — NPM 搜索
-   - `catalog_search` — 统一命令搜索（合并系统 + 扩展）
-   - `catalog_complete` — 参数联想（静态 + 动态 complete）
+   - `extensions_update` - 更新扩展
+   - `extensions_describe` - 获取 Provider 命令
+   - `extensions_diagnose` - 运行诊断
+   - `extensions_search` - NPM 搜索
+   - `extensions_config_get` / `extensions_config_set` - 声明式配置读写
+   - `catalog_search` - 统一命令搜索（合并系统 + 扩展）
+   - `catalog_complete` - 参数联想（静态 + 动态 complete）
 
 ### 阶段 3：React 前端 - 命令联想 ⬜ 待实现
 
@@ -839,14 +930,22 @@ Cargo.lock 中已有以下依赖，无需额外引入：
    - 键盘行为（Tab/Enter/Cmd+Enter/↑↓）
 
 2. **命令目录集成**
-   - 将 `catalog_search` 结果集成到现有搜索流程
-   - `command` 类型结果渲染（已有类型预留，需补全逻辑）
+   - 将 `catalog_search` 结果集成到现有搜索流程（`App.tsx:726`）
+   - `command` 类型结果渲染（`App.tsx:65` 已有类型预留，需补全逻辑）
 
 3. **结构化执行集成**
-   - 将执行计划传给现有 PTY 终端
-   - `external` 模式跳转系统终端
+   - 将执行计划传给现有 PTY 终端（`App.tsx:2049`）
+   - `external` 模式跳转系统终端（`terminal.rs:109`）
+   - 保持现有 TUI、鼠标、剪贴板功能不受影响
+
+4. **i18n 集成**
+   - 在 `src/i18n.ts` 中新增扩展相关的 en + zh 字符串
+   - 联想来源标注（如「来源：V Tools」/「Source: V Tools」）
+   - 冲突提示、状态标记等文案
 
 ### 阶段 4：插件管理页面 ⬜ 待实现
+
+插件管理页面作为 Settings 面板的新 tab 接入（复用现有 settings/settings-tab 模式），新建 `src/ExtensionsPanel.tsx` 组件。
 
 1. **已安装标签页**
    - 紧凑列表布局
@@ -866,10 +965,33 @@ Cargo.lock 中已有以下依赖，无需额外引入：
    - 插件信息展示
    - 命令列表
    - 诊断结果
-   - 配置入口
+   - 配置入口（工具自管理时启动 `openCommand`；Host 管理时渲染声明式表单）
    - 删除/回滚/重新安装
 
+5. **i18n**
+   - 管理页面全部文案双语（en + zh）
+   - 状态名称、操作按钮、确认对话框
+
 ### 阶段 5：V Provider 参考实现 ⬜ 待实现
+
+分两步走，先验证端到端流程，再实现动态协议。
+
+#### 第一步：静态适配器（不改 `v` 代码）
+
+在 Floter 侧维护一个 V Adapter（linked 模式），检测 PATH 中的 `v`，用静态 Manifest 声明 `jv`、`diff`、`codec`、`genpwd`、`tt` 这 5 个核心插件的命令和参数。
+
+1. **编写 V Adapter Manifest**
+   - `runtime.type = "linked"`
+   - `executableNames = ["v", "v.exe"]`
+   - 静态声明 5 个核心插件的命令、参数和执行方式
+   - 参数信息参考 Codex 审计结果（`plugin/jv/jv.go`、`plugin/diff/diff.go` 等）
+
+2. **验证闭环**
+   - 安装 Adapter 后输入 `jv -` 能看到参数说明
+   - 按 Enter 后在终端运行 `v jv ...`
+   - TUI、鼠标、剪贴板正常
+
+#### 第二步：给 `v` 增加 `--floter` 子命令（动态协议）
 
 在 `v` 仓库 (github.com/vst93/v) 中：
 
@@ -932,14 +1054,23 @@ Cargo.lock 中已有以下依赖，无需额外引入：
 2. **用户要求：扩展管理（安装/开关/删除/更新）要在协议中完善。**
    → FEP-3 定义了完整生命周期状态机，安装/更新/删除都是 Host 操作，不让插件自定义。
 
-3. **用户要求：通过 NPM 平台来管理和安装。**
-   → NPM 承担索引和分发，Floter 直接用 Registry API 下载校验，不执行 npm install，不依赖 Node.js。
+3. **用户要求：通过 NPM 平台来管理和安装，让第三方插件制作 NPM 包。**
+   → NPM 承担索引和分发，Floter 直接用 Registry API 下载校验，不执行 npm install，不依赖 Node.js。包中只含声明文件和静态资源，不执行 JS。
 
 4. **用户要求：考虑 Linux、Windows、macOS 三平台差异。**
-   → 协议中原生设计平台覆写、平台包拆分、平台特定路径/权限/执行逻辑。
+   → 协议中原生设计平台覆写、平台包拆分、平台特定路径/权限/执行逻辑。Windows 不沿用 Unix PATH/单引号/权限逻辑，macOS 区分 Intel/Apple Silicon，Linux 不假设发行版。
 
 5. **用户要求：先规划不用着急开发。**
    → 第一轮只做了代码与架构分析，没有修改两个仓库。后续确认方向后才开始产出协议文档。
+
+6. **用户要求：v 作为官方工具插件，也是一个探索逻辑。**
+   → V 作为参考实现，验证整套协议可行性。V 保持独立项目和独立版本，通过 Provider 协议接入而非编译进 Floter。
+
+7. **Codex 确认：现有终端和 PTY 可直接复用，不需要重新设计。**
+   → 真正需要新增的是「命令目录和解析层」。`custom.rs` 后端未接入前端，不影响新平台实现。
+
+8. **Codex 确认：Cargo.lock 已有 reqwest/semver/sha2/tar/flate2 依赖。**
+   → 安装生命周期所需的核心依赖齐备，无需额外引入。`shell-words` 缺失但可用 `std::process::Command` 替代。
 
 ---
 
