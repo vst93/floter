@@ -1111,9 +1111,7 @@ dependencies = [
  "miniz_oxide",
 ]
 
-[[package]]
-name = "floter"
-version = "0.2.3"
+.2.4"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
