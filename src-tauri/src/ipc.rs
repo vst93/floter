@@ -16,7 +16,7 @@ use std::io::{BufRead, BufReader, Error, ErrorKind, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 /// Whether this process is the one holding the listener. Only the owner may
 /// unlink the socket on exit — an instance that failed to bind because another
