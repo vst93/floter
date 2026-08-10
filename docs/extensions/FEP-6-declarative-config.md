@@ -35,7 +35,7 @@ Host runs in a PTY. This is the same descriptor consumed by
         "type": "password",
         "label": "Access token",
         "required": true,
-        "environment": "EXAMPLE_TOKEN"
+        "envVar": "EXAMPLE_TOKEN"
       },
       {
         "key": "retries",
@@ -90,10 +90,9 @@ The Host validates, in order:
    these constraints.
 
 Unknown value keys and invalid values are rejected by `validate_values` in
-`src-tauri/src/extensions/config.rs`. That current validator implements type,
-required, enum, and numeric range checks; it does not yet enforce text length or
-invoke custom validators. A custom validation rule, when supported by a future
-protocol version, MUST be deterministic, side-effect free, and run before
+`src-tauri/src/extensions/config.rs`. It enforces type, required, enum, numeric
+range, and text length checks. A custom validation rule, when supported by a
+future protocol version, MUST be deterministic, side-effect free, and run before
 persistence.
 
 ## Persistence and Scope
@@ -109,10 +108,12 @@ In the current Floter layout, the data root is deliberately separate from the
 program root, so the concrete path is
 `extension-data/<id>/config.json` (see `ExtensionPaths::from_root` and
 `values_path` in `src-tauri/src/extensions/config.rs`). The stored object
-contains `values` and the schema snapshot used for migration and compatibility:
+contains `configVersion`, redacted public `values`, and the schema snapshot used
+for migration and compatibility:
 
 ```json
 {
+  "configVersion": 2,
   "values": {
     "endpoint": "https://api.example.com",
     "retries": 3,
@@ -122,13 +123,17 @@ contains `values` and the schema snapshot used for migration and compatibility:
 }
 ```
 
+Password values are written as `[REDACTED]` in `config.json`; their actual values
+are stored in the adjacent access-restricted `config.secrets.json` and merged
+only when the Host loads configuration.
+
 Configuration is global to an installed extension by default. A future revision
 may add a session/terminal scope; scoped values MUST be layered over global
 values without changing the persisted global object.
 
 ## Schema Versions and Migration
 
-Providers SHOULD expose a `configVersion` in their configuration descriptor.
+Providers SHOULD expose a positive `configVersion` in their configuration descriptor.
 When the version changes, the Host compares the stored schema
 snapshot with the new descriptor before rendering or injecting values:
 
@@ -139,15 +144,17 @@ snapshot with the new descriptor before rendering or injecting values:
    side-effect-free `config` call; otherwise preserve compatible values and
    report the migration in the UI.
 
-The current Phase 1-6 storage format has no explicit `configVersion` member and
-uses the saved `schema` snapshot for this comparison. `configVersion` is the
-forward-compatible name for a future explicit version field, not a field that a
-Draft 1 Host may require.
+Descriptors that omit `configVersion` default to version 1. The Host persists
+the version and schema snapshot. When either changes, compatible values are
+retained, incompatible values are discarded, and newly introduced defaults are
+materialized automatically.
 
 ## Injection into Provider Execution
 
-Fields may map to an environment variable with `environment` and/or to an argv
-flag with `argument`. Before `describe`, `complete`, `diagnose`, or command
+Fields may map to an environment variable with `envVar` and/or to an argv flag
+with `argument`. The legacy `environment` spelling remains accepted. A
+descriptor-level `environmentMapping` object may also map field keys to variable
+names. Before `describe`, `complete`, `diagnose`, or command
 execution, the Host applies persisted values: scalar values are stringified,
 arrays are comma-joined, false booleans and null values do not emit an argument,
 and environment entries are added to the structured execution environment.

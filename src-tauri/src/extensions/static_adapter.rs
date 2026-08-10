@@ -64,6 +64,7 @@ fn load(
         Runtime::Linked { version_args, .. } => version_args.clone(),
         Runtime::Managed { .. } => unreachable!(),
     };
+    let permissions = manifest.permissions.clone();
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.unwrap_or(fallback_executable),
@@ -72,6 +73,7 @@ fn load(
         tool_version_hint: Some(description.provider.version.clone()),
         version_args,
         config: resolved.provider,
+        permissions,
     };
     validate_execution_descriptors(&description, &invocation)?;
 

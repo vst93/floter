@@ -101,16 +101,16 @@ pub struct PlatformOverride {
     pub minimum_os_version: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
 pub enum Permission {
-    Terminal,
     FilesystemRead,
     FilesystemWrite,
+    NetworkFetch,
+    ProcessSpawn,
     ClipboardRead,
     ClipboardWrite,
-    Network,
-    Process,
+    Environment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -407,6 +407,18 @@ mod tests {
         let bytes = include_bytes!("../../../docs/extensions/examples/v/floter.extension.json");
         let manifest = ExtensionManifest::parse(bytes).expect("reference manifest");
         assert_eq!(manifest.id, "io.github.vst93.v");
+        assert_eq!(
+            manifest.permissions,
+            vec![
+                Permission::FilesystemRead,
+                Permission::FilesystemWrite,
+                Permission::NetworkFetch,
+                Permission::ProcessSpawn,
+                Permission::ClipboardRead,
+                Permission::ClipboardWrite,
+                Permission::Environment,
+            ]
+        );
     }
 
     #[test]

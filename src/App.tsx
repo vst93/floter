@@ -2746,6 +2746,7 @@ export default function App() {
 
             <ExtensionsPanel
               t={t}
+              locale={language}
               onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
             />
 

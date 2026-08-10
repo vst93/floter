@@ -15,34 +15,28 @@ the user to confirm. An update that adds a capability MUST pause for explicit
 confirmation. Removing capabilities does not require confirmation, but the
 change is recorded with the installed version.
 
-The protocol names capabilities using dotted notation. Draft 1's JSON schema
-uses the corresponding kebab-case wire values shown in the table; producers
-MUST use those wire values until the schema is revised.
+The protocol names capabilities using dotted notation. The JSON schema uses the
+corresponding kebab-case wire values shown in the table.
 
 | Capability | Meaning | Draft 1 manifest value |
 | --- | --- | --- |
 | `filesystem.read` | Read files and directories available to the process | `filesystem-read` |
 | `filesystem.write` | Create, modify, or remove files | `filesystem-write` |
-| `network.fetch` | Make outbound network requests | `network` |
-| `process.spawn` | Start child processes | `process` |
+| `network.fetch` | Make outbound network requests | `network-fetch` |
+| `process.spawn` | Start child processes | `process-spawn` |
 | `clipboard.read` | Read the system clipboard | `clipboard-read` |
 | `clipboard.write` | Write the system clipboard | `clipboard-write` |
-| `environment` | Read environment variables | `environment` (reserved; not accepted by Draft 1 schema) |
-
-`terminal` is also a valid Draft 1 wire permission and indicates terminal/PTY
-interaction. A provider that needs environment-variable injection should declare
-the relevant variables in `provider.environment` or a configuration field; the
-current manifest schema does not yet expose a separate `environment` enum.
+| `environment` | Inherit Host environment variables | `environment` |
 
 ```json
 {
   "schemaVersion": "1.0",
   "id": "io.example.v-tools",
   "permissions": [
-    "terminal",
     "filesystem-read",
-    "network",
-    "process"
+    "network-fetch",
+    "process-spawn",
+    "environment"
   ]
 }
 ```
@@ -61,6 +55,11 @@ communicates through the Provider protocol over stdin/stdout. An extension:
 - MUST NOT modify another extension's data, even when the process has filesystem
   access;
 - MUST treat all Host input as structured JSON/argv data, not as a shell script.
+
+Without `environment`, the Host clears inherited environment variables before
+starting the Provider, then applies only explicit manifest and configuration
+entries. An execution descriptor whose `program` is not `self` requires
+`process-spawn`. These checks are declarative controls, not an OS sandbox.
 
 These are protocol requirements and packaging policy. Permission declarations do
 not grant access to Floter internals and do not make native code safe by

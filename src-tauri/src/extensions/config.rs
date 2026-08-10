@@ -12,14 +12,22 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigurationDescriptor {
+    #[serde(default = "default_config_version")]
+    pub config_version: u64,
     pub owner: ConfigurationOwner,
     #[serde(default)]
     pub open_command: Vec<String>,
     #[serde(default)]
     pub schema: Vec<ConfigurationField>,
+    #[serde(default)]
+    pub environment_mapping: BTreeMap<String, String>,
+}
+
+fn default_config_version() -> u64 {
+    1
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,7 +37,7 @@ pub enum ConfigurationOwner {
     Tool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigurationField {
     pub key: String,
@@ -46,7 +54,10 @@ pub struct ConfigurationField {
     pub options: Vec<Value>,
     pub minimum: Option<f64>,
     pub maximum: Option<f64>,
-    pub environment: Option<String>,
+    pub min_length: Option<usize>,
+    pub max_length: Option<usize>,
+    #[serde(alias = "environment")]
+    pub env_var: Option<String>,
     pub argument: Option<String>,
 }
 
@@ -73,6 +84,8 @@ pub struct ExtensionConfiguration {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StoredConfiguration {
+    #[serde(default)]
+    config_version: u64,
     values: BTreeMap<String, Value>,
     schema: Vec<ConfigurationField>,
 }
@@ -98,7 +111,18 @@ pub async fn get(
     let (descriptor, invocation) = descriptor(state, entry).await?;
     validate_descriptor(&descriptor)?;
     let values = if descriptor.owner == ConfigurationOwner::Host {
-        load_values(&state.paths.data, extension_id)?
+        let stored = load_stored(&state.paths.data, extension_id)?;
+        let (values, migrated) = migrate_values(&stored, &descriptor)?;
+        if migrated {
+            save_values(
+                &state.paths.data,
+                extension_id,
+                descriptor.config_version,
+                &descriptor.schema,
+                &values,
+            )?;
+        }
+        values
     } else {
         BTreeMap::new()
     };
@@ -125,12 +149,33 @@ pub async fn set(
         ));
     }
     validate_values(&descriptor.schema, &values)?;
-    save_values(&state.paths.data, extension_id, &descriptor.schema, &values)?;
+    let values = materialize_defaults(&descriptor.schema, values);
+    save_values(
+        &state.paths.data,
+        extension_id,
+        descriptor.config_version,
+        &descriptor.schema,
+        &values,
+    )?;
     Ok(ExtensionConfiguration {
         descriptor,
         values,
         open_plan: None,
     })
+}
+
+fn materialize_defaults(
+    schema: &[ConfigurationField],
+    mut values: BTreeMap<String, Value>,
+) -> BTreeMap<String, Value> {
+    for field in schema {
+        if let Some(default) = &field.default {
+            values
+                .entry(field.key.clone())
+                .or_insert_with(|| default.clone());
+        }
+    }
+    values
 }
 
 pub fn apply_persisted_configuration(
@@ -141,7 +186,7 @@ pub fn apply_persisted_configuration(
     let mut args = Vec::new();
     for field in &stored.schema {
         let value = stored.values.get(&field.key);
-        let (Some(environment), Some(value)) = (&field.environment, value) else {
+        let (Some(environment), Some(value)) = (&field.env_var, value) else {
             if let (Some(argument), Some(value)) = (&field.argument, value) {
                 append_argument(&mut args, argument, value);
             }
@@ -194,8 +239,23 @@ async fn descriptor(
 ) -> Result<(ConfigurationDescriptor, ProviderInvocation), String> {
     let mut invocation = invocation_from_entry(entry)?;
     let _ = apply_persisted_configuration(&state.paths.data, &mut invocation)?;
-    let envelope: ConfigurationEnvelope = state.provider.call_config(&invocation).await?;
+    let mut envelope: ConfigurationEnvelope = state.provider.call_config(&invocation).await?;
+    apply_environment_mapping(&mut envelope.configuration)?;
     Ok((envelope.configuration, invocation))
+}
+
+fn apply_environment_mapping(descriptor: &mut ConfigurationDescriptor) -> Result<(), String> {
+    for (key, env_var) in &descriptor.environment_mapping {
+        let field = descriptor
+            .schema
+            .iter_mut()
+            .find(|field| &field.key == key)
+            .ok_or_else(|| format!("environmentMapping references unknown key: {key}"))?;
+        if field.env_var.is_none() {
+            field.env_var = Some(env_var.clone());
+        }
+    }
+    Ok(())
 }
 
 fn tool_configuration_plan(
@@ -223,6 +283,9 @@ fn tool_configuration_plan(
 }
 
 fn validate_descriptor(descriptor: &ConfigurationDescriptor) -> Result<(), String> {
+    if descriptor.config_version == 0 {
+        return Err("configVersion must be greater than zero".to_string());
+    }
     match descriptor.owner {
         ConfigurationOwner::Tool => {
             if descriptor.open_command.is_empty() {
@@ -249,13 +312,49 @@ fn validate_descriptor(descriptor: &ConfigurationDescriptor) -> Result<(), Strin
                         field.key
                     ));
                 }
-                if field.field_type == ConfigurationFieldType::Select && field.options.is_empty() {
-                    return Err(format!("Select field {} has no options", field.key));
+                if matches!(
+                    field.field_type,
+                    ConfigurationFieldType::Select | ConfigurationFieldType::MultiSelect
+                ) && field.options.is_empty()
+                {
+                    return Err(format!("Selection field {} has no options", field.key));
+                }
+                if field
+                    .env_var
+                    .as_deref()
+                    .is_some_and(|name| !valid_env_var(name))
+                {
+                    return Err(format!("Invalid envVar for {}", field.key));
+                }
+                if field
+                    .minimum
+                    .zip(field.maximum)
+                    .is_some_and(|(min, max)| min > max)
+                {
+                    return Err(format!("Invalid numeric range for {}", field.key));
+                }
+                if field
+                    .min_length
+                    .zip(field.max_length)
+                    .is_some_and(|(min, max)| min > max)
+                {
+                    return Err(format!("Invalid text length range for {}", field.key));
+                }
+                if let Some(default) = &field.default {
+                    validate_field_value(field, default)?;
                 }
             }
         }
     }
     Ok(())
+}
+
+fn valid_env_var(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    bytes
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
 }
 
 fn validate_values(
@@ -278,37 +377,55 @@ fn validate_values(
             }
             continue;
         };
-        let type_matches = match field.field_type {
-            ConfigurationFieldType::Text
-            | ConfigurationFieldType::Password
-            | ConfigurationFieldType::Path
-            | ConfigurationFieldType::Select => value.is_string(),
-            ConfigurationFieldType::MultiSelect => value
-                .as_array()
-                .is_some_and(|values| values.iter().all(Value::is_string)),
-            ConfigurationFieldType::Boolean => value.is_boolean(),
-            ConfigurationFieldType::Number => value.is_number(),
-        };
-        if !type_matches {
-            return Err(format!("Invalid value type for {}", field.key));
+        validate_field_value(field, value)?;
+    }
+    Ok(())
+}
+
+fn validate_field_value(field: &ConfigurationField, value: &Value) -> Result<(), String> {
+    let type_matches = match field.field_type {
+        ConfigurationFieldType::Text
+        | ConfigurationFieldType::Password
+        | ConfigurationFieldType::Path
+        | ConfigurationFieldType::Select => value.is_string(),
+        ConfigurationFieldType::MultiSelect => value
+            .as_array()
+            .is_some_and(|values| values.iter().all(Value::is_string)),
+        ConfigurationFieldType::Boolean => value.is_boolean(),
+        ConfigurationFieldType::Number => value.is_number(),
+    };
+    if !type_matches {
+        return Err(format!("Invalid value type for {}", field.key));
+    }
+    if matches!(
+        field.field_type,
+        ConfigurationFieldType::Select | ConfigurationFieldType::MultiSelect
+    ) {
+        let selected = value
+            .as_array()
+            .map_or_else(|| vec![value], |values| values.iter().collect());
+        if selected.iter().any(|value| !field.options.contains(value)) {
+            return Err(format!("Value for {} is not an allowed option", field.key));
         }
-        if matches!(
-            field.field_type,
-            ConfigurationFieldType::Select | ConfigurationFieldType::MultiSelect
-        ) {
-            let selected = value
-                .as_array()
-                .map_or_else(|| vec![value], |values| values.iter().collect());
-            if selected.iter().any(|value| !field.options.contains(value)) {
-                return Err(format!("Value for {} is not an allowed option", field.key));
-            }
+    }
+    if let Some(number) = value.as_f64() {
+        if field.minimum.is_some_and(|minimum| number < minimum)
+            || field.maximum.is_some_and(|maximum| number > maximum)
+        {
+            return Err(format!(
+                "Value for {} is outside its allowed range",
+                field.key
+            ));
         }
-        if let Some(number) = value.as_f64() {
-            if field.minimum.is_some_and(|minimum| number < minimum)
-                || field.maximum.is_some_and(|maximum| number > maximum)
+    }
+    if field.field_type == ConfigurationFieldType::Text {
+        if let Some(text) = value.as_str() {
+            let length = text.chars().count();
+            if field.min_length.is_some_and(|minimum| length < minimum)
+                || field.max_length.is_some_and(|maximum| length > maximum)
             {
                 return Err(format!(
-                    "Value for {} is outside its allowed range",
+                    "Value for {} is outside its allowed length",
                     field.key
                 ));
             }
@@ -322,14 +439,16 @@ fn values_path(data_root: &Path, extension_id: &str) -> Result<std::path::PathBu
     Ok(data_root.join(extension_id).join("config.json"))
 }
 
-fn load_values(data_root: &Path, extension_id: &str) -> Result<BTreeMap<String, Value>, String> {
-    Ok(load_stored(data_root, extension_id)?.values)
+fn secrets_path(data_root: &Path, extension_id: &str) -> Result<std::path::PathBuf, String> {
+    crate::extensions::lock::validate_id(extension_id)?;
+    Ok(data_root.join(extension_id).join("config.secrets.json"))
 }
 
 fn load_stored(data_root: &Path, extension_id: &str) -> Result<StoredConfiguration, String> {
     let path = values_path(data_root, extension_id)?;
     if !path.exists() {
         return Ok(StoredConfiguration {
+            config_version: 0,
             values: BTreeMap::new(),
             schema: Vec::new(),
         });
@@ -339,18 +458,80 @@ fn load_stored(data_root: &Path, extension_id: &str) -> Result<StoredConfigurati
             .map_err(|error| format!("Cannot read configuration {}: {error}", path.display()))?,
     )
     .map_err(|error| format!("Invalid configuration {}: {error}", path.display()))?;
-    Ok(match stored {
+    let mut stored = match stored {
         StoredConfigurationFormat::Current(stored) => stored,
         StoredConfigurationFormat::Legacy(values) => StoredConfiguration {
+            config_version: 0,
             values,
             schema: Vec::new(),
         },
-    })
+    };
+    let secrets_path = secrets_path(data_root, extension_id)?;
+    if secrets_path.exists() {
+        let secrets: BTreeMap<String, Value> =
+            serde_json::from_slice(&std::fs::read(&secrets_path).map_err(|error| {
+                format!(
+                    "Cannot read configuration secrets {}: {error}",
+                    secrets_path.display()
+                )
+            })?)
+            .map_err(|error| {
+                format!(
+                    "Invalid configuration secrets {}: {error}",
+                    secrets_path.display()
+                )
+            })?;
+        stored.values.extend(secrets);
+    } else {
+        for field in &stored.schema {
+            if field.field_type == ConfigurationFieldType::Password
+                && stored.values.get(&field.key).and_then(Value::as_str) == Some("[REDACTED]")
+            {
+                stored.values.remove(&field.key);
+            }
+        }
+    }
+    Ok(stored)
+}
+
+fn migrate_values(
+    stored: &StoredConfiguration,
+    descriptor: &ConfigurationDescriptor,
+) -> Result<(BTreeMap<String, Value>, bool), String> {
+    let previous_fields = stored
+        .schema
+        .iter()
+        .map(|field| (field.key.as_str(), field))
+        .collect::<BTreeMap<_, _>>();
+    let mut values = BTreeMap::new();
+    for field in &descriptor.schema {
+        let compatible = previous_fields
+            .get(field.key.as_str())
+            .is_some_and(|previous| previous.field_type == field.field_type)
+            || stored.schema.is_empty();
+        if compatible {
+            if let Some(value) = stored.values.get(&field.key) {
+                if validate_field_value(field, value).is_ok() {
+                    values.insert(field.key.clone(), value.clone());
+                    continue;
+                }
+            }
+        }
+        if let Some(default) = &field.default {
+            validate_field_value(field, default)?;
+            values.insert(field.key.clone(), default.clone());
+        }
+    }
+    let migrated = stored.config_version != descriptor.config_version
+        || stored.schema != redacted_schema(&descriptor.schema)
+        || stored.values != values;
+    Ok((values, migrated))
 }
 
 fn save_values(
     data_root: &Path,
     extension_id: &str,
+    config_version: u64,
     schema: &[ConfigurationField],
     values: &BTreeMap<String, Value>,
 ) -> Result<(), String> {
@@ -360,11 +541,55 @@ fn save_values(
         .ok_or("Invalid extension configuration path")?;
     std::fs::create_dir_all(parent)
         .map_err(|error| format!("Cannot create extension data directory: {error}"))?;
+    let password_keys = schema
+        .iter()
+        .filter(|field| field.field_type == ConfigurationFieldType::Password)
+        .map(|field| field.key.as_str())
+        .collect::<HashSet<_>>();
+    let mut public_values = values.clone();
+    let mut secrets = BTreeMap::new();
+    for key in password_keys {
+        if let Some(value) = public_values.get_mut(key) {
+            secrets.insert(key.to_string(), value.clone());
+            *value = Value::String("[REDACTED]".to_string());
+        }
+    }
+    let stored_schema = redacted_schema(schema);
     let bytes = serde_json::to_vec_pretty(&StoredConfiguration {
-        values: values.clone(),
-        schema: schema.to_vec(),
+        config_version,
+        values: public_values,
+        schema: stored_schema,
     })
     .map_err(|error| format!("Cannot serialize extension configuration: {error}"))?;
+    atomic_write(&path, &bytes)?;
+
+    let secrets_path = secrets_path(data_root, extension_id)?;
+    let secret_bytes = serde_json::to_vec_pretty(&secrets)
+        .map_err(|error| format!("Cannot serialize extension configuration secrets: {error}"))?;
+    atomic_write(&secrets_path, &secret_bytes)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&secrets_path, std::fs::Permissions::from_mode(0o600))
+            .map_err(|error| format!("Cannot protect configuration secrets: {error}"))?;
+    }
+    Ok(())
+}
+
+fn redacted_schema(schema: &[ConfigurationField]) -> Vec<ConfigurationField> {
+    let mut schema = schema.to_vec();
+    for field in &mut schema {
+        if field.field_type == ConfigurationFieldType::Password && field.default.is_some() {
+            field.default = Some(Value::String("[REDACTED]".to_string()));
+        }
+    }
+    schema
+}
+
+fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or("Invalid extension configuration path")?;
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
         .map_err(|error| format!("Cannot create configuration temporary file: {error}"))?;
     temporary
@@ -382,6 +607,24 @@ fn save_values(
 mod tests {
     use super::*;
 
+    fn field(key: &str, field_type: ConfigurationFieldType) -> ConfigurationField {
+        ConfigurationField {
+            key: key.into(),
+            field_type,
+            label: String::new(),
+            description: String::new(),
+            required: false,
+            default: None,
+            options: Vec::new(),
+            minimum: None,
+            maximum: None,
+            min_length: None,
+            max_length: None,
+            env_var: None,
+            argument: None,
+        }
+    }
+
     #[test]
     fn rejects_unknown_configuration_values() {
         let values = BTreeMap::from([("other".to_string(), Value::Bool(true))]);
@@ -390,20 +633,108 @@ mod tests {
 
     #[test]
     fn validates_select_options() {
-        let field = ConfigurationField {
-            key: "language".into(),
-            field_type: ConfigurationFieldType::Select,
-            label: String::new(),
-            description: String::new(),
-            required: true,
-            default: None,
-            options: vec![Value::String("en".into()), Value::String("zh".into())],
-            minimum: None,
-            maximum: None,
-            environment: None,
-            argument: None,
-        };
+        let mut field = field("language", ConfigurationFieldType::Select);
+        field.required = true;
+        field.options = vec![Value::String("en".into()), Value::String("zh".into())];
         let values = BTreeMap::from([("language".into(), Value::String("fr".into()))]);
         assert!(validate_values(&[field], &values).is_err());
+    }
+
+    #[test]
+    fn validates_number_and_text_constraints() {
+        let mut retries = field("retries", ConfigurationFieldType::Number);
+        retries.minimum = Some(1.0);
+        retries.maximum = Some(3.0);
+        let mut label = field("label", ConfigurationFieldType::Text);
+        label.min_length = Some(2);
+        label.max_length = Some(4);
+
+        assert!(validate_values(
+            &[retries.clone(), label.clone()],
+            &BTreeMap::from([
+                ("retries".into(), Value::from(2)),
+                ("label".into(), Value::String("工具".into())),
+            ]),
+        )
+        .is_ok());
+        assert!(validate_values(
+            &[retries],
+            &BTreeMap::from([("retries".into(), Value::from(4))]),
+        )
+        .is_err());
+        assert!(validate_values(
+            &[label],
+            &BTreeMap::from([("label".into(), Value::String("a".into()))]),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn migrates_config_version_and_adds_new_defaults() {
+        let endpoint = field("endpoint", ConfigurationFieldType::Text);
+        let mut retries = field("retries", ConfigurationFieldType::Number);
+        retries.default = Some(Value::from(3));
+        let stored = StoredConfiguration {
+            config_version: 1,
+            values: BTreeMap::from([(
+                "endpoint".into(),
+                Value::String("https://old.example".into()),
+            )]),
+            schema: vec![endpoint.clone()],
+        };
+        let descriptor = ConfigurationDescriptor {
+            config_version: 2,
+            owner: ConfigurationOwner::Host,
+            open_command: Vec::new(),
+            schema: vec![endpoint, retries],
+            environment_mapping: BTreeMap::new(),
+        };
+
+        let (values, migrated) = migrate_values(&stored, &descriptor).unwrap();
+
+        assert!(migrated);
+        assert_eq!(
+            values["endpoint"],
+            Value::String("https://old.example".into())
+        );
+        assert_eq!(values["retries"], Value::from(3));
+    }
+
+    #[test]
+    fn injects_env_var_mapped_configuration() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut api_key = field("apiKey", ConfigurationFieldType::Password);
+        api_key.env_var = Some("V_API_KEY".into());
+        save_values(
+            directory.path(),
+            "io.example.tool",
+            1,
+            &[api_key],
+            &BTreeMap::from([("apiKey".into(), Value::String("abc123".into()))]),
+        )
+        .unwrap();
+        let mut invocation = ProviderInvocation {
+            extension_id: "io.example.tool".into(),
+            executable: "tool".into(),
+            runtime_root: None,
+            package_version: "1.0.0".into(),
+            tool_version_hint: None,
+            version_args: Vec::new(),
+            config: crate::extensions::manifest::ProviderConfig {
+                args_prefix: Vec::new(),
+                describe_timeout_ms: 5_000,
+                complete_timeout_ms: 800,
+                environment: BTreeMap::new(),
+            },
+            permissions: Vec::new(),
+        };
+
+        apply_persisted_configuration(directory.path(), &mut invocation).unwrap();
+
+        assert_eq!(invocation.config.environment["V_API_KEY"], "abc123");
+        let public =
+            std::fs::read_to_string(directory.path().join("io.example.tool/config.json")).unwrap();
+        assert!(!public.contains("abc123"));
+        assert!(public.contains("[REDACTED]"));
     }
 }

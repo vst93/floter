@@ -73,7 +73,7 @@
     "permissions": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "enum": ["terminal", "filesystem-read", "filesystem-write", "clipboard-read", "clipboard-write", "network", "process"] }
+      "items": { "enum": ["filesystem-read", "filesystem-write", "network-fetch", "process-spawn", "clipboard-read", "clipboard-write", "environment"] }
     }
   },
   "$defs": {
@@ -103,4 +103,3 @@
     }
   }
 }
-

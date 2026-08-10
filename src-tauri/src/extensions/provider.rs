@@ -1,4 +1,4 @@
-use crate::extensions::manifest::ProviderConfig;
+use crate::extensions::manifest::{Permission, ProviderConfig};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -22,6 +22,7 @@ pub struct ProviderInvocation {
     pub tool_version_hint: Option<String>,
     pub version_args: Vec<String>,
     pub config: ProviderConfig,
+    pub permissions: Vec<Permission>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,7 +244,7 @@ impl ProviderManager {
         let tool_version = if invocation.version_args.is_empty() {
             invocation.tool_version_hint.clone()
         } else {
-            provider_version(&invocation.executable, &invocation.version_args)
+            provider_version(invocation)
                 .await
                 .or_else(|| invocation.tool_version_hint.clone())
         };
@@ -385,6 +386,9 @@ impl ProviderManager {
         timeout: Duration,
     ) -> Result<(T, String), String> {
         let mut command = provider_command(&invocation.executable);
+        if !invocation.permissions.contains(&Permission::Environment) {
+            command.env_clear();
+        }
         command
             .args(&invocation.config.args_prefix)
             .arg(operation)
@@ -498,6 +502,12 @@ pub fn execution_plan(
     let program = if command.execution.program == "self" {
         invocation.executable.clone()
     } else {
+        if !invocation.permissions.contains(&Permission::ProcessSpawn) {
+            return Err(format!(
+                "Command {} requires the process-spawn permission",
+                command.id
+            ));
+        }
         let relative = Path::new(&command.execution.program);
         if relative.is_absolute()
             || relative
@@ -576,10 +586,14 @@ fn provider_command(executable: &Path) -> tokio::process::Command {
     tokio::process::Command::new(executable)
 }
 
-async fn provider_version(executable: &Path, args: &[String]) -> Option<String> {
-    let mut command = provider_command(executable);
+async fn provider_version(invocation: &ProviderInvocation) -> Option<String> {
+    let mut command = provider_command(&invocation.executable);
+    if !invocation.permissions.contains(&Permission::Environment) {
+        command.env_clear();
+    }
     command
-        .args(args)
+        .args(&invocation.version_args)
+        .envs(&invocation.config.environment)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -643,6 +657,12 @@ pub(crate) fn validate_execution_descriptors(
 ) -> Result<(), String> {
     for command in &description.commands {
         if command.execution.program != "self" {
+            if !invocation.permissions.contains(&Permission::ProcessSpawn) {
+                return Err(format!(
+                    "Command {} requires the process-spawn permission",
+                    command.id
+                ));
+            }
             let path = Path::new(&command.execution.program);
             if path.is_absolute()
                 || path
@@ -715,6 +735,7 @@ mod tests {
                 complete_timeout_ms,
                 environment,
             },
+            permissions: Vec::new(),
         }
     }
 
@@ -739,6 +760,33 @@ mod tests {
         validate_description_schema(&value).unwrap();
         let description: ProviderDescription = serde_json::from_value(value).unwrap();
         assert_eq!(description.commands[0].id, "jv");
+    }
+
+    #[test]
+    fn description_schema_accepts_versioned_env_var_configuration() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../docs/extensions/examples/v/provider-description.json"
+        ))
+        .unwrap();
+        value["configuration"] = serde_json::json!({
+            "configVersion": 2,
+            "owner": "host",
+            "environmentMapping": { "apiKey": "V_API_KEY" },
+            "schema": [{
+                "key": "apiKey",
+                "type": "password",
+                "required": true,
+                "envVar": "V_API_KEY"
+            }, {
+                "key": "retries",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5,
+                "default": 2
+            }]
+        });
+
+        validate_description_schema(&value).unwrap();
     }
 
     #[cfg(unix)]
@@ -781,6 +829,63 @@ printf '%s' '{"completions":[{"label":"-file","kind":"flag","detail":"Read from 
         assert_eq!(response.completions[0].label, "-file");
         assert_eq!(response.completions[0].kind, "flag");
         assert_eq!(response.completions[0].detail, "Read from file");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn provider_without_environment_permission_does_not_inherit_host_variables() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            r#"cat >/dev/null
+printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_PERMISSION_PARENT-unset}"':'"$EXPLICIT_VALUE"'"}]}'"#,
+        );
+        std::env::set_var("FLOTER_PERMISSION_PARENT", "host-secret");
+        let invocation = mock_invocation(
+            executable,
+            800,
+            BTreeMap::from([("EXPLICIT_VALUE".into(), "configured".into())]),
+        );
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let response = manager
+            .complete(&invocation, &serde_json::json!({"command": "env"}))
+            .await
+            .unwrap();
+        std::env::remove_var("FLOTER_PERMISSION_PARENT");
+
+        assert_eq!(response.completions[0].detail, "unset:configured");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_execution_program_requires_process_spawn_permission() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(directory.path(), "exit 0");
+        let child = directory.path().join("child");
+        std::fs::write(&child, "child").unwrap();
+        let mut invocation = mock_invocation(executable, 800, BTreeMap::new());
+        invocation.runtime_root = Some(directory.path().to_path_buf());
+        let command = CommandDescriptor {
+            id: "child".into(),
+            name: "Child".into(),
+            description: String::new(),
+            aliases: Vec::new(),
+            keywords: Vec::new(),
+            execution: ExecutionDescriptor {
+                program: "child".into(),
+                args_prefix: Vec::new(),
+                mode: ExecutionMode::Capture,
+                working_directory: WorkingDirectory::Current,
+            },
+            arguments: Vec::new(),
+        };
+
+        assert!(execution_plan(&command, &invocation, Vec::new(), None)
+            .unwrap_err()
+            .contains("process-spawn"));
+        invocation.permissions.push(Permission::ProcessSpawn);
+        assert!(execution_plan(&command, &invocation, Vec::new(), None).is_ok());
     }
 
     #[cfg(unix)]

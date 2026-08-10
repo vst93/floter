@@ -11,6 +11,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -105,7 +106,9 @@ type ConfigField = {
   options: JsonValue[];
   minimum: number | null;
   maximum: number | null;
-  environment: string | null;
+  minLength: number | null;
+  maxLength: number | null;
+  envVar: string | null;
   argument: string | null;
 };
 
@@ -119,9 +122,11 @@ export type ExtensionExecutionPlan = {
 
 type ExtensionConfiguration = {
   descriptor: {
+    configVersion: number;
     owner: "host" | "tool";
     openCommand: string[];
     schema: ConfigField[];
+    environmentMapping: Record<string, string>;
   };
   values: Record<string, JsonValue>;
   openPlan: ExtensionExecutionPlan | null;
@@ -132,7 +137,32 @@ type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "
 
 type ExtensionsPanelProps = {
   t: Translate;
+  locale: "en" | "zh";
   onOpenCommand: (plan: ExtensionExecutionPlan, label: string) => void | Promise<void>;
+};
+
+type PermissionName =
+  | "filesystem-read"
+  | "filesystem-write"
+  | "network-fetch"
+  | "process-spawn"
+  | "clipboard-read"
+  | "clipboard-write"
+  | "environment";
+
+type PermissionReview = {
+  extensionId: string;
+  extensionName: string;
+  permissions: Array<{ permission: PermissionName; title: string; description: string }>;
+};
+
+type InstallRequest = {
+  source: "npm";
+  package: string;
+  version: string;
+  manifestPath: null;
+  executablePath: null;
+  approvedPermissions?: PermissionName[];
 };
 
 const compareVersions = (left: string, right: string): number => {
@@ -165,7 +195,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelProps) {
   const [tab, setTab] = useState<Tab>("installed");
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [latestById, setLatestById] = useState<Record<string, SearchResult>>({});
@@ -184,6 +214,9 @@ export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
   const [configValues, setConfigValues] = useState<Record<string, JsonValue>>({});
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [reviewingPackage, setReviewingPackage] = useState<string | null>(null);
+  const [permissionReviews, setPermissionReviews] = useState<Record<string, PermissionReview>>({});
+  const [pendingInstall, setPendingInstall] = useState<{ result: SearchResult; request: InstallRequest; review: PermissionReview } | null>(null);
   const detailGeneration = useRef(0);
 
   const updates = useMemo(
@@ -313,6 +346,29 @@ export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
     () => invoke(extension.enabled ? "extensions_disable" : "extensions_enable", { id: extension.id }),
   );
 
+  const reviewPermissions = async (request: InstallRequest): Promise<PermissionReview> =>
+    invoke<PermissionReview>("extensions_permissions_summary", { request, locale });
+
+  const prefetchPermissions = async (result: SearchResult) => {
+    if (busy || reviewingPackage || permissionReviews[result.package]) return;
+    const request: InstallRequest = {
+      source: "npm",
+      package: result.package,
+      version: result.version,
+      manifestPath: null,
+      executablePath: null,
+    };
+    setReviewingPackage(result.package);
+    try {
+      const review = await reviewPermissions(request);
+      setPermissionReviews((current) => ({ ...current, [result.package]: review }));
+    } catch {
+      // Installation reports preflight failures explicitly when the user clicks.
+    } finally {
+      setReviewingPackage(null);
+    }
+  };
+
   const updateExtension = (extension: Extension) => runMutation(
     extension.id,
     "update",
@@ -335,15 +391,20 @@ export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
       "reinstall",
       async () => {
         if (!extension.packageName) throw new Error(t("settings.extensions.reinstallUnavailable"));
+        const request: InstallRequest = {
+          source: "npm",
+          package: extension.packageName,
+          version: extension.currentVersion,
+          manifestPath: null,
+          executablePath: null,
+        };
+        const review = await reviewPermissions(request);
+        if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+          permissions: review.permissions.map((permission) => permission.title).join(", "),
+        }))) return;
         await invoke("extensions_uninstall", { id: extension.id, removeData: false });
         await invoke<Extension>("extensions_install", {
-          request: {
-            source: "npm",
-            package: extension.packageName,
-            version: extension.currentVersion,
-            manifestPath: null,
-            executablePath: null,
-          },
+          request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
         });
         if (!extension.enabled) await invoke("extensions_disable", { id: extension.id });
       },
@@ -376,19 +437,48 @@ export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
     }
   };
 
-  const installExtension = (result: SearchResult) => runMutation(
+  const performInstall = (result: SearchResult, request: InstallRequest, review: PermissionReview) => runMutation(
     result.package,
     "install",
     () => invoke("extensions_install", {
-      request: {
-        source: "npm",
-        package: result.package,
-        version: result.version,
-        manifestPath: null,
-        executablePath: null,
-      },
+      request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
     }),
   );
+
+  const installExtension = async (result: SearchResult) => {
+    if (busy || reviewingPackage) return;
+    const request: InstallRequest = {
+      source: "npm",
+      package: result.package,
+      version: result.version,
+      manifestPath: null,
+      executablePath: null,
+    };
+    setReviewingPackage(result.package);
+    setError(null);
+    try {
+      const review = permissionReviews[result.package] ?? await reviewPermissions(request);
+      if (!permissionReviews[result.package]) {
+        setPermissionReviews((current) => ({ ...current, [result.package]: review }));
+      }
+      if (review.permissions.length) {
+        setPendingInstall({ result, request, review });
+      } else {
+        await performInstall(result, request, review);
+      }
+    } catch (nextError) {
+      setError(errorMessage(nextError));
+    } finally {
+      setReviewingPackage(null);
+    }
+  };
+
+  const confirmPendingInstall = () => {
+    if (!pendingInstall) return;
+    const pending = pendingInstall;
+    setPendingInstall(null);
+    void performInstall(pending.result, pending.request, pending.review);
+  };
 
   const updateAll = async () => {
     if (busy || !updates.length) return;
@@ -529,14 +619,30 @@ export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
                       {t("settings.extensions.downloads", { count: formatDownloads(result.downloads) })}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="extensions-action-button extensions-action-button--primary"
-                    disabled={installed || Boolean(busy)}
-                    onClick={() => void installExtension(result)}
-                  >
-                    {installed ? t("settings.extensions.installed") : busy?.id === result.package ? t("settings.extensions.installing") : t("settings.extensions.install")}
-                  </button>
+                  <div className="extension-search-row__actions">
+                    {permissionReviews[result.package]?.permissions.length ? (
+                      <span className="extension-search-row__permissions" title={permissionReviews[result.package].permissions.map(({ description }) => description).join("\n")}>
+                        <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />
+                        {t("settings.extensions.permissionCount", { count: permissionReviews[result.package].permissions.length })}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="extensions-action-button extensions-action-button--primary"
+                      disabled={installed || Boolean(busy) || Boolean(reviewingPackage)}
+                      onMouseEnter={() => void prefetchPermissions(result)}
+                      onFocus={() => void prefetchPermissions(result)}
+                      onClick={() => void installExtension(result)}
+                    >
+                      {installed
+                        ? t("settings.extensions.installed")
+                        : reviewingPackage === result.package
+                          ? t("settings.extensions.reviewingPermissions")
+                          : busy?.id === result.package
+                            ? t("settings.extensions.installing")
+                            : t("settings.extensions.install")}
+                    </button>
+                  </div>
                 </div>
               );
             }) : (
@@ -583,6 +689,38 @@ export function ExtensionsPanel({ t, onOpenCommand }: ExtensionsPanelProps) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {pendingInstall && (
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => setPendingInstall(null)}>
+          <section
+            className="extension-permission-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="extension-permission-title"
+            onMouseDown={stopRowClick}
+          >
+            <header>
+              <ShieldCheck size={18} strokeWidth={2} aria-hidden="true" />
+              <div>
+                <h3 id="extension-permission-title">{t("settings.extensions.permissionTitle", { name: pendingInstall.review.extensionName })}</h3>
+                <p>{t("settings.extensions.permissionHint")}</p>
+              </div>
+            </header>
+            <div className="extension-permission-list">
+              {pendingInstall.review.permissions.map((permission) => (
+                <div key={permission.permission}>
+                  <strong>{permission.title}</strong>
+                  <span>{permission.description}</span>
+                </div>
+              ))}
+            </div>
+            <footer>
+              <button type="button" className="extensions-action-button" onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button extensions-action-button--primary" onClick={confirmPendingInstall}>{t("settings.extensions.approveInstall")}</button>
+            </footer>
+          </section>
         </div>
       )}
 
@@ -812,6 +950,8 @@ function ConfigFieldControl({ field, value, t, onChange }: ConfigFieldControlPro
         required={field.required}
         min={field.minimum ?? undefined}
         max={field.maximum ?? undefined}
+        minLength={field.type === "text" ? field.minLength ?? undefined : undefined}
+        maxLength={field.type === "text" ? field.maxLength ?? undefined : undefined}
         value={displayJson(value ?? "")}
         onChange={(event) => onChange(field.type === "number" ? (event.target.value === "" ? null : event.target.valueAsNumber) : event.target.value)}
       />

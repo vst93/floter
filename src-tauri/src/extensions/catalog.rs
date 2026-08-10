@@ -726,6 +726,7 @@ pub fn invocation_from_entry(
         crate::extensions::manifest::Runtime::Linked { version_args, .. } => version_args.clone(),
         crate::extensions::manifest::Runtime::Managed { .. } => Vec::new(),
     };
+    let permissions = manifest.permissions.clone();
     let resolved = manifest.resolve(PlatformTarget::current()?)?;
     Ok(ProviderInvocation {
         extension_id: entry.id.clone(),
@@ -735,6 +736,7 @@ pub fn invocation_from_entry(
         tool_version_hint: entry.tool_version.clone(),
         version_args,
         config: resolved.provider,
+        permissions,
     })
 }
 

@@ -24,8 +24,8 @@ use commands::custom::{
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_config_get, extensions_config_set,
     extensions_describe, extensions_diagnose, extensions_disable, extensions_enable,
-    extensions_install, extensions_list, extensions_rollback, extensions_search,
-    extensions_uninstall, extensions_update,
+    extensions_install, extensions_list, extensions_permissions_summary, extensions_rollback,
+    extensions_search, extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1184,6 +1184,7 @@ pub fn run() {
             system_power,
             extensions_list,
             extensions_install,
+            extensions_permissions_summary,
             extensions_uninstall,
             extensions_enable,
             extensions_disable,

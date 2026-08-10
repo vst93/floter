@@ -15,7 +15,7 @@ pub use catalog::{
 #[allow(unused_imports)]
 pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
 #[allow(unused_imports)]
-pub use install::{ExtensionInstallRequest, ExtensionSearchResult};
+pub use install::{ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult};
 #[allow(unused_imports)]
 pub use lock::{ExtensionInstallType, ExtensionLockEntry, ExtensionStateKind};
 #[allow(unused_imports)]

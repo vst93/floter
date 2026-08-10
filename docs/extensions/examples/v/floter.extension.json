@@ -30,13 +30,12 @@
     "completeTimeoutMs": 800
   },
   "permissions": [
-    "terminal",
     "filesystem-read",
     "filesystem-write",
+    "network-fetch",
+    "process-spawn",
     "clipboard-read",
     "clipboard-write",
-    "network",
-    "process"
+    "environment"
   ]
 }
-

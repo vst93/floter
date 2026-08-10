@@ -3,7 +3,9 @@ use crate::extensions::catalog::{
     self, CatalogCompletionResponse, CatalogEntry, CatalogSearchRequest, CompletionRequest,
 };
 use crate::extensions::config::{self, ExtensionConfiguration};
-use crate::extensions::install::{self, ExtensionInstallRequest, ExtensionSearchResult};
+use crate::extensions::install::{
+    self, ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult,
+};
 use crate::extensions::lock::{ExtensionLockEntry, ExtensionsLock};
 use crate::extensions::provider::{DiagnoseResponse, ProviderResponse};
 use crate::extensions::ExtensionState;
@@ -24,6 +26,15 @@ pub async fn extensions_install(
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {
     install::install(&state, request).await
+}
+
+#[tauri::command]
+pub async fn extensions_permissions_summary(
+    state: State<'_, ExtensionState>,
+    request: ExtensionInstallRequest,
+    locale: Option<String>,
+) -> Result<ExtensionPermissionReview, String> {
+    install::permissions_summary(&state, &request, locale.as_deref().unwrap_or("en")).await
 }
 
 #[tauri::command]

@@ -21,9 +21,48 @@
     "commands": {
       "type": "array",
       "items": { "$ref": "#/$defs/command" }
-    }
+    },
+    "configuration": { "$ref": "#/$defs/configuration" }
   },
   "$defs": {
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner"],
+      "properties": {
+        "configVersion": { "type": "integer", "minimum": 1, "default": 1 },
+        "owner": { "enum": ["host", "tool"] },
+        "openCommand": { "type": "array", "items": { "type": "string" } },
+        "environmentMapping": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
+        },
+        "schema": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/configurationField" }
+        }
+      }
+    },
+    "configurationField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+        "type": { "enum": ["text", "password", "path", "select", "multi-select", "boolean", "number"] },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "default": true,
+        "options": { "type": "array" },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "minLength": { "type": "integer", "minimum": 0 },
+        "maxLength": { "type": "integer", "minimum": 0 },
+        "envVar": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "argument": { "type": "string" }
+      }
+    },
     "command": {
       "type": "object",
       "additionalProperties": false,
@@ -67,4 +106,3 @@
     }
   }
 }
-

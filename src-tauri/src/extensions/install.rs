@@ -3,8 +3,8 @@ use crate::extensions::lock::{
     ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
-    validate_relative_path, ExtensionManifest, PlatformTarget, Runtime, SignatureAlgorithm,
-    SignatureConfig,
+    validate_relative_path, ExtensionManifest, Permission, PlatformTarget, Runtime,
+    SignatureAlgorithm, SignatureConfig,
 };
 use crate::extensions::provider::ProviderInvocation;
 use crate::extensions::ExtensionState;
@@ -33,6 +33,8 @@ pub struct ExtensionInstallRequest {
     pub version: Option<String>,
     pub manifest_path: Option<String>,
     pub executable_path: Option<String>,
+    #[serde(default)]
+    pub approved_permissions: Option<Vec<Permission>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -52,6 +54,22 @@ pub struct ExtensionSearchResult {
     pub homepage: Option<String>,
     pub verified: bool,
     pub downloads: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionPermissionReview {
+    pub extension_id: String,
+    pub extension_name: String,
+    pub permissions: Vec<PermissionSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionSummary {
+    pub permission: Permission,
+    pub title: String,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -158,9 +176,133 @@ pub async fn install(
                 .package
                 .as_deref()
                 .ok_or("NPM installation requires a package name")?;
-            install_managed(state, package, request.version.as_deref(), None).await
+            install_managed(
+                state,
+                package,
+                request.version.as_deref(),
+                None,
+                request.approved_permissions.as_deref(),
+            )
+            .await
         }
         InstallSource::Linked => install_linked(state, request).await,
+    }
+}
+
+pub async fn permissions_summary(
+    state: &ExtensionState,
+    request: &ExtensionInstallRequest,
+    locale: &str,
+) -> Result<ExtensionPermissionReview, String> {
+    let manifest = match request.source {
+        InstallSource::Npm => {
+            let package = request
+                .package
+                .as_deref()
+                .ok_or("NPM installation requires a package name")?;
+            validate_package_name(package)?;
+            let version =
+                resolve_registry_version(state, package, request.version.as_deref()).await?;
+            let bytes = download_tarball(state, &version.dist).await?;
+            let staging = tempfile::tempdir()
+                .map_err(|error| format!("Cannot create permission review directory: {error}"))?;
+            safe_unpack(&bytes, staging.path())?;
+            let (package_json, manifest_path) = load_package_entry(staging.path())?;
+            validate_package_entry(&package_json, &version, true)?;
+            let manifest = ExtensionManifest::load(&manifest_path)?;
+            if let Some(signatures) = manifest.signatures.as_ref() {
+                download_and_verify_signature(state, &bytes, signatures).await?;
+            }
+            manifest
+        }
+        InstallSource::Linked => {
+            let source = request
+                .manifest_path
+                .as_deref()
+                .ok_or("Linked installation requires manifestPath")?;
+            let path = PathBuf::from(source);
+            if path.is_dir() {
+                let (_, manifest_path) = load_package_entry(&path)?;
+                ExtensionManifest::load(&manifest_path)?
+            } else {
+                ExtensionManifest::load(&path)?
+            }
+        }
+    };
+    manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
+    Ok(permission_review(&manifest, locale))
+}
+
+fn validate_permission_approval(
+    requested: &[Permission],
+    approved: Option<&[Permission]>,
+) -> Result<(), String> {
+    if requested.is_empty() {
+        return Ok(());
+    }
+    let mut requested = requested.to_vec();
+    requested.sort_unstable();
+    let mut approved = approved.unwrap_or_default().to_vec();
+    approved.sort_unstable();
+    if requested == approved {
+        Ok(())
+    } else {
+        Err("Extension permissions must be reviewed and approved before installation".to_string())
+    }
+}
+
+fn permission_review(manifest: &ExtensionManifest, locale: &str) -> ExtensionPermissionReview {
+    let is_zh = locale.to_ascii_lowercase().starts_with("zh");
+    let permissions = manifest
+        .permissions
+        .iter()
+        .copied()
+        .map(|permission| {
+            let (title, description) = match (permission, is_zh) {
+                (Permission::FilesystemRead, false) => {
+                    ("Read files", "Read files and folders available to Floter")
+                }
+                (Permission::FilesystemWrite, false) => (
+                    "Modify files",
+                    "Create, change, and remove files and folders",
+                ),
+                (Permission::NetworkFetch, false) => {
+                    ("Access the network", "Make outbound network requests")
+                }
+                (Permission::ProcessSpawn, false) => (
+                    "Start processes",
+                    "Run additional programs from extension commands",
+                ),
+                (Permission::ClipboardRead, false) => {
+                    ("Read clipboard", "Read content from the system clipboard")
+                }
+                (Permission::ClipboardWrite, false) => {
+                    ("Write clipboard", "Write content to the system clipboard")
+                }
+                (Permission::Environment, false) => {
+                    ("Read environment", "Inherit Floter's environment variables")
+                }
+                (Permission::FilesystemRead, true) => {
+                    ("读取文件", "读取 Floter 可访问的文件和文件夹")
+                }
+                (Permission::FilesystemWrite, true) => ("修改文件", "创建、更改和删除文件及文件夹"),
+                (Permission::NetworkFetch, true) => ("访问网络", "发起出站网络请求"),
+                (Permission::ProcessSpawn, true) => ("启动进程", "通过插件命令运行其他程序"),
+                (Permission::ClipboardRead, true) => ("读取剪贴板", "读取系统剪贴板中的内容"),
+                (Permission::ClipboardWrite, true) => ("写入剪贴板", "向系统剪贴板写入内容"),
+                (Permission::Environment, true) => ("读取环境变量", "继承 Floter 的环境变量"),
+            };
+            PermissionSummary {
+                permission,
+                title: title.to_string(),
+                description: description.to_string(),
+            }
+        })
+        .collect();
+    ExtensionPermissionReview {
+        extension_id: manifest.id.clone(),
+        extension_name: manifest.name.clone(),
+        permissions,
     }
 }
 
@@ -187,6 +329,7 @@ pub async fn update(
         package,
         version.or(Some(current.channel.as_str())),
         Some(extension_id),
+        None,
     )
     .await
 }
@@ -347,6 +490,7 @@ async fn install_managed(
     package: &str,
     selector: Option<&str>,
     expected_id: Option<&str>,
+    approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
     validate_package_name(package)?;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
@@ -394,6 +538,9 @@ async fn install_managed(
             manifest.id
         ));
     }
+    if expected_id.is_none() {
+        validate_permission_approval(&manifest.permissions, approved_permissions)?;
+    }
     if expected_entry
         .as_ref()
         .is_some_and(|entry| entry.publisher_id != manifest.publisher.id)
@@ -434,6 +581,7 @@ async fn install_managed(
         tool_version_hint: None,
         version_args: Vec::new(),
         config: resolved.provider.clone(),
+        permissions: manifest.permissions.clone(),
     };
     let description = state.provider.describe(&invocation, true).await?;
 
@@ -554,6 +702,10 @@ async fn install_linked(
             manifest_path,
         )
     };
+    validate_permission_approval(
+        &manifest.permissions,
+        request.approved_permissions.as_deref(),
+    )?;
     if !matches!(manifest.runtime, Runtime::Linked { .. }) {
         return Err("Linked installation requires a linked runtime manifest".to_string());
     }
@@ -584,6 +736,7 @@ async fn install_linked(
             Runtime::Managed { .. } => Vec::new(),
         },
         config: resolved.provider,
+        permissions: manifest.permissions.clone(),
     };
     let response = state.provider.describe(&invocation, true).await?;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
@@ -1223,5 +1376,31 @@ mod tests {
         transaction.advance(ExtensionStateKind::Verifying).unwrap();
         transaction.advance(ExtensionStateKind::Installing).unwrap();
         transaction.advance(ExtensionStateKind::Enabled).unwrap();
+    }
+
+    #[test]
+    fn installation_requires_exact_permission_confirmation() {
+        let requested = [Permission::FilesystemRead, Permission::NetworkFetch];
+        assert!(validate_permission_approval(&requested, None).is_err());
+        assert!(validate_permission_approval(
+            &requested,
+            Some(&[Permission::NetworkFetch, Permission::FilesystemRead]),
+        )
+        .is_ok());
+        assert!(
+            validate_permission_approval(&requested, Some(&[Permission::FilesystemRead]),).is_err()
+        );
+    }
+
+    #[test]
+    fn permission_summary_is_localized() {
+        let manifest = ExtensionManifest::parse(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        let review = permission_review(&manifest, "zh-CN");
+        assert_eq!(review.extension_name, "V Tools");
+        assert_eq!(review.permissions[0].permission, Permission::FilesystemRead);
+        assert_eq!(review.permissions[0].title, "读取文件");
     }
 }
