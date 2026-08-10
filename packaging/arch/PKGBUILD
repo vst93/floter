@@ -14,7 +14,7 @@
 
 pkgname=floter-bin
 _pkgname=floter
-pkgver=0.3.0-preview
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="A floating terminal and application launcher, always one shortcut away"
 arch=('x86_64' 'aarch64')
