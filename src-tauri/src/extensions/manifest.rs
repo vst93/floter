@@ -274,9 +274,18 @@ impl ExtensionManifest {
     pub fn validate_compatibility(&self, host_version: &str) -> Result<(), String> {
         let host = Version::parse(host_version)
             .map_err(|error| format!("Invalid Floter version {host_version}: {error}"))?;
+        // Pre-release versions (for example, "0.3.0-preview") do not match
+        // comparison requirements such as ">=0.2.3" per the semver spec.
+        // Strip the pre-release suffix for compatibility checking so preview
+        // builds can still load extensions targeting the same release line.
+        let host_for_match = if host.pre.is_empty() {
+            host.clone()
+        } else {
+            Version::new(host.major, host.minor, host.patch)
+        };
         let host_requirement = VersionReq::parse(&self.compatibility.floter)
             .map_err(|error| format!("Invalid Floter version requirement: {error}"))?;
-        if !host_requirement.matches(&host) {
+        if !host_requirement.matches(&host_for_match) {
             return Err(format!(
                 "Extension {} requires Floter {}, current version is {}",
                 self.id, self.compatibility.floter, host
@@ -485,5 +494,16 @@ mod tests {
             numeric_version("6.8.12-custom"),
             Some(Version::new(6, 8, 12))
         );
+    }
+
+    #[test]
+    fn accepts_pre_release_host_versions_for_compatible_extensions() {
+        let mut manifest = ExtensionManifest::parse(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        manifest.compatibility.floter = ">=0.2.3".to_string();
+
+        assert!(manifest.validate_compatibility("0.3.0-preview").is_ok());
     }
 }

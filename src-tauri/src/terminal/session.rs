@@ -289,6 +289,7 @@ pub struct TerminalSession {
 
 impl TerminalSession {
     /// Spawn a new terminal session running `shell` (or the user's default).
+    #[allow(clippy::too_many_arguments)]
     fn new(
         identity: SessionIdentity,
         app: AppHandle,
@@ -1057,7 +1058,7 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, St
             "gnome-terminal" => {
                 command.arg(format!("--working-directory={dir_arg}"));
                 if let Some(script) = script.as_deref() {
-                    command.args(["--", &shell, "-lc", &script]);
+                    command.args(["--", &shell, "-lc", script]);
                 }
             }
             "konsole" => {
@@ -1069,7 +1070,7 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, St
             "kitty" => {
                 command.args(["--directory", dir_arg.as_ref()]);
                 if let Some(script) = script.as_deref() {
-                    command.args([&shell, "-lc", &script]);
+                    command.args([&shell, "-lc", script]);
                 }
             }
             "alacritty" => {
@@ -1090,20 +1091,20 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, St
                     command.arg("--command").arg(format!(
                         "{} -lc {}",
                         sh_quote(&shell),
-                        sh_quote(&script)
+                        sh_quote(script)
                     ));
                 }
             }
             "terminator" => {
                 command.arg(format!("--working-directory={dir_arg}"));
                 if let Some(script) = script.as_deref() {
-                    command.args(["-x", &shell, "-lc", &script]);
+                    command.args(["-x", &shell, "-lc", script]);
                 }
             }
             "ghostty" => {
                 command.arg(format!("--working-directory={dir_arg}"));
                 if let Some(script) = script.as_deref() {
-                    command.args(["-e", &shell, "-lc", &script]);
+                    command.args(["-e", &shell, "-lc", script]);
                 }
             }
             "xdg-terminal-exec" => {
