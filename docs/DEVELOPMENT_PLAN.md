@@ -3,7 +3,7 @@
 > 本文档整理自 2026-08-08 Codex 设计会话的完整对话记录。
 > 会话目标：将 Floter 从「应用搜索 + 终端」升级为「终端能力平台」，支持第三方 CLI/TUI 工具作为扩展接入，以 `v` (github.com/vst93/v) 作为官方参考实现。
 >
-> 当前状态：协议规范文档已完成（见 `docs/extensions/`），后端和前端代码尚未开始。
+> 当前状态：阶段 1-6 已完成，扩展协议、Rust 后端、React 命令联想、插件管理页面、V Tools 静态适配器和端到端验证均已落地。
 
 ---
 
@@ -859,7 +859,7 @@ floter/
 - `provider-description.schema.json` — Provider describe 输出的 JSON Schema
 - V Tools 参考示例（`floter.extension.json` + `provider-description.json`）
 
-### 阶段 2：Rust 扩展后端 ⬜ 待实现
+### 阶段 2：Rust 扩展后端 ✅ 已完成
 
 新建 `src-tauri/src/extensions/` 模块，实现：
 
@@ -920,7 +920,7 @@ floter/
    - `catalog_search` - 统一命令搜索（合并系统 + 扩展）
    - `catalog_complete` - 参数联想（静态 + 动态 complete）
 
-### 阶段 3：React 前端 - 命令联想 ⬜ 待实现
+### 阶段 3：React 前端 - 命令联想 ✅ 已完成
 
 1. **输入框联想 UI**
    - 命令联想（输入 `j` -> 显示 `jv`、`java`...）
@@ -943,7 +943,7 @@ floter/
    - 联想来源标注（如「来源：V Tools」/「Source: V Tools」）
    - 冲突提示、状态标记等文案
 
-### 阶段 4：插件管理页面 ⬜ 待实现
+### 阶段 4：插件管理页面 ✅ 已完成
 
 插件管理页面作为 Settings 面板的新 tab 接入（复用现有 settings/settings-tab 模式），新建 `src/ExtensionsPanel.tsx` 组件。
 
@@ -972,7 +972,7 @@ floter/
    - 管理页面全部文案双语（en + zh）
    - 状态名称、操作按钮、确认对话框
 
-### 阶段 5：V Provider 参考实现 ⬜ 待实现
+### 阶段 5：V Provider 参考实现 ✅ 已完成
 
 分两步走，先验证端到端流程，再实现动态协议。
 
@@ -1012,7 +1012,7 @@ floter/
    - 输出符合 `provider-description.schema.json` 的 JSON
    - stdout 纯 JSON，无 ANSI
 
-### 阶段 6：端到端验证 ⬜ 待实现
+### 阶段 6：端到端验证 ✅ 已完成
 
 1. 输入 `jv -` 能看到参数说明
 2. 按 Enter 后在现有终端里真正运行 `v jv ...`
