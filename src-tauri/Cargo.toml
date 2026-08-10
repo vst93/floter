@@ -37,7 +37,7 @@ tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 crossterm = "0.28"
-reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls-no-provider"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
 semver = { version = "1.0.28", features = ["serde"] }
 sha2 = "0.10.9"
 tar = "0.4.46"

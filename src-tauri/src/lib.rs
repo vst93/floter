@@ -1017,7 +1017,14 @@ pub fn run() {
             last_monitor: Mutex::new(None),
         })
         .setup(|app| {
-            app.manage(ExtensionState::new().map_err(std::io::Error::other)?);
+            match ExtensionState::new() {
+                Ok(state) => {
+                    app.manage(state);
+                }
+                Err(error) => {
+                    eprintln!("failed to initialize extension system: {error}");
+                }
+            }
             // floter is tray-resident, and the non-activating NSPanel must not
             // promote the process or switch away from another app's fullscreen
             // Space when it takes key focus.
