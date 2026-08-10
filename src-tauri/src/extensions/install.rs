@@ -48,6 +48,7 @@ pub struct ExtensionSearchResult {
     pub publisher: Option<String>,
     pub homepage: Option<String>,
     pub verified: bool,
+    pub downloads: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -93,7 +94,15 @@ struct RegistrySearchResponse {
 
 #[derive(Debug, Deserialize)]
 struct RegistrySearchObject {
+    #[serde(default)]
+    downloads: RegistryDownloads,
     package: RegistrySearchPackage,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RegistryDownloads {
+    #[serde(default)]
+    weekly: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -311,6 +320,7 @@ pub async fn search(
         .objects
         .into_iter()
         .map(|object| ExtensionSearchResult {
+            downloads: object.downloads.weekly,
             package: object.package.name,
             version: object.package.version,
             description: object.package.description,

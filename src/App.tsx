@@ -14,6 +14,7 @@ import {
   type MessageKey,
   type Translate,
 } from "./i18n";
+import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import {
   DEFAULT_SHORTCUTS,
   formatResultShortcut,
@@ -2068,7 +2069,7 @@ export default function App() {
   }, [launcherResults, mode, query, recordingAction, shortcuts]);
 
   const startDrag = (event: React.MouseEvent) => {
-    if ((event.target as HTMLElement).closest("button") || (event.target as HTMLElement).closest("input")) {
+    if ((event.target as HTMLElement).closest("button, input, select, textarea, a, summary, [role='dialog'], [data-no-drag]")) {
       return;
     }
     event.preventDefault();
@@ -2743,6 +2744,11 @@ export default function App() {
               </div>
               <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
+
+            <ExtensionsPanel
+              t={t}
+              onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
+            />
 
             <section className="settings-section">
               <div className="update-banner">
