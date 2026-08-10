@@ -1,4 +1,5 @@
 mod commands;
+mod extensions;
 #[cfg(target_os = "linux")]
 pub mod ipc;
 #[cfg(target_os = "linux")]
@@ -15,15 +16,23 @@ use commands::config::{
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
+#[allow(deprecated)]
 use commands::custom::{
     add_custom_command, delete_custom_command, execute_custom_command, get_custom_commands,
     update_custom_command, CommandState,
+};
+use commands::extensions::{
+    catalog_complete, catalog_search, extensions_config_get, extensions_config_set,
+    extensions_describe, extensions_diagnose, extensions_disable, extensions_enable,
+    extensions_install, extensions_list, extensions_rollback, extensions_search,
+    extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
     open_in_default_terminal, term_close, term_input, term_mouse, term_resize, term_scroll,
     term_scroll_to, term_set_theme, term_spawn, term_wheel, TerminalState,
 };
+use extensions::ExtensionState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "windows")]
@@ -962,6 +971,7 @@ fn print_toggle_hint(reason: &str) {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(deprecated)]
 pub fn run() {
     // Before the builder, and therefore before anything initializes GTK: this
     // is the last point at which the renderer WebKitGTK will use can still be
@@ -1005,6 +1015,7 @@ pub fn run() {
             last_monitor: Mutex::new(None),
         })
         .setup(|app| {
+            app.manage(ExtensionState::new().map_err(std::io::Error::other)?);
             // floter is tray-resident, and the non-activating NSPanel must not
             // promote the process or switch away from another app's fullscreen
             // Space when it takes key focus.
@@ -1171,6 +1182,20 @@ pub fn run() {
             show_input,
             start_drag,
             system_power,
+            extensions_list,
+            extensions_install,
+            extensions_uninstall,
+            extensions_enable,
+            extensions_disable,
+            extensions_update,
+            extensions_rollback,
+            extensions_describe,
+            extensions_diagnose,
+            extensions_search,
+            extensions_config_get,
+            extensions_config_set,
+            catalog_search,
+            catalog_complete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

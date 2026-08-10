@@ -1,3 +1,10 @@
+//! Deprecated string-based custom command prototype.
+//!
+//! New integrations belong to `crate::extensions`, which only creates
+//! structured program/argv execution plans. This module remains temporarily so
+//! existing `commands.json` files can be migrated without breaking old builds.
+#![deprecated(note = "use the extension platform instead")]
+
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::process::Command;
