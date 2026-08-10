@@ -3,7 +3,7 @@
 > 本文档整理自 2026-08-08 Codex 设计会话的完整对话记录。
 > 会话目标：将 Floter 从「应用搜索 + 终端」升级为「终端能力平台」，支持第三方 CLI/TUI 工具作为扩展接入，以 `v` (github.com/vst93/v) 作为官方参考实现。
 >
-> 当前状态：阶段 1-6 已完成，扩展协议、Rust 后端、React 命令联想、插件管理页面、V Tools 静态适配器和端到端验证均已落地。
+> 当前状态：阶段 1-7 全部完成。扩展协议（FEP-1~6）、Rust 后端、React 命令联想、插件管理页面、V Tools 静态适配器、端到端验证、动态 complete、NPM 签名分发、SDK 模板、权限模型、声明式配置和跨设备同步均已落地。
 
 ---
 
@@ -152,16 +152,16 @@ Wrapper 可以：
 
 ## 三、Floter Extension Specification (FEP)
 
-规范拆成五个部分（前三个已完成文档）：
+规范拆成六个部分（全部已完成文档）：
 
 | 编号 | 名称 | 状态 | 文件 |
 |------|------|------|------|
 | FEP-1 | Extension Package Manifest | ✅ 已完成 | `docs/extensions/FEP-1-package.md` |
 | FEP-2 | Provider Runtime Protocol | ✅ 已完成 | `docs/extensions/FEP-2-provider.md` |
 | FEP-3 | Installation Lifecycle & Security | ✅ 已完成 | `docs/extensions/FEP-3-lifecycle.md` |
-| FEP-4 | NPM Registry Convention | 待定 | - |
-| FEP-5 | Permissions and Security | 待定 | - |
-| FEP-6 | Declarative Configuration | 待定 | - |
+| FEP-4 | NPM Registry Convention | ✅ 已完成 | `docs/extensions/FEP-4-npm-registry.md` |
+| FEP-5 | Permissions and Security | ✅ 已完成 | `docs/extensions/FEP-5-permissions.md` |
+| FEP-6 | Declarative Configuration | ✅ 已完成 | `docs/extensions/FEP-6-declarative-config.md` |
 
 ### 3.1 FEP-1：扩展包与平台运行时
 
@@ -1019,15 +1019,15 @@ floter/
 4. 卸载或升级 `v` 不影响 Floter 自身版本
 5. 三平台测试：Linux、Windows、macOS
 
-### 阶段 7：开放平台（后续） ⬜ 待实现
+### 阶段 7：开放平台 ✅ 已完成
 
-1. 动态 `complete` 协议完整实现
-2. NPM 分发和签名索引
-3. 第三方 SDK / Wrapper 模板
-4. FEP-4 (NPM Registry Convention)
-5. FEP-5 (Permissions and Security)
-6. FEP-6 (Declarative Configuration)
-7. 跨设备同步
+1. ✅ 动态 `complete` 协议完整实现（`1fabb44`）
+2. ✅ NPM 分发和签名索引（`7d65efb`）
+3. ✅ 第三方 SDK / Wrapper 模板（`7d65efb`）
+4. ✅ FEP-4 (NPM Registry Convention)（`f759caa`）
+5. ✅ FEP-5 (Permissions and Security)（`f759caa` + `26120ce`）
+6. ✅ FEP-6 (Declarative Configuration)（`f759caa` + `26120ce`）
+7. ✅ 跨设备同步（`374d961`）
 
 ---
 
