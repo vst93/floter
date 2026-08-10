@@ -1235,8 +1235,8 @@ dependencies = [
  "crc32fast",
  "miniz_oxide",
 ]
-
-.3.0-preview"
+name = "floter"
+version = "0.3.0-preview"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
