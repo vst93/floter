@@ -161,7 +161,11 @@ and environment entries are added to the structured execution environment.
 No value is interpolated into a shell string.
 
 Password fields MUST be rendered as secret inputs. Hosts SHOULD avoid exposing
-their values in logs, diagnostics, command previews, or crash reports.
+their values in logs, diagnostics, command previews, IPC responses, or crash
+reports. Floter returns password placeholders from configuration IPC and keeps
+extension command program/argv/environment data behind a single-use backend
+execution-plan token, so injected secrets are resolved only when the terminal
+session is spawned.
 
 ## Configuration UI
 

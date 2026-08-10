@@ -57,9 +57,10 @@ communicates through the Provider protocol over stdin/stdout. An extension:
 - MUST treat all Host input as structured JSON/argv data, not as a shell script.
 
 Without `environment`, the Host clears inherited environment variables before
-starting the Provider, then applies only explicit manifest and configuration
-entries. An execution descriptor whose `program` is not `self` requires
-`process-spawn`. These checks are declarative controls, not an OS sandbox.
+starting the Provider or an extension command, then applies only explicit
+manifest and configuration entries. An execution descriptor whose `program` is
+not `self` requires `process-spawn`. These checks are declarative controls, not
+an OS sandbox.
 
 These are protocol requirements and packaging policy. Permission declarations do
 not grant access to Floter internals and do not make native code safe by
@@ -102,6 +103,8 @@ The permission set is part of the install/update review. A package that changes
 permissions without a new version is invalid in practice because its published
 tarball digest must remain stable. Hosts SHOULD show the old and new sets side by
 side and retain the user's decision in the extension lock/audit record.
+File imports MUST perform the same review against the resolved package manifest;
+permissions embedded in an import document are not user approval.
 
 ## References
 

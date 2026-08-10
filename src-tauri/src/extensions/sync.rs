@@ -3,7 +3,7 @@ use crate::extensions::install::{self, ExtensionInstallRequest, InstallSource};
 use crate::extensions::lock::{
     validate_id, ExtensionInstallType, ExtensionLockEntry, ExtensionsLock,
 };
-use crate::extensions::manifest::{ExtensionManifest, Runtime};
+use crate::extensions::manifest::{ExtensionManifest, Permission, Runtime};
 use crate::extensions::ExtensionState;
 use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 
 const SYNC_FORMAT_VERSION: u32 = 1;
 const MAX_IMPORT_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_IMPORT_EXTENSIONS: usize = 1_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -153,6 +154,11 @@ pub fn read_import(path: &Path) -> Result<ExtensionsSyncDocument, String> {
     }
     let bytes = std::fs::read(path)
         .map_err(|error| format!("Cannot read extension import {}: {error}", path.display()))?;
+    if bytes.len() as u64 > MAX_IMPORT_BYTES {
+        return Err(format!(
+            "Extension import exceeds the {MAX_IMPORT_BYTES} byte limit"
+        ));
+    }
     parse_import(&bytes)
 }
 
@@ -172,6 +178,11 @@ fn validate_import(document: &ExtensionsSyncDocument) -> Result<(), String> {
     }
     DateTime::parse_from_rfc3339(&document.exported_at)
         .map_err(|error| format!("Invalid exportedAt timestamp: {error}"))?;
+    if document.extensions.len() > MAX_IMPORT_EXTENSIONS {
+        return Err(format!(
+            "Extension import contains more than {MAX_IMPORT_EXTENSIONS} extensions"
+        ));
+    }
     let mut ids = HashSet::new();
     for entry in &document.extensions {
         validate_id(&entry.id)?;
@@ -204,6 +215,7 @@ pub async fn import_document(
     state: &ExtensionState,
     path: &Path,
     document: ExtensionsSyncDocument,
+    approved_permissions: &BTreeMap<String, Vec<Permission>>,
 ) -> ExtensionsImportReport {
     let mut report = ExtensionsImportReport {
         path: path.to_string_lossy().into_owned(),
@@ -213,7 +225,13 @@ pub async fn import_document(
     };
     for entry in document.extensions {
         let id = entry.id.clone();
-        match import_entry(state, &entry).await {
+        match import_entry(
+            state,
+            &entry,
+            approved_permissions.get(&entry.id).map(Vec::as_slice),
+        )
+        .await
+        {
             Ok(true) => report.succeeded.push(ExtensionsImportItem {
                 id,
                 message: "Installed or restored".to_string(),
@@ -231,6 +249,7 @@ pub async fn import_document(
 async fn import_entry(
     state: &ExtensionState,
     desired: &ExtensionsSyncEntry,
+    approved_permissions: Option<&[Permission]>,
 ) -> Result<bool, String> {
     let installed = ExtensionsLock::load(&state.paths.lock_file)?
         .extensions
@@ -248,11 +267,17 @@ async fn import_entry(
                         desired.id
                     )
                 })?;
-                install::install_imported_managed(state, &desired.id, package, &desired.version)
-                    .await?;
+                install::install_imported_managed(
+                    state,
+                    &desired.id,
+                    package,
+                    &desired.version,
+                    approved_permissions,
+                )
+                .await?;
             }
             SyncSource::Linked => {
-                install_imported_linked(state, desired).await?;
+                install_imported_linked(state, desired, approved_permissions).await?;
             }
         },
         ReconcileAction::Rollback => {
@@ -333,6 +358,7 @@ fn reconcile_action(
 async fn install_imported_linked(
     state: &ExtensionState,
     desired: &ExtensionsSyncEntry,
+    approved_permissions: Option<&[Permission]>,
 ) -> Result<(), String> {
     let manifest = desired
         .manifest
@@ -358,7 +384,7 @@ async fn install_imported_linked(
             version: None,
             manifest_path: Some(path.to_string_lossy().into_owned()),
             executable_path: None,
-            approved_permissions: Some(manifest.permissions),
+            approved_permissions: approved_permissions.map(<[Permission]>::to_vec),
         },
     )
     .await?;
@@ -382,6 +408,9 @@ async fn restore_enabled(
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     if lock.get(extension_id)?.enabled == enabled {
         return Ok(false);
+    }
+    if !enabled {
+        state.provider.cancel_completions();
     }
     lock.set_enabled(extension_id, enabled)?;
     lock.save(&state.paths.lock_file)?;
@@ -444,6 +473,8 @@ mod tests {
             package_version: version.into(),
             tool_version: (install_type == ExtensionInstallType::Linked).then(|| version.into()),
             integrity: None,
+            signature_verified: false,
+            previous_signature_verified: None,
             current_version: version.into(),
             previous_version: None,
             manifest_path: String::new(),
@@ -498,6 +529,29 @@ mod tests {
         assert!(parse_import(unsupported)
             .unwrap_err()
             .contains("Unsupported extension export version 2"));
+    }
+
+    #[test]
+    fn rejects_imports_with_too_many_extensions() {
+        let document = ExtensionsSyncDocument {
+            version: SYNC_FORMAT_VERSION,
+            exported_at: "2026-08-10T00:00:00Z".into(),
+            extensions: (0..=MAX_IMPORT_EXTENSIONS)
+                .map(|index| ExtensionsSyncEntry {
+                    id: format!("io.example.tool-{index}"),
+                    version: "1.0.0".into(),
+                    enabled: true,
+                    config: BTreeMap::new(),
+                    source: SyncSource::Managed,
+                    package: Some(format!("floter-tool-{index}")),
+                    manifest: None,
+                })
+                .collect(),
+        };
+
+        assert!(validate_import(&document)
+            .unwrap_err()
+            .contains("more than 1000 extensions"));
     }
 
     #[test]

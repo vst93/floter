@@ -44,6 +44,12 @@ pub struct SpawnCommand {
     pub args: Vec<String>,
     #[serde(default)]
     pub environment: HashMap<String, String>,
+    #[serde(default = "default_true")]
+    pub inherit_environment: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 struct OutputDrainGuard(OutputDrain);
@@ -1106,6 +1112,9 @@ fn structured_command(command: SpawnCommand) -> anyhow::Result<CommandBuilder> {
         anyhow::bail!("structured command program is empty");
     }
     let mut cmd = CommandBuilder::new(command.program);
+    if !command.inherit_environment {
+        cmd.env_clear();
+    }
     cmd.args(command.args);
     cmd.env("TERM", TERM_XTERM_256COLOR);
     cmd.env("COLORTERM", COLOR_TERM_TRUECOLOR);
@@ -1304,6 +1313,7 @@ mod tests {
             program: "tool".into(),
             args: vec!["--name".into(), "value with spaces".into()],
             environment: HashMap::from([("FLOTER_TEST".into(), "enabled".into())]),
+            inherit_environment: true,
         })
         .expect("structured command should build");
 
@@ -1320,11 +1330,27 @@ mod tests {
     }
 
     #[test]
+    fn structured_command_can_clear_the_parent_environment() {
+        let cmd = structured_command(SpawnCommand {
+            program: "tool".into(),
+            args: Vec::new(),
+            environment: HashMap::from([("FLOTER_TEST".into(), "enabled".into())]),
+            inherit_environment: false,
+        })
+        .expect("structured command should build");
+
+        assert_eq!(cmd.get_env("PATH"), None);
+        assert_eq!(cmd.get_env("FLOTER_TEST"), Some(OsStr::new("enabled")));
+        assert_eq!(cmd.get_env("TERM"), Some(OsStr::new(TERM_XTERM_256COLOR)));
+    }
+
+    #[test]
     fn structured_command_rejects_an_empty_program() {
         let error = structured_command(SpawnCommand {
             program: " ".into(),
             args: Vec::new(),
             environment: HashMap::new(),
+            inherit_environment: true,
         })
         .expect_err("empty program should fail")
         .to_string();

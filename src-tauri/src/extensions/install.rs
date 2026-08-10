@@ -23,6 +23,8 @@ use std::time::Duration;
 const REGISTRY_URL: &str = "https://registry.npmjs.org/";
 const MAX_TARBALL_BYTES: usize = 128 * 1024 * 1024;
 const MAX_SIGNATURE_BYTES: usize = 4 * 1024;
+const MAX_REGISTRY_METADATA_BYTES: usize = 16 * 1024 * 1024;
+const MAX_SEARCH_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES: usize = 100_000;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -194,9 +196,17 @@ pub async fn install_imported_managed(
     extension_id: &str,
     package: &str,
     version: &str,
+    approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
-    install_managed(state, package, Some(version), Some(extension_id), None).await
+    install_managed(
+        state,
+        package,
+        Some(version),
+        Some(extension_id),
+        approved_permissions,
+    )
+    .await
 }
 
 pub async fn permissions_summary(
@@ -261,7 +271,10 @@ fn validate_permission_approval(
     }
 }
 
-fn permission_review(manifest: &ExtensionManifest, locale: &str) -> ExtensionPermissionReview {
+pub(crate) fn permission_review(
+    manifest: &ExtensionManifest,
+    locale: &str,
+) -> ExtensionPermissionReview {
     let is_zh = locale.to_ascii_lowercase().starts_with("zh");
     let permissions = manifest
         .permissions
@@ -320,6 +333,7 @@ pub async fn update(
     state: &ExtensionState,
     extension_id: &str,
     version: Option<&str>,
+    approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
@@ -339,7 +353,7 @@ pub async fn update(
         package,
         version.or(Some(current.channel.as_str())),
         Some(extension_id),
-        None,
+        approved_permissions,
     )
     .await
 }
@@ -428,7 +442,7 @@ pub async fn rollback(
     }
     let current = std::mem::replace(&mut entry.current_version, previous.clone());
     entry.previous_version = Some(current);
-    entry.package_version = previous;
+    entry.package_version = previous.clone();
     entry.state = if entry.enabled {
         ExtensionStateKind::Enabled
     } else {
@@ -438,9 +452,39 @@ pub async fn rollback(
         .to_string_lossy()
         .into_owned();
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
+        return Err(format!(
+            "Previous manifest identity does not match lock entry {}",
+            entry.id
+        ));
+    }
+    manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
+    let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
+    resolved.validate_minimum_os_version()?;
     let executable = managed_executable(&manifest, &previous_root)?;
     entry.executable_path = executable.to_string_lossy().into_owned();
-    entry.runtime_root = Some(previous_root.join("runtime").to_string_lossy().into_owned());
+    let runtime_root = previous_root.join("runtime");
+    entry.runtime_root = Some(runtime_root.to_string_lossy().into_owned());
+    let response = state
+        .provider
+        .describe(
+            &ProviderInvocation {
+                extension_id: entry.id.clone(),
+                executable,
+                runtime_root: Some(runtime_root),
+                package_version: previous,
+                tool_version_hint: None,
+                version_args: Vec::new(),
+                config: resolved.provider,
+                permissions: manifest.permissions,
+            },
+            true,
+        )
+        .await?;
+    entry.tool_version = Some(response.description.provider.version);
+    let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
+    entry.previous_signature_verified = Some(entry.signature_verified);
+    entry.signature_verified = previous_signature_verified;
     entry.updated_at = unix_now();
     let result = entry.clone();
     write_current_pointer(&state.paths.extensions, entry)?;
@@ -468,9 +512,11 @@ pub async fn search(
         .await
         .map_err(|error| format!("NPM search failed: {error}"))?
         .error_for_status()
-        .map_err(|error| format!("NPM search failed: {error}"))?
-        .json::<RegistrySearchResponse>()
-        .await
+        .map_err(|error| format!("NPM search failed: {error}"))?;
+    ensure_https_response(&response, "NPM search")?;
+    let bytes =
+        read_response_limited(response, MAX_SEARCH_RESPONSE_BYTES, "NPM search response").await?;
+    let response: RegistrySearchResponse = serde_json::from_slice(&bytes)
         .map_err(|error| format!("Invalid NPM search response: {error}"))?;
     Ok(response
         .objects
@@ -548,7 +594,21 @@ async fn install_managed(
             manifest.id
         ));
     }
-    if expected_id.is_none() {
+    let permission_approval_required = if let Some(entry) = expected_entry.as_ref() {
+        let installed_manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+        if installed_manifest.id != entry.id
+            || installed_manifest.publisher.id != entry.publisher_id
+        {
+            return Err(format!(
+                "Installed manifest identity does not match lock entry {}",
+                entry.id
+            ));
+        }
+        has_added_permissions(&installed_manifest.permissions, &manifest.permissions)
+    } else {
+        true
+    };
+    if permission_approval_required {
         validate_permission_approval(&manifest.permissions, approved_permissions)?;
     }
     if expected_entry
@@ -645,6 +705,8 @@ async fn install_managed(
         package_version: base_version.version.clone(),
         tool_version: Some(description.description.provider.version),
         integrity: base_version.dist.integrity.clone(),
+        signature_verified: manifest.signatures.is_some(),
+        previous_signature_verified: old.as_ref().map(|entry| entry.signature_verified),
         current_version: base_version.version.clone(),
         previous_version: old.as_ref().map(|entry| entry.current_version.clone()),
         manifest_path: final_manifest.to_string_lossy().into_owned(),
@@ -680,6 +742,12 @@ async fn install_managed(
         return Err(error);
     }
     Ok(entry)
+}
+
+fn has_added_permissions(installed: &[Permission], requested: &[Permission]) -> bool {
+    requested
+        .iter()
+        .any(|permission| !installed.contains(permission))
 }
 
 async fn install_linked(
@@ -734,7 +802,7 @@ async fn install_linked(
     } else {
         find_linked_executable(&manifest)?
     };
-    let tool_version = linked_tool_version(&manifest, &executable).await;
+    let tool_version = linked_tool_version(&manifest, &resolved.provider, &executable).await;
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.clone(),
@@ -766,6 +834,8 @@ async fn install_linked(
         package_version: package_version.clone(),
         tool_version: tool_version.or(Some(response.description.provider.version)),
         integrity: None,
+        signature_verified: false,
+        previous_signature_verified: None,
         current_version: package_version,
         previous_version: None,
         manifest_path: manifest_path.to_string_lossy().into_owned(),
@@ -791,16 +861,22 @@ async fn resolve_registry_version(
     url.path_segments_mut()
         .map_err(|_| "NPM registry URL cannot contain package paths")?
         .push(package);
-    let metadata = state
+    let response = state
         .client
         .get(url)
         .send()
         .await
         .map_err(|error| format!("Cannot resolve NPM package {package}: {error}"))?
         .error_for_status()
-        .map_err(|error| format!("Cannot resolve NPM package {package}: {error}"))?
-        .json::<RegistryMetadata>()
-        .await
+        .map_err(|error| format!("Cannot resolve NPM package {package}: {error}"))?;
+    ensure_https_response(&response, "NPM registry metadata")?;
+    let bytes = read_response_limited(
+        response,
+        MAX_REGISTRY_METADATA_BYTES,
+        "NPM registry metadata",
+    )
+    .await?;
+    let metadata: RegistryMetadata = serde_json::from_slice(&bytes)
         .map_err(|error| format!("Invalid NPM metadata for {package}: {error}"))?;
     let selector = selector.unwrap_or("latest");
     let exact = metadata
@@ -814,11 +890,12 @@ async fn resolve_registry_version(
         })
         .cloned();
     if let Some(version) = exact {
+        validate_registry_version(package, &version)?;
         return Ok(version);
     }
     let requirement = VersionReq::parse(selector)
         .map_err(|_| format!("Unknown NPM version or dist-tag: {selector}"))?;
-    metadata
+    let version = metadata
         .versions
         .into_iter()
         .filter_map(|(version, metadata)| {
@@ -829,7 +906,9 @@ async fn resolve_registry_version(
         .filter(|(version, _)| requirement.matches(version))
         .max_by(|(left, _), (right, _)| left.cmp(right))
         .map(|(_, metadata)| metadata)
-        .ok_or_else(|| format!("No version of {package} matches {selector}"))
+        .ok_or_else(|| format!("No version of {package} matches {selector}"))?;
+    validate_registry_version(package, &version)?;
+    Ok(version)
 }
 
 async fn download_tarball(state: &ExtensionState, dist: &RegistryDist) -> Result<Vec<u8>, String> {
@@ -850,21 +929,10 @@ async fn download_tarball(state: &ExtensionState, dist: &RegistryDist) -> Result
         .map_err(|error| format!("Cannot download NPM tarball: {error}"))?
         .error_for_status()
         .map_err(|error| format!("Cannot download NPM tarball: {error}"))?;
-    if response
-        .content_length()
-        .is_some_and(|length| length > MAX_TARBALL_BYTES as u64)
-    {
-        return Err(format!("NPM tarball exceeds {MAX_TARBALL_BYTES} bytes"));
-    }
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|error| format!("Cannot read NPM tarball: {error}"))?;
-    if bytes.len() > MAX_TARBALL_BYTES {
-        return Err(format!("NPM tarball exceeds {MAX_TARBALL_BYTES} bytes"));
-    }
+    ensure_https_response(&response, "NPM tarball")?;
+    let bytes = read_response_limited(response, MAX_TARBALL_BYTES, "NPM tarball").await?;
     verify_integrity(&bytes, integrity)?;
-    Ok(bytes.to_vec())
+    Ok(bytes)
 }
 
 fn verify_integrity(bytes: &[u8], integrity: &str) -> Result<(), String> {
@@ -913,24 +981,59 @@ async fn download_and_verify_signature(
         .map_err(|error| format!("Cannot download extension signature: {error}"))?
         .error_for_status()
         .map_err(|error| format!("Cannot download extension signature: {error}"))?;
+    ensure_https_response(&response, "extension signature")?;
+    let signature =
+        read_response_limited(response, MAX_SIGNATURE_BYTES, "Extension signature").await?;
+    verify_signature(tarball, &signature, config)
+}
+
+fn ensure_https_response(response: &reqwest::Response, label: &str) -> Result<(), String> {
+    if response.url().scheme() == "https" {
+        Ok(())
+    } else {
+        Err(format!("{label} redirected to a non-HTTPS URL"))
+    }
+}
+
+async fn read_response_limited(
+    mut response: reqwest::Response,
+    limit: usize,
+    label: &str,
+) -> Result<Vec<u8>, String> {
     if response
         .content_length()
-        .is_some_and(|length| length > MAX_SIGNATURE_BYTES as u64)
+        .is_some_and(|length| length > limit as u64)
     {
-        return Err(format!(
-            "Extension signature exceeds {MAX_SIGNATURE_BYTES} bytes"
-        ));
+        return Err(format!("{label} exceeds {limit} bytes"));
     }
-    let signature = response
-        .bytes()
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|error| format!("Cannot read extension signature: {error}"))?;
-    if signature.len() > MAX_SIGNATURE_BYTES {
+        .map_err(|error| format!("Cannot read {label}: {error}"))?
+    {
+        let new_length = bytes
+            .len()
+            .checked_add(chunk.len())
+            .ok_or_else(|| format!("{label} size overflow"))?;
+        if new_length > limit {
+            return Err(format!("{label} exceeds {limit} bytes"));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
+
+fn validate_registry_version(package: &str, version: &RegistryVersion) -> Result<(), String> {
+    if version.name != package {
         return Err(format!(
-            "Extension signature exceeds {MAX_SIGNATURE_BYTES} bytes"
+            "NPM registry returned package {} while resolving {package}",
+            version.name
         ));
     }
-    verify_signature(tarball, &signature, config)
+    Version::parse(&version.version)
+        .map_err(|error| format!("Invalid NPM version {}: {error}", version.version))?;
+    Ok(())
 }
 
 fn verify_signature(
@@ -1219,7 +1322,11 @@ fn is_linked_executable(path: &Path) -> bool {
     }
 }
 
-async fn linked_tool_version(manifest: &ExtensionManifest, executable: &Path) -> Option<String> {
+async fn linked_tool_version(
+    manifest: &ExtensionManifest,
+    provider: &crate::extensions::manifest::ProviderConfig,
+    executable: &Path,
+) -> Option<String> {
     let Runtime::Linked { version_args, .. } = &manifest.runtime else {
         return None;
     };
@@ -1227,8 +1334,12 @@ async fn linked_tool_version(manifest: &ExtensionManifest, executable: &Path) ->
         return None;
     }
     let mut command = tokio::process::Command::new(executable);
+    if !manifest.permissions.contains(&Permission::Environment) {
+        command.env_clear();
+    }
     command
         .args(version_args)
+        .envs(&provider.environment)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -1247,15 +1358,28 @@ async fn linked_tool_version(manifest: &ExtensionManifest, executable: &Path) ->
 }
 
 fn validate_package_name(package: &str) -> Result<(), String> {
-    let valid = !package.is_empty()
-        && package.len() <= 214
-        && package.bytes().all(|byte| {
-            byte.is_ascii_lowercase()
-                || byte.is_ascii_digit()
-                || matches!(byte, b'@' | b'/' | b'.' | b'_' | b'-')
-        })
-        && package.matches('/').count() <= 1
-        && (!package.starts_with('@') || package.split_once('/').is_some());
+    fn valid_segment(segment: &str) -> bool {
+        segment
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+            && segment.bytes().all(|byte| {
+                byte.is_ascii_lowercase()
+                    || byte.is_ascii_digit()
+                    || matches!(byte, b'.' | b'_' | b'-')
+            })
+            && segment != "."
+            && segment != ".."
+    }
+
+    let valid = package.len() <= 214
+        && if let Some(scoped) = package.strip_prefix('@') {
+            scoped
+                .split_once('/')
+                .is_some_and(|(scope, name)| valid_segment(scope) && valid_segment(name))
+        } else {
+            !package.contains('/') && valid_segment(package)
+        };
     if valid {
         Ok(())
     } else {
@@ -1373,8 +1497,23 @@ mod tests {
     #[test]
     fn validates_scoped_package_names() {
         assert!(validate_package_name("@scope/floter-tool").is_ok());
+        assert!(validate_package_name("floter-tool").is_ok());
         assert!(validate_package_name("scope/tool/extra").is_err());
+        assert!(validate_package_name("../tool").is_err());
+        assert!(validate_package_name("@/tool").is_err());
+        assert!(validate_package_name("@scope/").is_err());
         assert!(validate_package_name("UPPER").is_err());
+    }
+
+    #[test]
+    fn permission_escalation_requires_a_new_approval() {
+        let installed = [Permission::FilesystemRead];
+        assert!(!has_added_permissions(&installed, &installed));
+        assert!(!has_added_permissions(&installed, &[]));
+        assert!(has_added_permissions(
+            &installed,
+            &[Permission::FilesystemRead, Permission::NetworkFetch],
+        ));
     }
 
     #[test]

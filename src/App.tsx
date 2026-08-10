@@ -71,6 +71,9 @@ type ExecutionPlan = {
   mode: ExecutionMode;
   cwd: string | null;
   environment: Record<string, string>;
+  inheritEnvironment: boolean;
+  planToken?: string;
+  argumentOverride?: string[];
 };
 
 type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
@@ -340,16 +343,12 @@ const executionWithCompletion = (
   completion: CatalogCompletionItem,
 ): ExecutionPlan | null => {
   if (!entry.execution) return null;
-  const currentArgs = currentTokens.slice(1).filter((value, index, values) =>
-    value.length > 0 || index < values.length - 1,
-  );
   const completedArgs = [...currentTokens.slice(1)];
   if (completedArgs.length) completedArgs[completedArgs.length - 1] = completion.value;
   else completedArgs.push(completion.value);
-  const prefixLength = Math.max(0, entry.execution.args.length - currentArgs.length);
   return {
     ...entry.execution,
-    args: [...entry.execution.args.slice(0, prefixLength), ...completedArgs],
+    argumentOverride: completedArgs,
   };
 };
 

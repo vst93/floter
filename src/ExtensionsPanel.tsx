@@ -44,6 +44,7 @@ type Extension = {
   packageVersion: string;
   toolVersion: string | null;
   integrity: string | null;
+  signatureVerified: boolean;
   currentVersion: string;
   previousVersion: string | null;
   manifestPath: string;
@@ -120,6 +121,9 @@ export type ExtensionExecutionPlan = {
   mode: "pty" | "capture" | "external";
   cwd: string | null;
   environment: Record<string, string>;
+  inheritEnvironment: boolean;
+  planToken?: string;
+  argumentOverride?: string[];
 };
 
 type ExtensionConfiguration = {
@@ -386,7 +390,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setExportResult(null);
     setImportReport(null);
     try {
-      const report = await invoke<ExtensionsImportReport | null>("extensions_import");
+      const report = await invoke<ExtensionsImportReport | null>("extensions_import", { locale });
       if (report) {
         setImportReport(report);
         await refresh();
@@ -427,11 +431,28 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     }
   };
 
-  const updateExtension = (extension: Extension) => runMutation(
-    extension.id,
-    "update",
-    () => invoke("extensions_update", { id: extension.id }),
-  );
+  const updateExtension = (extension: Extension) => {
+    if (!extension.packageName) return Promise.resolve();
+    const version = latestById[extension.id]?.version ?? extension.channel;
+    const request: InstallRequest = {
+      source: "npm",
+      package: extension.packageName,
+      version,
+      manifestPath: null,
+      executablePath: null,
+    };
+    return runMutation(extension.id, "update", async () => {
+      const review = await reviewPermissions(request);
+      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+        permissions: review.permissions.map((permission) => permission.title).join(", "),
+      }))) return;
+      await invoke("extensions_update", {
+        id: extension.id,
+        version,
+        approvedPermissions: review.permissions.map(({ permission }) => permission),
+      });
+    });
+  };
 
   const rollbackExtension = (extension: Extension) => {
     if (!window.confirm(t("settings.extensions.confirmRollback", { name: extension.name }))) return Promise.resolve();
@@ -544,7 +565,24 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setError(null);
     try {
       for (const extension of updates) {
-        await invoke("extensions_update", { id: extension.id });
+        if (!extension.packageName) continue;
+        const version = latestById[extension.id]?.version ?? extension.channel;
+        const request: InstallRequest = {
+          source: "npm",
+          package: extension.packageName,
+          version,
+          manifestPath: null,
+          executablePath: null,
+        };
+        const review = await reviewPermissions(request);
+        if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+          permissions: review.permissions.map((permission) => permission.title).join(", "),
+        }))) break;
+        await invoke("extensions_update", {
+          id: extension.id,
+          version,
+          approvedPermissions: review.permissions.map(({ permission }) => permission),
+        });
       }
       await refresh();
     } catch (nextError) {
@@ -853,6 +891,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                   <div><dt>{t("settings.extensions.author")}</dt><dd>{selected.publisherName}</dd></div>
                   <div><dt>{t("settings.extensions.source")}</dt><dd>{t(`settings.extensions.source.${selected.installType}`)}</dd></div>
                   <div><dt>{t("settings.extensions.status")}</dt><dd>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
+                  <div><dt>{t("settings.extensions.signature")}</dt><dd>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
                   <div><dt>{t("settings.extensions.homepage")}</dt><dd>{latestById[selected.id]?.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || latestById[selected.id]?.description || t("settings.extensions.noDescription")}</p>

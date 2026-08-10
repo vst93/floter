@@ -42,7 +42,7 @@
       "required": ["argsPrefix"],
       "properties": {
         "argsPrefix": { "type": "array", "items": { "type": "string" }, "maxItems": 16 },
-        "describeTimeoutMs": { "type": "integer", "minimum": 100, "maximum": 10000, "default": 5000 },
+        "describeTimeoutMs": { "type": "integer", "minimum": 100, "maximum": 5000, "default": 5000 },
         "completeTimeoutMs": { "type": "integer", "minimum": 50, "maximum": 3000, "default": 800 },
         "environment": { "type": "object", "additionalProperties": { "type": "string" } }
       }

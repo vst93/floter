@@ -38,6 +38,7 @@ pub struct SpawnCommand {
     pub program: String,
     pub args: Vec<String>,
     pub environment: std::collections::BTreeMap<String, String>,
+    pub inherit_environment: bool,
 }
 
 enum BrokerCommand {

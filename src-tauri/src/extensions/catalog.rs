@@ -324,7 +324,12 @@ async fn provider_entries(
     {
         let mut args = configured_args;
         args.extend_from_slice(user_args);
-        let plan = execution_plan(&descriptor, &invocation, args, cwd).ok();
+        let plan = execution_plan(&descriptor, &invocation, args, cwd)
+            .and_then(|mut plan| {
+                plan.user_args_start = plan.args.len().checked_sub(user_args.len());
+                state.protect_execution_plan(plan)
+            })
+            .ok();
         entries.push(CatalogEntry {
             id: format!("provider:{}:{}", invocation.extension_id, descriptor.id),
             command: descriptor.id.clone(),
@@ -507,6 +512,9 @@ fn system_command_entries(query: &str) -> Vec<CatalogEntry> {
                     mode: ExecutionMode::Pty,
                     cwd: None,
                     environment: BTreeMap::new(),
+                    inherit_environment: true,
+                    plan_token: None,
+                    user_args_start: None,
                 }),
                 runtime_available: true,
                 frequency: 0,
@@ -547,6 +555,9 @@ fn local_entries(paths: &ExtensionPaths) -> Result<Vec<CatalogEntry>, String> {
                     mode: command.mode,
                     cwd: None,
                     environment: command.environment,
+                    inherit_environment: true,
+                    plan_token: None,
+                    user_args_start: None,
                 }),
                 runtime_available: true,
                 frequency: 0,

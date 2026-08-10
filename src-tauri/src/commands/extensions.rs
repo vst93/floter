@@ -6,7 +6,8 @@ use crate::extensions::config::{self, ExtensionConfiguration};
 use crate::extensions::install::{
     self, ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult,
 };
-use crate::extensions::lock::{ExtensionLockEntry, ExtensionsLock};
+use crate::extensions::lock::{ExtensionInstallType, ExtensionLockEntry, ExtensionsLock};
+use crate::extensions::manifest::Permission;
 use crate::extensions::provider::{DiagnoseResponse, ProviderResponse};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
 use crate::extensions::ExtensionState;
@@ -14,7 +15,7 @@ use chrono::{Local, Utc};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use tauri::{AppHandle, State};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[tauri::command]
 pub fn extensions_list(
@@ -54,6 +55,7 @@ pub async fn extensions_export(
 pub async fn extensions_import(
     app: AppHandle,
     state: State<'_, ExtensionState>,
+    locale: Option<String>,
 ) -> Result<Option<ExtensionsImportReport>, String> {
     let selection = app
         .dialog()
@@ -67,7 +69,137 @@ pub async fn extensions_import(
         .into_path()
         .map_err(|_| "Extension imports must use a local file".to_string())?;
     let document = sync::read_import(&path)?;
-    Ok(Some(sync::import_document(&state, &path, document).await))
+    let locale = locale.as_deref().unwrap_or("en");
+    let is_zh = locale.to_ascii_lowercase().starts_with("zh");
+    let installed = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut approved_permissions = BTreeMap::new();
+    let mut permission_lines = Vec::new();
+    for entry in &document.extensions {
+        if let Some(current) = installed.extensions.get(&entry.id) {
+            let same_source = matches!(
+                (current.install_type, entry.source),
+                (ExtensionInstallType::Managed, sync::SyncSource::Managed)
+                    | (ExtensionInstallType::Linked, sync::SyncSource::Linked)
+            );
+            let current_version = if current.install_type == ExtensionInstallType::Linked {
+                current
+                    .tool_version
+                    .as_deref()
+                    .unwrap_or(&current.current_version)
+            } else {
+                &current.current_version
+            };
+            if !same_source
+                || current.install_type == ExtensionInstallType::Linked
+                || current_version == entry.version
+                || current.previous_version.as_deref() == Some(entry.version.as_str())
+            {
+                continue;
+            }
+        }
+        let review = match entry.source {
+            sync::SyncSource::Managed => {
+                let package = entry.package.clone().ok_or_else(|| {
+                    format!(
+                        "Managed extension {} has no package in the export",
+                        entry.id
+                    )
+                })?;
+                install::permissions_summary(
+                    &state,
+                    &ExtensionInstallRequest {
+                        source: install::InstallSource::Npm,
+                        package: Some(package),
+                        version: Some(entry.version.clone()),
+                        manifest_path: None,
+                        executable_path: None,
+                        approved_permissions: None,
+                    },
+                    locale,
+                )
+                .await?
+            }
+            sync::SyncSource::Linked => {
+                let manifest = entry
+                    .manifest
+                    .clone()
+                    .or_else(|| {
+                        state
+                            .static_adapters
+                            .iter()
+                            .find(|adapter| adapter.manifest.id == entry.id)
+                            .map(|adapter| adapter.manifest.clone())
+                    })
+                    .ok_or_else(|| format!("Linked extension {} has no manifest", entry.id))?;
+                install::permission_review(&manifest, locale)
+            }
+        };
+        if !review.permissions.is_empty() {
+            permission_lines.push(format!(
+                "{}: {}",
+                review.extension_name,
+                review
+                    .permissions
+                    .iter()
+                    .map(|permission| permission.title.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+            approved_permissions.insert(
+                entry.id.clone(),
+                review
+                    .permissions
+                    .into_iter()
+                    .map(|permission| permission.permission)
+                    .collect(),
+            );
+        }
+    }
+    if !permission_lines.is_empty() {
+        let omitted = permission_lines.len().saturating_sub(50);
+        let mut displayed = permission_lines
+            .iter()
+            .take(50)
+            .cloned()
+            .collect::<Vec<_>>();
+        if omitted > 0 {
+            displayed.push(if is_zh {
+                format!("另有 {omitted} 个插件")
+            } else {
+                format!("...and {omitted} more extensions")
+            });
+        }
+        let (title, message, approve, cancel) = if is_zh {
+            (
+                "确认插件权限",
+                "导入将安装或更新以下插件，请确认它们请求的权限：",
+                "确认并导入",
+                "取消",
+            )
+        } else {
+            (
+                "Review extension permissions",
+                "Importing will install or update these extensions. Review their requested permissions:",
+                "Approve and import",
+                "Cancel",
+            )
+        };
+        let approved = app
+            .dialog()
+            .message(format!("{message}\n\n{}", displayed.join("\n")))
+            .title(title)
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                approve.to_string(),
+                cancel.to_string(),
+            ))
+            .blocking_show();
+        if !approved {
+            return Ok(None);
+        }
+    }
+    Ok(Some(
+        sync::import_document(&state, &path, document, &approved_permissions).await,
+    ))
 }
 
 #[tauri::command]
@@ -133,8 +265,15 @@ pub async fn extensions_update(
     state: State<'_, ExtensionState>,
     id: String,
     version: Option<String>,
+    approved_permissions: Option<Vec<Permission>>,
 ) -> Result<ExtensionLockEntry, String> {
-    install::update(&state, &id, version.as_deref()).await
+    install::update(
+        &state,
+        &id,
+        version.as_deref(),
+        approved_permissions.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]

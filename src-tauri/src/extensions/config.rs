@@ -12,6 +12,9 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::path::Path;
 
+const PASSWORD_PLACEHOLDER: &str = "********";
+const STORED_PASSWORD_PLACEHOLDER: &str = "[REDACTED]";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigurationDescriptor {
@@ -126,12 +129,10 @@ pub async fn get(
     } else {
         BTreeMap::new()
     };
-    let open_plan = tool_configuration_plan(&descriptor, &invocation)?;
-    Ok(ExtensionConfiguration {
-        descriptor,
-        values,
-        open_plan,
-    })
+    let open_plan = tool_configuration_plan(&descriptor, &invocation)?
+        .map(|plan| state.protect_execution_plan(plan))
+        .transpose()?;
+    Ok(configuration_for_ipc(descriptor, values, open_plan))
 }
 
 pub async fn set(
@@ -148,6 +149,9 @@ pub async fn set(
             "Extension {extension_id} manages its own configuration"
         ));
     }
+    let stored = load_stored(&state.paths.data, extension_id)?;
+    let (current, _) = migrate_values(&stored, &descriptor)?;
+    let values = preserve_password_placeholders(&descriptor.schema, current, values);
     validate_values(&descriptor.schema, &values)?;
     let values = materialize_defaults(&descriptor.schema, values);
     save_values(
@@ -157,11 +161,7 @@ pub async fn set(
         &descriptor.schema,
         &values,
     )?;
-    Ok(ExtensionConfiguration {
-        descriptor,
-        values,
-        open_plan: None,
-    })
+    Ok(configuration_for_ipc(descriptor, values, None))
 }
 
 pub(crate) fn export_values(
@@ -209,7 +209,10 @@ fn redact_exported_passwords(
 ) -> BTreeMap<String, Value> {
     for field in schema {
         if field.field_type == ConfigurationFieldType::Password && values.contains_key(&field.key) {
-            values.insert(field.key.clone(), Value::String("********".to_string()));
+            values.insert(
+                field.key.clone(),
+                Value::String(PASSWORD_PLACEHOLDER.to_string()),
+            );
         }
     }
     values
@@ -230,7 +233,7 @@ fn merge_imported_values(
             .get(key.as_str())
             .ok_or_else(|| format!("Unknown configuration key: {key}"))?;
         if field.field_type == ConfigurationFieldType::Password
-            && value.as_str() == Some("********")
+            && value.as_str() == Some(PASSWORD_PLACEHOLDER)
         {
             continue;
         }
@@ -255,6 +258,49 @@ fn materialize_defaults(
         }
     }
     values
+}
+
+fn preserve_password_placeholders(
+    schema: &[ConfigurationField],
+    current: BTreeMap<String, Value>,
+    mut submitted: BTreeMap<String, Value>,
+) -> BTreeMap<String, Value> {
+    for field in schema {
+        if field.field_type != ConfigurationFieldType::Password
+            || submitted.get(&field.key).and_then(Value::as_str) != Some(PASSWORD_PLACEHOLDER)
+        {
+            continue;
+        }
+        if let Some(value) = current.get(&field.key) {
+            submitted.insert(field.key.clone(), value.clone());
+        } else {
+            submitted.remove(&field.key);
+        }
+    }
+    submitted
+}
+
+fn configuration_for_ipc(
+    mut descriptor: ConfigurationDescriptor,
+    values: BTreeMap<String, Value>,
+    open_plan: Option<ExecutionPlan>,
+) -> ExtensionConfiguration {
+    descriptor.schema = redact_schema_for_ipc(&descriptor.schema);
+    ExtensionConfiguration {
+        values: redact_exported_passwords(&descriptor.schema, values),
+        descriptor,
+        open_plan,
+    }
+}
+
+fn redact_schema_for_ipc(schema: &[ConfigurationField]) -> Vec<ConfigurationField> {
+    let mut schema = schema.to_vec();
+    for field in &mut schema {
+        if field.field_type == ConfigurationFieldType::Password && field.default.is_some() {
+            field.default = Some(Value::String(PASSWORD_PLACEHOLDER.to_string()));
+        }
+    }
+    schema
 }
 
 pub fn apply_persisted_configuration(
@@ -316,9 +362,11 @@ async fn descriptor(
     state: &ExtensionState,
     entry: &ExtensionLockEntry,
 ) -> Result<(ConfigurationDescriptor, ProviderInvocation), String> {
-    let mut invocation = invocation_from_entry(entry)?;
-    let _ = apply_persisted_configuration(&state.paths.data, &mut invocation)?;
-    let mut envelope: ConfigurationEnvelope = state.provider.call_config(&invocation).await?;
+    let invocation = invocation_from_entry(entry)?;
+    let mut configured_invocation = invocation.clone();
+    let _ = apply_persisted_configuration(&state.paths.data, &mut configured_invocation)?;
+    let mut envelope: ConfigurationEnvelope =
+        state.provider.call_config(&configured_invocation).await?;
     apply_environment_mapping(&mut envelope.configuration)?;
     Ok((envelope.configuration, invocation))
 }
@@ -564,7 +612,8 @@ fn load_stored(data_root: &Path, extension_id: &str) -> Result<StoredConfigurati
     } else {
         for field in &stored.schema {
             if field.field_type == ConfigurationFieldType::Password
-                && stored.values.get(&field.key).and_then(Value::as_str) == Some("[REDACTED]")
+                && stored.values.get(&field.key).and_then(Value::as_str)
+                    == Some(STORED_PASSWORD_PLACEHOLDER)
             {
                 stored.values.remove(&field.key);
             }
@@ -630,7 +679,7 @@ fn save_values(
     for key in password_keys {
         if let Some(value) = public_values.get_mut(key) {
             secrets.insert(key.to_string(), value.clone());
-            *value = Value::String("[REDACTED]".to_string());
+            *value = Value::String(STORED_PASSWORD_PLACEHOLDER.to_string());
         }
     }
     let stored_schema = redacted_schema(schema);
@@ -659,7 +708,7 @@ fn redacted_schema(schema: &[ConfigurationField]) -> Vec<ConfigurationField> {
     let mut schema = schema.to_vec();
     for field in &mut schema {
         if field.field_type == ConfigurationFieldType::Password && field.default.is_some() {
-            field.default = Some(Value::String("[REDACTED]".to_string()));
+            field.default = Some(Value::String(STORED_PASSWORD_PLACEHOLDER.to_string()));
         }
     }
     schema
@@ -672,7 +721,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
         .map_err(|error| format!("Cannot create configuration temporary file: {error}"))?;
     temporary
-        .write_all(&bytes)
+        .write_all(bytes)
         .and_then(|_| temporary.flush())
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|error| format!("Cannot write extension configuration: {error}"))?;
@@ -800,6 +849,51 @@ mod tests {
             exported["endpoint"],
             Value::String("https://example.com".into())
         );
+    }
+
+    #[test]
+    fn redacts_password_values_and_defaults_for_ipc() {
+        let mut api_key = field("apiKey", ConfigurationFieldType::Password);
+        api_key.default = Some(Value::String("default-secret".into()));
+        let descriptor = ConfigurationDescriptor {
+            config_version: 1,
+            owner: ConfigurationOwner::Host,
+            open_command: Vec::new(),
+            schema: vec![api_key],
+            environment_mapping: BTreeMap::new(),
+        };
+        let configuration = configuration_for_ipc(
+            descriptor,
+            BTreeMap::from([("apiKey".into(), Value::String("saved-secret".into()))]),
+            None,
+        );
+
+        assert_eq!(
+            configuration.values["apiKey"],
+            Value::String(PASSWORD_PLACEHOLDER.into())
+        );
+        assert_eq!(
+            configuration.descriptor.schema[0].default,
+            Some(Value::String(PASSWORD_PLACEHOLDER.into()))
+        );
+    }
+
+    #[test]
+    fn submitted_password_placeholder_preserves_existing_secret() {
+        let schema = vec![field("apiKey", ConfigurationFieldType::Password)];
+        let values = preserve_password_placeholders(
+            &schema,
+            BTreeMap::from([("apiKey".into(), Value::String("saved-secret".into()))]),
+            BTreeMap::from([("apiKey".into(), Value::String(PASSWORD_PLACEHOLDER.into()))]),
+        );
+        assert_eq!(values["apiKey"], Value::String("saved-secret".into()));
+
+        let values = preserve_password_placeholders(
+            &schema,
+            BTreeMap::new(),
+            BTreeMap::from([("apiKey".into(), Value::String(PASSWORD_PLACEHOLDER.into()))]),
+        );
+        assert!(!values.contains_key("apiKey"));
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -77,6 +78,10 @@ pub struct ExtensionLockEntry {
     pub package_version: String,
     pub tool_version: Option<String>,
     pub integrity: Option<String>,
+    #[serde(default)]
+    pub signature_verified: bool,
+    #[serde(default)]
+    pub previous_signature_verified: Option<bool>,
     pub current_version: String,
     pub previous_version: Option<String>,
     pub manifest_path: String,
@@ -116,6 +121,13 @@ impl ExtensionsLock {
                     "Lock key {id} does not match entry id {}",
                     entry.id
                 ));
+            }
+            if entry.install_type == ExtensionInstallType::Managed {
+                validate_managed_version(&entry.package_version)?;
+                validate_managed_version(&entry.current_version)?;
+                if let Some(previous) = &entry.previous_version {
+                    validate_managed_version(previous)?;
+                }
             }
         }
         Ok(lock)
@@ -226,6 +238,12 @@ pub fn validate_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_managed_version(version: &str) -> Result<(), String> {
+    Version::parse(version)
+        .map(|_| ())
+        .map_err(|error| format!("Invalid managed extension version {version}: {error}"))
+}
+
 pub fn unix_now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -250,5 +268,12 @@ mod tests {
         assert!(validate_id("io.example.tool").is_ok());
         assert!(validate_id("../tool").is_err());
         assert!(validate_id("UPPER.tool").is_err());
+    }
+
+    #[test]
+    fn rejects_managed_versions_that_could_escape_the_extension_root() {
+        assert!(validate_managed_version("1.2.3").is_ok());
+        assert!(validate_managed_version("../../outside").is_err());
+        assert!(validate_managed_version("latest").is_err());
     }
 }

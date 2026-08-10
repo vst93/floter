@@ -141,6 +141,11 @@ pub struct ExecutionPlan {
     pub mode: ExecutionMode,
     pub cwd: Option<String>,
     pub environment: BTreeMap<String, String>,
+    pub inherit_environment: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_token: Option<String>,
+    #[serde(skip)]
+    pub user_args_start: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -545,6 +550,9 @@ pub fn execution_plan(
         mode: command.execution.mode,
         cwd: cwd.map(|path| path.to_string_lossy().into_owned()),
         environment: invocation.config.environment.clone(),
+        inherit_environment: invocation.permissions.contains(&Permission::Environment),
+        plan_token: None,
+        user_args_start: None,
     })
 }
 
@@ -885,7 +893,11 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             .unwrap_err()
             .contains("process-spawn"));
         invocation.permissions.push(Permission::ProcessSpawn);
-        assert!(execution_plan(&command, &invocation, Vec::new(), None).is_ok());
+        let plan = execution_plan(&command, &invocation, Vec::new(), None).unwrap();
+        assert!(!plan.inherit_environment);
+        invocation.permissions.push(Permission::Environment);
+        let plan = execution_plan(&command, &invocation, Vec::new(), None).unwrap();
+        assert!(plan.inherit_environment);
     }
 
     #[cfg(unix)]
