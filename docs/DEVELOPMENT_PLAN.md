@@ -298,9 +298,8 @@ Host 永远以 argv 生成执行计划，不把用户输入直接拼进 shell �
 
 ```json
 {
-  "command": "vc",
-  "tokens": ["vc", "-join", "a"],
-  "cursor": 11,
+  "command": "jv",
+  "args": ["-f"],
   "cwd": "/home/user"
 }
 ```
@@ -309,15 +308,15 @@ Host 永远以 argv 生成执行计划，不把用户输入直接拼进 shell �
 
 ```json
 {
-  "items": [
-    { "value": "a8k2", "label": "a8k2", "description": "最近使用的频道" }
+  "completions": [
+    { "label": "-file", "kind": "flag", "detail": "Read from file" }
   ]
 }
 ```
 
-- 动态补全应在 800ms 内返回。
+- 动态补全默认应在 800ms 内返回，可通过 `completeTimeoutMs` 配置。
 - Host 必须防抖、取消过期请求，并对 cwd 与输入建立短期缓存。
-- 静态 flag、enum 和文件路径不应调用 Provider。
+- Host 合并静态与动态结果；Provider 不支持、超时或失败时降级到静态结果。
 
 #### diagnose（诊断，可选）
 

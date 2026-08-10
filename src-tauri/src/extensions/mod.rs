@@ -9,7 +9,9 @@ pub mod static_adapter;
 use std::path::PathBuf;
 
 #[allow(unused_imports)]
-pub use catalog::{CatalogEntry, CatalogSearchRequest, CompletionRequest, CompletionResponse};
+pub use catalog::{
+    CatalogCompletionResponse, CatalogEntry, CatalogSearchRequest, CompletionRequest,
+};
 #[allow(unused_imports)]
 pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
 #[allow(unused_imports)]

@@ -1,6 +1,6 @@
 use crate::commands::apps::{list_applications, ApplicationState};
 use crate::extensions::catalog::{
-    self, CatalogEntry, CatalogSearchRequest, CompletionRequest, CompletionResponse,
+    self, CatalogCompletionResponse, CatalogEntry, CatalogSearchRequest, CompletionRequest,
 };
 use crate::extensions::config::{self, ExtensionConfiguration};
 use crate::extensions::install::{self, ExtensionInstallRequest, ExtensionSearchResult};
@@ -155,6 +155,6 @@ pub async fn catalog_search(
 pub async fn catalog_complete(
     state: State<'_, ExtensionState>,
     request: CompletionRequest,
-) -> Result<CompletionResponse, String> {
+) -> Result<CatalogCompletionResponse, String> {
     catalog::complete(&state, &request).await
 }

@@ -3,7 +3,7 @@ use crate::extensions::lock::ExtensionsLock;
 use crate::extensions::manifest::{ExtensionManifest, PlatformTarget};
 use crate::extensions::provider::{
     execution_plan, ArgumentKind, CommandDescriptor, CompletionItem, ExecutionMode, ExecutionPlan,
-    ProviderInvocation,
+    ProviderCompletion, ProviderInvocation,
 };
 use crate::extensions::{ExtensionPaths, ExtensionState};
 use serde::{Deserialize, Serialize};
@@ -64,13 +64,12 @@ fn default_true() -> bool {
 pub struct CompletionRequest {
     pub command: String,
     pub tokens: Vec<String>,
-    pub cursor: usize,
     pub cwd: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct CompletionResponse {
+pub struct CatalogCompletionResponse {
     pub items: Vec<CompletionItem>,
     pub dynamic: bool,
 }
@@ -171,7 +170,7 @@ pub async fn search(
 pub async fn complete(
     state: &ExtensionState,
     request: &CompletionRequest,
-) -> Result<CompletionResponse, String> {
+) -> Result<CatalogCompletionResponse, String> {
     let providers = loaded_provider_commands(state).await?;
     let (requested_namespace, command_name) = request
         .command
@@ -179,18 +178,42 @@ pub async fn complete(
         .map_or((None, request.command.as_str()), |(namespace, command)| {
             (Some(namespace), command)
         });
-    let Some((descriptor, invocation, namespace, _, _, _)) =
-        providers.into_iter().find(|(command, _, ns, _, _, _)| {
+    let Some((descriptor, invocation, _, _, _, _, supports_dynamic_complete)) =
+        providers.into_iter().find(|(command, _, ns, _, _, _, _)| {
             requested_namespace.is_none_or(|requested| requested == ns)
                 && (command.id == command_name
                     || command.aliases.iter().any(|name| name == command_name))
         })
     else {
-        return Ok(CompletionResponse {
+        return Ok(CatalogCompletionResponse {
             items: Vec::new(),
             dynamic: false,
         });
     };
+    let static_items = static_completions(&descriptor, request);
+    if !supports_dynamic_complete {
+        return Ok(CatalogCompletionResponse {
+            items: static_items,
+            dynamic: false,
+        });
+    }
+
+    let provider_request = json!({
+        "command": descriptor.id,
+        "args": request.tokens.get(1..).unwrap_or_default(),
+        "cwd": request.cwd,
+    });
+    let dynamic = state
+        .provider
+        .complete(&invocation, &provider_request)
+        .await;
+    Ok(completion_response(static_items, dynamic))
+}
+
+fn static_completions(
+    descriptor: &CommandDescriptor,
+    request: &CompletionRequest,
+) -> Vec<CompletionItem> {
     let fragment = request
         .tokens
         .last()
@@ -211,46 +234,25 @@ pub async fn complete(
     if let Some(argument) = value_argument {
         match argument.kind {
             ArgumentKind::Enum => {
-                return Ok(CompletionResponse {
-                    items: argument
-                        .values
-                        .iter()
-                        .filter(|value| value.starts_with(fragment))
-                        .map(|value| CompletionItem {
-                            value: value.clone(),
-                            label: value.clone(),
-                            description: argument.description.clone(),
-                        })
-                        .collect(),
-                    dynamic: false,
-                });
+                return argument
+                    .values
+                    .iter()
+                    .filter(|value| value.starts_with(fragment))
+                    .map(|value| CompletionItem {
+                        value: value.clone(),
+                        label: value.clone(),
+                        description: argument.description.clone(),
+                    })
+                    .collect();
             }
             ArgumentKind::Path | ArgumentKind::Directory => {
-                return Ok(CompletionResponse {
-                    items: path_completions(
-                        fragment,
-                        request.cwd.as_deref(),
-                        argument.kind == ArgumentKind::Directory,
-                    ),
-                    dynamic: false,
-                });
+                return path_completions(
+                    fragment,
+                    request.cwd.as_deref(),
+                    argument.kind == ArgumentKind::Directory,
+                );
             }
-            ArgumentKind::Command => {
-                let provider_request = json!({
-                    "command": descriptor.id,
-                    "tokens": request.tokens,
-                    "cursor": request.cursor,
-                    "cwd": request.cwd,
-                });
-                let response = state
-                    .provider
-                    .complete(&invocation, &provider_request)
-                    .await?;
-                return Ok(CompletionResponse {
-                    items: response.items,
-                    dynamic: true,
-                });
-            }
+            ArgumentKind::Command => return Vec::new(),
             _ => {}
         }
     }
@@ -269,11 +271,44 @@ pub async fn complete(
         }
     }
     items.sort_by(|left, right| left.value.cmp(&right.value));
-    let _ = namespace;
-    Ok(CompletionResponse {
-        items,
-        dynamic: false,
-    })
+    items
+}
+
+fn merge_completions(
+    static_items: Vec<CompletionItem>,
+    dynamic: ProviderCompletion,
+) -> Vec<CompletionItem> {
+    let mut items = static_items
+        .into_iter()
+        .map(|item| (item.value.clone(), item))
+        .collect::<BTreeMap<_, _>>();
+    for completion in dynamic.completions {
+        items.insert(
+            completion.label.clone(),
+            CompletionItem {
+                value: completion.label.clone(),
+                label: completion.label,
+                description: completion.detail,
+            },
+        );
+    }
+    items.into_values().collect()
+}
+
+fn completion_response(
+    static_items: Vec<CompletionItem>,
+    dynamic: Result<ProviderCompletion, String>,
+) -> CatalogCompletionResponse {
+    match dynamic {
+        Ok(dynamic) => CatalogCompletionResponse {
+            items: merge_completions(static_items, dynamic),
+            dynamic: true,
+        },
+        Err(_) => CatalogCompletionResponse {
+            items: static_items,
+            dynamic: false,
+        },
+    }
 }
 
 async fn provider_entries(
@@ -284,7 +319,7 @@ async fn provider_entries(
     let providers = loaded_provider_commands(state).await?;
     let cwd = cwd.map(Path::new);
     let mut entries = Vec::new();
-    for (descriptor, invocation, namespace, source_name, runtime_available, configured_args) in
+    for (descriptor, invocation, namespace, source_name, runtime_available, configured_args, _) in
         providers
     {
         let mut args = configured_args;
@@ -340,6 +375,7 @@ async fn loaded_provider_commands(
                 source_name.clone(),
                 runtime_available,
                 configured_args.clone(),
+                runtime_available,
             )
         }));
     }
@@ -358,6 +394,7 @@ type LoadedProviderCommand = (
     String,
     bool,
     Vec<String>,
+    bool,
 );
 
 fn static_provider_commands(
@@ -384,6 +421,7 @@ fn static_provider_commands(
                 source_name.clone(),
                 adapter.runtime_available,
                 configured_args.clone(),
+                false,
             )
         }));
     }
@@ -761,6 +799,14 @@ pub fn migrate_legacy_commands(paths: &ExtensionPaths) -> Result<usize, String> 
 mod tests {
     use super::*;
 
+    fn completion_item(value: &str, description: &str) -> CompletionItem {
+        CompletionItem {
+            value: value.into(),
+            label: value.into(),
+            description: description.into(),
+        }
+    }
+
     #[test]
     fn namespace_uses_last_provider_id_component() {
         assert_eq!(namespace_for("io.github.vst93.v"), "v");
@@ -800,5 +846,93 @@ mod tests {
         assert_eq!(commands[0].0.id, "jv");
         assert_eq!(commands[0].2, "v");
         assert_eq!(commands[0].3, "V Tools");
+    }
+
+    #[test]
+    fn static_complete_returns_matching_arguments() {
+        let adapters = crate::extensions::static_adapter::load_bundled().unwrap();
+        let descriptor = adapters[0]
+            .description
+            .commands
+            .iter()
+            .find(|command| command.id == "jv")
+            .unwrap();
+        let items = static_completions(
+            descriptor,
+            &CompletionRequest {
+                command: "jv".into(),
+                tokens: vec!["jv".into(), "-f".into()],
+                cwd: None,
+            },
+        );
+
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.value.as_str())
+                .collect::<Vec<_>>(),
+            ["-f", "-file"]
+        );
+    }
+
+    #[test]
+    fn dynamic_timeout_falls_back_to_static_completions() {
+        let static_items = vec![completion_item("-file", "Static file")];
+
+        let response = completion_response(
+            static_items.clone(),
+            Err("Provider complete timed out after 800 ms".into()),
+        );
+
+        assert_eq!(response.items, static_items);
+        assert!(!response.dynamic);
+    }
+
+    #[test]
+    fn dynamic_error_falls_back_to_static_completions() {
+        let static_items = vec![completion_item("-file", "Static file")];
+
+        let response = completion_response(
+            static_items.clone(),
+            Err("Provider complete exited with 2: unsupported".into()),
+        );
+
+        assert_eq!(response.items, static_items);
+        assert!(!response.dynamic);
+    }
+
+    #[test]
+    fn dynamic_and_static_completions_are_merged_deduplicated_and_sorted() {
+        let static_items = vec![
+            completion_item("-file", "Static file"),
+            completion_item("-f", "Format JSON"),
+        ];
+        let dynamic = ProviderCompletion {
+            completions: vec![
+                crate::extensions::provider::ProviderCompletionItem {
+                    label: "-fresh".into(),
+                    kind: "flag".into(),
+                    detail: "Dynamic only".into(),
+                },
+                crate::extensions::provider::ProviderCompletionItem {
+                    label: "-file".into(),
+                    kind: "flag".into(),
+                    detail: "Dynamic file".into(),
+                },
+            ],
+        };
+
+        let response = completion_response(static_items, Ok(dynamic));
+
+        assert!(response.dynamic);
+        assert_eq!(
+            response
+                .items
+                .iter()
+                .map(|item| item.value.as_str())
+                .collect::<Vec<_>>(),
+            ["-f", "-file", "-fresh"]
+        );
+        assert_eq!(response.items[1].description, "Dynamic file");
     }
 }

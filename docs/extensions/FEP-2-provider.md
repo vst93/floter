@@ -44,15 +44,26 @@ Provider 必须把协议 JSON 写到 stdout，把诊断日志写到 stderr。成
 
 ```json
 {
-  "command": "vc",
-  "tokens": ["vc", "-join", "a"],
-  "cursor": 11,
+  "command": "jv",
+  "args": ["-f"],
   "cwd": "/home/user"
 }
 ```
 
-动态补全应在 800ms 内返回。Host 必须防抖、取消过期请求，并对 cwd 与输入
-建立短期缓存。静态 flag、enum 和文件路径不应调用 Provider。
+返回：
+
+```json
+{
+  "completions": [
+    { "label": "-file", "kind": "flag", "detail": "Read from file" }
+  ]
+}
+```
+
+动态补全默认应在 800ms 内返回，扩展可以通过 `completeTimeoutMs` 调整超时。
+Host 必须防抖、取消过期请求，并对 cwd 与输入建立短期缓存。动态结果与静态
+参数合并、去重并排序；Provider 不支持 complete、超时、返回非零退出码或无效
+响应时，Host 降级为静态参数补全。
 
 ## diagnose
 
@@ -61,4 +72,3 @@ Provider 必须把协议 JSON 写到 stdout，把诊断日志写到 stderr。成
 可能访问的资源。
 
 机器可读定义见 `schemas/provider-description.schema.json`。
-

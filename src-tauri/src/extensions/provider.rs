@@ -161,7 +161,7 @@ struct ProviderCache {
     description: ProviderDescription,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CompletionItem {
     pub value: String,
     pub label: String,
@@ -171,7 +171,14 @@ pub struct CompletionItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCompletion {
-    pub items: Vec<CompletionItem>,
+    pub completions: Vec<ProviderCompletionItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProviderCompletionItem {
+    pub label: String,
+    pub kind: String,
+    pub detail: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -333,7 +340,7 @@ impl ProviderManager {
             invocation,
             "complete",
             Some(request),
-            Duration::from_millis(invocation.config.complete_timeout_ms.min(800)),
+            Duration::from_millis(invocation.config.complete_timeout_ms),
         );
         tokio::pin!(call);
         let response = loop {
@@ -689,6 +696,40 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    fn mock_invocation(
+        executable: PathBuf,
+        complete_timeout_ms: u64,
+        environment: BTreeMap<String, String>,
+    ) -> ProviderInvocation {
+        ProviderInvocation {
+            extension_id: "dev.floter.mock".into(),
+            executable,
+            runtime_root: None,
+            package_version: "1.0.0".into(),
+            tool_version_hint: None,
+            version_args: Vec::new(),
+            config: ProviderConfig {
+                args_prefix: vec!["--floter".into()],
+                describe_timeout_ms: 5_000,
+                complete_timeout_ms,
+                environment,
+            },
+        }
+    }
+
+    #[cfg(unix)]
+    fn mock_provider(directory: &Path, body: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+
+        let executable = directory.join("mock-provider");
+        std::fs::write(&executable, format!("#!/bin/sh\n{body}\n")).unwrap();
+        let mut permissions = executable.metadata().unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&executable, permissions).unwrap();
+        executable
+    }
+
     #[test]
     fn parses_reference_description() {
         let value: Value = serde_json::from_slice(include_bytes!(
@@ -698,5 +739,91 @@ mod tests {
         validate_description_schema(&value).unwrap();
         let description: ProviderDescription = serde_json::from_value(value).unwrap();
         assert_eq!(description.commands[0].id, "jv");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn complete_uses_the_protocol_args_and_wire_format() {
+        let directory = tempfile::tempdir().unwrap();
+        let args_path = directory.path().join("args");
+        let request_path = directory.path().join("request.json");
+        let executable = mock_provider(
+            directory.path(),
+            r#"printf '%s\n' "$@" > "$ARGS_PATH"
+cat > "$REQUEST_PATH"
+printf '%s' '{"completions":[{"label":"-file","kind":"flag","detail":"Read from file"}]}'"#,
+        );
+        let environment = BTreeMap::from([
+            ("ARGS_PATH".into(), args_path.to_string_lossy().into_owned()),
+            (
+                "REQUEST_PATH".into(),
+                request_path.to_string_lossy().into_owned(),
+            ),
+        ]);
+        let invocation = mock_invocation(executable, 800, environment);
+        let manager = ProviderManager::new(directory.path().join("cache"));
+        let request = serde_json::json!({
+            "command": "jv",
+            "args": ["-f"],
+            "cwd": "/path"
+        });
+
+        let response = manager.complete(&invocation, &request).await.unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(args_path).unwrap(),
+            "--floter\ncomplete\n--protocol\n1\n"
+        );
+        let recorded: Value =
+            serde_json::from_slice(&std::fs::read(request_path).unwrap()).unwrap();
+        assert_eq!(recorded, request);
+        assert_eq!(response.completions.len(), 1);
+        assert_eq!(response.completions[0].label, "-file");
+        assert_eq!(response.completions[0].kind, "flag");
+        assert_eq!(response.completions[0].detail, "Read from file");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn complete_honors_the_configured_timeout() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(directory.path(), "cat >/dev/null\nsleep 1");
+        let invocation = mock_invocation(executable, 50, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager
+            .complete(
+                &invocation,
+                &serde_json::json!({"command": "jv", "args": ["-f"], "cwd": null}),
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.contains("timed out after 50 ms"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn complete_reports_a_nonzero_provider_exit() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            "cat >/dev/null\necho 'complete unsupported' >&2\nexit 7",
+        );
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager
+            .complete(
+                &invocation,
+                &serde_json::json!({"command": "jv", "args": ["-f"], "cwd": null}),
+            )
+            .await
+            .unwrap_err();
+
+        assert!(
+            error.contains("exited with 7: complete unsupported"),
+            "{error}"
+        );
     }
 }

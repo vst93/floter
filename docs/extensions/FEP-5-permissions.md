@@ -80,7 +80,9 @@ and terminates a process that exceeds its deadline:
 The current Phase 1-6 implementation uses a stricter 5 s deadline for
 `diagnose` as well (`src-tauri/src/extensions/provider.rs`, `diagnose`); a
 provider MUST therefore be correct when stopped after 5 s. `describe` and
-`complete` also clamp manifest-configured values to 5,000 ms and 800 ms.
+`complete` use manifest-configured values within their schema bounds
+(`describeTimeoutMs` up to 5,000 ms and `completeTimeoutMs` up to 3,000 ms);
+the default complete budget remains 800 ms.
 
 ## Package and Archive Security
 

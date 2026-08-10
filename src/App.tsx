@@ -898,7 +898,6 @@ export default function App() {
             request: {
               command,
               tokens: completionLine.tokens,
-              cursor: new TextEncoder().encode(query).length,
               cwd: null,
             },
           }).catch(() => null)
