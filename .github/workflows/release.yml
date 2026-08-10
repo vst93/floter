@@ -64,7 +64,7 @@ jobs:
           sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
           sed -i "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
           sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          perl -0pi -e 's/(\[\[package\]\]\nname = "floter"\nversion = ")[^"]+/$1'"$VERSION"'/' src-tauri/Cargo.lock
+          perl -0pi -e 's/(\[\[package\]\]\nname = "floter"\nversion = ")[^"]+/${1}'"$VERSION"'/' src-tauri/Cargo.lock
           # The Arch package downloads the release artifacts of its own pkgver,
           # so a stale one here points at a version that no longer exists.
           sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
