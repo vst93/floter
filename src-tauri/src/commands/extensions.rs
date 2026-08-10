@@ -8,16 +8,66 @@ use crate::extensions::install::{
 };
 use crate::extensions::lock::{ExtensionLockEntry, ExtensionsLock};
 use crate::extensions::provider::{DiagnoseResponse, ProviderResponse};
+use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
 use crate::extensions::ExtensionState;
+use chrono::{Local, Utc};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 pub fn extensions_list(
     state: State<'_, ExtensionState>,
 ) -> Result<Vec<ExtensionLockEntry>, String> {
     Ok(ExtensionsLock::load(&state.paths.lock_file)?.list())
+}
+
+#[tauri::command]
+pub async fn extensions_export(
+    app: AppHandle,
+    state: State<'_, ExtensionState>,
+) -> Result<Option<ExtensionsExportResult>, String> {
+    let now = Utc::now();
+    let selection = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_file_name(sync::default_export_file_name(Local::now().date_naive()))
+        .blocking_save_file();
+    let Some(path) = selection else {
+        return Ok(None);
+    };
+    let path = path
+        .into_path()
+        .map_err(|_| "Extension exports must be saved to a local file".to_string())?;
+    let _guard = state.mutation_lock.lock().await;
+    let document = sync::build_export(&state, now)?;
+    sync::write_export(&path, &document)?;
+    Ok(Some(ExtensionsExportResult {
+        path: path.to_string_lossy().into_owned(),
+        extension_count: document.extensions.len(),
+    }))
+}
+
+#[tauri::command]
+pub async fn extensions_import(
+    app: AppHandle,
+    state: State<'_, ExtensionState>,
+) -> Result<Option<ExtensionsImportReport>, String> {
+    let selection = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .blocking_pick_file();
+    let Some(path) = selection else {
+        return Ok(None);
+    };
+    let path = path
+        .into_path()
+        .map_err(|_| "Extension imports must use a local file".to_string())?;
+    let document = sync::read_import(&path)?;
+    Ok(Some(sync::import_document(&state, &path, document).await))
 }
 
 #[tauri::command]

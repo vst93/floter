@@ -6,6 +6,8 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
+  FileDown,
+  FileUp,
   MoreHorizontal,
   Package,
   RefreshCw,
@@ -134,6 +136,24 @@ type ExtensionConfiguration = {
 
 type Tab = "installed" | "discover" | "updates";
 type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "reinstall" | "uninstall" | "save";
+type SyncOperation = "export" | "import";
+
+type ExtensionsExportResult = {
+  path: string;
+  extensionCount: number;
+};
+
+type ExtensionsImportItem = {
+  id: string;
+  message: string;
+};
+
+type ExtensionsImportReport = {
+  path: string;
+  succeeded: ExtensionsImportItem[];
+  failed: ExtensionsImportItem[];
+  skipped: ExtensionsImportItem[];
+};
 
 type ExtensionsPanelProps = {
   t: Translate;
@@ -217,6 +237,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [reviewingPackage, setReviewingPackage] = useState<string | null>(null);
   const [permissionReviews, setPermissionReviews] = useState<Record<string, PermissionReview>>({});
   const [pendingInstall, setPendingInstall] = useState<{ result: SearchResult; request: InstallRequest; review: PermissionReview } | null>(null);
+  const [syncOperation, setSyncOperation] = useState<SyncOperation | null>(null);
+  const [exportResult, setExportResult] = useState<ExtensionsExportResult | null>(null);
+  const [importReport, setImportReport] = useState<ExtensionsImportReport | null>(null);
   const detailGeneration = useRef(0);
 
   const updates = useMemo(
@@ -337,6 +360,41 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       setError(errorMessage(nextError));
     } finally {
       setBusy(null);
+    }
+  };
+
+  const exportExtensions = async () => {
+    if (syncOperation) return;
+    setSyncOperation("export");
+    setError(null);
+    setExportResult(null);
+    setImportReport(null);
+    try {
+      const result = await invoke<ExtensionsExportResult | null>("extensions_export");
+      if (result) setExportResult(result);
+    } catch (nextError) {
+      setError(errorMessage(nextError));
+    } finally {
+      setSyncOperation(null);
+    }
+  };
+
+  const importExtensions = async () => {
+    if (syncOperation) return;
+    setSyncOperation("import");
+    setError(null);
+    setExportResult(null);
+    setImportReport(null);
+    try {
+      const report = await invoke<ExtensionsImportReport | null>("extensions_import");
+      if (report) {
+        setImportReport(report);
+        await refresh();
+      }
+    } catch (nextError) {
+      setError(errorMessage(nextError));
+    } finally {
+      setSyncOperation(null);
     }
   };
 
@@ -561,26 +619,70 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       )}
 
       {tab === "installed" && (
-        <div className="extensions-list" role="tabpanel">
-          {loading ? (
-            <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
-          ) : extensions.length === 0 ? (
-            <EmptyState icon={<Package size={20} strokeWidth={2} />} text={t("settings.extensions.emptyInstalled")} />
-          ) : extensions.map((extension) => (
-            <ExtensionRow
-              key={extension.id}
-              extension={extension}
-              latest={latestById[extension.id]}
-              busy={Boolean(busy)}
-              t={t}
-              onOpen={() => setSelectedId(extension.id)}
-              onToggle={() => void toggleExtension(extension)}
-              onUpdate={() => void updateExtension(extension)}
-              onRollback={() => void rollbackExtension(extension)}
-              onReinstall={() => void reinstallExtension(extension)}
-              onUninstall={() => uninstallExtension(extension)}
-            />
-          ))}
+        <div className="extensions-installed" role="tabpanel">
+          <div className="extensions-sync-toolbar">
+            <button
+              type="button"
+              className="extensions-action-button"
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              onClick={() => void exportExtensions()}
+            >
+              <FileDown size={14} strokeWidth={2} aria-hidden="true" />
+              {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
+            </button>
+            <button
+              type="button"
+              className="extensions-action-button"
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              onClick={() => void importExtensions()}
+            >
+              <FileUp size={14} strokeWidth={2} aria-hidden="true" />
+              {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
+            </button>
+          </div>
+          {exportResult && (
+            <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
+              <Check size={15} strokeWidth={2} aria-hidden="true" />
+              <span>{t("settings.extensions.exportComplete", { count: exportResult.extensionCount })}</span>
+            </div>
+          )}
+          {importReport && (
+            <div
+              className={`extensions-notice${importReport.failed.length ? " extensions-notice--error" : " extensions-notice--success"}`}
+              role="status"
+              title={importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") || importReport.path}
+            >
+              {importReport.failed.length
+                ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+                : <Check size={15} strokeWidth={2} aria-hidden="true" />}
+              <span>{t("settings.extensions.importSummary", {
+                succeeded: importReport.succeeded.length,
+                skipped: importReport.skipped.length,
+                failed: importReport.failed.length,
+              })}</span>
+            </div>
+          )}
+          <div className="extensions-list">
+            {loading ? (
+              <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
+            ) : extensions.length === 0 ? (
+              <EmptyState icon={<Package size={20} strokeWidth={2} />} text={t("settings.extensions.emptyInstalled")} />
+            ) : extensions.map((extension) => (
+              <ExtensionRow
+                key={extension.id}
+                extension={extension}
+                latest={latestById[extension.id]}
+                busy={Boolean(busy)}
+                t={t}
+                onOpen={() => setSelectedId(extension.id)}
+                onToggle={() => void toggleExtension(extension)}
+                onUpdate={() => void updateExtension(extension)}
+                onRollback={() => void rollbackExtension(extension)}
+                onReinstall={() => void reinstallExtension(extension)}
+                onUninstall={() => uninstallExtension(extension)}
+              />
+            ))}
+          </div>
         </div>
       )}
 

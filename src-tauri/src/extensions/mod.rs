@@ -5,6 +5,7 @@ pub mod lock;
 pub mod manifest;
 pub mod provider;
 pub mod static_adapter;
+pub mod sync;
 
 use std::path::PathBuf;
 

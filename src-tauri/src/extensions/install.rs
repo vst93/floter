@@ -189,6 +189,16 @@ pub async fn install(
     }
 }
 
+pub async fn install_imported_managed(
+    state: &ExtensionState,
+    extension_id: &str,
+    package: &str,
+    version: &str,
+) -> Result<ExtensionLockEntry, String> {
+    let _guard = state.mutation_lock.lock().await;
+    install_managed(state, package, Some(version), Some(extension_id), None).await
+}
+
 pub async fn permissions_summary(
     state: &ExtensionState,
     request: &ExtensionInstallRequest,
@@ -494,7 +504,7 @@ async fn install_managed(
 ) -> Result<ExtensionLockEntry, String> {
     validate_package_name(package)?;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let expected_entry = expected_id.map(|id| lock.get(id).cloned()).transpose()?;
+    let expected_entry = expected_id.and_then(|id| lock.extensions.get(id)).cloned();
     if let Some(entry) = expected_entry.as_ref() {
         if entry.install_type != ExtensionInstallType::Managed
             || entry.package_name.as_deref() != Some(package)

@@ -1106,6 +1106,22 @@ input:focus {
   color: var(--text-warning);
 }
 
+.extensions-notice--success {
+  color: var(--accent);
+}
+
+.extensions-installed {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.extensions-sync-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .extensions-list {
   min-width: 0;
   display: grid;

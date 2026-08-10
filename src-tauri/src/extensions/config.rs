@@ -164,6 +164,85 @@ pub async fn set(
     })
 }
 
+pub(crate) fn export_values(
+    data_root: &Path,
+    extension_id: &str,
+) -> Result<BTreeMap<String, Value>, String> {
+    let stored = load_stored(data_root, extension_id)?;
+    Ok(redact_exported_passwords(&stored.schema, stored.values))
+}
+
+pub(crate) async fn import_values(
+    state: &ExtensionState,
+    extension_id: &str,
+    imported: &BTreeMap<String, Value>,
+) -> Result<bool, String> {
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let entry = lock.get(extension_id)?;
+    let (descriptor, _) = descriptor(state, entry).await?;
+    validate_descriptor(&descriptor)?;
+    if descriptor.owner != ConfigurationOwner::Host {
+        return imported
+            .is_empty()
+            .then_some(false)
+            .ok_or_else(|| format!("Extension {extension_id} manages its own configuration"));
+    }
+
+    let stored = load_stored(&state.paths.data, extension_id)?;
+    let (current, _) = migrate_values(&stored, &descriptor)?;
+    let (values, changed) = merge_imported_values(&descriptor.schema, current, imported)?;
+    if changed {
+        save_values(
+            &state.paths.data,
+            extension_id,
+            descriptor.config_version,
+            &descriptor.schema,
+            &values,
+        )?;
+    }
+    Ok(changed)
+}
+
+fn redact_exported_passwords(
+    schema: &[ConfigurationField],
+    mut values: BTreeMap<String, Value>,
+) -> BTreeMap<String, Value> {
+    for field in schema {
+        if field.field_type == ConfigurationFieldType::Password && values.contains_key(&field.key) {
+            values.insert(field.key.clone(), Value::String("********".to_string()));
+        }
+    }
+    values
+}
+
+fn merge_imported_values(
+    schema: &[ConfigurationField],
+    mut current: BTreeMap<String, Value>,
+    imported: &BTreeMap<String, Value>,
+) -> Result<(BTreeMap<String, Value>, bool), String> {
+    let fields = schema
+        .iter()
+        .map(|field| (field.key.as_str(), field))
+        .collect::<BTreeMap<_, _>>();
+    let mut changed = false;
+    for (key, value) in imported {
+        let field = fields
+            .get(key.as_str())
+            .ok_or_else(|| format!("Unknown configuration key: {key}"))?;
+        if field.field_type == ConfigurationFieldType::Password
+            && value.as_str() == Some("********")
+        {
+            continue;
+        }
+        validate_field_value(field, value)?;
+        if current.get(key) != Some(value) {
+            current.insert(key.clone(), value.clone());
+            changed = true;
+        }
+    }
+    Ok((current, changed))
+}
+
 fn materialize_defaults(
     schema: &[ConfigurationField],
     mut values: BTreeMap<String, Value>,
@@ -698,6 +777,73 @@ mod tests {
             Value::String("https://old.example".into())
         );
         assert_eq!(values["retries"], Value::from(3));
+    }
+
+    #[test]
+    fn redacts_passwords_for_export() {
+        let schema = vec![
+            field("endpoint", ConfigurationFieldType::Text),
+            field("apiKey", ConfigurationFieldType::Password),
+        ];
+        let values = BTreeMap::from([
+            (
+                "endpoint".into(),
+                Value::String("https://example.com".into()),
+            ),
+            ("apiKey".into(), Value::String("secret".into())),
+        ]);
+
+        let exported = redact_exported_passwords(&schema, values);
+
+        assert_eq!(exported["apiKey"], Value::String("********".into()));
+        assert_eq!(
+            exported["endpoint"],
+            Value::String("https://example.com".into())
+        );
+    }
+
+    #[test]
+    fn imported_password_placeholder_preserves_existing_secret() {
+        let schema = vec![
+            field("endpoint", ConfigurationFieldType::Text),
+            field("apiKey", ConfigurationFieldType::Password),
+        ];
+        let current = BTreeMap::from([
+            (
+                "endpoint".into(),
+                Value::String("https://old.example".into()),
+            ),
+            ("apiKey".into(), Value::String("local-secret".into())),
+        ]);
+        let imported = BTreeMap::from([
+            (
+                "endpoint".into(),
+                Value::String("https://new.example".into()),
+            ),
+            ("apiKey".into(), Value::String("********".into())),
+        ]);
+
+        let (merged, changed) = merge_imported_values(&schema, current, &imported).unwrap();
+
+        assert!(changed);
+        assert_eq!(merged["apiKey"], Value::String("local-secret".into()));
+        assert_eq!(
+            merged["endpoint"],
+            Value::String("https://new.example".into())
+        );
+    }
+
+    #[test]
+    fn repeated_configuration_import_is_idempotent() {
+        let schema = vec![field("endpoint", ConfigurationFieldType::Text)];
+        let values = BTreeMap::from([(
+            "endpoint".into(),
+            Value::String("https://example.com".into()),
+        )]);
+
+        let (_, changed) = merge_imported_values(&schema, values.clone(), &values).unwrap();
+
+        assert!(!changed);
     }
 
     #[test]

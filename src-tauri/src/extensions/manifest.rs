@@ -15,12 +15,15 @@ pub struct ExtensionManifest {
     pub name: String,
     #[serde(default)]
     pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     pub publisher: Publisher,
     pub compatibility: Compatibility,
     pub runtime: Runtime,
     pub provider: ProviderConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signatures: Option<SignatureConfig>,
     #[serde(default)]
     pub platform_overrides: BTreeMap<String, PlatformOverride>,
@@ -95,9 +98,11 @@ fn default_complete_timeout() -> u64 {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PlatformOverride {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub provider_args_prefix: Option<Vec<String>>,
     #[serde(default)]
     pub environment: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub minimum_os_version: Option<String>,
 }
 

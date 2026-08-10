@@ -24,8 +24,9 @@ use commands::custom::{
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_config_get, extensions_config_set,
     extensions_describe, extensions_diagnose, extensions_disable, extensions_enable,
-    extensions_install, extensions_list, extensions_permissions_summary, extensions_rollback,
-    extensions_search, extensions_uninstall, extensions_update,
+    extensions_export, extensions_import, extensions_install, extensions_list,
+    extensions_permissions_summary, extensions_rollback, extensions_search, extensions_uninstall,
+    extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1003,6 +1004,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(ApplicationState::new())
         .manage(TerminalState(Arc::new(Mutex::new(TerminalManager::new()))))
         .manage(CommandState::new())
@@ -1183,6 +1185,8 @@ pub fn run() {
             start_drag,
             system_power,
             extensions_list,
+            extensions_export,
+            extensions_import,
             extensions_install,
             extensions_permissions_summary,
             extensions_uninstall,
