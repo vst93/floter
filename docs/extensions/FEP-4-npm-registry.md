@@ -42,16 +42,10 @@ record; it does not need to contain an extension manifest.
   "description": "V Tools for Floter",
   "keywords": ["floter-extension"],
   "floter": {
-    "manifest": "floter.extension.json",
-    "signatures": "https://example.com/floter-v-tools/1.4.2/signatures.json"
+    "manifest": "floter.extension.json"
   }
 }
 ```
-
-`floter.signatures` is optional. When present it MUST be an HTTPS URL to a
-signature index that covers the package name, version, tarball digest, and (if
-applicable) its platform packages. Signature verification is an additional
-trust signal; it does not replace NPM integrity verification.
 
 ## Version Coupling
 
@@ -101,6 +95,35 @@ Publishers SHOULD provide a `sha512-<base64>` digest in NPM's
 `dist.integrity` format. The current Host also recognizes sha384 and sha256
 tokens for compatibility, but a package without a supported SRI digest is
 rejected.
+
+## Signature Index
+
+The root `floter.extension.json` MAY declare an Ed25519 signature for the base
+package tarball:
+
+```json
+{
+  "signatures": {
+    "url": "https://example.com/floter-v-tools-1.4.2.sig",
+    "publicKey": "ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "algorithm": "ed25519"
+  }
+}
+```
+
+`url` MUST use HTTPS. `publicKey` contains the 32-byte Ed25519 public key in
+standard Base64 with the `ed25519:` prefix. The signature resource is UTF-8
+text containing the standard Base64 encoding of the 64-byte signature; it MAY
+also use the `ed25519:` prefix. The signed message is the exact base-package
+tarball response body, before decompression or any other transformation.
+
+The Host first verifies `dist.integrity`, reads the manifest from the verified
+archive, downloads the declared signature, and verifies it before resolving or
+executing the platform Provider. A missing declaration remains valid for
+backward compatibility. An invalid declaration, failed download, or failed
+signature rejects the installation. The signature is an additional publisher
+signal and does not replace NPM integrity verification. Publishers should also
+publish or pin their public key through an independently trusted channel.
 
 ## Deprecation
 

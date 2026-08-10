@@ -21,10 +21,25 @@ pub struct ExtensionManifest {
     pub compatibility: Compatibility,
     pub runtime: Runtime,
     pub provider: ProviderConfig,
+    pub signatures: Option<SignatureConfig>,
     #[serde(default)]
     pub platform_overrides: BTreeMap<String, PlatformOverride>,
     #[serde(default)]
     pub permissions: Vec<Permission>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SignatureConfig {
+    pub url: String,
+    pub public_key: String,
+    pub algorithm: SignatureAlgorithm,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SignatureAlgorithm {
+    Ed25519,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -392,6 +407,23 @@ mod tests {
         let bytes = include_bytes!("../../../docs/extensions/examples/v/floter.extension.json");
         let manifest = ExtensionManifest::parse(bytes).expect("reference manifest");
         assert_eq!(manifest.id, "io.github.vst93.v");
+    }
+
+    #[test]
+    fn parses_optional_ed25519_signature_config() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        value["signatures"] = serde_json::json!({
+            "url": "https://example.com/floter-v-tools-1.0.0.sig",
+            "publicKey": "ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "algorithm": "ed25519"
+        });
+
+        let manifest = ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let signatures = manifest.signatures.expect("signature config");
+        assert_eq!(signatures.algorithm, SignatureAlgorithm::Ed25519);
     }
 
     #[test]

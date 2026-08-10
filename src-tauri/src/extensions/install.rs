@@ -3,11 +3,13 @@ use crate::extensions::lock::{
     ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
-    validate_relative_path, ExtensionManifest, PlatformTarget, Runtime,
+    validate_relative_path, ExtensionManifest, PlatformTarget, Runtime, SignatureAlgorithm,
+    SignatureConfig,
 };
 use crate::extensions::provider::ProviderInvocation;
 use crate::extensions::ExtensionState;
 use base64::Engine;
+use ed25519_dalek::{Signature, VerifyingKey};
 use flate2::read::GzDecoder;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,7 @@ use std::time::Duration;
 
 const REGISTRY_URL: &str = "https://registry.npmjs.org/";
 const MAX_TARBALL_BYTES: usize = 128 * 1024 * 1024;
+const MAX_SIGNATURE_BYTES: usize = 4 * 1024;
 const MAX_ARCHIVE_ENTRIES: usize = 100_000;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -375,6 +378,9 @@ async fn install_managed(
     let (package_json, manifest_path) = load_package_entry(&version_root)?;
     validate_package_entry(&package_json, &base_version, true)?;
     let manifest = ExtensionManifest::load(&manifest_path)?;
+    if let Some(signatures) = manifest.signatures.as_ref() {
+        download_and_verify_signature(state, &base_bytes, signatures).await?;
+    }
     if expected_id.is_some_and(|expected| expected != manifest.id) {
         return Err(format!(
             "Package changed extension id from {} to {}",
@@ -726,6 +732,84 @@ fn verify_integrity(bytes: &[u8], integrity: &str) -> Result<(), String> {
     }
 }
 
+async fn download_and_verify_signature(
+    state: &ExtensionState,
+    tarball: &[u8],
+    config: &SignatureConfig,
+) -> Result<(), String> {
+    let signature_url = reqwest::Url::parse(&config.url)
+        .map_err(|error| format!("Invalid extension signature URL: {error}"))?;
+    if signature_url.scheme() != "https" {
+        return Err("Extension signature URL must use HTTPS".to_string());
+    }
+    let response = state
+        .client
+        .get(signature_url)
+        .send()
+        .await
+        .map_err(|error| format!("Cannot download extension signature: {error}"))?
+        .error_for_status()
+        .map_err(|error| format!("Cannot download extension signature: {error}"))?;
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_SIGNATURE_BYTES as u64)
+    {
+        return Err(format!(
+            "Extension signature exceeds {MAX_SIGNATURE_BYTES} bytes"
+        ));
+    }
+    let signature = response
+        .bytes()
+        .await
+        .map_err(|error| format!("Cannot read extension signature: {error}"))?;
+    if signature.len() > MAX_SIGNATURE_BYTES {
+        return Err(format!(
+            "Extension signature exceeds {MAX_SIGNATURE_BYTES} bytes"
+        ));
+    }
+    verify_signature(tarball, &signature, config)
+}
+
+fn verify_signature(
+    tarball: &[u8],
+    signature_file: &[u8],
+    config: &SignatureConfig,
+) -> Result<(), String> {
+    match config.algorithm {
+        SignatureAlgorithm::Ed25519 => {}
+    }
+
+    let encoded_key = config
+        .public_key
+        .strip_prefix("ed25519:")
+        .ok_or("Ed25519 public key must use the ed25519: prefix")?;
+    let public_key: [u8; 32] = decode_base64(encoded_key, "Ed25519 public key")?
+        .try_into()
+        .map_err(|_| "Ed25519 public key must contain exactly 32 bytes".to_string())?;
+    let verifying_key = VerifyingKey::from_bytes(&public_key)
+        .map_err(|error| format!("Invalid Ed25519 public key: {error}"))?;
+
+    let signature_text = std::str::from_utf8(signature_file)
+        .map_err(|_| "Extension signature file must be UTF-8 Base64 text")?
+        .trim();
+    let encoded_signature = signature_text
+        .strip_prefix("ed25519:")
+        .unwrap_or(signature_text);
+    let signature = Signature::from_slice(&decode_base64(encoded_signature, "Ed25519 signature")?)
+        .map_err(|error| format!("Invalid Ed25519 signature: {error}"))?;
+
+    verifying_key
+        .verify_strict(tarball, &signature)
+        .map_err(|_| "Extension signature verification failed".to_string())
+}
+
+fn decode_base64(value: &str, label: &str) -> Result<Vec<u8>, String> {
+    base64::engine::general_purpose::STANDARD
+        .decode(value)
+        .or_else(|_| base64::engine::general_purpose::STANDARD_NO_PAD.decode(value))
+        .map_err(|error| format!("Invalid Base64 {label}: {error}"))
+}
+
 fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
     let mut difference = left.len() ^ right.len();
     for index in 0..left.len().max(right.len()) {
@@ -1019,6 +1103,7 @@ fn validate_package_name(package: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
 
     fn archive_with_file(path: &str, contents: &[u8]) -> Vec<u8> {
         let encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
@@ -1043,6 +1128,64 @@ mod tests {
         let digest = base64::engine::general_purpose::STANDARD.encode(Sha512::digest(bytes));
         assert!(verify_integrity(bytes, &format!("sha512-{digest}")).is_ok());
         assert!(verify_integrity(b"changed", &format!("sha512-{digest}")).is_err());
+    }
+
+    fn signature_config(signing_key: &SigningKey) -> SignatureConfig {
+        SignatureConfig {
+            url: "https://example.com/floter-tool-1.0.0.sig".into(),
+            public_key: format!(
+                "ed25519:{}",
+                base64::engine::general_purpose::STANDARD
+                    .encode(signing_key.verifying_key().as_bytes())
+            ),
+            algorithm: SignatureAlgorithm::Ed25519,
+        }
+    }
+
+    #[test]
+    fn verifies_ed25519_tarball_signature() {
+        let signing_key = SigningKey::from_bytes(&[7; 32]);
+        let tarball = b"extension tarball";
+        let signature =
+            base64::engine::general_purpose::STANDARD.encode(signing_key.sign(tarball).to_bytes());
+
+        assert!(verify_signature(
+            tarball,
+            signature.as_bytes(),
+            &signature_config(&signing_key)
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn rejects_ed25519_signature_for_changed_tarball() {
+        let signing_key = SigningKey::from_bytes(&[9; 32]);
+        let signature = format!(
+            "ed25519:{}\n",
+            base64::engine::general_purpose::STANDARD
+                .encode(signing_key.sign(b"extension tarball").to_bytes())
+        );
+
+        assert_eq!(
+            verify_signature(
+                b"changed tarball",
+                signature.as_bytes(),
+                &signature_config(&signing_key)
+            )
+            .unwrap_err(),
+            "Extension signature verification failed"
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_ed25519_signature_material() {
+        let signing_key = SigningKey::from_bytes(&[11; 32]);
+        let mut config = signature_config(&signing_key);
+        config.public_key = "ed25519:not-base64!".into();
+        assert!(verify_signature(b"tarball", b"not-base64!", &config).is_err());
+
+        let config = signature_config(&signing_key);
+        assert!(verify_signature(b"tarball", b"not-base64!", &config).is_err());
     }
 
     #[test]

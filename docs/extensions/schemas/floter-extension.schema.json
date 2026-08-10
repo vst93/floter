@@ -47,6 +47,16 @@
         "environment": { "type": "object", "additionalProperties": { "type": "string" } }
       }
     },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "publicKey", "algorithm"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://" },
+        "publicKey": { "type": "string", "pattern": "^ed25519:[A-Za-z0-9+/]{43}=?$" },
+        "algorithm": { "const": "ed25519" }
+      }
+    },
     "platformOverrides": {
       "type": "object",
       "propertyNames": { "pattern": "^(darwin|linux|windows)-(arm64|x64|any)$" },

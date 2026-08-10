@@ -16,6 +16,8 @@ Floter 扩展不是网页插件。扩展提供者（Provider）是独立的 CLI/
 - [FEP-1：扩展包与平台运行时](FEP-1-package.md)
 - [FEP-2：Provider 运行协议](FEP-2-provider.md)
 - [FEP-3：安装生命周期与安全](FEP-3-lifecycle.md)
+- [FEP-4：NPM Registry Convention](FEP-4-npm-registry.md)
+- [第三方 SDK / Wrapper 指南](sdk/README.md)
 - [扩展包 JSON Schema](schemas/floter-extension.schema.json)
 - [Provider 描述 JSON Schema](schemas/provider-description.schema.json)
 - [V Tools 扩展包示例](examples/v/floter.extension.json)
@@ -49,4 +51,3 @@ NPM 只承担索引、版本和 tarball 分发。Floter 通过 Registry HTTP API
 包，并校验 `dist.integrity`；不会调用 `npm install`，也不会运行
 `preinstall`、`install`、`postinstall` 或包内 JavaScript。因此用户无需安装
 Node.js，扩展也不能借助 NPM 生命周期脚本绕开管理器。
-
