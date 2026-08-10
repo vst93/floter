@@ -1,0 +1,140 @@
+{
+  "protocolVersion": "1.0",
+  "provider": {
+    "id": "io.github.vst93.v",
+    "name": "V Tools",
+    "version": "0.0.13",
+    "description": "Gadgets under the terminal"
+  },
+  "commands": [
+    {
+      "id": "jv",
+      "name": "JSON Viewer",
+      "description": "Format, compress, escape, and interactively browse JSON",
+      "aliases": [],
+      "keywords": ["json", "format", "viewer"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["jv"],
+        "mode": "pty",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        { "names": ["-f"], "kind": "flag", "description": "Format JSON" },
+        { "names": ["-c"], "kind": "flag", "description": "Compress JSON" },
+        { "names": ["-e"], "kind": "flag", "description": "Escape non-ASCII characters as Unicode sequences" },
+        { "names": ["-u"], "kind": "flag", "description": "Unescape Unicode sequences as UTF-8 text" },
+        { "names": ["-sort"], "kind": "flag", "description": "Sort object keys alphabetically" },
+        { "names": ["-tui", "-i"], "kind": "flag", "description": "Open the interactive tree viewer" },
+        { "names": ["-raw"], "kind": "flag", "description": "Disable colored output" },
+        { "names": ["-file"], "kind": "path", "takesValue": true, "description": "Read from a file", "valueHint": "path" },
+        { "names": ["-url"], "kind": "url", "takesValue": true, "description": "Read from an HTTP or HTTPS URL", "valueHint": "url" },
+        { "names": ["-clip"], "kind": "flag", "description": "Read from the clipboard" },
+        { "names": ["-pipe"], "kind": "string", "takesValue": true, "description": "Read piped input", "valueHint": "text" },
+        { "names": ["-out"], "kind": "path", "takesValue": true, "description": "Write the result to a file", "valueHint": "path" },
+        { "names": ["-copy"], "kind": "flag", "description": "Copy the result to the clipboard" },
+        { "names": ["-h", "-help", "--help"], "kind": "flag", "description": "Show help" },
+        { "names": ["input"], "kind": "string", "takesValue": true, "description": "Inline JSON or text", "valueHint": "json" }
+      ]
+    },
+    {
+      "id": "diff",
+      "name": "File Diff",
+      "description": "Compare text side by side with search and word-level highlighting",
+      "aliases": [],
+      "keywords": ["diff", "compare", "file"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["diff"],
+        "mode": "pty",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        { "names": ["-left"], "kind": "path", "takesValue": true, "description": "Read the left side from a file", "valueHint": "path" },
+        { "names": ["-right"], "kind": "path", "takesValue": true, "description": "Read the right side from a file", "valueHint": "path" },
+        { "names": ["-clip"], "kind": "flag", "description": "Use clipboard content as an input" },
+        { "names": ["-pipe"], "kind": "string", "takesValue": true, "description": "Use piped text as the left input", "valueHint": "text" },
+        { "names": ["-inline"], "kind": "flag", "description": "Print a unified diff instead of opening the TUI" },
+        { "names": ["-raw"], "kind": "flag", "description": "Disable colors in inline output" },
+        { "names": ["-h", "-help", "--help"], "kind": "flag", "description": "Show help" }
+      ]
+    },
+    {
+      "id": "codec",
+      "name": "Encoding and Decoding",
+      "description": "Encode and decode Base64, Base32, URL, hex, HTML, and Unicode text",
+      "aliases": ["cc", "enc"],
+      "keywords": ["encode", "decode", "base64", "url", "hex"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["codec"],
+        "mode": "pty",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        { "names": ["-b64"], "kind": "flag", "description": "Encode as Base64" },
+        { "names": ["-b64d"], "kind": "flag", "description": "Decode Base64" },
+        { "names": ["-b32"], "kind": "flag", "description": "Encode as Base32" },
+        { "names": ["-b32d"], "kind": "flag", "description": "Decode Base32" },
+        { "names": ["-url"], "kind": "flag", "description": "URL encode text" },
+        { "names": ["-urld"], "kind": "flag", "description": "URL decode text" },
+        { "names": ["-hex"], "kind": "flag", "description": "Encode as hexadecimal" },
+        { "names": ["-hexd"], "kind": "flag", "description": "Decode hexadecimal" },
+        { "names": ["-html"], "kind": "flag", "description": "Escape HTML" },
+        { "names": ["-htmld"], "kind": "flag", "description": "Unescape HTML" },
+        { "names": ["-uni"], "kind": "flag", "description": "Escape non-ASCII characters as Unicode sequences" },
+        { "names": ["-unid"], "kind": "flag", "description": "Unescape Unicode sequences as UTF-8 text" },
+        { "names": ["-file"], "kind": "path", "takesValue": true, "description": "Read input from a file", "valueHint": "path" },
+        { "names": ["-clip"], "kind": "flag", "description": "Read input from the clipboard" },
+        { "names": ["-pipe"], "kind": "string", "takesValue": true, "description": "Read piped input", "valueHint": "text" },
+        { "names": ["-out"], "kind": "path", "takesValue": true, "description": "Write the result to a file", "valueHint": "path" },
+        { "names": ["-copy"], "kind": "flag", "description": "Copy the result to the clipboard" },
+        { "names": ["-tui"], "kind": "flag", "description": "Open the interactive codec interface" },
+        { "names": ["-h", "-help", "--help"], "kind": "flag", "description": "Show help" },
+        { "names": ["input"], "kind": "string", "takesValue": true, "description": "Text to encode or decode", "valueHint": "text" }
+      ]
+    },
+    {
+      "id": "genpwd",
+      "name": "Password Generator",
+      "description": "Generate cryptographically secure random passwords",
+      "aliases": ["gp"],
+      "keywords": ["password", "random", "security"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["genpwd"],
+        "mode": "pty",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        { "names": ["-l"], "kind": "integer", "takesValue": true, "description": "Set the password length", "valueHint": "length" },
+        { "names": ["-n"], "kind": "integer", "takesValue": true, "description": "Set the number of passwords", "valueHint": "count" },
+        { "names": ["-nl"], "kind": "flag", "description": "Exclude lowercase letters" },
+        { "names": ["-nu"], "kind": "flag", "description": "Exclude uppercase letters" },
+        { "names": ["-nd"], "kind": "flag", "description": "Exclude digits" },
+        { "names": ["-ns"], "kind": "flag", "description": "Exclude special characters" },
+        { "names": ["-copy"], "kind": "flag", "description": "Copy the generated password to the clipboard" },
+        { "names": ["-tui", "-i"], "kind": "flag", "description": "Open the interactive password generator" },
+        { "names": ["-h", "-help", "--help"], "kind": "flag", "description": "Show help" }
+      ]
+    },
+    {
+      "id": "tt",
+      "name": "Timestamp Converter",
+      "description": "Convert between Unix timestamps and date strings",
+      "aliases": [],
+      "keywords": ["timestamp", "date", "time"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["tt"],
+        "mode": "capture",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        { "names": ["-m"], "kind": "flag", "description": "Print the current timestamp in milliseconds" },
+        { "names": ["-h", "-help", "--help"], "kind": "flag", "description": "Show help" },
+        { "names": ["input"], "kind": "string", "takesValue": true, "description": "Unix timestamp or date string", "valueHint": "timestamp or date" }
+      ]
+    }
+  ]
+}

@@ -311,18 +311,9 @@ async fn provider_entries(
 
 async fn loaded_provider_commands(
     state: &ExtensionState,
-) -> Result<
-    Vec<(
-        CommandDescriptor,
-        ProviderInvocation,
-        String,
-        String,
-        bool,
-        Vec<String>,
-    )>,
-    String,
-> {
+) -> Result<Vec<LoadedProviderCommand>, String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let installed_ids = lock.extensions.keys().cloned().collect::<HashSet<_>>();
     let mut result = Vec::new();
     for entry in lock.extensions.values().filter(|entry| entry.enabled) {
         let mut invocation = match invocation_from_entry(entry) {
@@ -352,7 +343,51 @@ async fn loaded_provider_commands(
             )
         }));
     }
+    result.extend(static_provider_commands(
+        &state.static_adapters,
+        &installed_ids,
+        &state.paths.data,
+    ));
     Ok(result)
+}
+
+type LoadedProviderCommand = (
+    CommandDescriptor,
+    ProviderInvocation,
+    String,
+    String,
+    bool,
+    Vec<String>,
+);
+
+fn static_provider_commands(
+    adapters: &[crate::extensions::static_adapter::StaticAdapter],
+    installed_ids: &HashSet<String>,
+    data_root: &Path,
+) -> Vec<LoadedProviderCommand> {
+    let mut result = Vec::new();
+    for adapter in adapters
+        .iter()
+        .filter(|adapter| !installed_ids.contains(&adapter.manifest.id))
+    {
+        let mut invocation = adapter.invocation.clone();
+        let configured_args =
+            crate::extensions::config::apply_persisted_configuration(data_root, &mut invocation)
+                .unwrap_or_default();
+        let namespace = namespace_for(&adapter.manifest.id);
+        let source_name = adapter.description.provider.name.clone();
+        result.extend(adapter.description.commands.iter().cloned().map(|command| {
+            (
+                command,
+                invocation.clone(),
+                namespace.clone(),
+                source_name.clone(),
+                adapter.runtime_available,
+                configured_args.clone(),
+            )
+        }));
+    }
+    result
 }
 
 fn application_entries(applications: &[LocalApplication]) -> Vec<CatalogEntry> {
@@ -751,5 +786,19 @@ mod tests {
         assert_eq!(score_entry(&entry, "jv"), Some(1_000));
         entry.command = "other".into();
         assert_eq!(score_entry(&entry, "json"), Some(500));
+    }
+
+    #[test]
+    fn bundled_static_adapter_is_loaded_without_an_install_lock() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+        paths.ensure().unwrap();
+        let adapters = crate::extensions::static_adapter::load_bundled().unwrap();
+        let commands = static_provider_commands(&adapters, &HashSet::new(), &paths.data);
+
+        assert_eq!(commands.len(), 5);
+        assert_eq!(commands[0].0.id, "jv");
+        assert_eq!(commands[0].2, "v");
+        assert_eq!(commands[0].3, "V Tools");
     }
 }

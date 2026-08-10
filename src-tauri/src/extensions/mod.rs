@@ -4,6 +4,7 @@ pub mod install;
 pub mod lock;
 pub mod manifest;
 pub mod provider;
+pub mod static_adapter;
 
 use std::path::PathBuf;
 
@@ -60,6 +61,7 @@ pub struct ExtensionState {
     pub paths: ExtensionPaths,
     pub client: reqwest::Client,
     pub provider: provider::ProviderManager,
+    pub static_adapters: Vec<static_adapter::StaticAdapter>,
     pub(crate) mutation_lock: tokio::sync::Mutex<()>,
 }
 
@@ -70,6 +72,7 @@ impl ExtensionState {
         if let Err(error) = catalog::migrate_legacy_commands(&paths) {
             eprintln!("failed to migrate legacy custom commands: {error}");
         }
+        let static_adapters = static_adapter::load_bundled()?;
         let client = reqwest::Client::builder()
             .user_agent(format!("floter/{}", env!("CARGO_PKG_VERSION")))
             .build()
@@ -78,6 +81,7 @@ impl ExtensionState {
             provider: provider::ProviderManager::new(paths.cache.join("providers")),
             paths,
             client,
+            static_adapters,
             mutation_lock: tokio::sync::Mutex::new(()),
         })
     }

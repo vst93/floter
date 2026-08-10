@@ -32,6 +32,20 @@ pub struct ProviderDescription {
     pub commands: Vec<CommandDescriptor>,
 }
 
+impl ProviderDescription {
+    pub fn parse(bytes: &[u8]) -> Result<Self, String> {
+        let value: Value = serde_json::from_slice(bytes)
+            .map_err(|error| format!("Invalid provider description JSON: {error}"))?;
+        Self::from_value(value)
+    }
+
+    fn from_value(value: Value) -> Result<Self, String> {
+        validate_description_schema(&value)?;
+        serde_json::from_value(value)
+            .map_err(|error| format!("Invalid provider description: {error}"))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderIdentity {
     pub id: String,
@@ -256,9 +270,7 @@ impl ProviderManager {
             .await
         {
             Ok((description_value, stderr)) => {
-                validate_description_schema(&description_value)?;
-                let description: ProviderDescription = serde_json::from_value(description_value)
-                    .map_err(|error| format!("Invalid provider description: {error}"))?;
+                let description = ProviderDescription::from_value(description_value)?;
                 if description.provider.id != invocation.extension_id {
                     return Err(format!(
                         "Provider id {} does not match extension id {}",
@@ -618,7 +630,7 @@ fn validate_description_schema(instance: &Value) -> Result<(), String> {
     }
 }
 
-fn validate_execution_descriptors(
+pub(crate) fn validate_execution_descriptors(
     description: &ProviderDescription,
     invocation: &ProviderInvocation,
 ) -> Result<(), String> {
