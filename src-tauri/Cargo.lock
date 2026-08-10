@@ -3220,6 +3220,7 @@ dependencies = [
  "portable-pty",
  "qscreen-protocol",
  "qscreen-shared",
+ "serde",
  "serde_json",
  "tokio",
  "tracing",

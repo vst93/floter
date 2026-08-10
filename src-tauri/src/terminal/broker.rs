@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use qscreen_protocol::{AttachMode, Command, EventType, Message, MessageKind, MAX_PAYLOAD_SIZE};
+use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
@@ -29,6 +30,14 @@ type BrokerStream = tokio::net::windows::named_pipe::NamedPipeClient;
 pub struct BrokerCallbacks {
     pub output: Box<dyn FnMut(Vec<u8>) + Send>,
     pub exit: Box<dyn FnMut(Option<i32>) + Send>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpawnCommand {
+    pub program: String,
+    pub args: Vec<String>,
+    pub environment: std::collections::BTreeMap<String, String>,
 }
 
 enum BrokerCommand {
@@ -108,11 +117,35 @@ pub fn run_helper(arguments: &[String]) -> Option<Result<()>> {
     }
 }
 
+#[cfg(test)]
 pub fn spawn_session(
     name: String,
     shell: Option<String>,
     cwd: PathBuf,
     initial_command: Option<String>,
+    cols: u16,
+    rows: u16,
+    callbacks: BrokerCallbacks,
+) -> Result<BrokerSession, String> {
+    spawn_session_with_command(
+        name,
+        shell,
+        cwd,
+        initial_command,
+        None,
+        cols,
+        rows,
+        callbacks,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_session_with_command(
+    name: String,
+    shell: Option<String>,
+    cwd: PathBuf,
+    initial_command: Option<String>,
+    command: Option<SpawnCommand>,
     cols: u16,
     rows: u16,
     callbacks: BrokerCallbacks,
@@ -137,6 +170,7 @@ pub fn spawn_session(
                 shell,
                 cwd,
                 initial_command,
+                command,
                 cols,
                 rows,
                 command_rx,
@@ -161,19 +195,21 @@ async fn session_worker(
     shell: Option<String>,
     cwd: PathBuf,
     initial_command: Option<String>,
+    command: Option<SpawnCommand>,
     cols: u16,
     rows: u16,
     mut commands: UnboundedReceiver<BrokerCommand>,
     mut callbacks: BrokerCallbacks,
     ready: std::sync::mpsc::SyncSender<Result<String, String>>,
 ) {
-    let session_id = match create_session(&name, shell.as_deref(), &cwd, cols, rows).await {
-        Ok(session_id) => session_id,
-        Err(error) => {
-            let _ = ready.send(Err(error.to_string()));
-            return;
-        }
-    };
+    let session_id =
+        match create_session(&name, shell.as_deref(), &cwd, command.as_ref(), cols, rows).await {
+            Ok(session_id) => session_id,
+            Err(error) => {
+                let _ = ready.send(Err(error.to_string()));
+                return;
+            }
+        };
     let setup = async {
         let stream = connect().await?;
         let (read_half, mut writer) = tokio::io::split(stream);
@@ -314,9 +350,15 @@ async fn create_session(
     name: &str,
     shell: Option<&str>,
     cwd: &Path,
+    command: Option<&SpawnCommand>,
     cols: u16,
     rows: u16,
 ) -> Result<String> {
+    let payload = command
+        .map(serde_json::to_vec)
+        .transpose()
+        .context("serialize structured terminal command")?
+        .unwrap_or_default();
     let response = control_request(Message {
         kind: MessageKind::Request,
         id: "new".into(),
@@ -324,6 +366,7 @@ async fn create_session(
         name: name.to_string(),
         shell: shell.unwrap_or_default().to_string(),
         cwd: cwd.to_string_lossy().into_owned(),
+        payload,
         width: u32::from(cols.max(2)),
         height: u32::from(rows.max(1)),
         ..Default::default()

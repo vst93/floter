@@ -179,8 +179,8 @@ pub async fn complete(
         .map_or((None, request.command.as_str()), |(namespace, command)| {
             (Some(namespace), command)
         });
-    let Some((descriptor, invocation, namespace, _, _)) =
-        providers.into_iter().find(|(command, _, ns, _, _)| {
+    let Some((descriptor, invocation, namespace, _, _, _)) =
+        providers.into_iter().find(|(command, _, ns, _, _, _)| {
             requested_namespace.is_none_or(|requested| requested == ns)
                 && (command.id == command_name
                     || command.aliases.iter().any(|name| name == command_name))
@@ -284,7 +284,9 @@ async fn provider_entries(
     let providers = loaded_provider_commands(state).await?;
     let cwd = cwd.map(Path::new);
     let mut entries = Vec::new();
-    for (descriptor, invocation, namespace, runtime_available, configured_args) in providers {
+    for (descriptor, invocation, namespace, source_name, runtime_available, configured_args) in
+        providers
+    {
         let mut args = configured_args;
         args.extend_from_slice(user_args);
         let plan = execution_plan(&descriptor, &invocation, args, cwd).ok();
@@ -296,7 +298,7 @@ async fn provider_entries(
             name: descriptor.name.clone(),
             description: descriptor.description.clone(),
             source_kind: CatalogSourceKind::Provider,
-            source_name: invocation.extension_id.clone(),
+            source_name,
             aliases: descriptor.aliases.clone(),
             arguments: descriptor.arguments.clone(),
             execution: plan,
@@ -313,6 +315,7 @@ async fn loaded_provider_commands(
     Vec<(
         CommandDescriptor,
         ProviderInvocation,
+        String,
         String,
         bool,
         Vec<String>,
@@ -337,11 +340,13 @@ async fn loaded_provider_commands(
         };
         let namespace = namespace_for(&entry.id);
         let runtime_available = response.runtime_available;
+        let source_name = response.description.provider.name.clone();
         result.extend(response.description.commands.into_iter().map(|command| {
             (
                 command,
                 invocation.clone(),
                 namespace.clone(),
+                source_name.clone(),
                 runtime_available,
                 configured_args.clone(),
             )

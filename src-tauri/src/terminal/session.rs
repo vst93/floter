@@ -278,6 +278,7 @@ impl Dimensions for TermSize {
 pub struct TerminalSession {
     identity: SessionIdentity,
     broker: BrokerSession,
+    cwd: PathBuf,
     preserve_broker: AtomicBool,
     closed: AtomicBool,
     terminal: Arc<FairMutex<Term<RenderListener>>>,
@@ -293,6 +294,8 @@ impl TerminalSession {
         app: AppHandle,
         shell: Option<String>,
         initial_command: Option<String>,
+        command: Option<broker::SpawnCommand>,
+        cwd: Option<PathBuf>,
         theme: Option<String>,
         cols: u16,
         rows: u16,
@@ -315,11 +318,13 @@ impl TerminalSession {
         let terminal = Arc::new(FairMutex::new(term));
         let (parser_tx, parser_rx) = mpsc::sync_channel(PARSE_QUEUE_CAPACITY);
         let output_tx = parser_tx.clone();
-        let broker = broker::spawn_session(
+        let cwd = cwd.unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
+        let broker = broker::spawn_session_with_command(
             format!("floter-{}-{}", std::process::id(), identity.generation),
             shell,
-            dirs::home_dir().unwrap_or_default(),
+            cwd.clone(),
             initial_command,
+            command,
             cols,
             rows,
             BrokerCallbacks {
@@ -355,6 +360,7 @@ impl TerminalSession {
         Ok(Self {
             identity,
             broker,
+            cwd,
             preserve_broker: AtomicBool::new(false),
             closed: AtomicBool::new(false),
             terminal,
@@ -498,7 +504,7 @@ impl TerminalSession {
     fn external_terminal_request(&self) -> ExternalTerminalRequest {
         ExternalTerminalRequest {
             generation: self.identity.generation,
-            cwd: dirs::home_dir().unwrap_or_default(),
+            cwd: self.cwd.clone(),
             session_id: self.broker.session_id().to_string(),
         }
     }
@@ -773,6 +779,8 @@ impl TerminalManager {
         app: AppHandle,
         shell: Option<String>,
         initial_command: Option<String>,
+        command: Option<broker::SpawnCommand>,
+        cwd: Option<PathBuf>,
         theme: Option<String>,
         cols: u16,
         rows: u16,
@@ -785,8 +793,17 @@ impl TerminalManager {
             id: id.clone(),
             generation,
         };
-        let session =
-            TerminalSession::new(identity, app, shell, initial_command, theme, cols, rows)?;
+        let session = TerminalSession::new(
+            identity,
+            app,
+            shell,
+            initial_command,
+            command,
+            cwd,
+            theme,
+            cols,
+            rows,
+        )?;
         sessions.insert(id, session);
         Ok(())
     }

@@ -62,9 +62,71 @@ type ApplicationsStatus = { upToDate: boolean; count: number };
 
 type SystemAction = "restart" | "shutdown";
 
+type ExecutionMode = "pty" | "capture" | "external";
+
+type ExecutionPlan = {
+  program: string;
+  args: string[];
+  mode: ExecutionMode;
+  cwd: string | null;
+  environment: Record<string, string>;
+};
+
+type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
+
+type CatalogArgument = {
+  names: string[];
+  kind: "flag" | "string" | "integer" | "number" | "path" | "directory" | "url" | "enum" | "command";
+  description: string;
+  takesValue: boolean;
+  required: boolean;
+  repeatable: boolean;
+  values: string[];
+  valueHint: string | null;
+};
+
+type CatalogEntry = {
+  id: string;
+  command: string;
+  namespace: string;
+  qualifiedCommand: string;
+  name: string;
+  description: string;
+  sourceKind: CatalogSourceKind;
+  sourceName: string;
+  aliases: string[];
+  arguments: CatalogArgument[];
+  execution: ExecutionPlan | null;
+  runtimeAvailable: boolean;
+  frequency: number;
+};
+
+type CatalogCompletionItem = { value: string; label: string; description: string };
+type CatalogCompletionResponse = { items: CatalogCompletionItem[]; dynamic: boolean };
+
+type CatalogSuggestion =
+  | { kind: "catalog"; entry: CatalogEntry }
+  | {
+      kind: "completion";
+      entry: CatalogEntry;
+      completion: CatalogCompletionItem;
+      commandLine: string;
+      execution: ExecutionPlan | null;
+      dynamic: boolean;
+    };
+
 type LauncherItem =
   | { type: "app"; id: string; title: string; subtitle: string; app: LocalApplication }
-  | { type: "command"; id: string; title: string; subtitle: string }
+  | {
+      type: "command";
+      id: string;
+      title: string;
+      subtitle: string;
+      sourceName: string;
+      commandLine: string;
+      execution: ExecutionPlan | null;
+      completion: boolean;
+    }
   | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction };
 
 /**
@@ -151,6 +213,7 @@ const TERMINAL_FOCUS_RETRY = 180;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
+const CATALOG_SEARCH_DELAY = 140;
 
 type ModifierEvent = {
   shiftKey: boolean;
@@ -201,6 +264,93 @@ const COMMAND_WORDS = new Set([
 
 const normalizeSearch = (value: string) =>
   value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+type ParsedCommandLine = { tokens: string[]; fragmentStart: number };
+
+/** Tokenize the command line without asking a shell to interpret it. */
+const parseCommandLine = (value: string, trailingEmpty = false): ParsedCommandLine => {
+  const tokens: string[] = [];
+  let token = "";
+  let tokenStarted = false;
+  let tokenStart = value.length;
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+
+  const finishToken = () => {
+    if (!tokenStarted) return;
+    tokens.push(token);
+    token = "";
+    tokenStarted = false;
+  };
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (escaped) {
+      token += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      if (!tokenStarted) tokenStart = index;
+      tokenStarted = true;
+      escaped = true;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      if (!tokenStarted) tokenStart = index;
+      tokenStarted = true;
+      quote = quote === char ? null : quote ?? char;
+      if (quote !== null && quote !== char) token += char;
+      continue;
+    }
+    if (/\s/.test(char) && quote === null) {
+      finishToken();
+      continue;
+    }
+    if (!tokenStarted) tokenStart = index;
+    tokenStarted = true;
+    token += char;
+  }
+  if (escaped) token += "\\";
+  finishToken();
+  if (trailingEmpty && /\s$/.test(value)) {
+    tokens.push("");
+    tokenStart = value.length;
+  }
+  return { tokens, fragmentStart: tokenStart };
+};
+
+const formatCompletionValue = (value: string): string =>
+  /\s/.test(value) ? `"${value.replace(/(["\\])/g, "\\$1")}"` : value;
+
+const completedCommandLine = (
+  query: string,
+  fragmentStart: number,
+  completion: CatalogCompletionItem,
+): string => {
+  const value = formatCompletionValue(completion.value);
+  const keepOpen = /[\\/]$/.test(completion.value);
+  return `${query.slice(0, fragmentStart)}${value}${keepOpen ? "" : " "}`;
+};
+
+const executionWithCompletion = (
+  entry: CatalogEntry,
+  currentTokens: string[],
+  completion: CatalogCompletionItem,
+): ExecutionPlan | null => {
+  if (!entry.execution) return null;
+  const currentArgs = currentTokens.slice(1).filter((value, index, values) =>
+    value.length > 0 || index < values.length - 1,
+  );
+  const completedArgs = [...currentTokens.slice(1)];
+  if (completedArgs.length) completedArgs[completedArgs.length - 1] = completion.value;
+  else completedArgs.push(completion.value);
+  const prefixLength = Math.max(0, entry.execution.args.length - currentArgs.length);
+  return {
+    ...entry.execution,
+    args: [...entry.execution.args.slice(0, prefixLength), ...completedArgs],
+  };
+};
 
 /**
  * Fuzzy match score for a needle and haystack that are *already* normalized.
@@ -591,6 +741,8 @@ export default function App() {
   const appIconUrlsRef = useRef(appIconUrls);
   const appIconAttempts = useRef(new Set<string>());
   useEffect(() => { appIconUrlsRef.current = appIconUrls; }, [appIconUrls]);
+  const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogSuggestion[]>([]);
+  const catalogRequestGeneration = useRef(0);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
    * Enter runs. The two selections are exclusive but kept apart, because the
@@ -715,6 +867,72 @@ export default function App() {
     [applications],
   );
 
+  // Catalog providers can perform I/O while loading their descriptors, so the
+  // request shares one debounce window and stale responses are discarded.
+  useEffect(() => {
+    const value = query.trim();
+    const generation = ++catalogRequestGeneration.current;
+    if (!value) {
+      setCatalogSuggestions([]);
+      return;
+    }
+
+    setCatalogSuggestions([]);
+    const timer = window.setTimeout(() => {
+      const searchTokens = parseCommandLine(query).tokens;
+      const completionLine = parseCommandLine(query, true);
+      const command = completionLine.tokens[0] ?? "";
+      const wantsCompletion = completionLine.tokens.length > 1;
+      const search = invoke<CatalogEntry[]>("catalog_search", {
+        request: {
+          query,
+          tokens: searchTokens,
+          cwd: null,
+          limit: 20,
+          includeSystemCommands: true,
+        },
+      });
+      const complete = wantsCompletion
+        ? invoke<CatalogCompletionResponse>("catalog_complete", {
+            request: {
+              command,
+              tokens: completionLine.tokens,
+              cursor: new TextEncoder().encode(query).length,
+              cwd: null,
+            },
+          }).catch(() => null)
+        : Promise.resolve<CatalogCompletionResponse | null>(null);
+
+      Promise.all([search, complete])
+        .then(([entries, completion]) => {
+          if (catalogRequestGeneration.current !== generation) return;
+          const commands = entries.filter((entry) => entry.sourceKind !== "systemApplication");
+          const exact = commands.find((entry) =>
+            entry.command === command ||
+            entry.qualifiedCommand === command ||
+            entry.aliases.includes(command),
+          );
+          if (exact && completion?.items.length) {
+            setCatalogSuggestions(completion.items.map((item) => ({
+              kind: "completion",
+              entry: exact,
+              completion: item,
+              commandLine: completedCommandLine(query, completionLine.fragmentStart, item),
+              execution: executionWithCompletion(exact, completionLine.tokens, item),
+              dynamic: completion.dynamic,
+            })));
+            return;
+          }
+          setCatalogSuggestions(commands.map((entry) => ({ kind: "catalog", entry })));
+        })
+        .catch(() => {
+          if (catalogRequestGeneration.current === generation) setCatalogSuggestions([]);
+        });
+    }, CATALOG_SEARCH_DELAY);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
   /**
    * The numbered result list: applications and the built-in system actions.
    *
@@ -782,13 +1000,58 @@ export default function App() {
       });
     }
 
-    return matches
+    const rankedMatches = matches
       .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
-      // One row short of the window's worth, because the action bar takes the
-      // last one.
-      .slice(0, MAX_RESULTS - 1)
       .map((match) => match.item);
-  }, [query, searchableApps, t]);
+    const commandLimit = rankedMatches.length
+      ? Math.min(3, MAX_RESULTS - 2)
+      : MAX_RESULTS - 1;
+    const commandCounts = catalogSuggestions.reduce<Map<string, number>>((counts, suggestion) => {
+      const command = suggestion.entry.command;
+      counts.set(command, (counts.get(command) ?? 0) + 1);
+      return counts;
+    }, new Map());
+    const commandItems: LauncherItem[] = catalogSuggestions
+      .slice(0, commandLimit)
+      .map((suggestion) => {
+        const { entry } = suggestion;
+        const unavailable = !entry.runtimeAvailable
+          ? ` · ${t("extensions.runtimeUnavailable")}`
+          : "";
+        const conflict = (commandCounts.get(entry.command) ?? 0) > 1
+          ? ` · ${t("extensions.conflict")}`
+          : "";
+        if (suggestion.kind === "completion") {
+          const dynamic = suggestion.dynamic
+            ? ` · ${t("extensions.dynamicCompletion")}`
+            : "";
+          return {
+            type: "command",
+            id: `${entry.id}:completion:${suggestion.completion.value}`,
+            title: suggestion.completion.label,
+            subtitle: `${suggestion.completion.description}${dynamic}${unavailable}`,
+            sourceName: entry.sourceName,
+            commandLine: suggestion.commandLine,
+            execution: suggestion.execution,
+            completion: true,
+          };
+        }
+        return {
+          type: "command",
+          id: entry.id,
+          title: entry.command,
+          subtitle: `${entry.description}${conflict}${unavailable}`,
+          sourceName: entry.sourceName,
+          commandLine: parseCommandLine(query).tokens.length > 1 ? query : `${entry.command} `,
+          execution: entry.execution,
+          completion: false,
+        };
+      });
+
+    // The action bar occupies the final row. Keep at least one local match when
+    // applications or power actions matched alongside catalog commands.
+    return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
+  }, [catalogSuggestions, query, searchableApps, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     const value = query.trim();
@@ -821,6 +1084,9 @@ export default function App() {
     if (actionBar && actionBar.type !== "shell") return true;
     // Nothing matched, so there is nothing else to select.
     if (!launcherResults.length) return true;
+    // A catalog match is actionable without shell parsing, including while its
+    // arguments are being completed.
+    if (launcherResults.some((item) => item.type === "command")) return false;
     // An argument or a pipe makes it a command line whatever else it resembles.
     if (/\s/.test(value) || /[|>&]/.test(value)) return true;
     return COMMAND_WORDS.has(value.toLowerCase());
@@ -1033,7 +1299,10 @@ export default function App() {
     });
   };
 
-  const ensureTerminalSession = async (initialCommand: string | null = null) => {
+  const ensureTerminalSession = async (
+    initialCommand: string | null = null,
+    execution: ExecutionPlan | null = null,
+  ) => {
     if (sessionClosePromise.current) {
       await sessionClosePromise.current;
     }
@@ -1047,6 +1316,7 @@ export default function App() {
         generation,
         shell: null,
         initialCommand,
+        execution,
         theme: resolvedTheme,
         cols,
         rows,
@@ -2046,18 +2316,25 @@ export default function App() {
     });
   };
 
-  const runCommand = async () => {
-    const command = query.trim();
+  const runCommand = async (
+    execution: ExecutionPlan | null = null,
+    commandLine = query.trim(),
+  ) => {
+    const command = commandLine.trim();
     if (!command || terminalOpening.current) return;
 
     terminalOpening.current = true;
     setTerminalMounted(true);
     setMode("terminal");
     try {
-      await ensureTerminalSession(command);
+      await ensureTerminalSession(execution ? null : command, execution);
       rememberCommand(command);
       setQuery("");
-      focusTerminalView();
+      if (execution?.mode === "external") {
+        await openInTerminal();
+      } else {
+        focusTerminalView();
+      }
     } catch {
       setTerminalMounted(false);
       setMode("collapsed");
@@ -2124,7 +2401,12 @@ export default function App() {
       invoke("hide_window");
       return;
     }
-    void runCommand();
+    if (item.execution && item.sourceName) {
+      void runCommand(item.execution, item.commandLine);
+      return;
+    }
+    // A catalog row with an unavailable runtime remains visible for discovery,
+    // but is not silently reinterpreted by the user's shell.
   };
 
   /**
@@ -2192,6 +2474,16 @@ export default function App() {
         runLauncherItem(launcherResults[selectedResultIndex]);
       }
       return;
+    }
+
+    if (event.key === "Tab" && !selectedActionBar) {
+      const selected = launcherResults[selectedResultIndex];
+      if (selected?.type === "command") {
+        event.preventDefault();
+        setQuery(selected.commandLine);
+        setHistoryIndex(-1);
+        return;
+      }
     }
 
     // The results and the action bar are navigated as one loop that wraps at
@@ -2588,7 +2880,7 @@ export default function App() {
           {(launcherResults.length > 0 || actionBar) && (
             <div className="launcher-bottom">
               {launcherResults.length > 0 && (
-                <div className="launcher-results" role="listbox" aria-label="Launcher results">
+                <div className="launcher-results" role="listbox" aria-label={t("launcher.results")}>
                   {launcherResults.map((item, index) => {
                     const selected = !selectedActionBar && index === selectedResultIndex;
                     return (
@@ -2620,7 +2912,18 @@ export default function App() {
                         </span>
                         <span className="launcher-result__main">
                           <span className="launcher-result__title">{item.title}</span>
-                          <span className="launcher-result__subtitle">{item.subtitle}</span>
+                          <span className="launcher-result__subtitle">
+                            {item.subtitle}
+                            <span className="launcher-result__source">
+                              {t("extensions.source", {
+                                source: item.type === "command"
+                                  ? item.sourceName
+                                  : item.type === "app"
+                                    ? t(appSubtitleKey(item.app.path))
+                                    : t("extensions.builtIn"),
+                              })}
+                            </span>
+                          </span>
                         </span>
                         <span className="launcher-result__action">
                           {formatResultShortcut(shortcuts.select_result, index + 1)}

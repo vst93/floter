@@ -470,6 +470,16 @@ input:focus {
   white-space: nowrap;
 }
 
+.launcher-result__source {
+  margin-left: 6px;
+  color: var(--text-tertiary);
+}
+
+.launcher-result__source::before {
+  content: "·";
+  margin-right: 6px;
+}
+
 .launcher-result__title {
   color: var(--text-strong);
   font-size: 13px;

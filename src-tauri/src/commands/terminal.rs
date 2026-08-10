@@ -1,8 +1,22 @@
+use crate::terminal::broker::SpawnCommand;
 use crate::terminal::session::{ExternalTerminalOutcome, TerminalManager};
+use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, State};
 
 pub struct TerminalState(pub Arc<Mutex<TerminalManager>>);
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalExecutionPlan {
+    program: String,
+    #[serde(default)]
+    args: Vec<String>,
+    cwd: Option<String>,
+    #[serde(default)]
+    environment: BTreeMap<String, String>,
+}
 
 // Tauri maps this public IPC command from named frontend arguments. Keeping the
 // parameters explicit makes the contract stable and avoids an extra wrapper.
@@ -15,17 +29,29 @@ pub fn term_spawn(
     generation: u64,
     shell: Option<String>,
     initial_command: Option<String>,
+    execution: Option<TerminalExecutionPlan>,
     theme: Option<String>,
     cols: Option<u16>,
     rows: Option<u16>,
 ) -> Result<(), String> {
     let manager = state.0.lock().map_err(|e| e.to_string())?;
+    let cwd = execution
+        .as_ref()
+        .and_then(|plan| plan.cwd.as_deref())
+        .map(std::path::PathBuf::from);
+    let command = execution.map(|plan| SpawnCommand {
+        program: plan.program,
+        args: plan.args,
+        environment: plan.environment,
+    });
     manager.spawn(
         id,
         generation,
         app,
         shell,
         initial_command,
+        command,
+        cwd,
         theme,
         cols.unwrap_or(80),
         rows.unwrap_or(24),
