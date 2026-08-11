@@ -21,16 +21,9 @@ import type { Translate } from "./i18n";
 
 type ExtensionInstallType = "managed" | "linked";
 type ExtensionStateKind =
-  | "resolving"
-  | "downloading"
-  | "verifying"
-  | "installing"
   | "enabled"
   | "disabled"
-  | "updating"
-  | "rollback"
-  | "broken"
-  | "removing";
+  | "broken";
 
 type Extension = {
   id: string;
@@ -118,7 +111,7 @@ type ConfigField = {
 export type ExtensionExecutionPlan = {
   program: string;
   args: string[];
-  mode: "pty" | "capture" | "external";
+  mode: "pty" | "external";
   cwd: string | null;
   environment: Record<string, string>;
   inheritEnvironment: boolean;

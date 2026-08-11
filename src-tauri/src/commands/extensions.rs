@@ -197,9 +197,9 @@ pub async fn extensions_import(
             return Ok(None);
         }
     }
-    Ok(Some(
-        sync::import_document(&state, &path, document, &approved_permissions).await,
-    ))
+    let report = sync::import_document(&state, &path, document, &approved_permissions).await;
+    state.invalidate_provider_commands().await;
+    Ok(Some(report))
 }
 
 #[tauri::command]
@@ -207,7 +207,9 @@ pub async fn extensions_install(
     state: State<'_, ExtensionState>,
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {
-    install::install(&state, request).await
+    let entry = install::install(&state, request).await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
 }
 
 #[tauri::command]
@@ -225,7 +227,9 @@ pub async fn extensions_uninstall(
     id: String,
     remove_data: Option<bool>,
 ) -> Result<(), String> {
-    install::uninstall(&state, &id, remove_data.unwrap_or(false)).await
+    install::uninstall(&state, &id, remove_data.unwrap_or(false)).await?;
+    state.invalidate_provider_commands().await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -257,6 +261,7 @@ async fn set_enabled(
     lock.set_enabled(id, enabled)?;
     let entry = lock.get(id)?.clone();
     lock.save(&state.paths.lock_file)?;
+    state.invalidate_provider_commands().await;
     Ok(entry)
 }
 
@@ -267,13 +272,15 @@ pub async fn extensions_update(
     version: Option<String>,
     approved_permissions: Option<Vec<Permission>>,
 ) -> Result<ExtensionLockEntry, String> {
-    install::update(
+    let entry = install::update(
         &state,
         &id,
         version.as_deref(),
         approved_permissions.as_deref(),
     )
-    .await
+    .await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
 }
 
 #[tauri::command]
@@ -281,7 +288,9 @@ pub async fn extensions_rollback(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<ExtensionLockEntry, String> {
-    install::rollback(&state, &id).await
+    let entry = install::rollback(&state, &id).await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
 }
 
 #[tauri::command]
@@ -293,7 +302,7 @@ pub async fn extensions_describe(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
         .clone();
-    let mut invocation = catalog::invocation_from_entry(&entry)?;
+    let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
     let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
     state
         .provider
@@ -309,7 +318,7 @@ pub async fn extensions_diagnose(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
         .clone();
-    let mut invocation = catalog::invocation_from_entry(&entry)?;
+    let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
     let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
     state.provider.diagnose(&invocation).await
 }
@@ -337,7 +346,9 @@ pub async fn extensions_config_set(
     id: String,
     values: BTreeMap<String, Value>,
 ) -> Result<ExtensionConfiguration, String> {
-    config::set(&state, &id, values).await
+    let configuration = config::set(&state, &id, values).await?;
+    state.invalidate_provider_commands().await;
+    Ok(configuration)
 }
 
 #[tauri::command]

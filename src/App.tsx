@@ -63,7 +63,7 @@ type ApplicationsStatus = { upToDate: boolean; count: number };
 
 type SystemAction = "restart" | "shutdown";
 
-type ExecutionMode = "pty" | "capture" | "external";
+type ExecutionMode = "pty" | "external";
 
 type ExecutionPlan = {
   program: string;

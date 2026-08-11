@@ -61,7 +61,7 @@ func protocolMain(args []string) int {
 				"description": "Search resources by query",
 				"execution": map[string]any{
 					"program": "self", "argsPrefix": []string{"search"},
-					"mode": "capture", "workingDirectory": "current",
+					"mode": "pty", "workingDirectory": "current",
 				},
 				"arguments": []any{map[string]any{
 					"names": []string{"query"}, "kind": "string",

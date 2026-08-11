@@ -128,7 +128,7 @@ floter-acme-tools/
       "execution": {
         "program": "self",
         "argsPrefix": ["search"],
-        "mode": "capture",
+        "mode": "pty",
         "workingDirectory": "current"
       },
       "arguments": [
@@ -152,8 +152,9 @@ floter-acme-tools/
 ```
 
 `execution.program: "self"` 代表运行 Provider 本身；其他值必须是平台包
-`runtime/` 内的安全相对路径。交互式命令使用 `pty`，短任务使用 `capture`，
-交给系统应用打开的操作使用 `external`。
+`runtime/` 内的安全相对路径。内嵌终端命令使用 `pty`，交给系统应用打开的
+操作使用 `external`。旧版描述中的 `capture` 会被当前 Host 兼容性归一化
+为 `pty`。
 
 ## 静态适配器还是动态 Provider
 

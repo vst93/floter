@@ -144,25 +144,47 @@ struct RegistryPublisher {
     username: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum InstallationPhase {
+    Resolving,
+    Downloading,
+    Verifying,
+    Installing,
+    Complete,
+}
+
+impl InstallationPhase {
+    fn may_transition_to(self, next: Self) -> bool {
+        use InstallationPhase::*;
+        matches!(
+            (self, next),
+            (Resolving, Downloading)
+                | (Downloading, Verifying)
+                | (Verifying, Installing)
+                | (Installing, Complete)
+        )
+    }
+}
+
 struct InstallationTransaction {
-    state: ExtensionStateKind,
+    phase: InstallationPhase,
 }
 
 impl InstallationTransaction {
     fn new() -> Self {
         Self {
-            state: ExtensionStateKind::Resolving,
+            phase: InstallationPhase::Resolving,
         }
     }
 
-    fn advance(&mut self, next: ExtensionStateKind) -> Result<(), String> {
-        if !self.state.may_transition_to(next) {
+    fn advance(&mut self, next: InstallationPhase) -> Result<(), String> {
+        if !self.phase.may_transition_to(next) {
             return Err(format!(
                 "Invalid installation transition: {:?} -> {:?}",
-                self.state, next
+                self.phase, next
             ));
         }
-        self.state = next;
+        self.phase = next;
         Ok(())
     }
 }
@@ -560,7 +582,7 @@ async fn install_managed(
     }
     let mut transaction = InstallationTransaction::new();
     let base_version = resolve_registry_version(state, package, selector).await?;
-    transaction.advance(ExtensionStateKind::Downloading)?;
+    transaction.advance(InstallationPhase::Downloading)?;
     let base_bytes = download_tarball(state, &base_version.dist).await?;
 
     let staging_parent = state.paths.extensions.join(".staging");
@@ -573,7 +595,7 @@ async fn install_managed(
     let version_root = staging.path().join("version");
     std::fs::create_dir_all(&version_root)
         .map_err(|error| format!("Cannot create staged version directory: {error}"))?;
-    transaction.advance(ExtensionStateKind::Verifying)?;
+    transaction.advance(InstallationPhase::Verifying)?;
     safe_unpack(&base_bytes, &version_root)?;
     let (package_json, manifest_path) = load_package_entry(&version_root)?;
     validate_package_entry(&package_json, &base_version, true)?;
@@ -673,7 +695,7 @@ async fn install_managed(
             base_version.version
         ));
     }
-    transaction.advance(ExtensionStateKind::Installing)?;
+    transaction.advance(InstallationPhase::Installing)?;
     std::fs::rename(&version_root, &target)
         .map_err(|error| format!("Cannot atomically install extension version: {error}"))?;
 
@@ -716,15 +738,11 @@ async fn install_managed(
         updated_at: now,
         pinned: old.as_ref().is_some_and(|entry| entry.pinned),
         channel: selector
-            .filter(|selector| !Version::parse(selector).is_ok())
+            .filter(|selector| Version::parse(selector).is_err())
             .unwrap_or("latest")
             .to_string(),
     };
-    transaction.advance(if enabled {
-        ExtensionStateKind::Enabled
-    } else {
-        ExtensionStateKind::Disabled
-    })?;
+    transaction.advance(InstallationPhase::Complete)?;
     if let Err(error) = write_current_pointer(&state.paths.extensions, &entry) {
         let _ = std::fs::remove_dir_all(&target);
         return Err(error);
@@ -1517,14 +1535,12 @@ mod tests {
     }
 
     #[test]
-    fn installation_transaction_follows_the_fep_state_machine() {
+    fn installation_transaction_follows_installation_phases() {
         let mut transaction = InstallationTransaction::new();
-        transaction
-            .advance(ExtensionStateKind::Downloading)
-            .unwrap();
-        transaction.advance(ExtensionStateKind::Verifying).unwrap();
-        transaction.advance(ExtensionStateKind::Installing).unwrap();
-        transaction.advance(ExtensionStateKind::Enabled).unwrap();
+        transaction.advance(InstallationPhase::Downloading).unwrap();
+        transaction.advance(InstallationPhase::Verifying).unwrap();
+        transaction.advance(InstallationPhase::Installing).unwrap();
+        transaction.advance(InstallationPhase::Complete).unwrap();
     }
 
     #[test]

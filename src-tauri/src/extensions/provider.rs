@@ -93,6 +93,17 @@ pub enum ExecutionMode {
     External,
 }
 
+impl ExecutionMode {
+    pub fn host_mode(self) -> Self {
+        match self {
+            // Draft 1 advertised capture before the Host had a separate captured-output
+            // surface. Keep old manifests compatible without leaking a false mode to IPC.
+            Self::Capture => Self::Pty,
+            mode => mode,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum WorkingDirectory {
@@ -547,7 +558,7 @@ pub fn execution_plan(
     Ok(ExecutionPlan {
         program: program.to_string_lossy().into_owned(),
         args,
-        mode: command.execution.mode,
+        mode: command.execution.mode.host_mode(),
         cwd: cwd.map(|path| path.to_string_lossy().into_owned()),
         environment: invocation.config.environment.clone(),
         inherit_environment: invocation.permissions.contains(&Permission::Environment),
@@ -898,6 +909,12 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
         invocation.permissions.push(Permission::Environment);
         let plan = execution_plan(&command, &invocation, Vec::new(), None).unwrap();
         assert!(plan.inherit_environment);
+    }
+
+    #[test]
+    fn legacy_capture_mode_uses_the_supported_embedded_terminal() {
+        assert_eq!(ExecutionMode::Capture.host_mode(), ExecutionMode::Pty);
+        assert_eq!(ExecutionMode::External.host_mode(), ExecutionMode::External);
     }
 
     #[cfg(unix)]

@@ -5,6 +5,7 @@ Floter 扩展是一个 NPM 分发包加一个原生 Provider 程序。NPM 只负
 
 ## 选择入口
 
+- [Agent 打包指南](../agent-packaging.zh-CN.md)：将现有工具交给编码 Agent 分析、打包和验证。
 - [TypeScript Wrapper 模板](typescript-wrapper.md)：组织 NPM 基础包、平台包和两份 JSON 描述。
 - [Go Provider 指南](go-wrapper.md)：用单文件原生程序实现 Provider 协议。
 - [Rust Provider 指南](rust-wrapper.md)：用 `serde`/`serde_json` 实现相同协议。

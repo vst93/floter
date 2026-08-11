@@ -80,7 +80,10 @@
           "properties": {
             "program": { "type": "string", "default": "self" },
             "argsPrefix": { "type": "array", "items": { "type": "string" } },
-            "mode": { "enum": ["pty", "capture", "external"] },
+            "mode": {
+              "enum": ["pty", "capture", "external"],
+              "description": "Use pty or external. The legacy capture value is normalized to pty by the current Host."
+            },
             "workingDirectory": { "enum": ["current", "home", "inherit"] }
           }
         },

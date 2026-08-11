@@ -287,7 +287,7 @@ v --floter diagnose --protocol 1
 | mode | 说明 |
 |------|------|
 | `pty` | 交互式 TUI，必须使用此模式 |
-| `capture` | 后台捕获输出 |
+| `capture` | 旧版兼容值，当前归一化为 `pty` |
 | `external` | 跳转系统终端 |
 
 Host 永远以 argv 生成执行计划，不把用户输入直接拼进 shell 字符串。
@@ -368,17 +368,19 @@ Provider 可以声明配置由谁管理：
 
 ### 3.3 FEP-3：安装生命周期与安全
 
-#### 状态机
+#### 持久状态与操作阶段
 
 ```
-not-installed -> resolving -> downloading -> verifying -> installing
-                                                        -> enabled
-enabled <-> disabled
-enabled/disabled -> updating -> enabled | rollback | broken
-enabled/disabled/broken -> removing -> not-installed
+not-installed -> enabled <-> disabled
+                     \       /
+                       broken
 ```
 
-安装、更新、启停、回滚和删除都是 Host 操作，不是 Provider 自定义命令。不要让插件自己实现 `install`、`update`、`delete` 命令。
+`enabled`、`disabled` 和 `broken` 写入 lock 文件。解析、下载、校验、安装、
+更新、回滚和删除是 Host 操作或事务阶段，不作为扩展持久状态。安装事务内部按
+`resolving -> downloading -> verifying -> installing -> complete` 推进；任一步失败
+都保留原来的可用版本和状态。不要让插件自己实现 `install`、`update`、
+`delete` 命令。
 
 #### 各操作定义
 
@@ -882,7 +884,7 @@ floter/
 
 4. **结构化执行计划**
    - `program + args[]` 格式（不用 `sh -c`）
-   - 支持 `pty` / `capture` / `external` 三种模式
+   - 支持 `pty` / `external`；旧版 `capture` 兼容性归一化为 `pty`
    - workingDirectory 处理
    - 环境变量传递
    - 使用 `std::process::Command` 直接传 argv，不引入 `shell-words` 依赖
@@ -1051,7 +1053,7 @@ floter/
    → 设计为 Provider 动态协议，Floter 只固定「如何询问 Provider」，不固定 Provider 里面有哪些命令。
 
 2. **用户要求：扩展管理（安装/开关/删除/更新）要在协议中完善。**
-   → FEP-3 定义了完整生命周期状态机，安装/更新/删除都是 Host 操作，不让插件自定义。
+   → FEP-3 将持久状态与操作阶段分开，安装/更新/删除都是 Host 操作，不让插件自定义。
 
 3. **用户要求：通过 NPM 平台来管理和安装，让第三方插件制作 NPM 包。**
    → NPM 承担索引和分发，Floter 直接用 Registry API 下载校验，不执行 npm install，不依赖 Node.js。包中只含声明文件和静态资源，不执行 JS。

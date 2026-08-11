@@ -1,6 +1,5 @@
 use crate::commands::apps::LocalApplication;
 use crate::extensions::lock::ExtensionsLock;
-use crate::extensions::manifest::{ExtensionManifest, PlatformTarget};
 use crate::extensions::provider::{
     execution_plan, ArgumentKind, CommandDescriptor, CompletionItem, ExecutionMode, ExecutionPlan,
     ProviderCompletion, ProviderInvocation,
@@ -10,6 +9,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+const PROVIDER_COMMAND_CACHE_TTL: Duration = Duration::from_secs(2);
+
+#[derive(Default)]
+pub(crate) struct ProviderCommandCache {
+    commands: tokio::sync::Mutex<Option<(Instant, Vec<LoadedProviderCommand>)>>,
+}
+
+impl ProviderCommandCache {
+    pub async fn invalidate(&self) {
+        *self.commands.lock().await = None;
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -178,20 +191,22 @@ pub async fn complete(
         .map_or((None, request.command.as_str()), |(namespace, command)| {
             (Some(namespace), command)
         });
-    let Some((descriptor, invocation, _, _, _, _, supports_dynamic_complete)) =
-        providers.into_iter().find(|(command, _, ns, _, _, _, _)| {
-            requested_namespace.is_none_or(|requested| requested == ns)
-                && (command.id == command_name
-                    || command.aliases.iter().any(|name| name == command_name))
-        })
-    else {
+    let Some(provider) = providers.into_iter().find(|provider| {
+        requested_namespace.is_none_or(|requested| requested == provider.namespace)
+            && (provider.descriptor.id == command_name
+                || provider
+                    .descriptor
+                    .aliases
+                    .iter()
+                    .any(|name| name == command_name))
+    }) else {
         return Ok(CatalogCompletionResponse {
             items: Vec::new(),
             dynamic: false,
         });
     };
-    let static_items = static_completions(&descriptor, request);
-    if !supports_dynamic_complete {
+    let static_items = static_completions(&provider.descriptor, request);
+    if !provider.dynamic_completion_available {
         return Ok(CatalogCompletionResponse {
             items: static_items,
             dynamic: false,
@@ -199,13 +214,13 @@ pub async fn complete(
     }
 
     let provider_request = json!({
-        "command": descriptor.id,
+        "command": provider.descriptor.id,
         "args": request.tokens.get(1..).unwrap_or_default(),
         "cwd": request.cwd,
     });
     let dynamic = state
         .provider
-        .complete(&invocation, &provider_request)
+        .complete(&provider.invocation, &provider_request)
         .await;
     Ok(completion_response(static_items, dynamic))
 }
@@ -319,10 +334,13 @@ async fn provider_entries(
     let providers = loaded_provider_commands(state).await?;
     let cwd = cwd.map(Path::new);
     let mut entries = Vec::new();
-    for (descriptor, invocation, namespace, source_name, runtime_available, configured_args, _) in
-        providers
-    {
-        let mut args = configured_args;
+    for provider in providers {
+        let descriptor = provider.descriptor;
+        let invocation = provider.invocation;
+        let namespace = provider.namespace;
+        let source_name = provider.source_name;
+        let runtime_available = provider.runtime_available;
+        let mut args = provider.configured_args;
         args.extend_from_slice(user_args);
         let plan = execution_plan(&descriptor, &invocation, args, cwd)
             .and_then(|mut plan| {
@@ -352,36 +370,70 @@ async fn provider_entries(
 async fn loaded_provider_commands(
     state: &ExtensionState,
 ) -> Result<Vec<LoadedProviderCommand>, String> {
+    let mut cache = state.provider_commands.commands.lock().await;
+    if let Some((created, commands)) = cache.as_ref() {
+        if created.elapsed() <= PROVIDER_COMMAND_CACHE_TTL {
+            return Ok(commands.clone());
+        }
+    }
+    let commands = load_provider_commands_uncached(state).await?;
+    *cache = Some((Instant::now(), commands.clone()));
+    Ok(commands)
+}
+
+async fn load_provider_commands_uncached(
+    state: &ExtensionState,
+) -> Result<Vec<LoadedProviderCommand>, String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let installed_ids = lock.extensions.keys().cloned().collect::<HashSet<_>>();
     let mut result = Vec::new();
     for entry in lock.extensions.values().filter(|entry| entry.enabled) {
-        let mut invocation = match invocation_from_entry(entry) {
+        let mut invocation = match crate::extensions::registry::provider_invocation(entry) {
             Ok(invocation) => invocation,
-            Err(_) => continue,
+            Err(error) => {
+                eprintln!(
+                    "floter: cannot load extension {} for command catalog: {error}",
+                    entry.id
+                );
+                continue;
+            }
         };
-        let configured_args = crate::extensions::config::apply_persisted_configuration(
+        let configured_args = match crate::extensions::config::apply_persisted_configuration(
             &state.paths.data,
             &mut invocation,
-        )
-        .unwrap_or_default();
+        ) {
+            Ok(args) => args,
+            Err(error) => {
+                eprintln!(
+                    "floter: cannot apply configuration for extension {}: {error}",
+                    entry.id
+                );
+                Vec::new()
+            }
+        };
         let response = match state.provider.describe(&invocation, false).await {
             Ok(response) => response,
-            Err(_) => continue,
+            Err(error) => {
+                eprintln!(
+                    "floter: cannot describe extension {} for command catalog: {error}",
+                    entry.id
+                );
+                continue;
+            }
         };
         let namespace = namespace_for(&entry.id);
         let runtime_available = response.runtime_available;
         let source_name = response.description.provider.name.clone();
         result.extend(response.description.commands.into_iter().map(|command| {
-            (
-                command,
-                invocation.clone(),
-                namespace.clone(),
-                source_name.clone(),
+            LoadedProviderCommand {
+                descriptor: command,
+                invocation: invocation.clone(),
+                namespace: namespace.clone(),
+                source_name: source_name.clone(),
                 runtime_available,
-                configured_args.clone(),
-                runtime_available,
-            )
+                configured_args: configured_args.clone(),
+                dynamic_completion_available: runtime_available,
+            }
         }));
     }
     result.extend(static_provider_commands(
@@ -392,15 +444,16 @@ async fn loaded_provider_commands(
     Ok(result)
 }
 
-type LoadedProviderCommand = (
-    CommandDescriptor,
-    ProviderInvocation,
-    String,
-    String,
-    bool,
-    Vec<String>,
-    bool,
-);
+#[derive(Clone)]
+pub(crate) struct LoadedProviderCommand {
+    descriptor: CommandDescriptor,
+    invocation: ProviderInvocation,
+    namespace: String,
+    source_name: String,
+    runtime_available: bool,
+    configured_args: Vec<String>,
+    dynamic_completion_available: bool,
+}
 
 fn static_provider_commands(
     adapters: &[crate::extensions::static_adapter::StaticAdapter],
@@ -415,19 +468,25 @@ fn static_provider_commands(
         let mut invocation = adapter.invocation.clone();
         let configured_args =
             crate::extensions::config::apply_persisted_configuration(data_root, &mut invocation)
-                .unwrap_or_default();
+                .unwrap_or_else(|error| {
+                    eprintln!(
+                        "floter: cannot apply configuration for static extension {}: {error}",
+                        adapter.manifest.id
+                    );
+                    Vec::new()
+                });
         let namespace = namespace_for(&adapter.manifest.id);
         let source_name = adapter.description.provider.name.clone();
         result.extend(adapter.description.commands.iter().cloned().map(|command| {
-            (
-                command,
-                invocation.clone(),
-                namespace.clone(),
-                source_name.clone(),
-                adapter.runtime_available,
-                configured_args.clone(),
-                false,
-            )
+            LoadedProviderCommand {
+                descriptor: command,
+                invocation: invocation.clone(),
+                namespace: namespace.clone(),
+                source_name: source_name.clone(),
+                runtime_available: adapter.runtime_available,
+                configured_args: configured_args.clone(),
+                dynamic_completion_available: false,
+            }
         }));
     }
     result
@@ -552,7 +611,7 @@ fn local_entries(paths: &ExtensionPaths) -> Result<Vec<CatalogEntry>, String> {
                 execution: Some(ExecutionPlan {
                     program,
                     args,
-                    mode: command.mode,
+                    mode: command.mode.host_mode(),
                     cwd: None,
                     environment: command.environment,
                     inherit_environment: true,
@@ -723,34 +782,6 @@ fn is_executable(path: &Path) -> bool {
     }
 }
 
-pub fn invocation_from_entry(
-    entry: &crate::extensions::lock::ExtensionLockEntry,
-) -> Result<ProviderInvocation, String> {
-    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
-    if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
-        return Err(format!(
-            "Manifest identity does not match lock entry {}",
-            entry.id
-        ));
-    }
-    let version_args = match &manifest.runtime {
-        crate::extensions::manifest::Runtime::Linked { version_args, .. } => version_args.clone(),
-        crate::extensions::manifest::Runtime::Managed { .. } => Vec::new(),
-    };
-    let permissions = manifest.permissions.clone();
-    let resolved = manifest.resolve(PlatformTarget::current()?)?;
-    Ok(ProviderInvocation {
-        extension_id: entry.id.clone(),
-        executable: PathBuf::from(&entry.executable_path),
-        runtime_root: entry.runtime_root.as_ref().map(PathBuf::from),
-        package_version: entry.package_version.clone(),
-        tool_version_hint: entry.tool_version.clone(),
-        version_args,
-        config: resolved.provider,
-        permissions,
-    })
-}
-
 pub fn migrate_legacy_commands(paths: &ExtensionPaths) -> Result<usize, String> {
     let source = paths.root.join("commands.json");
     let target = paths.root.join("local-commands.json");
@@ -856,9 +887,9 @@ mod tests {
         let commands = static_provider_commands(&adapters, &HashSet::new(), &paths.data);
 
         assert_eq!(commands.len(), 5);
-        assert_eq!(commands[0].0.id, "jv");
-        assert_eq!(commands[0].2, "v");
-        assert_eq!(commands[0].3, "V Tools");
+        assert_eq!(commands[0].descriptor.id, "jv");
+        assert_eq!(commands[0].namespace, "v");
+        assert_eq!(commands[0].source_name, "V Tools");
     }
 
     #[test]

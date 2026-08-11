@@ -4,6 +4,7 @@ pub mod install;
 pub mod lock;
 pub mod manifest;
 pub mod provider;
+pub mod registry;
 pub mod static_adapter;
 pub mod sync;
 
@@ -71,6 +72,7 @@ pub struct ExtensionState {
     pub provider: provider::ProviderManager,
     pub static_adapters: Vec<static_adapter::StaticAdapter>,
     pub(crate) mutation_lock: tokio::sync::Mutex<()>,
+    pub(crate) provider_commands: catalog::ProviderCommandCache,
     execution_plans: ExecutionPlanCache,
 }
 
@@ -104,6 +106,7 @@ impl ExtensionState {
             client,
             static_adapters,
             mutation_lock: tokio::sync::Mutex::new(()),
+            provider_commands: catalog::ProviderCommandCache::default(),
             execution_plans: ExecutionPlanCache::default(),
         })
     }
@@ -117,6 +120,10 @@ impl ExtensionState {
 
     pub fn take_execution_plan(&self, token: &str) -> Result<provider::ExecutionPlan, String> {
         self.execution_plans.take(token)
+    }
+
+    pub async fn invalidate_provider_commands(&self) {
+        self.provider_commands.invalidate().await;
     }
 }
 

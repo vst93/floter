@@ -2,17 +2,24 @@
 
 状态：Draft 1
 
-## 状态机
+## 持久状态与操作阶段
 
 ```text
-not-installed -> resolving -> downloading -> verifying -> installing
-                                                        -> enabled
-enabled <-> disabled
-enabled/disabled -> updating -> enabled | rollback | broken
-enabled/disabled/broken -> removing -> not-installed
+not-installed -> enabled <-> disabled
+                     \       /
+                       broken
 ```
 
-安装、更新、启停、回滚和删除都是 Host 操作，不是 Provider 自定义命令。
+`enabled`、`disabled` 和 `broken` 是写入 lock 文件的持久状态。解析、下载、
+校验、安装、更新、回滚和删除是 Host 操作或事务阶段，不写成扩展的持久状态；
+操作失败时，Host 保留原来的可用版本和持久状态。它们都不是 Provider 自定义
+命令。
+
+安装事务内部依次经过：
+
+```text
+resolving -> downloading -> verifying -> installing -> complete
+```
 
 ## 安装事务
 
@@ -53,4 +60,3 @@ linked 扩展只能解除关联。删除前必须先禁用 Provider、取消补�
 - Provider 超时后终止子进程，stdout 大小设上限。
 - 官方索引必须是签名的包名白名单；普通 NPM 搜索结果标记为未验证。
 - 权限是披露而不是沙箱。原生 CLI 仍拥有启动它的用户权限。
-

@@ -127,7 +127,7 @@
       "execution": {
         "program": "self",
         "argsPrefix": ["tt"],
-        "mode": "capture",
+        "mode": "pty",
         "workingDirectory": "current"
       },
       "arguments": [

@@ -35,8 +35,10 @@ Provider 必须把协议 JSON 写到 stdout，把诊断日志写到 stderr。成
 - `enum`：由 `values` 提供候选；
 - `command`：由 Provider 的动态 complete 提供候选。
 
-命令可以选择 `pty`、`capture` 或 `external` 执行模式。交互式 TUI 必须使用
-`pty`。Host 永远以 argv 生成执行计划，不把用户输入直接拼进 shell 字符串。
+命令可以选择 `pty` 或 `external` 执行模式。交互式 TUI 必须使用 `pty`。
+早期 Draft 1 清单中的 `capture` 会被 Host 兼容性归一化为 `pty`；它不代表
+独立的后台输出通道。Host 永远以 argv 生成执行计划，不把用户输入直接拼进
+shell 字符串。
 
 ## complete
 

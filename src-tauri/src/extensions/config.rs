@@ -1,4 +1,3 @@
-use crate::extensions::catalog::invocation_from_entry;
 use crate::extensions::lock::{ExtensionLockEntry, ExtensionsLock};
 use crate::extensions::provider::ProviderInvocation;
 use crate::extensions::provider::{
@@ -362,7 +361,7 @@ async fn descriptor(
     state: &ExtensionState,
     entry: &ExtensionLockEntry,
 ) -> Result<(ConfigurationDescriptor, ProviderInvocation), String> {
-    let invocation = invocation_from_entry(entry)?;
+    let invocation = crate::extensions::registry::provider_invocation(entry)?;
     let mut configured_invocation = invocation.clone();
     let _ = apply_persisted_configuration(&state.paths.data, &mut configured_invocation)?;
     let mut envelope: ConfigurationEnvelope =

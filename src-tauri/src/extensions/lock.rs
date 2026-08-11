@@ -33,16 +33,9 @@ pub enum ExtensionInstallType {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ExtensionStateKind {
-    Resolving,
-    Downloading,
-    Verifying,
-    Installing,
     Enabled,
     Disabled,
-    Updating,
-    Rollback,
     Broken,
-    Removing,
 }
 
 impl ExtensionStateKind {
@@ -50,16 +43,9 @@ impl ExtensionStateKind {
         use ExtensionStateKind::*;
         matches!(
             (self, next),
-            (Resolving, Downloading)
-                | (Downloading, Verifying)
-                | (Verifying, Installing)
-                | (Installing, Enabled | Disabled)
-                | (Enabled, Disabled | Updating | Removing | Broken)
-                | (Disabled, Enabled | Updating | Removing | Broken)
-                | (Updating, Enabled | Disabled | Rollback | Broken)
-                | (Rollback, Enabled | Disabled | Broken)
-                | (Broken, Updating | Removing | Rollback)
-                | (Removing, Broken)
+            (Enabled, Disabled | Broken)
+                | (Disabled, Enabled | Broken)
+                | (Broken, Enabled | Disabled)
         )
     }
 }
@@ -256,11 +242,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn state_machine_allows_update_rollback() {
-        assert!(ExtensionStateKind::Enabled.may_transition_to(ExtensionStateKind::Updating));
-        assert!(ExtensionStateKind::Updating.may_transition_to(ExtensionStateKind::Rollback));
-        assert!(ExtensionStateKind::Rollback.may_transition_to(ExtensionStateKind::Enabled));
-        assert!(!ExtensionStateKind::Enabled.may_transition_to(ExtensionStateKind::Installing));
+    fn persisted_state_machine_handles_availability_changes() {
+        assert!(ExtensionStateKind::Enabled.may_transition_to(ExtensionStateKind::Disabled));
+        assert!(ExtensionStateKind::Enabled.may_transition_to(ExtensionStateKind::Broken));
+        assert!(ExtensionStateKind::Broken.may_transition_to(ExtensionStateKind::Enabled));
+        assert!(!ExtensionStateKind::Enabled.may_transition_to(ExtensionStateKind::Enabled));
     }
 
     #[test]
