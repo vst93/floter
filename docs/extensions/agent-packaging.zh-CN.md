@@ -411,11 +411,13 @@ NPM 平台包，可以交给 Agent：
    versionArgs 使用不会修改状态的版本查询参数。
 3. 使用 Floter 仓库 Schema 验证 manifest 和 Provider 实际输出。
 4. 实际从 PATH 找到程序并完成 describe 与至少一个命令的冒烟测试。
-5. 报告 manifest 路径、需要的权限、未验证行为和 Floter 中的 linked 安装步骤。
+5. 报告 manifest 路径、需要的权限、未验证行为，以及通过“设置 > 集成 >
+   连接本地工具”选择 manifest 的操作步骤。
 6. 不发布 NPM，不修改外部程序安装，不执行任何远端操作。
 ```
 
-linked 扩展卸载时只解除 Floter 注册，不应删除外部工具。
+系统工具集成在界面中使用“断开连接”；该操作只解除 Floter 注册，不应删除
+外部工具。
 
 ## 相关资料
 

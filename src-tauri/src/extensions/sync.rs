@@ -360,6 +360,14 @@ async fn install_imported_linked(
     desired: &ExtensionsSyncEntry,
     approved_permissions: Option<&[Permission]>,
 ) -> Result<(), String> {
+    if state
+        .static_adapters
+        .iter()
+        .any(|adapter| adapter.manifest.id == desired.id)
+    {
+        install::connect_bundled(state, &desired.id, None, approved_permissions).await?;
+        return Ok(());
+    }
     let manifest = desired
         .manifest
         .clone()
@@ -457,7 +465,7 @@ fn atomic_write(path: &Path, bytes: &[u8], label: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::lock::ExtensionStateKind;
+    use crate::extensions::lock::{ExtensionProviderKind, ExtensionStateKind};
 
     fn lock_entry(install_type: ExtensionInstallType, version: &str) -> ExtensionLockEntry {
         ExtensionLockEntry {
@@ -466,6 +474,7 @@ mod tests {
             publisher_id: "example".into(),
             publisher_name: "Example".into(),
             install_type,
+            provider_kind: ExtensionProviderKind::Executable,
             state: ExtensionStateKind::Enabled,
             enabled: true,
             package_name: (install_type == ExtensionInstallType::Managed)

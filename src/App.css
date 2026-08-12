@@ -1118,6 +1118,7 @@ input:focus {
 
 .extensions-sync-toolbar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
 }
@@ -1143,6 +1144,14 @@ input:focus {
 
 .extension-row:hover {
   background: var(--surface-control-hover);
+}
+
+.extension-row--detected {
+  cursor: default;
+}
+
+.extension-row--detected:hover {
+  background: transparent;
 }
 
 .extension-row__icon {

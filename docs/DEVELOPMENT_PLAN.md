@@ -981,6 +981,9 @@ floter/
 
 在 Floter 侧维护一个 V Adapter（linked 模式），检测 PATH 中的 `v`，用静态 Manifest 声明 `jv`、`diff`、`codec`、`genpwd`、`tt` 这 5 个核心插件的命令和参数。
 
+管理页将其显示为“内置集成 · 系统工具”。检测只表示可连接；用户确认连接并
+写入 lock 后，命令才进入目录。用户断开连接时不删除 `v`。
+
 1. **编写 V Adapter Manifest**
    - `runtime.type = "linked"`
    - `executableNames = ["v", "v.exe"]`

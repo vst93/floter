@@ -127,7 +127,7 @@ fn linked_candidate_names(name: &str) -> Vec<String> {
     }
 }
 
-fn is_linked_executable(path: &Path) -> bool {
+pub fn is_linked_executable(path: &Path) -> bool {
     if !path.is_file() {
         return false;
     }

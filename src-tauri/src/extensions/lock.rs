@@ -30,6 +30,14 @@ pub enum ExtensionInstallType {
     Linked,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExtensionProviderKind {
+    #[default]
+    Executable,
+    BundledStatic,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ExtensionStateKind {
@@ -58,6 +66,8 @@ pub struct ExtensionLockEntry {
     pub publisher_id: String,
     pub publisher_name: String,
     pub install_type: ExtensionInstallType,
+    #[serde(default)]
+    pub provider_kind: ExtensionProviderKind,
     pub state: ExtensionStateKind,
     pub enabled: bool,
     pub package_name: Option<String>,
@@ -261,5 +271,35 @@ mod tests {
         assert!(validate_managed_version("1.2.3").is_ok());
         assert!(validate_managed_version("../../outside").is_err());
         assert!(validate_managed_version("latest").is_err());
+    }
+
+    #[test]
+    fn old_lock_entries_default_to_executable_providers() {
+        let value = serde_json::json!({
+            "id": "example.tool",
+            "name": "Example",
+            "publisherId": "example",
+            "publisherName": "Example",
+            "installType": "linked",
+            "state": "enabled",
+            "enabled": true,
+            "packageName": null,
+            "packageVersion": "linked",
+            "toolVersion": null,
+            "integrity": null,
+            "signatureVerified": false,
+            "previousSignatureVerified": null,
+            "currentVersion": "linked",
+            "previousVersion": null,
+            "manifestPath": "/tmp/floter.extension.json",
+            "executablePath": "/tmp/example",
+            "runtimeRoot": null,
+            "installedAt": 1,
+            "updatedAt": 1,
+            "pinned": false,
+            "channel": "external"
+        });
+        let entry: ExtensionLockEntry = serde_json::from_value(value).unwrap();
+        assert_eq!(entry.provider_kind, ExtensionProviderKind::Executable);
     }
 }

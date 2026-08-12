@@ -52,3 +52,18 @@ NPM 只承担索引、版本和 tarball 分发。Floter 通过 Registry HTTP API
 包，并校验 `dist.integrity`；不会调用 `npm install`，也不会运行
 `preinstall`、`install`、`postinstall` 或包内 JavaScript。因此用户无需安装
 Node.js，扩展也不能借助 NPM 生命周期脚本绕开管理器。
+
+## 用户侧的统一集成模型
+
+协议内部保留 `managed` 和 `linked` 两种运行时所有权，但管理页面统一称为
+“集成”，用户不需要理解安装器内部术语：
+
+- **Floter 托管**：从 NPM 发现、安装和更新，集成与工具运行时都由 Floter
+  管理。
+- **系统工具**：工具由 Homebrew、Cargo、系统包管理器或用户维护；Floter
+  只连接 manifest 和 Provider，断开连接不会卸载工具。
+- **内置集成 · 系统工具**：Floter 自带适配器描述，检测到对应工具后仍需用户
+  确认连接。未连接的适配器不会进入命令目录。
+
+管理页统一展示集成版本、工具版本、运行来源和当前可用性。NPM 是默认的发现
+与分发渠道；已有工具通过“设置 > 集成 > 连接本地工具”选择 manifest 接入。

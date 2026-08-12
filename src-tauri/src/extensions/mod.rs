@@ -24,7 +24,9 @@ pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
 #[allow(unused_imports)]
 pub use install::{ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult};
 #[allow(unused_imports)]
-pub use lock::{ExtensionInstallType, ExtensionLockEntry, ExtensionStateKind};
+pub use lock::{
+    ExtensionInstallType, ExtensionLockEntry, ExtensionProviderKind, ExtensionStateKind,
+};
 #[allow(unused_imports)]
 pub use manifest::{ExtensionManifest, PlatformTarget, ResolvedManifest};
 #[allow(unused_imports)]

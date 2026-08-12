@@ -22,11 +22,12 @@ use commands::custom::{
     update_custom_command, CommandState,
 };
 use commands::extensions::{
-    catalog_complete, catalog_search, extensions_config_get, extensions_config_set,
-    extensions_describe, extensions_diagnose, extensions_disable, extensions_enable,
-    extensions_export, extensions_import, extensions_install, extensions_list,
-    extensions_permissions_summary, extensions_rollback, extensions_search, extensions_uninstall,
-    extensions_update,
+    catalog_complete, catalog_search, extensions_bundled_permissions, extensions_config_get,
+    extensions_config_set, extensions_connect_bundled, extensions_describe, extensions_diagnose,
+    extensions_disable, extensions_enable, extensions_export, extensions_import,
+    extensions_install, extensions_list, extensions_permissions_summary,
+    extensions_pick_local_manifest, extensions_reconnect_bundled, extensions_rollback,
+    extensions_search, extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1189,6 +1190,10 @@ pub fn run() {
             extensions_export,
             extensions_import,
             extensions_install,
+            extensions_bundled_permissions,
+            extensions_connect_bundled,
+            extensions_reconnect_bundled,
+            extensions_pick_local_manifest,
             extensions_permissions_summary,
             extensions_uninstall,
             extensions_enable,

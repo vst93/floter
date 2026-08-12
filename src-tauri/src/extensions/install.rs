@@ -1,6 +1,6 @@
 use crate::extensions::lock::{
     unix_now, validate_id, write_current_pointer, ExtensionInstallType, ExtensionLockEntry,
-    ExtensionStateKind, ExtensionsLock,
+    ExtensionProviderKind, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
     validate_relative_path, ExtensionManifest, Permission, PlatformTarget, Runtime,
@@ -231,6 +231,82 @@ pub async fn install_imported_managed(
     .await
 }
 
+pub async fn connect_bundled(
+    state: &ExtensionState,
+    extension_id: &str,
+    executable_path: Option<&str>,
+    approved_permissions: Option<&[Permission]>,
+) -> Result<ExtensionLockEntry, String> {
+    let adapters = crate::extensions::static_adapter::load_bundled()?;
+    let adapter = adapters
+        .iter()
+        .find(|adapter| adapter.manifest.id == extension_id)
+        .cloned()
+        .ok_or_else(|| format!("Bundled integration is not available: {extension_id}"))?;
+    validate_permission_approval(&adapter.manifest.permissions, approved_permissions)?;
+    let executable = executable_path
+        .map(PathBuf::from)
+        .unwrap_or_else(|| adapter.invocation.executable.clone());
+    if !crate::extensions::static_adapter::is_linked_executable(&executable) {
+        return Err(format!(
+            "System tool is not available at {}",
+            executable.display()
+        ));
+    }
+
+    let _guard = state.mutation_lock.lock().await;
+    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    if lock.extensions.contains_key(extension_id) {
+        return Err(format!("Integration is already connected: {extension_id}"));
+    }
+    let resolved = adapter
+        .manifest
+        .clone()
+        .resolve(PlatformTarget::current()?)?;
+    let tool_version =
+        linked_tool_version(&adapter.manifest, &resolved.provider, &executable).await;
+    let manifest_dir = state.paths.data.join(extension_id).join("integration");
+    std::fs::create_dir_all(&manifest_dir)
+        .map_err(|error| format!("Cannot create integration directory: {error}"))?;
+    let manifest_path = manifest_dir.join("floter.extension.json");
+    let mut manifest_bytes = serde_json::to_vec_pretty(&adapter.manifest)
+        .map_err(|error| format!("Cannot serialize bundled integration manifest: {error}"))?;
+    manifest_bytes.push(b'\n');
+    std::fs::write(&manifest_path, manifest_bytes)
+        .map_err(|error| format!("Cannot write bundled integration manifest: {error}"))?;
+
+    let now = unix_now();
+    let integration_version = env!("CARGO_PKG_VERSION").to_string();
+    let entry = ExtensionLockEntry {
+        id: adapter.manifest.id,
+        name: adapter.manifest.name,
+        publisher_id: adapter.manifest.publisher.id,
+        publisher_name: adapter.manifest.publisher.name,
+        install_type: ExtensionInstallType::Linked,
+        provider_kind: ExtensionProviderKind::BundledStatic,
+        state: ExtensionStateKind::Enabled,
+        enabled: true,
+        package_name: None,
+        package_version: integration_version.clone(),
+        tool_version,
+        integrity: None,
+        signature_verified: false,
+        previous_signature_verified: None,
+        current_version: integration_version,
+        previous_version: None,
+        manifest_path: manifest_path.to_string_lossy().into_owned(),
+        executable_path: executable.to_string_lossy().into_owned(),
+        runtime_root: None,
+        installed_at: now,
+        updated_at: now,
+        pinned: false,
+        channel: "bundled".to_string(),
+    };
+    lock.extensions.insert(entry.id.clone(), entry.clone());
+    lock.save(&state.paths.lock_file)?;
+    Ok(entry)
+}
+
 pub async fn permissions_summary(
     state: &ExtensionState,
     request: &ExtensionInstallRequest,
@@ -275,7 +351,7 @@ pub async fn permissions_summary(
     Ok(permission_review(&manifest, locale))
 }
 
-fn validate_permission_approval(
+pub(crate) fn validate_permission_approval(
     requested: &[Permission],
     approved: Option<&[Permission]>,
 ) -> Result<(), String> {
@@ -717,6 +793,7 @@ async fn install_managed(
         publisher_id: manifest.publisher.id.clone(),
         publisher_name: manifest.publisher.name.clone(),
         install_type: ExtensionInstallType::Managed,
+        provider_kind: ExtensionProviderKind::Executable,
         state: if enabled {
             ExtensionStateKind::Enabled
         } else {
@@ -777,7 +854,8 @@ async fn install_linked(
         .as_deref()
         .ok_or("Linked installation requires manifestPath")?;
     let manifest_path = PathBuf::from(manifest_source);
-    let (manifest, package_version, manifest_path) = if manifest_path.is_dir() {
+    let is_package_directory = manifest_path.is_dir();
+    let (manifest, package_version, manifest_path) = if is_package_directory {
         let (package_json, actual_manifest_path) = load_package_entry(&manifest_path)?;
         if !package_json
             .keywords
@@ -835,6 +913,11 @@ async fn install_linked(
         permissions: manifest.permissions.clone(),
     };
     let response = state.provider.describe(&invocation, true).await?;
+    let integration_version = if is_package_directory {
+        package_version
+    } else {
+        response.description.provider.version.clone()
+    };
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     if lock.extensions.contains_key(&manifest.id) {
         return Err(format!("Extension is already installed: {}", manifest.id));
@@ -846,15 +929,16 @@ async fn install_linked(
         publisher_id: manifest.publisher.id,
         publisher_name: manifest.publisher.name,
         install_type: ExtensionInstallType::Linked,
+        provider_kind: ExtensionProviderKind::Executable,
         state: ExtensionStateKind::Enabled,
         enabled: true,
         package_name: request.package,
-        package_version: package_version.clone(),
+        package_version: integration_version.clone(),
         tool_version: tool_version.or(Some(response.description.provider.version)),
         integrity: None,
         signature_verified: false,
         previous_signature_verified: None,
-        current_version: package_version,
+        current_version: integration_version,
         previous_version: None,
         manifest_path: manifest_path.to_string_lossy().into_owned(),
         executable_path: executable.to_string_lossy().into_owned(),
@@ -1340,7 +1424,7 @@ fn is_linked_executable(path: &Path) -> bool {
     }
 }
 
-async fn linked_tool_version(
+pub(crate) async fn linked_tool_version(
     manifest: &ExtensionManifest,
     provider: &crate::extensions::manifest::ProviderConfig,
     executable: &Path,
@@ -1366,13 +1450,17 @@ async fn linked_tool_version(
         .await
         .ok()?
         .ok()?;
-    output.status.success().then(|| {
-        String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .chars()
-            .take(200)
-            .collect()
-    })
+    output
+        .status
+        .success()
+        .then(|| {
+            String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .chars()
+                .take(200)
+                .collect()
+        })
+        .filter(|version: &String| !version.is_empty())
 }
 
 fn validate_package_name(package: &str) -> Result<(), String> {

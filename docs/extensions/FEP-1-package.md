@@ -18,6 +18,10 @@ NPM `package.json` 必须包含：
 
 ## 安装模式
 
+本节名称是 manifest 的运行时所有权字段，不是必须暴露给用户的产品术语。
+Host 管理页应统一呈现为“集成”，再以“Floter 托管”或“系统工具”说明运行
+来源。
+
 ### managed
 
 由 Floter 拥有运行时。基础包保存清单、图标和文档，`platformPackages`
@@ -34,6 +38,14 @@ Unix Host 在完整性验证后补充用户可执行位；Windows 不修改 ACL�
 
 删除 linked 扩展只解除注册，绝不能删除外部程序。外部程序的升级由其包
 管理器负责。
+
+从带 `package.json` 的本地包连接时，集成版本取包版本；直接选择 manifest
+连接时，集成版本取 Provider `describe` 报告的版本。`versionArgs` 探测到的
+外部工具版本单独记录，两者不得在管理页混为一个字段。
+
+Host 内置静态适配器也属于系统工具集成。Host 可以在管理页显示已检测到的
+适配器，但必须得到用户确认并写入 lock 后才能把命令加入目录。静态适配器的
+描述由 Host 提供，不要求外部工具实现 Provider `describe`。
 
 ## 平台覆写
 
@@ -58,4 +70,3 @@ Unix Host 在完整性验证后补充用户可执行位；Windows 不修改 ACL�
   但执行时必须显式选择对应宿主。
 
 机器可读定义见 `schemas/floter-extension.schema.json`。
-

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   FileDown,
   FileUp,
+  Link2,
   MoreHorizontal,
   Package,
   RefreshCw,
@@ -15,6 +16,7 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  Unplug,
   X,
 } from "lucide-react";
 import type { Translate } from "./i18n";
@@ -31,6 +33,12 @@ type Extension = {
   publisherId: string;
   publisherName: string;
   installType: ExtensionInstallType;
+  providerKind: "executable" | "bundled-static";
+  connected: boolean;
+  runtimeSource: "managed" | "system" | "bundled";
+  runtimeAvailable: boolean;
+  reconnectAvailable: boolean;
+  homepage: string | null;
   state: ExtensionStateKind;
   enabled: boolean;
   packageName: string | null;
@@ -174,11 +182,11 @@ type PermissionReview = {
 };
 
 type InstallRequest = {
-  source: "npm";
-  package: string;
-  version: string;
-  manifestPath: null;
-  executablePath: null;
+  source: "npm" | "linked";
+  package: string | null;
+  version: string | null;
+  manifestPath: string | null;
+  executablePath: string | null;
   approvedPermissions?: PermissionName[];
 };
 
@@ -484,7 +492,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   };
 
   const uninstallExtension = (extension: Extension) => {
-    if (!window.confirm(t("settings.extensions.confirmUninstall", { name: extension.name }))) return;
+    const confirmation = extension.installType === "managed"
+      ? t("settings.extensions.confirmUninstall", { name: extension.name })
+      : t("settings.extensions.confirmDisconnect", { name: extension.name });
+    if (!window.confirm(confirmation)) return;
     void runMutation(
       extension.id,
       "uninstall",
@@ -544,6 +555,63 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       setReviewingPackage(null);
     }
   };
+
+  const connectBundled = async (extension: Extension) => {
+    if (busy || !extension.runtimeAvailable) return;
+    setBusy({ id: extension.id, kind: "install" });
+    setError(null);
+    try {
+      const review = await invoke<PermissionReview>("extensions_bundled_permissions", { id: extension.id, locale });
+      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+        permissions: review.permissions.map((permission) => permission.title).join(", "),
+      }))) return;
+      await invoke("extensions_connect_bundled", {
+        id: extension.id,
+        executablePath: null,
+        approvedPermissions: review.permissions.map(({ permission }) => permission),
+      });
+      await refresh();
+    } catch (nextError) {
+      setError(errorMessage(nextError));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const connectLocal = async () => {
+    if (busy) return;
+    setBusy({ id: "local", kind: "install" });
+    setError(null);
+    try {
+      const manifestPath = await invoke<string | null>("extensions_pick_local_manifest");
+      if (!manifestPath) return;
+      const request: InstallRequest = {
+        source: "linked",
+        package: null,
+        version: null,
+        manifestPath,
+        executablePath: null,
+      };
+      const review = await reviewPermissions(request);
+      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+        permissions: review.permissions.map((permission) => permission.title).join(", "),
+      }))) return;
+      await invoke("extensions_install", {
+        request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
+      });
+      await refresh();
+    } catch (nextError) {
+      setError(errorMessage(nextError));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reconnectBundled = (extension: Extension) => runMutation(
+    extension.id,
+    "reinstall",
+    () => invoke("extensions_reconnect_bundled", { id: extension.id }),
+  );
 
   const confirmPendingInstall = () => {
     if (!pendingInstall) return;
@@ -656,6 +724,15 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               type="button"
               className="extensions-action-button"
               disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              onClick={() => void connectLocal()}
+            >
+              <Link2 size={14} strokeWidth={2} aria-hidden="true" />
+              {t("settings.extensions.connectLocal")}
+            </button>
+            <button
+              type="button"
+              className="extensions-action-button"
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
               onClick={() => void exportExtensions()}
             >
               <FileDown size={14} strokeWidth={2} aria-hidden="true" />
@@ -706,6 +783,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 busy={Boolean(busy)}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
+                onConnect={() => void connectBundled(extension)}
+                onRepair={() => extension.homepage && void invoke("open_url", { url: extension.homepage })}
+                onReconnect={() => void reconnectBundled(extension)}
                 onToggle={() => void toggleExtension(extension)}
                 onUpdate={() => void updateExtension(extension)}
                 onRollback={() => void rollbackExtension(extension)}
@@ -882,10 +962,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <h4>{t("settings.extensions.info")}</h4>
                 <dl className="extension-metadata">
                   <div><dt>{t("settings.extensions.author")}</dt><dd>{selected.publisherName}</dd></div>
-                  <div><dt>{t("settings.extensions.source")}</dt><dd>{t(`settings.extensions.source.${selected.installType}`)}</dd></div>
+                  <div><dt>{t("settings.extensions.source")}</dt><dd>{t(`settings.extensions.runtimeSource.${selected.runtimeSource}`)}</dd></div>
+                  <div><dt>{t("settings.extensions.integrationVersion")}</dt><dd>{selected.packageVersion}</dd></div>
+                  <div><dt>{t("settings.extensions.toolVersion")}</dt><dd>{selected.toolVersion ?? t("settings.extensions.unavailable")}</dd></div>
+                  <div><dt>{t("settings.extensions.availability")}</dt><dd>{t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}</dd></div>
                   <div><dt>{t("settings.extensions.status")}</dt><dd>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
                   <div><dt>{t("settings.extensions.signature")}</dt><dd>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
-                  <div><dt>{t("settings.extensions.homepage")}</dt><dd>{latestById[selected.id]?.homepage ?? t("settings.extensions.unavailable")}</dd></div>
+                  <div><dt>{t("settings.extensions.homepage")}</dt><dd>{selected.homepage ?? latestById[selected.id]?.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || latestById[selected.id]?.description || t("settings.extensions.noDescription")}</p>
               </section>
@@ -953,7 +1036,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}
               </button>
               <button type="button" className="extensions-action-button extensions-action-button--danger" disabled={Boolean(busy)} onClick={() => uninstallExtension(selected)}>
-                <Trash2 size={14} strokeWidth={2} />{t("settings.extensions.uninstall")}
+                {selected.installType === "managed" ? <Trash2 size={14} strokeWidth={2} /> : <Unplug size={14} strokeWidth={2} />}
+                {t(selected.installType === "managed" ? "settings.extensions.uninstall" : "settings.extensions.disconnect")}
               </button>
             </footer>
           </aside>
@@ -969,6 +1053,9 @@ type ExtensionRowProps = {
   busy: boolean;
   t: Translate;
   onOpen: () => void;
+  onConnect: () => void;
+  onRepair: () => void;
+  onReconnect: () => void;
   onToggle: () => void;
   onUpdate: () => void;
   onRollback: () => void;
@@ -976,26 +1063,38 @@ type ExtensionRowProps = {
   onUninstall: () => void;
 };
 
-function ExtensionRow({ extension, latest, busy, t, onOpen, onToggle, onUpdate, onRollback, onReinstall, onUninstall }: ExtensionRowProps) {
+function ExtensionRow({ extension, latest, busy, t, onOpen, onConnect, onRepair, onReconnect, onToggle, onUpdate, onRollback, onReinstall, onUninstall }: ExtensionRowProps) {
   const updateAvailable = Boolean(latest && compareVersions(latest.version, extension.currentVersion) > 0);
   return (
-    <div className="extension-row" onClick={onOpen}>
+    <div className={`extension-row${extension.connected ? "" : " extension-row--detected"}`} onClick={extension.connected ? onOpen : undefined}>
       <div className="extension-row__icon"><Package size={17} strokeWidth={2} aria-hidden="true" /></div>
       <div className="extension-row__main">
         <div className="extension-row__title"><strong>{extension.name}</strong><span>v{extension.currentVersion}</span></div>
         <div className="extension-row__meta">
-          <span>{t(`settings.extensions.source.${extension.installType}`)}</span>
-          <span className={`extension-status extension-status--${extension.state}`}>{t(`settings.extensions.status.${extension.state}`)}</span>
+          <span>{t(`settings.extensions.runtimeSource.${extension.runtimeSource}`)}</span>
+          <span className={`extension-status extension-status--${extension.state}`}>{extension.connected ? t(`settings.extensions.status.${extension.state}`) : t("settings.extensions.status.notConnected")}</span>
+          {!extension.runtimeAvailable && <span className="extension-status extension-status--broken">{t("settings.extensions.runtimeUnavailable")}</span>}
           {updateAvailable && <span className="extension-status extension-status--update">{t("settings.extensions.status.updateAvailable")}</span>}
         </div>
       </div>
       <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
-        {extension.installType === "managed" && (
+        {!extension.connected ? (
+          <button type="button" className="extensions-action-button extensions-action-button--primary" disabled={busy || (!extension.runtimeAvailable && !extension.homepage)} onClick={extension.runtimeAvailable ? onConnect : onRepair}>
+            {extension.runtimeAvailable ? <Link2 size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
+            {extension.runtimeAvailable ? t("settings.extensions.connect") : t("settings.extensions.installTool")}
+          </button>
+        ) : extension.installType === "managed" && (
           <button type="button" className={`extensions-action-button${updateAvailable ? " extensions-action-button--primary" : ""}`} disabled={!updateAvailable || busy} onClick={onUpdate}>
             {t("settings.extensions.update")}
           </button>
         )}
-        <button
+        {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.homepage) && (
+          <button type="button" className="extensions-action-button" disabled={busy} onClick={extension.reconnectAvailable ? onReconnect : onRepair}>
+            {extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
+            {t(extension.reconnectAvailable ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
+          </button>
+        )}
+        {extension.connected && <button
           type="button"
           role="switch"
           aria-checked={extension.enabled}
@@ -1003,19 +1102,22 @@ function ExtensionRow({ extension, latest, busy, t, onOpen, onToggle, onUpdate, 
           className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}`}
           disabled={busy || extension.state === "broken"}
           onClick={onToggle}
-        ><span className="settings-switch__thumb" /></button>
-        <details className="extension-menu">
+        ><span className="settings-switch__thumb" /></button>}
+        {extension.connected && <details className="extension-menu">
           <summary className="extensions-icon-button" aria-label={t("settings.extensions.moreActions")} title={t("settings.extensions.moreActions")}>
             <MoreHorizontal size={17} strokeWidth={2} aria-hidden="true" />
           </summary>
           <div className="extension-menu__items">
             <button type="button" disabled={!extension.previousVersion || busy} onClick={onRollback}><RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}</button>
             <button type="button" disabled={extension.installType !== "managed" || !extension.packageName || busy} onClick={onReinstall}><RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}</button>
-            <button type="button" className="extension-menu__danger" disabled={busy} onClick={onUninstall}><Trash2 size={14} strokeWidth={2} />{t("settings.extensions.uninstall")}</button>
+            <button type="button" className="extension-menu__danger" disabled={busy} onClick={onUninstall}>
+              {extension.installType === "managed" ? <Trash2 size={14} strokeWidth={2} /> : <Unplug size={14} strokeWidth={2} />}
+              {t(extension.installType === "managed" ? "settings.extensions.uninstall" : "settings.extensions.disconnect")}
+            </button>
           </div>
-        </details>
+        </details>}
       </div>
-      <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />
+      {extension.connected && <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />}
     </div>
   );
 }
