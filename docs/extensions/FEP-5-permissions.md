@@ -8,6 +8,10 @@ runs with the operating-system identity and rights of the Floter process.
 
 ## Permission Model
 
+Permissions are a provider and Host execution contract, not an operating-system sandbox. The Host reviews them during installation and update. `environment` controls environment inheritance, and `process-spawn` controls a descriptor asking the Host to run a program other than its own runtime. File, network, clipboard, and any child processes started directly by local code are currently disclosure and audit boundaries.
+
+User-created executables and JS, Shell, or PowerShell scripts still run with the current user's operating-system rights. They can call native APIs directly, so permission checkboxes must not be treated as malicious-code protection. Strong isolation would require a separate OS sandbox implementation for each platform.
+
 The extension manifest declares the capabilities it needs in the
 `permissions` array of `floter.extension.json`. During installation and update,
 the Host resolves the manifest, displays the requested capabilities, and asks
@@ -30,7 +34,7 @@ corresponding kebab-case wire values shown in the table.
 
 ```json
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
   "id": "io.example.v-tools",
   "permissions": [
     "filesystem-read",
@@ -59,8 +63,10 @@ communicates through the Provider protocol over stdin/stdout. An extension:
 Without `environment`, the Host clears inherited environment variables before
 starting the Provider or an extension command, then applies only explicit
 manifest and configuration entries. An execution descriptor whose `program` is
-not `self` requires `process-spawn`. These checks are declarative controls, not
-an OS sandbox.
+not `self` requires `process-spawn`. The latter check governs what the Host
+resolves and starts from the descriptor; it cannot stop a native executable or
+script from starting a child process by calling the operating system directly.
+These checks are Host execution controls, not an OS sandbox.
 
 These are protocol requirements and packaging policy. Permission declarations do
 not grant access to Floter internals and do not make native code safe by

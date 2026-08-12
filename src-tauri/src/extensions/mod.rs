@@ -25,7 +25,8 @@ pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
 pub use install::{ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult};
 #[allow(unused_imports)]
 pub use lock::{
-    ExtensionInstallType, ExtensionLockEntry, ExtensionProviderKind, ExtensionStateKind,
+    ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+    ExtensionRuntimeOwnership, ExtensionStateKind,
 };
 #[allow(unused_imports)]
 pub use manifest::{ExtensionManifest, PlatformTarget, ResolvedManifest};
@@ -86,6 +87,10 @@ struct ExecutionPlanCache {
 impl ExtensionState {
     pub fn new() -> Result<Self, String> {
         let paths = ExtensionPaths::discover()?;
+        Self::from_paths(paths)
+    }
+
+    pub(crate) fn from_paths(paths: ExtensionPaths) -> Result<Self, String> {
         paths.ensure()?;
         if let Err(error) = catalog::migrate_legacy_commands(&paths) {
             eprintln!("failed to migrate legacy custom commands: {error}");

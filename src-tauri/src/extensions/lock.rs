@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const LOCK_SCHEMA_VERSION: u32 = 1;
+const LOCK_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,9 +25,17 @@ impl Default for ExtensionsLock {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-pub enum ExtensionInstallType {
-    Managed,
-    Linked,
+pub enum ExtensionDistributionSource {
+    Npm,
+    Local,
+    BuiltIn,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExtensionRuntimeOwnership {
+    Bundled,
+    System,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -35,6 +43,7 @@ pub enum ExtensionInstallType {
 pub enum ExtensionProviderKind {
     #[default]
     Executable,
+    StaticDescriptor,
     BundledStatic,
 }
 
@@ -65,7 +74,8 @@ pub struct ExtensionLockEntry {
     pub name: String,
     pub publisher_id: String,
     pub publisher_name: String,
-    pub install_type: ExtensionInstallType,
+    pub distribution_source: ExtensionDistributionSource,
+    pub runtime_ownership: ExtensionRuntimeOwnership,
     #[serde(default)]
     pub provider_kind: ExtensionProviderKind,
     pub state: ExtensionStateKind,
@@ -102,7 +112,10 @@ impl ExtensionsLock {
         }
         let bytes = std::fs::read(path)
             .map_err(|error| format!("Cannot read extension lock {}: {error}", path.display()))?;
-        let lock: Self = serde_json::from_slice(&bytes)
+        let mut value: serde_json::Value = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("Invalid extension lock {}: {error}", path.display()))?;
+        migrate_v1_lock(&mut value)?;
+        let lock: Self = serde_json::from_value(value)
             .map_err(|error| format!("Invalid extension lock {}: {error}", path.display()))?;
         if lock.schema_version != LOCK_SCHEMA_VERSION {
             return Err(format!(
@@ -118,11 +131,11 @@ impl ExtensionsLock {
                     entry.id
                 ));
             }
-            if entry.install_type == ExtensionInstallType::Managed {
-                validate_managed_version(&entry.package_version)?;
-                validate_managed_version(&entry.current_version)?;
+            if entry.distribution_source == ExtensionDistributionSource::Npm {
+                validate_npm_version(&entry.package_version)?;
+                validate_npm_version(&entry.current_version)?;
                 if let Some(previous) = &entry.previous_version {
-                    validate_managed_version(previous)?;
+                    validate_npm_version(previous)?;
                 }
             }
         }
@@ -197,7 +210,7 @@ pub fn write_current_pointer(
     extensions_dir: &Path,
     entry: &ExtensionLockEntry,
 ) -> Result<(), String> {
-    if entry.install_type == ExtensionInstallType::Linked {
+    if entry.distribution_source != ExtensionDistributionSource::Npm {
         return Ok(());
     }
     let path = current_pointer_path(extensions_dir, &entry.id)?;
@@ -222,6 +235,55 @@ pub fn write_current_pointer(
         .map_err(|error| format!("Cannot persist current pointer: {error}"))
 }
 
+fn migrate_v1_lock(value: &mut serde_json::Value) -> Result<(), String> {
+    let schema_version = value
+        .get("schemaVersion")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| "Extension lock has no schemaVersion".to_string())?;
+    if schema_version != 1 {
+        return Ok(());
+    }
+    let extensions = value
+        .get_mut("extensions")
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or_else(|| "Extension lock extensions must be an object".to_string())?;
+    for entry in extensions.values_mut() {
+        let object = entry
+            .as_object_mut()
+            .ok_or_else(|| "Extension lock entry must be an object".to_string())?;
+        let install_type = object
+            .remove("installType")
+            .and_then(|value| value.as_str().map(str::to_string))
+            .ok_or_else(|| "Extension lock entry has no installType".to_string())?;
+        let (distribution, runtime) = match install_type.as_str() {
+            "managed" => ("npm", "bundled"),
+            "linked" => ("local", "system"),
+            other => return Err(format!("Unsupported legacy install type: {other}")),
+        };
+        if object
+            .get("providerKind")
+            .and_then(serde_json::Value::as_str)
+            == Some("bundled-static")
+        {
+            object.insert(
+                "distributionSource".to_string(),
+                serde_json::Value::String("built-in".to_string()),
+            );
+        } else {
+            object.insert(
+                "distributionSource".to_string(),
+                serde_json::Value::String(distribution.to_string()),
+            );
+        }
+        object.insert(
+            "runtimeOwnership".to_string(),
+            serde_json::Value::String(runtime.to_string()),
+        );
+    }
+    value["schemaVersion"] = serde_json::Value::from(LOCK_SCHEMA_VERSION);
+    Ok(())
+}
+
 pub fn validate_id(id: &str) -> Result<(), String> {
     if id.is_empty()
         || !id.bytes().all(|byte| {
@@ -234,10 +296,10 @@ pub fn validate_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_managed_version(version: &str) -> Result<(), String> {
+fn validate_npm_version(version: &str) -> Result<(), String> {
     Version::parse(version)
         .map(|_| ())
-        .map_err(|error| format!("Invalid managed extension version {version}: {error}"))
+        .map_err(|error| format!("Invalid NPM integration version {version}: {error}"))
 }
 
 pub fn unix_now() -> u64 {
@@ -267,39 +329,97 @@ mod tests {
     }
 
     #[test]
-    fn rejects_managed_versions_that_could_escape_the_extension_root() {
-        assert!(validate_managed_version("1.2.3").is_ok());
-        assert!(validate_managed_version("../../outside").is_err());
-        assert!(validate_managed_version("latest").is_err());
+    fn rejects_npm_versions_that_could_escape_the_extension_root() {
+        assert!(validate_npm_version("1.2.3").is_ok());
+        assert!(validate_npm_version("../../outside").is_err());
+        assert!(validate_npm_version("latest").is_err());
     }
 
     #[test]
-    fn old_lock_entries_default_to_executable_providers() {
-        let value = serde_json::json!({
-            "id": "example.tool",
-            "name": "Example",
-            "publisherId": "example",
-            "publisherName": "Example",
-            "installType": "linked",
-            "state": "enabled",
-            "enabled": true,
-            "packageName": null,
-            "packageVersion": "linked",
-            "toolVersion": null,
-            "integrity": null,
-            "signatureVerified": false,
-            "previousSignatureVerified": null,
-            "currentVersion": "linked",
-            "previousVersion": null,
-            "manifestPath": "/tmp/floter.extension.json",
-            "executablePath": "/tmp/example",
-            "runtimeRoot": null,
-            "installedAt": 1,
-            "updatedAt": 1,
-            "pinned": false,
-            "channel": "external"
+    fn migrates_v1_lock_entries_to_orthogonal_ownership_fields() {
+        let mut value = serde_json::json!({
+            "schemaVersion": 1,
+            "extensions": {
+                "example.tool": {
+                    "id": "example.tool",
+                    "name": "Example",
+                    "publisherId": "example",
+                    "publisherName": "Example",
+                    "installType": "linked",
+                    "state": "enabled",
+                    "enabled": true,
+                    "packageName": null,
+                    "packageVersion": "linked",
+                    "toolVersion": null,
+                    "integrity": null,
+                    "signatureVerified": false,
+                    "previousSignatureVerified": null,
+                    "currentVersion": "linked",
+                    "previousVersion": null,
+                    "manifestPath": "/tmp/floter.extension.json",
+                    "executablePath": "/tmp/example",
+                    "runtimeRoot": null,
+                    "installedAt": 1,
+                    "updatedAt": 1,
+                    "pinned": false,
+                    "channel": "external"
+                }
+            }
         });
-        let entry: ExtensionLockEntry = serde_json::from_value(value).unwrap();
+        migrate_v1_lock(&mut value).unwrap();
+        let lock: ExtensionsLock = serde_json::from_value(value).unwrap();
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(lock.schema_version, 2);
+        assert_eq!(
+            entry.distribution_source,
+            ExtensionDistributionSource::Local
+        );
+        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
         assert_eq!(entry.provider_kind, ExtensionProviderKind::Executable);
+    }
+
+    #[test]
+    fn migrates_legacy_static_adapters_as_built_in_system_integrations() {
+        let mut value = serde_json::json!({
+            "schemaVersion": 1,
+            "extensions": {
+                "example.tool": {
+                    "id": "example.tool",
+                    "name": "Example",
+                    "publisherId": "example",
+                    "publisherName": "Example",
+                    "installType": "linked",
+                    "providerKind": "bundled-static",
+                    "state": "enabled",
+                    "enabled": true,
+                    "packageName": null,
+                    "packageVersion": "linked",
+                    "toolVersion": "1.2.3",
+                    "integrity": null,
+                    "signatureVerified": false,
+                    "previousSignatureVerified": null,
+                    "currentVersion": "linked",
+                    "previousVersion": null,
+                    "manifestPath": "/tmp/floter.extension.json",
+                    "executablePath": "/tmp/example",
+                    "runtimeRoot": null,
+                    "installedAt": 1,
+                    "updatedAt": 1,
+                    "pinned": false,
+                    "channel": "external"
+                }
+            }
+        });
+
+        migrate_v1_lock(&mut value).unwrap();
+        let lock: ExtensionsLock = serde_json::from_value(value).unwrap();
+        let entry = lock.get("example.tool").unwrap();
+
+        assert_eq!(
+            entry.distribution_source,
+            ExtensionDistributionSource::BuiltIn
+        );
+        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
+        assert_eq!(entry.provider_kind, ExtensionProviderKind::BundledStatic);
     }
 }

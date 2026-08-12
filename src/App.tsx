@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { Blocks, Info, Keyboard, SlidersHorizontal } from "lucide-react";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
 import { encodeKey, FOCUS_IN_OUT, MOUSE_MOTION, usesMouseReporting } from "./terminal/input";
 import {
@@ -43,6 +44,7 @@ if (IS_WINDOWS) {
 }
 
 type ViewMode = "collapsed" | "terminal" | "settings";
+type SettingsPage = "general" | "shortcuts" | "integrations" | "about";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
 
 type LocalApplication = {
@@ -725,6 +727,7 @@ export default function App() {
   const appScanning = useRef(false);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
+  const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -2601,6 +2604,21 @@ export default function App() {
           </header>
 
           <div className="settings-card__body">
+            <nav className="settings-sidebar" aria-label={t("settings.title")} data-no-drag>
+              {([
+                ["general", SlidersHorizontal],
+                ["shortcuts", Keyboard],
+                ["integrations", Blocks],
+                ["about", Info],
+              ] as const).map(([page, Icon]) => (
+                <button key={page} type="button" className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"} aria-current={settingsPage === page ? "page" : undefined} onClick={() => setSettingsPage(page)}>
+                  <Icon size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>{t(`settings.menu.${page}`)}</span>
+                </button>
+              ))}
+            </nav>
+            <main className="settings-content" data-no-drag>
+            {settingsPage === "general" && <>
             <div className="settings-preferences">
               <section className="settings-section">
                 <h2 className="settings-section__label">{t("settings.theme")}</h2>
@@ -2698,7 +2716,9 @@ export default function App() {
               </div>
               <p className="settings-section__hint">{t("settings.opacityHint")}</p>
             </section>
+            </>}
 
+            {settingsPage === "shortcuts" && (
             <section className="settings-section">
               <div className="settings-section__heading">
                 <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
@@ -2742,13 +2762,17 @@ export default function App() {
               </div>
               <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
+            )}
 
+            {settingsPage === "integrations" && (
             <ExtensionsPanel
               t={t}
               locale={language}
               onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
             />
+            )}
 
+            {settingsPage === "about" && (
             <section className="settings-section">
               <div className="update-banner">
                 <div className="update-banner__info">
@@ -2800,6 +2824,8 @@ export default function App() {
                 ) : null}
               </div>
             </section>
+            )}
+            </main>
           </div>
         </div>
       </div>

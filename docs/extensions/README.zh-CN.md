@@ -55,11 +55,12 @@ Node.js，扩展也不能借助 NPM 生命周期脚本绕开管理器。
 
 ## 用户侧的统一集成模型
 
-协议内部保留 `managed` 和 `linked` 两种运行时所有权，但管理页面统一称为
-“集成”，用户不需要理解安装器内部术语：
+协议内部把分发来源、运行时所有权和 Provider 类型分开声明，但管理页面统一
+称为“集成”，用户不需要理解安装器内部术语：
 
-- **Floter 托管**：从 NPM 发现、安装和更新，集成与工具运行时都由 Floter
-  管理。
+- **Floter 托管**：从 NPM 发现和更新集成，工具运行时也由 Floter 安装管理。
+- **NPM 集成 · 系统工具**：从 NPM 发现和更新集成描述，工具仍由 Homebrew、
+  Cargo 或系统包管理器维护。
 - **系统工具**：工具由 Homebrew、Cargo、系统包管理器或用户维护；Floter
   只连接 manifest 和 Provider，断开连接不会卸载工具。
 - **内置集成 · 系统工具**：Floter 自带适配器描述，检测到对应工具后仍需用户
@@ -67,3 +68,36 @@ Node.js，扩展也不能借助 NPM 生命周期脚本绕开管理器。
 
 管理页统一展示集成版本、工具版本、运行来源和当前可用性。NPM 是默认的发现
 与分发渠道；已有工具通过“设置 > 集成 > 连接本地工具”选择 manifest 接入。
+
+### 可视化创建本地集成
+
+“设置 > 集成 > 创建自定义集成”支持两种 Provider 来源：
+
+- 系统可执行文件：可输入绝对路径，也可按命令名模糊搜索 Floter 当前进程的 `PATH`。
+- 内置脚本：支持 JavaScript（Node.js）、Shell（`sh`）和 PowerShell（优先 `pwsh`，兼容 `powershell`）。脚本保存在本地集成目录中，不依赖原始编辑位置。
+
+表单默认生成 `local.custom-tool`、`custom-tool`、`1.0.0` 和空的默认执行参数。每个参数按独立 argv 项编辑，不做 Shell 字符串拆分。创建时 Floter 会生成一份静态命令描述，并验证当前运行时可用；普通可执行文件和脚本不需要实现 Provider Protocol。要在当前设备完成验证，平台列表必须包含当前平台。
+
+本地命令默认继承 Floter 的环境变量，以便使用 `PATH`、`HOME`、语言环境和用户凭据；用户可以关闭继承，此时 Host 会在启动进程前清空环境。其余文件、网络、剪贴板和脚本自行启动子进程的选项用于安装审核与审计，不能形成操作系统沙箱。本地代码始终以当前系统用户身份运行。
+
+用户可多选 macOS、Linux 和 Windows。选择结果写入 manifest 的 `platforms` allow-list；当前系统不在列表中时，宿主不会加载该集成。已有插件省略 `platforms` 时仍视为支持全部平台。
+
+由可视化创建器生成的单命令集成可以在集成详情或更多菜单中再次编辑。保存时 Floter 会重新验证清单、运行时和命令描述；验证失败会恢复原有文件与连接状态。集成 ID 是持久身份，创建后不能在编辑器中修改。
+
+删除这类自定义集成会同时删除 Floter 保存的 manifest、静态命令描述和脚本，因此界面会使用“删除集成”并进行二次确认。通过“连接扩展包”接入的外部 manifest 只会断开连接，不会删除外部文件或系统工具。“连接扩展包”面向已有 `floter.extension.json` 的开发者包；连接单个命令或脚本应使用“创建自定义集成”。
+
+```json
+{
+  "distribution": { "type": "local" },
+  "runtime": { "type": "script", "language": "js", "path": "provider.js" },
+  "platforms": ["darwin", "linux"]
+}
+```
+
+## Manifest v2
+
+新 manifest 使用 `schemaVersion: "2.0"`，分别声明集成分发来源、工具运行时
+所有权和 Provider 类型。最重要的新组合是 `npm + system + executable`：
+发布者可以通过 NPM 更新集成协议与权限声明，同时让 Homebrew、Cargo 或系统
+包管理器继续负责工具本身。Host 仍兼容 v1 manifest，并在加载时归一化为 v2
+内部模型。

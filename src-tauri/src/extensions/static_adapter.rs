@@ -1,4 +1,6 @@
-use crate::extensions::manifest::{ExtensionManifest, PlatformTarget, Runtime};
+use crate::extensions::manifest::{
+    Distribution, ExtensionManifest, PlatformTarget, ProviderKind, Runtime,
+};
 use crate::extensions::provider::{
     validate_execution_descriptors, ProviderDescription, ProviderInvocation,
 };
@@ -37,8 +39,15 @@ fn load(
 ) -> Result<StaticAdapter, String> {
     let manifest = ExtensionManifest::parse(manifest_bytes)
         .map_err(|error| format!("Invalid static adapter {name} manifest: {error}"))?;
-    if !matches!(manifest.runtime, Runtime::Linked { .. }) {
-        return Err(format!("Static adapter {name} must use a linked runtime"));
+    if !matches!(manifest.runtime, Runtime::System { .. }) {
+        return Err(format!("Static adapter {name} must use a system runtime"));
+    }
+    if manifest.distribution != Distribution::BuiltIn
+        || manifest.provider.kind != ProviderKind::StaticDescriptor
+    {
+        return Err(format!(
+            "Static adapter {name} must use built-in distribution and static-descriptor provider"
+        ));
     }
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let description = ProviderDescription::parse(description_bytes)
@@ -53,21 +62,22 @@ fn load(
     let executable = find_linked_executable(&manifest, search_path);
     let runtime_available = executable.is_some();
     let fallback_executable = match &manifest.runtime {
-        Runtime::Linked {
+        Runtime::System {
             executable_names, ..
         } => PathBuf::from(&executable_names[0]),
-        Runtime::Managed { .. } => unreachable!(),
+        Runtime::Bundled { .. } | Runtime::Script { .. } => unreachable!(),
     };
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
     let version_args = match &manifest.runtime {
-        Runtime::Linked { version_args, .. } => version_args.clone(),
-        Runtime::Managed { .. } => unreachable!(),
+        Runtime::System { version_args, .. } => version_args.clone(),
+        Runtime::Bundled { .. } | Runtime::Script { .. } => unreachable!(),
     };
     let permissions = manifest.permissions.clone();
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.unwrap_or(fallback_executable),
+        executable_prefix: Vec::new(),
         runtime_root: None,
         package_version: description.provider.version.clone(),
         tool_version_hint: Some(description.provider.version.clone()),
@@ -89,7 +99,7 @@ fn find_linked_executable(
     manifest: &ExtensionManifest,
     search_path: Option<&OsStr>,
 ) -> Option<PathBuf> {
-    let Runtime::Linked {
+    let Runtime::System {
         executable_names, ..
     } = &manifest.runtime
     else {

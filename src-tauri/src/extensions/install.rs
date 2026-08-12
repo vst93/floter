@@ -1,9 +1,10 @@
 use crate::extensions::lock::{
-    unix_now, validate_id, write_current_pointer, ExtensionInstallType, ExtensionLockEntry,
-    ExtensionProviderKind, ExtensionStateKind, ExtensionsLock,
+    unix_now, validate_id, write_current_pointer, ExtensionDistributionSource, ExtensionLockEntry,
+    ExtensionProviderKind, ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
-    validate_relative_path, ExtensionManifest, Permission, PlatformTarget, Runtime,
+    validate_relative_path, Compatibility, Distribution, ExtensionManifest, Permission, PlatformOs,
+    PlatformTarget, ProviderConfig, ProviderKind, Publisher, Runtime, ScriptLanguage,
     SignatureAlgorithm, SignatureConfig,
 };
 use crate::extensions::provider::ProviderInvocation;
@@ -72,6 +73,59 @@ pub struct PermissionSummary {
     pub permission: Permission,
     pub title: String,
     pub description: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomIntegrationRequest {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub version: String,
+    #[serde(default)]
+    pub executable_path: String,
+    #[serde(default = "default_custom_mode")]
+    pub mode: String,
+    #[serde(default)]
+    pub script_language: Option<ScriptLanguage>,
+    #[serde(default)]
+    pub script_content: Option<String>,
+    #[serde(default)]
+    pub args_prefix: Vec<String>,
+    #[serde(default)]
+    pub version_args: Vec<String>,
+    #[serde(default)]
+    pub permissions: Vec<Permission>,
+    #[serde(default)]
+    pub platforms: Vec<PlatformOs>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomIntegrationDefinition {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub version: String,
+    pub executable_path: String,
+    pub mode: String,
+    pub script_language: Option<ScriptLanguage>,
+    pub script_content: Option<String>,
+    pub args_prefix: Vec<String>,
+    pub version_args: Vec<String>,
+    pub permissions: Vec<Permission>,
+    pub platforms: Vec<PlatformOs>,
+}
+
+fn default_custom_mode() -> String {
+    "executable".to_string()
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathExecutable {
+    pub name: String,
+    pub path: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -231,6 +285,503 @@ pub async fn install_imported_managed(
     .await
 }
 
+pub async fn create_custom_integration(
+    state: &ExtensionState,
+    request: CustomIntegrationRequest,
+) -> Result<ExtensionLockEntry, String> {
+    let _guard = state.mutation_lock.lock().await;
+    create_custom_integration_locked(state, request).await
+}
+
+async fn create_custom_integration_locked(
+    state: &ExtensionState,
+    request: CustomIntegrationRequest,
+) -> Result<ExtensionLockEntry, String> {
+    let id = request.id.trim().to_ascii_lowercase();
+    validate_id(&id)?;
+    let name = request.name.trim();
+    if name.is_empty() || name.chars().count() > 80 {
+        return Err("Custom integration name must contain 1 to 80 characters".to_string());
+    }
+    let command = request.command.trim().to_ascii_lowercase();
+    if command.is_empty()
+        || command.len() > 64
+        || !command.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_')
+        })
+        || !command
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+    {
+        return Err("Command must start with a letter or number and contain only lowercase letters, numbers, hyphens, or underscores".to_string());
+    }
+    Version::parse(request.version.trim())
+        .map_err(|error| format!("Invalid custom integration version: {error}"))?;
+    if request.platforms.is_empty() {
+        return Err("Select at least one supported platform".to_string());
+    }
+    let script_mode = request.mode == "script";
+    if request.mode != "script" && request.mode != "executable" {
+        return Err("Custom integration mode must be executable or script".to_string());
+    }
+    let script_language = request.script_language.unwrap_or(ScriptLanguage::Shell);
+    let executable = if script_mode {
+        PathBuf::new()
+    } else {
+        let path = PathBuf::from(request.executable_path.trim());
+        if !is_linked_executable(&path) {
+            return Err(format!(
+                "System executable is not usable: {}",
+                path.display()
+            ));
+        }
+        path
+    };
+    if script_mode
+        && request
+            .script_content
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
+    {
+        return Err("Custom provider script cannot be empty".to_string());
+    }
+    if !script_mode && request.script_language.is_some() {
+        return Err("Script language is only valid for script integrations".to_string());
+    }
+    let executable_name = executable
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("custom-tool")
+        .to_string();
+    let manifest = ExtensionManifest {
+        schema_version: "2.0".into(),
+        id: id.clone(),
+        name: name.to_string(),
+        description: if script_mode {
+            "Local script integration".to_string()
+        } else {
+            format!("Local integration for {executable_name}")
+        },
+        homepage: None,
+        icon: None,
+        publisher: Publisher {
+            id: "local-user".into(),
+            name: "Local user".into(),
+        },
+        compatibility: Compatibility {
+            floter: format!(">={}", env!("CARGO_PKG_VERSION")),
+            provider_protocol: "^1.0".into(),
+        },
+        distribution: Distribution::Local,
+        runtime: if script_mode {
+            Runtime::Script {
+                language: script_language,
+                path: format!("provider.{}", script_extension(script_language)),
+                version_args: request.version_args.clone(),
+            }
+        } else {
+            Runtime::System {
+                executable_names: vec![executable_name],
+                version_args: request.version_args.clone(),
+            }
+        },
+        provider: ProviderConfig {
+            kind: ProviderKind::StaticDescriptor,
+            descriptor: Some("provider-description.json".to_string()),
+            args_prefix: Vec::new(),
+            describe_timeout_ms: 5_000,
+            complete_timeout_ms: 800,
+            environment: BTreeMap::new(),
+        },
+        signatures: None,
+        platform_overrides: BTreeMap::new(),
+        permissions: request.permissions.clone(),
+        platforms: request.platforms.clone(),
+    };
+    let manifest_bytes = serde_json::to_vec(&manifest)
+        .map_err(|error| format!("Cannot serialize custom integration manifest: {error}"))?;
+    ExtensionManifest::parse(&manifest_bytes)?;
+
+    let package_root = state.paths.data.join(&id).join("integration");
+    if package_root.exists() {
+        return Err(format!("Custom integration files already exist for {id}"));
+    }
+    let data_root = package_root
+        .parent()
+        .ok_or("Custom integration directory has no parent")?;
+    std::fs::create_dir_all(data_root)
+        .map_err(|error| format!("Cannot create custom integration data directory: {error}"))?;
+    std::fs::create_dir(&package_root).map_err(|error| {
+        format!("Cannot reserve custom integration directory for {id}: {error}")
+    })?;
+    let manifest_path = package_root.join("floter.extension.json");
+    let package_path = package_root.join("package.json");
+    let descriptor_path = package_root.join("provider-description.json");
+    let script_path = package_root.join(format!("provider.{}", script_extension(script_language)));
+    let write_result = (|| -> Result<(), String> {
+        let mut manifest_bytes = serde_json::to_vec_pretty(&manifest)
+            .map_err(|error| format!("Cannot serialize custom integration manifest: {error}"))?;
+        manifest_bytes.push(b'\n');
+        std::fs::write(&manifest_path, manifest_bytes)
+            .map_err(|error| format!("Cannot write custom integration manifest: {error}"))?;
+        let mut package_bytes = serde_json::to_vec_pretty(&serde_json::json!({
+            "name": format!("floter-local-{}", id.replace(['.', '_'], "-")),
+            "version": request.version.trim(),
+            "private": true,
+            "keywords": ["floter-extension"],
+            "floter": { "manifest": "floter.extension.json" }
+        }))
+        .map_err(|error| format!("Cannot serialize custom integration package: {error}"))?;
+        package_bytes.push(b'\n');
+        std::fs::write(&package_path, package_bytes)
+            .map_err(|error| format!("Cannot write custom integration package: {error}"))?;
+        let mut descriptor_bytes = serde_json::to_vec_pretty(&serde_json::json!({
+            "protocolVersion": "1.0",
+            "provider": {
+                "id": id,
+                "name": name,
+                "version": request.version.trim(),
+                "description": manifest.description
+            },
+            "commands": [{
+                "id": command,
+                "name": name,
+                "description": manifest.description,
+                "aliases": [],
+                "keywords": [],
+                "execution": {
+                    "program": "self",
+                    "argsPrefix": request.args_prefix,
+                    "mode": "pty",
+                    "workingDirectory": "current"
+                },
+                "arguments": []
+            }]
+        }))
+        .map_err(|error| format!("Cannot serialize custom provider description: {error}"))?;
+        descriptor_bytes.push(b'\n');
+        std::fs::write(&descriptor_path, descriptor_bytes)
+            .map_err(|error| format!("Cannot write custom provider description: {error}"))?;
+        if script_mode {
+            std::fs::write(
+                &script_path,
+                request.script_content.as_deref().unwrap_or(""),
+            )
+            .map_err(|error| format!("Cannot write custom provider script: {error}"))?;
+            make_executable(&script_path)?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = write_result {
+        let _ = std::fs::remove_dir_all(&package_root);
+        return Err(error);
+    }
+
+    let result = install_linked(
+        state,
+        ExtensionInstallRequest {
+            source: InstallSource::Linked,
+            package: None,
+            version: None,
+            manifest_path: Some(package_root.to_string_lossy().into_owned()),
+            executable_path: (!script_mode).then(|| executable.to_string_lossy().into_owned()),
+            approved_permissions: Some(request.permissions),
+        },
+    )
+    .await;
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(&package_root);
+    }
+    result
+}
+
+pub fn is_generated_custom_integration(entry: &ExtensionLockEntry) -> bool {
+    if entry.distribution_source != ExtensionDistributionSource::Local
+        || entry.publisher_id != "local-user"
+        || entry.provider_kind != ExtensionProviderKind::StaticDescriptor
+    {
+        return false;
+    }
+    let Some(root) = Path::new(&entry.manifest_path).parent() else {
+        return false;
+    };
+    root.file_name().and_then(|name| name.to_str()) == Some("integration")
+        && root
+            .parent()
+            .and_then(Path::file_name)
+            .and_then(|name| name.to_str())
+            == Some(entry.id.as_str())
+}
+
+pub fn custom_integration_definition(
+    state: &ExtensionState,
+    extension_id: &str,
+) -> Result<CustomIntegrationDefinition, String> {
+    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(extension_id)?
+        .clone();
+    if !is_generated_custom_integration(&entry) {
+        return Err(format!(
+            "Integration {extension_id} is not editable in Floter"
+        ));
+    }
+    let manifest_path = Path::new(&entry.manifest_path);
+    let root = manifest_path
+        .parent()
+        .ok_or("Custom integration manifest has no parent directory")?;
+    let manifest = ExtensionManifest::load(manifest_path)?;
+    let descriptor_path = root.join(
+        manifest
+            .provider
+            .descriptor
+            .as_deref()
+            .ok_or("Custom integration has no static descriptor")?,
+    );
+    let description = crate::extensions::provider::ProviderDescription::parse(
+        &std::fs::read(&descriptor_path)
+            .map_err(|error| format!("Cannot read custom integration descriptor: {error}"))?,
+    )?;
+    let command = description
+        .commands
+        .first()
+        .ok_or("Custom integration descriptor has no command")?;
+    if description.commands.len() != 1 {
+        return Err("Only single-command custom integrations can be edited visually".to_string());
+    }
+    let (mode, executable_path, script_language, script_content, version_args) = match &manifest
+        .runtime
+    {
+        Runtime::System { version_args, .. } => (
+            "executable".to_string(),
+            entry.executable_path.clone(),
+            None,
+            None,
+            version_args.clone(),
+        ),
+        Runtime::Script {
+            language,
+            path,
+            version_args,
+        } => (
+            "script".to_string(),
+            String::new(),
+            Some(*language),
+            Some(
+                std::fs::read_to_string(root.join(path))
+                    .map_err(|error| format!("Cannot read custom integration script: {error}"))?,
+            ),
+            version_args.clone(),
+        ),
+        Runtime::Bundled { .. } => {
+            return Err("Custom integrations cannot use a bundled runtime".to_string())
+        }
+    };
+    Ok(CustomIntegrationDefinition {
+        id: manifest.id,
+        name: manifest.name,
+        command: command.id.clone(),
+        version: description.provider.version,
+        executable_path,
+        mode,
+        script_language,
+        script_content,
+        args_prefix: command.execution.args_prefix.clone(),
+        version_args,
+        permissions: manifest.permissions,
+        platforms: manifest.platforms,
+    })
+}
+
+pub async fn update_custom_integration(
+    state: &ExtensionState,
+    extension_id: &str,
+    request: CustomIntegrationRequest,
+) -> Result<ExtensionLockEntry, String> {
+    validate_id(extension_id)?;
+    if request.id.trim().to_ascii_lowercase() != extension_id {
+        return Err("Custom integration ID cannot be changed after creation".to_string());
+    }
+    let _guard = state.mutation_lock.lock().await;
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let current = lock.get(extension_id)?.clone();
+    if !is_generated_custom_integration(&current) {
+        return Err(format!(
+            "Integration {extension_id} is not editable in Floter"
+        ));
+    }
+    drop(lock);
+
+    let root = state.paths.data.join(extension_id).join("integration");
+    let backup = tempfile::Builder::new()
+        .prefix(&format!(".{extension_id}-editing-"))
+        .tempdir_in(state.paths.data.join(extension_id))
+        .map_err(|error| format!("Cannot prepare custom integration update: {error}"))?;
+    let backup_path = backup.path().to_path_buf();
+    backup
+        .close()
+        .map_err(|error| format!("Cannot prepare custom integration backup: {error}"))?;
+    std::fs::rename(&root, &backup_path)
+        .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
+    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    lock.extensions.remove(extension_id);
+    if let Err(error) = lock.save(&state.paths.lock_file) {
+        let _ = std::fs::rename(&backup_path, &root);
+        return Err(format!(
+            "Cannot stage custom integration lock update: {error}"
+        ));
+    }
+    drop(lock);
+
+    let result = create_custom_integration_locked(state, request).await;
+    if result.is_ok() {
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        if let Some(updated) = lock.extensions.get_mut(extension_id) {
+            updated.enabled = current.enabled;
+            updated.state = if current.enabled {
+                ExtensionStateKind::Enabled
+            } else {
+                ExtensionStateKind::Disabled
+            };
+            updated.installed_at = current.installed_at;
+            if let Err(error) = lock.save(&state.paths.lock_file) {
+                let _ = std::fs::remove_dir_all(&root);
+                let files = std::fs::rename(&backup_path, &root);
+                let mut restore = ExtensionsLock::load(&state.paths.lock_file)?;
+                restore.extensions.insert(extension_id.to_string(), current);
+                let restored_lock = restore.save(&state.paths.lock_file);
+                return Err(format!(
+                    "Cannot finalize custom integration update: {error}; rollback files={:?}, lock={:?}",
+                    files.err(),
+                    restored_lock.err()
+                ));
+            }
+        }
+        let _ = std::fs::remove_dir_all(&backup_path);
+        return Ok(lock.get(extension_id)?.clone());
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+    let restore_files = std::fs::rename(&backup_path, &root)
+        .map_err(|error| format!("Cannot restore custom integration files: {error}"));
+    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    lock.extensions.insert(extension_id.to_string(), current);
+    let restore_lock = lock.save(&state.paths.lock_file);
+    match (result, restore_files, restore_lock) {
+        (Err(error), Ok(()), Ok(())) => Err(error),
+        (Err(error), files, lock) => Err(format!(
+            "{error}; rollback failed: files={:?}, lock={:?}",
+            files.err(),
+            lock.err()
+        )),
+        _ => unreachable!(),
+    }
+}
+
+fn script_extension(language: ScriptLanguage) -> &'static str {
+    match language {
+        ScriptLanguage::Js => "js",
+        ScriptLanguage::Shell => "sh",
+        ScriptLanguage::Powershell => "ps1",
+    }
+}
+
+pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBuf, String> {
+    let names: &[&str] = match language {
+        ScriptLanguage::Js => &["node"],
+        ScriptLanguage::Shell => &["sh"],
+        ScriptLanguage::Powershell => &["pwsh", "powershell"],
+    };
+    let path = std::env::var_os("PATH").ok_or("PATH is not set")?;
+    for directory in std::env::split_paths(&path) {
+        for name in names {
+            for candidate in linked_candidate_names(name) {
+                let path = directory.join(candidate);
+                if is_linked_executable(&path) {
+                    return Ok(path);
+                }
+            }
+        }
+    }
+    Err(format!(
+        "Script interpreter is not available: {}",
+        names.join(" or ")
+    ))
+}
+
+pub fn search_path_executables(query: &str, limit: usize) -> Vec<PathExecutable> {
+    let needle = query.trim().to_ascii_lowercase();
+    let Some(path) = std::env::var_os("PATH") else {
+        return Vec::new();
+    };
+    let mut seen = std::collections::HashSet::new();
+    let mut matches = Vec::new();
+    for directory in std::env::split_paths(&path) {
+        let Ok(entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !is_linked_executable(&path) {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+                continue;
+            };
+            let key = name.to_ascii_lowercase();
+            if !seen.insert(key.clone()) {
+                continue;
+            }
+            let Some(score) = fuzzy_executable_score(&key, &needle) else {
+                continue;
+            };
+            matches.push((score, name.to_string(), path));
+        }
+    }
+    matches.sort_by(|left, right| {
+        left.0
+            .cmp(&right.0)
+            .then_with(|| left.1.len().cmp(&right.1.len()))
+            .then_with(|| left.1.cmp(&right.1))
+    });
+    matches
+        .into_iter()
+        .take(limit.clamp(1, 50))
+        .map(|(_, name, path)| PathExecutable {
+            name,
+            path: path.to_string_lossy().into_owned(),
+        })
+        .collect()
+}
+
+fn fuzzy_executable_score(candidate: &str, query: &str) -> Option<usize> {
+    if query.is_empty() {
+        return Some(3);
+    }
+    if candidate == query {
+        return Some(0);
+    }
+    if candidate.starts_with(query) {
+        return Some(1);
+    }
+    if candidate.contains(query) {
+        return Some(2);
+    }
+    let mut query_chars = query.chars();
+    let mut current = query_chars.next()?;
+    for character in candidate.chars() {
+        if character == current {
+            let Some(next) = query_chars.next() else {
+                return Some(3);
+            };
+            current = next;
+        }
+    }
+    None
+}
+
 pub async fn connect_bundled(
     state: &ExtensionState,
     extension_id: &str,
@@ -282,7 +833,8 @@ pub async fn connect_bundled(
         name: adapter.manifest.name,
         publisher_id: adapter.manifest.publisher.id,
         publisher_name: adapter.manifest.publisher.name,
-        install_type: ExtensionInstallType::Linked,
+        distribution_source: ExtensionDistributionSource::BuiltIn,
+        runtime_ownership: ExtensionRuntimeOwnership::System,
         provider_kind: ExtensionProviderKind::BundledStatic,
         state: ExtensionStateKind::Enabled,
         enabled: true,
@@ -436,8 +988,8 @@ pub async fn update(
     let _guard = state.mutation_lock.lock().await;
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let current = lock.get(extension_id)?.clone();
-    if current.install_type != ExtensionInstallType::Managed {
-        return Err("Linked extensions are updated by their external package manager".to_string());
+    if current.distribution_source != ExtensionDistributionSource::Npm {
+        return Err("Only NPM integrations are updated by Floter".to_string());
     }
     if current.pinned && version.is_none() {
         return Err(format!("Extension {extension_id} is pinned"));
@@ -445,7 +997,7 @@ pub async fn update(
     let package = current
         .package_name
         .as_deref()
-        .ok_or("Managed extension has no package name in the lock file")?;
+        .ok_or("NPM integration has no package name in the lock file")?;
     install_managed(
         state,
         package,
@@ -466,8 +1018,11 @@ pub async fn uninstall(
     state.provider.cancel_completions();
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let entry = lock.get(extension_id)?.clone();
+    let generated_local_root = state.paths.data.join(extension_id).join("integration");
+    let generated_local = is_generated_custom_integration(&entry)
+        && Path::new(&entry.manifest_path).starts_with(&generated_local_root);
     let mut moved = None;
-    if entry.install_type == ExtensionInstallType::Managed {
+    if entry.distribution_source == ExtensionDistributionSource::Npm {
         let source = state.paths.extensions.join(extension_id);
         if source.exists() {
             let placeholder = tempfile::Builder::new()
@@ -498,6 +1053,14 @@ pub async fn uninstall(
         std::fs::remove_dir_all(&target)
             .map_err(|error| format!("Cannot remove {}: {error}", target.display()))?;
     }
+    if generated_local && generated_local_root.exists() {
+        std::fs::remove_dir_all(&generated_local_root).map_err(|error| {
+            format!(
+                "Cannot remove generated integration {}: {error}",
+                generated_local_root.display()
+            )
+        })?;
+    }
     if remove_data {
         let data = state.paths.data.join(extension_id);
         if data.exists() {
@@ -519,8 +1082,8 @@ pub async fn rollback(
         .extensions
         .get_mut(extension_id)
         .ok_or_else(|| format!("Extension is not installed: {extension_id}"))?;
-    if entry.install_type != ExtensionInstallType::Managed {
-        return Err("Linked extensions cannot be rolled back by Floter".to_string());
+    if entry.distribution_source != ExtensionDistributionSource::Npm {
+        return Err("Only NPM integrations can be rolled back by Floter".to_string());
     }
     let previous = entry
         .previous_version
@@ -559,27 +1122,49 @@ pub async fn rollback(
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
-    let executable = managed_executable(&manifest, &previous_root)?;
+    let (executable, runtime_root, version_args, tool_version) = match &manifest.runtime {
+        Runtime::Bundled { .. } => {
+            let executable = managed_executable(&manifest, &previous_root)?;
+            let runtime_root = previous_root.join("runtime");
+            (executable, Some(runtime_root), Vec::new(), None)
+        }
+        Runtime::System { version_args, .. } => {
+            let executable = find_system_executable(&manifest)?;
+            let tool_version =
+                linked_tool_version(&manifest, &resolved.provider, &executable).await;
+            (executable, None, version_args.clone(), tool_version)
+        }
+        Runtime::Script { .. } => {
+            return Err("NPM rollback does not support script runtimes".to_string())
+        }
+    };
+    entry.runtime_ownership = match manifest.runtime {
+        Runtime::Bundled { .. } => ExtensionRuntimeOwnership::Bundled,
+        Runtime::System { .. } => ExtensionRuntimeOwnership::System,
+        Runtime::Script { .. } => ExtensionRuntimeOwnership::System,
+    };
     entry.executable_path = executable.to_string_lossy().into_owned();
-    let runtime_root = previous_root.join("runtime");
-    entry.runtime_root = Some(runtime_root.to_string_lossy().into_owned());
+    entry.runtime_root = runtime_root
+        .as_ref()
+        .map(|path| path.to_string_lossy().into_owned());
     let response = state
         .provider
         .describe(
             &ProviderInvocation {
                 extension_id: entry.id.clone(),
                 executable,
-                runtime_root: Some(runtime_root),
+                executable_prefix: Vec::new(),
+                runtime_root,
                 package_version: previous,
-                tool_version_hint: None,
-                version_args: Vec::new(),
+                tool_version_hint: tool_version.clone(),
+                version_args,
                 config: resolved.provider,
                 permissions: manifest.permissions,
             },
             true,
         )
         .await?;
-    entry.tool_version = Some(response.description.provider.version);
+    entry.tool_version = tool_version.or(Some(response.description.provider.version));
     let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
     entry.previous_signature_verified = Some(entry.signature_verified);
     entry.signature_verified = previous_signature_verified;
@@ -650,7 +1235,7 @@ async fn install_managed(
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let expected_entry = expected_id.and_then(|id| lock.extensions.get(id)).cloned();
     if let Some(entry) = expected_entry.as_ref() {
-        if entry.install_type != ExtensionInstallType::Managed
+        if entry.distribution_source != ExtensionDistributionSource::Npm
             || entry.package_name.as_deref() != Some(package)
         {
             return Err("Update package does not match the installed extension".to_string());
@@ -676,6 +1261,9 @@ async fn install_managed(
     let (package_json, manifest_path) = load_package_entry(&version_root)?;
     validate_package_entry(&package_json, &base_version, true)?;
     let manifest = ExtensionManifest::load(&manifest_path)?;
+    if manifest.distribution != crate::extensions::manifest::Distribution::Npm {
+        return Err("NPM packages must declare distribution.type = npm".to_string());
+    }
     if let Some(signatures) = manifest.signatures.as_ref() {
         download_and_verify_signature(state, &base_bytes, signatures).await?;
     }
@@ -718,47 +1306,65 @@ async fn install_managed(
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
-    let platform_package = resolved
-        .platform_package
-        .as_deref()
-        .ok_or("Managed extension has no platform package")?;
-    let platform_version =
-        resolve_registry_version(state, platform_package, Some(&base_version.version)).await?;
-    if platform_version.version != base_version.version {
-        return Err("Base and platform package versions must match".to_string());
-    }
-    let runtime_bytes = download_tarball(state, &platform_version.dist).await?;
-    let runtime_root = version_root.join("runtime");
-    std::fs::create_dir_all(&runtime_root)
-        .map_err(|error| format!("Cannot create runtime directory: {error}"))?;
-    safe_unpack(&runtime_bytes, &runtime_root)?;
-    let runtime_package: PackageJson = serde_json::from_slice(
-        &std::fs::read(runtime_root.join("package.json"))
-            .map_err(|error| format!("Platform package has no package.json: {error}"))?,
-    )
-    .map_err(|error| format!("Invalid platform package.json: {error}"))?;
-    validate_package_entry(&runtime_package, &platform_version, false)?;
-
-    let executable = managed_executable(&manifest, &version_root)?;
-    make_executable(&executable)?;
+    let (executable, runtime_root, version_args, tool_version) = match &manifest.runtime {
+        Runtime::Bundled { .. } => {
+            let platform_package = resolved
+                .platform_package
+                .as_deref()
+                .ok_or("Bundled runtime has no platform package")?;
+            let platform_version =
+                resolve_registry_version(state, platform_package, Some(&base_version.version))
+                    .await?;
+            if platform_version.version != base_version.version {
+                return Err("Base and platform package versions must match".to_string());
+            }
+            let runtime_bytes = download_tarball(state, &platform_version.dist).await?;
+            let runtime_root = version_root.join("runtime");
+            std::fs::create_dir_all(&runtime_root)
+                .map_err(|error| format!("Cannot create runtime directory: {error}"))?;
+            safe_unpack(&runtime_bytes, &runtime_root)?;
+            let runtime_package: PackageJson = serde_json::from_slice(
+                &std::fs::read(runtime_root.join("package.json"))
+                    .map_err(|error| format!("Platform package has no package.json: {error}"))?,
+            )
+            .map_err(|error| format!("Invalid platform package.json: {error}"))?;
+            validate_package_entry(&runtime_package, &platform_version, false)?;
+            let executable = managed_executable(&manifest, &version_root)?;
+            make_executable(&executable)?;
+            (executable, Some(runtime_root), Vec::new(), None)
+        }
+        Runtime::System { version_args, .. } => {
+            let executable = find_system_executable(&manifest)?;
+            let tool_version =
+                linked_tool_version(&manifest, &resolved.provider, &executable).await;
+            (executable, None, version_args.clone(), tool_version)
+        }
+        Runtime::Script { .. } => {
+            return Err("NPM packages cannot use local script runtimes".to_string())
+        }
+    };
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.clone(),
-        runtime_root: Some(runtime_root.clone()),
+        runtime_root: runtime_root.clone(),
         package_version: base_version.version.clone(),
-        tool_version_hint: None,
-        version_args: Vec::new(),
+        tool_version_hint: tool_version.clone(),
+        version_args,
         config: resolved.provider.clone(),
         permissions: manifest.permissions.clone(),
+        executable_prefix: Vec::new(),
     };
     let description = state.provider.describe(&invocation, true).await?;
 
     let old = lock.extensions.get(&manifest.id).cloned();
     if old
         .as_ref()
-        .is_some_and(|entry| entry.install_type != ExtensionInstallType::Managed)
+        .is_some_and(|entry| entry.distribution_source != ExtensionDistributionSource::Npm)
     {
-        return Err(format!("Extension {} is already linked", manifest.id));
+        return Err(format!(
+            "Integration {} is already connected from a non-NPM source",
+            manifest.id
+        ));
     }
     let extension_root = state.paths.extensions.join(&manifest.id);
     let versions_root = extension_root.join("versions");
@@ -780,11 +1386,20 @@ async fn install_managed(
             .strip_prefix(&version_root)
             .map_err(|_| "Manifest escaped staged version root")?,
     );
-    let final_runtime = target.join("runtime");
-    let final_executable = final_runtime.join(match &manifest.runtime {
-        Runtime::Managed { executable, .. } => validate_relative_path(executable, "executable")?,
-        Runtime::Linked { .. } => return Err("NPM installation requires a managed runtime".into()),
-    });
+    let (runtime_ownership, final_executable, final_runtime) = match &manifest.runtime {
+        Runtime::Bundled { executable, .. } => {
+            let final_runtime = target.join("runtime");
+            (
+                ExtensionRuntimeOwnership::Bundled,
+                final_runtime.join(validate_relative_path(executable, "executable")?),
+                Some(final_runtime),
+            )
+        }
+        Runtime::System { .. } => (ExtensionRuntimeOwnership::System, executable, None),
+        Runtime::Script { .. } => {
+            return Err("NPM packages cannot use local script runtimes".to_string())
+        }
+    };
     let now = unix_now();
     let enabled = old.as_ref().is_none_or(|entry| entry.enabled);
     let entry = ExtensionLockEntry {
@@ -792,7 +1407,8 @@ async fn install_managed(
         name: manifest.name.clone(),
         publisher_id: manifest.publisher.id.clone(),
         publisher_name: manifest.publisher.name.clone(),
-        install_type: ExtensionInstallType::Managed,
+        distribution_source: ExtensionDistributionSource::Npm,
+        runtime_ownership,
         provider_kind: ExtensionProviderKind::Executable,
         state: if enabled {
             ExtensionStateKind::Enabled
@@ -802,7 +1418,7 @@ async fn install_managed(
         enabled,
         package_name: Some(package.to_string()),
         package_version: base_version.version.clone(),
-        tool_version: Some(description.description.provider.version),
+        tool_version: tool_version.or(Some(description.description.provider.version)),
         integrity: base_version.dist.integrity.clone(),
         signature_verified: manifest.signatures.is_some(),
         previous_signature_verified: old.as_ref().map(|entry| entry.signature_verified),
@@ -810,7 +1426,7 @@ async fn install_managed(
         previous_version: old.as_ref().map(|entry| entry.current_version.clone()),
         manifest_path: final_manifest.to_string_lossy().into_owned(),
         executable_path: final_executable.to_string_lossy().into_owned(),
-        runtime_root: Some(final_runtime.to_string_lossy().into_owned()),
+        runtime_root: final_runtime.map(|path| path.to_string_lossy().into_owned()),
         installed_at: old.as_ref().map_or(now, |entry| entry.installed_at),
         updated_at: now,
         pinned: old.as_ref().is_some_and(|entry| entry.pinned),
@@ -880,8 +1496,14 @@ async fn install_linked(
         &manifest.permissions,
         request.approved_permissions.as_deref(),
     )?;
-    if !matches!(manifest.runtime, Runtime::Linked { .. }) {
-        return Err("Linked installation requires a linked runtime manifest".to_string());
+    if manifest.distribution != crate::extensions::manifest::Distribution::Local {
+        return Err("Local connections must declare distribution.type = local".to_string());
+    }
+    if !matches!(
+        manifest.runtime,
+        Runtime::System { .. } | Runtime::Script { .. }
+    ) {
+        return Err("Local connection requires a system or script runtime manifest".to_string());
     }
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
@@ -895,24 +1517,72 @@ async fn install_linked(
             ));
         }
         path
+    } else if matches!(manifest.runtime, Runtime::Script { .. }) {
+        PathBuf::from("script-provider")
     } else {
-        find_linked_executable(&manifest)?
+        find_system_executable(&manifest)?
     };
     let tool_version = linked_tool_version(&manifest, &resolved.provider, &executable).await;
+    let executable_prefix = match &manifest.runtime {
+        Runtime::Script { language, path, .. } => {
+            let script = manifest_path.parent().unwrap_or(Path::new(".")).join(path);
+            if !script.is_file() {
+                return Err(format!("Script file is missing: {}", script.display()));
+            }
+            match language {
+                ScriptLanguage::Js => vec![script.to_string_lossy().into_owned()],
+                ScriptLanguage::Shell => vec![script.to_string_lossy().into_owned()],
+                ScriptLanguage::Powershell => {
+                    vec!["-File".into(), script.to_string_lossy().into_owned()]
+                }
+            }
+        }
+        _ => Vec::new(),
+    };
+    let executable = match &manifest.runtime {
+        Runtime::Script { language, .. } => find_script_interpreter(*language)?,
+        _ => executable,
+    };
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.clone(),
+        executable_prefix,
         runtime_root: None,
         package_version: package_version.clone(),
         tool_version_hint: tool_version.clone(),
         version_args: match &manifest.runtime {
-            Runtime::Linked { version_args, .. } => version_args.clone(),
-            Runtime::Managed { .. } => Vec::new(),
+            Runtime::System { version_args, .. } => version_args.clone(),
+            Runtime::Script { version_args, .. } => version_args.clone(),
+            Runtime::Bundled { .. } => Vec::new(),
         },
         config: resolved.provider,
         permissions: manifest.permissions.clone(),
     };
-    let response = state.provider.describe(&invocation, true).await?;
+    let response = if manifest.provider.kind == ProviderKind::StaticDescriptor {
+        let descriptor_path = manifest_path
+            .parent()
+            .ok_or("Local manifest has no parent directory")?
+            .join(
+                manifest
+                    .provider
+                    .descriptor
+                    .as_deref()
+                    .ok_or("Static descriptor path is missing")?,
+            );
+        let description = crate::extensions::provider::ProviderDescription::parse(
+            &std::fs::read(&descriptor_path)
+                .map_err(|error| format!("Cannot read static provider descriptor: {error}"))?,
+        )?;
+        crate::extensions::provider::validate_execution_descriptors(&description, &invocation)?;
+        crate::extensions::provider::ProviderResponse {
+            description,
+            runtime_available: true,
+            cached: true,
+            stderr: None,
+        }
+    } else {
+        state.provider.describe(&invocation, true).await?
+    };
     let integration_version = if is_package_directory {
         package_version
     } else {
@@ -928,8 +1598,12 @@ async fn install_linked(
         name: manifest.name,
         publisher_id: manifest.publisher.id,
         publisher_name: manifest.publisher.name,
-        install_type: ExtensionInstallType::Linked,
-        provider_kind: ExtensionProviderKind::Executable,
+        distribution_source: ExtensionDistributionSource::Local,
+        runtime_ownership: ExtensionRuntimeOwnership::System,
+        provider_kind: match manifest.provider.kind {
+            ProviderKind::Executable => ExtensionProviderKind::Executable,
+            ProviderKind::StaticDescriptor => ExtensionProviderKind::StaticDescriptor,
+        },
         state: ExtensionStateKind::Enabled,
         enabled: true,
         package_name: request.package,
@@ -1321,8 +1995,8 @@ fn managed_executable(
     manifest: &ExtensionManifest,
     version_root: &Path,
 ) -> Result<PathBuf, String> {
-    let Runtime::Managed { executable, .. } = &manifest.runtime else {
-        return Err("Managed installation requires a managed runtime".to_string());
+    let Runtime::Bundled { executable, .. } = &manifest.runtime else {
+        return Err("Bundled installation requires a bundled runtime".to_string());
     };
     let executable = version_root
         .join("runtime")
@@ -1336,7 +2010,7 @@ fn managed_executable(
     Ok(executable)
 }
 
-fn make_executable(path: &Path) -> Result<(), String> {
+pub(crate) fn make_executable(path: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -1355,12 +2029,12 @@ fn find_installed_manifest(version_root: &Path) -> Result<PathBuf, String> {
     load_package_entry(version_root).map(|(_, path)| path)
 }
 
-fn find_linked_executable(manifest: &ExtensionManifest) -> Result<PathBuf, String> {
-    let Runtime::Linked {
+pub(crate) fn find_system_executable(manifest: &ExtensionManifest) -> Result<PathBuf, String> {
+    let Runtime::System {
         executable_names, ..
     } = &manifest.runtime
     else {
-        return Err("Expected linked runtime".to_string());
+        return Err("Expected a system runtime".to_string());
     };
     let path = std::env::var_os("PATH").ok_or("PATH is not set")?;
     for directory in std::env::split_paths(&path) {
@@ -1374,12 +2048,12 @@ fn find_linked_executable(manifest: &ExtensionManifest) -> Result<PathBuf, Strin
         }
     }
     Err(format!(
-        "Cannot find linked executable: {}",
+        "Cannot find system executable: {}",
         executable_names.join(", ")
     ))
 }
 
-fn linked_candidate_names(name: &str) -> Vec<String> {
+pub(crate) fn linked_candidate_names(name: &str) -> Vec<String> {
     #[cfg(target_os = "windows")]
     {
         if Path::new(name).extension().is_some() {
@@ -1429,7 +2103,7 @@ pub(crate) async fn linked_tool_version(
     provider: &crate::extensions::manifest::ProviderConfig,
     executable: &Path,
 ) -> Option<String> {
-    let Runtime::Linked { version_args, .. } = &manifest.runtime else {
+    let Runtime::System { version_args, .. } = &manifest.runtime else {
         return None;
     };
     if version_args.is_empty() {
@@ -1496,7 +2170,204 @@ fn validate_package_name(package: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::catalog::{self, CatalogSearchRequest};
+    use crate::extensions::ExtensionPaths;
     use ed25519_dalek::{Signer, SigningKey};
+
+    fn test_state(root: &Path) -> ExtensionState {
+        ExtensionState::from_paths(ExtensionPaths::from_root(root.to_path_buf())).unwrap()
+    }
+
+    fn current_platforms() -> Vec<PlatformOs> {
+        vec![PlatformTarget::current().unwrap().os]
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn creates_an_executable_integration_with_an_exact_execution_plan() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = Path::new("/usr/bin/printf");
+        if !executable.is_file() {
+            return;
+        }
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.printf-test".into(),
+                name: "Printf test".into(),
+                command: "printf-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: vec!["prefix with spaces".into()],
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(entry.provider_kind, ExtensionProviderKind::StaticDescriptor);
+        let results = catalog::search(
+            &state,
+            &CatalogSearchRequest {
+                query: "printf-test".into(),
+                tokens: vec!["printf-test".into(), "user value".into()],
+                cwd: None,
+                limit: 10,
+                include_system_commands: false,
+            },
+            &[],
+        )
+        .await
+        .unwrap();
+        let protected = results[0].execution.as_ref().unwrap();
+        let plan = state
+            .take_execution_plan(protected.plan_token.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(Path::new(&plan.program), executable);
+        assert_eq!(plan.args, ["prefix with spaces", "user value"]);
+        assert!(plan.inherit_environment);
+    }
+
+    #[tokio::test]
+    async fn creates_a_shell_script_integration_with_interpreter_prefix() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.shell-test".into(),
+                name: "Shell test".into(),
+                command: "shell-test".into(),
+                version: "1.0.0".into(),
+                executable_path: String::new(),
+                mode: "script".into(),
+                script_language: Some(ScriptLanguage::Shell),
+                script_content: Some("printf '%s\\n' \"$@\"".into()),
+                args_prefix: vec!["default value".into()],
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let (_, invocation) = crate::extensions::registry::static_description(&entry).unwrap();
+        assert!(invocation.executable.is_file());
+        assert!(Path::new(&invocation.executable_prefix[0]).is_file());
+        let results = catalog::search(
+            &state,
+            &CatalogSearchRequest {
+                query: "shell-test".into(),
+                tokens: vec!["shell-test".into(), "user value".into()],
+                cwd: None,
+                limit: 10,
+                include_system_commands: false,
+            },
+            &[],
+        )
+        .await
+        .unwrap();
+        let protected = results[0].execution.as_ref().unwrap();
+        let plan = state
+            .take_execution_plan(protected.plan_token.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(plan.args[0], invocation.executable_prefix[0]);
+        assert_eq!(&plan.args[1..], ["default value", "user value"]);
+    }
+
+    #[tokio::test]
+    async fn edits_and_reloads_a_generated_custom_integration() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let request = CustomIntegrationRequest {
+            id: "local.edit-test".into(),
+            name: "Edit test".into(),
+            command: "edit-test".into(),
+            version: "1.0.0".into(),
+            executable_path: String::new(),
+            mode: "script".into(),
+            script_language: Some(ScriptLanguage::Shell),
+            script_content: Some("printf old".into()),
+            args_prefix: vec!["old".into()],
+            version_args: Vec::new(),
+            permissions: vec![Permission::Environment],
+            platforms: current_platforms(),
+        };
+        let created = create_custom_integration(&state, request.clone())
+            .await
+            .unwrap();
+        assert!(is_generated_custom_integration(&created));
+
+        let mut changed = request;
+        changed.name = "Edited test".into();
+        changed.command = "edited-test".into();
+        changed.version = "1.1.0".into();
+        changed.script_content = Some("printf new".into());
+        changed.args_prefix = vec!["new value".into()];
+        let updated = update_custom_integration(&state, "local.edit-test", changed)
+            .await
+            .unwrap();
+        let definition = custom_integration_definition(&state, "local.edit-test").unwrap();
+
+        assert_eq!(updated.name, "Edited test");
+        assert_eq!(definition.command, "edited-test");
+        assert_eq!(definition.version, "1.1.0");
+        assert_eq!(definition.script_content.as_deref(), Some("printf new"));
+        assert_eq!(definition.args_prefix, ["new value"]);
+    }
+
+    #[tokio::test]
+    async fn failed_custom_edit_restores_the_previous_integration() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let request = CustomIntegrationRequest {
+            id: "local.restore-test".into(),
+            name: "Restore test".into(),
+            command: "restore-test".into(),
+            version: "1.0.0".into(),
+            executable_path: String::new(),
+            mode: "script".into(),
+            script_language: Some(ScriptLanguage::Shell),
+            script_content: Some("printf safe".into()),
+            args_prefix: Vec::new(),
+            version_args: Vec::new(),
+            permissions: vec![Permission::Environment],
+            platforms: current_platforms(),
+        };
+        create_custom_integration(&state, request.clone())
+            .await
+            .unwrap();
+        let mut invalid = request;
+        invalid.script_content = Some(String::new());
+        assert!(
+            update_custom_integration(&state, "local.restore-test", invalid)
+                .await
+                .is_err()
+        );
+
+        let restored = custom_integration_definition(&state, "local.restore-test").unwrap();
+        assert_eq!(restored.script_content.as_deref(), Some("printf safe"));
+        assert!(ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .extensions
+            .contains_key("local.restore-test"));
+    }
 
     fn archive_with_file(path: &str, contents: &[u8]) -> Vec<u8> {
         let encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
@@ -1609,6 +2480,15 @@ mod tests {
         assert!(validate_package_name("@/tool").is_err());
         assert!(validate_package_name("@scope/").is_err());
         assert!(validate_package_name("UPPER").is_err());
+    }
+
+    #[test]
+    fn fuzzy_path_search_prefers_exact_prefix_and_subsequence_matches() {
+        assert_eq!(fuzzy_executable_score("cargo", "cargo"), Some(0));
+        assert_eq!(fuzzy_executable_score("cargo-clippy", "cargo"), Some(1));
+        assert_eq!(fuzzy_executable_score("my-cargo-tool", "cargo"), Some(2));
+        assert_eq!(fuzzy_executable_score("cargo", "cgo"), Some(3));
+        assert_eq!(fuzzy_executable_score("cargo", "xyz"), None);
     }
 
     #[test]

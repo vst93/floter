@@ -5,6 +5,9 @@
 >
 > 当前状态：阶段 1-7 全部完成。扩展协议（FEP-1~6）、Rust 后端、React 命令联想、插件管理页面、V Tools 静态适配器、端到端验证、动态 complete、NPM 签名分发、SDK 模板、权限模型、声明式配置和跨设备同步均已落地。
 
+> Manifest v2 已将分发来源、运行时所有权和 Provider 类型拆为独立字段；v1
+> manifest、lock 和同步导出在读取时自动迁移。
+
 ---
 
 ## 一、项目定位
@@ -180,9 +183,9 @@ Wrapper 可以：
 
 Floter 不执行 `npm install`，而是直接使用 Registry HTTP API 下载 `.tgz`、校验 `dist.integrity` 并解包。用户无需安装 Node.js。Floter 永远不执行 NPM 的 `preinstall`、`install`、`postinstall` 或包内 JavaScript。
 
-#### 两种安装模式
+#### 分发与运行时组合
 
-**managed（Floter 托管）**
+**`npm + bundled`（Floter 托管）**
 
 - Floter 从 NPM 下载对应平台二进制。
 - 基础包保存清单、图标和文档，`platformPackages` 按当前目标选择实际二进制包。
@@ -191,11 +194,12 @@ Floter 不执行 `npm install`，而是直接使用 Registry HTTP API 下载 `.t
 - Unix Host 在完整性验证后补充用户可执行位；Windows 不修改 ACL。
 - Floter 知道安装目录，可以直接更新、回滚和删除，不污染系统 PATH。
 
-**linked（关联现有工具）**
+**`npm/local + system`（使用系统工具）**
 
 - Floter 检测 PATH 或用户指定路径中的工具。
 - `executableNames` 按顺序探测；Windows 自动考虑 `.exe`、`.cmd` 和 `.bat`，Unix 只接受普通可执行文件。
-- Floter 只管理关联关系。删除只解除注册，绝不删除外部程序。更新由工具自己的包管理器负责。
+- NPM 可以分发和更新集成描述，本地 manifest 也可以直接连接。
+- Floter 不管理外部程序。删除集成时绝不删除工具，工具更新由其包管理器负责。
 - 管理页面显示「外部管理」。
 
 安装时让用户选择：
@@ -235,7 +239,7 @@ V Tools
 
 - **macOS**：必须区分 `darwin-arm64` 与 `darwin-x64`。托管包可以是未签名程序，但管理页必须显示签名状态；正式源应提供公证产物。
 - **Linux**：托管包应尽量使用静态链接或声明 `diagnose` 检查系统动态库。Host 不假设发行版，不自动运行 `apt`、`dnf` 或 `pacman`。
-- **Windows**：可执行入口可以是 `.exe`。第一版托管包不接受 `.cmd`/`.bat` 作为主入口，避免隐式 `cmd.exe` 和不可控转义；linked 模式可以识别它们，但执行时必须显式选择对应宿主。
+- **Windows**：可执行入口可以是 `.exe`。bundled runtime 不接受 `.cmd`/`.bat` 作为主入口，避免隐式 `cmd.exe` 和不可控转义；system runtime 可以识别它们，但执行时必须显式选择对应宿主。
 
 #### 四层版本独立
 
@@ -893,7 +897,7 @@ floter/
    - NPM Registry API 调用（下载 `.tgz`）
    - integrity 校验
    - 安全解包（拒绝路径逃逸）
-   - managed / linked 两种模式
+   - 分发来源、运行时所有权、Provider 类型三个正交维度
    - 原子安装/更新/回滚
    - `extensions.lock.json` 管理
    - 状态机实现
@@ -979,13 +983,17 @@ floter/
 
 #### 第一步：静态适配器（不改 `v` 代码）
 
-在 Floter 侧维护一个 V Adapter（linked 模式），检测 PATH 中的 `v`，用静态 Manifest 声明 `jv`、`diff`、`codec`、`genpwd`、`tt` 这 5 个核心插件的命令和参数。
+在 Floter 侧维护一个 V Adapter（`built-in + system + static-descriptor`），检测
+PATH 中的 `v`，用静态 Manifest 声明 `jv`、`diff`、`codec`、`genpwd`、`tt`
+这 5 个核心插件的命令和参数。
 
 管理页将其显示为“内置集成 · 系统工具”。检测只表示可连接；用户确认连接并
 写入 lock 后，命令才进入目录。用户断开连接时不删除 `v`。
 
 1. **编写 V Adapter Manifest**
-   - `runtime.type = "linked"`
+   - `distribution.type = "built-in"`
+   - `runtime.type = "system"`
+   - `provider.type = "static-descriptor"`
    - `executableNames = ["v", "v.exe"]`
    - 静态声明 5 个核心插件的命令、参数和执行方式
    - 参数信息参考 Codex 审计结果（`plugin/jv/jv.go`、`plugin/diff/diff.go` 等）

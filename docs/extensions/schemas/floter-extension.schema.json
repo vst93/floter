@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://floter.dev/schemas/extension/v1.json",
+  "$id": "https://floter.dev/schemas/extension/v2.json",
   "title": "Floter Extension Package Manifest",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "id", "name", "publisher", "compatibility", "runtime", "provider"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "enum": ["1.0", "2.0"] },
     "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$" },
     "name": { "type": "string", "minLength": 1, "maxLength": 80 },
     "description": { "type": "string", "maxLength": 240, "default": "" },
@@ -30,22 +30,33 @@
         "providerProtocol": { "type": "string", "minLength": 1 }
       }
     },
-    "runtime": {
-      "oneOf": [
-        { "$ref": "#/$defs/managedRuntime" },
-        { "$ref": "#/$defs/linkedRuntime" }
-      ]
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["npm", "local", "built-in"] }
+      }
     },
+    "runtime": { "type": "object" },
     "provider": {
       "type": "object",
       "additionalProperties": false,
       "required": ["argsPrefix"],
       "properties": {
+        "type": { "enum": ["executable", "static-descriptor"] },
+        "descriptor": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
         "argsPrefix": { "type": "array", "items": { "type": "string" }, "maxItems": 16 },
         "describeTimeoutMs": { "type": "integer", "minimum": 100, "maximum": 5000, "default": 5000 },
         "completeTimeoutMs": { "type": "integer", "minimum": 50, "maximum": 3000, "default": 800 },
         "environment": { "type": "object", "additionalProperties": { "type": "string" } }
       }
+    },
+    "platforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["darwin", "linux", "windows"] }
     },
     "signatures": {
       "type": "object",
@@ -76,6 +87,60 @@
       "items": { "enum": ["filesystem-read", "filesystem-write", "network-fetch", "process-spawn", "clipboard-read", "clipboard-write", "environment"] }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": "1.0" } } },
+      "then": {
+        "properties": {
+          "runtime": { "oneOf": [{ "$ref": "#/$defs/managedRuntime" }, { "$ref": "#/$defs/linkedRuntime" }] }
+        }
+      },
+      "else": {
+        "required": ["distribution"],
+        "properties": {
+          "runtime": { "oneOf": [{ "$ref": "#/$defs/bundledRuntime" }, { "$ref": "#/$defs/systemRuntime" }, { "$ref": "#/$defs/scriptRuntime" }] },
+          "provider": { "required": ["type", "argsPrefix"] }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "distribution": { "properties": { "type": { "const": "npm" } } },
+              "runtime": { "properties": { "type": { "const": "bundled" } } },
+              "provider": { "properties": { "type": { "const": "executable" } } }
+            }
+          },
+          {
+            "properties": {
+              "distribution": { "properties": { "type": { "const": "npm" } } },
+              "runtime": { "properties": { "type": { "const": "system" } } },
+              "provider": { "properties": { "type": { "const": "executable" } } }
+            }
+          },
+          {
+            "properties": {
+              "distribution": { "properties": { "type": { "const": "local" } } },
+              "runtime": { "properties": { "type": { "const": "system" } } },
+              "provider": { "properties": { "type": { "enum": ["executable", "static-descriptor"] } } }
+            }
+          },
+          {
+            "properties": {
+              "distribution": { "properties": { "type": { "const": "local" } } },
+              "runtime": { "properties": { "type": { "const": "script" } } },
+              "provider": { "properties": { "type": { "enum": ["executable", "static-descriptor"] } } }
+            }
+          },
+          {
+            "properties": {
+              "distribution": { "properties": { "type": { "const": "built-in" } } },
+              "runtime": { "properties": { "type": { "const": "system" } } },
+              "provider": { "properties": { "type": { "const": "static-descriptor" } } }
+            }
+          }
+        ]
+      }
+    }
+  ],
   "$defs": {
     "managedRuntime": {
       "type": "object",
@@ -98,6 +163,41 @@
       "properties": {
         "type": { "const": "linked" },
         "executableNames": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[^/\\\\]+$" } },
+        "versionArgs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "bundledRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "platformPackages", "executable"],
+      "properties": {
+        "type": { "const": "bundled" },
+        "platformPackages": {
+          "type": "object",
+          "propertyNames": { "pattern": "^(darwin|linux|windows)-(arm64|x64)$" },
+          "additionalProperties": { "type": "string", "pattern": "^(?:@[^/]+/)?[^@/]+$" }
+        },
+        "executable": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
+      }
+    },
+    "systemRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "executableNames"],
+      "properties": {
+        "type": { "const": "system" },
+        "executableNames": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[^/\\\\]+$" } },
+        "versionArgs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "scriptRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "language", "path"],
+      "properties": {
+        "type": { "const": "script" },
+        "language": { "enum": ["js", "shell", "powershell"] },
+        "path": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
         "versionArgs": { "type": "array", "items": { "type": "string" } }
       }
     }

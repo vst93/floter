@@ -387,6 +387,32 @@ async fn load_provider_commands_uncached(
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let mut result = Vec::new();
     for entry in lock.extensions.values().filter(|entry| entry.enabled) {
+        if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
+            match crate::extensions::registry::static_description(entry) {
+                Ok((description, invocation)) => {
+                    let namespace = namespace_for(&entry.id);
+                    let source_name = description.provider.name.clone();
+                    result.extend(description.commands.into_iter().map(|descriptor| {
+                        LoadedProviderCommand {
+                            descriptor,
+                            invocation: invocation.clone(),
+                            namespace: namespace.clone(),
+                            source_name: source_name.clone(),
+                            runtime_available: crate::extensions::registry::runtime_available(
+                                entry,
+                            ),
+                            configured_args: Vec::new(),
+                            dynamic_completion_available: false,
+                        }
+                    }));
+                }
+                Err(error) => eprintln!(
+                    "floter: cannot load static integration {}: {error}",
+                    entry.id
+                ),
+            }
+            continue;
+        }
         if entry.provider_kind == ExtensionProviderKind::BundledStatic {
             result.extend(bundled_static_provider_commands(
                 Some(entry),
@@ -899,7 +925,8 @@ mod tests {
             name: adapter.manifest.name.clone(),
             publisher_id: adapter.manifest.publisher.id.clone(),
             publisher_name: adapter.manifest.publisher.name.clone(),
-            install_type: crate::extensions::lock::ExtensionInstallType::Linked,
+            distribution_source: crate::extensions::lock::ExtensionDistributionSource::BuiltIn,
+            runtime_ownership: crate::extensions::lock::ExtensionRuntimeOwnership::System,
             provider_kind: ExtensionProviderKind::BundledStatic,
             state: crate::extensions::lock::ExtensionStateKind::Enabled,
             enabled: true,

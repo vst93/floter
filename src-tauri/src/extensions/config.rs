@@ -83,6 +83,15 @@ pub struct ExtensionConfiguration {
     pub open_plan: Option<ExecutionPlan>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigurationExportDocument {
+    format_version: u32,
+    extension_id: String,
+    config_version: u64,
+    values: BTreeMap<String, Value>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StoredConfiguration {
@@ -161,6 +170,37 @@ pub async fn set(
         &values,
     )?;
     Ok(configuration_for_ipc(descriptor, values, None))
+}
+
+pub async fn export_json(
+    state: &ExtensionState,
+    extension_id: &str,
+    values: BTreeMap<String, Value>,
+) -> Result<String, String> {
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let entry = lock.get(extension_id)?;
+    let (descriptor, _) = descriptor(state, entry).await?;
+    validate_descriptor(&descriptor)?;
+    if descriptor.owner != ConfigurationOwner::Host {
+        return Err(format!(
+            "Extension {extension_id} manages its own configuration"
+        ));
+    }
+    validate_values(&descriptor.schema, &values)?;
+    let document = ConfigurationExportDocument {
+        format_version: 1,
+        extension_id: extension_id.to_string(),
+        config_version: descriptor.config_version,
+        values: redact_exported_passwords(&descriptor.schema, values),
+    };
+    let mut json = serde_json::to_string_pretty(&document)
+        .map_err(|error| format!("Cannot serialize extension configuration export: {error}"))?;
+    json.push('\n');
+    Ok(json)
+}
+
+pub fn write_export(path: &Path, json: &str) -> Result<(), String> {
+    atomic_write(path, json.as_bytes())
 }
 
 pub(crate) fn export_values(
@@ -851,6 +891,29 @@ mod tests {
     }
 
     #[test]
+    fn serializes_a_portable_configuration_export_without_secrets() {
+        let document = ConfigurationExportDocument {
+            format_version: 1,
+            extension_id: "io.example.tool".into(),
+            config_version: 3,
+            values: BTreeMap::from([
+                (
+                    "endpoint".into(),
+                    Value::String("https://example.com".into()),
+                ),
+                ("apiKey".into(), Value::String(PASSWORD_PLACEHOLDER.into())),
+            ]),
+        };
+
+        let json = serde_json::to_string(&document).unwrap();
+
+        assert!(json.contains("\"formatVersion\":1"));
+        assert!(json.contains("\"extensionId\":\"io.example.tool\""));
+        assert!(json.contains("\"configVersion\":3"));
+        assert!(!json.contains("secret"));
+    }
+
+    #[test]
     fn redacts_password_values_and_defaults_for_ipc() {
         let mut api_key = field("apiKey", ConfigurationFieldType::Password);
         api_key.default = Some(Value::String("default-secret".into()));
@@ -955,11 +1018,14 @@ mod tests {
         let mut invocation = ProviderInvocation {
             extension_id: "io.example.tool".into(),
             executable: "tool".into(),
+            executable_prefix: Vec::new(),
             runtime_root: None,
             package_version: "1.0.0".into(),
             tool_version_hint: None,
             version_args: Vec::new(),
             config: crate::extensions::manifest::ProviderConfig {
+                kind: crate::extensions::manifest::ProviderKind::Executable,
+                descriptor: None,
                 args_prefix: Vec::new(),
                 describe_timeout_ms: 5_000,
                 complete_timeout_ms: 800,

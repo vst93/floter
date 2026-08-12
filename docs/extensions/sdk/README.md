@@ -1,7 +1,8 @@
 # Floter 第三方扩展 SDK
 
-Floter 扩展是一个 NPM 分发包加一个原生 Provider 程序。NPM 只负责发现、版本
-解析和下载；Floter 不执行 JavaScript，也不运行 NPM lifecycle scripts。
+Floter 集成由 manifest 与 Provider 组成。NPM 可以同时分发工具运行时，也可以
+只分发集成描述并连接系统中已有的工具；Floter 不执行 JavaScript，也不运行
+NPM lifecycle scripts。
 
 ## 选择入口
 
@@ -23,9 +24,10 @@ Floter 扩展是一个 NPM 分发包加一个原生 Provider 程序。NPM 只负
    输出必须使用同一个 ID。
 2. 实现 `--floter describe --protocol 1`。需要上下文补全时再实现 `complete`，
    需要健康检查时再实现 `diagnose`。
-3. 为每个支持的目标编译原生可执行文件，并分别放入平台 NPM 包。
-4. 在基础包中放入 `package.json` 和 `floter.extension.json`，用
-   `runtime.platformPackages` 关联同版本的平台包。
+3. 选择运行时所有权：`bundled` 需要为每个目标编译平台包；`system` 通过
+   `executableNames` 连接用户已有工具。
+4. 在基础包中放入 `package.json` 和 v2 `floter.extension.json`；bundled
+   runtime 用 `runtime.platformPackages` 关联同版本的平台包。
 5. 本地验证 JSON、协议输出和三平台产物，再发布平台包和基础包。
 
 基础包和平台包必须使用同一个 SemVer 版本。Provider 报告的工具版本可以独立

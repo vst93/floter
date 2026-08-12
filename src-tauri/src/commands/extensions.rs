@@ -4,11 +4,12 @@ use crate::extensions::catalog::{
 };
 use crate::extensions::config::{self, ExtensionConfiguration};
 use crate::extensions::install::{
-    self, ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult,
+    self, CustomIntegrationDefinition, CustomIntegrationRequest, ExtensionInstallRequest,
+    ExtensionPermissionReview, ExtensionSearchResult, PathExecutable,
 };
 use crate::extensions::lock::{
-    ExtensionInstallType, ExtensionLockEntry, ExtensionProviderKind, ExtensionStateKind,
-    ExtensionsLock,
+    ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+    ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::Permission;
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
@@ -29,7 +30,7 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
     let mut items = lock
         .list()
         .into_iter()
-        .map(|entry| ExtensionListItem::installed(entry, &detected_adapters))
+        .map(ExtensionListItem::installed)
         .collect::<Vec<_>>();
     for adapter in &detected_adapters {
         if lock.extensions.contains_key(&adapter.manifest.id) {
@@ -50,32 +51,26 @@ pub struct ExtensionListItem {
     pub runtime_available: bool,
     pub reconnect_available: bool,
     pub homepage: Option<String>,
+    pub generated_custom: bool,
 }
 
 impl ExtensionListItem {
-    fn installed(
-        entry: ExtensionLockEntry,
-        detected_adapters: &[crate::extensions::static_adapter::StaticAdapter],
-    ) -> Self {
-        let stored_runtime_available = match entry.install_type {
-            ExtensionInstallType::Managed => Path::new(&entry.executable_path).is_file(),
-            ExtensionInstallType::Linked => {
-                crate::extensions::static_adapter::is_linked_executable(Path::new(
-                    &entry.executable_path,
-                ))
-            }
-        };
-        let reconnect_available = entry.provider_kind == ExtensionProviderKind::BundledStatic
+    fn installed(entry: ExtensionLockEntry) -> Self {
+        let generated_custom = install::is_generated_custom_integration(&entry);
+        let stored_runtime_available = crate::extensions::registry::runtime_available(&entry);
+        let reconnect_available = entry.runtime_ownership == ExtensionRuntimeOwnership::System
             && !stored_runtime_available
-            && detected_adapters
-                .iter()
-                .any(|adapter| adapter.manifest.id == entry.id && adapter.runtime_available);
+            && crate::extensions::ExtensionManifest::load(Path::new(&entry.manifest_path))
+                .and_then(|manifest| install::find_system_executable(&manifest))
+                .is_ok();
         let runtime_source = match entry.provider_kind {
             ExtensionProviderKind::BundledStatic => "bundled".to_string(),
-            ExtensionProviderKind::Executable => match entry.install_type {
-                ExtensionInstallType::Managed => "managed".to_string(),
-                ExtensionInstallType::Linked => "system".to_string(),
-            },
+            ExtensionProviderKind::Executable | ExtensionProviderKind::StaticDescriptor => {
+                match entry.runtime_ownership {
+                    ExtensionRuntimeOwnership::Bundled => "managed".to_string(),
+                    ExtensionRuntimeOwnership::System => "system".to_string(),
+                }
+            }
         };
         let homepage = crate::extensions::ExtensionManifest::load(Path::new(&entry.manifest_path))
             .ok()
@@ -87,6 +82,7 @@ impl ExtensionListItem {
             runtime_available: stored_runtime_available,
             reconnect_available,
             homepage,
+            generated_custom,
         }
     }
 
@@ -97,7 +93,8 @@ impl ExtensionListItem {
             name: adapter.manifest.name.clone(),
             publisher_id: adapter.manifest.publisher.id.clone(),
             publisher_name: adapter.manifest.publisher.name.clone(),
-            install_type: ExtensionInstallType::Linked,
+            distribution_source: ExtensionDistributionSource::BuiltIn,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
             provider_kind: ExtensionProviderKind::BundledStatic,
             state: ExtensionStateKind::Disabled,
             enabled: false,
@@ -123,6 +120,7 @@ impl ExtensionListItem {
             connected: false,
             reconnect_available: false,
             homepage: adapter.manifest.homepage.clone(),
+            generated_custom: false,
             entry,
         }
     }
@@ -134,12 +132,17 @@ pub async fn extensions_export(
     state: State<'_, ExtensionState>,
 ) -> Result<Option<ExtensionsExportResult>, String> {
     let now = Utc::now();
-    let selection = app
-        .dialog()
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .add_filter("JSON", &["json"])
         .set_file_name(sync::default_export_file_name(Local::now().date_naive()))
-        .blocking_save_file();
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = receiver
+        .await
+        .map_err(|_| "Extension export picker closed unexpectedly".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };
@@ -161,11 +164,16 @@ pub async fn extensions_import(
     state: State<'_, ExtensionState>,
     locale: Option<String>,
 ) -> Result<Option<ExtensionsImportReport>, String> {
-    let selection = app
-        .dialog()
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .add_filter("JSON", &["json"])
-        .blocking_pick_file();
+        .pick_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = receiver
+        .await
+        .map_err(|_| "Extension import picker closed unexpectedly".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };
@@ -180,34 +188,20 @@ pub async fn extensions_import(
     let mut permission_lines = Vec::new();
     for entry in &document.extensions {
         if let Some(current) = installed.extensions.get(&entry.id) {
-            let same_source = matches!(
-                (current.install_type, entry.source),
-                (ExtensionInstallType::Managed, sync::SyncSource::Managed)
-                    | (ExtensionInstallType::Linked, sync::SyncSource::Linked)
-            );
-            let current_version = if current.install_type == ExtensionInstallType::Linked {
-                current
-                    .tool_version
-                    .as_deref()
-                    .unwrap_or(&current.current_version)
-            } else {
-                &current.current_version
-            };
+            let same_source = current.distribution_source == entry.distribution_source
+                && current.runtime_ownership == entry.runtime_ownership;
             if !same_source
-                || current.install_type == ExtensionInstallType::Linked
-                || current_version == entry.version
+                || current.distribution_source != ExtensionDistributionSource::Npm
+                || current.current_version == entry.version
                 || current.previous_version.as_deref() == Some(entry.version.as_str())
             {
                 continue;
             }
         }
-        let review = match entry.source {
-            sync::SyncSource::Managed => {
+        let review = match entry.distribution_source {
+            ExtensionDistributionSource::Npm => {
                 let package = entry.package.clone().ok_or_else(|| {
-                    format!(
-                        "Managed extension {} has no package in the export",
-                        entry.id
-                    )
+                    format!("NPM integration {} has no package in the export", entry.id)
                 })?;
                 install::permissions_summary(
                     &state,
@@ -223,7 +217,7 @@ pub async fn extensions_import(
                 )
                 .await?
             }
-            sync::SyncSource::Linked => {
+            ExtensionDistributionSource::Local | ExtensionDistributionSource::BuiltIn => {
                 let manifest = entry
                     .manifest
                     .clone()
@@ -234,7 +228,7 @@ pub async fn extensions_import(
                             .find(|adapter| adapter.manifest.id == entry.id)
                             .map(|adapter| adapter.manifest.clone())
                     })
-                    .ok_or_else(|| format!("Linked extension {} has no manifest", entry.id))?;
+                    .ok_or_else(|| format!("Local integration {} has no manifest", entry.id))?;
                 install::permission_review(&manifest, locale)
             }
         };
@@ -288,15 +282,20 @@ pub async fn extensions_import(
                 "Cancel",
             )
         };
-        let approved = app
-            .dialog()
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        app.dialog()
             .message(format!("{message}\n\n{}", displayed.join("\n")))
             .title(title)
             .buttons(MessageDialogButtons::OkCancelCustom(
                 approve.to_string(),
                 cancel.to_string(),
             ))
-            .blocking_show();
+            .show(move |approved| {
+                let _ = sender.send(approved);
+            });
+        let approved = receiver
+            .await
+            .map_err(|_| "Permission review dialog closed unexpectedly".to_string())?;
         if !approved {
             return Ok(None);
         }
@@ -317,6 +316,40 @@ pub async fn extensions_install(
 }
 
 #[tauri::command]
+pub async fn extensions_create_custom(
+    state: State<'_, ExtensionState>,
+    request: CustomIntegrationRequest,
+) -> Result<ExtensionLockEntry, String> {
+    let entry = install::create_custom_integration(&state, request).await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
+}
+
+#[tauri::command]
+pub fn extensions_custom_get(
+    state: State<'_, ExtensionState>,
+    id: String,
+) -> Result<CustomIntegrationDefinition, String> {
+    install::custom_integration_definition(&state, &id)
+}
+
+#[tauri::command]
+pub async fn extensions_custom_update(
+    state: State<'_, ExtensionState>,
+    id: String,
+    request: CustomIntegrationRequest,
+) -> Result<ExtensionLockEntry, String> {
+    let entry = install::update_custom_integration(&state, &id, request).await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
+}
+
+#[tauri::command]
+pub fn extensions_search_path(query: String, limit: Option<usize>) -> Vec<PathExecutable> {
+    install::search_path_executables(&query, limit.unwrap_or(12))
+}
+
+#[tauri::command]
 pub async fn extensions_permissions_summary(
     state: State<'_, ExtensionState>,
     request: ExtensionInstallRequest,
@@ -326,12 +359,17 @@ pub async fn extensions_permissions_summary(
 }
 
 #[tauri::command]
-pub fn extensions_pick_local_manifest(app: AppHandle) -> Result<Option<String>, String> {
-    let selection = app
-        .dialog()
+pub async fn extensions_pick_local_manifest(app: AppHandle) -> Result<Option<String>, String> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .add_filter("Floter extension manifest", &["json"])
-        .blocking_pick_file();
+        .pick_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = receiver
+        .await
+        .map_err(|_| "Local manifest picker closed unexpectedly".to_string())?;
     selection
         .map(|path| {
             path.into_path()
@@ -377,31 +415,61 @@ pub async fn extensions_connect_bundled(
 }
 
 #[tauri::command]
-pub async fn extensions_reconnect_bundled(
+pub async fn extensions_reconnect_system(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<ExtensionLockEntry, String> {
-    let adapters = crate::extensions::static_adapter::load_bundled()?;
-    let adapter = adapters
-        .iter()
-        .find(|adapter| adapter.manifest.id == id && adapter.runtime_available)
-        .ok_or_else(|| format!("System tool is not available for integration: {id}"))?;
     let _guard = state.mutation_lock.lock().await;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let current = lock
+        .extensions
+        .get(&id)
+        .cloned()
+        .ok_or_else(|| format!("Integration is not connected: {id}"))?;
+    if current.runtime_ownership != ExtensionRuntimeOwnership::System {
+        return Err(format!("Integration does not use a system runtime: {id}"));
+    }
+    let manifest = crate::extensions::ExtensionManifest::load(Path::new(&current.manifest_path))?;
+    let executable = install::find_system_executable(&manifest)?;
+    let resolved = manifest
+        .clone()
+        .resolve(crate::extensions::PlatformTarget::current()?)?;
+    let mut tool_version =
+        install::linked_tool_version(&manifest, &resolved.provider, &executable).await;
+
+    if current.provider_kind == ExtensionProviderKind::Executable {
+        let mut invocation = crate::extensions::provider::ProviderInvocation {
+            extension_id: current.id.clone(),
+            executable: executable.clone(),
+            executable_prefix: Vec::new(),
+            runtime_root: None,
+            package_version: current.package_version.clone(),
+            tool_version_hint: tool_version.clone(),
+            version_args: match &manifest.runtime {
+                crate::extensions::manifest::Runtime::System { version_args, .. } => {
+                    version_args.clone()
+                }
+                crate::extensions::manifest::Runtime::Script { version_args, .. } => {
+                    version_args.clone()
+                }
+                crate::extensions::manifest::Runtime::Bundled { .. } => Vec::new(),
+            },
+            config: resolved.provider,
+            permissions: manifest.permissions,
+        };
+        let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
+        let response = state.provider.describe(&invocation, true).await?;
+        if tool_version.is_none() {
+            tool_version = Some(response.description.provider.version);
+        }
+    }
+
     let entry = lock
         .extensions
         .get_mut(&id)
         .ok_or_else(|| format!("Integration is not connected: {id}"))?;
-    if entry.provider_kind != ExtensionProviderKind::BundledStatic {
-        return Err(format!("Integration does not use a bundled adapter: {id}"));
-    }
-    entry.executable_path = adapter.invocation.executable.to_string_lossy().into_owned();
-    entry.tool_version = install::linked_tool_version(
-        &adapter.manifest,
-        &adapter.invocation.config,
-        &adapter.invocation.executable,
-    )
-    .await;
+    entry.executable_path = executable.to_string_lossy().into_owned();
+    entry.tool_version = tool_version;
     entry.updated_at = crate::extensions::lock::unix_now();
     let entry = entry.clone();
     lock.save(&state.paths.lock_file)?;
@@ -506,6 +574,15 @@ pub async fn extensions_describe(
             stderr: None,
         });
     }
+    if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
+        let (description, _) = crate::extensions::registry::static_description(&entry)?;
+        return Ok(ProviderResponse {
+            description,
+            runtime_available: crate::extensions::registry::runtime_available(&entry),
+            cached: true,
+            stderr: None,
+        });
+    }
     let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
     let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
     state
@@ -552,6 +629,28 @@ pub async fn extensions_diagnose(
             }],
         });
     }
+    if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
+        let (_, invocation) = crate::extensions::registry::static_description(&entry)?;
+        let available = crate::extensions::registry::runtime_available(&entry);
+        return Ok(DiagnoseResponse {
+            status: if available { "healthy" } else { "error" }.to_string(),
+            checks: vec![DiagnoseCheck {
+                id: "runtime".to_string(),
+                status: if available { "healthy" } else { "error" }.to_string(),
+                message: if available {
+                    format!(
+                        "Runtime is available at {}",
+                        invocation.executable.display()
+                    )
+                } else {
+                    format!(
+                        "Runtime is unavailable at {}",
+                        invocation.executable.display()
+                    )
+                },
+            }],
+        });
+    }
     let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
     let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
     state.provider.diagnose(&invocation).await
@@ -587,11 +686,54 @@ pub async fn extensions_config_set(
     Ok(configuration)
 }
 
+#[tauri::command]
+pub async fn extensions_config_copy(
+    state: State<'_, ExtensionState>,
+    id: String,
+    values: BTreeMap<String, Value>,
+) -> Result<String, String> {
+    reject_bundled_static_configuration(&state, &id)?;
+    config::export_json(&state, &id, values).await
+}
+
+#[tauri::command]
+pub async fn extensions_config_export(
+    app: AppHandle,
+    state: State<'_, ExtensionState>,
+    id: String,
+    values: BTreeMap<String, Value>,
+) -> Result<Option<String>, String> {
+    reject_bundled_static_configuration(&state, &id)?;
+    let json = config::export_json(&state, &id, values).await?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_file_name(format!("floter-{id}-config.json"))
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = receiver
+        .await
+        .map_err(|_| "Configuration export picker closed unexpectedly".to_string())?;
+    let Some(path) = selection else {
+        return Ok(None);
+    };
+    let path = path
+        .into_path()
+        .map_err(|_| "Configuration exports must be saved to a local file".to_string())?;
+    config::write_export(&path, &json)?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
 fn reject_bundled_static_configuration(state: &ExtensionState, id: &str) -> Result<(), String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    if lock.get(id)?.provider_kind == ExtensionProviderKind::BundledStatic {
+    if matches!(
+        lock.get(id)?.provider_kind,
+        ExtensionProviderKind::BundledStatic | ExtensionProviderKind::StaticDescriptor
+    ) {
         Err(format!(
-            "Bundled integration {id} does not provide configurable settings"
+            "Static integration {id} does not provide configurable settings"
         ))
     } else {
         Ok(())

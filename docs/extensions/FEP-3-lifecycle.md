@@ -1,6 +1,6 @@
 # FEP-3：安装生命周期与安全
 
-状态：Draft 1
+状态：Draft 2
 
 ## 持久状态与操作阶段
 
@@ -24,7 +24,8 @@ resolving -> downloading -> verifying -> installing -> complete
 ## 安装事务
 
 1. 从 NPM Registry 解析精确版本和 `dist.integrity`。
-2. 下载基础包以及当前平台包。
+2. 下载基础包；bundled runtime 还需下载当前平台包，system runtime 则从 PATH
+   解析外部工具。
 3. 在临时目录验证 integrity 并安全解包。
 4. 验证 Package Manifest、Host 版本、协议版本、OS 和架构。
 5. 启动 Provider `describe`，校验 Provider ID 与扩展 ID 相同。
@@ -42,13 +43,13 @@ major 更新需要用户确认。用户可以固定版本或选择 stable/beta d
 
 ## 删除
 
-程序目录与数据目录必须分开。托管扩展删除时提供：
+程序目录与数据目录必须分开。bundled runtime 集成删除时提供：
 
 - 删除程序，保留数据；
 - 删除程序和数据。
 
-linked 扩展只能解除关联。删除前必须先禁用 Provider、取消补全请求并从命令
-目录移除所有命令。
+system runtime 集成只删除集成文件或解除本地注册，绝不能删除外部工具。删除前
+必须先禁用 Provider、取消补全请求并从命令目录移除所有命令。
 
 ## 安全基线
 

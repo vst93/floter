@@ -1,7 +1,8 @@
 use crate::extensions::config;
 use crate::extensions::install::{self, ExtensionInstallRequest, InstallSource};
 use crate::extensions::lock::{
-    validate_id, ExtensionInstallType, ExtensionLockEntry, ExtensionsLock,
+    validate_id, ExtensionDistributionSource, ExtensionLockEntry, ExtensionRuntimeOwnership,
+    ExtensionsLock,
 };
 use crate::extensions::manifest::{ExtensionManifest, Permission, Runtime};
 use crate::extensions::ExtensionState;
@@ -12,7 +13,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const SYNC_FORMAT_VERSION: u32 = 1;
+const SYNC_FORMAT_VERSION: u32 = 2;
 const MAX_IMPORT_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_IMPORT_EXTENSIONS: usize = 1_000;
 
@@ -22,6 +23,8 @@ pub struct ExtensionsSyncDocument {
     pub version: u32,
     pub exported_at: String,
     pub extensions: Vec<ExtensionsSyncEntry>,
+    #[serde(skip)]
+    legacy_version_semantics: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,18 +35,16 @@ pub struct ExtensionsSyncEntry {
     pub enabled: bool,
     #[serde(default)]
     pub config: BTreeMap<String, Value>,
-    pub source: SyncSource,
+    pub distribution_source: ExtensionDistributionSource,
+    pub runtime_ownership: ExtensionRuntimeOwnership,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub package: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manifest: Option<ExtensionManifest>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum SyncSource {
-    Managed,
-    Linked,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub script_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_descriptor: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -94,6 +95,7 @@ pub fn build_export(
         version: SYNC_FORMAT_VERSION,
         exported_at: now.to_rfc3339_opts(SecondsFormat::Secs, true),
         extensions,
+        legacy_version_semantics: false,
     })
 }
 
@@ -101,20 +103,58 @@ fn export_entry(
     state: &ExtensionState,
     entry: ExtensionLockEntry,
 ) -> Result<ExtensionsSyncEntry, String> {
-    let source = source_for(&entry);
-    let manifest = if source == SyncSource::Linked {
+    let manifest = if entry.distribution_source != ExtensionDistributionSource::Npm {
         Some(linked_manifest(state, &entry)?)
     } else {
         None
+    };
+    let script_content = match manifest.as_ref().map(|manifest| &manifest.runtime) {
+        Some(Runtime::Script { path, .. }) => {
+            let root = Path::new(&entry.manifest_path)
+                .parent()
+                .ok_or_else(|| format!("Script integration {} has no package root", entry.id))?;
+            Some(std::fs::read_to_string(root.join(path)).map_err(|error| {
+                format!("Cannot export script for integration {}: {error}", entry.id)
+            })?)
+        }
+        _ => None,
+    };
+    let provider_descriptor = match manifest
+        .as_ref()
+        .and_then(|manifest| manifest.provider.descriptor.as_deref())
+    {
+        Some(descriptor) => {
+            let root = Path::new(&entry.manifest_path)
+                .parent()
+                .ok_or_else(|| format!("Static integration {} has no package root", entry.id))?;
+            Some(
+                serde_json::from_slice(&std::fs::read(root.join(descriptor)).map_err(|error| {
+                    format!(
+                        "Cannot export descriptor for integration {}: {error}",
+                        entry.id
+                    )
+                })?)
+                .map_err(|error| {
+                    format!(
+                        "Cannot parse descriptor for integration {}: {error}",
+                        entry.id
+                    )
+                })?,
+            )
+        }
+        None => None,
     };
     Ok(ExtensionsSyncEntry {
         id: entry.id.clone(),
         version: installed_version(&entry).to_string(),
         enabled: entry.enabled,
         config: config::export_values(&state.paths.data, &entry.id)?,
-        source,
+        distribution_source: entry.distribution_source,
+        runtime_ownership: entry.runtime_ownership,
         package: entry.package_name,
         manifest,
+        script_content,
+        provider_descriptor,
     })
 }
 
@@ -130,7 +170,7 @@ fn linked_manifest(
             .map(|adapter| adapter.manifest.clone())
             .ok_or_else(|| {
                 format!(
-                    "Cannot export linked extension {} because its manifest is unavailable: {file_error}",
+                    "Cannot export local integration {} because its manifest is unavailable: {file_error}",
                     entry.id
                 )
             })
@@ -163,10 +203,49 @@ pub fn read_import(path: &Path) -> Result<ExtensionsSyncDocument, String> {
 }
 
 fn parse_import(bytes: &[u8]) -> Result<ExtensionsSyncDocument, String> {
-    let document: ExtensionsSyncDocument = serde_json::from_slice(bytes)
+    let mut value: Value = serde_json::from_slice(bytes)
         .map_err(|error| format!("Invalid extension import JSON: {error}"))?;
+    let legacy_version_semantics = value.get("version").and_then(Value::as_u64) == Some(1);
+    migrate_v1_import(&mut value)?;
+    let mut document: ExtensionsSyncDocument = serde_json::from_value(value)
+        .map_err(|error| format!("Invalid extension import: {error}"))?;
+    document.legacy_version_semantics = legacy_version_semantics;
     validate_import(&document)?;
     Ok(document)
+}
+
+fn migrate_v1_import(value: &mut Value) -> Result<(), String> {
+    if value.get("version").and_then(Value::as_u64) != Some(1) {
+        return Ok(());
+    }
+    let extensions = value
+        .get_mut("extensions")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "Extension import extensions must be an array".to_string())?;
+    for entry in extensions {
+        let object = entry
+            .as_object_mut()
+            .ok_or_else(|| "Extension import entry must be an object".to_string())?;
+        let source = object
+            .remove("source")
+            .and_then(|value| value.as_str().map(str::to_string))
+            .ok_or_else(|| "Extension import entry has no source".to_string())?;
+        let (distribution, runtime) = match source.as_str() {
+            "managed" => ("npm", "bundled"),
+            "linked" => ("local", "system"),
+            other => return Err(format!("Unsupported legacy sync source: {other}")),
+        };
+        object.insert(
+            "distributionSource".to_string(),
+            Value::String(distribution.to_string()),
+        );
+        object.insert(
+            "runtimeOwnership".to_string(),
+            Value::String(runtime.to_string()),
+        );
+    }
+    value["version"] = Value::from(SYNC_FORMAT_VERSION);
+    Ok(())
 }
 
 fn validate_import(document: &ExtensionsSyncDocument) -> Result<(), String> {
@@ -193,19 +272,40 @@ fn validate_import(document: &ExtensionsSyncDocument) -> Result<(), String> {
             return Err(format!("Duplicate extension id: {}", entry.id));
         }
         if let Some(manifest) = &entry.manifest {
-            if entry.source != SyncSource::Linked || manifest.id != entry.id {
+            if entry.distribution_source == ExtensionDistributionSource::Npm
+                || manifest.id != entry.id
+            {
                 return Err(format!(
-                    "Extension {} has a mismatched linked manifest",
+                    "Extension {} has a mismatched local manifest",
                     entry.id
                 ));
             }
-            if !matches!(manifest.runtime, Runtime::Linked { .. }) {
-                return Err(format!("Extension {} has a non-linked manifest", entry.id));
+            if !matches!(
+                manifest.runtime,
+                Runtime::System { .. } | Runtime::Script { .. }
+            ) {
+                return Err(format!(
+                    "Extension {} has an unsupported local manifest",
+                    entry.id
+                ));
+            }
+            if matches!(manifest.runtime, Runtime::Script { .. }) && entry.script_content.is_none()
+            {
+                return Err(format!(
+                    "Script integration {} has no script content",
+                    entry.id
+                ));
+            }
+            if manifest.provider.descriptor.is_some() && entry.provider_descriptor.is_none() {
+                return Err(format!(
+                    "Static integration {} has no provider descriptor",
+                    entry.id
+                ));
             }
             let bytes = serde_json::to_vec(manifest)
-                .map_err(|error| format!("Cannot validate linked manifest: {error}"))?;
+                .map_err(|error| format!("Cannot validate local manifest: {error}"))?;
             ExtensionManifest::parse(&bytes)
-                .map_err(|error| format!("Invalid linked manifest for {}: {error}", entry.id))?;
+                .map_err(|error| format!("Invalid local manifest for {}: {error}", entry.id))?;
         }
     }
     Ok(())
@@ -223,11 +323,21 @@ pub async fn import_document(
         failed: Vec::new(),
         skipped: Vec::new(),
     };
-    for entry in document.extensions {
+    let legacy_version_semantics = document.legacy_version_semantics;
+    for mut entry in document.extensions {
+        if entry.distribution_source == ExtensionDistributionSource::Local
+            && state
+                .static_adapters
+                .iter()
+                .any(|adapter| adapter.manifest.id == entry.id)
+        {
+            entry.distribution_source = ExtensionDistributionSource::BuiltIn;
+        }
         let id = entry.id.clone();
         match import_entry(
             state,
             &entry,
+            legacy_version_semantics,
             approved_permissions.get(&entry.id).map(Vec::as_slice),
         )
         .await
@@ -249,21 +359,22 @@ pub async fn import_document(
 async fn import_entry(
     state: &ExtensionState,
     desired: &ExtensionsSyncEntry,
+    legacy_version_semantics: bool,
     approved_permissions: Option<&[Permission]>,
 ) -> Result<bool, String> {
     let installed = ExtensionsLock::load(&state.paths.lock_file)?
         .extensions
         .get(&desired.id)
         .cloned();
-    let action = reconcile_action(installed.as_ref(), desired)?;
+    let action = reconcile_action(installed.as_ref(), desired, legacy_version_semantics)?;
     let mut changed = action != ReconcileAction::Ready;
 
     match action {
-        ReconcileAction::Install | ReconcileAction::Update => match desired.source {
-            SyncSource::Managed => {
+        ReconcileAction::Install | ReconcileAction::Update => match desired.distribution_source {
+            ExtensionDistributionSource::Npm => {
                 let package = desired.package.as_deref().ok_or_else(|| {
                     format!(
-                        "Managed extension {} has no package in the export",
+                        "NPM integration {} has no package in the export",
                         desired.id
                     )
                 })?;
@@ -276,7 +387,7 @@ async fn import_entry(
                 )
                 .await?;
             }
-            SyncSource::Linked => {
+            ExtensionDistributionSource::Local | ExtensionDistributionSource::BuiltIn => {
                 install_imported_linked(state, desired, approved_permissions).await?;
             }
         },
@@ -291,7 +402,20 @@ async fn import_entry(
         .get(&desired.id)
         .cloned()
         .ok_or_else(|| format!("Extension {} was not installed", desired.id))?;
-    if installed_version(&restored) != desired.version {
+    if restored.distribution_source != desired.distribution_source
+        || restored.runtime_ownership != desired.runtime_ownership
+    {
+        if installed.is_none() {
+            let _ = install::uninstall(state, &desired.id, false).await;
+        }
+        return Err(format!(
+            "Integration {} resolved with different distribution or runtime ownership",
+            desired.id
+        ));
+    }
+    let version_must_match = !legacy_version_semantics
+        || desired.distribution_source == ExtensionDistributionSource::Npm;
+    if version_must_match && installed_version(&restored) != desired.version {
         if installed.is_none() {
             let _ = install::uninstall(state, &desired.id, false).await;
         }
@@ -313,24 +437,30 @@ async fn import_entry(
 fn reconcile_action(
     installed: Option<&ExtensionLockEntry>,
     desired: &ExtensionsSyncEntry,
+    legacy_version_semantics: bool,
 ) -> Result<ReconcileAction, String> {
     let Some(installed) = installed else {
         return Ok(ReconcileAction::Install);
     };
-    if source_for(installed) != desired.source {
+    if installed.distribution_source != desired.distribution_source
+        || installed.runtime_ownership != desired.runtime_ownership
+    {
         return Err(format!(
             "Extension {} is installed from a different source",
             desired.id
         ));
     }
-    if installed_version(installed) == desired.version {
+    if installed_version(installed) == desired.version
+        || (legacy_version_semantics
+            && desired.distribution_source != ExtensionDistributionSource::Npm)
+    {
         return Ok(ReconcileAction::Ready);
     }
-    match desired.source {
-        SyncSource::Managed => {
+    match desired.distribution_source {
+        ExtensionDistributionSource::Npm => {
             let package = desired.package.as_deref().ok_or_else(|| {
                 format!(
-                    "Managed extension {} has no package in the export",
+                    "NPM integration {} has no package in the export",
                     desired.id
                 )
             })?;
@@ -346,8 +476,8 @@ fn reconcile_action(
                 Ok(ReconcileAction::Update)
             }
         }
-        SyncSource::Linked => Err(format!(
-            "Linked executable for {} is version {}, but the export requires {}",
+        ExtensionDistributionSource::Local | ExtensionDistributionSource::BuiltIn => Err(format!(
+            "Local integration {} is version {}, but the export requires {}",
             desired.id,
             installed_version(installed),
             desired.version
@@ -378,12 +508,46 @@ async fn install_imported_linked(
                 .find(|adapter| adapter.manifest.id == desired.id)
                 .map(|adapter| adapter.manifest.clone())
         })
-        .ok_or_else(|| format!("Linked extension {} has no manifest", desired.id))?;
+        .ok_or_else(|| format!("Local integration {} has no manifest", desired.id))?;
     let path = imported_manifest_path(&state.paths.data, &desired.id)?;
     let mut bytes = serde_json::to_vec_pretty(&manifest)
-        .map_err(|error| format!("Cannot serialize linked manifest: {error}"))?;
+        .map_err(|error| format!("Cannot serialize local manifest: {error}"))?;
     bytes.push(b'\n');
-    atomic_write(&path, &bytes, "linked extension manifest")?;
+    atomic_write(&path, &bytes, "local integration manifest")?;
+    if let Some(descriptor_path) = manifest.provider.descriptor.as_deref() {
+        let target = path
+            .parent()
+            .ok_or("Imported manifest has no parent directory")?
+            .join(descriptor_path);
+        let mut bytes = serde_json::to_vec_pretty(
+            desired
+                .provider_descriptor
+                .as_ref()
+                .ok_or("Imported provider descriptor is missing")?,
+        )
+        .map_err(|error| format!("Cannot serialize imported provider descriptor: {error}"))?;
+        bytes.push(b'\n');
+        atomic_write(&target, &bytes, "local provider descriptor")?;
+    }
+    if let Runtime::Script {
+        path: script_path, ..
+    } = &manifest.runtime
+    {
+        let target = path
+            .parent()
+            .ok_or("Imported manifest has no parent directory")?
+            .join(script_path);
+        atomic_write(
+            &target,
+            desired
+                .script_content
+                .as_deref()
+                .ok_or("Imported script content is missing")?
+                .as_bytes(),
+            "local provider script",
+        )?;
+        install::make_executable(&target)?;
+    }
     install::install(
         state,
         ExtensionInstallRequest {
@@ -426,21 +590,7 @@ async fn restore_enabled(
 }
 
 fn installed_version(entry: &ExtensionLockEntry) -> &str {
-    if entry.install_type == ExtensionInstallType::Linked {
-        entry
-            .tool_version
-            .as_deref()
-            .unwrap_or(&entry.current_version)
-    } else {
-        &entry.current_version
-    }
-}
-
-fn source_for(entry: &ExtensionLockEntry) -> SyncSource {
-    match entry.install_type {
-        ExtensionInstallType::Managed => SyncSource::Managed,
-        ExtensionInstallType::Linked => SyncSource::Linked,
-    }
+    &entry.current_version
 }
 
 fn atomic_write(path: &Path, bytes: &[u8], label: &str) -> Result<(), String> {
@@ -465,22 +615,31 @@ fn atomic_write(path: &Path, bytes: &[u8], label: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::install::{create_custom_integration, CustomIntegrationRequest};
     use crate::extensions::lock::{ExtensionProviderKind, ExtensionStateKind};
+    use crate::extensions::manifest::{PlatformTarget, ScriptLanguage};
+    use crate::extensions::ExtensionPaths;
 
-    fn lock_entry(install_type: ExtensionInstallType, version: &str) -> ExtensionLockEntry {
+    fn lock_entry(
+        distribution_source: ExtensionDistributionSource,
+        runtime_ownership: ExtensionRuntimeOwnership,
+        version: &str,
+    ) -> ExtensionLockEntry {
         ExtensionLockEntry {
             id: "example.tools".into(),
             name: "Example Tools".into(),
             publisher_id: "example".into(),
             publisher_name: "Example".into(),
-            install_type,
+            distribution_source,
+            runtime_ownership,
             provider_kind: ExtensionProviderKind::Executable,
             state: ExtensionStateKind::Enabled,
             enabled: true,
-            package_name: (install_type == ExtensionInstallType::Managed)
+            package_name: (distribution_source == ExtensionDistributionSource::Npm)
                 .then(|| "@example/floter-tools".into()),
             package_version: version.into(),
-            tool_version: (install_type == ExtensionInstallType::Linked).then(|| version.into()),
+            tool_version: (runtime_ownership == ExtensionRuntimeOwnership::System)
+                .then(|| version.into()),
             integrity: None,
             signature_verified: false,
             previous_signature_verified: None,
@@ -496,48 +655,156 @@ mod tests {
         }
     }
 
-    fn sync_entry(source: SyncSource, version: &str) -> ExtensionsSyncEntry {
+    fn sync_entry(
+        distribution_source: ExtensionDistributionSource,
+        runtime_ownership: ExtensionRuntimeOwnership,
+        version: &str,
+    ) -> ExtensionsSyncEntry {
         ExtensionsSyncEntry {
             id: "example.tools".into(),
             version: version.into(),
             enabled: true,
             config: BTreeMap::new(),
-            source,
-            package: (source == SyncSource::Managed).then(|| "@example/floter-tools".into()),
+            distribution_source,
+            runtime_ownership,
+            package: (distribution_source == ExtensionDistributionSource::Npm)
+                .then(|| "@example/floter-tools".into()),
             manifest: None,
+            script_content: None,
+            provider_descriptor: None,
         }
     }
 
+    #[tokio::test]
+    async fn export_carries_generated_script_and_static_descriptor() {
+        if install::find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
+                .unwrap();
+        create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.export-test".into(),
+                name: "Export test".into(),
+                command: "export-test".into(),
+                version: "1.0.0".into(),
+                executable_path: String::new(),
+                mode: "script".into(),
+                script_language: Some(ScriptLanguage::Shell),
+                script_content: Some("printf '%s\\n' \"$@\"".into()),
+                args_prefix: vec!["default".into()],
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: vec![PlatformTarget::current().unwrap().os],
+            },
+        )
+        .await
+        .unwrap();
+
+        let document = build_export(&state, Utc::now()).unwrap();
+        let exported = &document.extensions[0];
+        assert_eq!(
+            exported.script_content.as_deref(),
+            Some("printf '%s\\n' \"$@\"")
+        );
+        assert_eq!(
+            exported.provider_descriptor.as_ref().unwrap()["commands"][0]["id"],
+            "export-test"
+        );
+        assert!(matches!(
+            exported.manifest.as_ref().unwrap().runtime,
+            Runtime::Script { .. }
+        ));
+    }
+
     #[test]
-    fn serializes_the_v1_export_shape() {
+    fn serializes_the_v2_export_shape() {
         let document = ExtensionsSyncDocument {
-            version: 1,
+            version: 2,
             exported_at: "2026-08-10T12:00:00Z".into(),
-            extensions: vec![sync_entry(SyncSource::Managed, "1.2.3")],
+            extensions: vec![sync_entry(
+                ExtensionDistributionSource::Npm,
+                ExtensionRuntimeOwnership::Bundled,
+                "1.2.3",
+            )],
+            legacy_version_semantics: false,
         };
 
         let value = serde_json::to_value(document).unwrap();
 
-        assert_eq!(value["version"], 1);
+        assert_eq!(value["version"], 2);
         assert_eq!(value["exportedAt"], "2026-08-10T12:00:00Z");
         assert_eq!(value["extensions"][0]["id"], "example.tools");
         assert_eq!(value["extensions"][0]["version"], "1.2.3");
         assert_eq!(value["extensions"][0]["enabled"], true);
         assert_eq!(value["extensions"][0]["config"], serde_json::json!({}));
-        assert_eq!(value["extensions"][0]["source"], "managed");
+        assert_eq!(value["extensions"][0]["distributionSource"], "npm");
+        assert_eq!(value["extensions"][0]["runtimeOwnership"], "bundled");
     }
 
     #[test]
     fn rejects_invalid_and_unsupported_imports() {
         assert!(parse_import(b"not json").is_err());
         let unsupported = br#"{
-          "version": 2,
+          "version": 3,
           "exportedAt": "2026-08-10T12:00:00Z",
           "extensions": []
         }"#;
         assert!(parse_import(unsupported)
             .unwrap_err()
-            .contains("Unsupported extension export version 2"));
+            .contains("Unsupported extension export version 3"));
+    }
+
+    #[test]
+    fn migrates_v1_exports() {
+        let legacy = br#"{
+          "version": 1,
+          "exportedAt": "2026-08-10T12:00:00Z",
+          "extensions": [{
+            "id": "example.tools",
+            "version": "1.2.3",
+            "enabled": true,
+            "config": {},
+            "source": "managed",
+            "package": "@example/floter-tools"
+          }]
+        }"#;
+        let document = parse_import(legacy).unwrap();
+        let entry = &document.extensions[0];
+
+        assert_eq!(document.version, 2);
+        assert_eq!(entry.distribution_source, ExtensionDistributionSource::Npm);
+        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::Bundled);
+    }
+
+    #[test]
+    fn legacy_local_exports_keep_their_tool_version_semantics() {
+        let legacy = br#"{
+          "version": 1,
+          "exportedAt": "2026-08-10T12:00:00Z",
+          "extensions": [{
+            "id": "example.tools",
+            "version": "9.8.7",
+            "enabled": true,
+            "config": {},
+            "source": "linked"
+          }]
+        }"#;
+        let document = parse_import(legacy).unwrap();
+        let installed = lock_entry(
+            ExtensionDistributionSource::Local,
+            ExtensionRuntimeOwnership::System,
+            "1.2.3",
+        );
+
+        assert!(document.legacy_version_semantics);
+        assert_eq!(
+            reconcile_action(Some(&installed), &document.extensions[0], true).unwrap(),
+            ReconcileAction::Ready
+        );
     }
 
     #[test]
@@ -551,11 +818,15 @@ mod tests {
                     version: "1.0.0".into(),
                     enabled: true,
                     config: BTreeMap::new(),
-                    source: SyncSource::Managed,
+                    distribution_source: ExtensionDistributionSource::Npm,
+                    runtime_ownership: ExtensionRuntimeOwnership::Bundled,
                     package: Some(format!("floter-tool-{index}")),
                     manifest: None,
+                    script_content: None,
+                    provider_descriptor: None,
                 })
                 .collect(),
+            legacy_version_semantics: false,
         };
 
         assert!(validate_import(&document)
@@ -565,39 +836,63 @@ mod tests {
 
     #[test]
     fn repeated_import_skips_an_identical_installation() {
-        let installed = lock_entry(ExtensionInstallType::Managed, "1.2.3");
-        let desired = sync_entry(SyncSource::Managed, "1.2.3");
+        let installed = lock_entry(
+            ExtensionDistributionSource::Npm,
+            ExtensionRuntimeOwnership::Bundled,
+            "1.2.3",
+        );
+        let desired = sync_entry(
+            ExtensionDistributionSource::Npm,
+            ExtensionRuntimeOwnership::Bundled,
+            "1.2.3",
+        );
 
         assert_eq!(
-            reconcile_action(Some(&installed), &desired).unwrap(),
+            reconcile_action(Some(&installed), &desired, false).unwrap(),
             ReconcileAction::Ready
         );
     }
 
     #[test]
     fn managed_version_mismatch_updates_or_rolls_back() {
-        let mut installed = lock_entry(ExtensionInstallType::Managed, "2.0.0");
-        let desired = sync_entry(SyncSource::Managed, "1.5.0");
+        let mut installed = lock_entry(
+            ExtensionDistributionSource::Npm,
+            ExtensionRuntimeOwnership::Bundled,
+            "2.0.0",
+        );
+        let desired = sync_entry(
+            ExtensionDistributionSource::Npm,
+            ExtensionRuntimeOwnership::Bundled,
+            "1.5.0",
+        );
         assert_eq!(
-            reconcile_action(Some(&installed), &desired).unwrap(),
+            reconcile_action(Some(&installed), &desired, false).unwrap(),
             ReconcileAction::Update
         );
 
         installed.previous_version = Some("1.5.0".into());
         assert_eq!(
-            reconcile_action(Some(&installed), &desired).unwrap(),
+            reconcile_action(Some(&installed), &desired, false).unwrap(),
             ReconcileAction::Rollback
         );
     }
 
     #[test]
-    fn linked_version_mismatch_is_reported() {
-        let installed = lock_entry(ExtensionInstallType::Linked, "2.0.0");
-        let desired = sync_entry(SyncSource::Linked, "1.5.0");
+    fn local_version_mismatch_is_reported() {
+        let installed = lock_entry(
+            ExtensionDistributionSource::Local,
+            ExtensionRuntimeOwnership::System,
+            "2.0.0",
+        );
+        let desired = sync_entry(
+            ExtensionDistributionSource::Local,
+            ExtensionRuntimeOwnership::System,
+            "1.5.0",
+        );
 
-        assert!(reconcile_action(Some(&installed), &desired)
+        assert!(reconcile_action(Some(&installed), &desired, false)
             .unwrap_err()
-            .contains("Linked executable"));
+            .contains("Local integration"));
     }
 
     #[test]

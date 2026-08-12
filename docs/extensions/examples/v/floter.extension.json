@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
   "id": "io.github.vst93.v",
   "name": "V Tools",
   "description": "Developer tools running in the terminal",
@@ -12,8 +12,11 @@
     "floter": ">=0.3.0",
     "providerProtocol": "^1.0"
   },
+  "distribution": {
+    "type": "npm"
+  },
   "runtime": {
-    "type": "managed",
+    "type": "bundled",
     "platformPackages": {
       "darwin-arm64": "@vst93/floter-v-darwin-arm64",
       "darwin-x64": "@vst93/floter-v-darwin-x64",
@@ -25,6 +28,7 @@
     "executable": "bin/v"
   },
   "provider": {
+    "type": "executable",
     "argsPrefix": ["--floter"],
     "describeTimeoutMs": 5000,
     "completeTimeoutMs": 800

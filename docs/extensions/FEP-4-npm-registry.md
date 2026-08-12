@@ -1,6 +1,6 @@
 # FEP-4：NPM Registry Convention
 
-状态：Draft 1
+状态：Draft 2
 
 This document defines how Floter extensions are named, indexed, selected, and
 downloaded from the public NPM registry. NPM is a distribution and metadata
@@ -8,7 +8,7 @@ service only; it is not an extension runtime.
 
 ## Package Names
 
-An extension has one base package and, for a managed runtime, one platform
+An extension has one base package and, for a bundled runtime, one platform
 package for each supported target. A base package MUST use the `floter-`
 prefix (for example, `floter-v-tools`) or the `@floter/*` scope (for example,
 `@floter/v-tools`). A platform package appends the target to the base package:
@@ -33,7 +33,9 @@ Every base package MUST contain a root `package.json` with the exact keyword
 `floter-extension` and a `floter.manifest` path. The path is relative to the
 package root and MUST NOT be absolute or contain `..` components. The platform
 package MUST contain a `package.json` whose name and version match the registry
-record; it does not need to contain an extension manifest.
+record; it does not need to contain an extension manifest. A system runtime
+extension has no platform package because the external tool remains under its
+system package manager.
 
 ```json
 {
@@ -49,10 +51,12 @@ record; it does not need to contain an extension manifest.
 
 ## Version Coupling
 
-The base package and the selected platform package MUST publish the same
-SemVer version. For `floter-v-tools@1.4.2`, the selected package is therefore
-`floter-v-tools-linux-x64@1.4.2`, not a separately versioned runtime. The Host
-rejects a pair with different versions before installing it.
+For a bundled runtime, the base package and selected platform package MUST
+publish the same SemVer version. For `floter-v-tools@1.4.2`, the selected package
+is therefore `floter-v-tools-linux-x64@1.4.2`, not a separately versioned
+runtime. The Host rejects a pair with different versions before installing it.
+For a system runtime, the NPM version is the integration version; the external
+tool version is detected independently and need not match it.
 
 Provider/tool versions are independent metadata and need not equal the NPM
 package version.

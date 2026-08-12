@@ -60,7 +60,7 @@ floter-acme-tools/
 
 ```json
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
   "id": "com.example.acme-tools",
   "name": "Acme Tools",
   "description": "Search and transform Acme resources",
@@ -73,8 +73,11 @@ floter-acme-tools/
     "floter": ">=0.2.3 <1.0.0",
     "providerProtocol": "^1.0"
   },
+  "distribution": {
+    "type": "npm"
+  },
   "runtime": {
-    "type": "managed",
+    "type": "bundled",
     "platformPackages": {
       "darwin-arm64": "floter-acme-tools-darwin-arm64",
       "darwin-x64": "floter-acme-tools-darwin-x64",
@@ -86,6 +89,7 @@ floter-acme-tools/
     "executable": "bin/acme-provider"
   },
   "provider": {
+    "type": "executable",
     "argsPrefix": ["--floter"],
     "describeTimeoutMs": 5000,
     "completeTimeoutMs": 800

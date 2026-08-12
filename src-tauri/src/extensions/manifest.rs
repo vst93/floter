@@ -21,14 +21,27 @@ pub struct ExtensionManifest {
     pub icon: Option<String>,
     pub publisher: Publisher,
     pub compatibility: Compatibility,
+    pub distribution: Distribution,
     pub runtime: Runtime,
     pub provider: ProviderConfig,
+    /// Optional OS allow-list. An omitted list keeps backwards compatibility
+    /// and means all supported host operating systems.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub platforms: Vec<PlatformOs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signatures: Option<SignatureConfig>,
     #[serde(default)]
     pub platform_overrides: BTreeMap<String, PlatformOverride>,
     #[serde(default)]
     pub permissions: Vec<Permission>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum Distribution {
+    Npm,
+    Local,
+    BuiltIn,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,24 +73,42 @@ pub struct Compatibility {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
+#[serde(tag = "type", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum Runtime {
-    Managed {
+    Bundled {
         #[serde(rename = "platformPackages")]
         platform_packages: BTreeMap<String, String>,
         executable: String,
     },
-    Linked {
+    System {
         #[serde(rename = "executableNames")]
         executable_names: Vec<String>,
         #[serde(rename = "versionArgs", default)]
         version_args: Vec<String>,
     },
+    Script {
+        language: ScriptLanguage,
+        path: String,
+        #[serde(rename = "versionArgs", default)]
+        version_args: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ScriptLanguage {
+    Js,
+    Shell,
+    Powershell,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderConfig {
+    #[serde(rename = "type")]
+    pub kind: ProviderKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
     pub args_prefix: Vec<String>,
     #[serde(default = "default_describe_timeout")]
     pub describe_timeout_ms: u64,
@@ -85,6 +116,13 @@ pub struct ProviderConfig {
     pub complete_timeout_ms: u64,
     #[serde(default)]
     pub environment: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProviderKind {
+    Executable,
+    StaticDescriptor,
 }
 
 fn default_describe_timeout() -> u64 {
@@ -220,9 +258,10 @@ impl ExtensionManifest {
     }
 
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        let value: Value = serde_json::from_slice(bytes)
+        let mut value: Value = serde_json::from_slice(bytes)
             .map_err(|error| format!("Invalid extension manifest JSON: {error}"))?;
         validate_schema(&value)?;
+        normalize_v1_manifest(&mut value)?;
         let manifest: Self = serde_json::from_value(value)
             .map_err(|error| format!("Invalid extension manifest: {error}"))?;
         manifest.validate_paths()?;
@@ -230,6 +269,13 @@ impl ExtensionManifest {
     }
 
     pub fn resolve(self, target: PlatformTarget) -> Result<ResolvedManifest, String> {
+        if !self.platforms.is_empty() && !self.platforms.contains(&target.os) {
+            return Err(format!(
+                "Extension {} does not support {}",
+                self.id,
+                target.os_name()
+            ));
+        }
         let mut provider = self.provider.clone();
         let mut minimum_os_version = None;
         for key in [target.identifier(), target.os_identifier()] {
@@ -246,7 +292,7 @@ impl ExtensionManifest {
             }
         }
         let platform_package = match &self.runtime {
-            Runtime::Managed {
+            Runtime::Bundled {
                 platform_packages, ..
             } => Some(
                 platform_packages
@@ -260,7 +306,7 @@ impl ExtensionManifest {
                         )
                     })?,
             ),
-            Runtime::Linked { .. } => None,
+            Runtime::System { .. } | Runtime::Script { .. } => None,
         };
         Ok(ResolvedManifest {
             manifest: self,
@@ -304,18 +350,91 @@ impl ExtensionManifest {
     }
 
     fn validate_paths(&self) -> Result<(), String> {
+        match (self.distribution, &self.runtime, self.provider.kind) {
+            (
+                Distribution::Npm,
+                Runtime::Bundled { .. } | Runtime::System { .. } | Runtime::Script { .. },
+                ProviderKind::Executable,
+            )
+            | (
+                Distribution::Local,
+                Runtime::System { .. },
+                ProviderKind::Executable | ProviderKind::StaticDescriptor,
+            )
+            | (
+                Distribution::Local,
+                Runtime::Script { .. },
+                ProviderKind::Executable | ProviderKind::StaticDescriptor,
+            )
+            | (Distribution::BuiltIn, Runtime::System { .. }, ProviderKind::StaticDescriptor) => {}
+            _ => {
+                return Err(format!(
+                    "Unsupported manifest combination: distribution={:?}, runtime={:?}, provider={:?}",
+                    self.distribution, self.runtime, self.provider.kind
+                ));
+            }
+        }
         if let Some(icon) = &self.icon {
             validate_relative_path(icon, "icon")?;
         }
-        if let Runtime::Managed { executable, .. } = &self.runtime {
+        if let Runtime::Bundled { executable, .. } = &self.runtime {
             validate_relative_path(executable, "runtime executable")?;
             #[cfg(target_os = "windows")]
             if !executable.to_ascii_lowercase().ends_with(".exe") {
                 return Err("Managed Windows runtimes must use an .exe entry point".to_string());
             }
         }
+        if let Runtime::Script { path, .. } = &self.runtime {
+            validate_relative_path(path, "runtime script")?;
+        }
+        if let Some(descriptor) = &self.provider.descriptor {
+            validate_relative_path(descriptor, "provider descriptor")?;
+        }
+        if self.distribution == Distribution::Local
+            && self.provider.kind == ProviderKind::StaticDescriptor
+            && self.provider.descriptor.is_none()
+        {
+            return Err("Static descriptor providers require provider.descriptor".to_string());
+        }
         Ok(())
     }
+}
+
+fn normalize_v1_manifest(value: &mut Value) -> Result<(), String> {
+    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0") {
+        return Ok(());
+    }
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| "Extension manifest must be an object".to_string())?;
+    let runtime = object
+        .get_mut("runtime")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Extension manifest runtime must be an object".to_string())?;
+    let legacy_runtime = runtime
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Extension manifest runtime.type is required".to_string())?;
+    let (distribution, runtime_type) = match legacy_runtime {
+        "managed" => ("npm", "bundled"),
+        "linked" => ("local", "system"),
+        other => return Err(format!("Unsupported v1 runtime type: {other}")),
+    };
+    runtime.insert("type".to_string(), Value::String(runtime_type.to_string()));
+    let provider = object
+        .get_mut("provider")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Extension manifest provider must be an object".to_string())?;
+    provider.insert("type".to_string(), Value::String("executable".to_string()));
+    object.insert(
+        "schemaVersion".to_string(),
+        Value::String("2.0".to_string()),
+    );
+    object.insert(
+        "distribution".to_string(),
+        serde_json::json!({ "type": distribution }),
+    );
+    Ok(())
 }
 
 pub fn validate_relative_path(value: &str, field: &str) -> Result<PathBuf, String> {
@@ -421,6 +540,10 @@ mod tests {
         let bytes = include_bytes!("../../../docs/extensions/examples/v/floter.extension.json");
         let manifest = ExtensionManifest::parse(bytes).expect("reference manifest");
         assert_eq!(manifest.id, "io.github.vst93.v");
+        assert_eq!(manifest.schema_version, "2.0");
+        assert_eq!(manifest.distribution, Distribution::Npm);
+        assert_eq!(manifest.provider.kind, ProviderKind::Executable);
+        assert!(matches!(manifest.runtime, Runtime::Bundled { .. }));
         assert_eq!(
             manifest.permissions,
             vec![
@@ -433,6 +556,81 @@ mod tests {
                 Permission::Environment,
             ]
         );
+    }
+
+    #[test]
+    fn parses_v2_static_system_integration() {
+        let bytes = include_bytes!("../../../extensions/v-tools/floter.extension.json");
+        let manifest = ExtensionManifest::parse(bytes).unwrap();
+
+        assert_eq!(manifest.schema_version, "2.0");
+        assert_eq!(manifest.distribution, Distribution::BuiltIn);
+        assert_eq!(manifest.provider.kind, ProviderKind::StaticDescriptor);
+        assert!(matches!(manifest.runtime, Runtime::System { .. }));
+    }
+
+    #[test]
+    fn parses_local_script_runtime_and_rejects_an_unlisted_platform() {
+        let value = serde_json::json!({
+            "schemaVersion": "2.0",
+            "id": "local.script-tool",
+            "name": "Script tool",
+            "publisher": { "id": "local-user", "name": "Local user" },
+            "compatibility": { "floter": ">=0.3.2", "providerProtocol": "^1.0" },
+            "distribution": { "type": "local" },
+            "runtime": { "type": "script", "language": "js", "path": "provider.js" },
+            "provider": { "type": "executable", "argsPrefix": ["--floter"] },
+            "platforms": ["linux"]
+        });
+        let manifest = ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(matches!(
+            manifest.runtime,
+            Runtime::Script {
+                language: ScriptLanguage::Js,
+                ..
+            }
+        ));
+        let unsupported = PlatformTarget {
+            os: PlatformOs::Windows,
+            arch: PlatformArch::X64,
+        };
+        assert!(manifest
+            .resolve(unsupported)
+            .unwrap_err()
+            .contains("does not support windows"));
+    }
+
+    #[test]
+    fn npm_system_runtime_resolves_without_a_platform_package() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../extensions/v-tools/floter.extension.json"
+        ))
+        .unwrap();
+        value["distribution"]["type"] = Value::String("npm".into());
+        value["provider"]["type"] = Value::String("executable".into());
+        let manifest = ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let resolved = manifest
+            .resolve(PlatformTarget {
+                os: PlatformOs::Linux,
+                arch: PlatformArch::X64,
+            })
+            .unwrap();
+
+        assert!(resolved.platform_package.is_none());
+    }
+
+    #[test]
+    fn rejects_local_bundled_runtime_combination() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        value["schemaVersion"] = Value::String("2.0".into());
+        value["distribution"] = serde_json::json!({ "type": "local" });
+        value["runtime"]["type"] = Value::String("bundled".into());
+        value["provider"]["type"] = Value::String("executable".into());
+
+        assert!(ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).is_err());
     }
 
     #[test]

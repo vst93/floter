@@ -17,6 +17,9 @@ const MAX_STDERR_BYTES: usize = 256 * 1024;
 pub struct ProviderInvocation {
     pub extension_id: String,
     pub executable: PathBuf,
+    /// Arguments placed before the provider protocol arguments. Script
+    /// integrations use this for the interpreter and script path.
+    pub executable_prefix: Vec<String>,
     pub runtime_root: Option<PathBuf>,
     pub package_version: String,
     pub tool_version_hint: Option<String>,
@@ -256,7 +259,7 @@ impl ProviderManager {
                 });
         }
 
-        let modified_ms = modified_ms(&invocation.executable)?;
+        let modified_ms = invocation_modified_ms(invocation)?;
         let tool_version = if invocation.version_args.is_empty() {
             invocation.tool_version_hint.clone()
         } else {
@@ -406,6 +409,7 @@ impl ProviderManager {
             command.env_clear();
         }
         command
+            .args(&invocation.executable_prefix)
             .args(&invocation.config.args_prefix)
             .arg(operation)
             .args(["--protocol", "1"])
@@ -547,7 +551,11 @@ pub fn execution_plan(
             program.display()
         ));
     }
+    let self_program = command.execution.program == "self";
     let (program, mut args) = execution_host(program);
+    if self_program {
+        args.extend(invocation.executable_prefix.clone());
+    }
     args.extend(command.execution.args_prefix.clone());
     args.extend(user_args);
     let cwd = match command.execution.working_directory {
@@ -611,6 +619,7 @@ async fn provider_version(invocation: &ProviderInvocation) -> Option<String> {
         command.env_clear();
     }
     command
+        .args(&invocation.executable_prefix)
         .args(&invocation.version_args)
         .envs(&invocation.config.environment)
         .stdin(Stdio::null())
@@ -715,6 +724,17 @@ fn modified_ms(path: &Path) -> Result<u128, String> {
         .map_err(|_| format!("Provider mtime predates Unix epoch: {}", path.display()))
 }
 
+fn invocation_modified_ms(invocation: &ProviderInvocation) -> Result<u128, String> {
+    let mut latest = modified_ms(&invocation.executable)?;
+    for argument in &invocation.executable_prefix {
+        let path = Path::new(argument);
+        if path.is_file() {
+            latest = latest.max(modified_ms(path)?);
+        }
+    }
+    Ok(latest)
+}
+
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path.parent().ok_or("Invalid cache path")?;
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
@@ -744,11 +764,14 @@ mod tests {
         ProviderInvocation {
             extension_id: "dev.floter.mock".into(),
             executable,
+            executable_prefix: Vec::new(),
             runtime_root: None,
             package_version: "1.0.0".into(),
             tool_version_hint: None,
             version_args: Vec::new(),
             config: ProviderConfig {
+                kind: crate::extensions::manifest::ProviderKind::Executable,
+                descriptor: None,
                 args_prefix: vec!["--floter".into()],
                 describe_timeout_ms: 5_000,
                 complete_timeout_ms,
