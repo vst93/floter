@@ -24,12 +24,13 @@ use commands::custom::{
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_bundled_permissions, extensions_config_copy,
     extensions_config_export, extensions_config_get, extensions_config_set,
-    extensions_connect_bundled, extensions_create_custom, extensions_custom_get,
-    extensions_custom_update, extensions_describe, extensions_diagnose, extensions_disable,
-    extensions_enable, extensions_export, extensions_import, extensions_install, extensions_list,
-    extensions_permissions_summary, extensions_pick_local_manifest, extensions_reconnect_system,
-    extensions_rollback, extensions_search, extensions_search_path, extensions_uninstall,
-    extensions_update,
+    extensions_connect_bundled, extensions_create_custom, extensions_custom_export_script,
+    extensions_custom_get, extensions_custom_update, extensions_describe, extensions_diagnose,
+    extensions_disable, extensions_enable, extensions_export, extensions_import,
+    extensions_install, extensions_list, extensions_local_manifest_review,
+    extensions_permissions_summary, extensions_pick_local_manifest, extensions_pick_local_package,
+    extensions_reconnect_system, extensions_rollback, extensions_search, extensions_search_path,
+    extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1200,6 +1201,9 @@ pub fn run() {
             extensions_connect_bundled,
             extensions_reconnect_system,
             extensions_pick_local_manifest,
+            extensions_pick_local_package,
+            extensions_custom_export_script,
+            extensions_local_manifest_review,
             extensions_permissions_summary,
             extensions_uninstall,
             extensions_enable,

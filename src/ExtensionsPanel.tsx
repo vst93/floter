@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
@@ -148,6 +148,7 @@ type Tab = "installed" | "discover" | "updates";
 type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "reinstall" | "uninstall" | "save";
 type SyncOperation = "export" | "import";
 type ConfigOperation = "copy" | "export" | null;
+type CustomContentOperation = "copy" | "export" | null;
 type RemovalTarget = Extension | null;
 
 type PathExecutable = {
@@ -170,6 +171,8 @@ type CustomIntegrationForm = {
   platforms: Array<"darwin" | "linux" | "windows">;
 };
 
+const CURRENT_PLATFORM: "darwin" | "linux" | "windows" = navigator.userAgent.includes("Mac") ? "darwin" : navigator.userAgent.includes("Win") ? "windows" : "linux";
+
 const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   mode: "executable",
   id: "local.custom-tool",
@@ -182,19 +185,102 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   argsPrefix: [],
   versionArgs: [],
   permissions: ["environment"],
-  platforms: ["darwin", "linux", "windows"],
+  platforms: [CURRENT_PLATFORM],
 };
 
 const CUSTOM_PLATFORMS = ["darwin", "linux", "windows"] as const;
+
+const CUSTOM_ENFORCED_PERMISSION_NAMES: PermissionName[] = ["environment", "process-spawn"];
 
 const CUSTOM_DECLARED_PERMISSION_NAMES: PermissionName[] = [
   "filesystem-read",
   "filesystem-write",
   "network-fetch",
-  "process-spawn",
   "clipboard-read",
   "clipboard-write",
 ];
+
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "a[href]",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function useDialogFocus(
+  active: boolean,
+  dialogRef: RefObject<HTMLElement | null>,
+  onEscape: () => void,
+  interactive = true,
+) {
+  const escapeHandlerRef = useRef(onEscape);
+  escapeHandlerRef.current = onEscape;
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
+
+  useEffect(() => {
+    if (!active) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusInitial = window.setTimeout(() => {
+      const dialog = dialogRef.current;
+      const initial = dialog?.querySelector<HTMLElement>("[data-dialog-initial]");
+      (initial ?? dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialog)?.focus();
+    }, 0);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const dialog = dialogRef.current;
+      if (!dialog || !interactiveRef.current) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        escapeHandlerRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+        .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.clearTimeout(focusInitial);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      window.setTimeout(() => previouslyFocused?.focus(), 0);
+    };
+  }, [active, dialogRef]);
+}
+
+const integrationKindKey = (extension: Extension) => {
+  if (extension.generatedCustom) return "settings.extensions.integrationKind.custom";
+  if (extension.distributionSource === "npm") return "settings.extensions.integrationKind.npm";
+  if (extension.distributionSource === "built-in" && extension.runtimeOwnership === "system") {
+    return "settings.extensions.integrationKind.system";
+  }
+  return "settings.extensions.integrationKind.package";
+};
+
+const removalKind = (extension: Extension): "custom" | "npm" | "system" | "package" => {
+  if (extension.generatedCustom) return "custom";
+  if (extension.distributionSource === "npm") return "npm";
+  if (extension.distributionSource === "built-in" && extension.runtimeOwnership === "system") return "system";
+  return "package";
+};
 
 type ExtensionsExportResult = {
   path: string;
@@ -267,6 +353,15 @@ const formatDownloads = (value: number): string =>
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const localErrorMessage = (error: unknown, t: Translate): string => {
+  const message = errorMessage(error);
+  if (message.startsWith("manifest_missing:")) return `${t("settings.extensions.localErrorMissing")}: ${t("settings.extensions.localFixMissing")}`;
+  if (message.startsWith("manifest_invalid:")) return `${t("settings.extensions.localErrorInvalid")}: ${message.slice("manifest_invalid:".length).trim()}`;
+  if (message.startsWith("manifest_incompatible:") || message.startsWith("platform_incompatible:")) return `${t("settings.extensions.localErrorPlatform")}: ${message.split(":").slice(1).join(":").trim()}`;
+  if (message.startsWith("duplicate_id:") || message.includes("already installed")) return `${t("settings.extensions.localErrorDuplicate")}: ${t("settings.extensions.localFixDuplicate")}`;
+  return message;
+};
+
 const displayJson = (value: JsonValue): string => {
   if (typeof value === "string") return value;
   if (value === null) return "";
@@ -326,6 +421,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [reviewingPackage, setReviewingPackage] = useState<string | null>(null);
   const [permissionReviews, setPermissionReviews] = useState<Record<string, PermissionReview>>({});
   const [pendingInstall, setPendingInstall] = useState<{ result: SearchResult; request: InstallRequest; review: PermissionReview } | null>(null);
+  const [pendingLocal, setPendingLocal] = useState<{ review: PermissionReview; request: InstallRequest; name: string; runtime: string; platforms: string[]; source: string } | null>(null);
   const [syncOperation, setSyncOperation] = useState<SyncOperation | null>(null);
   const [exportResult, setExportResult] = useState<ExtensionsExportResult | null>(null);
   const [importReport, setImportReport] = useState<ExtensionsImportReport | null>(null);
@@ -333,32 +429,55 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
   const [customIntegrationLoading, setCustomIntegrationLoading] = useState(false);
   const [customIntegrationError, setCustomIntegrationError] = useState<string | null>(null);
+  const [customContentOperation, setCustomContentOperation] = useState<CustomContentOperation>(null);
   const [customIntegration, setCustomIntegration] = useState<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
   const [pathResults, setPathResults] = useState<PathExecutable[]>([]);
   const [pathSearching, setPathSearching] = useState(false);
+  const [pathHighlight, setPathHighlight] = useState(0);
+  const [customDirty, setCustomDirty] = useState(false);
+  const customSavedRef = useRef<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
   const [operationNotice, setOperationNotice] = useState<string | null>(null);
   const detailGeneration = useRef(0);
   const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
+  const permissionDialogRef = useRef<HTMLElement | null>(null);
+  const localDialogRef = useRef<HTMLElement | null>(null);
+  const removalDialogRef = useRef<HTMLElement | null>(null);
+  const customDialogRef = useRef<HTMLElement | null>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
 
   const updateCustomIntegration = (update: (current: CustomIntegrationForm) => CustomIntegrationForm) => {
     setCustomIntegrationError(null);
-    setCustomIntegration(update);
+    setCustomIntegration((current) => {
+      const next = update(current);
+      setCustomDirty(JSON.stringify(next) !== JSON.stringify(customSavedRef.current));
+      return next;
+    });
   };
 
   const resetCustomIntegration = () => {
     setEditingCustomId(null);
-    setCustomIntegration({ ...DEFAULT_CUSTOM_INTEGRATION, argsPrefix: [], versionArgs: [], permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions], platforms: [...DEFAULT_CUSTOM_INTEGRATION.platforms] });
+    const fresh = { ...DEFAULT_CUSTOM_INTEGRATION, argsPrefix: [], versionArgs: [], permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions], platforms: [CURRENT_PLATFORM] as Array<"darwin" | "linux" | "windows"> };
+    setCustomIntegration(fresh);
     setCustomIntegrationError(null);
     setPathResults([]);
+    setPathHighlight(0);
+    setCustomDirty(false);
+    customSavedRef.current = fresh;
   };
 
   const closeCustomIntegration = () => {
     if (busy || customIntegrationLoading) return;
+    if (customDirty && !window.confirm(t("settings.extensions.customDiscardConfirm"))) return;
     setShowCustomIntegration(false);
     resetCustomIntegration();
-    window.setTimeout(() => customCreateButtonRef.current?.focus(), 0);
   };
+
+  const scriptTemplate = (language: CustomIntegrationForm["scriptLanguage"]) => ({
+    js: "#!/usr/bin/env node\n\n// Floter provider script\n",
+    shell: "#!/bin/sh\n\n# Floter provider script\n",
+    powershell: "#!/usr/bin/env pwsh\n\n# Floter provider script\n",
+  }[language]);
 
   const updates = useMemo(
     () => extensions.filter((extension) => {
@@ -404,7 +523,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       setExtensions(entries);
       await checkForUpdates(entries);
     } catch (nextError) {
-      setError(errorMessage(nextError));
+      setError(localErrorMessage(nextError, t));
     } finally {
       setLoading(false);
     }
@@ -420,7 +539,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     const timer = window.setTimeout(() => {
       setPathSearching(true);
       void invoke<PathExecutable[]>("extensions_search_path", { query, limit: 12 })
-        .then(setPathResults)
+        .then((results) => { setPathResults(results); setPathHighlight(0); })
         .catch(() => setPathResults([]))
         .finally(() => setPathSearching(false));
     }, 120);
@@ -430,20 +549,15 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   useEffect(() => {
     if (!showCustomIntegration) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy && !customIntegrationLoading) closeCustomIntegration();
+      if (customIntegration.mode === "executable" && pathResults.length) {
+        if (event.key === "ArrowDown") { event.preventDefault(); setPathHighlight((index) => Math.min(index + 1, pathResults.length - 1)); }
+        if (event.key === "ArrowUp") { event.preventDefault(); setPathHighlight((index) => Math.max(index - 1, 0)); }
+        if (event.key === "Enter" && document.activeElement?.getAttribute("data-path-search") === "true") { event.preventDefault(); choosePathExecutable(pathResults[pathHighlight]); }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showCustomIntegration, busy, customIntegrationLoading]);
-
-  useEffect(() => {
-    if (!removalTarget) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) setRemovalTarget(null);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [removalTarget, busy]);
+  }, [showCustomIntegration, customIntegration.mode, pathResults, pathHighlight]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -492,30 +606,40 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     });
   }, [selectedId, selected?.updatedAt]);
 
+  useDialogFocus(Boolean(pendingInstall), permissionDialogRef, () => {
+    if (!busy) setPendingInstall(null);
+  });
+  useDialogFocus(Boolean(pendingLocal), localDialogRef, () => {
+    if (!busy) setPendingLocal(null);
+  });
+  useDialogFocus(Boolean(removalTarget), removalDialogRef, () => {
+    if (!busy) setRemovalTarget(null);
+  });
+  useDialogFocus(showCustomIntegration, customDialogRef, closeCustomIntegration);
+  useDialogFocus(Boolean(selectedId), drawerRef, () => {
+    if (!configDirty || window.confirm(t("settings.extensions.configDiscardConfirm"))) {
+      setSelectedId(null);
+    }
+  }, !showCustomIntegration && !removalTarget && !pendingInstall && !pendingLocal);
+
   useEffect(() => {
-    if (!selectedId || showCustomIntegration || removalTarget) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (!configDirty || window.confirm(t("settings.extensions.configDiscardConfirm"))) {
-        setSelectedId(null);
-      }
-    };
-    window.addEventListener("keydown", closeOnEscape, true);
-    return () => window.removeEventListener("keydown", closeOnEscape, true);
-  }, [selectedId, configDirty, t, showCustomIntegration, removalTarget]);
+    if (!showCustomIntegration || customIntegrationLoading) return;
+    customDialogRef.current?.querySelector<HTMLElement>("[data-dialog-initial]")?.focus();
+  }, [showCustomIntegration, customIntegrationLoading]);
 
   const runMutation = async (id: string, kind: MutationKind, action: () => Promise<unknown>): Promise<boolean> => {
     if (busy) return false;
     setBusy({ id, kind });
     setError(null);
     try {
-      await action();
+      const result = await action();
+      if (result === false) return false;
       await refresh();
       if (kind === "uninstall") setSelectedId(null);
+      setOperationNotice(t("settings.extensions.operationComplete"));
       return true;
     } catch (nextError) {
+      await refresh();
       setError(errorMessage(nextError));
       return false;
     } finally {
@@ -601,7 +725,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       const review = await reviewPermissions(request);
       if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
         permissions: review.permissions.map((permission) => permission.title).join(", "),
-      }))) return;
+      }))) return false;
       await invoke("extensions_update", {
         id: extension.id,
         version,
@@ -636,7 +760,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         const review = await reviewPermissions(request);
         if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
           permissions: review.permissions.map((permission) => permission.title).join(", "),
-        }))) return;
+        }))) return false;
         await invoke("extensions_uninstall", { id: extension.id, removeData: false });
         await invoke<Extension>("extensions_install", {
           request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
@@ -651,20 +775,24 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const confirmRemoval = async () => {
     if (!removalTarget || busy) return;
     const extension = removalTarget;
-    setRemovalTarget(null);
     const removed = await runMutation(
       extension.id,
       "uninstall",
       () => invoke("extensions_uninstall", { id: extension.id, removeData: false }),
     );
-    if (removed) setOperationNotice(t(
-      extension.generatedCustom
-        ? "settings.extensions.customDeleted"
-        : extension.distributionSource === "npm"
-          ? "settings.extensions.uninstalledNotice"
-          : "settings.extensions.disconnectedNotice",
-      { name: extension.name },
-    ));
+    if (removed) {
+      setRemovalTarget(null);
+      setOperationNotice(t(
+        removalKind(extension) === "custom"
+          ? "settings.extensions.customDeleted"
+          : removalKind(extension) === "npm"
+            ? "settings.extensions.uninstalledNotice"
+            : removalKind(extension) === "system"
+              ? "settings.extensions.disconnectedNotice"
+              : "settings.extensions.packageRemovedNotice",
+        { name: extension.name },
+      ));
+    }
   };
 
   const searchExtensions = async (event: FormEvent) => {
@@ -684,13 +812,17 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     }
   };
 
-  const performInstall = (result: SearchResult, request: InstallRequest, review: PermissionReview) => runMutation(
-    result.package,
-    "install",
-    () => invoke("extensions_install", {
-      request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
-    }),
-  );
+  const performInstall = async (result: SearchResult, request: InstallRequest, review: PermissionReview) => {
+    const installed = await runMutation(
+      result.package,
+      "install",
+      () => invoke("extensions_install", {
+        request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
+      }),
+    );
+    if (installed) setOperationNotice(t("settings.extensions.installedNotice", { name: result.package }));
+    return installed;
+  };
 
   const installExtension = async (result: SearchResult) => {
     if (busy || reviewingPackage) return;
@@ -735,6 +867,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         approvedPermissions: review.permissions.map(({ permission }) => permission),
       });
       await refresh();
+      setOperationNotice(t("settings.extensions.connectedNotice", { name: extension.name }));
     } catch (nextError) {
       setError(errorMessage(nextError));
     } finally {
@@ -747,7 +880,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setBusy({ id: "local", kind: "install" });
     setError(null);
     try {
-      const manifestPath = await invoke<string | null>("extensions_pick_local_manifest");
+      const manifestPath = await invoke<string | null>("extensions_pick_local_package");
       if (!manifestPath) return;
       const request: InstallRequest = {
         source: "linked",
@@ -756,19 +889,26 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         manifestPath,
         executablePath: null,
       };
-      const review = await reviewPermissions(request);
-      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
-        permissions: review.permissions.map((permission) => permission.title).join(", "),
-      }))) return;
-      await invoke("extensions_install", {
-        request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
-      });
-      await refresh();
+      const details = await invoke<{ extensionName: string; runtime: string; platforms: string[]; source: string; permissions: PermissionReview }>("extensions_local_manifest_review", { manifestPath, locale });
+      setPendingLocal({ review: details.permissions, request, name: details.extensionName, runtime: details.runtime, platforms: details.platforms, source: details.source });
     } catch (nextError) {
       setError(errorMessage(nextError));
     } finally {
       setBusy(null);
     }
+  };
+
+  const confirmLocal = async () => {
+    if (!pendingLocal || busy) return;
+    const pending = pendingLocal;
+    setBusy({ id: "local", kind: "install" });
+    try {
+      await invoke("extensions_install", { request: { ...pending.request, approvedPermissions: pending.review.permissions.map(({ permission }) => permission) } });
+      await refresh();
+      setPendingLocal(null);
+      setOperationNotice(t("settings.extensions.connectedNotice", { name: pending.name }));
+    } catch (nextError) { setError(errorMessage(nextError)); }
+    finally { setBusy(null); }
   };
 
   const openCreateCustomIntegration = () => {
@@ -793,8 +933,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         permissions: [...definition.permissions],
         platforms: [...definition.platforms],
       });
+      customSavedRef.current = { ...definition, scriptLanguage: definition.scriptLanguage ?? "shell", scriptContent: definition.scriptContent ?? "", argsPrefix: [...definition.argsPrefix], versionArgs: [...definition.versionArgs], permissions: [...definition.permissions], platforms: [...definition.platforms] };
+      setCustomDirty(false);
     } catch (nextError) {
-      setCustomIntegrationError(errorMessage(nextError));
+      const message = errorMessage(nextError);
+      setCustomIntegrationError(message);
+      setError(message);
     } finally {
       setCustomIntegrationLoading(false);
     }
@@ -834,6 +978,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           ...request,
         },
       });
+      customSavedRef.current = customIntegration;
+      setCustomDirty(false);
       const notice = editingCustomId
         ? t("settings.extensions.customUpdated", { name: customIntegration.name })
         : t("settings.extensions.customCreated", { name: customIntegration.name });
@@ -842,9 +988,49 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       setOperationNotice(notice);
       await refresh();
     } catch (nextError) {
-      setCustomIntegrationError(errorMessage(nextError));
+      const message = errorMessage(nextError);
+      setCustomIntegrationError(message);
+      setError(message);
     } finally {
       setBusy(null);
+    }
+  };
+
+  const copyCustomContent = async (content: string, notice: string) => {
+    if (customContentOperation) return;
+    setCustomContentOperation("copy");
+    setCustomIntegrationError(null);
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(content);
+      setOperationNotice(notice);
+    } catch (nextError) {
+      const message = errorMessage(nextError);
+      setCustomIntegrationError(message);
+      setError(message);
+    } finally {
+      setCustomContentOperation(null);
+    }
+  };
+  const copyExecutionPlan = async () => {
+    const plan = JSON.stringify({ program: customIntegration.executablePath, args: [...customIntegration.argsPrefix], mode: "pty" }, null, 2);
+    await copyCustomContent(plan, t("settings.extensions.customPlanCopied"));
+  };
+  const exportCustomScript = async () => {
+    if (customContentOperation) return;
+    setCustomContentOperation("export");
+    setCustomIntegrationError(null);
+    setError(null);
+    const extension = customIntegration.scriptLanguage === "shell" ? "sh" : customIntegration.scriptLanguage === "powershell" ? "ps1" : "js";
+    try {
+      const path = await invoke<string | null>("extensions_custom_export_script", { id: customIntegration.id, content: customIntegration.scriptContent, extension });
+      if (path) setOperationNotice(t("settings.extensions.customScriptExported"));
+    } catch (nextError) {
+      const message = errorMessage(nextError);
+      setCustomIntegrationError(message);
+      setError(message);
+    } finally {
+      setCustomContentOperation(null);
     }
   };
 
@@ -854,11 +1040,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     () => invoke("extensions_reconnect_system", { id: extension.id }),
   );
 
-  const confirmPendingInstall = () => {
-    if (!pendingInstall) return;
+  const confirmPendingInstall = async () => {
+    if (!pendingInstall || busy) return;
     const pending = pendingInstall;
-    setPendingInstall(null);
-    void performInstall(pending.result, pending.request, pending.review);
+    if (await performInstall(pending.result, pending.request, pending.review)) {
+      setPendingInstall(null);
+    }
   };
 
   const updateAll = async () => {
@@ -908,8 +1095,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       setConfigValues(saved.values);
       setSavedConfigValues(saved.values);
       setConfigNotice(t("settings.extensions.configSaved"));
+      setOperationNotice(t("settings.extensions.configSaved"));
     } catch (nextError) {
-      setDetailError(errorMessage(nextError));
+      const message = errorMessage(nextError);
+      setDetailError(message);
+      setError(message);
     } finally {
       setBusy(null);
     }
@@ -930,8 +1120,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       const json = await invoke<string>("extensions_config_copy", { id: selected.id, values: configValues });
       await navigator.clipboard.writeText(json);
       setConfigNotice(t("settings.extensions.configCopied"));
+      setOperationNotice(t("settings.extensions.configCopied"));
     } catch (nextError) {
-      setDetailError(errorMessage(nextError));
+      const message = errorMessage(nextError);
+      setDetailError(message);
+      setError(message);
     } finally {
       setConfigOperation(null);
     }
@@ -944,9 +1137,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setConfigNotice(null);
     try {
       const path = await invoke<string | null>("extensions_config_export", { id: selected.id, values: configValues });
-      if (path) setConfigNotice(t("settings.extensions.configExported"));
+      if (path) {
+        setConfigNotice(t("settings.extensions.configExported"));
+        setOperationNotice(t("settings.extensions.configExported"));
+      }
     } catch (nextError) {
-      setDetailError(errorMessage(nextError));
+      const message = errorMessage(nextError);
+      setDetailError(message);
+      setError(message);
     } finally {
       setConfigOperation(null);
     }
@@ -955,6 +1153,18 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const closeDetails = () => {
     if (configDirty && !window.confirm(t("settings.extensions.configDiscardConfirm"))) return;
     setSelectedId(null);
+  };
+
+  const removalTextKey = (extension: Extension, suffix: "" | "Title" | "Description") => {
+    const kind = removalKind(extension);
+    const stem = kind === "custom"
+      ? "deleteCustom"
+      : kind === "npm"
+        ? "uninstall"
+        : kind === "system"
+          ? "disconnect"
+          : "removePackage";
+    return `settings.extensions.${stem}${suffix}` as Parameters<Translate>[0];
   };
 
   const stopRowClick = (event: MouseEvent) => event.stopPropagation();
@@ -999,6 +1209,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         <div className="extensions-notice extensions-notice--error" role="alert">
           <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {operationNotice && (
+        <div className="extensions-notice extensions-notice--success" role="status">
+          <Check size={15} strokeWidth={2} aria-hidden="true" />
+          <span>{operationNotice}</span>
+          <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.dismissNotice")} onClick={() => setOperationNotice(null)}><X size={13} strokeWidth={2} /></button>
         </div>
       )}
 
@@ -1048,13 +1266,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             <Link2 size={13} strokeWidth={2} aria-hidden="true" />
             <span>{t("settings.extensions.chooseManifestHint")}</span>
           </div>
-          {operationNotice && (
-            <div className="extensions-notice extensions-notice--success" role="status">
-              <Check size={15} strokeWidth={2} aria-hidden="true" />
-              <span>{operationNotice}</span>
-              <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.dismissNotice")} onClick={() => setOperationNotice(null)}><X size={13} strokeWidth={2} /></button>
-            </div>
-          )}
           {exportResult && (
             <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
               <Check size={15} strokeWidth={2} aria-hidden="true" />
@@ -1214,19 +1425,22 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       )}
 
       {pendingInstall && (
-        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => setPendingInstall(null)}>
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingInstall(null); }}>
           <section
+            ref={permissionDialogRef}
             className="extension-permission-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="extension-permission-title"
+            aria-describedby="extension-permission-hint extension-permission-boundary"
+            tabIndex={-1}
             onMouseDown={stopRowClick}
           >
             <header>
               <ShieldCheck size={18} strokeWidth={2} aria-hidden="true" />
               <div>
                 <h3 id="extension-permission-title">{t("settings.extensions.permissionTitle", { name: pendingInstall.review.extensionName })}</h3>
-                <p>{t("settings.extensions.permissionHint")}</p>
+                <p id="extension-permission-hint">{t("settings.extensions.permissionHint")}</p>
               </div>
             </header>
             <div className="extension-permission-list">
@@ -1236,29 +1450,46 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                   <span>{permission.description}</span>
                 </div>
               ))}
+              <p id="extension-permission-boundary" className="extension-permission-dialog__boundary">{t("settings.extensions.permissionReviewBoundary")}</p>
             </div>
             <footer>
-              <button type="button" className="extensions-action-button" onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
-              <button type="button" className="extensions-action-button extensions-action-button--primary" onClick={confirmPendingInstall}>{t("settings.extensions.approveInstall")}</button>
+              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmPendingInstall()}>{busy ? t("settings.extensions.installing") : t("settings.extensions.approveInstall")}</button>
             </footer>
+          </section>
+        </div>
+      )}
+
+      {pendingLocal && (
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingLocal(null); }}>
+          <section ref={localDialogRef} className="extension-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="extension-local-title" aria-describedby="extension-local-hint extension-local-boundary" tabIndex={-1} onMouseDown={stopRowClick}>
+            <header><ShieldCheck size={18} strokeWidth={2} aria-hidden="true" /><div><h3 id="extension-local-title">{t("settings.extensions.localConfirmTitle", { name: pendingLocal.name })}</h3><p id="extension-local-hint">{t("settings.extensions.localConfirmHint")}</p></div></header>
+            <div className="extension-permission-list">
+              <div><strong>{t("settings.extensions.localSource")}</strong><span>{pendingLocal.source === "local" ? t("settings.extensions.localDirectory") : pendingLocal.source}</span></div>
+              <div><strong>{t("settings.extensions.localRuntime")}</strong><span>{pendingLocal.runtime}</span></div>
+              <div><strong>{t("settings.extensions.customPlatforms")}</strong><span>{pendingLocal.platforms.join(", ") || t("settings.extensions.unavailable")}</span></div>
+              {pendingLocal.review.permissions.map((permission) => <div key={permission.permission}><strong>{permission.title}</strong><span>{permission.description}</span></div>)}
+              <p id="extension-local-boundary" className="extension-permission-dialog__boundary">{t("settings.extensions.permissionReviewBoundary")}</p>
+            </div>
+            <footer><button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingLocal(null)}>{t("settings.extensions.cancel")}</button><button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmLocal()}>{busy ? t("settings.extensions.installing") : t("settings.extensions.localConfirm")}</button></footer>
           </section>
         </div>
       )}
 
       {removalTarget && (
         <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setRemovalTarget(null); }}>
-          <section className="extension-removal-dialog" role="alertdialog" aria-modal="true" aria-labelledby="extension-removal-title" aria-describedby="extension-removal-description" onMouseDown={stopRowClick}>
+          <section ref={removalDialogRef} className="extension-removal-dialog" role="alertdialog" aria-modal="true" aria-labelledby="extension-removal-title" aria-describedby="extension-removal-description" tabIndex={-1} onMouseDown={stopRowClick}>
             <header>
               <AlertCircle size={19} strokeWidth={2} aria-hidden="true" />
               <div>
-                <h3 id="extension-removal-title">{t(removalTarget.generatedCustom ? "settings.extensions.deleteCustomTitle" : removalTarget.distributionSource === "npm" ? "settings.extensions.uninstallTitle" : "settings.extensions.disconnectTitle", { name: removalTarget.name })}</h3>
-                <p id="extension-removal-description">{t(removalTarget.generatedCustom ? "settings.extensions.deleteCustomDescription" : removalTarget.distributionSource === "npm" ? "settings.extensions.uninstallDescription" : "settings.extensions.disconnectDescription")}</p>
+                <h3 id="extension-removal-title">{t(removalTextKey(removalTarget, "Title"), { name: removalTarget.name })}</h3>
+                <p id="extension-removal-description">{t(removalTextKey(removalTarget, "Description"))}</p>
               </div>
             </header>
             {removalTarget.generatedCustom && <div className="extension-removal-dialog__warning">{t("settings.extensions.deleteCustomWarning")}</div>}
             <footer>
-              <button type="button" className="extensions-action-button" autoFocus disabled={Boolean(busy)} onClick={() => setRemovalTarget(null)}>{t("settings.extensions.cancel")}</button>
-              <button type="button" className="extensions-action-button extensions-action-button--danger" disabled={Boolean(busy)} onClick={() => void confirmRemoval()}>{t(removalTarget.generatedCustom ? "settings.extensions.deleteCustom" : removalTarget.distributionSource === "npm" ? "settings.extensions.uninstall" : "settings.extensions.disconnect")}</button>
+              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setRemovalTarget(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button extensions-action-button--danger" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmRemoval()}>{busy ? t("settings.extensions.removing") : t(removalTextKey(removalTarget, ""))}</button>
             </footer>
           </section>
         </div>
@@ -1266,7 +1497,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
 
       {showCustomIntegration && (
         <div className="extension-permission-backdrop" role="presentation" onMouseDown={closeCustomIntegration}>
-          <section className="extension-custom-dialog" role="dialog" aria-modal="true" aria-labelledby="custom-integration-title" onMouseDown={stopRowClick}>
+          <section ref={customDialogRef} className="extension-custom-dialog" role="dialog" aria-modal="true" aria-labelledby="custom-integration-title" tabIndex={-1} onMouseDown={stopRowClick}>
             <header className="extension-custom-dialog__header">
               <div>
                 <h3 id="custom-integration-title">{t(editingCustomId ? "settings.extensions.editCustomTitle" : "settings.extensions.createCustomTitle")}</h3>
@@ -1285,21 +1516,23 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 ))}
               </div>
               <div className="extension-custom-form__grid">
-                <label><span>{t("settings.extensions.customName")}</span><input required maxLength={80} autoFocus value={customIntegration.name} onChange={(event) => updateCustomIntegration((current) => ({ ...current, name: event.target.value }))} /></label>
+                <label><span>{t("settings.extensions.customName")}</span><input required maxLength={80} data-dialog-initial value={customIntegration.name} onChange={(event) => updateCustomIntegration((current) => ({ ...current, name: event.target.value }))} /></label>
                 <label><span>{t("settings.extensions.customId")}</span><input required readOnly={Boolean(editingCustomId)} pattern="[a-z0-9]+([._-][a-z0-9]+)+" value={customIntegration.id} onChange={(event) => updateCustomIntegration((current) => ({ ...current, id: event.target.value.toLowerCase() }))} /></label>
                 <label><span>{t("settings.extensions.customVersion")}</span><input required value={customIntegration.version} onChange={(event) => updateCustomIntegration((current) => ({ ...current, version: event.target.value }))} /></label>
                 <label><span>{t("settings.extensions.customCommand")}</span><input required pattern="[a-z0-9][a-z0-9_-]{0,63}" value={customIntegration.command} onChange={(event) => updateCustomIntegration((current) => ({ ...current, command: event.target.value.toLowerCase() }))} /></label>
                 {customIntegration.mode === "executable" ? <>
-                  <label className="extension-custom-form__wide"><span>{t("settings.extensions.customExecutable")}</span><input required autoComplete="off" placeholder={t("settings.extensions.customExecutablePlaceholder")} value={customIntegration.executablePath} onChange={(event) => updateCustomIntegration((current) => ({ ...current, executablePath: event.target.value }))} /></label>
+                  <label className="extension-custom-form__wide"><span>{t("settings.extensions.customExecutable")}</span><input data-path-search="true" required autoComplete="off" placeholder={t("settings.extensions.customExecutablePlaceholder")} value={customIntegration.executablePath} onChange={(event) => updateCustomIntegration((current) => ({ ...current, executablePath: event.target.value }))} /></label>
                   <div className="extension-path-results extension-custom-form__wide" role="listbox" aria-label={t("settings.extensions.customPathResults")}>
-                    {pathSearching ? <span>{t("settings.extensions.searching")}</span> : pathResults.map((candidate) => (
-                      <button key={candidate.path} type="button" role="option" onClick={() => choosePathExecutable(candidate)}><strong>{candidate.name}</strong><span>{candidate.path}</span></button>
-                    ))}
+                    {pathSearching ? <span>{t("settings.extensions.searching")}</span> : pathResults.length ? pathResults.map((candidate, index) => (
+                      <button key={candidate.path} type="button" role="option" aria-selected={index === pathHighlight} className={index === pathHighlight ? "extension-path-result--active" : ""} onClick={() => choosePathExecutable(candidate)}><strong>{candidate.name}</strong><span>{candidate.path}</span></button>
+                    )) : customIntegration.executablePath.trim() ? <span>{t("settings.extensions.customPathNoResults")}</span> : null}
                   </div>
                 </> : <>
-                  <label><span>{t("settings.extensions.customScriptLanguage")}</span><select value={customIntegration.scriptLanguage} onChange={(event) => updateCustomIntegration((current) => ({ ...current, scriptLanguage: event.target.value as CustomIntegrationForm["scriptLanguage"] }))}><option value="js">JavaScript</option><option value="shell">Shell</option><option value="powershell">PowerShell</option></select></label>
+                  <label><span>{t("settings.extensions.customScriptLanguage")}</span><select value={customIntegration.scriptLanguage} onChange={(event) => updateCustomIntegration((current) => { const language = event.target.value as CustomIntegrationForm["scriptLanguage"]; const templates = ["", scriptTemplate("js"), scriptTemplate("shell"), scriptTemplate("powershell")]; return { ...current, scriptLanguage: language, scriptContent: templates.includes(current.scriptContent) ? scriptTemplate(language) : current.scriptContent }; })}><option value="js">JavaScript</option><option value="shell">Shell</option><option value="powershell">PowerShell</option></select></label>
                   <label className="extension-custom-form__wide"><span>{t("settings.extensions.customScriptContent")}</span><textarea required spellCheck={false} placeholder={t("settings.extensions.customScriptPlaceholder")} value={customIntegration.scriptContent} onChange={(event) => updateCustomIntegration((current) => ({ ...current, scriptContent: event.target.value }))} /></label>
+                  <div className="extension-custom-form__actions extension-custom-form__wide"><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void copyCustomContent(customIntegration.scriptContent, t("settings.extensions.customScriptCopied"))}><Copy size={14} />{t("settings.extensions.copyScript")}</button><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void exportCustomScript()}><Download size={14} />{customContentOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.exportScript")}</button></div>
                 </>}
+                {customIntegration.mode === "executable" && <div className="extension-custom-form__actions extension-custom-form__wide"><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void copyCustomContent(customIntegration.executablePath, t("settings.extensions.customCommandCopied"))}><Copy size={14} />{t("settings.extensions.copyCommand")}</button><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void copyExecutionPlan()}><Copy size={14} />{t("settings.extensions.copyPlan")}</button></div>}
                 <ArgumentListEditor
                   values={customIntegration.argsPrefix}
                   label={t("settings.extensions.customArgsPrefix")}
@@ -1330,7 +1563,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <fieldset className="extension-custom-permissions">
                 <legend>{t("settings.extensions.customEnforcedPermissions")}</legend>
                 <p className="extension-custom-permissions__hint">{t("settings.extensions.permissionEnforcedHint")}</p>
-                {(["environment"] as PermissionName[]).map((permission) => (
+                {CUSTOM_ENFORCED_PERMISSION_NAMES.map((permission) => (
                   <label key={permission}><input type="checkbox" checked={customIntegration.permissions.includes(permission)} onChange={(event) => updateCustomIntegration((current) => ({ ...current, permissions: event.target.checked ? [...current.permissions, permission] : current.permissions.filter((item) => item !== permission) }))} /><span>{t(`settings.extensions.permission.${permission}`)}</span></label>
                 ))}
               </fieldset>
@@ -1353,10 +1586,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       {selected && (
         <div className="extension-drawer-backdrop" role="presentation" onMouseDown={closeDetails}>
           <aside
+            ref={drawerRef}
             className="extension-drawer"
             role="dialog"
             aria-modal="true"
             aria-labelledby="extension-drawer-title"
+            tabIndex={-1}
             onMouseDown={stopRowClick}
           >
             <header className="extension-drawer__header">
@@ -1364,7 +1599,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <h3 id="extension-drawer-title">{selected.name}</h3>
                 <span>v{selected.currentVersion}</span>
               </div>
-              <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.closeDetails")} autoFocus onClick={closeDetails}>
+              <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.closeDetails")} data-dialog-initial onClick={closeDetails}>
                 <X size={17} strokeWidth={2} aria-hidden="true" />
               </button>
             </header>
@@ -1374,6 +1609,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.info")}</h4>
                 <dl className="extension-metadata">
+                  <div><dt>{t("settings.extensions.integrationKind")}</dt><dd>{t(integrationKindKey(selected))}</dd></div>
                   <div><dt>{t("settings.extensions.author")}</dt><dd>{selected.publisherName}</dd></div>
                   <div><dt>{t("settings.extensions.source")}</dt><dd>{t(`settings.extensions.runtimeSource.${selected.runtimeSource}`)}</dd></div>
                   <div><dt>{t("settings.extensions.integrationVersion")}</dt><dd>{selected.packageVersion}</dd></div>
@@ -1465,6 +1701,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               )}
             </div>
             <footer className="extension-drawer__footer">
+              {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void invoke("open_path", { path: selected.manifestPath.replace(/[\\/]floter\.extension\.json$/, "") })}>
+                <ExternalLink size={14} strokeWidth={2} />{t("settings.extensions.openGeneratedLocation")}
+              </button>}
               {selected.generatedCustom && <button type="button" className="extensions-action-button extensions-action-button--primary" disabled={Boolean(busy)} onClick={() => void editCustomIntegration(selected)}>
                 {t("settings.extensions.editCustom")}
               </button>}
@@ -1475,8 +1714,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}
               </button>
               <button type="button" className="extensions-action-button extensions-action-button--danger" disabled={Boolean(busy)} onClick={() => uninstallExtension(selected)}>
-                {selected.distributionSource === "npm" || selected.generatedCustom ? <Trash2 size={14} strokeWidth={2} /> : <Unplug size={14} strokeWidth={2} />}
-                {t(selected.generatedCustom ? "settings.extensions.deleteCustom" : selected.distributionSource === "npm" ? "settings.extensions.uninstall" : "settings.extensions.disconnect")}
+                {removalKind(selected) === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
+                {busy?.id === selected.id && busy.kind === "uninstall" ? t("settings.extensions.removing") : t(removalTextKey(selected, ""))}
               </button>
             </footer>
           </aside>
@@ -1511,6 +1750,7 @@ function ExtensionRow({ extension, latest, busy, t, onOpen, onConnect, onRepair,
       <div className="extension-row__main">
         <div className="extension-row__title"><strong>{extension.name}</strong><span>v{extension.currentVersion}</span></div>
         <div className="extension-row__meta">
+          <span>{t(integrationKindKey(extension))}</span>
           <span>{t(`settings.extensions.runtimeSource.${extension.runtimeSource}`)}</span>
           <span className={`extension-status extension-status--${extension.state}`}>{extension.connected ? t(`settings.extensions.status.${extension.state}`) : t("settings.extensions.status.notConnected")}</span>
           {!extension.runtimeAvailable && <span className="extension-status extension-status--broken">{t("settings.extensions.runtimeUnavailable")}</span>}
@@ -1552,8 +1792,8 @@ function ExtensionRow({ extension, latest, busy, t, onOpen, onConnect, onRepair,
             <button type="button" disabled={!extension.previousVersion || busy} onClick={onRollback}><RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}</button>
             <button type="button" disabled={extension.distributionSource !== "npm" || !extension.packageName || busy} onClick={onReinstall}><RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}</button>
             <button type="button" className="extension-menu__danger" disabled={busy} onClick={onUninstall}>
-              {extension.distributionSource === "npm" || extension.generatedCustom ? <Trash2 size={14} strokeWidth={2} /> : <Unplug size={14} strokeWidth={2} />}
-              {t(extension.generatedCustom ? "settings.extensions.deleteCustom" : extension.distributionSource === "npm" ? "settings.extensions.uninstall" : "settings.extensions.disconnect")}
+              {removalKind(extension) === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
+              {t(removalKind(extension) === "custom" ? "settings.extensions.deleteCustom" : removalKind(extension) === "npm" ? "settings.extensions.uninstall" : removalKind(extension) === "system" ? "settings.extensions.disconnect" : "settings.extensions.removePackage")}
             </button>
           </div>
         </details>}

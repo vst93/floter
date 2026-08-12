@@ -944,7 +944,7 @@ pub(crate) fn permission_review(
                 }
                 (Permission::ProcessSpawn, false) => (
                     "Start processes",
-                    "Run additional programs from extension commands",
+                    "Allow a command descriptor to ask Floter to run another program",
                 ),
                 (Permission::ClipboardRead, false) => {
                     ("Read clipboard", "Read content from the system clipboard")
@@ -960,7 +960,9 @@ pub(crate) fn permission_review(
                 }
                 (Permission::FilesystemWrite, true) => ("修改文件", "创建、更改和删除文件及文件夹"),
                 (Permission::NetworkFetch, true) => ("访问网络", "发起出站网络请求"),
-                (Permission::ProcessSpawn, true) => ("启动进程", "通过插件命令运行其他程序"),
+                (Permission::ProcessSpawn, true) => {
+                    ("启动进程", "允许命令描述要求 Floter 运行其他程序")
+                }
                 (Permission::ClipboardRead, true) => ("读取剪贴板", "读取系统剪贴板中的内容"),
                 (Permission::ClipboardWrite, true) => ("写入剪贴板", "向系统剪贴板写入内容"),
                 (Permission::Environment, true) => ("读取环境变量", "继承 Floter 的环境变量"),
@@ -1060,6 +1062,18 @@ pub async fn uninstall(
                 generated_local_root.display()
             )
         })?;
+        let data_root = state.paths.data.join(extension_id);
+        if data_root
+            .read_dir()
+            .is_ok_and(|mut entries| entries.next().is_none())
+        {
+            std::fs::remove_dir(&data_root).map_err(|error| {
+                format!(
+                    "Cannot remove empty integration data directory {}: {error}",
+                    data_root.display()
+                )
+            })?;
+        }
     }
     if remove_data {
         let data = state.paths.data.join(extension_id);
@@ -2171,8 +2185,11 @@ fn validate_package_name(package: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::extensions::catalog::{self, CatalogSearchRequest};
+    use crate::extensions::sync;
     use crate::extensions::ExtensionPaths;
+    use chrono::Utc;
     use ed25519_dalek::{Signer, SigningKey};
+    use std::collections::BTreeMap;
 
     fn test_state(root: &Path) -> ExtensionState {
         ExtensionState::from_paths(ExtensionPaths::from_root(root.to_path_buf())).unwrap()
@@ -2180,6 +2197,48 @@ mod tests {
 
     fn current_platforms() -> Vec<PlatformOs> {
         vec![PlatformTarget::current().unwrap().os]
+    }
+
+    fn script_request(id: &str, name: &str, command: &str) -> CustomIntegrationRequest {
+        CustomIntegrationRequest {
+            id: id.into(),
+            name: name.into(),
+            command: command.into(),
+            version: "1.0.0".into(),
+            executable_path: String::new(),
+            mode: "script".into(),
+            script_language: Some(ScriptLanguage::Shell),
+            script_content: Some("printf original".into()),
+            args_prefix: vec!["original".into()],
+            version_args: Vec::new(),
+            permissions: vec![Permission::Environment, Permission::FilesystemRead],
+            platforms: current_platforms(),
+        }
+    }
+
+    fn catalog_request(command: &str) -> CatalogSearchRequest {
+        CatalogSearchRequest {
+            query: command.into(),
+            tokens: vec![command.into()],
+            cwd: None,
+            limit: 10,
+            include_system_commands: false,
+        }
+    }
+
+    async fn set_enabled_for_test(state: &ExtensionState, id: &str, enabled: bool) {
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        lock.set_enabled(id, enabled).unwrap();
+        lock.save(&state.paths.lock_file).unwrap();
+        state.invalidate_provider_commands().await;
+    }
+
+    async fn catalog_contains(state: &ExtensionState, command: &str) -> bool {
+        catalog::search(state, &catalog_request(command), &[])
+            .await
+            .unwrap()
+            .iter()
+            .any(|entry| entry.command == command)
     }
 
     #[cfg(unix)]
@@ -2336,23 +2395,27 @@ mod tests {
         }
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let request = CustomIntegrationRequest {
-            id: "local.restore-test".into(),
-            name: "Restore test".into(),
-            command: "restore-test".into(),
-            version: "1.0.0".into(),
-            executable_path: String::new(),
-            mode: "script".into(),
-            script_language: Some(ScriptLanguage::Shell),
-            script_content: Some("printf safe".into()),
-            args_prefix: Vec::new(),
-            version_args: Vec::new(),
-            permissions: vec![Permission::Environment],
-            platforms: current_platforms(),
-        };
+        let mut request = script_request("local.restore-test", "Restore test", "restore-test");
+        request.script_content = Some("printf safe".into());
+        request.args_prefix = Vec::new();
         create_custom_integration(&state, request.clone())
             .await
             .unwrap();
+        let root = state
+            .paths
+            .data
+            .join("local.restore-test")
+            .join("integration");
+        let original_lock = serde_json::to_value(
+            ExtensionsLock::load(&state.paths.lock_file)
+                .unwrap()
+                .get("local.restore-test")
+                .unwrap(),
+        )
+        .unwrap();
+        let original_manifest = std::fs::read(root.join("floter.extension.json")).unwrap();
+        let original_descriptor = std::fs::read(root.join("provider-description.json")).unwrap();
+        let original_script = std::fs::read(root.join("provider.sh")).unwrap();
         let mut invalid = request;
         invalid.script_content = Some(String::new());
         assert!(
@@ -2363,10 +2426,318 @@ mod tests {
 
         let restored = custom_integration_definition(&state, "local.restore-test").unwrap();
         assert_eq!(restored.script_content.as_deref(), Some("printf safe"));
+        let restored_lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        assert_eq!(
+            serde_json::to_value(restored_lock.get("local.restore-test").unwrap()).unwrap(),
+            original_lock
+        );
+        assert_eq!(
+            std::fs::read(root.join("floter.extension.json")).unwrap(),
+            original_manifest
+        );
+        assert_eq!(
+            std::fs::read(root.join("provider-description.json")).unwrap(),
+            original_descriptor
+        );
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            original_script
+        );
+    }
+
+    #[tokio::test]
+    async fn custom_integration_completes_the_full_lifecycle() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let mut request =
+            script_request("local.lifecycle-test", "Lifecycle test", "lifecycle-test");
+        create_custom_integration(&state, request.clone())
+            .await
+            .unwrap();
+        assert!(catalog_contains(&state, "lifecycle-test").await);
+
+        request.name = "Lifecycle edited".into();
+        request.command = "lifecycle-edited".into();
+        request.version = "1.1.0".into();
+        request.script_content = Some("printf edited".into());
+        request.args_prefix = vec!["edited".into()];
+        let edited = update_custom_integration(&state, "local.lifecycle-test", request.clone())
+            .await
+            .unwrap();
+        state.invalidate_provider_commands().await;
+        assert_eq!(edited.current_version, "1.1.0");
+        assert!(catalog_contains(&state, "lifecycle-edited").await);
+
+        set_enabled_for_test(&state, "local.lifecycle-test", false).await;
+        let disabled = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get("local.lifecycle-test")
+            .unwrap()
+            .clone();
+        assert!(!disabled.enabled);
+        assert_eq!(disabled.state, ExtensionStateKind::Disabled);
+        assert!(!catalog_contains(&state, "lifecycle-edited").await);
+
+        set_enabled_for_test(&state, "local.lifecycle-test", true).await;
+        let enabled = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get("local.lifecycle-test")
+            .unwrap()
+            .clone();
+        assert!(enabled.enabled);
+        assert_eq!(enabled.state, ExtensionStateKind::Enabled);
+        assert!(catalog_contains(&state, "lifecycle-edited").await);
+
+        let export = sync::build_export(&state, Utc::now()).unwrap();
+        let exported = export
+            .extensions
+            .iter()
+            .find(|entry| entry.id == "local.lifecycle-test")
+            .unwrap();
+        assert_eq!(exported.version, "1.1.0");
+        assert_eq!(
+            exported.manifest.as_ref().unwrap().permissions,
+            request.permissions
+        );
+
+        let generated_root = state
+            .paths
+            .data
+            .join("local.lifecycle-test")
+            .join("integration");
+        uninstall(&state, "local.lifecycle-test", false)
+            .await
+            .unwrap();
+        state.invalidate_provider_commands().await;
+        assert!(!generated_root.exists());
+
+        let report = sync::import_document(
+            &state,
+            &directory.path().join("lifecycle-export.json"),
+            export,
+            &BTreeMap::from([(
+                "local.lifecycle-test".to_string(),
+                request.permissions.clone(),
+            )]),
+        )
+        .await;
+        assert!(report.failed.is_empty(), "{:?}", report.failed);
+        assert_eq!(report.succeeded.len(), 1);
+        state.invalidate_provider_commands().await;
+        let imported = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get("local.lifecycle-test")
+            .unwrap()
+            .clone();
+        assert_eq!(imported.id, "local.lifecycle-test");
+        assert_eq!(imported.current_version, "1.1.0");
+        assert_eq!(
+            ExtensionManifest::load(Path::new(&imported.manifest_path))
+                .unwrap()
+                .permissions,
+            request.permissions
+        );
+        assert!(catalog_contains(&state, "lifecycle-edited").await);
+
+        uninstall(&state, "local.lifecycle-test", true)
+            .await
+            .unwrap();
+        state.invalidate_provider_commands().await;
+        assert!(!ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .extensions
+            .contains_key("local.lifecycle-test"));
+        assert!(!state.paths.data.join("local.lifecycle-test").exists());
+        assert!(!catalog_contains(&state, "lifecycle-edited").await);
+
+        let recreated = create_custom_integration(&state, request).await.unwrap();
+        assert_eq!(recreated.id, "local.lifecycle-test");
+        assert_eq!(recreated.name, "Lifecycle edited");
+    }
+
+    #[tokio::test]
+    async fn deleting_generated_integration_removes_its_empty_data_root() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        create_custom_integration(
+            &state,
+            script_request("local.delete-test", "Delete test", "delete-test"),
+        )
+        .await
+        .unwrap();
+        let data_root = state.paths.data.join("local.delete-test");
+        assert!(data_root.join("integration").is_dir());
+
+        uninstall(&state, "local.delete-test", false).await.unwrap();
+
+        assert!(!data_root.join("integration").exists());
+        assert!(!data_root.exists());
+        assert!(!ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .extensions
+            .contains_key("local.delete-test"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn uninstalling_a_system_integration_keeps_external_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = directory.path().join("external-tool");
+        std::fs::write(&executable, "#!/bin/sh\nprintf external\n").unwrap();
+        make_executable(&executable).unwrap();
+
+        let generated = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.external-test".into(),
+                name: "External test".into(),
+                command: "external-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+        let external_package = directory.path().join("external-package");
+        let generated_package = Path::new(&generated.manifest_path).parent().unwrap();
+        std::fs::create_dir(&external_package).unwrap();
+        for file in [
+            "floter.extension.json",
+            "package.json",
+            "provider-description.json",
+        ] {
+            std::fs::copy(generated_package.join(file), external_package.join(file)).unwrap();
+        }
+        uninstall(&state, "local.external-test", false)
+            .await
+            .unwrap();
+        let connected = install(
+            &state,
+            ExtensionInstallRequest {
+                source: InstallSource::Linked,
+                package: None,
+                version: None,
+                manifest_path: Some(external_package.to_string_lossy().into_owned()),
+                executable_path: Some(executable.to_string_lossy().into_owned()),
+                approved_permissions: Some(vec![Permission::Environment]),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            connected.runtime_ownership,
+            ExtensionRuntimeOwnership::System
+        );
+        assert!(!is_generated_custom_integration(&connected));
+
+        uninstall(&state, "local.external-test", false)
+            .await
+            .unwrap();
+
+        assert!(executable.is_file());
+        assert!(external_package.is_dir());
+        assert!(!ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .extensions
+            .contains_key("local.external-test"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn failed_lock_save_restores_staged_npm_directory() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let extension_id = "example.rollback-test";
+        let installed_root = state.paths.extensions.join(extension_id);
+        std::fs::create_dir_all(&installed_root).unwrap();
+        std::fs::write(installed_root.join("payload"), "installed").unwrap();
+        let now = unix_now();
+        let entry = ExtensionLockEntry {
+            id: extension_id.into(),
+            name: "Rollback test".into(),
+            publisher_id: "example".into(),
+            publisher_name: "Example".into(),
+            distribution_source: ExtensionDistributionSource::Npm,
+            runtime_ownership: ExtensionRuntimeOwnership::Bundled,
+            provider_kind: ExtensionProviderKind::Executable,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: Some("floter-rollback-test".into()),
+            package_version: "1.0.0".into(),
+            tool_version: None,
+            integrity: Some("sha512-test".into()),
+            signature_verified: false,
+            previous_signature_verified: None,
+            current_version: "1.0.0".into(),
+            previous_version: None,
+            manifest_path: installed_root
+                .join("1.0.0/floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: installed_root
+                .join("1.0.0/runtime/tool")
+                .to_string_lossy()
+                .into_owned(),
+            runtime_root: Some(
+                installed_root
+                    .join("1.0.0/runtime")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            installed_at: now,
+            updated_at: now,
+            pinned: false,
+            channel: "latest".into(),
+        };
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(extension_id.into(), entry);
+        lock.save(&state.paths.lock_file).unwrap();
+
+        let original_mode = directory.path().metadata().unwrap().permissions().mode();
+        std::fs::set_permissions(
+            directory.path(),
+            std::fs::Permissions::from_mode(original_mode & !0o222),
+        )
+        .unwrap();
+        let result = uninstall(&state, extension_id, false).await;
+        std::fs::set_permissions(
+            directory.path(),
+            std::fs::Permissions::from_mode(original_mode),
+        )
+        .unwrap();
+
+        assert!(result.is_err());
+        assert!(installed_root.join("payload").is_file());
         assert!(ExtensionsLock::load(&state.paths.lock_file)
             .unwrap()
             .extensions
-            .contains_key("local.restore-test"));
+            .contains_key(extension_id));
+        assert!(!state
+            .paths
+            .extensions
+            .read_dir()
+            .unwrap()
+            .flatten()
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".removing-")));
     }
 
     fn archive_with_file(path: &str, contents: &[u8]) -> Vec<u8> {

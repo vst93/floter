@@ -10,6 +10,12 @@ runs with the operating-system identity and rights of the Floter process.
 
 Permissions are a provider and Host execution contract, not an operating-system sandbox. The Host reviews them during installation and update. `environment` controls environment inheritance, and `process-spawn` controls a descriptor asking the Host to run a program other than its own runtime. File, network, clipboard, and any child processes started directly by local code are currently disclosure and audit boundaries.
 
+The install approval records the complete declared permission set, but approval
+does not imply that every item is technically blocked at runtime. The current
+Host-enforced subset is `environment` and descriptor-driven `process-spawn`;
+`filesystem-*`, `network-fetch`, and `clipboard-*` remain declarations for user
+review and audit.
+
 User-created executables and JS, Shell, or PowerShell scripts still run with the current user's operating-system rights. They can call native APIs directly, so permission checkboxes must not be treated as malicious-code protection. Strong isolation would require a separate OS sandbox implementation for each platform.
 
 The extension manifest declares the capabilities it needs in the

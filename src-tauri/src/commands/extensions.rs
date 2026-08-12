@@ -11,7 +11,7 @@ use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
-use crate::extensions::manifest::Permission;
+use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget};
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
 use crate::extensions::ExtensionState;
@@ -52,6 +52,18 @@ pub struct ExtensionListItem {
     pub reconnect_available: bool,
     pub homepage: Option<String>,
     pub generated_custom: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalManifestReview {
+    pub manifest_path: String,
+    pub extension_id: String,
+    pub extension_name: String,
+    pub runtime: String,
+    pub source: String,
+    pub platforms: Vec<String>,
+    pub permissions: ExtensionPermissionReview,
 }
 
 impl ExtensionListItem {
@@ -377,6 +389,147 @@ pub async fn extensions_pick_local_manifest(app: AppHandle) -> Result<Option<Str
                 .map_err(|_| "Local integrations must use a local manifest file".to_string())
         })
         .transpose()
+}
+
+/// Pick either a package directory or its manifest without blocking the webview.
+/// The selected path is validated before it is returned so the UI can present a
+/// confirmation dialog with trustworthy details.
+#[tauri::command]
+pub async fn extensions_pick_local_package(
+    app: AppHandle,
+    state: State<'_, ExtensionState>,
+) -> Result<Option<String>, String> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .message("Choose a package folder (OK) or a floter.extension.json file (Cancel).")
+        .title("Connect extension package")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Choose folder".to_string(),
+            "Choose file".to_string(),
+        ))
+        .show(move |folder| {
+            let _ = sender.send(folder);
+        });
+    let choose_folder = receiver
+        .await
+        .map_err(|_| "Local package picker closed unexpectedly".to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    if choose_folder {
+        app.dialog().file().pick_folder(move |selection| {
+            let _ = sender.send(selection);
+        });
+    } else {
+        app.dialog()
+            .file()
+            .add_filter("Floter extension manifest", &["json"])
+            .pick_file(move |selection| {
+                let _ = sender.send(selection);
+            });
+    }
+    let selection = receiver
+        .await
+        .map_err(|_| "Local package picker closed unexpectedly".to_string())?;
+    let Some(path) = selection else {
+        return Ok(None);
+    };
+    let path = path
+        .into_path()
+        .map_err(|_| "Local extension packages must use a local path".to_string())?;
+    let manifest_path = if path.is_dir() {
+        find_local_manifest(&path)?
+    } else {
+        path
+    };
+    let manifest = ExtensionManifest::load(&manifest_path)
+        .map_err(|error| format!("manifest_invalid: {error}"))?;
+    manifest
+        .validate_compatibility(env!("CARGO_PKG_VERSION"))
+        .map_err(|error| format!("manifest_incompatible: {error}"))?;
+    manifest
+        .clone()
+        .resolve(PlatformTarget::current()?)
+        .map_err(|error| format!("platform_incompatible: {error}"))?;
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    if lock.extensions.contains_key(&manifest.id) {
+        return Err(format!("duplicate_id: {}", manifest.id));
+    }
+    Ok(Some(manifest_path.to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
+pub fn extensions_local_manifest_review(
+    state: State<'_, ExtensionState>,
+    manifest_path: String,
+    locale: Option<String>,
+) -> Result<LocalManifestReview, String> {
+    let path = Path::new(&manifest_path);
+    let manifest = ExtensionManifest::load(path)?;
+    manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
+    manifest.clone().resolve(PlatformTarget::current()?)?;
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    if lock.extensions.contains_key(&manifest.id) {
+        return Err(format!("Extension is already installed: {}", manifest.id));
+    }
+    let runtime = match manifest.runtime {
+        crate::extensions::manifest::Runtime::System { .. } => "system",
+        crate::extensions::manifest::Runtime::Bundled { .. } => "bundled",
+        crate::extensions::manifest::Runtime::Script { .. } => "script",
+    };
+    let platforms = manifest
+        .platforms
+        .iter()
+        .map(|platform| format!("{platform:?}").to_ascii_lowercase())
+        .collect();
+    Ok(LocalManifestReview {
+        manifest_path,
+        extension_id: manifest.id.clone(),
+        extension_name: manifest.name.clone(),
+        runtime: runtime.to_string(),
+        source: "local".to_string(),
+        platforms,
+        permissions: install::permission_review(&manifest, locale.as_deref().unwrap_or("en")),
+    })
+}
+
+fn find_local_manifest(root: &Path) -> Result<std::path::PathBuf, String> {
+    let candidates = [
+        root.join("floter.extension.json"),
+        root.join("package").join("floter.extension.json"),
+        root.join("extension").join("floter.extension.json"),
+    ];
+    candidates
+        .into_iter()
+        .find(|path| path.is_file())
+        .ok_or_else(|| "manifest_missing: No floter.extension.json found in the selected folder. Add the manifest at the package root or package/ directory.".to_string())
+}
+
+#[tauri::command]
+pub async fn extensions_custom_export_script(
+    app: AppHandle,
+    id: String,
+    content: String,
+    extension: String,
+) -> Result<Option<String>, String> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("Script", &[extension.trim_start_matches('.')])
+        .set_file_name(format!("{id}-script.{}", extension.trim_start_matches('.')))
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = receiver
+        .await
+        .map_err(|_| "Script export picker closed unexpectedly".to_string())?;
+    let Some(path) = selection else {
+        return Ok(None);
+    };
+    let path = path
+        .into_path()
+        .map_err(|_| "Scripts must be saved to a local file".to_string())?;
+    std::fs::write(&path, content)
+        .map_err(|error| format!("Cannot write script export: {error}"))?;
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
