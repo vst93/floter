@@ -107,7 +107,7 @@ impl ExtensionState {
             }))
             .build()
             .map_err(|error| format!("Cannot initialize HTTP client: {error}"))?;
-        Ok(Self {
+        let state = Self {
             provider: provider::ProviderManager::new(paths.cache.join("providers")),
             paths,
             client,
@@ -115,7 +115,9 @@ impl ExtensionState {
             mutation_lock: tokio::sync::Mutex::new(()),
             provider_commands: catalog::ProviderCommandCache::default(),
             execution_plans: ExecutionPlanCache::default(),
-        })
+        };
+        install::recover_transactions(&state)?;
+        Ok(state)
     }
 
     pub fn protect_execution_plan(

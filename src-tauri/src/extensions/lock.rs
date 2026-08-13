@@ -157,8 +157,9 @@ impl ExtensionsLock {
             .map_err(|error| format!("Cannot write extension lock: {error}"))?;
         temporary
             .persist(path)
-            .map(|_| ())
-            .map_err(|error| format!("Cannot persist extension lock: {error}"))
+            .map_err(|error| format!("Cannot persist extension lock: {error}"))?;
+        sync_directory(parent)
+            .map_err(|error| format!("Cannot sync extension lock directory: {error}"))
     }
 
     pub fn list(&self) -> Vec<ExtensionLockEntry> {
@@ -214,15 +215,18 @@ pub fn write_current_pointer(
         return Ok(());
     }
     let path = current_pointer_path(extensions_dir, &entry.id)?;
-    let parent = path.parent().ok_or("Invalid current pointer path")?;
-    std::fs::create_dir_all(parent)
+    let parent = path
+        .parent()
+        .ok_or("Invalid current pointer path")?
+        .to_path_buf();
+    std::fs::create_dir_all(&parent)
         .map_err(|error| format!("Cannot create extension directory: {error}"))?;
     let bytes = serde_json::to_vec_pretty(&CurrentPointer {
         version: &entry.current_version,
         previous_version: entry.previous_version.as_deref(),
     })
     .map_err(|error| format!("Cannot serialize current pointer: {error}"))?;
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+    let mut temporary = tempfile::NamedTempFile::new_in(&parent)
         .map_err(|error| format!("Cannot create current pointer: {error}"))?;
     temporary
         .write_all(&bytes)
@@ -231,8 +235,21 @@ pub fn write_current_pointer(
         .map_err(|error| format!("Cannot write current pointer: {error}"))?;
     temporary
         .persist(path)
-        .map(|_| ())
-        .map_err(|error| format!("Cannot persist current pointer: {error}"))
+        .map_err(|error| format!("Cannot persist current pointer: {error}"))?;
+    sync_directory(&parent)
+        .map_err(|error| format!("Cannot sync current pointer directory: {error}"))
+}
+
+pub(crate) fn sync_directory(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        std::fs::File::open(path)?.sync_all()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        Ok(())
+    }
 }
 
 fn migrate_v1_lock(value: &mut serde_json::Value) -> Result<(), String> {

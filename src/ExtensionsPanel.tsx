@@ -761,9 +761,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
           permissions: review.permissions.map((permission) => permission.title).join(", "),
         }))) return false;
-        await invoke("extensions_uninstall", { id: extension.id, removeData: false });
-        await invoke<Extension>("extensions_install", {
-          request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
+        await invoke<Extension>("extensions_reinstall", {
+          id: extension.id,
+          approvedPermissions: review.permissions.map(({ permission }) => permission),
         });
         if (!extension.enabled) await invoke("extensions_disable", { id: extension.id });
       },

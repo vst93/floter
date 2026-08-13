@@ -694,6 +694,17 @@ pub async fn extensions_update(
 }
 
 #[tauri::command]
+pub async fn extensions_reinstall(
+    state: State<'_, ExtensionState>,
+    id: String,
+    approved_permissions: Option<Vec<Permission>>,
+) -> Result<ExtensionLockEntry, String> {
+    let entry = install::reinstall(&state, &id, approved_permissions.as_deref()).await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
+}
+
+#[tauri::command]
 pub async fn extensions_rollback(
     state: State<'_, ExtensionState>,
     id: String,

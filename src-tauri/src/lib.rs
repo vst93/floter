@@ -29,8 +29,8 @@ use commands::extensions::{
     extensions_disable, extensions_enable, extensions_export, extensions_import,
     extensions_install, extensions_list, extensions_local_manifest_review,
     extensions_permissions_summary, extensions_pick_local_manifest, extensions_pick_local_package,
-    extensions_reconnect_system, extensions_rollback, extensions_search, extensions_search_path,
-    extensions_uninstall, extensions_update,
+    extensions_reconnect_system, extensions_reinstall, extensions_rollback, extensions_search,
+    extensions_search_path, extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1209,6 +1209,7 @@ pub fn run() {
             extensions_enable,
             extensions_disable,
             extensions_update,
+            extensions_reinstall,
             extensions_rollback,
             extensions_describe,
             extensions_diagnose,
