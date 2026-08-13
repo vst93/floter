@@ -489,14 +489,13 @@ pub async fn install(
     }
 }
 
-pub async fn install_imported_managed(
+pub(crate) async fn install_imported_managed_locked(
     state: &ExtensionState,
     extension_id: &str,
     package: &str,
     version: &str,
     approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
-    let _guard = state.mutation_lock.lock().await;
     install_managed(
         state,
         package,
@@ -505,6 +504,55 @@ pub async fn install_imported_managed(
         approved_permissions,
     )
     .await
+}
+
+pub(crate) fn commit_preflight_managed(
+    state: &ExtensionState,
+    staged_state: &ExtensionState,
+    mut entry: ExtensionLockEntry,
+) -> Result<ExtensionLockEntry, String> {
+    let staged_version = staged_state
+        .paths
+        .extensions
+        .join(&entry.id)
+        .join("versions")
+        .join(&entry.current_version);
+    let target = state
+        .paths
+        .extensions
+        .join(&entry.id)
+        .join("versions")
+        .join(&entry.current_version);
+    let old = ExtensionsLock::load(&state.paths.lock_file)?
+        .extensions
+        .get(&entry.id)
+        .cloned();
+    let rewrite = |value: &str| -> Result<String, String> {
+        let relative = Path::new(value)
+            .strip_prefix(&staged_version)
+            .map_err(|_| "Preflight artifact escaped its verified version directory")?;
+        Ok(target.join(relative).to_string_lossy().into_owned())
+    };
+    entry.manifest_path = rewrite(&entry.manifest_path)?;
+    if Path::new(&entry.executable_path).starts_with(&staged_version) {
+        entry.executable_path = rewrite(&entry.executable_path)?;
+    } else if entry.runtime_ownership != ExtensionRuntimeOwnership::System {
+        return Err("Bundled preflight executable escaped its verified version directory".to_string());
+    }
+    entry.runtime_root = entry.runtime_root.as_deref().map(rewrite).transpose()?;
+    if let Some(old) = &old {
+        entry.installed_at = old.installed_at;
+        entry.previous_version = Some(old.current_version.clone());
+        entry.previous_signature_verified = Some(old.signature_verified);
+        entry.previous_official_verified = Some(old.official_verified);
+        entry.enabled = old.enabled;
+        entry.state = old.state;
+        entry.pinned = old.pinned;
+    }
+    std::fs::create_dir_all(target.parent().ok_or("Invalid extension target")?)
+        .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
+    commit_version_transaction(state, old.as_ref(), &entry, &staged_version, &target)?;
+    Ok(entry)
 }
 
 pub async fn create_custom_integration(
@@ -1028,6 +1076,31 @@ pub async fn connect_bundled(
     }
 
     let _guard = state.mutation_lock.lock().await;
+    connect_bundled_locked(state, extension_id, executable_path, approved_permissions).await
+}
+
+pub(crate) async fn connect_bundled_locked(
+    state: &ExtensionState,
+    extension_id: &str,
+    executable_path: Option<&str>,
+    approved_permissions: Option<&[Permission]>,
+) -> Result<ExtensionLockEntry, String> {
+    let adapters = crate::extensions::static_adapter::load_bundled()?;
+    let adapter = adapters
+        .iter()
+        .find(|adapter| adapter.manifest.id == extension_id)
+        .cloned()
+        .ok_or_else(|| format!("Bundled integration is not available: {extension_id}"))?;
+    validate_permission_approval(&adapter.manifest.permissions, approved_permissions)?;
+    let executable = executable_path
+        .map(PathBuf::from)
+        .unwrap_or_else(|| adapter.invocation.executable.clone());
+    if !crate::extensions::static_adapter::is_linked_executable(&executable) {
+        return Err(format!(
+            "System tool is not available at {}",
+            executable.display()
+        ));
+    }
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     if lock.extensions.contains_key(extension_id) {
         return Err(format!("Integration is already connected: {extension_id}"));
@@ -1356,6 +1429,13 @@ pub async fn rollback(
     extension_id: &str,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
+    rollback_locked(state, extension_id).await
+}
+
+pub(crate) async fn rollback_locked(
+    state: &ExtensionState,
+    extension_id: &str,
+) -> Result<ExtensionLockEntry, String> {
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let original = lock.get(extension_id)?.clone();
     let entry = lock
@@ -1670,8 +1750,6 @@ async fn install_managed(
         .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
     let target = versions_root.join(&base_version.version);
     transaction.advance(InstallationPhase::Installing)?;
-    std::fs::rename(&version_root, &target)
-        .map_err(|error| format!("Cannot atomically install extension version: {error}"))?;
 
     let final_manifest = target.join(
         manifest_path
@@ -1740,7 +1818,7 @@ fn has_added_permissions(installed: &[Permission], requested: &[Permission]) -> 
         .any(|permission| !installed.contains(permission))
 }
 
-async fn install_linked(
+pub(crate) async fn install_linked(
     state: &ExtensionState,
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {

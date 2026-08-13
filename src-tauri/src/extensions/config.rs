@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const PASSWORD_PLACEHOLDER: &str = "********";
 const STORED_PASSWORD_PLACEHOLDER: &str = "[REDACTED]";
@@ -97,8 +97,17 @@ struct ConfigurationExportDocument {
 struct StoredConfiguration {
     #[serde(default)]
     config_version: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    secret_generation: Option<String>,
     values: BTreeMap<String, Value>,
     schema: Vec<ConfigurationField>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredSecrets {
+    generation: String,
+    values: BTreeMap<String, Value>,
 }
 
 #[derive(Deserialize)]
@@ -117,6 +126,7 @@ pub async fn get(
     state: &ExtensionState,
     extension_id: &str,
 ) -> Result<ExtensionConfiguration, String> {
+    let _guard = state.mutation_lock.lock().await;
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let entry = lock.get(extension_id)?;
     let (descriptor, invocation) = descriptor(state, entry).await?;
@@ -144,6 +154,15 @@ pub async fn get(
 }
 
 pub async fn set(
+    state: &ExtensionState,
+    extension_id: &str,
+    values: BTreeMap<String, Value>,
+) -> Result<ExtensionConfiguration, String> {
+    let _guard = state.mutation_lock.lock().await;
+    set_locked(state, extension_id, values).await
+}
+
+async fn set_locked(
     state: &ExtensionState,
     extension_id: &str,
     values: BTreeMap<String, Value>,
@@ -211,7 +230,30 @@ pub(crate) fn export_values(
     Ok(redact_exported_passwords(&stored.schema, stored.values))
 }
 
-pub(crate) async fn import_values(
+pub(crate) async fn preflight_import_values(
+    state: &ExtensionState,
+    extension_id: &str,
+    imported: &BTreeMap<String, Value>,
+) -> Result<(), String> {
+    if imported.is_empty() {
+        return Ok(());
+    }
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let entry = lock.get(extension_id)?;
+    let (descriptor, _) = descriptor(state, entry).await?;
+    validate_descriptor(&descriptor)?;
+    if descriptor.owner != ConfigurationOwner::Host {
+        return Err(format!(
+            "Extension {extension_id} manages its own configuration"
+        ));
+    }
+    let stored = load_stored(&state.paths.data, extension_id)?;
+    let (current, _) = migrate_values(&stored, &descriptor)?;
+    let _ = merge_imported_values(&descriptor.schema, current, imported)?;
+    Ok(())
+}
+
+pub(crate) async fn import_values_locked(
     state: &ExtensionState,
     extension_id: &str,
     imported: &BTreeMap<String, Value>,
@@ -610,11 +652,32 @@ fn secrets_path(data_root: &Path, extension_id: &str) -> Result<std::path::PathB
     Ok(data_root.join(extension_id).join("config.secrets.json"))
 }
 
+fn secrets_generation_dir(data_root: &Path, extension_id: &str) -> Result<PathBuf, String> {
+    crate::extensions::lock::validate_id(extension_id)?;
+    Ok(data_root.join(extension_id).join("config-secrets"))
+}
+
+fn secrets_generation_path(
+    data_root: &Path,
+    extension_id: &str,
+    generation: &str,
+) -> Result<PathBuf, String> {
+    if generation.is_empty()
+        || !generation
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    {
+        return Err("Invalid configuration secret generation".to_string());
+    }
+    Ok(secrets_generation_dir(data_root, extension_id)?.join(format!("{generation}.json")))
+}
+
 fn load_stored(data_root: &Path, extension_id: &str) -> Result<StoredConfiguration, String> {
     let path = values_path(data_root, extension_id)?;
     if !path.exists() {
         return Ok(StoredConfiguration {
             config_version: 0,
+            secret_generation: None,
             values: BTreeMap::new(),
             schema: Vec::new(),
         });
@@ -628,25 +691,16 @@ fn load_stored(data_root: &Path, extension_id: &str) -> Result<StoredConfigurati
         StoredConfigurationFormat::Current(stored) => stored,
         StoredConfigurationFormat::Legacy(values) => StoredConfiguration {
             config_version: 0,
+            secret_generation: None,
             values,
             schema: Vec::new(),
         },
     };
-    let secrets_path = secrets_path(data_root, extension_id)?;
-    if secrets_path.exists() {
-        let secrets: BTreeMap<String, Value> =
-            serde_json::from_slice(&std::fs::read(&secrets_path).map_err(|error| {
-                format!(
-                    "Cannot read configuration secrets {}: {error}",
-                    secrets_path.display()
-                )
-            })?)
-            .map_err(|error| {
-                format!(
-                    "Invalid configuration secrets {}: {error}",
-                    secrets_path.display()
-                )
-            })?;
+    let secrets = match stored.secret_generation.as_deref() {
+        Some(generation) => load_secret_generation(data_root, extension_id, generation)?,
+        None => load_legacy_secrets(data_root, extension_id)?,
+    };
+    if let Some(secrets) = secrets {
         stored.values.extend(secrets);
     } else {
         for field in &stored.schema {
@@ -659,6 +713,51 @@ fn load_stored(data_root: &Path, extension_id: &str) -> Result<StoredConfigurati
         }
     }
     Ok(stored)
+}
+
+fn load_secret_generation(
+    data_root: &Path,
+    extension_id: &str,
+    generation: &str,
+) -> Result<Option<BTreeMap<String, Value>>, String> {
+    let Ok(path) = secrets_generation_path(data_root, extension_id, generation) else {
+        return Ok(None);
+    };
+    if !path.exists() {
+        return Ok(None);
+    }
+    let secrets: StoredSecrets =
+        match serde_json::from_slice(&std::fs::read(&path).map_err(|error| {
+            format!(
+                "Cannot read configuration secrets {}: {error}",
+                path.display()
+            )
+        })?) {
+            Ok(secrets) => secrets,
+            Err(_) => return Ok(None),
+        };
+    if secrets.generation != generation {
+        return Ok(None);
+    }
+    Ok(Some(secrets.values))
+}
+
+fn load_legacy_secrets(
+    data_root: &Path,
+    extension_id: &str,
+) -> Result<Option<BTreeMap<String, Value>>, String> {
+    let path = secrets_path(data_root, extension_id)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    serde_json::from_slice(&std::fs::read(&path).map_err(|error| {
+        format!(
+            "Cannot read configuration secrets {}: {error}",
+            path.display()
+        )
+    })?)
+    .map(Some)
+    .map_err(|error| format!("Invalid configuration secrets {}: {error}", path.display()))
 }
 
 fn migrate_values(
@@ -702,6 +801,30 @@ fn save_values(
     schema: &[ConfigurationField],
     values: &BTreeMap<String, Value>,
 ) -> Result<(), String> {
+    save_values_with_failure(
+        data_root,
+        extension_id,
+        config_version,
+        schema,
+        values,
+        None,
+    )
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SaveFailure {
+    ProtectSecrets,
+    CommitPublic,
+}
+
+fn save_values_with_failure(
+    data_root: &Path,
+    extension_id: &str,
+    config_version: u64,
+    schema: &[ConfigurationField],
+    values: &BTreeMap<String, Value>,
+    failure: Option<SaveFailure>,
+) -> Result<(), String> {
     let path = values_path(data_root, extension_id)?;
     let parent = path
         .parent()
@@ -721,26 +844,119 @@ fn save_values(
             *value = Value::String(STORED_PASSWORD_PLACEHOLDER.to_string());
         }
     }
+    let generation = uuid::Uuid::new_v4().to_string();
+    let secret_document = StoredSecrets {
+        generation: generation.clone(),
+        values: secrets,
+    };
+    let secret_bytes = serde_json::to_vec_pretty(&secret_document)
+        .map_err(|error| format!("Cannot serialize extension configuration secrets: {error}"))?;
+    let secret_dir = secrets_generation_dir(data_root, extension_id)?;
+    std::fs::create_dir_all(&secret_dir)
+        .map_err(|error| format!("Cannot create configuration secret directory: {error}"))?;
+    let secret_path = secrets_generation_path(data_root, extension_id, &generation)?;
+    let temporary = write_temporary(&secret_dir, &secret_bytes)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if failure == Some(SaveFailure::ProtectSecrets) {
+            return Err("Injected configuration secret chmod failure".to_string());
+        }
+        temporary
+            .as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o600))
+            .map_err(|error| format!("Cannot protect configuration secrets: {error}"))?;
+        temporary
+            .as_file()
+            .sync_all()
+            .map_err(|error| format!("Cannot sync protected configuration secrets: {error}"))?;
+    }
+    temporary
+        .persist(&secret_path)
+        .map_err(|error| format!("Cannot persist extension configuration secrets: {error}"))?;
+    crate::extensions::lock::sync_directory(&secret_dir)
+        .map_err(|error| format!("Cannot sync configuration secret directory: {error}"))?;
+
+    if failure == Some(SaveFailure::CommitPublic) {
+        return Err("Injected configuration public commit failure".to_string());
+    }
     let stored_schema = redacted_schema(schema);
     let bytes = serde_json::to_vec_pretty(&StoredConfiguration {
         config_version,
+        secret_generation: Some(generation.clone()),
         values: public_values,
         schema: stored_schema,
     })
     .map_err(|error| format!("Cannot serialize extension configuration: {error}"))?;
     atomic_write(&path, &bytes)?;
+    Ok(())
+}
 
-    let secrets_path = secrets_path(data_root, extension_id)?;
-    let secret_bytes = serde_json::to_vec_pretty(&secrets)
-        .map_err(|error| format!("Cannot serialize extension configuration secrets: {error}"))?;
-    atomic_write(&secrets_path, &secret_bytes)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&secrets_path, std::fs::Permissions::from_mode(0o600))
-            .map_err(|error| format!("Cannot protect configuration secrets: {error}"))?;
+fn cleanup_secret_generations(directory: &Path, current: &str) {
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if entry.file_name().to_str() != Some(&format!("{current}.json")) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
+pub(crate) fn recover_configurations(data_root: &Path) -> Result<(), String> {
+    let entries = std::fs::read_dir(data_root)
+        .map_err(|error| format!("Cannot scan extension configuration data: {error}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("Cannot scan extension data entry: {error}"))?;
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let Some(extension_id) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if crate::extensions::lock::validate_id(&extension_id).is_err() {
+            continue;
+        }
+        recover_configuration(data_root, &extension_id)?;
     }
     Ok(())
+}
+
+fn recover_configuration(data_root: &Path, extension_id: &str) -> Result<(), String> {
+    let path = values_path(data_root, extension_id)?;
+    if !path.exists() {
+        return Ok(());
+    }
+    let bytes = std::fs::read(&path)
+        .map_err(|error| format!("Cannot read configuration {}: {error}", path.display()))?;
+    let StoredConfigurationFormat::Current(mut stored) = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Invalid configuration {}: {error}", path.display()))?
+    else {
+        return Ok(());
+    };
+    let Some(generation) = stored.secret_generation.clone() else {
+        return Ok(());
+    };
+    if load_secret_generation(data_root, extension_id, &generation)?.is_some() {
+        cleanup_secret_generations(
+            &secrets_generation_dir(data_root, extension_id)?,
+            &generation,
+        );
+        let legacy = secrets_path(data_root, extension_id)?;
+        if legacy.exists() {
+            let _ = std::fs::remove_file(legacy);
+        }
+        return Ok(());
+    }
+    stored.secret_generation = None;
+    for field in &stored.schema {
+        if field.field_type == ConfigurationFieldType::Password {
+            stored.values.remove(&field.key);
+        }
+    }
+    let repaired = serde_json::to_vec_pretty(&stored)
+        .map_err(|error| format!("Cannot serialize repaired configuration: {error}"))?;
+    atomic_write(&path, &repaired)
 }
 
 fn redacted_schema(schema: &[ConfigurationField]) -> Vec<ConfigurationField> {
@@ -757,6 +973,16 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or("Invalid extension configuration path")?;
+    let temporary = write_temporary(parent, bytes)?;
+    temporary
+        .persist(path)
+        .map(|_| ())
+        .map_err(|error| format!("Cannot persist extension configuration: {error}"))?;
+    crate::extensions::lock::sync_directory(parent)
+        .map_err(|error| format!("Cannot sync extension configuration directory: {error}"))
+}
+
+fn write_temporary(parent: &Path, bytes: &[u8]) -> Result<tempfile::NamedTempFile, String> {
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
         .map_err(|error| format!("Cannot create configuration temporary file: {error}"))?;
     temporary
@@ -764,10 +990,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .and_then(|_| temporary.flush())
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|error| format!("Cannot write extension configuration: {error}"))?;
-    temporary
-        .persist(path)
-        .map(|_| ())
-        .map_err(|error| format!("Cannot persist extension configuration: {error}"))
+    Ok(temporary)
 }
 
 #[cfg(test)]
@@ -843,6 +1066,7 @@ mod tests {
         retries.default = Some(Value::from(3));
         let stored = StoredConfiguration {
             config_version: 1,
+            secret_generation: None,
             values: BTreeMap::from([(
                 "endpoint".into(),
                 Value::String("https://old.example".into()),
@@ -1041,5 +1265,141 @@ mod tests {
             std::fs::read_to_string(directory.path().join("io.example.tool/config.json")).unwrap();
         assert!(!public.contains("abc123"));
         assert!(public.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn public_commit_failure_keeps_the_previous_generation() {
+        let directory = tempfile::tempdir().unwrap();
+        let schema = vec![
+            field("endpoint", ConfigurationFieldType::Text),
+            field("apiKey", ConfigurationFieldType::Password),
+        ];
+        let old = BTreeMap::from([
+            ("endpoint".into(), Value::String("old".into())),
+            ("apiKey".into(), Value::String("old-secret".into())),
+        ]);
+        save_values(directory.path(), "io.example.tool", 1, &schema, &old).unwrap();
+        let new = BTreeMap::from([
+            ("endpoint".into(), Value::String("new".into())),
+            ("apiKey".into(), Value::String("new-secret".into())),
+        ]);
+
+        assert!(save_values_with_failure(
+            directory.path(),
+            "io.example.tool",
+            1,
+            &schema,
+            &new,
+            Some(SaveFailure::CommitPublic),
+        )
+        .is_err());
+
+        assert_eq!(
+            load_stored(directory.path(), "io.example.tool")
+                .unwrap()
+                .values,
+            old
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn secret_protection_failure_keeps_the_previous_generation() {
+        let directory = tempfile::tempdir().unwrap();
+        let schema = vec![field("apiKey", ConfigurationFieldType::Password)];
+        let old = BTreeMap::from([("apiKey".into(), Value::String("old-secret".into()))]);
+        save_values(directory.path(), "io.example.tool", 1, &schema, &old).unwrap();
+        let new = BTreeMap::from([("apiKey".into(), Value::String("new-secret".into()))]);
+
+        assert!(save_values_with_failure(
+            directory.path(),
+            "io.example.tool",
+            1,
+            &schema,
+            &new,
+            Some(SaveFailure::ProtectSecrets),
+        )
+        .is_err());
+
+        assert_eq!(
+            load_stored(directory.path(), "io.example.tool")
+                .unwrap()
+                .values,
+            old
+        );
+    }
+
+    #[test]
+    fn startup_repair_removes_a_missing_secret_generation_reference() {
+        let directory = tempfile::tempdir().unwrap();
+        let schema = vec![
+            field("endpoint", ConfigurationFieldType::Text),
+            field("apiKey", ConfigurationFieldType::Password),
+        ];
+        let values = BTreeMap::from([
+            ("endpoint".into(), Value::String("public".into())),
+            ("apiKey".into(), Value::String("secret".into())),
+        ]);
+        save_values(directory.path(), "io.example.tool", 1, &schema, &values).unwrap();
+        let public_path = values_path(directory.path(), "io.example.tool").unwrap();
+        let stored: StoredConfiguration =
+            serde_json::from_slice(&std::fs::read(&public_path).unwrap()).unwrap();
+        let generation = stored.secret_generation.unwrap();
+        std::fs::remove_file(
+            secrets_generation_path(directory.path(), "io.example.tool", &generation).unwrap(),
+        )
+        .unwrap();
+
+        recover_configurations(directory.path()).unwrap();
+
+        let repaired = load_stored(directory.path(), "io.example.tool").unwrap();
+        assert_eq!(repaired.values["endpoint"], Value::String("public".into()));
+        assert!(!repaired.values.contains_key("apiKey"));
+        assert!(repaired.secret_generation.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_saves_never_mix_public_and_secret_values() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(
+            ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+                directory.path().to_path_buf(),
+            ))
+            .unwrap(),
+        );
+        let schema = std::sync::Arc::new(vec![
+            field("marker", ConfigurationFieldType::Text),
+            field("apiKey", ConfigurationFieldType::Password),
+        ]);
+        let tasks = (0..16)
+            .map(|index| {
+                let state = state.clone();
+                let schema = schema.clone();
+                tokio::spawn(async move {
+                    let _guard = state.mutation_lock.lock().await;
+                    save_values(
+                        &state.paths.data,
+                        "io.example.tool",
+                        1,
+                        &schema,
+                        &BTreeMap::from([
+                            ("marker".into(), Value::String(index.to_string())),
+                            ("apiKey".into(), Value::String(format!("secret-{index}"))),
+                        ]),
+                    )
+                    .unwrap();
+                })
+            })
+            .collect::<Vec<_>>();
+        for task in tasks {
+            task.await.unwrap();
+        }
+
+        let stored = load_stored(&state.paths.data, "io.example.tool").unwrap();
+        let marker = stored.values["marker"].as_str().unwrap();
+        assert_eq!(
+            stored.values["apiKey"],
+            Value::String(format!("secret-{marker}"))
+        );
     }
 }

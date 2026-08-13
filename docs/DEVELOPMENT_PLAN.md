@@ -3,7 +3,7 @@
 > 本文档整理自 2026-08-08 Codex 设计会话的完整对话记录。
 > 会话目标：将 Floter 从「应用搜索 + 终端」升级为「终端能力平台」，支持第三方 CLI/TUI 工具作为扩展接入，以 `v` (github.com/vst93/v) 作为官方参考实现。
 >
-> 当前状态：阶段 1-7 全部完成。扩展协议（FEP-1~6）、Rust 后端、React 命令联想、插件管理页面、V Tools 静态适配器、端到端验证、动态 complete、NPM 签名分发、SDK 模板、权限模型、声明式配置和跨设备同步均已落地。
+> 当前状态：扩展协议（FEP-1~6）、Rust 后端、React 命令联想、插件管理页面、V Tools 静态适配器、动态 complete、NPM 签名分发、权限模型、声明式配置和事务性文件导入/导出已落地。Cloud、Git、WebDAV 等真正的跨设备传输层尚未实现。
 
 > Manifest v2 已将分发来源、运行时所有权和 Provider 类型拆为独立字段；v1
 > manifest、lock 和同步导出在读取时自动迁移。
@@ -514,7 +514,7 @@ Manifest 可以声明配置字段，由 Floter 统一渲染：
 - 环境变量映射
 - 命令参数映射
 
-### 5.3 跨设备同步
+### 5.3 配置导入/导出与未来跨设备同步
 
 三套生命周期独立：
 
@@ -524,7 +524,7 @@ Manifest 可以声明配置字段，由 Floter 统一渲染：
 | 工具本身更新 | Homebrew、GitHub Releases、工具自己的更新机制 |
 | 用户配置跨设备同步 | Floter Cloud、Git、WebDAV 等独立机制 |
 
-跨设备同步时只同步：
+当前本地 JSON 导入/导出（以及未来远端同步）只包含：
 - 安装了哪些 Provider
 - 是否启用
 - 用户自定义别名和优先级
@@ -1040,7 +1040,7 @@ PATH 中的 `v`，用静态 Manifest 声明 `jv`、`diff`、`codec`、`genpwd`�
 4. ✅ FEP-4 (NPM Registry Convention)（`f759caa`）
 5. ✅ FEP-5 (Permissions and Security)（`f759caa` + `26120ce`）
 6. ✅ FEP-6 (Declarative Configuration)（`f759caa` + `26120ce`）
-7. ✅ 跨设备同步（`374d961`）
+7. ✅ 事务性本地文件导入/导出（`374d961`；远端同步传输层未实现）
 
 ---
 

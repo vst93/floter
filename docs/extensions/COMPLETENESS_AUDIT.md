@@ -50,9 +50,9 @@
 | React 联想键盘和结构化执行体验 | 计划阶段 3 | `App.tsx:283-368,874-936,2390-2490` | ⚠️ | Tab/Enter/方向键和 external 执行已接线且能构建，但仓库没有任何 React/浏览器交互测试，不能满足“完整逻辑 + 覆盖测试”的严格 ✅ 口径。 |
 | 扩展管理页基础功能 | 计划阶段 4 | `ExtensionsPanel.tsx`；`App.tsx:2740-2773`；`i18n.ts` | ⚠️ | 已安装/发现/更新、详情、配置、诊断、权限、启停、更新、回滚、卸载和双语均有真实调用；但可信源、repair、pin/channel 缺失，且无前端测试。 |
 | 声明式配置模型、校验、UI 与注入 | FEP-6；计划阶段 2/4/7 | `config.rs:116-603`；`catalog.rs:426-468,507-508`；`ExtensionsPanel.tsx:1085-1145,1620-1700` | ✅ | host/tool owner、字段类型与约束、schema 迁移、默认值、env/argv 注入、密码 IPC/导出脱敏和工具配置 PTY 均接线；有校验、迁移、注入、脱敏测试。 |
-| 配置持久化整体事务 | FEP-6:98-128；重点核查项 | `config.rs:698-770` | ⚠️ | `config.json` 和 `config.secrets.json` 各自用 temp+fsync+rename，但两文件依次提交且无互斥锁/journal；第二次写或 chmod 失败可留下新公开配置配旧 secrets，并发 set 也可互相覆盖。缺少故障注入测试。 |
+| 配置持久化整体事务 | FEP-6:98-128；重点核查项 | `config.rs` | ✅ | secrets 先作为受限权限的不可变 generation 写入并 fsync，`config.json` 以 `secretGeneration` 作为唯一原子提交指针；配置写复用 mutation lock 串行化，启动修复悬空/损坏 generation。覆盖公开提交失败、chmod 失败、启动修复和并发保存测试。 |
 | 跨设备同步数据过滤与文件导出 | 计划 5.3、阶段 7 | `sync.rs:85-203`；`config.rs:206-212`；`commands/extensions.rs:142-320` | ✅ | 导出安装项、启用状态、可移植 manifest/静态 descriptor/script 和非敏感配置；密码被脱敏，不导出本机 executable path；导出文件原子写，有格式/迁移/幂等测试。 |
-| 同步导入整体事务与真正传输 | 计划阶段 7“跨设备同步” | `sync.rs:314-613`；`ExtensionsPanel.tsx:650-688` | ⚠️ | 实际是手工 JSON 文件 import/export，没有 Floter Cloud/Git/WebDAV 传输；导入逐扩展、逐步骤修改，允许部分成功。已有扩展更新后若配置导入/启用恢复失败不会回滚旧版本；本地 manifest/descriptor/script 也是多文件独立提交。 |
+| 文件导入整体事务与真正传输 | 计划阶段 7“跨设备同步” | `sync.rs`；`ExtensionsPanel.tsx` | ✅ | 本地 JSON 导入先生成完整 plan，在隔离 staging 中完成所有下载、SRI/签名、解包、Provider 与配置校验，再持 mutation lock 提交；失败通过 lock、版本目录、配置和本地文件快照整体回滚。Cloud/Git/WebDAV 未实现，管理页和计划文档已明确功能仅为本地导入/导出。 |
 | SDK / Wrapper 模板 | 计划阶段 7；`sdk/README.md`、checklist | `docs/extensions/sdk/*.md` | ⚠️ | 内容是较完整的 TypeScript/Go/Rust 指南和代码片段，但没有可构建目录、`package.json`/`Cargo.toml`/`go.mod`、schema 校验脚本、测试或 CI；“模板”不能直接复制后构建/pack。 |
 | Schema 与运行时一致性 | FEP-1/2/6；SDK checklist | `docs/extensions/schemas/*`；`manifest.rs`；`provider.rs`；`config.rs` | ⚠️ | 两份 schema 会被 Rust 运行时使用，但部分关键条件只在 Rust 二次校验（例如 config owner/schema/openCommand、参数 kind 与 values/takesValue 关系）；单独“通过 schema”不足以保证 FEP 合法。没有独立 schema fixture 测试矩阵。 |
 | 旧 `commands.json` 迁移 | 计划阶段 2 | `catalog.rs:820-875`；`mod.rs:93-97` | ✅ | 启动时一次性迁移到结构化 `local-commands.json`，拒绝明显 shell 元字符并原子持久化。 |
@@ -84,7 +84,7 @@
 
 **建议实现：** 定义并内置最小根公钥，拉取带版本/过期时间的签名索引；索引绑定 extension id、NPM package、publisher 和允许的 signing key。安装时先验证索引再验证 tarball，UI 将官方验证和发布者自签分开展示，并测试篡改、过期、key rotation 和降级攻击。
 
-### P1：同步导入不是事务，且没有同步传输层
+### P1（已修复）：同步导入不是事务，且没有同步传输层
 
 **现状：** 手工文件导出/导入可用，但逐扩展顺序执行并返回 succeeded/failed/skipped；单个扩展内也是安装、配置、启用分步提交。
 
@@ -92,13 +92,17 @@
 
 **建议实现：** 先生成完整 reconcile plan 并完成下载/验证，再以每扩展事务提交；保存旧 lock、版本与配置快照，后续步骤失败时恢复。若产品确实承诺跨设备自动同步，再实现明确 transport/provider 接口、冲突策略、加密和远端版本控制；否则把产品文案改为“导入/导出”。
 
-### P1：配置的公开值与 secrets 不是同一事务
+**落实：** 导入现在先在隔离 staging 中完成全量预检，随后在同一 mutation lock 下提交；任何项失败均恢复本次导入前的完整快照，不返回部分成功。产品文案已改为本地文件导入/导出，远端 transport 仍明确留待后续工程。
+
+### P1（已修复）：配置的公开值与 secrets 不是同一事务
 
 **现状：** 两个 JSON 文件分别原子写，但先提交公开文件，再提交 secrets；无配置级 mutex。
 
 **缺失点：** 第二次写、权限设置或并发保存失败时可能产生跨版本组合；没有 generation/checksum 或恢复逻辑。
 
 **建议实现：** 将一个 generation 的公开值与 secrets 写入同一临时目录/版本文件，再原子切换单一 pointer；或使用系统 secret store 并让公开文件引用已提交 secret generation。串行化每扩展写入，增加两阶段故障注入与并发测试。
+
+**落实：** `config.json` 现在引用已完整写入、chmod 并 fsync 的不可变 secret generation，自身是唯一原子提交指针；配置写通过 mutation lock 串行化，启动时安全修复缺失、损坏或 generation 不匹配的 secret 引用，并有两阶段失败与并发覆盖。
 
 ### P1：修复流程不存在
 

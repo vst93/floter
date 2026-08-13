@@ -127,6 +127,7 @@ impl ExtensionState {
             execution_plans: ExecutionPlanCache::default(),
         };
         install::recover_transactions(&state)?;
+        config::recover_configurations(&state.paths.data)?;
         Ok(state)
     }
 

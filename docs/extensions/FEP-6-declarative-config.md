@@ -123,9 +123,15 @@ for migration and compatibility:
 }
 ```
 
-Password values are written as `[REDACTED]` in `config.json`; their actual values
-are stored in the adjacent access-restricted `config.secrets.json` and merged
-only when the Host loads configuration.
+Password values are written as `[REDACTED]` in `config.json`. Their actual values
+are stored in an access-restricted immutable generation under `config-secrets/`;
+`config.json` names the committed `secretGeneration` and is the single atomic
+commit pointer. A save writes, protects, and fsyncs the secret generation before
+atomically replacing `config.json`, so public values and secrets cannot be mixed
+across saves. Floter serializes configuration mutations and, at startup, removes
+password placeholders safely when a referenced generation is missing or invalid.
+The legacy adjacent `config.secrets.json` is read for migration and removed after
+the next successful save.
 
 Configuration is global to an installed extension by default. A future revision
 may add a session/terminal scope; scoped values MUST be layered over global

@@ -1262,6 +1262,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             </button>
           </div>
           <div className="extensions-package-hint" role="note">
+            <FileDown size={13} strokeWidth={2} aria-hidden="true" />
+            <span>{t("settings.extensions.fileTransferHint")}</span>
+          </div>
+          <div className="extensions-package-hint" role="note">
             <Link2 size={13} strokeWidth={2} aria-hidden="true" />
             <span>{t("settings.extensions.chooseManifestHint")}</span>
           </div>
@@ -1280,11 +1284,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               {importReport.failed.length
                 ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
                 : <Check size={15} strokeWidth={2} aria-hidden="true" />}
-              <span>{t("settings.extensions.importSummary", {
-                succeeded: importReport.succeeded.length,
-                skipped: importReport.skipped.length,
-                failed: importReport.failed.length,
-              })}</span>
+              <span>{importReport.failed.length
+                ? t("settings.extensions.importRolledBack")
+                : t("settings.extensions.importSummary", {
+                    succeeded: importReport.succeeded.length,
+                    skipped: importReport.skipped.length,
+                  })}</span>
             </div>
           )}
           <div className="extensions-list">
