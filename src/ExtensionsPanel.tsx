@@ -50,6 +50,7 @@ type Extension = {
   toolVersion: string | null;
   integrity: string | null;
   signatureVerified: boolean;
+  officialVerified: boolean;
   currentVersion: string;
   previousVersion: string | null;
   manifestPath: string;
@@ -318,6 +319,8 @@ type PermissionReview = {
   extensionId: string;
   extensionName: string;
   permissions: Array<{ permission: PermissionName; title: string; description: string }>;
+  publisherSigned: boolean;
+  officialVerified: boolean;
 };
 
 type InstallRequest = {
@@ -840,11 +843,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       if (!permissionReviews[result.package]) {
         setPermissionReviews((current) => ({ ...current, [result.package]: review }));
       }
-      if (review.permissions.length) {
-        setPendingInstall({ result, request, review });
-      } else {
-        await performInstall(result, request, review);
-      }
+      setPendingInstall({ result, request, review });
     } catch (nextError) {
       setError(errorMessage(nextError));
     } finally {
@@ -1344,6 +1343,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     <div className="extension-search-row__title">
                       <strong>{result.package}</strong>
                       <span>v{result.version}</span>
+                      <span className={`extension-trust-badge extension-trust-badge--${result.verified ? "official" : "community"}`}>
+                        {result.verified ? <ShieldCheck size={11} strokeWidth={2} aria-hidden="true" /> : <Package size={11} strokeWidth={2} aria-hidden="true" />}
+                        {t(result.verified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}
+                      </span>
                     </div>
                     <p>{result.description || t("settings.extensions.noDescription")}</p>
                     <span className="extension-search-row__downloads">
@@ -1444,6 +1447,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               </div>
             </header>
             <div className="extension-permission-list">
+              <div className="extension-install-trust">
+                <strong>{t(pendingInstall.review.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</strong>
+                <span>{t(pendingInstall.review.officialVerified
+                  ? "settings.extensions.trustOfficialDescription"
+                  : pendingInstall.review.publisherSigned
+                    ? "settings.extensions.trustSelfSignedDescription"
+                    : "settings.extensions.trustUnverifiedDescription")}</span>
+              </div>
               {pendingInstall.review.permissions.map((permission) => (
                 <div key={permission.permission}>
                   <strong>{permission.title}</strong>
@@ -1617,6 +1628,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                   <div><dt>{t("settings.extensions.availability")}</dt><dd>{t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}</dd></div>
                   <div><dt>{t("settings.extensions.status")}</dt><dd>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
                   <div><dt>{t("settings.extensions.signature")}</dt><dd>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
+                  <div><dt>{t("settings.extensions.trust")}</dt><dd>{t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</dd></div>
                   <div><dt>{t("settings.extensions.homepage")}</dt><dd>{selected.homepage ?? latestById[selected.id]?.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || latestById[selected.id]?.description || t("settings.extensions.noDescription")}</p>

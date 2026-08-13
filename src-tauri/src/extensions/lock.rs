@@ -88,6 +88,10 @@ pub struct ExtensionLockEntry {
     pub signature_verified: bool,
     #[serde(default)]
     pub previous_signature_verified: Option<bool>,
+    #[serde(default)]
+    pub official_verified: bool,
+    #[serde(default)]
+    pub previous_official_verified: Option<bool>,
     pub current_version: String,
     pub previous_version: Option<String>,
     pub manifest_path: String,
@@ -350,6 +354,38 @@ mod tests {
         assert!(validate_npm_version("1.2.3").is_ok());
         assert!(validate_npm_version("../../outside").is_err());
         assert!(validate_npm_version("latest").is_err());
+    }
+
+    #[test]
+    fn old_lock_entries_default_to_unverified_official_source() {
+        let entry: ExtensionLockEntry = serde_json::from_value(serde_json::json!({
+            "id": "example.tool",
+            "name": "Example",
+            "publisherId": "example",
+            "publisherName": "Example",
+            "distributionSource": "local",
+            "runtimeOwnership": "system",
+            "providerKind": "executable",
+            "state": "enabled",
+            "enabled": true,
+            "packageName": null,
+            "packageVersion": "local",
+            "toolVersion": null,
+            "integrity": null,
+            "signatureVerified": true,
+            "currentVersion": "local",
+            "previousVersion": null,
+            "manifestPath": "/tmp/floter.extension.json",
+            "executablePath": "/tmp/example",
+            "runtimeRoot": null,
+            "installedAt": 1,
+            "updatedAt": 1,
+            "pinned": false,
+            "channel": "external"
+        }))
+        .unwrap();
+        assert!(!entry.official_verified);
+        assert_eq!(entry.previous_official_verified, None);
     }
 
     #[test]

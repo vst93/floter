@@ -8,6 +8,7 @@ use crate::extensions::manifest::{
     PlatformTarget, ProviderConfig, ProviderKind, Publisher, Runtime, ScriptLanguage,
     SignatureAlgorithm, SignatureConfig,
 };
+use crate::extensions::official_index;
 use crate::extensions::provider::ProviderInvocation;
 use crate::extensions::ExtensionState;
 use base64::Engine;
@@ -66,6 +67,8 @@ pub struct ExtensionPermissionReview {
     pub extension_id: String,
     pub extension_name: String,
     pub permissions: Vec<PermissionSummary>,
+    pub publisher_signed: bool,
+    pub official_verified: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1063,6 +1066,8 @@ pub async fn connect_bundled(
         integrity: None,
         signature_verified: false,
         previous_signature_verified: None,
+        official_verified: false,
+        previous_official_verified: None,
         current_version: integration_version,
         previous_version: None,
         manifest_path: manifest_path.to_string_lossy().into_owned(),
@@ -1083,6 +1088,7 @@ pub async fn permissions_summary(
     request: &ExtensionInstallRequest,
     locale: &str,
 ) -> Result<ExtensionPermissionReview, String> {
+    let mut trust = (false, false);
     let manifest = match request.source {
         InstallSource::Npm => {
             let package = request
@@ -1090,6 +1096,7 @@ pub async fn permissions_summary(
                 .as_deref()
                 .ok_or("NPM installation requires a package name")?;
             validate_package_name(package)?;
+            let official_index = official_index::fetch(state).await.ok();
             let version =
                 resolve_registry_version(state, package, request.version.as_deref()).await?;
             let bytes = download_tarball(state, &version.dist).await?;
@@ -1100,7 +1107,17 @@ pub async fn permissions_summary(
             validate_package_entry(&package_json, &version, true)?;
             let manifest = ExtensionManifest::load(&manifest_path)?;
             if let Some(signatures) = manifest.signatures.as_ref() {
-                download_and_verify_signature(state, &bytes, signatures).await?;
+                trust.1 = official_index.as_ref().is_some_and(|index| {
+                    index.authorizes(
+                        &manifest.id,
+                        package,
+                        &manifest.publisher.id,
+                        Some(signatures),
+                    )
+                });
+                let signature = download_signature(state, signatures).await?;
+                trust.1 = verify_official_tarball(trust.1, &bytes, &signature, signatures)?;
+                trust.0 = true;
             }
             manifest
         }
@@ -1119,7 +1136,10 @@ pub async fn permissions_summary(
         }
     };
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
-    Ok(permission_review(&manifest, locale))
+    let mut review = permission_review(&manifest, locale);
+    review.publisher_signed = trust.0;
+    review.official_verified = trust.1 && trust.0;
+    Ok(review)
 }
 
 pub(crate) fn validate_permission_approval(
@@ -1197,6 +1217,8 @@ pub(crate) fn permission_review(
         extension_id: manifest.id.clone(),
         extension_name: manifest.name.clone(),
         permissions,
+        publisher_signed: false,
+        official_verified: false,
     }
 }
 
@@ -1426,6 +1448,9 @@ pub async fn rollback(
     let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
     entry.previous_signature_verified = Some(entry.signature_verified);
     entry.signature_verified = previous_signature_verified;
+    let previous_official_verified = entry.previous_official_verified.unwrap_or(false);
+    entry.previous_official_verified = Some(entry.official_verified);
+    entry.official_verified = previous_official_verified;
     entry.updated_at = unix_now();
     let result = entry.clone();
     commit_lock_transaction(state, &original, &result)?;
@@ -1437,6 +1462,7 @@ pub async fn search(
     query: &str,
     limit: usize,
 ) -> Result<Vec<ExtensionSearchResult>, String> {
+    let official_index = official_index::fetch(state).await.ok();
     let url = format!("{REGISTRY_URL}-/v1/search");
     let response = state
         .client
@@ -1458,22 +1484,28 @@ pub async fn search(
     Ok(response
         .objects
         .into_iter()
-        .map(|object| ExtensionSearchResult {
-            downloads: object.downloads.weekly,
-            package: object.package.name,
-            version: object.package.version,
-            description: object.package.description,
-            publisher: object
+        .map(|object| {
+            let publisher = object
                 .package
                 .publisher
-                .and_then(|publisher| publisher.username),
-            homepage: object
-                .package
-                .links
-                .get("homepage")
-                .or_else(|| object.package.links.get("repository"))
-                .cloned(),
-            verified: false,
+                .and_then(|publisher| publisher.username);
+            let verified = official_index.as_ref().is_some_and(|index| {
+                index.search_verified(&object.package.name, publisher.as_deref())
+            });
+            ExtensionSearchResult {
+                downloads: object.downloads.weekly,
+                package: object.package.name,
+                version: object.package.version,
+                description: object.package.description,
+                publisher,
+                homepage: object
+                    .package
+                    .links
+                    .get("homepage")
+                    .or_else(|| object.package.links.get("repository"))
+                    .cloned(),
+                verified,
+            }
         })
         .collect())
 }
@@ -1486,6 +1518,7 @@ async fn install_managed(
     approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
     validate_package_name(package)?;
+    let official_index = official_index::fetch(state).await.ok();
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let expected_entry = expected_id.and_then(|id| lock.extensions.get(id)).cloned();
     if let Some(entry) = expected_entry.as_ref() {
@@ -1518,9 +1551,20 @@ async fn install_managed(
     if manifest.distribution != crate::extensions::manifest::Distribution::Npm {
         return Err("NPM packages must declare distribution.type = npm".to_string());
     }
-    if let Some(signatures) = manifest.signatures.as_ref() {
-        download_and_verify_signature(state, &base_bytes, signatures).await?;
-    }
+    let official_verified = if let Some(signatures) = manifest.signatures.as_ref() {
+        let index_authorized = official_index.as_ref().is_some_and(|index| {
+            index.authorizes(
+                &manifest.id,
+                package,
+                &manifest.publisher.id,
+                Some(signatures),
+            )
+        });
+        let signature = download_signature(state, signatures).await?;
+        verify_official_tarball(index_authorized, &base_bytes, &signature, signatures)?
+    } else {
+        false
+    };
     if expected_id.is_some_and(|expected| expected != manifest.id) {
         return Err(format!(
             "Package changed extension id from {} to {}",
@@ -1670,6 +1714,8 @@ async fn install_managed(
         integrity: base_version.dist.integrity.clone(),
         signature_verified: manifest.signatures.is_some(),
         previous_signature_verified: old.as_ref().map(|entry| entry.signature_verified),
+        official_verified,
+        previous_official_verified: old.as_ref().map(|entry| entry.official_verified),
         current_version: base_version.version.clone(),
         previous_version: old.as_ref().map(|entry| entry.current_version.clone()),
         manifest_path: final_manifest.to_string_lossy().into_owned(),
@@ -1845,6 +1891,8 @@ async fn install_linked(
         integrity: None,
         signature_verified: false,
         previous_signature_verified: None,
+        official_verified: false,
+        previous_official_verified: None,
         current_version: integration_version,
         previous_version: None,
         manifest_path: manifest_path.to_string_lossy().into_owned(),
@@ -1972,11 +2020,10 @@ fn verify_integrity(bytes: &[u8], integrity: &str) -> Result<(), String> {
     }
 }
 
-async fn download_and_verify_signature(
+async fn download_signature(
     state: &ExtensionState,
-    tarball: &[u8],
     config: &SignatureConfig,
-) -> Result<(), String> {
+) -> Result<Vec<u8>, String> {
     let signature_url = reqwest::Url::parse(&config.url)
         .map_err(|error| format!("Invalid extension signature URL: {error}"))?;
     if signature_url.scheme() != "https" {
@@ -1993,7 +2040,17 @@ async fn download_and_verify_signature(
     ensure_https_response(&response, "extension signature")?;
     let signature =
         read_response_limited(response, MAX_SIGNATURE_BYTES, "Extension signature").await?;
-    verify_signature(tarball, &signature, config)
+    Ok(signature)
+}
+
+fn verify_official_tarball(
+    index_authorized: bool,
+    tarball: &[u8],
+    signature_file: &[u8],
+    signature_config: &SignatureConfig,
+) -> Result<bool, String> {
+    verify_signature(tarball, signature_file, signature_config)?;
+    Ok(index_authorized)
 }
 
 fn ensure_https_response(response: &reqwest::Response, label: &str) -> Result<(), String> {
@@ -2437,6 +2494,8 @@ mod tests {
             integrity: None,
             signature_verified: false,
             previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
             current_version: version.into(),
             previous_version: None,
             manifest_path: root
@@ -3036,6 +3095,8 @@ mod tests {
             integrity: Some("sha512-test".into()),
             signature_verified: false,
             previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
             current_version: "1.0.0".into(),
             previous_version: None,
             manifest_path: installed_root
@@ -3142,6 +3203,41 @@ mod tests {
             &signature_config(&signing_key)
         )
         .is_ok());
+    }
+
+    #[test]
+    fn verifies_a_normal_official_tarball_install() {
+        let publisher = SigningKey::from_bytes(&[9; 32]);
+        let publisher_key = format!(
+            "ed25519:{}",
+            base64::engine::general_purpose::STANDARD.encode(publisher.verifying_key().to_bytes())
+        );
+        let index = official_index::OfficialIndex {
+            schema_version: 1,
+            index_version: 1,
+            expires_at: "2030-01-01T00:00:00Z".into(),
+            entries: vec![official_index::OfficialIndexEntry {
+                extension_id: "io.example.official".into(),
+                npm_package: "floter-official".into(),
+                publisher: "example".into(),
+                signing_keys: vec![publisher_key],
+            }],
+        };
+        let tarball = b"verified tarball";
+        let signature =
+            base64::engine::general_purpose::STANDARD.encode(publisher.sign(tarball).to_bytes());
+        assert!(verify_official_tarball(
+            index.authorizes(
+                "io.example.official",
+                "floter-official",
+                "example",
+                Some(&signature_config(&publisher)),
+            ),
+            tarball,
+            signature.as_bytes(),
+            &signature_config(&publisher),
+        )
+        .unwrap());
     }
 
     #[test]

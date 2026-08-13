@@ -3,6 +3,7 @@ pub mod config;
 pub mod install;
 pub mod lock;
 pub mod manifest;
+pub mod official_index;
 pub mod provider;
 pub mod registry;
 pub mod static_adapter;
@@ -72,6 +73,7 @@ impl ExtensionPaths {
 pub struct ExtensionState {
     pub paths: ExtensionPaths,
     pub client: reqwest::Client,
+    pub official_index: official_index::OfficialIndexConfig,
     pub provider: provider::ProviderManager,
     pub static_adapters: Vec<static_adapter::StaticAdapter>,
     pub(crate) mutation_lock: tokio::sync::Mutex<()>,
@@ -91,6 +93,13 @@ impl ExtensionState {
     }
 
     pub(crate) fn from_paths(paths: ExtensionPaths) -> Result<Self, String> {
+        Self::from_paths_with_official_index(paths, official_index::OfficialIndexConfig::default())
+    }
+
+    pub(crate) fn from_paths_with_official_index(
+        paths: ExtensionPaths,
+        official_index: official_index::OfficialIndexConfig,
+    ) -> Result<Self, String> {
         paths.ensure()?;
         if let Err(error) = catalog::migrate_legacy_commands(&paths) {
             eprintln!("failed to migrate legacy custom commands: {error}");
@@ -111,6 +120,7 @@ impl ExtensionState {
             provider: provider::ProviderManager::new(paths.cache.join("providers")),
             paths,
             client,
+            official_index,
             static_adapters,
             mutation_lock: tokio::sync::Mutex::new(()),
             provider_commands: catalog::ProviderCommandCache::default(),

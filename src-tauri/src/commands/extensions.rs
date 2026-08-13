@@ -24,13 +24,33 @@ use tauri::{AppHandle, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[tauri::command]
-pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
+pub async fn extensions_list(
+    state: State<'_, ExtensionState>,
+) -> Result<Vec<ExtensionListItem>, String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let official_index = crate::extensions::official_index::fetch(&state).await.ok();
     let detected_adapters = crate::extensions::static_adapter::load_bundled()?;
     let mut items = lock
         .list()
         .into_iter()
-        .map(ExtensionListItem::installed)
+        .map(|mut entry| {
+            entry.official_verified = entry.signature_verified
+                && official_index.as_ref().is_some_and(|index| {
+                    entry.package_name.as_deref().is_some_and(|package| {
+                        ExtensionManifest::load(Path::new(&entry.manifest_path))
+                            .ok()
+                            .is_some_and(|manifest| {
+                                index.authorizes(
+                                    &entry.id,
+                                    package,
+                                    &entry.publisher_id,
+                                    manifest.signatures.as_ref(),
+                                )
+                            })
+                    })
+                });
+            ExtensionListItem::installed(entry)
+        })
         .collect::<Vec<_>>();
     for adapter in &detected_adapters {
         if lock.extensions.contains_key(&adapter.manifest.id) {
@@ -116,6 +136,8 @@ impl ExtensionListItem {
             integrity: None,
             signature_verified: false,
             previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
             current_version: version,
             previous_version: None,
             manifest_path: String::new(),

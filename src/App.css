@@ -1494,6 +1494,31 @@ input:focus {
   white-space: nowrap;
 }
 
+.extension-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 18px;
+  padding: 1px 5px;
+  border: 1px solid var(--stroke-control);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.extension-trust-badge--official {
+  border-color: var(--accent-edge);
+  color: var(--accent);
+}
+
+.extension-install-trust {
+  padding: 9px;
+  border: 1px solid var(--stroke-control);
+  border-radius: 5px;
+  background: var(--surface-control);
+}
+
 .extension-permission-backdrop {
   position: fixed;
   inset: 0;

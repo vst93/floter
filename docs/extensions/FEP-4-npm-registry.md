@@ -102,6 +102,61 @@ rejected.
 
 ## Signature Index
 
+Floter's official index is a signed JSON envelope. `payload` is the standard
+Base64 encoding of the exact UTF-8 JSON bytes that are signed. Keeping the
+payload opaque during signature verification avoids JSON canonicalization
+ambiguities. `signatures` may contain signatures from multiple pinned root
+keys while the root key is being rotated:
+
+```json
+{
+  "payload": "<base64 payload>",
+  "signatures": [
+    {
+      "keyId": "floter-release-2026",
+      "algorithm": "ed25519",
+      "signature": "<base64 Ed25519 signature over decoded payload bytes>"
+    }
+  ]
+}
+```
+
+The decoded payload has this format:
+
+```json
+{
+  "schemaVersion": 1,
+  "indexVersion": 1,
+  "expiresAt": "2027-01-01T00:00:00Z",
+  "entries": [
+    {
+      "extensionId": "io.github.vst93.v",
+      "npmPackage": "v-tools",
+      "publisher": "vst93",
+      "signingKeys": ["ed25519:<base64 32-byte public key>"]
+    }
+  ]
+}
+```
+
+`publisher` is the extension manifest publisher ID. Multiple `signingKeys`
+allow an overlap window for publisher-key rotation. The Host pins a minimal set
+of Floter root public keys and accepts an envelope when at least one signature
+matches a pinned root. It then requires schema version 1, a positive index
+version, and a future RFC 3339 expiry. Before release, the development root key
+and example entry embedded in `official_index.rs` MUST be replaced with the
+production release key and reviewed index data.
+
+Discovery uses the NPM search publisher only as an early candidate match. The
+installer does not rely on that result: after SRI verification it independently
+binds the manifest extension ID, requested NPM package, manifest publisher ID,
+and declared signing key to one valid index entry. It then verifies the
+publisher's tarball signature. An unavailable, malformed, tampered, unsupported,
+or expired index degrades to community/unverified status and never reuses an
+official result from discovery.
+
+### Publisher tarball signature
+
 The root `floter.extension.json` MAY declare an Ed25519 signature for the base
 package tarball:
 

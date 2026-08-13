@@ -936,6 +936,8 @@ mod tests {
             integrity: None,
             signature_verified: false,
             previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
             current_version: adapter.description.provider.version.clone(),
             previous_version: None,
             manifest_path: String::new(),
