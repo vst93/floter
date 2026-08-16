@@ -4,7 +4,16 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { Blocks, Info, Keyboard, SlidersHorizontal } from "lucide-react";
+import {
+  Blocks,
+  Info,
+  Keyboard,
+  Play,
+  RefreshCw,
+  SlidersHorizontal,
+  SquareTerminal,
+  Trash2,
+} from "lucide-react";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
 import { encodeKey, FOCUS_IN_OUT, MOUSE_MOTION, usesMouseReporting } from "./terminal/input";
 import {
@@ -44,8 +53,21 @@ if (IS_WINDOWS) {
 }
 
 type ViewMode = "collapsed" | "terminal" | "settings";
-type SettingsPage = "general" | "shortcuts" | "integrations" | "about";
+type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
+
+type BrokerSessionInfo = {
+  sessionId: string;
+  name: string;
+  attached: boolean;
+  exited: boolean;
+  exitCode: number;
+  createdAt: string;
+  width: number;
+  height: number;
+  size: string;
+  cwd: string;
+};
 
 type LocalApplication = {
   name: string;
@@ -745,6 +767,9 @@ export default function App() {
   const appIconAttempts = useRef(new Set<string>());
   useEffect(() => { appIconUrlsRef.current = appIconUrls; }, [appIconUrls]);
   const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogSuggestion[]>([]);
+  const [terminalSessions, setTerminalSessions] = useState<BrokerSessionInfo[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionActionId, setSessionActionId] = useState<string | null>(null);
   const catalogRequestGeneration = useRef(0);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
@@ -778,6 +803,13 @@ export default function App() {
 
   const language = normalizeLanguage(settings.language);
   const t = useMemo(() => createTranslator(language), [language]);
+  const sessionDateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }),
+    [language],
+  );
   const shortcuts = useMemo(
     () => withShortcutDefaults(settings.shortcuts),
     [settings.shortcuts],
@@ -1107,6 +1139,14 @@ export default function App() {
         appScanning.current = false;
         setAppsLoading(false);
       });
+  };
+
+  const refreshTerminalSessions = () => {
+    setSessionsLoading(true);
+    return invoke<BrokerSessionInfo[]>("term_list_sessions")
+      .then(setTerminalSessions)
+      .catch(() => setTerminalSessions([]))
+      .finally(() => setSessionsLoading(false));
   };
 
   useEffect(() => {
@@ -1470,7 +1510,7 @@ export default function App() {
   // grid current; this listener persists the logical window dimensions after a
   // short idle period, so a single drag writes once rather than every frame.
   useEffect(() => {
-    if (!terminalMounted) return;
+    if (!terminalMounted || mode !== "terminal") return;
     const currentWindow = getCurrentWindow();
     let disposed = false;
     let unlisten: (() => void) | undefined;
@@ -1510,7 +1550,7 @@ export default function App() {
       pendingTerminalSize.current = null;
       if (pending) invoke("save_terminal_size", pending).catch(() => undefined);
     };
-  }, [terminalMounted]);
+  }, [mode, terminalMounted]);
 
   // Settings is a compact work panel, not a document. Its header stays fixed
   // while the body scrolls; smaller displays get a proportional cap.
@@ -2121,9 +2161,27 @@ export default function App() {
     if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
   };
 
-  const openSettings = () => {
+  const openSettings = (page?: SettingsPage) => {
     suppressBlurUntil.current = Date.now() + 400;
+    const nextPage = page ?? settingsPage;
+    setSettingsPage(nextPage);
+    if (nextPage === "sessions") void refreshTerminalSessions();
     setMode("settings");
+  };
+
+  const killTerminalSession = async (session: BrokerSessionInfo) => {
+    if (sessionActionId) return;
+    const label = session.name || session.sessionId.slice(0, 8);
+    if (!window.confirm(t("terminal.sessionKillConfirm", { name: label }))) return;
+    setSessionActionId(session.sessionId);
+    try {
+      await invoke("term_kill_session", { sessionId: session.sessionId });
+      await refreshTerminalSessions();
+    } catch {
+      await refreshTerminalSessions();
+    } finally {
+      setSessionActionId(null);
+    }
   };
 
   useEffect(() => {
@@ -2340,6 +2398,41 @@ export default function App() {
     } catch {
       setTerminalMounted(false);
       setMode("collapsed");
+      focusCollapsedInput(50);
+    } finally {
+      terminalOpening.current = false;
+    }
+  };
+
+  const resumeTerminalSession = async (session: BrokerSessionInfo) => {
+    if (terminalOpening.current) return;
+    terminalOpening.current = true;
+    setTerminalMounted(true);
+    setMode("terminal");
+    try {
+      if (sessionClosePromise.current) await sessionClosePromise.current;
+      const { cols, rows } = dimsRef.current;
+      const generation = ++nextTerminalGeneration.current;
+      terminalGeneration.current = generation;
+      await invoke("term_attach_existing", {
+        id: "main",
+        generation,
+        brokerSessionId: session.sessionId,
+        theme: resolvedTheme,
+        cols,
+        rows,
+      });
+      if (terminalGeneration.current === generation) {
+        ptyReady.current = true;
+      }
+      setQuery("");
+      focusTerminalView();
+    } catch {
+      terminalGeneration.current = null;
+      ptyReady.current = false;
+      setTerminalMounted(false);
+      setMode("collapsed");
+      refreshTerminalSessions();
       focusCollapsedInput(50);
     } finally {
       terminalOpening.current = false;
@@ -2607,11 +2700,21 @@ export default function App() {
             <nav className="settings-sidebar" aria-label={t("settings.title")} data-no-drag>
               {([
                 ["general", SlidersHorizontal],
+                ["sessions", SquareTerminal],
                 ["shortcuts", Keyboard],
                 ["integrations", Blocks],
                 ["about", Info],
               ] as const).map(([page, Icon]) => (
-                <button key={page} type="button" className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"} aria-current={settingsPage === page ? "page" : undefined} onClick={() => setSettingsPage(page)}>
+                <button
+                  key={page}
+                  type="button"
+                  className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"}
+                  aria-current={settingsPage === page ? "page" : undefined}
+                  onClick={() => {
+                    setSettingsPage(page);
+                    if (page === "sessions") void refreshTerminalSessions();
+                  }}
+                >
                   <Icon size={15} strokeWidth={2} aria-hidden="true" />
                   <span>{t(`settings.menu.${page}`)}</span>
                 </button>
@@ -2764,6 +2867,85 @@ export default function App() {
             </section>
             )}
 
+            {settingsPage === "sessions" && (
+            <section className="settings-section session-manager">
+              <div className="settings-section__heading">
+                <h2 className="settings-section__label">{t("terminal.sessions")}</h2>
+                <button
+                  type="button"
+                  className="session-manager__icon-button"
+                  aria-label={t("terminal.sessionsRefresh")}
+                  title={t("terminal.sessionsRefresh")}
+                  disabled={sessionsLoading}
+                  onClick={() => void refreshTerminalSessions()}
+                >
+                  <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />
+                </button>
+              </div>
+
+              {terminalSessions.length === 0 ? (
+                <div className="session-manager__empty">
+                  <SquareTerminal size={20} strokeWidth={1.6} aria-hidden="true" />
+                  <span>{sessionsLoading ? t("terminal.sessionsLoading") : t("terminal.sessionsEmpty")}</span>
+                </div>
+              ) : (
+                <div className="session-manager__list">
+                  {terminalSessions.map((session) => {
+                    const busy = sessionActionId === session.sessionId;
+                    const state = session.exited
+                      ? t("terminal.sessionExited")
+                      : session.attached
+                        ? t("terminal.sessionAttached")
+                        : t("terminal.sessionDetached");
+                    const created = new Date(session.createdAt);
+                    return (
+                      <div key={session.sessionId} className="session-manager__row">
+                        <span className="session-manager__marker" aria-hidden="true">
+                          <SquareTerminal size={16} strokeWidth={1.8} />
+                        </span>
+                        <span className="session-manager__main">
+                          <span className="session-manager__name">
+                            {session.name || t("terminal.sessionTitle", { id: session.sessionId.slice(0, 8) })}
+                          </span>
+                          <span className="session-manager__cwd">{session.cwd || "~"}</span>
+                          <span className="session-manager__meta">
+                            <span className={session.exited ? "session-state session-state--exited" : "session-state"}>
+                              {state}
+                            </span>
+                            <span>{session.size || `${session.width}x${session.height}`}</span>
+                            {!Number.isNaN(created.getTime()) && <span>{sessionDateFormatter.format(created)}</span>}
+                          </span>
+                        </span>
+                        <span className="session-manager__actions">
+                          <button
+                            type="button"
+                            className="session-manager__icon-button"
+                            aria-label={t("terminal.sessionResume")}
+                            title={t("terminal.sessionResume")}
+                            disabled={session.exited || busy || sessionActionId !== null}
+                            onClick={() => void resumeTerminalSession(session)}
+                          >
+                            <Play size={14} strokeWidth={1.9} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="session-manager__icon-button session-manager__icon-button--danger"
+                            aria-label={t("terminal.sessionKill")}
+                            title={t("terminal.sessionKill")}
+                            disabled={busy || sessionActionId !== null}
+                            onClick={() => void killTerminalSession(session)}
+                          >
+                            <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
+                          </button>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+            )}
+
             {settingsPage === "integrations" && (
             <ExtensionsPanel
               t={t}
@@ -2878,6 +3060,22 @@ export default function App() {
               autoCapitalize="off"
               autoCorrect="off"
             />
+            <button
+              type="button"
+              className="collapsed-card__settings"
+              aria-label={t("terminal.sessions")}
+              title={t("terminal.sessionsOpen")}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                openSettings("sessions");
+              }}
+            >
+              <SquareTerminal size={16} strokeWidth={1.8} aria-hidden="true" />
+            </button>
             <button
               type="button"
               className="collapsed-card__settings"

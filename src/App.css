@@ -1028,6 +1028,133 @@ input:focus {
   line-height: 1.35;
 }
 
+.session-manager {
+  gap: 10px;
+}
+
+.session-manager__list {
+  display: grid;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.session-manager__row {
+  min-width: 0;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 4px;
+}
+
+.session-manager__row + .session-manager__row {
+  border-top: 1px solid var(--hairline);
+}
+
+.session-manager__marker {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px var(--icon-edge);
+}
+
+.session-manager__main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.session-manager__name,
+.session-manager__cwd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-manager__name {
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.session-manager__cwd {
+  color: var(--text-muted);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+}
+
+.session-manager__meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--text-tertiary);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-state {
+  color: var(--accent);
+}
+
+.session-state--exited {
+  color: var(--text-tertiary);
+}
+
+.session-manager__actions {
+  display: flex;
+  gap: 3px;
+}
+
+.session-manager__icon-button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.session-manager__icon-button:hover:not(:disabled) {
+  border-color: var(--stroke-control);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
+.session-manager__icon-button--danger:hover:not(:disabled) {
+  color: var(--text-warning);
+}
+
+.session-manager__icon-button:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.session-manager__icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.session-manager__empty {
+  min-height: 160px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 /* Extension management is a dense settings surface: rows share separators and
    controls, while the drawer owns the only elevated layer in the section. */
 .extensions-panel {
@@ -2413,10 +2540,13 @@ canvas {
    a native shadow. Keep the depth inside the transparent webview allocation so
    X11 and Wayland render the same edge, with symmetric room because neither
    compositor exposes a stable light direction to the application. */
-.platform-linux .collapsed-shell,
 .platform-linux .settings-shell,
 .platform-linux .terminal-shell {
   padding: 10px;
+}
+
+.platform-linux .collapsed-shell {
+  padding: 0;
 }
 
 .platform-linux .collapsed-card,
@@ -2427,6 +2557,10 @@ canvas {
     0 1px 5px var(--window-shadow-contact),
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-linux .collapsed-card {
+  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
 }
 
 .platform-linux .collapsed-card:focus-within {

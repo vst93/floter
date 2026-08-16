@@ -301,6 +301,72 @@ impl TerminalSession {
         cols: u16,
         rows: u16,
     ) -> Result<Self, String> {
+        let cwd = cwd.unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
+        let name = format!("floter-{}-{}", std::process::id(), identity.generation);
+        Self::from_broker(
+            identity,
+            app,
+            cwd.clone(),
+            theme,
+            cols,
+            rows,
+            false,
+            move |callbacks| {
+                broker::spawn_session_with_command(
+                    name,
+                    shell,
+                    cwd,
+                    initial_command,
+                    command,
+                    cols,
+                    rows,
+                    callbacks,
+                )
+            },
+        )
+    }
+
+    /// Attach the renderer to a daemon session that outlived its previous UI.
+    fn attach(
+        identity: SessionIdentity,
+        app: AppHandle,
+        broker_session_id: String,
+        theme: Option<String>,
+        cols: u16,
+        rows: u16,
+    ) -> Result<Self, String> {
+        let info = broker::list_sessions()?
+            .into_iter()
+            .find(|session| session.session_id == broker_session_id)
+            .ok_or_else(|| "terminal session no longer exists".to_string())?;
+        let cwd = if info.cwd.is_empty() {
+            dirs::home_dir().unwrap_or_default()
+        } else {
+            PathBuf::from(info.cwd)
+        };
+        Self::from_broker(
+            identity,
+            app,
+            cwd,
+            theme,
+            cols,
+            rows,
+            true,
+            move |callbacks| broker::attach_session(broker_session_id, cols, rows, callbacks),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_broker(
+        identity: SessionIdentity,
+        app: AppHandle,
+        cwd: PathBuf,
+        theme: Option<String>,
+        cols: u16,
+        rows: u16,
+        preserve_on_close: bool,
+        broker_factory: impl FnOnce(BrokerCallbacks) -> Result<BrokerSession, String>,
+    ) -> Result<Self, String> {
         let size = TermSize {
             cols: cols.max(2) as usize,
             rows: rows.max(1) as usize,
@@ -319,24 +385,14 @@ impl TerminalSession {
         let terminal = Arc::new(FairMutex::new(term));
         let (parser_tx, parser_rx) = mpsc::sync_channel(PARSE_QUEUE_CAPACITY);
         let output_tx = parser_tx.clone();
-        let cwd = cwd.unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
-        let broker = broker::spawn_session_with_command(
-            format!("floter-{}-{}", std::process::id(), identity.generation),
-            shell,
-            cwd.clone(),
-            initial_command,
-            command,
-            cols,
-            rows,
-            BrokerCallbacks {
-                output: Box::new(move |output| {
-                    let _ = output_tx.send(ParserEvent::Output(output));
-                }),
-                exit: Box::new(move |code| {
-                    let _ = parser_tx.send(ParserEvent::Exit(code));
-                }),
-            },
-        )?;
+        let broker = broker_factory(BrokerCallbacks {
+            output: Box::new(move |output| {
+                let _ = output_tx.send(ParserEvent::Output(output));
+            }),
+            exit: Box::new(move |code| {
+                let _ = parser_tx.send(ParserEvent::Exit(code));
+            }),
+        })?;
 
         // Install the terminal-query reply path before parsing any queued PTY
         // output. Programs probing terminal capabilities can write immediately.
@@ -348,13 +404,21 @@ impl TerminalSession {
         if let Err(error) =
             spawn_broker_parser_thread(terminal.clone(), parser_rx, tx.clone(), alive.clone())
         {
-            broker.kill();
+            if preserve_on_close {
+                broker.detach();
+            } else {
+                broker.kill();
+            }
             return Err(error);
         }
         if let Err(error) =
             spawn_render_thread(identity.clone(), app, terminal.clone(), rx, alive.clone())
         {
-            broker.kill();
+            if preserve_on_close {
+                broker.detach();
+            } else {
+                broker.kill();
+            }
             return Err(error);
         }
 
@@ -362,7 +426,7 @@ impl TerminalSession {
             identity,
             broker,
             cwd,
-            preserve_broker: AtomicBool::new(false),
+            preserve_broker: AtomicBool::new(preserve_on_close),
             closed: AtomicBool::new(false),
             terminal,
             wakeup: tx,
@@ -546,6 +610,28 @@ impl ExternalTerminalRequest {
         };
         Ok(ExternalTerminalOutcome { session_handed_off })
     }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn open_terminal_session(
+    dir: &Path,
+    resume_command: &str,
+    preferred: Option<&str>,
+) -> Result<bool, String> {
+    let preferred = preferred.filter(|name| !matches!(*name, "default" | "system" | "terminal"));
+    match preferred {
+        Some(name) => open_named_terminal_at(name, dir, resume_command),
+        None => open_terminal_at(dir, Some(resume_command)),
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn open_terminal_session(
+    dir: &Path,
+    resume_command: &str,
+    preferred: Option<&str>,
+) -> Result<bool, String> {
+    open_terminal_at_with_preference(dir, Some(resume_command), preferred)
 }
 
 fn alternate_scroll_input(mode: TermMode, delta: i32) -> Vec<u8> {
@@ -809,6 +895,30 @@ impl TerminalManager {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_existing(
+        &self,
+        id: String,
+        generation: u64,
+        app: AppHandle,
+        broker_session_id: String,
+        theme: Option<String>,
+        cols: u16,
+        rows: u16,
+    ) -> Result<(), String> {
+        let identity = SessionIdentity {
+            id: id.clone(),
+            generation,
+        };
+        let session = TerminalSession::attach(identity, app, broker_session_id, theme, cols, rows)?;
+        let mut sessions = self.sessions.lock().map_err(|error| error.to_string())?;
+        if let Some(previous) = sessions.remove(&id) {
+            previous.close();
+        }
+        sessions.insert(id, session);
+        Ok(())
+    }
+
     pub fn set_theme(&self, id: &str, theme: &str) -> Result<(), String> {
         let sessions = self.sessions.lock().map_err(|error| error.to_string())?;
         if let Some(session) = sessions.get(id) {
@@ -932,7 +1042,7 @@ impl TerminalManager {
 }
 
 /// Wrap `value` in single quotes for safe interpolation into a `/bin/sh` script.
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
@@ -998,6 +1108,58 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, St
     }
 }
 
+#[cfg(target_os = "macos")]
+fn open_named_terminal_at(name: &str, dir: &Path, resume_command: &str) -> Result<bool, String> {
+    let executable =
+        which(name).ok_or_else(|| format!("terminal emulator '{name}' was not found"))?;
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let script = format!("{resume_command}\nexec {} -l", sh_quote(&shell));
+    let dir_arg = dir.to_string_lossy();
+    let terminal = Path::new(name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(name);
+    let mut command = Command::new(executable);
+    command.current_dir(dir);
+    match terminal {
+        "kitty" => {
+            command.args(["--directory", dir_arg.as_ref(), &shell, "-lc", &script]);
+        }
+        "alacritty" => {
+            command.args([
+                "--working-directory",
+                dir_arg.as_ref(),
+                "-e",
+                &shell,
+                "-lc",
+                &script,
+            ]);
+        }
+        "ghostty" => {
+            command.arg(format!("--working-directory={dir_arg}"));
+            command.args(["-e", &shell, "-lc", &script]);
+        }
+        "wezterm" => {
+            command.args([
+                "start",
+                "--cwd",
+                dir_arg.as_ref(),
+                "--",
+                &shell,
+                "-lc",
+                &script,
+            ]);
+        }
+        _ => {
+            command.args(["-e", &shell, "-lc", &script]);
+        }
+    }
+    command
+        .spawn()
+        .map(|_| true)
+        .map_err(|error| format!("failed to start terminal emulator '{name}': {error}"))
+}
+
 /// Terminal emulators tried in order when `$TERMINAL` is unset.
 #[cfg(target_os = "linux")]
 const TERMINALS: &[&str] = &[
@@ -1018,26 +1180,59 @@ const TERMINALS: &[&str] = &[
 ];
 
 /// Locate `name` on `$PATH`, or treat it as a path if it contains a separator.
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 fn which(name: &str) -> Option<PathBuf> {
     if name.contains('/') {
         let path = PathBuf::from(name);
         return path.is_file().then_some(path);
     }
-    let paths = std::env::var_os("PATH")?;
-    std::env::split_paths(&paths)
-        .map(|dir| dir.join(name))
-        .find(|candidate| candidate.is_file())
+    let from_path = std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths)
+            .map(|dir| dir.join(name))
+            .find(|candidate| candidate.is_file())
+    });
+    if from_path.is_some() {
+        return from_path;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let app_executable = match name {
+            "kitty" => "/Applications/kitty.app/Contents/MacOS/kitty",
+            "alacritty" => "/Applications/Alacritty.app/Contents/MacOS/alacritty",
+            "ghostty" => "/Applications/Ghostty.app/Contents/MacOS/ghostty",
+            "wezterm" => "/Applications/WezTerm.app/Contents/MacOS/wezterm",
+            _ => return None,
+        };
+        return PathBuf::from(app_executable)
+            .is_file()
+            .then(|| PathBuf::from(app_executable));
+    }
+    #[cfg(not(target_os = "macos"))]
+    None
 }
 
 /// Spawn the first available terminal emulator at `dir`.
 #[cfg(target_os = "linux")]
 fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, String> {
-    let preferred = std::env::var("TERMINAL").ok();
-    let candidates = preferred
-        .as_deref()
+    open_terminal_at_with_preference(dir, resume_command, None)
+}
+
+#[cfg(target_os = "linux")]
+fn open_terminal_at_with_preference(
+    dir: &Path,
+    resume_command: Option<&str>,
+    requested: Option<&str>,
+) -> Result<bool, String> {
+    let environment_preference = std::env::var("TERMINAL").ok();
+    let requested = requested.filter(|name| !matches!(*name, "default" | "system"));
+    let candidates = requested
         .into_iter()
-        .chain(TERMINALS.iter().copied());
+        .chain(
+            environment_preference
+                .as_deref()
+                .filter(|_| requested.is_none()),
+        )
+        .chain(TERMINALS.iter().copied().filter(|_| requested.is_none()));
 
     for name in candidates {
         if which(name).is_none() {

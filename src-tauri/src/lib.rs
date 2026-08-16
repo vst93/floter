@@ -34,8 +34,9 @@ use commands::extensions::{
 };
 use commands::system::system_power;
 use commands::terminal::{
-    open_in_default_terminal, term_close, term_input, term_mouse, term_resize, term_scroll,
-    term_scroll_to, term_set_theme, term_spawn, term_wheel, TerminalState,
+    open_in_default_terminal, term_attach_existing, term_close, term_input, term_kill_session,
+    term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to, term_set_theme,
+    term_spawn, term_wheel, TerminalState,
 };
 use extensions::ExtensionState;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -842,6 +843,12 @@ fn save_terminal_size(
     height: f64,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // A terminal-to-launcher transition resizes the native window before React
+    // has necessarily removed its terminal resize listener. Never let that
+    // compact-window event overwrite the user's terminal dimensions.
+    if !state.terminal_mode.load(Ordering::SeqCst) {
+        return Ok(());
+    }
     let (_, height) = persist_terminal_size(width, height)?;
     if let Ok(mut current) = state.terminal_height.lock() {
         *current = height;
@@ -881,6 +888,9 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
+    // Flip the mode before resizing so an in-flight frontend resize callback
+    // cannot persist the compact launcher dimensions as the terminal size.
+    state.terminal_mode.store(false, Ordering::SeqCst);
     window
         .set_resizable(false)
         .map_err(|error| error.to_string())?;
@@ -894,7 +904,6 @@ fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     if !preserve_anchor {
         let _ = move_to_default_position(&window, INPUT_WINDOW_WIDTH, &state);
     }
-    state.terminal_mode.store(false, Ordering::SeqCst);
     state.window_visible.store(true, Ordering::SeqCst);
     Ok(())
 }
@@ -1152,6 +1161,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             term_spawn,
+            term_list_sessions,
+            term_attach_existing,
+            term_kill_session,
             term_input,
             term_resize,
             term_scroll,

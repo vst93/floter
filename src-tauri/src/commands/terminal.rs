@@ -1,5 +1,5 @@
 use crate::extensions::ExtensionState;
-use crate::terminal::broker::SpawnCommand;
+use crate::terminal::broker::{self, BrokerSessionInfo, SpawnCommand};
 use crate::terminal::session::{ExternalTerminalOutcome, TerminalManager};
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -98,6 +98,39 @@ pub fn term_spawn(
         cols.unwrap_or(80),
         rows.unwrap_or(24),
     )
+}
+
+#[tauri::command]
+pub fn term_list_sessions() -> Result<Vec<BrokerSessionInfo>, String> {
+    broker::list_sessions()
+}
+
+#[tauri::command]
+pub fn term_attach_existing(
+    state: State<'_, TerminalState>,
+    app: AppHandle,
+    id: String,
+    generation: u64,
+    broker_session_id: String,
+    theme: Option<String>,
+    cols: Option<u16>,
+    rows: Option<u16>,
+) -> Result<(), String> {
+    let manager = state.0.lock().map_err(|e| e.to_string())?;
+    manager.attach_existing(
+        id,
+        generation,
+        app,
+        broker_session_id,
+        theme,
+        cols.unwrap_or(80),
+        rows.unwrap_or(24),
+    )
+}
+
+#[tauri::command]
+pub fn term_kill_session(session_id: String) -> Result<(), String> {
+    broker::kill_existing_session(&session_id)
 }
 
 #[tauri::command]
