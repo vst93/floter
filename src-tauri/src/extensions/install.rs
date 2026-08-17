@@ -1529,11 +1529,22 @@ async fn install_managed(
             .map(|p| p.required)
             .collect();
         match crate::extensions::probe_runner::run_probes(state, &manifest.id, &executable, &probe_args, &required).await {
-            Ok(report) => {
+            Ok(ref report) => {
                 let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
+                // Auto-rollback: required probes failed on new version
+                if report.status == crate::extensions::health::HealthStatus::Unhealthy {
+                    return Err(format!(
+                        "Installation aborted: {} failed required probes. {}",
+                        manifest.id,
+                        if !report.failures.is_empty() {
+                            format!("Failures: {}", report.failures.iter()
+                                .map(|f| format!("{} (exit {:?})", f.probe, f.exit_code))
+                                .collect::<Vec<_>>().join(", "))
+                        } else { String::new() }
+                    ));
+                }
             }
             Err(e) => {
-                // Don't fail the install if probes error, just log
                 eprintln!("Probe run failed for {}: {}", manifest.id, e);
             }
         }

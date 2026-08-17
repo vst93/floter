@@ -103,6 +103,30 @@ type DiagnoseResult = {
   checks: Array<{ id: string; status: string; message: string }>;
 };
 
+type HealthReport = {
+  schemaVersion: number;
+  status: "healthy" | "degraded" | "unhealthy" | "unknown";
+  checkedAt: string;
+  capabilities: {
+    version: string;
+    supportedFeatures: string[];
+    limitations: string[];
+  };
+  probes: Array<{
+    probeId: string;
+    passed: boolean;
+    durationMs: number;
+    exitCode: number | null;
+    stderr: string;
+  }>;
+  failures: Array<{
+    probe: string;
+    exitCode: number | null;
+    stderr: string;
+    retryable: boolean;
+  }>;
+};
+
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type ConfigFieldType = "text" | "password" | "path" | "select" | "multi-select" | "boolean" | "number";
 
@@ -414,6 +438,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderResponse | null>(null);
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
+  const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [configuration, setConfiguration] = useState<ExtensionConfiguration | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, JsonValue>>({});
   const [savedConfigValues, setSavedConfigValues] = useState<Record<string, JsonValue>>({});
@@ -584,10 +610,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       invoke<ProviderResponse>("extensions_describe", { id: selectedId }),
       invoke<DiagnoseResult>("extensions_diagnose", { id: selectedId }),
       invoke<ExtensionConfiguration>("extensions_config_get", { id: selectedId }),
-    ]).then(([descriptionResult, diagnoseResult, configResult]) => {
+      invoke<HealthReport>("extensions_health", { id: selectedId }),
+    ]).then(([descriptionResult, diagnoseResult, configResult, healthResult]) => {
       if (generation !== detailGeneration.current) return;
       if (descriptionResult.status === "fulfilled") setProvider(descriptionResult.value);
       if (diagnoseResult.status === "fulfilled") setDiagnose(diagnoseResult.value);
+      if (healthResult.status === "fulfilled") setHealthReport(healthResult.value);
       if (configResult.status === "fulfilled") {
         setConfiguration(configResult.value);
         const defaults = Object.fromEntries(
@@ -608,6 +636,18 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       setDetailLoading(false);
     });
   }, [selectedId, selected?.updatedAt]);
+
+  const handleReprobe = async () => {
+    setHealthLoading(true);
+    try {
+      const report = await invoke<HealthReport>("extensions_reprobe", { id: selectedId });
+      setHealthReport(report);
+    } catch (e) {
+      console.error("Re-probe failed:", e);
+    } finally {
+      setHealthLoading(false);
+    }
+  };
 
   useDialogFocus(Boolean(pendingInstall), permissionDialogRef, () => {
     if (!busy) setPendingInstall(null);
@@ -1660,6 +1700,76 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     ))}
                   </div>
                 ) : !detailLoading && <p className="extension-detail-empty">{t("settings.extensions.diagnosticsUnavailable")}</p>}
+              </section>
+
+              <section className="extension-detail-block">
+                <h4>
+                  Health Report
+                  {healthReport && (
+                    <button
+                      type="button"
+                      className="extensions-icon-button"
+                      title="Re-probe"
+                      aria-label="Re-probe"
+                      disabled={healthLoading}
+                      onClick={() => void handleReprobe()}
+                    >
+                      <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  )}
+                </h4>
+                {healthReport ? (
+                  <div className="extension-health">
+                    <div className="extension-health__header">
+                      <span className={`extension-health__status extension-health__status--${healthReport.status}`}>{healthReport.status}</span>
+                      <span className="extension-health__version">v{healthReport.capabilities.version}</span>
+                    </div>
+                    {healthReport.capabilities.supportedFeatures.length > 0 && (
+                      <div className="extension-health__features">
+                        <span className="extension-health__label">Features:</span>
+                        {healthReport.capabilities.supportedFeatures.map((f) => (
+                          <span key={f} className="extension-health__tag">{f}</span>
+                        ))}
+                      </div>
+                    )}
+                    {healthReport.capabilities.limitations.length > 0 && (
+                      <div className="extension-health__limitations">
+                        <span className="extension-health__label">Limitations:</span>
+                        <ul>
+                          {healthReport.capabilities.limitations.map((l, i) => (
+                            <li key={i}>{l}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="extension-health__probes">
+                      <span className="extension-health__label">Probes:</span>
+                      {healthReport.probes.map((probe) => (
+                        <div key={probe.probeId} className="extension-health__probe">
+                          <span className={`extension-health__probe-status extension-health__probe-status--${probe.passed ? "passed" : "failed"}`}>
+                            {probe.passed ? "✓" : "✗"}
+                          </span>
+                          <span className="extension-health__probe-id">{probe.probeId}</span>
+                          <span className="extension-health__probe-duration">{probe.durationMs}ms</span>
+                        </div>
+                      ))}
+                    </div>
+                    {healthReport.failures.length > 0 && (
+                      <div className="extension-health__failures">
+                        <span className="extension-health__label">Failures:</span>
+                        {healthReport.failures.map((failure, i) => (
+                          <div key={i} className="extension-health__failure">
+                            <strong>{failure.probe}</strong>
+                            <span className="extension-health__failure-code">(exit: {failure.exitCode ?? "null"})</span>
+                            {failure.stderr && <p className="extension-health__failure-stderr">{failure.stderr}</p>}
+                            {failure.retryable && <span className="extension-health__retryable">Retryable</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="extension-health__timestamp">Checked at: {new Date(healthReport.checkedAt).toLocaleString()}</p>
+                  </div>
+                ) : !detailLoading && !healthLoading && <p className="extension-detail-empty">No health report available</p>}
               </section>
 
               {configuration && (
