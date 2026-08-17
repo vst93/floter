@@ -2144,6 +2144,32 @@ input:focus {
   border-top: 1px solid var(--hairline);
 }
 
+/* ── Extension health report ────────────────────────────────────────────── */
+
+.extension-health { display: flex; flex-direction: column; gap: 8px; }
+.extension-health__header { display: flex; align-items: center; gap: 8px; }
+.extension-health__status { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+.extension-health__status--healthy { background: var(--accent-tint); color: var(--accent); }
+.extension-health__status--degraded { background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); }
+.extension-health__status--unhealthy { background: color-mix(in srgb, var(--text-warning) 18%, transparent); color: var(--text-warning); }
+.extension-health__status--unknown { background: var(--surface-control); color: var(--text-muted); }
+.extension-health__version { font-size: 13px; color: var(--text-muted); }
+.extension-health__label { font-weight: 600; font-size: 12px; margin-right: 6px; }
+.extension-health__features, .extension-health__limitations, .extension-health__probes { display: flex; flex-direction: column; gap: 4px; }
+.extension-health__tag { display: inline-block; padding: 2px 6px; background: var(--accent-tint); color: var(--accent); border-radius: 3px; font-size: 11px; margin-right: 4px; }
+.extension-health__probe { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--hairline); }
+.extension-health__probe-status { font-weight: 600; }
+.extension-health__probe-status--passed { color: var(--accent); }
+.extension-health__probe-status--failed { color: var(--text-warning); }
+.extension-health__probe-id { font-size: 13px; font-family: monospace; }
+.extension-health__probe-duration { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+.extension-health__failures { display: flex; flex-direction: column; gap: 4px; }
+.extension-health__failure { padding: 6px; background: color-mix(in srgb, var(--text-warning) 8%, transparent); border-radius: 4px; border-left: 3px solid var(--text-warning); }
+.extension-health__failure-code { font-size: 12px; color: var(--text-muted); margin-left: 6px; }
+.extension-health__failure-stderr { font-size: 11px; color: var(--text-warning); margin-top: 4px; white-space: pre-wrap; word-break: break-all; }
+.extension-health__retryable { display: inline-block; margin-left: 8px; padding: 1px 4px; background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); border-radius: 3px; font-size: 10px; }
+.extension-health__timestamp { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
+
 @media (max-width: 560px) {
   .settings-card__body { grid-template-columns: 48px minmax(0, 1fr); }
   .settings-sidebar { padding-inline: 6px; }
