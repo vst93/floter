@@ -31,9 +31,20 @@ curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.s
 ```
 
 选项：
-- `--pre-release` — 安装最新版本（含预览版）
-- `--version 0.3.0` — 安装指定版本
-- `--yes` — 跳过确认提示（适合自动化环境）
+
+```bash
+# 安装最新版本（含预览版）
+curl -fsSL ... | bash -s -- --pre-release
+
+# 安装指定版本
+curl -fsSL ... | bash -s -- --version 0.3.0
+
+# 非交互式安装（跳过所有确认，适合自动化）
+curl -fsSL ... | bash -s -- --yes
+
+# 无提示安装预览版
+curl -fsSL ... | bash -s -- --pre-release --yes
+```
 
 ### 手动下载
 
