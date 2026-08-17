@@ -24,6 +24,19 @@
 
 ## 安装
 
+### 一键安装（推荐）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.sh | bash
+```
+
+选项：
+- `--pre-release` — 安装最新版本（含预览版）
+- `--version 0.3.0` — 安装指定版本
+- `--yes` — 跳过确认提示（适合自动化环境）
+
+### 手动下载
+
 前往 [GitHub Releases](https://github.com/vst93/floter/releases) 下载最新版本。
 
 | 平台 | 下载文件 | 安装方式 |

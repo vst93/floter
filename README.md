@@ -24,6 +24,19 @@ A cross-platform floating terminal and app launcher, always one shortcut away.
 
 ## Install
 
+### One-line installer (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.sh | bash
+```
+
+Options:
+- `--pre-release` — install the latest release (including previews)
+- `--version 0.3.0` — install a specific version
+- `--yes` — skip confirmation prompts (for automation)
+
+### Manual download
+
 Download the latest version from [GitHub Releases](https://github.com/vst93/floter/releases).
 
 | Platform | Download | Install |
