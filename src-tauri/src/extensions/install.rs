@@ -1,7 +1,6 @@
 use crate::extensions::lock::{
-    sync_directory, unix_now, validate_id, write_current_pointer, ExtensionDistributionSource,
-    ExtensionLockEntry, ExtensionProviderKind, ExtensionRuntimeOwnership, ExtensionStateKind,
-    ExtensionsLock,
+    unix_now, validate_id, ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+    ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
     validate_relative_path, Compatibility, Distribution, ExtensionManifest, Permission, PlatformOs,
@@ -10,6 +9,7 @@ use crate::extensions::manifest::{
 };
 use crate::extensions::official_index;
 use crate::extensions::provider::ProviderInvocation;
+use crate::extensions::transaction::{commit_lock, commit_version};
 use crate::extensions::ExtensionState;
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -228,224 +228,6 @@ struct InstallationTransaction {
     phase: InstallationPhase,
 }
 
-const TRANSACTION_JOURNAL_SCHEMA_VERSION: u32 = 1;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct InstallationJournal {
-    schema_version: u32,
-    transaction_id: String,
-    extension_id: String,
-    old_entry: Option<ExtensionLockEntry>,
-    new_entry: ExtensionLockEntry,
-    staged_version: Option<PathBuf>,
-    target_version: Option<PathBuf>,
-    backup_version: Option<PathBuf>,
-    #[serde(default)]
-    lock_committed: bool,
-    #[serde(default)]
-    cleanup_paths: Vec<PathBuf>,
-}
-
-fn journal_dir(state: &ExtensionState) -> PathBuf {
-    state.paths.extensions.join(".transactions")
-}
-
-fn write_journal(state: &ExtensionState, journal: &InstallationJournal) -> Result<PathBuf, String> {
-    let directory = journal_dir(state);
-    std::fs::create_dir_all(&directory)
-        .map_err(|error| format!("Cannot create extension transaction journal: {error}"))?;
-    let path = directory.join(format!("{}.json", journal.transaction_id));
-    let bytes = serde_json::to_vec_pretty(journal)
-        .map_err(|error| format!("Cannot serialize extension transaction journal: {error}"))?;
-    let mut temporary = tempfile::NamedTempFile::new_in(&directory)
-        .map_err(|error| format!("Cannot create extension transaction journal: {error}"))?;
-    temporary
-        .write_all(&bytes)
-        .and_then(|_| temporary.flush())
-        .and_then(|_| temporary.as_file().sync_all())
-        .map_err(|error| format!("Cannot write extension transaction journal: {error}"))?;
-    temporary
-        .persist(&path)
-        .map_err(|error| format!("Cannot persist extension transaction journal: {error}"))?;
-    sync_directory(&directory)
-        .map_err(|error| format!("Cannot sync extension transaction journal: {error}"))?;
-    Ok(path)
-}
-
-fn remove_journal(path: &Path) -> Result<(), String> {
-    if path.exists() {
-        std::fs::remove_file(path)
-            .map_err(|error| format!("Cannot remove extension transaction journal: {error}"))?;
-        if let Some(parent) = path.parent() {
-            sync_directory(parent)
-                .map_err(|error| format!("Cannot sync extension transaction journal: {error}"))?;
-        }
-    }
-    Ok(())
-}
-
-pub fn recover_transactions(state: &ExtensionState) -> Result<(), String> {
-    let directory = journal_dir(state);
-    if !directory.is_dir() {
-        return Ok(());
-    }
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    for item in std::fs::read_dir(&directory)
-        .map_err(|error| format!("Cannot scan extension transaction journal: {error}"))?
-    {
-        let item =
-            item.map_err(|error| format!("Cannot read extension transaction journal: {error}"))?;
-        let path = item.path();
-        if path.extension().and_then(|value| value.to_str()) != Some("json") {
-            continue;
-        }
-        let bytes = std::fs::read(&path)
-            .map_err(|error| format!("Cannot read extension transaction journal: {error}"))?;
-        let journal: InstallationJournal = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("Invalid extension transaction journal: {error}"))?;
-        if journal.schema_version != TRANSACTION_JOURNAL_SCHEMA_VERSION {
-            return Err(format!(
-                "Unsupported extension transaction journal schema {}",
-                journal.schema_version
-            ));
-        }
-        let old_differs = journal.old_entry.as_ref().is_some_and(|old| {
-            serde_json::to_value(old).ok() != serde_json::to_value(&journal.new_entry).ok()
-        });
-        let committed = journal.lock_committed
-            || (old_differs
-                && lock
-                    .extensions
-                    .get(&journal.extension_id)
-                    .is_some_and(|entry| {
-                        serde_json::to_value(entry).ok()
-                            == serde_json::to_value(&journal.new_entry).ok()
-                    }));
-        if committed {
-            if let Some(backup) = &journal.backup_version {
-                if backup.exists() {
-                    std::fs::remove_dir_all(backup).map_err(|error| {
-                        format!("Cannot clean committed extension transaction backup: {error}")
-                    })?;
-                }
-            }
-        } else {
-            if let Some(target) = &journal.target_version {
-                if target.exists() {
-                    let _ = std::fs::remove_dir_all(target);
-                }
-            }
-            if let (Some(backup), Some(target)) = (&journal.backup_version, &journal.target_version)
-            {
-                if backup.exists() && !target.exists() {
-                    std::fs::rename(backup, target).map_err(|error| {
-                        format!("Cannot restore interrupted extension transaction: {error}")
-                    })?;
-                }
-            }
-            if let Some(old) = &journal.old_entry {
-                lock.extensions
-                    .insert(journal.extension_id.clone(), old.clone());
-            } else {
-                lock.extensions.remove(&journal.extension_id);
-            }
-        }
-        remove_journal(&path)?;
-    }
-    lock.save(&state.paths.lock_file)?;
-    rebuild_current_pointers(state, &lock)?;
-    Ok(())
-}
-
-fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Result<(), String> {
-    for entry in lock.extensions.values() {
-        let _ = write_current_pointer(&state.paths.extensions, entry);
-    }
-    Ok(())
-}
-
-fn commit_version_transaction(
-    state: &ExtensionState,
-    old: Option<&ExtensionLockEntry>,
-    entry: &ExtensionLockEntry,
-    staged_version: &Path,
-    target: &Path,
-) -> Result<(), String> {
-    let backup = if target.exists() {
-        Some(target.with_extension(format!("txn-backup-{}", uuid::Uuid::new_v4())))
-    } else {
-        None
-    };
-    let journal = InstallationJournal {
-        schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
-        transaction_id: uuid::Uuid::new_v4().to_string(),
-        extension_id: entry.id.clone(),
-        old_entry: old.cloned(),
-        new_entry: entry.clone(),
-        staged_version: Some(staged_version.to_path_buf()),
-        target_version: Some(target.to_path_buf()),
-        backup_version: backup.clone(),
-        lock_committed: false,
-        cleanup_paths: Vec::new(),
-    };
-    let journal_path = write_journal(state, &journal)?;
-    if let Some(backup) = &backup {
-        std::fs::rename(target, backup)
-            .map_err(|error| format!("Cannot stage previous extension version: {error}"))?;
-        sync_directory(target.parent().ok_or("Invalid extension target")?)
-            .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
-    }
-    std::fs::rename(staged_version, target)
-        .map_err(|error| format!("Cannot atomically install extension version: {error}"))?;
-    sync_directory(target.parent().ok_or("Invalid extension target")?)
-        .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    lock.extensions.insert(entry.id.clone(), entry.clone());
-    lock.save(&state.paths.lock_file)?;
-    let mut committed_journal = journal.clone();
-    committed_journal.lock_committed = true;
-    write_journal(state, &committed_journal)?;
-    let _ = write_current_pointer(&state.paths.extensions, entry);
-    if let Some(backup) = backup {
-        if backup.exists() {
-            std::fs::remove_dir_all(backup)
-                .map_err(|error| format!("Cannot remove previous extension version: {error}"))?;
-        }
-    }
-    remove_journal(&journal_path)?;
-    Ok(())
-}
-
-fn commit_lock_transaction(
-    state: &ExtensionState,
-    old: &ExtensionLockEntry,
-    entry: &ExtensionLockEntry,
-) -> Result<(), String> {
-    let journal = InstallationJournal {
-        schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
-        transaction_id: uuid::Uuid::new_v4().to_string(),
-        extension_id: entry.id.clone(),
-        old_entry: Some(old.clone()),
-        new_entry: entry.clone(),
-        staged_version: None,
-        target_version: None,
-        backup_version: None,
-        lock_committed: false,
-        cleanup_paths: Vec::new(),
-    };
-    let journal_path = write_journal(state, &journal)?;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    lock.extensions.insert(entry.id.clone(), entry.clone());
-    lock.save(&state.paths.lock_file)?;
-    let mut committed_journal = journal.clone();
-    committed_journal.lock_committed = true;
-    write_journal(state, &committed_journal)?;
-    let _ = write_current_pointer(&state.paths.extensions, entry);
-    remove_journal(&journal_path)?;
-    Ok(())
-}
-
 impl InstallationTransaction {
     fn new() -> Self {
         Self {
@@ -537,7 +319,9 @@ pub(crate) fn commit_preflight_managed(
     if Path::new(&entry.executable_path).starts_with(&staged_version) {
         entry.executable_path = rewrite(&entry.executable_path)?;
     } else if entry.runtime_ownership != ExtensionRuntimeOwnership::System {
-        return Err("Bundled preflight executable escaped its verified version directory".to_string());
+        return Err(
+            "Bundled preflight executable escaped its verified version directory".to_string(),
+        );
     }
     entry.runtime_root = entry.runtime_root.as_deref().map(rewrite).transpose()?;
     if let Some(old) = &old {
@@ -551,7 +335,7 @@ pub(crate) fn commit_preflight_managed(
     }
     std::fs::create_dir_all(target.parent().ok_or("Invalid extension target")?)
         .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
-    commit_version_transaction(state, old.as_ref(), &entry, &staged_version, &target)?;
+    commit_version(state, old.as_ref(), &entry, &staged_version, &target)?;
     Ok(entry)
 }
 
@@ -669,6 +453,7 @@ async fn create_custom_integration_locked(
         signatures: None,
         platform_overrides: BTreeMap::new(),
         permissions: request.permissions.clone(),
+        lifecycle: crate::extensions::lifecycle::ToolLifecycle::default(),
         platforms: request.platforms.clone(),
     };
     let manifest_bytes = serde_json::to_vec(&manifest)
@@ -1533,7 +1318,7 @@ pub(crate) async fn rollback_locked(
     entry.official_verified = previous_official_verified;
     entry.updated_at = unix_now();
     let result = entry.clone();
-    commit_lock_transaction(state, &original, &result)?;
+    commit_lock(state, &original, &result)?;
     Ok(result)
 }
 
@@ -1734,6 +1519,26 @@ async fn install_managed(
     };
     let description = state.provider.describe(&invocation, true).await?;
 
+    // Run post-install capability probes if declared in lifecycle
+    if !manifest.lifecycle.probes.is_empty() {
+        let tool_data_dir = state.paths.data.join(&manifest.id);
+        let probe_args: Vec<Vec<String>> = manifest.lifecycle.probes.iter()
+            .map(|p| p.args.clone())
+            .collect();
+        let required: Vec<bool> = manifest.lifecycle.probes.iter()
+            .map(|p| p.required)
+            .collect();
+        match crate::extensions::probe_runner::run_probes(state, &manifest.id, &executable, &probe_args, &required).await {
+            Ok(report) => {
+                let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
+            }
+            Err(e) => {
+                // Don't fail the install if probes error, just log
+                eprintln!("Probe run failed for {}: {}", manifest.id, e);
+            }
+        }
+    }
+
     let old = lock.extensions.get(&manifest.id).cloned();
     if old
         .as_ref()
@@ -1808,7 +1613,7 @@ async fn install_managed(
             .to_string(),
     };
     transaction.advance(InstallationPhase::Complete)?;
-    commit_version_transaction(state, old.as_ref(), &entry, &version_root, &target)?;
+    commit_version(state, old.as_ref(), &entry, &version_root, &target)?;
     Ok(entry)
 }
 
@@ -1940,6 +1745,25 @@ pub(crate) async fn install_linked(
     } else {
         state.provider.describe(&invocation, true).await?
     };
+
+    // Run post-install capability probes for linked tools too
+    if !manifest.lifecycle.probes.is_empty() {
+        let tool_data_dir = state.paths.data.join(&manifest.id);
+        let probe_args: Vec<Vec<String>> = manifest.lifecycle.probes.iter()
+            .map(|p| p.args.clone())
+            .collect();
+        let required: Vec<bool> = manifest.lifecycle.probes.iter()
+            .map(|p| p.required)
+            .collect();
+        match crate::extensions::probe_runner::run_probes(state, &manifest.id, &executable, &probe_args, &required).await {
+            Ok(report) => {
+                let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
+            }
+            Err(e) => {
+                eprintln!("Probe run failed for {}: {}", manifest.id, e);
+            }
+        }
+    }
     let integration_version = if is_package_directory {
         package_version
     } else {
@@ -2056,18 +1880,16 @@ async fn download_tarball(state: &ExtensionState, dist: &RegistryDist) -> Result
     if tarball_url.scheme() != "https" {
         return Err("NPM tarball URL must use HTTPS".to_string());
     }
-    let response = state
-        .client
-        .get(tarball_url)
-        .send()
-        .await
-        .map_err(|error| format!("Cannot download NPM tarball: {error}"))?
-        .error_for_status()
-        .map_err(|error| format!("Cannot download NPM tarball: {error}"))?;
-    ensure_https_response(&response, "NPM tarball")?;
-    let bytes = read_response_limited(response, MAX_TARBALL_BYTES, "NPM tarball").await?;
-    verify_integrity(&bytes, integrity)?;
-    Ok(bytes)
+    crate::extensions::download::download_with_resume(
+        &state.client,
+        &state.paths.cache,
+        tarball_url,
+        integrity,
+        MAX_TARBALL_BYTES,
+        "NPM tarball",
+        verify_integrity,
+    )
+    .await
 }
 
 fn verify_integrity(bytes: &[u8], integrity: &str) -> Result<(), String> {
@@ -2481,9 +2303,11 @@ pub(crate) async fn linked_tool_version(
     if !manifest.permissions.contains(&Permission::Environment) {
         command.env_clear();
     }
+    let environment =
+        crate::extensions::proxy::command_environment(&manifest.permissions, &provider.environment);
     command
         .args(version_args)
-        .envs(&provider.environment)
+        .envs(environment)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -2608,10 +2432,10 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(old.id.clone(), old.clone());
         lock.save(&state.paths.lock_file).unwrap();
-        write_journal(
+        crate::extensions::transaction::write_journal(
             &state,
-            &InstallationJournal {
-                schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            &crate::extensions::transaction::InstallationJournal {
+                schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
                 transaction_id: "rollback-journal".into(),
                 extension_id: old.id.clone(),
                 old_entry: Some(old.clone()),
@@ -2624,7 +2448,7 @@ mod tests {
             },
         )
         .unwrap();
-        recover_transactions(&state).unwrap();
+        crate::extensions::transaction::recover(&state).unwrap();
         assert!(target.exists());
         assert!(!backup.exists());
         assert_eq!(
@@ -2656,10 +2480,10 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(new.id.clone(), new.clone());
         lock.save(&state.paths.lock_file).unwrap();
-        write_journal(
+        crate::extensions::transaction::write_journal(
             &state,
-            &InstallationJournal {
-                schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            &crate::extensions::transaction::InstallationJournal {
+                schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
                 transaction_id: "commit-journal".into(),
                 extension_id: old.id,
                 old_entry: Some(journal_entry(&state, "1.0.0")),
@@ -2672,7 +2496,7 @@ mod tests {
             },
         )
         .unwrap();
-        recover_transactions(&state).unwrap();
+        crate::extensions::transaction::recover(&state).unwrap();
         assert!(!backup.exists());
         assert_eq!(
             ExtensionsLock::load(&state.paths.lock_file)

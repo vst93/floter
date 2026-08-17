@@ -1,13 +1,28 @@
+pub mod capability_probe;
 pub mod catalog;
 pub mod config;
+pub mod cwd_policy;
+pub mod download;
+pub mod gitlab_source;
+pub mod health;
 pub mod install;
+pub mod lifecycle;
 pub mod lock;
 pub mod manifest;
 pub mod official_index;
+pub mod platform;
+pub mod probe_runner;
 pub mod provider;
+mod proxy;
 pub mod registry;
+pub mod session_restore;
+pub mod source_bundle;
+pub mod source_inference;
+pub mod source_resolver;
 pub mod static_adapter;
 pub mod sync;
+pub mod terminal_capability;
+mod transaction;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -17,11 +32,15 @@ const MAX_EXECUTION_PLANS: usize = 1_024;
 const EXECUTION_PLAN_TTL: Duration = Duration::from_secs(30 * 60);
 
 #[allow(unused_imports)]
+pub use capability_probe::{CapabilityProbe, CapabilityReport};
+#[allow(unused_imports)]
 pub use catalog::{
     CatalogCompletionResponse, CatalogEntry, CatalogSearchRequest, CompletionRequest,
 };
 #[allow(unused_imports)]
 pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
+#[allow(unused_imports)]
+pub use cwd_policy::{CwdContext, CwdPolicy};
 #[allow(unused_imports)]
 pub use install::{ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult};
 #[allow(unused_imports)]
@@ -30,9 +49,22 @@ pub use lock::{
     ExtensionRuntimeOwnership, ExtensionStateKind,
 };
 #[allow(unused_imports)]
-pub use manifest::{ExtensionManifest, PlatformTarget, ResolvedManifest};
+pub use manifest::{ExtensionManifest, ResolvedManifest};
+#[allow(unused_imports)]
+pub use platform::{PlatformAbi, PlatformArch, PlatformLibc, PlatformOs, PlatformTarget};
 #[allow(unused_imports)]
 pub use provider::{ExecutionMode, ExecutionPlan, ProviderDescription, ProviderResponse};
+#[allow(unused_imports)]
+pub use source_bundle::{SourceBundleExportRequest, SourceBundleExportResult};
+#[allow(unused_imports)]
+pub use source_inference::SourceInferenceReport;
+#[allow(unused_imports)]
+pub use source_resolver::{SourceResolution, SourceResolveRequest};
+#[allow(unused_imports)]
+pub use terminal_capability::{
+    Da1Report, DecrqmResult, DecrqmState, Negotiation, ProbeReport, TerminalCapability,
+    TerminalColor, TerminalIo,
+};
 
 #[derive(Debug, Clone)]
 pub struct ExtensionPaths {
@@ -126,7 +158,7 @@ impl ExtensionState {
             provider_commands: catalog::ProviderCommandCache::default(),
             execution_plans: ExecutionPlanCache::default(),
         };
-        install::recover_transactions(&state)?;
+        transaction::recover(&state)?;
         config::recover_configurations(&state.paths.data)?;
         Ok(state)
     }

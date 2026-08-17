@@ -11,8 +11,12 @@ use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
+use crate::extensions::health::HealthReport;
 use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget};
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
+use crate::extensions::source_bundle::{self, SourceBundleExportRequest, SourceBundleExportResult};
+use crate::extensions::source_inference::{self, SourceInferenceReport};
+use crate::extensions::source_resolver::{self, SourceResolution, SourceResolveRequest};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
 use crate::extensions::ExtensionState;
 use chrono::{Local, Utc};
@@ -22,6 +26,30 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+#[tauri::command]
+pub async fn extensions_infer_source(path: String) -> Result<SourceInferenceReport, String> {
+    tauri::async_runtime::spawn_blocking(move || source_inference::infer(Path::new(&path)))
+        .await
+        .map_err(|error| format!("Source inference task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn extensions_export_source_bundle(
+    request: SourceBundleExportRequest,
+) -> Result<SourceBundleExportResult, String> {
+    tauri::async_runtime::spawn_blocking(move || source_bundle::export(&request))
+        .await
+        .map_err(|error| format!("Source bundle export task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn extensions_resolve_source(
+    state: State<'_, ExtensionState>,
+    request: SourceResolveRequest,
+) -> Result<SourceResolution, String> {
+    source_resolver::resolve(&state, request).await
+}
 
 #[tauri::command]
 pub async fn extensions_list(
@@ -840,6 +868,162 @@ pub async fn extensions_diagnose(
     let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
     let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
     state.provider.diagnose(&invocation).await
+}
+
+#[tauri::command]
+pub async fn extensions_health(
+    state: State<'_, ExtensionState>,
+    id: String,
+) -> Result<HealthReport, String> {
+    let _entry = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(&id)?
+        .clone();
+    let health_dir = state.paths.data.join(&id);
+    crate::extensions::health::read_health_report(&health_dir)?
+        .ok_or_else(|| format!("No health report for {id}. Run 'extensions_describe {id}' first."))
+}
+
+#[tauri::command]
+pub async fn extensions_reprobe(
+    state: State<'_, ExtensionState>,
+    id: String,
+) -> Result<HealthReport, String> {
+    use crate::extensions::capability_probe::{CapabilityProbe, ProbeResult};
+    use crate::extensions::health::{HealthReport, HealthStatus, ProbeRecord, ProbeFailure};
+
+    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(&id)?
+        .clone();
+
+    // Get the tool's executable path
+    let executable = std::path::PathBuf::from(&entry.executable_path);
+    if !executable.exists() {
+        return Err(format!("Tool executable not found: {}", executable.display()));
+    }
+
+    // Build default probes: --version and --help
+    let version_probe = CapabilityProbe::version();
+    let help_probe = CapabilityProbe::help();
+
+    let probes = vec![version_probe, help_probe];
+    let required = vec![true, false]; // version required, help optional
+
+    let health_dir = state.paths.data.join(&id);
+    let mut report = HealthReport::new(Default::default());
+
+    for (i, probe) in probes.iter().enumerate() {
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(5);
+
+        match crate::extensions::probe_runner::run_single_probe(&executable, &probe.args, timeout).await {
+            Ok(result) => {
+                let duration = start.elapsed();
+                if result.passed {
+                    report.record_pass(&probe.id, duration, result.exit_code);
+                } else {
+                    report.record_failure(&probe.id, duration, result.exit_code, result.stderr, !required[i]);
+                }
+            }
+            Err(error) => {
+                let duration = start.elapsed();
+                report.record_failure(&probe.id, duration, None, error, !required[i]);
+            }
+        }
+    }
+
+    let required_ids: Vec<String> = required.iter().enumerate()
+        .filter(|(_, r)| **r)
+        .map(|(i, _)| probes[i].id.clone())
+        .collect();
+    report.finalize(&required_ids);
+
+    // Save the health report
+    crate::extensions::health::write_health_report(&health_dir, &report)?;
+
+    Ok(report)
+}
+
+#[tauri::command]
+pub async fn extensions_launch(
+    state: State<'_, ExtensionState>,
+    id: String,
+    argv: Vec<String>,
+    cwd: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use crate::extensions::cwd_policy::CwdContext;
+    use crate::extensions::session_restore::{SessionDescription, SessionResolver, RestorePolicy, ResolvedSession};
+
+    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(&id)?
+        .clone();
+
+    // Get tool data directory
+    let tool_data_dir = state.paths.data.join(&id);
+    std::fs::create_dir_all(&tool_data_dir)
+        .map_err(|e| format!("Cannot create tool data dir: {e}"))?;
+
+    // Resolve cwd
+    let active_session_cwd = cwd.as_deref().map(std::path::Path::new);
+    let cwd_context = CwdContext::new(active_session_cwd, &tool_data_dir, false);
+
+    // Default policy: InheritActiveSession
+    let policy = crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession;
+    let resolved_cwd = policy.resolve(&cwd_context)?;
+
+    // Resolve session
+    let sessions_dir = tool_data_dir.join("sessions");
+    let session_resolver = SessionResolver::new(sessions_dir);
+    let restore_policy = RestorePolicy::Reattach;
+
+    let tool_version = entry.package_version.clone();
+    let session = session_resolver.resolve(
+        &id,
+        &tool_version,
+        argv.clone(),
+        resolved_cwd.clone(),
+        vec!["profile:default".to_string()],
+        None,
+        restore_policy,
+    )?;
+
+    let (session_id, is_restart) = match &session {
+        ResolvedSession::Reattach(s) => (s.session_id.clone(), false),
+        ResolvedSession::Restart(s) => (s.session_id.clone(), true),
+        ResolvedSession::New(s) => (s.session_id.clone(), false),
+    };
+
+    // Write session file
+    let session_desc = match session {
+        ResolvedSession::Reattach(s) => s,
+        ResolvedSession::Restart(s) => s,
+        ResolvedSession::New(s) => s,
+    };
+    session_resolver.write_session(&session_desc)?;
+
+    // Build launch plan
+    let launch_plan = serde_json::json!({
+        "sessionId": session_id,
+        "toolId": id,
+        "version": tool_version,
+        "argv": argv,
+        "cwd": resolved_cwd.to_string_lossy(),
+        "isRestart": is_restart,
+        "terminal": {
+            "required": true,
+            "color": "truecolor",
+            "unicode": true,
+            "bracketedPaste": true,
+            "synchronizedOutput": "preferred",
+            "keyboardProtocol": "kitty-preferred"
+        },
+        "environment": {
+            "TERM": "floter-256color",
+            "COLORTERM": "truecolor",
+            "TERM_PROGRAM": "floter",
+        }
+    });
+
+    Ok(launch_plan)
 }
 
 #[tauri::command]

@@ -70,7 +70,7 @@
     },
     "platformOverrides": {
       "type": "object",
-      "propertyNames": { "pattern": "^(darwin|linux|windows)-(arm64|x64|any)$" },
+      "propertyNames": { "pattern": "^(?:(?:darwin|windows)-(?:arm64|x64|aarch64|x86_64|any)|linux-(?:arm64|x64|any)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$" },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -85,6 +85,104 @@
       "type": "array",
       "uniqueItems": true,
       "items": { "enum": ["filesystem-read", "filesystem-write", "network-fetch", "process-spawn", "clipboard-read", "clipboard-write", "environment"] }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "completions": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["shell"],
+            "properties": {
+              "shell": { "enum": ["bash", "zsh", "fish", "powershell"] },
+              "source": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+              "args": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 16 },
+              "fileName": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+              "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 10000, "default": 3000 }
+            },
+            "oneOf": [
+              { "required": ["source"], "not": { "required": ["args"] } },
+              { "required": ["args"], "not": { "required": ["source"] } }
+            ]
+          }
+        },
+        "configurationTemplates": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "target"],
+            "properties": {
+              "source": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+              "target": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
+            }
+          }
+        },
+        "probes": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "args"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$" },
+              "args": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 32 },
+              "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 30000, "default": 2000 },
+              "required": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "launch": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cwdPolicy": {
+              "oneOf": [
+                { "enum": ["inheritActiveSession", "toolData", "home"] },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["policy"],
+                  "properties": {
+                    "policy": { "const": "projectRoot" },
+                    "markers": { "type": "array", "items": { "type": "string" }, "default": [".git", "Cargo.toml", "go.mod", "package.json"] },
+                    "maxDepth": { "type": "integer", "minimum": 1, "maximum": 256, "default": 32 }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["policy"],
+                  "properties": {
+                    "policy": { "const": "fixed" },
+                    "path": { "type": "string", "minLength": 1 }
+                  }
+                }
+              ]
+            },
+            "terminal": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "required": { "type": "boolean", "default": true },
+                "color": { "enum": ["none", "8", "256", "truecolor"], "default": "truecolor" },
+                "unicode": { "type": "boolean", "default": true },
+                "mouse": { "enum": [null, "x10", "vt200", "sgr", "urxvt"] },
+                "bracketedPaste": { "type": "boolean", "default": false },
+                "synchronizedOutput": { "type": "boolean", "default": false },
+                "keyboardProtocol": { "enum": [null, "kitty-preferred", "kitty-strict"] }
+              }
+            },
+            "restorePolicy": { "enum": ["reattach", "restart", "none"], "default": "reattach" }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -150,7 +248,7 @@
         "type": { "const": "managed" },
         "platformPackages": {
           "type": "object",
-          "propertyNames": { "pattern": "^(darwin|linux|windows)-(arm64|x64)$" },
+          "propertyNames": { "pattern": "^(?:(?:darwin|windows)-(?:arm64|x64|aarch64|x86_64)|linux-(?:arm64|x64)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$" },
           "additionalProperties": { "type": "string", "pattern": "^(?:@[^/]+/)?[^@/]+$" }
         },
         "executable": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
@@ -174,7 +272,7 @@
         "type": { "const": "bundled" },
         "platformPackages": {
           "type": "object",
-          "propertyNames": { "pattern": "^(darwin|linux|windows)-(arm64|x64)$" },
+          "propertyNames": { "pattern": "^(?:(?:darwin|windows)-(?:arm64|x64|aarch64|x86_64)|linux-(?:arm64|x64)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$" },
           "additionalProperties": { "type": "string", "pattern": "^(?:@[^/]+/)?[^@/]+$" }
         },
         "executable": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }

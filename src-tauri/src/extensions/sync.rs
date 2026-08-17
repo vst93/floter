@@ -455,8 +455,8 @@ pub async fn import_document(
                 message: "Already matches the import".to_string(),
             }),
             Err(message) => {
-                let rollback =
-                    install::recover_transactions(state).and_then(|()| snapshot.restore(state));
+                let rollback = crate::extensions::transaction::recover(state)
+                    .and_then(|()| snapshot.restore(state));
                 report.succeeded.clear();
                 report.skipped.clear();
                 report.failed.push(ExtensionsImportItem {
@@ -1058,6 +1058,7 @@ mod tests {
                 signatures: None,
                 platform_overrides: BTreeMap::new(),
                 permissions: vec![Permission::ProcessSpawn],
+                lifecycle: crate::extensions::lifecycle::ToolLifecycle::default(),
             }),
             script_content: Some(script),
             provider_descriptor: Some(description),
@@ -1240,10 +1241,7 @@ mod tests {
             .join("floter.extension.json")
             .to_string_lossy()
             .into_owned();
-        original_entry.executable_path = version_root
-            .join("tool")
-            .to_string_lossy()
-            .into_owned();
+        original_entry.executable_path = version_root.join("tool").to_string_lossy().into_owned();
         let mut original_lock = ExtensionsLock::default();
         original_lock.extensions.insert(id.into(), original_entry);
         original_lock.save(&state.paths.lock_file).unwrap();
@@ -1264,7 +1262,10 @@ mod tests {
         assert_eq!(restored.get(id).unwrap().current_version, "1.0.0");
         assert!(version_root.join("old-file").exists());
         assert!(!new_version.exists());
-        assert_eq!(std::fs::read(data_root.join("config.json")).unwrap(), b"old-config");
+        assert_eq!(
+            std::fs::read(data_root.join("config.json")).unwrap(),
+            b"old-config"
+        );
     }
 
     #[tokio::test]

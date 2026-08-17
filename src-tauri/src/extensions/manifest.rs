@@ -4,6 +4,11 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
+use crate::extensions::lifecycle::ToolLifecycle;
+
+#[allow(unused_imports)]
+pub use crate::extensions::platform::{PlatformArch, PlatformOs, PlatformTarget};
+
 const MANIFEST_SCHEMA: &str =
     include_str!("../../../docs/extensions/schemas/floter-extension.schema.json");
 
@@ -34,6 +39,8 @@ pub struct ExtensionManifest {
     pub platform_overrides: BTreeMap<String, PlatformOverride>,
     #[serde(default)]
     pub permissions: Vec<Permission>,
+    #[serde(default, skip_serializing_if = "ToolLifecycle::is_empty")]
+    pub lifecycle: ToolLifecycle,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -156,68 +163,6 @@ pub enum Permission {
     Environment,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-pub enum PlatformOs {
-    Darwin,
-    Linux,
-    Windows,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum PlatformArch {
-    Arm64,
-    X64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformTarget {
-    pub os: PlatformOs,
-    pub arch: PlatformArch,
-}
-
-impl PlatformTarget {
-    pub fn current() -> Result<Self, String> {
-        let os = match std::env::consts::OS {
-            "macos" => PlatformOs::Darwin,
-            "linux" => PlatformOs::Linux,
-            "windows" => PlatformOs::Windows,
-            other => return Err(format!("Unsupported extension platform: {other}")),
-        };
-        let arch = match std::env::consts::ARCH {
-            "aarch64" => PlatformArch::Arm64,
-            "x86_64" => PlatformArch::X64,
-            other => return Err(format!("Unsupported extension architecture: {other}")),
-        };
-        Ok(Self { os, arch })
-    }
-
-    pub fn identifier(&self) -> String {
-        format!("{}-{}", self.os_name(), self.arch_name())
-    }
-
-    pub fn os_identifier(&self) -> String {
-        format!("{}-any", self.os_name())
-    }
-
-    fn os_name(&self) -> &'static str {
-        match self.os {
-            PlatformOs::Darwin => "darwin",
-            PlatformOs::Linux => "linux",
-            PlatformOs::Windows => "windows",
-        }
-    }
-
-    fn arch_name(&self) -> &'static str {
-        match self.arch {
-            PlatformArch::Arm64 => "arm64",
-            PlatformArch::X64 => "x64",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedManifest {
@@ -278,7 +223,7 @@ impl ExtensionManifest {
         }
         let mut provider = self.provider.clone();
         let mut minimum_os_version = None;
-        for key in [target.identifier(), target.os_identifier()] {
+        for key in target.override_identifiers() {
             if let Some(platform_override) = self.platform_overrides.get(&key) {
                 if let Some(prefix) = &platform_override.provider_args_prefix {
                     provider.args_prefix.clone_from(prefix);
@@ -295,9 +240,10 @@ impl ExtensionManifest {
             Runtime::Bundled {
                 platform_packages, ..
             } => Some(
-                platform_packages
-                    .get(&target.identifier())
-                    .cloned()
+                target
+                    .package_identifiers()
+                    .into_iter()
+                    .find_map(|key| platform_packages.get(&key).cloned())
                     .ok_or_else(|| {
                         format!(
                             "Extension {} does not support {}",
@@ -390,6 +336,7 @@ impl ExtensionManifest {
         if let Some(descriptor) = &self.provider.descriptor {
             validate_relative_path(descriptor, "provider descriptor")?;
         }
+        self.lifecycle.validate()?;
         if self.distribution == Distribution::Local
             && self.provider.kind == ProviderKind::StaticDescriptor
             && self.provider.descriptor.is_none()
@@ -590,10 +537,7 @@ mod tests {
                 ..
             }
         ));
-        let unsupported = PlatformTarget {
-            os: PlatformOs::Windows,
-            arch: PlatformArch::X64,
-        };
+        let unsupported = PlatformTarget::new(PlatformOs::Windows, PlatformArch::X64);
         assert!(manifest
             .resolve(unsupported)
             .unwrap_err()
@@ -610,13 +554,34 @@ mod tests {
         value["provider"]["type"] = Value::String("executable".into());
         let manifest = ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
         let resolved = manifest
-            .resolve(PlatformTarget {
-                os: PlatformOs::Linux,
-                arch: PlatformArch::X64,
-            })
+            .resolve(PlatformTarget::new(PlatformOs::Linux, PlatformArch::X64))
             .unwrap();
 
         assert!(resolved.platform_package.is_none());
+    }
+
+    #[test]
+    fn exact_linux_libc_package_precedes_the_legacy_package() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        value["runtime"]["platformPackages"]["linux-x86_64-musl"] =
+            Value::String("floter-v-linux-x86_64-musl".into());
+        let manifest = ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let resolved = manifest
+            .resolve(PlatformTarget {
+                os: PlatformOs::Linux,
+                arch: PlatformArch::X64,
+                libc: Some(crate::extensions::platform::PlatformLibc::Musl),
+                abi: None,
+            })
+            .unwrap();
+
+        assert_eq!(
+            resolved.platform_package.as_deref(),
+            Some("floter-v-linux-x86_64-musl")
+        );
     }
 
     #[test]
@@ -680,6 +645,8 @@ mod tests {
             .resolve(PlatformTarget {
                 os: PlatformOs::Linux,
                 arch: PlatformArch::X64,
+                libc: Some(crate::extensions::platform::PlatformLibc::Gnu),
+                abi: None,
             })
             .unwrap();
         assert_eq!(resolved.provider.args_prefix, ["system"]);

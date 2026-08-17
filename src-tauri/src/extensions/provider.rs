@@ -1,4 +1,5 @@
 use crate::extensions::manifest::{Permission, ProviderConfig};
+use crate::extensions::proxy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -408,12 +409,14 @@ impl ProviderManager {
         if !invocation.permissions.contains(&Permission::Environment) {
             command.env_clear();
         }
+        let environment =
+            proxy::command_environment(&invocation.permissions, &invocation.config.environment);
         command
             .args(&invocation.executable_prefix)
             .args(&invocation.config.args_prefix)
             .arg(operation)
             .args(["--protocol", "1"])
-            .envs(&invocation.config.environment)
+            .envs(environment)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -563,12 +566,14 @@ pub fn execution_plan(
         WorkingDirectory::Home => dirs::home_dir(),
         WorkingDirectory::Inherit => None,
     };
+    let environment =
+        proxy::command_environment(&invocation.permissions, &invocation.config.environment);
     Ok(ExecutionPlan {
         program: program.to_string_lossy().into_owned(),
         args,
         mode: command.execution.mode.host_mode(),
         cwd: cwd.map(|path| path.to_string_lossy().into_owned()),
-        environment: invocation.config.environment.clone(),
+        environment,
         inherit_environment: invocation.permissions.contains(&Permission::Environment),
         plan_token: None,
         user_args_start: None,
@@ -618,10 +623,12 @@ async fn provider_version(invocation: &ProviderInvocation) -> Option<String> {
     if !invocation.permissions.contains(&Permission::Environment) {
         command.env_clear();
     }
+    let environment =
+        proxy::command_environment(&invocation.permissions, &invocation.config.environment);
     command
         .args(&invocation.executable_prefix)
         .args(&invocation.version_args)
-        .envs(&invocation.config.environment)
+        .envs(environment)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
