@@ -688,3 +688,192 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     sync_directory(parent)
         .map_err(|error| format!("Cannot sync lifecycle output directory: {error}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_lifecycle_is_empty() {
+        let lifecycle = ToolLifecycle::default();
+        assert!(lifecycle.is_empty());
+        assert!(lifecycle.probes.is_empty());
+        assert!(lifecycle.launch.is_none());
+    }
+
+    #[test]
+    fn lifecycle_with_completions_is_not_empty() {
+        let lifecycle = ToolLifecycle {
+            completions: vec![ShellCompletion {
+                shell: Shell::Bash,
+                source: Some("completions/bash.sh".into()),
+                args: vec![],
+                file_name: None,
+                timeout_ms: 3000,
+            }],
+            ..Default::default()
+        };
+        assert!(!lifecycle.is_empty());
+    }
+
+    #[test]
+    fn lifecycle_with_probes_is_not_empty() {
+        let lifecycle = ToolLifecycle {
+            probes: vec![CapabilityProbeEntry {
+                id: "version".into(),
+                args: vec!["--version".into()],
+                timeout_ms: 2000,
+                required: true,
+            }],
+            ..Default::default()
+        };
+        assert!(!lifecycle.is_empty());
+    }
+
+    #[test]
+    fn validate_rejects_duplicate_completions() {
+        let lifecycle = ToolLifecycle {
+            completions: vec![
+                ShellCompletion {
+                    shell: Shell::Bash,
+                    source: Some("comp1.sh".into()),
+                    args: vec![],
+                    file_name: None,
+                    timeout_ms: 3000,
+                },
+                ShellCompletion {
+                    shell: Shell::Bash,
+                    source: Some("comp2.sh".into()),
+                    args: vec![],
+                    file_name: None,
+                    timeout_ms: 3000,
+                },
+            ],
+            ..Default::default()
+        };
+        let result = lifecycle.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("more than one bash"));
+    }
+
+    #[test]
+    fn validate_rejects_duplicate_probes() {
+        let lifecycle = ToolLifecycle {
+            probes: vec![
+                CapabilityProbeEntry {
+                    id: "version".into(),
+                    args: vec!["--version".into()],
+                    timeout_ms: 2000,
+                    required: true,
+                },
+                CapabilityProbeEntry {
+                    id: "version".into(),
+                    args: vec!["-v".into()],
+                    timeout_ms: 2000,
+                    required: false,
+                },
+            ],
+            ..Default::default()
+        };
+        let result = lifecycle.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("probe 'version' more than once"));
+    }
+
+    #[test]
+    fn validate_rejects_probe_timeout_out_of_range() {
+        let lifecycle = ToolLifecycle {
+            probes: vec![CapabilityProbeEntry {
+                id: "slow".into(),
+                args: vec!["--version".into()],
+                timeout_ms: 50_000, // exceeds 30000
+                required: true,
+            }],
+            ..Default::default()
+        };
+        let result = lifecycle.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("between 100 and 30000"));
+    }
+
+    #[test]
+    fn validate_rejects_too_many_probe_args() {
+        let lifecycle = ToolLifecycle {
+            probes: vec![CapabilityProbeEntry {
+                id: "many".into(),
+                args: (0..40).map(|i| format!("arg{i}")).collect(),
+                timeout_ms: 2000,
+                required: true,
+            }],
+            ..Default::default()
+        };
+        let result = lifecycle.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("at most 32 arguments"));
+    }
+
+    #[test]
+    fn validate_accepts_valid_probes() {
+        let lifecycle = ToolLifecycle {
+            probes: vec![
+                CapabilityProbeEntry {
+                    id: "version".into(),
+                    args: vec!["--version".into()],
+                    timeout_ms: 2000,
+                    required: true,
+                },
+                CapabilityProbeEntry {
+                    id: "completion".into(),
+                    args: vec!["--generate-completion".into(), "bash".into()],
+                    timeout_ms: 3000,
+                    required: false,
+                },
+            ],
+            ..Default::default()
+        };
+        assert!(lifecycle.validate().is_ok());
+    }
+
+    #[test]
+    fn launch_config_default() {
+        let launch = LaunchConfig::default();
+        assert_eq!(launch.restore_policy, "reattach");
+        assert!(launch.terminal.is_none());
+    }
+
+    #[test]
+    fn launch_config_validate_valid() {
+        let launch = LaunchConfig {
+            cwd_policy: serde_json::json!("inheritActiveSession"),
+            terminal: Some(TerminalRequirement {
+                required: true,
+                color: "truecolor".into(),
+                unicode: true,
+                mouse: Some("sgr".into()),
+                bracketed_paste: true,
+                synchronized_output: false,
+                keyboard_protocol: Some("kitty-preferred".into()),
+            }),
+            restore_policy: "restart".into(),
+        };
+        assert!(launch.validate().is_ok());
+    }
+
+    #[test]
+    fn launch_config_validate_invalid_restore_policy() {
+        let launch = LaunchConfig {
+            restore_policy: "invalid".into(),
+            ..Default::default()
+        };
+        assert!(launch.validate().is_err());
+    }
+
+    #[test]
+    fn launch_config_validate_invalid_cwd_policy() {
+        let launch = LaunchConfig {
+            cwd_policy: serde_json::json!(42),
+            ..Default::default()
+        };
+        assert!(launch.validate().is_err());
+    }
+}
