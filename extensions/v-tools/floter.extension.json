@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "2.0",
+  "id": "io.github.vst93.v",
+  "name": "V Tools",
+  "description": "Developer tools running in the terminal",
+  "homepage": "https://github.com/vst93/v",
+  "publisher": {
+    "id": "vst93",
+    "name": "vst"
+  },
+  "compatibility": {
+    "floter": ">=0.2.3",
+    "providerProtocol": "^1.0"
+  },
+  "distribution": {
+    "type": "built-in"
+  },
+  "runtime": {
+    "type": "system",
+    "executableNames": ["v", "v.exe"],
+    "versionArgs": ["--version"]
+  },
+  "provider": {
+    "type": "static-descriptor",
+    "argsPrefix": []
+  },
+  "permissions": [
+    "filesystem-read",
+    "filesystem-write",
+    "network-fetch",
+    "process-spawn",
+    "clipboard-read",
+    "clipboard-write",
+    "environment"
+  ]
+}

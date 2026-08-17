@@ -1,4 +1,5 @@
 mod commands;
+mod extensions;
 #[cfg(target_os = "linux")]
 pub mod ipc;
 #[cfg(target_os = "linux")]
@@ -15,15 +16,29 @@ use commands::config::{
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
+#[allow(deprecated)]
 use commands::custom::{
     add_custom_command, delete_custom_command, execute_custom_command, get_custom_commands,
     update_custom_command, CommandState,
 };
+use commands::extensions::{
+    catalog_complete, catalog_search, extensions_bundled_permissions, extensions_config_copy,
+    extensions_config_export, extensions_config_get, extensions_config_set,
+    extensions_connect_bundled, extensions_create_custom, extensions_custom_export_script,
+    extensions_custom_get, extensions_custom_update, extensions_describe, extensions_diagnose,
+    extensions_disable, extensions_enable, extensions_export, extensions_import,
+    extensions_install, extensions_list, extensions_local_manifest_review,
+    extensions_permissions_summary, extensions_pick_local_manifest, extensions_pick_local_package,
+    extensions_reconnect_system, extensions_reinstall, extensions_rollback, extensions_search,
+    extensions_search_path, extensions_uninstall, extensions_update,
+};
 use commands::system::system_power;
 use commands::terminal::{
-    open_in_default_terminal, term_close, term_input, term_mouse, term_resize, term_scroll,
-    term_scroll_to, term_set_theme, term_spawn, term_wheel, TerminalState,
+    open_in_default_terminal, term_attach_existing, term_close, term_input, term_kill_session,
+    term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to, term_set_theme,
+    term_spawn, term_wheel, TerminalState,
 };
+use extensions::ExtensionState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "windows")]
@@ -828,6 +843,12 @@ fn save_terminal_size(
     height: f64,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // A terminal-to-launcher transition resizes the native window before React
+    // has necessarily removed its terminal resize listener. Never let that
+    // compact-window event overwrite the user's terminal dimensions.
+    if !state.terminal_mode.load(Ordering::SeqCst) {
+        return Ok(());
+    }
     let (_, height) = persist_terminal_size(width, height)?;
     if let Ok(mut current) = state.terminal_height.lock() {
         *current = height;
@@ -867,6 +888,9 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
+    // Flip the mode before resizing so an in-flight frontend resize callback
+    // cannot persist the compact launcher dimensions as the terminal size.
+    state.terminal_mode.store(false, Ordering::SeqCst);
     window
         .set_resizable(false)
         .map_err(|error| error.to_string())?;
@@ -880,7 +904,6 @@ fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     if !preserve_anchor {
         let _ = move_to_default_position(&window, INPUT_WINDOW_WIDTH, &state);
     }
-    state.terminal_mode.store(false, Ordering::SeqCst);
     state.window_visible.store(true, Ordering::SeqCst);
     Ok(())
 }
@@ -962,6 +985,7 @@ fn print_toggle_hint(reason: &str) {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(deprecated)]
 pub fn run() {
     // Before the builder, and therefore before anything initializes GTK: this
     // is the last point at which the renderer WebKitGTK will use can still be
@@ -993,6 +1017,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(ApplicationState::new())
         .manage(TerminalState(Arc::new(Mutex::new(TerminalManager::new()))))
         .manage(CommandState::new())
@@ -1005,6 +1030,8 @@ pub fn run() {
             last_monitor: Mutex::new(None),
         })
         .setup(|app| {
+            let extension_state = ExtensionState::new().map_err(std::io::Error::other)?;
+            app.manage(extension_state);
             // floter is tray-resident, and the non-activating NSPanel must not
             // promote the process or switch away from another app's fullscreen
             // Space when it takes key focus.
@@ -1134,6 +1161,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             term_spawn,
+            term_list_sessions,
+            term_attach_existing,
+            term_kill_session,
             term_input,
             term_resize,
             term_scroll,
@@ -1171,6 +1201,37 @@ pub fn run() {
             show_input,
             start_drag,
             system_power,
+            extensions_list,
+            extensions_export,
+            extensions_import,
+            extensions_install,
+            extensions_create_custom,
+            extensions_custom_get,
+            extensions_custom_update,
+            extensions_search_path,
+            extensions_bundled_permissions,
+            extensions_connect_bundled,
+            extensions_reconnect_system,
+            extensions_pick_local_manifest,
+            extensions_pick_local_package,
+            extensions_custom_export_script,
+            extensions_local_manifest_review,
+            extensions_permissions_summary,
+            extensions_uninstall,
+            extensions_enable,
+            extensions_disable,
+            extensions_update,
+            extensions_reinstall,
+            extensions_rollback,
+            extensions_describe,
+            extensions_diagnose,
+            extensions_search,
+            extensions_config_get,
+            extensions_config_set,
+            extensions_config_copy,
+            extensions_config_export,
+            catalog_search,
+            catalog_complete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

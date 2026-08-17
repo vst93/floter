@@ -1,8 +1,31 @@
+use crate::extensions::ExtensionState;
+use crate::terminal::broker::{self, BrokerSessionInfo, SpawnCommand};
 use crate::terminal::session::{ExternalTerminalOutcome, TerminalManager};
+use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, State};
 
 pub struct TerminalState(pub Arc<Mutex<TerminalManager>>);
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalExecutionPlan {
+    program: String,
+    #[serde(default)]
+    args: Vec<String>,
+    cwd: Option<String>,
+    #[serde(default)]
+    environment: BTreeMap<String, String>,
+    #[serde(default = "default_true")]
+    inherit_environment: bool,
+    plan_token: Option<String>,
+    argument_override: Option<Vec<String>>,
+}
+
+fn default_true() -> bool {
+    true
+}
 
 // Tauri maps this public IPC command from named frontend arguments. Keeping the
 // parameters explicit makes the contract stable and avoids an extra wrapper.
@@ -10,26 +33,104 @@ pub struct TerminalState(pub Arc<Mutex<TerminalManager>>);
 #[tauri::command]
 pub fn term_spawn(
     state: State<'_, TerminalState>,
+    extension_state: State<'_, ExtensionState>,
     app: AppHandle,
     id: String,
     generation: u64,
     shell: Option<String>,
     initial_command: Option<String>,
+    execution: Option<TerminalExecutionPlan>,
     theme: Option<String>,
     cols: Option<u16>,
     rows: Option<u16>,
 ) -> Result<(), String> {
     let manager = state.0.lock().map_err(|e| e.to_string())?;
+    let (cwd, command) = match execution {
+        Some(plan) => {
+            let (program, args, cwd, environment, inherit_environment) = if let Some(token) =
+                plan.plan_token.as_deref()
+            {
+                let mut protected = extension_state.take_execution_plan(token)?;
+                if let Some(argument_override) = plan.argument_override {
+                    let start = protected.user_args_start.ok_or_else(|| {
+                        "Extension execution plan does not accept argument overrides".to_string()
+                    })?;
+                    protected.args.truncate(start);
+                    protected.args.extend(argument_override);
+                }
+                (
+                    protected.program,
+                    protected.args,
+                    protected.cwd,
+                    protected.environment,
+                    protected.inherit_environment,
+                )
+            } else {
+                (
+                    plan.program,
+                    plan.args,
+                    plan.cwd,
+                    plan.environment,
+                    plan.inherit_environment,
+                )
+            };
+            (
+                cwd.map(std::path::PathBuf::from),
+                Some(SpawnCommand {
+                    program,
+                    args,
+                    environment,
+                    inherit_environment,
+                }),
+            )
+        }
+        None => (None, None),
+    };
     manager.spawn(
         id,
         generation,
         app,
         shell,
         initial_command,
+        command,
+        cwd,
         theme,
         cols.unwrap_or(80),
         rows.unwrap_or(24),
     )
+}
+
+#[tauri::command]
+pub fn term_list_sessions() -> Result<Vec<BrokerSessionInfo>, String> {
+    broker::list_sessions()
+}
+
+#[tauri::command]
+pub fn term_attach_existing(
+    state: State<'_, TerminalState>,
+    app: AppHandle,
+    id: String,
+    generation: u64,
+    broker_session_id: String,
+    theme: Option<String>,
+    cols: Option<u16>,
+    rows: Option<u16>,
+) -> Result<(), String> {
+    let manager = state.0.lock().map_err(|e| e.to_string())?;
+    manager.attach_existing(
+        id,
+        generation,
+        app,
+        broker_session_id,
+        theme,
+        cols.unwrap_or(80),
+        rows.unwrap_or(24),
+    )
+}
+
+#[tauri::command]
+pub fn term_kill_session(session_id: String) -> Result<(), String> {
+    broker::kill_existing_session(&session_id)
 }
 
 #[tauri::command]

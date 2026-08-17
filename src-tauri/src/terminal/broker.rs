@@ -10,7 +10,10 @@ use std::process::{Command as ProcessCommand, Stdio};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use qscreen_protocol::{AttachMode, Command, EventType, Message, MessageKind, MAX_PAYLOAD_SIZE};
+use qscreen_protocol::{
+    AttachMode, Command, EventType, Message, MessageKind, SessionInfo, MAX_PAYLOAD_SIZE,
+};
+use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
@@ -18,6 +21,7 @@ const NAMESPACE_ENV: &str = "QSCREEN_NAMESPACE";
 const NAMESPACE: &str = "floter";
 const DAEMON_ARGUMENT: &str = "--terminal-daemon";
 const ATTACH_ARGUMENT: &str = "--terminal-attach";
+const TERMINAL_COMMAND: &str = "terminal";
 const DAEMON_START_TIMEOUT: Duration = Duration::from_secs(5);
 const RESIZE_POLL: Duration = Duration::from_millis(150);
 
@@ -31,6 +35,15 @@ pub struct BrokerCallbacks {
     pub exit: Box<dyn FnMut(Option<i32>) + Send>,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpawnCommand {
+    pub program: String,
+    pub args: Vec<String>,
+    pub environment: std::collections::BTreeMap<String, String>,
+    pub inherit_environment: bool,
+}
+
 enum BrokerCommand {
     Input(Vec<u8>),
     Resize(u16, u16),
@@ -42,6 +55,38 @@ enum BrokerCommand {
 pub struct BrokerSession {
     session_id: String,
     sender: UnboundedSender<BrokerCommand>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokerSessionInfo {
+    pub session_id: String,
+    pub name: String,
+    pub attached: bool,
+    pub exited: bool,
+    pub exit_code: i64,
+    pub created_at: String,
+    pub width: u32,
+    pub height: u32,
+    pub size: String,
+    pub cwd: String,
+}
+
+impl From<SessionInfo> for BrokerSessionInfo {
+    fn from(info: SessionInfo) -> Self {
+        Self {
+            session_id: info.session_id,
+            name: info.name,
+            attached: info.attached,
+            exited: info.exited,
+            exit_code: info.exit_code,
+            created_at: info.created_at.to_rfc3339(),
+            width: info.width,
+            height: info.height,
+            size: info.size,
+            cwd: info.cwd,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -104,15 +149,131 @@ pub fn run_helper(arguments: &[String]) -> Option<Result<()>> {
                 .context("missing terminal session id")
                 .and_then(|session_id| run_external_attach(session_id)),
         ),
+        Some(TERMINAL_COMMAND) => Some(run_terminal_cli(&arguments[2..])),
         _ => None,
     }
 }
 
+/// Query the persistent daemon without starting it. A missing daemon simply
+/// means there are no resumable sessions yet.
+pub fn list_sessions() -> Result<Vec<BrokerSessionInfo>, String> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| error.to_string())?;
+    runtime.block_on(async {
+        let mut stream = match connect().await {
+            Ok(stream) => stream,
+            Err(_) => return Ok(Vec::new()),
+        };
+        let response = request_on_stream(
+            &mut stream,
+            Message {
+                kind: MessageKind::Request,
+                id: "list".into(),
+                command: Some(Command::List),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(|error| error.to_string())?;
+        check_response(&response, "list").map_err(|error| error.to_string())?;
+        Ok(response.sessions.into_iter().map(Into::into).collect())
+    })
+}
+
+pub fn kill_existing_session(session_id: &str) -> Result<(), String> {
+    qscreen_protocol::validate_session_id(session_id).map_err(|error| error.to_string())?;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| error.to_string())?;
+    runtime
+        .block_on(existing_control_request(Message {
+            kind: MessageKind::Request,
+            id: "kill".into(),
+            command: Some(Command::Kill),
+            session_id: session_id.to_string(),
+            ..Default::default()
+        }))
+        .and_then(|response| check_response(&response, "kill"))
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
 pub fn spawn_session(
     name: String,
     shell: Option<String>,
     cwd: PathBuf,
     initial_command: Option<String>,
+    cols: u16,
+    rows: u16,
+    callbacks: BrokerCallbacks,
+) -> Result<BrokerSession, String> {
+    spawn_session_with_command(
+        name,
+        shell,
+        cwd,
+        initial_command,
+        None,
+        cols,
+        rows,
+        callbacks,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_session_with_command(
+    name: String,
+    shell: Option<String>,
+    cwd: PathBuf,
+    initial_command: Option<String>,
+    command: Option<SpawnCommand>,
+    cols: u16,
+    rows: u16,
+    callbacks: BrokerCallbacks,
+) -> Result<BrokerSession, String> {
+    start_session_worker(
+        None,
+        name,
+        shell,
+        cwd,
+        initial_command,
+        command,
+        cols,
+        rows,
+        callbacks,
+    )
+}
+
+pub fn attach_session(
+    session_id: String,
+    cols: u16,
+    rows: u16,
+    callbacks: BrokerCallbacks,
+) -> Result<BrokerSession, String> {
+    qscreen_protocol::validate_session_id(&session_id).map_err(|error| error.to_string())?;
+    start_session_worker(
+        Some(session_id),
+        String::new(),
+        None,
+        PathBuf::new(),
+        None,
+        None,
+        cols,
+        rows,
+        callbacks,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn start_session_worker(
+    existing_session_id: Option<String>,
+    name: String,
+    shell: Option<String>,
+    cwd: PathBuf,
+    initial_command: Option<String>,
+    command: Option<SpawnCommand>,
     cols: u16,
     rows: u16,
     callbacks: BrokerCallbacks,
@@ -133,10 +294,12 @@ pub fn spawn_session(
                 }
             };
             runtime.block_on(session_worker(
+                existing_session_id,
                 name,
                 shell,
                 cwd,
                 initial_command,
+                command,
                 cols,
                 rows,
                 command_rx,
@@ -157,22 +320,30 @@ pub fn spawn_session(
 
 #[allow(clippy::too_many_arguments)]
 async fn session_worker(
+    existing_session_id: Option<String>,
     name: String,
     shell: Option<String>,
     cwd: PathBuf,
     initial_command: Option<String>,
+    command: Option<SpawnCommand>,
     cols: u16,
     rows: u16,
     mut commands: UnboundedReceiver<BrokerCommand>,
     mut callbacks: BrokerCallbacks,
     ready: std::sync::mpsc::SyncSender<Result<String, String>>,
 ) {
-    let session_id = match create_session(&name, shell.as_deref(), &cwd, cols, rows).await {
-        Ok(session_id) => session_id,
-        Err(error) => {
-            let _ = ready.send(Err(error.to_string()));
-            return;
-        }
+    let attached_existing = existing_session_id.is_some();
+    let session_id = match existing_session_id {
+        Some(session_id) => session_id,
+        None => match create_session(&name, shell.as_deref(), &cwd, command.as_ref(), cols, rows)
+            .await
+        {
+            Ok(session_id) => session_id,
+            Err(error) => {
+                let _ = ready.send(Err(error.to_string()));
+                return;
+            }
+        },
     };
     let setup = async {
         let stream = connect().await?;
@@ -201,14 +372,18 @@ async fn session_worker(
     let (mut reader, mut writer) = match setup {
         Ok(value) => value,
         Err(error) => {
-            let _ = kill_session(&session_id).await;
+            if !attached_existing {
+                let _ = kill_session(&session_id).await;
+            }
             let _ = ready.send(Err(error.to_string()));
             return;
         }
     };
 
     if ready.send(Ok(session_id.clone())).is_err() {
-        let _ = kill_session(&session_id).await;
+        if !attached_existing {
+            let _ = kill_session(&session_id).await;
+        }
         return;
     }
 
@@ -314,9 +489,15 @@ async fn create_session(
     name: &str,
     shell: Option<&str>,
     cwd: &Path,
+    command: Option<&SpawnCommand>,
     cols: u16,
     rows: u16,
 ) -> Result<String> {
+    let payload = command
+        .map(serde_json::to_vec)
+        .transpose()
+        .context("serialize structured terminal command")?
+        .unwrap_or_default();
     let response = control_request(Message {
         kind: MessageKind::Request,
         id: "new".into(),
@@ -324,6 +505,7 @@ async fn create_session(
         name: name.to_string(),
         shell: shell.unwrap_or_default().to_string(),
         cwd: cwd.to_string_lossy().into_owned(),
+        payload,
         width: u32::from(cols.max(2)),
         height: u32::from(rows.max(1)),
         ..Default::default()
@@ -435,6 +617,113 @@ fn run_external_attach(session_id: &str) -> Result<()> {
         .build()
         .context("create terminal attach runtime")?;
     runtime.block_on(external_attach(session_id))
+}
+
+fn run_terminal_cli(arguments: &[String]) -> Result<()> {
+    match arguments.first().map(String::as_str) {
+        Some("list") => {
+            let sessions = list_sessions().map_err(anyhow::Error::msg)?;
+            if arguments.iter().skip(1).any(|argument| argument == "--json") {
+                println!("{}", serde_json::to_string_pretty(&sessions)?);
+                return Ok(());
+            }
+            if sessions.is_empty() {
+                return Ok(());
+            }
+            println!("ID\tSTATE\tSIZE\tCWD\tNAME");
+            for session in sessions {
+                let state = if session.exited {
+                    "exited"
+                } else if session.attached {
+                    "attached"
+                } else {
+                    "detached"
+                };
+                println!(
+                    "{}\t{}\t{}\t{}\t{}",
+                    session.session_id, state, session.size, session.cwd, session.name
+                );
+            }
+            Ok(())
+        }
+        Some("attach") => arguments
+            .get(1)
+            .context("usage: floter terminal attach <session-id>")
+            .and_then(|session_id| run_external_attach(session_id)),
+        Some("kill") => arguments
+            .get(1)
+            .context("usage: floter terminal kill <session-id>")
+            .and_then(|session_id| kill_existing_session(session_id).map_err(anyhow::Error::msg)),
+        Some("switch") => run_terminal_switch(&arguments[1..]),
+        Some("detach") => anyhow::bail!(
+            "detach is local to the currently attached client; close that terminal client to detach without killing the session"
+        ),
+        Some("help") | Some("--help") | Some("-h") | None => {
+            println!(
+                "floter terminal list [--json]\n\
+                 floter terminal attach <session-id>\n\
+                 floter terminal kill <session-id>\n\
+                 floter terminal switch <session-id> [--terminal <name>]"
+            );
+            Ok(())
+        }
+        Some(command) => anyhow::bail!("unknown terminal command '{command}'"),
+    }
+}
+
+fn run_terminal_switch(arguments: &[String]) -> Result<()> {
+    let session_id = arguments
+        .first()
+        .context("usage: floter terminal switch <session-id> [--terminal <name>]")?;
+    qscreen_protocol::validate_session_id(session_id)?;
+    let mut preferred = None;
+    let mut index = 1;
+    while index < arguments.len() {
+        let argument = &arguments[index];
+        if let Some(value) = argument.strip_prefix("--terminal=") {
+            preferred = Some(value);
+            index += 1;
+        } else if argument == "--terminal" {
+            preferred = Some(
+                arguments
+                    .get(index + 1)
+                    .context("--terminal requires an emulator name")?,
+            );
+            index += 2;
+        } else {
+            anyhow::bail!("unexpected terminal switch argument '{argument}'");
+        }
+    }
+
+    let session = list_sessions()
+        .map_err(anyhow::Error::msg)?
+        .into_iter()
+        .find(|session| session.session_id == *session_id)
+        .context("terminal session does not exist")?;
+    if session.exited {
+        anyhow::bail!("terminal session has already exited");
+    }
+    let cwd = if session.cwd.is_empty() {
+        std::env::current_dir().context("resolve current directory")?
+    } else {
+        PathBuf::from(session.cwd)
+    };
+
+    #[cfg(unix)]
+    {
+        let command = attach_command(session_id).map_err(anyhow::Error::msg)?;
+        super::session::open_terminal_session(&cwd, &command, preferred)
+            .map(|_| ())
+            .map_err(anyhow::Error::msg)
+    }
+    #[cfg(windows)]
+    {
+        if preferred.is_some_and(|name| !matches!(name, "default" | "system" | "windows-terminal"))
+        {
+            anyhow::bail!("Windows currently supports only the default terminal host");
+        }
+        open_windows_terminal(session_id, &cwd).map_err(anyhow::Error::msg)
+    }
 }
 
 async fn external_attach(session_id: &str) -> Result<()> {
@@ -759,6 +1048,132 @@ mod tests {
             String::from_utf8_lossy(&output).contains("floter-broker-ready"),
             "broker output did not include the command marker"
         );
+        std::env::set_var(NAMESPACE_ENV, NAMESPACE);
+    }
+
+    #[test]
+    fn detached_session_can_be_listed_and_reattached() {
+        let _serial = DAEMON_TEST.lock().unwrap();
+        std::env::set_var(
+            NAMESPACE_ENV,
+            format!("floter-handoff-test-{}", std::process::id()),
+        );
+
+        let daemon = std::thread::spawn(|| {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            runtime.block_on(qscreen_daemon::run()).unwrap();
+        });
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while connect().await.is_err() {
+                assert!(Instant::now() < deadline, "test daemon did not start");
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        });
+
+        #[cfg(unix)]
+        let (shell, command) = (
+            Some("/bin/sh".to_string()),
+            "printf floter-handoff-ready; while :; do sleep 1; done",
+        );
+        #[cfg(windows)]
+        let (shell, command) = (
+            Some("cmd".to_string()),
+            "echo floter-handoff-ready & ping -t 127.0.0.1 >nul",
+        );
+        let (initial_tx, initial_rx) = std::sync::mpsc::channel();
+        let session = spawn_session(
+            "floter-handoff-test".into(),
+            shell,
+            dirs::home_dir().unwrap_or_default(),
+            Some(command.into()),
+            80,
+            24,
+            BrokerCallbacks {
+                output: Box::new(move |bytes| {
+                    let _ = initial_tx.send(bytes);
+                }),
+                exit: Box::new(|_| {}),
+            },
+        )
+        .unwrap();
+        let session_id = session.session_id().to_string();
+
+        let mut initial_output = Vec::new();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !String::from_utf8_lossy(&initial_output).contains("floter-handoff-ready") {
+            assert!(
+                Instant::now() < deadline,
+                "initial session output did not arrive"
+            );
+            if let Ok(bytes) = initial_rx.recv_timeout(Duration::from_millis(100)) {
+                initial_output.extend_from_slice(&bytes);
+            }
+        }
+        session.detach();
+        drop(session);
+
+        let deadline = Instant::now() + Duration::from_secs(3);
+        loop {
+            let detached = list_sessions()
+                .unwrap()
+                .into_iter()
+                .find(|session| session.session_id == session_id)
+                .is_some_and(|session| !session.attached && !session.exited);
+            if detached {
+                break;
+            }
+            assert!(Instant::now() < deadline, "session did not detach cleanly");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+
+        let (replay_tx, replay_rx) = std::sync::mpsc::channel();
+        let attached = attach_session(
+            session_id.clone(),
+            80,
+            24,
+            BrokerCallbacks {
+                output: Box::new(move |bytes| {
+                    let _ = replay_tx.send(bytes);
+                }),
+                exit: Box::new(|_| {}),
+            },
+        )
+        .unwrap();
+        let mut replay = Vec::new();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !String::from_utf8_lossy(&replay).contains("floter-handoff-ready") {
+            assert!(
+                Instant::now() < deadline,
+                "reattached client did not receive replay"
+            );
+            if let Ok(bytes) = replay_rx.recv_timeout(Duration::from_millis(100)) {
+                replay.extend_from_slice(&bytes);
+            }
+        }
+        attached.detach();
+        drop(attached);
+        kill_existing_session(&session_id).unwrap();
+
+        runtime.block_on(async {
+            let response = control_request(Message {
+                kind: MessageKind::Request,
+                id: "stop".into(),
+                command: Some(Command::Stop),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+            check_response(&response, "stop").unwrap();
+        });
+        daemon.join().unwrap();
         std::env::set_var(NAMESPACE_ENV, NAMESPACE);
     }
 

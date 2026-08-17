@@ -10,6 +10,7 @@ A cross-platform floating terminal and app launcher, always one shortcut away.
 - **Smart app launcher:** scans installed apps on macOS, Linux, and Windows, with fuzzy matching and pinyin-initial search for Chinese names.
 - **Action bar:** detects URLs, filesystem paths, and shell input; press `Cmd+Enter` on macOS or `Ctrl+Enter` elsewhere to open or run it.
 - **Multi-monitor workflow:** appears on the display you are using and can continue terminal work in your system terminal.
+- **Persistent terminal sessions:** the PTY lives in Floter's background broker, so a handed-off session can be resumed later.
 - **Personalized settings:** choose Dark, Light, or Auto theme, adjust opacity and language, and rebind shortcuts.
 - **Built-in updater:** checks for new releases and installs them from inside the app.
 
@@ -22,6 +23,30 @@ A cross-platform floating terminal and app launcher, always one shortcut away.
 ![Settings](docs/screenshots/screenshot-3.png)
 
 ## Install
+
+### One-line installer (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.sh | bash
+```
+
+Options:
+
+```bash
+# Install the latest release (including previews)
+curl -fsSL ... | bash -s -- --pre-release
+
+# Install a specific version
+curl -fsSL ... | bash -s -- --version 0.3.0
+
+# Non-interactive (skip all prompts, for automation)
+curl -fsSL ... | bash -s -- --yes
+
+# Preview a pre-release without prompts
+curl -fsSL ... | bash -s -- --pre-release --yes
+```
+
+### Manual download
 
 Download the latest version from [GitHub Releases](https://github.com/vst93/floter/releases).
 
@@ -78,6 +103,25 @@ GDK_BACKEND=x11 floter
 
 And if you are on the AppImage, install the package for your distribution
 instead — a WebKit built against your own system's libraries is the real fix.
+
+## Terminal sessions
+
+Use the terminal icon beside the launcher input, or open **Settings → Sessions**,
+to resume and terminate persistent sessions. A detached session keeps running;
+detached only means that no terminal client is currently displaying it.
+
+The broker can also be inspected without opening the UI:
+
+```bash
+floter terminal list
+floter terminal attach <session-id>
+floter terminal switch <session-id> --terminal kitty
+floter terminal kill <session-id>
+```
+
+`switch` accepts installed terminal emulators such as `kitty`, `ghostty`,
+`alacritty`, and `wezterm` on Unix. Closing the attached terminal client
+detaches it; `kill` is the explicit operation that terminates the PTY session.
 
 ## Updates
 

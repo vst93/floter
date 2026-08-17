@@ -13,7 +13,7 @@ use qscreen_protocol::{
 #[cfg(unix)]
 use qscreen_shared::daemon_lock_path;
 use qscreen_shared::pipe_name;
-use session::{Session, SessionEvent, SessionEventQueue};
+use session::{Session, SessionEvent, SessionEventQueue, SpawnCommand};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::{oneshot, watch};
 
@@ -368,13 +368,22 @@ async fn dispatch_inner(msg: &Message, state: &State) -> anyhow::Result<Message>
                 msg.name.clone()
             };
             let cwd = request_cwd(msg)?;
-            let sess = Session::new_with_cwd(
+            let command = if msg.payload.is_empty() {
+                None
+            } else {
+                Some(
+                    serde_json::from_slice::<SpawnCommand>(&msg.payload)
+                        .context("invalid structured command")?,
+                )
+            };
+            let sess = Session::new_with_cwd_and_command(
                 session_id.clone(),
                 session_name.clone(),
                 msg.width,
                 msg.height,
                 Some(msg.shell.as_str()),
                 cwd.as_deref(),
+                command,
             )?;
             tracing::info!(session_id = %session_id, session = %session_name, "session created");
             state.insert_session(session_id.clone(), sess);

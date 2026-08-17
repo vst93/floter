@@ -4,6 +4,16 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import {
+  Blocks,
+  Info,
+  Keyboard,
+  Play,
+  RefreshCw,
+  SlidersHorizontal,
+  SquareTerminal,
+  Trash2,
+} from "lucide-react";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
 import { encodeKey, FOCUS_IN_OUT, MOUSE_MOTION, usesMouseReporting } from "./terminal/input";
 import {
@@ -14,6 +24,7 @@ import {
   type MessageKey,
   type Translate,
 } from "./i18n";
+import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import {
   DEFAULT_SHORTCUTS,
   formatResultShortcut,
@@ -42,7 +53,21 @@ if (IS_WINDOWS) {
 }
 
 type ViewMode = "collapsed" | "terminal" | "settings";
+type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
+
+type BrokerSessionInfo = {
+  sessionId: string;
+  name: string;
+  attached: boolean;
+  exited: boolean;
+  exitCode: number;
+  createdAt: string;
+  width: number;
+  height: number;
+  size: string;
+  cwd: string;
+};
 
 type LocalApplication = {
   name: string;
@@ -62,9 +87,74 @@ type ApplicationsStatus = { upToDate: boolean; count: number };
 
 type SystemAction = "restart" | "shutdown";
 
+type ExecutionMode = "pty" | "external";
+
+type ExecutionPlan = {
+  program: string;
+  args: string[];
+  mode: ExecutionMode;
+  cwd: string | null;
+  environment: Record<string, string>;
+  inheritEnvironment: boolean;
+  planToken?: string;
+  argumentOverride?: string[];
+};
+
+type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
+
+type CatalogArgument = {
+  names: string[];
+  kind: "flag" | "string" | "integer" | "number" | "path" | "directory" | "url" | "enum" | "command";
+  description: string;
+  takesValue: boolean;
+  required: boolean;
+  repeatable: boolean;
+  values: string[];
+  valueHint: string | null;
+};
+
+type CatalogEntry = {
+  id: string;
+  command: string;
+  namespace: string;
+  qualifiedCommand: string;
+  name: string;
+  description: string;
+  sourceKind: CatalogSourceKind;
+  sourceName: string;
+  aliases: string[];
+  arguments: CatalogArgument[];
+  execution: ExecutionPlan | null;
+  runtimeAvailable: boolean;
+  frequency: number;
+};
+
+type CatalogCompletionItem = { value: string; label: string; description: string };
+type CatalogCompletionResponse = { items: CatalogCompletionItem[]; dynamic: boolean };
+
+type CatalogSuggestion =
+  | { kind: "catalog"; entry: CatalogEntry }
+  | {
+      kind: "completion";
+      entry: CatalogEntry;
+      completion: CatalogCompletionItem;
+      commandLine: string;
+      execution: ExecutionPlan | null;
+      dynamic: boolean;
+    };
+
 type LauncherItem =
   | { type: "app"; id: string; title: string; subtitle: string; app: LocalApplication }
-  | { type: "command"; id: string; title: string; subtitle: string }
+  | {
+      type: "command";
+      id: string;
+      title: string;
+      subtitle: string;
+      sourceName: string;
+      commandLine: string;
+      execution: ExecutionPlan | null;
+      completion: boolean;
+    }
   | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction };
 
 /**
@@ -151,6 +241,7 @@ const TERMINAL_FOCUS_RETRY = 180;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
+const CATALOG_SEARCH_DELAY = 140;
 
 type ModifierEvent = {
   shiftKey: boolean;
@@ -201,6 +292,89 @@ const COMMAND_WORDS = new Set([
 
 const normalizeSearch = (value: string) =>
   value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+type ParsedCommandLine = { tokens: string[]; fragmentStart: number };
+
+/** Tokenize the command line without asking a shell to interpret it. */
+const parseCommandLine = (value: string, trailingEmpty = false): ParsedCommandLine => {
+  const tokens: string[] = [];
+  let token = "";
+  let tokenStarted = false;
+  let tokenStart = value.length;
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+
+  const finishToken = () => {
+    if (!tokenStarted) return;
+    tokens.push(token);
+    token = "";
+    tokenStarted = false;
+  };
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (escaped) {
+      token += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      if (!tokenStarted) tokenStart = index;
+      tokenStarted = true;
+      escaped = true;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      if (!tokenStarted) tokenStart = index;
+      tokenStarted = true;
+      quote = quote === char ? null : quote ?? char;
+      if (quote !== null && quote !== char) token += char;
+      continue;
+    }
+    if (/\s/.test(char) && quote === null) {
+      finishToken();
+      continue;
+    }
+    if (!tokenStarted) tokenStart = index;
+    tokenStarted = true;
+    token += char;
+  }
+  if (escaped) token += "\\";
+  finishToken();
+  if (trailingEmpty && /\s$/.test(value)) {
+    tokens.push("");
+    tokenStart = value.length;
+  }
+  return { tokens, fragmentStart: tokenStart };
+};
+
+const formatCompletionValue = (value: string): string =>
+  /\s/.test(value) ? `"${value.replace(/(["\\])/g, "\\$1")}"` : value;
+
+const completedCommandLine = (
+  query: string,
+  fragmentStart: number,
+  completion: CatalogCompletionItem,
+): string => {
+  const value = formatCompletionValue(completion.value);
+  const keepOpen = /[\\/]$/.test(completion.value);
+  return `${query.slice(0, fragmentStart)}${value}${keepOpen ? "" : " "}`;
+};
+
+const executionWithCompletion = (
+  entry: CatalogEntry,
+  currentTokens: string[],
+  completion: CatalogCompletionItem,
+): ExecutionPlan | null => {
+  if (!entry.execution) return null;
+  const completedArgs = [...currentTokens.slice(1)];
+  if (completedArgs.length) completedArgs[completedArgs.length - 1] = completion.value;
+  else completedArgs.push(completion.value);
+  return {
+    ...entry.execution,
+    argumentOverride: completedArgs,
+  };
+};
 
 /**
  * Fuzzy match score for a needle and haystack that are *already* normalized.
@@ -575,6 +749,7 @@ export default function App() {
   const appScanning = useRef(false);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
+  const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -591,6 +766,11 @@ export default function App() {
   const appIconUrlsRef = useRef(appIconUrls);
   const appIconAttempts = useRef(new Set<string>());
   useEffect(() => { appIconUrlsRef.current = appIconUrls; }, [appIconUrls]);
+  const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogSuggestion[]>([]);
+  const [terminalSessions, setTerminalSessions] = useState<BrokerSessionInfo[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionActionId, setSessionActionId] = useState<string | null>(null);
+  const catalogRequestGeneration = useRef(0);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
    * Enter runs. The two selections are exclusive but kept apart, because the
@@ -623,6 +803,13 @@ export default function App() {
 
   const language = normalizeLanguage(settings.language);
   const t = useMemo(() => createTranslator(language), [language]);
+  const sessionDateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }),
+    [language],
+  );
   const shortcuts = useMemo(
     () => withShortcutDefaults(settings.shortcuts),
     [settings.shortcuts],
@@ -715,6 +902,71 @@ export default function App() {
     [applications],
   );
 
+  // Catalog providers can perform I/O while loading their descriptors, so the
+  // request shares one debounce window and stale responses are discarded.
+  useEffect(() => {
+    const value = query.trim();
+    const generation = ++catalogRequestGeneration.current;
+    if (!value) {
+      setCatalogSuggestions([]);
+      return;
+    }
+
+    setCatalogSuggestions([]);
+    const timer = window.setTimeout(() => {
+      const searchTokens = parseCommandLine(query).tokens;
+      const completionLine = parseCommandLine(query, true);
+      const command = completionLine.tokens[0] ?? "";
+      const wantsCompletion = completionLine.tokens.length > 1;
+      const search = invoke<CatalogEntry[]>("catalog_search", {
+        request: {
+          query,
+          tokens: searchTokens,
+          cwd: null,
+          limit: 20,
+          includeSystemCommands: true,
+        },
+      });
+      const complete = wantsCompletion
+        ? invoke<CatalogCompletionResponse>("catalog_complete", {
+            request: {
+              command,
+              tokens: completionLine.tokens,
+              cwd: null,
+            },
+          }).catch(() => null)
+        : Promise.resolve<CatalogCompletionResponse | null>(null);
+
+      Promise.all([search, complete])
+        .then(([entries, completion]) => {
+          if (catalogRequestGeneration.current !== generation) return;
+          const commands = entries.filter((entry) => entry.sourceKind !== "systemApplication");
+          const exact = commands.find((entry) =>
+            entry.command === command ||
+            entry.qualifiedCommand === command ||
+            entry.aliases.includes(command),
+          );
+          if (exact && completion?.items.length) {
+            setCatalogSuggestions(completion.items.map((item) => ({
+              kind: "completion",
+              entry: exact,
+              completion: item,
+              commandLine: completedCommandLine(query, completionLine.fragmentStart, item),
+              execution: executionWithCompletion(exact, completionLine.tokens, item),
+              dynamic: completion.dynamic,
+            })));
+            return;
+          }
+          setCatalogSuggestions(commands.map((entry) => ({ kind: "catalog", entry })));
+        })
+        .catch(() => {
+          if (catalogRequestGeneration.current === generation) setCatalogSuggestions([]);
+        });
+    }, CATALOG_SEARCH_DELAY);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
   /**
    * The numbered result list: applications and the built-in system actions.
    *
@@ -782,13 +1034,58 @@ export default function App() {
       });
     }
 
-    return matches
+    const rankedMatches = matches
       .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
-      // One row short of the window's worth, because the action bar takes the
-      // last one.
-      .slice(0, MAX_RESULTS - 1)
       .map((match) => match.item);
-  }, [query, searchableApps, t]);
+    const commandLimit = rankedMatches.length
+      ? Math.min(3, MAX_RESULTS - 2)
+      : MAX_RESULTS - 1;
+    const commandCounts = catalogSuggestions.reduce<Map<string, number>>((counts, suggestion) => {
+      const command = suggestion.entry.command;
+      counts.set(command, (counts.get(command) ?? 0) + 1);
+      return counts;
+    }, new Map());
+    const commandItems: LauncherItem[] = catalogSuggestions
+      .slice(0, commandLimit)
+      .map((suggestion) => {
+        const { entry } = suggestion;
+        const unavailable = !entry.runtimeAvailable
+          ? ` · ${t("extensions.runtimeUnavailable")}`
+          : "";
+        const conflict = (commandCounts.get(entry.command) ?? 0) > 1
+          ? ` · ${t("extensions.conflict")}`
+          : "";
+        if (suggestion.kind === "completion") {
+          const dynamic = suggestion.dynamic
+            ? ` · ${t("extensions.dynamicCompletion")}`
+            : "";
+          return {
+            type: "command",
+            id: `${entry.id}:completion:${suggestion.completion.value}`,
+            title: suggestion.completion.label,
+            subtitle: `${suggestion.completion.description}${dynamic}${unavailable}`,
+            sourceName: entry.sourceName,
+            commandLine: suggestion.commandLine,
+            execution: suggestion.execution,
+            completion: true,
+          };
+        }
+        return {
+          type: "command",
+          id: entry.id,
+          title: entry.command,
+          subtitle: `${entry.description}${conflict}${unavailable}`,
+          sourceName: entry.sourceName,
+          commandLine: parseCommandLine(query).tokens.length > 1 ? query : `${entry.command} `,
+          execution: entry.execution,
+          completion: false,
+        };
+      });
+
+    // The action bar occupies the final row. Keep at least one local match when
+    // applications or power actions matched alongside catalog commands.
+    return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
+  }, [catalogSuggestions, query, searchableApps, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     const value = query.trim();
@@ -821,6 +1118,9 @@ export default function App() {
     if (actionBar && actionBar.type !== "shell") return true;
     // Nothing matched, so there is nothing else to select.
     if (!launcherResults.length) return true;
+    // A catalog match is actionable without shell parsing, including while its
+    // arguments are being completed.
+    if (launcherResults.some((item) => item.type === "command")) return false;
     // An argument or a pipe makes it a command line whatever else it resembles.
     if (/\s/.test(value) || /[|>&]/.test(value)) return true;
     return COMMAND_WORDS.has(value.toLowerCase());
@@ -839,6 +1139,14 @@ export default function App() {
         appScanning.current = false;
         setAppsLoading(false);
       });
+  };
+
+  const refreshTerminalSessions = () => {
+    setSessionsLoading(true);
+    return invoke<BrokerSessionInfo[]>("term_list_sessions")
+      .then(setTerminalSessions)
+      .catch(() => setTerminalSessions([]))
+      .finally(() => setSessionsLoading(false));
   };
 
   useEffect(() => {
@@ -1033,7 +1341,10 @@ export default function App() {
     });
   };
 
-  const ensureTerminalSession = async (initialCommand: string | null = null) => {
+  const ensureTerminalSession = async (
+    initialCommand: string | null = null,
+    execution: ExecutionPlan | null = null,
+  ) => {
     if (sessionClosePromise.current) {
       await sessionClosePromise.current;
     }
@@ -1047,6 +1358,7 @@ export default function App() {
         generation,
         shell: null,
         initialCommand,
+        execution,
         theme: resolvedTheme,
         cols,
         rows,
@@ -1198,7 +1510,7 @@ export default function App() {
   // grid current; this listener persists the logical window dimensions after a
   // short idle period, so a single drag writes once rather than every frame.
   useEffect(() => {
-    if (!terminalMounted) return;
+    if (!terminalMounted || mode !== "terminal") return;
     const currentWindow = getCurrentWindow();
     let disposed = false;
     let unlisten: (() => void) | undefined;
@@ -1238,7 +1550,7 @@ export default function App() {
       pendingTerminalSize.current = null;
       if (pending) invoke("save_terminal_size", pending).catch(() => undefined);
     };
-  }, [terminalMounted]);
+  }, [mode, terminalMounted]);
 
   // Settings is a compact work panel, not a document. Its header stays fixed
   // while the body scrolls; smaller displays get a proportional cap.
@@ -1798,7 +2110,7 @@ export default function App() {
   }, [launcherResults, mode, query, recordingAction, shortcuts]);
 
   const startDrag = (event: React.MouseEvent) => {
-    if ((event.target as HTMLElement).closest("button") || (event.target as HTMLElement).closest("input")) {
+    if ((event.target as HTMLElement).closest("button, input, select, textarea, a, summary, [role='dialog'], [data-no-drag]")) {
       return;
     }
     event.preventDefault();
@@ -1849,9 +2161,27 @@ export default function App() {
     if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
   };
 
-  const openSettings = () => {
+  const openSettings = (page?: SettingsPage) => {
     suppressBlurUntil.current = Date.now() + 400;
+    const nextPage = page ?? settingsPage;
+    setSettingsPage(nextPage);
+    if (nextPage === "sessions") void refreshTerminalSessions();
     setMode("settings");
+  };
+
+  const killTerminalSession = async (session: BrokerSessionInfo) => {
+    if (sessionActionId) return;
+    const label = session.name || session.sessionId.slice(0, 8);
+    if (!window.confirm(t("terminal.sessionKillConfirm", { name: label }))) return;
+    setSessionActionId(session.sessionId);
+    try {
+      await invoke("term_kill_session", { sessionId: session.sessionId });
+      await refreshTerminalSessions();
+    } catch {
+      await refreshTerminalSessions();
+    } finally {
+      setSessionActionId(null);
+    }
   };
 
   useEffect(() => {
@@ -2046,21 +2376,63 @@ export default function App() {
     });
   };
 
-  const runCommand = async () => {
-    const command = query.trim();
+  const runCommand = async (
+    execution: ExecutionPlan | null = null,
+    commandLine = query.trim(),
+  ) => {
+    const command = commandLine.trim();
     if (!command || terminalOpening.current) return;
 
     terminalOpening.current = true;
     setTerminalMounted(true);
     setMode("terminal");
     try {
-      await ensureTerminalSession(command);
+      await ensureTerminalSession(execution ? null : command, execution);
       rememberCommand(command);
       setQuery("");
-      focusTerminalView();
+      if (execution?.mode === "external") {
+        await openInTerminal();
+      } else {
+        focusTerminalView();
+      }
     } catch {
       setTerminalMounted(false);
       setMode("collapsed");
+      focusCollapsedInput(50);
+    } finally {
+      terminalOpening.current = false;
+    }
+  };
+
+  const resumeTerminalSession = async (session: BrokerSessionInfo) => {
+    if (terminalOpening.current) return;
+    terminalOpening.current = true;
+    setTerminalMounted(true);
+    setMode("terminal");
+    try {
+      if (sessionClosePromise.current) await sessionClosePromise.current;
+      const { cols, rows } = dimsRef.current;
+      const generation = ++nextTerminalGeneration.current;
+      terminalGeneration.current = generation;
+      await invoke("term_attach_existing", {
+        id: "main",
+        generation,
+        brokerSessionId: session.sessionId,
+        theme: resolvedTheme,
+        cols,
+        rows,
+      });
+      if (terminalGeneration.current === generation) {
+        ptyReady.current = true;
+      }
+      setQuery("");
+      focusTerminalView();
+    } catch {
+      terminalGeneration.current = null;
+      ptyReady.current = false;
+      setTerminalMounted(false);
+      setMode("collapsed");
+      refreshTerminalSessions();
       focusCollapsedInput(50);
     } finally {
       terminalOpening.current = false;
@@ -2124,7 +2496,12 @@ export default function App() {
       invoke("hide_window");
       return;
     }
-    void runCommand();
+    if (item.execution && item.sourceName) {
+      void runCommand(item.execution, item.commandLine);
+      return;
+    }
+    // A catalog row with an unavailable runtime remains visible for discovery,
+    // but is not silently reinterpreted by the user's shell.
   };
 
   /**
@@ -2192,6 +2569,16 @@ export default function App() {
         runLauncherItem(launcherResults[selectedResultIndex]);
       }
       return;
+    }
+
+    if (event.key === "Tab" && !selectedActionBar) {
+      const selected = launcherResults[selectedResultIndex];
+      if (selected?.type === "command") {
+        event.preventDefault();
+        setQuery(selected.commandLine);
+        setHistoryIndex(-1);
+        return;
+      }
     }
 
     // The results and the action bar are navigated as one loop that wraps at
@@ -2310,6 +2697,31 @@ export default function App() {
           </header>
 
           <div className="settings-card__body">
+            <nav className="settings-sidebar" aria-label={t("settings.title")} data-no-drag>
+              {([
+                ["general", SlidersHorizontal],
+                ["sessions", SquareTerminal],
+                ["shortcuts", Keyboard],
+                ["integrations", Blocks],
+                ["about", Info],
+              ] as const).map(([page, Icon]) => (
+                <button
+                  key={page}
+                  type="button"
+                  className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"}
+                  aria-current={settingsPage === page ? "page" : undefined}
+                  onClick={() => {
+                    setSettingsPage(page);
+                    if (page === "sessions") void refreshTerminalSessions();
+                  }}
+                >
+                  <Icon size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>{t(`settings.menu.${page}`)}</span>
+                </button>
+              ))}
+            </nav>
+            <main className="settings-content" data-no-drag>
+            {settingsPage === "general" && <>
             <div className="settings-preferences">
               <section className="settings-section">
                 <h2 className="settings-section__label">{t("settings.theme")}</h2>
@@ -2407,7 +2819,9 @@ export default function App() {
               </div>
               <p className="settings-section__hint">{t("settings.opacityHint")}</p>
             </section>
+            </>}
 
+            {settingsPage === "shortcuts" && (
             <section className="settings-section">
               <div className="settings-section__heading">
                 <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
@@ -2451,7 +2865,96 @@ export default function App() {
               </div>
               <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
+            )}
 
+            {settingsPage === "sessions" && (
+            <section className="settings-section session-manager">
+              <div className="settings-section__heading">
+                <h2 className="settings-section__label">{t("terminal.sessions")}</h2>
+                <button
+                  type="button"
+                  className="session-manager__icon-button"
+                  aria-label={t("terminal.sessionsRefresh")}
+                  title={t("terminal.sessionsRefresh")}
+                  disabled={sessionsLoading}
+                  onClick={() => void refreshTerminalSessions()}
+                >
+                  <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />
+                </button>
+              </div>
+
+              {terminalSessions.length === 0 ? (
+                <div className="session-manager__empty">
+                  <SquareTerminal size={20} strokeWidth={1.6} aria-hidden="true" />
+                  <span>{sessionsLoading ? t("terminal.sessionsLoading") : t("terminal.sessionsEmpty")}</span>
+                </div>
+              ) : (
+                <div className="session-manager__list">
+                  {terminalSessions.map((session) => {
+                    const busy = sessionActionId === session.sessionId;
+                    const state = session.exited
+                      ? t("terminal.sessionExited")
+                      : session.attached
+                        ? t("terminal.sessionAttached")
+                        : t("terminal.sessionDetached");
+                    const created = new Date(session.createdAt);
+                    return (
+                      <div key={session.sessionId} className="session-manager__row">
+                        <span className="session-manager__marker" aria-hidden="true">
+                          <SquareTerminal size={16} strokeWidth={1.8} />
+                        </span>
+                        <span className="session-manager__main">
+                          <span className="session-manager__name">
+                            {session.name || t("terminal.sessionTitle", { id: session.sessionId.slice(0, 8) })}
+                          </span>
+                          <span className="session-manager__cwd">{session.cwd || "~"}</span>
+                          <span className="session-manager__meta">
+                            <span className={session.exited ? "session-state session-state--exited" : "session-state"}>
+                              {state}
+                            </span>
+                            <span>{session.size || `${session.width}x${session.height}`}</span>
+                            {!Number.isNaN(created.getTime()) && <span>{sessionDateFormatter.format(created)}</span>}
+                          </span>
+                        </span>
+                        <span className="session-manager__actions">
+                          <button
+                            type="button"
+                            className="session-manager__icon-button"
+                            aria-label={t("terminal.sessionResume")}
+                            title={t("terminal.sessionResume")}
+                            disabled={session.exited || busy || sessionActionId !== null}
+                            onClick={() => void resumeTerminalSession(session)}
+                          >
+                            <Play size={14} strokeWidth={1.9} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="session-manager__icon-button session-manager__icon-button--danger"
+                            aria-label={t("terminal.sessionKill")}
+                            title={t("terminal.sessionKill")}
+                            disabled={busy || sessionActionId !== null}
+                            onClick={() => void killTerminalSession(session)}
+                          >
+                            <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
+                          </button>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+            )}
+
+            {settingsPage === "integrations" && (
+            <ExtensionsPanel
+              t={t}
+              locale={language}
+              onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
+            />
+            )}
+
+            {settingsPage === "about" && (
             <section className="settings-section">
               <div className="update-banner">
                 <div className="update-banner__info">
@@ -2503,6 +3006,8 @@ export default function App() {
                 ) : null}
               </div>
             </section>
+            )}
+            </main>
           </div>
         </div>
       </div>
@@ -2558,6 +3063,22 @@ export default function App() {
             <button
               type="button"
               className="collapsed-card__settings"
+              aria-label={t("terminal.sessions")}
+              title={t("terminal.sessionsOpen")}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                openSettings("sessions");
+              }}
+            >
+              <SquareTerminal size={16} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="collapsed-card__settings"
               aria-label={t("settings.open")}
               title={t("settings.openHint", { shortcut: formatShortcut(shortcuts.open_settings) })}
               onMouseDown={(event) => {
@@ -2588,7 +3109,7 @@ export default function App() {
           {(launcherResults.length > 0 || actionBar) && (
             <div className="launcher-bottom">
               {launcherResults.length > 0 && (
-                <div className="launcher-results" role="listbox" aria-label="Launcher results">
+                <div className="launcher-results" role="listbox" aria-label={t("launcher.results")}>
                   {launcherResults.map((item, index) => {
                     const selected = !selectedActionBar && index === selectedResultIndex;
                     return (
@@ -2620,7 +3141,18 @@ export default function App() {
                         </span>
                         <span className="launcher-result__main">
                           <span className="launcher-result__title">{item.title}</span>
-                          <span className="launcher-result__subtitle">{item.subtitle}</span>
+                          <span className="launcher-result__subtitle">
+                            {item.subtitle}
+                            <span className="launcher-result__source">
+                              {t("extensions.source", {
+                                source: item.type === "command"
+                                  ? item.sourceName
+                                  : item.type === "app"
+                                    ? t(appSubtitleKey(item.app.path))
+                                    : t("extensions.builtIn"),
+                              })}
+                            </span>
+                          </span>
                         </span>
                         <span className="launcher-result__action">
                           {formatResultShortcut(shortcuts.select_result, index + 1)}

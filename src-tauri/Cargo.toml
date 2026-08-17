@@ -1,6 +1,6 @@
 [package]
 name = "floter"
-version = "0.2.6"
+version = "0.3.3-preview"
 description = "A floating terminal application"
 license = "GPL-3.0"
 authors = ["you"]
@@ -23,16 +23,26 @@ tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 dirs = "5"
 tokio = { version = "1", features = ["full"] }
 alacritty_terminal = "0.26"
 parking_lot = "0.12"
 base64 = "0.22"
+ed25519-dalek = "2"
 tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 crossterm = "0.28"
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
+semver = { version = "1.0.28", features = ["serde"] }
+sha2 = "0.10.9"
+tar = "0.4.46"
+flate2 = "1.1.9"
+jsonschema = { version = "0.33", default-features = false }
 # qscreen owns the persistent PTY while Floter remains responsible for input
 # encoding and rendering. Pin the audited revision: these crates are not yet
 # published on crates.io and following main would make the wire protocol
@@ -70,6 +80,7 @@ windows = { version = "0.61", default-features = false, features = [
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
   "Win32_System_Registry",
+  "Win32_System_SystemInformation",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",

@@ -14,15 +14,15 @@
 
 pkgname=floter-bin
 _pkgname=floter
-pkgver=0.2.6
+pkgver=0.3.3-preview
 pkgrel=1
 pkgdesc="A floating terminal and application launcher, always one shortcut away"
 arch=('x86_64' 'aarch64')
 url="https://github.com/vst93/floter"
 license=('GPL-3.0-or-later')
-# webkit2gtk-4.1 is the webview, libayatana-appindicator the tray icon, and
+# webkit2gtk-4.1 is the webview, libappindicator-gtk3 the tray icon, and
 # xdg-utils the fallback used to open files and links.
-depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'librsvg' 'xdg-utils')
+depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'xdg-utils')
 # Optional, and only for X11: floter asks these where the focused window is so a
 # keyboard summon lands on the screen the user is working on rather than on the
 # one the mouse was left behind on.

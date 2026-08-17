@@ -14,6 +14,7 @@ use qscreen_protocol::{
     FRAME_FLAG_INVERSE, FRAME_FLAG_ITALIC, FRAME_FLAG_STRIKETHROUGH, FRAME_FLAG_UNDERLINE,
     FrameColor, FrameMouseEncoding, FrameMouseMode, MAX_PAYLOAD_SIZE, ScreenFrame, ScreenRun,
 };
+use serde::Deserialize;
 use tokio::sync::{Notify, watch};
 
 pub const SCROLLBACK_LIMIT: usize = 256 * 1024;
@@ -34,6 +35,22 @@ const COLOR_TERM_TRUECOLOR: &str = "truecolor";
 
 pub type ClientId = u64;
 type OutputDrain = Arc<(Mutex<bool>, Condvar)>;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpawnCommand {
+    pub program: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default)]
+    pub environment: HashMap<String, String>,
+    #[serde(default = "default_true")]
+    pub inherit_environment: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
 
 struct OutputDrainGuard(OutputDrain);
 
@@ -260,6 +277,18 @@ impl Session {
         shell: Option<&str>,
         cwd: Option<&Path>,
     ) -> anyhow::Result<Arc<Self>> {
+        Self::new_with_cwd_and_command(session_id, name, width, height, shell, cwd, None)
+    }
+
+    pub fn new_with_cwd_and_command(
+        session_id: String,
+        name: String,
+        width: u32,
+        height: u32,
+        shell: Option<&str>,
+        cwd: Option<&Path>,
+        command: Option<SpawnCommand>,
+    ) -> anyhow::Result<Arc<Self>> {
         let w = if width > 0 {
             width as u16
         } else {
@@ -285,7 +314,10 @@ impl Session {
         let pty_reader = pair.master.try_clone_reader().context("try_clone_reader")?;
         let pty_writer = pair.master.take_writer().context("take_writer")?;
 
-        let mut cmd = default_shell_command(shell).context("resolve shell command")?;
+        let mut cmd = match command {
+            Some(command) => structured_command(command)?,
+            None => default_shell_command(shell).context("resolve shell command")?,
+        };
         apply_working_directory(&mut cmd, cwd)?;
         let resolved_cwd = resolve_session_cwd(cwd);
         let child = pair.slave.spawn_command(cmd).context("spawn shell")?;
@@ -1075,6 +1107,23 @@ fn default_shell_command(shell: Option<&str>) -> anyhow::Result<CommandBuilder> 
     }
 }
 
+fn structured_command(command: SpawnCommand) -> anyhow::Result<CommandBuilder> {
+    if command.program.trim().is_empty() {
+        anyhow::bail!("structured command program is empty");
+    }
+    let mut cmd = CommandBuilder::new(command.program);
+    if !command.inherit_environment {
+        cmd.env_clear();
+    }
+    cmd.args(command.args);
+    cmd.env("TERM", TERM_XTERM_256COLOR);
+    cmd.env("COLORTERM", COLOR_TERM_TRUECOLOR);
+    for (key, value) in command.environment {
+        cmd.env(key, value);
+    }
+    Ok(cmd)
+}
+
 fn apply_working_directory(cmd: &mut CommandBuilder, cwd: Option<&Path>) -> anyhow::Result<()> {
     let Some(cwd) = cwd.filter(|value| !value.as_os_str().is_empty()) else {
         return Ok(());
@@ -1102,7 +1151,7 @@ fn resolve_session_cwd(cwd: Option<&Path>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::OsStr;
+    use std::ffi::{OsStr, OsString};
 
     #[test]
     fn working_directory_uses_non_empty_request_value() {
@@ -1256,6 +1305,57 @@ mod tests {
             cmd.get_env("COLORTERM"),
             Some(OsStr::new(COLOR_TERM_TRUECOLOR))
         );
+    }
+
+    #[test]
+    fn structured_command_preserves_argv_and_environment() {
+        let cmd = structured_command(SpawnCommand {
+            program: "tool".into(),
+            args: vec!["--name".into(), "value with spaces".into()],
+            environment: HashMap::from([("FLOTER_TEST".into(), "enabled".into())]),
+            inherit_environment: true,
+        })
+        .expect("structured command should build");
+
+        assert_eq!(
+            cmd.get_argv(),
+            &vec![
+                OsString::from("tool"),
+                OsString::from("--name"),
+                OsString::from("value with spaces"),
+            ]
+        );
+        assert_eq!(cmd.get_env("FLOTER_TEST"), Some(OsStr::new("enabled")));
+        assert_eq!(cmd.get_env("TERM"), Some(OsStr::new(TERM_XTERM_256COLOR)));
+    }
+
+    #[test]
+    fn structured_command_can_clear_the_parent_environment() {
+        let cmd = structured_command(SpawnCommand {
+            program: "tool".into(),
+            args: Vec::new(),
+            environment: HashMap::from([("FLOTER_TEST".into(), "enabled".into())]),
+            inherit_environment: false,
+        })
+        .expect("structured command should build");
+
+        assert_eq!(cmd.get_env("PATH"), None);
+        assert_eq!(cmd.get_env("FLOTER_TEST"), Some(OsStr::new("enabled")));
+        assert_eq!(cmd.get_env("TERM"), Some(OsStr::new(TERM_XTERM_256COLOR)));
+    }
+
+    #[test]
+    fn structured_command_rejects_an_empty_program() {
+        let error = structured_command(SpawnCommand {
+            program: " ".into(),
+            args: Vec::new(),
+            environment: HashMap::new(),
+            inherit_environment: true,
+        })
+        .expect_err("empty program should fail")
+        .to_string();
+
+        assert!(error.contains("program is empty"), "{error}");
     }
 
     fn recv_frame_matching(queue: &SessionEventQueue, expected: &str) {

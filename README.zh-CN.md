@@ -10,6 +10,7 @@
 - **智能应用启动器：** 自动扫描 macOS、Linux 和 Windows 中已安装的应用，支持模糊匹配及中文应用名的拼音首字母搜索。
 - **操作栏：** 自动识别 URL、文件系统路径和 shell 输入；按 `Cmd+Enter`（macOS）或 `Ctrl+Enter`（其他平台）即可打开或运行。
 - **多显示器支持：** 在当前使用的显示器上出现，也可在系统终端中继续处理终端任务。
+- **终端会话持久化：** PTY 由 Floter 后台 broker 持有，移交后的会话仍可重新连接。
 - **个性化设置：** 可选择深色、浅色或自动主题，调整透明度和界面语言，并重新绑定快捷键。
 - **内置更新：** 自动检查新版本，并可直接在应用内完成安装。
 
@@ -22,6 +23,30 @@
 ![设置](docs/screenshots/screenshot-3.png)
 
 ## 安装
+
+### 一键安装（推荐）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.sh | bash
+```
+
+选项：
+
+```bash
+# 安装最新版本（含预览版）
+curl -fsSL ... | bash -s -- --pre-release
+
+# 安装指定版本
+curl -fsSL ... | bash -s -- --version 0.3.0
+
+# 非交互式安装（跳过所有确认，适合自动化）
+curl -fsSL ... | bash -s -- --yes
+
+# 无提示安装预览版
+curl -fsSL ... | bash -s -- --pre-release --yes
+```
+
+### 手动下载
 
 前往 [GitHub Releases](https://github.com/vst93/floter/releases) 下载最新版本。
 
@@ -72,6 +97,23 @@ GDK_BACKEND=x11 floter
 ```
 
 如果你用的是 AppImage，请改装发行版对应的安装包——用系统自身的库链接出来的 WebKit 才是根治办法。
+
+## 终端会话
+
+点击启动器输入框旁的终端图标，或打开「设置 → 会话」，即可恢复或终止持久化
+会话。未连接的会话仍会继续运行；“未连接”只表示当前没有终端客户端在显示它。
+
+也可以无需打开界面，直接查看和管理后台会话：
+
+```bash
+floter terminal list
+floter terminal attach <session-id>
+floter terminal switch <session-id> --terminal kitty
+floter terminal kill <session-id>
+```
+
+Unix 平台上的 `switch` 可指定已安装的 `kitty`、`ghostty`、`alacritty`、`wezterm`
+等终端。关闭 attach 的终端客户端只会 detach；只有显式执行 `kill` 才会终止 PTY 会话。
 
 ## 更新
 
