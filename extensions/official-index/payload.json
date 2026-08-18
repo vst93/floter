@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "indexVersion": 1,
+  "expiresAt": "2030-01-01T00:00:00Z",
+  "entries": [
+    {
+      "extensionId": "io.github.vst93.v",
+      "npmPackage": "v-tools",
+      "publisher": "vst93",
+      "signingKeys": [
+        "ed25519:PUAXyCQgW7K2fOhE6RtAHAEgXKM2ZK6E3YpOQ2OMX2c="
+      ]
+    }
+  ]
+}

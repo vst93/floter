@@ -1,0 +1,10 @@
+{
+  "payload": "ewogICJzY2hlbWFWZXJzaW9uIjogMSwKICAiaW5kZXhWZXJzaW9uIjogMSwKICAiZXhwaXJlc0F0IjogIjIwMzAtMDEtMDFUMDA6MDA6MDBaIiwKICAiZW50cmllcyI6IFsKICAgIHsKICAgICAgImV4dGVuc2lvbklkIjogImlvLmdpdGh1Yi52c3Q5My52IiwKICAgICAgIm5wbVBhY2thZ2UiOiAidi10b29scyIsCiAgICAgICJwdWJsaXNoZXIiOiAidnN0OTMiLAogICAgICAic2lnbmluZ0tleXMiOiBbCiAgICAgICAgImVkMjU1MTk6UFVBWHlDUWdXN0syZk9oRTZSdEFIQUVnWEtNMlpLNkUzWXBPUTJPTVgyYz0iCiAgICAgIF0KICAgIH0KICBdCn0=",
+  "signatures": [
+    {
+      "keyId": "development-root-1",
+      "algorithm": "ed25519",
+      "signature": "wceKhQkH1IG2NV7S7A/HXbtfW6sHNycUc5ToAdPL7WxSz3l+gdSifBZpbb77qKcojrGyIaZzL4/f9NWU8fmMAA=="
+    }
+  ]
+}

@@ -8,13 +8,19 @@ use serde::{Deserialize, Serialize};
 const INDEX_SCHEMA_VERSION: u32 = 1;
 const MAX_INDEX_BYTES: usize = 1024 * 1024;
 
-// Development-only trust anchor. Replace this with the production release key before launch.
+// The official index is hosted in this repository under
+// extensions/official-index/index.json (a signed envelope) and fetched from
+// the GitHub `main` branch. Edit payload.json and re-sign with
+// scripts/sign-official-index.mjs before pushing; the root key below is the
+// trust anchor that rejects any repository tampering.
 pub const DEVELOPMENT_ROOT_PUBLIC_KEY: &str =
     "ed25519:iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=";
-pub const DEFAULT_INDEX_URL: &str = "https://extensions.floter.dev/v1/index.json";
+pub const DEFAULT_INDEX_URL: &str =
+    "https://raw.githubusercontent.com/vst93/floter/main/extensions/official-index/index.json";
 
-// This development index is the payload published at DEFAULT_INDEX_URL. It is kept in the
-// binary so the allow-list is reviewable, but it is never used as a network-failure fallback.
+// This development index is the payload committed at
+// extensions/official-index/payload.json. It is kept in the binary so the
+// allow-list is reviewable, but it is never used as a network-failure fallback.
 pub const DEVELOPMENT_INDEX_PAYLOAD: &str = r#"{
   "schemaVersion": 1,
   "indexVersion": 1,
@@ -268,6 +274,22 @@ mod tests {
                 signing_keys: keys,
             }],
         }
+    }
+
+    #[test]
+    fn repository_index_file_is_accepted_by_the_pinned_root() {
+        // The signed envelope committed at extensions/official-index/index.json
+        // must verify against the pinned root key; otherwise discovery marks
+        // every package as community and installs lose the official badge.
+        let envelope = include_str!("../../../extensions/official-index/index.json");
+        assert!(verify(
+            envelope.as_bytes(),
+            &[DEVELOPMENT_ROOT_PUBLIC_KEY.into()],
+            DateTime::parse_from_rfc3339("2026-08-13T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc)
+        )
+        .is_ok());
     }
 
     #[test]
