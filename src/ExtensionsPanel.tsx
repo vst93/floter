@@ -474,6 +474,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const removalDialogRef = useRef<HTMLElement | null>(null);
   const customDialogRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
+  const refreshGeneration = useRef(0);
 
   const updateCustomIntegration = (update: (current: CustomIntegrationForm) => CustomIntegrationForm) => {
     setCustomIntegrationError(null);
@@ -523,19 +524,23 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const configDirty = configuration?.descriptor.owner === "host"
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
 
-  const checkForUpdates = async (entries: Extension[]) => {
+  const checkForUpdates = async (entries: Extension[], generation: number) => {
     const managed = entries.filter((entry) => entry.distributionSource === "npm" && entry.packageName && !entry.pinned);
     if (!managed.length) {
-      setLatestById({});
+      if (generation === refreshGeneration.current) {
+        setLatestById({});
+        setCheckingUpdates(false);
+      }
       return;
     }
-    setCheckingUpdates(true);
+    if (generation === refreshGeneration.current) setCheckingUpdates(true);
     const settled = await Promise.allSettled(
       managed.map(async (entry) => {
         const results = await invoke<SearchResult[]>("extensions_search", { query: entry.packageName, limit: 10 });
         return [entry.id, results.find((result) => result.package === entry.packageName) ?? null] as const;
       }),
     );
+    if (generation !== refreshGeneration.current) return;
     const next: Record<string, SearchResult> = {};
     settled.forEach((result) => {
       if (result.status === "fulfilled" && result.value[1]) next[result.value[0]] = result.value[1];
@@ -544,17 +549,30 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setCheckingUpdates(false);
   };
 
+  const refreshOfficialStatus = async (generation: number) => {
+    const statuses = await invoke<Record<string, boolean>>("extensions_refresh_official_status");
+    if (generation !== refreshGeneration.current) return;
+    setExtensions((current) => current.map((extension) => ({
+      ...extension,
+      officialVerified: statuses[extension.id] ?? false,
+    })));
+  };
+
   const refresh = async () => {
+    const generation = ++refreshGeneration.current;
     setLoading(true);
+    setCheckingUpdates(false);
     setError(null);
     try {
       const entries = await invoke<Extension[]>("extensions_list");
+      if (generation !== refreshGeneration.current) return;
       setExtensions(entries);
-      await checkForUpdates(entries);
+      void checkForUpdates(entries, generation);
+      void refreshOfficialStatus(generation).catch(() => {});
     } catch (nextError) {
-      setError(localErrorMessage(nextError, t));
+      if (generation === refreshGeneration.current) setError(localErrorMessage(nextError, t));
     } finally {
-      setLoading(false);
+      if (generation === refreshGeneration.current) setLoading(false);
     }
   };
 

@@ -52,17 +52,39 @@ pub async fn extensions_resolve_source(
 }
 
 #[tauri::command]
-pub async fn extensions_list(
-    state: State<'_, ExtensionState>,
-) -> Result<Vec<ExtensionListItem>, String> {
+pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let official_index = crate::extensions::official_index::fetch(&state).await.ok();
-    let detected_adapters = crate::extensions::static_adapter::load_bundled()?;
     let mut items = lock
         .list()
         .into_iter()
         .map(|mut entry| {
-            entry.official_verified = entry.signature_verified
+            // Installation persists this result only after both package and
+            // official-index signatures pass. Never present an official badge
+            // if the package signature is no longer trusted.
+            entry.official_verified &= entry.signature_verified;
+            ExtensionListItem::installed(entry)
+        })
+        .collect::<Vec<_>>();
+    for adapter in &state.static_adapters {
+        if lock.extensions.contains_key(&adapter.manifest.id) {
+            continue;
+        }
+        items.push(ExtensionListItem::detected(adapter));
+    }
+    Ok(items)
+}
+
+#[tauri::command]
+pub async fn extensions_refresh_official_status(
+    state: State<'_, ExtensionState>,
+) -> Result<BTreeMap<String, bool>, String> {
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let official_index = crate::extensions::official_index::fetch(&state).await.ok();
+    Ok(lock
+        .list()
+        .into_iter()
+        .map(|entry| {
+            let verified = entry.signature_verified
                 && official_index.as_ref().is_some_and(|index| {
                     entry.package_name.as_deref().is_some_and(|package| {
                         ExtensionManifest::load(Path::new(&entry.manifest_path))
@@ -77,16 +99,9 @@ pub async fn extensions_list(
                             })
                     })
                 });
-            ExtensionListItem::installed(entry)
+            (entry.id, verified)
         })
-        .collect::<Vec<_>>();
-    for adapter in &detected_adapters {
-        if lock.extensions.contains_key(&adapter.manifest.id) {
-            continue;
-        }
-        items.push(ExtensionListItem::detected(adapter));
-    }
-    Ok(items)
+        .collect())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -116,13 +131,14 @@ pub struct LocalManifestReview {
 
 impl ExtensionListItem {
     fn installed(entry: ExtensionLockEntry) -> Self {
+        let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
         let generated_custom = install::is_generated_custom_integration(&entry);
         let stored_runtime_available = crate::extensions::registry::runtime_available(&entry);
         let reconnect_available = entry.runtime_ownership == ExtensionRuntimeOwnership::System
             && !stored_runtime_available
-            && crate::extensions::ExtensionManifest::load(Path::new(&entry.manifest_path))
-                .and_then(|manifest| install::find_system_executable(&manifest))
-                .is_ok();
+            && manifest
+                .as_ref()
+                .is_some_and(|manifest| install::find_system_executable(manifest).is_ok());
         let runtime_source = match entry.provider_kind {
             ExtensionProviderKind::BundledStatic => "bundled".to_string(),
             ExtensionProviderKind::Executable | ExtensionProviderKind::StaticDescriptor => {
@@ -132,9 +148,7 @@ impl ExtensionListItem {
                 }
             }
         };
-        let homepage = crate::extensions::ExtensionManifest::load(Path::new(&entry.manifest_path))
-            .ok()
-            .and_then(|manifest| manifest.homepage);
+        let homepage = manifest.and_then(|manifest| manifest.homepage);
         Self {
             entry,
             connected: true,
