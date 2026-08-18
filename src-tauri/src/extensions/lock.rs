@@ -116,10 +116,7 @@ impl ExtensionsLock {
         }
         let bytes = std::fs::read(path)
             .map_err(|error| format!("Cannot read extension lock {}: {error}", path.display()))?;
-        let mut value: serde_json::Value = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("Invalid extension lock {}: {error}", path.display()))?;
-        migrate_v1_lock(&mut value)?;
-        let lock: Self = serde_json::from_value(value)
+        let lock: Self = serde_json::from_slice(&bytes)
             .map_err(|error| format!("Invalid extension lock {}: {error}", path.display()))?;
         if lock.schema_version != LOCK_SCHEMA_VERSION {
             return Err(format!(
@@ -256,55 +253,6 @@ pub(crate) fn sync_directory(path: &Path) -> std::io::Result<()> {
     }
 }
 
-fn migrate_v1_lock(value: &mut serde_json::Value) -> Result<(), String> {
-    let schema_version = value
-        .get("schemaVersion")
-        .and_then(serde_json::Value::as_u64)
-        .ok_or_else(|| "Extension lock has no schemaVersion".to_string())?;
-    if schema_version != 1 {
-        return Ok(());
-    }
-    let extensions = value
-        .get_mut("extensions")
-        .and_then(serde_json::Value::as_object_mut)
-        .ok_or_else(|| "Extension lock extensions must be an object".to_string())?;
-    for entry in extensions.values_mut() {
-        let object = entry
-            .as_object_mut()
-            .ok_or_else(|| "Extension lock entry must be an object".to_string())?;
-        let install_type = object
-            .remove("installType")
-            .and_then(|value| value.as_str().map(str::to_string))
-            .ok_or_else(|| "Extension lock entry has no installType".to_string())?;
-        let (distribution, runtime) = match install_type.as_str() {
-            "managed" => ("npm", "bundled"),
-            "linked" => ("local", "system"),
-            other => return Err(format!("Unsupported legacy install type: {other}")),
-        };
-        if object
-            .get("providerKind")
-            .and_then(serde_json::Value::as_str)
-            == Some("bundled-static")
-        {
-            object.insert(
-                "distributionSource".to_string(),
-                serde_json::Value::String("built-in".to_string()),
-            );
-        } else {
-            object.insert(
-                "distributionSource".to_string(),
-                serde_json::Value::String(distribution.to_string()),
-            );
-        }
-        object.insert(
-            "runtimeOwnership".to_string(),
-            serde_json::Value::String(runtime.to_string()),
-        );
-    }
-    value["schemaVersion"] = serde_json::Value::from(LOCK_SCHEMA_VERSION);
-    Ok(())
-}
-
 pub fn validate_id(id: &str) -> Result<(), String> {
     if id.is_empty()
         || !id.bytes().all(|byte| {
@@ -386,93 +334,5 @@ mod tests {
         .unwrap();
         assert!(!entry.official_verified);
         assert_eq!(entry.previous_official_verified, None);
-    }
-
-    #[test]
-    fn migrates_v1_lock_entries_to_orthogonal_ownership_fields() {
-        let mut value = serde_json::json!({
-            "schemaVersion": 1,
-            "extensions": {
-                "example.tool": {
-                    "id": "example.tool",
-                    "name": "Example",
-                    "publisherId": "example",
-                    "publisherName": "Example",
-                    "installType": "linked",
-                    "state": "enabled",
-                    "enabled": true,
-                    "packageName": null,
-                    "packageVersion": "linked",
-                    "toolVersion": null,
-                    "integrity": null,
-                    "signatureVerified": false,
-                    "previousSignatureVerified": null,
-                    "currentVersion": "linked",
-                    "previousVersion": null,
-                    "manifestPath": "/tmp/floter.extension.json",
-                    "executablePath": "/tmp/example",
-                    "runtimeRoot": null,
-                    "installedAt": 1,
-                    "updatedAt": 1,
-                    "pinned": false,
-                    "channel": "external"
-                }
-            }
-        });
-        migrate_v1_lock(&mut value).unwrap();
-        let lock: ExtensionsLock = serde_json::from_value(value).unwrap();
-        let entry = lock.get("example.tool").unwrap();
-        assert_eq!(lock.schema_version, 2);
-        assert_eq!(
-            entry.distribution_source,
-            ExtensionDistributionSource::Local
-        );
-        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
-        assert_eq!(entry.provider_kind, ExtensionProviderKind::Executable);
-    }
-
-    #[test]
-    fn migrates_legacy_static_adapters_as_built_in_system_integrations() {
-        let mut value = serde_json::json!({
-            "schemaVersion": 1,
-            "extensions": {
-                "example.tool": {
-                    "id": "example.tool",
-                    "name": "Example",
-                    "publisherId": "example",
-                    "publisherName": "Example",
-                    "installType": "linked",
-                    "providerKind": "bundled-static",
-                    "state": "enabled",
-                    "enabled": true,
-                    "packageName": null,
-                    "packageVersion": "linked",
-                    "toolVersion": "1.2.3",
-                    "integrity": null,
-                    "signatureVerified": false,
-                    "previousSignatureVerified": null,
-                    "currentVersion": "linked",
-                    "previousVersion": null,
-                    "manifestPath": "/tmp/floter.extension.json",
-                    "executablePath": "/tmp/example",
-                    "runtimeRoot": null,
-                    "installedAt": 1,
-                    "updatedAt": 1,
-                    "pinned": false,
-                    "channel": "external"
-                }
-            }
-        });
-
-        migrate_v1_lock(&mut value).unwrap();
-        let lock: ExtensionsLock = serde_json::from_value(value).unwrap();
-        let entry = lock.get("example.tool").unwrap();
-
-        assert_eq!(
-            entry.distribution_source,
-            ExtensionDistributionSource::BuiltIn
-        );
-        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
-        assert_eq!(entry.provider_kind, ExtensionProviderKind::BundledStatic);
     }
 }

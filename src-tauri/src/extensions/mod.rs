@@ -133,9 +133,6 @@ impl ExtensionState {
         official_index: official_index::OfficialIndexConfig,
     ) -> Result<Self, String> {
         paths.ensure()?;
-        if let Err(error) = catalog::migrate_legacy_commands(&paths) {
-            eprintln!("failed to migrate legacy custom commands: {error}");
-        }
         let static_adapters = static_adapter::load_bundled()?;
         let client = reqwest::Client::builder()
             .user_agent(format!("floter/{}", env!("CARGO_PKG_VERSION")))

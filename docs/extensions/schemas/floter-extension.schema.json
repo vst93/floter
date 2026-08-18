@@ -4,87 +4,219 @@
   "title": "Floter Extension Package Manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "id", "name", "publisher", "compatibility", "runtime", "provider"],
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "publisher",
+    "compatibility",
+    "runtime",
+    "provider"
+  ],
   "properties": {
-    "schemaVersion": { "enum": ["1.0", "2.0"] },
-    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$" },
-    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
-    "description": { "type": "string", "maxLength": 240, "default": "" },
-    "homepage": { "type": "string", "format": "uri" },
-    "icon": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+    "schemaVersion": {
+      "enum": [
+        "1.0",
+        "2.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 240,
+      "default": ""
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "icon": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
     "publisher": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name"],
+      "required": [
+        "id",
+        "name"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
-        "name": { "type": "string", "minLength": 1, "maxLength": 80 }
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
       }
     },
     "compatibility": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["floter", "providerProtocol"],
+      "required": [
+        "floter",
+        "providerProtocol"
+      ],
       "properties": {
-        "floter": { "type": "string", "minLength": 1 },
-        "providerProtocol": { "type": "string", "minLength": 1 }
+        "floter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "providerProtocol": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "distribution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
-        "type": { "enum": ["npm", "local", "built-in"] }
+        "type": {
+          "enum": [
+            "npm",
+            "local",
+            "built-in"
+          ]
+        }
       }
     },
-    "runtime": { "type": "object" },
+    "runtime": {
+      "type": "object"
+    },
     "provider": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["argsPrefix"],
+      "required": [
+        "argsPrefix"
+      ],
       "properties": {
-        "type": { "enum": ["executable", "static-descriptor"] },
-        "descriptor": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
-        "argsPrefix": { "type": "array", "items": { "type": "string" }, "maxItems": 16 },
-        "describeTimeoutMs": { "type": "integer", "minimum": 100, "maximum": 5000, "default": 5000 },
-        "completeTimeoutMs": { "type": "integer", "minimum": 50, "maximum": 3000, "default": 800 },
-        "environment": { "type": "object", "additionalProperties": { "type": "string" } }
+        "type": {
+          "enum": [
+            "executable",
+            "static-descriptor"
+          ]
+        },
+        "descriptor": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "argsPrefix": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16
+        },
+        "describeTimeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 5000,
+          "default": 5000
+        },
+        "completeTimeoutMs": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 3000,
+          "default": 800
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
     "platforms": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["darwin", "linux", "windows"] }
+      "items": {
+        "enum": [
+          "darwin",
+          "linux",
+          "windows"
+        ]
+      }
     },
     "signatures": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "publicKey", "algorithm"],
+      "required": [
+        "url",
+        "publicKey",
+        "algorithm"
+      ],
       "properties": {
-        "url": { "type": "string", "pattern": "^https://" },
-        "publicKey": { "type": "string", "pattern": "^ed25519:[A-Za-z0-9+/]{43}=?$" },
-        "algorithm": { "const": "ed25519" }
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^ed25519:[A-Za-z0-9+/]{43}=?$"
+        },
+        "algorithm": {
+          "const": "ed25519"
+        }
       }
     },
     "platformOverrides": {
       "type": "object",
-      "propertyNames": { "pattern": "^(?:(?:darwin|windows)-(?:arm64|x64|aarch64|x86_64|any)|linux-(?:arm64|x64|any)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$" },
+      "propertyNames": {
+        "pattern": "^(?:(?:darwin|windows)-(?:aarch64|x86_64|any)|linux-any|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$"
+      },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "providerArgsPrefix": { "type": "array", "items": { "type": "string" } },
-          "environment": { "type": "object", "additionalProperties": { "type": "string" } },
-          "minimumOsVersion": { "type": "string" }
+          "providerArgsPrefix": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "environment": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "minimumOsVersion": {
+            "type": "string"
+          }
         }
       }
     },
     "permissions": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "enum": ["filesystem-read", "filesystem-write", "network-fetch", "process-spawn", "clipboard-read", "clipboard-write", "environment"] }
+      "items": {
+        "enum": [
+          "filesystem-read",
+          "filesystem-write",
+          "network-fetch",
+          "process-spawn",
+          "clipboard-read",
+          "clipboard-write",
+          "environment"
+        ]
+      }
     },
     "lifecycle": {
       "type": "object",
@@ -96,17 +228,62 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["shell"],
+            "required": [
+              "shell"
+            ],
             "properties": {
-              "shell": { "enum": ["bash", "zsh", "fish", "powershell"] },
-              "source": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
-              "args": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 16 },
-              "fileName": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
-              "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 10000, "default": 3000 }
+              "shell": {
+                "enum": [
+                  "bash",
+                  "zsh",
+                  "fish",
+                  "powershell"
+                ]
+              },
+              "source": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 16
+              },
+              "fileName": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]{1,128}$"
+              },
+              "timeoutMs": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 10000,
+                "default": 3000
+              }
             },
             "oneOf": [
-              { "required": ["source"], "not": { "required": ["args"] } },
-              { "required": ["args"], "not": { "required": ["source"] } }
+              {
+                "required": [
+                  "source"
+                ],
+                "not": {
+                  "required": [
+                    "args"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "args"
+                ],
+                "not": {
+                  "required": [
+                    "source"
+                  ]
+                }
+              }
             ]
           }
         },
@@ -116,10 +293,19 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["source", "target"],
+            "required": [
+              "source",
+              "target"
+            ],
             "properties": {
-              "source": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
-              "target": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
+              "source": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+              },
+              "target": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+              }
             }
           }
         },
@@ -129,12 +315,35 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "args"],
+            "required": [
+              "id",
+              "args"
+            ],
             "properties": {
-              "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$" },
-              "args": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 32 },
-              "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 30000, "default": 2000 },
-              "required": { "type": "boolean", "default": false }
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9._-]+$"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 32
+              },
+              "timeoutMs": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 30000,
+                "default": 2000
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              }
             }
           }
         },
@@ -144,24 +353,57 @@
           "properties": {
             "cwdPolicy": {
               "oneOf": [
-                { "enum": ["inheritActiveSession", "toolData", "home"] },
+                {
+                  "enum": [
+                    "inheritActiveSession",
+                    "toolData",
+                    "home"
+                  ]
+                },
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["policy"],
+                  "required": [
+                    "policy"
+                  ],
                   "properties": {
-                    "policy": { "const": "projectRoot" },
-                    "markers": { "type": "array", "items": { "type": "string" }, "default": [".git", "Cargo.toml", "go.mod", "package.json"] },
-                    "maxDepth": { "type": "integer", "minimum": 1, "maximum": 256, "default": 32 }
+                    "policy": {
+                      "const": "projectRoot"
+                    },
+                    "markers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": [
+                        ".git",
+                        "Cargo.toml",
+                        "go.mod",
+                        "package.json"
+                      ]
+                    },
+                    "maxDepth": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 256,
+                      "default": 32
+                    }
                   }
                 },
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["policy"],
+                  "required": [
+                    "policy"
+                  ],
                   "properties": {
-                    "policy": { "const": "fixed" },
-                    "path": { "type": "string", "minLength": 1 }
+                    "policy": {
+                      "const": "fixed"
+                    },
+                    "path": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   }
                 }
               ]
@@ -170,16 +412,57 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "required": { "type": "boolean", "default": true },
-                "color": { "enum": ["none", "8", "256", "truecolor"], "default": "truecolor" },
-                "unicode": { "type": "boolean", "default": true },
-                "mouse": { "enum": [null, "x10", "vt200", "sgr", "urxvt"] },
-                "bracketedPaste": { "type": "boolean", "default": false },
-                "synchronizedOutput": { "type": "boolean", "default": false },
-                "keyboardProtocol": { "enum": [null, "kitty-preferred", "kitty-strict"] }
+                "required": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "color": {
+                  "enum": [
+                    "none",
+                    "8",
+                    "256",
+                    "truecolor"
+                  ],
+                  "default": "truecolor"
+                },
+                "unicode": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "mouse": {
+                  "enum": [
+                    null,
+                    "x10",
+                    "vt200",
+                    "sgr",
+                    "urxvt"
+                  ]
+                },
+                "bracketedPaste": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "synchronizedOutput": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "keyboardProtocol": {
+                  "enum": [
+                    null,
+                    "kitty-preferred",
+                    "kitty-strict"
+                  ]
+                }
               }
             },
-            "restorePolicy": { "enum": ["reattach", "restart", "none"], "default": "reattach" }
+            "restorePolicy": {
+              "enum": [
+                "reattach",
+                "restart",
+                "none"
+              ],
+              "default": "reattach"
+            }
           }
         }
       }
@@ -187,52 +470,182 @@
   },
   "allOf": [
     {
-      "if": { "properties": { "schemaVersion": { "const": "1.0" } } },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": "1.0"
+          }
+        }
+      },
       "then": {
         "properties": {
-          "runtime": { "oneOf": [{ "$ref": "#/$defs/managedRuntime" }, { "$ref": "#/$defs/linkedRuntime" }] }
+          "runtime": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/managedRuntime"
+              },
+              {
+                "$ref": "#/$defs/linkedRuntime"
+              }
+            ]
+          }
         }
       },
       "else": {
-        "required": ["distribution"],
+        "required": [
+          "distribution"
+        ],
         "properties": {
-          "runtime": { "oneOf": [{ "$ref": "#/$defs/bundledRuntime" }, { "$ref": "#/$defs/systemRuntime" }, { "$ref": "#/$defs/scriptRuntime" }] },
-          "provider": { "required": ["type", "argsPrefix"] }
+          "runtime": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/bundledRuntime"
+              },
+              {
+                "$ref": "#/$defs/systemRuntime"
+              },
+              {
+                "$ref": "#/$defs/scriptRuntime"
+              }
+            ]
+          },
+          "provider": {
+            "required": [
+              "type",
+              "argsPrefix"
+            ]
+          }
         },
         "oneOf": [
           {
             "properties": {
-              "distribution": { "properties": { "type": { "const": "npm" } } },
-              "runtime": { "properties": { "type": { "const": "bundled" } } },
-              "provider": { "properties": { "type": { "const": "executable" } } }
+              "distribution": {
+                "properties": {
+                  "type": {
+                    "const": "npm"
+                  }
+                }
+              },
+              "runtime": {
+                "properties": {
+                  "type": {
+                    "const": "bundled"
+                  }
+                }
+              },
+              "provider": {
+                "properties": {
+                  "type": {
+                    "const": "executable"
+                  }
+                }
+              }
             }
           },
           {
             "properties": {
-              "distribution": { "properties": { "type": { "const": "npm" } } },
-              "runtime": { "properties": { "type": { "const": "system" } } },
-              "provider": { "properties": { "type": { "const": "executable" } } }
+              "distribution": {
+                "properties": {
+                  "type": {
+                    "const": "npm"
+                  }
+                }
+              },
+              "runtime": {
+                "properties": {
+                  "type": {
+                    "const": "system"
+                  }
+                }
+              },
+              "provider": {
+                "properties": {
+                  "type": {
+                    "const": "executable"
+                  }
+                }
+              }
             }
           },
           {
             "properties": {
-              "distribution": { "properties": { "type": { "const": "local" } } },
-              "runtime": { "properties": { "type": { "const": "system" } } },
-              "provider": { "properties": { "type": { "enum": ["executable", "static-descriptor"] } } }
+              "distribution": {
+                "properties": {
+                  "type": {
+                    "const": "local"
+                  }
+                }
+              },
+              "runtime": {
+                "properties": {
+                  "type": {
+                    "const": "system"
+                  }
+                }
+              },
+              "provider": {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "executable",
+                      "static-descriptor"
+                    ]
+                  }
+                }
+              }
             }
           },
           {
             "properties": {
-              "distribution": { "properties": { "type": { "const": "local" } } },
-              "runtime": { "properties": { "type": { "const": "script" } } },
-              "provider": { "properties": { "type": { "enum": ["executable", "static-descriptor"] } } }
+              "distribution": {
+                "properties": {
+                  "type": {
+                    "const": "local"
+                  }
+                }
+              },
+              "runtime": {
+                "properties": {
+                  "type": {
+                    "const": "script"
+                  }
+                }
+              },
+              "provider": {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "executable",
+                      "static-descriptor"
+                    ]
+                  }
+                }
+              }
             }
           },
           {
             "properties": {
-              "distribution": { "properties": { "type": { "const": "built-in" } } },
-              "runtime": { "properties": { "type": { "const": "system" } } },
-              "provider": { "properties": { "type": { "const": "static-descriptor" } } }
+              "distribution": {
+                "properties": {
+                  "type": {
+                    "const": "built-in"
+                  }
+                }
+              },
+              "runtime": {
+                "properties": {
+                  "type": {
+                    "const": "system"
+                  }
+                }
+              },
+              "provider": {
+                "properties": {
+                  "type": {
+                    "const": "static-descriptor"
+                  }
+                }
+              }
             }
           }
         ]
@@ -243,60 +656,142 @@
     "managedRuntime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "platformPackages", "executable"],
+      "required": [
+        "type",
+        "platformPackages",
+        "executable"
+      ],
       "properties": {
-        "type": { "const": "managed" },
+        "type": {
+          "const": "managed"
+        },
         "platformPackages": {
           "type": "object",
-          "propertyNames": { "pattern": "^(?:(?:darwin|windows)-(?:arm64|x64|aarch64|x86_64)|linux-(?:arm64|x64)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$" },
-          "additionalProperties": { "type": "string", "pattern": "^(?:@[^/]+/)?[^@/]+$" }
+          "propertyNames": {
+            "pattern": "^(?:(?:darwin|windows)-(?:aarch64|x86_64)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^(?:@[^/]+/)?[^@/]+$"
+          }
         },
-        "executable": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
+        "executable": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        }
       }
     },
     "linkedRuntime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "executableNames"],
+      "required": [
+        "type",
+        "executableNames"
+      ],
       "properties": {
-        "type": { "const": "linked" },
-        "executableNames": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[^/\\\\]+$" } },
-        "versionArgs": { "type": "array", "items": { "type": "string" } }
+        "type": {
+          "const": "linked"
+        },
+        "executableNames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[^/\\\\]+$"
+          }
+        },
+        "versionArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "bundledRuntime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "platformPackages", "executable"],
+      "required": [
+        "type",
+        "platformPackages",
+        "executable"
+      ],
       "properties": {
-        "type": { "const": "bundled" },
+        "type": {
+          "const": "bundled"
+        },
         "platformPackages": {
           "type": "object",
-          "propertyNames": { "pattern": "^(?:(?:darwin|windows)-(?:arm64|x64|aarch64|x86_64)|linux-(?:arm64|x64)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$" },
-          "additionalProperties": { "type": "string", "pattern": "^(?:@[^/]+/)?[^@/]+$" }
+          "propertyNames": {
+            "pattern": "^(?:(?:darwin|windows)-(?:aarch64|x86_64)|linux-(?:aarch64|x86_64)-(?:gnu|musl|unknown)|linux-armv7-(?:gnu|musl|unknown)-(?:eabi|eabihf|unknown))$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^(?:@[^/]+/)?[^@/]+$"
+          }
         },
-        "executable": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" }
+        "executable": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        }
       }
     },
     "systemRuntime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "executableNames"],
+      "required": [
+        "type",
+        "executableNames"
+      ],
       "properties": {
-        "type": { "const": "system" },
-        "executableNames": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[^/\\\\]+$" } },
-        "versionArgs": { "type": "array", "items": { "type": "string" } }
+        "type": {
+          "const": "system"
+        },
+        "executableNames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[^/\\\\]+$"
+          }
+        },
+        "versionArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "scriptRuntime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "language", "path"],
+      "required": [
+        "type",
+        "language",
+        "path"
+      ],
       "properties": {
-        "type": { "const": "script" },
-        "language": { "enum": ["js", "shell", "powershell"] },
-        "path": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
-        "versionArgs": { "type": "array", "items": { "type": "string" } }
+        "type": {
+          "const": "script"
+        },
+        "language": {
+          "enum": [
+            "js",
+            "shell",
+            "powershell"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "versionArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     }
   }

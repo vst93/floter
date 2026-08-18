@@ -203,10 +203,9 @@ impl ExtensionManifest {
     }
 
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        let mut value: Value = serde_json::from_slice(bytes)
+        let value: Value = serde_json::from_slice(bytes)
             .map_err(|error| format!("Invalid extension manifest JSON: {error}"))?;
         validate_schema(&value)?;
-        normalize_v1_manifest(&mut value)?;
         let manifest: Self = serde_json::from_value(value)
             .map_err(|error| format!("Invalid extension manifest: {error}"))?;
         manifest.validate_paths()?;
@@ -345,43 +344,6 @@ impl ExtensionManifest {
         }
         Ok(())
     }
-}
-
-fn normalize_v1_manifest(value: &mut Value) -> Result<(), String> {
-    if value.get("schemaVersion").and_then(Value::as_str) != Some("1.0") {
-        return Ok(());
-    }
-    let object = value
-        .as_object_mut()
-        .ok_or_else(|| "Extension manifest must be an object".to_string())?;
-    let runtime = object
-        .get_mut("runtime")
-        .and_then(Value::as_object_mut)
-        .ok_or_else(|| "Extension manifest runtime must be an object".to_string())?;
-    let legacy_runtime = runtime
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "Extension manifest runtime.type is required".to_string())?;
-    let (distribution, runtime_type) = match legacy_runtime {
-        "managed" => ("npm", "bundled"),
-        "linked" => ("local", "system"),
-        other => return Err(format!("Unsupported v1 runtime type: {other}")),
-    };
-    runtime.insert("type".to_string(), Value::String(runtime_type.to_string()));
-    let provider = object
-        .get_mut("provider")
-        .and_then(Value::as_object_mut)
-        .ok_or_else(|| "Extension manifest provider must be an object".to_string())?;
-    provider.insert("type".to_string(), Value::String("executable".to_string()));
-    object.insert(
-        "schemaVersion".to_string(),
-        Value::String("2.0".to_string()),
-    );
-    object.insert(
-        "distribution".to_string(),
-        serde_json::json!({ "type": distribution }),
-    );
-    Ok(())
 }
 
 pub fn validate_relative_path(value: &str, field: &str) -> Result<PathBuf, String> {
@@ -561,7 +523,7 @@ mod tests {
     }
 
     #[test]
-    fn exact_linux_libc_package_precedes_the_legacy_package() {
+    fn exact_libc_package_precedes_the_broader_platform_package() {
         let mut value: Value = serde_json::from_slice(include_bytes!(
             "../../../docs/extensions/examples/v/floter.extension.json"
         ))
@@ -628,7 +590,7 @@ mod tests {
         ))
         .unwrap();
         manifest.platform_overrides.insert(
-            "linux-x64".into(),
+            "linux-x86_64-gnu".into(),
             PlatformOverride {
                 provider_args_prefix: Some(vec!["exact".into()]),
                 ..Default::default()

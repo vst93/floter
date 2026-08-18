@@ -46,14 +46,6 @@ impl PlatformArch {
             Self::Armv7 => "armv7",
         }
     }
-
-    fn legacy_name(self) -> &'static str {
-        match self {
-            Self::Arm64 => "arm64",
-            Self::X64 => "x64",
-            Self::Armv7 => "armv7",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -147,31 +139,12 @@ impl PlatformTarget {
         identifier
     }
 
-    pub fn legacy_identifier(&self) -> String {
-        format!("{}-{}", self.os.as_str(), self.arch.legacy_name())
-    }
-
     pub fn package_identifiers(&self) -> Vec<String> {
-        let exact = self.identifier();
-        if self.os == PlatformOs::Linux
-            && self.libc.unwrap_or(PlatformLibc::Unknown) == PlatformLibc::Unknown
-        {
-            return vec![exact];
-        }
-        let legacy = self.legacy_identifier();
-        if exact == legacy {
-            vec![exact]
-        } else {
-            vec![exact, legacy]
-        }
+        vec![self.identifier()]
     }
 
     pub fn override_identifiers(&self) -> Vec<String> {
-        vec![
-            self.legacy_identifier(),
-            self.identifier(),
-            self.os_identifier(),
-        ]
+        vec![self.identifier(), self.os_identifier()]
     }
 
     pub fn os_identifier(&self) -> String {
@@ -348,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn builds_exact_and_legacy_linux_identifiers() {
+    fn builds_exact_linux_identifiers() {
         let target = PlatformTarget {
             os: PlatformOs::Linux,
             arch: PlatformArch::X64,
@@ -356,10 +329,7 @@ mod tests {
             abi: None,
         };
         assert_eq!(target.identifier(), "linux-x86_64-musl");
-        assert_eq!(
-            target.package_identifiers(),
-            ["linux-x86_64-musl", "linux-x64"]
-        );
+        assert_eq!(target.package_identifiers(), ["linux-x86_64-musl"]);
 
         let arm = PlatformTarget {
             os: PlatformOs::Linux,

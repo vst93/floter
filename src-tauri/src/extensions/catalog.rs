@@ -817,63 +817,6 @@ fn is_executable(path: &Path) -> bool {
     }
 }
 
-pub fn migrate_legacy_commands(paths: &ExtensionPaths) -> Result<usize, String> {
-    let source = paths.root.join("commands.json");
-    let target = paths.root.join("local-commands.json");
-    if !source.exists() || target.exists() {
-        return Ok(0);
-    }
-    #[derive(Deserialize)]
-    struct LegacyCommand {
-        id: String,
-        name: String,
-        command: String,
-    }
-    let legacy: Vec<LegacyCommand> = serde_json::from_slice(
-        &std::fs::read(&source).map_err(|error| format!("Cannot read legacy commands: {error}"))?,
-    )
-    .map_err(|error| format!("Invalid legacy commands: {error}"))?;
-    let mut migrated = Vec::new();
-    for command in legacy {
-        if command
-            .command
-            .chars()
-            .any(|character| "|&;<>()$`\n\r\"'".contains(character))
-        {
-            continue;
-        }
-        let mut words = command.command.split_whitespace();
-        let Some(program) = words.next() else {
-            continue;
-        };
-        migrated.push(LocalCommand {
-            id: command.id,
-            command: command.name.to_ascii_lowercase().replace(' ', "-"),
-            name: command.name,
-            description: "Migrated from commands.json".into(),
-            aliases: Vec::new(),
-            program: program.into(),
-            args_prefix: words.map(String::from).collect(),
-            mode: ExecutionMode::Pty,
-            environment: BTreeMap::new(),
-        });
-    }
-    let bytes = serde_json::to_vec_pretty(&migrated)
-        .map_err(|error| format!("Cannot serialize migrated commands: {error}"))?;
-    let mut temporary = tempfile::NamedTempFile::new_in(&paths.root)
-        .map_err(|error| format!("Cannot create migration file: {error}"))?;
-    use std::io::Write;
-    temporary
-        .write_all(&bytes)
-        .and_then(|_| temporary.flush())
-        .and_then(|_| temporary.as_file().sync_all())
-        .map_err(|error| format!("Cannot write migrated commands: {error}"))?;
-    temporary
-        .persist(&target)
-        .map_err(|error| format!("Cannot persist {}: {error}", target.display()))?;
-    Ok(migrated.len())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -18,12 +18,12 @@
   "runtime": {
     "type": "bundled",
     "platformPackages": {
-      "darwin-arm64": "@vst93/floter-v-darwin-arm64",
-      "darwin-x64": "@vst93/floter-v-darwin-x64",
-      "linux-arm64": "@vst93/floter-v-linux-arm64",
-      "linux-x64": "@vst93/floter-v-linux-x64",
-      "windows-arm64": "@vst93/floter-v-windows-arm64",
-      "windows-x64": "@vst93/floter-v-windows-x64"
+      "darwin-aarch64": "@vst93/floter-v-darwin-arm64",
+      "darwin-x86_64": "@vst93/floter-v-darwin-x64",
+      "linux-aarch64-gnu": "@vst93/floter-v-linux-arm64",
+      "linux-x86_64-gnu": "@vst93/floter-v-linux-x64",
+      "windows-aarch64": "@vst93/floter-v-windows-arm64",
+      "windows-x86_64": "@vst93/floter-v-windows-x64"
     },
     "executable": "bin/v"
   },

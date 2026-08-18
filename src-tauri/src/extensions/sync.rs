@@ -64,8 +64,6 @@ pub struct ExtensionsSyncDocument {
     pub version: u32,
     pub exported_at: String,
     pub extensions: Vec<ExtensionsSyncEntry>,
-    #[serde(skip)]
-    legacy_version_semantics: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,7 +134,6 @@ pub fn build_export(
         version: SYNC_FORMAT_VERSION,
         exported_at: now.to_rfc3339_opts(SecondsFormat::Secs, true),
         extensions,
-        legacy_version_semantics: false,
     })
 }
 
@@ -244,49 +241,10 @@ pub fn read_import(path: &Path) -> Result<ExtensionsSyncDocument, String> {
 }
 
 fn parse_import(bytes: &[u8]) -> Result<ExtensionsSyncDocument, String> {
-    let mut value: Value = serde_json::from_slice(bytes)
-        .map_err(|error| format!("Invalid extension import JSON: {error}"))?;
-    let legacy_version_semantics = value.get("version").and_then(Value::as_u64) == Some(1);
-    migrate_v1_import(&mut value)?;
-    let mut document: ExtensionsSyncDocument = serde_json::from_value(value)
+    let document: ExtensionsSyncDocument = serde_json::from_slice(bytes)
         .map_err(|error| format!("Invalid extension import: {error}"))?;
-    document.legacy_version_semantics = legacy_version_semantics;
     validate_import(&document)?;
     Ok(document)
-}
-
-fn migrate_v1_import(value: &mut Value) -> Result<(), String> {
-    if value.get("version").and_then(Value::as_u64) != Some(1) {
-        return Ok(());
-    }
-    let extensions = value
-        .get_mut("extensions")
-        .and_then(Value::as_array_mut)
-        .ok_or_else(|| "Extension import extensions must be an array".to_string())?;
-    for entry in extensions {
-        let object = entry
-            .as_object_mut()
-            .ok_or_else(|| "Extension import entry must be an object".to_string())?;
-        let source = object
-            .remove("source")
-            .and_then(|value| value.as_str().map(str::to_string))
-            .ok_or_else(|| "Extension import entry has no source".to_string())?;
-        let (distribution, runtime) = match source.as_str() {
-            "managed" => ("npm", "bundled"),
-            "linked" => ("local", "system"),
-            other => return Err(format!("Unsupported legacy sync source: {other}")),
-        };
-        object.insert(
-            "distributionSource".to_string(),
-            Value::String(distribution.to_string()),
-        );
-        object.insert(
-            "runtimeOwnership".to_string(),
-            Value::String(runtime.to_string()),
-        );
-    }
-    value["version"] = Value::from(SYNC_FORMAT_VERSION);
-    Ok(())
 }
 
 fn validate_import(document: &ExtensionsSyncDocument) -> Result<(), String> {
@@ -365,7 +323,6 @@ pub async fn import_document(
         skipped: Vec::new(),
     };
     let _guard = state.mutation_lock.lock().await;
-    let legacy_version_semantics = document.legacy_version_semantics;
     let installed = match ExtensionsLock::load(&state.paths.lock_file) {
         Ok(lock) => lock,
         Err(message) => {
@@ -386,11 +343,7 @@ pub async fn import_document(
         {
             entry.distribution_source = ExtensionDistributionSource::BuiltIn;
         }
-        match reconcile_action(
-            installed.extensions.get(&entry.id),
-            &entry,
-            legacy_version_semantics,
-        ) {
+        match reconcile_action(installed.extensions.get(&entry.id), &entry) {
             Ok(action) => plan.push((entry, action)),
             Err(message) => report.failed.push(ExtensionsImportItem {
                 id: entry.id,
@@ -591,7 +544,6 @@ impl PreparedArtifact {
 fn reconcile_action(
     installed: Option<&ExtensionLockEntry>,
     desired: &ExtensionsSyncEntry,
-    legacy_version_semantics: bool,
 ) -> Result<ReconcileAction, String> {
     let Some(installed) = installed else {
         return Ok(ReconcileAction::Install);
@@ -604,10 +556,7 @@ fn reconcile_action(
             desired.id
         ));
     }
-    if installed_version(installed) == desired.version
-        || (legacy_version_semantics
-            && desired.distribution_source != ExtensionDistributionSource::Npm)
-    {
+    if installed_version(installed) == desired.version {
         return Ok(ReconcileAction::Ready);
     }
     match desired.distribution_source {
@@ -1070,7 +1019,6 @@ mod tests {
             version: SYNC_FORMAT_VERSION,
             exported_at: "2026-08-13T00:00:00Z".into(),
             extensions: entries,
-            legacy_version_semantics: false,
         }
     }
 
@@ -1315,7 +1263,6 @@ mod tests {
                 ExtensionRuntimeOwnership::Bundled,
                 "1.2.3",
             )],
-            legacy_version_semantics: false,
         };
 
         let value = serde_json::to_value(document).unwrap();
@@ -1344,55 +1291,6 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v1_exports() {
-        let legacy = br#"{
-          "version": 1,
-          "exportedAt": "2026-08-10T12:00:00Z",
-          "extensions": [{
-            "id": "example.tools",
-            "version": "1.2.3",
-            "enabled": true,
-            "config": {},
-            "source": "managed",
-            "package": "@example/floter-tools"
-          }]
-        }"#;
-        let document = parse_import(legacy).unwrap();
-        let entry = &document.extensions[0];
-
-        assert_eq!(document.version, 2);
-        assert_eq!(entry.distribution_source, ExtensionDistributionSource::Npm);
-        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::Bundled);
-    }
-
-    #[test]
-    fn legacy_local_exports_keep_their_tool_version_semantics() {
-        let legacy = br#"{
-          "version": 1,
-          "exportedAt": "2026-08-10T12:00:00Z",
-          "extensions": [{
-            "id": "example.tools",
-            "version": "9.8.7",
-            "enabled": true,
-            "config": {},
-            "source": "linked"
-          }]
-        }"#;
-        let document = parse_import(legacy).unwrap();
-        let installed = lock_entry(
-            ExtensionDistributionSource::Local,
-            ExtensionRuntimeOwnership::System,
-            "1.2.3",
-        );
-
-        assert!(document.legacy_version_semantics);
-        assert_eq!(
-            reconcile_action(Some(&installed), &document.extensions[0], true).unwrap(),
-            ReconcileAction::Ready
-        );
-    }
-
-    #[test]
     fn rejects_imports_with_too_many_extensions() {
         let document = ExtensionsSyncDocument {
             version: SYNC_FORMAT_VERSION,
@@ -1411,7 +1309,6 @@ mod tests {
                     provider_descriptor: None,
                 })
                 .collect(),
-            legacy_version_semantics: false,
         };
 
         assert!(validate_import(&document)
@@ -1433,7 +1330,7 @@ mod tests {
         );
 
         assert_eq!(
-            reconcile_action(Some(&installed), &desired, false).unwrap(),
+            reconcile_action(Some(&installed), &desired).unwrap(),
             ReconcileAction::Ready
         );
     }
@@ -1451,13 +1348,13 @@ mod tests {
             "1.5.0",
         );
         assert_eq!(
-            reconcile_action(Some(&installed), &desired, false).unwrap(),
+            reconcile_action(Some(&installed), &desired).unwrap(),
             ReconcileAction::Update
         );
 
         installed.previous_version = Some("1.5.0".into());
         assert_eq!(
-            reconcile_action(Some(&installed), &desired, false).unwrap(),
+            reconcile_action(Some(&installed), &desired).unwrap(),
             ReconcileAction::Rollback
         );
     }
@@ -1475,7 +1372,7 @@ mod tests {
             "1.5.0",
         );
 
-        assert!(reconcile_action(Some(&installed), &desired, false)
+        assert!(reconcile_action(Some(&installed), &desired)
             .unwrap_err()
             .contains("Local integration"));
     }
