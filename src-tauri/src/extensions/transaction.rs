@@ -26,14 +26,14 @@ pub const TRANSACTION_JOURNAL_SCHEMA_VERSION: u32 = 2;
 /// Number of installed versions kept on disk besides the current one: the
 /// current version plus one previous version survive an update, so rollback
 /// only switches the pointer and never needs to re-download.
-
 /// Stage of an installation transaction. Older journals (schema v1) did not
 /// carry a stage; they are treated as [`TransactionState::Resolved`] and the
 /// pre-existing `lock_committed` flag decides their recovery branch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionState {
     /// Version selection finished; nothing has been downloaded yet.
+    #[default]
     Resolved,
     /// Tarball download in progress (resumable via `download.rs` `.part`).
     Downloading,
@@ -61,12 +61,6 @@ impl TransactionState {
                 | (Staged, Activated)
                 | (Activated, Cleaned)
         )
-    }
-}
-
-impl Default for TransactionState {
-    fn default() -> Self {
-        Self::Resolved
     }
 }
 
@@ -223,7 +217,8 @@ fn retain_versions(state: &ExtensionState, entry: &ExtensionLockEntry) -> Result
     for item in std::fs::read_dir(&versions)
         .map_err(|error| format!("Cannot scan retained extension versions: {error}"))?
     {
-        let item = item.map_err(|error| format!("Cannot scan retained extension versions: {error}"))?;
+        let item =
+            item.map_err(|error| format!("Cannot scan retained extension versions: {error}"))?;
         if !item
             .file_type()
             .map_err(|error| format!("Cannot inspect retained extension version: {error}"))?
@@ -236,7 +231,10 @@ fn retain_versions(state: &ExtensionState, entry: &ExtensionLockEntry) -> Result
             continue;
         }
         std::fs::remove_dir_all(item.path()).map_err(|error| {
-            format!("Cannot remove retained extension version {}: {error}", item.path().display())
+            format!(
+                "Cannot remove retained extension version {}: {error}",
+                item.path().display()
+            )
         })?;
         removed = true;
     }
@@ -383,14 +381,18 @@ fn remove_orphaned_staging(state: &ExtensionState) -> Result<(), String> {
     for item in std::fs::read_dir(&staging_root)
         .map_err(|error| format!("Cannot scan extension staging directory: {error}"))?
     {
-        let item = item.map_err(|error| format!("Cannot scan extension staging directory: {error}"))?;
+        let item =
+            item.map_err(|error| format!("Cannot scan extension staging directory: {error}"))?;
         if item
             .file_type()
             .map_err(|error| format!("Cannot inspect extension staging entry: {error}"))?
             .is_dir()
         {
             std::fs::remove_dir_all(item.path()).map_err(|error| {
-                format!("Cannot remove orphaned staging {}: {error}", item.path().display())
+                format!(
+                    "Cannot remove orphaned staging {}: {error}",
+                    item.path().display()
+                )
             })?;
             removed = true;
         }
@@ -537,7 +539,11 @@ mod tests {
     }
 
     fn journal_entry(root: &Path, version: &str, id: &str) -> ExtensionLockEntry {
-        let root = root.join("extensions").join(id).join("versions").join(version);
+        let root = root
+            .join("extensions")
+            .join(id)
+            .join("versions")
+            .join(version);
         ExtensionLockEntry {
             id: id.into(),
             name: "Example Journal".into(),
@@ -559,7 +565,10 @@ mod tests {
             previous_official_verified: None,
             current_version: version.into(),
             previous_version: None,
-            manifest_path: root.join("floter.extension.json").to_string_lossy().into_owned(),
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
             executable_path: root.join("runtime/tool").to_string_lossy().into_owned(),
             runtime_root: Some(root.join("runtime").to_string_lossy().into_owned()),
             installed_at: 1,
@@ -597,7 +606,12 @@ mod tests {
                     .join(".staging/install-1/version"),
             ),
             target_version: Some(
-                state.paths.extensions.join(id).join("versions").join(new_version),
+                state
+                    .paths
+                    .extensions
+                    .join(id)
+                    .join("versions")
+                    .join(new_version),
             ),
             backup_version: Some(
                 state
@@ -634,21 +648,15 @@ mod tests {
         let mut journal = begin(&state, "example.journal", None).unwrap();
         progress(&state, &mut journal, TransactionState::Downloading).unwrap();
         let on_disk: InstallationJournal = serde_json::from_slice(
-            &std::fs::read(
-                journal_dir(&state)
-                    .join(format!("{}.json", journal.transaction_id)),
-            )
-            .unwrap(),
+            &std::fs::read(journal_dir(&state).join(format!("{}.json", journal.transaction_id)))
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(on_disk.state, TransactionState::Downloading);
         assert!(progress(&state, &mut journal, TransactionState::Staged).is_err());
         let on_disk: InstallationJournal = serde_json::from_slice(
-            &std::fs::read(
-                journal_dir(&state)
-                    .join(format!("{}.json", journal.transaction_id)),
-            )
-            .unwrap(),
+            &std::fs::read(journal_dir(&state).join(format!("{}.json", journal.transaction_id)))
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(on_disk.state, TransactionState::Downloading);
@@ -746,10 +754,8 @@ mod tests {
         std::fs::create_dir_all(&target).unwrap();
         std::fs::create_dir_all(&backup).unwrap();
         let mut lock = ExtensionsLock::default();
-        lock.extensions.insert(
-            journal.new_entry.id.clone(),
-            journal.new_entry.clone(),
-        );
+        lock.extensions
+            .insert(journal.new_entry.id.clone(), journal.new_entry.clone());
         lock.save(&state.paths.lock_file).unwrap();
         write_journal(&state, &journal).unwrap();
 
@@ -820,7 +826,11 @@ mod tests {
         let state = test_state(directory.path());
         let mut entry = journal_entry(state.paths.root.as_path(), "2.0.0", "example.retain");
         entry.previous_version = Some("1.5.0".into());
-        let versions = state.paths.extensions.join("example.retain").join("versions");
+        let versions = state
+            .paths
+            .extensions
+            .join("example.retain")
+            .join("versions");
         for version in ["1.0.0", "1.5.0", "1.9.0", "2.0.0", "0.9.0"] {
             std::fs::create_dir_all(versions.join(version)).unwrap();
         }

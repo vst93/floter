@@ -253,7 +253,7 @@ fn extract_bundle(path: &Path, destination: &Path) -> Result<BundleManifest, Str
         .entries()
         .map_err(|error| format!("Invalid source bundle archive: {error}"))?;
     for (index, entry) in entries.enumerate() {
-        if index >= MAX_ENTRIES + 1 {
+        if index > MAX_ENTRIES {
             return Err(format!(
                 "Source bundle contains more than {MAX_ENTRIES} files"
             ));

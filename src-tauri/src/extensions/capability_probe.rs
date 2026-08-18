@@ -203,7 +203,13 @@ impl CapabilityReport {
         let version = results
             .iter()
             .find(|result| result.probe.id == VERSION_PROBE_ID && result.passed)
-            .and_then(|result| result.stdout.lines().map(str::trim).find(|line| !line.is_empty()))
+            .and_then(|result| {
+                result
+                    .stdout
+                    .lines()
+                    .map(str::trim)
+                    .find(|line| !line.is_empty())
+            })
             .unwrap_or(UNKNOWN_VERSION)
             .to_string();
 
@@ -333,7 +339,10 @@ exit /b 1
 
     #[tokio::test]
     async fn version_probe_reports_tool_version() {
-        let result = CapabilityProbe::version().probe(&fixture_script()).await.unwrap();
+        let result = CapabilityProbe::version()
+            .probe(&fixture_script())
+            .await
+            .unwrap();
         assert!(result.passed, "{:?}", result.reason);
         assert_eq!(result.exit_code, Some(0));
         assert!(result.stdout.contains("floter-tool 1.2.3"));
@@ -341,7 +350,10 @@ exit /b 1
 
     #[tokio::test]
     async fn help_probe_detects_usage_text() {
-        let result = CapabilityProbe::help().probe(&fixture_script()).await.unwrap();
+        let result = CapabilityProbe::help()
+            .probe(&fixture_script())
+            .await
+            .unwrap();
         assert!(result.passed, "{:?}", result.reason);
         assert!(result.stdout.contains("Usage"));
     }
@@ -382,21 +394,26 @@ exit /b 1
             .await
             .unwrap();
         assert!(!result.passed);
-        assert!(result.stderr.contains("unknown flag"), "{:?}", result.stderr);
+        assert!(
+            result.stderr.contains("unknown flag"),
+            "{:?}",
+            result.stderr
+        );
     }
 
     #[tokio::test]
     async fn probe_errors_when_executable_is_missing() {
-        let missing = std::env::temp_dir().join(format!(
-            "floter-no-such-tool-{}",
-            std::process::id()
-        ));
+        let missing =
+            std::env::temp_dir().join(format!("floter-no-such-tool-{}", std::process::id()));
         assert!(CapabilityProbe::version().probe(&missing).await.is_err());
     }
 
     #[tokio::test]
     async fn default_scan_checks_version_and_help() {
-        let report = CapabilityScanner::new(fixture_script()).scan().await.unwrap();
+        let report = CapabilityScanner::new(fixture_script())
+            .scan()
+            .await
+            .unwrap();
         assert_eq!(report.version, "floter-tool 1.2.3");
         assert_eq!(
             report.supported_features,

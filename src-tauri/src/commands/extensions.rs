@@ -3,15 +3,16 @@ use crate::extensions::catalog::{
     self, CatalogCompletionResponse, CatalogEntry, CatalogSearchRequest, CompletionRequest,
 };
 use crate::extensions::config::{self, ExtensionConfiguration};
+use crate::extensions::health::HealthReport;
 use crate::extensions::install::{
     self, CustomIntegrationDefinition, CustomIntegrationRequest, ExtensionInstallRequest,
-    ExtensionPermissionReview, ExtensionSearchResult, PathExecutable,
+    ExtensionPermissionReview, ExtensionSearchResult,
 };
+use crate::extensions::inventory::ToolCandidate;
 use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
-use crate::extensions::health::HealthReport;
 use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget};
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
 use crate::extensions::source_bundle::{self, SourceBundleExportRequest, SourceBundleExportResult};
@@ -24,7 +25,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[tauri::command]
@@ -422,8 +423,31 @@ pub async fn extensions_custom_update(
 }
 
 #[tauri::command]
-pub fn extensions_search_path(query: String, limit: Option<usize>) -> Vec<PathExecutable> {
-    install::search_path_executables(&query, limit.unwrap_or(12))
+pub async fn extensions_search_tools(
+    app: AppHandle,
+    query: String,
+    limit: Option<usize>,
+    force_refresh: Option<bool>,
+    executable_only: Option<bool>,
+) -> Result<Vec<ToolCandidate>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<ExtensionState>();
+        let mut inventory = state
+            .tool_inventory
+            .lock()
+            .map_err(|_| "Tool inventory is unavailable".to_string())?;
+        if force_refresh.unwrap_or(false) {
+            inventory.refresh();
+        }
+        let mut candidates = inventory.search(&query);
+        if executable_only.unwrap_or(false) {
+            candidates.retain(|candidate| candidate.locator.executable_path().is_some());
+        }
+        candidates.truncate(limit.unwrap_or(12).clamp(1, 50));
+        Ok(candidates)
+    })
+    .await
+    .map_err(|error| format!("Tool discovery task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -913,15 +937,18 @@ pub async fn extensions_reprobe(
     // Get the tool's executable path
     let executable = std::path::PathBuf::from(&entry.executable_path);
     if !executable.exists() {
-        return Err(format!("Tool executable not found: {}", executable.display()));
+        return Err(format!(
+            "Tool executable not found: {}",
+            executable.display()
+        ));
     }
 
     // Build default probes: --version and --help
     let version_probe = CapabilityProbe::version();
     let help_probe = CapabilityProbe::help();
 
-    let probes = vec![version_probe, help_probe];
-    let required = vec![true, false]; // version required, help optional
+    let probes = [version_probe, help_probe];
+    let required = [true, false]; // version required, help optional
 
     let health_dir = state.paths.data.join(&id);
     let mut report = HealthReport::new(Default::default());
@@ -930,13 +957,21 @@ pub async fn extensions_reprobe(
         let start = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(5);
 
-        match crate::extensions::probe_runner::run_single_probe(&executable, &probe.args, timeout).await {
+        match crate::extensions::probe_runner::run_single_probe(&executable, &probe.args, timeout)
+            .await
+        {
             Ok(result) => {
                 let duration = start.elapsed();
                 if result.passed {
                     report.record_pass(&probe.id, duration, result.exit_code);
                 } else {
-                    report.record_failure(&probe.id, duration, result.exit_code, result.stderr, !required[i]);
+                    report.record_failure(
+                        &probe.id,
+                        duration,
+                        result.exit_code,
+                        result.stderr,
+                        !required[i],
+                    );
                 }
             }
             Err(error) => {
@@ -946,7 +981,9 @@ pub async fn extensions_reprobe(
         }
     }
 
-    let required_ids: Vec<String> = required.iter().enumerate()
+    let required_ids: Vec<String> = required
+        .iter()
+        .enumerate()
         .filter(|(_, r)| **r)
         .map(|(i, _)| probes[i].id.clone())
         .collect();
@@ -966,7 +1003,9 @@ pub async fn extensions_launch(
     cwd: Option<String>,
 ) -> Result<serde_json::Value, String> {
     use crate::extensions::cwd_policy::CwdContext;
-    use crate::extensions::session_restore::{ResolvedSession, RestorePolicy, SessionResolver};
+    use crate::extensions::session_restore::{
+        ResolvedSession, RestorePolicy, SessionResolveRequest, SessionResolver,
+    };
 
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
@@ -991,15 +1030,15 @@ pub async fn extensions_launch(
     let restore_policy = RestorePolicy::Reattach;
 
     let tool_version = entry.package_version.clone();
-    let session = session_resolver.resolve(
-        &id,
-        &tool_version,
-        argv.clone(),
-        resolved_cwd.clone(),
-        vec!["profile:default".to_string()],
-        None,
+    let session = session_resolver.resolve(SessionResolveRequest {
+        tool_id: id.clone(),
+        tool_version: tool_version.clone(),
+        argv: argv.clone(),
+        cwd: resolved_cwd.clone(),
+        environment_refs: vec!["profile:default".to_string()],
+        terminal_profile: None,
         restore_policy,
-    )?;
+    })?;
 
     let (session_id, is_restart) = match &session {
         ResolvedSession::Reattach(s) => (s.session_id.clone(), false),

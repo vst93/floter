@@ -1,5 +1,5 @@
 mod commands;
-mod extensions;
+pub mod extensions;
 #[cfg(target_os = "linux")]
 pub mod ipc;
 #[cfg(target_os = "linux")]
@@ -16,11 +16,6 @@ use commands::config::{
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
-#[allow(deprecated)]
-use commands::custom::{
-    add_custom_command, delete_custom_command, execute_custom_command, get_custom_commands,
-    update_custom_command, CommandState,
-};
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_bundled_permissions, extensions_config_copy,
     extensions_config_export, extensions_config_get, extensions_config_set,
@@ -28,11 +23,11 @@ use commands::extensions::{
     extensions_custom_get, extensions_custom_update, extensions_describe, extensions_diagnose,
     extensions_disable, extensions_enable, extensions_export, extensions_export_source_bundle,
     extensions_health, extensions_import, extensions_infer_source, extensions_install,
-    extensions_launch, extensions_list, extensions_refresh_official_status,
-    extensions_local_manifest_review, extensions_permissions_summary,
-    extensions_pick_local_manifest, extensions_pick_local_package, extensions_reconnect_system,
-    extensions_reinstall, extensions_reprobe, extensions_resolve_source, extensions_rollback, extensions_search,
-    extensions_search_path, extensions_uninstall, extensions_update,
+    extensions_launch, extensions_list, extensions_local_manifest_review,
+    extensions_permissions_summary, extensions_pick_local_manifest, extensions_pick_local_package,
+    extensions_reconnect_system, extensions_refresh_official_status, extensions_reinstall,
+    extensions_reprobe, extensions_resolve_source, extensions_rollback, extensions_search,
+    extensions_search_tools, extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1022,7 +1017,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(ApplicationState::new())
         .manage(TerminalState(Arc::new(Mutex::new(TerminalManager::new()))))
-        .manage(CommandState::new())
         .manage(AppState {
             window_visible: AtomicBool::new(false),
             terminal_mode: AtomicBool::new(false),
@@ -1192,11 +1186,6 @@ pub fn run() {
             suspend_shortcuts,
             resume_shortcuts,
             set_recording_flag,
-            get_custom_commands,
-            add_custom_command,
-            update_custom_command,
-            delete_custom_command,
-            execute_custom_command,
             show_terminal,
             hide_window,
             quit_app,
@@ -1214,7 +1203,7 @@ pub fn run() {
             extensions_create_custom,
             extensions_custom_get,
             extensions_custom_update,
-            extensions_search_path,
+            extensions_search_tools,
             extensions_bundled_permissions,
             extensions_connect_bundled,
             extensions_reconnect_system,

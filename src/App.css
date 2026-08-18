@@ -1182,6 +1182,7 @@ input:focus {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .extensions-icon-button:hover {
@@ -1204,6 +1205,11 @@ input:focus {
 .extensions-icon-button:disabled {
   opacity: 0.42;
   cursor: wait;
+}
+
+.extensions-icon-button:active:not(:disabled),
+.extensions-action-button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .extensions-tabs {
@@ -1424,6 +1430,7 @@ input:focus {
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .extensions-action-button:hover:not(:disabled) {
@@ -1787,16 +1794,17 @@ input:focus {
 .extension-custom-form select:focus-visible,
 .extension-custom-form textarea:focus-visible,
 .extension-custom-mode__item:focus-visible { outline: 1px solid var(--accent-ring); outline-offset: 1px; }
-.extension-path-results { max-height: 130px; display: grid; overflow-y: auto; border: 1px solid var(--hairline); border-radius: 4px; }
-.extension-path-results:empty { display: none; }
-.extension-path-results > span { padding: 8px; color: var(--text-tertiary); font-size: 10px; }
-.extension-path-results button { min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid var(--hairline); background: transparent; color: var(--text-muted); cursor: pointer; text-align: left; }
-.extension-path-results button:hover { background: var(--surface-control-hover); }
-.extension-path-results button.extension-path-result--active { background: var(--accent-tint); color: var(--accent); }
+.extension-tool-results { max-height: 130px; display: grid; overflow-y: auto; border: 1px solid var(--hairline); border-radius: 4px; }
+.extension-tool-results:empty { display: none; }
+.extension-tool-results > span { padding: 8px; color: var(--text-tertiary); font-size: 10px; }
+.extension-tool-results button { min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid var(--hairline); background: transparent; color: var(--text-muted); cursor: pointer; text-align: left; transition: background-color 120ms ease, color 120ms ease; }
+@media (hover: hover) and (pointer: fine) { .extension-tool-results button:hover { background: var(--surface-control-hover); } }
+.extension-tool-results button.extension-tool-result--active { background: var(--accent-tint); color: var(--accent); }
 .extension-custom-form__actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.extension-path-results strong,
-.extension-path-results span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
-.extension-path-results strong { color: var(--text-secondary); }
+.extension-tool-results strong,
+.extension-tool-results span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.extension-tool-results strong { min-width: 0; display: grid; gap: 1px; color: var(--text-secondary); }
+.extension-tool-results strong small { overflow: hidden; color: var(--text-tertiary); font-size: 8.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .extension-custom-permissions { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; border: 0; }
 .extension-custom-permissions legend { width: 100%; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-weight: 650; text-transform: uppercase; }
 .extension-custom-permissions__hint { width: 100%; margin: -2px 0 2px; color: var(--text-tertiary); font-size: 9.5px; line-height: 1.35; }
@@ -1862,6 +1870,8 @@ input:focus {
   display: flex;
   justify-content: flex-end;
   background: rgba(0, 0, 0, 0.26);
+  opacity: 1;
+  transition: opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .extension-drawer {
@@ -1874,6 +1884,13 @@ input:focus {
   background: var(--surface-opaque);
   box-shadow: -8px 0 24px var(--window-shadow-ambient);
   cursor: default;
+  transform: translateX(0);
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@starting-style {
+  .extension-drawer-backdrop { opacity: 0; }
+  .extension-drawer { transform: translateX(100%); }
 }
 
 .extension-drawer__header {
@@ -1941,6 +1958,13 @@ input:focus {
   text-transform: uppercase;
 }
 
+.extension-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .extension-metadata {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1976,26 +2000,26 @@ input:focus {
 
 .extension-health { display: flex; flex-direction: column; gap: 6px; }
 .extension-health__header { display: flex; align-items: center; gap: 8px; }
-.extension-health__status { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; }
-.extension-health__status--healthy { background: color-mix(in srgb, #22c55e 15%, transparent); color: #16a34a; }
-.extension-health__status--degraded { background: color-mix(in srgb, #eab308 15%, transparent); color: #ca8a04; }
-.extension-health__status--unhealthy { background: color-mix(in srgb, #ef4444 15%, transparent); color: #dc2626; }
+.extension-health__status { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0; }
+.extension-health__status--healthy { background: var(--accent-tint); color: var(--accent); }
+.extension-health__status--degraded { background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); }
+.extension-health__status--unhealthy { background: color-mix(in srgb, var(--text-warning) 18%, transparent); color: var(--text-warning); }
 .extension-health__status--unknown { background: color-mix(in srgb, #6b7280 12%, transparent); color: var(--text-muted); }
 .extension-health__version { font-size: 10px; color: var(--text-muted); }
 .extension-health__label { font-weight: 600; font-size: 9.5px; color: var(--text-tertiary); text-transform: uppercase; margin-right: 4px; }
 .extension-health__features, .extension-health__limitations, .extension-health__probes { display: flex; flex-direction: column; gap: 3px; }
-.extension-health__tag { display: inline-block; padding: 1px 5px; background: color-mix(in srgb, #6366f1 12%, transparent); color: #4f46e5; border-radius: 3px; font-size: 9px; margin-right: 3px; }
+.extension-health__tag { display: inline-block; padding: 1px 5px; background: var(--accent-tint); color: var(--accent); border-radius: 3px; font-size: 9px; margin-right: 3px; }
 .extension-health__probe { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--hairline); font-size: 10px; }
-.extension-health__probe-status { font-weight: 600; }
-.extension-health__probe-status--passed { color: #16a34a; }
-.extension-health__probe-status--failed { color: #dc2626; }
+.extension-health__probe-status { width: 11px; height: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
+.extension-health__probe-status--passed { color: var(--accent); }
+.extension-health__probe-status--failed { color: var(--text-warning); }
 .extension-health__probe-id { font-family: ui-monospace, monospace; font-size: 10px; }
 .extension-health__probe-duration { font-size: 9px; color: var(--text-muted); margin-left: auto; }
 .extension-health__failures { display: flex; flex-direction: column; gap: 4px; }
-.extension-health__failure { padding: 5px; background: color-mix(in srgb, #ef4444 8%, transparent); border-radius: 4px; border-left: 2px solid #dc2626; font-size: 10px; }
+.extension-health__failure { padding: 5px; background: color-mix(in srgb, var(--text-warning) 8%, transparent); border-radius: 4px; border-left: 2px solid var(--text-warning); font-size: 10px; }
 .extension-health__failure-code { font-size: 9px; color: var(--text-muted); margin-left: 4px; }
 .extension-health__failure-stderr { font-size: 9px; color: var(--text-secondary); margin-top: 3px; white-space: pre-wrap; word-break: break-all; }
-.extension-health__retryable { display: inline-block; margin-left: 6px; padding: 1px 4px; background: color-mix(in srgb, #eab308 12%, transparent); color: #ca8a04; border-radius: 3px; font-size: 8px; }
+.extension-health__retryable { display: inline-block; margin-left: 6px; padding: 1px 4px; background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); border-radius: 3px; font-size: 8px; }
 .extension-health__timestamp { font-size: 9px; color: var(--text-muted); margin-top: 4px; }
 
 .extension-command-list,
@@ -2143,32 +2167,6 @@ input:focus {
   padding: 9px 12px;
   border-top: 1px solid var(--hairline);
 }
-
-/* ── Extension health report ────────────────────────────────────────────── */
-
-.extension-health { display: flex; flex-direction: column; gap: 8px; }
-.extension-health__header { display: flex; align-items: center; gap: 8px; }
-.extension-health__status { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; text-transform: uppercase; }
-.extension-health__status--healthy { background: var(--accent-tint); color: var(--accent); }
-.extension-health__status--degraded { background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); }
-.extension-health__status--unhealthy { background: color-mix(in srgb, var(--text-warning) 18%, transparent); color: var(--text-warning); }
-.extension-health__status--unknown { background: var(--surface-control); color: var(--text-muted); }
-.extension-health__version { font-size: 13px; color: var(--text-muted); }
-.extension-health__label { font-weight: 600; font-size: 12px; margin-right: 6px; }
-.extension-health__features, .extension-health__limitations, .extension-health__probes { display: flex; flex-direction: column; gap: 4px; }
-.extension-health__tag { display: inline-block; padding: 2px 6px; background: var(--accent-tint); color: var(--accent); border-radius: 3px; font-size: 11px; margin-right: 4px; }
-.extension-health__probe { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--hairline); }
-.extension-health__probe-status { font-weight: 600; }
-.extension-health__probe-status--passed { color: var(--accent); }
-.extension-health__probe-status--failed { color: var(--text-warning); }
-.extension-health__probe-id { font-size: 13px; font-family: monospace; }
-.extension-health__probe-duration { font-size: 12px; color: var(--text-muted); margin-left: auto; }
-.extension-health__failures { display: flex; flex-direction: column; gap: 4px; }
-.extension-health__failure { padding: 6px; background: color-mix(in srgb, var(--text-warning) 8%, transparent); border-radius: 4px; border-left: 3px solid var(--text-warning); }
-.extension-health__failure-code { font-size: 12px; color: var(--text-muted); margin-left: 6px; }
-.extension-health__failure-stderr { font-size: 11px; color: var(--text-warning); margin-top: 4px; white-space: pre-wrap; word-break: break-all; }
-.extension-health__retryable { display: inline-block; margin-left: 8px; padding: 1px 4px; background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); border-radius: 3px; font-size: 10px; }
-.extension-health__timestamp { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
 
 @media (max-width: 560px) {
   .settings-card__body { grid-template-columns: 48px minmax(0, 1fr); }
@@ -2473,6 +2471,11 @@ canvas {
   .settings-switch__thumb,
   .shortcut-recorder,
   .toolbar-button,
+  .extensions-icon-button,
+  .extensions-action-button,
+  .extension-tool-results button,
+  .extension-drawer-backdrop,
+  .extension-drawer,
   .collapsed-card__aura,
   .terminal-bar,
   .terminal-panel__actions,

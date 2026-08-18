@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
@@ -176,10 +176,41 @@ type ConfigOperation = "copy" | "export" | null;
 type CustomContentOperation = "copy" | "export" | null;
 type RemovalTarget = Extension | null;
 
-type PathExecutable = {
+type DiscoverySource =
+  | "path"
+  | "desktop"
+  | "dpkg"
+  | "rpm"
+  | "pacman"
+  | "flatpak"
+  | "snap"
+  | "nix"
+  | "brew"
+  | "launch-services"
+  | "registry"
+  | "scoop"
+  | "chocolatey"
+  | "win-get"
+  | "wsl";
+
+type ToolLocator =
+  | { kind: "executable"; path: string }
+  | { kind: "dockerImage"; reference: string; digest: string | null }
+  | { kind: "flatpak"; appId: string }
+  | { kind: "snap"; name: string };
+
+type ToolCandidate = {
+  id: string;
   name: string;
-  path: string;
+  locator: ToolLocator;
+  version: string | null;
+  sources: DiscoverySource[];
+  quality: "official-adapter" | "native-support" | "auto-detected" | "user-defined" | "inferred";
+  available: boolean;
+  fingerprint: string | null;
 };
+
+type ExecutableToolCandidate = ToolCandidate & { locator: Extract<ToolLocator, { kind: "executable" }> };
 
 type CustomIntegrationForm = {
   mode: "executable" | "script";
@@ -460,11 +491,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [customIntegrationError, setCustomIntegrationError] = useState<string | null>(null);
   const [customContentOperation, setCustomContentOperation] = useState<CustomContentOperation>(null);
   const [customIntegration, setCustomIntegration] = useState<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
-  const [pathResults, setPathResults] = useState<PathExecutable[]>([]);
-  const [pathSearching, setPathSearching] = useState(false);
-  const [pathHighlight, setPathHighlight] = useState(0);
+  const [toolResults, setToolResults] = useState<ExecutableToolCandidate[]>([]);
+  const [toolSearching, setToolSearching] = useState(false);
+  const [toolSearchFailed, setToolSearchFailed] = useState(false);
+  const [toolHighlight, setToolHighlight] = useState(0);
   const [customDirty, setCustomDirty] = useState(false);
   const customSavedRef = useRef<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
+  const toolSearchNeedsRefresh = useRef(true);
+  const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
   const [operationNotice, setOperationNotice] = useState<string | null>(null);
   const detailGeneration = useRef(0);
@@ -473,6 +507,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const localDialogRef = useRef<HTMLElement | null>(null);
   const removalDialogRef = useRef<HTMLElement | null>(null);
   const customDialogRef = useRef<HTMLElement | null>(null);
+  const toolResultsRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const refreshGeneration = useRef(0);
 
@@ -490,8 +525,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     const fresh = { ...DEFAULT_CUSTOM_INTEGRATION, argsPrefix: [], versionArgs: [], permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions], platforms: [CURRENT_PLATFORM] as Array<"darwin" | "linux" | "windows"> };
     setCustomIntegration(fresh);
     setCustomIntegrationError(null);
-    setPathResults([]);
-    setPathHighlight(0);
+    setToolResults([]);
+    setToolSearchFailed(false);
+    setToolHighlight(0);
+    toolSearchNeedsRefresh.current = true;
     setCustomDirty(false);
     customSavedRef.current = fresh;
   };
@@ -582,35 +619,50 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
 
   useEffect(() => {
     if (!showCustomIntegration || customIntegration.mode !== "executable") return;
+    if (suppressToolSearch.current) {
+      suppressToolSearch.current = false;
+      setToolSearching(false);
+      setToolSearchFailed(false);
+      setToolResults([]);
+      return;
+    }
     const query = customIntegration.executablePath.trim();
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      setPathSearching(true);
-      void invoke<PathExecutable[]>("extensions_search_path", { query, limit: 12 })
-        .then((results) => { setPathResults(results); setPathHighlight(0); })
-        .catch(() => setPathResults([]))
-        .finally(() => setPathSearching(false));
+      const forceRefresh = toolSearchNeedsRefresh.current;
+      toolSearchNeedsRefresh.current = false;
+      setToolSearching(true);
+      setToolSearchFailed(false);
+      void invoke<ToolCandidate[]>("extensions_search_tools", { query, limit: 12, forceRefresh, executableOnly: true })
+        .then((results) => {
+          if (cancelled) return;
+          setToolResults(results.filter((candidate): candidate is ExecutableToolCandidate => candidate.locator.kind === "executable" && candidate.available));
+          setToolHighlight(0);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          toolSearchNeedsRefresh.current = true;
+          setToolResults([]);
+          setToolSearchFailed(true);
+        })
+        .finally(() => { if (!cancelled) setToolSearching(false); });
     }, 120);
-    return () => window.clearTimeout(timer);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [showCustomIntegration, customIntegration.mode, customIntegration.executablePath]);
 
   useEffect(() => {
-    if (!showCustomIntegration) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (customIntegration.mode === "executable" && pathResults.length) {
-        if (event.key === "ArrowDown") { event.preventDefault(); setPathHighlight((index) => Math.min(index + 1, pathResults.length - 1)); }
-        if (event.key === "ArrowUp") { event.preventDefault(); setPathHighlight((index) => Math.max(index - 1, 0)); }
-        if (event.key === "Enter" && document.activeElement?.getAttribute("data-path-search") === "true") { event.preventDefault(); choosePathExecutable(pathResults[pathHighlight]); }
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showCustomIntegration, customIntegration.mode, pathResults, pathHighlight]);
+    toolResultsRef.current
+      ?.querySelector<HTMLElement>("[aria-selected='true']")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [toolHighlight]);
 
   useEffect(() => {
     if (!selectedId) {
       detailGeneration.current += 1;
       setProvider(null);
       setDiagnose(null);
+      setHealthReport(null);
+      setHealthLoading(false);
       setConfiguration(null);
       setConfigValues({});
       setSavedConfigValues({});
@@ -622,6 +674,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setDetailLoading(true);
     setProvider(null);
     setDiagnose(null);
+    setHealthReport(null);
+    setHealthLoading(false);
     setConfiguration(null);
     setDetailError(null);
     void Promise.allSettled([
@@ -656,14 +710,17 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   }, [selectedId, selected?.updatedAt]);
 
   const handleReprobe = async () => {
+    if (!selectedId || healthLoading) return;
+    const generation = detailGeneration.current;
     setHealthLoading(true);
+    setDetailError(null);
     try {
       const report = await invoke<HealthReport>("extensions_reprobe", { id: selectedId });
-      setHealthReport(report);
-    } catch (e) {
-      console.error("Re-probe failed:", e);
+      if (generation === detailGeneration.current) setHealthReport(report);
+    } catch (nextError) {
+      if (generation === detailGeneration.current) setDetailError(errorMessage(nextError));
     } finally {
-      setHealthLoading(false);
+      if (generation === detailGeneration.current) setHealthLoading(false);
     }
   };
 
@@ -1001,17 +1058,32 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     }
   };
 
-  const choosePathExecutable = (candidate: PathExecutable) => {
+  const chooseToolCandidate = (candidate: ExecutableToolCandidate) => {
     const command = candidate.name.replace(/\.(exe|cmd|bat)$/i, "");
     const slug = command.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "custom-tool";
+    suppressToolSearch.current = true;
     updateCustomIntegration((current) => ({
       ...current,
-      executablePath: candidate.path,
+      executablePath: candidate.locator.path,
       name: current.name === DEFAULT_CUSTOM_INTEGRATION.name ? command : current.name,
       command: current.command === DEFAULT_CUSTOM_INTEGRATION.command ? slug : current.command,
       id: current.id === DEFAULT_CUSTOM_INTEGRATION.id ? `local.${slug}` : current.id,
     }));
-    setPathResults([]);
+    setToolResults([]);
+  };
+
+  const handleToolSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (!toolResults.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setToolHighlight((index) => Math.min(index + 1, toolResults.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setToolHighlight((index) => Math.max(index - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      chooseToolCandidate(toolResults[toolHighlight]);
+    }
   };
 
   const createCustomIntegration = async (event: FormEvent) => {
@@ -1595,11 +1667,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <label><span>{t("settings.extensions.customVersion")}</span><input required value={customIntegration.version} onChange={(event) => updateCustomIntegration((current) => ({ ...current, version: event.target.value }))} /></label>
                 <label><span>{t("settings.extensions.customCommand")}</span><input required pattern="[a-z0-9][a-z0-9_-]{0,63}" value={customIntegration.command} onChange={(event) => updateCustomIntegration((current) => ({ ...current, command: event.target.value.toLowerCase() }))} /></label>
                 {customIntegration.mode === "executable" ? <>
-                  <label className="extension-custom-form__wide"><span>{t("settings.extensions.customExecutable")}</span><input data-path-search="true" required autoComplete="off" placeholder={t("settings.extensions.customExecutablePlaceholder")} value={customIntegration.executablePath} onChange={(event) => updateCustomIntegration((current) => ({ ...current, executablePath: event.target.value }))} /></label>
-                  <div className="extension-path-results extension-custom-form__wide" role="listbox" aria-label={t("settings.extensions.customPathResults")}>
-                    {pathSearching ? <span>{t("settings.extensions.searching")}</span> : pathResults.length ? pathResults.map((candidate, index) => (
-                      <button key={candidate.path} type="button" role="option" aria-selected={index === pathHighlight} className={index === pathHighlight ? "extension-path-result--active" : ""} onClick={() => choosePathExecutable(candidate)}><strong>{candidate.name}</strong><span>{candidate.path}</span></button>
-                    )) : customIntegration.executablePath.trim() ? <span>{t("settings.extensions.customPathNoResults")}</span> : null}
+                  <label className="extension-custom-form__wide"><span>{t("settings.extensions.customExecutable")}</span><input required role="combobox" aria-autocomplete="list" aria-controls="extension-tool-results" aria-expanded={toolSearching || toolResults.length > 0} aria-activedescendant={toolResults.length ? `extension-tool-result-${toolHighlight}` : undefined} autoComplete="off" placeholder={t("settings.extensions.customExecutablePlaceholder")} value={customIntegration.executablePath} onKeyDown={handleToolSearchKeyDown} onChange={(event) => updateCustomIntegration((current) => ({ ...current, executablePath: event.target.value }))} /></label>
+                  <div ref={toolResultsRef} id="extension-tool-results" className="extension-tool-results extension-custom-form__wide" role="listbox" aria-label={t("settings.extensions.customToolResults")}>
+                    {toolSearching ? <span>{t("settings.extensions.searching")}</span> : toolResults.length ? toolResults.map((candidate, index) => (
+                      <button id={`extension-tool-result-${index}`} key={candidate.id} type="button" role="option" tabIndex={-1} aria-selected={index === toolHighlight} className={index === toolHighlight ? "extension-tool-result--active" : ""} onMouseEnter={() => setToolHighlight(index)} onClick={() => chooseToolCandidate(candidate)}><strong>{candidate.name}<small>{candidate.sources.join(" · ")}</small></strong><span>{candidate.locator.path}</span></button>
+                    )) : toolSearchFailed ? <span role="status">{t("settings.extensions.customToolSearchFailed")}</span> : customIntegration.executablePath.trim() ? <span>{t("settings.extensions.customToolNoResults")}</span> : null}
                   </div>
                 </> : <>
                   <label><span>{t("settings.extensions.customScriptLanguage")}</span><select value={customIntegration.scriptLanguage} onChange={(event) => updateCustomIntegration((current) => { const language = event.target.value as CustomIntegrationForm["scriptLanguage"]; const templates = ["", scriptTemplate("js"), scriptTemplate("shell"), scriptTemplate("powershell")]; return { ...current, scriptLanguage: language, scriptContent: templates.includes(current.scriptContent) ? scriptTemplate(language) : current.scriptContent }; })}><option value="js">JavaScript</option><option value="shell">Shell</option><option value="powershell">PowerShell</option></select></label>
@@ -1721,14 +1793,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               </section>
 
               <section className="extension-detail-block">
-                <h4>
-                  Health Report
+                <h4 className="extension-detail-heading">
+                  {t("settings.extensions.health")}
                   {healthReport && (
                     <button
                       type="button"
                       className="extensions-icon-button"
-                      title="Re-probe"
-                      aria-label="Re-probe"
+                      title={t("settings.extensions.healthReprobe")}
+                      aria-label={t("settings.extensions.healthReprobe")}
                       disabled={healthLoading}
                       onClick={() => void handleReprobe()}
                     >
@@ -1739,12 +1811,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 {healthReport ? (
                   <div className="extension-health">
                     <div className="extension-health__header">
-                      <span className={`extension-health__status extension-health__status--${healthReport.status}`}>{healthReport.status}</span>
-                      <span className="extension-health__version">v{healthReport.capabilities.version}</span>
+                      <span className={`extension-health__status extension-health__status--${healthReport.status}`}>{t(`settings.extensions.healthStatus.${healthReport.status}`)}</span>
+                      {healthReport.capabilities.version && <span className="extension-health__version">v{healthReport.capabilities.version}</span>}
                     </div>
                     {healthReport.capabilities.supportedFeatures.length > 0 && (
                       <div className="extension-health__features">
-                        <span className="extension-health__label">Features:</span>
+                        <span className="extension-health__label">{t("settings.extensions.healthFeatures")}</span>
                         {healthReport.capabilities.supportedFeatures.map((f) => (
                           <span key={f} className="extension-health__tag">{f}</span>
                         ))}
@@ -1752,7 +1824,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     )}
                     {healthReport.capabilities.limitations.length > 0 && (
                       <div className="extension-health__limitations">
-                        <span className="extension-health__label">Limitations:</span>
+                        <span className="extension-health__label">{t("settings.extensions.healthLimitations")}</span>
                         <ul>
                           {healthReport.capabilities.limitations.map((l, i) => (
                             <li key={i}>{l}</li>
@@ -1761,11 +1833,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                       </div>
                     )}
                     <div className="extension-health__probes">
-                      <span className="extension-health__label">Probes:</span>
+                      <span className="extension-health__label">{t("settings.extensions.healthProbes")}</span>
                       {healthReport.probes.map((probe) => (
                         <div key={probe.probeId} className="extension-health__probe">
-                          <span className={`extension-health__probe-status extension-health__probe-status--${probe.passed ? "passed" : "failed"}`}>
-                            {probe.passed ? "✓" : "✗"}
+                          <span className={`extension-health__probe-status extension-health__probe-status--${probe.passed ? "passed" : "failed"}`} aria-hidden="true">
+                            {probe.passed ? <Check size={11} strokeWidth={2.4} /> : <X size={11} strokeWidth={2.4} />}
                           </span>
                           <span className="extension-health__probe-id">{probe.probeId}</span>
                           <span className="extension-health__probe-duration">{probe.durationMs}ms</span>
@@ -1774,20 +1846,20 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     </div>
                     {healthReport.failures.length > 0 && (
                       <div className="extension-health__failures">
-                        <span className="extension-health__label">Failures:</span>
+                        <span className="extension-health__label">{t("settings.extensions.healthFailures")}</span>
                         {healthReport.failures.map((failure, i) => (
                           <div key={i} className="extension-health__failure">
                             <strong>{failure.probe}</strong>
-                            <span className="extension-health__failure-code">(exit: {failure.exitCode ?? "null"})</span>
+                            <span className="extension-health__failure-code">({t("settings.extensions.healthExitCode", { code: failure.exitCode ?? "-" })})</span>
                             {failure.stderr && <p className="extension-health__failure-stderr">{failure.stderr}</p>}
-                            {failure.retryable && <span className="extension-health__retryable">Retryable</span>}
+                            {failure.retryable && <span className="extension-health__retryable">{t("settings.extensions.healthRetryable")}</span>}
                           </div>
                         ))}
                       </div>
                     )}
-                    <p className="extension-health__timestamp">Checked at: {new Date(healthReport.checkedAt).toLocaleString()}</p>
+                    <p className="extension-health__timestamp">{t("settings.extensions.healthCheckedAt", { time: new Date(healthReport.checkedAt).toLocaleString(locale) })}</p>
                   </div>
-                ) : !detailLoading && !healthLoading && <p className="extension-detail-empty">No health report available</p>}
+                ) : !detailLoading && !healthLoading && <p className="extension-detail-empty">{t("settings.extensions.healthUnavailable")}</p>}
               </section>
 
               {configuration && (

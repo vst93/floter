@@ -1,7 +1,5 @@
 pub mod artifacts;
 pub mod asset_matcher;
-// Implemented and tested ahead of integration into the extension launch path.
-#[allow(dead_code)]
 pub mod capability_probe;
 pub mod catalog;
 pub mod config;
@@ -10,26 +8,28 @@ pub mod download;
 pub mod gitlab_source;
 pub mod health;
 pub mod install;
-// Implemented and tested ahead of integration into install/uninstall activation.
-#[allow(dead_code)]
+pub mod inventory;
 pub mod lifecycle;
 pub mod lock;
 pub mod manifest;
 pub mod official_index;
 pub mod platform;
+pub mod probe;
 pub mod probe_runner;
+pub mod profile;
 pub mod provider;
 mod proxy;
 pub mod registry;
+pub mod resolver;
 pub mod session_restore;
 pub mod source_bundle;
 pub mod source_inference;
 pub mod source_resolver;
 pub mod static_adapter;
 pub mod sync;
-// Implemented and tested ahead of integration into terminal session setup.
-#[allow(dead_code)]
+pub mod target;
 pub mod terminal_capability;
+pub mod tool_lock;
 mod transaction;
 
 use std::collections::HashMap;
@@ -39,40 +39,36 @@ use std::time::{Duration, Instant};
 const MAX_EXECUTION_PLANS: usize = 1_024;
 const EXECUTION_PLAN_TTL: Duration = Duration::from_secs(30 * 60);
 
-#[allow(unused_imports)]
 pub use capability_probe::{CapabilityProbe, CapabilityReport};
-#[allow(unused_imports)]
 pub use catalog::{
     CatalogCompletionResponse, CatalogEntry, CatalogSearchRequest, CompletionRequest,
 };
-#[allow(unused_imports)]
 pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
-#[allow(unused_imports)]
 pub use cwd_policy::{CwdContext, CwdPolicy};
-#[allow(unused_imports)]
 pub use install::{ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult};
-#[allow(unused_imports)]
+pub use inventory::{
+    DiscoveryQuality, DiscoverySource, ToolCandidate, ToolInventory, ToolInventorySnapshot,
+    ToolLocator,
+};
 pub use lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind,
 };
-#[allow(unused_imports)]
 pub use manifest::{ExtensionManifest, ResolvedManifest};
-#[allow(unused_imports)]
 pub use platform::{PlatformAbi, PlatformArch, PlatformLibc, PlatformOs, PlatformTarget};
-#[allow(unused_imports)]
+pub use probe::{ProbeQuality, ProbeResult, ProviderDescriber};
+pub use profile::{Profile, ProfileKind, ProfileStack};
 pub use provider::{ExecutionMode, ExecutionPlan, ProviderDescription, ProviderResponse};
-#[allow(unused_imports)]
+pub use resolver::{ResolveRequest, ResolveResult, ScoreBreakdown, ScoredCandidate};
 pub use source_bundle::{SourceBundleExportRequest, SourceBundleExportResult};
-#[allow(unused_imports)]
 pub use source_inference::SourceInferenceReport;
-#[allow(unused_imports)]
 pub use source_resolver::{SourceResolution, SourceResolveRequest};
-#[allow(unused_imports)]
+pub use target::{Mount, NetworkPolicy, Target, TargetRuntime};
 pub use terminal_capability::{
     Da1Report, DecrqmResult, DecrqmState, Negotiation, ProbeReport, TerminalCapability,
     TerminalColor, TerminalIo,
 };
+pub use tool_lock::{LockState, ToolLock, ToolLockEntry};
 
 #[derive(Debug, Clone)]
 pub struct ExtensionPaths {
@@ -81,6 +77,7 @@ pub struct ExtensionPaths {
     pub data: PathBuf,
     pub cache: PathBuf,
     pub lock_file: PathBuf,
+    pub tool_lock_file: PathBuf,
 }
 
 impl ExtensionPaths {
@@ -97,6 +94,7 @@ impl ExtensionPaths {
             data: root.join("extension-data"),
             cache: root.join("extension-cache"),
             lock_file: root.join("extensions.lock.json"),
+            tool_lock_file: root.join("tool-lock.json"),
             root,
         }
     }
@@ -118,6 +116,8 @@ pub struct ExtensionState {
     pub static_adapters: Vec<static_adapter::StaticAdapter>,
     pub(crate) mutation_lock: tokio::sync::Mutex<()>,
     pub(crate) provider_commands: catalog::ProviderCommandCache,
+    pub tool_inventory: std::sync::Mutex<ToolInventory>,
+    pub tool_lock: std::sync::Mutex<ToolLock>,
     execution_plans: ExecutionPlanCache,
 }
 
@@ -141,6 +141,7 @@ impl ExtensionState {
         official_index: official_index::OfficialIndexConfig,
     ) -> Result<Self, String> {
         paths.ensure()?;
+        let tool_lock = ToolLock::load(&paths.tool_lock_file)?;
         let static_adapters = static_adapter::load_bundled()?;
         let client = reqwest::Client::builder()
             .user_agent(format!("floter/{}", env!("CARGO_PKG_VERSION")))
@@ -161,6 +162,8 @@ impl ExtensionState {
             static_adapters,
             mutation_lock: tokio::sync::Mutex::new(()),
             provider_commands: catalog::ProviderCommandCache::default(),
+            tool_inventory: std::sync::Mutex::new(ToolInventory::new()),
+            tool_lock: std::sync::Mutex::new(tool_lock),
             execution_plans: ExecutionPlanCache::default(),
         };
         transaction::recover(&state)?;

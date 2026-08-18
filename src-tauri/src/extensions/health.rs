@@ -2,7 +2,7 @@ use crate::extensions::capability_probe::CapabilityReport;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::time::Duration;
 
 const HEALTH_SCHEMA_VERSION: u32 = 1;
@@ -109,12 +109,14 @@ impl HealthReport {
 
     /// Determine overall health based on probe results and a set of required probe IDs.
     pub fn finalize(&mut self, required_probes: &[String]) {
-        let any_required_failed = self.failures.iter().any(|f| {
-            required_probes.contains(&f.probe)
-        });
-        let any_optional_failed = self.failures.iter().any(|f| {
-            !required_probes.contains(&f.probe)
-        });
+        let any_required_failed = self
+            .failures
+            .iter()
+            .any(|f| required_probes.contains(&f.probe));
+        let any_optional_failed = self
+            .failures
+            .iter()
+            .any(|f| !required_probes.contains(&f.probe));
 
         self.status = if any_required_failed {
             HealthStatus::Unhealthy
@@ -129,7 +131,7 @@ impl HealthReport {
 }
 
 /// Writes a health report to the tool's health.json file.
-pub fn write_health_report(health_dir: &PathBuf, report: &HealthReport) -> Result<(), String> {
+pub fn write_health_report(health_dir: &Path, report: &HealthReport) -> Result<(), String> {
     std::fs::create_dir_all(health_dir)
         .map_err(|error| format!("Cannot create health directory: {error}"))?;
     let path = health_dir.join("health.json");
@@ -147,13 +149,13 @@ pub fn write_health_report(health_dir: &PathBuf, report: &HealthReport) -> Resul
 }
 
 /// Reads a health report from the tool's health.json file.
-pub fn read_health_report(health_dir: &PathBuf) -> Result<Option<HealthReport>, String> {
+pub fn read_health_report(health_dir: &Path) -> Result<Option<HealthReport>, String> {
     let path = health_dir.join("health.json");
     if !path.exists() {
         return Ok(None);
     }
-    let bytes = std::fs::read(&path)
-        .map_err(|error| format!("Cannot read health report: {error}"))?;
+    let bytes =
+        std::fs::read(&path).map_err(|error| format!("Cannot read health report: {error}"))?;
     let report: HealthReport = serde_json::from_slice(&bytes)
         .map_err(|error| format!("Cannot parse health report: {error}"))?;
     Ok(Some(report))
@@ -176,7 +178,12 @@ mod tests {
     fn finalize_all_pass_is_healthy() {
         let mut report = HealthReport::new(CapabilityReport::default());
         report.record_pass("version", Duration::from_millis(100), Some(0));
-        record_pass(&mut report, "completion", Duration::from_millis(200), Some(0));
+        record_pass(
+            &mut report,
+            "completion",
+            Duration::from_millis(200),
+            Some(0),
+        );
         let required = vec!["version".to_string()];
         report.finalize(&required);
         assert_eq!(report.status, HealthStatus::Healthy);
@@ -186,7 +193,13 @@ mod tests {
     fn finalize_required_fail_is_unhealthy() {
         let mut report = HealthReport::new(CapabilityReport::default());
         record_pass(&mut report, "version", Duration::from_millis(100), Some(0));
-        report.record_failure("completion", Duration::from_millis(200), Some(2), "error".into(), false);
+        report.record_failure(
+            "completion",
+            Duration::from_millis(200),
+            Some(2),
+            "error".into(),
+            false,
+        );
         let required = vec!["completion".to_string()];
         report.finalize(&required);
         assert_eq!(report.status, HealthStatus::Unhealthy);
@@ -196,7 +209,13 @@ mod tests {
     fn finalize_optional_fail_is_degraded() {
         let mut report = HealthReport::new(CapabilityReport::default());
         record_pass(&mut report, "version", Duration::from_millis(100), Some(0));
-        report.record_failure("completion", Duration::from_millis(200), Some(2), "error".into(), true);
+        report.record_failure(
+            "completion",
+            Duration::from_millis(200),
+            Some(2),
+            "error".into(),
+            true,
+        );
         let required = vec!["version".to_string()];
         report.finalize(&required);
         assert_eq!(report.status, HealthStatus::Degraded);
@@ -209,8 +228,8 @@ mod tests {
         record_pass(&mut report, "version", Duration::from_millis(100), Some(0));
         let required = vec!["version".to_string()];
         report.finalize(&required);
-        write_health_report(&temp.path().to_path_buf(), &report).unwrap();
-        let loaded = read_health_report(&temp.path().to_path_buf()).unwrap();
+        write_health_report(temp.path(), &report).unwrap();
+        let loaded = read_health_report(temp.path()).unwrap();
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
         assert_eq!(loaded.status, HealthStatus::Healthy);
@@ -220,11 +239,16 @@ mod tests {
     #[test]
     fn read_nonexistent_returns_none() {
         let temp = TempDir::new().unwrap();
-        let result = read_health_report(&temp.path().to_path_buf()).unwrap();
+        let result = read_health_report(temp.path()).unwrap();
         assert!(result.is_none());
     }
 
-    fn record_pass(report: &mut HealthReport, id: &str, duration: Duration, exit_code: Option<i32>) {
+    fn record_pass(
+        report: &mut HealthReport,
+        id: &str,
+        duration: Duration,
+        exit_code: Option<i32>,
+    ) {
         report.record_pass(id, duration, exit_code);
     }
 }

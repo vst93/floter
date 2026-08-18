@@ -775,20 +775,13 @@ V 每次发布新版本时同时发布：
 
 **真正需要新增的是「命令目录和解析层」，终端本身不需要重新设计。**
 
-### 9.3 旧自定义命令（不直接扩展，需迁移）
+### 9.3 旧自定义命令（已移除）
 
-现有 `custom.rs`（`src-tauri/src/commands/custom.rs:7`）可以作为早期原型参考，但不适合直接扩展成平台协议：
-- 它目前只有命令字符串，并通过 `sh -c`/`cmd /C` 执行（`custom.rs:130`）
-- 正式平台应保存 `program + args[]`，避免字符串拼接、转义差异和命令注入问题
-- 旧自定义命令保持隔离，新扩展平台以独立 `extensions` 模块实现
+早期的 `commands/custom.rs` 只保存命令字符串，并通过 `sh -c`/`cmd /C` 执行，不适合作为平台协议。正式平台保存 `program + args[]`，避免字符串拼接、转义差异和命令注入问题。
 
 **重要发现**：Codex 审计确认，`commands.json` 后端**目前根本没有接入前端**——`get_custom_commands` 在 `App.tsx` 中没有对应的调用逻辑，搜索流程只加入了应用和系统操作。这意味着旧自定义命令功能实际上是一个未完成的功能，迁移时不需要考虑前端兼容性，可以直接用新的扩展平台替代。
 
-**迁移策略**：
-1. 保留 `custom.rs` 代码但标记为 deprecated
-2. 新建 `src-tauri/src/extensions/` 模块，完全独立实现
-3. 如果用户有旧 `commands.json`，提供一个一次性迁移工具转换为本地 Adapter 配置
-4. 确认无用户依赖后删除 `custom.rs`
+**迁移结果**：新的自定义集成已经由 `src-tauri/src/extensions/` 独立实现；确认旧命令没有前端入口后，`custom.rs`、`CommandState` 和对应 Tauri commands 均已删除。已有 `commands.json` 不会被主动删除。
 
 ### 9.4 前端集成点
 
@@ -908,9 +901,9 @@ floter/
    - 工具自管理配置时只提供「打开配置」入口
 
 7. **旧自定义命令迁移**
-   - 保留 `custom.rs` 但标记 deprecated
-   - 提供一次性迁移工具：旧 `commands.json` -> 本地 Adapter 配置
    - 新扩展平台完全独立，不依赖旧代码
+   - 删除未接入前端的 `custom.rs`、状态和 IPC 注册
+   - 保留磁盘上已有的 `commands.json`，不做破坏性清理
 
 8. **Tauri Commands**
    - `extensions_list` - 列出已安装扩展
@@ -1079,7 +1072,7 @@ PATH 中的 `v`，用静态 Manifest 声明 `jv`、`diff`、`codec`、`genpwd`�
    → V 作为参考实现，验证整套协议可行性。V 保持独立项目和独立版本，通过 Provider 协议接入而非编译进 Floter。
 
 7. **Codex 确认：现有终端和 PTY 可直接复用，不需要重新设计。**
-   → 真正需要新增的是「命令目录和解析层」。`custom.rs` 后端未接入前端，不影响新平台实现。
+   → 真正需要新增的是「命令目录和解析层」。旧 `custom.rs` 后端未接入前端，已由结构化扩展平台替代并删除。
 
 8. **Codex 确认：Cargo.lock 已有 reqwest/semver/sha2/tar/flate2 依赖。**
    → 安装生命周期所需的核心依赖齐备，无需额外引入。`shell-words` 缺失但可用 `std::process::Command` 替代。

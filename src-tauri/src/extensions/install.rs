@@ -127,13 +127,6 @@ fn default_custom_mode() -> String {
     "executable".to_string()
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PathExecutable {
-    pub name: String,
-    pub path: String,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 struct RegistryMetadata {
     #[serde(rename = "dist-tags", default)]
@@ -724,77 +717,6 @@ pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBu
     ))
 }
 
-pub fn search_path_executables(query: &str, limit: usize) -> Vec<PathExecutable> {
-    let needle = query.trim().to_ascii_lowercase();
-    let Some(path) = std::env::var_os("PATH") else {
-        return Vec::new();
-    };
-    let mut seen = std::collections::HashSet::new();
-    let mut matches = Vec::new();
-    for directory in std::env::split_paths(&path) {
-        let Ok(entries) = std::fs::read_dir(directory) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !is_linked_executable(&path) {
-                continue;
-            }
-            let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
-                continue;
-            };
-            let key = name.to_ascii_lowercase();
-            if !seen.insert(key.clone()) {
-                continue;
-            }
-            let Some(score) = fuzzy_executable_score(&key, &needle) else {
-                continue;
-            };
-            matches.push((score, name.to_string(), path));
-        }
-    }
-    matches.sort_by(|left, right| {
-        left.0
-            .cmp(&right.0)
-            .then_with(|| left.1.len().cmp(&right.1.len()))
-            .then_with(|| left.1.cmp(&right.1))
-    });
-    matches
-        .into_iter()
-        .take(limit.clamp(1, 50))
-        .map(|(_, name, path)| PathExecutable {
-            name,
-            path: path.to_string_lossy().into_owned(),
-        })
-        .collect()
-}
-
-fn fuzzy_executable_score(candidate: &str, query: &str) -> Option<usize> {
-    if query.is_empty() {
-        return Some(3);
-    }
-    if candidate == query {
-        return Some(0);
-    }
-    if candidate.starts_with(query) {
-        return Some(1);
-    }
-    if candidate.contains(query) {
-        return Some(2);
-    }
-    let mut query_chars = query.chars();
-    let mut current = query_chars.next()?;
-    for character in candidate.chars() {
-        if character == current {
-            let Some(next) = query_chars.next() else {
-                return Some(3);
-            };
-            current = next;
-        }
-    }
-    None
-}
-
 pub async fn connect_bundled(
     state: &ExtensionState,
     extension_id: &str,
@@ -1298,7 +1220,7 @@ pub(crate) async fn rollback_locked(
             Ok(ref report) => {
                 let _ = crate::extensions::health::write_health_report(
                     &state.paths.data.join(&entry.id),
-                    &report,
+                    report,
                 );
                 if report.status == crate::extensions::health::HealthStatus::Unhealthy {
                     return Err(format!(
@@ -1490,8 +1412,9 @@ async fn install_managed(
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
-    let (executable, runtime_root, version_args, tool_version, asset_selection) =
-        match &manifest.runtime {
+    let (executable, runtime_root, version_args, tool_version, asset_selection) = match &manifest
+        .runtime
+    {
         Runtime::Bundled { .. } => {
             let platform_package = resolved
                 .platform_package
@@ -1522,10 +1445,7 @@ async fn install_managed(
                 &manifest.permissions,
             )
             .await?;
-            crate::extensions::artifacts::prepare_shim_metadata(
-                &version_root,
-                &verified_binaries,
-            )?;
+            crate::extensions::artifacts::prepare_shim_metadata(&version_root, &verified_binaries)?;
             let candidate = crate::extensions::asset_matcher::AssetCandidate::exact_archive(
                 platform_package,
                 &platform_version.dist.tarball,
@@ -1568,25 +1488,47 @@ async fn install_managed(
     // Run post-install capability probes if declared in lifecycle
     if !manifest.lifecycle.probes.is_empty() {
         let tool_data_dir = state.paths.data.join(&manifest.id);
-        let probe_args: Vec<Vec<String>> = manifest.lifecycle.probes.iter()
+        let probe_args: Vec<Vec<String>> = manifest
+            .lifecycle
+            .probes
+            .iter()
             .map(|p| p.args.clone())
             .collect();
-        let required: Vec<bool> = manifest.lifecycle.probes.iter()
+        let required: Vec<bool> = manifest
+            .lifecycle
+            .probes
+            .iter()
             .map(|p| p.required)
             .collect();
-        match crate::extensions::probe_runner::run_probes(state, &manifest.id, &executable, &probe_args, &required).await {
+        match crate::extensions::probe_runner::run_probes(
+            state,
+            &manifest.id,
+            &executable,
+            &probe_args,
+            &required,
+        )
+        .await
+        {
             Ok(ref report) => {
-                let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
+                let _ = crate::extensions::health::write_health_report(&tool_data_dir, report);
                 // Auto-rollback: required probes failed on new version
                 if report.status == crate::extensions::health::HealthStatus::Unhealthy {
                     return Err(format!(
                         "Installation aborted: {} failed required probes. {}",
                         manifest.id,
                         if !report.failures.is_empty() {
-                            format!("Failures: {}", report.failures.iter()
-                                .map(|f| format!("{} (exit {:?})", f.probe, f.exit_code))
-                                .collect::<Vec<_>>().join(", "))
-                        } else { String::new() }
+                            format!(
+                                "Failures: {}",
+                                report
+                                    .failures
+                                    .iter()
+                                    .map(|f| format!("{} (exit {:?})", f.probe, f.exit_code))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        } else {
+                            String::new()
+                        }
                     ));
                 }
             }
@@ -1669,7 +1611,14 @@ async fn install_managed(
             .to_string(),
     };
     progress(state, &mut journal, TransactionState::Staged)?;
-    commit_version(state, old.as_ref(), &entry, &version_root, &target, Some(journal))?;
+    commit_version(
+        state,
+        old.as_ref(),
+        &entry,
+        &version_root,
+        &target,
+        Some(journal),
+    )?;
     Ok(entry)
 }
 
@@ -1805,13 +1754,27 @@ pub(crate) async fn install_linked(
     // Run post-install capability probes for linked tools too
     if !manifest.lifecycle.probes.is_empty() {
         let tool_data_dir = state.paths.data.join(&manifest.id);
-        let probe_args: Vec<Vec<String>> = manifest.lifecycle.probes.iter()
+        let probe_args: Vec<Vec<String>> = manifest
+            .lifecycle
+            .probes
+            .iter()
             .map(|p| p.args.clone())
             .collect();
-        let required: Vec<bool> = manifest.lifecycle.probes.iter()
+        let required: Vec<bool> = manifest
+            .lifecycle
+            .probes
+            .iter()
             .map(|p| p.required)
             .collect();
-        match crate::extensions::probe_runner::run_probes(state, &manifest.id, &executable, &probe_args, &required).await {
+        match crate::extensions::probe_runner::run_probes(
+            state,
+            &manifest.id,
+            &executable,
+            &probe_args,
+            &required,
+        )
+        .await
+        {
             Ok(report) => {
                 let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
             }
@@ -3262,15 +3225,6 @@ mod tests {
         assert!(validate_package_name("@/tool").is_err());
         assert!(validate_package_name("@scope/").is_err());
         assert!(validate_package_name("UPPER").is_err());
-    }
-
-    #[test]
-    fn fuzzy_path_search_prefers_exact_prefix_and_subsequence_matches() {
-        assert_eq!(fuzzy_executable_score("cargo", "cargo"), Some(0));
-        assert_eq!(fuzzy_executable_score("cargo-clippy", "cargo"), Some(1));
-        assert_eq!(fuzzy_executable_score("my-cargo-tool", "cargo"), Some(2));
-        assert_eq!(fuzzy_executable_score("cargo", "cgo"), Some(3));
-        assert_eq!(fuzzy_executable_score("cargo", "xyz"), None);
     }
 
     #[test]

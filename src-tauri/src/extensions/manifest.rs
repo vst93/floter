@@ -634,9 +634,11 @@ mod tests {
             "type": "system",
             "executableNames": ["v"]
         });
-        assert!(ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap())
-            .unwrap_err()
-            .contains("only supported for bundled runtimes"));
+        assert!(
+            ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap())
+                .unwrap_err()
+                .contains("only supported for bundled runtimes")
+        );
 
         value["runtime"] = serde_json::json!({
             "type": "bundled",
@@ -653,9 +655,11 @@ mod tests {
                 "path": "bin/v",
                 "role": "helper"
             }));
-        assert!(ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap())
-            .unwrap_err()
-            .contains("Duplicate artifact binary path"));
+        assert!(
+            ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap())
+                .unwrap_err()
+                .contains("Duplicate artifact binary path")
+        );
     }
 
     #[test]

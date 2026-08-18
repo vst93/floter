@@ -23,6 +23,17 @@ pub struct TerminalExecutionPlan {
     argument_override: Option<Vec<String>>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachExistingRequest {
+    id: String,
+    generation: u64,
+    broker_session_id: String,
+    theme: Option<String>,
+    cols: Option<u16>,
+    rows: Option<u16>,
+}
+
 fn default_true() -> bool {
     true
 }
@@ -109,22 +120,17 @@ pub fn term_list_sessions() -> Result<Vec<BrokerSessionInfo>, String> {
 pub fn term_attach_existing(
     state: State<'_, TerminalState>,
     app: AppHandle,
-    id: String,
-    generation: u64,
-    broker_session_id: String,
-    theme: Option<String>,
-    cols: Option<u16>,
-    rows: Option<u16>,
+    request: AttachExistingRequest,
 ) -> Result<(), String> {
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     manager.attach_existing(
-        id,
-        generation,
+        request.id,
+        request.generation,
         app,
-        broker_session_id,
-        theme,
-        cols.unwrap_or(80),
-        rows.unwrap_or(24),
+        request.broker_session_id,
+        request.theme,
+        request.cols.unwrap_or(80),
+        request.rows.unwrap_or(24),
     )
 }
 

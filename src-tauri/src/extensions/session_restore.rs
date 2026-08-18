@@ -6,21 +6,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const SESSION_SCHEMA_VERSION: u32 = 1;
 
 /// Session restore policy.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "policy", rename_all = "camelCase")]
 pub enum RestorePolicy {
     /// Reattach to existing session if alive.
+    #[default]
     Reattach,
     /// Restart the session if it has exited.
     Restart,
     /// Never restore; always create a new session.
     None,
-}
-
-impl Default for RestorePolicy {
-    fn default() -> Self {
-        RestorePolicy::Reattach
-    }
 }
 
 /// A minimal session description written to `session.json`
@@ -108,6 +103,16 @@ pub enum ResolvedSession {
     New(SessionDescription),
 }
 
+pub struct SessionResolveRequest {
+    pub tool_id: String,
+    pub tool_version: String,
+    pub argv: Vec<String>,
+    pub cwd: PathBuf,
+    pub environment_refs: Vec<String>,
+    pub terminal_profile: Option<String>,
+    pub restore_policy: RestorePolicy,
+}
+
 /// Session resolver that manages `session.json` for a tool.
 pub struct SessionResolver {
     sessions_dir: PathBuf,
@@ -124,8 +129,8 @@ impl SessionResolver {
         if !path.exists() {
             return Ok(None);
         }
-        let bytes = std::fs::read(&path)
-            .map_err(|error| format!("Cannot read session file: {error}"))?;
+        let bytes =
+            std::fs::read(&path).map_err(|error| format!("Cannot read session file: {error}"))?;
         let session: SessionDescription = serde_json::from_slice(&bytes)
             .map_err(|error| format!("Cannot parse session file: {error}"))?;
         Ok(Some(session))
@@ -163,20 +168,20 @@ impl SessionResolver {
     }
 
     /// Resolve what to do for a tool launch: reattach, restart, or create new.
-    pub fn resolve(
-        &self,
-        tool_id: &str,
-        tool_version: &str,
-        argv: Vec<String>,
-        cwd: PathBuf,
-        environment_refs: Vec<String>,
-        terminal_profile: Option<String>,
-        restore_policy: RestorePolicy,
-    ) -> Result<ResolvedSession, String> {
+    pub fn resolve(&self, request: SessionResolveRequest) -> Result<ResolvedSession, String> {
+        let SessionResolveRequest {
+            tool_id,
+            tool_version,
+            argv,
+            cwd,
+            environment_refs,
+            terminal_profile,
+            restore_policy,
+        } = request;
         if restore_policy == RestorePolicy::None {
             let session = SessionDescription::create(
-                tool_id.to_string(),
-                tool_version.to_string(),
+                tool_id,
+                tool_version,
                 argv,
                 cwd,
                 environment_refs,
@@ -186,7 +191,7 @@ impl SessionResolver {
             return Ok(ResolvedSession::New(session));
         }
 
-        if let Some(existing) = self.find_session(tool_id)? {
+        if let Some(existing) = self.find_session(&tool_id)? {
             // Check if the existing session is still alive (simplified).
             // In production, this would query the qscreen broker.
             match restore_policy {
@@ -195,8 +200,8 @@ impl SessionResolver {
                 }
                 RestorePolicy::Restart => {
                     let session = SessionDescription::create(
-                        tool_id.to_string(),
-                        tool_version.to_string(),
+                        tool_id,
+                        tool_version,
                         argv,
                         cwd,
                         environment_refs,
@@ -211,8 +216,8 @@ impl SessionResolver {
 
         // No existing session; create new
         let session = SessionDescription::create(
-            tool_id.to_string(),
-            tool_version.to_string(),
+            tool_id,
+            tool_version,
             argv,
             cwd,
             environment_refs,
@@ -279,15 +284,15 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let resolver = SessionResolver::new(temp.path().to_path_buf());
         let resolved = resolver
-            .resolve(
-                "new.tool",
-                "1.0.0",
-                vec!["new".to_string()],
-                PathBuf::from("/tmp"),
-                vec![],
-                None,
-                RestorePolicy::Reattach,
-            )
+            .resolve(SessionResolveRequest {
+                tool_id: "new.tool".into(),
+                tool_version: "1.0.0".into(),
+                argv: vec!["new".to_string()],
+                cwd: PathBuf::from("/tmp"),
+                environment_refs: vec![],
+                terminal_profile: None,
+                restore_policy: RestorePolicy::Reattach,
+            })
             .unwrap();
         match resolved {
             ResolvedSession::New(session) => {
@@ -302,15 +307,15 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let resolver = SessionResolver::new(temp.path().to_path_buf());
         let resolved = resolver
-            .resolve(
-                "tool",
-                "1.0.0",
-                vec!["tool".to_string()],
-                PathBuf::from("/tmp"),
-                vec![],
-                None,
-                RestorePolicy::None,
-            )
+            .resolve(SessionResolveRequest {
+                tool_id: "tool".into(),
+                tool_version: "1.0.0".into(),
+                argv: vec!["tool".to_string()],
+                cwd: PathBuf::from("/tmp"),
+                environment_refs: vec![],
+                terminal_profile: None,
+                restore_policy: RestorePolicy::None,
+            })
             .unwrap();
         match resolved {
             ResolvedSession::New(_) => {}

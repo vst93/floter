@@ -2415,12 +2415,14 @@ export default function App() {
       const generation = ++nextTerminalGeneration.current;
       terminalGeneration.current = generation;
       await invoke("term_attach_existing", {
-        id: "main",
-        generation,
-        brokerSessionId: session.sessionId,
-        theme: resolvedTheme,
-        cols,
-        rows,
+        request: {
+          id: "main",
+          generation,
+          brokerSessionId: session.sessionId,
+          theme: resolvedTheme,
+          cols,
+          rows,
+        },
       });
       if (terminalGeneration.current === generation) {
         ptyReady.current = true;

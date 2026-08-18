@@ -82,10 +82,16 @@ impl ToolLifecycle {
         let mut probe_ids = BTreeSet::new();
         for probe in &self.probes {
             if !probe_ids.insert(probe.id.clone()) {
-                return Err(format!("Lifecycle declares probe '{}' more than once", probe.id));
+                return Err(format!(
+                    "Lifecycle declares probe '{}' more than once",
+                    probe.id
+                ));
             }
             if !(100..=30_000).contains(&probe.timeout_ms) {
-                return Err(format!("Probe '{}' timeout must be between 100 and 30000 ms", probe.id));
+                return Err(format!(
+                    "Probe '{}' timeout must be between 100 and 30000 ms",
+                    probe.id
+                ));
             }
             if probe.args.len() > 32 {
                 return Err(format!("Probe '{}' accepts at most 32 arguments", probe.id));
@@ -365,7 +371,10 @@ fn reconcile_templates(
         let source = package_root.join(source_relative);
         let source = contained_file(package_root, &source, "configuration template")?;
         let bytes = std::fs::read(&source).map_err(|error| {
-            format!("Cannot read configuration template {}: {error}", source.display())
+            format!(
+                "Cannot read configuration template {}: {error}",
+                source.display()
+            )
         })?;
         let computed = digest(&bytes);
         let target = tool_data_root.join(target_relative);
@@ -374,9 +383,7 @@ fn reconcile_templates(
         let previous = receipt.templates.get(&template.target);
         let may_write = match (&existing, previous) {
             (None, _) => true,
-            (Some(bytes), Some(previous)) if previous.managed => {
-                computed == previous.digest
-            }
+            (Some(bytes), Some(previous)) if previous.managed => computed == previous.digest,
             _ => false,
         };
         if may_write {
@@ -448,10 +455,14 @@ async fn reconcile_completions(
         let relative = PathBuf::from(completion.shell.as_str()).join(file_name);
         let bytes = match completion.source.as_deref() {
             Some(source) => {
-                let source = package_root.join(validate_relative_path(source, "completion source")?);
+                let source =
+                    package_root.join(validate_relative_path(source, "completion source")?);
                 let source = contained_file(package_root, &source, "completion source")?;
                 let bytes = std::fs::read(&source).map_err(|error| {
-                    format!("Cannot read completion source {}: {error}", source.display())
+                    format!(
+                        "Cannot read completion source {}: {error}",
+                        source.display()
+                    )
                 })?;
                 if bytes.len() > MAX_COMPLETION_BYTES {
                     return Err(format!(
@@ -517,13 +528,21 @@ async fn generate_completion(
             completion.shell.as_str()
         )
     })?;
-    let stdout = child.stdout.take().ok_or("Completion stdout is unavailable")?;
-    let stderr = child.stderr.take().ok_or("Completion stderr is unavailable")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("Completion stdout is unavailable")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("Completion stderr is unavailable")?;
     let stdout_task = tokio::spawn(read_limited(stdout, MAX_COMPLETION_BYTES));
     let stderr_task = tokio::spawn(read_limited(stderr, 64 * 1024));
     let timeout = Duration::from_millis(completion.timeout_ms);
     let status = match tokio::time::timeout(timeout, child.wait()).await {
-        Ok(result) => result.map_err(|error| format!("Cannot wait for completion generator: {error}"))?,
+        Ok(result) => {
+            result.map_err(|error| format!("Cannot wait for completion generator: {error}"))?
+        }
         Err(_) => {
             let _ = child.kill().await;
             let _ = child.wait().await;
@@ -571,7 +590,10 @@ async fn read_limited<R: AsyncRead + Unpin>(reader: R, limit: usize) -> Result<V
 
 #[cfg(target_os = "windows")]
 fn provider_command(executable: &Path) -> tokio::process::Command {
-    let extension = executable.extension().and_then(|value| value.to_str()).unwrap_or_default();
+    let extension = executable
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
     if extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat") {
         let mut command = tokio::process::Command::new("cmd.exe");
         command.args(["/D", "/S", "/C"]).arg(executable);
@@ -777,7 +799,9 @@ mod tests {
         };
         let result = lifecycle.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("probe 'version' more than once"));
+        assert!(result
+            .unwrap_err()
+            .contains("probe 'version' more than once"));
     }
 
     #[test]

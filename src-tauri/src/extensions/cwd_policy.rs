@@ -29,10 +29,11 @@ impl<'a> CwdContext<'a> {
 }
 
 /// Working directory policy for tool launches.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "policy", rename_all = "camelCase")]
 pub enum CwdPolicy {
     /// Inherit the active terminal session's cwd.
+    #[default]
     InheritActiveSession,
     /// Detect project root by walking up from the active session's cwd.
     ProjectRoot {
@@ -64,12 +65,6 @@ fn default_project_markers() -> Vec<String> {
 
 fn default_max_depth() -> u32 {
     32
-}
-
-impl Default for CwdPolicy {
-    fn default() -> Self {
-        CwdPolicy::InheritActiveSession
-    }
 }
 
 impl CwdPolicy {

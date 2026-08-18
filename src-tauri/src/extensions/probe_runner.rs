@@ -1,7 +1,7 @@
 use crate::extensions::capability_probe::{CapabilityProbe, CapabilityReport, ProbeResult};
 use crate::extensions::health::HealthReport;
 use crate::extensions::ExtensionState;
-use std::path::PathBuf;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -11,7 +11,7 @@ const MAX_OUTPUT_BYTES: usize = 64 * 1024;
 pub async fn run_probes(
     _state: &ExtensionState,
     _tool_id: &str,
-    executable: &PathBuf,
+    executable: &Path,
     probe_args: &[Vec<String>],
     required_probes: &[bool],
 ) -> Result<HealthReport, String> {
@@ -39,13 +39,7 @@ pub async fn run_probes(
             }
             Err(error) => {
                 let duration = start.elapsed();
-                report.record_failure(
-                    &format!("probe-{i}"),
-                    duration,
-                    None,
-                    error,
-                    !required,
-                );
+                report.record_failure(&format!("probe-{i}"), duration, None, error, !required);
             }
         }
     }
@@ -62,7 +56,7 @@ pub async fn run_probes(
 }
 
 pub async fn run_single_probe(
-    executable: &PathBuf,
+    executable: &Path,
     args: &[String],
     timeout: Duration,
 ) -> Result<ProbeResult, String> {
@@ -74,21 +68,12 @@ pub async fn run_single_probe(
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
 
-    let mut child = command.spawn().map_err(|error| {
-        format!(
-            "Cannot start probe for {}: {error}",
-            executable.display()
-        )
-    })?;
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("Cannot start probe for {}: {error}", executable.display()))?;
 
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or("Probe stdout is unavailable")?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or("Probe stderr is unavailable")?;
+    let stdout = child.stdout.take().ok_or("Probe stdout is unavailable")?;
+    let stderr = child.stderr.take().ok_or("Probe stderr is unavailable")?;
 
     let stdout_task = tokio::spawn(read_output(stdout, MAX_OUTPUT_BYTES));
     let stderr_task = tokio::spawn(read_output(stderr, MAX_OUTPUT_BYTES));

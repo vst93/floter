@@ -160,14 +160,17 @@ pub struct Negotiation {
 /// Implementations wrap a live PTY (or, in tests, a scripted fake). The two
 /// callbacks borrow disjoint resources in production — one side sends to the
 /// PTY master, the other drains its output.
+type TerminalWriter<'a> = dyn FnMut(&[u8]) -> Result<(), String> + 'a;
+type TerminalReader<'a> = dyn FnMut(&mut [u8], Duration) -> Result<usize, String> + 'a;
+
 pub struct TerminalIo<'a> {
     /// Send `data` to the terminal. Errors abort the negotiation.
-    pub write: Box<dyn FnMut(&[u8]) -> Result<(), String> + 'a>,
+    pub write: Box<TerminalWriter<'a>>,
     /// Block up to `timeout` for terminal output; copy it into `buf` and
     /// return the byte count. `Ok(0)` means the timeout elapsed with no data
     /// (never an error — silence is how probes time out). Errors abort the
     /// negotiation.
-    pub read: Box<dyn FnMut(&mut [u8], Duration) -> Result<usize, String> + 'a>,
+    pub read: Box<TerminalReader<'a>>,
 }
 
 /// Decoded capabilities of a terminal.
@@ -341,10 +344,7 @@ impl TerminalCapability {
 /// Reads until either `deadline` passes, a quiet gap longer than
 /// [`QUIET_PERIOD`] follows the last byte, or the response exceeds
 /// [`MAX_RESPONSE_BYTES`]. Returns `None` when no byte ever arrived.
-fn read_response(
-    io: &mut TerminalIo,
-    deadline: Instant,
-) -> Result<Option<Vec<u8>>, String> {
+fn read_response(io: &mut TerminalIo, deadline: Instant) -> Result<Option<Vec<u8>>, String> {
     let mut buf = [0u8; 512];
     let mut response = Vec::new();
     loop {
@@ -405,11 +405,17 @@ fn parse_decrqm(data: &[u8], mode: u16) -> Option<DecrqmState> {
         return None;
     }
     let mut parts = head.split(|&byte| byte == b';');
-    let answered_mode = std::str::from_utf8(parts.next()?).ok()?.parse::<u16>().ok()?;
+    let answered_mode = std::str::from_utf8(parts.next()?)
+        .ok()?
+        .parse::<u16>()
+        .ok()?;
     if answered_mode != mode {
         return None;
     }
-    let state_value = std::str::from_utf8(parts.next()?).ok()?.parse::<u16>().ok()?;
+    let state_value = std::str::from_utf8(parts.next()?)
+        .ok()?
+        .parse::<u16>()
+        .ok()?;
     DecrqmState::from_u16(state_value)
 }
 
@@ -514,7 +520,10 @@ mod tests {
         assert!(TerminalColor::None < TerminalColor::Palette8);
         assert!(TerminalColor::Palette8 < TerminalColor::Palette256);
         assert!(TerminalColor::Palette256 < TerminalColor::Truecolor);
-        assert_eq!(TerminalColor::Truecolor.max(TerminalColor::None), TerminalColor::Truecolor);
+        assert_eq!(
+            TerminalColor::Truecolor.max(TerminalColor::None),
+            TerminalColor::Truecolor
+        );
     }
 
     #[test]
@@ -533,7 +542,10 @@ mod tests {
         assert!(DecrqmState::PermanentlyReset.supported());
         assert!(!DecrqmState::NotRecognized.supported());
         assert_eq!(DecrqmState::from_u16(0), Some(DecrqmState::NotRecognized));
-        assert_eq!(DecrqmState::from_u16(4), Some(DecrqmState::PermanentlyReset));
+        assert_eq!(
+            DecrqmState::from_u16(4),
+            Some(DecrqmState::PermanentlyReset)
+        );
         assert_eq!(DecrqmState::from_u16(5), None);
     }
 
@@ -560,15 +572,27 @@ mod tests {
 
     #[test]
     fn parse_decrqm_decodes_all_states() {
-        assert_eq!(parse_decrqm(b"\x1b[?1006;1$y", 1006), Some(DecrqmState::Set));
-        assert_eq!(parse_decrqm(b"\x1b[?1006;0$y", 1006), Some(DecrqmState::NotRecognized));
-        assert_eq!(parse_decrqm(b"\x1b[?2004;4$Y", 2004), Some(DecrqmState::PermanentlyReset));
+        assert_eq!(
+            parse_decrqm(b"\x1b[?1006;1$y", 1006),
+            Some(DecrqmState::Set)
+        );
+        assert_eq!(
+            parse_decrqm(b"\x1b[?1006;0$y", 1006),
+            Some(DecrqmState::NotRecognized)
+        );
+        assert_eq!(
+            parse_decrqm(b"\x1b[?2004;4$Y", 2004),
+            Some(DecrqmState::PermanentlyReset)
+        );
     }
 
     #[test]
     fn parse_decrqm_ignores_responses_for_other_modes() {
         assert_eq!(parse_decrqm(b"\x1b[?1006;1$y", 2004), None);
-        assert_eq!(parse_decrqm(b"\x1b[?1006;1$y", 1006), Some(DecrqmState::Set));
+        assert_eq!(
+            parse_decrqm(b"\x1b[?1006;1$y", 1006),
+            Some(DecrqmState::Set)
+        );
         assert_eq!(parse_decrqm(b"no response at all", 1006), None);
     }
 
@@ -652,10 +676,7 @@ mod tests {
         assert!(negotiation.report.da1.is_none());
         assert!(negotiation.report.decrqm.is_empty());
         // Only the DA1 query should have been sent.
-        assert_eq!(
-            *fake.served.borrow(),
-            vec![b"\x1b[c".to_vec()]
-        );
+        assert_eq!(*fake.served.borrow(), vec![b"\x1b[c".to_vec()]);
     }
 
     #[test]
