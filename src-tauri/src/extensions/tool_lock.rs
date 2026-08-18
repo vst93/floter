@@ -81,13 +81,26 @@ impl ToolLock {
     }
 
     pub fn bind(&mut self, tool: impl Into<String>, candidate: &ToolCandidate) {
+        self.bind_locator(
+            tool,
+            candidate.locator.clone(),
+            candidate.fingerprint.clone(),
+        );
+    }
+
+    pub fn bind_locator(
+        &mut self,
+        tool: impl Into<String>,
+        locator: ToolLocator,
+        fingerprint: Option<String>,
+    ) {
         let tool = tool.into();
         self.tools.insert(
             tool.clone(),
             ToolLockEntry {
                 tool,
-                locator: candidate.locator.clone(),
-                fingerprint: candidate.fingerprint.clone(),
+                locator,
+                fingerprint,
                 locked_at: unix_now(),
                 state: LockState::Connected,
             },
@@ -128,8 +141,13 @@ impl ToolLock {
             .ok_or_else(|| format!("Tool is not locked: {tool}"))?;
         entry.locator = candidate.locator.clone();
         entry.fingerprint = candidate.fingerprint.clone();
+        entry.locked_at = unix_now();
         entry.state = LockState::Connected;
         Ok(())
+    }
+
+    pub fn remove(&mut self, tool: &str) -> Option<ToolLockEntry> {
+        self.tools.remove(tool)
     }
 }
 
@@ -195,5 +213,23 @@ mod tests {
 
         assert_eq!(loaded.tools["tool"].locator, candidate.locator);
         assert_eq!(loaded.tools["tool"].state, LockState::Connected);
+    }
+
+    #[test]
+    fn reconnect_replaces_the_explicit_binding_and_remove_unbinds_it() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = temporary.path().join("original");
+        let replacement = temporary.path().join("replacement");
+        std::fs::write(&original, "original").unwrap();
+        std::fs::write(&replacement, "replacement").unwrap();
+        let original = candidate(&original.to_string_lossy());
+        let replacement = candidate(&replacement.to_string_lossy());
+        let mut lock = ToolLock::default();
+        lock.bind("tool", &original);
+
+        lock.reconnect("tool", &replacement).unwrap();
+        assert_eq!(lock.tools["tool"].locator, replacement.locator);
+        assert!(lock.remove("tool").is_some());
+        assert!(!lock.tools.contains_key("tool"));
     }
 }

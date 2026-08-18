@@ -60,9 +60,31 @@ impl ScoreBreakdown {
 }
 
 pub fn resolve(request: &ResolveRequest, candidates: &[ToolCandidate]) -> ResolveResult {
+    resolve_filtered(request, candidates.iter())
+}
+
+pub fn resolve_executable_names(
+    request: &ResolveRequest,
+    executable_names: &[String],
+    candidates: &[ToolCandidate],
+) -> ResolveResult {
+    resolve_filtered(
+        request,
+        candidates.iter().filter(|candidate| {
+            candidate.locator.executable_path().is_some()
+                && executable_names
+                    .iter()
+                    .any(|name| executable_name_matches(&candidate.name, name))
+        }),
+    )
+}
+
+fn resolve_filtered<'a>(
+    request: &ResolveRequest,
+    candidates: impl Iterator<Item = &'a ToolCandidate>,
+) -> ResolveResult {
     let query = request.tool.trim().to_ascii_lowercase();
     let mut scored: Vec<ScoredCandidate> = candidates
-        .iter()
         .filter(|candidate| {
             candidate.available
                 && (candidate.name.eq_ignore_ascii_case(&query)
@@ -99,6 +121,23 @@ pub fn resolve(request: &ResolveRequest, candidates: &[ToolCandidate]) -> Resolv
             candidate: selected.candidate,
             score: selected.score,
         }
+    }
+}
+
+fn executable_name_matches(candidate: &str, expected: &str) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        let candidate = candidate.to_ascii_lowercase();
+        let expected = expected.to_ascii_lowercase();
+        candidate == expected
+            || (!std::path::Path::new(&expected).extension().is_some()
+                && [".exe", ".cmd", ".bat", ".com"]
+                    .iter()
+                    .any(|extension| candidate == format!("{expected}{extension}")))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        candidate == expected
     }
 }
 
@@ -225,5 +264,52 @@ mod tests {
             panic!("expected a selected candidate");
         };
         assert_eq!(score.history, 2);
+    }
+
+    #[test]
+    fn preferred_locator_resolves_an_otherwise_ambiguous_executable() {
+        let mut first = candidate("tool", "1.0.0");
+        first.locator = ToolLocator::Executable {
+            path: "/opt/first/tool".into(),
+        };
+        let mut second = candidate("tool", "1.0.0");
+        second.locator = ToolLocator::Executable {
+            path: "/opt/second/tool".into(),
+        };
+        let result = resolve_executable_names(
+            &ResolveRequest {
+                tool: "tool".into(),
+                profile: None,
+                required_version: None,
+                preferred_locator: Some(second.locator.normalized()),
+            },
+            &["tool".into()],
+            &[first, second.clone()],
+        );
+
+        let ResolveResult::Selected { candidate, score } = result else {
+            panic!("expected the locked locator to be selected");
+        };
+        assert_eq!(candidate.locator, second.locator);
+        assert_eq!(score.history, 2);
+    }
+
+    #[test]
+    fn executable_name_resolution_rejects_path_only_matches() {
+        let mut unrelated = candidate("helper", "1.0.0");
+        unrelated.locator = ToolLocator::Executable {
+            path: "/opt/tool/helper".into(),
+        };
+        let result = resolve_executable_names(
+            &ResolveRequest {
+                tool: "tool".into(),
+                profile: None,
+                required_version: None,
+                preferred_locator: None,
+            },
+            &["tool".into()],
+            &[unrelated],
+        );
+        assert!(matches!(result, ResolveResult::NotFound { .. }));
     }
 }

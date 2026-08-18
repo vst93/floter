@@ -4,6 +4,8 @@ use base64::Engine;
 use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
+use std::path::Path;
 
 const INDEX_SCHEMA_VERSION: u32 = 1;
 const MAX_INDEX_BYTES: usize = 1024 * 1024;
@@ -164,7 +166,80 @@ pub async fn fetch(state: &ExtensionState) -> Result<OfficialIndex, String> {
         }
         bytes.extend_from_slice(&chunk);
     }
-    verify(&bytes, &state.official_index.root_public_keys, Utc::now())
+    let index = verify(&bytes, &state.official_index.root_public_keys, Utc::now())?;
+    accept_version(
+        &state.paths.official_index_state_file,
+        &state.accepted_official_index_version,
+        index.index_version,
+    )?;
+    Ok(index)
+}
+
+const INDEX_STATE_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct OfficialIndexState {
+    schema_version: u32,
+    highest_accepted_version: u64,
+}
+
+pub(crate) fn load_accepted_version(path: &Path) -> Result<u64, String> {
+    if !path.exists() {
+        return Ok(0);
+    }
+    let bytes = std::fs::read(path)
+        .map_err(|error| format!("Cannot read official index state: {error}"))?;
+    let state: OfficialIndexState = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Invalid official index state: {error}"))?;
+    if state.schema_version != INDEX_STATE_SCHEMA_VERSION {
+        return Err(format!(
+            "Unsupported official index state schema version {}",
+            state.schema_version
+        ));
+    }
+    Ok(state.highest_accepted_version)
+}
+
+fn accept_version(
+    path: &Path,
+    accepted: &std::sync::Mutex<u64>,
+    version: u64,
+) -> Result<(), String> {
+    let mut highest = accepted
+        .lock()
+        .map_err(|_| "Official index version state is unavailable".to_string())?;
+    if version < *highest {
+        return Err(format!(
+            "Official extension index rollback rejected: version {version} is older than {}",
+            *highest
+        ));
+    }
+    if version == *highest {
+        return Ok(());
+    }
+    let parent = path.parent().ok_or("Invalid official index state path")?;
+    std::fs::create_dir_all(parent)
+        .map_err(|error| format!("Cannot create official index state directory: {error}"))?;
+    let bytes = serde_json::to_vec_pretty(&OfficialIndexState {
+        schema_version: INDEX_STATE_SCHEMA_VERSION,
+        highest_accepted_version: version,
+    })
+    .map_err(|error| format!("Cannot serialize official index state: {error}"))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|error| format!("Cannot create official index state: {error}"))?;
+    temporary
+        .write_all(&bytes)
+        .and_then(|_| temporary.flush())
+        .and_then(|_| temporary.as_file().sync_all())
+        .map_err(|error| format!("Cannot write official index state: {error}"))?;
+    temporary
+        .persist(path)
+        .map_err(|error| format!("Cannot persist official index state: {error}"))?;
+    crate::extensions::lock::sync_directory(parent)
+        .map_err(|error| format!("Cannot sync official index state directory: {error}"))?;
+    *highest = version;
+    Ok(())
 }
 
 pub fn verify(
@@ -433,5 +508,23 @@ mod tests {
             "example",
             Some(&signature)
         ));
+    }
+
+    #[test]
+    fn accepted_index_version_is_persisted_and_cannot_roll_back() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("official-index-state.json");
+        let accepted = std::sync::Mutex::new(0);
+
+        accept_version(&path, &accepted, 7).unwrap();
+        assert_eq!(load_accepted_version(&path).unwrap(), 7);
+        accept_version(&path, &accepted, 7).unwrap();
+        assert!(accept_version(&path, &accepted, 6)
+            .unwrap_err()
+            .contains("rollback rejected"));
+        assert_eq!(load_accepted_version(&path).unwrap(), 7);
+
+        accept_version(&path, &accepted, 8).unwrap();
+        assert_eq!(load_accepted_version(&path).unwrap(), 8);
     }
 }

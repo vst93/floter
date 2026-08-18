@@ -179,6 +179,10 @@ impl ToolInventory {
             .map(|(_, candidate)| candidate)
             .collect()
     }
+
+    pub fn candidates(&mut self) -> Vec<ToolCandidate> {
+        self.refresh_if_needed().candidates.clone()
+    }
 }
 
 impl Default for ToolInventory {
@@ -200,6 +204,29 @@ pub fn discover_snapshot() -> ToolInventorySnapshot {
         generated_at: unix_now(),
         platform: current_platform(),
         candidates: candidates.into_values().collect(),
+    }
+}
+
+pub fn inspect_executable(path: &Path, name: impl Into<String>) -> Option<ToolCandidate> {
+    let candidate = executable_candidate(path, name);
+    candidate.available.then_some(candidate)
+}
+
+pub fn executable_candidate(path: &Path, name: impl Into<String>) -> ToolCandidate {
+    let path = absolute_path(path);
+    let available = is_executable(&path);
+    let locator = ToolLocator::Executable {
+        path: path.to_string_lossy().into_owned(),
+    };
+    ToolCandidate {
+        id: locator.normalized(),
+        name: name.into(),
+        fingerprint: available.then(|| fingerprint(&path)).flatten(),
+        locator,
+        version: None,
+        sources: vec![DiscoverySource::Path],
+        quality: DiscoveryQuality::UserDefined,
+        available,
     }
 }
 

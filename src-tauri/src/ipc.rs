@@ -189,7 +189,10 @@ mod tests {
     /// A socket path of our own, so the tests never touch the one a real
     /// instance may be holding in `$XDG_RUNTIME_DIR`.
     fn scratch_path(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("floter-test-{name}.sock"));
+        let path = std::env::temp_dir().join(format!(
+            "floter-test-{}-{name}.sock",
+            std::process::id()
+        ));
         let _ = std::fs::remove_file(&path);
         path
     }

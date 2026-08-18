@@ -1738,6 +1738,59 @@ input:focus {
   border-top: 1px solid var(--hairline);
 }
 
+.extension-tool-choice-list {
+  min-height: 0;
+  display: grid;
+  gap: 5px;
+  padding: 8px 13px;
+  overflow-y: auto;
+}
+
+.extension-tool-choice-list > button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--stroke-control);
+  border-radius: 5px;
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.extension-tool-choice-list > button:hover,
+.extension-tool-choice-list > button:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.extension-tool-choice-list strong,
+.extension-tool-choice-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extension-tool-choice-list strong {
+  font-size: 11px;
+}
+
+.extension-tool-choice-list span {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.extension-tool-choice-list small {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--text-tertiary);
+  font-size: 9px;
+}
+
 .extension-permission-dialog__boundary {
   margin: 5px 0 8px;
   padding: 8px;
@@ -1963,6 +2016,33 @@ input:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.extension-release-policy {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.extension-release-policy label {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.extension-release-policy select {
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid var(--stroke-control);
+  border-radius: 5px;
+  padding: 0 8px;
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font: inherit;
 }
 
 .extension-metadata {

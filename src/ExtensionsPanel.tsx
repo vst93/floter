@@ -12,6 +12,7 @@ import {
   Link2,
   MoreHorizontal,
   Package,
+  Pin,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
   Trash2,
   Unplug,
+  Wrench,
   X,
 } from "lucide-react";
 import type { Translate } from "./i18n";
@@ -61,6 +63,8 @@ type Extension = {
   pinned: boolean;
   channel: string;
   generatedCustom: boolean;
+  toolLockState: "connected" | "reconnect-required" | "reverify-required" | null;
+  toolCandidates: ExecutableToolCandidate[];
 };
 
 type SearchResult = {
@@ -71,6 +75,12 @@ type SearchResult = {
   homepage: string | null;
   verified: boolean;
   downloads: number;
+};
+
+type UpdateCandidate = {
+  id: string;
+  version: string;
+  kind: "patch" | "minor" | "major";
 };
 
 type CommandDescriptor = {
@@ -170,11 +180,12 @@ type ExtensionConfiguration = {
 };
 
 type Tab = "installed" | "discover" | "updates";
-type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "reinstall" | "uninstall" | "save";
+type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "reinstall" | "repair" | "policy" | "uninstall" | "save";
 type SyncOperation = "export" | "import";
 type ConfigOperation = "copy" | "export" | null;
 type CustomContentOperation = "copy" | "export" | null;
 type RemovalTarget = Extension | null;
+type PendingToolSelection = { extension: Extension; action: "connect" | "reconnect" } | null;
 
 type DiscoverySource =
   | "path"
@@ -387,24 +398,6 @@ type InstallRequest = {
   approvedPermissions?: PermissionName[];
 };
 
-const compareVersions = (left: string, right: string): number => {
-  const parse = (value: string) => {
-    const [core, prerelease = ""] = value.replace(/^v/, "").split("-", 2);
-    const numbers = core.split(".").map((part) => Number.parseInt(part, 10) || 0);
-    return { numbers, prerelease };
-  };
-  const a = parse(left);
-  const b = parse(right);
-  for (let index = 0; index < Math.max(a.numbers.length, b.numbers.length); index += 1) {
-    const difference = (a.numbers[index] ?? 0) - (b.numbers[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  if (a.prerelease === b.prerelease) return 0;
-  if (!a.prerelease) return 1;
-  if (!b.prerelease) return -1;
-  return a.prerelease.localeCompare(b.prerelease, undefined, { numeric: true });
-};
-
 const formatDownloads = (value: number): string =>
   new Intl.NumberFormat(undefined, { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
 
@@ -458,6 +451,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [tab, setTab] = useState<Tab>("installed");
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [latestById, setLatestById] = useState<Record<string, SearchResult>>({});
+  const [updateById, setUpdateById] = useState<Record<string, UpdateCandidate>>({});
   const [loading, setLoading] = useState(true);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -482,6 +476,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [permissionReviews, setPermissionReviews] = useState<Record<string, PermissionReview>>({});
   const [pendingInstall, setPendingInstall] = useState<{ result: SearchResult; request: InstallRequest; review: PermissionReview } | null>(null);
   const [pendingLocal, setPendingLocal] = useState<{ review: PermissionReview; request: InstallRequest; name: string; runtime: string; platforms: string[]; source: string } | null>(null);
+  const [pendingToolSelection, setPendingToolSelection] = useState<PendingToolSelection>(null);
   const [syncOperation, setSyncOperation] = useState<SyncOperation | null>(null);
   const [exportResult, setExportResult] = useState<ExtensionsExportResult | null>(null);
   const [importReport, setImportReport] = useState<ExtensionsImportReport | null>(null);
@@ -505,6 +500,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const permissionDialogRef = useRef<HTMLElement | null>(null);
   const localDialogRef = useRef<HTMLElement | null>(null);
+  const toolSelectionDialogRef = useRef<HTMLElement | null>(null);
   const removalDialogRef = useRef<HTMLElement | null>(null);
   const customDialogRef = useRef<HTMLElement | null>(null);
   const toolResultsRef = useRef<HTMLDivElement | null>(null);
@@ -547,11 +543,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   }[language]);
 
   const updates = useMemo(
-    () => extensions.filter((extension) => {
-      const latest = latestById[extension.id];
-      return latest && compareVersions(latest.version, extension.currentVersion) > 0;
-    }),
-    [extensions, latestById],
+    () => extensions.filter((extension) => Boolean(updateById[extension.id])),
+    [extensions, updateById],
+  );
+  const patchUpdates = useMemo(
+    () => updates.filter((extension) => updateById[extension.id]?.kind === "patch"),
+    [updates, updateById],
   );
   const installedPackages = useMemo(
     () => new Set(extensions.map((extension) => extension.packageName).filter(Boolean)),
@@ -562,27 +559,30 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
 
   const checkForUpdates = async (entries: Extension[], generation: number) => {
-    const managed = entries.filter((entry) => entry.distributionSource === "npm" && entry.packageName && !entry.pinned);
+    const managed = entries.filter((entry) => entry.distributionSource === "npm" && entry.packageName);
     if (!managed.length) {
       if (generation === refreshGeneration.current) {
         setLatestById({});
+        setUpdateById({});
         setCheckingUpdates(false);
       }
       return;
     }
     if (generation === refreshGeneration.current) setCheckingUpdates(true);
-    const settled = await Promise.allSettled(
-      managed.map(async (entry) => {
+    const [candidateResult, settled] = await Promise.all([
+      invoke<UpdateCandidate[]>("extensions_check_updates"),
+      Promise.allSettled(managed.map(async (entry) => {
         const results = await invoke<SearchResult[]>("extensions_search", { query: entry.packageName, limit: 10 });
         return [entry.id, results.find((result) => result.package === entry.packageName) ?? null] as const;
-      }),
-    );
+      })),
+    ]);
     if (generation !== refreshGeneration.current) return;
     const next: Record<string, SearchResult> = {};
     settled.forEach((result) => {
       if (result.status === "fulfilled" && result.value[1]) next[result.value[0]] = result.value[1];
     });
     setLatestById(next);
+    setUpdateById(Object.fromEntries(candidateResult.map((candidate) => [candidate.id, candidate])));
     setCheckingUpdates(false);
   };
 
@@ -730,6 +730,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   useDialogFocus(Boolean(pendingLocal), localDialogRef, () => {
     if (!busy) setPendingLocal(null);
   });
+  useDialogFocus(Boolean(pendingToolSelection), toolSelectionDialogRef, () => {
+    if (!busy) setPendingToolSelection(null);
+  });
   useDialogFocus(Boolean(removalTarget), removalDialogRef, () => {
     if (!busy) setRemovalTarget(null);
   });
@@ -738,7 +741,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     if (!configDirty || window.confirm(t("settings.extensions.configDiscardConfirm"))) {
       setSelectedId(null);
     }
-  }, !showCustomIntegration && !removalTarget && !pendingInstall && !pendingLocal);
+  }, !showCustomIntegration && !removalTarget && !pendingInstall && !pendingLocal && !pendingToolSelection);
 
   useEffect(() => {
     if (!showCustomIntegration || customIntegrationLoading) return;
@@ -831,7 +834,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
 
   const updateExtension = (extension: Extension) => {
     if (!extension.packageName) return Promise.resolve();
-    const version = latestById[extension.id]?.version ?? extension.channel;
+    const candidate = updateById[extension.id];
+    if (!candidate) return Promise.resolve();
+    if (candidate.kind === "major" && !window.confirm(t("settings.extensions.confirmMajorUpdate", {
+      name: extension.name,
+      version: candidate.version,
+    }))) return Promise.resolve();
+    const version = candidate.version;
     const request: InstallRequest = {
       source: "npm",
       package: extension.packageName,
@@ -851,6 +860,24 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       });
     });
   };
+
+  const repairExtension = (extension: Extension) => runMutation(
+    extension.id,
+    "repair",
+    () => invoke("extensions_repair", { id: extension.id }),
+  );
+
+  const setPinned = (extension: Extension, pinned: boolean) => runMutation(
+    extension.id,
+    "policy",
+    () => invoke("extensions_set_pinned", { id: extension.id, pinned }),
+  );
+
+  const setChannel = (extension: Extension, channel: string) => runMutation(
+    extension.id,
+    "policy",
+    () => invoke("extensions_set_channel", { id: extension.id, channel }),
+  );
 
   const rollbackExtension = (extension: Extension) => {
     if (!window.confirm(t("settings.extensions.confirmRollback", { name: extension.name }))) return Promise.resolve();
@@ -966,7 +993,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     }
   };
 
-  const connectBundled = async (extension: Extension) => {
+  const connectBundledAt = async (extension: Extension, executablePath: string | null) => {
     if (busy || !extension.runtimeAvailable) return;
     setBusy({ id: extension.id, kind: "install" });
     setError(null);
@@ -977,16 +1004,25 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       }))) return;
       await invoke("extensions_connect_bundled", {
         id: extension.id,
-        executablePath: null,
+        executablePath,
         approvedPermissions: review.permissions.map(({ permission }) => permission),
       });
       await refresh();
       setOperationNotice(t("settings.extensions.connectedNotice", { name: extension.name }));
+      setPendingToolSelection(null);
     } catch (nextError) {
       setError(errorMessage(nextError));
     } finally {
       setBusy(null);
     }
+  };
+
+  const connectBundled = (extension: Extension) => {
+    if (extension.toolCandidates.length > 1) {
+      setPendingToolSelection({ extension, action: "connect" });
+      return;
+    }
+    void connectBundledAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
   };
 
   const connectLocal = async () => {
@@ -1163,11 +1199,29 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     }
   };
 
-  const reconnectSystem = (extension: Extension) => runMutation(
-    extension.id,
-    "reinstall",
-    () => invoke("extensions_reconnect_system", { id: extension.id }),
-  );
+  const reconnectSystemAt = async (extension: Extension, executablePath: string | null) => {
+    const reconnected = await runMutation(
+      extension.id,
+      "reinstall",
+      () => invoke("extensions_reconnect_system", { id: extension.id, executablePath }),
+    );
+    if (reconnected) setPendingToolSelection(null);
+  };
+
+  const reconnectSystem = (extension: Extension) => {
+    if (extension.toolCandidates.length > 1) {
+      setPendingToolSelection({ extension, action: "reconnect" });
+      return;
+    }
+    void reconnectSystemAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
+  };
+
+  const chooseSystemTool = (candidate: ExecutableToolCandidate) => {
+    if (!pendingToolSelection) return;
+    const { extension, action } = pendingToolSelection;
+    if (action === "connect") void connectBundledAt(extension, candidate.locator.path);
+    else void reconnectSystemAt(extension, candidate.locator.path);
+  };
 
   const confirmPendingInstall = async () => {
     if (!pendingInstall || busy) return;
@@ -1178,17 +1232,16 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   };
 
   const updateAll = async () => {
-    if (busy || !updates.length) return;
+    if (busy || !patchUpdates.length) return;
     setBusy({ id: "*", kind: "update" });
     setError(null);
     try {
-      for (const extension of updates) {
+      for (const extension of patchUpdates) {
         if (!extension.packageName) continue;
-        const version = latestById[extension.id]?.version ?? extension.channel;
         const request: InstallRequest = {
           source: "npm",
           package: extension.packageName,
-          version,
+          version: updateById[extension.id].version,
           manifestPath: null,
           executablePath: null,
         };
@@ -1198,7 +1251,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         }))) break;
         await invoke("extensions_update", {
           id: extension.id,
-          version,
+          version: null,
           approvedPermissions: review.permissions.map(({ permission }) => permission),
         });
       }
@@ -1431,12 +1484,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <ExtensionRow
                 key={extension.id}
                 extension={extension}
-                latest={latestById[extension.id]}
+                update={updateById[extension.id]}
                 busy={Boolean(busy)}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
                 onConnect={() => void connectBundled(extension)}
-                onRepair={() => extension.homepage && void invoke("open_url", { url: extension.homepage })}
+                onRepair={() => extension.connected
+                  ? void repairExtension(extension)
+                  : extension.homepage && void invoke("open_url", { url: extension.homepage })}
                 onReconnect={() => void reconnectSystem(extension)}
                 onToggle={() => void toggleExtension(extension)}
                 onUpdate={() => void updateExtension(extension)}
@@ -1532,7 +1587,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             <button
               type="button"
               className="extensions-action-button extensions-action-button--primary"
-              disabled={!updates.length || Boolean(busy)}
+              disabled={!patchUpdates.length || Boolean(busy)}
               onClick={() => void updateAll()}
             >
               <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
@@ -1546,7 +1601,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <div className="extension-update-row" key={extension.id}>
                 <button type="button" className="extension-update-row__main" onClick={() => setSelectedId(extension.id)}>
                   <strong>{extension.name}</strong>
-                  <span>v{extension.currentVersion} → v{latestById[extension.id].version}</span>
+                  <span>v{extension.currentVersion} → v{updateById[extension.id].version}</span>
                 </button>
                 <button
                   type="button"
@@ -1618,6 +1673,32 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <p id="extension-local-boundary" className="extension-permission-dialog__boundary">{t("settings.extensions.permissionReviewBoundary")}</p>
             </div>
             <footer><button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingLocal(null)}>{t("settings.extensions.cancel")}</button><button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmLocal()}>{busy ? t("settings.extensions.installing") : t("settings.extensions.localConfirm")}</button></footer>
+          </section>
+        </div>
+      )}
+
+      {pendingToolSelection && (
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingToolSelection(null); }}>
+          <section ref={toolSelectionDialogRef} className="extension-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="extension-tool-selection-title" aria-describedby="extension-tool-selection-hint" tabIndex={-1} onMouseDown={stopRowClick}>
+            <header>
+              <Link2 size={18} strokeWidth={2} aria-hidden="true" />
+              <div>
+                <h3 id="extension-tool-selection-title">{t("settings.extensions.chooseSystemTool", { name: pendingToolSelection.extension.name })}</h3>
+                <p id="extension-tool-selection-hint">{t("settings.extensions.chooseSystemToolHint")}</p>
+              </div>
+            </header>
+            <div className="extension-tool-choice-list" role="listbox" aria-label={t("settings.extensions.chooseSystemTool", { name: pendingToolSelection.extension.name })}>
+              {pendingToolSelection.extension.toolCandidates.map((candidate, index) => (
+                <button key={candidate.id} type="button" role="option" aria-selected="false" data-dialog-initial={index === 0 || undefined} disabled={Boolean(busy)} onClick={() => chooseSystemTool(candidate)}>
+                  <strong>{candidate.name}</strong>
+                  <span>{candidate.locator.path}</span>
+                  <small>{candidate.sources.join(" · ")}</small>
+                </button>
+              ))}
+            </div>
+            <footer>
+              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingToolSelection(null)}>{t("settings.extensions.cancel")}</button>
+            </footer>
           </section>
         </div>
       )}
@@ -1768,6 +1849,30 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || latestById[selected.id]?.description || t("settings.extensions.noDescription")}</p>
               </section>
+
+              {selected.distributionSource === "npm" && (
+                <section className="extension-detail-block">
+                  <h4>{t("settings.extensions.releasePolicy")}</h4>
+                  <div className="extension-release-policy">
+                    <label>
+                      <span>{t("settings.extensions.channel")}</span>
+                      <select
+                        value={selected.channel === "latest" ? "stable" : selected.channel}
+                        disabled={Boolean(busy)}
+                        onChange={(event) => void setChannel(selected, event.target.value)}
+                      >
+                        <option value="stable">{t("settings.extensions.channelStable")}</option>
+                        <option value="beta">{t("settings.extensions.channelBeta")}</option>
+                      </select>
+                    </label>
+                    <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void setPinned(selected, !selected.pinned)}>
+                      <Pin size={14} strokeWidth={2} aria-hidden="true" />
+                      {t(selected.pinned ? "settings.extensions.unpin" : "settings.extensions.pin")}
+                    </button>
+                  </div>
+                  <p className="extension-detail-description">{t(selected.pinned ? "settings.extensions.pinnedHint" : "settings.extensions.channelHint")}</p>
+                </section>
+              )}
 
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.commands")}</h4>
@@ -1927,6 +2032,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <button type="button" className="extensions-action-button" disabled={!selected.previousVersion || Boolean(busy)} onClick={() => void rollbackExtension(selected)}>
                 <RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}
               </button>
+              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void repairExtension(selected)}>
+                <Wrench size={14} strokeWidth={2} />{t("settings.extensions.repair")}
+              </button>
               <button type="button" className="extensions-action-button" disabled={selected.distributionSource !== "npm" || !selected.packageName || Boolean(busy)} onClick={() => void reinstallExtension(selected)}>
                 <RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}
               </button>
@@ -1944,7 +2052,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
 
 type ExtensionRowProps = {
   extension: Extension;
-  latest?: SearchResult;
+  update?: UpdateCandidate;
   busy: boolean;
   t: Translate;
   onOpen: () => void;
@@ -1959,8 +2067,8 @@ type ExtensionRowProps = {
   onUninstall: () => void;
 };
 
-function ExtensionRow({ extension, latest, busy, t, onOpen, onConnect, onRepair, onReconnect, onToggle, onUpdate, onRollback, onReinstall, onEdit, onUninstall }: ExtensionRowProps) {
-  const updateAvailable = Boolean(latest && compareVersions(latest.version, extension.currentVersion) > 0);
+function ExtensionRow({ extension, update, busy, t, onOpen, onConnect, onRepair, onReconnect, onToggle, onUpdate, onRollback, onReinstall, onEdit, onUninstall }: ExtensionRowProps) {
+  const updateAvailable = Boolean(update);
   return (
     <div className={`extension-row${extension.connected ? "" : " extension-row--detected"}`} onClick={extension.connected ? onOpen : undefined}>
       <div className="extension-row__icon"><Package size={17} strokeWidth={2} aria-hidden="true" /></div>
@@ -1985,10 +2093,10 @@ function ExtensionRow({ extension, latest, busy, t, onOpen, onConnect, onRepair,
             {t("settings.extensions.update")}
           </button>
         )}
-        {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.homepage) && (
+        {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.distributionSource === "npm" || extension.homepage) && (
           <button type="button" className="extensions-action-button" disabled={busy} onClick={extension.reconnectAvailable ? onReconnect : onRepair}>
-            {extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
-            {t(extension.reconnectAvailable ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
+            {extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : extension.distributionSource === "npm" ? <Wrench size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
+            {t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
           </button>
         )}
         {extension.connected && <button

@@ -279,7 +279,7 @@ impl CapabilityScanner {
 mod tests {
     use super::*;
     use std::fs;
-    use std::sync::Once;
+    use std::sync::OnceLock;
 
     #[cfg(not(windows))]
     fn write_fixture_script(path: &Path) {
@@ -314,16 +314,31 @@ exit /b 1
 
     /// A tiny executable that mimics a tool supporting `--version`, `--help`
     /// and `--features`, and rejecting `--defunct` with exit code 3. Written
-    /// once per process to keep parallel tests from racing on the same file.
+    /// once in a unique, process-owned directory. Keeping the TempDir alive
+    /// prevents parallel test processes from replacing an executable while a
+    /// probe is running, which Linux rejects with ETXTBSY.
     fn fixture_script() -> PathBuf {
-        #[cfg(windows)]
-        let name = format!("floter-capability-probe-{}.cmd", std::process::id());
-        #[cfg(not(windows))]
-        let name = format!("floter-capability-probe-{}.sh", std::process::id());
-        let path = std::env::temp_dir().join(name);
-        static WRITTEN: Once = Once::new();
-        WRITTEN.call_once(|| write_fixture_script(&path));
-        path
+        struct Fixture {
+            _directory: tempfile::TempDir,
+            path: PathBuf,
+        }
+
+        static FIXTURE: OnceLock<Fixture> = OnceLock::new();
+        FIXTURE
+            .get_or_init(|| {
+                let directory = tempfile::tempdir().unwrap();
+                #[cfg(windows)]
+                let path = directory.path().join("capability-probe.cmd");
+                #[cfg(not(windows))]
+                let path = directory.path().join("capability-probe.sh");
+                write_fixture_script(&path);
+                Fixture {
+                    _directory: directory,
+                    path,
+                }
+            })
+            .path
+            .clone()
     }
 
     #[test]

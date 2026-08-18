@@ -30,7 +30,7 @@ pub mod sync;
 pub mod target;
 pub mod terminal_capability;
 pub mod tool_lock;
-mod transaction;
+pub(crate) mod transaction;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -78,6 +78,7 @@ pub struct ExtensionPaths {
     pub cache: PathBuf,
     pub lock_file: PathBuf,
     pub tool_lock_file: PathBuf,
+    pub official_index_state_file: PathBuf,
 }
 
 impl ExtensionPaths {
@@ -95,6 +96,7 @@ impl ExtensionPaths {
             cache: root.join("extension-cache"),
             lock_file: root.join("extensions.lock.json"),
             tool_lock_file: root.join("tool-lock.json"),
+            official_index_state_file: root.join("official-index-state.json"),
             root,
         }
     }
@@ -118,6 +120,7 @@ pub struct ExtensionState {
     pub(crate) provider_commands: catalog::ProviderCommandCache,
     pub tool_inventory: std::sync::Mutex<ToolInventory>,
     pub tool_lock: std::sync::Mutex<ToolLock>,
+    pub(crate) accepted_official_index_version: std::sync::Mutex<u64>,
     execution_plans: ExecutionPlanCache,
 }
 
@@ -142,6 +145,8 @@ impl ExtensionState {
     ) -> Result<Self, String> {
         paths.ensure()?;
         let tool_lock = ToolLock::load(&paths.tool_lock_file)?;
+        let accepted_official_index_version =
+            official_index::load_accepted_version(&paths.official_index_state_file)?;
         let static_adapters = static_adapter::load_bundled()?;
         let client = reqwest::Client::builder()
             .user_agent(format!("floter/{}", env!("CARGO_PKG_VERSION")))
@@ -164,6 +169,9 @@ impl ExtensionState {
             provider_commands: catalog::ProviderCommandCache::default(),
             tool_inventory: std::sync::Mutex::new(ToolInventory::new()),
             tool_lock: std::sync::Mutex::new(tool_lock),
+            accepted_official_index_version: std::sync::Mutex::new(
+                accepted_official_index_version,
+            ),
             execution_plans: ExecutionPlanCache::default(),
         };
         transaction::recover(&state)?;
@@ -184,6 +192,44 @@ impl ExtensionState {
 
     pub async fn invalidate_provider_commands(&self) {
         self.provider_commands.invalidate().await;
+    }
+
+    pub fn check_executable_binding(
+        &self,
+        binding: &str,
+        executable_path: &str,
+    ) -> Result<LockState, String> {
+        let candidate = inventory::executable_candidate(
+            std::path::Path::new(executable_path),
+            std::path::Path::new(executable_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or(executable_path),
+        );
+        let mut lock = self
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        let snapshot = lock.clone();
+        let inserted = !lock.tools.contains_key(binding);
+        if inserted {
+            lock.bind_locator(
+                binding,
+                ToolLocator::Executable {
+                    path: executable_path.to_string(),
+                },
+                candidate.fingerprint.clone(),
+            );
+        }
+        let previous = lock.tools[binding].state;
+        let current = lock.check(binding, Some(&candidate))?.state;
+        if inserted || previous != current || !self.paths.tool_lock_file.exists() {
+            if let Err(error) = lock.save(&self.paths.tool_lock_file) {
+                *lock = snapshot;
+                return Err(error);
+            }
+        }
+        Ok(current)
     }
 }
 
@@ -261,5 +307,42 @@ mod tests {
         assert_eq!(restored.args, plan.args);
         assert_eq!(restored.environment, plan.environment);
         assert!(cache.take(&token).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn executable_bindings_detect_replacement_and_removal() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        let executable = directory.path().join("tool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert_eq!(
+            state
+                .check_executable_binding("example.tool", &executable.to_string_lossy())
+                .unwrap(),
+            LockState::Connected
+        );
+
+        std::fs::write(&executable, "#!/bin/sh\nprintf replacement\n").unwrap();
+        assert_eq!(
+            state
+                .check_executable_binding("example.tool", &executable.to_string_lossy())
+                .unwrap(),
+            LockState::ReverifyRequired
+        );
+
+        std::fs::remove_file(&executable).unwrap();
+        assert_eq!(
+            state
+                .check_executable_binding("example.tool", &executable.to_string_lossy())
+                .unwrap(),
+            LockState::ReconnectRequired
+        );
     }
 }

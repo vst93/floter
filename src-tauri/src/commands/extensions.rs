@@ -6,20 +6,22 @@ use crate::extensions::config::{self, ExtensionConfiguration};
 use crate::extensions::health::HealthReport;
 use crate::extensions::install::{
     self, CustomIntegrationDefinition, CustomIntegrationRequest, ExtensionInstallRequest,
-    ExtensionPermissionReview, ExtensionSearchResult,
+    ExtensionPermissionReview, ExtensionSearchResult, ExtensionUpdateCandidate,
 };
-use crate::extensions::inventory::ToolCandidate;
+use crate::extensions::inventory::{self, ToolCandidate, ToolLocator};
 use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
-use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget};
+use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget, Runtime};
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
 use crate::extensions::source_bundle::{self, SourceBundleExportRequest, SourceBundleExportResult};
 use crate::extensions::source_inference::{self, SourceInferenceReport};
 use crate::extensions::source_resolver::{self, SourceResolution, SourceResolveRequest};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
-use crate::extensions::ExtensionState;
+use crate::extensions::{
+    resolver, ExtensionState, LockState, ResolveRequest, ResolveResult, ToolLockEntry,
+};
 use chrono::{Local, Utc};
 use serde::Serialize;
 use serde_json::Value;
@@ -55,22 +57,103 @@ pub async fn extensions_resolve_source(
 #[tauri::command]
 pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let mut items = lock
-        .list()
-        .into_iter()
-        .map(|mut entry| {
-            // Installation persists this result only after both package and
-            // official-index signatures pass. Never present an official badge
-            // if the package signature is no longer trusted.
-            entry.official_verified &= entry.signature_verified;
-            ExtensionListItem::installed(entry)
-        })
-        .collect::<Vec<_>>();
+    let candidates = state
+        .tool_inventory
+        .lock()
+        .map_err(|_| "Tool inventory is unavailable".to_string())?
+        .candidates();
+    let mut tool_lock = state
+        .tool_lock
+        .lock()
+        .map_err(|_| "Tool lock is unavailable".to_string())?;
+    let tool_lock_snapshot = tool_lock.clone();
+    let mut tool_lock_changed = false;
+    let mut items = Vec::new();
+    for mut entry in lock.list() {
+        // Installation persists this result only after both package and
+        // official-index signatures pass. Never present an official badge
+        // if the package signature is no longer trusted.
+        entry.official_verified &= entry.signature_verified;
+        let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
+        let current_candidate = (entry.runtime_ownership == ExtensionRuntimeOwnership::System)
+            .then(|| {
+                inventory::executable_candidate(
+                    Path::new(&entry.executable_path),
+                    executable_display_name(&entry.executable_path),
+                )
+            });
+        let lock_state = if entry.runtime_ownership == ExtensionRuntimeOwnership::System {
+            if !tool_lock.tools.contains_key(&entry.id) {
+                tool_lock.bind_locator(
+                    &entry.id,
+                    ToolLocator::Executable {
+                        path: entry.executable_path.clone(),
+                    },
+                    current_candidate
+                        .as_ref()
+                        .and_then(|candidate| candidate.fingerprint.clone()),
+                );
+                tool_lock_changed = true;
+            }
+            let previous = tool_lock.tools.get(&entry.id).map(|binding| binding.state);
+            let current = tool_lock
+                .check(&entry.id, current_candidate.as_ref())?
+                .state;
+            tool_lock_changed |= previous != Some(current);
+            Some(current)
+        } else {
+            None
+        };
+        let tool_candidates = if lock_state.is_some_and(|state| state != LockState::Connected) {
+            let mut resolution_pool = candidates.clone();
+            if let Some(candidate) = current_candidate.filter(|candidate| candidate.available) {
+                if !resolution_pool
+                    .iter()
+                    .any(|existing| existing.locator.normalized() == candidate.locator.normalized())
+                {
+                    resolution_pool.push(candidate);
+                }
+            }
+            manifest
+                .as_ref()
+                .map(|manifest| {
+                    resolution_candidates(resolve_manifest_candidate(
+                        manifest,
+                        &resolution_pool,
+                        tool_lock
+                            .tools
+                            .get(&entry.id)
+                            .map(|binding| binding.locator.normalized()),
+                    ))
+                })
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let reconnect_available = !tool_candidates.is_empty();
+        items.push(ExtensionListItem::installed(
+            entry,
+            lock_state,
+            reconnect_available,
+            tool_candidates,
+        ));
+    }
+    if tool_lock_changed {
+        if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
+            *tool_lock = tool_lock_snapshot;
+            return Err(error);
+        }
+    }
     for adapter in &state.static_adapters {
         if lock.extensions.contains_key(&adapter.manifest.id) {
             continue;
         }
-        items.push(ExtensionListItem::detected(adapter));
+        let tool_candidates = resolution_candidates(resolve_manifest_candidate(
+            &adapter.manifest,
+            &candidates,
+            None,
+        ));
+        items.push(ExtensionListItem::detected(adapter, tool_candidates));
     }
     Ok(items)
 }
@@ -116,6 +199,8 @@ pub struct ExtensionListItem {
     pub reconnect_available: bool,
     pub homepage: Option<String>,
     pub generated_custom: bool,
+    pub tool_lock_state: Option<LockState>,
+    pub tool_candidates: Vec<ToolCandidate>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -131,15 +216,17 @@ pub struct LocalManifestReview {
 }
 
 impl ExtensionListItem {
-    fn installed(entry: ExtensionLockEntry) -> Self {
+    fn installed(
+        entry: ExtensionLockEntry,
+        tool_lock_state: Option<LockState>,
+        reconnect_available: bool,
+        tool_candidates: Vec<ToolCandidate>,
+    ) -> Self {
         let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
         let generated_custom = install::is_generated_custom_integration(&entry);
         let stored_runtime_available = crate::extensions::registry::runtime_available(&entry);
-        let reconnect_available = entry.runtime_ownership == ExtensionRuntimeOwnership::System
-            && !stored_runtime_available
-            && manifest
-                .as_ref()
-                .is_some_and(|manifest| install::find_system_executable(manifest).is_ok());
+        let runtime_available = stored_runtime_available
+            && tool_lock_state.is_none_or(|state| state == LockState::Connected);
         let runtime_source = match entry.provider_kind {
             ExtensionProviderKind::BundledStatic => "bundled".to_string(),
             ExtensionProviderKind::Executable | ExtensionProviderKind::StaticDescriptor => {
@@ -154,14 +241,20 @@ impl ExtensionListItem {
             entry,
             connected: true,
             runtime_source,
-            runtime_available: stored_runtime_available,
+            runtime_available,
             reconnect_available,
             homepage,
             generated_custom,
+            tool_lock_state,
+            tool_candidates,
         }
     }
 
-    fn detected(adapter: &crate::extensions::static_adapter::StaticAdapter) -> Self {
+    fn detected(
+        adapter: &crate::extensions::static_adapter::StaticAdapter,
+        tool_candidates: Vec<ToolCandidate>,
+    ) -> Self {
+        let candidate = (tool_candidates.len() == 1).then(|| &tool_candidates[0]);
         let version = env!("CARGO_PKG_VERSION").to_string();
         let entry = ExtensionLockEntry {
             id: adapter.manifest.id.clone(),
@@ -185,7 +278,12 @@ impl ExtensionListItem {
             current_version: version,
             previous_version: None,
             manifest_path: String::new(),
-            executable_path: adapter.invocation.executable.to_string_lossy().into_owned(),
+            executable_path: candidate
+                .as_ref()
+                .and_then(|candidate| candidate.locator.executable_path())
+                .unwrap_or(&adapter.invocation.executable)
+                .to_string_lossy()
+                .into_owned(),
             runtime_root: None,
             installed_at: 0,
             updated_at: 0,
@@ -193,15 +291,155 @@ impl ExtensionListItem {
             channel: "bundled".to_string(),
         };
         Self {
-            runtime_available: adapter.runtime_available,
+            runtime_available: !tool_candidates.is_empty(),
             runtime_source: "bundled".to_string(),
             connected: false,
             reconnect_available: false,
             homepage: adapter.manifest.homepage.clone(),
             generated_custom: false,
+            tool_lock_state: None,
+            tool_candidates,
             entry,
         }
     }
+}
+
+fn executable_display_name(path: &str) -> String {
+    Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn resolve_manifest_candidate(
+    manifest: &ExtensionManifest,
+    candidates: &[ToolCandidate],
+    preferred_locator: Option<String>,
+) -> ResolveResult {
+    let Runtime::System {
+        executable_names, ..
+    } = &manifest.runtime
+    else {
+        return ResolveResult::NotFound {
+            tool: manifest.id.clone(),
+        };
+    };
+    let tool = executable_names
+        .first()
+        .cloned()
+        .unwrap_or_else(|| manifest.id.clone());
+    resolver::resolve_executable_names(
+        &ResolveRequest {
+            tool,
+            profile: None,
+            required_version: None,
+            preferred_locator,
+        },
+        executable_names,
+        candidates,
+    )
+}
+
+fn resolution_candidates(result: ResolveResult) -> Vec<ToolCandidate> {
+    match result {
+        ResolveResult::Selected { candidate, .. } => vec![candidate],
+        ResolveResult::Ambiguous { candidates } => candidates
+            .into_iter()
+            .map(|candidate| candidate.candidate)
+            .collect(),
+        ResolveResult::NotFound { .. } => Vec::new(),
+    }
+}
+
+fn discovered_system_candidate(
+    state: &ExtensionState,
+    binding: &str,
+    manifest: &ExtensionManifest,
+    force_refresh: bool,
+) -> Result<ToolCandidate, String> {
+    let preferred = state
+        .tool_lock
+        .lock()
+        .map_err(|_| "Tool lock is unavailable".to_string())?
+        .tools
+        .get(binding)
+        .map(|entry| entry.locator.clone());
+    let mut candidates = {
+        let mut inventory = state
+            .tool_inventory
+            .lock()
+            .map_err(|_| "Tool inventory is unavailable".to_string())?;
+        if force_refresh {
+            inventory.refresh();
+        }
+        inventory.candidates()
+    };
+    if let Some(path) = preferred.as_ref().and_then(ToolLocator::executable_path) {
+        if let Some(candidate) =
+            inventory::inspect_executable(path, executable_display_name(&path.to_string_lossy()))
+        {
+            if !candidates
+                .iter()
+                .any(|existing| existing.locator.normalized() == candidate.locator.normalized())
+            {
+                candidates.push(candidate);
+            }
+        }
+    }
+    let preferred_locator = preferred.map(|locator| locator.normalized());
+    match resolve_manifest_candidate(manifest, &candidates, preferred_locator) {
+        ResolveResult::Selected { candidate, .. } => Ok(candidate),
+        ResolveResult::Ambiguous { candidates } => Err(format!(
+            "Multiple system tools match {}: {}",
+            manifest.name,
+            candidates
+                .iter()
+                .map(|candidate| candidate.candidate.locator.normalized())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+        ResolveResult::NotFound { .. } => {
+            Err(format!("Cannot find a system tool for {}", manifest.name))
+        }
+    }
+}
+
+fn inspect_manifest_executable(
+    manifest: &ExtensionManifest,
+    path: &str,
+) -> Result<ToolCandidate, String> {
+    let candidate = inventory::inspect_executable(Path::new(path), executable_display_name(path))
+        .ok_or_else(|| format!("System tool is not available at {path}"))?;
+    match resolve_manifest_candidate(manifest, std::slice::from_ref(&candidate), None) {
+        ResolveResult::Selected { .. } => Ok(candidate),
+        ResolveResult::Ambiguous { .. } | ResolveResult::NotFound { .. } => Err(format!(
+            "Executable {} does not match the runtime declared by {}",
+            path, manifest.name
+        )),
+    }
+}
+
+fn persist_tool_binding(
+    state: &ExtensionState,
+    binding: &str,
+    candidate: &ToolCandidate,
+) -> Result<ToolLockEntry, String> {
+    let mut lock = state
+        .tool_lock
+        .lock()
+        .map_err(|_| "Tool lock is unavailable".to_string())?;
+    let previous = lock.clone();
+    if lock.tools.contains_key(binding) {
+        lock.reconnect(binding, candidate)?;
+    } else {
+        lock.bind(binding, candidate);
+    }
+    if let Err(error) = lock.save(&state.paths.tool_lock_file) {
+        *lock = previous;
+        return Err(error);
+    }
+    Ok(lock.tools[binding].clone())
 }
 
 #[tauri::command]
@@ -645,13 +883,35 @@ pub async fn extensions_connect_bundled(
     executable_path: Option<String>,
     approved_permissions: Option<Vec<Permission>>,
 ) -> Result<ExtensionLockEntry, String> {
+    let adapter = state
+        .static_adapters
+        .iter()
+        .find(|adapter| adapter.manifest.id == id)
+        .ok_or_else(|| format!("Bundled integration is not available: {id}"))?;
+    let candidate = match executable_path.as_deref() {
+        Some(path) => inspect_manifest_executable(&adapter.manifest, path)?,
+        None => discovered_system_candidate(&state, &id, &adapter.manifest, true)?,
+    };
+    let candidate_path = candidate
+        .locator
+        .executable_path()
+        .ok_or("Resolved system tool is not executable")?
+        .to_string_lossy()
+        .into_owned();
     let entry = install::connect_bundled(
         &state,
         &id,
-        executable_path.as_deref(),
+        Some(&candidate_path),
         approved_permissions.as_deref(),
     )
     .await?;
+    if let Err(error) = persist_tool_binding(&state, &id, &candidate) {
+        let rollback = install::uninstall(&state, &id, false).await;
+        return Err(format!(
+            "Cannot persist system tool binding: {error}; connection rollback={:?}",
+            rollback.err()
+        ));
+    }
     state.invalidate_provider_commands().await;
     Ok(entry)
 }
@@ -660,19 +920,36 @@ pub async fn extensions_connect_bundled(
 pub async fn extensions_reconnect_system(
     state: State<'_, ExtensionState>,
     id: String,
+    executable_path: Option<String>,
+) -> Result<ExtensionLockEntry, String> {
+    reconnect_system(&state, &id, executable_path.as_deref()).await
+}
+
+async fn reconnect_system(
+    state: &ExtensionState,
+    id: &str,
+    executable_path: Option<&str>,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let current = lock
         .extensions
-        .get(&id)
+        .get(id)
         .cloned()
         .ok_or_else(|| format!("Integration is not connected: {id}"))?;
     if current.runtime_ownership != ExtensionRuntimeOwnership::System {
         return Err(format!("Integration does not use a system runtime: {id}"));
     }
     let manifest = crate::extensions::ExtensionManifest::load(Path::new(&current.manifest_path))?;
-    let executable = install::find_system_executable(&manifest)?;
+    let candidate = match executable_path {
+        Some(path) => inspect_manifest_executable(&manifest, path)?,
+        None => discovered_system_candidate(state, id, &manifest, true)?,
+    };
+    let executable = candidate
+        .locator
+        .executable_path()
+        .ok_or("Resolved system tool is not executable")?
+        .to_path_buf();
     let resolved = manifest
         .clone()
         .resolve(crate::extensions::PlatformTarget::current()?)?;
@@ -708,13 +985,43 @@ pub async fn extensions_reconnect_system(
 
     let entry = lock
         .extensions
-        .get_mut(&id)
+        .get_mut(id)
         .ok_or_else(|| format!("Integration is not connected: {id}"))?;
     entry.executable_path = executable.to_string_lossy().into_owned();
     entry.tool_version = tool_version;
     entry.updated_at = crate::extensions::lock::unix_now();
     let entry = entry.clone();
-    lock.save(&state.paths.lock_file)?;
+    let previous_tool_lock = {
+        let mut tool_lock = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        let previous = tool_lock.clone();
+        if tool_lock.tools.contains_key(id) {
+            tool_lock.reconnect(id, &candidate)?;
+        } else {
+            tool_lock.bind(id, &candidate);
+        }
+        if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
+            *tool_lock = previous;
+            return Err(error);
+        }
+        previous
+    };
+    if let Err(error) = lock.save(&state.paths.lock_file) {
+        let rollback = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable during rollback".to_string())
+            .and_then(|mut tool_lock| {
+                *tool_lock = previous_tool_lock;
+                tool_lock.save(&state.paths.tool_lock_file)
+            });
+        return Err(format!(
+            "Cannot persist reconnected integration: {error}; tool binding rollback={:?}",
+            rollback.err()
+        ));
+    }
     drop(_guard);
     state.invalidate_provider_commands().await;
     Ok(entry)
@@ -726,7 +1033,37 @@ pub async fn extensions_uninstall(
     id: String,
     remove_data: Option<bool>,
 ) -> Result<(), String> {
-    install::uninstall(&state, &id, remove_data.unwrap_or(false)).await?;
+    // Commit the binding removal before touching the extension lock. If the
+    // uninstall itself fails, restore the binding so the two state files do
+    // not describe different installations.
+    let previous_tool_lock = {
+        let mut tool_lock = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        let previous = tool_lock.clone();
+        if tool_lock.remove(&id).is_some() {
+            if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
+                *tool_lock = previous;
+                return Err(error);
+            }
+        }
+        previous
+    };
+    if let Err(error) = install::uninstall(&state, &id, remove_data.unwrap_or(false)).await {
+        let rollback = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable during rollback".to_string())
+            .and_then(|mut tool_lock| {
+                *tool_lock = previous_tool_lock;
+                tool_lock.save(&state.paths.tool_lock_file)
+            });
+        return Err(format!(
+            "Cannot uninstall integration: {error}; tool binding rollback={:?}",
+            rollback.err()
+        ));
+    }
     state.invalidate_provider_commands().await;
     Ok(())
 }
@@ -780,6 +1117,105 @@ pub async fn extensions_update(
     .await?;
     state.invalidate_provider_commands().await;
     Ok(entry)
+}
+
+#[tauri::command]
+pub async fn extensions_check_updates(
+    state: State<'_, ExtensionState>,
+) -> Result<Vec<ExtensionUpdateCandidate>, String> {
+    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut updates = Vec::new();
+    for entry in lock.list() {
+        if let Some(candidate) = install::update_candidate(&state, &entry).await? {
+            updates.push(candidate);
+        }
+    }
+    Ok(updates)
+}
+
+async fn set_release_policy(
+    state: &ExtensionState,
+    id: &str,
+    pinned: Option<bool>,
+    channel: Option<&str>,
+) -> Result<ExtensionLockEntry, String> {
+    let _guard = state.mutation_lock.lock().await;
+    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let previous = lock.get(id)?.clone();
+    lock.set_release_policy(id, pinned, channel)?;
+    let entry = lock.get(id)?.clone();
+    crate::extensions::transaction::commit_lock(state, &previous, &entry)?;
+    Ok(entry)
+}
+
+#[tauri::command]
+pub async fn extensions_set_pinned(
+    state: State<'_, ExtensionState>,
+    id: String,
+    pinned: bool,
+) -> Result<ExtensionLockEntry, String> {
+    set_release_policy(&state, &id, Some(pinned), None).await
+}
+
+#[tauri::command]
+pub async fn extensions_set_channel(
+    state: State<'_, ExtensionState>,
+    id: String,
+    channel: String,
+) -> Result<ExtensionLockEntry, String> {
+    set_release_policy(&state, &id, None, Some(&channel)).await
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionRepairReport {
+    pub id: String,
+    pub repaired: bool,
+    pub action: String,
+    pub detail: String,
+    pub entry: ExtensionLockEntry,
+}
+
+#[tauri::command]
+pub async fn extensions_repair(
+    state: State<'_, ExtensionState>,
+    id: String,
+) -> Result<ExtensionRepairReport, String> {
+    match install::verify_installed(&state, &id).await {
+        Ok(entry) => Ok(ExtensionRepairReport {
+            id,
+            repaired: false,
+            action: "verified".to_string(),
+            detail: "Manifest, runtime, and provider verification passed".to_string(),
+            entry,
+        }),
+        Err(problem) => {
+            let current = ExtensionsLock::load(&state.paths.lock_file)?
+                .get(&id)?
+                .clone();
+            let (entry, action) = if current.distribution_source
+                == ExtensionDistributionSource::Npm
+                && current.runtime_ownership == ExtensionRuntimeOwnership::Bundled
+            {
+                (
+                    install::repair_managed(&state, &id).await?,
+                    "reinstalled-locked-version",
+                )
+            } else if current.runtime_ownership == ExtensionRuntimeOwnership::System {
+                (reconnect_system(&state, &id, None).await?, "reconnected-system-runtime")
+            } else {
+                return Err(format!("Cannot repair {id}: {problem}"));
+            };
+            state.invalidate_provider_commands().await;
+            Ok(ExtensionRepairReport {
+                id,
+                repaired: true,
+                action: action.to_string(),
+                detail: problem,
+                entry,
+            })
+        }
+    }
 }
 
 #[tauri::command]

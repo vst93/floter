@@ -1,5 +1,6 @@
 use crate::extensions::lock::{
-    unix_now, validate_id, ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+    normalize_release_channel, release_channel_selector, unix_now, validate_id,
+    ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
@@ -61,6 +62,22 @@ pub struct ExtensionSearchResult {
     pub homepage: Option<String>,
     pub verified: bool,
     pub downloads: u64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ExtensionUpdateKind {
+    Patch,
+    Minor,
+    Major,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionUpdateCandidate {
+    pub id: String,
+    pub version: String,
+    pub kind: ExtensionUpdateKind,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -213,7 +230,9 @@ pub async fn install(
                 package,
                 request.version.as_deref(),
                 None,
+                None,
                 request.approved_permissions.as_deref(),
+                None,
             )
             .await
         }
@@ -232,8 +251,10 @@ pub(crate) async fn install_imported_managed_locked(
         state,
         package,
         Some(version),
+        Some("stable"),
         Some(extension_id),
         approved_permissions,
+        None,
     )
     .await
 }
@@ -980,12 +1001,31 @@ pub async fn update(
         .package_name
         .as_deref()
         .ok_or("NPM integration has no package name in the lock file")?;
+    let selected_version = if let Some(version) = version {
+        version.to_string()
+    } else {
+        let selector = release_channel_selector(&current.channel)?;
+        let candidate = resolve_registry_version(state, package, Some(selector)).await?;
+        match classify_update(&current.current_version, &candidate.version)? {
+            Some(ExtensionUpdateKind::Patch) => {}
+            None => return Err(format!("Extension {extension_id} is already up to date")),
+            Some(ExtensionUpdateKind::Minor | ExtensionUpdateKind::Major) => {
+                return Err(
+                    "Automatic updates only install patch releases; select the version explicitly"
+                        .to_string(),
+                )
+            }
+        }
+        candidate.version
+    };
     install_managed(
         state,
         package,
-        version.or(Some(current.channel.as_str())),
+        Some(&selected_version),
+        Some(&current.channel),
         Some(extension_id),
         approved_permissions,
+        None,
     )
     .await
 }
@@ -1009,8 +1049,124 @@ pub async fn reinstall(
         state,
         package,
         Some(current.current_version.as_str()),
+        Some(&current.channel),
         Some(extension_id),
         approved_permissions,
+        None,
+    )
+    .await
+}
+
+pub async fn update_candidate(
+    state: &ExtensionState,
+    entry: &ExtensionLockEntry,
+) -> Result<Option<ExtensionUpdateCandidate>, String> {
+    if entry.distribution_source != ExtensionDistributionSource::Npm || entry.pinned {
+        return Ok(None);
+    }
+    let package = entry
+        .package_name
+        .as_deref()
+        .ok_or("NPM integration has no package name in the lock file")?;
+    let selector = release_channel_selector(&entry.channel)?;
+    let candidate = resolve_registry_version(state, package, Some(selector)).await?;
+    let kind = classify_update(&entry.current_version, &candidate.version)?;
+    Ok(kind.map(|kind| ExtensionUpdateCandidate {
+        id: entry.id.clone(),
+        version: candidate.version,
+        kind,
+    }))
+}
+
+fn classify_update(
+    installed: &str,
+    candidate: &str,
+) -> Result<Option<ExtensionUpdateKind>, String> {
+    let installed = Version::parse(installed)
+        .map_err(|error| format!("Invalid installed extension version: {error}"))?;
+    let selected = Version::parse(candidate)
+        .map_err(|error| format!("Invalid registry extension version: {error}"))?;
+    if selected <= installed {
+        return Ok(None);
+    }
+    let kind = if selected.major != installed.major {
+        ExtensionUpdateKind::Major
+    } else if selected.minor != installed.minor {
+        ExtensionUpdateKind::Minor
+    } else {
+        ExtensionUpdateKind::Patch
+    };
+    Ok(Some(kind))
+}
+
+pub async fn verify_installed(
+    state: &ExtensionState,
+    extension_id: &str,
+) -> Result<ExtensionLockEntry, String> {
+    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(extension_id)?
+        .clone();
+    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
+        return Err(format!("Installed manifest identity does not match {extension_id}"));
+    }
+    if entry.distribution_source == ExtensionDistributionSource::Npm {
+        let version_root = state
+            .paths
+            .extensions
+            .join(extension_id)
+            .join("versions")
+            .join(&entry.current_version);
+        if !version_root.is_dir() || entry.integrity.is_none() {
+            return Err(format!("Installed package files are incomplete for {extension_id}"));
+        }
+    }
+    match entry.provider_kind {
+        ExtensionProviderKind::Executable => {
+            let invocation = crate::extensions::registry::provider_invocation(&entry)?;
+            state.provider.describe(&invocation, true).await?;
+        }
+        ExtensionProviderKind::StaticDescriptor => {
+            crate::extensions::registry::static_description(&entry)?;
+        }
+        ExtensionProviderKind::BundledStatic => {
+            if !crate::extensions::registry::runtime_available(&entry) {
+                return Err(format!("System runtime is unavailable for {extension_id}"));
+            }
+        }
+    }
+    Ok(entry)
+}
+
+pub async fn repair_managed(
+    state: &ExtensionState,
+    extension_id: &str,
+) -> Result<ExtensionLockEntry, String> {
+    let _guard = state.mutation_lock.lock().await;
+    let current = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(extension_id)?
+        .clone();
+    if current.distribution_source != ExtensionDistributionSource::Npm
+        || current.runtime_ownership != ExtensionRuntimeOwnership::Bundled
+    {
+        return Err("Managed repair requires a bundled NPM integration".to_string());
+    }
+    let package = current
+        .package_name
+        .as_deref()
+        .ok_or("NPM integration has no package name in the lock file")?;
+    let integrity = current
+        .integrity
+        .as_deref()
+        .ok_or("NPM integration has no locked integrity")?;
+    install_managed(
+        state,
+        package,
+        Some(&current.current_version),
+        Some(&current.channel),
+        Some(extension_id),
+        None,
+        Some(integrity),
     )
     .await
 }
@@ -1320,8 +1476,10 @@ async fn install_managed(
     state: &ExtensionState,
     package: &str,
     selector: Option<&str>,
+    release_channel: Option<&str>,
     expected_id: Option<&str>,
     approved_permissions: Option<&[Permission]>,
+    expected_integrity: Option<&str>,
 ) -> Result<ExtensionLockEntry, String> {
     validate_package_name(package)?;
     let official_index = official_index::fetch(state).await.ok();
@@ -1335,6 +1493,14 @@ async fn install_managed(
         }
     }
     let base_version = resolve_registry_version(state, package, selector).await?;
+    if let Some(expected) = expected_integrity {
+        if base_version.dist.integrity.as_deref() != Some(expected) {
+            return Err(format!(
+                "Registry integrity for {package}@{} no longer matches the lock file",
+                base_version.version
+            ));
+        }
+    }
     let base_bytes = download_tarball(state, &base_version.dist).await?;
 
     let staging_parent = state.paths.extensions.join(".staging");
@@ -1386,7 +1552,9 @@ async fn install_managed(
             manifest.id
         ));
     }
-    let permission_approval_required = if let Some(entry) = expected_entry.as_ref() {
+    let permission_approval_required = if expected_integrity.is_some() {
+        false
+    } else if let Some(entry) = expected_entry.as_ref() {
         let installed_manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
         if installed_manifest.id != entry.id
             || installed_manifest.publisher.id != entry.publisher_id
@@ -1574,6 +1742,17 @@ async fn install_managed(
     };
     let now = unix_now();
     let enabled = old.as_ref().is_none_or(|entry| entry.enabled);
+    let replacing_same_version = old
+        .as_ref()
+        .is_some_and(|entry| entry.current_version == base_version.version);
+    let channel = match release_channel {
+        Some(channel) => normalize_release_channel(channel)?,
+        None => selector
+            .filter(|selector| Version::parse(selector).is_err())
+            .map(normalize_release_channel)
+            .transpose()?
+            .unwrap_or("stable"),
+    };
     let entry = ExtensionLockEntry {
         id: manifest.id.clone(),
         name: manifest.name.clone(),
@@ -1594,21 +1773,34 @@ async fn install_managed(
         integrity: base_version.dist.integrity.clone(),
         asset_selection,
         signature_verified: manifest.signatures.is_some(),
-        previous_signature_verified: old.as_ref().map(|entry| entry.signature_verified),
+        previous_signature_verified: old.as_ref().and_then(|entry| {
+            replacing_same_version
+                .then_some(entry.previous_signature_verified)
+                .flatten()
+                .or((!replacing_same_version).then_some(entry.signature_verified))
+        }),
         official_verified,
-        previous_official_verified: old.as_ref().map(|entry| entry.official_verified),
+        previous_official_verified: old.as_ref().and_then(|entry| {
+            replacing_same_version
+                .then_some(entry.previous_official_verified)
+                .flatten()
+                .or((!replacing_same_version).then_some(entry.official_verified))
+        }),
         current_version: base_version.version.clone(),
-        previous_version: old.as_ref().map(|entry| entry.current_version.clone()),
+        previous_version: old.as_ref().and_then(|entry| {
+            if replacing_same_version {
+                entry.previous_version.clone()
+            } else {
+                Some(entry.current_version.clone())
+            }
+        }),
         manifest_path: final_manifest.to_string_lossy().into_owned(),
         executable_path: final_executable.to_string_lossy().into_owned(),
         runtime_root: final_runtime.map(|path| path.to_string_lossy().into_owned()),
         installed_at: old.as_ref().map_or(now, |entry| entry.installed_at),
         updated_at: now,
         pinned: old.as_ref().is_some_and(|entry| entry.pinned),
-        channel: selector
-            .filter(|selector| Version::parse(selector).is_err())
-            .unwrap_or("latest")
-            .to_string(),
+        channel: channel.to_string(),
     };
     progress(state, &mut journal, TransactionState::Staged)?;
     commit_version(

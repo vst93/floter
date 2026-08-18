@@ -142,6 +142,7 @@ impl ExtensionsLock {
                 if let Some(previous) = &entry.previous_version {
                     validate_npm_version(previous)?;
                 }
+                normalize_release_channel(&entry.channel)?;
             }
         }
         Ok(lock)
@@ -197,6 +198,57 @@ impl ExtensionsLock {
         entry.state = next;
         entry.updated_at = unix_now();
         Ok(())
+    }
+
+    pub fn set_release_policy(
+        &mut self,
+        id: &str,
+        pinned: Option<bool>,
+        channel: Option<&str>,
+    ) -> Result<(), String> {
+        let entry = self
+            .extensions
+            .get_mut(id)
+            .ok_or_else(|| format!("Extension is not installed: {id}"))?;
+        if entry.distribution_source != ExtensionDistributionSource::Npm {
+            return Err("Release policy is only available for NPM integrations".to_string());
+        }
+        if let Some(channel) = channel {
+            entry.channel = normalize_release_channel(channel)?.to_string();
+        }
+        if let Some(pinned) = pinned {
+            entry.pinned = pinned;
+        }
+        entry.updated_at = unix_now();
+        Ok(())
+    }
+}
+
+pub fn normalize_release_channel(channel: &str) -> Result<&str, String> {
+    let channel = channel.trim();
+    if channel == "latest" {
+        return Ok("stable");
+    }
+    if channel.is_empty()
+        || channel.len() > 64
+        || !channel.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+        })
+        || !channel
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphanumeric)
+        || Version::parse(channel).is_ok()
+    {
+        return Err(format!("Invalid NPM release channel: {channel}"));
+    }
+    Ok(channel)
+}
+
+pub fn release_channel_selector(channel: &str) -> Result<&str, String> {
+    match normalize_release_channel(channel)? {
+        "stable" => Ok("latest"),
+        other => Ok(other),
     }
 }
 
@@ -338,5 +390,14 @@ mod tests {
         .unwrap();
         assert!(!entry.official_verified);
         assert_eq!(entry.previous_official_verified, None);
+    }
+
+    #[test]
+    fn release_channels_normalize_stable_and_reject_versions() {
+        assert_eq!(normalize_release_channel("latest").unwrap(), "stable");
+        assert_eq!(release_channel_selector("stable").unwrap(), "latest");
+        assert_eq!(release_channel_selector("beta").unwrap(), "beta");
+        assert!(normalize_release_channel("1.2.3").is_err());
+        assert!(normalize_release_channel("../beta").is_err());
     }
 }

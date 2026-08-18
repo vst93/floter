@@ -387,6 +387,25 @@ async fn load_provider_commands_uncached(
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let mut result = Vec::new();
     for entry in lock.extensions.values().filter(|entry| entry.enabled) {
+        if entry.runtime_ownership == crate::extensions::lock::ExtensionRuntimeOwnership::System {
+            match state.check_executable_binding(&entry.id, &entry.executable_path) {
+                Ok(crate::extensions::tool_lock::LockState::Connected) => {}
+                Ok(state) => {
+                    eprintln!(
+                        "floter: system tool binding for {} requires confirmation: {:?}",
+                        entry.id, state
+                    );
+                    continue;
+                }
+                Err(error) => {
+                    eprintln!(
+                        "floter: cannot verify system tool binding for {}: {error}",
+                        entry.id
+                    );
+                    continue;
+                }
+            }
+        }
         if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
             match crate::extensions::registry::static_description(entry) {
                 Ok((description, invocation)) => {
