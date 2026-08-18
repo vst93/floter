@@ -1,0 +1,8 @@
+{
+  "protocolVersion": "1.0",
+  "provider": { "id": "com.example.invalid", "name": "Invalid", "version": "1.0.0" },
+  "commands": [],
+  "configuration": {
+    "owner": "host"
+  }
+}

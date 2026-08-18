@@ -41,7 +41,26 @@
           "type": "array",
           "items": { "$ref": "#/$defs/configurationField" }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "owner": { "const": "host" } } },
+          "then": {
+            "required": ["schema"],
+            "properties": { "schema": { "minItems": 1 } }
+          }
+        },
+        {
+          "if": { "properties": { "owner": { "const": "tool" } } },
+          "then": {
+            "required": ["openCommand"],
+            "properties": {
+              "openCommand": { "minItems": 1 },
+              "schema": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
     },
     "configurationField": {
       "type": "object",
@@ -61,7 +80,21 @@
         "maxLength": { "type": "integer", "minimum": 0 },
         "envVar": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
         "argument": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["select", "multi-select"] }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["options"],
+            "properties": { "options": { "minItems": 1 } }
+          }
+        }
+      ]
     },
     "command": {
       "type": "object",
@@ -102,7 +135,38 @@
               "repeatable": { "type": "boolean", "default": false },
               "values": { "type": "array", "items": { "type": "string" } },
               "valueHint": { "type": "string" }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "kind": { "const": "flag" } },
+                  "required": ["kind"]
+                },
+                "then": {
+                  "properties": {
+                    "takesValue": { "const": false },
+                    "values": { "maxItems": 0 }
+                  }
+                },
+                "else": {
+                  "required": ["takesValue"],
+                  "properties": { "takesValue": { "const": true } }
+                }
+              },
+              {
+                "if": {
+                  "properties": { "kind": { "const": "enum" } },
+                  "required": ["kind"]
+                },
+                "then": {
+                  "required": ["values"],
+                  "properties": { "values": { "minItems": 1 } }
+                },
+                "else": {
+                  "properties": { "values": { "maxItems": 0 } }
+                }
+              }
+            ]
           }
         }
       }

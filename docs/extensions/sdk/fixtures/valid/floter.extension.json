@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2.0",
+  "id": "com.example.fixture-tools",
+  "name": "Fixture Tools",
+  "description": "Protocol conformance fixture",
+  "publisher": {
+    "id": "example",
+    "name": "Example"
+  },
+  "compatibility": {
+    "floter": ">=0.3.0, <1.0.0",
+    "providerProtocol": "^1.0"
+  },
+  "distribution": {
+    "type": "npm"
+  },
+  "runtime": {
+    "type": "system",
+    "executableNames": ["fixture-tools"],
+    "versionArgs": ["--version"]
+  },
+  "provider": {
+    "type": "executable",
+    "argsPrefix": ["--floter"]
+  },
+  "permissions": []
+}

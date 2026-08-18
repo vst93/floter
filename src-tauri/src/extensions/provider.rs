@@ -1,5 +1,6 @@
 use crate::extensions::manifest::{Permission, ProviderConfig};
 use crate::extensions::proxy;
+use crate::extensions::{config, ConfigurationDescriptor};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -35,6 +36,8 @@ pub struct ProviderDescription {
     pub protocol_version: String,
     pub provider: ProviderIdentity,
     pub commands: Vec<CommandDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<ConfigurationDescriptor>,
 }
 
 impl ProviderDescription {
@@ -46,8 +49,12 @@ impl ProviderDescription {
 
     fn from_value(value: Value) -> Result<Self, String> {
         validate_description_schema(&value)?;
-        serde_json::from_value(value)
-            .map_err(|error| format!("Invalid provider description: {error}"))
+        let description: Self = serde_json::from_value(value)
+            .map_err(|error| format!("Invalid provider description: {error}"))?;
+        if let Some(configuration) = &description.configuration {
+            config::validate_descriptor(configuration)?;
+        }
+        Ok(description)
     }
 }
 

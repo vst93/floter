@@ -1,0 +1,45 @@
+{
+  "protocolVersion": "1.0",
+  "provider": {
+    "id": "com.example.fixture-tools",
+    "name": "Fixture Tools",
+    "version": "1.0.0"
+  },
+  "commands": [
+    {
+      "id": "search",
+      "name": "Search",
+      "description": "Search fixture data",
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["search"],
+        "mode": "pty"
+      },
+      "arguments": [
+        {
+          "names": ["--json"],
+          "kind": "flag",
+          "description": "Print JSON"
+        },
+        {
+          "names": ["--type"],
+          "kind": "enum",
+          "description": "Fixture type",
+          "takesValue": true,
+          "values": ["project", "task"]
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "configVersion": 1,
+    "owner": "host",
+    "schema": [
+      {
+        "key": "endpoint",
+        "type": "text",
+        "default": "https://example.com"
+      }
+    ]
+  }
+}

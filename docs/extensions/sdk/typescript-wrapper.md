@@ -70,7 +70,7 @@ floter-acme-tools/
     "name": "Acme"
   },
   "compatibility": {
-    "floter": ">=0.2.3 <1.0.0",
+    "floter": ">=0.2.3, <1.0.0",
     "providerProtocol": "^1.0"
   },
   "distribution": {

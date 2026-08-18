@@ -1,0 +1,16 @@
+{
+  "protocolVersion": "1.0",
+  "provider": { "id": "com.example.invalid", "name": "Invalid", "version": "1.0.0" },
+  "commands": [{
+    "id": "run",
+    "name": "Run",
+    "description": "Invalid flag",
+    "execution": { "program": "self", "argsPrefix": [], "mode": "pty" },
+    "arguments": [{
+      "names": ["--bad"],
+      "kind": "flag",
+      "description": "Flags cannot consume values",
+      "takesValue": true
+    }]
+  }]
+}

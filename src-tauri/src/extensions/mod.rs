@@ -3,6 +3,7 @@ pub mod asset_matcher;
 pub mod capability_probe;
 pub mod catalog;
 pub mod config;
+pub mod conformance;
 pub mod cwd_policy;
 pub mod download;
 pub mod gitlab_source;

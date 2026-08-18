@@ -1,0 +1,40 @@
+{
+  "protocolVersion": "1.0",
+  "provider": {
+    "id": "com.example.acme-tools",
+    "name": "Acme Tools",
+    "version": "1.0.0",
+    "description": "Buildable Rust Provider template"
+  },
+  "commands": [
+    {
+      "id": "search",
+      "name": "Search Acme",
+      "description": "Search resources by query",
+      "aliases": ["find"],
+      "keywords": ["acme", "resource"],
+      "execution": {
+        "program": "self",
+        "argsPrefix": ["search"],
+        "mode": "pty",
+        "workingDirectory": "current"
+      },
+      "arguments": [
+        {
+          "names": ["--type"],
+          "kind": "enum",
+          "description": "Resource type",
+          "takesValue": true,
+          "values": ["project", "task"]
+        },
+        {
+          "names": ["query"],
+          "kind": "string",
+          "description": "Search text",
+          "takesValue": true,
+          "required": true
+        }
+      ]
+    }
+  ]
+}

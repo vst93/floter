@@ -490,7 +490,7 @@ fn tool_configuration_plan(
     execution_plan(&command, invocation, Vec::new(), None).map(Some)
 }
 
-fn validate_descriptor(descriptor: &ConfigurationDescriptor) -> Result<(), String> {
+pub fn validate_descriptor(descriptor: &ConfigurationDescriptor) -> Result<(), String> {
     if descriptor.config_version == 0 {
         return Err("configVersion must be greater than zero".to_string());
     }
