@@ -889,8 +889,8 @@ pub async fn extensions_reprobe(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<HealthReport, String> {
-    use crate::extensions::capability_probe::{CapabilityProbe, ProbeResult};
-    use crate::extensions::health::{HealthReport, HealthStatus, ProbeRecord, ProbeFailure};
+    use crate::extensions::capability_probe::CapabilityProbe;
+    use crate::extensions::health::HealthReport;
 
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
@@ -952,7 +952,7 @@ pub async fn extensions_launch(
     cwd: Option<String>,
 ) -> Result<serde_json::Value, String> {
     use crate::extensions::cwd_policy::CwdContext;
-    use crate::extensions::session_restore::{SessionDescription, SessionResolver, RestorePolicy, ResolvedSession};
+    use crate::extensions::session_restore::{ResolvedSession, RestorePolicy, SessionResolver};
 
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?

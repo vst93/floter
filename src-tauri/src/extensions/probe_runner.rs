@@ -1,9 +1,7 @@
 use crate::extensions::capability_probe::{CapabilityProbe, CapabilityReport, ProbeResult};
-use crate::extensions::health::{HealthReport, HealthStatus, ProbeFailure, ProbeRecord};
-use crate::extensions::manifest::Permission;
+use crate::extensions::health::HealthReport;
 use crate::extensions::ExtensionState;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -11,8 +9,8 @@ const MAX_OUTPUT_BYTES: usize = 64 * 1024;
 
 /// Runs capability probes against a tool and produces a health report.
 pub async fn run_probes(
-    state: &ExtensionState,
-    tool_id: &str,
+    _state: &ExtensionState,
+    _tool_id: &str,
     executable: &PathBuf,
     probe_args: &[Vec<String>],
     required_probes: &[bool],
@@ -157,7 +155,7 @@ async fn read_output(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::extensions::health::{HealthStatus, ProbeFailure, ProbeRecord};
 
     #[test]
     fn health_status_serialization() {

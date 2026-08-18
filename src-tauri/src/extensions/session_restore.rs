@@ -77,6 +77,7 @@ impl SessionDescription {
 /// Session state stored by the broker.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)] // Reserved for persisted-session lifecycle integration.
 pub enum SessionState {
     Active,
     Exited,
@@ -86,6 +87,7 @@ pub enum SessionState {
 /// Information about a session entry in the broker list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)] // Reserved for persisted-session lifecycle integration.
 pub struct SessionEntry {
     pub session_id: String,
     pub tool_id: String,
@@ -150,6 +152,7 @@ impl SessionResolver {
     }
 
     /// Remove a session file.
+    #[allow(dead_code)] // Used once session teardown is wired into the command layer.
     pub fn remove_session(&self, tool_id: &str) -> Result<(), String> {
         let path = self.sessions_dir.join(format!("{}.session.json", tool_id));
         if path.exists() {

@@ -1,5 +1,7 @@
 pub mod artifacts;
 pub mod asset_matcher;
+// Implemented and tested ahead of integration into the extension launch path.
+#[allow(dead_code)]
 pub mod capability_probe;
 pub mod catalog;
 pub mod config;
@@ -8,6 +10,8 @@ pub mod download;
 pub mod gitlab_source;
 pub mod health;
 pub mod install;
+// Implemented and tested ahead of integration into install/uninstall activation.
+#[allow(dead_code)]
 pub mod lifecycle;
 pub mod lock;
 pub mod manifest;
@@ -23,6 +27,8 @@ pub mod source_inference;
 pub mod source_resolver;
 pub mod static_adapter;
 pub mod sync;
+// Implemented and tested ahead of integration into terminal session setup.
+#[allow(dead_code)]
 pub mod terminal_capability;
 mod transaction;
 

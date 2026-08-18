@@ -556,7 +556,7 @@ async fn generate_completion(
     Ok(stdout)
 }
 
-async fn read_limited<R: AsyncRead + Unpin>(mut reader: R, limit: usize) -> Result<Vec<u8>, String> {
+async fn read_limited<R: AsyncRead + Unpin>(reader: R, limit: usize) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     reader
         .take((limit + 1) as u64)
