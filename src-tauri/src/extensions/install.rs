@@ -9,7 +9,9 @@ use crate::extensions::manifest::{
 };
 use crate::extensions::official_index;
 use crate::extensions::provider::ProviderInvocation;
-use crate::extensions::transaction::{commit_lock, commit_version};
+use crate::extensions::transaction::{
+    begin, commit_lock, commit_version, progress, TransactionState,
+};
 use crate::extensions::ExtensionState;
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -202,51 +204,6 @@ struct RegistryPublisher {
     username: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
-enum InstallationPhase {
-    Resolving,
-    Downloading,
-    Verifying,
-    Installing,
-    Complete,
-}
-
-impl InstallationPhase {
-    fn may_transition_to(self, next: Self) -> bool {
-        use InstallationPhase::*;
-        matches!(
-            (self, next),
-            (Resolving, Downloading)
-                | (Downloading, Verifying)
-                | (Verifying, Installing)
-                | (Installing, Complete)
-        )
-    }
-}
-
-struct InstallationTransaction {
-    phase: InstallationPhase,
-}
-
-impl InstallationTransaction {
-    fn new() -> Self {
-        Self {
-            phase: InstallationPhase::Resolving,
-        }
-    }
-
-    fn advance(&mut self, next: InstallationPhase) -> Result<(), String> {
-        if !self.phase.may_transition_to(next) {
-            return Err(format!(
-                "Invalid installation transition: {:?} -> {:?}",
-                self.phase, next
-            ));
-        }
-        self.phase = next;
-        Ok(())
-    }
-}
-
 pub async fn install(
     state: &ExtensionState,
     request: ExtensionInstallRequest,
@@ -335,7 +292,7 @@ pub(crate) fn commit_preflight_managed(
     }
     std::fs::create_dir_all(target.parent().ok_or("Invalid extension target")?)
         .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
-    commit_version(state, old.as_ref(), &entry, &staged_version, &target)?;
+    commit_version(state, old.as_ref(), &entry, &staged_version, &target, None)?;
     Ok(entry)
 }
 
@@ -1292,6 +1249,7 @@ pub(crate) async fn rollback_locked(
     entry.runtime_root = runtime_root
         .as_ref()
         .map(|path| path.to_string_lossy().into_owned());
+    let probe_executable = executable.clone();
     let response = state
         .provider
         .describe(
@@ -1310,6 +1268,61 @@ pub(crate) async fn rollback_locked(
         )
         .await?;
     entry.tool_version = tool_version.or(Some(response.description.provider.version));
+    // Health gate before switching the pointer (plan 7.2): run the required
+    // probes against the previous version; refuse the rollback if unhealthy so
+    // the current version is never replaced by a broken one.
+    if !manifest.lifecycle.probes.is_empty() {
+        let probe_args: Vec<Vec<String>> = manifest
+            .lifecycle
+            .probes
+            .iter()
+            .map(|p| p.args.clone())
+            .collect();
+        let required: Vec<bool> = manifest
+            .lifecycle
+            .probes
+            .iter()
+            .map(|p| p.required)
+            .collect();
+        match crate::extensions::probe_runner::run_probes(
+            state,
+            &entry.id,
+            &probe_executable,
+            &probe_args,
+            &required,
+        )
+        .await
+        {
+            Ok(ref report) => {
+                let _ = crate::extensions::health::write_health_report(
+                    &state.paths.data.join(&entry.id),
+                    &report,
+                );
+                if report.status == crate::extensions::health::HealthStatus::Unhealthy {
+                    return Err(format!(
+                        "Rollback aborted: {} failed required probes. {}",
+                        entry.id,
+                        if !report.failures.is_empty() {
+                            format!(
+                                "Failures: {}",
+                                report
+                                    .failures
+                                    .iter()
+                                    .map(|f| format!("{} (exit {:?})", f.probe, f.exit_code))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        } else {
+                            String::new()
+                        }
+                    ));
+                }
+            }
+            Err(error) => {
+                eprintln!("Rollback probe run failed for {}: {}", entry.id, error);
+            }
+        }
+    }
     let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
     entry.previous_signature_verified = Some(entry.signature_verified);
     entry.signature_verified = previous_signature_verified;
@@ -1393,9 +1406,7 @@ async fn install_managed(
             return Err("Update package does not match the installed extension".to_string());
         }
     }
-    let mut transaction = InstallationTransaction::new();
     let base_version = resolve_registry_version(state, package, selector).await?;
-    transaction.advance(InstallationPhase::Downloading)?;
     let base_bytes = download_tarball(state, &base_version.dist).await?;
 
     let staging_parent = state.paths.extensions.join(".staging");
@@ -1408,7 +1419,6 @@ async fn install_managed(
     let version_root = staging.path().join("version");
     std::fs::create_dir_all(&version_root)
         .map_err(|error| format!("Cannot create staged version directory: {error}"))?;
-    transaction.advance(InstallationPhase::Verifying)?;
     safe_unpack(&base_bytes, &version_root)?;
     let (package_json, manifest_path) = load_package_entry(&version_root)?;
     validate_package_entry(&package_json, &base_version, true)?;
@@ -1416,6 +1426,11 @@ async fn install_managed(
     if manifest.distribution != crate::extensions::manifest::Distribution::Npm {
         return Err("NPM packages must declare distribution.type = npm".to_string());
     }
+    let old = lock.extensions.get(&manifest.id).cloned();
+    // Journal the transaction before any further download or state change, so
+    // an interrupted install can be distinguished from a never-started one.
+    let mut journal = begin(state, &manifest.id, old.as_ref())?;
+    progress(state, &mut journal, TransactionState::Downloading)?;
     let official_verified = if let Some(signatures) = manifest.signatures.as_ref() {
         let index_authorized = official_index.as_ref().is_some_and(|index| {
             index.authorizes(
@@ -1506,6 +1521,7 @@ async fn install_managed(
             return Err("NPM packages cannot use local script runtimes".to_string())
         }
     };
+    progress(state, &mut journal, TransactionState::Downloaded)?;
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.clone(),
@@ -1549,8 +1565,7 @@ async fn install_managed(
             }
         }
     }
-
-    let old = lock.extensions.get(&manifest.id).cloned();
+    progress(state, &mut journal, TransactionState::Verified)?;
     if old
         .as_ref()
         .is_some_and(|entry| entry.distribution_source != ExtensionDistributionSource::Npm)
@@ -1565,7 +1580,6 @@ async fn install_managed(
     std::fs::create_dir_all(&versions_root)
         .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
     let target = versions_root.join(&base_version.version);
-    transaction.advance(InstallationPhase::Installing)?;
 
     let final_manifest = target.join(
         manifest_path
@@ -1623,8 +1637,8 @@ async fn install_managed(
             .unwrap_or("latest")
             .to_string(),
     };
-    transaction.advance(InstallationPhase::Complete)?;
-    commit_version(state, old.as_ref(), &entry, &version_root, &target)?;
+    progress(state, &mut journal, TransactionState::Staged)?;
+    commit_version(state, old.as_ref(), &entry, &version_root, &target, Some(journal))?;
     Ok(entry)
 }
 
@@ -2456,6 +2470,7 @@ mod tests {
                 backup_version: Some(backup.clone()),
                 lock_committed: false,
                 cleanup_paths: Vec::new(),
+                state: crate::extensions::transaction::TransactionState::Staged,
             },
         )
         .unwrap();
@@ -2504,6 +2519,7 @@ mod tests {
                 backup_version: Some(backup.clone()),
                 lock_committed: true,
                 cleanup_paths: Vec::new(),
+                state: crate::extensions::transaction::TransactionState::Activated,
             },
         )
         .unwrap();
@@ -3232,15 +3248,6 @@ mod tests {
             &installed,
             &[Permission::FilesystemRead, Permission::NetworkFetch],
         ));
-    }
-
-    #[test]
-    fn installation_transaction_follows_installation_phases() {
-        let mut transaction = InstallationTransaction::new();
-        transaction.advance(InstallationPhase::Downloading).unwrap();
-        transaction.advance(InstallationPhase::Verifying).unwrap();
-        transaction.advance(InstallationPhase::Installing).unwrap();
-        transaction.advance(InstallationPhase::Complete).unwrap();
     }
 
     #[test]
