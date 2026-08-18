@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::extensions::asset_matcher::AssetSelection;
+
 const LOCK_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +86,8 @@ pub struct ExtensionLockEntry {
     pub package_version: String,
     pub tool_version: Option<String>,
     pub integrity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_selection: Option<AssetSelection>,
     #[serde(default)]
     pub signature_verified: bool,
     #[serde(default)]

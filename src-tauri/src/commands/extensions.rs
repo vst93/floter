@@ -162,6 +162,7 @@ impl ExtensionListItem {
             package_version: version.clone(),
             tool_version: None,
             integrity: None,
+            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

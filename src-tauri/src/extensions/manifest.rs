@@ -1,7 +1,7 @@
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
 use crate::extensions::lifecycle::ToolLifecycle;
@@ -28,6 +28,8 @@ pub struct ExtensionManifest {
     pub compatibility: Compatibility,
     pub distribution: Distribution,
     pub runtime: Runtime,
+    #[serde(default, skip_serializing_if = "Artifacts::is_empty")]
+    pub artifacts: Artifacts,
     pub provider: ProviderConfig,
     /// Optional OS allow-list. An omitted list keeps backwards compatibility
     /// and means all supported host operating systems.
@@ -107,6 +109,43 @@ pub enum ScriptLanguage {
     Js,
     Shell,
     Powershell,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Artifacts {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub binaries: Vec<ArtifactBinary>,
+}
+
+impl Artifacts {
+    pub fn is_empty(&self) -> bool {
+        self.binaries.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ArtifactBinary {
+    pub name: String,
+    pub path: String,
+    pub role: BinaryRole,
+    #[serde(default)]
+    pub version_args: Vec<String>,
+    #[serde(default = "required_binary")]
+    pub required: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum BinaryRole {
+    Provider,
+    Public,
+    Helper,
+}
+
+fn required_binary() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -329,6 +368,7 @@ impl ExtensionManifest {
                 return Err("Managed Windows runtimes must use an .exe entry point".to_string());
             }
         }
+        self.validate_artifacts()?;
         if let Runtime::Script { path, .. } = &self.runtime {
             validate_relative_path(path, "runtime script")?;
         }
@@ -341,6 +381,68 @@ impl ExtensionManifest {
             && self.provider.descriptor.is_none()
         {
             return Err("Static descriptor providers require provider.descriptor".to_string());
+        }
+        Ok(())
+    }
+
+    fn validate_artifacts(&self) -> Result<(), String> {
+        if self.artifacts.is_empty() {
+            return Ok(());
+        }
+        let Runtime::Bundled { executable, .. } = &self.runtime else {
+            return Err("artifacts.binaries is only supported for bundled runtimes".to_string());
+        };
+        let mut names = BTreeSet::new();
+        let mut paths = BTreeSet::new();
+        let mut provider_count = 0;
+        for binary in &self.artifacts.binaries {
+            if binary.name.is_empty()
+                || binary.name.len() > 80
+                || !binary
+                    .name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"._+-".contains(&byte))
+            {
+                return Err(format!(
+                    "Artifact binary name must contain only ASCII letters, digits, '.', '_', '+', or '-': {}",
+                    binary.name
+                ));
+            }
+            let path = validate_relative_path(&binary.path, "artifact binary path")?;
+            if !binary
+                .path
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"/._+-".contains(&byte))
+            {
+                return Err(format!(
+                    "Artifact binary path contains characters that cannot be represented safely in a shim: {}",
+                    binary.path
+                ));
+            }
+            if !names.insert(binary.name.clone()) {
+                return Err(format!("Duplicate artifact binary name: {}", binary.name));
+            }
+            if !paths.insert(path) {
+                return Err(format!("Duplicate artifact binary path: {}", binary.path));
+            }
+            if binary.version_args.len() > 16 {
+                return Err(format!(
+                    "Artifact binary {} has more than 16 version arguments",
+                    binary.name
+                ));
+            }
+            if binary.role == BinaryRole::Provider {
+                provider_count += 1;
+                if binary.path != *executable {
+                    return Err(format!(
+                        "Provider artifact {} must use the bundled runtime executable path {}",
+                        binary.name, executable
+                    ));
+                }
+            }
+        }
+        if provider_count > 1 {
+            return Err("artifacts.binaries may declare at most one provider binary".to_string());
         }
         Ok(())
     }
@@ -520,6 +622,40 @@ mod tests {
             .unwrap();
 
         assert!(resolved.platform_package.is_none());
+    }
+
+    #[test]
+    fn artifacts_require_a_bundled_runtime_and_unique_binary_paths() {
+        let mut value: Value = serde_json::from_slice(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        value["runtime"] = serde_json::json!({
+            "type": "system",
+            "executableNames": ["v"]
+        });
+        assert!(ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap())
+            .unwrap_err()
+            .contains("only supported for bundled runtimes"));
+
+        value["runtime"] = serde_json::json!({
+            "type": "bundled",
+            "platformPackages": {
+                "linux-x86_64-gnu": "floter-v-linux-x64"
+            },
+            "executable": "bin/v"
+        });
+        value["artifacts"]["binaries"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "name": "v-copy",
+                "path": "bin/v",
+                "role": "helper"
+            }));
+        assert!(ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap())
+            .unwrap_err()
+            .contains("Duplicate artifact binary path"));
     }
 
     #[test]

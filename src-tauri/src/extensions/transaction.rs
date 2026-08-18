@@ -172,6 +172,7 @@ fn placeholder_entry(id: &str) -> ExtensionLockEntry {
         package_version: String::new(),
         tool_version: None,
         integrity: None,
+        asset_selection: None,
         signature_verified: false,
         previous_signature_verified: None,
         official_verified: false,
@@ -329,6 +330,10 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
                 }
             }
             let _ = retain_versions(state, &journal.new_entry);
+            crate::extensions::artifacts::activate_entry_shims(
+                &state.paths.extensions,
+                &journal.new_entry,
+            )?;
             remove_journal(path)?;
         } else if journal.staged_version.is_none() && journal.target_version.is_none() {
             // Download/pre-staging journal: nothing became visible, drop it.
@@ -399,6 +404,7 @@ fn remove_orphaned_staging(state: &ExtensionState) -> Result<(), String> {
 
 fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Result<(), String> {
     for entry in lock.extensions.values() {
+        crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
         let _ = write_current_pointer(&state.paths.extensions, entry);
     }
     Ok(())
@@ -462,6 +468,7 @@ pub(crate) fn commit_version(
         .map_err(|error| format!("Cannot atomically install extension version: {error}"))?;
     sync_directory(target.parent().ok_or("Invalid extension target")?)
         .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
+    crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.insert(entry.id.clone(), entry.clone());
     lock.save(&state.paths.lock_file)?;
@@ -504,6 +511,7 @@ pub(crate) fn commit_lock(
         state: TransactionState::Resolved,
     };
     let journal_path = write_journal(state, &journal)?;
+    crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.insert(entry.id.clone(), entry.clone());
     lock.save(&state.paths.lock_file)?;
@@ -544,6 +552,7 @@ mod tests {
             package_version: version.into(),
             tool_version: Some("1.0.0".into()),
             integrity: None,
+            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

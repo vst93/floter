@@ -399,6 +399,7 @@ async fn create_custom_integration_locked(
                 version_args: request.version_args.clone(),
             }
         },
+        artifacts: crate::extensions::manifest::Artifacts::default(),
         provider: ProviderConfig {
             kind: ProviderKind::StaticDescriptor,
             descriptor: Some("provider-description.json".to_string()),
@@ -879,6 +880,7 @@ pub(crate) async fn connect_bundled_locked(
         package_version: integration_version.clone(),
         tool_version,
         integrity: None,
+        asset_selection: None,
         signature_verified: false,
         previous_signature_verified: None,
         official_verified: false,
@@ -1329,6 +1331,10 @@ pub(crate) async fn rollback_locked(
     let previous_official_verified = entry.previous_official_verified.unwrap_or(false);
     entry.previous_official_verified = Some(entry.official_verified);
     entry.official_verified = previous_official_verified;
+    // The prior lock schema did not retain the previous version's asset URL.
+    // Do not present the newer version's selection as if it described the
+    // rolled-back artifact.
+    entry.asset_selection = None;
     entry.updated_at = unix_now();
     let result = entry.clone();
     commit_lock(state, &original, &result)?;
@@ -1484,7 +1490,8 @@ async fn install_managed(
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
-    let (executable, runtime_root, version_args, tool_version) = match &manifest.runtime {
+    let (executable, runtime_root, version_args, tool_version, asset_selection) =
+        match &manifest.runtime {
         Runtime::Bundled { .. } => {
             let platform_package = resolved
                 .platform_package
@@ -1509,13 +1516,36 @@ async fn install_managed(
             validate_package_entry(&runtime_package, &platform_version, false)?;
             let executable = managed_executable(&manifest, &version_root)?;
             make_executable(&executable)?;
-            (executable, Some(runtime_root), Vec::new(), None)
+            let verified_binaries = crate::extensions::artifacts::verify_binaries(
+                &runtime_root,
+                &manifest.artifacts,
+                &manifest.permissions,
+            )
+            .await?;
+            crate::extensions::artifacts::prepare_shim_metadata(
+                &version_root,
+                &verified_binaries,
+            )?;
+            let candidate = crate::extensions::asset_matcher::AssetCandidate::exact_archive(
+                platform_package,
+                &platform_version.dist.tarball,
+                &resolved.target,
+            );
+            let selection = crate::extensions::asset_matcher::AssetMatcher::new(&resolved.target)
+                .select(&[candidate])?;
+            (
+                executable,
+                Some(runtime_root),
+                Vec::new(),
+                None,
+                Some(selection),
+            )
         }
         Runtime::System { version_args, .. } => {
             let executable = find_system_executable(&manifest)?;
             let tool_version =
                 linked_tool_version(&manifest, &resolved.provider, &executable).await;
-            (executable, None, version_args.clone(), tool_version)
+            (executable, None, version_args.clone(), tool_version, None)
         }
         Runtime::Script { .. } => {
             return Err("NPM packages cannot use local script runtimes".to_string())
@@ -1620,6 +1650,7 @@ async fn install_managed(
         package_version: base_version.version.clone(),
         tool_version: tool_version.or(Some(description.description.provider.version)),
         integrity: base_version.dist.integrity.clone(),
+        asset_selection,
         signature_verified: manifest.signatures.is_some(),
         previous_signature_verified: old.as_ref().map(|entry| entry.signature_verified),
         official_verified,
@@ -1816,6 +1847,7 @@ pub(crate) async fn install_linked(
         package_version: integration_version.clone(),
         tool_version: tool_version.or(Some(response.description.provider.version)),
         integrity: None,
+        asset_selection: None,
         signature_verified: false,
         previous_signature_verified: None,
         official_verified: false,
@@ -2419,6 +2451,7 @@ mod tests {
             package_version: version.into(),
             tool_version: Some("1.0.0".into()),
             integrity: None,
+            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -3022,6 +3055,7 @@ mod tests {
             package_version: "1.0.0".into(),
             tool_version: None,
             integrity: Some("sha512-test".into()),
+            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

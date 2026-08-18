@@ -27,6 +27,17 @@
     },
     "executable": "bin/v"
   },
+  "artifacts": {
+    "binaries": [
+      {
+        "name": "v",
+        "path": "bin/v",
+        "role": "public",
+        "versionArgs": ["--version"],
+        "required": true
+      }
+    ]
+  },
   "provider": {
     "type": "executable",
     "argsPrefix": ["--floter"],

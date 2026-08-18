@@ -53,6 +53,13 @@ Host 当前支持：
 平台包解压到扩展版本目录的 `runtime/` 下，`executable` 相对于该目录。
 Unix Host 在完整性验证后补充用户可执行位；Windows 不修改 ACL。
 
+多二进制平台包使用顶层 `artifacts.binaries` 声明每个程序的 `name`、相对于
+`runtime/` 的 `path`、`role`（`provider` / `public` / `helper`）、可选
+`versionArgs` 和 `required`。Host 会逐个验证 required 二进制；带
+`versionArgs` 的程序还必须在两秒内成功退出。`public` 程序会获得 Floter 管理的
+稳定 shim，shim 每次运行都读取 `current.json`，因此更新或回滚只需切换一次版本
+指针即可让整套公开命令同步生效。
+
 ### system runtime
 
 关联 PATH 或用户指定的外部程序。`executableNames` 按顺序探测；Windows

@@ -1,3 +1,5 @@
+pub mod artifacts;
+pub mod asset_matcher;
 pub mod capability_probe;
 pub mod catalog;
 pub mod config;
