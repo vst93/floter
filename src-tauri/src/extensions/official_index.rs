@@ -14,7 +14,7 @@ const MAX_INDEX_BYTES: usize = 1024 * 1024;
 // scripts/sign-official-index.mjs before pushing; the root key below is the
 // trust anchor that rejects any repository tampering.
 pub const DEVELOPMENT_ROOT_PUBLIC_KEY: &str =
-    "ed25519:iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=";
+    "ed25519:BOvvP8Yib+JZDozuzknO5FTXRpsKAokIOlF/ONXqABQ=";
 pub const DEFAULT_INDEX_URL: &str =
     "https://raw.githubusercontent.com/vst93/floter/main/extensions/official-index/index.json";
 
@@ -37,7 +37,7 @@ pub const DEVELOPMENT_INDEX_PAYLOAD: &str = r#"{
   ]
 }"#;
 pub const DEVELOPMENT_INDEX_SIGNATURE: &str =
-    "wceKhQkH1IG2NV7S7A/HXbtfW6sHNycUc5ToAdPL7WxSz3l+gdSifBZpbb77qKcojrGyIaZzL4/f9NWU8fmMAA==";
+    "eDpD/tJ04QmVo/JkiLeuchKKiI43kwQwzsoIGK7kKk9AfGXmysSfO2OBVONA+nh+7kFGhvKJ/ntEbCX9UvNMBw==";
 
 #[derive(Debug, Clone)]
 pub struct OfficialIndexConfig {
