@@ -1253,30 +1253,52 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     if (busy || !patchUpdates.length) return;
     setBusy({ id: "*", kind: "update" });
     setError(null);
+    setOperationNotice(null);
+    const failures: Array<{ name: string; message: string }> = [];
+    let succeeded = 0;
+    let cancelled = false;
     try {
       for (const extension of patchUpdates) {
         if (!extension.packageName) continue;
-        const request: InstallRequest = {
-          source: "npm",
-          package: extension.packageName,
-          version: updateById[extension.id].version,
-          manifestPath: null,
-          executablePath: null,
-        };
-        const review = await reviewPermissions(request);
-        if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
-          permissions: review.permissions.map((permission) => permission.title).join(", "),
-        }))) break;
-        await invoke("extensions_update", {
-          id: extension.id,
-          version: null,
-          approvedPermissions: review.permissions.map(({ permission }) => permission),
-        });
+        const candidate = updateById[extension.id];
+        if (!candidate) continue;
+        try {
+          const request: InstallRequest = {
+            source: "npm",
+            package: extension.packageName,
+            version: candidate.version,
+            manifestPath: null,
+            executablePath: null,
+          };
+          const review = await reviewPermissions(request);
+          if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+            permissions: review.permissions.map((permission) => permission.title).join(", "),
+          }))) {
+            cancelled = true;
+            break;
+          }
+          await invoke("extensions_update", {
+            id: extension.id,
+            version: candidate.version,
+            approvedPermissions: review.permissions.map(({ permission }) => permission),
+          });
+          succeeded += 1;
+        } catch (nextError) {
+          failures.push({ name: extension.name, message: errorMessage(nextError) });
+        }
       }
       await refresh();
-    } catch (nextError) {
-      setError(errorMessage(nextError));
-      await refresh();
+      if (failures.length) {
+        setError(t("settings.extensions.updateAllPartialFailure", {
+          succeeded,
+          failed: failures.length,
+          details: failures.map(({ name, message }) => `${name}: ${message}`).join("; "),
+        }));
+      } else if (cancelled) {
+        setOperationNotice(t("settings.extensions.updateAllCancelled", { count: succeeded }));
+      } else {
+        setOperationNotice(t("settings.extensions.updateAllComplete", { count: succeeded }));
+      }
     } finally {
       setBusy(null);
     }
