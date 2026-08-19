@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Write;
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -30,6 +31,9 @@ const MIN_FONT_SIZE: u32 = 8;
 const MAX_FONT_SIZE: u32 = 48;
 
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
+
+const SETTINGS_FILE_NAME: &str = "settings.json";
+const SETTINGS_BACKUP_FILE_NAME: &str = "settings.json.backup";
 
 const SHORTCUT_ACTIONS: [&str; 7] = [
     TOGGLE_WINDOW,
@@ -170,16 +174,21 @@ fn insert_shortcut_if_available(
 
 /// Load settings from disk, falling back to defaults when missing or invalid.
 pub fn load_settings() -> AppSettings {
-    let Some(config_path) = dirs::config_dir().map(|d| d.join("floter").join("settings.json"))
-    else {
+    let Some(config_dir) = dirs::config_dir().map(|directory| directory.join("floter")) else {
         return AppSettings::default();
     };
-    if let Ok(content) = std::fs::read_to_string(&config_path) {
-        if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
-            return settings;
-        }
-    }
-    AppSettings::default()
+    load_settings_from(&config_dir)
+}
+
+fn load_settings_from(config_dir: &Path) -> AppSettings {
+    read_settings(&config_dir.join(SETTINGS_FILE_NAME))
+        .or_else(|| read_settings(&config_dir.join(SETTINGS_BACKUP_FILE_NAME)))
+        .unwrap_or_default()
+}
+
+fn read_settings(path: &Path) -> Option<AppSettings> {
+    let bytes = std::fs::read(path).ok()?;
+    serde_json::from_slice(&bytes).ok()
 }
 
 /// The persisted terminal size, normalized defensively so a hand-edited
@@ -353,17 +362,36 @@ fn shortcut_conflicts(
 fn write_settings(settings: &AppSettings) -> Result<(), String> {
     let config_dir = dirs::config_dir().ok_or("Cannot find config directory")?;
     let floter_dir = config_dir.join("floter");
-    std::fs::create_dir_all(&floter_dir).map_err(|e| e.to_string())?;
-    let config_path = floter_dir.join("settings.json");
-    let content = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
-    let mut temporary = tempfile::NamedTempFile::new_in(&floter_dir).map_err(|e| e.to_string())?;
-    temporary.write_all(&content).map_err(|e| e.to_string())?;
-    temporary.flush().map_err(|e| e.to_string())?;
-    temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+    write_settings_to(&floter_dir, settings)
+}
+
+fn write_settings_to(config_dir: &Path, settings: &AppSettings) -> Result<(), String> {
+    std::fs::create_dir_all(config_dir).map_err(|error| error.to_string())?;
+    let content = serde_json::to_vec_pretty(settings).map_err(|error| error.to_string())?;
+
+    // Make a complete, durable recovery copy before replacing the canonical
+    // file. If the second rename is interrupted, startup can still recover the
+    // exact snapshot the user asked us to save.
+    write_settings_file(&config_dir.join(SETTINGS_BACKUP_FILE_NAME), &content)?;
+    crate::extensions::lock::sync_directory(config_dir).map_err(|error| error.to_string())?;
+
+    write_settings_file(&config_dir.join(SETTINGS_FILE_NAME), &content)?;
+    crate::extensions::lock::sync_directory(config_dir).map_err(|error| error.to_string())
+}
+
+fn write_settings_file(path: &Path, content: &[u8]) -> Result<(), String> {
+    let parent = path.parent().ok_or("Invalid settings path")?;
+    let mut temporary =
+        tempfile::NamedTempFile::new_in(parent).map_err(|error| error.to_string())?;
     temporary
-        .persist(config_path)
+        .write_all(content)
+        .and_then(|_| temporary.flush())
+        .and_then(|_| temporary.as_file().sync_all())
+        .map_err(|error| error.to_string())?;
+    temporary
+        .persist(path)
         .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -517,6 +545,64 @@ mod tests {
     fn older_settings_do_not_enable_autostart() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(!settings.launch_at_startup);
+    }
+
+    #[test]
+    fn settings_write_keeps_a_parseable_recovery_copy() {
+        let directory = tempfile::tempdir().expect("settings directory");
+        let settings = AppSettings {
+            theme: "light".into(),
+            language: "zh".into(),
+            ..AppSettings::default()
+        };
+
+        write_settings_to(directory.path(), &settings).expect("write settings");
+
+        let primary = read_settings(&directory.path().join(SETTINGS_FILE_NAME));
+        let backup = read_settings(&directory.path().join(SETTINGS_BACKUP_FILE_NAME));
+        assert_eq!(
+            primary.as_ref().map(|value| value.theme.as_str()),
+            Some("light")
+        );
+        assert_eq!(
+            backup.as_ref().map(|value| value.language.as_str()),
+            Some("zh")
+        );
+    }
+
+    #[test]
+    fn invalid_primary_settings_recover_from_the_backup() {
+        let directory = tempfile::tempdir().expect("settings directory");
+        let settings = AppSettings {
+            font_size: 22,
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &settings).expect("write settings");
+        std::fs::write(directory.path().join(SETTINGS_FILE_NAME), b"{truncated")
+            .expect("corrupt primary settings");
+
+        let recovered = load_settings_from(directory.path());
+
+        assert_eq!(recovered.font_size, 22);
+    }
+
+    #[test]
+    fn valid_primary_settings_take_precedence_over_a_stale_backup() {
+        let directory = tempfile::tempdir().expect("settings directory");
+        let stale = AppSettings {
+            theme: "dark".into(),
+            ..AppSettings::default()
+        };
+        let current = AppSettings {
+            theme: "light".into(),
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &stale).expect("write stale settings");
+        let current_bytes = serde_json::to_vec_pretty(&current).expect("serialize settings");
+        write_settings_file(&directory.path().join(SETTINGS_FILE_NAME), &current_bytes)
+            .expect("write current settings");
+
+        assert_eq!(load_settings_from(directory.path()).theme, "light");
     }
 
     #[test]
