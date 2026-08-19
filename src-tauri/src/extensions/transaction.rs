@@ -307,18 +307,17 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
             .then(a.0.cmp(&b.0))
     });
     for (path, journal) in &entries {
-        let old_differs = journal.old_entry.as_ref().is_some_and(|old| {
-            serde_json::to_value(old).ok() != serde_json::to_value(&journal.new_entry).ok()
-        });
-        let committed = journal.lock_committed
-            || (old_differs
-                && lock
-                    .extensions
-                    .get(&journal.extension_id)
-                    .is_some_and(|entry| {
-                        serde_json::to_value(entry).ok()
-                            == serde_json::to_value(&journal.new_entry).ok()
-                    }));
+        // The lock write and the journal's committed flag are intentionally
+        // separate durable writes. If the process dies between them, the lock
+        // is still the source of truth. This also covers a first install,
+        // where there is no old entry to compare against.
+        let lock_matches_new = lock
+            .extensions
+            .get(&journal.extension_id)
+            .is_some_and(|entry| {
+                serde_json::to_value(entry).ok() == serde_json::to_value(&journal.new_entry).ok()
+            });
+        let committed = journal.lock_committed || lock_matches_new;
         if committed {
             if let Some(backup) = &journal.backup_version {
                 if backup.exists() {
@@ -961,6 +960,45 @@ mod tests {
                 .current_version,
             "2.0.0"
         );
+    }
+
+    #[test]
+    fn recovery_keeps_fresh_install_when_lock_was_written_before_journal_flag() {
+        // A first install has no old entry, so recovery must use the matching
+        // lock entry to recognize a crash after lock.save and before the
+        // journal's committed flag was persisted.
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let journal = staged_journal(
+            &state,
+            "example.fresh",
+            None,
+            "1.0.0",
+            false,
+            TransactionState::Activated,
+        );
+        let target = journal.target_version.clone().unwrap();
+        std::fs::create_dir_all(&target).unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions
+            .insert(journal.new_entry.id.clone(), journal.new_entry.clone());
+        lock.save(&state.paths.lock_file).unwrap();
+        write_journal(&state, &journal).unwrap();
+
+        recover(&state).unwrap();
+
+        assert!(target.exists());
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.lock_file)
+                .unwrap()
+                .get("example.fresh")
+                .unwrap()
+                .current_version,
+            "1.0.0"
+        );
+        assert!(!journal_dir(&state)
+            .join(format!("{}.json", journal.transaction_id))
+            .exists());
     }
 
     #[test]
