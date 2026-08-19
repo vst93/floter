@@ -99,11 +99,21 @@ pub struct LocalApplication {
 #[derive(Default)]
 pub struct ApplicationState {
     cache: Mutex<ApplicationCache>,
+    /// Serializes cold/forced scans across all command entry points.
+    ///
+    /// The launcher normally coalesces its own requests, but catalog searches
+    /// can ask for applications independently while the initial scan is still
+    /// running. Without a backend guard those calls each walk every application
+    /// directory and whichever finishes last wins the cache snapshot.
+    scan_lock: tokio::sync::Mutex<()>,
 }
 
 impl ApplicationState {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            cache: Mutex::new(ApplicationCache::default()),
+            scan_lock: tokio::sync::Mutex::new(()),
+        }
     }
 }
 
@@ -200,6 +210,10 @@ pub async fn list_applications(
     state: State<'_, ApplicationState>,
     force_refresh: Option<bool>,
 ) -> Result<Vec<LocalApplication>, String> {
+    // Keep this guard for the whole read/scan/fill sequence. A second caller
+    // arriving during a cold scan will re-check the now-populated cache after
+    // waiting and return it without doing another filesystem walk.
+    let _scan_guard = state.scan_lock.lock().await;
     let force_refresh = force_refresh.unwrap_or(false);
     {
         let mut cache = state.cache.lock().map_err(|e| e.to_string())?;
