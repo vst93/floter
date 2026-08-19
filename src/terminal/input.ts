@@ -39,6 +39,12 @@ function tildeKey(code: number, e: KeyboardEvent): Uint8Array {
   return esc(modifier === 1 ? `[${code}~` : `[${code};${modifier}~`);
 }
 
+function withAltPrefix(sequence: Uint8Array, e: KeyboardEvent): Uint8Array {
+  return e.altKey
+    ? new Uint8Array([27, ...sequence])
+    : sequence;
+}
+
 /**
  * Encode a key event, or return `null` when the event should not be forwarded
  * to the terminal (e.g. Cmd-based window shortcuts handled by the app).
@@ -47,24 +53,30 @@ export function encodeKey(e: KeyboardEvent, mode: number): Uint8Array | null {
   if (e.metaKey) return null;
 
   const key = e.key;
+  // On international layouts AltGr is commonly exposed as Ctrl+Alt. Treating
+  // it as either modifier corrupts characters such as @, €, and braces before
+  // they reach the PTY. `key` already contains the composed character.
+  const altGraph = e.getModifierState?.("AltGraph") ?? false;
 
   // Ctrl sequences -> C0 control characters.
-  if (e.ctrlKey && key.length === 1) {
+  if (e.ctrlKey && !altGraph && key.length === 1) {
     const code = key.toUpperCase().charCodeAt(0);
     if (code >= 0x41 && code <= 0x5a) {
-      return new Uint8Array([code - 0x40]);
+      return withAltPrefix(new Uint8Array([code - 0x40]), e);
     }
+    let control: number | null = null;
     switch (key) {
-      case "[": return new Uint8Array([27]);
-      case "\\": return new Uint8Array([28]);
-      case "]": return new Uint8Array([29]);
-      case "^": return new Uint8Array([30]);
-      case "_": return new Uint8Array([31]);
-      case " ": return new Uint8Array([0]);
-      case "?": return new Uint8Array([127]);
-      case "@": return new Uint8Array([0]);
+      case "[": control = 27; break;
+      case "\\": control = 28; break;
+      case "]": control = 29; break;
+      case "^": control = 30; break;
+      case "_": control = 31; break;
+      case " ": control = 0; break;
+      case "?": control = 127; break;
+      case "@": control = 0; break;
       default: return null;
     }
+    return withAltPrefix(new Uint8Array([control]), e);
   }
 
   const appCursor = (mode & APP_CURSOR) !== 0;
@@ -84,24 +96,24 @@ export function encodeKey(e: KeyboardEvent, mode: number): Uint8Array | null {
     case "Delete": return tildeKey(3, e);
     case "PageUp": return tildeKey(5, e);
     case "PageDown": return tildeKey(6, e);
-    case "F1": return bytes("\x1bOP");
-    case "F2": return bytes("\x1bOQ");
-    case "F3": return bytes("\x1bOR");
-    case "F4": return bytes("\x1bOS");
-    case "F5": return bytes("\x1b[15~");
-    case "F6": return bytes("\x1b[17~");
-    case "F7": return bytes("\x1b[18~");
-    case "F8": return bytes("\x1b[19~");
-    case "F9": return bytes("\x1b[20~");
-    case "F10": return bytes("\x1b[21~");
-    case "F11": return bytes("\x1b[23~");
-    case "F12": return bytes("\x1b[24~");
+    case "F1": return csiKey("P", e, "OP");
+    case "F2": return csiKey("Q", e, "OQ");
+    case "F3": return csiKey("R", e, "OR");
+    case "F4": return csiKey("S", e, "OS");
+    case "F5": return tildeKey(15, e);
+    case "F6": return tildeKey(17, e);
+    case "F7": return tildeKey(18, e);
+    case "F8": return tildeKey(19, e);
+    case "F9": return tildeKey(20, e);
+    case "F10": return tildeKey(21, e);
+    case "F11": return tildeKey(23, e);
+    case "F12": return tildeKey(24, e);
   }
 
   if (key.length !== 1) return null;
 
   // Alt acts as Meta: send ESC + char (readline-style shortcuts).
-  if (e.altKey) {
+  if (e.altKey && !altGraph) {
     return new Uint8Array([27, ...encoder.encode(key)]);
   }
 
