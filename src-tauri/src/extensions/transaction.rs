@@ -407,7 +407,10 @@ fn remove_orphaned_staging(state: &ExtensionState) -> Result<(), String> {
 fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Result<(), String> {
     for entry in lock.extensions.values() {
         crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
-        let _ = write_current_pointer(&state.paths.extensions, entry);
+        // A pointer is the runtime-facing projection of the lock. If it
+        // cannot be rewritten, startup must fail loudly instead of leaving a
+        // valid lock paired with a stale executable shim.
+        write_current_pointer(&state.paths.extensions, entry)?;
     }
     Ok(())
 }
@@ -477,7 +480,9 @@ pub(crate) fn commit_version(
     let mut committed_journal = journal.clone();
     committed_journal.lock_committed = true;
     write_journal(state, &committed_journal)?;
-    let _ = write_current_pointer(&state.paths.extensions, entry);
+    // Keep the journal until this projection succeeds. If the write fails,
+    // recovery can finish the committed transaction on the next startup.
+    write_current_pointer(&state.paths.extensions, entry)?;
     progress(state, &mut journal, TransactionState::Cleaned)?;
     retain_versions(state, entry)?;
     if let Some(backup) = backup {
@@ -520,7 +525,9 @@ pub(crate) fn commit_lock(
     let mut committed_journal = journal.clone();
     committed_journal.lock_committed = true;
     write_journal(state, &committed_journal)?;
-    let _ = write_current_pointer(&state.paths.extensions, entry);
+    // The lock and current pointer are one externally visible state. A failed
+    // pointer write must leave the journal in place for startup recovery.
+    write_current_pointer(&state.paths.extensions, entry)?;
     remove_journal(&journal_path)?;
     Ok(())
 }
