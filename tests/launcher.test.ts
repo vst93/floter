@@ -4,6 +4,7 @@ import {
   classifyActionBar,
   completedCommandLine,
   executionWithCompletion,
+  launcherShortcutSlots,
   nextLauncherSelection,
   normalizeSearch,
   parseCommandLine,
@@ -102,6 +103,12 @@ test("unavailable catalog commands never capture the default Enter action", () =
   assert.equal(shouldDefaultToActionBar("code", "shell", 2, 1, false), false);
   // A known shell command stays a command even if an application also matched.
   assert.equal(shouldDefaultToActionBar("git", "shell", 2, 1, false), true);
+});
+
+test("result shortcuts number only runnable rows", () => {
+  assert.deepEqual(launcherShortcutSlots([false, true, false, true]), [null, 1, null, 2]);
+  assert.deepEqual(launcherShortcutSlots([true, true, false]), [1, 2, null]);
+  assert.deepEqual(launcherShortcutSlots([false, false]), [null, null]);
 });
 
 test("keyboard navigation skips unavailable results in both directions", () => {

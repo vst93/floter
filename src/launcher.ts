@@ -24,6 +24,16 @@ export type LauncherSelection = {
   resultIndex: number;
 };
 
+/** Number only runnable results, leaving unavailable discovery rows without a slot. */
+export const launcherShortcutSlots = (runnableResults: boolean[]): Array<number | null> => {
+  let shortcut = 0;
+  return runnableResults.map((runnable) => {
+    if (!runnable) return null;
+    shortcut += 1;
+    return shortcut;
+  });
+};
+
 export const COMMAND_WORDS = new Set([
   "cd", "git", "npm", "ls", "cat", "echo", "curl", "wget", "ssh",
   "cp", "mv", "rm", "mkdir", "touch", "chmod", "grep", "find",

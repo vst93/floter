@@ -30,6 +30,7 @@ import {
   classifyActionBar,
   completedCommandLine,
   executionWithCompletion,
+  launcherShortcutSlots,
   normalizeSearch,
   nextLauncherSelection,
   parseCommandLine,
@@ -950,6 +951,7 @@ export default function App() {
   const runnableResultFlags = launcherResults.map(
     (item) => item.type !== "command" || Boolean(item.execution),
   );
+  const resultShortcutSlots = launcherShortcutSlots(runnableResultFlags);
   const runnableResultCount = runnableResultFlags.filter(Boolean).length;
   const hasRunnableCommandResult = launcherResults.some(
     (item) => item.type === "command" && Boolean(item.execution),
@@ -2443,9 +2445,10 @@ export default function App() {
     // never run a command by mistake.
     const resultNumber = matchesResultShortcut(event, shortcuts.select_result);
     if (resultNumber !== null) {
-      if (launcherResults[resultNumber - 1]) {
+      const resultIndex = resultShortcutSlots.indexOf(resultNumber);
+      if (resultIndex >= 0) {
         event.preventDefault();
-        runLauncherItem(launcherResults[resultNumber - 1]);
+        runLauncherItem(launcherResults[resultIndex]);
       }
       return;
     }
@@ -3025,6 +3028,7 @@ export default function App() {
                   {launcherResults.map((item, index) => {
                     const selected = !selectedActionBar && index === selectedResultIndex;
                     const unavailable = item.type === "command" && !item.execution;
+                    const shortcutSlot = resultShortcutSlots[index];
                     return (
                       <button
                         key={item.id}
@@ -3072,7 +3076,9 @@ export default function App() {
                           </span>
                         </span>
                         <span className="launcher-result__action">
-                          {unavailable ? "" : formatResultShortcut(shortcuts.select_result, index + 1)}
+                          {shortcutSlot === null
+                            ? ""
+                            : formatResultShortcut(shortcuts.select_result, shortcutSlot)}
                         </span>
                       </button>
                     );
