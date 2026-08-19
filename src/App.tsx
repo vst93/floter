@@ -582,6 +582,7 @@ export default function App() {
   const pendingTerminalSize = useRef<{ width: number; height: number } | null>(null);
   const settingsSaveTimer = useRef<number | null>(null);
   const settingsHydration = useMemo(() => createSettingsHydration<AppSettings>(), []);
+  const settingsLoadPromise = useRef<Promise<void> | null>(null);
   const hydrationSavePromise = useRef<Promise<void> | null>(null);
   const settingsSaveGeneration = useRef(0);
   const appQuitting = useRef(false);
@@ -648,6 +649,8 @@ export default function App() {
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
 
@@ -1338,8 +1341,10 @@ export default function App() {
     focusCollapsedInput(140);
   };
 
-  useEffect(() => {
-    invoke<AppSettings>("get_settings")
+  const loadSettings = (): Promise<void> => {
+    if (settingsLoadPromise.current) return settingsLoadPromise.current;
+    setSettingsLoading(true);
+    const request = invoke<AppSettings>("get_settings")
       .then((loaded) => {
         const normalized = {
           ...loaded,
@@ -1352,9 +1357,23 @@ export default function App() {
         const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
         settingsRef.current = hydrated;
         setSettings(hydrated);
+        setSettingsLoadFailed(false);
+        settingsHydration.finish();
       })
-      .catch(() => undefined)
-      .finally(() => settingsHydration.finish());
+      .catch(() => {
+        settingsHydration.markFailed();
+        setSettingsLoadFailed(true);
+      })
+      .finally(() => {
+        if (settingsLoadPromise.current === request) settingsLoadPromise.current = null;
+        setSettingsLoading(false);
+      });
+    settingsLoadPromise.current = request;
+    return request;
+  };
+
+  useEffect(() => {
+    void loadSettings();
   }, [settingsHydration]);
 
   useEffect(() => {
@@ -2220,6 +2239,14 @@ export default function App() {
       window.clearTimeout(settingsSaveTimer.current);
       settingsSaveTimer.current = null;
     }
+    if (settingsHydration.hasFailed()) {
+      try {
+        await invoke("quit_app");
+      } catch {
+        appQuitting.current = false;
+      }
+      return;
+    }
     try {
       await persistSettings();
       await invoke("quit_app");
@@ -2810,6 +2837,25 @@ export default function App() {
               ))}
             </nav>
             <main className="settings-content" data-no-drag>
+            {settingsLoadFailed && (
+              <div className="settings-save-alert" role="alert">
+                <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
+                <span>{t("settings.loadFailed")}</span>
+                <button
+                  type="button"
+                  disabled={settingsLoading}
+                  onClick={() => void loadSettings()}
+                >
+                  <RefreshCw
+                    className={settingsLoading ? "settings-save-alert__spinner" : undefined}
+                    size={14}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                  {t(settingsLoading ? "settings.loading" : "settings.retryLoad")}
+                </button>
+              </div>
+            )}
             {settingsSaveFailed && (
               <div className="settings-save-alert" role="alert">
                 <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />

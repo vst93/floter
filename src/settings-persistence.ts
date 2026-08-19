@@ -1,19 +1,24 @@
 export type SettingsHydration<T extends object> = {
   isReady: () => boolean;
+  hasFailed: () => boolean;
   markChanged: (field: keyof T) => void;
+  markFailed: () => void;
   mergeLoaded: (current: T, loaded: T) => T;
   finish: () => void;
   waitUntilReady: () => Promise<void>;
 };
 
 /**
- * Coordinate the one-time settings read with edits made while it is in flight.
- * Edited fields win during hydration, while writes wait until the remaining
- * fields have been populated from disk.
+ * Coordinate the initial settings read (including retries) with edits made
+ * while it is in flight. Edited fields win during hydration, while writes wait
+ * until the remaining fields have been populated from disk. A failed read does
+ * not release writers, because their partial frontend snapshot must never
+ * replace a complete persisted configuration.
  */
 export function createSettingsHydration<T extends object>(): SettingsHydration<T> {
   const changed = new Set<keyof T>();
   let ready = false;
+  let failed = false;
   let resolveReady: (() => void) | null = null;
   const readyPromise = new Promise<void>((resolve) => {
     resolveReady = resolve;
@@ -21,8 +26,12 @@ export function createSettingsHydration<T extends object>(): SettingsHydration<T
 
   return {
     isReady: () => ready,
+    hasFailed: () => failed,
     markChanged: (field) => {
       if (!ready) changed.add(field);
+    },
+    markFailed: () => {
+      if (!ready) failed = true;
     },
     mergeLoaded: (current, loaded) => {
       const merged = { ...loaded };
@@ -32,6 +41,7 @@ export function createSettingsHydration<T extends object>(): SettingsHydration<T
     finish: () => {
       if (ready) return;
       ready = true;
+      failed = false;
       changed.clear();
       resolveReady?.();
       resolveReady = null;

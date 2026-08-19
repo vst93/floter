@@ -36,6 +36,35 @@ test("settings writes wait until hydration has completed", async () => {
   assert.equal(hydration.isReady(), true);
 });
 
+test("a failed settings read stays blocked until a retry succeeds", async () => {
+  type Settings = { theme: string; fontSize: number };
+  const hydration = createSettingsHydration<Settings>();
+  let continued = false;
+  const waiting = hydration.waitUntilReady().then(() => {
+    continued = true;
+  });
+
+  hydration.markChanged("theme");
+  hydration.markFailed();
+  await Promise.resolve();
+
+  assert.equal(hydration.hasFailed(), true);
+  assert.equal(hydration.isReady(), false);
+  assert.equal(continued, false);
+  assert.deepEqual(
+    hydration.mergeLoaded(
+      { theme: "light", fontSize: 14 },
+      { theme: "dark", fontSize: 18 },
+    ),
+    { theme: "light", fontSize: 18 },
+  );
+
+  hydration.finish();
+  await waiting;
+  assert.equal(hydration.hasFailed(), false);
+  assert.equal(continued, true);
+});
+
 test("settings writes preserve the order they were requested", async () => {
   const writes: string[] = [];
   let releaseFirst: (() => void) | undefined;
