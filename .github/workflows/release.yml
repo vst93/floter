@@ -19,14 +19,20 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ inputs.branch || 'main' }}
+  cancel-in-progress: false
+
 jobs:
-  # ── Determine version and publish the version commit ─────────────────────
+  # Determine the release version without mutating the branch. The version
+  # commit is intentionally delayed until verification and every platform
+  # build have succeeded.
   prepare:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       notes: ${{ steps.notes.outputs.notes }}
-      commit: ${{ steps.commit.outputs.commit }}
+      source_commit: ${{ steps.source.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,24 +62,6 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Current: $CURRENT -> New: $VERSION"
 
-      - name: Update version in files
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
-          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
-          sed -i "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
-          sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          # Update floter's version in Cargo.lock (find "name = floter" line, replace next line's version)
-          LOCK_LINE=$(grep -n '^name = "floter"$' src-tauri/Cargo.lock | head -1 | cut -d: -f1)
-          if [ -n "$LOCK_LINE" ]; then
-            NEXT=$((LOCK_LINE + 1))
-            sed -i "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
-          fi
-          # The Arch package downloads the release artifacts of its own pkgver,
-          # so a stale one here points at a version that no longer exists.
-          sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
-
       - name: Generate release notes
         id: notes
         env:
@@ -95,27 +83,48 @@ jobs:
           NOTES="${NOTES//$'\r'/'%0D'}"
           echo "notes=$NOTES" >> "$GITHUB_OUTPUT"
 
-      - name: Commit version
-        id: commit
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          BRANCH="${BRANCH:-main}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No version changes to commit (already at $VERSION)"
-          else
-            git commit -m "release: v$VERSION"
-          fi
-          git push origin "$BRANCH"
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Record source commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-  # ── Build for each platform ──────────────────────────────────────────────
-  build:
+  verify:
     needs: prepare
+    runs-on: ubuntu-22.04
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.cargo-target/release-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_commit }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> ../.cargo-target/release-${{ github.run_id }}-${{ github.run_attempt }}
+          shared-key: release-verification
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev xdg-utils
+
+      - run: npm ci
+      - run: npm run build
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
+
+  # Build every artifact from the same immutable source commit. Version files
+  # are changed only inside each runner until the whole matrix passes.
+  build:
+    needs: [prepare, verify]
     strategy:
       fail-fast: false
       matrix:
@@ -143,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          ref: ${{ needs.prepare.outputs.source_commit }}
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -170,6 +179,22 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Apply release version
+        shell: bash
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
+          sed -i "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
+          sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          LOCK_LINE=$(grep -n '^name = "floter"$' src-tauri/Cargo.lock | head -1 | cut -d: -f1)
+          if [ -n "$LOCK_LINE" ]; then
+            NEXT=$((LOCK_LINE + 1))
+            sed -i "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+          fi
+          sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
 
       # Build only — no tagName so tauri-action does NOT auto-upload.
       # We rename and upload ourselves in the next step to control file names.
@@ -291,14 +316,16 @@ jobs:
           path: renamed/*
           if-no-files-found: error
 
-  # ── Generate latest.json updater manifest ────────────────────────────────
+  # Publish only after all artifacts exist. This is the first job allowed to
+  # mutate the release branch.
   publish:
-    needs: [prepare, build]
+    needs: [prepare, verify, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.source_commit }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -380,6 +407,42 @@ jobs:
           cat latest.json
           python3 -m json.tool latest.json > /dev/null && echo "JSON valid" || echo "JSON INVALID"
 
+      - name: Commit release version
+        id: commit
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          BRANCH="${BRANCH:-main}"
+          git fetch origin "$BRANCH"
+          if [ "$(git rev-parse "origin/$BRANCH")" != "${{ needs.prepare.outputs.source_commit }}" ]; then
+            echo "Release branch moved while artifacts were building; refusing to publish stale binaries" >&2
+            exit 1
+          fi
+
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
+          sed -i "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
+          sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          LOCK_LINE=$(grep -n '^name = "floter"$' src-tauri/Cargo.lock | head -1 | cut -d: -f1)
+          if [ -n "$LOCK_LINE" ]; then
+            NEXT=$((LOCK_LINE + 1))
+            sed -i "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+          fi
+          sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/tauri.conf.json package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock packaging/arch/PKGBUILD
+          if git diff --cached --quiet; then
+            echo "No version changes to commit (already at $VERSION)"
+          else
+            git commit -m "release: v$VERSION"
+            git push origin "HEAD:$BRANCH"
+          fi
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Create tag and release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -387,9 +450,9 @@ jobs:
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
           if git rev-parse "refs/tags/v$VERSION" >/dev/null 2>&1; then
-            test "$(git rev-list -n 1 "v$VERSION")" = "${{ needs.prepare.outputs.commit }}"
+            test "$(git rev-list -n 1 "v$VERSION")" = "${{ steps.commit.outputs.commit }}"
           else
-            git tag "v$VERSION" "${{ needs.prepare.outputs.commit }}"
+            git tag "v$VERSION" "${{ steps.commit.outputs.commit }}"
             git push origin "v$VERSION"
           fi
           NOTES=$(printf '%b' "${NOTES//%/\\x}")
