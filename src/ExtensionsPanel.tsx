@@ -1561,7 +1561,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                   })}</span>
             </div>
           )}
-          <div className="extensions-list">
+          <div className="extensions-list extensions-list--installed">
             {loading ? (
               <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
             ) : extensions.length === 0 ? (
@@ -1609,7 +1609,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           <div className="extensions-source" aria-label={t("settings.extensions.source")}>
             <span className="extensions-source__active"><Check size={12} strokeWidth={2} />{t("settings.extensions.sourceNpm")}</span>
           </div>
-          <div className="extensions-list">
+          <div className="extensions-list extensions-list--search">
             {searching ? (
               <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
             ) : searchResults.length ? searchResults.map((result) => {
@@ -1617,22 +1617,26 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               const review = permissionReviews[permissionReviewKey(result)];
               const deprecation = review?.deprecation ?? result.deprecation;
               return (
-                <div className="extension-search-row" key={result.package}>
+                <article className="extension-search-row" key={result.package}>
                   <div className="extension-search-row__icon"><Package size={18} strokeWidth={1.8} aria-hidden="true" /></div>
                   <div className="extension-search-row__main">
                     <div className="extension-search-row__title">
-                      <strong>{result.package}</strong>
-                      <span>v{result.version}</span>
-                      <span className={`extension-trust-badge extension-trust-badge--${result.verified ? "official" : "community"}`}>
-                        {result.verified ? <ShieldCheck size={11} strokeWidth={2} aria-hidden="true" /> : <Package size={11} strokeWidth={2} aria-hidden="true" />}
-                        {t(result.verified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}
-                      </span>
-                      {deprecation !== null && (
-                        <span className="extension-trust-badge extension-trust-badge--deprecated" title={deprecationDescription(deprecation)}>
-                          <AlertTriangle size={11} strokeWidth={2} aria-hidden="true" />
-                          {t("settings.extensions.deprecated")}
+                      <div className="extension-search-row__identity">
+                        <strong>{result.package}</strong>
+                        <span>v{result.version}</span>
+                      </div>
+                      <div className="extension-search-row__badges">
+                        <span className={`extension-trust-badge extension-trust-badge--${result.verified ? "official" : "community"}`}>
+                          {result.verified ? <ShieldCheck size={11} strokeWidth={2} aria-hidden="true" /> : <Package size={11} strokeWidth={2} aria-hidden="true" />}
+                          {t(result.verified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}
                         </span>
-                      )}
+                        {deprecation !== null && (
+                          <span className="extension-trust-badge extension-trust-badge--deprecated" title={deprecationDescription(deprecation)}>
+                            <AlertTriangle size={11} strokeWidth={2} aria-hidden="true" />
+                            {t("settings.extensions.deprecated")}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p>{result.description || t("settings.extensions.noDescription")}</p>
                     <div className="extension-search-row__meta">
@@ -1668,7 +1672,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                             : t("settings.extensions.install")}
                     </button>
                   </div>
-                </div>
+                </article>
               );
             }) : (
               <EmptyState
@@ -1695,7 +1699,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               {busy?.id === "*" ? t("settings.extensions.updating") : t("settings.extensions.updateAll")}
             </button>
           </div>
-          <div className="extensions-list">
+          <div className="extensions-list extensions-list--updates">
             {!loading && !checkingUpdates && updateCheckFailureCount === null && updates.length === 0 ? (
               <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyUpdates")} />
             ) : updates.map((extension) => (
@@ -2223,6 +2227,7 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
           {updateAvailable && <span className="extension-status extension-status--update">{t("settings.extensions.status.updateAvailable")}</span>}
         </div>
       </div>
+      {extension.connected && <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />}
     </>
   );
   return (
@@ -2232,7 +2237,7 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
         {!extension.connected ? (
           <button
             type="button"
-            className="extensions-icon-button extensions-icon-button--primary"
+            className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
             aria-label={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
             title={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
             aria-busy={rowInstallBusy}
@@ -2244,7 +2249,7 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
         ) : extension.distributionSource === "npm" && updateAvailable && (
           <button
             type="button"
-            className="extensions-icon-button extensions-icon-button--primary"
+            className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
             aria-label={t(rowUpdateBusy ? "settings.extensions.updating" : "settings.extensions.update")}
             title={t("settings.extensions.update")}
             aria-busy={rowUpdateBusy}
@@ -2257,7 +2262,7 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
         {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.distributionSource === "npm" || extension.homepage) && (
           <button
             type="button"
-            className="extensions-icon-button"
+            className="extensions-icon-button extensions-icon-button--row"
             aria-label={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
             title={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
             aria-busy={rowRepairBusy}
@@ -2267,18 +2272,20 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
             {rowRepairBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : extension.distributionSource === "npm" ? <Wrench size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
           </button>
         )}
-        {extension.connected && <button
-          type="button"
-          role="switch"
-          aria-checked={extension.enabled}
-          aria-label={extension.enabled ? t("settings.extensions.disable") : t("settings.extensions.enable")}
-          aria-busy={rowToggleBusy}
-          className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}${rowToggleBusy ? " settings-switch--loading" : ""}`}
-          disabled={busy || extension.state === "broken"}
-          onClick={onToggle}
-        >{rowToggleBusy ? <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" /> : <span className="settings-switch__thumb" />}</button>}
+        {extension.connected && <span className="extension-row__toggle-slot">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={extension.enabled}
+            aria-label={extension.enabled ? t("settings.extensions.disable") : t("settings.extensions.enable")}
+            aria-busy={rowToggleBusy}
+            className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}${rowToggleBusy ? " settings-switch--loading" : ""}`}
+            disabled={busy || extension.state === "broken"}
+            onClick={onToggle}
+          >{rowToggleBusy ? <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" /> : <span className="settings-switch__thumb" />}</button>
+        </span>}
         {extension.connected && <details className="extension-menu">
-          <summary className={`extensions-icon-button${busy ? " extensions-icon-button--disabled" : ""}`} aria-label={t("settings.extensions.moreActions")} aria-disabled={busy} title={t("settings.extensions.moreActions")} onClick={(event) => { if (busy) event.preventDefault(); }}>
+          <summary className={`extensions-icon-button extensions-icon-button--row${busy ? " extensions-icon-button--disabled" : ""}`} aria-label={t("settings.extensions.moreActions")} aria-disabled={busy} title={t("settings.extensions.moreActions")} onClick={(event) => { if (busy) event.preventDefault(); }}>
             <MoreHorizontal size={17} strokeWidth={2} aria-hidden="true" />
           </summary>
           <div className="extension-menu__items">
@@ -2292,7 +2299,6 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
           </div>
         </details>}
       </div>
-      {extension.connected && <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />}
     </div>
   );
 }
