@@ -1,7 +1,5 @@
 use crate::extensions::config::{self, ConfigurationDescriptor};
-use crate::extensions::manifest::{
-    validate_relative_path, ExtensionManifest, Permission, Runtime,
-};
+use crate::extensions::manifest::{validate_relative_path, ExtensionManifest, Permission, Runtime};
 use crate::extensions::provider::ProviderDescription;
 use serde::Deserialize;
 

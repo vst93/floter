@@ -1193,8 +1193,7 @@ pub async fn extensions_repair(
             let current = ExtensionsLock::load(&state.paths.lock_file)?
                 .get(&id)?
                 .clone();
-            let (entry, action) = if current.distribution_source
-                == ExtensionDistributionSource::Npm
+            let (entry, action) = if current.distribution_source == ExtensionDistributionSource::Npm
                 && current.runtime_ownership == ExtensionRuntimeOwnership::Bundled
             {
                 (
@@ -1202,7 +1201,10 @@ pub async fn extensions_repair(
                     "reinstalled-locked-version",
                 )
             } else if current.runtime_ownership == ExtensionRuntimeOwnership::System {
-                (reconnect_system(&state, &id, None).await?, "reconnected-system-runtime")
+                (
+                    reconnect_system(&state, &id, None).await?,
+                    "reconnected-system-runtime",
+                )
             } else {
                 return Err(format!("Cannot repair {id}: {problem}"));
             };

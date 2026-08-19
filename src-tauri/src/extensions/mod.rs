@@ -170,9 +170,7 @@ impl ExtensionState {
             provider_commands: catalog::ProviderCommandCache::default(),
             tool_inventory: std::sync::Mutex::new(ToolInventory::new()),
             tool_lock: std::sync::Mutex::new(tool_lock),
-            accepted_official_index_version: std::sync::Mutex::new(
-                accepted_official_index_version,
-            ),
+            accepted_official_index_version: std::sync::Mutex::new(accepted_official_index_version),
             execution_plans: ExecutionPlanCache::default(),
         };
         transaction::recover(&state)?;

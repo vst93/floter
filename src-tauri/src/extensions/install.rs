@@ -1001,23 +1001,22 @@ pub async fn update(
         .package_name
         .as_deref()
         .ok_or("NPM integration has no package name in the lock file")?;
-    let selected_version = if let Some(version) = version {
-        version.to_string()
-    } else {
-        let selector = release_channel_selector(&current.channel)?;
-        let candidate = resolve_registry_version(state, package, Some(selector)).await?;
-        match classify_update(&current.current_version, &candidate.version)? {
-            Some(ExtensionUpdateKind::Patch) => {}
-            None => return Err(format!("Extension {extension_id} is already up to date")),
-            Some(ExtensionUpdateKind::Minor | ExtensionUpdateKind::Major) => {
-                return Err(
+    let selected_version =
+        if let Some(version) = version {
+            version.to_string()
+        } else {
+            let selector = release_channel_selector(&current.channel)?;
+            let candidate = resolve_registry_version(state, package, Some(selector)).await?;
+            match classify_update(&current.current_version, &candidate.version)? {
+                Some(ExtensionUpdateKind::Patch) => {}
+                None => return Err(format!("Extension {extension_id} is already up to date")),
+                Some(ExtensionUpdateKind::Minor | ExtensionUpdateKind::Major) => return Err(
                     "Automatic updates only install patch releases; select the version explicitly"
                         .to_string(),
-                )
+                ),
             }
-        }
-        candidate.version
-    };
+            candidate.version
+        };
     install_managed(
         state,
         package,
@@ -1108,7 +1107,9 @@ pub async fn verify_installed(
         .clone();
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
     if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
-        return Err(format!("Installed manifest identity does not match {extension_id}"));
+        return Err(format!(
+            "Installed manifest identity does not match {extension_id}"
+        ));
     }
     if entry.distribution_source == ExtensionDistributionSource::Npm {
         let version_root = state
@@ -1118,7 +1119,9 @@ pub async fn verify_installed(
             .join("versions")
             .join(&entry.current_version);
         if !version_root.is_dir() || entry.integrity.is_none() {
-            return Err(format!("Installed package files are incomplete for {extension_id}"));
+            return Err(format!(
+                "Installed package files are incomplete for {extension_id}"
+            ));
         }
     }
     match entry.provider_kind {

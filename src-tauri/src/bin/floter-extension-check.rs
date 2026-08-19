@@ -1,6 +1,4 @@
-use floter_lib::extensions::conformance::{
-    validate_configuration_response, validate_documents,
-};
+use floter_lib::extensions::conformance::{validate_configuration_response, validate_documents};
 use floter_lib::extensions::manifest::{validate_relative_path, ExtensionManifest};
 use floter_lib::extensions::provider::{ProviderInvocation, ProviderManager};
 use semver::Version;
@@ -70,7 +68,11 @@ fn check_files(args: &[String]) -> Result<(), String> {
 
     let package_path = package_dir.join("package.json");
     let package: PackageJson = read_json(&package_path, "package.json")?;
-    if !package.keywords.iter().any(|keyword| keyword == "floter-extension") {
+    if !package
+        .keywords
+        .iter()
+        .any(|keyword| keyword == "floter-extension")
+    {
         return Err("package.json keywords must contain floter-extension".to_string());
     }
     Version::parse(&package.version)
@@ -137,8 +139,8 @@ async fn check_provider(options: ProviderOptions) -> Result<(), String> {
             options.executable.display()
         )
     })?;
-    let cache = tempfile::tempdir()
-        .map_err(|error| format!("Cannot create conformance cache: {error}"))?;
+    let cache =
+        tempfile::tempdir().map_err(|error| format!("Cannot create conformance cache: {error}"))?;
     let manager = ProviderManager::new(cache.path().to_path_buf());
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
