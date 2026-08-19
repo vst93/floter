@@ -1693,6 +1693,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <EmptyState
                 icon={<Search size={20} strokeWidth={2} />}
                 text={hasSearched ? t("settings.extensions.emptySearch") : t("settings.extensions.searchPrompt")}
+                query={hasSearched ? query : undefined}
               />
             )}
           </div>
@@ -2324,8 +2325,8 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
   );
 }
 
-function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return <div className="extensions-empty">{icon}<span>{text}</span></div>;
+function EmptyState({ icon, text, query }: { icon: React.ReactNode; text: string; query?: string }) {
+  return <div className="extensions-empty">{icon}<span>{text}{query && <strong> "{query}"</strong>}</span></div>;
 }
 
 type ConfigFieldControlProps = {
