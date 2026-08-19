@@ -96,6 +96,12 @@ export interface ScrollbarRect {
   thumbH: number;
 }
 
+export interface CursorRect {
+  x: number;
+  y: number;
+  height: number;
+}
+
 export class TerminalCanvas {
   private ctx: CanvasRenderingContext2D;
   private dpr = 1;
@@ -108,6 +114,8 @@ export class TerminalCanvas {
   rows = 0;
   historySize = 0;
   displayOffset = 0;
+  private cursorCol = 0;
+  private cursorRow = 0;
   private lastBytes: Uint8Array | null = null;
   private combining = new Map<number, string>();
   private lastFont = "";
@@ -242,6 +250,8 @@ export class TerminalCanvas {
     this.combining = readCombining(bytes, cols * rows);
     const cursorCol = dv.getUint16(4, true);
     const cursorRow = dv.getUint16(6, true);
+    this.cursorCol = cursorCol;
+    this.cursorRow = cursorRow;
     const cursorShape = dv.getUint8(8);
     const cursorVisible = dv.getUint8(9) === 1;
     const cursorBlinking = dv.getUint8(10) === 1;
@@ -500,6 +510,15 @@ export class TerminalCanvas {
     const row = Math.floor((py - this.opts.paddingY) / this.cellHeight);
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return null;
     return { col, row };
+  }
+
+  /** Position the browser text-input proxy at the visible terminal cursor. */
+  cursorRect(): CursorRect {
+    return {
+      x: this.opts.paddingX + Math.min(this.cursorCol, Math.max(0, this.cols - 1)) * this.cellWidth,
+      y: this.opts.paddingY + Math.min(this.cursorRow, Math.max(0, this.rows - 1)) * this.cellHeight,
+      height: this.cellHeight,
+    };
   }
 
   /** True if the pixel is within the scrollbar track. */

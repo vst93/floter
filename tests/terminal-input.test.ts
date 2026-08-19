@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeKey } from "../src/terminal/input.ts";
+import {
+  encodeKey,
+  isTerminalCompositionKey,
+  shouldUseTerminalTextInput,
+} from "../src/terminal/input.ts";
 
 type KeyOptions = Partial<Pick<KeyboardEvent, "altKey" | "ctrlKey" | "metaKey" | "shiftKey">> & {
   altGraph?: boolean;
+  isComposing?: boolean;
+  keyCode?: number;
 };
 
 const keyEvent = (key: string, options: KeyOptions = {}): KeyboardEvent => ({
@@ -12,6 +18,8 @@ const keyEvent = (key: string, options: KeyOptions = {}): KeyboardEvent => ({
   ctrlKey: options.ctrlKey ?? false,
   metaKey: options.metaKey ?? false,
   shiftKey: options.shiftKey ?? false,
+  isComposing: options.isComposing ?? false,
+  keyCode: options.keyCode ?? 0,
   getModifierState: (modifier: string) => modifier === "AltGraph" && Boolean(options.altGraph),
 }) as KeyboardEvent;
 
@@ -44,4 +52,26 @@ test("AltGraph sends the composed character instead of a Ctrl sequence", () => {
 
 test("Ctrl+Alt keeps the Meta prefix for intentional shortcuts", () => {
   assert.deepEqual(encoded("c", { ctrlKey: true, altKey: true }), [27, 3]);
+});
+
+test("printable, dead, and AltGraph keys use the native text input path", () => {
+  assert.equal(shouldUseTerminalTextInput(keyEvent("a")), true);
+  assert.equal(shouldUseTerminalTextInput(keyEvent("Dead")), true);
+  assert.equal(
+    shouldUseTerminalTextInput(keyEvent("€", { ctrlKey: true, altKey: true, altGraph: true })),
+    true,
+  );
+});
+
+test("terminal control and Meta shortcuts stay on the key encoder path", () => {
+  assert.equal(shouldUseTerminalTextInput(keyEvent("c", { ctrlKey: true })), false);
+  assert.equal(shouldUseTerminalTextInput(keyEvent("x", { altKey: true })), false);
+  assert.equal(shouldUseTerminalTextInput(keyEvent("v", { metaKey: true })), false);
+  assert.equal(shouldUseTerminalTextInput(keyEvent("Enter")), false);
+});
+
+test("IME confirmation keys are recognized after WebKit clears isComposing", () => {
+  assert.equal(isTerminalCompositionKey(keyEvent("Process", { isComposing: true })), true);
+  assert.equal(isTerminalCompositionKey(keyEvent("Enter", { keyCode: 229 })), true);
+  assert.equal(isTerminalCompositionKey(keyEvent("Enter")), false);
 });

@@ -46,6 +46,22 @@ function withAltPrefix(sequence: Uint8Array, e: KeyboardEvent): Uint8Array {
 }
 
 /**
+ * Text-producing keys must be left to the browser's native text input path.
+ * That path is what turns IME compositions and dead keys into their final
+ * Unicode text. Control and Meta combinations still belong to `encodeKey`.
+ */
+export function shouldUseTerminalTextInput(e: KeyboardEvent): boolean {
+  const altGraph = e.getModifierState?.("AltGraph") ?? false;
+  if (e.metaKey || (e.ctrlKey && !altGraph) || (e.altKey && !altGraph)) return false;
+  return e.key.length === 1 || e.key === "Dead" || e.key === "Process" || e.key === "Unidentified";
+}
+
+/** WebKit can clear `isComposing` before the key that confirms an IME choice. */
+export function isTerminalCompositionKey(e: KeyboardEvent): boolean {
+  return e.isComposing || e.keyCode === 229;
+}
+
+/**
  * Encode a key event, or return `null` when the event should not be forwarded
  * to the terminal (e.g. Cmd-based window shortcuts handled by the app).
  */

@@ -16,7 +16,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
-import { encodeKey, FOCUS_IN_OUT, MOUSE_MOTION, usesMouseReporting } from "./terminal/input";
+import {
+  encodeKey,
+  FOCUS_IN_OUT,
+  isTerminalCompositionKey,
+  MOUSE_MOTION,
+  shouldUseTerminalTextInput,
+  usesMouseReporting,
+} from "./terminal/input";
 import {
   createTranslator,
   normalizeLanguage,
@@ -569,6 +576,8 @@ export default function App() {
   const collapsedCardRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const terminalTextInputRef = useRef<HTMLTextAreaElement>(null);
+  const terminalComposing = useRef(false);
   const rendererRef = useRef<TerminalCanvas | null>(null);
   const frameRef = useRef<Uint8Array | null>(null);
   const blinkRef = useRef(true);
@@ -1193,11 +1202,21 @@ export default function App() {
     };
   }, [launcherResults]);
 
+  const positionTerminalTextInput = () => {
+    const renderer = rendererRef.current;
+    const input = terminalTextInputRef.current;
+    if (!renderer || !input) return;
+    const cursor = renderer.cursorRect();
+    input.style.transform = `translate(${cursor.x}px, ${cursor.y}px)`;
+    input.style.height = `${cursor.height}px`;
+  };
+
   const render = () => {
     const renderer = rendererRef.current;
     const frame = frameRef.current;
     if (renderer && frame) {
       renderer.draw(frame, blinkRef.current, selectionRef.current);
+      positionTerminalTextInput();
     }
   };
 
@@ -1263,7 +1282,7 @@ export default function App() {
   const focusTerminalView = (delay = 0) => {
     window.setTimeout(() => {
       relayoutAndResize();
-      canvasRef.current?.focus();
+      terminalTextInputRef.current?.focus({ preventScroll: true });
     }, delay);
   };
 
@@ -1274,6 +1293,7 @@ export default function App() {
     const rect = mount.getBoundingClientRect();
     const layout = renderer.relayout(rect.width, rect.height);
     dimsRef.current = layout;
+    positionTerminalTextInput();
     invoke("term_resize", { id: "main", cols: layout.cols, rows: layout.rows });
     render();
   };
@@ -1814,7 +1834,7 @@ export default function App() {
   const onCanvasMouseDown = (e: React.MouseEvent) => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    canvasRef.current?.focus();
+    terminalTextInputRef.current?.focus({ preventScroll: true });
     const px = e.nativeEvent.offsetX;
     const py = e.nativeEvent.offsetY;
 
@@ -1922,6 +1942,32 @@ export default function App() {
     }
   };
 
+  const sendTerminalText = (text: string, bracketed = false) => {
+    if (!text) return;
+    const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
+    void invoke("term_input", {
+      id: "main",
+      data: Array.from(new TextEncoder().encode(payload)),
+    });
+  };
+
+  const flushTerminalTextInput = (bracketed = false) => {
+    const input = terminalTextInputRef.current;
+    if (!input || terminalComposing.current || !input.value) return;
+    const text = input.value;
+    input.value = "";
+    sendTerminalText(text, bracketed);
+  };
+
+  const onTerminalTextInput = (event: React.FormEvent<HTMLTextAreaElement>) => {
+    const nativeEvent = event.nativeEvent as InputEvent;
+    if (nativeEvent.isComposing || terminalComposing.current) return;
+    const bracketedPaste =
+      nativeEvent.inputType === "insertFromPaste" &&
+      Boolean((rendererRef.current?.mode ?? 0) & BRACKETED_PASTE);
+    flushTerminalTextInput(bracketedPaste);
+  };
+
   const pasteClipboard = async () => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -1932,12 +1978,7 @@ export default function App() {
       return;
     }
     if (!text) return;
-    const bracketed = (renderer.mode & BRACKETED_PASTE) !== 0;
-    const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
-    invoke("term_input", {
-      id: "main",
-      data: Array.from(new TextEncoder().encode(payload)),
-    });
+    sendTerminalText(text, (renderer.mode & BRACKETED_PASTE) !== 0);
   };
 
   // Hand the broker-owned PTY to the system terminal without restarting it.
@@ -1972,6 +2013,11 @@ export default function App() {
       if (recordingAction) return;
 
       if (mode === "terminal") {
+        // While an IME owns the keyboard, even Enter and configured shortcuts
+        // can be part of candidate selection. WebKit may report the confirming
+        // key with keyCode 229 after clearing isComposing.
+        if (isTerminalCompositionKey(event)) return;
+
         // App shortcuts first, everything else is forwarded to the shell.
         if (matchesShortcut(event, shortcuts.new_command)) {
           event.preventDefault();
@@ -2019,6 +2065,12 @@ export default function App() {
             id: "main",
             delta: event.key === "PageUp" ? lines : -lines,
           });
+          return;
+        }
+        if (
+          event.target === terminalTextInputRef.current &&
+          shouldUseTerminalTextInput(event)
+        ) {
           return;
         }
         const renderer = rendererRef.current;
@@ -3528,7 +3580,27 @@ export default function App() {
             onMouseMove={onCanvasMouseMove}
             onContextMenu={(event) => event.preventDefault()}
           >
-            <canvas ref={canvasRef} className="terminal-canvas" tabIndex={0} />
+            <canvas ref={canvasRef} className="terminal-canvas" />
+            <textarea
+              ref={terminalTextInputRef}
+              className="terminal-text-input"
+              aria-label={t("terminal.input")}
+              rows={1}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              onInput={onTerminalTextInput}
+              onCompositionStart={() => {
+                terminalComposing.current = true;
+              }}
+              onCompositionEnd={() => {
+                terminalComposing.current = false;
+                // Some WebKit builds emit the final input event before
+                // compositionend. The microtask covers both event orders and
+                // sees an empty value when onInput already flushed it.
+                queueMicrotask(() => flushTerminalTextInput());
+              }}
+            />
           </div>
           {terminalFeedback && (
             <div className="terminal-feedback" role="status" aria-live="polite">

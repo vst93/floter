@@ -3092,6 +3092,7 @@ input:focus {
 }
 
 .terminal-panel__mount {
+  position: relative;
   width: 100%;
   height: 100%;
   background: transparent;
@@ -3105,8 +3106,31 @@ input:focus {
   outline: none;
 }
 
-.terminal-canvas:focus-visible {
+.terminal-panel__mount:focus-within {
   box-shadow: inset 0 0 0 1px var(--accent-edge);
+}
+
+/* Native text events are required for IME and dead-key composition. Keep the
+   proxy at the rendered cursor so the OS candidate window opens in place. */
+.terminal-text-input {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 1px;
+  min-width: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .terminal-panel__actions {
