@@ -462,38 +462,43 @@ pub(crate) fn commit_version(
             state: TransactionState::Staged,
         },
     };
-    progress(state, &mut journal, TransactionState::Activated)?;
-    if let Some(backup) = &backup {
-        std::fs::rename(target, backup)
-            .map_err(|error| format!("Cannot stage previous extension version: {error}"))?;
+    let mut lock_committed = false;
+    let result = (|| {
+        progress(state, &mut journal, TransactionState::Activated)?;
+        if let Some(backup) = &backup {
+            std::fs::rename(target, backup)
+                .map_err(|error| format!("Cannot stage previous extension version: {error}"))?;
+            sync_directory(target.parent().ok_or("Invalid extension target")?)
+                .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
+        }
+        std::fs::rename(staged_version, target)
+            .map_err(|error| format!("Cannot atomically install extension version: {error}"))?;
         sync_directory(target.parent().ok_or("Invalid extension target")?)
             .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
-    }
-    std::fs::rename(staged_version, target)
-        .map_err(|error| format!("Cannot atomically install extension version: {error}"))?;
-    sync_directory(target.parent().ok_or("Invalid extension target")?)
-        .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
-    crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    lock.extensions.insert(entry.id.clone(), entry.clone());
-    lock.save(&state.paths.lock_file)?;
-    let mut committed_journal = journal.clone();
-    committed_journal.lock_committed = true;
-    write_journal(state, &committed_journal)?;
-    // Keep the journal until this projection succeeds. If the write fails,
-    // recovery can finish the committed transaction on the next startup.
-    write_current_pointer(&state.paths.extensions, entry)?;
-    progress(state, &mut journal, TransactionState::Cleaned)?;
-    retain_versions(state, entry)?;
-    if let Some(backup) = backup {
-        if backup.exists() {
-            std::fs::remove_dir_all(backup)
-                .map_err(|error| format!("Cannot remove previous extension version: {error}"))?;
+        crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.lock_file)?;
+        journal.lock_committed = true;
+        write_journal(state, &journal)?;
+        lock_committed = true;
+        // Keep the journal until this projection succeeds. If the write fails,
+        // immediate recovery below can finish the committed transaction.
+        write_current_pointer(&state.paths.extensions, entry)?;
+        progress(state, &mut journal, TransactionState::Cleaned)?;
+        retain_versions(state, entry)?;
+        if let Some(backup) = &backup {
+            if backup.exists() {
+                std::fs::remove_dir_all(backup).map_err(|error| {
+                    format!("Cannot remove previous extension version: {error}")
+                })?;
+            }
         }
-    }
-    let journal_path = journal_dir(state).join(format!("{}.json", journal.transaction_id));
-    remove_journal(&journal_path)?;
-    Ok(())
+        let journal_path = journal_dir(state).join(format!("{}.json", journal.transaction_id));
+        remove_journal(&journal_path)
+    })();
+
+    settle_failed_commit(state, result, lock_committed)
 }
 
 /// Commit a lock-only change (rollback, enable/disable, permission update).
@@ -518,18 +523,44 @@ pub(crate) fn commit_lock(
         state: TransactionState::Resolved,
     };
     let journal_path = write_journal(state, &journal)?;
-    crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    lock.extensions.insert(entry.id.clone(), entry.clone());
-    lock.save(&state.paths.lock_file)?;
-    let mut committed_journal = journal.clone();
-    committed_journal.lock_committed = true;
-    write_journal(state, &committed_journal)?;
-    // The lock and current pointer are one externally visible state. A failed
-    // pointer write must leave the journal in place for startup recovery.
-    write_current_pointer(&state.paths.extensions, entry)?;
-    remove_journal(&journal_path)?;
-    Ok(())
+    let mut lock_committed = false;
+    let result = (|| {
+        crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.lock_file)?;
+        let mut committed_journal = journal.clone();
+        committed_journal.lock_committed = true;
+        write_journal(state, &committed_journal)?;
+        lock_committed = true;
+        // The lock and current pointer are one externally visible state. A failed
+        // pointer write is completed before this command returns.
+        write_current_pointer(&state.paths.extensions, entry)?;
+        remove_journal(&journal_path)
+    })();
+
+    settle_failed_commit(state, result, lock_committed)
+}
+
+/// Resolve ordinary I/O errors with the same journal recovery used after a
+/// crash. Before the lock commit, callers receive the original error after the
+/// old installation is restored. After the lock commit, recovery finishes the
+/// durable new state and the mutation is considered successful.
+fn settle_failed_commit(
+    state: &ExtensionState,
+    result: Result<(), String>,
+    lock_committed: bool,
+) -> Result<(), String> {
+    let Err(error) = result else {
+        return Ok(());
+    };
+    match recover(state) {
+        Ok(()) if lock_committed => Ok(()),
+        Ok(()) => Err(error),
+        Err(recovery_error) => Err(format!(
+            "{error}; immediate extension transaction recovery failed: {recovery_error}"
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -742,6 +773,148 @@ mod tests {
         assert!(target.exists());
         assert!(!backup.exists());
         assert!(!journal.staged_version.as_ref().unwrap().exists());
+    }
+
+    fn staged_version_with_invalid_shim_manifest(
+        state: &ExtensionState,
+        entry: &ExtensionLockEntry,
+        name: &str,
+    ) -> PathBuf {
+        let staged = state.paths.root.join(name);
+        std::fs::create_dir_all(staged.join(".floter-binaries")).unwrap();
+        std::fs::write(staged.join("floter.extension.json"), b"not json").unwrap();
+        assert!(entry.manifest_path.ends_with("floter.extension.json"));
+        staged
+    }
+
+    #[test]
+    fn failed_same_version_commit_restores_the_current_installation_before_returning() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let old = journal_entry(state.paths.root.as_path(), "1.0.0", "example.journal");
+        let mut replacement = old.clone();
+        replacement.updated_at = 2;
+        let target = state
+            .paths
+            .extensions
+            .join("example.journal/versions/1.0.0");
+        std::fs::create_dir_all(&target).unwrap();
+        std::fs::write(target.join("installed-marker"), b"old").unwrap();
+        let staged =
+            staged_version_with_invalid_shim_manifest(&state, &replacement, "same-version-staged");
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(old.id.clone(), old.clone());
+        lock.save(&state.paths.lock_file).unwrap();
+
+        let error =
+            commit_version(&state, Some(&old), &replacement, &staged, &target, None).unwrap_err();
+
+        assert!(error.contains("Invalid extension manifest"));
+        assert_eq!(
+            std::fs::read(target.join("installed-marker")).unwrap(),
+            b"old"
+        );
+        assert!(!staged.exists());
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.lock_file)
+                .unwrap()
+                .get("example.journal")
+                .unwrap()
+                .updated_at,
+            old.updated_at
+        );
+        assert!(std::fs::read_dir(journal_dir(&state))
+            .unwrap()
+            .all(|item| item
+                .unwrap()
+                .path()
+                .extension()
+                .and_then(|value| value.to_str())
+                != Some("json")));
+    }
+
+    #[test]
+    fn failed_new_version_commit_keeps_the_previous_version_active() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let old = journal_entry(state.paths.root.as_path(), "1.0.0", "example.journal");
+        let mut update = journal_entry(state.paths.root.as_path(), "2.0.0", "example.journal");
+        update.previous_version = Some(old.current_version.clone());
+        update.updated_at = 2;
+        let old_target = state
+            .paths
+            .extensions
+            .join("example.journal/versions/1.0.0");
+        let new_target = state
+            .paths
+            .extensions
+            .join("example.journal/versions/2.0.0");
+        std::fs::create_dir_all(&old_target).unwrap();
+        std::fs::write(old_target.join("installed-marker"), b"old").unwrap();
+        let staged =
+            staged_version_with_invalid_shim_manifest(&state, &update, "new-version-staged");
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(old.id.clone(), old.clone());
+        lock.save(&state.paths.lock_file).unwrap();
+
+        assert!(commit_version(&state, Some(&old), &update, &staged, &new_target, None,).is_err());
+
+        assert_eq!(
+            std::fs::read(old_target.join("installed-marker")).unwrap(),
+            b"old"
+        );
+        assert!(!new_target.exists());
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.lock_file)
+                .unwrap()
+                .get("example.journal")
+                .unwrap()
+                .current_version,
+            "1.0.0"
+        );
+    }
+
+    #[test]
+    fn failed_lock_only_commit_restores_the_previous_lock_before_returning() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let old = journal_entry(state.paths.root.as_path(), "1.0.0", "example.journal");
+        let mut rollback = journal_entry(state.paths.root.as_path(), "2.0.0", "example.journal");
+        rollback.previous_version = Some(old.current_version.clone());
+        rollback.updated_at = 2;
+        let old_target = state
+            .paths
+            .extensions
+            .join("example.journal/versions/1.0.0");
+        let rollback_target = state
+            .paths
+            .extensions
+            .join("example.journal/versions/2.0.0");
+        std::fs::create_dir_all(&old_target).unwrap();
+        std::fs::create_dir_all(rollback_target.join(".floter-binaries")).unwrap();
+        std::fs::write(rollback_target.join("floter.extension.json"), b"not json").unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(old.id.clone(), old.clone());
+        lock.save(&state.paths.lock_file).unwrap();
+
+        assert!(commit_lock(&state, &old, &rollback).is_err());
+
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.lock_file)
+                .unwrap()
+                .get("example.journal")
+                .unwrap()
+                .current_version,
+            "1.0.0"
+        );
+        assert!(std::fs::read_dir(journal_dir(&state))
+            .unwrap()
+            .all(|item| item
+                .unwrap()
+                .path()
+                .extension()
+                .and_then(|value| value.to_str())
+                != Some("json")));
     }
 
     #[test]
