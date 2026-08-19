@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
   Check,
-  ChevronRight,
   Copy,
   Download,
   ExternalLink,
@@ -11,7 +10,6 @@ import {
   FileUp,
   Link2,
   LoaderCircle,
-  MoreHorizontal,
   Package,
   Pin,
   Plus,
@@ -350,7 +348,13 @@ function useDialogFocus(
   }, [active, dialogRef]);
 }
 
-const integrationKindKey = (extension: Extension) => {
+type ExtensionSourceKey =
+  | "settings.extensions.integrationKind.custom"
+  | "settings.extensions.integrationKind.npm"
+  | "settings.extensions.integrationKind.system"
+  | "settings.extensions.integrationKind.package";
+
+const integrationKindKey = (extension: Extension): ExtensionSourceKey => {
   if (extension.generatedCustom) return "settings.extensions.integrationKind.custom";
   if (extension.distributionSource === "npm") return "settings.extensions.integrationKind.npm";
   if (extension.distributionSource === "built-in" && extension.runtimeOwnership === "system") {
@@ -575,6 +579,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     () => updates.filter((extension) => updateById[extension.id]?.kind === "patch"),
     [updates, updateById],
   );
+  const updateGroups = useMemo(() => {
+    const groups = new Map<ReturnType<typeof integrationKindKey>, Extension[]>();
+    for (const extension of updates) {
+      const source = integrationKindKey(extension);
+      groups.set(source, [...(groups.get(source) ?? []), extension]);
+    }
+    return Array.from(groups, ([source, entries]) => ({ source, entries }));
+  }, [updates]);
   const installedPackages = useMemo(
     () => new Set(extensions.map((extension) => extension.packageName).filter(Boolean)),
     [extensions],
@@ -1653,11 +1665,34 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               {busy?.id === "*" ? t("settings.extensions.updating") : t("settings.extensions.updateAll")}
             </button>
           </div>
-          <div className="extensions-list extensions-list--updates">
-            {!loading && !checkingUpdates && updateCheckFailureCount === null && updates.length === 0 ? (
-              <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyUpdates")} />
-            ) : updates.map((extension) => <UpdateRow key={extension.id} extension={extension} update={updateById[extension.id]} busy={Boolean(busy)} t={t} onOpen={() => setSelectedId(extension.id)} onUpdate={() => void updateExtension(extension)} />)}
-          </div>
+          {!loading && !checkingUpdates && updateCheckFailureCount === null && updates.length === 0 ? (
+            <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyUpdates")} />
+          ) : (
+            <div className="extension-update-groups">
+              {updateGroups.map(({ source, entries }) => (
+                <section className="extension-update-group" key={source}>
+                  <header className="extension-update-group__header">
+                    <h3>{t(source)}</h3>
+                    <span>{entries.length}</span>
+                  </header>
+                  <div className="extensions-list extensions-list--updates">
+                    {entries.map((extension) => (
+                      <UpdateRow
+                        key={extension.id}
+                        extension={extension}
+                        update={updateById[extension.id]}
+                        busy={busy?.id === extension.id && busy.kind === "update"}
+                        disabled={Boolean(busy)}
+                        t={t}
+                        onOpen={() => setSelectedId(extension.id)}
+                        onUpdate={() => void updateExtension(extension)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -2016,120 +2051,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         </div>
       )}
     </section>
-  );
-}
-
-type ExtensionRowProps = {
-  extension: Extension;
-  update?: UpdateCandidate;
-  operation: ExtensionOperation;
-  t: Translate;
-  onOpen: () => void;
-  onConnect: () => void;
-  onRepair: () => void;
-  onReconnect: () => void;
-  onToggle: () => void;
-  onUpdate: () => void;
-  onRollback: () => void;
-  onReinstall: () => void;
-  onEdit: () => void;
-  onUninstall: () => void;
-};
-
-export function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRepair, onReconnect, onToggle, onUpdate, onRollback, onReinstall, onEdit, onUninstall }: ExtensionRowProps) {
-  const updateAvailable = Boolean(update);
-  const busy = Boolean(operation);
-  const rowBusy = operation?.id === extension.id;
-  const rowToggleBusy = rowBusy && (operation?.kind === "enable" || operation?.kind === "disable");
-  const rowInstallBusy = rowBusy && operation?.kind === "install";
-  const rowRepairBusy = rowBusy && (operation?.kind === "repair" || operation?.kind === "reinstall");
-  const rowUpdateBusy = rowBusy && operation?.kind === "update";
-  const rowOpen = (
-    <>
-      <div className="extension-row__icon"><Package size={17} strokeWidth={2} aria-hidden="true" /></div>
-      <div className="extension-row__main">
-        <div className="extension-row__title"><strong>{extension.name}</strong><span>v{extension.currentVersion}</span></div>
-        <div className="extension-row__meta">
-          <span>{t(integrationKindKey(extension))}</span>
-          <span>{t(`settings.extensions.runtimeSource.${extension.runtimeSource}`)}</span>
-          <span className={`extension-status extension-status--${extension.state}`}>{extension.connected ? t(`settings.extensions.status.${extension.state}`) : t("settings.extensions.status.notConnected")}</span>
-          {!extension.runtimeAvailable && <span className="extension-status extension-status--broken">{t("settings.extensions.runtimeUnavailable")}</span>}
-          {updateAvailable && <span className="extension-status extension-status--update">{t("settings.extensions.status.updateAvailable")}</span>}
-        </div>
-      </div>
-      {extension.connected && <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />}
-    </>
-  );
-  return (
-    <div className={`extension-row${extension.connected ? "" : " extension-row--detected"}`}>
-      {extension.connected ? <button type="button" className="extension-row__open" onClick={onOpen}>{rowOpen}</button> : <div className="extension-row__open">{rowOpen}</div>}
-      <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
-        {!extension.connected ? (
-          <button
-            type="button"
-            className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
-            aria-label={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
-            title={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
-            aria-busy={rowInstallBusy}
-            disabled={busy || (!extension.runtimeAvailable && !extension.homepage)}
-            onClick={extension.runtimeAvailable ? onConnect : onRepair}
-          >
-            {rowInstallBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.runtimeAvailable ? <Link2 size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
-          </button>
-        ) : extension.distributionSource === "npm" && updateAvailable && (
-          <button
-            type="button"
-            className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
-            aria-label={t(rowUpdateBusy ? "settings.extensions.updating" : "settings.extensions.update")}
-            title={t("settings.extensions.update")}
-            aria-busy={rowUpdateBusy}
-            disabled={busy}
-            onClick={onUpdate}
-          >
-            {rowUpdateBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <Download size={14} strokeWidth={2} aria-hidden="true" />}
-          </button>
-        )}
-        {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.distributionSource === "npm" || extension.homepage) && (
-          <button
-            type="button"
-            className="extensions-icon-button extensions-icon-button--row"
-            aria-label={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
-            title={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
-            aria-busy={rowRepairBusy}
-            disabled={busy}
-            onClick={extension.reconnectAvailable ? onReconnect : onRepair}
-          >
-            {rowRepairBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : extension.distributionSource === "npm" ? <Wrench size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
-          </button>
-        )}
-        {extension.connected && <span className="extension-row__toggle-slot">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={extension.enabled}
-            aria-label={extension.enabled ? t("settings.extensions.disable") : t("settings.extensions.enable")}
-            aria-busy={rowToggleBusy}
-            className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}${rowToggleBusy ? " settings-switch--loading" : ""}`}
-            disabled={busy || extension.state === "broken"}
-            onClick={onToggle}
-          >{rowToggleBusy ? <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" /> : <span className="settings-switch__thumb" />}</button>
-        </span>}
-        {extension.connected && <details className="extension-menu">
-          <summary className={`extensions-icon-button extensions-icon-button--row${busy ? " extensions-icon-button--disabled" : ""}`} aria-label={t("settings.extensions.moreActions")} aria-disabled={busy} title={t("settings.extensions.moreActions")} onClick={(event) => { if (busy) event.preventDefault(); }}>
-            <MoreHorizontal size={17} strokeWidth={2} aria-hidden="true" />
-          </summary>
-          <div className="extension-menu__items">
-            {extension.generatedCustom && <button type="button" disabled={busy} onClick={onEdit}>{t("settings.extensions.editCustom")}</button>}
-            <button type="button" disabled={!extension.previousVersion || busy} onClick={onRollback}><RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}</button>
-            <button type="button" disabled={extension.distributionSource !== "npm" || !extension.packageName || busy} onClick={onReinstall}><RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}</button>
-            <button type="button" className="extension-menu__danger" disabled={busy} onClick={onUninstall}>
-              {removalKind(extension) === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
-              {t(removalKind(extension) === "custom" ? "settings.extensions.deleteCustom" : removalKind(extension) === "npm" ? "settings.extensions.uninstall" : removalKind(extension) === "system" ? "settings.extensions.disconnect" : "settings.extensions.removePackage")}
-            </button>
-          </div>
-        </details>}
-      </div>
-    </div>
   );
 }
 
