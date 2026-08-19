@@ -1296,6 +1296,7 @@ input:focus {
 
 .extensions-notice span {
   min-width: 0;
+  flex: 1;
   overflow-wrap: anywhere;
 }
 

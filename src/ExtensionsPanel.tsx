@@ -83,6 +83,11 @@ type UpdateCandidate = {
   kind: "patch" | "minor" | "major";
 };
 
+type UpdateCheckResult = {
+  candidates: UpdateCandidate[];
+  failures: Array<{ id: string; message: string }>;
+};
+
 type CommandDescriptor = {
   id: string;
   name: string;
@@ -454,6 +459,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [updateById, setUpdateById] = useState<Record<string, UpdateCandidate>>({});
   const [loading, setLoading] = useState(true);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateCheckFailureCount, setUpdateCheckFailureCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<{ id: string; kind: MutationKind } | null>(null);
   const [query, setQuery] = useState("");
@@ -564,13 +570,19 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       if (generation === refreshGeneration.current) {
         setLatestById({});
         setUpdateById({});
+        setUpdateCheckFailureCount(null);
         setCheckingUpdates(false);
       }
       return;
     }
-    if (generation === refreshGeneration.current) setCheckingUpdates(true);
-    const [candidateResult, settled] = await Promise.all([
-      invoke<UpdateCandidate[]>("extensions_check_updates"),
+    if (generation === refreshGeneration.current) {
+      setCheckingUpdates(true);
+      setUpdateCheckFailureCount(null);
+    }
+    const [checkResult, settled] = await Promise.all([
+      Promise.resolve(invoke<UpdateCheckResult>("extensions_check_updates"))
+        .then((value) => ({ status: "fulfilled" as const, value }))
+        .catch((reason: unknown) => ({ status: "rejected" as const, reason })),
       Promise.allSettled(managed.map(async (entry) => {
         const results = await invoke<SearchResult[]>("extensions_search", { query: entry.packageName, limit: 10 });
         return [entry.id, results.find((result) => result.package === entry.packageName) ?? null] as const;
@@ -582,7 +594,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       if (result.status === "fulfilled" && result.value[1]) next[result.value[0]] = result.value[1];
     });
     setLatestById(next);
-    setUpdateById(Object.fromEntries(candidateResult.map((candidate) => [candidate.id, candidate])));
+    if (checkResult.status === "fulfilled") {
+      setUpdateById(Object.fromEntries(checkResult.value.candidates.map((candidate) => [candidate.id, candidate])));
+      setUpdateCheckFailureCount(checkResult.value.failures.length || null);
+    } else {
+      setUpdateById({});
+      setUpdateCheckFailureCount(0);
+    }
     setCheckingUpdates(false);
   };
 
@@ -1402,6 +1420,26 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
         </div>
       )}
 
+      {tab === "updates" && updateCheckFailureCount !== null && (
+        <div className="extensions-notice extensions-notice--error" role="alert">
+          <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+          <span>{t(updateCheckFailureCount > 0
+            ? "settings.extensions.updateCheckPartialFailure"
+            : "settings.extensions.updateCheckFailed", updateCheckFailureCount > 0
+              ? { count: updateCheckFailureCount }
+              : undefined)}</span>
+          <button
+            type="button"
+            className="extensions-action-button"
+            disabled={loading || checkingUpdates}
+            onClick={() => void refresh()}
+          >
+            <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
+            {t("settings.extensions.retryUpdateCheck")}
+          </button>
+        </div>
+      )}
+
       {tab === "installed" && (
         <div className="extensions-installed" role="tabpanel">
           <div className="extensions-sync-toolbar">
@@ -1595,7 +1633,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             </button>
           </div>
           <div className="extensions-list">
-            {!loading && !checkingUpdates && updates.length === 0 ? (
+            {!loading && !checkingUpdates && updateCheckFailureCount === null && updates.length === 0 ? (
               <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyUpdates")} />
             ) : updates.map((extension) => (
               <div className="extension-update-row" key={extension.id}>

@@ -1122,15 +1122,52 @@ pub async fn extensions_update(
 #[tauri::command]
 pub async fn extensions_check_updates(
     state: State<'_, ExtensionState>,
-) -> Result<Vec<ExtensionUpdateCandidate>, String> {
+) -> Result<ExtensionUpdateCheck, String> {
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let mut updates = Vec::new();
+    let mut failures = Vec::new();
     for entry in lock.list() {
-        if let Some(candidate) = install::update_candidate(&state, &entry).await? {
-            updates.push(candidate);
-        }
+        record_update_result(
+            &entry.id,
+            install::update_candidate(&state, &entry).await,
+            &mut updates,
+            &mut failures,
+        );
     }
-    Ok(updates)
+    Ok(ExtensionUpdateCheck {
+        candidates: updates,
+        failures,
+    })
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionUpdateCheck {
+    pub candidates: Vec<ExtensionUpdateCandidate>,
+    pub failures: Vec<ExtensionUpdateFailure>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionUpdateFailure {
+    pub id: String,
+    pub message: String,
+}
+
+fn record_update_result(
+    extension_id: &str,
+    result: Result<Option<ExtensionUpdateCandidate>, String>,
+    updates: &mut Vec<ExtensionUpdateCandidate>,
+    failures: &mut Vec<ExtensionUpdateFailure>,
+) {
+    match result {
+        Ok(Some(candidate)) => updates.push(candidate),
+        Ok(None) => {}
+        Err(message) => failures.push(ExtensionUpdateFailure {
+            id: extension_id.to_string(),
+            message,
+        }),
+    }
 }
 
 async fn set_release_policy(
@@ -1619,4 +1656,39 @@ pub async fn catalog_complete(
     request: CompletionRequest,
 ) -> Result<CatalogCompletionResponse, String> {
     catalog::complete(&state, &request).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::extensions::install::ExtensionUpdateKind;
+
+    #[test]
+    fn update_checks_keep_successes_when_another_extension_fails() {
+        let mut updates = Vec::new();
+        let mut failures = Vec::new();
+        record_update_result(
+            "example.ready",
+            Ok(Some(ExtensionUpdateCandidate {
+                id: "example.ready".to_string(),
+                version: "1.0.1".to_string(),
+                kind: ExtensionUpdateKind::Patch,
+            })),
+            &mut updates,
+            &mut failures,
+        );
+        record_update_result(
+            "example.offline",
+            Err("registry unavailable".to_string()),
+            &mut updates,
+            &mut failures,
+        );
+        record_update_result("example.current", Ok(None), &mut updates, &mut failures);
+
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].id, "example.ready");
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].id, "example.offline");
+        assert_eq!(failures[0].message, "registry unavailable");
+    }
 }
