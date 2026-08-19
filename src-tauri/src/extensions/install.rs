@@ -61,6 +61,7 @@ pub struct ExtensionSearchResult {
     pub publisher: Option<String>,
     pub homepage: Option<String>,
     pub verified: bool,
+    pub deprecation: Option<String>,
     pub downloads: u64,
 }
 
@@ -88,6 +89,7 @@ pub struct ExtensionPermissionReview {
     pub permissions: Vec<PermissionSummary>,
     pub publisher_signed: bool,
     pub official_verified: bool,
+    pub deprecation: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -157,6 +159,9 @@ struct RegistryVersion {
     name: String,
     version: String,
     dist: RegistryDist,
+    #[serde(default)]
+    deprecated: Option<String>,
+    floter: Option<PackageFloter>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -171,12 +176,16 @@ struct PackageJson {
     version: String,
     #[serde(default)]
     keywords: Vec<String>,
+    #[serde(default)]
+    deprecated: Option<String>,
     floter: Option<PackageFloter>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct PackageFloter {
     manifest: String,
+    #[serde(default)]
+    deprecated: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -204,6 +213,9 @@ struct RegistrySearchPackage {
     version: String,
     #[serde(default)]
     description: String,
+    #[serde(default)]
+    deprecated: Option<String>,
+    floter: Option<PackageFloter>,
     publisher: Option<RegistryPublisher>,
     #[serde(default)]
     links: BTreeMap<String, String>,
@@ -849,6 +861,7 @@ pub async fn permissions_summary(
     locale: &str,
 ) -> Result<ExtensionPermissionReview, String> {
     let mut trust = (false, false);
+    let mut deprecation = None;
     let manifest = match request.source {
         InstallSource::Npm => {
             let package = request
@@ -865,6 +878,7 @@ pub async fn permissions_summary(
             safe_unpack(&bytes, staging.path())?;
             let (package_json, manifest_path) = load_package_entry(staging.path())?;
             validate_package_entry(&package_json, &version, true)?;
+            deprecation = package_deprecation(&package_json, &version);
             let manifest = ExtensionManifest::load(&manifest_path)?;
             if let Some(signatures) = manifest.signatures.as_ref() {
                 trust.1 = official_index.as_ref().is_some_and(|index| {
@@ -899,6 +913,7 @@ pub async fn permissions_summary(
     let mut review = permission_review(&manifest, locale);
     review.publisher_signed = trust.0;
     review.official_verified = trust.1 && trust.0;
+    review.deprecation = deprecation;
     Ok(review)
 }
 
@@ -979,6 +994,7 @@ pub(crate) fn permission_review(
         permissions,
         publisher_signed: false,
         official_verified: false,
+        deprecation: None,
     }
 }
 
@@ -1459,6 +1475,10 @@ pub async fn search(
             });
             ExtensionSearchResult {
                 downloads: object.downloads.weekly,
+                deprecation: deprecation_notice(
+                    object.package.floter.as_ref(),
+                    object.package.deprecated.as_deref(),
+                ),
                 package: object.package.name,
                 version: object.package.version,
                 description: object.package.description,
@@ -2083,6 +2103,28 @@ async fn resolve_registry_version(
         .ok_or_else(|| format!("No version of {package} matches {selector}"))?;
     validate_registry_version(package, &version)?;
     Ok(version)
+}
+
+fn package_deprecation(package: &PackageJson, registry: &RegistryVersion) -> Option<String> {
+    deprecation_notice(
+        package.floter.as_ref().or(registry.floter.as_ref()),
+        package
+            .deprecated
+            .as_deref()
+            .or(registry.deprecated.as_deref()),
+    )
+}
+
+fn deprecation_notice(floter: Option<&PackageFloter>, npm_message: Option<&str>) -> Option<String> {
+    npm_message
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            floter
+                .is_some_and(|metadata| metadata.deprecated)
+                .then(String::new)
+        })
 }
 
 async fn download_tarball(state: &ExtensionState, dist: &RegistryDist) -> Result<Vec<u8>, String> {
@@ -3457,5 +3499,29 @@ mod tests {
         assert_eq!(review.extension_name, "V Tools");
         assert_eq!(review.permissions[0].permission, Permission::FilesystemRead);
         assert_eq!(review.permissions[0].title, "读取文件");
+    }
+
+    #[test]
+    fn recognizes_fep_and_npm_deprecation_metadata() {
+        let package: PackageJson = serde_json::from_str(
+            r#"{
+                "name": "floter-old-tool",
+                "version": "1.0.0",
+                "floter": {
+                    "manifest": "floter.extension.json",
+                    "deprecated": true
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            deprecation_notice(package.floter.as_ref(), package.deprecated.as_deref()),
+            Some(String::new())
+        );
+        assert_eq!(
+            deprecation_notice(None, Some("  Use floter-new-tool instead.  ")),
+            Some("Use floter-new-tool instead.".to_string())
+        );
+        assert_eq!(deprecation_notice(None, Some("  ")), None);
     }
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
+  AlertTriangle,
   Check,
   ChevronRight,
   Copy,
@@ -74,6 +75,7 @@ type SearchResult = {
   publisher: string | null;
   homepage: string | null;
   verified: boolean;
+  deprecation: string | null;
   downloads: number;
 };
 
@@ -392,6 +394,7 @@ type PermissionReview = {
   permissions: Array<{ permission: PermissionName; title: string; description: string }>;
   publisherSigned: boolean;
   officialVerified: boolean;
+  deprecation: string | null;
 };
 
 type InstallRequest = {
@@ -405,6 +408,9 @@ type InstallRequest = {
 
 const formatDownloads = (value: number): string =>
   new Intl.NumberFormat(undefined, { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+
+const permissionReviewKey = (result: Pick<SearchResult, "package" | "version">) =>
+  `${result.package}@${result.version}`;
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -830,8 +836,22 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const reviewPermissions = async (request: InstallRequest): Promise<PermissionReview> =>
     invoke<PermissionReview>("extensions_permissions_summary", { request, locale });
 
+  const deprecationDescription = (deprecation: string) =>
+    deprecation.trim() || t("settings.extensions.deprecatedDescription");
+
+  const confirmNpmReview = (review: PermissionReview) => {
+    if (review.deprecation !== null && !window.confirm(t("settings.extensions.confirmDeprecatedInline", {
+      name: review.extensionName,
+      reason: deprecationDescription(review.deprecation),
+    }))) return false;
+    return !review.permissions.length || window.confirm(t("settings.extensions.confirmPermissionsInline", {
+      permissions: review.permissions.map((permission) => permission.title).join(", "),
+    }));
+  };
+
   const prefetchPermissions = async (result: SearchResult) => {
-    if (busy || reviewingPackage || permissionReviews[result.package]) return;
+    const reviewKey = permissionReviewKey(result);
+    if (busy || reviewingPackage || permissionReviews[reviewKey]) return;
     const request: InstallRequest = {
       source: "npm",
       package: result.package,
@@ -842,7 +862,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setReviewingPackage(result.package);
     try {
       const review = await reviewPermissions(request);
-      setPermissionReviews((current) => ({ ...current, [result.package]: review }));
+      setPermissionReviews((current) => ({ ...current, [reviewKey]: review }));
     } catch {
       // Installation reports preflight failures explicitly when the user clicks.
     } finally {
@@ -868,9 +888,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     };
     return runMutation(extension.id, "update", async () => {
       const review = await reviewPermissions(request);
-      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
-        permissions: review.permissions.map((permission) => permission.title).join(", "),
-      }))) return false;
+      if (!confirmNpmReview(review)) return false;
       await invoke("extensions_update", {
         id: extension.id,
         version,
@@ -921,9 +939,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           executablePath: null,
         };
         const review = await reviewPermissions(request);
-        if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
-          permissions: review.permissions.map((permission) => permission.title).join(", "),
-        }))) return false;
+        if (!confirmNpmReview(review)) return false;
         await invoke<Extension>("extensions_reinstall", {
           id: extension.id,
           approvedPermissions: review.permissions.map(({ permission }) => permission),
@@ -999,9 +1015,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
     setReviewingPackage(result.package);
     setError(null);
     try {
-      const review = permissionReviews[result.package] ?? await reviewPermissions(request);
-      if (!permissionReviews[result.package]) {
-        setPermissionReviews((current) => ({ ...current, [result.package]: review }));
+      const reviewKey = permissionReviewKey(result);
+      const review = permissionReviews[reviewKey] ?? await reviewPermissions(request);
+      if (!permissionReviews[reviewKey]) {
+        setPermissionReviews((current) => ({ ...current, [reviewKey]: review }));
       }
       setPendingInstall({ result, request, review });
     } catch (nextError) {
@@ -1271,9 +1288,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             executablePath: null,
           };
           const review = await reviewPermissions(request);
-          if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
-            permissions: review.permissions.map((permission) => permission.title).join(", "),
-          }))) {
+          if (!confirmNpmReview(review)) {
             cancelled = true;
             break;
           }
@@ -1587,6 +1602,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
             ) : searchResults.length ? searchResults.map((result) => {
               const installed = installedPackages.has(result.package);
+              const review = permissionReviews[permissionReviewKey(result)];
+              const deprecation = review?.deprecation ?? result.deprecation;
               return (
                 <div className="extension-search-row" key={result.package}>
                   <div className="extension-search-row__main">
@@ -1597,6 +1614,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                         {result.verified ? <ShieldCheck size={11} strokeWidth={2} aria-hidden="true" /> : <Package size={11} strokeWidth={2} aria-hidden="true" />}
                         {t(result.verified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}
                       </span>
+                      {deprecation !== null && (
+                        <span className="extension-trust-badge extension-trust-badge--deprecated" title={deprecationDescription(deprecation)}>
+                          <AlertTriangle size={11} strokeWidth={2} aria-hidden="true" />
+                          {t("settings.extensions.deprecated")}
+                        </span>
+                      )}
                     </div>
                     <p>{result.description || t("settings.extensions.noDescription")}</p>
                     <span className="extension-search-row__downloads">
@@ -1605,10 +1628,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     </span>
                   </div>
                   <div className="extension-search-row__actions">
-                    {permissionReviews[result.package]?.permissions.length ? (
-                      <span className="extension-search-row__permissions" title={permissionReviews[result.package].permissions.map(({ description }) => description).join("\n")}>
+                    {review?.permissions.length ? (
+                      <span className="extension-search-row__permissions" title={review.permissions.map(({ description }) => description).join("\n")}>
                         <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />
-                        {t("settings.extensions.permissionCount", { count: permissionReviews[result.package].permissions.length })}
+                        {t("settings.extensions.permissionCount", { count: review.permissions.length })}
                       </span>
                     ) : null}
                     <button
@@ -1705,6 +1728,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     ? "settings.extensions.trustSelfSignedDescription"
                     : "settings.extensions.trustUnverifiedDescription")}</span>
               </div>
+              {pendingInstall.review.deprecation !== null && (
+                <div className="extension-install-deprecation" role="note">
+                  <strong>{t("settings.extensions.deprecatedTitle")}</strong>
+                  <span>{deprecationDescription(pendingInstall.review.deprecation)}</span>
+                </div>
+              )}
               {pendingInstall.review.permissions.map((permission) => (
                 <div key={permission.permission}>
                   <strong>{permission.title}</strong>
@@ -1715,7 +1744,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             </div>
             <footer>
               <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
-              <button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmPendingInstall()}>{busy ? t("settings.extensions.installing") : t("settings.extensions.approveInstall")}</button>
+              <button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmPendingInstall()}>{busy ? t("settings.extensions.installing") : t(pendingInstall.review.deprecation !== null ? "settings.extensions.installDeprecated" : "settings.extensions.approveInstall")}</button>
             </footer>
           </section>
         </div>

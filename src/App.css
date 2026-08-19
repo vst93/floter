@@ -1670,11 +1670,29 @@ input:focus {
   color: var(--accent);
 }
 
+.extension-trust-badge--deprecated {
+  border-color: color-mix(in srgb, var(--text-warning) 38%, transparent);
+  color: var(--text-warning);
+}
+
 .extension-install-trust {
   padding: 9px;
   border: 1px solid var(--stroke-control);
   border-radius: 5px;
   background: var(--surface-control);
+}
+
+.extension-install-deprecation {
+  margin: 5px 0;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--text-warning) 38%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text-warning) 8%, transparent);
+}
+
+.extension-permission-list .extension-install-deprecation strong,
+.extension-permission-list .extension-install-deprecation span {
+  color: var(--text-warning);
 }
 
 .extension-permission-backdrop {
