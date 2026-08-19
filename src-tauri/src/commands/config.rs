@@ -521,16 +521,20 @@ mod tests {
 
     #[test]
     fn frontend_settings_preserve_fields_owned_by_dedicated_commands() {
-        let mut stored = AppSettings::default();
-        stored.terminal_width = 1_240.0;
-        stored.terminal_height = 760.0;
-        stored.hotkey = "Ctrl+Alt+Space".into();
+        let mut stored = AppSettings {
+            terminal_width: 1_240.0,
+            terminal_height: 760.0,
+            hotkey: "Ctrl+Alt+Space".into(),
+            ..AppSettings::default()
+        };
         stored
             .shortcuts
             .insert(TOGGLE_WINDOW.into(), "Ctrl+Alt+Space".into());
 
-        let mut submitted = AppSettings::default();
-        submitted.theme = "light".into();
+        let submitted = AppSettings {
+            theme: "light".into(),
+            ..AppSettings::default()
+        };
         let merged = merge_frontend_settings(submitted, &stored);
 
         assert_eq!(merged.theme, "light");

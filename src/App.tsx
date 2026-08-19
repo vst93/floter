@@ -57,7 +57,7 @@ import {
   type ShortcutAction,
   type ShortcutMap,
 } from "./shortcuts";
-import { createSerialSettingsWriter } from "./settings-persistence";
+import { createSerialSettingsWriter, createSettingsHydration } from "./settings-persistence";
 import "./App.css";
 
 if (IS_WINDOWS) {
@@ -587,6 +587,8 @@ export default function App() {
     ),
     [],
   );
+  const settingsHydration = useMemo(() => createSettingsHydration<AppSettings>(), []);
+  const hydrationSavePromise = useRef<Promise<void> | null>(null);
   const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
@@ -648,6 +650,26 @@ export default function App() {
   });
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  // Startup remains interactive while settings load. Delay and coalesce writes
+  // until hydration finishes so a default frontend snapshot cannot overwrite
+  // fields that have not arrived from disk yet.
+  const persistSettings = (): Promise<void> => {
+    if (settingsHydration.isReady()) {
+      return saveSettings(settingsRef.current);
+    }
+    if (!hydrationSavePromise.current) {
+      const pending = settingsHydration
+        .waitUntilReady()
+        .then(() => saveSettings(settingsRef.current));
+      hydrationSavePromise.current = pending;
+      const clearPending = () => {
+        if (hydrationSavePromise.current === pending) hydrationSavePromise.current = null;
+      };
+      void pending.then(clearPending, clearPending);
+    }
+    return hydrationSavePromise.current;
+  };
   const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
   const [rejectedAction, setRejectedAction] = useState<ShortcutAction | null>(null);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
@@ -1272,18 +1294,22 @@ export default function App() {
 
   useEffect(() => {
     invoke<AppSettings>("get_settings")
-      .then((loaded) =>
-        setSettings({
+      .then((loaded) => {
+        const normalized = {
           ...loaded,
           language: normalizeLanguage(loaded.language),
           launch_at_startup: loaded.launch_at_startup ?? false,
           main_opacity: normalizeOpacity(loaded.main_opacity ?? 94),
           terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
-        }),
-      )
-      .catch(() => undefined);
-  }, []);
+        };
+        const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
+        settingsRef.current = hydrated;
+        setSettings(hydrated);
+      })
+      .catch(() => undefined)
+      .finally(() => settingsHydration.finish());
+  }, [settingsHydration]);
 
   useEffect(() => {
     invoke<string>("app_version")
@@ -2154,6 +2180,7 @@ export default function App() {
     const value = normalizeOpacity(next);
     if (value === settingsRef.current[field]) return;
     const updated: AppSettings = { ...settingsRef.current, [field]: value };
+    settingsHydration.markChanged(field);
     settingsRef.current = updated;
     setSettings(updated);
     if (settingsSaveTimer.current !== null) {
@@ -2161,7 +2188,7 @@ export default function App() {
     }
     settingsSaveTimer.current = window.setTimeout(() => {
       settingsSaveTimer.current = null;
-      saveSettings(settingsRef.current).catch(() => undefined);
+      persistSettings().catch(() => undefined);
     }, 180);
   };
 
@@ -2169,6 +2196,7 @@ export default function App() {
     const fontSize = normalizeFontSize(next);
     if (fontSize === settingsRef.current.font_size) return;
     const updated = { ...settingsRef.current, font_size: fontSize };
+    settingsHydration.markChanged("font_size");
     settingsRef.current = updated;
     setSettings(updated);
     if (settingsSaveTimer.current !== null) {
@@ -2176,17 +2204,18 @@ export default function App() {
     }
     settingsSaveTimer.current = window.setTimeout(() => {
       settingsSaveTimer.current = null;
-      saveSettings(settingsRef.current).catch(() => undefined);
+      persistSettings().catch(() => undefined);
     }, 180);
   };
 
   const changeGeneralSetting = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
     if (settingsRef.current[field] === value) return;
     const updated = { ...settingsRef.current, [field]: value };
+    settingsHydration.markChanged(field);
     settingsRef.current = updated;
     setSettings(updated);
     suppressBlurUntil.current = Date.now() + 400;
-    saveSettings(updated).catch(() => undefined);
+    persistSettings().catch(() => undefined);
   };
 
   const changeTheme = (theme: string) => {
@@ -2200,9 +2229,10 @@ export default function App() {
   };
 
   const changeLaunchAtStartup = async (enabled: boolean) => {
-    if (autostartUpdating || enabled === settings.launch_at_startup) return;
-    const previous = settings.launch_at_startup;
-    const updated: AppSettings = { ...settings, launch_at_startup: enabled };
+    if (autostartUpdating || enabled === settingsRef.current.launch_at_startup) return;
+    const previous = settingsRef.current.launch_at_startup;
+    const updated: AppSettings = { ...settingsRef.current, launch_at_startup: enabled };
+    settingsHydration.markChanged("launch_at_startup");
     settingsRef.current = updated;
     setSettings(updated);
     setAutostartUpdating(true);
@@ -2211,7 +2241,7 @@ export default function App() {
       await invoke("set_launch_at_startup", { enabled });
       const latest = { ...settingsRef.current, launch_at_startup: enabled };
       settingsRef.current = latest;
-      await saveSettings(latest);
+      await persistSettings();
     } catch {
       await invoke("set_launch_at_startup", { enabled: previous }).catch(() => undefined);
       setSettings((current) => {
@@ -2249,11 +2279,17 @@ export default function App() {
     }
     try {
       const shortcuts = await invoke<ShortcutMap>("reset_shortcuts");
-      setSettings((current) => ({
-        ...current,
-        hotkey: shortcuts.toggle_window,
-        shortcuts,
-      }));
+      settingsHydration.markChanged("hotkey");
+      settingsHydration.markChanged("shortcuts");
+      setSettings((current) => {
+        const updated = {
+          ...current,
+          hotkey: shortcuts.toggle_window,
+          shortcuts,
+        };
+        settingsRef.current = updated;
+        return updated;
+      });
       setRecordingAction(null);
       setRejectedAction(null);
     } catch {
@@ -2289,18 +2325,30 @@ export default function App() {
       return;
     }
 
-    setSettings((current) => ({
-      ...current,
-      shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: next },
-    }));
+    settingsHydration.markChanged("shortcuts");
+    if (action === "toggle_window") settingsHydration.markChanged("hotkey");
+    setSettings((current) => {
+      const updated = {
+        ...current,
+        ...(action === "toggle_window" ? { hotkey: next } : {}),
+        shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: next },
+      };
+      settingsRef.current = updated;
+      return updated;
+    });
     suppressBlurUntil.current = Date.now() + 400;
     invoke("update_shortcut", { action, shortcut: next }).then(() => {
       invoke("resume_shortcuts").catch(() => undefined);
     }).catch(() => {
-      setSettings((current) => ({
-        ...current,
-        shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
-      }));
+      setSettings((current) => {
+        const rolledBack = {
+          ...current,
+          ...(action === "toggle_window" ? { hotkey: previous } : {}),
+          shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
+        };
+        settingsRef.current = rolledBack;
+        return rolledBack;
+      });
       setRejectedAction(action);
       invoke("resume_shortcuts").catch(() => undefined);
     });

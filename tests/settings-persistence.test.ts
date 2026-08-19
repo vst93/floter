@@ -1,6 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createSerialSettingsWriter } from "../src/settings-persistence.ts";
+import {
+  createSerialSettingsWriter,
+  createSettingsHydration,
+} from "../src/settings-persistence.ts";
+
+test("settings hydration preserves edits made while the disk read is in flight", () => {
+  type Settings = { theme: string; fontSize: number; language: string };
+  const hydration = createSettingsHydration<Settings>();
+  const current = { theme: "light", fontSize: 14, language: "en" };
+  const loaded = { theme: "dark", fontSize: 18, language: "zh" };
+
+  hydration.markChanged("theme");
+
+  assert.deepEqual(hydration.mergeLoaded(current, loaded), {
+    theme: "light",
+    fontSize: 18,
+    language: "zh",
+  });
+});
+
+test("settings writes wait until hydration has completed", async () => {
+  const hydration = createSettingsHydration<{ theme: string }>();
+  let continued = false;
+  const waiting = hydration.waitUntilReady().then(() => {
+    continued = true;
+  });
+
+  await Promise.resolve();
+  assert.equal(continued, false);
+
+  hydration.finish();
+  await waiting;
+  assert.equal(continued, true);
+  assert.equal(hydration.isReady(), true);
+});
 
 test("settings writes preserve the order they were requested", async () => {
   const writes: string[] = [];
