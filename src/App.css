@@ -422,6 +422,33 @@ input:focus {
   place-items: center;
 }
 
+.launcher-feedback__retry {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.launcher-feedback__retry:hover {
+  border-color: var(--stroke-control);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
+.launcher-feedback__retry:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
 .launcher-results {
   display: grid;
   gap: 1px;

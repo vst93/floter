@@ -5,6 +5,8 @@ export type Language = "en" | "zh";
 const en = {
   "input.placeholder": "Type a command or app name",
   "input.scanning": "Scanning applications…",
+  "input.scanFailed": "Applications could not be loaded",
+  "input.retryScan": "Retry application scan",
   "launcher.runInShell": "Run in shell",
   "launcher.openInBrowser": "Open in browser",
   "launcher.openInFiles": "Open in files",
@@ -42,6 +44,7 @@ const en = {
   "terminal.sessionsRefresh": "Refresh sessions",
   "terminal.sessionsLoading": "Loading sessions…",
   "terminal.sessionsEmpty": "No persistent sessions",
+  "terminal.sessionsError": "Persistent sessions could not be loaded",
   "terminal.sessionTitle": "Terminal session {id}",
   "terminal.sessionAttached": "Running · attached",
   "terminal.sessionDetached": "Running · detached",
@@ -377,6 +380,8 @@ export type MessageKey = keyof typeof en;
 const zh: Record<MessageKey, string> = {
   "input.placeholder": "输入命令或应用名称",
   "input.scanning": "正在扫描应用…",
+  "input.scanFailed": "应用列表加载失败",
+  "input.retryScan": "重试扫描应用",
   "launcher.runInShell": "在终端中运行",
   "launcher.openInBrowser": "在浏览器中打开",
   "launcher.openInFiles": "在文件管理器中打开",
@@ -414,6 +419,7 @@ const zh: Record<MessageKey, string> = {
   "terminal.sessionsRefresh": "刷新会话",
   "terminal.sessionsLoading": "正在加载会话…",
   "terminal.sessionsEmpty": "暂无持久化会话",
+  "terminal.sessionsError": "持久化会话加载失败",
   "terminal.sessionTitle": "终端会话 {id}",
   "terminal.sessionAttached": "运行中 · 已连接",
   "terminal.sessionDetached": "运行中 · 未连接",

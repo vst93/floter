@@ -612,6 +612,7 @@ export default function App() {
   const [applications, setApplications] = useState<LocalApplication[]>([]);
   /** True until the first scan settles, whether it hit the cache or not. */
   const [appsLoading, setAppsLoading] = useState(true);
+  const [appsError, setAppsError] = useState(false);
   const [appVersion, setAppVersion] = useState("DEV");
   const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
   // Ref mirror of `appIconUrls` so the icon-loading effect can check which
@@ -624,6 +625,7 @@ export default function App() {
   const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogSuggestion[]>([]);
   const [terminalSessions, setTerminalSessions] = useState<BrokerSessionInfo[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState(false);
   const [sessionActionId, setSessionActionId] = useState<string | null>(null);
   const catalogRequestGeneration = useRef(0);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
@@ -1064,9 +1066,14 @@ export default function App() {
   const scanApplications = (forceRefresh: boolean) => {
     if (appScanning.current) return;
     appScanning.current = true;
+    setAppsLoading(true);
+    setAppsError(false);
     invoke<LocalApplication[]>("list_applications", { forceRefresh })
-      .then(setApplications)
-      .catch(() => undefined)
+      .then((nextApplications) => {
+        setApplications(nextApplications);
+        setAppsError(false);
+      })
+      .catch(() => setAppsError(true))
       .finally(() => {
         appScanning.current = false;
         setAppsLoading(false);
@@ -1075,9 +1082,16 @@ export default function App() {
 
   const refreshTerminalSessions = () => {
     setSessionsLoading(true);
+    setSessionsError(false);
     return invoke<BrokerSessionInfo[]>("term_list_sessions")
-      .then(setTerminalSessions)
-      .catch(() => setTerminalSessions([]))
+      .then((sessions) => {
+        setTerminalSessions(sessions);
+        setSessionsError(false);
+      })
+      .catch(() => {
+        setTerminalSessions([]);
+        setSessionsError(true);
+      })
       .finally(() => setSessionsLoading(false));
   };
 
@@ -3057,9 +3071,9 @@ export default function App() {
               </div>
 
               {terminalSessions.length === 0 ? (
-                <div className="session-manager__empty">
-                  <SquareTerminal size={20} strokeWidth={1.6} aria-hidden="true" />
-                  <span>{sessionsLoading ? t("terminal.sessionsLoading") : t("terminal.sessionsEmpty")}</span>
+                <div className="session-manager__empty" role={sessionsError ? "alert" : undefined}>
+                  {sessionsError ? <AlertCircle size={20} strokeWidth={1.6} aria-hidden="true" /> : <SquareTerminal size={20} strokeWidth={1.6} aria-hidden="true" />}
+                  <span>{sessionsLoading ? t("terminal.sessionsLoading") : sessionsError ? t("terminal.sessionsError") : t("terminal.sessionsEmpty")}</span>
                 </div>
               ) : (
                 <div className="session-manager__list">
@@ -3191,8 +3205,11 @@ export default function App() {
     const hasQuery = query.trim().length > 0;
     // The first scan runs before there is anything to search, so the input says
     // so rather than inviting a query that would match nothing.
-    const placeholder =
-      appsLoading && !applications.length ? t("input.scanning") : t("input.placeholder");
+    const placeholder = appsError
+      ? t("input.scanFailed")
+      : appsLoading && !applications.length
+        ? t("input.scanning")
+        : t("input.placeholder");
 
     return (
       <div className="collapsed-shell">
@@ -3292,8 +3309,27 @@ export default function App() {
               </svg>
             </button>
           </div>
-          {(launcherResults.length > 0 || actionBar || launcherFeedback) && (
+          {(launcherResults.length > 0 || actionBar || launcherFeedback || appsError) && (
             <div className="launcher-bottom">
+              {appsError && (
+                <div className="launcher-feedback" role="alert">
+                  <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                  <span>{t("input.scanFailed")}</span>
+                  <button
+                    type="button"
+                    className="launcher-feedback__retry"
+                    aria-label={t("input.retryScan")}
+                    title={t("input.retryScan")}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      scanApplications(true);
+                    }}
+                  >
+                    <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                </div>
+              )}
               {launcherFeedback && (
                 <div className="launcher-feedback" role="status" aria-live="polite">
                   <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
