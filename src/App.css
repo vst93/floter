@@ -1208,10 +1208,16 @@ input:focus {
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.extensions-icon-button:hover {
+.extensions-icon-button:hover:not(:disabled):not(.extensions-icon-button--disabled) {
   border-color: var(--stroke-control);
   background: var(--surface-control-hover);
   color: var(--text-primary);
+}
+
+.extensions-icon-button--primary {
+  border-color: var(--accent-edge);
+  background: var(--accent-tint);
+  color: var(--accent);
 }
 
 .extensions-icon-button:focus-visible,
@@ -1225,9 +1231,10 @@ input:focus {
   outline-offset: 2px;
 }
 
-.extensions-icon-button:disabled {
+.extensions-icon-button:disabled,
+.extensions-icon-button--disabled {
   opacity: 0.42;
-  cursor: wait;
+  cursor: default;
 }
 
 .extensions-icon-button:active:not(:disabled),
@@ -1329,20 +1336,25 @@ input:focus {
   border-top: 1px solid var(--hairline);
 }
 
+.extensions-list > :where(.extension-row, .extension-search-row, .extension-update-row):not(:last-child) {
+  border-bottom: 1px solid var(--hairline);
+}
+
 .extension-row {
   position: relative;
   min-width: 0;
   min-height: 52px;
   display: grid;
-  grid-template-columns: 29px minmax(0, 1fr) auto 14px;
+  grid-template-columns: minmax(0, 1fr) auto 14px;
   align-items: center;
   gap: 8px;
   padding: 6px 3px;
-  border-bottom: 1px solid var(--hairline);
   cursor: pointer;
+  transition: background-color 120ms ease;
 }
 
-.extension-row:hover {
+.extension-row:hover,
+.extension-update-row:hover {
   background: var(--surface-control-hover);
 }
 
@@ -1350,8 +1362,16 @@ input:focus {
   cursor: default;
 }
 
-.extension-row--detected:hover {
+.extension-row__open {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
 }
 
 .extension-row__icon {
@@ -1432,7 +1452,7 @@ input:focus {
 .extension-row__actions {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .extension-row__chevron {
@@ -1611,11 +1631,37 @@ input:focus {
   min-width: 0;
   min-height: 61px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.extension-search-row {
+  grid-template-columns: 29px minmax(0, 1fr) auto;
+  padding: 7px 3px 7px 7px;
+  border-left: 2px solid transparent;
+}
+
+.extension-search-row:hover {
+  border-left-color: var(--accent);
+  background: var(--surface-control-active);
+}
+
+.extension-update-row {
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 7px 3px;
-  border-bottom: 1px solid var(--hairline);
+}
+
+.extension-search-row__icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--icon-edge);
+  border-radius: 5px;
+  background: var(--icon-surface);
+  color: var(--text-secondary);
 }
 
 .extension-search-row__main p {
@@ -1627,6 +1673,22 @@ input:focus {
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.extension-search-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: 9.5px;
+}
+
+.extension-search-row:hover .extension-search-row__main p,
+.extension-search-row:hover .extension-search-row__meta,
+.extension-search-row:hover .extension-search-row__downloads,
+.extension-search-row:hover .extension-search-row__permissions {
+  color: var(--text-secondary);
 }
 
 .extension-search-row__downloads {
@@ -2442,10 +2504,9 @@ input:focus {
   .extension-custom-form__grid { grid-template-columns: 1fr; }
   .extension-custom-form__wide { grid-column: 1; }
   .extension-row {
-    grid-template-columns: 29px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .extension-row__actions > .extensions-action-button,
   .extension-row__chevron {
     display: none;
   }
@@ -2764,6 +2825,9 @@ canvas {
   .toolbar-button,
   .extensions-icon-button,
   .extensions-action-button,
+  .extension-row,
+  .extension-search-row,
+  .extension-update-row,
   .extension-tool-results button,
   .extension-drawer-backdrop,
   .extension-drawer,

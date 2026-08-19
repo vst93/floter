@@ -2223,7 +2223,6 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
           {updateAvailable && <span className="extension-status extension-status--update">{t("settings.extensions.status.updateAvailable")}</span>}
         </div>
       </div>
-      {extension.connected && <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />}
     </>
   );
   return (
@@ -2231,20 +2230,41 @@ function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRe
       {extension.connected ? <button type="button" className="extension-row__open" onClick={onOpen}>{rowOpen}</button> : <div className="extension-row__open">{rowOpen}</div>}
       <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
         {!extension.connected ? (
-          <button type="button" className="extensions-action-button extensions-action-button--primary" aria-busy={rowInstallBusy} disabled={busy || (!extension.runtimeAvailable && !extension.homepage)} onClick={extension.runtimeAvailable ? onConnect : onRepair}>
+          <button
+            type="button"
+            className="extensions-icon-button extensions-icon-button--primary"
+            aria-label={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
+            title={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
+            aria-busy={rowInstallBusy}
+            disabled={busy || (!extension.runtimeAvailable && !extension.homepage)}
+            onClick={extension.runtimeAvailable ? onConnect : onRepair}
+          >
             {rowInstallBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.runtimeAvailable ? <Link2 size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
-            {extension.runtimeAvailable ? t("settings.extensions.connect") : t("settings.extensions.installTool")}
           </button>
         ) : extension.distributionSource === "npm" && updateAvailable && (
-          <button type="button" className="extensions-action-button extensions-action-button--primary" aria-busy={rowUpdateBusy} disabled={busy} onClick={onUpdate}>
-            {rowUpdateBusy && <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />}
-            {rowUpdateBusy ? t("settings.extensions.updating") : t("settings.extensions.update")}
+          <button
+            type="button"
+            className="extensions-icon-button extensions-icon-button--primary"
+            aria-label={t(rowUpdateBusy ? "settings.extensions.updating" : "settings.extensions.update")}
+            title={t("settings.extensions.update")}
+            aria-busy={rowUpdateBusy}
+            disabled={busy}
+            onClick={onUpdate}
+          >
+            {rowUpdateBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <Download size={14} strokeWidth={2} aria-hidden="true" />}
           </button>
         )}
         {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.distributionSource === "npm" || extension.homepage) && (
-          <button type="button" className="extensions-action-button" aria-busy={rowRepairBusy} disabled={busy} onClick={extension.reconnectAvailable ? onReconnect : onRepair}>
+          <button
+            type="button"
+            className="extensions-icon-button"
+            aria-label={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
+            title={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
+            aria-busy={rowRepairBusy}
+            disabled={busy}
+            onClick={extension.reconnectAvailable ? onReconnect : onRepair}
+          >
             {rowRepairBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : extension.distributionSource === "npm" ? <Wrench size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
-            {t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
           </button>
         )}
         {extension.connected && <button
