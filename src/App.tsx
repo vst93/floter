@@ -581,14 +581,10 @@ export default function App() {
   const terminalSizeSaveTimer = useRef<number | null>(null);
   const pendingTerminalSize = useRef<{ width: number; height: number } | null>(null);
   const settingsSaveTimer = useRef<number | null>(null);
-  const saveSettings = useMemo(
-    () => createSerialSettingsWriter<AppSettings>((next) =>
-      invoke("save_settings", { settings: next }),
-    ),
-    [],
-  );
   const settingsHydration = useMemo(() => createSettingsHydration<AppSettings>(), []);
   const hydrationSavePromise = useRef<Promise<void> | null>(null);
+  const settingsSaveGeneration = useRef(0);
+  const appQuitting = useRef(false);
   const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
@@ -648,20 +644,48 @@ export default function App() {
     terminal_opacity: 92,
     shortcuts: DEFAULT_SHORTCUTS,
   });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  const saveSettings = useMemo(
+    () => createSerialSettingsWriter<AppSettings>((next) =>
+      invoke("save_settings", { settings: next }),
+    ),
+    [],
+  );
+
+  const commitSettings = (next: AppSettings): Promise<void> => {
+    const generation = ++settingsSaveGeneration.current;
+    setSettingsSaving(true);
+    return saveSettings(next).then(
+      () => {
+        if (settingsSaveGeneration.current !== generation) return;
+        setSettingsSaving(false);
+        setSettingsSaveFailed(false);
+      },
+      (error) => {
+        if (settingsSaveGeneration.current === generation) {
+          setSettingsSaving(false);
+          setSettingsSaveFailed(true);
+        }
+        throw error;
+      },
+    );
+  };
 
   // Startup remains interactive while settings load. Delay and coalesce writes
   // until hydration finishes so a default frontend snapshot cannot overwrite
   // fields that have not arrived from disk yet.
   const persistSettings = (): Promise<void> => {
     if (settingsHydration.isReady()) {
-      return saveSettings(settingsRef.current);
+      return commitSettings(settingsRef.current);
     }
     if (!hydrationSavePromise.current) {
       const pending = settingsHydration
         .waitUntilReady()
-        .then(() => saveSettings(settingsRef.current));
+        .then(() => commitSettings(settingsRef.current));
       hydrationSavePromise.current = pending;
       const clearPending = () => {
         if (hydrationSavePromise.current === pending) hydrationSavePromise.current = null;
@@ -2164,6 +2188,25 @@ export default function App() {
     setMode("collapsed");
   };
 
+  const quitApp = async () => {
+    if (appQuitting.current) return;
+    appQuitting.current = true;
+    // Slider changes are debounced. Flush the current full snapshot before the
+    // component unmounts, otherwise quitting inside that debounce window drops
+    // the user's final value when the cleanup below cancels the timer.
+    if (settingsSaveTimer.current !== null) {
+      window.clearTimeout(settingsSaveTimer.current);
+      settingsSaveTimer.current = null;
+    }
+    try {
+      await persistSettings();
+      await invoke("quit_app");
+    } catch {
+      // The save state above keeps the settings window open with a retry action.
+      appQuitting.current = false;
+    }
+  };
+
   useEffect(() => () => {
     if (settingsSaveTimer.current !== null) {
       window.clearTimeout(settingsSaveTimer.current);
@@ -2700,7 +2743,7 @@ export default function App() {
                 className="toolbar-button toolbar-button--quit"
                 aria-label={t("settings.quit")}
                 title={t("settings.quitHint")}
-                onClick={() => invoke("quit_app")}
+                onClick={() => void quitApp()}
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -2745,6 +2788,25 @@ export default function App() {
               ))}
             </nav>
             <main className="settings-content" data-no-drag>
+            {settingsSaveFailed && (
+              <div className="settings-save-alert" role="alert">
+                <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
+                <span>{t("settings.saveFailed")}</span>
+                <button
+                  type="button"
+                  disabled={settingsSaving}
+                  onClick={() => void persistSettings().catch(() => undefined)}
+                >
+                  <RefreshCw
+                    className={settingsSaving ? "settings-save-alert__spinner" : undefined}
+                    size={14}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                  {t(settingsSaving ? "settings.saving" : "settings.retrySave")}
+                </button>
+              </div>
+            )}
             {settingsPage === "general" && <>
             <div className="settings-preferences">
               <section className="settings-section">
