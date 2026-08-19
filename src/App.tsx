@@ -770,6 +770,14 @@ export default function App() {
   // answer, so a single resolved value drives both and they cannot disagree.
   const resolvedTheme = settings.theme === "auto" ? systemTheme : settings.theme;
 
+  // Keep document metadata in sync with the active locale. Tauri does not show
+  // the document title in the main window, but it is still exposed to screen
+  // readers, browser tooling, and platform window switchers.
+  useEffect(() => {
+    document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+    document.title = "Floter";
+  }, [language]);
+
   useEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--main-opacity", String(normalizeOpacity(settings.main_opacity) / 100));
