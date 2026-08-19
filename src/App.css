@@ -66,6 +66,7 @@
 
   /* Accent */
   --accent: #8fb7ff;
+  --accent-contrast: #15171b;
   --accent-tint: rgba(143, 183, 255, 0.13);
   --accent-tint-hover: rgba(143, 183, 255, 0.19);
   --accent-edge: rgba(143, 183, 255, 0.3);
@@ -151,6 +152,7 @@
      bright on near-black is barely there on white, and it has to carry the
      check mark and the recording pill's text. */
   --accent: #0a6cff;
+  --accent-contrast: #f7f9ff;
   --accent-tint: rgba(10, 108, 255, 0.1);
   --accent-tint-hover: rgba(10, 108, 255, 0.15);
   --accent-edge: rgba(10, 108, 255, 0.34);
@@ -1266,6 +1268,11 @@ input:focus {
 /* Extension management is a dense settings surface: rows share separators and
    controls, while the drawer owns the only elevated layer in the section. */
 .extensions-panel {
+  --extensions-radius-compact: 4px;
+  --extensions-radius-control: 6px;
+  --extensions-radius-container: 8px;
+  --extensions-control-height: 28px;
+  --extensions-inline-gap: 4px;
   position: relative;
   min-height: 280px;
   cursor: default;
@@ -1280,13 +1287,15 @@ input:focus {
 .extensions-icon-button {
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--extensions-radius-control);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -1300,9 +1309,15 @@ input:focus {
 }
 
 .extensions-icon-button--primary {
-  border-color: var(--accent-edge);
-  background: var(--accent-tint);
-  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.extensions-icon-button--primary:hover:not(:disabled):not(.extensions-icon-button--disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 88%, var(--surface-opaque));
+  color: var(--accent-contrast);
 }
 
 .extensions-icon-button:focus-visible,
@@ -1332,7 +1347,7 @@ input:focus {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 3px;
-  border-radius: 7px;
+  border-radius: var(--extensions-radius-container);
   background: var(--surface-control);
   box-shadow: inset 0 0 0 1px var(--stroke-control);
 }
@@ -1343,20 +1358,21 @@ input:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--extensions-inline-gap);
   padding: 0 8px;
-  border-radius: 5px;
+  border-radius: var(--extensions-radius-control);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .extensions-tabs__item > span {
   min-width: 17px;
   padding: 1px 4px;
-  border-radius: 8px;
+  border-radius: var(--extensions-radius-compact);
   background: var(--surface-control-active);
   color: var(--text-secondary);
   font-size: 9px;
@@ -1373,10 +1389,10 @@ input:focus {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   padding: 7px 9px;
   border: 1px solid var(--stroke-control);
-  border-radius: 5px;
+  border-radius: var(--extensions-radius-control);
   background: var(--surface-control);
   color: var(--text-secondary);
   font-size: 11px;
@@ -1403,25 +1419,42 @@ input:focus {
 .extensions-installed {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .extensions-sync-toolbar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.extensions-sync-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--extensions-inline-gap);
+}
+
+.extensions-package-hints {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
-.extensions-package-hint { padding: 7px 8px; display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 6px; align-items: start; border: 1px solid var(--hairline); border-radius: 5px; background: var(--surface-control); color: var(--text-tertiary); font-size: 9.5px; line-height: 1.4; }
+.extensions-package-hint { padding: 7px 8px; display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 6px; align-items: start; border: 1px solid var(--hairline); border-radius: var(--extensions-radius-control); background: var(--surface-control); color: var(--text-secondary); font-size: 9.5px; line-height: 1.4; }
 .extensions-package-hint svg { margin-top: 1px; }
 
 .extensions-list {
   min-width: 0;
   display: grid;
+}
+
+.extensions-list--installed {
   border-top: 1px solid var(--hairline);
 }
 
-.extensions-list > :where(.extension-row, .extension-search-row, .extension-update-row):not(:last-child) {
+.extensions-list--installed > .extension-row:not(:last-child) {
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -1466,7 +1499,7 @@ input:focus {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--icon-edge);
-  border-radius: 5px;
+  border-radius: var(--extensions-radius-control);
   background: var(--icon-surface);
   color: var(--text-secondary);
 }
@@ -1516,7 +1549,7 @@ input:focus {
 
 .extension-status {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--extensions-radius-compact);
   background: var(--surface-control);
   color: var(--text-muted);
 }
@@ -1537,7 +1570,8 @@ input:focus {
 .extension-row__actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  align-self: center;
+  gap: var(--extensions-inline-gap);
 }
 
 .extension-row__chevron {
@@ -1545,14 +1579,15 @@ input:focus {
 }
 
 .extensions-action-button {
-  min-height: 27px;
+  height: var(--extensions-control-height);
+  min-height: var(--extensions-control-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: var(--extensions-inline-gap);
   padding: 0 9px;
   border: 1px solid var(--stroke-control);
-  border-radius: 5px;
+  border-radius: var(--extensions-radius-control);
   background: var(--surface-control);
   color: var(--text-secondary);
   font-size: 10.5px;
@@ -1569,9 +1604,15 @@ input:focus {
 }
 
 .extensions-action-button--primary {
-  border-color: var(--accent-edge);
-  background: var(--accent-tint);
-  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.extensions-action-button--primary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 88%, var(--surface-opaque));
+  color: var(--accent-contrast);
 }
 
 .extensions-action-button--danger,
@@ -1604,7 +1645,7 @@ input:focus {
   width: 132px;
   padding: 4px;
   border: 1px solid var(--input-stroke);
-  border-radius: 6px;
+  border-radius: var(--extensions-radius-control);
   background: var(--surface-opaque);
   box-shadow: 0 6px 18px var(--window-shadow-ambient);
 }
@@ -1614,13 +1655,14 @@ input:focus {
   min-height: 28px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--extensions-inline-gap);
   padding: 0 7px;
-  border-radius: 4px;
+  border-radius: var(--extensions-radius-control);
   background: transparent;
   color: var(--text-secondary);
   font-size: 10.5px;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -1645,11 +1687,16 @@ input:focus {
   font-size: 11px;
 }
 
-.extensions-discover,
+.extensions-discover {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
 .extensions-updates {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
 .extensions-search {
@@ -1658,10 +1705,10 @@ input:focus {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 0 4px 0 9px;
   border: 1px solid var(--stroke-control);
-  border-radius: 6px;
+  border-radius: var(--extensions-radius-container);
   background: var(--surface-control);
   color: var(--text-muted);
 }
@@ -1683,14 +1730,19 @@ input:focus {
 }
 
 .extensions-search button {
-  height: 26px;
+  height: var(--extensions-control-height);
   padding: 0 10px;
-  border-radius: 4px;
-  background: var(--accent-tint);
-  color: var(--accent);
+  border-radius: var(--extensions-radius-control);
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: 10.5px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.extensions-search button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--surface-opaque));
 }
 
 .extensions-search button:disabled {
@@ -1707,8 +1759,8 @@ input:focus {
 .extensions-source__active {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--text-muted);
+  gap: var(--extensions-inline-gap);
+  color: var(--text-secondary);
 }
 
 .extension-search-row,
@@ -1717,24 +1769,43 @@ input:focus {
   min-height: 61px;
   display: grid;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .extension-search-row {
   grid-template-columns: 29px minmax(0, 1fr) auto;
-  padding: 7px 3px 7px 7px;
+  padding: 8px;
+  border: 1px solid transparent;
   border-left: 2px solid transparent;
+  border-radius: var(--extensions-radius-container);
+  background: var(--surface-control);
 }
 
 .extension-search-row:hover {
   border-left-color: var(--accent);
-  background: var(--surface-control-active);
+  background: var(--surface-control-hover);
+}
+
+.extension-search-row:focus-within,
+.extension-search-row--selected {
+  border-left-color: var(--accent);
+  background: var(--accent-tint-hover);
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
 .extension-update-row {
   grid-template-columns: minmax(0, 1fr) auto;
-  padding: 7px 3px;
+  min-height: 68px;
+  padding: 9px 10px;
+  border: 1px solid var(--stroke-control);
+  border-radius: var(--extensions-radius-container);
+  background: var(--surface-control);
+}
+
+.extension-update-row:hover {
+  border-color: var(--accent-edge);
+  background: var(--surface-control-hover);
 }
 
 .extension-search-row__icon {
@@ -1744,7 +1815,7 @@ input:focus {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--icon-edge);
-  border-radius: 5px;
+  border-radius: var(--extensions-radius-control);
   background: var(--icon-surface);
   color: var(--text-secondary);
 }
@@ -1787,13 +1858,13 @@ input:focus {
 .extension-search-row__actions {
   display: grid;
   justify-items: end;
-  gap: 5px;
+  gap: var(--extensions-inline-gap);
 }
 
 .extension-search-row__permissions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--extensions-inline-gap);
   color: var(--text-muted);
   font-size: 9.5px;
   white-space: nowrap;
@@ -1802,11 +1873,11 @@ input:focus {
 .extension-trust-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--extensions-inline-gap);
   min-height: 18px;
   padding: 1px 5px;
   border: 1px solid var(--stroke-control);
-  border-radius: 4px;
+  border-radius: var(--extensions-radius-compact);
   color: var(--text-muted);
   font-size: 9px;
   font-weight: 650;

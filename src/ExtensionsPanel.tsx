@@ -1424,7 +1424,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           disabled={loading || checkingUpdates}
           onClick={() => void refresh()}
         >
-          <RefreshCw className={loading || checkingUpdates ? "extensions-spinner" : undefined} size={16} strokeWidth={2} aria-hidden="true" />
+          {loading || checkingUpdates
+            ? <LoaderCircle className="extensions-spinner" size={16} strokeWidth={2} aria-hidden="true" />
+            : <RefreshCw size={16} strokeWidth={2} aria-hidden="true" />}
         </button>
       </div>
 
@@ -1563,7 +1565,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           )}
           <div className="extensions-list extensions-list--installed">
             {loading ? (
-              <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
+              <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
             ) : extensions.length === 0 ? (
               <EmptyState icon={<Package size={20} strokeWidth={2} />} text={t("settings.extensions.emptyInstalled")} />
             ) : extensions.map((extension) => (
@@ -1611,13 +1613,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           </div>
           <div className="extensions-list extensions-list--search">
             {searching ? (
-              <EmptyState icon={<RefreshCw size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
+              <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
             ) : searchResults.length ? searchResults.map((result) => {
               const installed = installedPackages.has(result.package);
               const review = permissionReviews[permissionReviewKey(result)];
               const deprecation = review?.deprecation ?? result.deprecation;
+              const selected = reviewingPackage === result.package || busy?.id === result.package;
               return (
-                <article className="extension-search-row" key={result.package}>
+                <article className={`extension-search-row${selected ? " extension-search-row--selected" : ""}`} key={result.package}>
                   <div className="extension-search-row__icon"><Package size={18} strokeWidth={1.8} aria-hidden="true" /></div>
                   <div className="extension-search-row__main">
                     <div className="extension-search-row__title">
@@ -1695,7 +1698,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               disabled={!patchUpdates.length || Boolean(busy)}
               onClick={() => void updateAll()}
             >
-              <RefreshCw className={busy?.id === "*" ? "extensions-spinner" : undefined} size={14} strokeWidth={2} aria-hidden="true" />
+              {busy?.id === "*"
+                ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
+                : <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />}
               {busy?.id === "*" ? t("settings.extensions.updating") : t("settings.extensions.updateAll")}
             </button>
           </div>
@@ -1871,7 +1876,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               </div>
               <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.cancel")} disabled={Boolean(busy) || customIntegrationLoading} onClick={closeCustomIntegration}><X size={16} strokeWidth={2} /></button>
             </header>
-            {customIntegrationLoading && <div className="extension-custom-dialog__loading"><RefreshCw size={15} strokeWidth={2} /><span>{t("settings.extensions.loadingCustom")}</span></div>}
+            {customIntegrationLoading && <div className="extension-custom-dialog__loading"><LoaderCircle className="extensions-spinner" size={15} strokeWidth={2} /><span>{t("settings.extensions.loadingCustom")}</span></div>}
             {customIntegrationError && <div className="extensions-notice extensions-notice--error extension-custom-form__error" role="alert"><AlertCircle size={14} strokeWidth={2} aria-hidden="true" /><span>{customIntegrationError}</span></div>}
             {!customIntegrationLoading && (!editingCustomId || customIntegration.id === editingCustomId) && <form className="extension-custom-form" onSubmit={(event) => void createCustomIntegration(event)}>
               <div className="extension-custom-mode" role="radiogroup" aria-label={t("settings.extensions.customMode")}>
@@ -1970,7 +1975,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               </button>
             </header>
             <div className="extension-drawer__body">
-              {detailLoading && <div className="extension-drawer__loading"><RefreshCw size={17} strokeWidth={2} />{t("settings.extensions.loadingDetails")}</div>}
+              {detailLoading && <div className="extension-drawer__loading"><LoaderCircle className="extensions-spinner" size={17} strokeWidth={2} />{t("settings.extensions.loadingDetails")}</div>}
               {detailError && <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{detailError}</span></div>}
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.info")}</h4>
