@@ -176,12 +176,17 @@ export const shouldDefaultToActionBar = (
   query: string,
   actionKind: ActionBarKind,
   resultCount: number,
-  hasCommandResult: boolean,
+  runnableResultCount: number,
+  hasRunnableCommandResult: boolean,
 ): boolean => {
   const value = query.trim();
   if (!value) return false;
   if (actionKind !== "shell" || resultCount === 0) return true;
-  if (hasCommandResult) return false;
+  // Discovery keeps commands whose integration is currently unavailable in
+  // the list. They must not capture Enter: unlike an application result or an
+  // executable catalog plan, those rows cannot perform the launcher's job.
+  if (hasRunnableCommandResult) return false;
+  if (runnableResultCount === 0) return true;
   if (/\s/.test(value) || /[|>&]/.test(value)) return true;
   return COMMAND_WORDS.has(value.toLowerCase());
 };

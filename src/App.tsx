@@ -946,7 +946,12 @@ export default function App() {
     return { type, label, value };
   }, [query, t]);
 
-  const hasCommandResult = launcherResults.some((item) => item.type === "command");
+  const isRunnableResult = (item: LauncherItem) => item.type !== "command" || Boolean(item.execution);
+  const runnableResultCount = launcherResults.filter(isRunnableResult).length;
+  const hasRunnableCommandResult = launcherResults.some(
+    (item) => item.type === "command" && Boolean(item.execution),
+  );
+  const firstRunnableResultIndex = launcherResults.findIndex(isRunnableResult);
 
   /**
    * Whether a fresh query starts out on the action bar rather than on the first
@@ -965,9 +970,10 @@ export default function App() {
       query,
       actionBar.type,
       launcherResults.length,
-      hasCommandResult,
+      runnableResultCount,
+      hasRunnableCommandResult,
     );
-  }, [actionBar, hasCommandResult, launcherResults.length, query]);
+  }, [actionBar, hasRunnableCommandResult, launcherResults.length, query, runnableResultCount]);
 
   // A full scan walks every application directory, so the two callers below
   // share one: the initial load and a refresh after a summon must never end up
@@ -999,9 +1005,9 @@ export default function App() {
   // A new query starts from its own default: the first result for a name, the
   // action bar for a command line, a URL or a path. See `defaultsToActionBar`.
   useEffect(() => {
-    setSelectedResultIndex(0);
+    setSelectedResultIndex(firstRunnableResultIndex < 0 ? 0 : firstRunnableResultIndex);
     setSelectedActionBar(defaultsToActionBar);
-  }, [defaultsToActionBar, query]);
+  }, [defaultsToActionBar, firstRunnableResultIndex, query]);
 
   useEffect(() => {
     setSelectedResultIndex((index) => {
@@ -2400,6 +2406,7 @@ export default function App() {
     }
     // A catalog row with an unavailable runtime remains visible for discovery,
     // but is not silently reinterpreted by the user's shell.
+    showLauncherFeedback("extensions.runtimeUnavailable");
   };
 
   /**
@@ -3017,6 +3024,7 @@ export default function App() {
                 <div className="launcher-results" role="listbox" aria-label={t("launcher.results")}>
                   {launcherResults.map((item, index) => {
                     const selected = !selectedActionBar && index === selectedResultIndex;
+                    const unavailable = item.type === "command" && !item.execution;
                     return (
                       <button
                         key={item.id}
@@ -3024,6 +3032,7 @@ export default function App() {
                         className={`launcher-result${selected ? " launcher-result--selected" : ""}`}
                         role="option"
                         aria-selected={selected}
+                        aria-disabled={unavailable}
                         onMouseMove={() => {
                           setSelectedActionBar(false);
                           setSelectedResultIndex(index);

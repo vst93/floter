@@ -87,10 +87,18 @@ test("action bar classification is conservative about URLs and paths", () => {
 });
 
 test("fresh selection favors structured results unless the query is clearly a command", () => {
-  assert.equal(shouldDefaultToActionBar("code", "shell", 1, false), false);
-  assert.equal(shouldDefaultToActionBar("git", "shell", 1, false), true);
-  assert.equal(shouldDefaultToActionBar("git status", "shell", 1, false), true);
-  assert.equal(shouldDefaultToActionBar("git status", "shell", 2, true), false);
-  assert.equal(shouldDefaultToActionBar("https://example.com", "url", 1, false), true);
-  assert.equal(shouldDefaultToActionBar("unknown", "shell", 0, false), true);
+  assert.equal(shouldDefaultToActionBar("code", "shell", 1, 1, false), false);
+  assert.equal(shouldDefaultToActionBar("git", "shell", 1, 1, false), true);
+  assert.equal(shouldDefaultToActionBar("git status", "shell", 1, 1, false), true);
+  assert.equal(shouldDefaultToActionBar("git status", "shell", 2, 2, true), false);
+  assert.equal(shouldDefaultToActionBar("https://example.com", "url", 1, 1, false), true);
+  assert.equal(shouldDefaultToActionBar("unknown", "shell", 0, 0, false), true);
+});
+
+test("unavailable catalog commands never capture the default Enter action", () => {
+  assert.equal(shouldDefaultToActionBar("tool", "shell", 1, 0, false), true);
+  // A runnable application can still win for an ordinary name.
+  assert.equal(shouldDefaultToActionBar("code", "shell", 2, 1, false), false);
+  // A known shell command stays a command even if an application also matched.
+  assert.equal(shouldDefaultToActionBar("git", "shell", 2, 1, false), true);
 });
