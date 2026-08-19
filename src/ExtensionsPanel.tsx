@@ -11,6 +11,7 @@ import {
   FileDown,
   FileUp,
   Link2,
+  LoaderCircle,
   MoreHorizontal,
   Package,
   Pin,
@@ -188,6 +189,7 @@ type ExtensionConfiguration = {
 
 type Tab = "installed" | "discover" | "updates";
 type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "reinstall" | "repair" | "policy" | "uninstall" | "save";
+type ExtensionOperation = { id: string; kind: MutationKind } | null;
 type SyncOperation = "export" | "import";
 type ConfigOperation = "copy" | "export" | null;
 type CustomContentOperation = "copy" | "export" | null;
@@ -467,7 +469,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [updateCheckFailureCount, setUpdateCheckFailureCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<{ id: string; kind: MutationKind } | null>(null);
+  const [busy, setBusy] = useState<ExtensionOperation>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -1421,7 +1423,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           disabled={loading || checkingUpdates}
           onClick={() => void refresh()}
         >
-          <RefreshCw size={16} strokeWidth={2} aria-hidden="true" />
+          <RefreshCw className={loading || checkingUpdates ? "extensions-spinner" : undefined} size={16} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
 
@@ -1480,52 +1482,60 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       {tab === "installed" && (
         <div className="extensions-installed" role="tabpanel">
           <div className="extensions-sync-toolbar">
-            <button
-              type="button"
-              className="extensions-action-button"
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              ref={customCreateButtonRef}
-              onClick={openCreateCustomIntegration}
-            >
-              <Plus size={14} strokeWidth={2} aria-hidden="true" />
-              {t("settings.extensions.createCustom")}
-            </button>
-            <button
-              type="button"
-              className="extensions-action-button"
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              title={t("settings.extensions.chooseManifestHint")}
-              onClick={() => void connectLocal()}
-            >
-              <Link2 size={14} strokeWidth={2} aria-hidden="true" />
-              {t("settings.extensions.chooseManifest")}
-            </button>
-            <button
-              type="button"
-              className="extensions-action-button"
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              onClick={() => void exportExtensions()}
-            >
-              <FileDown size={14} strokeWidth={2} aria-hidden="true" />
-              {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
-            </button>
-            <button
-              type="button"
-              className="extensions-action-button"
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              onClick={() => void importExtensions()}
-            >
-              <FileUp size={14} strokeWidth={2} aria-hidden="true" />
-              {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
-            </button>
+            <div className="extensions-sync-toolbar__group">
+              <button
+                type="button"
+                className="extensions-action-button extensions-action-button--primary"
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                ref={customCreateButtonRef}
+                onClick={openCreateCustomIntegration}
+              >
+                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+                {t("settings.extensions.createCustom")}
+              </button>
+              <button
+                type="button"
+                className="extensions-action-button"
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                title={t("settings.extensions.chooseManifestHint")}
+                onClick={() => void connectLocal()}
+              >
+                <Link2 size={14} strokeWidth={2} aria-hidden="true" />
+                {t("settings.extensions.chooseManifest")}
+              </button>
+            </div>
+            <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--transfer">
+              <button
+                type="button"
+                className="extensions-action-button"
+                aria-busy={syncOperation === "export"}
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                onClick={() => void exportExtensions()}
+              >
+                {syncOperation === "export" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileDown size={14} strokeWidth={2} aria-hidden="true" />}
+                {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
+              </button>
+              <button
+                type="button"
+                className="extensions-action-button"
+                aria-busy={syncOperation === "import"}
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                onClick={() => void importExtensions()}
+              >
+                {syncOperation === "import" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileUp size={14} strokeWidth={2} aria-hidden="true" />}
+                {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
+              </button>
+            </div>
           </div>
-          <div className="extensions-package-hint" role="note">
-            <FileDown size={13} strokeWidth={2} aria-hidden="true" />
-            <span>{t("settings.extensions.fileTransferHint")}</span>
-          </div>
-          <div className="extensions-package-hint" role="note">
-            <Link2 size={13} strokeWidth={2} aria-hidden="true" />
-            <span>{t("settings.extensions.chooseManifestHint")}</span>
+          <div className="extensions-package-hints">
+            <div className="extensions-package-hint" role="note">
+              <FileDown size={13} strokeWidth={2} aria-hidden="true" />
+              <span>{t("settings.extensions.fileTransferHint")}</span>
+            </div>
+            <div className="extensions-package-hint" role="note">
+              <Link2 size={13} strokeWidth={2} aria-hidden="true" />
+              <span>{t("settings.extensions.chooseManifestHint")}</span>
+            </div>
           </div>
           {exportResult && (
             <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
@@ -1560,7 +1570,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 key={extension.id}
                 extension={extension}
                 update={updateById[extension.id]}
-                busy={Boolean(busy)}
+                operation={busy}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
                 onConnect={() => void connectBundled(extension)}
@@ -1590,7 +1600,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               placeholder={t("settings.extensions.searchPlaceholder")}
               aria-label={t("settings.extensions.searchPlaceholder")}
             />
-            <button type="submit" disabled={!query.trim() || searching}>
+            <button type="submit" aria-busy={searching} disabled={!query.trim() || searching}>
+              {searching && <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />}
               {searching ? t("settings.extensions.searching") : t("settings.extensions.search")}
             </button>
           </form>
@@ -1606,6 +1617,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               const deprecation = review?.deprecation ?? result.deprecation;
               return (
                 <div className="extension-search-row" key={result.package}>
+                  <div className="extension-search-row__icon"><Package size={18} strokeWidth={1.8} aria-hidden="true" /></div>
                   <div className="extension-search-row__main">
                     <div className="extension-search-row__title">
                       <strong>{result.package}</strong>
@@ -1622,10 +1634,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                       )}
                     </div>
                     <p>{result.description || t("settings.extensions.noDescription")}</p>
-                    <span className="extension-search-row__downloads">
-                      <Download size={12} strokeWidth={2} aria-hidden="true" />
-                      {t("settings.extensions.downloads", { count: formatDownloads(result.downloads) })}
-                    </span>
+                    <div className="extension-search-row__meta">
+                      {result.publisher && <span>{result.publisher}</span>}
+                      <span className="extension-search-row__downloads">
+                        <Download size={12} strokeWidth={2} aria-hidden="true" />
+                        {t("settings.extensions.downloads", { count: formatDownloads(result.downloads) })}
+                      </span>
+                    </div>
                   </div>
                   <div className="extension-search-row__actions">
                     {review?.permissions.length ? (
@@ -1637,17 +1652,18 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                     <button
                       type="button"
                       className="extensions-action-button extensions-action-button--primary"
+                      aria-busy={reviewingPackage === result.package || busy?.id === result.package}
                       disabled={installed || Boolean(busy) || Boolean(reviewingPackage)}
                       onMouseEnter={() => void prefetchPermissions(result)}
                       onFocus={() => void prefetchPermissions(result)}
                       onClick={() => void installExtension(result)}
                     >
                       {installed
-                        ? t("settings.extensions.installed")
+                        ? <><Check size={13} strokeWidth={2} aria-hidden="true" />{t("settings.extensions.installed")}</>
                         : reviewingPackage === result.package
-                          ? t("settings.extensions.reviewingPermissions")
+                          ? <><LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />{t("settings.extensions.reviewingPermissions")}</>
                           : busy?.id === result.package
-                            ? t("settings.extensions.installing")
+                            ? <><LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />{t("settings.extensions.installing")}</>
                             : t("settings.extensions.install")}
                     </button>
                   </div>
@@ -1670,10 +1686,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             <button
               type="button"
               className="extensions-action-button extensions-action-button--primary"
+              aria-busy={busy?.id === "*"}
               disabled={!patchUpdates.length || Boolean(busy)}
               onClick={() => void updateAll()}
             >
-              <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+              <RefreshCw className={busy?.id === "*" ? "extensions-spinner" : undefined} size={14} strokeWidth={2} aria-hidden="true" />
               {busy?.id === "*" ? t("settings.extensions.updating") : t("settings.extensions.updateAll")}
             </button>
           </div>
@@ -1689,9 +1706,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <button
                   type="button"
                   className="extensions-action-button extensions-action-button--primary"
+                  aria-busy={busy?.id === extension.id}
                   disabled={Boolean(busy)}
                   onClick={() => void updateExtension(extension)}
                 >
+                  {busy?.id === extension.id && <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />}
                   {busy?.id === extension.id ? t("settings.extensions.updating") : t("settings.extensions.update")}
                 </button>
               </div>
@@ -1719,32 +1738,58 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
                 <p id="extension-permission-hint">{t("settings.extensions.permissionHint")}</p>
               </div>
             </header>
-            <div className="extension-permission-list">
-              <div className="extension-install-trust">
-                <strong>{t(pendingInstall.review.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</strong>
-                <span>{t(pendingInstall.review.officialVerified
-                  ? "settings.extensions.trustOfficialDescription"
-                  : pendingInstall.review.publisherSigned
-                    ? "settings.extensions.trustSelfSignedDescription"
-                    : "settings.extensions.trustUnverifiedDescription")}</span>
+            <div className="extension-permission-dialog__body">
+              <div className={`extension-install-trust${pendingInstall.review.officialVerified ? " extension-install-trust--official" : ""}`}>
+                {pendingInstall.review.officialVerified ? <ShieldCheck size={17} strokeWidth={2} aria-hidden="true" /> : <Package size={17} strokeWidth={2} aria-hidden="true" />}
+                <div>
+                  <strong>{t(pendingInstall.review.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</strong>
+                  <span>{t(pendingInstall.review.officialVerified
+                    ? "settings.extensions.trustOfficialDescription"
+                    : pendingInstall.review.publisherSigned
+                      ? "settings.extensions.trustSelfSignedDescription"
+                      : "settings.extensions.trustUnverifiedDescription")}</span>
+                </div>
               </div>
               {pendingInstall.review.deprecation !== null && (
-                <div className="extension-install-deprecation" role="note">
-                  <strong>{t("settings.extensions.deprecatedTitle")}</strong>
-                  <span>{deprecationDescription(pendingInstall.review.deprecation)}</span>
+                <div className="extension-install-deprecation" role="alert">
+                  <AlertTriangle size={17} strokeWidth={2} aria-hidden="true" />
+                  <div>
+                    <strong>{t("settings.extensions.deprecatedTitle")}</strong>
+                    <span>{deprecationDescription(pendingInstall.review.deprecation)}</span>
+                  </div>
                 </div>
               )}
-              {pendingInstall.review.permissions.map((permission) => (
-                <div key={permission.permission}>
-                  <strong>{permission.title}</strong>
-                  <span>{permission.description}</span>
-                </div>
-              ))}
-              <p id="extension-permission-boundary" className="extension-permission-dialog__boundary">{t("settings.extensions.permissionReviewBoundary")}</p>
+              {pendingInstall.review.permissions.length > 0 && (
+                <section className="extension-permission-section" aria-label={t("settings.extensions.permissionCount", { count: pendingInstall.review.permissions.length })}>
+                  <h4>{t("settings.extensions.permissionCount", { count: pendingInstall.review.permissions.length })}</h4>
+                  <div className="extension-permission-list">
+                    {pendingInstall.review.permissions.map((permission) => (
+                      <div key={permission.permission}>
+                        <Check size={14} strokeWidth={2} aria-hidden="true" />
+                        <div><strong>{permission.title}</strong><span>{permission.description}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <p id="extension-permission-boundary" className="extension-permission-dialog__boundary">
+                <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+                <span>{t("settings.extensions.permissionReviewBoundary")}</span>
+              </p>
             </div>
             <footer>
               <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
-              <button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmPendingInstall()}>{busy ? t("settings.extensions.installing") : t(pendingInstall.review.deprecation !== null ? "settings.extensions.installDeprecated" : "settings.extensions.approveInstall")}</button>
+              <button
+                type="button"
+                className={`extensions-action-button extensions-action-button--primary${pendingInstall.review.deprecation !== null ? " extensions-action-button--warning" : ""}`}
+                data-dialog-initial
+                aria-busy={Boolean(busy)}
+                disabled={Boolean(busy)}
+                onClick={() => void confirmPendingInstall()}
+              >
+                {busy && <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />}
+                {busy ? t("settings.extensions.installing") : t(pendingInstall.review.deprecation !== null ? "settings.extensions.installDeprecated" : "settings.extensions.approveInstall")}
+              </button>
             </footer>
           </section>
         </div>
@@ -2142,7 +2187,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
 type ExtensionRowProps = {
   extension: Extension;
   update?: UpdateCandidate;
-  busy: boolean;
+  operation: ExtensionOperation;
   t: Translate;
   onOpen: () => void;
   onConnect: () => void;
@@ -2156,10 +2201,16 @@ type ExtensionRowProps = {
   onUninstall: () => void;
 };
 
-function ExtensionRow({ extension, update, busy, t, onOpen, onConnect, onRepair, onReconnect, onToggle, onUpdate, onRollback, onReinstall, onEdit, onUninstall }: ExtensionRowProps) {
+function ExtensionRow({ extension, update, operation, t, onOpen, onConnect, onRepair, onReconnect, onToggle, onUpdate, onRollback, onReinstall, onEdit, onUninstall }: ExtensionRowProps) {
   const updateAvailable = Boolean(update);
-  return (
-    <div className={`extension-row${extension.connected ? "" : " extension-row--detected"}`} onClick={extension.connected ? onOpen : undefined}>
+  const busy = Boolean(operation);
+  const rowBusy = operation?.id === extension.id;
+  const rowToggleBusy = rowBusy && (operation?.kind === "enable" || operation?.kind === "disable");
+  const rowInstallBusy = rowBusy && operation?.kind === "install";
+  const rowRepairBusy = rowBusy && (operation?.kind === "repair" || operation?.kind === "reinstall");
+  const rowUpdateBusy = rowBusy && operation?.kind === "update";
+  const rowOpen = (
+    <>
       <div className="extension-row__icon"><Package size={17} strokeWidth={2} aria-hidden="true" /></div>
       <div className="extension-row__main">
         <div className="extension-row__title"><strong>{extension.name}</strong><span>v{extension.currentVersion}</span></div>
@@ -2171,20 +2222,27 @@ function ExtensionRow({ extension, update, busy, t, onOpen, onConnect, onRepair,
           {updateAvailable && <span className="extension-status extension-status--update">{t("settings.extensions.status.updateAvailable")}</span>}
         </div>
       </div>
+      {extension.connected && <ChevronRight className="extension-row__chevron" size={15} strokeWidth={2} aria-hidden="true" />}
+    </>
+  );
+  return (
+    <div className={`extension-row${extension.connected ? "" : " extension-row--detected"}`}>
+      {extension.connected ? <button type="button" className="extension-row__open" onClick={onOpen}>{rowOpen}</button> : <div className="extension-row__open">{rowOpen}</div>}
       <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
         {!extension.connected ? (
-          <button type="button" className="extensions-action-button extensions-action-button--primary" disabled={busy || (!extension.runtimeAvailable && !extension.homepage)} onClick={extension.runtimeAvailable ? onConnect : onRepair}>
-            {extension.runtimeAvailable ? <Link2 size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
+          <button type="button" className="extensions-action-button extensions-action-button--primary" aria-busy={rowInstallBusy} disabled={busy || (!extension.runtimeAvailable && !extension.homepage)} onClick={extension.runtimeAvailable ? onConnect : onRepair}>
+            {rowInstallBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.runtimeAvailable ? <Link2 size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
             {extension.runtimeAvailable ? t("settings.extensions.connect") : t("settings.extensions.installTool")}
           </button>
-        ) : extension.distributionSource === "npm" && (
-          <button type="button" className={`extensions-action-button${updateAvailable ? " extensions-action-button--primary" : ""}`} disabled={!updateAvailable || busy} onClick={onUpdate}>
-            {t("settings.extensions.update")}
+        ) : extension.distributionSource === "npm" && updateAvailable && (
+          <button type="button" className="extensions-action-button extensions-action-button--primary" aria-busy={rowUpdateBusy} disabled={busy} onClick={onUpdate}>
+            {rowUpdateBusy && <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />}
+            {rowUpdateBusy ? t("settings.extensions.updating") : t("settings.extensions.update")}
           </button>
         )}
         {extension.connected && !extension.runtimeAvailable && (extension.reconnectAvailable || extension.distributionSource === "npm" || extension.homepage) && (
-          <button type="button" className="extensions-action-button" disabled={busy} onClick={extension.reconnectAvailable ? onReconnect : onRepair}>
-            {extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : extension.distributionSource === "npm" ? <Wrench size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
+          <button type="button" className="extensions-action-button" aria-busy={rowRepairBusy} disabled={busy} onClick={extension.reconnectAvailable ? onReconnect : onRepair}>
+            {rowRepairBusy ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : extension.reconnectAvailable ? <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> : extension.distributionSource === "npm" ? <Wrench size={14} strokeWidth={2} aria-hidden="true" /> : <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />}
             {t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
           </button>
         )}
@@ -2193,12 +2251,13 @@ function ExtensionRow({ extension, update, busy, t, onOpen, onConnect, onRepair,
           role="switch"
           aria-checked={extension.enabled}
           aria-label={extension.enabled ? t("settings.extensions.disable") : t("settings.extensions.enable")}
-          className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}`}
+          aria-busy={rowToggleBusy}
+          className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}${rowToggleBusy ? " settings-switch--loading" : ""}`}
           disabled={busy || extension.state === "broken"}
           onClick={onToggle}
-        ><span className="settings-switch__thumb" /></button>}
+        >{rowToggleBusy ? <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" /> : <span className="settings-switch__thumb" />}</button>}
         {extension.connected && <details className="extension-menu">
-          <summary className="extensions-icon-button" aria-label={t("settings.extensions.moreActions")} title={t("settings.extensions.moreActions")}>
+          <summary className={`extensions-icon-button${busy ? " extensions-icon-button--disabled" : ""}`} aria-label={t("settings.extensions.moreActions")} aria-disabled={busy} title={t("settings.extensions.moreActions")} onClick={(event) => { if (busy) event.preventDefault(); }}>
             <MoreHorizontal size={17} strokeWidth={2} aria-hidden="true" />
           </summary>
           <div className="extension-menu__items">
