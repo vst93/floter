@@ -69,6 +69,7 @@ if (IS_WINDOWS) {
 
 type ViewMode = "collapsed" | "terminal" | "settings";
 type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
+type CursorShape = "beam" | "block" | "underline";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
 
 type BrokerSessionInfo = {
@@ -175,7 +176,7 @@ type AppSettings = {
   theme: string;
   font_size: number;
   font_family: string;
-  cursor_shape: string;
+  cursor_shape: CursorShape;
   language: Language;
   main_opacity: number;
   terminal_opacity: number;
@@ -201,6 +202,21 @@ const MIN_OPACITY = 10;
 const MAX_OPACITY = 100;
 const OPACITY_PRESETS = [25, 50, 75, 100];
 const OPACITY_SNAP_DISTANCE = 2;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 48;
+const FONT_FAMILY_OPTIONS = [
+  { value: "monospace", label: "System Mono" },
+  { value: "JetBrains Mono", label: "JetBrains Mono" },
+  { value: "SF Mono", label: "SF Mono" },
+  { value: "Cascadia Mono", label: "Cascadia Mono" },
+  { value: "Menlo", label: "Menlo" },
+  { value: "Consolas", label: "Consolas" },
+] as const;
+const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
+  { value: "beam", labelKey: "settings.cursor.beam" },
+  { value: "block", labelKey: "settings.cursor.block" },
+  { value: "underline", labelKey: "settings.cursor.underline" },
+];
 
 const normalizeOpacity = (value: number): number => {
   const safeValue = Number.isFinite(value) ? value : MAX_OPACITY;
@@ -217,9 +233,8 @@ const formatBytes = (bytes: number): string => {
   return `${index === 0 ? Math.round(value) : value.toFixed(1)} ${units[index]}`;
 };
 
-const FONT_FAMILY =
+const FALLBACK_FONT_FAMILY =
   "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
-const FONT_SIZE = 13;
 const LINE_HEIGHT = 1.4;
 const PADDING_X = 3;
 const PADDING_Y = 3;
@@ -242,6 +257,16 @@ const TERMINAL_FOCUS_RETRY = 180;
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
 const CATALOG_SEARCH_DELAY = 140;
+
+const normalizeFontSize = (value: number): number =>
+  Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
+
+const terminalFontFamily = (value: string): string => {
+  const family = value.trim();
+  if (!family || family === "monospace") return FALLBACK_FONT_FAMILY;
+  const escaped = family.replace(/[\\']/g, "\\$&");
+  return `'${escaped}',${FALLBACK_FONT_FAMILY}`;
+};
 
 type ModifierEvent = {
   shiftKey: boolean;
@@ -554,7 +579,7 @@ export default function App() {
   const wheelRemainder = useRef(0);
   const terminalSizeSaveTimer = useRef<number | null>(null);
   const pendingTerminalSize = useRef<{ width: number; height: number } | null>(null);
-  const opacitySaveTimer = useRef<number | null>(null);
+  const settingsSaveTimer = useRef<number | null>(null);
   const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
@@ -1300,8 +1325,8 @@ export default function App() {
     if (!canvasRef.current || !mountRef.current || termOpened.current) return;
 
     const renderer = new TerminalCanvas(canvasRef.current, {
-      fontFamily: FONT_FAMILY,
-      fontSize: FONT_SIZE,
+      fontFamily: terminalFontFamily(settings.font_family),
+      fontSize: normalizeFontSize(settings.font_size),
       lineHeight: LINE_HEIGHT,
       paddingX: PADDING_X,
       paddingY: PADDING_Y,
@@ -1359,7 +1384,7 @@ export default function App() {
       termOpened.current = false;
       rendererRef.current = null;
     };
-  }, [terminalMounted]);
+  }, [settings.font_family, settings.font_size, terminalMounted]);
 
   // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
   // grid current; this listener persists the logical window dimensions after a
@@ -2097,8 +2122,8 @@ export default function App() {
   };
 
   useEffect(() => () => {
-    if (opacitySaveTimer.current !== null) {
-      window.clearTimeout(opacitySaveTimer.current);
+    if (settingsSaveTimer.current !== null) {
+      window.clearTimeout(settingsSaveTimer.current);
     }
     if (launcherFeedbackTimer.current !== null) {
       window.clearTimeout(launcherFeedbackTimer.current);
@@ -2110,32 +2135,51 @@ export default function App() {
 
   const changeOpacity = (field: "main_opacity" | "terminal_opacity", next: number) => {
     const value = normalizeOpacity(next);
-    if (value === settings[field]) return;
-    const updated: AppSettings = { ...settings, [field]: value };
+    if (value === settingsRef.current[field]) return;
+    const updated: AppSettings = { ...settingsRef.current, [field]: value };
+    settingsRef.current = updated;
     setSettings(updated);
-    if (opacitySaveTimer.current !== null) {
-      window.clearTimeout(opacitySaveTimer.current);
+    if (settingsSaveTimer.current !== null) {
+      window.clearTimeout(settingsSaveTimer.current);
     }
-    opacitySaveTimer.current = window.setTimeout(() => {
-      opacitySaveTimer.current = null;
+    settingsSaveTimer.current = window.setTimeout(() => {
+      settingsSaveTimer.current = null;
       invoke("save_settings", { settings: settingsRef.current }).catch(() => undefined);
     }, 180);
   };
 
-  const changeTheme = (theme: string) => {
-    if (theme === settings.theme) return;
-    const updated: AppSettings = { ...settings, theme };
+  const changeFontSize = (next: number) => {
+    const fontSize = normalizeFontSize(next);
+    if (fontSize === settingsRef.current.font_size) return;
+    const updated = { ...settingsRef.current, font_size: fontSize };
+    settingsRef.current = updated;
+    setSettings(updated);
+    if (settingsSaveTimer.current !== null) {
+      window.clearTimeout(settingsSaveTimer.current);
+    }
+    settingsSaveTimer.current = window.setTimeout(() => {
+      settingsSaveTimer.current = null;
+      invoke("save_settings", { settings: settingsRef.current }).catch(() => undefined);
+    }, 180);
+  };
+
+  const changeGeneralSetting = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
+    if (settingsRef.current[field] === value) return;
+    const updated = { ...settingsRef.current, [field]: value };
+    settingsRef.current = updated;
     setSettings(updated);
     suppressBlurUntil.current = Date.now() + 400;
     invoke("save_settings", { settings: updated }).catch(() => undefined);
   };
 
+  const changeTheme = (theme: string) => {
+    if (theme === settings.theme) return;
+    changeGeneralSetting("theme", theme);
+  };
+
   const changeLanguage = (next: Language) => {
     if (next === language) return;
-    const updated: AppSettings = { ...settings, language: next };
-    setSettings(updated);
-    suppressBlurUntil.current = Date.now() + 400;
-    invoke("save_settings", { settings: updated }).catch(() => undefined);
+    changeGeneralSetting("language", next);
   };
 
   const changeLaunchAtStartup = async (enabled: boolean) => {
@@ -2709,6 +2753,93 @@ export default function App() {
                   <span className="settings-switch__thumb" />
                 </button>
               </div>
+              <div className="settings-option settings-option--static">
+                <span className="settings-option__main">
+                  <span className="settings-option__label">
+                    {t("settings.hideOnBlur")}
+                  </span>
+                  <span className="settings-option__description">
+                    {t("settings.hideOnBlurHint")}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={`settings-switch${settings.hide_on_blur ? " settings-switch--active" : ""}`}
+                  role="switch"
+                  aria-checked={settings.hide_on_blur}
+                  aria-label={t("settings.hideOnBlur")}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => changeGeneralSetting("hide_on_blur", !settings.hide_on_blur)}
+                >
+                  <span className="settings-switch__thumb" />
+                </button>
+              </div>
+            </section>
+
+            <section className="settings-section terminal-appearance-settings">
+              <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
+              <div className="terminal-appearance-settings__grid">
+                <label className="terminal-setting-control">
+                  <span className="terminal-setting-control__header">
+                    <span>{t("settings.fontSize")}</span>
+                    <output>{normalizeFontSize(settings.font_size)} px</output>
+                  </span>
+                  <input
+                    type="range"
+                    min={MIN_FONT_SIZE}
+                    max={MAX_FONT_SIZE}
+                    step="1"
+                    value={normalizeFontSize(settings.font_size)}
+                    aria-label={t("settings.fontSize")}
+                    onChange={(event) => changeFontSize(Number(event.currentTarget.value))}
+                  />
+                </label>
+                <label className="terminal-setting-control">
+                  <span className="terminal-setting-control__header">
+                    <span>{t("settings.fontFamily")}</span>
+                  </span>
+                  <select
+                    value={settings.font_family}
+                    aria-label={t("settings.fontFamily")}
+                    onChange={(event) => changeGeneralSetting("font_family", event.currentTarget.value)}
+                  >
+                    {!FONT_FAMILY_OPTIONS.some((option) => option.value === settings.font_family) && (
+                      <option value={settings.font_family}>{settings.font_family}</option>
+                    )}
+                    {FONT_FAMILY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="terminal-setting-control terminal-setting-control--cursor">
+                <span className="terminal-setting-control__header">
+                  <span>{t("settings.cursorShape")}</span>
+                </span>
+                <div
+                  className="settings-options settings-options--inline"
+                  role="radiogroup"
+                  aria-label={t("settings.cursorShape")}
+                >
+                  {CURSOR_SHAPE_OPTIONS.map((option) => {
+                    const active = option.value === settings.cursor_shape;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`settings-option${active ? " settings-option--active" : ""}`}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => changeGeneralSetting("cursor_shape", option.value)}
+                      >
+                        <span className="settings-option__label">{t(option.labelKey)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="settings-section__hint">{t("settings.terminalAppearanceHint")}</p>
             </section>
 
             <section className="settings-section settings-section--material">
