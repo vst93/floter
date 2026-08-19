@@ -1508,11 +1508,10 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [mode]);
 
-  // The launcher's keyboard belongs to its input, and nothing else in the card
-  // has any use for it: the result rows and the settings button all decline
-  // focus on mousedown, so anything that takes it away — a click landing on the
-  // card itself, an element unmounting under the caret, a reveal that raced the
-  // field into existence — is an accident. Focus is simply taken back.
+  // Search results keep the keyboard on the combobox, while Tab may move into
+  // the session and settings controls. Focus is only reclaimed when it leaves
+  // the card entirely, which covers a click on the window chrome or an element
+  // unmounting under the caret without trapping keyboard users in the input.
   //
   // Deferred by a tick because at `focusout` time the incoming element has not
   // been focused yet, and the check has to see where the keyboard ended up.
@@ -1520,7 +1519,11 @@ export default function App() {
     if (mode !== "collapsed") return;
     const onFocusOut = () => {
       window.setTimeout(() => {
-        if (document.activeElement === inputRef.current) return;
+        const activeElement = document.activeElement;
+        if (
+          activeElement === inputRef.current ||
+          (activeElement && collapsedCardRef.current?.contains(activeElement))
+        ) return;
         focusCollapsedInput();
       }, 0);
     };
@@ -1953,18 +1956,25 @@ export default function App() {
       const inputFocused = document.activeElement === inputRef.current;
       const resultNumber = inputFocused ? null : matchesResultShortcut(event, shortcuts.select_result);
       if (resultNumber !== null) {
-        if (launcherResults[resultNumber - 1]) {
+        const resultIndex = resultShortcutSlots.indexOf(resultNumber);
+        if (resultIndex >= 0) {
           event.preventDefault();
-          runLauncherItem(launcherResults[resultNumber - 1]);
+          runLauncherItem(launcherResults[resultIndex]);
         }
         return;
       }
       if (inputFocused) return;
 
+      // Tab deliberately moves from the query into the session and settings
+      // controls. Once focus is inside the card, leave ordinary button
+      // keyboard handling to the browser instead of treating it as accidental.
+      const activeElement = document.activeElement;
+      if (activeElement && collapsedCardRef.current?.contains(activeElement)) return;
+
       // Below here the input does not have the keyboard, which in this mode is
-      // never what the user meant: the launcher is one text field and a list
-      // that is driven from it. Whatever the key was, it takes the field back —
-      // and then does what it would have done had the field never lost it.
+      // only intentional while focus is on one of the card's own controls.
+      // Anything outside the card takes the field back and then does what it
+      // would have done had the field never lost it.
       focusCollapsedInput();
 
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -2526,14 +2536,30 @@ export default function App() {
       return;
     }
 
-    if (event.key === "Tab" && !selectedActionBar) {
+    if (event.key === "Tab" && !event.shiftKey && !selectedActionBar) {
       const selected = launcherResults[selectedResultIndex];
-      if (selected?.type === "command" && selected.execution) {
+      if (
+        selected?.type === "command" &&
+        selected.execution &&
+        selected.commandLine !== query
+      ) {
         event.preventDefault();
         setQuery(selected.commandLine);
         setHistoryIndex(-1);
         return;
       }
+    }
+
+    if (event.key === "Tab" && event.shiftKey) {
+      const controls = collapsedCardRef.current?.querySelectorAll<HTMLButtonElement>(
+        ".collapsed-card__input-row button:not(:disabled)",
+      );
+      const lastControl = controls?.[controls.length - 1];
+      if (lastControl) {
+        event.preventDefault();
+        lastControl.focus();
+      }
+      return;
     }
 
     // The results and the action bar are navigated as one loop that wraps at
@@ -2568,18 +2594,6 @@ export default function App() {
         return;
       }
 
-      // Tab is the direct way across, for when the list is long enough that
-      // arrowing to the bottom of it is work.
-      if (event.key === "Tab") {
-        event.preventDefault();
-        if (!selectedActionBar) {
-          setSelectedActionBar(Boolean(actionBar));
-        } else if (firstRunnableResultIndex >= 0) {
-          setSelectedActionBar(false);
-          setSelectedResultIndex(firstRunnableResultIndex);
-        }
-        return;
-      }
     }
 
     if (event.key === "ArrowUp") {
@@ -3073,6 +3087,18 @@ export default function App() {
             <input
               ref={inputRef}
               className="collapsed-card__input"
+              role="combobox"
+              aria-label={t("input.placeholder")}
+              aria-autocomplete="list"
+              aria-expanded={launcherResults.length > 0 || Boolean(actionBar)}
+              aria-controls={launcherResults.length > 0 || actionBar ? "launcher-options" : undefined}
+              aria-activedescendant={
+                selectedActionBar && actionBar
+                  ? "launcher-option-action"
+                  : launcherResults[selectedResultIndex]
+                    ? `launcher-option-${selectedResultIndex}`
+                    : undefined
+              }
               value={query}
               onChange={(event) => {
                 setLauncherFeedback(null);
@@ -3154,89 +3180,99 @@ export default function App() {
                   <span>{t(launcherFeedback)}</span>
                 </div>
               )}
-              {launcherResults.length > 0 && (
-                <div className="launcher-results" role="listbox" aria-label={t("launcher.results")}>
-                  {launcherResults.map((item, index) => {
-                    const selected = !selectedActionBar && index === selectedResultIndex;
-                    const unavailable = item.type === "command" && !item.execution;
-                    const shortcutSlot = resultShortcutSlots[index];
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`launcher-result${selected ? " launcher-result--selected" : ""}${
-                          unavailable ? " launcher-result--unavailable" : ""
-                        }`}
-                        role="option"
-                        aria-selected={selected}
-                        aria-disabled={unavailable}
-                        onMouseMove={() => {
-                          if (unavailable) return;
-                          setSelectedActionBar(false);
-                          setSelectedResultIndex(index);
-                        }}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => runLauncherItem(item)}
-                      >
-                        <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
-                          {item.type === "app" && appIconUrls[item.app.path] ? (
-                            <img src={appIconUrls[item.app.path]} alt="" />
-                          ) : item.type === "system" ? (
-                            <SystemActionIcon action={item.action} />
-                          ) : (
-                            // The placeholder for an application whose icon has
-                            // not resolved yet: a first letter over a real icon
-                            // reads as a different application rather than as a
-                            // pending one.
-                            <span>$</span>
-                          )}
-                        </span>
-                        <span className="launcher-result__main">
-                          <span className="launcher-result__title">{item.title}</span>
-                          <span className="launcher-result__subtitle">
-                            {item.subtitle}
-                            <span className="launcher-result__source">
-                              {t("extensions.source", {
-                                source: item.type === "command"
-                                  ? item.sourceName
-                                  : item.type === "app"
-                                    ? t(appSubtitleKey(item.app.path))
-                                    : t("extensions.builtIn"),
-                              })}
+              {(launcherResults.length > 0 || actionBar) && (
+                <div id="launcher-options" className="launcher-options" role="listbox" aria-label={t("launcher.results")}>
+                  {launcherResults.length > 0 && (
+                    <div className="launcher-results" role="presentation">
+                      {launcherResults.map((item, index) => {
+                        const selected = !selectedActionBar && index === selectedResultIndex;
+                        const unavailable = item.type === "command" && !item.execution;
+                        const shortcutSlot = resultShortcutSlots[index];
+                        return (
+                          <button
+                            id={`launcher-option-${index}`}
+                            key={item.id}
+                            type="button"
+                            className={`launcher-result${selected ? " launcher-result--selected" : ""}${
+                              unavailable ? " launcher-result--unavailable" : ""
+                            }`}
+                            role="option"
+                            aria-selected={selected}
+                            aria-disabled={unavailable}
+                            tabIndex={-1}
+                            onMouseMove={() => {
+                              if (unavailable) return;
+                              setSelectedActionBar(false);
+                              setSelectedResultIndex(index);
+                            }}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => runLauncherItem(item)}
+                          >
+                            <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
+                              {item.type === "app" && appIconUrls[item.app.path] ? (
+                                <img src={appIconUrls[item.app.path]} alt="" />
+                              ) : item.type === "system" ? (
+                                <SystemActionIcon action={item.action} />
+                              ) : (
+                                // The placeholder for an application whose icon has
+                                // not resolved yet: a first letter over a real icon
+                                // reads as a different application rather than as a
+                                // pending one.
+                                <span>$</span>
+                              )}
                             </span>
-                          </span>
-                        </span>
-                        <span className="launcher-result__action">
-                          {shortcutSlot === null
-                            ? ""
-                            : formatResultShortcut(shortcuts.select_result, shortcutSlot)}
-                        </span>
-                      </button>
-                    );
-                  })}
+                            <span className="launcher-result__main">
+                              <span className="launcher-result__title">{item.title}</span>
+                              <span className="launcher-result__subtitle">
+                                {item.subtitle}
+                                <span className="launcher-result__source">
+                                  {t("extensions.source", {
+                                    source: item.type === "command"
+                                      ? item.sourceName
+                                      : item.type === "app"
+                                        ? t(appSubtitleKey(item.app.path))
+                                        : t("extensions.builtIn"),
+                                  })}
+                                </span>
+                              </span>
+                            </span>
+                            <span className="launcher-result__action">
+                              {shortcutSlot === null
+                                ? ""
+                                : formatResultShortcut(shortcuts.select_result, shortcutSlot)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {actionBar && (
+                    <button
+                      id="launcher-option-action"
+                      type="button"
+                      className={`launcher-action-bar launcher-action-bar--${actionBar.type}${
+                        selectedActionBar ? " launcher-action-bar--selected" : ""
+                      }`}
+                      role="option"
+                      aria-selected={selectedActionBar}
+                      tabIndex={-1}
+                      onMouseMove={() => setSelectedActionBar(true)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => executeActionBar(actionBar)}
+                    >
+                      <span className="launcher-action-bar__icon">
+                        <ActionBarIcon kind={actionBar.type} />
+                      </span>
+                      <span className="launcher-action-bar__main">
+                        <span className="launcher-action-bar__title">{actionBar.value}</span>
+                        <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
+                      </span>
+                      <span className="launcher-action-bar__hint">
+                        {actionBarShortcut}
+                      </span>
+                    </button>
+                  )}
                 </div>
-              )}
-              {actionBar && (
-                <button
-                  type="button"
-                  className={`launcher-action-bar launcher-action-bar--${actionBar.type}${
-                    selectedActionBar ? " launcher-action-bar--selected" : ""
-                  }`}
-                  onMouseMove={() => setSelectedActionBar(true)}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => executeActionBar(actionBar)}
-                >
-                  <span className="launcher-action-bar__icon">
-                    <ActionBarIcon kind={actionBar.type} />
-                  </span>
-                  <span className="launcher-action-bar__main">
-                    <span className="launcher-action-bar__title">{actionBar.value}</span>
-                    <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
-                  </span>
-                  <span className="launcher-action-bar__hint">
-                    {actionBarShortcut}
-                  </span>
-                </button>
               )}
             </div>
           )}

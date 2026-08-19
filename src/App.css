@@ -425,6 +425,11 @@ input:focus {
   gap: 1px;
 }
 
+.launcher-options {
+  display: grid;
+  gap: 0;
+}
+
 .launcher-result {
   width: 100%;
   height: 42px;
