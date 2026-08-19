@@ -33,6 +33,7 @@ import {
   type Translate,
 } from "./i18n";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
+import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
   classifyActionBar,
   completedCommandLine,
@@ -265,6 +266,7 @@ const TERMINAL_FOCUS_RETRY = 180;
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
 const CATALOG_SEARCH_DELAY = 140;
+const COMMAND_LINE_SYNTAX = IS_WINDOWS ? "windows" : "posix";
 
 const normalizeFontSize = (value: number): number =>
   Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
@@ -637,6 +639,11 @@ export default function App() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState(false);
   const [sessionActionId, setSessionActionId] = useState<string | null>(null);
+  // Session refreshes can overlap when the user switches pages or retries
+  // quickly. Only the newest response is allowed to update the list and its
+  // loading/error state; an older response may otherwise resurrect a session
+  // that a later refresh has already removed.
+  const sessionsRequestGeneration = useRef(0);
   const catalogRequestGeneration = useRef(0);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
@@ -863,8 +870,8 @@ export default function App() {
 
     setCatalogSuggestions([]);
     const timer = window.setTimeout(() => {
-      const searchTokens = parseCommandLine(query).tokens;
-      const completionLine = parseCommandLine(query, true);
+      const searchTokens = parseCommandLine(query, false, COMMAND_LINE_SYNTAX).tokens;
+      const completionLine = parseCommandLine(query, true, COMMAND_LINE_SYNTAX);
       const command = completionLine.tokens[0] ?? "";
       const wantsCompletion = completionLine.tokens.length > 1;
       const search = invoke<CatalogEntry[]>("catalog_search", {
@@ -900,7 +907,12 @@ export default function App() {
               kind: "completion",
               entry: exact,
               completion: item,
-              commandLine: completedCommandLine(query, completionLine.fragmentStart, item),
+              commandLine: completedCommandLine(
+                query,
+                completionLine.fragmentStart,
+                item,
+                COMMAND_LINE_SYNTAX,
+              ),
               execution: executionWithCompletion(exact, completionLine.tokens, item),
               dynamic: completion.dynamic,
             })));
@@ -1025,7 +1037,9 @@ export default function App() {
           title: entry.command,
           subtitle: `${entry.description}${conflict}${unavailable}`,
           sourceName: entry.sourceName,
-          commandLine: parseCommandLine(query).tokens.length > 1 ? query : `${entry.command} `,
+          commandLine: parseCommandLine(query, false, COMMAND_LINE_SYNTAX).tokens.length > 1
+            ? query
+            : `${entry.command} `,
           execution: entry.execution,
           completion: false,
         };
@@ -1101,18 +1115,25 @@ export default function App() {
   };
 
   const refreshTerminalSessions = () => {
+    const generation = beginRequest(sessionsRequestGeneration);
     setSessionsLoading(true);
     setSessionsError(false);
     return invoke<BrokerSessionInfo[]>("term_list_sessions")
       .then((sessions) => {
+        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
         setTerminalSessions(sessions);
         setSessionsError(false);
       })
       .catch(() => {
+        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
         setTerminalSessions([]);
         setSessionsError(true);
       })
-      .finally(() => setSessionsLoading(false));
+      .finally(() => {
+        if (isCurrentRequest(sessionsRequestGeneration, generation)) {
+          setSessionsLoading(false);
+        }
+      });
   };
 
   useEffect(() => {

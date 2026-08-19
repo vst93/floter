@@ -18,6 +18,7 @@ export type CompletionItem = {
 };
 
 export type ActionBarKind = "shell" | "url" | "path";
+export type CommandLineSyntax = "posix" | "windows";
 
 export type LauncherSelection = {
   actionBar: boolean;
@@ -56,7 +57,11 @@ export const normalizeSearch = (value: string): string =>
 export type ParsedCommandLine = { tokens: string[]; fragmentStart: number };
 
 /** Tokenize a command line for discovery without asking a shell to interpret it. */
-export const parseCommandLine = (value: string, trailingEmpty = false): ParsedCommandLine => {
+export const parseCommandLine = (
+  value: string,
+  trailingEmpty = false,
+  syntax: CommandLineSyntax = "posix",
+): ParsedCommandLine => {
   const tokens: string[] = [];
   let token = "";
   let tokenStarted = false;
@@ -78,13 +83,23 @@ export const parseCommandLine = (value: string, trailingEmpty = false): ParsedCo
       escaped = false;
       continue;
     }
-    if (char === "\\" && quote !== "'") {
+    // Backslash is a path separator on Windows, not a general escape. Treating
+    // it like POSIX shell syntax turns C:\Users into C:Users before a structured
+    // execution plan reaches the backend.
+    if (syntax === "posix" && char === "\\" && quote !== "'") {
       if (!tokenStarted) tokenStart = index;
       tokenStarted = true;
       escaped = true;
       continue;
     }
     if (char === "'" || char === '"') {
+      // Windows completion values quote a literal double quote by doubling it.
+      // Recognize that representation while already inside double quotes.
+      if (syntax === "windows" && quote === '"' && char === '"' && value[index + 1] === '"') {
+        token += '"';
+        index += 1;
+        continue;
+      }
       if (!tokenStarted) tokenStart = index;
       tokenStarted = true;
       quote = quote === char ? null : quote ?? char;
@@ -108,10 +123,14 @@ export const parseCommandLine = (value: string, trailingEmpty = false): ParsedCo
   return { tokens, fragmentStart: tokenStart };
 };
 
-const formatCompletionValue = (value: string): string => {
+const formatCompletionValue = (value: string, syntax: CommandLineSyntax): string => {
   // Keep simple CLI tokens readable. Everything else is quoted so a value
   // selected with Tab can be parsed back into the exact same argument.
-  if (/^[\p{L}\p{N}_./:@%+=,-]+$/u.test(value)) return value;
+  const simple = syntax === "windows"
+    ? /^[\p{L}\p{N}_./\\:@%+=,-]+$/u
+    : /^[\p{L}\p{N}_./:@%+=,-]+$/u;
+  if (simple.test(value)) return value;
+  if (syntax === "windows") return `"${value.replace(/"/g, '""')}"`;
   return `"${value.replace(/(["\\$`])/g, "\\$1")}"`;
 };
 
@@ -119,8 +138,9 @@ export const completedCommandLine = (
   query: string,
   fragmentStart: number,
   completion: CompletionItem,
+  syntax: CommandLineSyntax = "posix",
 ): string => {
-  const value = formatCompletionValue(completion.value);
+  const value = formatCompletionValue(completion.value, syntax);
   const keepOpen = /[\\/]$/.test(completion.value);
   return `${query.slice(0, fragmentStart)}${value}${keepOpen ? "" : " "}`;
 };

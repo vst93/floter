@@ -32,6 +32,21 @@ test("command parsing preserves quoted and escaped arguments", () => {
   ]);
 });
 
+test("Windows command parsing preserves drive and UNC path separators", () => {
+  assert.deepEqual(
+    parseCommandLine('tool "C:\\Users\\Jane Doe\\file.txt"', false, "windows").tokens,
+    ["tool", "C:\\Users\\Jane Doe\\file.txt"],
+  );
+  assert.deepEqual(
+    parseCommandLine('tool "\\\\server\\shared folder\\file.txt"', false, "windows").tokens,
+    ["tool", "\\\\server\\shared folder\\file.txt"],
+  );
+  assert.deepEqual(
+    parseCommandLine("tool C:\\Users\\Jane", false, "windows").tokens,
+    ["tool", "C:\\Users\\Jane"],
+  );
+});
+
 test("completion parsing exposes an empty trailing argument and its insertion point", () => {
   assert.deepEqual(parseCommandLine("git checkout ", true), {
     tokens: ["git", "checkout", ""],
@@ -50,6 +65,26 @@ test("completion replaces only the active fragment and quotes shell-sensitive va
   const completed = completedCommandLine("tool open ", 10, completion(special));
   assert.equal(completed, `tool open "a\\"b\\\\c\\$HOME;next" `);
   assert.deepEqual(parseCommandLine(completed).tokens, ["tool", "open", special]);
+});
+
+test("Windows completion round-trips paths and quoted values", () => {
+  const path = completion("C:\\Program Files\\Floter\\");
+  const pathCommand = completedCommandLine("tool open ", 10, path, "windows");
+  assert.equal(pathCommand, 'tool open "C:\\Program Files\\Floter\\"');
+  assert.deepEqual(parseCommandLine(pathCommand, false, "windows").tokens, [
+    "tool",
+    "open",
+    path.value,
+  ]);
+
+  const quoted = completion('profile "work"');
+  const quotedCommand = completedCommandLine("tool use ", 9, quoted, "windows");
+  assert.equal(quotedCommand, 'tool use "profile ""work""" ');
+  assert.deepEqual(parseCommandLine(quotedCommand, false, "windows").tokens, [
+    "tool",
+    "use",
+    quoted.value,
+  ]);
 });
 
 test("completion updates argument overrides without mutating the protected plan", () => {
