@@ -743,6 +743,7 @@ export default function App() {
   const termOpened = useRef(false);
   const terminalOpening = useRef(false);
   const externalTerminalOpening = useRef(false);
+  const systemPowerOpening = useRef(false);
   const launcherFeedbackTimer = useRef<number | null>(null);
   const terminalFeedbackTimer = useRef<number | null>(null);
   const draftBeforeHistory = useRef("");
@@ -2531,6 +2532,43 @@ export default function App() {
     void runCommand();
   };
 
+  const runSystemAction = async (item: Extract<LauncherItem, { type: "system" }>) => {
+    if (systemPowerOpening.current) return;
+
+    const confirmationKey = item.action === "restart"
+      ? "system.restartConfirm"
+      : "system.shutdownConfirm";
+    if (!window.confirm(t(confirmationKey))) {
+      focusCollapsedInput();
+      return;
+    }
+
+    systemPowerOpening.current = true;
+    setLauncherFeedback(null);
+    try {
+      // The launcher is an always-on-top panel. Move it out of the way before
+      // macOS presents its own confirmation, or that dialog can appear behind
+      // the panel. Linux and Windows execute immediately after this point.
+      await invoke("hide_window");
+      await invoke("system_power", { action: item.action });
+      setQuery("");
+      setHistoryIndex(-1);
+    } catch {
+      // A missing system utility or rejected spawn must not look like success.
+      // Restore the launcher with the original query intact so it can be retried.
+      setMode("collapsed");
+      await invoke("show_input").catch(() => undefined);
+      showLauncherFeedback(
+        item.action === "restart"
+          ? "launcher.error.restart"
+          : "launcher.error.shutdown",
+      );
+      focusCollapsedInput(50);
+    } finally {
+      systemPowerOpening.current = false;
+    }
+  };
+
   const runLauncherItem = (item: LauncherItem | undefined) => {
     if (!item) return;
     if (item.type === "app") {
@@ -2538,13 +2576,7 @@ export default function App() {
       return;
     }
     if (item.type === "system") {
-      invoke("system_power", { action: item.action }).catch(() => undefined);
-      // Hidden without waiting for the answer: the panel sits at a window level
-      // above almost everything, and macOS confirms a restart with a dialog that
-      // would otherwise appear behind it.
-      setQuery("");
-      setHistoryIndex(-1);
-      invoke("hide_window");
+      void runSystemAction(item);
       return;
     }
     if (item.execution && item.sourceName) {
