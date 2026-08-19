@@ -1711,7 +1711,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               <div className="extension-update-row" key={extension.id}>
                 <button type="button" className="extension-update-row__main" onClick={() => setSelectedId(extension.id)}>
                   <strong>{extension.name}</strong>
-                  <span>v{extension.currentVersion} → v{updateById[extension.id].version}</span>
+                  <span className="extension-update-row__versions">
+                    <span>v{extension.currentVersion}</span>
+                    <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
+                    <span>v{updateById[extension.id].version}</span>
+                  </span>
                 </button>
                 <button
                   type="button"
