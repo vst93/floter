@@ -254,6 +254,18 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     settings
 }
 
+/// Merge the settings owned by the frontend with fields persisted by dedicated
+/// commands. Those commands can run independently, so accepting their stale
+/// values from a full frontend snapshot would reintroduce an older terminal
+/// size or shortcut map.
+fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> AppSettings {
+    submitted.terminal_width = stored.terminal_width;
+    submitted.terminal_height = stored.terminal_height;
+    submitted.shortcuts = resolved_shortcuts(stored);
+    submitted.hotkey = stored.hotkey.clone();
+    normalize_settings(submitted)
+}
+
 fn settings_lock() -> Result<std::sync::MutexGuard<'static, ()>, String> {
     SETTINGS_LOCK
         .lock()
@@ -362,14 +374,8 @@ pub fn get_settings() -> Result<AppSettings, String> {
 #[tauri::command]
 pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
     let _guard = settings_lock()?;
-    let mut settings = settings;
-    // Shortcut changes have their own command because the global binding and
-    // disk must change transactionally. A delayed general settings save must
-    // never restore an older shortcut map.
     let stored = load_settings();
-    settings.shortcuts = resolved_shortcuts(&stored);
-    settings.hotkey = stored.hotkey;
-    let settings = normalize_settings(settings);
+    let settings = merge_frontend_settings(settings, &stored);
     write_settings(&settings)?;
     crate::apply_tray_language(&app, &settings.language);
     Ok(())
@@ -511,6 +517,27 @@ mod tests {
     fn older_settings_do_not_enable_autostart() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(!settings.launch_at_startup);
+    }
+
+    #[test]
+    fn frontend_settings_preserve_fields_owned_by_dedicated_commands() {
+        let mut stored = AppSettings::default();
+        stored.terminal_width = 1_240.0;
+        stored.terminal_height = 760.0;
+        stored.hotkey = "Ctrl+Alt+Space".into();
+        stored
+            .shortcuts
+            .insert(TOGGLE_WINDOW.into(), "Ctrl+Alt+Space".into());
+
+        let mut submitted = AppSettings::default();
+        submitted.theme = "light".into();
+        let merged = merge_frontend_settings(submitted, &stored);
+
+        assert_eq!(merged.theme, "light");
+        assert_eq!(merged.terminal_width, 1_240.0);
+        assert_eq!(merged.terminal_height, 760.0);
+        assert_eq!(merged.hotkey, "Ctrl+Alt+Space");
+        assert_eq!(merged.shortcuts[TOGGLE_WINDOW], "Ctrl+Alt+Space");
     }
 
     #[test]

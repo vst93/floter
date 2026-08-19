@@ -57,6 +57,7 @@ import {
   type ShortcutAction,
   type ShortcutMap,
 } from "./shortcuts";
+import { createSerialSettingsWriter } from "./settings-persistence";
 import "./App.css";
 
 if (IS_WINDOWS) {
@@ -580,6 +581,12 @@ export default function App() {
   const terminalSizeSaveTimer = useRef<number | null>(null);
   const pendingTerminalSize = useRef<{ width: number; height: number } | null>(null);
   const settingsSaveTimer = useRef<number | null>(null);
+  const saveSettings = useMemo(
+    () => createSerialSettingsWriter<AppSettings>((next) =>
+      invoke("save_settings", { settings: next }),
+    ),
+    [],
+  );
   const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
@@ -2154,7 +2161,7 @@ export default function App() {
     }
     settingsSaveTimer.current = window.setTimeout(() => {
       settingsSaveTimer.current = null;
-      invoke("save_settings", { settings: settingsRef.current }).catch(() => undefined);
+      saveSettings(settingsRef.current).catch(() => undefined);
     }, 180);
   };
 
@@ -2169,7 +2176,7 @@ export default function App() {
     }
     settingsSaveTimer.current = window.setTimeout(() => {
       settingsSaveTimer.current = null;
-      invoke("save_settings", { settings: settingsRef.current }).catch(() => undefined);
+      saveSettings(settingsRef.current).catch(() => undefined);
     }, 180);
   };
 
@@ -2179,7 +2186,7 @@ export default function App() {
     settingsRef.current = updated;
     setSettings(updated);
     suppressBlurUntil.current = Date.now() + 400;
-    invoke("save_settings", { settings: updated }).catch(() => undefined);
+    saveSettings(updated).catch(() => undefined);
   };
 
   const changeTheme = (theme: string) => {
@@ -2203,14 +2210,17 @@ export default function App() {
     try {
       await invoke("set_launch_at_startup", { enabled });
       const latest = { ...settingsRef.current, launch_at_startup: enabled };
-      await invoke("save_settings", { settings: latest });
+      settingsRef.current = latest;
+      await saveSettings(latest);
     } catch {
       await invoke("set_launch_at_startup", { enabled: previous }).catch(() => undefined);
-      setSettings((current) =>
-        current.launch_at_startup === enabled
+      setSettings((current) => {
+        const rolledBack = current.launch_at_startup === enabled
           ? { ...current, launch_at_startup: previous }
-          : current,
-      );
+          : current;
+        settingsRef.current = rolledBack;
+        return rolledBack;
+      });
     } finally {
       setAutostartUpdating(false);
     }
