@@ -1324,6 +1324,8 @@ input:focus {
 .extensions-panel {
   --extensions-radius: 6px;
   --extensions-control-height: 28px;
+  --extensions-row-height: 52px;
+  --extensions-icon-size: 28px;
   --extensions-inline-gap: 4px;
   position: relative;
   min-height: 280px;
@@ -1337,10 +1339,10 @@ input:focus {
 }
 
 .extensions-icon-button {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
+  width: var(--extensions-icon-size);
+  height: var(--extensions-icon-size);
+  min-width: var(--extensions-icon-size);
+  min-height: var(--extensions-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1350,6 +1352,8 @@ input:focus {
   border-radius: var(--extensions-radius);
   background: transparent;
   color: var(--text-secondary);
+  line-height: 1;
+  vertical-align: middle;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -1402,6 +1406,7 @@ input:focus {
   border-radius: var(--extensions-radius);
   background: var(--surface-control);
   box-shadow: inset 0 0 0 1px var(--stroke-control);
+  margin-bottom: 2px;
 }
 
 .extensions-tabs__item {
@@ -1471,7 +1476,7 @@ input:focus {
 .extensions-installed {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .extensions-sync-toolbar {
@@ -1517,7 +1522,7 @@ input:focus {
 .extension-row {
   position: relative;
   min-width: 0;
-  min-height: 52px;
+  min-height: var(--extensions-row-height);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1527,9 +1532,32 @@ input:focus {
   transition: background-color 120ms ease;
 }
 
-.extension-row:hover,
+.extension-row::before,
+.extension-search-row::before,
+.extension-update-row::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 2px;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color 120ms ease;
+}
+
+.extension-row:hover:not(.extension-row--detected),
+.extension-search-row:hover,
 .extension-update-row:hover {
   background: var(--surface-control-hover);
+}
+
+.extension-row:hover:not(.extension-row--detected)::before,
+.extension-search-row:hover::before,
+.extension-search-row:focus-within::before,
+.extension-search-row--selected::before,
+.extension-update-row:hover::before,
+.extension-update-row:focus-within::before {
+  background: var(--accent);
 }
 
 .extension-row--detected {
@@ -1549,8 +1577,8 @@ input:focus {
 }
 
 .extension-row__icon {
-  width: 28px;
-  height: 28px;
+  width: var(--extensions-icon-size);
+  height: var(--extensions-icon-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1647,6 +1675,7 @@ input:focus {
   align-items: center;
   justify-content: center;
   border-radius: var(--extensions-radius);
+  flex: 0 0 auto;
 }
 
 .extension-row__toggle-slot .settings-switch__thumb {
@@ -1679,6 +1708,8 @@ input:focus {
   font-size: 10.5px;
   font-weight: 600;
   white-space: nowrap;
+  flex: 0 0 auto;
+  line-height: 1;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -1776,18 +1807,18 @@ input:focus {
 .extensions-discover {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .extensions-updates {
   min-width: 0;
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .extensions-search {
   min-width: 0;
-  height: 34px;
+  height: 36px;
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
@@ -1824,6 +1855,8 @@ input:focus {
   font-size: 10.5px;
   font-weight: 600;
   white-space: nowrap;
+  min-width: max-content;
+  flex: 0 0 auto;
   cursor: pointer;
 }
 
@@ -1851,8 +1884,9 @@ input:focus {
 
 .extension-search-row,
 .extension-update-row {
+  position: relative;
   min-width: 0;
-  min-height: 61px;
+  min-height: var(--extensions-row-height);
   display: grid;
   align-items: center;
   gap: 10px;
@@ -1863,31 +1897,24 @@ input:focus {
   grid-template-columns: 29px minmax(0, 1fr) auto;
   padding: 8px;
   border: 1px solid transparent;
-  border-left: 2px solid transparent;
   border-radius: var(--extensions-radius);
   background: var(--surface-control);
 }
 
 .extension-search-row:hover {
-  border-left-color: var(--accent);
   background: var(--surface-control-hover);
 }
 
 .extension-search-row:focus-within,
 .extension-search-row--selected {
-  border-left-color: var(--accent);
   background: var(--accent-tint-hover);
   box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
 .extension-update-row {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(42px, auto) var(--extensions-control-height);
-  align-content: space-between;
-  align-items: stretch;
-  min-height: 104px;
-  padding: 10px;
-  border: 1px solid var(--stroke-control);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 6px 8px;
+  border: 1px solid transparent;
   border-radius: var(--extensions-radius);
   background: var(--surface-control);
 }
@@ -1898,7 +1925,7 @@ input:focus {
 }
 
 .extension-update-row > .extensions-action-button {
-  width: 100%;
+  width: auto;
 }
 
 .extension-search-row__icon {
@@ -2195,11 +2222,13 @@ input:focus {
   gap: 8px;
   padding: 12px 20px 14px;
   background: var(--surface-sunken-soft);
+  justify-content: flex-end;
 }
 
 .extension-permission-dialog--install > footer .extensions-action-button {
   min-width: 72px;
   min-height: var(--extensions-control-height);
+  white-space: nowrap;
 }
 
 .extensions-action-button--warning {
@@ -2361,11 +2390,11 @@ input:focus {
 .extension-custom-permission-boundary svg { margin-top: 1px; color: var(--text-tertiary); }
 .extension-removal-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 17px; display: grid; gap: 14px; overflow-y: auto; border: 1px solid var(--stroke-control); border-radius: var(--extensions-radius); background: var(--surface-opaque); box-shadow: 0 18px 60px rgba(0, 0, 0, .28); }
 .extension-removal-dialog > header { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text-primary); }
-.extension-removal-dialog > header > svg { margin-top: 2px; color: var(--danger); }
+.extension-removal-dialog > header > svg { margin-top: 2px; color: var(--text-warning); }
 .extension-removal-dialog h3, .extension-removal-dialog p { margin: 0; }
 .extension-removal-dialog h3 { color: var(--text-strong); font-size: 13px; }
 .extension-removal-dialog p { margin-top: 5px; color: var(--text-muted); font-size: 10.5px; line-height: 1.45; }
-.extension-removal-dialog__warning { padding: 9px; border: 1px solid color-mix(in srgb, var(--danger) 36%, var(--stroke-control)); border-radius: var(--extensions-radius); background: color-mix(in srgb, var(--danger) 7%, transparent); color: var(--text-secondary); font-size: 10px; line-height: 1.4; }
+.extension-removal-dialog__warning { padding: 9px; border: 1px solid color-mix(in srgb, var(--text-warning) 36%, var(--stroke-control)); border-radius: var(--extensions-radius); background: color-mix(in srgb, var(--text-warning) 7%, transparent); color: var(--text-secondary); font-size: 10px; line-height: 1.4; }
 .extension-removal-dialog > footer { display: flex; justify-content: flex-end; gap: 7px; }
 .extension-custom-form > footer { position: sticky; bottom: 0; margin: 0 -14px; padding: 10px 14px; display: flex; justify-content: flex-end; gap: 7px; border-top: 1px solid var(--hairline); background: var(--surface-opaque); }
 .extension-argument-editor { min-width: 0; display: grid; gap: 5px; align-content: start; }
@@ -2387,8 +2416,13 @@ input:focus {
 }
 
 .extensions-list--updates {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.extensions-list--updates > .extension-update-row:not(:last-child) {
+  border-bottom-color: var(--hairline);
 }
 
 .extensions-list--updates > .extensions-empty {

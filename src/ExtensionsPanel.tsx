@@ -1436,7 +1436,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
             key={item}
             type="button"
             role="tab"
+            id={`extensions-tab-${item}`}
             aria-selected={tab === item}
+            aria-controls={`extensions-tabpanel-${item}`}
             className={`extensions-tabs__item${tab === item ? " extensions-tabs__item--active" : ""}`}
             onClick={() => setTab(item)}
           >
@@ -1483,7 +1485,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       )}
 
       {tab === "installed" && (
-        <div className="extensions-installed" role="tabpanel">
+        <div id="extensions-tabpanel-installed" className="extensions-installed" role="tabpanel" aria-labelledby="extensions-tab-installed" tabIndex={0}>
           <div className="extensions-sync-toolbar">
             <div className="extensions-sync-toolbar__group">
               <button
@@ -1594,7 +1596,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       )}
 
       {tab === "discover" && (
-        <div className="extensions-discover" role="tabpanel">
+        <div id="extensions-tabpanel-discover" className="extensions-discover" role="tabpanel" aria-labelledby="extensions-tab-discover" tabIndex={0}>
           <form className="extensions-search" onSubmit={searchExtensions}>
             <Search size={16} strokeWidth={2} aria-hidden="true" />
             <input
@@ -1688,7 +1690,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       )}
 
       {tab === "updates" && (
-        <div className="extensions-updates" role="tabpanel">
+        <div id="extensions-tabpanel-updates" className="extensions-updates" role="tabpanel" aria-labelledby="extensions-tab-updates" tabIndex={0}>
           <div className="extensions-updates__toolbar">
             <span>{checkingUpdates ? t("settings.extensions.checkingUpdates") : t("settings.extensions.updateCount", { count: updates.length })}</span>
             <button
