@@ -5,6 +5,7 @@ import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import {
+  AlertCircle,
   Blocks,
   Info,
   Keyboard,
@@ -742,6 +743,8 @@ export default function App() {
   const termOpened = useRef(false);
   const terminalOpening = useRef(false);
   const externalTerminalOpening = useRef(false);
+  const launcherFeedbackTimer = useRef<number | null>(null);
+  const terminalFeedbackTimer = useRef<number | null>(null);
   const draftBeforeHistory = useRef("");
   const restoringMode = useRef<ViewMode | null>(null);
   /** Guards against two scans overlapping: a cold cache reads as out of date, so
@@ -798,6 +801,8 @@ export default function App() {
   const [updateDownloading, setUpdateDownloading] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number } | null>(null);
   const [updateFailed, setUpdateFailed] = useState(false);
+  const [launcherFeedback, setLauncherFeedback] = useState<MessageKey | null>(null);
+  const [terminalFeedback, setTerminalFeedback] = useState<MessageKey | null>(null);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
 
@@ -818,6 +823,28 @@ export default function App() {
     () => formatResultShortcut(shortcuts.select_result, "Enter"),
     [shortcuts.select_result],
   );
+
+  const showLauncherFeedback = (key: MessageKey) => {
+    setLauncherFeedback(key);
+    if (launcherFeedbackTimer.current !== null) {
+      window.clearTimeout(launcherFeedbackTimer.current);
+    }
+    launcherFeedbackTimer.current = window.setTimeout(() => {
+      launcherFeedbackTimer.current = null;
+      setLauncherFeedback(null);
+    }, 4500);
+  };
+
+  const showTerminalFeedback = (key: MessageKey) => {
+    setTerminalFeedback(key);
+    if (terminalFeedbackTimer.current !== null) {
+      window.clearTimeout(terminalFeedbackTimer.current);
+    }
+    terminalFeedbackTimer.current = window.setTimeout(() => {
+      terminalFeedbackTimer.current = null;
+      setTerminalFeedback(null);
+    }, 4500);
+  };
 
   // The system appearance, tracked whether or not it is currently being followed.
   // Subscribing unconditionally rather than only in `auto` mode keeps this from
@@ -1185,7 +1212,7 @@ export default function App() {
   useLayoutEffect(() => {
     if (mode !== "collapsed") return;
     syncLauncherHeight();
-  }, [actionBar, launcherResults.length, mode]);
+  }, [actionBar, launcherFeedback, launcherResults.length, mode]);
 
   useEffect(() => {
     const missing = launcherResults
@@ -1376,6 +1403,7 @@ export default function App() {
 
   const handleTerminalExit = () => {
     closeTerminalSession();
+    setTerminalFeedback(null);
     setQuery("");
     setTerminalMounted(false);
     setMode("collapsed");
@@ -1685,6 +1713,7 @@ export default function App() {
         .catch(() => undefined);
 
       restoringMode.current = "collapsed";
+      setLauncherFeedback(null);
       setQuery("");
       setTerminalMounted(false);
       setMode("collapsed");
@@ -1962,6 +1991,7 @@ export default function App() {
   const openInTerminal = async () => {
     if (externalTerminalOpening.current || !ptyReady.current) return;
     externalTerminalOpening.current = true;
+    setTerminalFeedback(null);
     try {
       const outcome = await invoke<ExternalTerminalOutcome>("open_in_default_terminal", {
         id: "main",
@@ -1976,6 +2006,7 @@ export default function App() {
       }
       await invoke("hide_window");
     } catch {
+      showTerminalFeedback("launcher.error.externalTerminal");
       focusTerminalView();
     } finally {
       externalTerminalOpening.current = false;
@@ -2145,6 +2176,8 @@ export default function App() {
     // resize/reveal has completed.
     restoringMode.current = "collapsed";
     suppressBlurUntil.current = Date.now() + 400;
+    setTerminalFeedback(null);
+    setLauncherFeedback(null);
     closeTerminalSession();
     setQuery("");
     setTerminalMounted(false);
@@ -2239,6 +2272,12 @@ export default function App() {
   useEffect(() => () => {
     if (opacitySaveTimer.current !== null) {
       window.clearTimeout(opacitySaveTimer.current);
+    }
+    if (launcherFeedbackTimer.current !== null) {
+      window.clearTimeout(launcherFeedbackTimer.current);
+    }
+    if (terminalFeedbackTimer.current !== null) {
+      window.clearTimeout(terminalFeedbackTimer.current);
     }
   }, []);
 
@@ -2384,6 +2423,8 @@ export default function App() {
     if (!command || terminalOpening.current) return;
 
     terminalOpening.current = true;
+    setLauncherFeedback(null);
+    setTerminalFeedback(null);
     setTerminalMounted(true);
     setMode("terminal");
     try {
@@ -2396,6 +2437,7 @@ export default function App() {
         focusTerminalView();
       }
     } catch {
+      showLauncherFeedback("launcher.error.command");
       setTerminalMounted(false);
       setMode("collapsed");
       focusCollapsedInput(50);
@@ -2407,6 +2449,8 @@ export default function App() {
   const resumeTerminalSession = async (session: BrokerSessionInfo) => {
     if (terminalOpening.current) return;
     terminalOpening.current = true;
+    setLauncherFeedback(null);
+    setTerminalFeedback(null);
     setTerminalMounted(true);
     setMode("terminal");
     try {
@@ -2430,6 +2474,7 @@ export default function App() {
       setQuery("");
       focusTerminalView();
     } catch {
+      showLauncherFeedback("launcher.error.session");
       terminalGeneration.current = null;
       ptyReady.current = false;
       setTerminalMounted(false);
@@ -2442,12 +2487,14 @@ export default function App() {
   };
 
   const launchApplication = async (app: LocalApplication) => {
+    setLauncherFeedback(null);
     try {
       await invoke("open_application", { path: app.path });
       setQuery("");
       setHistoryIndex(-1);
       invoke("hide_window");
     } catch {
+      showLauncherFeedback("launcher.error.application");
       // Keep the launcher open so the user can revise the query.
     }
   };
@@ -2460,9 +2507,11 @@ export default function App() {
    * it to be corrected, exactly as a failed application launch does.
    */
   const openWithSystem = async (command: "open_url" | "open_path", args: Record<string, string>) => {
+    setLauncherFeedback(null);
     try {
       await invoke(command, args);
     } catch {
+      showLauncherFeedback(command === "open_url" ? "launcher.error.url" : "launcher.error.path");
       return;
     }
     setQuery("");
@@ -3038,6 +3087,7 @@ export default function App() {
               className="collapsed-card__input"
               value={query}
               onChange={(event) => {
+                setLauncherFeedback(null);
                 setQuery(event.target.value);
                 setHistoryIndex(-1);
               }}
@@ -3108,8 +3158,14 @@ export default function App() {
               </svg>
             </button>
           </div>
-          {(launcherResults.length > 0 || actionBar) && (
+          {(launcherResults.length > 0 || actionBar || launcherFeedback) && (
             <div className="launcher-bottom">
+              {launcherFeedback && (
+                <div className="launcher-feedback" role="status" aria-live="polite">
+                  <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                  <span>{t(launcherFeedback)}</span>
+                </div>
+              )}
               {launcherResults.length > 0 && (
                 <div className="launcher-results" role="listbox" aria-label={t("launcher.results")}>
                   {launcherResults.map((item, index) => {
@@ -3232,6 +3288,12 @@ export default function App() {
           >
             <canvas ref={canvasRef} className="terminal-canvas" tabIndex={0} />
           </div>
+          {terminalFeedback && (
+            <div className="terminal-feedback" role="status" aria-live="polite">
+              <AlertCircle className="terminal-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+              <span>{t(terminalFeedback)}</span>
+            </div>
+          )}
         </div>
       </section>
     </div>

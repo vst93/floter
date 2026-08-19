@@ -396,6 +396,29 @@ input:focus {
   background: var(--surface-sunken);
 }
 
+.launcher-feedback {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--system-icon-surface);
+  color: var(--text-warning);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.launcher-feedback__icon,
+.terminal-feedback__icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
 .launcher-results {
   display: grid;
   gap: 1px;
@@ -2430,6 +2453,34 @@ input:focus {
   inset: 0;
   padding: 0;
   background: transparent;
+}
+
+.terminal-feedback {
+  position: absolute;
+  z-index: 4;
+  top: 12px;
+  left: 12px;
+  max-width: min(420px, calc(100% - 24px));
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--accent-edge);
+  border-radius: 6px;
+  background: var(--input-bg-active);
+  color: var(--text-warning);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.25;
+  box-shadow: 0 6px 20px var(--window-shadow-ambient);
+  pointer-events: none;
+  animation: feedback-enter 150ms ease-out;
+}
+
+@keyframes feedback-enter {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .terminal-panel__mount {
