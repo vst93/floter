@@ -27,6 +27,18 @@ import {
 } from "./i18n";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import {
+  classifyActionBar,
+  completedCommandLine,
+  executionWithCompletion,
+  normalizeSearch,
+  parseCommandLine,
+  scoreApp,
+  shouldDefaultToActionBar,
+  type ActionBarKind,
+  type CompletionItem,
+  type ExecutionPlan,
+} from "./launcher";
+import {
   DEFAULT_SHORTCUTS,
   formatResultShortcut,
   formatShortcut,
@@ -88,19 +100,6 @@ type ApplicationsStatus = { upToDate: boolean; count: number };
 
 type SystemAction = "restart" | "shutdown";
 
-type ExecutionMode = "pty" | "external";
-
-type ExecutionPlan = {
-  program: string;
-  args: string[];
-  mode: ExecutionMode;
-  cwd: string | null;
-  environment: Record<string, string>;
-  inheritEnvironment: boolean;
-  planToken?: string;
-  argumentOverride?: string[];
-};
-
 type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
 
 type CatalogArgument = {
@@ -130,15 +129,14 @@ type CatalogEntry = {
   frequency: number;
 };
 
-type CatalogCompletionItem = { value: string; label: string; description: string };
-type CatalogCompletionResponse = { items: CatalogCompletionItem[]; dynamic: boolean };
+type CatalogCompletionResponse = { items: CompletionItem[]; dynamic: boolean };
 
 type CatalogSuggestion =
   | { kind: "catalog"; entry: CatalogEntry }
   | {
       kind: "completion";
       entry: CatalogEntry;
-      completion: CatalogCompletionItem;
+      completion: CompletionItem;
       commandLine: string;
       execution: ExecutionPlan | null;
       dynamic: boolean;
@@ -166,7 +164,6 @@ type LauncherItem =
  * handed, and a few shapes of string are better answered by the browser or the
  * file manager instead.
  */
-type ActionBarKind = "shell" | "url" | "path";
 type ActionBar = { type: ActionBarKind; label: string; value: string };
 
 type AppSettings = {
@@ -255,158 +252,6 @@ function terminalMouseModifiers(event: ModifierEvent): number {
   return (event.shiftKey ? 4 : 0) | (event.altKey || event.metaKey ? 8 : 0) | (event.ctrlKey ? 16 : 0);
 }
 
-/** A URL to hand the browser. Only the schemes a launcher can be certain about:
- * `mailto:` or an application's own registered scheme would open something the
- * query does not look like it is asking for. */
-const URL_QUERY = /^(?:https?|ftp):\/\//i;
-
-/**
- * A filesystem path: absolute, home-relative, explicitly relative, or a Windows
- * drive letter.
- *
- * A bare word is deliberately not one. `Documents` is both a plausible
- * application name and an ambiguous directory, while `./Documents` says which of
- * the two was meant.
- */
-const PATH_QUERY = /^[/~.]|^[A-Za-z]:[\\/]|^\\\\/;
-
-/**
- * First words that mean "this is a command line", not an application name.
- *
- * Matched as a whole word rather than as a prefix: `git` is a command, but
- * `gitkraken`, `nodejs`, `psql` and `manjaro` all *start* with one and are
- * applications people search for. Nothing is lost by being strict, because a
- * command with an argument after it already reads as one from its whitespace
- * alone — this list only has to catch the bare invocations (`ls`, `top`, `make`).
- */
-const COMMAND_WORDS = new Set([
-  "cd", "git", "npm", "ls", "cat", "echo", "curl", "wget", "ssh",
-  "cp", "mv", "rm", "mkdir", "touch", "chmod", "grep", "find",
-  "sed", "awk", "make", "docker", "kubectl", "python", "python3",
-  "node", "go", "cargo", "brew", "apt", "yum", "pip", "yarn",
-  "pnpm", "tar", "gzip", "unzip", "head", "tail", "wc", "sort",
-  "uniq", "diff", "kill", "ps", "top", "df", "du", "free", "uname",
-  "whoami", "hostname", "ping", "ifconfig", "ip", "netstat", "lsof",
-  "systemctl", "journalctl", "man", "which", "whereis", "export",
-  "source", "alias", "history", "sudo",
-]);
-
-const normalizeSearch = (value: string) =>
-  value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-
-type ParsedCommandLine = { tokens: string[]; fragmentStart: number };
-
-/** Tokenize the command line without asking a shell to interpret it. */
-const parseCommandLine = (value: string, trailingEmpty = false): ParsedCommandLine => {
-  const tokens: string[] = [];
-  let token = "";
-  let tokenStarted = false;
-  let tokenStart = value.length;
-  let quote: "'" | '"' | null = null;
-  let escaped = false;
-
-  const finishToken = () => {
-    if (!tokenStarted) return;
-    tokens.push(token);
-    token = "";
-    tokenStarted = false;
-  };
-
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    if (escaped) {
-      token += char;
-      escaped = false;
-      continue;
-    }
-    if (char === "\\" && quote !== "'") {
-      if (!tokenStarted) tokenStart = index;
-      tokenStarted = true;
-      escaped = true;
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      if (!tokenStarted) tokenStart = index;
-      tokenStarted = true;
-      quote = quote === char ? null : quote ?? char;
-      if (quote !== null && quote !== char) token += char;
-      continue;
-    }
-    if (/\s/.test(char) && quote === null) {
-      finishToken();
-      continue;
-    }
-    if (!tokenStarted) tokenStart = index;
-    tokenStarted = true;
-    token += char;
-  }
-  if (escaped) token += "\\";
-  finishToken();
-  if (trailingEmpty && /\s$/.test(value)) {
-    tokens.push("");
-    tokenStart = value.length;
-  }
-  return { tokens, fragmentStart: tokenStart };
-};
-
-const formatCompletionValue = (value: string): string =>
-  /\s/.test(value) ? `"${value.replace(/(["\\])/g, "\\$1")}"` : value;
-
-const completedCommandLine = (
-  query: string,
-  fragmentStart: number,
-  completion: CatalogCompletionItem,
-): string => {
-  const value = formatCompletionValue(completion.value);
-  const keepOpen = /[\\/]$/.test(completion.value);
-  return `${query.slice(0, fragmentStart)}${value}${keepOpen ? "" : " "}`;
-};
-
-const executionWithCompletion = (
-  entry: CatalogEntry,
-  currentTokens: string[],
-  completion: CatalogCompletionItem,
-): ExecutionPlan | null => {
-  if (!entry.execution) return null;
-  const completedArgs = [...currentTokens.slice(1)];
-  if (completedArgs.length) completedArgs[completedArgs.length - 1] = completion.value;
-  else completedArgs.push(completion.value);
-  return {
-    ...entry.execution,
-    argumentOverride: completedArgs,
-  };
-};
-
-/**
- * Fuzzy match score for a needle and haystack that are *already* normalized.
- *
- * Normalization is the expensive half of a match — NFKC plus a Unicode-property
- * regex — and the launcher runs one query against a few hundred installed
- * applications on every keystroke. So it happens once per query and once per
- * application name, never inside the scoring loop.
- */
-const scoreNormalized = (needle: string, haystack: string) => {
-  if (!needle || !haystack) return 0;
-  // Nothing shorter than the needle can equal it, start with it, contain it, or
-  // hold it as a subsequence — so one integer compare rejects most of the list
-  // before any of the string scans below run.
-  if (haystack.length < needle.length) return 0;
-  if (haystack === needle) return 1000;
-  if (haystack.startsWith(needle)) return 900 - haystack.length;
-  const contained = haystack.indexOf(needle);
-  if (contained !== -1) return 700 - contained;
-
-  let score = 0;
-  let cursor = 0;
-  for (const char of needle) {
-    const index = haystack.indexOf(char, cursor);
-    if (index === -1) return 0;
-    score += index === cursor ? 12 : 5;
-    cursor = index + 1;
-  }
-  return score;
-};
-
 /** An application with its searchable names normalized once, up front. */
 type SearchableApp = {
   app: LocalApplication;
@@ -429,32 +274,6 @@ type SearchableApp = {
  * for the same reason: a bundle identifier is long enough that some scattered
  * subsequence of almost any query can be found in one.
  */
-const ALIAS_SCORE_CAP = 690;
-
-const scoreApp = (needle: string, names: string[], initials: string, aliases: string[]) => {
-  let best = 0;
-  for (const name of names) {
-    const score = scoreNormalized(needle, name);
-    if (score > best) best = score;
-  }
-  if (initials) {
-    const score = scoreNormalized(needle, initials);
-    // Below an exact name match, above a prefix one: typing an application's
-    // initials is deliberate enough to beat a name that merely starts the same.
-    const capped = score >= 1000 ? 950 : score;
-    if (capped > best) best = capped;
-  }
-  for (const alias of aliases) {
-    const score = scoreNormalized(needle, alias);
-    // 700 is `scoreNormalized`'s floor for "contains"; anything below it is a
-    // subsequence, which is too weak a signal to spend an invisible key on.
-    if (score < 700) continue;
-    const capped = Math.min(score, ALIAS_SCORE_CAP);
-    if (capped > best) best = capped;
-  }
-  return best;
-};
-
 /**
  * The built-in power actions, searched like applications.
  *
@@ -1118,14 +937,16 @@ export default function App() {
   const actionBar = useMemo<ActionBar | null>(() => {
     const value = query.trim();
     if (!value) return null;
-    if (URL_QUERY.test(value)) {
-      return { type: "url", label: t("launcher.openInBrowser"), value };
-    }
-    if (PATH_QUERY.test(value)) {
-      return { type: "path", label: t("launcher.openInFiles"), value };
-    }
-    return { type: "shell", label: t("launcher.runInShell"), value };
+    const type = classifyActionBar(value);
+    const label = type === "url"
+      ? t("launcher.openInBrowser")
+      : type === "path"
+        ? t("launcher.openInFiles")
+        : t("launcher.runInShell");
+    return { type, label, value };
   }, [query, t]);
+
+  const hasCommandResult = launcherResults.some((item) => item.type === "command");
 
   /**
    * Whether a fresh query starts out on the action bar rather than on the first
@@ -1139,20 +960,14 @@ export default function App() {
    * already moved with the arrow keys.
    */
   const defaultsToActionBar = useMemo(() => {
-    const value = query.trim();
-    if (!value) return false;
-    // A URL or a path is not the name of anything installed, and the action bar
-    // is the only row that knows what to do with one.
-    if (actionBar && actionBar.type !== "shell") return true;
-    // Nothing matched, so there is nothing else to select.
-    if (!launcherResults.length) return true;
-    // A catalog match is actionable without shell parsing, including while its
-    // arguments are being completed.
-    if (launcherResults.some((item) => item.type === "command")) return false;
-    // An argument or a pipe makes it a command line whatever else it resembles.
-    if (/\s/.test(value) || /[|>&]/.test(value)) return true;
-    return COMMAND_WORDS.has(value.toLowerCase());
-  }, [actionBar, launcherResults.length, query]);
+    if (!actionBar) return false;
+    return shouldDefaultToActionBar(
+      query,
+      actionBar.type,
+      launcherResults.length,
+      hasCommandResult,
+    );
+  }, [actionBar, hasCommandResult, launcherResults.length, query]);
 
   // A full scan walks every application directory, so the two callers below
   // share one: the initial load and a refresh after a summon must never end up
