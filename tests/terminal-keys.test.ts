@@ -4,7 +4,7 @@ import {
   encodeKey,
   isTerminalCompositionKey,
   shouldUseTerminalTextInput,
-} from "../src/terminal/input.ts";
+} from "../src/terminal/keys.ts";
 
 type KeyOptions = Partial<Pick<KeyboardEvent, "altKey" | "ctrlKey" | "metaKey" | "shiftKey">> & {
   altGraph?: boolean;

@@ -1,6 +1,6 @@
 // Canvas renderer for the alacritty-backed terminal.
 //
-import { ALT_SCREEN } from "./input";
+import { ALT_SCREEN } from "./keys";
 
 // Consumes the binary frame produced by the Rust backend (see
 // `src-tauri/src/terminal/frame.rs` for the wire format) and paints it onto a

@@ -23,7 +23,7 @@ import {
   MOUSE_MOTION,
   shouldUseTerminalTextInput,
   usesMouseReporting,
-} from "./terminal/input";
+} from "./terminal/keys";
 import {
   createTranslator,
   normalizeLanguage,
