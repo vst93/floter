@@ -19,6 +19,11 @@ export type CompletionItem = {
 
 export type ActionBarKind = "shell" | "url" | "path";
 
+export type LauncherSelection = {
+  actionBar: boolean;
+  resultIndex: number;
+};
+
 export const COMMAND_WORDS = new Set([
   "cd", "git", "npm", "ls", "cat", "echo", "curl", "wget", "ssh",
   "cp", "mv", "rm", "mkdir", "touch", "chmod", "grep", "find",
@@ -189,4 +194,41 @@ export const shouldDefaultToActionBar = (
   if (runnableResultCount === 0) return true;
   if (/\s/.test(value) || /[|>&]/.test(value)) return true;
   return COMMAND_WORDS.has(value.toLowerCase());
+};
+
+/** Move through runnable results and the action bar as one wrapping list. */
+export const nextLauncherSelection = (
+  runnableResults: boolean[],
+  selectedResultIndex: number,
+  selectedActionBar: boolean,
+  hasActionBar: boolean,
+  direction: -1 | 1,
+): LauncherSelection => {
+  const targets: LauncherSelection[] = runnableResults.flatMap((runnable, resultIndex) =>
+    runnable ? [{ actionBar: false, resultIndex }] : [],
+  );
+  if (hasActionBar) targets.push({ actionBar: true, resultIndex: selectedResultIndex });
+  if (!targets.length) return { actionBar: selectedActionBar, resultIndex: selectedResultIndex };
+
+  const currentIndex = targets.findIndex((target) =>
+    target.actionBar === selectedActionBar &&
+    (target.actionBar || target.resultIndex === selectedResultIndex),
+  );
+  if (currentIndex >= 0) {
+    return targets[(currentIndex + direction + targets.length) % targets.length];
+  }
+
+  // A result may have become unavailable between renders, or the pointer may
+  // be hovering one for discovery. Continue in the requested visual direction
+  // instead of making that disabled row part of the keyboard loop.
+  if (direction > 0) {
+    return targets.find((target) => !target.actionBar && target.resultIndex > selectedResultIndex)
+      ?? targets.find((target) => target.actionBar)
+      ?? targets[0];
+  }
+  for (let index = targets.length - 1; index >= 0; index -= 1) {
+    const target = targets[index];
+    if (!target.actionBar && target.resultIndex < selectedResultIndex) return target;
+  }
+  return targets.find((target) => target.actionBar) ?? targets[targets.length - 1];
 };

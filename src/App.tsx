@@ -31,6 +31,7 @@ import {
   completedCommandLine,
   executionWithCompletion,
   normalizeSearch,
+  nextLauncherSelection,
   parseCommandLine,
   scoreApp,
   shouldDefaultToActionBar,
@@ -946,12 +947,14 @@ export default function App() {
     return { type, label, value };
   }, [query, t]);
 
-  const isRunnableResult = (item: LauncherItem) => item.type !== "command" || Boolean(item.execution);
-  const runnableResultCount = launcherResults.filter(isRunnableResult).length;
+  const runnableResultFlags = launcherResults.map(
+    (item) => item.type !== "command" || Boolean(item.execution),
+  );
+  const runnableResultCount = runnableResultFlags.filter(Boolean).length;
   const hasRunnableCommandResult = launcherResults.some(
     (item) => item.type === "command" && Boolean(item.execution),
   );
-  const firstRunnableResultIndex = launcherResults.findIndex(isRunnableResult);
+  const firstRunnableResultIndex = runnableResultFlags.indexOf(true);
 
   /**
    * Whether a fresh query starts out on the action bar rather than on the first
@@ -2478,7 +2481,7 @@ export default function App() {
 
     if (event.key === "Tab" && !selectedActionBar) {
       const selected = launcherResults[selectedResultIndex];
-      if (selected?.type === "command") {
+      if (selected?.type === "command" && selected.execution) {
         event.preventDefault();
         setQuery(selected.commandLine);
         setHistoryIndex(-1);
@@ -2492,32 +2495,29 @@ export default function App() {
     if (actionBar || launcherResults.length) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        if (selectedActionBar) {
-          // Past the action bar is the top of the list again.
-          if (launcherResults.length) {
-            setSelectedActionBar(false);
-            setSelectedResultIndex(0);
-          }
-        } else if (selectedResultIndex < launcherResults.length - 1) {
-          setSelectedResultIndex((index) => index + 1);
-        } else {
-          setSelectedActionBar(Boolean(actionBar));
-        }
+        const selection = nextLauncherSelection(
+          runnableResultFlags,
+          selectedResultIndex,
+          selectedActionBar,
+          Boolean(actionBar),
+          1,
+        );
+        setSelectedActionBar(selection.actionBar);
+        setSelectedResultIndex(selection.resultIndex);
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        if (selectedActionBar) {
-          if (launcherResults.length) {
-            setSelectedActionBar(false);
-            setSelectedResultIndex(launcherResults.length - 1);
-          }
-        } else if (selectedResultIndex > 0) {
-          setSelectedResultIndex((index) => index - 1);
-        } else {
-          setSelectedActionBar(Boolean(actionBar));
-        }
+        const selection = nextLauncherSelection(
+          runnableResultFlags,
+          selectedResultIndex,
+          selectedActionBar,
+          Boolean(actionBar),
+          -1,
+        );
+        setSelectedActionBar(selection.actionBar);
+        setSelectedResultIndex(selection.resultIndex);
         return;
       }
 
@@ -2527,9 +2527,9 @@ export default function App() {
         event.preventDefault();
         if (!selectedActionBar) {
           setSelectedActionBar(Boolean(actionBar));
-        } else if (launcherResults.length) {
+        } else if (firstRunnableResultIndex >= 0) {
           setSelectedActionBar(false);
-          setSelectedResultIndex(0);
+          setSelectedResultIndex(firstRunnableResultIndex);
         }
         return;
       }
@@ -3029,11 +3029,14 @@ export default function App() {
                       <button
                         key={item.id}
                         type="button"
-                        className={`launcher-result${selected ? " launcher-result--selected" : ""}`}
+                        className={`launcher-result${selected ? " launcher-result--selected" : ""}${
+                          unavailable ? " launcher-result--unavailable" : ""
+                        }`}
                         role="option"
                         aria-selected={selected}
                         aria-disabled={unavailable}
                         onMouseMove={() => {
+                          if (unavailable) return;
                           setSelectedActionBar(false);
                           setSelectedResultIndex(index);
                         }}
@@ -3069,7 +3072,7 @@ export default function App() {
                           </span>
                         </span>
                         <span className="launcher-result__action">
-                          {formatResultShortcut(shortcuts.select_result, index + 1)}
+                          {unavailable ? "" : formatResultShortcut(shortcuts.select_result, index + 1)}
                         </span>
                       </button>
                     );

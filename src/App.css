@@ -1,3 +1,4 @@
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V4 */
 * {
   box-sizing: border-box;
 }
@@ -443,6 +444,17 @@ input:focus {
   background: var(--accent-tint);
 }
 
+.launcher-result--unavailable {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.launcher-result--unavailable .launcher-result__icon,
+.launcher-result--unavailable .launcher-result__title,
+.launcher-result--unavailable .launcher-result__subtitle {
+  opacity: 0.62;
+}
+
 .launcher-result__icon {
   width: 28px;
   height: 28px;
@@ -529,7 +541,7 @@ input:focus {
   color: var(--text-secondary);
 }
 
-.launcher-result:active {
+.launcher-result:not(.launcher-result--unavailable):active {
   transform: scale(0.997);
 }
 

@@ -4,6 +4,7 @@ import {
   classifyActionBar,
   completedCommandLine,
   executionWithCompletion,
+  nextLauncherSelection,
   normalizeSearch,
   parseCommandLine,
   scoreApp,
@@ -101,4 +102,40 @@ test("unavailable catalog commands never capture the default Enter action", () =
   assert.equal(shouldDefaultToActionBar("code", "shell", 2, 1, false), false);
   // A known shell command stays a command even if an application also matched.
   assert.equal(shouldDefaultToActionBar("git", "shell", 2, 1, false), true);
+});
+
+test("keyboard navigation skips unavailable results in both directions", () => {
+  const runnable = [false, true, false, true];
+  assert.deepEqual(nextLauncherSelection(runnable, 1, false, true, 1), {
+    actionBar: false,
+    resultIndex: 3,
+  });
+  assert.deepEqual(nextLauncherSelection(runnable, 3, false, true, -1), {
+    actionBar: false,
+    resultIndex: 1,
+  });
+  assert.deepEqual(nextLauncherSelection(runnable, 3, false, true, 1), {
+    actionBar: true,
+    resultIndex: 3,
+  });
+  assert.deepEqual(nextLauncherSelection(runnable, 3, true, true, 1), {
+    actionBar: false,
+    resultIndex: 1,
+  });
+});
+
+test("keyboard navigation recovers when the selected result becomes unavailable", () => {
+  const runnable = [true, false, true];
+  assert.deepEqual(nextLauncherSelection(runnable, 1, false, true, 1), {
+    actionBar: false,
+    resultIndex: 2,
+  });
+  assert.deepEqual(nextLauncherSelection(runnable, 1, false, true, -1), {
+    actionBar: false,
+    resultIndex: 0,
+  });
+  assert.deepEqual(nextLauncherSelection([false], 0, false, true, -1), {
+    actionBar: true,
+    resultIndex: 0,
+  });
 });
