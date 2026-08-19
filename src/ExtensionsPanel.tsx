@@ -1605,6 +1605,16 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               placeholder={t("settings.extensions.searchPlaceholder")}
               aria-label={t("settings.extensions.searchPlaceholder")}
             />
+            {query && (
+              <button
+                type="button"
+                className="extensions-search__clear"
+                aria-label="Clear search"
+                onClick={() => { setQuery(""); setSearchResults([]); setHasSearched(false); }}
+              >
+                <X size={14} strokeWidth={2} />
+              </button>
+            )}
             <button type="submit" aria-busy={searching} disabled={!query.trim() || searching}>
               {searching && <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />}
               {searching ? t("settings.extensions.searching") : t("settings.extensions.search")}
