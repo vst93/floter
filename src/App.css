@@ -1676,22 +1676,62 @@ input:focus {
 }
 
 .extension-install-trust {
-  padding: 9px;
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 11px 12px;
   border: 1px solid var(--stroke-control);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface-control);
 }
 
-.extension-install-deprecation {
-  margin: 5px 0;
-  padding: 9px;
-  border: 1px solid color-mix(in srgb, var(--text-warning) 38%, transparent);
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--text-warning) 8%, transparent);
+.extension-install-trust > svg {
+  margin-top: 1px;
+  color: var(--text-muted);
 }
 
-.extension-permission-list .extension-install-deprecation strong,
-.extension-permission-list .extension-install-deprecation span {
+.extension-install-trust--official > svg {
+  color: var(--accent);
+}
+
+.extension-install-trust > div,
+.extension-install-deprecation > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.extension-install-trust strong,
+.extension-install-deprecation strong {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.extension-install-trust span,
+.extension-install-deprecation span {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.extension-install-deprecation {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  margin: 0;
+  padding: 11px 12px;
+  border: 0;
+  border-left: 3px solid var(--text-warning);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--text-warning) 11%, transparent);
+  color: var(--text-warning);
+}
+
+.extension-install-deprecation strong,
+.extension-install-deprecation span {
   color: var(--text-warning);
 }
 
@@ -1717,6 +1757,13 @@ input:focus {
   overflow: hidden;
 }
 
+.extension-permission-dialog--install {
+  width: min(440px, 100%);
+  max-height: min(600px, calc(100vh - 40px));
+  border-radius: 8px;
+  box-shadow: 0 18px 48px var(--window-shadow-ambient);
+}
+
 .extension-permission-dialog > header {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
@@ -1724,6 +1771,11 @@ input:focus {
   padding: 13px;
   border-bottom: 1px solid var(--hairline);
   color: var(--accent);
+}
+
+.extension-permission-dialog--install > header {
+  gap: 10px;
+  padding: 17px 20px 15px;
 }
 
 .extension-permission-dialog h3,
@@ -1741,6 +1793,54 @@ input:focus {
   color: var(--text-muted);
   font-size: 10.5px;
   line-height: 1.4;
+}
+
+.extension-permission-dialog__body {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  padding: 16px 20px 18px;
+  overflow-y: auto;
+}
+
+.extension-permission-section {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+}
+
+.extension-permission-section h4 {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.extension-permission-section .extension-permission-list {
+  gap: 11px;
+  padding: 0;
+  overflow: visible;
+}
+
+.extension-permission-section .extension-permission-list > div {
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 2px 0;
+  border-bottom: 0;
+}
+
+.extension-permission-section .extension-permission-list > div > svg {
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.extension-permission-section .extension-permission-list > div > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .extension-permission-list {
@@ -1778,6 +1878,29 @@ input:focus {
   gap: 7px;
   padding: 10px 13px;
   border-top: 1px solid var(--hairline);
+}
+
+.extension-permission-dialog--install > footer {
+  gap: 8px;
+  padding: 12px 20px 14px;
+  background: var(--surface-sunken-soft);
+}
+
+.extension-permission-dialog--install > footer .extensions-action-button {
+  min-width: 72px;
+  min-height: 30px;
+}
+
+.extensions-action-button--warning {
+  border-color: color-mix(in srgb, var(--text-warning) 42%, var(--stroke-control));
+  background: color-mix(in srgb, var(--text-warning) 11%, transparent);
+  color: var(--text-warning);
+}
+
+.extensions-action-button--warning:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--text-warning) 58%, var(--stroke-control));
+  background: color-mix(in srgb, var(--text-warning) 16%, transparent);
+  color: var(--text-warning);
 }
 
 .extension-tool-choice-list {
@@ -1842,6 +1965,24 @@ input:focus {
   color: var(--text-muted);
   font-size: 9.5px;
   line-height: 1.4;
+}
+
+.extension-permission-dialog__body > .extension-permission-dialog__boundary {
+  margin: 0;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.extension-permission-dialog__body > .extension-permission-dialog__boundary > svg {
+  margin-top: 1px;
+  color: var(--text-tertiary);
+}
+
+.extension-permission-dialog__body > .extension-permission-dialog__boundary > span {
+  min-width: 0;
 }
 
 .extension-custom-dialog {

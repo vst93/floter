@@ -571,6 +571,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
   const selected = extensions.find((extension) => extension.id === selectedId) ?? null;
   const configDirty = configuration?.descriptor.owner === "host"
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
+  const installConfirmationLoading = Boolean(pendingInstall && busy);
 
   const checkForUpdates = async (entries: Extension[], generation: number) => {
     const managed = entries.filter((entry) => entry.distributionSource === "npm" && entry.packageName);
@@ -1720,10 +1721,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
       )}
 
       {pendingInstall && (
-        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingInstall(null); }}>
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!installConfirmationLoading) setPendingInstall(null); }}>
           <section
             ref={permissionDialogRef}
-            className="extension-permission-dialog"
+            className="extension-permission-dialog extension-permission-dialog--install"
             role="dialog"
             aria-modal="true"
             aria-labelledby="extension-permission-title"
@@ -1778,17 +1779,17 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
               </p>
             </div>
             <footer>
-              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button" disabled={installConfirmationLoading} onClick={() => setPendingInstall(null)}>{t("settings.extensions.cancel")}</button>
               <button
                 type="button"
                 className={`extensions-action-button extensions-action-button--primary${pendingInstall.review.deprecation !== null ? " extensions-action-button--warning" : ""}`}
                 data-dialog-initial
-                aria-busy={Boolean(busy)}
-                disabled={Boolean(busy)}
+                aria-busy={installConfirmationLoading}
+                disabled={installConfirmationLoading}
                 onClick={() => void confirmPendingInstall()}
               >
-                {busy && <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />}
-                {busy ? t("settings.extensions.installing") : t(pendingInstall.review.deprecation !== null ? "settings.extensions.installDeprecated" : "settings.extensions.approveInstall")}
+                {installConfirmationLoading && <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />}
+                {installConfirmationLoading ? t("settings.extensions.installing") : t(pendingInstall.review.deprecation !== null ? "settings.extensions.installDeprecated" : "settings.extensions.approveInstall")}
               </button>
             </footer>
           </section>
