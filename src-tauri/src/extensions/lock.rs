@@ -87,6 +87,16 @@ pub struct ExtensionLockEntry {
     pub tool_version: Option<String>,
     pub integrity: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_integrity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_integrity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_integrity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_runtime_integrity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_content_integrity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_selection: Option<AssetSelection>,
     #[serde(default)]
     pub signature_verified: bool,
@@ -390,6 +400,9 @@ mod tests {
         .unwrap();
         assert!(!entry.official_verified);
         assert_eq!(entry.previous_official_verified, None);
+        assert_eq!(entry.runtime_integrity, None);
+        assert_eq!(entry.content_integrity, None);
+        assert_eq!(entry.previous_integrity, None);
     }
 
     #[test]

@@ -270,6 +270,11 @@ impl ExtensionListItem {
             package_version: version.clone(),
             tool_version: None,
             integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
             asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
@@ -1231,7 +1236,6 @@ pub async fn extensions_repair(
                 .get(&id)?
                 .clone();
             let (entry, action) = if current.distribution_source == ExtensionDistributionSource::Npm
-                && current.runtime_ownership == ExtensionRuntimeOwnership::Bundled
             {
                 (
                     install::repair_managed(&state, &id).await?,

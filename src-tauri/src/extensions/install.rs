@@ -21,7 +21,7 @@ use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha384, Sha512};
 use std::collections::BTreeMap;
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -170,6 +170,12 @@ struct RegistryDist {
     integrity: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct LockedIntegrities<'a> {
+    package: Option<&'a str>,
+    runtime: Option<&'a str>,
+}
+
 #[derive(Debug, Deserialize)]
 struct PackageJson {
     name: String,
@@ -244,7 +250,7 @@ pub async fn install(
                 None,
                 None,
                 request.approved_permissions.as_deref(),
-                None,
+                LockedIntegrities::default(),
             )
             .await
         }
@@ -266,7 +272,7 @@ pub(crate) async fn install_imported_managed_locked(
         Some("stable"),
         Some(extension_id),
         approved_permissions,
-        None,
+        LockedIntegrities::default(),
     )
     .await
 }
@@ -310,6 +316,9 @@ pub(crate) fn commit_preflight_managed(
     if let Some(old) = &old {
         entry.installed_at = old.installed_at;
         entry.previous_version = Some(old.current_version.clone());
+        entry.previous_integrity = old.integrity.clone();
+        entry.previous_runtime_integrity = old.runtime_integrity.clone();
+        entry.previous_content_integrity = old.content_integrity.clone();
         entry.previous_signature_verified = Some(old.signature_verified);
         entry.previous_official_verified = Some(old.official_verified);
         entry.enabled = old.enabled;
@@ -835,6 +844,11 @@ pub(crate) async fn connect_bundled_locked(
         package_version: integration_version.clone(),
         tool_version,
         integrity: None,
+        runtime_integrity: None,
+        content_integrity: None,
+        previous_integrity: None,
+        previous_runtime_integrity: None,
+        previous_content_integrity: None,
         asset_selection: None,
         signature_verified: false,
         previous_signature_verified: None,
@@ -1040,7 +1054,7 @@ pub async fn update(
         Some(&current.channel),
         Some(extension_id),
         approved_permissions,
-        None,
+        LockedIntegrities::default(),
     )
     .await
 }
@@ -1060,6 +1074,8 @@ pub async fn reinstall(
         .package_name
         .as_deref()
         .ok_or("NPM integration has no package name in the lock file")?;
+    let integrity = current.integrity.as_deref();
+    let runtime_integrity = current.runtime_integrity.as_deref();
     install_managed(
         state,
         package,
@@ -1067,7 +1083,10 @@ pub async fn reinstall(
         Some(&current.channel),
         Some(extension_id),
         approved_permissions,
-        None,
+        LockedIntegrities {
+            package: integrity,
+            runtime: runtime_integrity,
+        },
     )
     .await
 }
@@ -1121,24 +1140,28 @@ pub async fn verify_installed(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(extension_id)?
         .clone();
-    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
-    if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
-        return Err(format!(
-            "Installed manifest identity does not match {extension_id}"
-        ));
-    }
     if entry.distribution_source == ExtensionDistributionSource::Npm {
-        let version_root = state
-            .paths
-            .extensions
-            .join(extension_id)
-            .join("versions")
-            .join(&entry.current_version);
+        let version_root = installed_version_root(state, &entry);
         if !version_root.is_dir() || entry.integrity.is_none() {
             return Err(format!(
                 "Installed package files are incomplete for {extension_id}"
             ));
         }
+        let expected = entry.content_integrity.as_deref().ok_or_else(|| {
+            format!("Installed package has no content integrity record for {extension_id}")
+        })?;
+        let actual = installed_tree_integrity(&version_root)?;
+        if !constant_time_equal(actual.as_bytes(), expected.as_bytes()) {
+            return Err(format!(
+                "Installed package content integrity check failed for {extension_id}"
+            ));
+        }
+    }
+    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
+        return Err(format!(
+            "Installed manifest identity does not match {extension_id}"
+        ));
     }
     match entry.provider_kind {
         ExtensionProviderKind::Executable => {
@@ -1165,19 +1188,15 @@ pub async fn repair_managed(
     let current = ExtensionsLock::load(&state.paths.lock_file)?
         .get(extension_id)?
         .clone();
-    if current.distribution_source != ExtensionDistributionSource::Npm
-        || current.runtime_ownership != ExtensionRuntimeOwnership::Bundled
-    {
-        return Err("Managed repair requires a bundled NPM integration".to_string());
+    if current.distribution_source != ExtensionDistributionSource::Npm {
+        return Err("Managed repair requires an NPM integration".to_string());
     }
     let package = current
         .package_name
         .as_deref()
         .ok_or("NPM integration has no package name in the lock file")?;
-    let integrity = current
-        .integrity
-        .as_deref()
-        .ok_or("NPM integration has no locked integrity")?;
+    let integrity = current.integrity.as_deref();
+    let runtime_integrity = current.runtime_integrity.as_deref();
     install_managed(
         state,
         package,
@@ -1185,9 +1204,41 @@ pub async fn repair_managed(
         Some(&current.channel),
         Some(extension_id),
         None,
-        Some(integrity),
+        LockedIntegrities {
+            package: integrity,
+            runtime: runtime_integrity,
+        },
     )
     .await
+}
+
+fn installed_version_root(state: &ExtensionState, entry: &ExtensionLockEntry) -> PathBuf {
+    state
+        .paths
+        .extensions
+        .join(&entry.id)
+        .join("versions")
+        .join(&entry.current_version)
+}
+
+fn swap_rollback_metadata(entry: &mut ExtensionLockEntry) {
+    std::mem::swap(&mut entry.integrity, &mut entry.previous_integrity);
+    std::mem::swap(
+        &mut entry.runtime_integrity,
+        &mut entry.previous_runtime_integrity,
+    );
+    std::mem::swap(
+        &mut entry.content_integrity,
+        &mut entry.previous_content_integrity,
+    );
+    let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
+    entry.previous_signature_verified = Some(entry.signature_verified);
+    entry.signature_verified = previous_signature_verified;
+    let previous_official_verified = entry.previous_official_verified.unwrap_or(false);
+    entry.previous_official_verified = Some(entry.official_verified);
+    entry.official_verified = previous_official_verified;
+    // Older lock entries do not retain the previous version's asset URL.
+    entry.asset_selection = None;
 }
 
 pub async fn uninstall(
@@ -1301,6 +1352,14 @@ pub(crate) async fn rollback_locked(
             "Previous version directory is missing: {}",
             previous_root.display()
         ));
+    }
+    if let Some(expected) = entry.previous_content_integrity.as_deref() {
+        let actual = installed_tree_integrity(&previous_root)?;
+        if !constant_time_equal(actual.as_bytes(), expected.as_bytes()) {
+            return Err(format!(
+                "Previous version content integrity check failed for {extension_id}"
+            ));
+        }
     }
     let current = std::mem::replace(&mut entry.current_version, previous.clone());
     entry.previous_version = Some(current);
@@ -1422,16 +1481,7 @@ pub(crate) async fn rollback_locked(
             }
         }
     }
-    let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
-    entry.previous_signature_verified = Some(entry.signature_verified);
-    entry.signature_verified = previous_signature_verified;
-    let previous_official_verified = entry.previous_official_verified.unwrap_or(false);
-    entry.previous_official_verified = Some(entry.official_verified);
-    entry.official_verified = previous_official_verified;
-    // The prior lock schema did not retain the previous version's asset URL.
-    // Do not present the newer version's selection as if it described the
-    // rolled-back artifact.
-    entry.asset_selection = None;
+    swap_rollback_metadata(entry);
     entry.updated_at = unix_now();
     let result = entry.clone();
     commit_lock(state, &original, &result)?;
@@ -1502,7 +1552,7 @@ async fn install_managed(
     release_channel: Option<&str>,
     expected_id: Option<&str>,
     approved_permissions: Option<&[Permission]>,
-    expected_integrity: Option<&str>,
+    locked_integrities: LockedIntegrities<'_>,
 ) -> Result<ExtensionLockEntry, String> {
     validate_package_name(package)?;
     let official_index = official_index::fetch(state).await.ok();
@@ -1516,7 +1566,7 @@ async fn install_managed(
         }
     }
     let base_version = resolve_registry_version(state, package, selector).await?;
-    if let Some(expected) = expected_integrity {
+    if let Some(expected) = locked_integrities.package {
         if base_version.dist.integrity.as_deref() != Some(expected) {
             return Err(format!(
                 "Registry integrity for {package}@{} no longer matches the lock file",
@@ -1575,7 +1625,7 @@ async fn install_managed(
             manifest.id
         ));
     }
-    let permission_approval_required = if expected_integrity.is_some() {
+    let permission_approval_required = if locked_integrities.package.is_some() {
         false
     } else if let Some(entry) = expected_entry.as_ref() {
         let installed_manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
@@ -1603,65 +1653,88 @@ async fn install_managed(
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
-    let (executable, runtime_root, version_args, tool_version, asset_selection) = match &manifest
-        .runtime
-    {
-        Runtime::Bundled { .. } => {
-            let platform_package = resolved
-                .platform_package
-                .as_deref()
-                .ok_or("Bundled runtime has no platform package")?;
-            let platform_version =
-                resolve_registry_version(state, platform_package, Some(&base_version.version))
-                    .await?;
-            if platform_version.version != base_version.version {
-                return Err("Base and platform package versions must match".to_string());
+    let (executable, runtime_root, version_args, tool_version, asset_selection, runtime_integrity) =
+        match &manifest.runtime {
+            Runtime::Bundled { .. } => {
+                let platform_package = resolved
+                    .platform_package
+                    .as_deref()
+                    .ok_or("Bundled runtime has no platform package")?;
+                let platform_version =
+                    resolve_registry_version(state, platform_package, Some(&base_version.version))
+                        .await?;
+                if platform_version.version != base_version.version {
+                    return Err("Base and platform package versions must match".to_string());
+                }
+                if let Some(expected) = locked_integrities.runtime {
+                    if platform_version.dist.integrity.as_deref() != Some(expected) {
+                        return Err(format!(
+                            "Registry integrity for {platform_package}@{} no longer matches the lock file",
+                            platform_version.version
+                        ));
+                    }
+                }
+                let runtime_bytes = download_tarball(state, &platform_version.dist).await?;
+                let runtime_root = version_root.join("runtime");
+                std::fs::create_dir_all(&runtime_root)
+                    .map_err(|error| format!("Cannot create runtime directory: {error}"))?;
+                safe_unpack(&runtime_bytes, &runtime_root)?;
+                let runtime_package: PackageJson = serde_json::from_slice(
+                    &std::fs::read(runtime_root.join("package.json")).map_err(|error| {
+                        format!("Platform package has no package.json: {error}")
+                    })?,
+                )
+                .map_err(|error| format!("Invalid platform package.json: {error}"))?;
+                validate_package_entry(&runtime_package, &platform_version, false)?;
+                let executable = managed_executable(&manifest, &version_root)?;
+                make_executable(&executable)?;
+                let verified_binaries = crate::extensions::artifacts::verify_binaries(
+                    &runtime_root,
+                    &manifest.artifacts,
+                    &manifest.permissions,
+                )
+                .await?;
+                crate::extensions::artifacts::prepare_shim_metadata(
+                    &version_root,
+                    &verified_binaries,
+                )?;
+                let candidate = crate::extensions::asset_matcher::AssetCandidate::exact_archive(
+                    platform_package,
+                    &platform_version.dist.tarball,
+                    &resolved.target,
+                );
+                let selection =
+                    crate::extensions::asset_matcher::AssetMatcher::new(&resolved.target)
+                        .select(&[candidate])?;
+                (
+                    executable,
+                    Some(runtime_root),
+                    Vec::new(),
+                    None,
+                    Some(selection),
+                    platform_version.dist.integrity,
+                )
             }
-            let runtime_bytes = download_tarball(state, &platform_version.dist).await?;
-            let runtime_root = version_root.join("runtime");
-            std::fs::create_dir_all(&runtime_root)
-                .map_err(|error| format!("Cannot create runtime directory: {error}"))?;
-            safe_unpack(&runtime_bytes, &runtime_root)?;
-            let runtime_package: PackageJson = serde_json::from_slice(
-                &std::fs::read(runtime_root.join("package.json"))
-                    .map_err(|error| format!("Platform package has no package.json: {error}"))?,
-            )
-            .map_err(|error| format!("Invalid platform package.json: {error}"))?;
-            validate_package_entry(&runtime_package, &platform_version, false)?;
-            let executable = managed_executable(&manifest, &version_root)?;
-            make_executable(&executable)?;
-            let verified_binaries = crate::extensions::artifacts::verify_binaries(
-                &runtime_root,
-                &manifest.artifacts,
-                &manifest.permissions,
-            )
-            .await?;
-            crate::extensions::artifacts::prepare_shim_metadata(&version_root, &verified_binaries)?;
-            let candidate = crate::extensions::asset_matcher::AssetCandidate::exact_archive(
-                platform_package,
-                &platform_version.dist.tarball,
-                &resolved.target,
-            );
-            let selection = crate::extensions::asset_matcher::AssetMatcher::new(&resolved.target)
-                .select(&[candidate])?;
-            (
-                executable,
-                Some(runtime_root),
-                Vec::new(),
-                None,
-                Some(selection),
-            )
-        }
-        Runtime::System { version_args, .. } => {
-            let executable = find_system_executable(&manifest)?;
-            let tool_version =
-                linked_tool_version(&manifest, &resolved.provider, &executable).await;
-            (executable, None, version_args.clone(), tool_version, None)
-        }
-        Runtime::Script { .. } => {
-            return Err("NPM packages cannot use local script runtimes".to_string())
-        }
-    };
+            Runtime::System { version_args, .. } => {
+                if locked_integrities.runtime.is_some() {
+                    return Err("Locked bundled runtime changed to a system runtime".to_string());
+                }
+                let executable = find_system_executable(&manifest)?;
+                let tool_version =
+                    linked_tool_version(&manifest, &resolved.provider, &executable).await;
+                (
+                    executable,
+                    None,
+                    version_args.clone(),
+                    tool_version,
+                    None,
+                    None,
+                )
+            }
+            Runtime::Script { .. } => {
+                return Err("NPM packages cannot use local script runtimes".to_string())
+            }
+        };
     progress(state, &mut journal, TransactionState::Downloaded)?;
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
@@ -1764,6 +1837,7 @@ async fn install_managed(
         }
     };
     let now = unix_now();
+    let content_integrity = installed_tree_integrity(&version_root)?;
     let enabled = old.as_ref().is_none_or(|entry| entry.enabled);
     let replacing_same_version = old
         .as_ref()
@@ -1794,6 +1868,29 @@ async fn install_managed(
         package_version: base_version.version.clone(),
         tool_version: tool_version.or(Some(description.description.provider.version)),
         integrity: base_version.dist.integrity.clone(),
+        runtime_integrity,
+        content_integrity: Some(content_integrity),
+        previous_integrity: old.as_ref().and_then(|entry| {
+            if replacing_same_version {
+                entry.previous_integrity.clone()
+            } else {
+                entry.integrity.clone()
+            }
+        }),
+        previous_runtime_integrity: old.as_ref().and_then(|entry| {
+            if replacing_same_version {
+                entry.previous_runtime_integrity.clone()
+            } else {
+                entry.runtime_integrity.clone()
+            }
+        }),
+        previous_content_integrity: old.as_ref().and_then(|entry| {
+            if replacing_same_version {
+                entry.previous_content_integrity.clone()
+            } else {
+                entry.content_integrity.clone()
+            }
+        }),
         asset_selection,
         signature_verified: manifest.signatures.is_some(),
         previous_signature_verified: old.as_ref().and_then(|entry| {
@@ -2025,6 +2122,11 @@ pub(crate) async fn install_linked(
         package_version: integration_version.clone(),
         tool_version: tool_version.or(Some(response.description.provider.version)),
         integrity: None,
+        runtime_integrity: None,
+        content_integrity: None,
+        previous_integrity: None,
+        previous_runtime_integrity: None,
+        previous_content_integrity: None,
         asset_selection: None,
         signature_verified: false,
         previous_signature_verified: None,
@@ -2378,6 +2480,130 @@ fn safe_unpack(bytes: &[u8], destination: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn installed_tree_integrity(root: &Path) -> Result<String, String> {
+    let mut entries = Vec::new();
+    collect_installed_tree(root, root, &mut entries)?;
+    entries.sort();
+
+    let mut digest = Sha512::new();
+    let mut total_bytes = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+    for relative in entries {
+        let path = root.join(&relative);
+        let metadata = std::fs::symlink_metadata(&path).map_err(|error| {
+            format!("Cannot inspect installed file {}: {error}", path.display())
+        })?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "Installed package contains an unexpected symbolic link: {}",
+                path.display()
+            ));
+        }
+        digest.update(if metadata.is_dir() { b"d" } else { b"f" });
+        update_path_digest(&mut digest, &relative);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            digest.update((metadata.permissions().mode() & 0o777).to_be_bytes());
+        }
+        if metadata.is_dir() {
+            continue;
+        }
+        if !metadata.is_file() {
+            return Err(format!(
+                "Installed package contains an unsupported file type: {}",
+                path.display()
+            ));
+        }
+        total_bytes = total_bytes
+            .checked_add(metadata.len())
+            .ok_or("Installed package size overflow")?;
+        if total_bytes > MAX_TARBALL_BYTES as u64 * 4 {
+            return Err("Installed package exceeds the integrity size limit".to_string());
+        }
+        digest.update(metadata.len().to_be_bytes());
+        let mut file = std::fs::File::open(&path)
+            .map_err(|error| format!("Cannot read installed file {}: {error}", path.display()))?;
+        loop {
+            let count = file.read(&mut buffer).map_err(|error| {
+                format!("Cannot read installed file {}: {error}", path.display())
+            })?;
+            if count == 0 {
+                break;
+            }
+            digest.update(&buffer[..count]);
+        }
+    }
+    Ok(format!(
+        "sha512-{}",
+        base64::engine::general_purpose::STANDARD.encode(digest.finalize())
+    ))
+}
+
+fn collect_installed_tree(
+    root: &Path,
+    directory: &Path,
+    entries: &mut Vec<PathBuf>,
+) -> Result<(), String> {
+    for item in std::fs::read_dir(directory).map_err(|error| {
+        format!(
+            "Cannot read installed directory {}: {error}",
+            directory.display()
+        )
+    })? {
+        if entries.len() >= MAX_ARCHIVE_ENTRIES {
+            return Err(format!(
+                "Installed package contains more than {MAX_ARCHIVE_ENTRIES} entries"
+            ));
+        }
+        let path = item
+            .map_err(|error| {
+                format!(
+                    "Cannot read installed directory {}: {error}",
+                    directory.display()
+                )
+            })?
+            .path();
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| "Installed package entry escaped its version root")?
+            .to_path_buf();
+        let metadata = std::fs::symlink_metadata(&path).map_err(|error| {
+            format!("Cannot inspect installed file {}: {error}", path.display())
+        })?;
+        entries.push(relative);
+        if metadata.is_dir() {
+            collect_installed_tree(root, &path, entries)?;
+        }
+    }
+    Ok(())
+}
+
+fn update_path_digest(digest: &mut Sha512, path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        let bytes = path.as_os_str().as_bytes();
+        digest.update((bytes.len() as u64).to_be_bytes());
+        digest.update(bytes);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let units: Vec<u16> = path.as_os_str().encode_wide().collect();
+        digest.update((units.len() as u64).to_be_bytes());
+        for unit in units {
+            digest.update(unit.to_be_bytes());
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let value = path.to_string_lossy();
+        digest.update((value.len() as u64).to_be_bytes());
+        digest.update(value.as_bytes());
+    }
+}
+
 fn safe_archive_path(path: &Path) -> Result<PathBuf, String> {
     let mut components = path.components();
     let Some(Component::Normal(root)) = components.next() else {
@@ -2651,6 +2877,11 @@ mod tests {
             package_version: version.into(),
             tool_version: Some("1.0.0".into()),
             integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
             asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
@@ -3255,6 +3486,11 @@ mod tests {
             package_version: "1.0.0".into(),
             tool_version: None,
             integrity: Some("sha512-test".into()),
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
             asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
@@ -3339,6 +3575,74 @@ mod tests {
         let digest = base64::engine::general_purpose::STANDARD.encode(Sha512::digest(bytes));
         assert!(verify_integrity(bytes, &format!("sha512-{digest}")).is_ok());
         assert!(verify_integrity(b"changed", &format!("sha512-{digest}")).is_err());
+    }
+
+    #[test]
+    fn installed_tree_integrity_detects_file_and_tree_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(directory.path().join("runtime/bin")).unwrap();
+        std::fs::write(directory.path().join("package.json"), b"package").unwrap();
+        std::fs::write(directory.path().join("runtime/bin/tool"), b"tool-v1").unwrap();
+
+        let original = installed_tree_integrity(directory.path()).unwrap();
+        assert_eq!(
+            installed_tree_integrity(directory.path()).unwrap(),
+            original
+        );
+
+        std::fs::write(directory.path().join("runtime/bin/tool"), b"tool-v2").unwrap();
+        assert_ne!(
+            installed_tree_integrity(directory.path()).unwrap(),
+            original
+        );
+
+        std::fs::write(directory.path().join("runtime/bin/tool"), b"tool-v1").unwrap();
+        std::fs::create_dir(directory.path().join("unexpected")).unwrap();
+        assert_ne!(
+            installed_tree_integrity(directory.path()).unwrap(),
+            original
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn installed_tree_integrity_rejects_symbolic_links() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("target"), b"target").unwrap();
+        symlink("target", directory.path().join("link")).unwrap();
+
+        let error = installed_tree_integrity(directory.path()).unwrap_err();
+        assert!(error.contains("symbolic link"));
+    }
+
+    #[test]
+    fn rollback_swaps_current_and_previous_integrity_metadata() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let mut entry = journal_entry(&state, "2.0.0");
+        entry.integrity = Some("base-v2".into());
+        entry.runtime_integrity = Some("runtime-v2".into());
+        entry.content_integrity = Some("content-v2".into());
+        entry.previous_integrity = Some("base-v1".into());
+        entry.previous_runtime_integrity = Some("runtime-v1".into());
+        entry.previous_content_integrity = Some("content-v1".into());
+
+        swap_rollback_metadata(&mut entry);
+
+        assert_eq!(entry.integrity.as_deref(), Some("base-v1"));
+        assert_eq!(entry.runtime_integrity.as_deref(), Some("runtime-v1"));
+        assert_eq!(entry.content_integrity.as_deref(), Some("content-v1"));
+        assert_eq!(entry.previous_integrity.as_deref(), Some("base-v2"));
+        assert_eq!(
+            entry.previous_runtime_integrity.as_deref(),
+            Some("runtime-v2")
+        );
+        assert_eq!(
+            entry.previous_content_integrity.as_deref(),
+            Some("content-v2")
+        );
     }
 
     fn signature_config(signing_key: &SigningKey) -> SignatureConfig {

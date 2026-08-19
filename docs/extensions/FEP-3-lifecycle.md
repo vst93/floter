@@ -56,6 +56,8 @@ system runtime 集成只删除集成文件或解除本地注册，绝不能删�
 - 不执行任何 NPM 生命周期脚本或包内 JavaScript。
 - 所有 tar 路径在解包前规范化，拒绝绝对路径、`..` 和目录外链接。
 - 使用 Registry 提供的 Subresource Integrity 校验 tarball。
+- 分别锁定基础包和平台运行时包的 SRI，并记录已安装版本树的内容摘要；修复、
+  重装和回滚不得静默接受同版本内容变化。
 - Provider ID、包名、版本和发布者与 lock 记录一致。
 - 执行计划使用结构化 program/argv/cwd/env。
 - Provider 超时后终止子进程，stdout 大小设上限。

@@ -38,7 +38,7 @@
 | NPM 安装/更新 8 步流程 | FEP-3；计划阶段 2 | `install.rs:1241-1470`；`lock.rs:137-161,197-236` | ⚠️ | 下载、SRI/签名、安全解包、manifest/兼容性、describe、同文件系统 rename、pointer/lock 写入均存在；但 phase struct 只是顺序断言，`current.json` 与 lock 是两个独立提交，崩溃窗口可产生不一致，回滚是 best-effort，且没有 crash recovery/journal。未执行可选 diagnose。 |
 | 回滚与保留 previous version | FEP-3 | `install.rs:1088-1192` | ⚠️ | 可在 current/previous 间切换并重新 describe，pointer 写失败不改 lock、lock 写失败尝试还原 pointer；但仍是双文件 best-effort 事务，且只保留一个 previous 指针，没有清理/保留策略与崩溃恢复测试。 |
 | 重装 | 计划阶段 4；管理页动作 | `ExtensionsPanel.tsx:746-770` | ⚠️ | 仅由前端串行调用 uninstall 再 install；第二步失败会删除原 lock/程序版本，违反 FEP-3“失败保留当前可用版本”。后端没有原子 reinstall command，也无该失败路径测试。 |
-| 修复 | FEP-3“修复”；计划阶段 4 | `ExtensionsPanel.tsx:1305,1762-1775` | ❌ | 没有 repair Tauri command 或重新校验/补下载/describe 流程；所谓 repair/installTool 只打开 homepage，system runtime 另有 reconnect，但不等于托管扩展修复。 |
+| 修复 | FEP-3“修复”；计划阶段 4 | `commands/extensions.rs`；`extensions/install.rs`；`ExtensionsPanel.tsx` | ✅ | repair command 先校验落盘版本树、manifest 身份和 Provider；NPM 扩展按锁定的基础包与平台包 SRI 事务重装，system/local 集成重连外部工具。新安装还记录完整版本树 SHA-512，内容变化、额外文件和链接都会触发修复。 |
 | 卸载与 system runtime 保护 | FEP-1/3；计划阶段 4 | `install.rs:1013-1086` | ✅ | 托管目录先 rename staging，lock 保存失败可恢复；system runtime 不删除外部程序；取消 completion，可选删除 data；有 system 文件保留测试。 |
 | 固定版本、stable/beta channel、默认仅 patch 自动更新 | FEP-3；计划 3.3 | `lock.rs:99-104`；`install.rs:984-1011`；`ExtensionsPanel.tsx:497-518,1051-1075` | ⚠️ | lock 有 `pinned/channel` 字段且 update 会尊重 pinned，但没有设置 pin/channel 的 command/UI；检查更新和“全部更新”直接采用 registry 最新版本，没有 patch-only 策略或 major 确认。 |
 | NPM deprecation 提示 | FEP-4:132-147 | `install.rs` Registry DTO/search；`ExtensionsPanel.tsx` | ❌ | 未解析 `floter.deprecated` 或 registry deprecation，也无安装警告。 |
@@ -48,7 +48,7 @@
 | 静态与路径补全 | FEP-2；计划阶段 3 | `catalog.rs:183-327,664-715`；`App.tsx:874-936` | ✅ | 参数 kind 驱动静态、enum、文件/目录补全，合并去重并接入建议 UI；有静态与合并测试。 |
 | 动态 `complete` 全链路 | FEP-2；计划阶段 7 | `provider.rs:335-380`；`catalog.rs:183-327`；`App.tsx:874-936` | ✅ | 前端 debounce/过期 generation、后端 100ms debounce、2s cwd+请求缓存、超时、取消（drop + kill_on_drop）及静态降级均存在；协议 argv/stdin、超时、失败、合并有测试。 |
 | React 联想键盘和结构化执行体验 | 计划阶段 3 | `App.tsx:283-368,874-936,2390-2490` | ⚠️ | Tab/Enter/方向键和 external 执行已接线且能构建，但仓库没有任何 React/浏览器交互测试，不能满足“完整逻辑 + 覆盖测试”的严格 ✅ 口径。 |
-| 扩展管理页基础功能 | 计划阶段 4 | `ExtensionsPanel.tsx`；`App.tsx:2740-2773`；`i18n.ts` | ⚠️ | 已安装/发现/更新、详情、配置、诊断、权限、启停、更新、回滚、卸载和双语均有真实调用；但可信源、repair、pin/channel 缺失，且无前端测试。 |
+| 扩展管理页基础功能 | 计划阶段 4 | `ExtensionsPanel.tsx`；`App.tsx:2740-2773`；`i18n.ts` | ⚠️ | 已安装/发现/更新、详情、配置、诊断、权限、启停、更新、回滚、修复、卸载和双语均有真实调用；但仍无浏览器级交互测试。 |
 | 声明式配置模型、校验、UI 与注入 | FEP-6；计划阶段 2/4/7 | `config.rs:116-603`；`catalog.rs:426-468,507-508`；`ExtensionsPanel.tsx:1085-1145,1620-1700` | ✅ | host/tool owner、字段类型与约束、schema 迁移、默认值、env/argv 注入、密码 IPC/导出脱敏和工具配置 PTY 均接线；有校验、迁移、注入、脱敏测试。 |
 | 配置持久化整体事务 | FEP-6:98-128；重点核查项 | `config.rs` | ✅ | secrets 先作为受限权限的不可变 generation 写入并 fsync，`config.json` 以 `secretGeneration` 作为唯一原子提交指针；配置写复用 mutation lock 串行化，启动修复悬空/损坏 generation。覆盖公开提交失败、chmod 失败、启动修复和并发保存测试。 |
 | 跨设备同步数据过滤与文件导出 | 计划 5.3、阶段 7 | `sync.rs:85-203`；`config.rs:206-212`；`commands/extensions.rs:142-320` | ✅ | 导出安装项、启用状态、可移植 manifest/静态 descriptor/script 和非敏感配置；密码被脱敏，不导出本机 executable path；导出文件原子写，有格式/迁移/幂等测试。 |
@@ -104,13 +104,15 @@
 
 **落实：** `config.json` 现在引用已完整写入、chmod 并 fsync 的不可变 secret generation，自身是唯一原子提交指针；配置写通过 mutation lock 串行化，启动时安全修复缺失、损坏或 generation 不匹配的 secret 引用，并有两阶段失败与并发覆盖。
 
-### P1：修复流程不存在
+### P1（已修复）：修复流程不存在
 
 **现状：** “安装工具/修复”动作只打开 homepage；仅 system runtime 有重新探测 PATH 的 reconnect。
 
 **缺失点：** 没有 FEP-3 所述重新校验 integrity、补下载缺失文件、重新 describe 和恢复 broken 状态。
 
 **建议实现：** 后端新增 repair command：先验证 lock/manifest/版本文件和 Provider；bundled 缺失或损坏时按锁定 integrity 重新下载到 staging 并事务替换；system runtime 只重新定位并 describe。输出结构化 repair report，并覆盖离线、损坏包和 Provider 失败。
+
+**落实：** `extensions_repair` 先验证完整落盘版本树、manifest 身份和 Provider。NPM 来源无论使用 bundled 还是 system runtime，均通过同版本 staging 事务恢复；基础包和平台包的 Registry SRI 都写入 lock 并在修复/重装时固定，完整版本树另存 SHA-512 以发现落盘后的篡改、丢失、额外条目和权限变化。回滚同步交换 current/previous 的三组摘要，旧 lock 缺少新字段时保持可读并通过首次修复建立基线。
 
 ### P1：三平台端到端完成声明无证据
 
@@ -139,4 +141,4 @@
 
 ## 5. 结论
 
-扩展平台不是“只有文档”：Manifest/Provider、结构化执行、两项 Host 强制权限、安全解包、SRI/Ed25519、静态 V Adapter、Catalog、动态 complete、声明式配置和文件导入导出都有实质代码与 Rust 测试。高风险问题主要集中在**跨文件/跨步骤事务边界和产品声明过度**：重装会破坏旧版本，安装状态无法保证崩溃一致，配置与同步只有局部原子性，官方可信索引、repair、V 动态参考实现和三平台 E2E 并未落地，SDK 也仍是文档指南而非可运行模板。因此“Phase 1-7 全部完成”的总体声明不成立。
+扩展平台不是“只有文档”：Manifest/Provider、结构化执行、两项 Host 强制权限、安全解包、SRI/Ed25519、静态 V Adapter、Catalog、动态 complete、声明式配置和文件导入导出都有实质代码与 Rust 测试。高风险问题主要集中在**跨文件/跨步骤事务边界和产品声明过度**：V 动态参考实现和三平台 E2E 仍未落地，SDK 也仍是文档指南而非可运行模板。因此“Phase 1-7 全部完成”的总体声明仍需要持续以最新实现和验证证据校准。

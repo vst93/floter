@@ -892,6 +892,11 @@ mod tests {
             tool_version: (runtime_ownership == ExtensionRuntimeOwnership::System)
                 .then(|| version.into()),
             integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
             asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
