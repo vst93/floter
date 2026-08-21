@@ -391,6 +391,10 @@ type ExtensionsPanelProps = {
   t: Translate;
   locale: "en" | "zh";
   onOpenCommand: (plan: ExtensionExecutionPlan, label: string) => void | Promise<void>;
+  /** Whether extension commands currently appear in launcher search results. */
+  showCommandsInSearch: boolean;
+  /** Flip the launcher command-discovery setting and persist it. */
+  onToggleCommandsInSearch: () => void;
 };
 
 type PermissionName =
@@ -472,7 +476,7 @@ function ArgumentListEditor({ values, label, addLabel, removeLabel, emptyLabel, 
   );
 }
 
-export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch }: ExtensionsPanelProps) {
   const { tab, setTab, onTabKeyDown } = useTabState();
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [latestById, setLatestById] = useState<Record<string, SearchResult>>({});
@@ -1438,6 +1442,28 @@ export function ExtensionsPanel({ t, locale, onOpenCommand }: ExtensionsPanelPro
           {loading || checkingUpdates
             ? <LoaderCircle className="extensions-spinner" size={16} strokeWidth={2} aria-hidden="true" />
             : <RefreshCw size={16} strokeWidth={2} aria-hidden="true" />}
+        </button>
+      </div>
+
+      <div className="settings-option extensions-panel__search-toggle">
+        <span className="settings-option__main">
+          <span className="settings-option__label">
+            {t("settings.extensions.showInSearch")}
+          </span>
+          <span className="settings-option__description">
+            {t("settings.extensions.showInSearchHint")}
+          </span>
+        </span>
+        <button
+          type="button"
+          className={`settings-switch${showCommandsInSearch ? " settings-switch--active" : ""}`}
+          role="switch"
+          aria-checked={showCommandsInSearch}
+          aria-label={t("settings.extensions.showInSearch")}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onToggleCommandsInSearch}
+        >
+          <span className="settings-switch__thumb" />
         </button>
       </div>
 

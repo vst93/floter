@@ -190,6 +190,8 @@ type AppSettings = {
   main_opacity: number;
   terminal_opacity: number;
   shortcuts: ShortcutMap;
+  /** Whether extension/provider commands appear in launcher search results. */
+  show_commands_in_search: boolean;
 };
 
 /**
@@ -662,6 +664,7 @@ export default function App() {
     main_opacity: 94,
     terminal_opacity: 92,
     shortcuts: DEFAULT_SHORTCUTS,
+    show_commands_in_search: false,
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
@@ -860,10 +863,13 @@ export default function App() {
 
   // Catalog providers can perform I/O while loading their descriptors, so the
   // request shares one debounce window and stale responses are discarded.
+  // Command discovery is opt-in: unless the user enabled it on the Integrations
+  // settings page, the launcher only ever searches applications and system
+  // actions, and typed lines run through the action bar instead.
   useEffect(() => {
     const value = query.trim();
     const generation = ++catalogRequestGeneration.current;
-    if (!value) {
+    if (!value || !settings.show_commands_in_search) {
       setCatalogSuggestions([]);
       return;
     }
@@ -935,7 +941,7 @@ export default function App() {
     }, CATALOG_SEARCH_DELAY);
 
     return () => window.clearTimeout(timer);
-  }, [query]);
+  }, [query, settings.show_commands_in_search]);
 
   /**
    * The numbered result list: applications and the built-in system actions.
@@ -2394,6 +2400,10 @@ export default function App() {
     persistSettings().catch(() => undefined);
   };
 
+  const toggleCommandsInSearch = () => {
+    changeGeneralSetting("show_commands_in_search", !settingsRef.current.show_commands_in_search);
+  };
+
   const changeTheme = (theme: string) => {
     if (theme === settings.theme) return;
     changeGeneralSetting("theme", theme);
@@ -3276,6 +3286,8 @@ export default function App() {
               t={t}
               locale={language}
               onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
+              showCommandsInSearch={settings.show_commands_in_search}
+              onToggleCommandsInSearch={toggleCommandsInSearch}
             />
             )}
 

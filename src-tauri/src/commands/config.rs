@@ -81,6 +81,9 @@ pub struct AppSettings {
     pub terminal_opacity: u8,
     /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
     pub shortcuts: HashMap<String, String>,
+    /// Whether extension/provider commands appear in launcher search results.
+    /// Off by default: commands are opt-in from the Integrations settings page.
+    pub show_commands_in_search: bool,
 }
 
 impl Default for AppSettings {
@@ -99,6 +102,7 @@ impl Default for AppSettings {
             main_opacity: DEFAULT_MAIN_OPACITY,
             terminal_opacity: DEFAULT_TERMINAL_OPACITY,
             shortcuts: default_shortcuts(),
+            show_commands_in_search: false,
         }
     }
 }
@@ -545,6 +549,12 @@ mod tests {
     fn older_settings_do_not_enable_autostart() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(!settings.launch_at_startup);
+    }
+
+    #[test]
+    fn older_settings_keep_command_discovery_hidden() {
+        let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(!settings.show_commands_in_search);
     }
 
     #[test]
