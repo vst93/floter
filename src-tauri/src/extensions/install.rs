@@ -3024,6 +3024,7 @@ mod tests {
         CatalogSearchRequest {
             query: command.into(),
             tokens: vec![command.into()],
+            environment: BTreeMap::new(),
             cwd: None,
             limit: 10,
             include_system_commands: false,
@@ -3080,6 +3081,7 @@ mod tests {
             &CatalogSearchRequest {
                 query: "printf-test".into(),
                 tokens: vec!["printf-test".into(), "user value".into()],
+                environment: BTreeMap::new(),
                 cwd: None,
                 limit: 10,
                 include_system_commands: false,
@@ -3132,6 +3134,7 @@ mod tests {
             &CatalogSearchRequest {
                 query: "shell-test".into(),
                 tokens: vec!["shell-test".into(), "user value".into()],
+                environment: BTreeMap::new(),
                 cwd: None,
                 limit: 10,
                 include_system_commands: false,

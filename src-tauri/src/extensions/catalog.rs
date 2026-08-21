@@ -57,6 +57,8 @@ pub struct CatalogSearchRequest {
     pub query: String,
     #[serde(default)]
     pub tokens: Vec<String>,
+    #[serde(default)]
+    pub environment: BTreeMap<String, String>,
     pub cwd: Option<String>,
     #[serde(default = "default_limit")]
     pub limit: usize,
@@ -126,7 +128,9 @@ pub async fn search(
         .await?,
     );
     if request.include_system_commands {
-        entries.extend(system_command_entries(&request.query));
+        entries.extend(system_command_entries(
+            request.tokens.first().map(String::as_str).unwrap_or_default(),
+        ));
     }
     for entry in &mut entries {
         if matches!(
@@ -137,6 +141,7 @@ pub async fn search(
                 execution
                     .args
                     .extend_from_slice(request.tokens.get(1..).unwrap_or_default());
+                execution.environment.extend(request.environment.clone());
                 execution.cwd.clone_from(&request.cwd);
             }
         }
@@ -152,10 +157,11 @@ pub async fn search(
         .map_or((None, query), |(namespace, command)| {
             (Some(namespace), command)
         });
-    let needle = needle
-        .split_whitespace()
-        .next()
-        .unwrap_or_default()
+    let needle = request
+        .tokens
+        .first()
+        .map(String::as_str)
+        .unwrap_or_else(|| needle.split_whitespace().next().unwrap_or_default())
         .to_ascii_lowercase();
     let mut scored = entries
         .into_iter()

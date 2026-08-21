@@ -54,7 +54,18 @@ const ALIAS_SCORE_CAP = 690;
 export const normalizeSearch = (value: string): string =>
   value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
-export type ParsedCommandLine = { tokens: string[]; fragmentStart: number };
+export type ParsedCommandLine = {
+  tokens: string[];
+  fragmentStart: number;
+  /** Index of the executable token, after any leading NAME=value assignments. */
+  commandIndex: number | null;
+  /** Leading shell-style environment assignments, decoded as token values. */
+  environment: Record<string, string>;
+  /** Unquoted shell operators that require handing the whole line to a shell. */
+  shellSyntax: boolean;
+};
+
+const ENVIRONMENT_ASSIGNMENT = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/;
 
 /** Tokenize a command line for discovery without asking a shell to interpret it. */
 export const parseCommandLine = (
@@ -68,6 +79,7 @@ export const parseCommandLine = (
   let tokenStart = value.length;
   let quote: "'" | '"' | null = null;
   let escaped = false;
+  let shellSyntax = false;
 
   const finishToken = () => {
     if (!tokenStarted) return;
@@ -110,6 +122,7 @@ export const parseCommandLine = (
       finishToken();
       continue;
     }
+    if (quote === null && "|&;<>()".includes(char)) shellSyntax = true;
     if (!tokenStarted) tokenStart = index;
     tokenStarted = true;
     token += char;
@@ -120,7 +133,18 @@ export const parseCommandLine = (
     tokens.push("");
     tokenStart = value.length;
   }
-  return { tokens, fragmentStart: tokenStart };
+  const environment: Record<string, string> = {};
+  let commandIndex: number | null = null;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const assignment = ENVIRONMENT_ASSIGNMENT.exec(tokens[index]);
+    if (commandIndex === null && assignment) {
+      environment[assignment[1]] = assignment[2];
+      continue;
+    }
+    commandIndex = index;
+    break;
+  }
+  return { tokens, fragmentStart: tokenStart, commandIndex, environment, shellSyntax };
 };
 
 const formatCompletionValue = (value: string, syntax: CommandLineSyntax): string => {

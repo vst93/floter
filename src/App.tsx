@@ -870,24 +870,33 @@ export default function App() {
 
     setCatalogSuggestions([]);
     const timer = window.setTimeout(() => {
-      const searchTokens = parseCommandLine(query, false, COMMAND_LINE_SYNTAX).tokens;
+      const searchLine = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
       const completionLine = parseCommandLine(query, true, COMMAND_LINE_SYNTAX);
-      const command = completionLine.tokens[0] ?? "";
-      const wantsCompletion = completionLine.tokens.length > 1;
-      const search = invoke<CatalogEntry[]>("catalog_search", {
+      const commandIndex = completionLine.commandIndex;
+      const command = commandIndex === null ? "" : completionLine.tokens[commandIndex] ?? "";
+      const structuredCommand = !searchLine.shellSyntax && commandIndex !== null;
+      const searchTokens = searchLine.commandIndex === null
+        ? []
+        : searchLine.tokens.slice(searchLine.commandIndex);
+      const completionTokens = commandIndex === null
+        ? []
+        : completionLine.tokens.slice(commandIndex);
+      const wantsCompletion = structuredCommand && completionTokens.length > 1;
+      const search = structuredCommand ? invoke<CatalogEntry[]>("catalog_search", {
         request: {
           query,
           tokens: searchTokens,
+          environment: searchLine.environment,
           cwd: null,
           limit: 20,
           includeSystemCommands: true,
         },
-      });
+      }) : Promise.resolve<CatalogEntry[]>([]);
       const complete = wantsCompletion
         ? invoke<CatalogCompletionResponse>("catalog_complete", {
             request: {
               command,
-              tokens: completionLine.tokens,
+              tokens: completionTokens,
               cwd: null,
             },
           }).catch(() => null)
@@ -913,7 +922,7 @@ export default function App() {
                 item,
                 COMMAND_LINE_SYNTAX,
               ),
-              execution: executionWithCompletion(exact, completionLine.tokens, item),
+              execution: executionWithCompletion(exact, completionTokens, item),
               dynamic: completion.dynamic,
             })));
             return;
@@ -938,6 +947,7 @@ export default function App() {
    */
   const launcherResults = useMemo<LauncherItem[]>(() => {
     const command = query.trim();
+    const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
     if (!command) return [];
 
     // A query of nothing but punctuation normalizes away entirely; it can only
@@ -1037,9 +1047,10 @@ export default function App() {
           title: entry.command,
           subtitle: `${entry.description}${conflict}${unavailable}`,
           sourceName: entry.sourceName,
-          commandLine: parseCommandLine(query, false, COMMAND_LINE_SYNTAX).tokens.length > 1
-            ? query
-            : `${entry.command} `,
+          commandLine: parsedQuery.commandIndex !== null && (
+            parsedQuery.commandIndex > 0 ||
+            parsedQuery.tokens.length > parsedQuery.commandIndex + 1
+          ) ? query : `${entry.command} `,
           execution: entry.execution,
           completion: false,
         };

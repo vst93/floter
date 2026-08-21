@@ -18,6 +18,14 @@ import {
 const completion = (value: string): CompletionItem => ({ value, label: value, description: "" });
 
 test("command parsing preserves quoted and escaped arguments", () => {
+  assert.deepEqual(parseCommandLine("go").tokens, ["go"]);
+  assert.deepEqual(parseCommandLine("go version").tokens, ["go", "version"]);
+  assert.deepEqual(parseCommandLine("go version ./cmd tool").tokens, [
+    "go",
+    "version",
+    "./cmd",
+    "tool",
+  ]);
   assert.deepEqual(parseCommandLine(`git commit -m "hello world" path\\ with\\ spaces`).tokens, [
     "git",
     "commit",
@@ -51,11 +59,31 @@ test("completion parsing exposes an empty trailing argument and its insertion po
   assert.deepEqual(parseCommandLine("git checkout ", true), {
     tokens: ["git", "checkout", ""],
     fragmentStart: 13,
+    commandIndex: 0,
+    environment: {},
+    shellSyntax: false,
   });
   assert.deepEqual(parseCommandLine("git checkout fe", true), {
     tokens: ["git", "checkout", "fe"],
     fragmentStart: 13,
+    commandIndex: 0,
+    environment: {},
+    shellSyntax: false,
   });
+});
+
+test("command parsing keeps quoted arguments and leading environment assignments intact", () => {
+  const parsed = parseCommandLine(`FOO=bar go run "hello world"`);
+  assert.deepEqual(parsed.tokens, ["FOO=bar", "go", "run", "hello world"]);
+  assert.equal(parsed.commandIndex, 1);
+  assert.deepEqual(parsed.environment, { FOO: "bar" });
+  assert.deepEqual(parseCommandLine(`A=one B="two words" cmd arg`).environment, {
+    A: "one",
+    B: "two words",
+  });
+  assert.equal(parseCommandLine("A=one").commandIndex, null);
+  assert.equal(parseCommandLine("go version | cat").shellSyntax, true);
+  assert.equal(parseCommandLine("echo 'a|b'").shellSyntax, false);
 });
 
 test("completion replaces only the active fragment and quotes shell-sensitive values", () => {
