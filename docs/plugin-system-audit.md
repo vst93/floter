@@ -288,3 +288,30 @@ Host Services          # command catalog、config store、health、UI/IPC
 
 优先级建议：先执行 Phase 1-3，消除“声明完成但不可证明”和多真源事务风险；再执行 Phase 4-5，稳定协议与数据归属；只有在这两层稳定后，才投入 Phase 6 的 OS sandbox 和 Phase 7-8 的生态扩张。
 
+## 五、能力矩阵（Phase 1 交付）
+
+三列口径：**实现** = 代码入口（file:line）；**测试** = 覆盖该能力的测试命令与位置；**文档** = 声明该能力的规范及其状态。判定基线 2026-08-22 `main`。
+
+| 能力 | 实现 | 测试 | 文档 |
+|---|---|---|---|
+| Manifest v2 解析/校验/平台覆写 | `manifest.rs:15-45,237-251,304-463` | `cargo test`（manifest 模块） | FEP-1 · 已实现 |
+| Provider describe/diagnose/超时/缓存 | `provider.rs:245-405,408-490` | `cargo test`（provider 模块） | FEP-2 · 已实现 |
+| 动态 complete 全链路 | `provider.rs` + `catalog.rs:189-232` + `App.tsx:863-938` | `cargo test`（complete 合并/超时/取消）；无前端测试 | FEP-2 · 已实现 |
+| 结构化执行计划 → PTY | `provider.rs:526-587`、`ExecutionPlanCache`（`mod.rs:181-274`）、`commands/terminal.rs` | `cargo test`；手动验证 | FEP-2/5 · 已实现 |
+| NPM 下载/SRI/安全解包 | `install.rs:1548-1934` | `cargo test`（下载/解包逃逸用例） | FEP-3/4 · 已实现 |
+| Ed25519 tarball 验签 + 官方签名索引 | `install.rs:1756-1867`、`official_index.rs:13-63,108-176,245-314` | `cargo test`（篡改/过期/key rotation） | FEP-4 · 已实现（索引治理遗留 Phase 7） |
+| 安装/更新/reinstall/rollback/repair/uninstall | `install.rs:1015-1459,1548-1934`、`commands/extensions.rs:1221-1261` | `cargo test`（274+ 用例含失败路径）；无故障注入覆盖每个提交点 | FEP-3 · 部分实现 |
+| 事务 journal 与启动恢复 | `transaction.rs:24-65,253-373,469-547` | `cargo test`（枚举顺序/恢复推断）；缺 kill/断电故障注入 | FEP-3 · 半成品（Phase 3 目标） |
+| 权限审批与执行层强制 | `install.rs:934-982`、`provider.rs:408-430,526-587,696-728` | `cargo test`（env 隔离/spawn 限制正反例） | FEP-5 · 部分实现（审计记录缺失，Phase 2 目标） |
+| 声明式配置 + secret generation | `config.rs:125-191,820-892,906-960` | `cargo test`（两阶段失败/并发/启动修复） | FEP-6 · 已实现 |
+| 本地导入/导出事务 | `sync.rs:65-218,313-428,734-810` | `cargo test`（preflight/回滚/幂等） | 计划 §5.3 · 已实现（明确为本地文件移植） |
+| Catalog 搜索/命名空间/冲突 | `catalog.rs:115-187,329-662` | `cargo test`（排序/启停/冲突） | FEP-2 · 已实现 |
+| 管理面板（Installed/Discover/Updates） | `ExtensionsPanel.tsx`、`hooks/useExtensionActions.ts` | 仅构建级验证；无浏览器交互测试 | 计划阶段 4 · 已实现 |
+| V Tools 静态适配器 | `static_adapter.rs:10-229`、`src-tauri/extensions/v-tools/*` | `cargo test`（探测/argv 计划） | 计划阶段 5 · 已实现 |
+| V 动态 Provider 参考实现 | — 无代码产物 | — | 计划阶段 5 第二步 · ❌ 未落地 |
+| 三平台 E2E 验证 | `.github/workflows/release.yml`（仅构建矩阵） | — 无 | 计划阶段 6 · ❌ 未解决 |
+| SDK 可构建模板 | — 仅文档指南 `docs/extensions/sdk/*.md` | — | 计划阶段 7 · ⚠️ 指南非模板 |
+
+> 维护规则：本矩阵是「声明 vs 实现」的唯一对照表。后续 phase 改动能力状态时同步更新此表；
+> DEVELOPMENT_PLAN.md 的阶段勾选仅作历史记录，不再作为完成度依据。
+

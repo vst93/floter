@@ -1,6 +1,6 @@
 # FEP-6：Declarative Configuration
 
-状态：Draft 1
+状态：Draft 1 · **已实现**（host/tool owner、schema 迁移、env/argv 注入、secret generation 原子提交、导出脱敏：`config.rs`、`sync.rs`；有校验/迁移/注入/脱敏/并发测试。遗留：配置提交与安装提交不在同一事务，见架构审计 Phase 5）
 
 FEP-6 lets an extension describe configuration as data. The Host owns the
 settings UI, validation, persistence, and injection into Provider invocations;

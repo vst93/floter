@@ -1,6 +1,6 @@
 # FEP-1：扩展包与平台运行时
 
-状态：Draft 2
+状态：Draft 2 · **已实现**（manifest v2 解析/校验/平台覆写有代码与测试：`src-tauri/src/extensions/manifest.rs`；schema：`docs/extensions/schemas/floter-extension.schema.json`。注意部分跨字段约束只在 Rust 二次校验，仅"通过 JSON Schema"不是完整合法性证明）
 
 Host 继续读取 Draft 1 manifest，但新包应使用 `schemaVersion: "2.0"`。
 

@@ -1,6 +1,6 @@
 # FEP-2：Provider 运行协议
 
-状态：Draft 1
+状态：Draft 1 · **已实现**（describe/complete/diagnose/超时/缓存/降级：`src-tauri/src/extensions/provider.rs`、`catalog.rs`；动态 complete 全链路接入前端。遗留：无 cancel 语义、无 protocol version negotiation，见架构审计 Phase 4）
 
 ## 调用约定
 

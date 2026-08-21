@@ -1,6 +1,6 @@
 # FEP-5：Permissions and Security
 
-状态：Draft 1
+状态：Draft 1 · **部分实现**（environment/process-spawn 在执行层强制并有测试：`provider.rs:408-430,526-587,696-728`；filesystem/network/clipboard 为披露非沙箱——UI 与文档口径一致，但权限批准无审计记录（approved set/时间/来源/digest 均未落盘），见架构审计 Phase 2/6）
 
 Floter extensions are native programs. A permission declaration is a disclosure
 and consent boundary for the user; it is not a kernel sandbox. The Provider still

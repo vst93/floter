@@ -1,6 +1,6 @@
 # FEP-4：NPM Registry Convention
 
-状态：Draft 2
+状态：Draft 2 · **已实现**（Registry 直连下载、SRI、Ed25519 tarball 验签、deprecation 提示：`install.rs`；签名索引：`official_index.rs`。遗留：索引无版本范围/撤销/渠道语义，见架构审计 Phase 7）
 
 This document defines how Floter extensions are named, indexed, selected, and
 downloaded from the public NPM registry. NPM is a distribution and metadata
