@@ -1,6 +1,7 @@
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
@@ -239,6 +240,28 @@ impl ExtensionManifest {
         let bytes = std::fs::read(path)
             .map_err(|error| format!("Cannot read manifest {}: {error}", path.display()))?;
         Self::parse(&bytes)
+    }
+
+    /// Load a manifest and return the SHA-256 of its exact bytes. Install and
+    /// approval flows use the digest to bind a permission approval to the
+    /// manifest version the user actually saw.
+    pub fn load_with_digest(path: &Path) -> Result<(Self, String), String> {
+        let bytes = std::fs::read(path)
+            .map_err(|error| format!("Cannot read manifest {}: {error}", path.display()))?;
+        let digest = Self::digest_of(&bytes);
+        Ok((Self::parse(&bytes)?, digest))
+    }
+
+    /// Lowercase hex SHA-256 with the standard algorithm prefix. The same
+    /// format is stored in the lock's `approvedManifestDigest`.
+    pub fn digest_of(bytes: &[u8]) -> String {
+        let digest = Sha256::digest(bytes);
+        let mut hex = String::with_capacity(digest.len() * 2 + 7);
+        hex.push_str("sha256-");
+        for byte in digest {
+            hex.push_str(&format!("{byte:02x}"));
+        }
+        hex
     }
 
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {

@@ -825,11 +825,15 @@ pub(crate) async fn connect_bundled_locked(
     let mut manifest_bytes = serde_json::to_vec_pretty(&adapter.manifest)
         .map_err(|error| format!("Cannot serialize bundled integration manifest: {error}"))?;
     manifest_bytes.push(b'\n');
-    std::fs::write(&manifest_path, manifest_bytes)
+    // The approval audit binds to the exact manifest bytes written to disk.
+    let approval_digest = ExtensionManifest::digest_of(&manifest_bytes);
+    std::fs::write(&manifest_path, &manifest_bytes)
         .map_err(|error| format!("Cannot write bundled integration manifest: {error}"))?;
 
     let now = unix_now();
     let integration_version = env!("CARGO_PKG_VERSION").to_string();
+    let mut approved_permissions = adapter.manifest.permissions.clone();
+    approved_permissions.sort_unstable();
     let entry = ExtensionLockEntry {
         id: adapter.manifest.id,
         name: adapter.manifest.name,
@@ -863,6 +867,13 @@ pub(crate) async fn connect_bundled_locked(
         updated_at: now,
         pinned: false,
         channel: "bundled".to_string(),
+        approved_permissions,
+        approved_at: now,
+        approved_manifest_digest: Some(approval_digest),
+        last_error_code: None,
+        last_error_detail: None,
+        last_error_at: None,
+        broken_reason: None,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
     lock.save(&state.paths.lock_file)?;
@@ -1589,7 +1600,7 @@ async fn install_managed(
     safe_unpack(&base_bytes, &version_root)?;
     let (package_json, manifest_path) = load_package_entry(&version_root)?;
     validate_package_entry(&package_json, &base_version, true)?;
-    let manifest = ExtensionManifest::load(&manifest_path)?;
+    let (manifest, manifest_digest) = ExtensionManifest::load_with_digest(&manifest_path)?;
     if manifest.distribution != crate::extensions::manifest::Distribution::Npm {
         return Err("NPM packages must declare distribution.type = npm".to_string());
     }
@@ -1921,6 +1932,35 @@ async fn install_managed(
         updated_at: now,
         pinned: old.as_ref().is_some_and(|entry| entry.pinned),
         channel: channel.to_string(),
+        // Approval audit: a fresh install or a re-approval (new permission
+        // set / new manifest bytes) records the event; a patch-only update
+        // that did not require re-approval keeps the previous audit record.
+        approved_permissions: if permission_approval_required {
+            let mut approved = approved_permissions.unwrap_or_default().to_vec();
+            approved.sort_unstable();
+            approved
+        } else {
+            old.as_ref()
+                .map(|entry| entry.approved_permissions.clone())
+                .unwrap_or_default()
+        },
+        approved_at: if permission_approval_required {
+            now
+        } else {
+            old.as_ref().map_or(now, |entry| entry.approved_at)
+        },
+        approved_manifest_digest: if permission_approval_required {
+            Some(manifest_digest)
+        } else {
+            old.as_ref()
+                .and_then(|entry| entry.approved_manifest_digest.clone())
+                .or_else(|| Some(manifest_digest))
+        },
+        last_error_code: None,
+        last_error_detail: None,
+        last_error_at: None,
+        // A successful install/repair/update clears any broken state.
+        broken_reason: None,
     };
     progress(state, &mut journal, TransactionState::Staged)?;
     commit_version(
@@ -1940,6 +1980,35 @@ fn has_added_permissions(installed: &[Permission], requested: &[Permission]) -> 
         .any(|permission| !installed.contains(permission))
 }
 
+/// Map a verification failure message to a stable, structured error code for
+/// the lock file. Codes are kebab-case identifiers the UI can key on without
+/// parsing free-form error text.
+pub(crate) fn classify_verify_error(problem: &str) -> String {
+    let lowered = problem.to_ascii_lowercase();
+    if lowered.contains("integrity") || lowered.contains("content integrity") {
+        "integrity-mismatch".to_string()
+    } else if lowered.contains("manifest identity")
+        || lowered.contains("does not match lock entry")
+        || lowered.contains("publisher changed")
+    {
+        "identity-mismatch".to_string()
+    } else if lowered.contains("runtime is unavailable")
+        || lowered.contains("not available at")
+        || lowered.contains("system tool is not available")
+    {
+        "runtime-unavailable".to_string()
+    } else if lowered.contains("cannot read manifest")
+        || lowered.contains("invalid extension manifest")
+        || lowered.contains("no such file")
+    {
+        "manifest-unreadable".to_string()
+    } else if lowered.contains("describe") || lowered.contains("provider") {
+        "provider-failed".to_string()
+    } else {
+        "verification-failed".to_string()
+    }
+}
+
 pub(crate) async fn install_linked(
     state: &ExtensionState,
     request: ExtensionInstallRequest,
@@ -1950,7 +2019,7 @@ pub(crate) async fn install_linked(
         .ok_or("Linked installation requires manifestPath")?;
     let manifest_path = PathBuf::from(manifest_source);
     let is_package_directory = manifest_path.is_dir();
-    let (manifest, package_version, manifest_path) = if is_package_directory {
+    let (manifest, manifest_digest, package_version, manifest_path) = if is_package_directory {
         let (package_json, actual_manifest_path) = load_package_entry(&manifest_path)?;
         if !package_json
             .keywords
@@ -1959,17 +2028,11 @@ pub(crate) async fn install_linked(
         {
             return Err("package.json is missing the floter-extension keyword".to_string());
         }
-        (
-            ExtensionManifest::load(&actual_manifest_path)?,
-            package_json.version,
-            actual_manifest_path,
-        )
+        let (manifest, digest) = ExtensionManifest::load_with_digest(&actual_manifest_path)?;
+        (manifest, digest, package_json.version, actual_manifest_path)
     } else {
-        (
-            ExtensionManifest::load(&manifest_path)?,
-            "linked".to_string(),
-            manifest_path,
-        )
+        let (manifest, digest) = ExtensionManifest::load_with_digest(&manifest_path)?;
+        (manifest, digest, "linked".to_string(), manifest_path)
     };
     validate_permission_approval(
         &manifest.permissions,
@@ -2105,6 +2168,8 @@ pub(crate) async fn install_linked(
         return Err(format!("Extension is already installed: {}", manifest.id));
     }
     let now = unix_now();
+    let mut approved_permissions = manifest.permissions.clone();
+    approved_permissions.sort_unstable();
     let entry = ExtensionLockEntry {
         id: manifest.id.clone(),
         name: manifest.name,
@@ -2141,6 +2206,13 @@ pub(crate) async fn install_linked(
         updated_at: now,
         pinned: false,
         channel: "external".into(),
+        approved_permissions,
+        approved_at: now,
+        approved_manifest_digest: Some(manifest_digest),
+        last_error_code: None,
+        last_error_detail: None,
+        last_error_at: None,
+        broken_reason: None,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
     lock.save(&state.paths.lock_file)?;
@@ -2899,6 +2971,13 @@ mod tests {
             updated_at: 1,
             pinned: false,
             channel: "latest".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
         }
     }
 
@@ -3519,6 +3598,13 @@ mod tests {
             updated_at: now,
             pinned: false,
             channel: "latest".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry);

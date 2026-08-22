@@ -129,7 +129,11 @@ pub async fn search(
     );
     if request.include_system_commands {
         entries.extend(system_command_entries(
-            request.tokens.first().map(String::as_str).unwrap_or_default(),
+            request
+                .tokens
+                .first()
+                .map(String::as_str)
+                .unwrap_or_default(),
         ));
     }
     for entry in &mut entries {
@@ -921,6 +925,13 @@ mod tests {
             updated_at: 1,
             pinned: false,
             channel: "bundled".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
         };
         let commands = bundled_static_provider_commands(Some(&entry), &adapters, directory.path());
         assert_eq!(commands.len(), 5);

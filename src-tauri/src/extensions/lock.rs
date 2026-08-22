@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::extensions::asset_matcher::AssetSelection;
+use crate::extensions::manifest::Permission;
 
 const LOCK_SCHEMA_VERSION: u32 = 2;
 
@@ -117,6 +118,33 @@ pub struct ExtensionLockEntry {
     pub pinned: bool,
     #[serde(default = "default_channel")]
     pub channel: String,
+    /// Permission set the user actually approved, recorded at approval time.
+    /// Empty when the manifest declares no permissions. This is the audit
+    /// record: the live manifest permissions may drift after an update, and
+    /// comparing against this set is how added permissions are detected.
+    #[serde(default)]
+    pub approved_permissions: Vec<Permission>,
+    /// Unix timestamp of the last permission approval (install, update with
+    /// new permissions, or reconnect). Zero when never approved.
+    #[serde(default)]
+    pub approved_at: u64,
+    /// SHA-256 of the exact manifest bytes the approval applies to. A later
+    /// manifest with different bytes cannot silently inherit this approval.
+    #[serde(default)]
+    pub approved_manifest_digest: Option<String>,
+    /// Structured error code of the last failed verify/describe/probe
+    /// operation (for example `integrity-mismatch`). Cleared on success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error_detail: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error_at: Option<u64>,
+    /// Why the extension entered the `broken` state, if it is broken. The
+    /// state alone says that something failed; this keeps the reason
+    /// visible across restarts until repair succeeds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub broken_reason: Option<String>,
 }
 
 fn default_channel() -> String {
@@ -231,6 +259,103 @@ impl ExtensionsLock {
         }
         entry.updated_at = unix_now();
         Ok(())
+    }
+
+    /// Record a failed verify/describe/probe as the structured `broken` state.
+    /// Idempotent for an already-broken extension: the first failure wins so
+    /// the stored reason stays the one that broke it, and repeated failures
+    /// refresh only the error code and timestamp. Returns false when the state
+    /// machine rejects the transition (for example a not-yet-installed entry).
+    pub fn mark_broken(&mut self, id: &str, code: &str, detail: &str) -> Result<bool, String> {
+        let entry = self
+            .extensions
+            .get_mut(id)
+            .ok_or_else(|| format!("Extension is not installed: {id}"))?;
+        if entry.state != ExtensionStateKind::Broken {
+            if !entry.state.may_transition_to(ExtensionStateKind::Broken) {
+                return Ok(false);
+            }
+            entry.state = ExtensionStateKind::Broken;
+            // A broken extension must not stay runnable in the catalog; the
+            // enabled flag follows the state the way set_enabled keeps them.
+            entry.enabled = false;
+            entry.broken_reason = Some(detail.to_string());
+        }
+        entry.last_error_code = Some(code.to_string());
+        entry.last_error_detail = Some(detail.to_string());
+        entry.last_error_at = Some(unix_now());
+        entry.updated_at = unix_now();
+        Ok(true)
+    }
+
+    /// Clear `broken` and any recorded operation error after a successful
+    /// verify/repair/install. The target state is the enabled flag's value,
+    /// mirroring how enable/disable persists both fields.
+    pub fn clear_broken(&mut self, id: &str) -> Result<bool, String> {
+        let entry = self
+            .extensions
+            .get_mut(id)
+            .ok_or_else(|| format!("Extension is not installed: {id}"))?;
+        let was_broken = entry.state == ExtensionStateKind::Broken;
+        if was_broken {
+            if !ExtensionStateKind::Broken.may_transition_to(ExtensionStateKind::Enabled) {
+                return Ok(false);
+            }
+            entry.state = if entry.enabled {
+                ExtensionStateKind::Enabled
+            } else {
+                ExtensionStateKind::Disabled
+            };
+            entry.broken_reason = None;
+        }
+        if entry.last_error_code.is_some() {
+            entry.last_error_code = None;
+            entry.last_error_detail = None;
+            entry.last_error_at = None;
+            entry.updated_at = unix_now();
+        }
+        Ok(was_broken)
+    }
+
+    /// Persist the permission approval audit record: the exact approved set,
+    /// when it was approved, and the manifest bytes it applies to.
+    pub fn record_permission_approval(
+        &mut self,
+        id: &str,
+        approved: &[Permission],
+        manifest_digest: &str,
+    ) -> Result<(), String> {
+        let entry = self
+            .extensions
+            .get_mut(id)
+            .ok_or_else(|| format!("Extension is not installed: {id}"))?;
+        let mut approved = approved.to_vec();
+        approved.sort_unstable();
+        entry.approved_permissions = approved;
+        entry.approved_at = unix_now();
+        entry.approved_manifest_digest = Some(manifest_digest.to_string());
+        entry.updated_at = unix_now();
+        Ok(())
+    }
+
+    /// True when the recorded approval covers exactly this permission set for
+    /// these manifest bytes. A digest mismatch forces re-approval even when
+    /// the permission lists happen to be equal.
+    pub fn has_valid_approval(
+        &self,
+        id: &str,
+        requested: &[Permission],
+        manifest_digest: &str,
+    ) -> bool {
+        let Some(entry) = self.extensions.get(id) else {
+            return false;
+        };
+        if entry.approved_manifest_digest.as_deref() != Some(manifest_digest) {
+            return false;
+        }
+        let mut requested = requested.to_vec();
+        requested.sort_unstable();
+        requested == entry.approved_permissions
     }
 }
 
@@ -412,5 +537,142 @@ mod tests {
         assert_eq!(release_channel_selector("beta").unwrap(), "beta");
         assert!(normalize_release_channel("1.2.3").is_err());
         assert!(normalize_release_channel("../beta").is_err());
+    }
+
+    fn test_entry(id: &str, state: ExtensionStateKind) -> ExtensionLockEntry {
+        let bytes = serde_json::to_vec(&serde_json::json!({
+            "id": id,
+            "name": "Example",
+            "publisherId": "example",
+            "publisherName": "Example",
+            "distributionSource": "local",
+            "runtimeOwnership": "system",
+            "providerKind": "executable",
+            "state": state,
+            "enabled": state == ExtensionStateKind::Enabled,
+            "packageName": null,
+            "packageVersion": "local",
+            "toolVersion": null,
+            "integrity": null,
+            "signatureVerified": false,
+            "currentVersion": "local",
+            "previousVersion": null,
+            "manifestPath": "/tmp/floter.extension.json",
+            "executablePath": "/tmp/example",
+            "runtimeRoot": null,
+            "installedAt": 1,
+            "updatedAt": 1,
+            "pinned": false,
+            "channel": "external"
+        }))
+        .unwrap();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[test]
+    fn mark_broken_persists_state_reason_and_error_code() {
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(
+            "example.tool".into(),
+            test_entry("example.tool", ExtensionStateKind::Enabled),
+        );
+
+        assert!(lock
+            .mark_broken("example.tool", "integrity-mismatch", "tree hash changed")
+            .unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.state, ExtensionStateKind::Broken);
+        assert!(!entry.enabled);
+        assert_eq!(entry.broken_reason.as_deref(), Some("tree hash changed"));
+        assert_eq!(entry.last_error_code.as_deref(), Some("integrity-mismatch"));
+        assert!(entry.last_error_at.is_some());
+
+        // Already-broken: first reason wins, only the error timestamp refreshes.
+        let recorded_at = entry.last_error_at;
+        assert!(lock
+            .mark_broken("example.tool", "describe-failed", "later problem")
+            .unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.broken_reason.as_deref(), Some("tree hash changed"));
+        assert_eq!(entry.last_error_code.as_deref(), Some("describe-failed"));
+        assert_eq!(entry.last_error_at, recorded_at);
+    }
+
+    #[test]
+    fn clear_broken_restores_enabled_flag_and_drops_the_error_record() {
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(
+            "example.tool".into(),
+            test_entry("example.tool", ExtensionStateKind::Broken),
+        );
+        lock.extensions
+            .get_mut("example.tool")
+            .unwrap()
+            .last_error_code = Some("x".into());
+        lock.extensions.get_mut("example.tool").unwrap().enabled = true;
+
+        assert!(lock.clear_broken("example.tool").unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.state, ExtensionStateKind::Enabled);
+        assert_eq!(entry.broken_reason, None);
+        assert_eq!(entry.last_error_code, None);
+
+        // A disabled-before-broken extension returns to disabled, not enabled.
+        lock.extensions.insert(
+            "other.tool".into(),
+            test_entry("other.tool", ExtensionStateKind::Broken),
+        );
+        lock.extensions.get_mut("other.tool").unwrap().enabled = false;
+        assert!(lock.clear_broken("other.tool").unwrap());
+        assert_eq!(
+            lock.get("other.tool").unwrap().state,
+            ExtensionStateKind::Disabled
+        );
+
+        // Clearing a healthy extension is a no-op that reports nothing changed.
+        lock.extensions.insert(
+            "third.tool".into(),
+            test_entry("third.tool", ExtensionStateKind::Enabled),
+        );
+        assert!(!lock.clear_broken("third.tool").unwrap());
+    }
+
+    #[test]
+    fn permission_approval_is_bound_to_the_manifest_digest() {
+        use crate::extensions::manifest::Permission;
+
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(
+            "example.tool".into(),
+            test_entry("example.tool", ExtensionStateKind::Enabled),
+        );
+
+        lock.record_permission_approval(
+            "example.tool",
+            &[Permission::ClipboardWrite, Permission::NetworkFetch],
+            "digest-1",
+        )
+        .unwrap();
+        // Order-independent set comparison against the same manifest.
+        assert!(lock.has_valid_approval(
+            "example.tool",
+            &[Permission::NetworkFetch, Permission::ClipboardWrite],
+            "digest-1"
+        ));
+        // Different manifest bytes invalidate the approval even for the same set.
+        assert!(!lock.has_valid_approval(
+            "example.tool",
+            &[Permission::NetworkFetch, Permission::ClipboardWrite],
+            "digest-2"
+        ));
+        // A changed permission set needs re-approval.
+        assert!(!lock.has_valid_approval("example.tool", &[Permission::NetworkFetch], "digest-1"));
+
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(
+            entry.approved_permissions,
+            vec![Permission::NetworkFetch, Permission::ClipboardWrite]
+        );
+        assert!(entry.approved_at > 0);
     }
 }

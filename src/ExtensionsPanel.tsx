@@ -73,6 +73,15 @@ export type Extension = {
   generatedCustom: boolean;
   toolLockState: "connected" | "reconnect-required" | "reverify-required" | null;
   toolCandidates: ExecutableToolCandidate[];
+  /** Permission set recorded at approval time (audit trail). */
+  approvedPermissions?: string[] | null;
+  approvedAt?: number | null;
+  approvedManifestDigest?: string | null;
+  lastErrorCode?: string | null;
+  lastErrorDetail?: string | null;
+  lastErrorAt?: number | null;
+  /** Why the extension is broken, persisted until repair succeeds. */
+  brokenReason?: string | null;
 };
 
 export type SearchResult = {
@@ -1873,6 +1882,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                   <div><dt>{t("settings.extensions.toolVersion")}</dt><dd>{selected.toolVersion ?? t("settings.extensions.unavailable")}</dd></div>
                   <div><dt>{t("settings.extensions.availability")}</dt><dd>{t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}</dd></div>
                   <div><dt>{t("settings.extensions.status")}</dt><dd>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
+                  {selected.state === "broken" && (selected.lastErrorCode || selected.brokenReason) && (
+                    <div><dt>{t("settings.extensions.brokenDetail")}</dt><dd>{selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` · ${selected.brokenReason}` : ""}</dd></div>
+                  )}
+                  {selected.approvedAt ? (
+                    <div><dt>{t("settings.extensions.approvedAt")}</dt><dd>{new Date(selected.approvedAt * 1000).toLocaleString(locale)}</dd></div>
+                  ) : null}
                   <div><dt>{t("settings.extensions.signature")}</dt><dd>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
                   <div><dt>{t("settings.extensions.trust")}</dt><dd>{t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</dd></div>
                   <div><dt>{t("settings.extensions.homepage")}</dt><dd>{selected.homepage ?? latestById[selected.id]?.homepage ?? t("settings.extensions.unavailable")}</dd></div>

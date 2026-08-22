@@ -294,6 +294,13 @@ impl ExtensionListItem {
             updated_at: 0,
             pinned: false,
             channel: "bundled".to_string(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
@@ -1224,31 +1231,69 @@ pub async fn extensions_repair(
     id: String,
 ) -> Result<ExtensionRepairReport, String> {
     match install::verify_installed(&state, &id).await {
-        Ok(entry) => Ok(ExtensionRepairReport {
-            id,
-            repaired: false,
-            action: "verified".to_string(),
-            detail: "Manifest, runtime, and provider verification passed".to_string(),
-            entry,
-        }),
+        Ok(entry) => {
+            // Verification passing clears any stale operation-error record so
+            // the health section reflects the current, verified state.
+            let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+            if lock.clear_broken(&id)? {
+                let cleared = lock.get(&id)?.clone();
+                lock.save(&state.paths.lock_file)?;
+                return Ok(ExtensionRepairReport {
+                    id,
+                    repaired: false,
+                    action: "verified".to_string(),
+                    detail: "Manifest, runtime, and provider verification passed".to_string(),
+                    entry: cleared,
+                });
+            }
+            Ok(ExtensionRepairReport {
+                id,
+                repaired: false,
+                action: "verified".to_string(),
+                detail: "Manifest, runtime, and provider verification passed".to_string(),
+                entry,
+            })
+        }
         Err(problem) => {
             let current = ExtensionsLock::load(&state.paths.lock_file)?
                 .get(&id)?
                 .clone();
-            let (entry, action) = if current.distribution_source == ExtensionDistributionSource::Npm
-            {
-                (
-                    install::repair_managed(&state, &id).await?,
-                    "reinstalled-locked-version",
-                )
+            // Persist the failure as the structured broken state before any
+            // repair attempt, so a crash mid-repair still leaves the reason
+            // visible after restart.
+            let code = install::classify_verify_error(&problem);
+            let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+            lock.mark_broken(&id, &code, &problem)?;
+            lock.save(&state.paths.lock_file)?;
+            let action = if current.distribution_source == ExtensionDistributionSource::Npm {
+                match install::repair_managed(&state, &id).await {
+                    Ok(_) => "reinstalled-locked-version",
+                    Err(repair_error) => {
+                        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+                        lock.mark_broken(&id, &code, &repair_error)?;
+                        lock.save(&state.paths.lock_file)?;
+                        return Err(format!("Cannot repair {id}: {repair_error}"));
+                    }
+                }
             } else if current.runtime_ownership == ExtensionRuntimeOwnership::System {
-                (
-                    reconnect_system(&state, &id, None).await?,
-                    "reconnected-system-runtime",
-                )
+                match reconnect_system(&state, &id, None).await {
+                    Ok(_) => "reconnected-system-runtime",
+                    Err(repair_error) => {
+                        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+                        lock.mark_broken(&id, &code, &repair_error)?;
+                        lock.save(&state.paths.lock_file)?;
+                        return Err(format!("Cannot repair {id}: {repair_error}"));
+                    }
+                }
             } else {
                 return Err(format!("Cannot repair {id}: {problem}"));
             };
+            // Repair succeeded: restore the pre-broken enabled/disabled state
+            // and drop the recorded error.
+            let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+            lock.clear_broken(&id)?;
+            lock.save(&state.paths.lock_file)?;
+            let entry = lock.get(&id)?.clone();
             state.invalidate_provider_commands().await;
             Ok(ExtensionRepairReport {
                 id,

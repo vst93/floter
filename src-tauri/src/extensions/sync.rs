@@ -911,6 +911,13 @@ mod tests {
             updated_at: 1,
             pinned: false,
             channel: "latest".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
         }
     }
 
