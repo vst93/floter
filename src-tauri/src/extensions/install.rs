@@ -564,6 +564,127 @@ pub fn is_generated_custom_integration(entry: &ExtensionLockEntry) -> bool {
             == Some(entry.id.as_str())
 }
 
+/// Default disclosure set for one-click tool connections. Terminal tools
+/// genuinely need environment passthrough and process spawning, and native
+/// providers are not sandboxed regardless — these declarations describe
+/// behavior, they do not constrain it (see docs/tool-binding-design.md).
+pub fn tool_binding_permissions() -> Vec<Permission> {
+    vec![
+        Permission::Environment,
+        Permission::ProcessSpawn,
+        Permission::FilesystemRead,
+    ]
+}
+
+fn sanitized_command_from_executable(stem: &str) -> String {
+    let mut command: String = stem
+        .to_ascii_lowercase()
+        .chars()
+        .map(|character| {
+            if character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || character == '-'
+                || character == '_'
+            {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    while command.starts_with('-') {
+        command.remove(0);
+    }
+    while command.ends_with('-') {
+        command.pop();
+    }
+    if command.len() > 64 {
+        command.truncate(64);
+        while command.ends_with('-') {
+            command.pop();
+        }
+    }
+    command
+}
+
+/// Build the custom-integration request that binds an auto-discovered PATH
+/// executable as a regular local integration. The generated manifest is
+/// identical to what the custom-integration form produces, so discovered and
+/// manually created bindings converge on the same validation, lock, and
+/// catalog path — no special-cased distribution source.
+pub fn tool_binding_request(
+    candidate: &crate::extensions::inventory::ToolCandidate,
+) -> Result<CustomIntegrationRequest, String> {
+    let Some(path) = candidate.locator.executable_path() else {
+        return Err("Discovered tool has no executable path".to_string());
+    };
+    if !is_linked_executable(path) {
+        return Err(format!("Executable is not usable: {}", path.display()));
+    }
+    let name = candidate.name.trim();
+    if name.is_empty() || name.chars().count() > 80 {
+        return Err("Discovered tool name must contain 1 to 80 characters".to_string());
+    }
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(name);
+    let command = sanitized_command_from_executable(stem);
+    if command.is_empty() {
+        return Err(format!("Cannot derive a Floter command from \"{stem}\""));
+    }
+    Ok(CustomIntegrationRequest {
+        id: format!("local.{command}"),
+        name: name.to_string(),
+        command,
+        version: candidate.version.clone().unwrap_or_else(|| "0.0.0".into()),
+        executable_path: path.to_string_lossy().into_owned(),
+        mode: "executable".to_string(),
+        script_language: None,
+        script_content: None,
+        args_prefix: Vec::new(),
+        version_args: Vec::new(),
+        permissions: tool_binding_permissions(),
+        platforms: vec![PlatformTarget::current()?.os],
+    })
+}
+
+/// One-click connection of an auto-discovered tool. Delegates to the exact
+/// custom-integration pipeline; only the id-collision fallback (`.2`, `.3`,
+/// ...) is added on top so repeated basenames across PATH directories can
+/// coexist under distinct extension ids.
+pub async fn connect_tool(
+    state: &ExtensionState,
+    candidate: crate::extensions::inventory::ToolCandidate,
+) -> Result<ExtensionLockEntry, String> {
+    let mut request = tool_binding_request(&candidate)?;
+    let base_id = request.id.clone();
+    let mut last_error = String::new();
+    for attempt in 0..10u32 {
+        request.id = if attempt == 0 {
+            base_id.clone()
+        } else {
+            format!("{base_id}.{}", attempt + 1)
+        };
+        match create_custom_integration(state, request.clone()).await {
+            Ok(entry) => return Ok(entry),
+            Err(error) => {
+                let occupied =
+                    error.contains("already installed") || error.contains("already exist");
+                if !occupied {
+                    return Err(error);
+                }
+                last_error = error;
+            }
+        }
+    }
+    Err(if last_error.is_empty() {
+        format!("Cannot allocate an extension id for {}", candidate.name)
+    } else {
+        last_error
+    })
+}
+
 pub fn custom_integration_definition(
     state: &ExtensionState,
     extension_id: &str,
@@ -2816,6 +2937,11 @@ pub(crate) fn linked_candidate_names(name: &str) -> Vec<String> {
     }
 }
 
+/// Public predicate used by list-time discovery suggestions.
+pub fn is_linked_executable_public(path: &Path) -> bool {
+    is_linked_executable(path)
+}
+
 fn is_linked_executable(path: &Path) -> bool {
     if !path.is_file() {
         return false;
@@ -3118,12 +3244,100 @@ mod tests {
     }
 
     async fn catalog_contains(state: &ExtensionState, command: &str) -> bool {
-        catalog::search(state, &catalog_request(command), &[])
-            .await
-            .unwrap()
-            .iter()
-            .any(|entry| entry.command == command)
-    }
+     catalog::search(state, &catalog_request(command), &[])
+         .await
+         .unwrap()
+         .iter()
+         .any(|entry| entry.command == command)
+ }
+
+ fn discovered_candidate(path: &Path, name: &str) -> crate::extensions::inventory::ToolCandidate {
+     crate::extensions::inventory::ToolCandidate {
+         id: path.to_string_lossy().into_owned(),
+         name: name.to_string(),
+         locator: crate::extensions::inventory::ToolLocator::Executable {
+             path: path.to_string_lossy().into_owned(),
+         },
+         version: None,
+         sources: vec![crate::extensions::inventory::DiscoverySource::Path],
+         quality: crate::extensions::inventory::DiscoveryQuality::AutoDetected,
+         available: true,
+         fingerprint: None,
+     }
+ }
+
+ #[cfg(unix)]
+ #[tokio::test]
+ async fn connect_tool_binds_a_discovered_executable_like_a_custom_integration() {
+     let directory = tempfile::tempdir().unwrap();
+     let state = test_state(directory.path());
+     let executable = directory.path().join("mytool");
+     std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+     #[cfg(unix)]
+     {
+         use std::os::unix::fs::PermissionsExt;
+         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+     }
+
+     let entry = connect_tool(&state, discovered_candidate(&executable, "MyTool"))
+         .await
+         .unwrap();
+     assert_eq!(entry.id, "local.mytool");
+     assert_eq!(entry.distribution_source, ExtensionDistributionSource::Local);
+     assert_eq!(entry.publisher_id, "local-user");
+     assert!(is_generated_custom_integration(&entry));
+     assert_eq!(
+         entry.approved_permissions,
+         tool_binding_permissions()
+             .into_iter()
+             .collect::<std::collections::BTreeSet<_>>()
+             .into_iter()
+             .collect::<Vec<_>>()
+     );
+     // Same convergence contract as manual custom integrations: the command
+     // must appear in the catalog immediately.
+     assert!(catalog_contains(&state, "mytool").await);
+ }
+
+ #[cfg(unix)]
+ #[tokio::test]
+ async fn connect_tool_allocates_a_new_id_when_the_base_name_is_taken() {
+     let directory = tempfile::tempdir().unwrap();
+     let state = test_state(directory.path());
+     let first = directory.path().join("dup");
+     let second = directory.path().join("nested");
+     std::fs::create_dir_all(&second).unwrap();
+     let first_bin = first;
+     let second_bin = second.join("dup");
+     for executable in [&first_bin, &second_bin] {
+         std::fs::write(executable, "#!/bin/sh\nexit 0\n").unwrap();
+         #[cfg(unix)]
+         {
+             use std::os::unix::fs::PermissionsExt;
+             std::fs::set_permissions(
+                 executable,
+                 std::fs::Permissions::from_mode(0o755),
+             )
+             .unwrap();
+         }
+     }
+     connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
+         .await
+         .unwrap();
+     let second_entry = connect_tool(&state, discovered_candidate(&second_bin, "dup2"))
+         .await
+         .unwrap();
+
+     assert_ne!(second_entry.id, "local.dup2");
+     assert!(second_entry.id.starts_with("local.dup."));
+ }
+
+ #[cfg(unix)]
+ #[test]
+ fn tool_binding_request_rejects_unusable_paths() {
+     let candidate = discovered_candidate(Path::new("/definitely/not/here"), "ghost");
+     assert!(tool_binding_request(&candidate).is_err());
+ }
 
     #[cfg(unix)]
     #[tokio::test]

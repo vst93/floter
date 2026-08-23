@@ -1087,6 +1087,36 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     void connectBundledAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
   };
 
+  // One-click connection for auto-discovered PATH tools. The backend derives
+  // manifest + descriptor from the candidate; the fixed disclosure set is
+  // confirmed inline, then the regular custom-integration pipeline runs.
+  const connectDiscoveredTool = (extension: Extension) => {
+    if (!extension.executablePath) return;
+    const permissions: PermissionName[] = ["environment", "process-spawn", "filesystem-read"];
+    runMutation(extension.id, "install", async () => {
+      if (!window.confirm(t("settings.extensions.confirmConnectTool", {
+        name: extension.name,
+        path: extension.executablePath,
+        permissions: permissions.map((permission) => t(`settings.extensions.permission.${permission}`)).join(", "),
+      }))) return false;
+      await invoke("extensions_connect_tool", {
+        candidate: {
+          id: extension.id,
+          name: extension.name,
+          locator: { kind: "executable", path: extension.executablePath },
+          version: extension.toolVersion,
+          sources: ["path"],
+          quality: "auto-detected",
+          available: extension.runtimeAvailable,
+          fingerprint: null,
+        },
+        approvedPermissions: permissions,
+      });
+    }).then((done) => {
+      if (done) setOperationNotice(t("settings.extensions.connectedNotice", { name: extension.name }));
+    });
+  };
+
   const connectLocal = async () => {
     if (busy) return;
     setBusy({ id: "local", kind: "install" });
@@ -1624,7 +1654,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 operation={busy}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
-                onConnect={() => void connectBundled(extension)}
+                onConnect={() =>
+                  !extension.connected && extension.distributionSource === "local"
+                    ? connectDiscoveredTool(extension)
+                    : void connectBundled(extension)}
                 onRepair={() => extension.connected
                   ? void repairExtension(extension)
                   : extension.homepage && void invoke("open_url", { url: extension.homepage })}

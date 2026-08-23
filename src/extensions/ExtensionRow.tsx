@@ -34,6 +34,9 @@ type Props = {
 const integrationKindKey = (extension: Extension): Parameters<Translate>[0] => {
   if (extension.generatedCustom) return "settings.extensions.integrationKind.custom";
   if (extension.distributionSource === "npm") return "settings.extensions.integrationKind.npm";
+  if (!extension.connected && extension.distributionSource === "local") {
+    return "settings.extensions.integrationKind.tool";
+  }
   if (extension.distributionSource === "built-in" && extension.runtimeOwnership === "system") {
     return "settings.extensions.integrationKind.system";
   }

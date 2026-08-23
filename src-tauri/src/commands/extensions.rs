@@ -155,6 +155,43 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
         ));
         items.push(ExtensionListItem::detected(adapter, tool_candidates));
     }
+    // Discovery suggestions: PATH executables that are not connected yet and
+    // do not collide with a known integration name. Sorted by discovery
+    // quality then name so the best candidates surface first.
+    let mut suggestions: Vec<ToolCandidate> = Vec::new();
+    for candidate in &candidates {
+        if !candidate.available {
+            continue;
+        }
+        let Some(path) = candidate.locator.executable_path() else {
+            continue;
+        };
+        if !install::is_linked_executable_public(path) {
+            continue;
+        }
+        if lock.extensions.values().any(|entry| {
+            entry.name.eq_ignore_ascii_case(&candidate.name)
+                || entry
+                    .executable_path
+                    .eq_ignore_ascii_case(&path.to_string_lossy())
+        }) {
+            continue;
+        }
+        if suggestions
+            .iter()
+            .any(|existing| existing.name.eq_ignore_ascii_case(&candidate.name))
+        {
+            continue;
+        }
+        suggestions.push(candidate.clone());
+    }
+    suggestions.sort_by(|left, right| left.quality.cmp(&right.quality).then(left.name.cmp(&right.name)));
+    if suggestions.len() > 12 {
+        suggestions.truncate(12);
+    }
+    for candidate in &suggestions {
+        items.push(ExtensionListItem::suggested_discovered(candidate));
+    }
     Ok(items)
 }
 
@@ -311,6 +348,69 @@ impl ExtensionListItem {
             generated_custom: false,
             tool_lock_state: None,
             tool_candidates,
+            entry,
+        }
+    }
+
+    /// Discovery suggestion for an arbitrary PATH executable. Rendered by the
+    /// same detected-row path as bundled suggestions; connecting runs the
+    /// regular custom-integration pipeline (see install::connect_tool).
+    fn suggested_discovered(candidate: &ToolCandidate) -> Self {
+        let executable = candidate
+            .locator
+            .executable_path()
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let entry = ExtensionLockEntry {
+            id: format!("local.discovered:{}", candidate.name),
+            name: candidate.name.clone(),
+            publisher_id: "local-user".to_string(),
+            publisher_name: "Local user".to_string(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: ExtensionStateKind::Disabled,
+            enabled: false,
+            package_name: None,
+            package_version: "0.0.0".to_string(),
+            tool_version: candidate.version.clone(),
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: candidate.version.clone().unwrap_or_else(|| "0.0.0".into()),
+            previous_version: None,
+            manifest_path: String::new(),
+            executable_path: executable.clone(),
+            runtime_root: None,
+            installed_at: 0,
+            updated_at: 0,
+            pinned: false,
+            channel: "external".to_string(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+        };
+        Self {
+            runtime_available: candidate.available,
+            runtime_source: "system".to_string(),
+            connected: false,
+            reconnect_available: false,
+            homepage: None,
+            generated_custom: false,
+            tool_lock_state: None,
+            tool_candidates: Vec::new(),
             entry,
         }
     }
@@ -698,6 +798,30 @@ pub async fn extensions_search_tools(
     })
     .await
     .map_err(|error| format!("Tool discovery task failed: {error}"))?
+}
+
+/// One-click connection of an auto-discovered PATH tool. The candidate comes
+/// from the discovery suggestions in `extensions_list`; the connection itself
+/// runs the regular custom-integration pipeline.
+#[tauri::command]
+pub async fn extensions_connect_tool(
+    state: State<'_, ExtensionState>,
+    candidate: ToolCandidate,
+    approved_permissions: Vec<crate::extensions::manifest::Permission>,
+) -> Result<ExtensionLockEntry, String> {
+    if !candidate.available {
+        return Err(format!("Tool {} is not available", candidate.name));
+    }
+    let expected = install::tool_binding_permissions();
+    let mut approved = approved_permissions;
+    approved.sort();
+    approved.dedup();
+    if approved != expected {
+        return Err("Permission approval does not match the disclosure for this tool".to_string());
+    }
+    let entry = install::connect_tool(&state, candidate).await?;
+    state.invalidate_provider_commands().await;
+    Ok(entry)
 }
 
 #[tauri::command]

@@ -19,7 +19,8 @@ use commands::config::{
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_bundled_permissions, extensions_check_updates,
     extensions_config_copy, extensions_config_export, extensions_config_get, extensions_config_set,
-    extensions_connect_bundled, extensions_create_custom, extensions_custom_export_script,
+    extensions_connect_bundled, extensions_connect_tool, extensions_create_custom,
+    extensions_custom_export_script,
     extensions_custom_get, extensions_custom_update, extensions_describe, extensions_diagnose,
     extensions_disable, extensions_enable, extensions_export, extensions_export_source_bundle,
     extensions_health, extensions_import, extensions_infer_source, extensions_install,
@@ -1199,6 +1200,7 @@ pub fn run() {
             extensions_resolve_source,
             extensions_install,
             extensions_create_custom,
+            extensions_connect_tool,
             extensions_custom_get,
             extensions_custom_update,
             extensions_search_tools,
