@@ -4,33 +4,26 @@ import {
   AlertCircle,
   Check,
   Copy,
-  Download,
   ExternalLink,
   FileDown,
   FileUp,
   Link2,
   LoaderCircle,
   Package,
-  Pin,
   Plus,
   RefreshCw,
   RotateCcw,
   Search,
-  ShieldCheck,
   Trash2,
   Unplug,
   Wrench,
   X,
 } from "lucide-react";
 import type { Translate } from "./i18n";
-import { useTabState } from "./hooks/useTabState";
-import { useSearchState } from "./hooks/useSearchState";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
-import { SearchCard } from "./extensions/SearchCard";
-import { UpdateRow } from "./extensions/UpdateRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
-import { InstallDialog, LocalInstallDialog } from "./extensions/InstallDialog";
+import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
 import { RemovalDialog } from "./extensions/RemovalDialog";
 
 type ExtensionDistributionSource = "npm" | "local" | "built-in";
@@ -85,28 +78,6 @@ export type Extension = {
   lastErrorAt?: number | null;
   /** Why the extension is broken, persisted until repair succeeds. */
   brokenReason?: string | null;
-};
-
-export type SearchResult = {
-  package: string;
-  version: string;
-  description: string;
-  publisher: string | null;
-  homepage: string | null;
-  verified: boolean;
-  deprecation: string | null;
-  downloads: number;
-};
-
-export type UpdateCandidate = {
-  id: string;
-  version: string;
-  kind: "patch" | "minor" | "major";
-};
-
-type UpdateCheckResult = {
-  candidates: UpdateCandidate[];
-  failures: Array<{ id: string; message: string }>;
 };
 
 type CommandDescriptor = {
@@ -205,8 +176,7 @@ type ExtensionConfiguration = {
   openPlan: ExtensionExecutionPlan | null;
 };
 
-type Tab = "installed" | "discover" | "updates";
-type MutationKind = "enable" | "disable" | "install" | "update" | "rollback" | "reinstall" | "repair" | "policy" | "uninstall" | "save";
+type MutationKind = "enable" | "disable" | "install" | "repair" | "uninstall" | "save";
 export type ExtensionOperation = { id: string; kind: MutationKind } | null;
 type SyncOperation = "export" | "import";
 type ConfigOperation = "copy" | "export" | null;
@@ -281,18 +251,6 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   permissions: ["environment"],
   platforms: [CURRENT_PLATFORM],
 };
-
-const CUSTOM_PLATFORMS = ["darwin", "linux", "windows"] as const;
-
-const CUSTOM_ENFORCED_PERMISSION_NAMES: PermissionName[] = ["environment", "process-spawn"];
-
-const CUSTOM_DECLARED_PERMISSION_NAMES: PermissionName[] = [
-  "filesystem-read",
-  "filesystem-write",
-  "network-fetch",
-  "clipboard-read",
-  "clipboard-write",
-];
 
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
@@ -436,12 +394,6 @@ export type InstallRequest = {
   approvedPermissions?: PermissionName[];
 };
 
-const formatDownloads = (value: number): string =>
-  new Intl.NumberFormat(undefined, { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
-
-const permissionReviewKey = (result: Pick<SearchResult, "package" | "version">) =>
-  `${result.package}@${result.version}`;
-
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
@@ -460,46 +412,15 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-function ArgumentListEditor({ values, label, addLabel, removeLabel, emptyLabel, onChange }: {
-  values: string[];
-  label: string;
-  addLabel: string;
-  removeLabel: string;
-  emptyLabel: string;
-  onChange: (values: string[]) => void;
-}) {
-  return (
-    <div className="extension-argument-editor">
-      <div className="extension-argument-editor__heading">
-        <span>{label}</span>
-        <button type="button" className="extensions-icon-button extension-argument-editor__add" aria-label={addLabel} title={addLabel} onClick={() => onChange([...values, ""])}>
-          <Plus size={13} strokeWidth={2} aria-hidden="true" />
-        </button>
-      </div>
-      {values.length === 0 ? <span className="extension-argument-editor__empty">{emptyLabel}</span> : values.map((value, index) => (
-        <div className="extension-argument-editor__row" key={index}>
-          <input aria-label={`${label} ${index + 1}`} value={value} onChange={(event) => onChange(values.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} />
-          <button type="button" className="extensions-icon-button" aria-label={removeLabel} title={removeLabel} onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}>
-            <X size={13} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch }: ExtensionsPanelProps) {
-  const { tab, setTab, onTabKeyDown } = useTabState();
   const [extensions, setExtensions] = useState<Extension[]>([]);
-  const [latestById, setLatestById] = useState<Record<string, SearchResult>>({});
-  const [updateById, setUpdateById] = useState<Record<string, UpdateCandidate>>({});
   const [loading, setLoading] = useState(true);
-  const [checkingUpdates, setCheckingUpdates] = useState(false);
-  const [updateCheckFailureCount, setUpdateCheckFailureCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<ExtensionOperation>(null);
-  const searchState = useSearchState<SearchResult>();
-  const { query, setQuery, results: searchResults, setResults: setSearchResults, searching, setSearching, hasSearched, setHasSearched } = searchState;
+  const [detectedQuery, setDetectedQuery] = useState("");
+  const [detectedResults, setDetectedResults] = useState<ExecutableToolCandidate[]>([]);
+  const [detectedSearching, setDetectedSearching] = useState(false);
+  const [detectedFailed, setDetectedFailed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderResponse | null>(null);
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
@@ -512,9 +433,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [configNotice, setConfigNotice] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [reviewingPackage, setReviewingPackage] = useState<string | null>(null);
-  const [permissionReviews, setPermissionReviews] = useState<Record<string, PermissionReview>>({});
-  const [pendingInstall, setPendingInstall] = useState<{ result: SearchResult; request: InstallRequest; review: PermissionReview } | null>(null);
   const [pendingLocal, setPendingLocal] = useState<{ review: PermissionReview; request: InstallRequest; name: string; runtime: string; platforms: string[]; source: string } | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<PendingToolSelection>(null);
   const [syncOperation, setSyncOperation] = useState<SyncOperation | null>(null);
@@ -538,7 +456,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [operationNotice, setOperationNotice] = useState<string | null>(null);
   const detailGeneration = useRef(0);
   const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
-  const permissionDialogRef = useRef<HTMLElement | null>(null);
   const localDialogRef = useRef<HTMLElement | null>(null);
   const toolSelectionDialogRef = useRef<HTMLElement | null>(null);
   const removalDialogRef = useRef<HTMLElement | null>(null);
@@ -587,70 +504,49 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     powershell: "#!/usr/bin/env pwsh\n\n# Floter provider script\n",
   }[language]);
 
-  const updates = useMemo(
-    () => extensions.filter((extension) => Boolean(updateById[extension.id])),
-    [extensions, updateById],
-  );
-  const patchUpdates = useMemo(
-    () => updates.filter((extension) => updateById[extension.id]?.kind === "patch"),
-    [updates, updateById],
-  );
-  const updateGroups = useMemo(() => {
-    const groups = new Map<ReturnType<typeof integrationKindKey>, Extension[]>();
-    for (const extension of updates) {
-      const source = integrationKindKey(extension);
-      groups.set(source, [...(groups.get(source) ?? []), extension]);
-    }
-    return Array.from(groups, ([source, entries]) => ({ source, entries }));
-  }, [updates]);
-  const installedPackages = useMemo(
-    () => new Set(extensions.map((extension) => extension.packageName).filter(Boolean)),
-    [extensions],
+  const connectedExtensions = useMemo(() => extensions.filter((extension) => extension.connected), [extensions]);
+  const suggestedExtensions = useMemo(() => extensions.filter((extension) => !extension.connected), [extensions]);
+  const connectedPaths = useMemo(
+    () => new Set(connectedExtensions.map((extension) => extension.executablePath)),
+    [connectedExtensions],
   );
   const selected = extensions.find((extension) => extension.id === selectedId) ?? null;
   const configDirty = configuration?.descriptor.owner === "host"
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
-  const installConfirmationLoading = Boolean(pendingInstall && busy);
 
-  const checkForUpdates = async (entries: Extension[], generation: number) => {
-    const managed = entries.filter((entry) => entry.distributionSource === "npm" && entry.packageName);
-    if (!managed.length) {
-      if (generation === refreshGeneration.current) {
-        setLatestById({});
-        setUpdateById({});
-        setUpdateCheckFailureCount(null);
-        setCheckingUpdates(false);
-      }
+  // Manual PATH-tool search for the detected section. Device-wide results,
+  // minus anything already connected or unavailable.
+  const detectedCandidates = useMemo(
+    () => detectedResults.filter((candidate) => candidate.available && !connectedPaths.has(candidate.locator.path)),
+    [detectedResults, connectedPaths],
+  );
+
+  useEffect(() => {
+    const query = detectedQuery.trim();
+    if (!query) {
+      setDetectedResults([]);
+      setDetectedFailed(false);
+      setDetectedSearching(false);
       return;
     }
-    if (generation === refreshGeneration.current) {
-      setCheckingUpdates(true);
-      setUpdateCheckFailureCount(null);
-    }
-    const [checkResult, settled] = await Promise.all([
-      Promise.resolve(invoke<UpdateCheckResult>("extensions_check_updates"))
-        .then((value) => ({ status: "fulfilled" as const, value }))
-        .catch((reason: unknown) => ({ status: "rejected" as const, reason })),
-      Promise.allSettled(managed.map(async (entry) => {
-        const results = await invoke<SearchResult[]>("extensions_search", { query: entry.packageName, limit: 10 });
-        return [entry.id, results.find((result) => result.package === entry.packageName) ?? null] as const;
-      })),
-    ]);
-    if (generation !== refreshGeneration.current) return;
-    const next: Record<string, SearchResult> = {};
-    settled.forEach((result) => {
-      if (result.status === "fulfilled" && result.value[1]) next[result.value[0]] = result.value[1];
-    });
-    setLatestById(next);
-    if (checkResult.status === "fulfilled") {
-      setUpdateById(Object.fromEntries(checkResult.value.candidates.map((candidate) => [candidate.id, candidate])));
-      setUpdateCheckFailureCount(checkResult.value.failures.length || null);
-    } else {
-      setUpdateById({});
-      setUpdateCheckFailureCount(0);
-    }
-    setCheckingUpdates(false);
-  };
+    let cancelled = false;
+    setDetectedSearching(true);
+    const timer = window.setTimeout(() => {
+      void invoke<ToolCandidate[]>("extensions_search_tools", { query, limit: 12, forceRefresh: false, executableOnly: true })
+        .then((results) => {
+          if (cancelled) return;
+          setDetectedResults(results.filter((candidate): candidate is ExecutableToolCandidate => candidate.locator.kind === "executable"));
+          setDetectedFailed(false);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setDetectedResults([]);
+          setDetectedFailed(true);
+        })
+        .finally(() => { if (!cancelled) setDetectedSearching(false); });
+    }, 200);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [detectedQuery]);
 
   const refreshOfficialStatus = async (generation: number) => {
     const statuses = await invoke<Record<string, boolean>>("extensions_refresh_official_status");
@@ -664,13 +560,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const refresh = async () => {
     const generation = ++refreshGeneration.current;
     setLoading(true);
-    setCheckingUpdates(false);
     setError(null);
     try {
       const entries = await invoke<Extension[]>("extensions_list");
       if (generation !== refreshGeneration.current) return;
       setExtensions(entries);
-      void checkForUpdates(entries, generation);
       void refreshOfficialStatus(generation).catch(() => {});
     } catch (nextError) {
       if (generation === refreshGeneration.current) setError(localErrorMessage(nextError, t));
@@ -791,9 +685,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     }
   };
 
-  useDialogFocus(Boolean(pendingInstall), permissionDialogRef, () => {
-    if (!busy) setPendingInstall(null);
-  });
   useDialogFocus(Boolean(pendingLocal), localDialogRef, () => {
     if (!busy) setPendingLocal(null);
   });
@@ -808,7 +699,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     if (!configDirty || window.confirm(t("settings.extensions.configDiscardConfirm"))) {
       setSelectedId(null);
     }
-  }, !showCustomIntegration && !removalTarget && !pendingInstall && !pendingLocal && !pendingToolSelection);
+  }, !showCustomIntegration && !removalTarget && !pendingLocal && !pendingToolSelection);
 
   useEffect(() => {
     if (!showCustomIntegration || customIntegrationLoading) return;
@@ -863,121 +754,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     () => invoke(extension.enabled ? "extensions_disable" : "extensions_enable", { id: extension.id }),
   );
 
-  const reviewPermissions = async (request: InstallRequest): Promise<PermissionReview> =>
-    invoke<PermissionReview>("extensions_permissions_summary", { request, locale });
-
-  const deprecationDescription = (deprecation: string) =>
-    deprecation.trim() || t("settings.extensions.deprecatedDescription");
-
-  const confirmNpmReview = (review: PermissionReview) => {
-    if (review.deprecation !== null && !window.confirm(t("settings.extensions.confirmDeprecatedInline", {
-      name: review.extensionName,
-      reason: deprecationDescription(review.deprecation),
-    }))) return false;
-    return !review.permissions.length || window.confirm(t("settings.extensions.confirmPermissionsInline", {
-      permissions: review.permissions.map((permission) => permission.title).join(", "),
-    }));
-  };
-
-  const prefetchPermissions = async (result: SearchResult) => {
-    const reviewKey = permissionReviewKey(result);
-    if (busy || reviewingPackage || permissionReviews[reviewKey]) return;
-    const request: InstallRequest = {
-      source: "npm",
-      package: result.package,
-      version: result.version,
-      manifestPath: null,
-      executablePath: null,
-    };
-    setReviewingPackage(result.package);
-    try {
-      const review = await reviewPermissions(request);
-      setPermissionReviews((current) => ({ ...current, [reviewKey]: review }));
-    } catch {
-      // Installation reports preflight failures explicitly when the user clicks.
-    } finally {
-      setReviewingPackage(null);
-    }
-  };
-
-  const updateExtension = (extension: Extension) => {
-    if (!extension.packageName) return Promise.resolve();
-    const candidate = updateById[extension.id];
-    if (!candidate) return Promise.resolve();
-    if (candidate.kind === "major" && !window.confirm(t("settings.extensions.confirmMajorUpdate", {
-      name: extension.name,
-      version: candidate.version,
-    }))) return Promise.resolve();
-    const version = candidate.version;
-    const request: InstallRequest = {
-      source: "npm",
-      package: extension.packageName,
-      version,
-      manifestPath: null,
-      executablePath: null,
-    };
-    return runMutation(extension.id, "update", async () => {
-      const review = await reviewPermissions(request);
-      if (!confirmNpmReview(review)) return false;
-      await invoke("extensions_update", {
-        id: extension.id,
-        version,
-        approvedPermissions: review.permissions.map(({ permission }) => permission),
-      });
-    });
-  };
-
   const repairExtension = (extension: Extension) => runMutation(
     extension.id,
     "repair",
     () => invoke("extensions_repair", { id: extension.id }),
   );
-
-  const setPinned = (extension: Extension, pinned: boolean) => runMutation(
-    extension.id,
-    "policy",
-    () => invoke("extensions_set_pinned", { id: extension.id, pinned }),
-  );
-
-  const setChannel = (extension: Extension, channel: string) => runMutation(
-    extension.id,
-    "policy",
-    () => invoke("extensions_set_channel", { id: extension.id, channel }),
-  );
-
-  const rollbackExtension = (extension: Extension) => {
-    if (!window.confirm(t("settings.extensions.confirmRollback", { name: extension.name }))) return Promise.resolve();
-    return runMutation(
-      extension.id,
-      "rollback",
-      () => invoke("extensions_rollback", { id: extension.id }),
-    );
-  };
-
-  const reinstallExtension = (extension: Extension) => {
-    if (!window.confirm(t("settings.extensions.confirmReinstall", { name: extension.name }))) return Promise.resolve();
-    return runMutation(
-      extension.id,
-      "reinstall",
-      async () => {
-        if (!extension.packageName) throw new Error(t("settings.extensions.reinstallUnavailable"));
-        const request: InstallRequest = {
-          source: "npm",
-          package: extension.packageName,
-          version: extension.currentVersion,
-          manifestPath: null,
-          executablePath: null,
-        };
-        const review = await reviewPermissions(request);
-        if (!confirmNpmReview(review)) return false;
-        await invoke<Extension>("extensions_reinstall", {
-          id: extension.id,
-          approvedPermissions: review.permissions.map(({ permission }) => permission),
-        });
-        if (!extension.enabled) await invoke("extensions_disable", { id: extension.id });
-      },
-    );
-  };
 
   const uninstallExtension = (extension: Extension) => setRemovalTarget(extension);
 
@@ -1001,60 +782,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               : "settings.extensions.packageRemovedNotice",
         { name: extension.name },
       ));
-    }
-  };
-
-  const searchExtensions = async (event: FormEvent) => {
-    event.preventDefault();
-    const searchQuery = query.trim();
-    if (!searchQuery || searching) return;
-    setSearching(true);
-    setHasSearched(true);
-    setError(null);
-    try {
-      setSearchResults(await invoke<SearchResult[]>("extensions_search", { query: searchQuery, limit: 20 }));
-    } catch (nextError) {
-      setSearchResults([]);
-      setError(errorMessage(nextError));
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const performInstall = async (result: SearchResult, request: InstallRequest, review: PermissionReview) => {
-    const installed = await runMutation(
-      result.package,
-      "install",
-      () => invoke("extensions_install", {
-        request: { ...request, approvedPermissions: review.permissions.map(({ permission }) => permission) },
-      }),
-    );
-    if (installed) setOperationNotice(t("settings.extensions.installedNotice", { name: result.package }));
-    return installed;
-  };
-
-  const installExtension = async (result: SearchResult) => {
-    if (busy || reviewingPackage) return;
-    const request: InstallRequest = {
-      source: "npm",
-      package: result.package,
-      version: result.version,
-      manifestPath: null,
-      executablePath: null,
-    };
-    setReviewingPackage(result.package);
-    setError(null);
-    try {
-      const reviewKey = permissionReviewKey(result);
-      const review = permissionReviews[reviewKey] ?? await reviewPermissions(request);
-      if (!permissionReviews[reviewKey]) {
-        setPermissionReviews((current) => ({ ...current, [reviewKey]: review }));
-      }
-      setPendingInstall({ result, request, review });
-    } catch (nextError) {
-      setError(errorMessage(nextError));
-    } finally {
-      setReviewingPackage(null);
     }
   };
 
@@ -1093,33 +820,34 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     void connectRecommendedAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
   };
 
-  // One-click connection for auto-discovered PATH tools. The backend derives
+  // One-click connection for a PATH tool candidate. The backend derives
   // manifest + descriptor from the candidate; the fixed disclosure set is
   // confirmed inline, then the regular custom-integration pipeline runs.
-  const connectDiscoveredTool = (extension: Extension) => {
-    if (!extension.executablePath) return;
+  const connectToolCandidate = (candidate: ExecutableToolCandidate) => {
     const permissions: PermissionName[] = ["environment", "process-spawn", "filesystem-read"];
-    runMutation(extension.id, "install", async () => {
+    void runMutation(candidate.id, "install", async () => {
       if (!window.confirm(t("settings.extensions.confirmConnectTool", {
-        name: extension.name,
-        path: extension.executablePath,
+        name: candidate.name,
+        path: candidate.locator.path,
         permissions: permissions.map((permission) => t(`settings.extensions.permission.${permission}`)).join(", "),
       }))) return false;
-      await invoke("extensions_connect_tool", {
-        candidate: {
-          id: extension.id,
-          name: extension.name,
-          locator: { kind: "executable", path: extension.executablePath },
-          version: extension.toolVersion,
-          sources: ["path"],
-          quality: "auto-detected",
-          available: extension.runtimeAvailable,
-          fingerprint: null,
-        },
-        approvedPermissions: permissions,
-      });
+      await invoke("extensions_connect_tool", { candidate, approvedPermissions: permissions });
     }).then((done) => {
-      if (done) setOperationNotice(t("settings.extensions.connectedNotice", { name: extension.name }));
+      if (done) setOperationNotice(t("settings.extensions.connectedNotice", { name: candidate.name }));
+    });
+  };
+
+  const connectDiscoveredTool = (extension: Extension) => {
+    if (!extension.executablePath) return;
+    connectToolCandidate({
+      id: extension.id,
+      name: extension.name,
+      locator: { kind: "executable", path: extension.executablePath },
+      version: extension.toolVersion,
+      sources: ["path"],
+      quality: "auto-detected",
+      available: extension.runtimeAvailable,
+      fingerprint: null,
     });
   };
 
@@ -1300,7 +1028,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const reconnectSystemAt = async (extension: Extension, executablePath: string | null) => {
     const reconnected = await runMutation(
       extension.id,
-      "reinstall",
+      "repair",
       () => invoke("extensions_reconnect_system", { id: extension.id, executablePath }),
     );
     if (reconnected) setPendingToolSelection(null);
@@ -1319,67 +1047,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     const { extension, action } = pendingToolSelection;
     if (action === "connect") void connectRecommendedAt(extension, candidate.locator.path);
     else void reconnectSystemAt(extension, candidate.locator.path);
-  };
-
-  const confirmPendingInstall = async () => {
-    if (!pendingInstall || busy) return;
-    const pending = pendingInstall;
-    if (await performInstall(pending.result, pending.request, pending.review)) {
-      setPendingInstall(null);
-    }
-  };
-
-  const updateAll = async () => {
-    if (busy || !patchUpdates.length) return;
-    setBusy({ id: "*", kind: "update" });
-    setError(null);
-    setOperationNotice(null);
-    const failures: Array<{ name: string; message: string }> = [];
-    let succeeded = 0;
-    let cancelled = false;
-    try {
-      for (const extension of patchUpdates) {
-        if (!extension.packageName) continue;
-        const candidate = updateById[extension.id];
-        if (!candidate) continue;
-        try {
-          const request: InstallRequest = {
-            source: "npm",
-            package: extension.packageName,
-            version: candidate.version,
-            manifestPath: null,
-            executablePath: null,
-          };
-          const review = await reviewPermissions(request);
-          if (!confirmNpmReview(review)) {
-            cancelled = true;
-            break;
-          }
-          await invoke("extensions_update", {
-            id: extension.id,
-            version: candidate.version,
-            approvedPermissions: review.permissions.map(({ permission }) => permission),
-          });
-          succeeded += 1;
-        } catch (nextError) {
-          failures.push({ name: extension.name, message: errorMessage(nextError) });
-        }
-      }
-      await refresh();
-      if (failures.length) {
-        setError(t("settings.extensions.updateAllPartialFailure", {
-          succeeded,
-          failed: failures.length,
-          details: failures.map(({ name, message }) => `${name}: ${message}`).join("; "),
-        }));
-      } else if (cancelled) {
-        setOperationNotice(t("settings.extensions.updateAllCancelled", { count: succeeded }));
-      } else {
-        setOperationNotice(t("settings.extensions.updateAllComplete", { count: succeeded }));
-      }
-    } finally {
-      setBusy(null);
-    }
   };
 
   const saveConfiguration = async () => {
@@ -1481,10 +1148,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
           className="extensions-icon-button"
           aria-label={t("settings.extensions.refresh")}
           title={t("settings.extensions.refresh")}
-          disabled={loading || checkingUpdates}
+          disabled={loading}
           onClick={() => void refresh()}
         >
-          {loading || checkingUpdates
+          {loading
             ? <LoaderCircle className="extensions-spinner" size={16} strokeWidth={2} aria-hidden="true" />
             : <RefreshCw size={16} strokeWidth={2} aria-hidden="true" />}
         </button>
@@ -1512,25 +1179,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         </button>
       </div>
 
-      <div className="extensions-tabs" role="tablist" aria-label={t("settings.extensions.title")} onKeyDown={onTabKeyDown}>
-        {(["installed", "discover", "updates"] as Tab[]).map((item) => (
-          <button
-            key={item}
-            type="button"
-            role="tab"
-            id={`extensions-tab-${item}`}
-            aria-selected={tab === item}
-            aria-controls={`extensions-tabpanel-${item}`}
-            className={`extensions-tabs__item${tab === item ? " extensions-tabs__item--active" : ""}`}
-            onClick={() => setTab(item)}
-          >
-            {t(`settings.extensions.tab.${item}`)}
-            {item === "installed" && extensions.length > 0 && <span>{extensions.length}</span>}
-            {item === "updates" && updates.length > 0 && <span>{updates.length}</span>}
-          </button>
-        ))}
-      </div>
-
       {error && (
         <div className="extensions-notice extensions-notice--error" role="alert">
           <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
@@ -1546,237 +1194,201 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         </div>
       )}
 
-      {tab === "updates" && updateCheckFailureCount !== null && (
-        <div className="extensions-notice extensions-notice--error" role="alert">
-          <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
-          <span>{t(updateCheckFailureCount > 0
-            ? "settings.extensions.updateCheckPartialFailure"
-            : "settings.extensions.updateCheckFailed", updateCheckFailureCount > 0
-              ? { count: updateCheckFailureCount }
-              : undefined)}</span>
-          <button
-            type="button"
-            className="extensions-action-button"
-            disabled={loading || checkingUpdates}
-            onClick={() => void refresh()}
-          >
-            <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
-            {t("settings.extensions.retryUpdateCheck")}
-          </button>
-        </div>
-      )}
-
-      {tab === "installed" && (
-        <div id="extensions-tabpanel-installed" className="extensions-installed" role="tabpanel" aria-labelledby="extensions-tab-installed" tabIndex={0}>
-          <div className="extensions-sync-toolbar">
-            <div className="extensions-sync-toolbar__group">
-              <button
-                type="button"
-                className="extensions-action-button extensions-action-button--primary"
-                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                ref={customCreateButtonRef}
-                onClick={openCreateCustomIntegration}
-              >
-                <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                {t("settings.extensions.createCustom")}
-              </button>
-              <button
-                type="button"
-                className="extensions-action-button"
-                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                title={t("settings.extensions.chooseManifestHint")}
-                onClick={() => void connectLocal()}
-              >
-                <Link2 size={14} strokeWidth={2} aria-hidden="true" />
-                {t("settings.extensions.chooseManifest")}
-              </button>
-            </div>
-            <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--transfer">
-              <button
-                type="button"
-                className="extensions-action-button"
-                aria-busy={syncOperation === "export"}
-                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                onClick={() => void exportExtensions()}
-              >
-                {syncOperation === "export" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileDown size={14} strokeWidth={2} aria-hidden="true" />}
-                {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
-              </button>
-              <button
-                type="button"
-                className="extensions-action-button"
-                aria-busy={syncOperation === "import"}
-                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                onClick={() => void importExtensions()}
-              >
-                {syncOperation === "import" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileUp size={14} strokeWidth={2} aria-hidden="true" />}
-                {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
-              </button>
-            </div>
-          </div>
-          <div className="extensions-package-hints">
-            <div className="extensions-package-hint" role="note">
-              <FileDown size={13} strokeWidth={2} aria-hidden="true" />
-              <span>{t("settings.extensions.fileTransferHint")}</span>
-            </div>
-            <div className="extensions-package-hint" role="note">
-              <Link2 size={13} strokeWidth={2} aria-hidden="true" />
-              <span>{t("settings.extensions.chooseManifestHint")}</span>
-            </div>
-          </div>
-          {exportResult && (
-            <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
-              <Check size={15} strokeWidth={2} aria-hidden="true" />
-              <span>{t("settings.extensions.exportComplete", { count: exportResult.extensionCount })}</span>
-            </div>
-          )}
-          {importReport && (
-            <div
-              className={`extensions-notice${importReport.failed.length ? " extensions-notice--error" : " extensions-notice--success"}`}
-              role="status"
-              title={importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") || importReport.path}
+      <div className="extensions-installed">
+        <div className="extensions-sync-toolbar">
+          <div className="extensions-sync-toolbar__group">
+            <button
+              type="button"
+              className="extensions-action-button extensions-action-button--primary"
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              ref={customCreateButtonRef}
+              onClick={openCreateCustomIntegration}
             >
-              {importReport.failed.length
-                ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
-                : <Check size={15} strokeWidth={2} aria-hidden="true" />}
-              <span>{importReport.failed.length
-                ? t("settings.extensions.importRolledBack")
-                : t("settings.extensions.importSummary", {
-                    succeeded: importReport.succeeded.length,
-                    skipped: importReport.skipped.length,
-                  })}</span>
-            </div>
-          )}
+              <Plus size={14} strokeWidth={2} aria-hidden="true" />
+              {t("settings.extensions.createCustom")}
+            </button>
+            <button
+              type="button"
+              className="extensions-action-button"
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              title={t("settings.extensions.chooseManifestHint")}
+              onClick={() => void connectLocal()}
+            >
+              <Link2 size={14} strokeWidth={2} aria-hidden="true" />
+              {t("settings.extensions.chooseManifest")}
+            </button>
+          </div>
+          <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--transfer">
+            <button
+              type="button"
+              className="extensions-action-button"
+              aria-busy={syncOperation === "export"}
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              onClick={() => void exportExtensions()}
+            >
+              {syncOperation === "export" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileDown size={14} strokeWidth={2} aria-hidden="true" />}
+              {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
+            </button>
+            <button
+              type="button"
+              className="extensions-action-button"
+              aria-busy={syncOperation === "import"}
+              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+              onClick={() => void importExtensions()}
+            >
+              {syncOperation === "import" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileUp size={14} strokeWidth={2} aria-hidden="true" />}
+              {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
+            </button>
+          </div>
+        </div>
+        <div className="extensions-package-hints">
+          <div className="extensions-package-hint" role="note">
+            <FileDown size={13} strokeWidth={2} aria-hidden="true" />
+            <span>{t("settings.extensions.fileTransferHint")}</span>
+          </div>
+          <div className="extensions-package-hint" role="note">
+            <Link2 size={13} strokeWidth={2} aria-hidden="true" />
+            <span>{t("settings.extensions.chooseManifestHint")}</span>
+          </div>
+        </div>
+        {exportResult && (
+          <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
+            <Check size={15} strokeWidth={2} aria-hidden="true" />
+            <span>{t("settings.extensions.exportComplete", { count: exportResult.extensionCount })}</span>
+          </div>
+        )}
+        {importReport && (
+          <div
+            className={`extensions-notice${importReport.failed.length ? " extensions-notice--error" : " extensions-notice--success"}`}
+            role="status"
+            title={importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") || importReport.path}
+          >
+            {importReport.failed.length
+              ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+              : <Check size={15} strokeWidth={2} aria-hidden="true" />}
+            <span>{importReport.failed.length
+              ? t("settings.extensions.importRolledBack")
+              : t("settings.extensions.importSummary", {
+                  succeeded: importReport.succeeded.length,
+                  skipped: importReport.skipped.length,
+                })}</span>
+          </div>
+        )}
+
+        <section className="extensions-section">
+          <h3 className="extensions-section-title">{t("settings.extensions.section.connected")}</h3>
           <div className="extensions-list extensions-list--installed">
             {loading ? (
               <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
-            ) : extensions.length === 0 ? (
+            ) : connectedExtensions.length === 0 ? (
               <EmptyState icon={<Package size={20} strokeWidth={2} />} text={t("settings.extensions.emptyInstalled")} />
-            ) : extensions.map((extension) => (
+            ) : connectedExtensions.map((extension) => (
               <ExtensionRowComponent
                 key={extension.id}
                 extension={extension}
-                update={updateById[extension.id]}
                 operation={busy}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
-                onConnect={() => {
-                  if (!extension.connected) {
-                    // Manifest suggestions carry a full authored manifest,
-                    // so they connect through the same pipeline as shipped
-                    // recommendations instead of regenerating one.
-                    return extension.recommended || extension.manifestSuggestion
-                      ? void connectRecommended(extension)
-                      : connectDiscoveredTool(extension);
-                  }
-                }}
-                onRepair={() => extension.connected
-                  ? void repairExtension(extension)
-                  : extension.homepage && void invoke("open_url", { url: extension.homepage })}
+                onRepair={() => void repairExtension(extension)}
                 onReconnect={() => void reconnectSystem(extension)}
                 onToggle={() => void toggleExtension(extension)}
-                onUpdate={() => void updateExtension(extension)}
-                onRollback={() => void rollbackExtension(extension)}
-                onReinstall={() => void reinstallExtension(extension)}
                 onEdit={() => void editCustomIntegration(extension)}
                 onUninstall={() => uninstallExtension(extension)}
               />
             ))}
           </div>
-        </div>
-      )}
+        </section>
 
-      {tab === "discover" && (
-        <div id="extensions-tabpanel-discover" className="extensions-discover" role="tabpanel" aria-labelledby="extensions-tab-discover" tabIndex={0}>
-          <form className="extensions-search" onSubmit={searchExtensions}>
+        <section className="extensions-section">
+          <h3 className="extensions-section-title">{t("settings.extensions.section.detected")}</h3>
+          <form className="extensions-search extensions-search--detected" onSubmit={(event) => event.preventDefault()}>
             <Search size={16} strokeWidth={2} aria-hidden="true" />
             <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("settings.extensions.searchPlaceholder")}
-              aria-label={t("settings.extensions.searchPlaceholder")}
+              value={detectedQuery}
+              onChange={(event) => setDetectedQuery(event.target.value)}
+              placeholder={t("settings.extensions.detectedSearchPlaceholder")}
+              aria-label={t("settings.extensions.detectedSearchPlaceholder")}
             />
-            {query && (
+            {detectedQuery && (
               <button
                 type="button"
                 className="extensions-search__clear"
-                aria-label="Clear search"
-                onClick={() => { setQuery(""); setSearchResults([]); setHasSearched(false); }}
+                aria-label={t("settings.extensions.dismissNotice")}
+                onClick={() => setDetectedQuery("")}
               >
                 <X size={14} strokeWidth={2} />
               </button>
             )}
-            <button type="submit" aria-busy={searching} disabled={!query.trim() || searching}>
-              {searching && <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />}
-              {searching ? t("settings.extensions.searching") : t("settings.extensions.search")}
-            </button>
           </form>
-          <div className="extensions-source" aria-label={t("settings.extensions.source")}>
-            <span className="extensions-source__active"><Check size={12} strokeWidth={2} />{t("settings.extensions.sourceNpm")}</span>
-          </div>
-          <div className="extensions-list extensions-list--search">
-            {searching ? (
-              <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
-            ) : searchResults.length ? searchResults.map((result) => <SearchCard key={result.package} result={result} review={permissionReviews[permissionReviewKey(result)]} installed={installedPackages.has(result.package)} selected={reviewingPackage === result.package || busy?.id === result.package} reviewing={reviewingPackage === result.package} busy={busy?.id === result.package} t={t} onPrefetch={() => void prefetchPermissions(result)} onInstall={() => void installExtension(result)} formatDownloads={formatDownloads} deprecationDescription={deprecationDescription} />) : (
-              <EmptyState
-                icon={<Search size={20} strokeWidth={2} />}
-                text={hasSearched ? t("settings.extensions.emptySearch") : t("settings.extensions.searchPrompt")}
-                query={hasSearched ? query : undefined}
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab === "updates" && (
-        <div id="extensions-tabpanel-updates" className="extensions-updates" role="tabpanel" aria-labelledby="extensions-tab-updates" tabIndex={0}>
-          <div className="extensions-updates__toolbar">
-            <span>{checkingUpdates ? t("settings.extensions.checkingUpdates") : t("settings.extensions.updateCount", { count: updates.length })}</span>
-            <button
-              type="button"
-              className="extensions-action-button extensions-action-button--primary"
-              aria-busy={busy?.id === "*"}
-              disabled={!patchUpdates.length || Boolean(busy)}
-              onClick={() => void updateAll()}
-            >
-              {busy?.id === "*"
-                ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
-                : <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />}
-              {busy?.id === "*" ? t("settings.extensions.updating") : t("settings.extensions.updateAll")}
-            </button>
-          </div>
-          {!loading && !checkingUpdates && updateCheckFailureCount === null && updates.length === 0 ? (
-            <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyUpdates")} />
-          ) : (
-            <div className="extension-update-groups">
-              {updateGroups.map(({ source, entries }) => (
-                <section className="extension-update-group" key={source}>
-                  <header className="extension-update-group__header">
-                    <h3>{t(source)}</h3>
-                    <span>{entries.length}</span>
-                  </header>
-                  <div className="extensions-list extensions-list--updates">
-                    {entries.map((extension) => (
-                      <UpdateRow
-                        key={extension.id}
-                        extension={extension}
-                        update={updateById[extension.id]}
-                        busy={busy?.id === extension.id && busy.kind === "update"}
-                        disabled={Boolean(busy)}
-                        t={t}
-                        onOpen={() => setSelectedId(extension.id)}
-                        onUpdate={() => void updateExtension(extension)}
-                      />
-                    ))}
+          <div className="extensions-list extensions-list--installed">
+            {detectedQuery.trim() ? (
+              detectedSearching ? (
+                <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
+              ) : detectedCandidates.length ? detectedCandidates.map((candidate) => (
+                <article key={candidate.id} className="extension-row extension-row--detected">
+                  <div className="extension-row__open">
+                    <span className="extension-row__icon">
+                      <Package size={17} strokeWidth={2} aria-hidden="true" />
+                    </span>
+                    <span className="extension-row__main">
+                      <span className="extension-row__title">
+                        <strong>{candidate.name}</strong>
+                      </span>
+                      <span className="extension-row__meta" title={candidate.locator.path}>
+                        <span>{candidate.locator.path}</span>
+                        <span>{candidate.sources.join(" · ")}</span>
+                      </span>
+                    </span>
                   </div>
-                </section>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {pendingInstall && <InstallDialog pending={pendingInstall} busy={installConfirmationLoading} t={t} dialogRef={permissionDialogRef} stopPropagation={stopRowClick} deprecationDescription={deprecationDescription} onCancel={() => setPendingInstall(null)} onConfirm={() => void confirmPendingInstall()} />}
+                  <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
+                      aria-label={t("settings.extensions.connect")}
+                      title={t("settings.extensions.connect")}
+                      disabled={Boolean(busy)}
+                      onClick={() => connectToolCandidate(candidate)}
+                    >
+                      <Link2 size={14} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </article>
+              )) : (
+                <EmptyState
+                  icon={<Search size={20} strokeWidth={2} />}
+                  text={t(detectedFailed ? "settings.extensions.customToolSearchFailed" : "settings.extensions.customToolNoResults")}
+                  query={detectedQuery.trim()}
+                />
+              )
+            ) : loading ? (
+              <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
+            ) : suggestedExtensions.length === 0 ? (
+              <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyDetected")} />
+            ) : suggestedExtensions.map((extension) => (
+              <ExtensionRowComponent
+                key={extension.id}
+                extension={extension}
+                operation={busy}
+                t={t}
+                onOpen={() => setSelectedId(extension.id)}
+                onConnect={() => {
+                  // Manifest suggestions carry a full authored manifest,
+                  // so they connect through the same pipeline as shipped
+                  // recommendations instead of regenerating one.
+                  return extension.recommended || extension.manifestSuggestion
+                    ? void connectRecommended(extension)
+                    : connectDiscoveredTool(extension);
+                }}
+                onRepair={() => extension.homepage && void invoke("open_url", { url: extension.homepage })}
+                onReconnect={() => void reconnectSystem(extension)}
+                onToggle={() => void toggleExtension(extension)}
+                onEdit={() => void editCustomIntegration(extension)}
+                onUninstall={() => uninstallExtension(extension)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
       {pendingLocal && <LocalInstallDialog pending={pendingLocal} busy={Boolean(busy)} t={t} dialogRef={localDialogRef} stopPropagation={stopRowClick} onCancel={() => setPendingLocal(null)} onConfirm={() => void confirmLocal()} />}
       {pendingToolSelection && (
         <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingToolSelection(null); }}>
@@ -1806,93 +1418,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
 
       {removalTarget && <RemovalDialog extension={removalTarget} busy={Boolean(busy)} t={t} dialogRef={removalDialogRef} stopPropagation={stopRowClick} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />}
       <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} toolResults={toolResults} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolCandidate} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
-      {showCustomIntegration && false && (
-        <div className="extension-permission-backdrop" role="presentation" onMouseDown={closeCustomIntegration}>
-          <section ref={customDialogRef} className="extension-custom-dialog" role="dialog" aria-modal="true" aria-labelledby="custom-integration-title" tabIndex={-1} onMouseDown={stopRowClick}>
-            <header className="extension-custom-dialog__header">
-              <div>
-                <h3 id="custom-integration-title">{t(editingCustomId ? "settings.extensions.editCustomTitle" : "settings.extensions.createCustomTitle")}</h3>
-                <p>{t(editingCustomId ? "settings.extensions.editCustomHint" : "settings.extensions.createCustomHint")}</p>
-              </div>
-              <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.cancel")} disabled={Boolean(busy) || customIntegrationLoading} onClick={closeCustomIntegration}><X size={16} strokeWidth={2} /></button>
-            </header>
-            {customIntegrationLoading && <div className="extension-custom-dialog__loading"><LoaderCircle className="extensions-spinner" size={15} strokeWidth={2} /><span>{t("settings.extensions.loadingCustom")}</span></div>}
-            {customIntegrationError && <div className="extensions-notice extensions-notice--error extension-custom-form__error" role="alert"><AlertCircle size={14} strokeWidth={2} aria-hidden="true" /><span>{customIntegrationError}</span></div>}
-            {!customIntegrationLoading && (!editingCustomId || customIntegration.id === editingCustomId) && <form className="extension-custom-form" onSubmit={(event) => void createCustomIntegration(event)}>
-              <div className="extension-custom-mode" role="radiogroup" aria-label={t("settings.extensions.customMode")}>
-                {(["executable", "script"] as const).map((mode) => (
-                  <button key={mode} type="button" role="radio" aria-checked={customIntegration.mode === mode} className={customIntegration.mode === mode ? "extension-custom-mode__item extension-custom-mode__item--active" : "extension-custom-mode__item"} onClick={() => updateCustomIntegration((current) => ({ ...current, mode }))}>
-                    {t(mode === "executable" ? "settings.extensions.customModeExecutable" : "settings.extensions.customModeScript")}
-                  </button>
-                ))}
-              </div>
-              <div className="extension-custom-form__grid">
-                <label><span>{t("settings.extensions.customName")}</span><input required maxLength={80} data-dialog-initial value={customIntegration.name} onChange={(event) => updateCustomIntegration((current) => ({ ...current, name: event.target.value }))} /></label>
-                <label><span>{t("settings.extensions.customId")}</span><input required readOnly={Boolean(editingCustomId)} pattern="[a-z0-9]+([._-][a-z0-9]+)+" value={customIntegration.id} onChange={(event) => updateCustomIntegration((current) => ({ ...current, id: event.target.value.toLowerCase() }))} /></label>
-                <label><span>{t("settings.extensions.customVersion")}</span><input required value={customIntegration.version} onChange={(event) => updateCustomIntegration((current) => ({ ...current, version: event.target.value }))} /></label>
-                <label><span>{t("settings.extensions.customCommand")}</span><input required pattern="[a-z0-9][a-z0-9_-]{0,63}" value={customIntegration.command} onChange={(event) => updateCustomIntegration((current) => ({ ...current, command: event.target.value.toLowerCase() }))} /></label>
-                {customIntegration.mode === "executable" ? <>
-                  <label className="extension-custom-form__wide"><span>{t("settings.extensions.customExecutable")}</span><input required role="combobox" aria-autocomplete="list" aria-controls="extension-tool-results" aria-expanded={toolSearching || toolResults.length > 0} aria-activedescendant={toolResults.length ? `extension-tool-result-${toolHighlight}` : undefined} autoComplete="off" placeholder={t("settings.extensions.customExecutablePlaceholder")} value={customIntegration.executablePath} onKeyDown={handleToolSearchKeyDown} onChange={(event) => updateCustomIntegration((current) => ({ ...current, executablePath: event.target.value }))} /></label>
-                  <div ref={toolResultsRef} id="extension-tool-results" className="extension-tool-results extension-custom-form__wide" role="listbox" aria-label={t("settings.extensions.customToolResults")}>
-                    {toolSearching ? <span>{t("settings.extensions.searching")}</span> : toolResults.length ? toolResults.map((candidate, index) => (
-                      <button id={`extension-tool-result-${index}`} key={candidate.id} type="button" role="option" tabIndex={-1} aria-selected={index === toolHighlight} className={index === toolHighlight ? "extension-tool-result--active" : ""} onMouseEnter={() => setToolHighlight(index)} onClick={() => chooseToolCandidate(candidate)}><strong>{candidate.name}<small>{candidate.sources.join(" · ")}</small></strong><span>{candidate.locator.path}</span></button>
-                    )) : toolSearchFailed ? <span role="status">{t("settings.extensions.customToolSearchFailed")}</span> : customIntegration.executablePath.trim() ? <span>{t("settings.extensions.customToolNoResults")}</span> : null}
-                  </div>
-                </> : <>
-                  <label><span>{t("settings.extensions.customScriptLanguage")}</span><select value={customIntegration.scriptLanguage} onChange={(event) => updateCustomIntegration((current) => { const language = event.target.value as CustomIntegrationForm["scriptLanguage"]; const templates = ["", scriptTemplate("js"), scriptTemplate("shell"), scriptTemplate("powershell")]; return { ...current, scriptLanguage: language, scriptContent: templates.includes(current.scriptContent) ? scriptTemplate(language) : current.scriptContent }; })}><option value="js">JavaScript</option><option value="shell">Shell</option><option value="powershell">PowerShell</option></select></label>
-                  <label className="extension-custom-form__wide"><span>{t("settings.extensions.customScriptContent")}</span><textarea required spellCheck={false} placeholder={t("settings.extensions.customScriptPlaceholder")} value={customIntegration.scriptContent} onChange={(event) => updateCustomIntegration((current) => ({ ...current, scriptContent: event.target.value }))} /></label>
-                  <div className="extension-custom-form__actions extension-custom-form__wide"><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void copyCustomContent(customIntegration.scriptContent, t("settings.extensions.customScriptCopied"))}><Copy size={14} />{t("settings.extensions.copyScript")}</button><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void exportCustomScript()}><Download size={14} />{customContentOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.exportScript")}</button></div>
-                </>}
-                {customIntegration.mode === "executable" && <div className="extension-custom-form__actions extension-custom-form__wide"><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void copyCustomContent(customIntegration.executablePath, t("settings.extensions.customCommandCopied"))}><Copy size={14} />{t("settings.extensions.copyCommand")}</button><button type="button" className="extensions-action-button" disabled={Boolean(customContentOperation)} onClick={() => void copyExecutionPlan()}><Copy size={14} />{t("settings.extensions.copyPlan")}</button></div>}
-                <ArgumentListEditor
-                  values={customIntegration.argsPrefix}
-                  label={t("settings.extensions.customArgsPrefix")}
-                  addLabel={t("settings.extensions.customArgumentAdd")}
-                  removeLabel={t("settings.extensions.customArgumentRemove")}
-                  emptyLabel={t("settings.extensions.customNoArguments")}
-                  onChange={(values) => updateCustomIntegration((current) => ({ ...current, argsPrefix: values }))}
-                />
-                <ArgumentListEditor
-                  values={customIntegration.versionArgs}
-                  label={t("settings.extensions.customVersionArgs")}
-                  addLabel={t("settings.extensions.customArgumentAdd")}
-                  removeLabel={t("settings.extensions.customArgumentRemove")}
-                  emptyLabel={t("settings.extensions.customNoArguments")}
-                  onChange={(values) => updateCustomIntegration((current) => ({ ...current, versionArgs: values }))}
-                />
-              </div>
-              <fieldset className="extension-custom-permissions">
-                <legend>{t("settings.extensions.customPlatforms")}</legend>
-                {CUSTOM_PLATFORMS.map((platform) => (
-                  <label key={platform}><input type="checkbox" checked={customIntegration.platforms.includes(platform)} onChange={(event) => updateCustomIntegration((current) => ({ ...current, platforms: event.target.checked ? [...current.platforms, platform] : current.platforms.filter((item) => item !== platform) }))} /><span>{platform === "darwin" ? "macOS" : platform === "linux" ? "Linux" : "Windows"}</span></label>
-                ))}
-              </fieldset>
-              <div className="extension-custom-permission-boundary" role="note">
-                <ShieldCheck size={15} strokeWidth={2} aria-hidden="true" />
-                <span>{t("settings.extensions.permissionBoundary")}</span>
-              </div>
-              <fieldset className="extension-custom-permissions">
-                <legend>{t("settings.extensions.customEnforcedPermissions")}</legend>
-                <p className="extension-custom-permissions__hint">{t("settings.extensions.permissionEnforcedHint")}</p>
-                {CUSTOM_ENFORCED_PERMISSION_NAMES.map((permission) => (
-                  <label key={permission}><input type="checkbox" checked={customIntegration.permissions.includes(permission)} onChange={(event) => updateCustomIntegration((current) => ({ ...current, permissions: event.target.checked ? [...current.permissions, permission] : current.permissions.filter((item) => item !== permission) }))} /><span>{t(`settings.extensions.permission.${permission}`)}</span></label>
-                ))}
-              </fieldset>
-              <fieldset className="extension-custom-permissions">
-                <legend>{t("settings.extensions.customDeclaredPermissions")}</legend>
-                <p className="extension-custom-permissions__hint">{t("settings.extensions.permissionDeclaredHint")}</p>
-                {CUSTOM_DECLARED_PERMISSION_NAMES.map((permission) => (
-                  <label key={permission}><input type="checkbox" checked={customIntegration.permissions.includes(permission)} onChange={(event) => updateCustomIntegration((current) => ({ ...current, permissions: event.target.checked ? [...current.permissions, permission] : current.permissions.filter((item) => item !== permission) }))} /><span>{t(`settings.extensions.permission.${permission}`)}</span></label>
-                ))}
-              </fieldset>
-              <footer>
-                <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={closeCustomIntegration}>{t("settings.extensions.cancel")}</button>
-                <button type="submit" className="extensions-action-button extensions-action-button--primary" disabled={Boolean(busy) || customIntegration.platforms.length === 0 || (customIntegration.mode === "executable" ? !customIntegration.executablePath.trim() : !customIntegration.scriptContent.trim())}>{busy ? t(editingCustomId ? "settings.extensions.saving" : "settings.extensions.installing") : t(editingCustomId ? "settings.extensions.saveCustom" : "settings.extensions.createAndVerify")}</button>
-              </footer>
-            </form>}
-          </section>
-        </div>
-      )}
 
       {selected && (
         <div className="extension-drawer-backdrop" role="presentation" onMouseDown={closeDetails}>
@@ -1935,34 +1460,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                   ) : null}
                   <div><dt>{t("settings.extensions.signature")}</dt><dd>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
                   <div><dt>{t("settings.extensions.trust")}</dt><dd>{t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</dd></div>
-                  <div><dt>{t("settings.extensions.homepage")}</dt><dd>{selected.homepage ?? latestById[selected.id]?.homepage ?? t("settings.extensions.unavailable")}</dd></div>
+                  <div><dt>{t("settings.extensions.homepage")}</dt><dd>{selected.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
-                <p className="extension-detail-description">{provider?.description.provider.description || latestById[selected.id]?.description || t("settings.extensions.noDescription")}</p>
+                <p className="extension-detail-description">{provider?.description.provider.description || t("settings.extensions.noDescription")}</p>
               </section>
-
-              {selected.distributionSource === "npm" && (
-                <section className="extension-detail-block">
-                  <h4>{t("settings.extensions.releasePolicy")}</h4>
-                  <div className="extension-release-policy">
-                    <label>
-                      <span>{t("settings.extensions.channel")}</span>
-                      <select
-                        value={selected.channel === "latest" ? "stable" : selected.channel}
-                        disabled={Boolean(busy)}
-                        onChange={(event) => void setChannel(selected, event.target.value)}
-                      >
-                        <option value="stable">{t("settings.extensions.channelStable")}</option>
-                        <option value="beta">{t("settings.extensions.channelBeta")}</option>
-                      </select>
-                    </label>
-                    <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void setPinned(selected, !selected.pinned)}>
-                      <Pin size={14} strokeWidth={2} aria-hidden="true" />
-                      {t(selected.pinned ? "settings.extensions.unpin" : "settings.extensions.pin")}
-                    </button>
-                  </div>
-                  <p className="extension-detail-description">{t(selected.pinned ? "settings.extensions.pinnedHint" : "settings.extensions.channelHint")}</p>
-                </section>
-              )}
 
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.commands")}</h4>
@@ -2119,7 +1620,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void editCustomIntegration(selected)}>
                 {t("settings.extensions.editCustom")}
               </button>}
-              {selected.distributionSource === "local" ? (
+              {selected.distributionSource === "local" && (
                 <button
                   type="button"
                   className="extensions-action-button extensions-action-button--primary"
@@ -2132,18 +1633,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                     : <Wrench size={14} strokeWidth={2} aria-hidden="true" />}
                   {t("settings.extensions.recheck")}
                 </button>
-              ) : (
-                <>
-                  <button type="button" className="extensions-action-button" disabled={!selected.previousVersion || Boolean(busy)} onClick={() => void rollbackExtension(selected)}>
-                    <RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}
-                  </button>
-                  <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void repairExtension(selected)}>
-                    <Wrench size={14} strokeWidth={2} />{t("settings.extensions.repair")}
-                  </button>
-                  <button type="button" className="extensions-action-button" disabled={!selected.packageName || Boolean(busy)} onClick={() => void reinstallExtension(selected)}>
-                    <RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}
-                  </button>
-                </>
               )}
               <button type="button" className="extensions-action-button extensions-action-button--danger" disabled={Boolean(busy)} onClick={() => uninstallExtension(selected)}>
                 {removalKind(selected) === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}

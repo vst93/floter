@@ -1,32 +1,26 @@
 import {
-  Download,
   ExternalLink,
   Link2,
   LoaderCircle,
   MoreHorizontal,
   Package,
   RefreshCw,
-  RotateCcw,
   Trash2,
   Unplug,
   Wrench,
 } from "lucide-react";
 import type { Translate } from "../i18n";
-import type { Extension, ExtensionOperation, UpdateCandidate } from "../ExtensionsPanel";
+import type { Extension, ExtensionOperation } from "../ExtensionsPanel";
 
 type Props = {
   extension: Extension;
-  update?: UpdateCandidate;
   operation: ExtensionOperation;
   t: Translate;
   onOpen: () => void;
-  onConnect: () => void;
+  onConnect?: () => void;
   onRepair: () => void;
   onReconnect: () => void;
   onToggle: () => void;
-  onUpdate: () => void;
-  onRollback: () => void;
-  onReinstall: () => void;
   onEdit: () => void;
   onUninstall: () => void;
 };
@@ -58,7 +52,6 @@ const removalKind = (extension: Extension) => {
 
 export function ExtensionRow({
   extension,
-  update,
   operation,
   t,
   onOpen,
@@ -66,19 +59,14 @@ export function ExtensionRow({
   onRepair,
   onReconnect,
   onToggle,
-  onUpdate,
-  onRollback,
-  onReinstall,
   onEdit,
   onUninstall,
 }: Props) {
-  const updateAvailable = Boolean(update);
   const busy = Boolean(operation);
   const rowBusy = operation?.id === extension.id;
   const rowToggleBusy = rowBusy && (operation?.kind === "enable" || operation?.kind === "disable");
   const rowInstallBusy = rowBusy && operation?.kind === "install";
-  const rowRepairBusy = rowBusy && (operation?.kind === "repair" || operation?.kind === "reinstall");
-  const rowUpdateBusy = rowBusy && operation?.kind === "update";
+  const rowRepairBusy = rowBusy && operation?.kind === "repair";
   const kind = removalKind(extension);
   const packageIdentity = extension.packageName ?? extension.publisherName;
   const status = extension.connected
@@ -115,11 +103,6 @@ export function ExtensionRow({
               {t("settings.extensions.runtimeUnavailable")}
             </span>
           )}
-          {updateAvailable && (
-            <span className="extension-status extension-status--update">
-              {t("settings.extensions.status.updateAvailable")}
-            </span>
-          )}
         </span>
       </span>
     </>
@@ -154,32 +137,16 @@ export function ExtensionRow({
               <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
-        ) : extension.distributionSource === "npm" && updateAvailable ? (
-          <button
-            type="button"
-            className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
-            aria-label={t(rowUpdateBusy ? "settings.extensions.updating" : "settings.extensions.update")}
-            title={t("settings.extensions.update")}
-            aria-busy={rowUpdateBusy}
-            disabled={busy}
-            onClick={onUpdate}
-          >
-            {rowUpdateBusy ? (
-              <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
-            ) : (
-              <Download size={14} strokeWidth={2} aria-hidden="true" />
-            )}
-          </button>
         ) : null}
 
         {extension.connected
           && !extension.runtimeAvailable
-          && (extension.reconnectAvailable || extension.distributionSource === "npm" || extension.homepage) && (
+          && (extension.reconnectAvailable || extension.homepage) && (
           <button
             type="button"
             className="extensions-icon-button extensions-icon-button--row"
-            aria-label={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
-            title={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : extension.distributionSource === "npm" ? "settings.extensions.repair" : "settings.extensions.installTool")}
+            aria-label={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
+            title={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
             aria-busy={rowRepairBusy}
             disabled={busy}
             onClick={extension.reconnectAvailable ? onReconnect : onRepair}
@@ -188,10 +155,8 @@ export function ExtensionRow({
               <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
             ) : extension.reconnectAvailable ? (
               <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-            ) : extension.distributionSource === "npm" ? (
-              <Wrench size={14} strokeWidth={2} aria-hidden="true" />
             ) : (
-              <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
+              <Wrench size={14} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
         )}
@@ -234,18 +199,6 @@ export function ExtensionRow({
                   {t("settings.extensions.editCustom")}
                 </button>
               )}
-              <button type="button" disabled={!extension.previousVersion || busy} onClick={onRollback}>
-                <RotateCcw size={14} strokeWidth={2} />
-                {t("settings.extensions.rollback")}
-              </button>
-              <button
-                type="button"
-                disabled={extension.distributionSource !== "npm" || !extension.packageName || busy}
-                onClick={onReinstall}
-              >
-                <RefreshCw size={14} strokeWidth={2} />
-                {t("settings.extensions.reinstall")}
-              </button>
               <button type="button" className="extension-menu__danger" disabled={busy} onClick={onUninstall}>
                 {kind === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
                 {t(kind === "custom" ? "settings.extensions.deleteCustom" : kind === "npm" ? "settings.extensions.uninstall" : kind === "system" ? "settings.extensions.disconnect" : "settings.extensions.removePackage")}
