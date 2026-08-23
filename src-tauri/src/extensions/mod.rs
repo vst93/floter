@@ -31,6 +31,7 @@ pub mod sync;
 pub mod target;
 pub mod terminal_capability;
 pub mod tool_lock;
+pub mod tool_manifests;
 pub(crate) mod transaction;
 
 use std::collections::HashMap;

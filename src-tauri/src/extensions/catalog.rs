@@ -917,6 +917,7 @@ mod tests {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         }
     }
 
@@ -1015,6 +1016,7 @@ mod tests {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         };
 
         let (description, invocation) =
@@ -1090,8 +1092,9 @@ mod tests {
             .contains("no longer available"));
 
         // Restore the exact bytes and mtime so the recorded fingerprint
-        // matches, then reload. Broken clears and the entry is left disabled,
-        // matching the persisted state machine.
+        // matches, then reload. Broken clears and the entry returns to its
+        // pre-broken intent: it was enabled before, so it comes back enabled
+        // without a manual re-enable.
         std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
         std::fs::File::open(&executable)
@@ -1105,11 +1108,65 @@ mod tests {
             .get(&entry.id)
             .unwrap()
             .clone();
-        assert_ne!(
+        assert_eq!(
             restored.state,
-            crate::extensions::lock::ExtensionStateKind::Broken
+            crate::extensions::lock::ExtensionStateKind::Enabled
         );
+        assert!(restored.enabled);
+        assert_eq!(restored.enabled_before_broken, None);
         assert_eq!(restored.last_error_code, None);
+        assert_eq!(restored.broken_reason, None);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn disabled_before_broken_stays_disabled_after_recovery() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let original_modified = std::fs::metadata(&executable).unwrap().modified().unwrap();
+
+        let root = directory.path().join("integration");
+        let mut entry = recommended_local_entry(&root, &executable);
+        // The user had disabled the tool before its binding went missing.
+        entry.enabled = false;
+        entry.state = crate::extensions::lock::ExtensionStateKind::Disabled;
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.mark_broken(&entry.id, "binding-missing", "Executable is gone")
+            .unwrap();
+        lock.save(&state.paths.lock_file).unwrap();
+        assert_eq!(
+            lock.get(&entry.id).unwrap().enabled_before_broken,
+            Some(false)
+        );
+
+        // Recovery keeps the disabled intent instead of forcing enabled.
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::File::open(&executable)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(original_modified))
+            .unwrap();
+        load_provider_commands_uncached(&state).await.unwrap();
+        let restored = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            restored.state,
+            crate::extensions::lock::ExtensionStateKind::Disabled
+        );
+        assert!(!restored.enabled);
+        assert_eq!(restored.enabled_before_broken, None);
         assert_eq!(restored.broken_reason, None);
     }
 

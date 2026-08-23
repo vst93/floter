@@ -145,6 +145,14 @@ pub struct ExtensionLockEntry {
     /// visible across restarts until repair succeeds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub broken_reason: Option<String>,
+    /// Enabled/disabled intent captured when the entry entered `broken`.
+    /// `mark_broken` forces `enabled=false` while the runtime is unusable;
+    /// this remembers what the user actually wanted so `clear_broken` can
+    /// restore it. `None` on entries broken before the field existed (serde
+    /// default keeps old lock files loading), in which case clearing falls
+    /// back to the persisted `enabled` flag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled_before_broken: Option<bool>,
 }
 
 fn default_channel() -> String {
@@ -276,6 +284,9 @@ impl ExtensionsLock {
                 return Ok(false);
             }
             entry.state = ExtensionStateKind::Broken;
+            // Remember the user's enabled/disabled intent before forcing the
+            // entry out of the catalog, so recovery can restore it later.
+            entry.enabled_before_broken = Some(entry.enabled);
             // A broken extension must not stay runnable in the catalog; the
             // enabled flag follows the state the way set_enabled keeps them.
             entry.enabled = false;
@@ -289,7 +300,9 @@ impl ExtensionsLock {
     }
 
     /// Clear `broken` and any recorded operation error after a successful
-    /// verify/repair/install. The target state is the enabled flag's value,
+    /// verify/repair/install. The target state is the intent recorded when
+    /// the entry broke (`enabledBeforeBroken`); entries broken before that
+    /// field existed fall back to the persisted `enabled` flag's value,
     /// mirroring how enable/disable persists both fields.
     pub fn clear_broken(&mut self, id: &str) -> Result<bool, String> {
         let entry = self
@@ -301,12 +314,15 @@ impl ExtensionsLock {
             if !ExtensionStateKind::Broken.may_transition_to(ExtensionStateKind::Enabled) {
                 return Ok(false);
             }
-            entry.state = if entry.enabled {
+            let restored_enabled = entry.enabled_before_broken.unwrap_or(entry.enabled);
+            entry.enabled = restored_enabled;
+            entry.state = if restored_enabled {
                 ExtensionStateKind::Enabled
             } else {
                 ExtensionStateKind::Disabled
             };
             entry.broken_reason = None;
+            entry.enabled_before_broken = None;
         }
         if entry.last_error_code.is_some() {
             entry.last_error_code = None;
@@ -635,6 +651,56 @@ mod tests {
             test_entry("third.tool", ExtensionStateKind::Enabled),
         );
         assert!(!lock.clear_broken("third.tool").unwrap());
+    }
+
+    #[test]
+    fn broken_recovery_restores_the_pre_broken_enabled_intent() {
+        let mut lock = ExtensionsLock::default();
+
+        // Enabled before breaking -> recovery restores the enabled state.
+        lock.extensions.insert(
+            "enabled.tool".into(),
+            test_entry("enabled.tool", ExtensionStateKind::Enabled),
+        );
+        lock.mark_broken("enabled.tool", "binding-missing", "gone")
+            .unwrap();
+        assert_eq!(
+            lock.get("enabled.tool").unwrap().enabled_before_broken,
+            Some(true)
+        );
+        assert!(lock.clear_broken("enabled.tool").unwrap());
+        let restored = lock.get("enabled.tool").unwrap();
+        assert_eq!(restored.state, ExtensionStateKind::Enabled);
+        assert!(restored.enabled);
+        assert_eq!(restored.enabled_before_broken, None);
+
+        // Disabled before breaking -> recovery keeps it disabled.
+        lock.extensions.insert(
+            "disabled.tool".into(),
+            test_entry("disabled.tool", ExtensionStateKind::Disabled),
+        );
+        lock.mark_broken("disabled.tool", "binding-missing", "gone")
+            .unwrap();
+        assert_eq!(
+            lock.get("disabled.tool").unwrap().enabled_before_broken,
+            Some(false)
+        );
+        assert!(lock.clear_broken("disabled.tool").unwrap());
+        let restored = lock.get("disabled.tool").unwrap();
+        assert_eq!(restored.state, ExtensionStateKind::Disabled);
+        assert!(!restored.enabled);
+
+        // Legacy entry broken before the field existed (serde default None)
+        // still recovers through the persisted enabled flag.
+        lock.extensions.insert(
+            "legacy.tool".into(),
+            test_entry("legacy.tool", ExtensionStateKind::Broken),
+        );
+        assert_eq!(lock.get("legacy.tool").unwrap().enabled_before_broken, None);
+        assert!(lock.clear_broken("legacy.tool").unwrap());
+        let restored = lock.get("legacy.tool").unwrap();
+        assert_ne!(restored.state, ExtensionStateKind::Broken);
+        assert_eq!(restored.enabled_before_broken, None);
     }
 
     #[test]

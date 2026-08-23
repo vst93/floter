@@ -880,9 +880,24 @@ pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBu
     ))
 }
 
-pub async fn connect_recommended_tool(
+/// Data needed to connect a local static integration whose manifest (and
+/// optional provider descriptor) already exist as bytes: shipped
+/// recommendations and convention-location manifests share this pipeline.
+pub(crate) struct LocalStaticToolPayload<'a> {
+    pub id: &'a str,
+    pub manifest: &'a ExtensionManifest,
+    /// Exact manifest bytes written into the integration package root.
+    pub manifest_bytes: &'a [u8],
+    /// Descriptor file to write inside the package root, if the tool needs
+    /// one.
+    pub descriptor_path: Option<String>,
+    pub descriptor_bytes: Option<Vec<u8>>,
+    pub provider_version: &'a str,
+}
+
+async fn connect_local_static_tool(
     state: &ExtensionState,
-    recommendation: &crate::extensions::recommendations::RecommendedTool,
+    payload: &LocalStaticToolPayload<'_>,
     executable_path: Option<&str>,
     approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
@@ -898,43 +913,46 @@ pub async fn connect_recommended_tool(
             }
             path
         }
-        None => find_system_executable(&recommendation.manifest)?,
+        None => find_system_executable(payload.manifest)?,
     };
-    validate_permission_approval(&recommendation.manifest.permissions, approved_permissions)?;
+    validate_permission_approval(&payload.manifest.permissions, approved_permissions)?;
 
-    let id = recommendation.manifest.id.clone();
-    let package_root = state.paths.data.join(&id).join("integration");
+    let id = payload.id;
+    let package_root = state.paths.data.join(id).join("integration");
     if package_root.exists() {
-        return Err(format!("Recommended tool files already exist for {id}"));
+        return Err(format!("Integration files already exist for {id}"));
     }
     let data_root = package_root
         .parent()
-        .ok_or("Recommended tool directory has no parent")?;
+        .ok_or("Integration directory has no parent")?;
     std::fs::create_dir_all(data_root).map_err(|error| {
-        format!("Cannot create recommended tool data directory: {error}")
+        format!("Cannot create integration data directory: {error}")
     })?;
     std::fs::create_dir(&package_root).map_err(|error| {
-        format!("Cannot reserve recommended tool directory for {id}: {error}")
+        format!("Cannot reserve integration directory for {id}: {error}")
     })?;
     let manifest_path = package_root.join("floter.extension.json");
     let package_path = package_root.join("package.json");
-    let descriptor_path = package_root.join("provider-description.json");
     let write_result = (|| -> Result<(), String> {
-        std::fs::write(&manifest_path, recommendation.manifest_bytes)
-            .map_err(|error| format!("Cannot write recommended tool manifest: {error}"))?;
+        std::fs::write(&manifest_path, payload.manifest_bytes)
+            .map_err(|error| format!("Cannot write integration manifest: {error}"))?;
         let mut package_bytes = serde_json::to_vec_pretty(&serde_json::json!({
-            "name": format!("floter-recommended-{}", id.replace(['.', '_'], "-")),
-            "version": recommendation.description.provider.version,
+            "name": format!("floter-local-{}", id.replace(['.', '_'], "-")),
+            "version": payload.provider_version,
             "private": true,
             "keywords": ["floter-extension"],
             "floter": { "manifest": "floter.extension.json" }
         }))
-        .map_err(|error| format!("Cannot serialize recommended tool package: {error}"))?;
+        .map_err(|error| format!("Cannot serialize integration package: {error}"))?;
         package_bytes.push(b'\n');
         std::fs::write(&package_path, package_bytes)
-            .map_err(|error| format!("Cannot write recommended tool package: {error}"))?;
-        std::fs::write(&descriptor_path, recommendation.descriptor_bytes)
-            .map_err(|error| format!("Cannot write recommended tool descriptor: {error}"))?;
+            .map_err(|error| format!("Cannot write integration package: {error}"))?;
+        if let (Some(descriptor_path), Some(descriptor_bytes)) =
+            (&payload.descriptor_path, &payload.descriptor_bytes)
+        {
+            std::fs::write(package_root.join(descriptor_path), descriptor_bytes)
+                .map_err(|error| format!("Cannot write provider descriptor: {error}"))?;
+        }
         Ok(())
     })();
     if let Err(error) = write_result {
@@ -958,6 +976,142 @@ pub async fn connect_recommended_tool(
         let _ = std::fs::remove_dir_all(&package_root);
     }
     result
+}
+
+pub async fn connect_recommended_tool(
+    state: &ExtensionState,
+    recommendation: &crate::extensions::recommendations::RecommendedTool,
+    executable_path: Option<&str>,
+    approved_permissions: Option<&[Permission]>,
+) -> Result<ExtensionLockEntry, String> {
+    connect_local_static_tool(
+        state,
+        &LocalStaticToolPayload {
+            id: &recommendation.manifest.id,
+            manifest: &recommendation.manifest,
+            manifest_bytes: recommendation.manifest_bytes,
+            descriptor_path: Some("provider-description.json".to_string()),
+            descriptor_bytes: Some(recommendation.descriptor_bytes.to_vec()),
+            provider_version: &recommendation.description.provider.version,
+        },
+        executable_path,
+        approved_permissions,
+    )
+    .await
+}
+
+/// One-click connection of a convention-location manifest tool
+/// (`<config>/floter/tools/*.json`). The authored manifest is materialized
+/// verbatim into the standard integration directory and installed through
+/// the same linked-install pipeline as every other local tool. When the
+/// manifest needs a static descriptor but none ships beside it, a minimal
+/// generic single-command descriptor is generated so the tool behaves like
+/// a PATH-discovered tool.
+pub async fn connect_manifest_tool(
+    state: &ExtensionState,
+    tool: &crate::extensions::tool_manifests::DiscoveredManifest,
+    executable_path: Option<&str>,
+    approved_permissions: Option<&[Permission]>,
+) -> Result<ExtensionLockEntry, String> {
+    let (descriptor_path, descriptor_bytes) = manifest_descriptor_payload(tool);
+    let provider_version = tool
+        .descriptor_bytes
+        .as_deref()
+        .and_then(|bytes| crate::extensions::provider::ProviderDescription::parse(bytes).ok())
+        .map(|description| description.provider.version)
+        .unwrap_or_else(|| "0.0.0".to_string());
+    connect_local_static_tool(
+        state,
+        &LocalStaticToolPayload {
+            id: &tool.manifest.id,
+            manifest: &tool.manifest,
+            manifest_bytes: &tool.manifest_bytes,
+            descriptor_path,
+            descriptor_bytes,
+            provider_version: &provider_version,
+        },
+        executable_path,
+        approved_permissions,
+    )
+    .await
+}
+
+/// Descriptor payload for a convention-location manifest: the raw sibling
+/// `<stem>.description.json` bytes when present, otherwise a generated
+/// generic single-command description derived from the manifest runtime.
+fn manifest_descriptor_payload(
+    tool: &crate::extensions::tool_manifests::DiscoveredManifest,
+) -> (Option<String>, Option<Vec<u8>>) {
+    if !tool.requires_descriptor() {
+        return (None, None);
+    }
+    let relative = tool
+        .manifest
+        .provider
+        .descriptor
+        .clone()
+        .unwrap_or_else(|| "provider-description.json".to_string());
+    if let Some(bytes) = &tool.descriptor_bytes {
+        return (Some(relative), Some(bytes.clone()));
+    }
+    let mut bytes = serde_json::to_vec_pretty(&synthesized_single_command_description(tool))
+        .map_err(|error| format!("Cannot serialize generated descriptor: {error}"))
+        .ok()
+        .unwrap_or_default();
+    bytes.push(b'\n');
+    (Some(relative), Some(bytes))
+}
+
+/// Generic single-command description used when a convention-location
+/// manifest declares a static-descriptor provider without shipping one:
+/// one command named after the executable, running `self` in a PTY.
+fn synthesized_single_command_description(
+    tool: &crate::extensions::tool_manifests::DiscoveredManifest,
+) -> crate::extensions::provider::ProviderDescription {
+    use crate::extensions::provider::{
+        CommandDescriptor, ExecutionDescriptor, ExecutionMode, ProviderIdentity, WorkingDirectory,
+    };
+
+    let command = match &tool.manifest.runtime {
+        Runtime::System {
+            executable_names, ..
+        } => executable_names
+            .first()
+            .map(|name| sanitized_command_from_executable(name))
+            .filter(|command| !command.is_empty()),
+        _ => None,
+    }
+    .unwrap_or_else(|| {
+        sanitized_command_from_executable(&tool.stem).is_empty()
+            .then(|| "tool".to_string())
+            .unwrap_or_else(|| sanitized_command_from_executable(&tool.stem))
+    });
+    let name = tool.manifest.name.clone();
+    let summary = tool.manifest.description.clone();
+    crate::extensions::provider::ProviderDescription {
+        protocol_version: "1.0".into(),
+        provider: ProviderIdentity {
+            id: tool.manifest.id.clone(),
+            name: name.clone(),
+            version: "0.0.0".into(),
+            description: summary.clone(),
+        },
+        commands: vec![CommandDescriptor {
+            id: command,
+            name,
+            description: summary,
+            aliases: Vec::new(),
+            keywords: Vec::new(),
+            execution: ExecutionDescriptor {
+                program: "self".into(),
+                args_prefix: Vec::new(),
+                mode: ExecutionMode::Pty,
+                working_directory: WorkingDirectory::default(),
+            },
+            arguments: Vec::new(),
+        }],
+        configuration: None,
+    }
 }
 
 pub async fn permissions_summary(
@@ -2039,6 +2193,7 @@ async fn install_managed(
         last_error_at: None,
         // A successful install/repair/update clears any broken state.
         broken_reason: None,
+        enabled_before_broken: None,
     };
     progress(state, &mut journal, TransactionState::Staged)?;
     commit_version(
@@ -2291,6 +2446,7 @@ pub(crate) async fn install_linked(
         last_error_detail: None,
         last_error_at: None,
         broken_reason: None,
+        enabled_before_broken: None,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
     lock.save(&state.paths.lock_file)?;
@@ -3061,6 +3217,7 @@ mod tests {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         }
     }
 
@@ -3869,6 +4026,7 @@ mod tests {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry);

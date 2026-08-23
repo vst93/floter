@@ -192,6 +192,7 @@ fn placeholder_entry(id: &str) -> ExtensionLockEntry {
         last_error_detail: None,
         last_error_at: None,
         broken_reason: None,
+        enabled_before_broken: None,
     }
 }
 
@@ -636,6 +637,7 @@ mod tests {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         }
     }
 

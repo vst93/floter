@@ -72,6 +72,8 @@ export type Extension = {
   channel: string;
   generatedCustom: boolean;
   recommended: boolean;
+  /** Suggested from a convention-location manifest (~/.config/floter/tools). */
+  manifestSuggestion?: boolean;
   toolLockState: "connected" | "reconnect-required" | "reverify-required" | null;
   toolCandidates: ExecutableToolCandidate[];
   /** Permission set recorded at approval time (audit trail). */
@@ -1062,7 +1064,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     setError(null);
     try {
       const review = await invoke<PermissionReview>("extensions_recommended_permissions", { id: extension.id, locale });
-      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmConnectRecommended", {
+      const confirmKey = extension.manifestSuggestion ? "settings.extensions.confirmConnectManifest" : "settings.extensions.confirmConnectRecommended";
+      if (review.permissions.length && !window.confirm(t(confirmKey, {
         name: extension.name,
         path: executablePath ?? extension.executablePath,
         permissions: review.permissions.map((permission) => permission.title).join(", "),
@@ -1659,7 +1662,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 onOpen={() => setSelectedId(extension.id)}
                 onConnect={() => {
                   if (!extension.connected) {
-                    return extension.recommended
+                    // Manifest suggestions carry a full authored manifest,
+                    // so they connect through the same pipeline as shipped
+                    // recommendations instead of regenerating one.
+                    return extension.recommended || extension.manifestSuggestion
                       ? void connectRecommended(extension)
                       : connectDiscoveredTool(extension);
                   }

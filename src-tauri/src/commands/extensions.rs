@@ -19,6 +19,7 @@ use crate::extensions::source_bundle::{self, SourceBundleExportRequest, SourceBu
 use crate::extensions::source_inference::{self, SourceInferenceReport};
 use crate::extensions::source_resolver::{self, SourceResolution, SourceResolveRequest};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
+use crate::extensions::tool_manifests;
 use crate::extensions::{
     resolver, ExtensionState, LockState, ResolveRequest, ResolveResult, ToolLockEntry,
 };
@@ -173,6 +174,28 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
             tool_candidates,
         ));
     }
+    // Convention-location manifests (<config>/floter/tools/*.json): every
+    // valid local manifest becomes a suggestion row that connects through
+    // the same pipeline as shipped recommendations. The scanner skips
+    // unreadable or invalid files silently.
+    let manifest_rows = manifest_suggestions(
+        &lock,
+        &state.recommendations,
+        &candidates,
+        &tool_manifests::directory_for_root(&state.paths.root),
+    );
+    let reserved_executables: Vec<String> = manifest_rows
+        .iter()
+        .filter_map(|(_, candidates)| {
+            candidates
+                .first()
+                .and_then(|candidate| candidate.locator.executable_path())
+                .map(|path| path.to_string_lossy().into_owned())
+        })
+        .collect();
+    for (tool, tool_candidates) in &manifest_rows {
+        items.push(ExtensionListItem::suggested_manifest(tool, tool_candidates.clone()));
+    }
     // Discovery suggestions: PATH executables that are not connected yet and
     // do not collide with a known integration name. Sorted by discovery
     // quality then name so the best candidates surface first.
@@ -185,6 +208,11 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
             continue;
         };
         if !install::is_linked_executable_public(path) {
+            continue;
+        }
+        if reserved_executables.iter().any(|reserved| {
+            reserved.eq_ignore_ascii_case(&path.to_string_lossy())
+        }) {
             continue;
         }
         if lock.extensions.values().any(|entry| {
@@ -255,6 +283,9 @@ pub struct ExtensionListItem {
     pub homepage: Option<String>,
     pub generated_custom: bool,
     pub recommended: bool,
+    /// Suggested from a convention-location manifest
+    /// (`<config>/floter/tools/*.json`) rather than a PATH scan.
+    pub manifest_suggestion: bool,
     pub tool_lock_state: Option<LockState>,
     pub tool_candidates: Vec<ToolCandidate>,
 }
@@ -302,6 +333,7 @@ impl ExtensionListItem {
             homepage,
             generated_custom,
             recommended: false,
+            manifest_suggestion: false,
             tool_lock_state,
             tool_candidates,
         }
@@ -359,12 +391,14 @@ impl ExtensionListItem {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
             runtime_source: "system".to_string(),
             connected: false,
             recommended: true,
+            manifest_suggestion: false,
             reconnect_available: false,
             homepage: recommendation.manifest.homepage.clone(),
             generated_custom: false,
@@ -423,17 +457,102 @@ impl ExtensionListItem {
             last_error_detail: None,
             last_error_at: None,
             broken_reason: None,
+            enabled_before_broken: None,
         };
         Self {
             runtime_available: candidate.available,
             runtime_source: "system".to_string(),
             connected: false,
             recommended: false,
+            manifest_suggestion: false,
             reconnect_available: false,
             homepage: None,
             generated_custom: false,
             tool_lock_state: None,
             tool_candidates: Vec::new(),
+            entry,
+        }
+    }
+
+    /// Suggestion row for a convention-location manifest discovered in
+    /// `<config>/floter/tools/`. Rendered like the other discovery
+    /// suggestions, but carrying the authored manifest id so connecting runs
+    /// the recommended-tool pipeline with the original manifest bytes
+    /// instead of a generated single-command integration.
+    fn suggested_manifest(
+        tool: &tool_manifests::DiscoveredManifest,
+        tool_candidates: Vec<ToolCandidate>,
+    ) -> Self {
+        let candidate = tool_candidates.first();
+        let version = tool
+            .descriptor_bytes
+            .as_deref()
+            .and_then(|bytes| crate::extensions::provider::ProviderDescription::parse(bytes).ok())
+            .map(|description| description.provider.version)
+            .unwrap_or_else(|| "0.0.0".to_string());
+        let entry = ExtensionLockEntry {
+            id: tool.manifest.id.clone(),
+            name: tool.manifest.name.clone(),
+            publisher_id: tool.manifest.publisher.id.clone(),
+            publisher_name: tool.manifest.publisher.name.clone(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: match tool.manifest.provider.kind {
+                crate::extensions::manifest::ProviderKind::Executable => {
+                    ExtensionProviderKind::Executable
+                }
+                crate::extensions::manifest::ProviderKind::StaticDescriptor => {
+                    ExtensionProviderKind::StaticDescriptor
+                }
+            },
+            state: ExtensionStateKind::Disabled,
+            enabled: false,
+            package_name: None,
+            package_version: version.clone(),
+            tool_version: candidate.and_then(|candidate| candidate.version.clone()),
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: version,
+            previous_version: None,
+            manifest_path: tool.source_path.to_string_lossy().into_owned(),
+            executable_path: candidate
+                .and_then(|candidate| candidate.locator.executable_path())
+                .map(|path| path.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            runtime_root: None,
+            installed_at: 0,
+            updated_at: 0,
+            pinned: false,
+            channel: "external".to_string(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+        };
+        Self {
+            runtime_available: !tool_candidates.is_empty(),
+            runtime_source: "system".to_string(),
+            connected: false,
+            recommended: false,
+            manifest_suggestion: true,
+            reconnect_available: false,
+            homepage: tool.manifest.homepage.clone(),
+            generated_custom: false,
+            tool_lock_state: None,
+            tool_candidates,
             entry,
         }
     }
@@ -485,6 +604,48 @@ fn resolution_candidates(result: ResolveResult) -> Vec<ToolCandidate> {
             .collect(),
         ResolveResult::NotFound { .. } => Vec::new(),
     }
+}
+
+/// Suggestion rows from convention-location manifests, already filtered:
+/// connected integrations are never re-suggested (by extension id or by
+/// executable path), shipped recommendations keep precedence for their own
+/// ids, and manifests without a resolvable runtime yield no row.
+pub(crate) fn manifest_suggestions(
+    lock: &ExtensionsLock,
+    recommendations: &[crate::extensions::recommendations::RecommendedTool],
+    candidates: &[ToolCandidate],
+    directory: &Path,
+) -> Vec<(tool_manifests::DiscoveredManifest, Vec<ToolCandidate>)> {
+    let mut rows = Vec::new();
+    let mut reserved_paths: Vec<String> = Vec::new();
+    for tool in tool_manifests::scan(directory) {
+        if lock.extensions.contains_key(&tool.manifest.id)
+            || recommendations
+                .iter()
+                .any(|recommendation| recommendation.manifest.id == tool.manifest.id)
+        {
+            continue;
+        }
+        let tool_candidates =
+            resolution_candidates(resolve_manifest_candidate(&tool.manifest, candidates, None));
+        let Some(first) = tool_candidates.first() else {
+            continue;
+        };
+        if let Some(path) = first.locator.executable_path() {
+            let path_text = path.to_string_lossy().into_owned();
+            if lock
+                .extensions
+                .values()
+                .any(|entry| entry.executable_path.eq_ignore_ascii_case(&path_text))
+                || reserved_paths.iter().any(|reserved| reserved.eq_ignore_ascii_case(&path_text))
+            {
+                continue;
+            }
+            reserved_paths.push(path_text);
+        }
+        rows.push((tool, tool_candidates));
+    }
+    rows
 }
 
 fn discovered_system_candidate(
@@ -1018,19 +1179,49 @@ pub async fn extensions_custom_export_script(
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
+/// Resolve a suggested tool id to its manifest, preferring shipped
+/// recommendations and falling back to a convention-location manifest in
+/// `<config>/floter/tools/`. Both connect through the same pipeline, so the
+/// panel treats them identically.
+fn resolve_suggested_tool<'a>(
+    state: &'a ExtensionState,
+    id: &str,
+) -> Result<SuggestedTool<'a>, String> {
+    if let Some(recommendation) = state
+        .recommendations
+        .iter()
+        .find(|recommendation| recommendation.manifest.id == id)
+    {
+        return Ok(SuggestedTool::Recommended(recommendation));
+    }
+    tool_manifests::find(&tool_manifests::directory_for_root(&state.paths.root), id)
+        .map(SuggestedTool::Manifest)
+        .ok_or_else(|| format!("Recommended tool is not available: {id}"))
+}
+
+enum SuggestedTool<'a> {
+    Recommended(&'a crate::extensions::recommendations::RecommendedTool),
+    Manifest(tool_manifests::DiscoveredManifest),
+}
+
+impl SuggestedTool<'_> {
+    fn manifest(&self) -> &ExtensionManifest {
+        match self {
+            Self::Recommended(recommendation) => &recommendation.manifest,
+            Self::Manifest(tool) => &tool.manifest,
+        }
+    }
+}
+
 #[tauri::command]
 pub fn extensions_recommended_permissions(
     state: State<'_, ExtensionState>,
     id: String,
     locale: Option<String>,
 ) -> Result<ExtensionPermissionReview, String> {
-    let recommendation = state
-        .recommendations
-        .iter()
-        .find(|recommendation| recommendation.manifest.id == id)
-        .ok_or_else(|| format!("Recommended tool is not available: {id}"))?;
+    let tool = resolve_suggested_tool(&state, &id)?;
     Ok(install::permission_review(
-        &recommendation.manifest,
+        tool.manifest(),
         locale.as_deref().unwrap_or("en"),
     ))
 }
@@ -1042,14 +1233,13 @@ pub async fn extensions_connect_recommended(
     executable_path: Option<String>,
     approved_permissions: Option<Vec<Permission>>,
 ) -> Result<ExtensionLockEntry, String> {
-    let recommendation = state
-        .recommendations
-        .iter()
-        .find(|recommendation| recommendation.manifest.id == id)
-        .ok_or_else(|| format!("Recommended tool is not available: {id}"))?;
+    // Shipped recommendations and convention-location manifests share one
+    // connection flow: both carry a full authored manifest, so connecting
+    // materializes those bytes instead of regenerating a generic one.
+    let tool = resolve_suggested_tool(&state, &id)?;
     let candidate = match executable_path.as_deref() {
-        Some(path) => inspect_manifest_executable(&recommendation.manifest, path)?,
-        None => discovered_system_candidate(&state, &id, &recommendation.manifest, true)?,
+        Some(path) => inspect_manifest_executable(tool.manifest(), path)?,
+        None => discovered_system_candidate(&state, &id, tool.manifest(), true)?,
     };
     let candidate_path = candidate
         .locator
@@ -1057,13 +1247,26 @@ pub async fn extensions_connect_recommended(
         .ok_or("Resolved system tool is not executable")?
         .to_string_lossy()
         .into_owned();
-    let entry = install::connect_recommended_tool(
-        &state,
-        recommendation,
-        Some(&candidate_path),
-        approved_permissions.as_deref(),
-    )
-    .await?;
+    let entry = match &tool {
+        SuggestedTool::Recommended(recommendation) => {
+            install::connect_recommended_tool(
+                &state,
+                recommendation,
+                Some(&candidate_path),
+                approved_permissions.as_deref(),
+            )
+            .await?
+        }
+        SuggestedTool::Manifest(manifest_tool) => {
+            install::connect_manifest_tool(
+                &state,
+                &manifest_tool,
+                Some(&candidate_path),
+                approved_permissions.as_deref(),
+            )
+            .await?
+        }
+    };
     if let Err(error) = persist_tool_binding(&state, &id, &candidate) {
         let rollback = install::uninstall(&state, &id, false).await;
         return Err(format!(
@@ -1840,6 +2043,124 @@ pub async fn catalog_complete(
 mod tests {
     use super::*;
     use crate::extensions::install::ExtensionUpdateKind;
+
+    const MANIFEST_JSON: &str = r#"{
+        "schemaVersion": "2.0",
+        "id": "local.demo.tool",
+        "name": "Demo Tool",
+        "publisher": { "id": "demo", "name": "Demo" },
+        "compatibility": { "floter": ">=0.1.0", "providerProtocol": "^1.0" },
+        "distribution": { "type": "local" },
+        "runtime": {
+            "type": "system",
+            "executableNames": ["demo-tool"],
+            "versionArgs": ["--version"]
+        },
+        "provider": {
+            "type": "static-descriptor",
+            "descriptor": "provider-description.json",
+            "argsPrefix": []
+        },
+        "permissions": ["environment"]
+    }"#;
+
+    #[cfg(unix)]
+    fn write_demo_tools_dir(root: &Path) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tools = tool_manifests::directory_for_root(root);
+        std::fs::create_dir_all(&tools).unwrap();
+        std::fs::write(tools.join("demo.json"), MANIFEST_JSON).unwrap();
+        let executable = root.join("demo-tool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        tools
+    }
+
+    #[cfg(unix)]
+    fn demo_candidate(root: &Path) -> ToolCandidate {
+        inventory::executable_candidate(&root.join("demo-tool"), "demo-tool")
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn manifest_suggestions_skip_connected_integrations() {
+        let directory = tempfile::tempdir().unwrap();
+        let tools = write_demo_tools_dir(directory.path());
+        let candidate = demo_candidate(directory.path());
+        let candidates = vec![candidate.clone()];
+
+        // Not connected yet: the manifest becomes a suggestion row.
+        let rows = manifest_suggestions(
+            &ExtensionsLock::default(),
+            &[],
+            &candidates,
+            &tools,
+        );
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0.manifest.id, "local.demo.tool");
+        assert!(!rows[0].1.is_empty());
+
+        // Connected by id: never suggested twice.
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(
+            "local.demo.tool".into(),
+            serde_json::from_value(serde_json::json!({
+                "id": "local.demo.tool",
+                "name": "Demo Tool",
+                "publisherId": "demo",
+                "publisherName": "Demo",
+                "distributionSource": "local",
+                "runtimeOwnership": "system",
+                "state": "enabled",
+                "enabled": true,
+                "packageName": null,
+                "packageVersion": "local",
+                "toolVersion": null,
+                "integrity": null,
+                "currentVersion": "local",
+                "previousVersion": null,
+                "manifestPath": "/tmp/floter.extension.json",
+                "executablePath": directory.path().join("demo-tool").to_string_lossy(),
+                "installedAt": 1,
+                "updatedAt": 1
+            }))
+            .unwrap(),
+        );
+        assert!(manifest_suggestions(&lock, &[], &candidates, &tools).is_empty());
+
+        // A different id bound to the same executable path is also skipped.
+        lock.extensions.remove("local.demo.tool").unwrap();
+        let mut entry: ExtensionLockEntry = serde_json::from_value(serde_json::json!({
+            "id": "other.tool",
+            "name": "Other",
+            "publisherId": "demo",
+            "publisherName": "Demo",
+            "distributionSource": "local",
+            "runtimeOwnership": "system",
+            "state": "enabled",
+            "enabled": true,
+            "packageName": null,
+            "packageVersion": "local",
+            "toolVersion": null,
+            "integrity": null,
+            "currentVersion": "local",
+            "previousVersion": null,
+            "manifestPath": "/tmp/floter.extension.json",
+            "executablePath": directory.path().join("demo-tool").to_string_lossy(),
+            "installedAt": 1,
+            "updatedAt": 1
+        }))
+        .unwrap();
+        entry.executable_path = candidate
+            .locator
+            .executable_path()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        lock.extensions.insert("other.tool".into(), entry);
+        assert!(manifest_suggestions(&lock, &[], &candidates, &tools).is_empty());
+    }
 
     #[test]
     fn update_checks_keep_successes_when_another_extension_fails() {
