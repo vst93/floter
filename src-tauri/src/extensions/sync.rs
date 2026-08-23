@@ -202,10 +202,10 @@ fn linked_manifest(
 ) -> Result<ExtensionManifest, String> {
     ExtensionManifest::load(Path::new(&entry.manifest_path)).or_else(|file_error| {
         state
-            .static_adapters
+            .recommendations
             .iter()
-            .find(|adapter| adapter.manifest.id == entry.id)
-            .map(|adapter| adapter.manifest.clone())
+            .find(|recommendation| recommendation.manifest.id == entry.id)
+            .map(|recommendation| recommendation.manifest.clone())
             .ok_or_else(|| {
                 format!(
                     "Cannot export local integration {} because its manifest is unavailable: {file_error}",
@@ -335,13 +335,12 @@ pub async fn import_document(
     };
     let mut plan = Vec::new();
     for mut entry in document.extensions {
-        if entry.distribution_source == ExtensionDistributionSource::Local
-            && state
-                .static_adapters
-                .iter()
-                .any(|adapter| adapter.manifest.id == entry.id)
-        {
-            entry.distribution_source = ExtensionDistributionSource::BuiltIn;
+        // Exports produced by the old bundled-adapter era used the built-in
+        // source. Recommended tools now connect as ordinary local tools, so
+        // rewrite them for the generic pipeline instead of keeping a special
+        // connection branch.
+        if entry.distribution_source == ExtensionDistributionSource::BuiltIn {
+            entry.distribution_source = ExtensionDistributionSource::Local;
         }
         match reconcile_action(installed.extensions.get(&entry.id), &entry) {
             Ok(action) => plan.push((entry, action)),
@@ -515,13 +514,9 @@ async fn commit_prepared_entry(
                 commit_preflight_linked(state, &artifact.state, &prepared.desired).await?;
             }
             ExtensionDistributionSource::BuiltIn => {
-                install::connect_bundled_locked(
-                    state,
-                    &prepared.desired.id,
-                    None,
-                    Some(&artifact.entry_permissions()?),
-                )
-                .await?;
+                return Err(
+                    "Legacy built-in imports must be reconnected as local tools".to_string(),
+                );
             }
         }
     }
@@ -533,12 +528,6 @@ async fn commit_prepared_entry(
     }
     changed |= restore_enabled_locked(state, &prepared.desired.id, prepared.desired.enabled)?;
     Ok(changed)
-}
-
-impl PreparedArtifact {
-    fn entry_permissions(&self) -> Result<Vec<Permission>, String> {
-        Ok(ExtensionManifest::load(Path::new(&self.entry.manifest_path))?.permissions)
-    }
 }
 
 fn reconcile_action(
@@ -593,43 +582,52 @@ async fn install_imported_linked(
     desired: &ExtensionsSyncEntry,
     approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
-    if state
-        .static_adapters
+    let recommendation = state
+        .recommendations
         .iter()
-        .any(|adapter| adapter.manifest.id == desired.id)
-    {
-        return install::connect_bundled(state, &desired.id, None, approved_permissions).await;
-    }
-    let manifest = desired
-        .manifest
-        .clone()
-        .or_else(|| {
-            state
-                .static_adapters
-                .iter()
-                .find(|adapter| adapter.manifest.id == desired.id)
-                .map(|adapter| adapter.manifest.clone())
-        })
-        .ok_or_else(|| format!("Local integration {} has no manifest", desired.id))?;
+        .find(|recommendation| recommendation.manifest.id == desired.id);
+    let manifest = if let Some(recommendation) = recommendation {
+        recommendation.manifest.clone()
+    } else {
+        desired.manifest.clone().ok_or_else(|| {
+            format!("Local integration {} has no manifest", desired.id)
+        })?
+    };
     let path = imported_manifest_path(&state.paths.data, &desired.id)?;
-    let mut bytes = serde_json::to_vec_pretty(&manifest)
-        .map_err(|error| format!("Cannot serialize local manifest: {error}"))?;
-    bytes.push(b'\n');
-    atomic_write(&path, &bytes, "local integration manifest")?;
+    if let Some(recommendation) = recommendation {
+        atomic_write(
+            &path,
+            recommendation.manifest_bytes,
+            "local integration manifest",
+        )?;
+    } else {
+        let mut bytes = serde_json::to_vec_pretty(&manifest)
+            .map_err(|error| format!("Cannot serialize local manifest: {error}"))?;
+        bytes.push(b'\n');
+        atomic_write(&path, &bytes, "local integration manifest")?;
+    }
     if let Some(descriptor_path) = manifest.provider.descriptor.as_deref() {
         let target = path
             .parent()
             .ok_or("Imported manifest has no parent directory")?
             .join(descriptor_path);
-        let mut bytes = serde_json::to_vec_pretty(
-            desired
-                .provider_descriptor
-                .as_ref()
-                .ok_or("Imported provider descriptor is missing")?,
-        )
-        .map_err(|error| format!("Cannot serialize imported provider descriptor: {error}"))?;
-        bytes.push(b'\n');
-        atomic_write(&target, &bytes, "local provider descriptor")?;
+        if let Some(recommendation) = recommendation {
+            atomic_write(
+                &target,
+                recommendation.descriptor_bytes,
+                "local provider descriptor",
+            )?;
+        } else {
+            let mut bytes = serde_json::to_vec_pretty(
+                desired
+                    .provider_descriptor
+                    .as_ref()
+                    .ok_or("Imported provider descriptor is missing")?,
+            )
+            .map_err(|error| format!("Cannot serialize imported provider descriptor: {error}"))?;
+            bytes.push(b'\n');
+            atomic_write(&target, &bytes, "local provider descriptor")?;
+        }
     }
     if let Runtime::Script {
         path: script_path, ..

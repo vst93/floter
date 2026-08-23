@@ -17,19 +17,18 @@ use commands::config::{
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
 use commands::extensions::{
-    catalog_complete, catalog_search, extensions_bundled_permissions, extensions_check_updates,
-    extensions_config_copy, extensions_config_export, extensions_config_get, extensions_config_set,
-    extensions_connect_bundled, extensions_connect_tool, extensions_create_custom,
-    extensions_custom_export_script,
+    catalog_complete, catalog_search, extensions_check_updates, extensions_config_copy,
+    extensions_config_export, extensions_config_get, extensions_config_set, extensions_connect_recommended,
+    extensions_connect_tool, extensions_create_custom, extensions_custom_export_script,
     extensions_custom_get, extensions_custom_update, extensions_describe, extensions_diagnose,
     extensions_disable, extensions_enable, extensions_export, extensions_export_source_bundle,
     extensions_health, extensions_import, extensions_infer_source, extensions_install,
     extensions_launch, extensions_list, extensions_local_manifest_review,
     extensions_permissions_summary, extensions_pick_local_manifest, extensions_pick_local_package,
-    extensions_reconnect_system, extensions_refresh_official_status, extensions_reinstall,
-    extensions_repair, extensions_reprobe, extensions_resolve_source, extensions_rollback,
-    extensions_search, extensions_search_tools, extensions_set_channel, extensions_set_pinned,
-    extensions_uninstall, extensions_update,
+    extensions_recommended_permissions, extensions_reconnect_system,
+    extensions_refresh_official_status, extensions_reinstall, extensions_repair, extensions_reprobe,
+    extensions_resolve_source, extensions_rollback, extensions_search, extensions_search_tools,
+    extensions_set_channel, extensions_set_pinned, extensions_uninstall, extensions_update,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1204,8 +1203,8 @@ pub fn run() {
             extensions_custom_get,
             extensions_custom_update,
             extensions_search_tools,
-            extensions_bundled_permissions,
-            extensions_connect_bundled,
+            extensions_recommended_permissions,
+            extensions_connect_recommended,
             extensions_reconnect_system,
             extensions_pick_local_manifest,
             extensions_pick_local_package,

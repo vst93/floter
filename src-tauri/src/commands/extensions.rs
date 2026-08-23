@@ -144,16 +144,34 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
             return Err(error);
         }
     }
-    for adapter in &state.static_adapters {
-        if lock.extensions.contains_key(&adapter.manifest.id) {
+    // Recommended tools ship as ordinary manifest/descriptor data. They
+    // surface in the same suggestion area as PATH discoveries and connect
+    // through the same generic linked-install pipeline.
+    for recommendation in &state.recommendations {
+        if lock.extensions.contains_key(&recommendation.manifest.id) {
             continue;
         }
         let tool_candidates = resolution_candidates(resolve_manifest_candidate(
-            &adapter.manifest,
+            &recommendation.manifest,
             &candidates,
             None,
         ));
-        items.push(ExtensionListItem::detected(adapter, tool_candidates));
+        if tool_candidates.is_empty() {
+            continue;
+        }
+        if let Some(path) = tool_candidates[0].locator.executable_path() {
+            if lock.extensions.values().any(|entry| {
+                entry
+                    .executable_path
+                    .eq_ignore_ascii_case(&path.to_string_lossy())
+            }) {
+                continue;
+            }
+        }
+        items.push(ExtensionListItem::suggested_recommended(
+            recommendation,
+            tool_candidates,
+        ));
     }
     // Discovery suggestions: PATH executables that are not connected yet and
     // do not collide with a known integration name. Sorted by discovery
@@ -236,6 +254,7 @@ pub struct ExtensionListItem {
     pub reconnect_available: bool,
     pub homepage: Option<String>,
     pub generated_custom: bool,
+    pub recommended: bool,
     pub tool_lock_state: Option<LockState>,
     pub tool_candidates: Vec<ToolCandidate>,
 }
@@ -282,30 +301,34 @@ impl ExtensionListItem {
             reconnect_available,
             homepage,
             generated_custom,
+            recommended: false,
             tool_lock_state,
             tool_candidates,
         }
     }
 
-    fn detected(
-        adapter: &crate::extensions::static_adapter::StaticAdapter,
+    /// Suggestion row for a shipped recommended tool. The entry is synthetic
+    /// (not in the lock yet); it mirrors a local static integration so the
+    /// frontend routes it through the same connect flow as a PATH discovery.
+    fn suggested_recommended(
+        recommendation: &crate::extensions::recommendations::RecommendedTool,
         tool_candidates: Vec<ToolCandidate>,
     ) -> Self {
         let candidate = (tool_candidates.len() == 1).then(|| &tool_candidates[0]);
-        let version = env!("CARGO_PKG_VERSION").to_string();
+        let version = recommendation.description.provider.version.clone();
         let entry = ExtensionLockEntry {
-            id: adapter.manifest.id.clone(),
-            name: adapter.manifest.name.clone(),
-            publisher_id: adapter.manifest.publisher.id.clone(),
-            publisher_name: adapter.manifest.publisher.name.clone(),
-            distribution_source: ExtensionDistributionSource::BuiltIn,
+            id: recommendation.manifest.id.clone(),
+            name: recommendation.manifest.name.clone(),
+            publisher_id: recommendation.manifest.publisher.id.clone(),
+            publisher_name: recommendation.manifest.publisher.name.clone(),
+            distribution_source: ExtensionDistributionSource::Local,
             runtime_ownership: ExtensionRuntimeOwnership::System,
-            provider_kind: ExtensionProviderKind::BundledStatic,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
             state: ExtensionStateKind::Disabled,
             enabled: false,
             package_name: None,
             package_version: version.clone(),
-            tool_version: None,
+            tool_version: candidate.and_then(|candidate| candidate.version.clone()),
             integrity: None,
             runtime_integrity: None,
             content_integrity: None,
@@ -321,16 +344,14 @@ impl ExtensionListItem {
             previous_version: None,
             manifest_path: String::new(),
             executable_path: candidate
-                .as_ref()
                 .and_then(|candidate| candidate.locator.executable_path())
-                .unwrap_or(&adapter.invocation.executable)
-                .to_string_lossy()
-                .into_owned(),
+                .map(|path| path.to_string_lossy().into_owned())
+                .unwrap_or_default(),
             runtime_root: None,
             installed_at: 0,
             updated_at: 0,
             pinned: false,
-            channel: "bundled".to_string(),
+            channel: "external".to_string(),
             approved_permissions: Vec::new(),
             approved_at: 0,
             approved_manifest_digest: None,
@@ -341,10 +362,11 @@ impl ExtensionListItem {
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
-            runtime_source: "bundled".to_string(),
+            runtime_source: "system".to_string(),
             connected: false,
+            recommended: true,
             reconnect_available: false,
-            homepage: adapter.manifest.homepage.clone(),
+            homepage: recommendation.manifest.homepage.clone(),
             generated_custom: false,
             tool_lock_state: None,
             tool_candidates,
@@ -406,6 +428,7 @@ impl ExtensionListItem {
             runtime_available: candidate.available,
             runtime_source: "system".to_string(),
             connected: false,
+            recommended: false,
             reconnect_available: false,
             homepage: None,
             generated_custom: false,
@@ -651,10 +674,10 @@ pub async fn extensions_import(
                     .clone()
                     .or_else(|| {
                         state
-                            .static_adapters
+                            .recommendations
                             .iter()
-                            .find(|adapter| adapter.manifest.id == entry.id)
-                            .map(|adapter| adapter.manifest.clone())
+                            .find(|recommendation| recommendation.manifest.id == entry.id)
+                            .map(|recommendation| recommendation.manifest.clone())
                     })
                     .ok_or_else(|| format!("Local integration {} has no manifest", entry.id))?;
                 install::permission_review(&manifest, locale)
@@ -996,37 +1019,37 @@ pub async fn extensions_custom_export_script(
 }
 
 #[tauri::command]
-pub fn extensions_bundled_permissions(
+pub fn extensions_recommended_permissions(
     state: State<'_, ExtensionState>,
     id: String,
     locale: Option<String>,
 ) -> Result<ExtensionPermissionReview, String> {
-    let adapter = state
-        .static_adapters
+    let recommendation = state
+        .recommendations
         .iter()
-        .find(|adapter| adapter.manifest.id == id)
-        .ok_or_else(|| format!("Bundled integration is not available: {id}"))?;
+        .find(|recommendation| recommendation.manifest.id == id)
+        .ok_or_else(|| format!("Recommended tool is not available: {id}"))?;
     Ok(install::permission_review(
-        &adapter.manifest,
+        &recommendation.manifest,
         locale.as_deref().unwrap_or("en"),
     ))
 }
 
 #[tauri::command]
-pub async fn extensions_connect_bundled(
+pub async fn extensions_connect_recommended(
     state: State<'_, ExtensionState>,
     id: String,
     executable_path: Option<String>,
     approved_permissions: Option<Vec<Permission>>,
 ) -> Result<ExtensionLockEntry, String> {
-    let adapter = state
-        .static_adapters
+    let recommendation = state
+        .recommendations
         .iter()
-        .find(|adapter| adapter.manifest.id == id)
-        .ok_or_else(|| format!("Bundled integration is not available: {id}"))?;
+        .find(|recommendation| recommendation.manifest.id == id)
+        .ok_or_else(|| format!("Recommended tool is not available: {id}"))?;
     let candidate = match executable_path.as_deref() {
-        Some(path) => inspect_manifest_executable(&adapter.manifest, path)?,
-        None => discovered_system_candidate(&state, &id, &adapter.manifest, true)?,
+        Some(path) => inspect_manifest_executable(&recommendation.manifest, path)?,
+        None => discovered_system_candidate(&state, &id, &recommendation.manifest, true)?,
     };
     let candidate_path = candidate
         .locator
@@ -1034,9 +1057,9 @@ pub async fn extensions_connect_bundled(
         .ok_or("Resolved system tool is not executable")?
         .to_string_lossy()
         .into_owned();
-    let entry = install::connect_bundled(
+    let entry = install::connect_recommended_tool(
         &state,
-        &id,
+        recommendation,
         Some(&candidate_path),
         approved_permissions.as_deref(),
     )
@@ -1460,22 +1483,10 @@ pub async fn extensions_describe(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
         .clone();
-    if entry.provider_kind == ExtensionProviderKind::BundledStatic {
-        let adapter = state
-            .static_adapters
-            .iter()
-            .find(|adapter| adapter.manifest.id == id)
-            .ok_or_else(|| format!("Bundled integration is not available: {id}"))?;
-        return Ok(ProviderResponse {
-            description: adapter.description.clone(),
-            runtime_available: crate::extensions::static_adapter::is_linked_executable(Path::new(
-                &entry.executable_path,
-            )),
-            cached: true,
-            stderr: None,
-        });
-    }
-    if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
+    if matches!(
+        entry.provider_kind,
+        ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
+    ) {
         let (description, _) = crate::extensions::registry::static_description(&entry)?;
         return Ok(ProviderResponse {
             description,
@@ -1500,37 +1511,10 @@ pub async fn extensions_diagnose(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
         .clone();
-    if entry.provider_kind == ExtensionProviderKind::BundledStatic {
-        let runtime_available = crate::extensions::static_adapter::is_linked_executable(Path::new(
-            &entry.executable_path,
-        ));
-        return Ok(DiagnoseResponse {
-            status: if runtime_available {
-                "healthy"
-            } else {
-                "error"
-            }
-            .to_string(),
-            checks: vec![DiagnoseCheck {
-                id: "runtime".to_string(),
-                status: if runtime_available {
-                    "healthy"
-                } else {
-                    "error"
-                }
-                .to_string(),
-                message: if runtime_available {
-                    format!("System tool is available at {}", entry.executable_path)
-                } else {
-                    format!(
-                        "System tool is missing at {}. Install it or reconnect the integration.",
-                        entry.executable_path
-                    )
-                },
-            }],
-        });
-    }
-    if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
+    if matches!(
+        entry.provider_kind,
+        ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
+    ) {
         let (_, invocation) = crate::extensions::registry::static_description(&entry)?;
         let available = crate::extensions::registry::runtime_available(&entry);
         return Ok(DiagnoseResponse {

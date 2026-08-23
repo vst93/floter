@@ -34,6 +34,9 @@ type Props = {
 const integrationKindKey = (extension: Extension): Parameters<Translate>[0] => {
   if (extension.generatedCustom) return "settings.extensions.integrationKind.custom";
   if (extension.distributionSource === "npm") return "settings.extensions.integrationKind.npm";
+  if (!extension.connected && extension.recommended) {
+    return "settings.extensions.integrationKind.recommended";
+  }
   if (!extension.connected && extension.distributionSource === "local") {
     return "settings.extensions.integrationKind.tool";
   }
@@ -92,6 +95,11 @@ export function ExtensionRow({
         <span className="extension-row__meta" title={`${packageIdentity} · ${status}`}>
           <span>{packageIdentity}</span>
           <span>{t(integrationKindKey(extension))}</span>
+          {!extension.connected && extension.recommended && (
+            <span className="extension-status extension-status--recommended">
+              {t("settings.extensions.recommended")}
+            </span>
+          )}
           <span>{t(`settings.extensions.runtimeSource.${extension.runtimeSource}`)}</span>
           <span className={`extension-status extension-status--${extension.state}`}>{status}</span>
           {!extension.runtimeAvailable && (

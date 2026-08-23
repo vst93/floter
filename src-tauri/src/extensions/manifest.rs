@@ -598,7 +598,7 @@ mod tests {
         let manifest = ExtensionManifest::parse(bytes).unwrap();
 
         assert_eq!(manifest.schema_version, "2.0");
-        assert_eq!(manifest.distribution, Distribution::BuiltIn);
+        assert_eq!(manifest.distribution, Distribution::Local);
         assert_eq!(manifest.provider.kind, ProviderKind::StaticDescriptor);
         assert!(matches!(manifest.runtime, Runtime::System { .. }));
     }

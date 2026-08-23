@@ -880,125 +880,84 @@ pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBu
     ))
 }
 
-pub async fn connect_bundled(
+pub async fn connect_recommended_tool(
     state: &ExtensionState,
-    extension_id: &str,
+    recommendation: &crate::extensions::recommendations::RecommendedTool,
     executable_path: Option<&str>,
     approved_permissions: Option<&[Permission]>,
 ) -> Result<ExtensionLockEntry, String> {
-    let adapters = crate::extensions::static_adapter::load_bundled()?;
-    let adapter = adapters
-        .iter()
-        .find(|adapter| adapter.manifest.id == extension_id)
-        .cloned()
-        .ok_or_else(|| format!("Bundled integration is not available: {extension_id}"))?;
-    validate_permission_approval(&adapter.manifest.permissions, approved_permissions)?;
-    let executable = executable_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| adapter.invocation.executable.clone());
-    if !crate::extensions::static_adapter::is_linked_executable(&executable) {
-        return Err(format!(
-            "System tool is not available at {}",
-            executable.display()
-        ));
-    }
-
     let _guard = state.mutation_lock.lock().await;
-    connect_bundled_locked(state, extension_id, executable_path, approved_permissions).await
-}
-
-pub(crate) async fn connect_bundled_locked(
-    state: &ExtensionState,
-    extension_id: &str,
-    executable_path: Option<&str>,
-    approved_permissions: Option<&[Permission]>,
-) -> Result<ExtensionLockEntry, String> {
-    let adapters = crate::extensions::static_adapter::load_bundled()?;
-    let adapter = adapters
-        .iter()
-        .find(|adapter| adapter.manifest.id == extension_id)
-        .cloned()
-        .ok_or_else(|| format!("Bundled integration is not available: {extension_id}"))?;
-    validate_permission_approval(&adapter.manifest.permissions, approved_permissions)?;
-    let executable = executable_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| adapter.invocation.executable.clone());
-    if !crate::extensions::static_adapter::is_linked_executable(&executable) {
-        return Err(format!(
-            "System tool is not available at {}",
-            executable.display()
-        ));
-    }
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    if lock.extensions.contains_key(extension_id) {
-        return Err(format!("Integration is already connected: {extension_id}"));
-    }
-    let resolved = adapter
-        .manifest
-        .clone()
-        .resolve(PlatformTarget::current()?)?;
-    let tool_version =
-        linked_tool_version(&adapter.manifest, &resolved.provider, &executable).await;
-    let manifest_dir = state.paths.data.join(extension_id).join("integration");
-    std::fs::create_dir_all(&manifest_dir)
-        .map_err(|error| format!("Cannot create integration directory: {error}"))?;
-    let manifest_path = manifest_dir.join("floter.extension.json");
-    let mut manifest_bytes = serde_json::to_vec_pretty(&adapter.manifest)
-        .map_err(|error| format!("Cannot serialize bundled integration manifest: {error}"))?;
-    manifest_bytes.push(b'\n');
-    // The approval audit binds to the exact manifest bytes written to disk.
-    let approval_digest = ExtensionManifest::digest_of(&manifest_bytes);
-    std::fs::write(&manifest_path, &manifest_bytes)
-        .map_err(|error| format!("Cannot write bundled integration manifest: {error}"))?;
-
-    let now = unix_now();
-    let integration_version = env!("CARGO_PKG_VERSION").to_string();
-    let mut approved_permissions = adapter.manifest.permissions.clone();
-    approved_permissions.sort_unstable();
-    let entry = ExtensionLockEntry {
-        id: adapter.manifest.id,
-        name: adapter.manifest.name,
-        publisher_id: adapter.manifest.publisher.id,
-        publisher_name: adapter.manifest.publisher.name,
-        distribution_source: ExtensionDistributionSource::BuiltIn,
-        runtime_ownership: ExtensionRuntimeOwnership::System,
-        provider_kind: ExtensionProviderKind::BundledStatic,
-        state: ExtensionStateKind::Enabled,
-        enabled: true,
-        package_name: None,
-        package_version: integration_version.clone(),
-        tool_version,
-        integrity: None,
-        runtime_integrity: None,
-        content_integrity: None,
-        previous_integrity: None,
-        previous_runtime_integrity: None,
-        previous_content_integrity: None,
-        asset_selection: None,
-        signature_verified: false,
-        previous_signature_verified: None,
-        official_verified: false,
-        previous_official_verified: None,
-        current_version: integration_version,
-        previous_version: None,
-        manifest_path: manifest_path.to_string_lossy().into_owned(),
-        executable_path: executable.to_string_lossy().into_owned(),
-        runtime_root: None,
-        installed_at: now,
-        updated_at: now,
-        pinned: false,
-        channel: "bundled".to_string(),
-        approved_permissions,
-        approved_at: now,
-        approved_manifest_digest: Some(approval_digest),
-        last_error_code: None,
-        last_error_detail: None,
-        last_error_at: None,
-        broken_reason: None,
+    let executable = match executable_path {
+        Some(path) => {
+            let path = PathBuf::from(path);
+            if !is_linked_executable(&path) {
+                return Err(format!(
+                    "System tool is not available at {}",
+                    path.display()
+                ));
+            }
+            path
+        }
+        None => find_system_executable(&recommendation.manifest)?,
     };
-    lock.extensions.insert(entry.id.clone(), entry.clone());
-    lock.save(&state.paths.lock_file)?;
-    Ok(entry)
+    validate_permission_approval(&recommendation.manifest.permissions, approved_permissions)?;
+
+    let id = recommendation.manifest.id.clone();
+    let package_root = state.paths.data.join(&id).join("integration");
+    if package_root.exists() {
+        return Err(format!("Recommended tool files already exist for {id}"));
+    }
+    let data_root = package_root
+        .parent()
+        .ok_or("Recommended tool directory has no parent")?;
+    std::fs::create_dir_all(data_root).map_err(|error| {
+        format!("Cannot create recommended tool data directory: {error}")
+    })?;
+    std::fs::create_dir(&package_root).map_err(|error| {
+        format!("Cannot reserve recommended tool directory for {id}: {error}")
+    })?;
+    let manifest_path = package_root.join("floter.extension.json");
+    let package_path = package_root.join("package.json");
+    let descriptor_path = package_root.join("provider-description.json");
+    let write_result = (|| -> Result<(), String> {
+        std::fs::write(&manifest_path, recommendation.manifest_bytes)
+            .map_err(|error| format!("Cannot write recommended tool manifest: {error}"))?;
+        let mut package_bytes = serde_json::to_vec_pretty(&serde_json::json!({
+            "name": format!("floter-recommended-{}", id.replace(['.', '_'], "-")),
+            "version": recommendation.description.provider.version,
+            "private": true,
+            "keywords": ["floter-extension"],
+            "floter": { "manifest": "floter.extension.json" }
+        }))
+        .map_err(|error| format!("Cannot serialize recommended tool package: {error}"))?;
+        package_bytes.push(b'\n');
+        std::fs::write(&package_path, package_bytes)
+            .map_err(|error| format!("Cannot write recommended tool package: {error}"))?;
+        std::fs::write(&descriptor_path, recommendation.descriptor_bytes)
+            .map_err(|error| format!("Cannot write recommended tool descriptor: {error}"))?;
+        Ok(())
+    })();
+    if let Err(error) = write_result {
+        let _ = std::fs::remove_dir_all(&package_root);
+        return Err(error);
+    }
+
+    let result = install_linked(
+        state,
+        ExtensionInstallRequest {
+            source: InstallSource::Linked,
+            package: None,
+            version: None,
+            manifest_path: Some(package_root.to_string_lossy().into_owned()),
+            executable_path: Some(executable.to_string_lossy().into_owned()),
+            approved_permissions: approved_permissions.map(<[Permission]>::to_vec),
+        },
+    )
+    .await;
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(&package_root);
+    }
+    result
 }
 
 pub async fn permissions_summary(
@@ -1300,13 +1259,8 @@ pub async fn verify_installed(
             let invocation = crate::extensions::registry::provider_invocation(&entry)?;
             state.provider.describe(&invocation, true).await?;
         }
-        ExtensionProviderKind::StaticDescriptor => {
+        ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic => {
             crate::extensions::registry::static_description(&entry)?;
-        }
-        ExtensionProviderKind::BundledStatic => {
-            if !crate::extensions::registry::runtime_available(&entry) {
-                return Err(format!("System runtime is unavailable for {extension_id}"));
-            }
         }
     }
     Ok(entry)
@@ -3297,6 +3251,62 @@ mod tests {
      // Same convergence contract as manual custom integrations: the command
      // must appear in the catalog immediately.
      assert!(catalog_contains(&state, "mytool").await);
+ }
+
+ #[cfg(unix)]
+ #[tokio::test]
+ async fn connect_recommended_tool_yields_a_local_static_integration_with_catalog_visibility() {
+     let directory = tempfile::tempdir().unwrap();
+     let state = test_state(directory.path());
+     let executable = directory.path().join("v");
+     std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+     #[cfg(unix)]
+     {
+         use std::os::unix::fs::PermissionsExt;
+         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+     }
+
+     let tools = crate::extensions::recommendations::load_recommended().unwrap();
+     let tool = &tools[0];
+     let entry = connect_recommended_tool(
+         &state,
+         tool,
+         Some(&executable.to_string_lossy()),
+         Some(&tool.manifest.permissions),
+     )
+     .await
+     .unwrap();
+
+     // Same lock shape as a PATH-discovered connection: local distribution,
+     // system runtime, and a static-descriptor provider derived entirely by
+     // the generic linked-install pipeline.
+     assert_eq!(entry.id, "io.github.vst93.v");
+     assert_eq!(entry.distribution_source, ExtensionDistributionSource::Local);
+     assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
+     assert_eq!(entry.provider_kind, ExtensionProviderKind::StaticDescriptor);
+     assert!(entry.enabled);
+     assert_eq!(entry.publisher_id, "vst93");
+     assert_eq!(
+         Path::new(&entry.manifest_path).parent(),
+         Some(
+             state
+                 .paths
+                 .data
+                 .join("io.github.vst93.v")
+                 .join("integration")
+                 .as_path()
+         )
+     );
+     assert_eq!(Path::new(&entry.executable_path), executable.as_path());
+     let mut approved = tool.manifest.permissions.clone();
+     approved.sort_unstable();
+     assert_eq!(entry.approved_permissions, approved);
+
+     // The shipped descriptor is preserved and every command is immediately
+     // visible through the same catalog path as any local integration.
+     for command in ["jv", "diff", "codec", "genpwd", "tt"] {
+         assert!(catalog_contains(&state, command).await);
+     }
  }
 
  #[cfg(unix)]

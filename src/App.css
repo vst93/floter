@@ -1723,6 +1723,12 @@ input:focus {
   color: var(--accent);
 }
 
+.extension-status--recommended {
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .extension-row__actions {
   display: flex;
   align-items: center;

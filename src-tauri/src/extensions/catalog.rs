@@ -416,7 +416,10 @@ async fn load_provider_commands_uncached(
                 }
             }
         }
-        if entry.provider_kind == ExtensionProviderKind::StaticDescriptor {
+        if matches!(
+            entry.provider_kind,
+            ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
+        ) {
             match crate::extensions::registry::static_description(entry) {
                 Ok((description, invocation)) => {
                     let namespace = namespace_for(&entry.id);
@@ -440,14 +443,6 @@ async fn load_provider_commands_uncached(
                     entry.id
                 ),
             }
-            continue;
-        }
-        if entry.provider_kind == ExtensionProviderKind::BundledStatic {
-            result.extend(bundled_static_provider_commands(
-                Some(entry),
-                &state.static_adapters,
-                &state.paths.data,
-            ));
             continue;
         }
         let mut invocation = match crate::extensions::registry::provider_invocation(entry) {
@@ -510,50 +505,6 @@ pub(crate) struct LoadedProviderCommand {
     runtime_available: bool,
     configured_args: Vec<String>,
     dynamic_completion_available: bool,
-}
-
-fn bundled_static_provider_commands(
-    entry: Option<&crate::extensions::lock::ExtensionLockEntry>,
-    adapters: &[crate::extensions::static_adapter::StaticAdapter],
-    data_root: &Path,
-) -> Vec<LoadedProviderCommand> {
-    let Some(entry) = entry.filter(|entry| {
-        entry.enabled && entry.provider_kind == ExtensionProviderKind::BundledStatic
-    }) else {
-        return Vec::new();
-    };
-    let Some(adapter) = adapters
-        .iter()
-        .find(|adapter| adapter.manifest.id == entry.id)
-    else {
-        return Vec::new();
-    };
-    let mut invocation = adapter.invocation.clone();
-    invocation.executable = PathBuf::from(&entry.executable_path);
-    invocation.package_version = entry.package_version.clone();
-    invocation.tool_version_hint.clone_from(&entry.tool_version);
-    let configured_args =
-        crate::extensions::config::apply_persisted_configuration(data_root, &mut invocation)
-            .unwrap_or_default();
-    let namespace = namespace_for(&entry.id);
-    let source_name = adapter.description.provider.name.clone();
-    adapter
-        .description
-        .commands
-        .iter()
-        .cloned()
-        .map(|command| LoadedProviderCommand {
-            descriptor: command,
-            invocation: invocation.clone(),
-            namespace: namespace.clone(),
-            source_name: source_name.clone(),
-            runtime_available: crate::extensions::static_adapter::is_linked_executable(
-                &invocation.executable,
-            ),
-            configured_args: configured_args.clone(),
-            dynamic_completion_available: false,
-        })
-        .collect()
 }
 
 fn application_entries(applications: &[LocalApplication]) -> Vec<CatalogEntry> {
@@ -885,25 +836,43 @@ mod tests {
         assert_eq!(score_entry(&entry, "json"), Some(500));
     }
 
+    #[cfg(unix)]
     #[test]
-    fn bundled_adapter_commands_require_an_enabled_connection() {
-        let directory = tempfile::tempdir().unwrap();
-        let adapters = crate::extensions::static_adapter::load_bundled().unwrap();
-        let adapter = &adapters[0];
-        assert!(bundled_static_provider_commands(None, &adapters, directory.path()).is_empty());
+    fn connected_recommendation_commands_resolve_execution_plans() {
+        use std::os::unix::fs::PermissionsExt;
 
-        let mut entry = crate::extensions::lock::ExtensionLockEntry {
-            id: adapter.manifest.id.clone(),
-            name: adapter.manifest.name.clone(),
-            publisher_id: adapter.manifest.publisher.id.clone(),
-            publisher_name: adapter.manifest.publisher.name.clone(),
-            distribution_source: crate::extensions::lock::ExtensionDistributionSource::BuiltIn,
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let tool = &tools[0];
+        let root = directory.path().join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(
+            root.join("floter.extension.json"),
+            tool.manifest_bytes,
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("provider-description.json"),
+            tool.descriptor_bytes,
+        )
+        .unwrap();
+
+        let entry = crate::extensions::lock::ExtensionLockEntry {
+            id: tool.manifest.id.clone(),
+            name: tool.manifest.name.clone(),
+            publisher_id: tool.manifest.publisher.id.clone(),
+            publisher_name: tool.manifest.publisher.name.clone(),
+            distribution_source: crate::extensions::lock::ExtensionDistributionSource::Local,
             runtime_ownership: crate::extensions::lock::ExtensionRuntimeOwnership::System,
-            provider_kind: ExtensionProviderKind::BundledStatic,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
             state: crate::extensions::lock::ExtensionStateKind::Enabled,
             enabled: true,
             package_name: None,
-            package_version: adapter.description.provider.version.clone(),
+            package_version: tool.description.provider.version.clone(),
             tool_version: None,
             integrity: None,
             runtime_integrity: None,
@@ -916,15 +885,18 @@ mod tests {
             previous_signature_verified: None,
             official_verified: false,
             previous_official_verified: None,
-            current_version: adapter.description.provider.version.clone(),
+            current_version: tool.description.provider.version.clone(),
             previous_version: None,
-            manifest_path: String::new(),
-            executable_path: adapter.invocation.executable.to_string_lossy().into_owned(),
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable.to_string_lossy().into_owned(),
             runtime_root: None,
             installed_at: 1,
             updated_at: 1,
             pinned: false,
-            channel: "bundled".into(),
+            channel: "external".into(),
             approved_permissions: Vec::new(),
             approved_at: 0,
             approved_manifest_digest: None,
@@ -933,20 +905,37 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
         };
-        let commands = bundled_static_provider_commands(Some(&entry), &adapters, directory.path());
-        assert_eq!(commands.len(), 5);
-        assert_eq!(commands[0].descriptor.id, "jv");
 
-        entry.enabled = false;
-        assert!(
-            bundled_static_provider_commands(Some(&entry), &adapters, directory.path()).is_empty()
+        let (description, invocation) =
+            crate::extensions::registry::static_description(&entry).unwrap();
+        assert_eq!(
+            description
+                .commands
+                .iter()
+                .map(|command| command.id.as_str())
+                .collect::<Vec<_>>(),
+            ["jv", "diff", "codec", "genpwd", "tt"]
         );
+        let command = description
+            .commands
+            .iter()
+            .find(|command| command.id == "jv")
+            .unwrap();
+        let plan = crate::extensions::provider::execution_plan(
+            command,
+            &invocation,
+            vec!["-file".into(), "data.json".into()],
+            Some(directory.path()),
+        )
+        .unwrap();
+        assert_eq!(plan.program, executable.to_string_lossy());
+        assert_eq!(plan.args, ["jv", "-file", "data.json"]);
     }
 
     #[test]
     fn static_complete_returns_matching_arguments() {
-        let adapters = crate::extensions::static_adapter::load_bundled().unwrap();
-        let descriptor = adapters[0]
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let descriptor = tools[0]
             .description
             .commands
             .iter()

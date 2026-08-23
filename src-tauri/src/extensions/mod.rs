@@ -20,13 +20,13 @@ pub mod probe_runner;
 pub mod profile;
 pub mod provider;
 mod proxy;
+pub mod recommendations;
 pub mod registry;
 pub mod resolver;
 pub mod session_restore;
 pub mod source_bundle;
 pub mod source_inference;
 pub mod source_resolver;
-pub mod static_adapter;
 pub mod sync;
 pub mod target;
 pub mod terminal_capability;
@@ -116,7 +116,7 @@ pub struct ExtensionState {
     pub client: reqwest::Client,
     pub official_index: official_index::OfficialIndexConfig,
     pub provider: provider::ProviderManager,
-    pub static_adapters: Vec<static_adapter::StaticAdapter>,
+    pub recommendations: Vec<recommendations::RecommendedTool>,
     pub(crate) mutation_lock: tokio::sync::Mutex<()>,
     pub(crate) provider_commands: catalog::ProviderCommandCache,
     pub tool_inventory: std::sync::Mutex<ToolInventory>,
@@ -148,7 +148,7 @@ impl ExtensionState {
         let tool_lock = ToolLock::load(&paths.tool_lock_file)?;
         let accepted_official_index_version =
             official_index::load_accepted_version(&paths.official_index_state_file)?;
-        let static_adapters = static_adapter::load_bundled()?;
+        let recommendations = recommendations::load_recommended()?;
         let client = reqwest::Client::builder()
             .user_agent(format!("floter/{}", env!("CARGO_PKG_VERSION")))
             .redirect(reqwest::redirect::Policy::custom(|attempt| {
@@ -165,7 +165,7 @@ impl ExtensionState {
             paths,
             client,
             official_index,
-            static_adapters,
+            recommendations,
             mutation_lock: tokio::sync::Mutex::new(()),
             provider_commands: catalog::ProviderCommandCache::default(),
             tool_inventory: std::sync::Mutex::new(ToolInventory::new()),

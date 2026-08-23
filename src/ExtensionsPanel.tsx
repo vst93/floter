@@ -71,6 +71,7 @@ export type Extension = {
   pinned: boolean;
   channel: string;
   generatedCustom: boolean;
+  recommended: boolean;
   toolLockState: "connected" | "reconnect-required" | "reverify-required" | null;
   toolCandidates: ExecutableToolCandidate[];
   /** Permission set recorded at approval time (audit trail). */
@@ -1055,16 +1056,18 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     }
   };
 
-  const connectBundledAt = async (extension: Extension, executablePath: string | null) => {
+  const connectRecommendedAt = async (extension: Extension, executablePath: string | null) => {
     if (busy || !extension.runtimeAvailable) return;
     setBusy({ id: extension.id, kind: "install" });
     setError(null);
     try {
-      const review = await invoke<PermissionReview>("extensions_bundled_permissions", { id: extension.id, locale });
-      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmPermissionsInline", {
+      const review = await invoke<PermissionReview>("extensions_recommended_permissions", { id: extension.id, locale });
+      if (review.permissions.length && !window.confirm(t("settings.extensions.confirmConnectRecommended", {
+        name: extension.name,
+        path: executablePath ?? extension.executablePath,
         permissions: review.permissions.map((permission) => permission.title).join(", "),
       }))) return;
-      await invoke("extensions_connect_bundled", {
+      await invoke("extensions_connect_recommended", {
         id: extension.id,
         executablePath,
         approvedPermissions: review.permissions.map(({ permission }) => permission),
@@ -1079,12 +1082,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     }
   };
 
-  const connectBundled = (extension: Extension) => {
+  const connectRecommended = (extension: Extension) => {
     if (extension.toolCandidates.length > 1) {
       setPendingToolSelection({ extension, action: "connect" });
       return;
     }
-    void connectBundledAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
+    void connectRecommendedAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
   };
 
   // One-click connection for auto-discovered PATH tools. The backend derives
@@ -1311,7 +1314,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const chooseSystemTool = (candidate: ExecutableToolCandidate) => {
     if (!pendingToolSelection) return;
     const { extension, action } = pendingToolSelection;
-    if (action === "connect") void connectBundledAt(extension, candidate.locator.path);
+    if (action === "connect") void connectRecommendedAt(extension, candidate.locator.path);
     else void reconnectSystemAt(extension, candidate.locator.path);
   };
 
@@ -1654,10 +1657,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 operation={busy}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
-                onConnect={() =>
-                  !extension.connected && extension.distributionSource === "local"
-                    ? connectDiscoveredTool(extension)
-                    : void connectBundled(extension)}
+                onConnect={() => {
+                  if (!extension.connected) {
+                    return extension.recommended
+                      ? void connectRecommended(extension)
+                      : connectDiscoveredTool(extension);
+                  }
+                }}
                 onRepair={() => extension.connected
                   ? void repairExtension(extension)
                   : extension.homepage && void invoke("open_url", { url: extension.homepage })}

@@ -13,7 +13,7 @@
     "providerProtocol": "^1.0"
   },
   "distribution": {
-    "type": "built-in"
+    "type": "local"
   },
   "runtime": {
     "type": "system",
@@ -22,6 +22,7 @@
   },
   "provider": {
     "type": "static-descriptor",
+    "descriptor": "provider-description.json",
     "argsPrefix": []
   },
   "permissions": [
