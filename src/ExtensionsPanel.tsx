@@ -2110,18 +2110,35 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void invoke("open_path", { path: selected.manifestPath.replace(/[\\/]floter\.extension\.json$/, "") })}>
                 <ExternalLink size={14} strokeWidth={2} />{t("settings.extensions.openGeneratedLocation")}
               </button>}
-              {selected.generatedCustom && <button type="button" className="extensions-action-button extensions-action-button--primary" disabled={Boolean(busy)} onClick={() => void editCustomIntegration(selected)}>
+              {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void editCustomIntegration(selected)}>
                 {t("settings.extensions.editCustom")}
               </button>}
-              <button type="button" className="extensions-action-button" disabled={!selected.previousVersion || Boolean(busy)} onClick={() => void rollbackExtension(selected)}>
-                <RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}
-              </button>
-              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void repairExtension(selected)}>
-                <Wrench size={14} strokeWidth={2} />{t("settings.extensions.repair")}
-              </button>
-              <button type="button" className="extensions-action-button" disabled={selected.distributionSource !== "npm" || !selected.packageName || Boolean(busy)} onClick={() => void reinstallExtension(selected)}>
-                <RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}
-              </button>
+              {selected.distributionSource === "local" ? (
+                <button
+                  type="button"
+                  className="extensions-action-button extensions-action-button--primary"
+                  aria-busy={busy?.id === selected.id && busy.kind === "repair"}
+                  disabled={Boolean(busy)}
+                  onClick={() => void repairExtension(selected)}
+                >
+                  {busy?.id === selected.id && busy.kind === "repair"
+                    ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
+                    : <Wrench size={14} strokeWidth={2} aria-hidden="true" />}
+                  {t("settings.extensions.recheck")}
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="extensions-action-button" disabled={!selected.previousVersion || Boolean(busy)} onClick={() => void rollbackExtension(selected)}>
+                    <RotateCcw size={14} strokeWidth={2} />{t("settings.extensions.rollback")}
+                  </button>
+                  <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void repairExtension(selected)}>
+                    <Wrench size={14} strokeWidth={2} />{t("settings.extensions.repair")}
+                  </button>
+                  <button type="button" className="extensions-action-button" disabled={!selected.packageName || Boolean(busy)} onClick={() => void reinstallExtension(selected)}>
+                    <RefreshCw size={14} strokeWidth={2} />{t("settings.extensions.reinstall")}
+                  </button>
+                </>
+              )}
               <button type="button" className="extensions-action-button extensions-action-button--danger" disabled={Boolean(busy)} onClick={() => uninstallExtension(selected)}>
                 {removalKind(selected) === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
                 {busy?.id === selected.id && busy.kind === "uninstall" ? t("settings.extensions.removing") : t(removalTextKey(selected, ""))}

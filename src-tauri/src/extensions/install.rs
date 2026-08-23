@@ -1261,6 +1261,9 @@ pub async fn verify_installed(
         }
         ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic => {
             crate::extensions::registry::static_description(&entry)?;
+            if !crate::extensions::registry::runtime_available(&entry) {
+                return Err(format!("Runtime is unavailable for extension {}", entry.id));
+            }
         }
     }
     Ok(entry)
@@ -3452,6 +3455,43 @@ mod tests {
             .unwrap();
         assert_eq!(plan.args[0], invocation.executable_prefix[0]);
         assert_eq!(&plan.args[1..], ["default value", "user value"]);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn verify_installed_rejects_missing_static_runtime() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = directory.path().join("verify-tool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.verify-test".into(),
+                name: "Verify test".into(),
+                command: "verify-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(verify_installed(&state, &entry.id).await.is_ok());
+
+        std::fs::remove_file(&executable).unwrap();
+        let error = verify_installed(&state, &entry.id).await.unwrap_err();
+        assert!(error.contains("Runtime is unavailable"));
     }
 
     #[tokio::test]

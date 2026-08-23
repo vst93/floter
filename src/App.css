@@ -1626,6 +1626,14 @@ input:focus {
   cursor: default;
 }
 
+.extension-row--broken {
+  background: color-mix(in srgb, var(--text-warning) 5%, transparent);
+}
+
+.extension-row--broken::before {
+  background: var(--text-warning);
+}
+
 .extension-row__open {
   min-width: 0;
   display: grid;

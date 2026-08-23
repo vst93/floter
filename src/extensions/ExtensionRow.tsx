@@ -118,7 +118,7 @@ export function ExtensionRow({
   );
 
   return (
-    <article className={`extension-row${extension.connected ? "" : " extension-row--detected"}`}>
+    <article className={`extension-row${extension.connected ? "" : " extension-row--detected"}${extension.state === "broken" ? " extension-row--broken" : ""}`}>
       {extension.connected ? (
         <button type="button" className="extension-row__open" onClick={onOpen}>
           {rowContent}

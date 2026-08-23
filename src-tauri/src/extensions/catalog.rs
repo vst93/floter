@@ -394,33 +394,73 @@ async fn loaded_provider_commands(
 async fn load_provider_commands_uncached(
     state: &ExtensionState,
 ) -> Result<Vec<LoadedProviderCommand>, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let entries: Vec<crate::extensions::lock::ExtensionLockEntry> =
+        lock.extensions.values().cloned().collect();
+    let mut lock_changed = false;
     let mut result = Vec::new();
-    for entry in lock.extensions.values().filter(|entry| entry.enabled) {
+    for entry in entries {
+        let already_broken = entry.state == crate::extensions::lock::ExtensionStateKind::Broken;
+        // Broken entries are rechecked so a restored binding can clear the
+        // persisted broken state without requiring a manual repair first.
+        if !entry.enabled && !already_broken {
+            continue;
+        }
         if entry.runtime_ownership == crate::extensions::lock::ExtensionRuntimeOwnership::System {
             match state.check_executable_binding(&entry.id, &entry.executable_path) {
-                Ok(crate::extensions::tool_lock::LockState::Connected) => {}
-                Ok(state) => {
-                    eprintln!(
-                        "floter: system tool binding for {} requires confirmation: {:?}",
-                        entry.id, state
-                    );
+                Ok(crate::extensions::tool_lock::LockState::Connected) => {
+                    if already_broken && lock.clear_broken(&entry.id)? {
+                        lock_changed = true;
+                    }
+                }
+                Ok(binding_state) => {
+                    let (code, detail) = match binding_state {
+                        crate::extensions::tool_lock::LockState::ReconnectRequired => (
+                            "binding-missing",
+                            format!(
+                                "Executable is no longer available at {}",
+                                entry.executable_path
+                            ),
+                        ),
+                        crate::extensions::tool_lock::LockState::ReverifyRequired => (
+                            "binding-changed",
+                            format!(
+                                "Executable fingerprint changed at {}",
+                                entry.executable_path
+                            ),
+                        ),
+                        crate::extensions::tool_lock::LockState::Connected => unreachable!(),
+                    };
+                    if !already_recorded_broken(lock.get(&entry.id)?, code, &detail)
+                        && lock.mark_broken(&entry.id, code, &detail)?
+                    {
+                        lock_changed = true;
+                    }
                     continue;
                 }
                 Err(error) => {
-                    eprintln!(
-                        "floter: cannot verify system tool binding for {}: {error}",
-                        entry.id
-                    );
+                    if !already_recorded_broken(
+                        lock.get(&entry.id)?,
+                        "binding-check-failed",
+                        &error,
+                    ) && lock.mark_broken(&entry.id, "binding-check-failed", &error)?
+                    {
+                        lock_changed = true;
+                    }
                     continue;
                 }
             }
+        }
+        if !entry.enabled {
+            // A recovered binding is restored to the disabled state, not
+            // silently re-enabled; an explicit reconnect does that.
+            continue;
         }
         if matches!(
             entry.provider_kind,
             ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
         ) {
-            match crate::extensions::registry::static_description(entry) {
+            match crate::extensions::registry::static_description(&entry) {
                 Ok((description, invocation)) => {
                     let namespace = namespace_for(&entry.id);
                     let source_name = description.provider.name.clone();
@@ -431,7 +471,7 @@ async fn load_provider_commands_uncached(
                             namespace: namespace.clone(),
                             source_name: source_name.clone(),
                             runtime_available: crate::extensions::registry::runtime_available(
-                                entry,
+                                &entry,
                             ),
                             configured_args: Vec::new(),
                             dynamic_completion_available: false,
@@ -445,7 +485,7 @@ async fn load_provider_commands_uncached(
             }
             continue;
         }
-        let mut invocation = match crate::extensions::registry::provider_invocation(entry) {
+        let mut invocation = match crate::extensions::registry::provider_invocation(&entry) {
             Ok(invocation) => invocation,
             Err(error) => {
                 eprintln!(
@@ -493,7 +533,22 @@ async fn load_provider_commands_uncached(
             }
         }));
     }
+    if lock_changed {
+        if let Err(error) = lock.save(&state.paths.lock_file) {
+            eprintln!("floter: cannot persist extension binding state: {error}");
+        }
+    }
     Ok(result)
+}
+
+fn already_recorded_broken(
+    entry: &crate::extensions::lock::ExtensionLockEntry,
+    code: &str,
+    detail: &str,
+) -> bool {
+    entry.state == crate::extensions::lock::ExtensionStateKind::Broken
+        && entry.last_error_code.as_deref() == Some(code)
+        && entry.last_error_detail.as_deref() == Some(detail)
 }
 
 #[derive(Clone)]
@@ -809,6 +864,62 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    fn recommended_local_entry(
+        root: &std::path::Path,
+        executable: &std::path::Path,
+    ) -> crate::extensions::lock::ExtensionLockEntry {
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let tool = &tools[0];
+        std::fs::create_dir_all(root).unwrap();
+        std::fs::write(root.join("floter.extension.json"), tool.manifest_bytes).unwrap();
+        std::fs::write(root.join("provider-description.json"), tool.descriptor_bytes).unwrap();
+        crate::extensions::lock::ExtensionLockEntry {
+            id: tool.manifest.id.clone(),
+            name: tool.manifest.name.clone(),
+            publisher_id: tool.manifest.publisher.id.clone(),
+            publisher_name: tool.manifest.publisher.name.clone(),
+            distribution_source: crate::extensions::lock::ExtensionDistributionSource::Local,
+            runtime_ownership: crate::extensions::lock::ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: crate::extensions::lock::ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: tool.description.provider.version.clone(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: tool.description.provider.version.clone(),
+            previous_version: None,
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable.to_string_lossy().into_owned(),
+            runtime_root: None,
+            installed_at: 1,
+            updated_at: 1,
+            pinned: false,
+            channel: "external".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+        }
+    }
+
     #[test]
     fn namespace_uses_last_provider_id_component() {
         assert_eq!(namespace_for("io.github.vst93.v"), "v");
@@ -930,6 +1041,76 @@ mod tests {
         .unwrap();
         assert_eq!(plan.program, executable.to_string_lossy());
         assert_eq!(plan.args, ["jv", "-file", "data.json"]);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn missing_binding_marks_broken_and_restored_binding_clears_it() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let original_modified = std::fs::metadata(&executable).unwrap().modified().unwrap();
+
+        let root = directory.path().join("integration");
+        let entry = recommended_local_entry(&root, &executable);
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.lock_file).unwrap();
+
+        // First load binds the executable and exposes the provider commands.
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert_eq!(commands.len(), 5);
+
+        // Removing the bound executable marks the entry broken and hides it.
+        std::fs::remove_file(&executable).unwrap();
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert!(commands.is_empty());
+        let broken = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            broken.state,
+            crate::extensions::lock::ExtensionStateKind::Broken
+        );
+        assert!(!broken.enabled);
+        assert_eq!(broken.last_error_code.as_deref(), Some("binding-missing"));
+        assert!(broken
+            .broken_reason
+            .as_deref()
+            .unwrap()
+            .contains("no longer available"));
+
+        // Restore the exact bytes and mtime so the recorded fingerprint
+        // matches, then reload. Broken clears and the entry is left disabled,
+        // matching the persisted state machine.
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::File::open(&executable)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(original_modified))
+            .unwrap();
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert!(commands.is_empty());
+        let restored = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_ne!(
+            restored.state,
+            crate::extensions::lock::ExtensionStateKind::Broken
+        );
+        assert_eq!(restored.last_error_code, None);
+        assert_eq!(restored.broken_reason, None);
     }
 
     #[test]

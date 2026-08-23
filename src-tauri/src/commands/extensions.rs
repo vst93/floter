@@ -1142,14 +1142,19 @@ async fn reconnect_system(
         }
     }
 
-    let entry = lock
-        .extensions
-        .get_mut(id)
-        .ok_or_else(|| format!("Integration is not connected: {id}"))?;
-    entry.executable_path = executable.to_string_lossy().into_owned();
-    entry.tool_version = tool_version;
-    entry.updated_at = crate::extensions::lock::unix_now();
-    let entry = entry.clone();
+    {
+        let entry = lock
+            .extensions
+            .get_mut(id)
+            .ok_or_else(|| format!("Integration is not connected: {id}"))?;
+        entry.executable_path = executable.to_string_lossy().into_owned();
+        entry.tool_version = tool_version;
+        entry.updated_at = crate::extensions::lock::unix_now();
+    }
+    // A successful reconnect proves the runtime is bound again, so any
+    // persisted broken state and operation error are cleared here as well.
+    lock.clear_broken(id)?;
+    let entry = lock.get(id)?.clone();
     let previous_tool_lock = {
         let mut tool_lock = state
             .tool_lock
@@ -1483,24 +1488,40 @@ pub async fn extensions_describe(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
         .clone();
-    if matches!(
+    let response = if matches!(
         entry.provider_kind,
         ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
     ) {
         let (description, _) = crate::extensions::registry::static_description(&entry)?;
-        return Ok(ProviderResponse {
+        ProviderResponse {
             description,
             runtime_available: crate::extensions::registry::runtime_available(&entry),
             cached: true,
             stderr: None,
-        });
+        }
+    } else {
+        let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
+        let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
+        state
+            .provider
+            .describe(&invocation, force.unwrap_or(false))
+            .await?
+    };
+    if response.runtime_available {
+        clear_broken_after_success(&state, &id).await?;
     }
-    let mut invocation = crate::extensions::registry::provider_invocation(&entry)?;
-    let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
-    state
-        .provider
-        .describe(&invocation, force.unwrap_or(false))
-        .await
+    Ok(response)
+}
+
+async fn clear_broken_after_success(state: &ExtensionState, id: &str) -> Result<(), String> {
+    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    if lock.get(id)?.state != ExtensionStateKind::Broken {
+        return Ok(());
+    }
+    if lock.clear_broken(id)? {
+        lock.save(&state.paths.lock_file)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
