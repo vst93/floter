@@ -112,8 +112,6 @@ pub struct ExtensionsImportItem {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReconcileAction {
     Install,
-    Update,
-    Rollback,
     Ready,
 }
 
@@ -436,7 +434,6 @@ struct PreparedImport {
 struct PreparedArtifact {
     _root: tempfile::TempDir,
     state: ExtensionState,
-    entry: ExtensionLockEntry,
 }
 
 async fn preflight_entry(
@@ -457,20 +454,13 @@ async fn preflight_entry(
     )?;
     let entry = match desired.distribution_source {
         ExtensionDistributionSource::Npm => {
-            let package = desired.package.as_deref().ok_or_else(|| {
-                format!(
-                    "NPM integration {} has no package in the export",
-                    desired.id
-                )
-            })?;
-            install::install_imported_managed_locked(
-                &prepared_state,
-                &desired.id,
-                package,
-                &desired.version,
-                approved_permissions,
-            )
-            .await?
+            // The NPM distribution pipeline was removed; NPM entries can no
+            // longer be installed or updated from an import. Entries already
+            // installed at the exported version still reconcile as Ready.
+            return Err(format!(
+                "NPM integration {} cannot be imported because NPM distribution was removed; reconnect it as a local tool",
+                desired.id
+            ));
         }
         ExtensionDistributionSource::Local | ExtensionDistributionSource::BuiltIn => {
             install_imported_linked(&prepared_state, desired, approved_permissions).await?
@@ -496,7 +486,6 @@ async fn preflight_entry(
     Ok(Some(PreparedArtifact {
         _root: root,
         state: prepared_state,
-        entry,
     }))
 }
 
@@ -508,14 +497,19 @@ async fn commit_prepared_entry(
     if let Some(artifact) = &prepared.artifact {
         match prepared.desired.distribution_source {
             ExtensionDistributionSource::Npm => {
-                install::commit_preflight_managed(state, &artifact.state, artifact.entry.clone())?;
+                // Unreachable: NPM entries fail during preflight and never
+                // produce a prepared artifact.
+                return Err(
+                    "NPM integrations cannot be imported because NPM distribution was removed"
+                        .to_string(),
+                );
             }
             ExtensionDistributionSource::Local => {
                 commit_preflight_linked(state, &artifact.state, &prepared.desired).await?;
             }
             ExtensionDistributionSource::BuiltIn => {
                 return Err(
-                    "Legacy built-in imports must be reconnected as local tools".to_string(),
+                    "Legacy built-in imports must be reconnected as local tools".to_string()
                 );
             }
         }
@@ -549,25 +543,10 @@ fn reconcile_action(
         return Ok(ReconcileAction::Ready);
     }
     match desired.distribution_source {
-        ExtensionDistributionSource::Npm => {
-            let package = desired.package.as_deref().ok_or_else(|| {
-                format!(
-                    "NPM integration {} has no package in the export",
-                    desired.id
-                )
-            })?;
-            if installed.package_name.as_deref() != Some(package) {
-                return Err(format!(
-                    "Extension {} is installed from a different package",
-                    desired.id
-                ));
-            }
-            if installed.previous_version.as_deref() == Some(desired.version.as_str()) {
-                Ok(ReconcileAction::Rollback)
-            } else {
-                Ok(ReconcileAction::Update)
-            }
-        }
+        ExtensionDistributionSource::Npm => Err(format!(
+            "NPM integration {} cannot be reconciled because NPM distribution was removed",
+            desired.id
+        )),
         ExtensionDistributionSource::Local | ExtensionDistributionSource::BuiltIn => Err(format!(
             "Local integration {} is version {}, but the export requires {}",
             desired.id,
@@ -589,9 +568,10 @@ async fn install_imported_linked(
     let manifest = if let Some(recommendation) = recommendation {
         recommendation.manifest.clone()
     } else {
-        desired.manifest.clone().ok_or_else(|| {
-            format!("Local integration {} has no manifest", desired.id)
-        })?
+        desired
+            .manifest
+            .clone()
+            .ok_or_else(|| format!("Local integration {} has no manifest", desired.id))?
     };
     let path = imported_manifest_path(&state.paths.data, &desired.id)?;
     if let Some(recommendation) = recommendation {
@@ -1349,8 +1329,8 @@ mod tests {
     }
 
     #[test]
-    fn managed_version_mismatch_updates_or_rolls_back() {
-        let mut installed = lock_entry(
+    fn managed_version_mismatch_is_rejected() {
+        let installed = lock_entry(
             ExtensionDistributionSource::Npm,
             ExtensionRuntimeOwnership::Bundled,
             "2.0.0",
@@ -1360,16 +1340,9 @@ mod tests {
             ExtensionRuntimeOwnership::Bundled,
             "1.5.0",
         );
-        assert_eq!(
-            reconcile_action(Some(&installed), &desired).unwrap(),
-            ReconcileAction::Update
-        );
-
-        installed.previous_version = Some("1.5.0".into());
-        assert_eq!(
-            reconcile_action(Some(&installed), &desired).unwrap(),
-            ReconcileAction::Rollback
-        );
+        assert!(reconcile_action(Some(&installed), &desired)
+            .unwrap_err()
+            .contains("NPM distribution was removed"));
     }
 
     #[test]

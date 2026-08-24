@@ -547,6 +547,73 @@ mod tests {
     }
 
     #[test]
+    fn legacy_lock_file_with_populated_npm_entry_still_loads() {
+        // Regression for the NPM distribution removal: lock files written by
+        // older builds carry managed entries with integrity/signature fields
+        // populated. They must keep parsing without error.
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("extensions.lock.json");
+        std::fs::write(
+            &path,
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "schemaVersion": 2,
+                "extensions": {
+                    "legacy.npm.tool": {
+                        "id": "legacy.npm.tool",
+                        "name": "Legacy NPM Tool",
+                        "publisherId": "example",
+                        "publisherName": "Example",
+                        "distributionSource": "npm",
+                        "runtimeOwnership": "bundled",
+                        "providerKind": "executable",
+                        "state": "enabled",
+                        "enabled": true,
+                        "packageName": "@example/legacy-npm-tool",
+                        "packageVersion": "1.2.3",
+                        "toolVersion": "1.0.0",
+                        "integrity": "sha512-AAAA",
+                        "runtimeIntegrity": "sha512-BBBB",
+                        "contentIntegrity": "sha512-CCCC",
+                        "previousIntegrity": null,
+                        "previousRuntimeIntegrity": null,
+                        "previousContentIntegrity": null,
+                        "assetSelection": null,
+                        "signatureVerified": true,
+                        "previousSignatureVerified": null,
+                        "officialVerified": true,
+                        "previousOfficialVerified": null,
+                        "currentVersion": "1.2.3",
+                        "previousVersion": "1.2.2",
+                        "manifestPath": "/tmp/versions/1.2.3/floter.extension.json",
+                        "executablePath": "/tmp/versions/1.2.3/runtime/tool",
+                        "runtimeRoot": "/tmp/versions/1.2.3/runtime",
+                        "installedAt": 100,
+                        "updatedAt": 200,
+                        "pinned": false,
+                        "channel": "stable"
+                    }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let lock = ExtensionsLock::load(&path).unwrap();
+        let entry = lock.extensions.get("legacy.npm.tool").unwrap();
+        assert_eq!(entry.distribution_source, ExtensionDistributionSource::Npm);
+        assert_eq!(
+            entry.package_name.as_deref(),
+            Some("@example/legacy-npm-tool")
+        );
+        assert_eq!(entry.current_version, "1.2.3");
+        assert_eq!(entry.integrity.as_deref(), Some("sha512-AAAA"));
+        assert_eq!(entry.runtime_integrity.as_deref(), Some("sha512-BBBB"));
+        assert_eq!(entry.content_integrity.as_deref(), Some("sha512-CCCC"));
+        assert!(entry.signature_verified);
+        assert!(entry.official_verified);
+    }
+
+    #[test]
     fn release_channels_normalize_stable_and_reject_versions() {
         assert_eq!(normalize_release_channel("latest").unwrap(), "stable");
         assert_eq!(release_channel_selector("stable").unwrap(), "latest");

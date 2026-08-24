@@ -80,7 +80,8 @@ mod tests {
         assert_eq!(tool.manifest.distribution, Distribution::Local);
         assert!(matches!(tool.manifest.runtime, Runtime::System { .. }));
         assert_eq!(
-            tool.description.commands
+            tool.description
+                .commands
                 .iter()
                 .map(|command| command.id.as_str())
                 .collect::<Vec<_>>(),

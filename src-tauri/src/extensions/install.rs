@@ -1,37 +1,19 @@
 use crate::extensions::lock::{
-    normalize_release_channel, release_channel_selector, unix_now, validate_id,
-    ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+    unix_now, validate_id, ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
     validate_relative_path, Compatibility, Distribution, ExtensionManifest, Permission, PlatformOs,
     PlatformTarget, ProviderConfig, ProviderKind, Publisher, Runtime, ScriptLanguage,
-    SignatureAlgorithm, SignatureConfig,
 };
-use crate::extensions::official_index;
 use crate::extensions::provider::ProviderInvocation;
-use crate::extensions::transaction::{
-    begin, commit_lock, commit_version, progress, TransactionState,
-};
 use crate::extensions::ExtensionState;
-use base64::Engine;
-use ed25519_dalek::{Signature, VerifyingKey};
-use flate2::read::GzDecoder;
-use semver::{Version, VersionReq};
+use semver::Version;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256, Sha384, Sha512};
 use std::collections::BTreeMap;
-use std::io::{Cursor, Read, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
-
-const REGISTRY_URL: &str = "https://registry.npmjs.org/";
-const MAX_TARBALL_BYTES: usize = 128 * 1024 * 1024;
-const MAX_SIGNATURE_BYTES: usize = 4 * 1024;
-const MAX_REGISTRY_METADATA_BYTES: usize = 16 * 1024 * 1024;
-const MAX_SEARCH_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
-const MAX_ARCHIVE_ENTRIES: usize = 100_000;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,37 +30,7 @@ pub struct ExtensionInstallRequest {
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum InstallSource {
-    Npm,
     Linked,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExtensionSearchResult {
-    pub package: String,
-    pub version: String,
-    pub description: String,
-    pub publisher: Option<String>,
-    pub homepage: Option<String>,
-    pub verified: bool,
-    pub deprecation: Option<String>,
-    pub downloads: u64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ExtensionUpdateKind {
-    Patch,
-    Minor,
-    Major,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExtensionUpdateCandidate {
-    pub id: String,
-    pub version: String,
-    pub kind: ExtensionUpdateKind,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,90 +98,22 @@ fn default_custom_mode() -> String {
     "executable".to_string()
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct RegistryMetadata {
-    #[serde(rename = "dist-tags", default)]
-    dist_tags: BTreeMap<String, String>,
-    #[serde(default)]
-    versions: BTreeMap<String, RegistryVersion>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct RegistryVersion {
-    name: String,
-    version: String,
-    dist: RegistryDist,
-    #[serde(default)]
-    deprecated: Option<String>,
-    floter: Option<PackageFloter>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct RegistryDist {
-    tarball: String,
-    integrity: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-struct LockedIntegrities<'a> {
-    package: Option<&'a str>,
-    runtime: Option<&'a str>,
-}
-
+/// Minimal package.json shape used when connecting an integration from a
+/// local package directory. Kept compatible with legacy NPM-style packages:
+/// unknown fields are ignored and `floter.manifest` selects the manifest.
 #[derive(Debug, Deserialize)]
 struct PackageJson {
+    #[allow(dead_code)]
     name: String,
     version: String,
     #[serde(default)]
     keywords: Vec<String>,
-    #[serde(default)]
-    deprecated: Option<String>,
     floter: Option<PackageFloter>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct PackageFloter {
     manifest: String,
-    #[serde(default)]
-    deprecated: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct RegistrySearchResponse {
-    #[serde(default)]
-    objects: Vec<RegistrySearchObject>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RegistrySearchObject {
-    #[serde(default)]
-    downloads: RegistryDownloads,
-    package: RegistrySearchPackage,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct RegistryDownloads {
-    #[serde(default)]
-    weekly: u64,
-}
-
-#[derive(Debug, Deserialize)]
-struct RegistrySearchPackage {
-    name: String,
-    version: String,
-    #[serde(default)]
-    description: String,
-    #[serde(default)]
-    deprecated: Option<String>,
-    floter: Option<PackageFloter>,
-    publisher: Option<RegistryPublisher>,
-    #[serde(default)]
-    links: BTreeMap<String, String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RegistryPublisher {
-    username: Option<String>,
 }
 
 pub async fn install(
@@ -237,98 +121,7 @@ pub async fn install(
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
-    match request.source {
-        InstallSource::Npm => {
-            let package = request
-                .package
-                .as_deref()
-                .ok_or("NPM installation requires a package name")?;
-            install_managed(
-                state,
-                package,
-                request.version.as_deref(),
-                None,
-                None,
-                request.approved_permissions.as_deref(),
-                LockedIntegrities::default(),
-            )
-            .await
-        }
-        InstallSource::Linked => install_linked(state, request).await,
-    }
-}
-
-pub(crate) async fn install_imported_managed_locked(
-    state: &ExtensionState,
-    extension_id: &str,
-    package: &str,
-    version: &str,
-    approved_permissions: Option<&[Permission]>,
-) -> Result<ExtensionLockEntry, String> {
-    install_managed(
-        state,
-        package,
-        Some(version),
-        Some("stable"),
-        Some(extension_id),
-        approved_permissions,
-        LockedIntegrities::default(),
-    )
-    .await
-}
-
-pub(crate) fn commit_preflight_managed(
-    state: &ExtensionState,
-    staged_state: &ExtensionState,
-    mut entry: ExtensionLockEntry,
-) -> Result<ExtensionLockEntry, String> {
-    let staged_version = staged_state
-        .paths
-        .extensions
-        .join(&entry.id)
-        .join("versions")
-        .join(&entry.current_version);
-    let target = state
-        .paths
-        .extensions
-        .join(&entry.id)
-        .join("versions")
-        .join(&entry.current_version);
-    let old = ExtensionsLock::load(&state.paths.lock_file)?
-        .extensions
-        .get(&entry.id)
-        .cloned();
-    let rewrite = |value: &str| -> Result<String, String> {
-        let relative = Path::new(value)
-            .strip_prefix(&staged_version)
-            .map_err(|_| "Preflight artifact escaped its verified version directory")?;
-        Ok(target.join(relative).to_string_lossy().into_owned())
-    };
-    entry.manifest_path = rewrite(&entry.manifest_path)?;
-    if Path::new(&entry.executable_path).starts_with(&staged_version) {
-        entry.executable_path = rewrite(&entry.executable_path)?;
-    } else if entry.runtime_ownership != ExtensionRuntimeOwnership::System {
-        return Err(
-            "Bundled preflight executable escaped its verified version directory".to_string(),
-        );
-    }
-    entry.runtime_root = entry.runtime_root.as_deref().map(rewrite).transpose()?;
-    if let Some(old) = &old {
-        entry.installed_at = old.installed_at;
-        entry.previous_version = Some(old.current_version.clone());
-        entry.previous_integrity = old.integrity.clone();
-        entry.previous_runtime_integrity = old.runtime_integrity.clone();
-        entry.previous_content_integrity = old.content_integrity.clone();
-        entry.previous_signature_verified = Some(old.signature_verified);
-        entry.previous_official_verified = Some(old.official_verified);
-        entry.enabled = old.enabled;
-        entry.state = old.state;
-        entry.pinned = old.pinned;
-    }
-    std::fs::create_dir_all(target.parent().ok_or("Invalid extension target")?)
-        .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
-    commit_version(state, old.as_ref(), &entry, &staged_version, &target, None)?;
-    Ok(entry)
+    install_linked(state, request).await
 }
 
 pub async fn create_custom_integration(
@@ -925,12 +718,10 @@ async fn connect_local_static_tool(
     let data_root = package_root
         .parent()
         .ok_or("Integration directory has no parent")?;
-    std::fs::create_dir_all(data_root).map_err(|error| {
-        format!("Cannot create integration data directory: {error}")
-    })?;
-    std::fs::create_dir(&package_root).map_err(|error| {
-        format!("Cannot reserve integration directory for {id}: {error}")
-    })?;
+    std::fs::create_dir_all(data_root)
+        .map_err(|error| format!("Cannot create integration data directory: {error}"))?;
+    std::fs::create_dir(&package_root)
+        .map_err(|error| format!("Cannot reserve integration directory for {id}: {error}"))?;
     let manifest_path = package_root.join("floter.extension.json");
     let package_path = package_root.join("package.json");
     let write_result = (|| -> Result<(), String> {
@@ -1082,7 +873,8 @@ fn synthesized_single_command_description(
         _ => None,
     }
     .unwrap_or_else(|| {
-        sanitized_command_from_executable(&tool.stem).is_empty()
+        sanitized_command_from_executable(&tool.stem)
+            .is_empty()
             .then(|| "tool".to_string())
             .unwrap_or_else(|| sanitized_command_from_executable(&tool.stem))
     });
@@ -1112,68 +904,6 @@ fn synthesized_single_command_description(
         }],
         configuration: None,
     }
-}
-
-pub async fn permissions_summary(
-    state: &ExtensionState,
-    request: &ExtensionInstallRequest,
-    locale: &str,
-) -> Result<ExtensionPermissionReview, String> {
-    let mut trust = (false, false);
-    let mut deprecation = None;
-    let manifest = match request.source {
-        InstallSource::Npm => {
-            let package = request
-                .package
-                .as_deref()
-                .ok_or("NPM installation requires a package name")?;
-            validate_package_name(package)?;
-            let official_index = official_index::fetch(state).await.ok();
-            let version =
-                resolve_registry_version(state, package, request.version.as_deref()).await?;
-            let bytes = download_tarball(state, &version.dist).await?;
-            let staging = tempfile::tempdir()
-                .map_err(|error| format!("Cannot create permission review directory: {error}"))?;
-            safe_unpack(&bytes, staging.path())?;
-            let (package_json, manifest_path) = load_package_entry(staging.path())?;
-            validate_package_entry(&package_json, &version, true)?;
-            deprecation = package_deprecation(&package_json, &version);
-            let manifest = ExtensionManifest::load(&manifest_path)?;
-            if let Some(signatures) = manifest.signatures.as_ref() {
-                trust.1 = official_index.as_ref().is_some_and(|index| {
-                    index.authorizes(
-                        &manifest.id,
-                        package,
-                        &manifest.publisher.id,
-                        Some(signatures),
-                    )
-                });
-                let signature = download_signature(state, signatures).await?;
-                trust.1 = verify_official_tarball(trust.1, &bytes, &signature, signatures)?;
-                trust.0 = true;
-            }
-            manifest
-        }
-        InstallSource::Linked => {
-            let source = request
-                .manifest_path
-                .as_deref()
-                .ok_or("Linked installation requires manifestPath")?;
-            let path = PathBuf::from(source);
-            if path.is_dir() {
-                let (_, manifest_path) = load_package_entry(&path)?;
-                ExtensionManifest::load(&manifest_path)?
-            } else {
-                ExtensionManifest::load(&path)?
-            }
-        }
-    };
-    manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
-    let mut review = permission_review(&manifest, locale);
-    review.publisher_signed = trust.0;
-    review.official_verified = trust.1 && trust.0;
-    review.deprecation = deprecation;
-    Ok(review)
 }
 
 pub(crate) fn validate_permission_approval(
@@ -1257,127 +987,6 @@ pub(crate) fn permission_review(
     }
 }
 
-pub async fn update(
-    state: &ExtensionState,
-    extension_id: &str,
-    version: Option<&str>,
-    approved_permissions: Option<&[Permission]>,
-) -> Result<ExtensionLockEntry, String> {
-    let _guard = state.mutation_lock.lock().await;
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let current = lock.get(extension_id)?.clone();
-    if current.distribution_source != ExtensionDistributionSource::Npm {
-        return Err("Only NPM integrations are updated by Floter".to_string());
-    }
-    if current.pinned && version.is_none() {
-        return Err(format!("Extension {extension_id} is pinned"));
-    }
-    let package = current
-        .package_name
-        .as_deref()
-        .ok_or("NPM integration has no package name in the lock file")?;
-    let selected_version =
-        if let Some(version) = version {
-            version.to_string()
-        } else {
-            let selector = release_channel_selector(&current.channel)?;
-            let candidate = resolve_registry_version(state, package, Some(selector)).await?;
-            match classify_update(&current.current_version, &candidate.version)? {
-                Some(ExtensionUpdateKind::Patch) => {}
-                None => return Err(format!("Extension {extension_id} is already up to date")),
-                Some(ExtensionUpdateKind::Minor | ExtensionUpdateKind::Major) => return Err(
-                    "Automatic updates only install patch releases; select the version explicitly"
-                        .to_string(),
-                ),
-            }
-            candidate.version
-        };
-    install_managed(
-        state,
-        package,
-        Some(&selected_version),
-        Some(&current.channel),
-        Some(extension_id),
-        approved_permissions,
-        LockedIntegrities::default(),
-    )
-    .await
-}
-
-pub async fn reinstall(
-    state: &ExtensionState,
-    extension_id: &str,
-    approved_permissions: Option<&[Permission]>,
-) -> Result<ExtensionLockEntry, String> {
-    let _guard = state.mutation_lock.lock().await;
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let current = lock.get(extension_id)?.clone();
-    if current.distribution_source != ExtensionDistributionSource::Npm {
-        return Err("Only NPM integrations can be reinstalled by Floter".to_string());
-    }
-    let package = current
-        .package_name
-        .as_deref()
-        .ok_or("NPM integration has no package name in the lock file")?;
-    let integrity = current.integrity.as_deref();
-    let runtime_integrity = current.runtime_integrity.as_deref();
-    install_managed(
-        state,
-        package,
-        Some(current.current_version.as_str()),
-        Some(&current.channel),
-        Some(extension_id),
-        approved_permissions,
-        LockedIntegrities {
-            package: integrity,
-            runtime: runtime_integrity,
-        },
-    )
-    .await
-}
-
-pub async fn update_candidate(
-    state: &ExtensionState,
-    entry: &ExtensionLockEntry,
-) -> Result<Option<ExtensionUpdateCandidate>, String> {
-    if entry.distribution_source != ExtensionDistributionSource::Npm || entry.pinned {
-        return Ok(None);
-    }
-    let package = entry
-        .package_name
-        .as_deref()
-        .ok_or("NPM integration has no package name in the lock file")?;
-    let selector = release_channel_selector(&entry.channel)?;
-    let candidate = resolve_registry_version(state, package, Some(selector)).await?;
-    let kind = classify_update(&entry.current_version, &candidate.version)?;
-    Ok(kind.map(|kind| ExtensionUpdateCandidate {
-        id: entry.id.clone(),
-        version: candidate.version,
-        kind,
-    }))
-}
-
-fn classify_update(
-    installed: &str,
-    candidate: &str,
-) -> Result<Option<ExtensionUpdateKind>, String> {
-    let installed = Version::parse(installed)
-        .map_err(|error| format!("Invalid installed extension version: {error}"))?;
-    let selected = Version::parse(candidate)
-        .map_err(|error| format!("Invalid registry extension version: {error}"))?;
-    if selected <= installed {
-        return Ok(None);
-    }
-    let kind = if selected.major != installed.major {
-        ExtensionUpdateKind::Major
-    } else if selected.minor != installed.minor {
-        ExtensionUpdateKind::Minor
-    } else {
-        ExtensionUpdateKind::Patch
-    };
-    Ok(Some(kind))
-}
-
 pub async fn verify_installed(
     state: &ExtensionState,
     extension_id: &str,
@@ -1385,23 +994,6 @@ pub async fn verify_installed(
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(extension_id)?
         .clone();
-    if entry.distribution_source == ExtensionDistributionSource::Npm {
-        let version_root = installed_version_root(state, &entry);
-        if !version_root.is_dir() || entry.integrity.is_none() {
-            return Err(format!(
-                "Installed package files are incomplete for {extension_id}"
-            ));
-        }
-        let expected = entry.content_integrity.as_deref().ok_or_else(|| {
-            format!("Installed package has no content integrity record for {extension_id}")
-        })?;
-        let actual = installed_tree_integrity(&version_root)?;
-        if !constant_time_equal(actual.as_bytes(), expected.as_bytes()) {
-            return Err(format!(
-                "Installed package content integrity check failed for {extension_id}"
-            ));
-        }
-    }
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
     if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
         return Err(format!(
@@ -1423,67 +1015,6 @@ pub async fn verify_installed(
     Ok(entry)
 }
 
-pub async fn repair_managed(
-    state: &ExtensionState,
-    extension_id: &str,
-) -> Result<ExtensionLockEntry, String> {
-    let _guard = state.mutation_lock.lock().await;
-    let current = ExtensionsLock::load(&state.paths.lock_file)?
-        .get(extension_id)?
-        .clone();
-    if current.distribution_source != ExtensionDistributionSource::Npm {
-        return Err("Managed repair requires an NPM integration".to_string());
-    }
-    let package = current
-        .package_name
-        .as_deref()
-        .ok_or("NPM integration has no package name in the lock file")?;
-    let integrity = current.integrity.as_deref();
-    let runtime_integrity = current.runtime_integrity.as_deref();
-    install_managed(
-        state,
-        package,
-        Some(&current.current_version),
-        Some(&current.channel),
-        Some(extension_id),
-        None,
-        LockedIntegrities {
-            package: integrity,
-            runtime: runtime_integrity,
-        },
-    )
-    .await
-}
-
-fn installed_version_root(state: &ExtensionState, entry: &ExtensionLockEntry) -> PathBuf {
-    state
-        .paths
-        .extensions
-        .join(&entry.id)
-        .join("versions")
-        .join(&entry.current_version)
-}
-
-fn swap_rollback_metadata(entry: &mut ExtensionLockEntry) {
-    std::mem::swap(&mut entry.integrity, &mut entry.previous_integrity);
-    std::mem::swap(
-        &mut entry.runtime_integrity,
-        &mut entry.previous_runtime_integrity,
-    );
-    std::mem::swap(
-        &mut entry.content_integrity,
-        &mut entry.previous_content_integrity,
-    );
-    let previous_signature_verified = entry.previous_signature_verified.unwrap_or(false);
-    entry.previous_signature_verified = Some(entry.signature_verified);
-    entry.signature_verified = previous_signature_verified;
-    let previous_official_verified = entry.previous_official_verified.unwrap_or(false);
-    entry.previous_official_verified = Some(entry.official_verified);
-    entry.official_verified = previous_official_verified;
-    // Older lock entries do not retain the previous version's asset URL.
-    entry.asset_selection = None;
-}
-
 pub async fn uninstall(
     state: &ExtensionState,
     extension_id: &str,
@@ -1498,7 +1029,10 @@ pub async fn uninstall(
     let generated_local = is_generated_custom_integration(&entry)
         && Path::new(&entry.manifest_path).starts_with(&generated_local_root);
     let mut moved = None;
-    if entry.distribution_source == ExtensionDistributionSource::Npm {
+    // Legacy NPM installs keep their version tree under
+    // `<config>/floter/extensions/<id>`; stage-and-delete it like any other
+    // installed payload so uninstalls do not leave files behind.
+    {
         let source = state.paths.extensions.join(extension_id);
         if source.exists() {
             let placeholder = tempfile::Builder::new()
@@ -1557,660 +1091,6 @@ pub async fn uninstall(
         }
     }
     Ok(())
-}
-
-pub async fn rollback(
-    state: &ExtensionState,
-    extension_id: &str,
-) -> Result<ExtensionLockEntry, String> {
-    let _guard = state.mutation_lock.lock().await;
-    rollback_locked(state, extension_id).await
-}
-
-pub(crate) async fn rollback_locked(
-    state: &ExtensionState,
-    extension_id: &str,
-) -> Result<ExtensionLockEntry, String> {
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let original = lock.get(extension_id)?.clone();
-    let entry = lock
-        .extensions
-        .get_mut(extension_id)
-        .ok_or_else(|| format!("Extension is not installed: {extension_id}"))?;
-    if entry.distribution_source != ExtensionDistributionSource::Npm {
-        return Err("Only NPM integrations can be rolled back by Floter".to_string());
-    }
-    let previous = entry
-        .previous_version
-        .clone()
-        .ok_or_else(|| format!("Extension {extension_id} has no previous version"))?;
-    let previous_root = state
-        .paths
-        .extensions
-        .join(extension_id)
-        .join("versions")
-        .join(&previous);
-    if !previous_root.is_dir() {
-        return Err(format!(
-            "Previous version directory is missing: {}",
-            previous_root.display()
-        ));
-    }
-    if let Some(expected) = entry.previous_content_integrity.as_deref() {
-        let actual = installed_tree_integrity(&previous_root)?;
-        if !constant_time_equal(actual.as_bytes(), expected.as_bytes()) {
-            return Err(format!(
-                "Previous version content integrity check failed for {extension_id}"
-            ));
-        }
-    }
-    let current = std::mem::replace(&mut entry.current_version, previous.clone());
-    entry.previous_version = Some(current);
-    entry.package_version = previous.clone();
-    entry.state = if entry.enabled {
-        ExtensionStateKind::Enabled
-    } else {
-        ExtensionStateKind::Disabled
-    };
-    entry.manifest_path = find_installed_manifest(&previous_root)?
-        .to_string_lossy()
-        .into_owned();
-    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
-    if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
-        return Err(format!(
-            "Previous manifest identity does not match lock entry {}",
-            entry.id
-        ));
-    }
-    manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
-    let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
-    resolved.validate_minimum_os_version()?;
-    let (executable, runtime_root, version_args, tool_version) = match &manifest.runtime {
-        Runtime::Bundled { .. } => {
-            let executable = managed_executable(&manifest, &previous_root)?;
-            let runtime_root = previous_root.join("runtime");
-            (executable, Some(runtime_root), Vec::new(), None)
-        }
-        Runtime::System { version_args, .. } => {
-            let executable = find_system_executable(&manifest)?;
-            let tool_version =
-                linked_tool_version(&manifest, &resolved.provider, &executable).await;
-            (executable, None, version_args.clone(), tool_version)
-        }
-        Runtime::Script { .. } => {
-            return Err("NPM rollback does not support script runtimes".to_string())
-        }
-    };
-    entry.runtime_ownership = match manifest.runtime {
-        Runtime::Bundled { .. } => ExtensionRuntimeOwnership::Bundled,
-        Runtime::System { .. } => ExtensionRuntimeOwnership::System,
-        Runtime::Script { .. } => ExtensionRuntimeOwnership::System,
-    };
-    entry.executable_path = executable.to_string_lossy().into_owned();
-    entry.runtime_root = runtime_root
-        .as_ref()
-        .map(|path| path.to_string_lossy().into_owned());
-    let probe_executable = executable.clone();
-    let response = state
-        .provider
-        .describe(
-            &ProviderInvocation {
-                extension_id: entry.id.clone(),
-                executable,
-                executable_prefix: Vec::new(),
-                runtime_root,
-                package_version: previous,
-                tool_version_hint: tool_version.clone(),
-                version_args,
-                config: resolved.provider,
-                permissions: manifest.permissions,
-            },
-            true,
-        )
-        .await?;
-    entry.tool_version = tool_version.or(Some(response.description.provider.version));
-    // Health gate before switching the pointer (plan 7.2): run the required
-    // probes against the previous version; refuse the rollback if unhealthy so
-    // the current version is never replaced by a broken one.
-    if !manifest.lifecycle.probes.is_empty() {
-        let probe_args: Vec<Vec<String>> = manifest
-            .lifecycle
-            .probes
-            .iter()
-            .map(|p| p.args.clone())
-            .collect();
-        let required: Vec<bool> = manifest
-            .lifecycle
-            .probes
-            .iter()
-            .map(|p| p.required)
-            .collect();
-        match crate::extensions::probe_runner::run_probes(
-            state,
-            &entry.id,
-            &probe_executable,
-            &probe_args,
-            &required,
-        )
-        .await
-        {
-            Ok(ref report) => {
-                let _ = crate::extensions::health::write_health_report(
-                    &state.paths.data.join(&entry.id),
-                    report,
-                );
-                if report.status == crate::extensions::health::HealthStatus::Unhealthy {
-                    return Err(format!(
-                        "Rollback aborted: {} failed required probes. {}",
-                        entry.id,
-                        if !report.failures.is_empty() {
-                            format!(
-                                "Failures: {}",
-                                report
-                                    .failures
-                                    .iter()
-                                    .map(|f| format!("{} (exit {:?})", f.probe, f.exit_code))
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            )
-                        } else {
-                            String::new()
-                        }
-                    ));
-                }
-            }
-            Err(error) => {
-                eprintln!("Rollback probe run failed for {}: {}", entry.id, error);
-            }
-        }
-    }
-    swap_rollback_metadata(entry);
-    entry.updated_at = unix_now();
-    let result = entry.clone();
-    commit_lock(state, &original, &result)?;
-    Ok(result)
-}
-
-pub async fn search(
-    state: &ExtensionState,
-    query: &str,
-    limit: usize,
-) -> Result<Vec<ExtensionSearchResult>, String> {
-    let official_index = official_index::fetch(state).await.ok();
-    let url = format!("{REGISTRY_URL}-/v1/search");
-    let response = state
-        .client
-        .get(url)
-        .query(&[
-            ("text", format!("keywords:floter-extension {query}")),
-            ("size", limit.clamp(1, 50).to_string()),
-        ])
-        .send()
-        .await
-        .map_err(|error| format!("NPM search failed: {error}"))?
-        .error_for_status()
-        .map_err(|error| format!("NPM search failed: {error}"))?;
-    ensure_https_response(&response, "NPM search")?;
-    let bytes =
-        read_response_limited(response, MAX_SEARCH_RESPONSE_BYTES, "NPM search response").await?;
-    let response: RegistrySearchResponse = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Invalid NPM search response: {error}"))?;
-    Ok(response
-        .objects
-        .into_iter()
-        .map(|object| {
-            let publisher = object
-                .package
-                .publisher
-                .and_then(|publisher| publisher.username);
-            let verified = official_index.as_ref().is_some_and(|index| {
-                index.search_verified(&object.package.name, publisher.as_deref())
-            });
-            ExtensionSearchResult {
-                downloads: object.downloads.weekly,
-                deprecation: deprecation_notice(
-                    object.package.floter.as_ref(),
-                    object.package.deprecated.as_deref(),
-                ),
-                package: object.package.name,
-                version: object.package.version,
-                description: object.package.description,
-                publisher,
-                homepage: object
-                    .package
-                    .links
-                    .get("homepage")
-                    .or_else(|| object.package.links.get("repository"))
-                    .cloned(),
-                verified,
-            }
-        })
-        .collect())
-}
-
-async fn install_managed(
-    state: &ExtensionState,
-    package: &str,
-    selector: Option<&str>,
-    release_channel: Option<&str>,
-    expected_id: Option<&str>,
-    approved_permissions: Option<&[Permission]>,
-    locked_integrities: LockedIntegrities<'_>,
-) -> Result<ExtensionLockEntry, String> {
-    validate_package_name(package)?;
-    let official_index = official_index::fetch(state).await.ok();
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let expected_entry = expected_id.and_then(|id| lock.extensions.get(id)).cloned();
-    if let Some(entry) = expected_entry.as_ref() {
-        if entry.distribution_source != ExtensionDistributionSource::Npm
-            || entry.package_name.as_deref() != Some(package)
-        {
-            return Err("Update package does not match the installed extension".to_string());
-        }
-    }
-    let base_version = resolve_registry_version(state, package, selector).await?;
-    if let Some(expected) = locked_integrities.package {
-        if base_version.dist.integrity.as_deref() != Some(expected) {
-            return Err(format!(
-                "Registry integrity for {package}@{} no longer matches the lock file",
-                base_version.version
-            ));
-        }
-    }
-    let base_bytes = download_tarball(state, &base_version.dist).await?;
-
-    let staging_parent = state.paths.extensions.join(".staging");
-    std::fs::create_dir_all(&staging_parent)
-        .map_err(|error| format!("Cannot create installation staging directory: {error}"))?;
-    let staging = tempfile::Builder::new()
-        .prefix("install-")
-        .tempdir_in(&staging_parent)
-        .map_err(|error| format!("Cannot create installation transaction: {error}"))?;
-    let version_root = staging.path().join("version");
-    std::fs::create_dir_all(&version_root)
-        .map_err(|error| format!("Cannot create staged version directory: {error}"))?;
-    safe_unpack(&base_bytes, &version_root)?;
-    let (package_json, manifest_path) = load_package_entry(&version_root)?;
-    validate_package_entry(&package_json, &base_version, true)?;
-    let (manifest, manifest_digest) = ExtensionManifest::load_with_digest(&manifest_path)?;
-    if manifest.distribution != crate::extensions::manifest::Distribution::Npm {
-        return Err("NPM packages must declare distribution.type = npm".to_string());
-    }
-    let old = lock.extensions.get(&manifest.id).cloned();
-    // Journal the transaction before any further download or state change, so
-    // an interrupted install can be distinguished from a never-started one.
-    let mut journal = begin(state, &manifest.id, old.as_ref())?;
-    progress(state, &mut journal, TransactionState::Downloading)?;
-    let official_verified = if let Some(signatures) = manifest.signatures.as_ref() {
-        let index_authorized = official_index.as_ref().is_some_and(|index| {
-            index.authorizes(
-                &manifest.id,
-                package,
-                &manifest.publisher.id,
-                Some(signatures),
-            )
-        });
-        let signature = download_signature(state, signatures).await?;
-        verify_official_tarball(index_authorized, &base_bytes, &signature, signatures)?
-    } else {
-        false
-    };
-    if expected_id.is_some_and(|expected| expected != manifest.id) {
-        return Err(format!(
-            "Package changed extension id from {} to {}",
-            expected_id.unwrap_or_default(),
-            manifest.id
-        ));
-    }
-    if expected_id.is_none() && lock.extensions.contains_key(&manifest.id) {
-        return Err(format!(
-            "Extension {} is already installed; use update instead",
-            manifest.id
-        ));
-    }
-    let permission_approval_required = if locked_integrities.package.is_some() {
-        false
-    } else if let Some(entry) = expected_entry.as_ref() {
-        let installed_manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
-        if installed_manifest.id != entry.id
-            || installed_manifest.publisher.id != entry.publisher_id
-        {
-            return Err(format!(
-                "Installed manifest identity does not match lock entry {}",
-                entry.id
-            ));
-        }
-        has_added_permissions(&installed_manifest.permissions, &manifest.permissions)
-    } else {
-        true
-    };
-    if permission_approval_required {
-        validate_permission_approval(&manifest.permissions, approved_permissions)?;
-    }
-    if expected_entry
-        .as_ref()
-        .is_some_and(|entry| entry.publisher_id != manifest.publisher.id)
-    {
-        return Err(format!("Publisher changed for extension {}", manifest.id));
-    }
-    manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
-    let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
-    resolved.validate_minimum_os_version()?;
-    let (executable, runtime_root, version_args, tool_version, asset_selection, runtime_integrity) =
-        match &manifest.runtime {
-            Runtime::Bundled { .. } => {
-                let platform_package = resolved
-                    .platform_package
-                    .as_deref()
-                    .ok_or("Bundled runtime has no platform package")?;
-                let platform_version =
-                    resolve_registry_version(state, platform_package, Some(&base_version.version))
-                        .await?;
-                if platform_version.version != base_version.version {
-                    return Err("Base and platform package versions must match".to_string());
-                }
-                if let Some(expected) = locked_integrities.runtime {
-                    if platform_version.dist.integrity.as_deref() != Some(expected) {
-                        return Err(format!(
-                            "Registry integrity for {platform_package}@{} no longer matches the lock file",
-                            platform_version.version
-                        ));
-                    }
-                }
-                let runtime_bytes = download_tarball(state, &platform_version.dist).await?;
-                let runtime_root = version_root.join("runtime");
-                std::fs::create_dir_all(&runtime_root)
-                    .map_err(|error| format!("Cannot create runtime directory: {error}"))?;
-                safe_unpack(&runtime_bytes, &runtime_root)?;
-                let runtime_package: PackageJson = serde_json::from_slice(
-                    &std::fs::read(runtime_root.join("package.json")).map_err(|error| {
-                        format!("Platform package has no package.json: {error}")
-                    })?,
-                )
-                .map_err(|error| format!("Invalid platform package.json: {error}"))?;
-                validate_package_entry(&runtime_package, &platform_version, false)?;
-                let executable = managed_executable(&manifest, &version_root)?;
-                make_executable(&executable)?;
-                let verified_binaries = crate::extensions::artifacts::verify_binaries(
-                    &runtime_root,
-                    &manifest.artifacts,
-                    &manifest.permissions,
-                )
-                .await?;
-                crate::extensions::artifacts::prepare_shim_metadata(
-                    &version_root,
-                    &verified_binaries,
-                )?;
-                let candidate = crate::extensions::asset_matcher::AssetCandidate::exact_archive(
-                    platform_package,
-                    &platform_version.dist.tarball,
-                    &resolved.target,
-                );
-                let selection =
-                    crate::extensions::asset_matcher::AssetMatcher::new(&resolved.target)
-                        .select(&[candidate])?;
-                (
-                    executable,
-                    Some(runtime_root),
-                    Vec::new(),
-                    None,
-                    Some(selection),
-                    platform_version.dist.integrity,
-                )
-            }
-            Runtime::System { version_args, .. } => {
-                if locked_integrities.runtime.is_some() {
-                    return Err("Locked bundled runtime changed to a system runtime".to_string());
-                }
-                let executable = find_system_executable(&manifest)?;
-                let tool_version =
-                    linked_tool_version(&manifest, &resolved.provider, &executable).await;
-                (
-                    executable,
-                    None,
-                    version_args.clone(),
-                    tool_version,
-                    None,
-                    None,
-                )
-            }
-            Runtime::Script { .. } => {
-                return Err("NPM packages cannot use local script runtimes".to_string())
-            }
-        };
-    progress(state, &mut journal, TransactionState::Downloaded)?;
-    let invocation = ProviderInvocation {
-        extension_id: manifest.id.clone(),
-        executable: executable.clone(),
-        runtime_root: runtime_root.clone(),
-        package_version: base_version.version.clone(),
-        tool_version_hint: tool_version.clone(),
-        version_args,
-        config: resolved.provider.clone(),
-        permissions: manifest.permissions.clone(),
-        executable_prefix: Vec::new(),
-    };
-    let description = state.provider.describe(&invocation, true).await?;
-
-    // Run post-install capability probes if declared in lifecycle
-    if !manifest.lifecycle.probes.is_empty() {
-        let tool_data_dir = state.paths.data.join(&manifest.id);
-        let probe_args: Vec<Vec<String>> = manifest
-            .lifecycle
-            .probes
-            .iter()
-            .map(|p| p.args.clone())
-            .collect();
-        let required: Vec<bool> = manifest
-            .lifecycle
-            .probes
-            .iter()
-            .map(|p| p.required)
-            .collect();
-        match crate::extensions::probe_runner::run_probes(
-            state,
-            &manifest.id,
-            &executable,
-            &probe_args,
-            &required,
-        )
-        .await
-        {
-            Ok(ref report) => {
-                let _ = crate::extensions::health::write_health_report(&tool_data_dir, report);
-                // Auto-rollback: required probes failed on new version
-                if report.status == crate::extensions::health::HealthStatus::Unhealthy {
-                    return Err(format!(
-                        "Installation aborted: {} failed required probes. {}",
-                        manifest.id,
-                        if !report.failures.is_empty() {
-                            format!(
-                                "Failures: {}",
-                                report
-                                    .failures
-                                    .iter()
-                                    .map(|f| format!("{} (exit {:?})", f.probe, f.exit_code))
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            )
-                        } else {
-                            String::new()
-                        }
-                    ));
-                }
-            }
-            Err(e) => {
-                eprintln!("Probe run failed for {}: {}", manifest.id, e);
-            }
-        }
-    }
-    progress(state, &mut journal, TransactionState::Verified)?;
-    if old
-        .as_ref()
-        .is_some_and(|entry| entry.distribution_source != ExtensionDistributionSource::Npm)
-    {
-        return Err(format!(
-            "Integration {} is already connected from a non-NPM source",
-            manifest.id
-        ));
-    }
-    let extension_root = state.paths.extensions.join(&manifest.id);
-    let versions_root = extension_root.join("versions");
-    std::fs::create_dir_all(&versions_root)
-        .map_err(|error| format!("Cannot create extension versions directory: {error}"))?;
-    let target = versions_root.join(&base_version.version);
-
-    let final_manifest = target.join(
-        manifest_path
-            .strip_prefix(&version_root)
-            .map_err(|_| "Manifest escaped staged version root")?,
-    );
-    let (runtime_ownership, final_executable, final_runtime) = match &manifest.runtime {
-        Runtime::Bundled { executable, .. } => {
-            let final_runtime = target.join("runtime");
-            (
-                ExtensionRuntimeOwnership::Bundled,
-                final_runtime.join(validate_relative_path(executable, "executable")?),
-                Some(final_runtime),
-            )
-        }
-        Runtime::System { .. } => (ExtensionRuntimeOwnership::System, executable, None),
-        Runtime::Script { .. } => {
-            return Err("NPM packages cannot use local script runtimes".to_string())
-        }
-    };
-    let now = unix_now();
-    let content_integrity = installed_tree_integrity(&version_root)?;
-    let enabled = old.as_ref().is_none_or(|entry| entry.enabled);
-    let replacing_same_version = old
-        .as_ref()
-        .is_some_and(|entry| entry.current_version == base_version.version);
-    let channel = match release_channel {
-        Some(channel) => normalize_release_channel(channel)?,
-        None => selector
-            .filter(|selector| Version::parse(selector).is_err())
-            .map(normalize_release_channel)
-            .transpose()?
-            .unwrap_or("stable"),
-    };
-    let entry = ExtensionLockEntry {
-        id: manifest.id.clone(),
-        name: manifest.name.clone(),
-        publisher_id: manifest.publisher.id.clone(),
-        publisher_name: manifest.publisher.name.clone(),
-        distribution_source: ExtensionDistributionSource::Npm,
-        runtime_ownership,
-        provider_kind: ExtensionProviderKind::Executable,
-        state: if enabled {
-            ExtensionStateKind::Enabled
-        } else {
-            ExtensionStateKind::Disabled
-        },
-        enabled,
-        package_name: Some(package.to_string()),
-        package_version: base_version.version.clone(),
-        tool_version: tool_version.or(Some(description.description.provider.version)),
-        integrity: base_version.dist.integrity.clone(),
-        runtime_integrity,
-        content_integrity: Some(content_integrity),
-        previous_integrity: old.as_ref().and_then(|entry| {
-            if replacing_same_version {
-                entry.previous_integrity.clone()
-            } else {
-                entry.integrity.clone()
-            }
-        }),
-        previous_runtime_integrity: old.as_ref().and_then(|entry| {
-            if replacing_same_version {
-                entry.previous_runtime_integrity.clone()
-            } else {
-                entry.runtime_integrity.clone()
-            }
-        }),
-        previous_content_integrity: old.as_ref().and_then(|entry| {
-            if replacing_same_version {
-                entry.previous_content_integrity.clone()
-            } else {
-                entry.content_integrity.clone()
-            }
-        }),
-        asset_selection,
-        signature_verified: manifest.signatures.is_some(),
-        previous_signature_verified: old.as_ref().and_then(|entry| {
-            replacing_same_version
-                .then_some(entry.previous_signature_verified)
-                .flatten()
-                .or((!replacing_same_version).then_some(entry.signature_verified))
-        }),
-        official_verified,
-        previous_official_verified: old.as_ref().and_then(|entry| {
-            replacing_same_version
-                .then_some(entry.previous_official_verified)
-                .flatten()
-                .or((!replacing_same_version).then_some(entry.official_verified))
-        }),
-        current_version: base_version.version.clone(),
-        previous_version: old.as_ref().and_then(|entry| {
-            if replacing_same_version {
-                entry.previous_version.clone()
-            } else {
-                Some(entry.current_version.clone())
-            }
-        }),
-        manifest_path: final_manifest.to_string_lossy().into_owned(),
-        executable_path: final_executable.to_string_lossy().into_owned(),
-        runtime_root: final_runtime.map(|path| path.to_string_lossy().into_owned()),
-        installed_at: old.as_ref().map_or(now, |entry| entry.installed_at),
-        updated_at: now,
-        pinned: old.as_ref().is_some_and(|entry| entry.pinned),
-        channel: channel.to_string(),
-        // Approval audit: a fresh install or a re-approval (new permission
-        // set / new manifest bytes) records the event; a patch-only update
-        // that did not require re-approval keeps the previous audit record.
-        approved_permissions: if permission_approval_required {
-            let mut approved = approved_permissions.unwrap_or_default().to_vec();
-            approved.sort_unstable();
-            approved
-        } else {
-            old.as_ref()
-                .map(|entry| entry.approved_permissions.clone())
-                .unwrap_or_default()
-        },
-        approved_at: if permission_approval_required {
-            now
-        } else {
-            old.as_ref().map_or(now, |entry| entry.approved_at)
-        },
-        approved_manifest_digest: if permission_approval_required {
-            Some(manifest_digest)
-        } else {
-            old.as_ref()
-                .and_then(|entry| entry.approved_manifest_digest.clone())
-                .or_else(|| Some(manifest_digest))
-        },
-        last_error_code: None,
-        last_error_detail: None,
-        last_error_at: None,
-        // A successful install/repair/update clears any broken state.
-        broken_reason: None,
-        enabled_before_broken: None,
-    };
-    progress(state, &mut journal, TransactionState::Staged)?;
-    commit_version(
-        state,
-        old.as_ref(),
-        &entry,
-        &version_root,
-        &target,
-        Some(journal),
-    )?;
-    Ok(entry)
-}
-
-fn has_added_permissions(installed: &[Permission], requested: &[Permission]) -> bool {
-    requested
-        .iter()
-        .any(|permission| !installed.contains(permission))
 }
 
 /// Map a verification failure message to a stable, structured error code for
@@ -2453,484 +1333,6 @@ pub(crate) async fn install_linked(
     Ok(entry)
 }
 
-async fn resolve_registry_version(
-    state: &ExtensionState,
-    package: &str,
-    selector: Option<&str>,
-) -> Result<RegistryVersion, String> {
-    let mut url = reqwest::Url::parse(REGISTRY_URL)
-        .map_err(|error| format!("Invalid NPM registry URL: {error}"))?;
-    url.path_segments_mut()
-        .map_err(|_| "NPM registry URL cannot contain package paths")?
-        .push(package);
-    let response = state
-        .client
-        .get(url)
-        .send()
-        .await
-        .map_err(|error| format!("Cannot resolve NPM package {package}: {error}"))?
-        .error_for_status()
-        .map_err(|error| format!("Cannot resolve NPM package {package}: {error}"))?;
-    ensure_https_response(&response, "NPM registry metadata")?;
-    let bytes = read_response_limited(
-        response,
-        MAX_REGISTRY_METADATA_BYTES,
-        "NPM registry metadata",
-    )
-    .await?;
-    let metadata: RegistryMetadata = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Invalid NPM metadata for {package}: {error}"))?;
-    let selector = selector.unwrap_or("latest");
-    let exact = metadata
-        .versions
-        .get(selector)
-        .or_else(|| {
-            metadata
-                .dist_tags
-                .get(selector)
-                .and_then(|version| metadata.versions.get(version))
-        })
-        .cloned();
-    if let Some(version) = exact {
-        validate_registry_version(package, &version)?;
-        return Ok(version);
-    }
-    let requirement = VersionReq::parse(selector)
-        .map_err(|_| format!("Unknown NPM version or dist-tag: {selector}"))?;
-    let version = metadata
-        .versions
-        .into_iter()
-        .filter_map(|(version, metadata)| {
-            Version::parse(&version)
-                .ok()
-                .map(|version| (version, metadata))
-        })
-        .filter(|(version, _)| requirement.matches(version))
-        .max_by(|(left, _), (right, _)| left.cmp(right))
-        .map(|(_, metadata)| metadata)
-        .ok_or_else(|| format!("No version of {package} matches {selector}"))?;
-    validate_registry_version(package, &version)?;
-    Ok(version)
-}
-
-fn package_deprecation(package: &PackageJson, registry: &RegistryVersion) -> Option<String> {
-    deprecation_notice(
-        package.floter.as_ref().or(registry.floter.as_ref()),
-        package
-            .deprecated
-            .as_deref()
-            .or(registry.deprecated.as_deref()),
-    )
-}
-
-fn deprecation_notice(floter: Option<&PackageFloter>, npm_message: Option<&str>) -> Option<String> {
-    npm_message
-        .map(str::trim)
-        .filter(|message| !message.is_empty())
-        .map(str::to_string)
-        .or_else(|| {
-            floter
-                .is_some_and(|metadata| metadata.deprecated)
-                .then(String::new)
-        })
-}
-
-async fn download_tarball(state: &ExtensionState, dist: &RegistryDist) -> Result<Vec<u8>, String> {
-    let integrity = dist
-        .integrity
-        .as_deref()
-        .ok_or("NPM package does not provide dist.integrity")?;
-    let tarball_url = reqwest::Url::parse(&dist.tarball)
-        .map_err(|error| format!("Invalid NPM tarball URL: {error}"))?;
-    if tarball_url.scheme() != "https" {
-        return Err("NPM tarball URL must use HTTPS".to_string());
-    }
-    crate::extensions::download::download_with_resume(
-        &state.client,
-        &state.paths.cache,
-        tarball_url,
-        integrity,
-        MAX_TARBALL_BYTES,
-        "NPM tarball",
-        verify_integrity,
-    )
-    .await
-}
-
-fn verify_integrity(bytes: &[u8], integrity: &str) -> Result<(), String> {
-    let mut supported = false;
-    for token in integrity.split_whitespace() {
-        let Some((algorithm, encoded)) = token.split_once('-') else {
-            continue;
-        };
-        let expected = match base64::engine::general_purpose::STANDARD.decode(encoded) {
-            Ok(expected) => expected,
-            Err(_) => continue,
-        };
-        let actual = match algorithm {
-            "sha512" => Sha512::digest(bytes).to_vec(),
-            "sha384" => Sha384::digest(bytes).to_vec(),
-            "sha256" => Sha256::digest(bytes).to_vec(),
-            _ => continue,
-        };
-        supported = true;
-        if constant_time_equal(&actual, &expected) {
-            return Ok(());
-        }
-    }
-    if supported {
-        Err("NPM tarball integrity verification failed".to_string())
-    } else {
-        Err("NPM package has no supported SRI digest".to_string())
-    }
-}
-
-async fn download_signature(
-    state: &ExtensionState,
-    config: &SignatureConfig,
-) -> Result<Vec<u8>, String> {
-    let signature_url = reqwest::Url::parse(&config.url)
-        .map_err(|error| format!("Invalid extension signature URL: {error}"))?;
-    if signature_url.scheme() != "https" {
-        return Err("Extension signature URL must use HTTPS".to_string());
-    }
-    let response = state
-        .client
-        .get(signature_url)
-        .send()
-        .await
-        .map_err(|error| format!("Cannot download extension signature: {error}"))?
-        .error_for_status()
-        .map_err(|error| format!("Cannot download extension signature: {error}"))?;
-    ensure_https_response(&response, "extension signature")?;
-    let signature =
-        read_response_limited(response, MAX_SIGNATURE_BYTES, "Extension signature").await?;
-    Ok(signature)
-}
-
-fn verify_official_tarball(
-    index_authorized: bool,
-    tarball: &[u8],
-    signature_file: &[u8],
-    signature_config: &SignatureConfig,
-) -> Result<bool, String> {
-    verify_signature(tarball, signature_file, signature_config)?;
-    Ok(index_authorized)
-}
-
-fn ensure_https_response(response: &reqwest::Response, label: &str) -> Result<(), String> {
-    if response.url().scheme() == "https" {
-        Ok(())
-    } else {
-        Err(format!("{label} redirected to a non-HTTPS URL"))
-    }
-}
-
-async fn read_response_limited(
-    mut response: reqwest::Response,
-    limit: usize,
-    label: &str,
-) -> Result<Vec<u8>, String> {
-    if response
-        .content_length()
-        .is_some_and(|length| length > limit as u64)
-    {
-        return Err(format!("{label} exceeds {limit} bytes"));
-    }
-    let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|error| format!("Cannot read {label}: {error}"))?
-    {
-        let new_length = bytes
-            .len()
-            .checked_add(chunk.len())
-            .ok_or_else(|| format!("{label} size overflow"))?;
-        if new_length > limit {
-            return Err(format!("{label} exceeds {limit} bytes"));
-        }
-        bytes.extend_from_slice(&chunk);
-    }
-    Ok(bytes)
-}
-
-fn validate_registry_version(package: &str, version: &RegistryVersion) -> Result<(), String> {
-    if version.name != package {
-        return Err(format!(
-            "NPM registry returned package {} while resolving {package}",
-            version.name
-        ));
-    }
-    Version::parse(&version.version)
-        .map_err(|error| format!("Invalid NPM version {}: {error}", version.version))?;
-    Ok(())
-}
-
-fn verify_signature(
-    tarball: &[u8],
-    signature_file: &[u8],
-    config: &SignatureConfig,
-) -> Result<(), String> {
-    match config.algorithm {
-        SignatureAlgorithm::Ed25519 => {}
-    }
-
-    let encoded_key = config
-        .public_key
-        .strip_prefix("ed25519:")
-        .ok_or("Ed25519 public key must use the ed25519: prefix")?;
-    let public_key: [u8; 32] = decode_base64(encoded_key, "Ed25519 public key")?
-        .try_into()
-        .map_err(|_| "Ed25519 public key must contain exactly 32 bytes".to_string())?;
-    let verifying_key = VerifyingKey::from_bytes(&public_key)
-        .map_err(|error| format!("Invalid Ed25519 public key: {error}"))?;
-
-    let signature_text = std::str::from_utf8(signature_file)
-        .map_err(|_| "Extension signature file must be UTF-8 Base64 text")?
-        .trim();
-    let encoded_signature = signature_text
-        .strip_prefix("ed25519:")
-        .unwrap_or(signature_text);
-    let signature = Signature::from_slice(&decode_base64(encoded_signature, "Ed25519 signature")?)
-        .map_err(|error| format!("Invalid Ed25519 signature: {error}"))?;
-
-    verifying_key
-        .verify_strict(tarball, &signature)
-        .map_err(|_| "Extension signature verification failed".to_string())
-}
-
-fn decode_base64(value: &str, label: &str) -> Result<Vec<u8>, String> {
-    base64::engine::general_purpose::STANDARD
-        .decode(value)
-        .or_else(|_| base64::engine::general_purpose::STANDARD_NO_PAD.decode(value))
-        .map_err(|error| format!("Invalid Base64 {label}: {error}"))
-}
-
-fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
-    let mut difference = left.len() ^ right.len();
-    for index in 0..left.len().max(right.len()) {
-        difference |= usize::from(
-            left.get(index).copied().unwrap_or(0) ^ right.get(index).copied().unwrap_or(0),
-        );
-    }
-    difference == 0
-}
-
-fn safe_unpack(bytes: &[u8], destination: &Path) -> Result<(), String> {
-    let decoder = GzDecoder::new(Cursor::new(bytes));
-    let mut archive = tar::Archive::new(decoder);
-    let mut extracted_bytes = 0_u64;
-    for (index, entry) in archive
-        .entries()
-        .map_err(|error| format!("Cannot read NPM archive: {error}"))?
-        .enumerate()
-    {
-        if index >= MAX_ARCHIVE_ENTRIES {
-            return Err(format!(
-                "NPM archive contains more than {MAX_ARCHIVE_ENTRIES} entries"
-            ));
-        }
-        let mut entry = entry.map_err(|error| format!("Invalid NPM archive entry: {error}"))?;
-        let path = entry
-            .path()
-            .map_err(|error| format!("Invalid NPM archive path: {error}"))?;
-        let relative = safe_archive_path(&path)?;
-        if relative.as_os_str().is_empty() {
-            continue;
-        }
-        let target = destination.join(&relative);
-        let kind = entry.header().entry_type();
-        if kind.is_symlink() || kind.is_hard_link() {
-            return Err(format!(
-                "NPM archive links are not allowed: {}",
-                path.display()
-            ));
-        }
-        if kind.is_dir() {
-            std::fs::create_dir_all(&target)
-                .map_err(|error| format!("Cannot create archive directory: {error}"))?;
-            continue;
-        }
-        if !kind.is_file() {
-            return Err(format!("Unsupported NPM archive entry: {}", path.display()));
-        }
-        let size = entry.size();
-        extracted_bytes = extracted_bytes
-            .checked_add(size)
-            .ok_or("NPM archive extracted size overflow")?;
-        if extracted_bytes > (MAX_TARBALL_BYTES as u64 * 4) {
-            return Err("NPM archive expands beyond the installation size limit".to_string());
-        }
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("Cannot create archive directory: {error}"))?;
-        }
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&target)
-            .map_err(|error| format!("Cannot create archive file {}: {error}", target.display()))?;
-        std::io::copy(&mut entry, &mut file)
-            .map_err(|error| format!("Cannot extract {}: {error}", target.display()))?;
-        file.flush()
-            .map_err(|error| format!("Cannot flush {}: {error}", target.display()))?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mode = entry.header().mode().unwrap_or(0o644) & 0o777;
-            std::fs::set_permissions(&target, std::fs::Permissions::from_mode(mode))
-                .map_err(|error| format!("Cannot set archive file mode: {error}"))?;
-        }
-    }
-    Ok(())
-}
-
-fn installed_tree_integrity(root: &Path) -> Result<String, String> {
-    let mut entries = Vec::new();
-    collect_installed_tree(root, root, &mut entries)?;
-    entries.sort();
-
-    let mut digest = Sha512::new();
-    let mut total_bytes = 0_u64;
-    let mut buffer = [0_u8; 64 * 1024];
-    for relative in entries {
-        let path = root.join(&relative);
-        let metadata = std::fs::symlink_metadata(&path).map_err(|error| {
-            format!("Cannot inspect installed file {}: {error}", path.display())
-        })?;
-        if metadata.file_type().is_symlink() {
-            return Err(format!(
-                "Installed package contains an unexpected symbolic link: {}",
-                path.display()
-            ));
-        }
-        digest.update(if metadata.is_dir() { b"d" } else { b"f" });
-        update_path_digest(&mut digest, &relative);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            digest.update((metadata.permissions().mode() & 0o777).to_be_bytes());
-        }
-        if metadata.is_dir() {
-            continue;
-        }
-        if !metadata.is_file() {
-            return Err(format!(
-                "Installed package contains an unsupported file type: {}",
-                path.display()
-            ));
-        }
-        total_bytes = total_bytes
-            .checked_add(metadata.len())
-            .ok_or("Installed package size overflow")?;
-        if total_bytes > MAX_TARBALL_BYTES as u64 * 4 {
-            return Err("Installed package exceeds the integrity size limit".to_string());
-        }
-        digest.update(metadata.len().to_be_bytes());
-        let mut file = std::fs::File::open(&path)
-            .map_err(|error| format!("Cannot read installed file {}: {error}", path.display()))?;
-        loop {
-            let count = file.read(&mut buffer).map_err(|error| {
-                format!("Cannot read installed file {}: {error}", path.display())
-            })?;
-            if count == 0 {
-                break;
-            }
-            digest.update(&buffer[..count]);
-        }
-    }
-    Ok(format!(
-        "sha512-{}",
-        base64::engine::general_purpose::STANDARD.encode(digest.finalize())
-    ))
-}
-
-fn collect_installed_tree(
-    root: &Path,
-    directory: &Path,
-    entries: &mut Vec<PathBuf>,
-) -> Result<(), String> {
-    for item in std::fs::read_dir(directory).map_err(|error| {
-        format!(
-            "Cannot read installed directory {}: {error}",
-            directory.display()
-        )
-    })? {
-        if entries.len() >= MAX_ARCHIVE_ENTRIES {
-            return Err(format!(
-                "Installed package contains more than {MAX_ARCHIVE_ENTRIES} entries"
-            ));
-        }
-        let path = item
-            .map_err(|error| {
-                format!(
-                    "Cannot read installed directory {}: {error}",
-                    directory.display()
-                )
-            })?
-            .path();
-        let relative = path
-            .strip_prefix(root)
-            .map_err(|_| "Installed package entry escaped its version root")?
-            .to_path_buf();
-        let metadata = std::fs::symlink_metadata(&path).map_err(|error| {
-            format!("Cannot inspect installed file {}: {error}", path.display())
-        })?;
-        entries.push(relative);
-        if metadata.is_dir() {
-            collect_installed_tree(root, &path, entries)?;
-        }
-    }
-    Ok(())
-}
-
-fn update_path_digest(digest: &mut Sha512, path: &Path) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-        let bytes = path.as_os_str().as_bytes();
-        digest.update((bytes.len() as u64).to_be_bytes());
-        digest.update(bytes);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::ffi::OsStrExt;
-        let units: Vec<u16> = path.as_os_str().encode_wide().collect();
-        digest.update((units.len() as u64).to_be_bytes());
-        for unit in units {
-            digest.update(unit.to_be_bytes());
-        }
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let value = path.to_string_lossy();
-        digest.update((value.len() as u64).to_be_bytes());
-        digest.update(value.as_bytes());
-    }
-}
-
-fn safe_archive_path(path: &Path) -> Result<PathBuf, String> {
-    let mut components = path.components();
-    let Some(Component::Normal(root)) = components.next() else {
-        return Err(format!("Archive path is not relative: {}", path.display()));
-    };
-    if root != "package" {
-        return Err(format!(
-            "NPM archive entry is outside package/: {}",
-            path.display()
-        ));
-    }
-    let mut relative = PathBuf::new();
-    for component in components {
-        match component {
-            Component::Normal(value) => relative.push(value),
-            _ => return Err(format!("Unsafe archive path: {}", path.display())),
-        }
-    }
-    Ok(relative)
-}
-
 fn load_package_entry(root: &Path) -> Result<(PackageJson, PathBuf), String> {
     let package_path = root.join("package.json");
     let package: PackageJson = serde_json::from_slice(
@@ -2948,47 +1350,6 @@ fn load_package_entry(root: &Path) -> Result<(PackageJson, PathBuf), String> {
     Ok((package, root.join(manifest_relative)))
 }
 
-fn validate_package_entry(
-    package: &PackageJson,
-    registry: &RegistryVersion,
-    require_extension_keyword: bool,
-) -> Result<(), String> {
-    if package.name != registry.name || package.version != registry.version {
-        return Err(format!(
-            "package.json identity {}@{} does not match registry {}@{}",
-            package.name, package.version, registry.name, registry.version
-        ));
-    }
-    if require_extension_keyword
-        && !package
-            .keywords
-            .iter()
-            .any(|keyword| keyword == "floter-extension")
-    {
-        return Err("package.json is missing the floter-extension keyword".to_string());
-    }
-    Ok(())
-}
-
-fn managed_executable(
-    manifest: &ExtensionManifest,
-    version_root: &Path,
-) -> Result<PathBuf, String> {
-    let Runtime::Bundled { executable, .. } = &manifest.runtime else {
-        return Err("Bundled installation requires a bundled runtime".to_string());
-    };
-    let executable = version_root
-        .join("runtime")
-        .join(validate_relative_path(executable, "executable")?);
-    if !executable.is_file() {
-        return Err(format!(
-            "Managed executable is missing: {}",
-            executable.display()
-        ));
-    }
-    Ok(executable)
-}
-
 pub(crate) fn make_executable(path: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
@@ -3002,10 +1363,6 @@ pub(crate) fn make_executable(path: &Path) -> Result<(), String> {
             .map_err(|error| format!("Cannot set executable permission: {error}"))?;
     }
     Ok(())
-}
-
-fn find_installed_manifest(version_root: &Path) -> Result<PathBuf, String> {
-    load_package_entry(version_root).map(|(_, path)| path)
 }
 
 pub(crate) fn find_system_executable(manifest: &ExtensionManifest) -> Result<PathBuf, String> {
@@ -3123,36 +1480,6 @@ pub(crate) async fn linked_tool_version(
         .filter(|version: &String| !version.is_empty())
 }
 
-fn validate_package_name(package: &str) -> Result<(), String> {
-    fn valid_segment(segment: &str) -> bool {
-        segment
-            .bytes()
-            .next()
-            .is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
-            && segment.bytes().all(|byte| {
-                byte.is_ascii_lowercase()
-                    || byte.is_ascii_digit()
-                    || matches!(byte, b'.' | b'_' | b'-')
-            })
-            && segment != "."
-            && segment != ".."
-    }
-
-    let valid = package.len() <= 214
-        && if let Some(scoped) = package.strip_prefix('@') {
-            scoped
-                .split_once('/')
-                .is_some_and(|(scope, name)| valid_segment(scope) && valid_segment(name))
-        } else {
-            !package.contains('/') && valid_segment(package)
-        };
-    if valid {
-        Ok(())
-    } else {
-        Err(format!("Invalid NPM package name: {package}"))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3160,7 +1487,6 @@ mod tests {
     use crate::extensions::sync;
     use crate::extensions::ExtensionPaths;
     use chrono::Utc;
-    use ed25519_dalek::{Signer, SigningKey};
     use std::collections::BTreeMap;
 
     fn test_state(root: &Path) -> ExtensionState {
@@ -3179,8 +1505,8 @@ mod tests {
             name: "Journal test".into(),
             publisher_id: "example".into(),
             publisher_name: "Example".into(),
-            distribution_source: ExtensionDistributionSource::Npm,
-            runtime_ownership: ExtensionRuntimeOwnership::Bundled,
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
             provider_kind: ExtensionProviderKind::Executable,
             state: ExtensionStateKind::Enabled,
             enabled: true,
@@ -3358,156 +1684,162 @@ mod tests {
     }
 
     async fn catalog_contains(state: &ExtensionState, command: &str) -> bool {
-     catalog::search(state, &catalog_request(command), &[])
-         .await
-         .unwrap()
-         .iter()
-         .any(|entry| entry.command == command)
- }
+        catalog::search(state, &catalog_request(command), &[])
+            .await
+            .unwrap()
+            .iter()
+            .any(|entry| entry.command == command)
+    }
 
- fn discovered_candidate(path: &Path, name: &str) -> crate::extensions::inventory::ToolCandidate {
-     crate::extensions::inventory::ToolCandidate {
-         id: path.to_string_lossy().into_owned(),
-         name: name.to_string(),
-         locator: crate::extensions::inventory::ToolLocator::Executable {
-             path: path.to_string_lossy().into_owned(),
-         },
-         version: None,
-         sources: vec![crate::extensions::inventory::DiscoverySource::Path],
-         quality: crate::extensions::inventory::DiscoveryQuality::AutoDetected,
-         available: true,
-         fingerprint: None,
-     }
- }
+    fn discovered_candidate(
+        path: &Path,
+        name: &str,
+    ) -> crate::extensions::inventory::ToolCandidate {
+        crate::extensions::inventory::ToolCandidate {
+            id: path.to_string_lossy().into_owned(),
+            name: name.to_string(),
+            locator: crate::extensions::inventory::ToolLocator::Executable {
+                path: path.to_string_lossy().into_owned(),
+            },
+            version: None,
+            sources: vec![crate::extensions::inventory::DiscoverySource::Path],
+            quality: crate::extensions::inventory::DiscoveryQuality::AutoDetected,
+            available: true,
+            fingerprint: None,
+        }
+    }
 
- #[cfg(unix)]
- #[tokio::test]
- async fn connect_tool_binds_a_discovered_executable_like_a_custom_integration() {
-     let directory = tempfile::tempdir().unwrap();
-     let state = test_state(directory.path());
-     let executable = directory.path().join("mytool");
-     std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-     #[cfg(unix)]
-     {
-         use std::os::unix::fs::PermissionsExt;
-         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-     }
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connect_tool_binds_a_discovered_executable_like_a_custom_integration() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = directory.path().join("mytool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
 
-     let entry = connect_tool(&state, discovered_candidate(&executable, "MyTool"))
-         .await
-         .unwrap();
-     assert_eq!(entry.id, "local.mytool");
-     assert_eq!(entry.distribution_source, ExtensionDistributionSource::Local);
-     assert_eq!(entry.publisher_id, "local-user");
-     assert!(is_generated_custom_integration(&entry));
-     assert_eq!(
-         entry.approved_permissions,
-         tool_binding_permissions()
-             .into_iter()
-             .collect::<std::collections::BTreeSet<_>>()
-             .into_iter()
-             .collect::<Vec<_>>()
-     );
-     // Same convergence contract as manual custom integrations: the command
-     // must appear in the catalog immediately.
-     assert!(catalog_contains(&state, "mytool").await);
- }
+        let entry = connect_tool(&state, discovered_candidate(&executable, "MyTool"))
+            .await
+            .unwrap();
+        assert_eq!(entry.id, "local.mytool");
+        assert_eq!(
+            entry.distribution_source,
+            ExtensionDistributionSource::Local
+        );
+        assert_eq!(entry.publisher_id, "local-user");
+        assert!(is_generated_custom_integration(&entry));
+        assert_eq!(
+            entry.approved_permissions,
+            tool_binding_permissions()
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+        // Same convergence contract as manual custom integrations: the command
+        // must appear in the catalog immediately.
+        assert!(catalog_contains(&state, "mytool").await);
+    }
 
- #[cfg(unix)]
- #[tokio::test]
- async fn connect_recommended_tool_yields_a_local_static_integration_with_catalog_visibility() {
-     let directory = tempfile::tempdir().unwrap();
-     let state = test_state(directory.path());
-     let executable = directory.path().join("v");
-     std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-     #[cfg(unix)]
-     {
-         use std::os::unix::fs::PermissionsExt;
-         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-     }
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connect_recommended_tool_yields_a_local_static_integration_with_catalog_visibility() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
 
-     let tools = crate::extensions::recommendations::load_recommended().unwrap();
-     let tool = &tools[0];
-     let entry = connect_recommended_tool(
-         &state,
-         tool,
-         Some(&executable.to_string_lossy()),
-         Some(&tool.manifest.permissions),
-     )
-     .await
-     .unwrap();
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let tool = &tools[0];
+        let entry = connect_recommended_tool(
+            &state,
+            tool,
+            Some(&executable.to_string_lossy()),
+            Some(&tool.manifest.permissions),
+        )
+        .await
+        .unwrap();
 
-     // Same lock shape as a PATH-discovered connection: local distribution,
-     // system runtime, and a static-descriptor provider derived entirely by
-     // the generic linked-install pipeline.
-     assert_eq!(entry.id, "io.github.vst93.v");
-     assert_eq!(entry.distribution_source, ExtensionDistributionSource::Local);
-     assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
-     assert_eq!(entry.provider_kind, ExtensionProviderKind::StaticDescriptor);
-     assert!(entry.enabled);
-     assert_eq!(entry.publisher_id, "vst93");
-     assert_eq!(
-         Path::new(&entry.manifest_path).parent(),
-         Some(
-             state
-                 .paths
-                 .data
-                 .join("io.github.vst93.v")
-                 .join("integration")
-                 .as_path()
-         )
-     );
-     assert_eq!(Path::new(&entry.executable_path), executable.as_path());
-     let mut approved = tool.manifest.permissions.clone();
-     approved.sort_unstable();
-     assert_eq!(entry.approved_permissions, approved);
+        // Same lock shape as a PATH-discovered connection: local distribution,
+        // system runtime, and a static-descriptor provider derived entirely by
+        // the generic linked-install pipeline.
+        assert_eq!(entry.id, "io.github.vst93.v");
+        assert_eq!(
+            entry.distribution_source,
+            ExtensionDistributionSource::Local
+        );
+        assert_eq!(entry.runtime_ownership, ExtensionRuntimeOwnership::System);
+        assert_eq!(entry.provider_kind, ExtensionProviderKind::StaticDescriptor);
+        assert!(entry.enabled);
+        assert_eq!(entry.publisher_id, "vst93");
+        assert_eq!(
+            Path::new(&entry.manifest_path).parent(),
+            Some(
+                state
+                    .paths
+                    .data
+                    .join("io.github.vst93.v")
+                    .join("integration")
+                    .as_path()
+            )
+        );
+        assert_eq!(Path::new(&entry.executable_path), executable.as_path());
+        let mut approved = tool.manifest.permissions.clone();
+        approved.sort_unstable();
+        assert_eq!(entry.approved_permissions, approved);
 
-     // The shipped descriptor is preserved and every command is immediately
-     // visible through the same catalog path as any local integration.
-     for command in ["jv", "diff", "codec", "genpwd", "tt"] {
-         assert!(catalog_contains(&state, command).await);
-     }
- }
+        // The shipped descriptor is preserved and every command is immediately
+        // visible through the same catalog path as any local integration.
+        for command in ["jv", "diff", "codec", "genpwd", "tt"] {
+            assert!(catalog_contains(&state, command).await);
+        }
+    }
 
- #[cfg(unix)]
- #[tokio::test]
- async fn connect_tool_allocates_a_new_id_when_the_base_name_is_taken() {
-     let directory = tempfile::tempdir().unwrap();
-     let state = test_state(directory.path());
-     let first = directory.path().join("dup");
-     let second = directory.path().join("nested");
-     std::fs::create_dir_all(&second).unwrap();
-     let first_bin = first;
-     let second_bin = second.join("dup");
-     for executable in [&first_bin, &second_bin] {
-         std::fs::write(executable, "#!/bin/sh\nexit 0\n").unwrap();
-         #[cfg(unix)]
-         {
-             use std::os::unix::fs::PermissionsExt;
-             std::fs::set_permissions(
-                 executable,
-                 std::fs::Permissions::from_mode(0o755),
-             )
-             .unwrap();
-         }
-     }
-     connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
-         .await
-         .unwrap();
-     let second_entry = connect_tool(&state, discovered_candidate(&second_bin, "dup2"))
-         .await
-         .unwrap();
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connect_tool_allocates_a_new_id_when_the_base_name_is_taken() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let first = directory.path().join("dup");
+        let second = directory.path().join("nested");
+        std::fs::create_dir_all(&second).unwrap();
+        let first_bin = first;
+        let second_bin = second.join("dup");
+        for executable in [&first_bin, &second_bin] {
+            std::fs::write(executable, "#!/bin/sh\nexit 0\n").unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(executable, std::fs::Permissions::from_mode(0o755))
+                    .unwrap();
+            }
+        }
+        connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
+            .await
+            .unwrap();
+        let second_entry = connect_tool(&state, discovered_candidate(&second_bin, "dup2"))
+            .await
+            .unwrap();
 
-     assert_ne!(second_entry.id, "local.dup2");
-     assert!(second_entry.id.starts_with("local.dup."));
- }
+        assert_ne!(second_entry.id, "local.dup2");
+        assert!(second_entry.id.starts_with("local.dup."));
+    }
 
- #[cfg(unix)]
- #[test]
- fn tool_binding_request_rejects_unusable_paths() {
-     let candidate = discovered_candidate(Path::new("/definitely/not/here"), "ghost");
-     assert!(tool_binding_request(&candidate).is_err());
- }
+    #[cfg(unix)]
+    #[test]
+    fn tool_binding_request_rejects_unusable_paths() {
+        let candidate = discovered_candidate(Path::new("/definitely/not/here"), "ghost");
+        assert!(tool_binding_request(&candidate).is_err());
+    }
 
     #[cfg(unix)]
     #[tokio::test]
@@ -3965,7 +2297,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn failed_lock_save_restores_staged_npm_directory() {
+    async fn failed_lock_save_restores_staged_directory() {
         use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
@@ -3980,15 +2312,15 @@ mod tests {
             name: "Rollback test".into(),
             publisher_id: "example".into(),
             publisher_name: "Example".into(),
-            distribution_source: ExtensionDistributionSource::Npm,
-            runtime_ownership: ExtensionRuntimeOwnership::Bundled,
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
             provider_kind: ExtensionProviderKind::Executable,
             state: ExtensionStateKind::Enabled,
             enabled: true,
-            package_name: Some("floter-rollback-test".into()),
+            package_name: None,
             package_version: "1.0.0".into(),
             tool_version: None,
-            integrity: Some("sha512-test".into()),
+            integrity: None,
             runtime_integrity: None,
             content_integrity: None,
             previous_integrity: None,
@@ -4063,233 +2395,6 @@ mod tests {
                 .starts_with(".removing-")));
     }
 
-    fn archive_with_file(path: &str, contents: &[u8]) -> Vec<u8> {
-        let encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-        let mut archive = tar::Builder::new(encoder);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(contents.len() as u64);
-        header.set_mode(0o755);
-        header.set_cksum();
-        archive
-            .append_data(&mut header, path, contents)
-            .expect("append archive file");
-        archive
-            .into_inner()
-            .expect("finish tar")
-            .finish()
-            .expect("finish gzip")
-    }
-
-    #[test]
-    fn verifies_sha512_integrity() {
-        let bytes = b"extension tarball";
-        let digest = base64::engine::general_purpose::STANDARD.encode(Sha512::digest(bytes));
-        assert!(verify_integrity(bytes, &format!("sha512-{digest}")).is_ok());
-        assert!(verify_integrity(b"changed", &format!("sha512-{digest}")).is_err());
-    }
-
-    #[test]
-    fn installed_tree_integrity_detects_file_and_tree_changes() {
-        let directory = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(directory.path().join("runtime/bin")).unwrap();
-        std::fs::write(directory.path().join("package.json"), b"package").unwrap();
-        std::fs::write(directory.path().join("runtime/bin/tool"), b"tool-v1").unwrap();
-
-        let original = installed_tree_integrity(directory.path()).unwrap();
-        assert_eq!(
-            installed_tree_integrity(directory.path()).unwrap(),
-            original
-        );
-
-        std::fs::write(directory.path().join("runtime/bin/tool"), b"tool-v2").unwrap();
-        assert_ne!(
-            installed_tree_integrity(directory.path()).unwrap(),
-            original
-        );
-
-        std::fs::write(directory.path().join("runtime/bin/tool"), b"tool-v1").unwrap();
-        std::fs::create_dir(directory.path().join("unexpected")).unwrap();
-        assert_ne!(
-            installed_tree_integrity(directory.path()).unwrap(),
-            original
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn installed_tree_integrity_rejects_symbolic_links() {
-        use std::os::unix::fs::symlink;
-
-        let directory = tempfile::tempdir().unwrap();
-        std::fs::write(directory.path().join("target"), b"target").unwrap();
-        symlink("target", directory.path().join("link")).unwrap();
-
-        let error = installed_tree_integrity(directory.path()).unwrap_err();
-        assert!(error.contains("symbolic link"));
-    }
-
-    #[test]
-    fn rollback_swaps_current_and_previous_integrity_metadata() {
-        let directory = tempfile::tempdir().unwrap();
-        let state = test_state(directory.path());
-        let mut entry = journal_entry(&state, "2.0.0");
-        entry.integrity = Some("base-v2".into());
-        entry.runtime_integrity = Some("runtime-v2".into());
-        entry.content_integrity = Some("content-v2".into());
-        entry.previous_integrity = Some("base-v1".into());
-        entry.previous_runtime_integrity = Some("runtime-v1".into());
-        entry.previous_content_integrity = Some("content-v1".into());
-
-        swap_rollback_metadata(&mut entry);
-
-        assert_eq!(entry.integrity.as_deref(), Some("base-v1"));
-        assert_eq!(entry.runtime_integrity.as_deref(), Some("runtime-v1"));
-        assert_eq!(entry.content_integrity.as_deref(), Some("content-v1"));
-        assert_eq!(entry.previous_integrity.as_deref(), Some("base-v2"));
-        assert_eq!(
-            entry.previous_runtime_integrity.as_deref(),
-            Some("runtime-v2")
-        );
-        assert_eq!(
-            entry.previous_content_integrity.as_deref(),
-            Some("content-v2")
-        );
-    }
-
-    fn signature_config(signing_key: &SigningKey) -> SignatureConfig {
-        SignatureConfig {
-            url: "https://example.com/floter-tool-1.0.0.sig".into(),
-            public_key: format!(
-                "ed25519:{}",
-                base64::engine::general_purpose::STANDARD
-                    .encode(signing_key.verifying_key().as_bytes())
-            ),
-            algorithm: SignatureAlgorithm::Ed25519,
-        }
-    }
-
-    #[test]
-    fn verifies_ed25519_tarball_signature() {
-        let signing_key = SigningKey::from_bytes(&[7; 32]);
-        let tarball = b"extension tarball";
-        let signature =
-            base64::engine::general_purpose::STANDARD.encode(signing_key.sign(tarball).to_bytes());
-
-        assert!(verify_signature(
-            tarball,
-            signature.as_bytes(),
-            &signature_config(&signing_key)
-        )
-        .is_ok());
-    }
-
-    #[test]
-    fn verifies_a_normal_official_tarball_install() {
-        let publisher = SigningKey::from_bytes(&[9; 32]);
-        let publisher_key = format!(
-            "ed25519:{}",
-            base64::engine::general_purpose::STANDARD.encode(publisher.verifying_key().to_bytes())
-        );
-        let index = official_index::OfficialIndex {
-            schema_version: 1,
-            index_version: 1,
-            expires_at: "2030-01-01T00:00:00Z".into(),
-            entries: vec![official_index::OfficialIndexEntry {
-                extension_id: "io.example.official".into(),
-                npm_package: "floter-official".into(),
-                publisher: "example".into(),
-                signing_keys: vec![publisher_key],
-            }],
-        };
-        let tarball = b"verified tarball";
-        let signature =
-            base64::engine::general_purpose::STANDARD.encode(publisher.sign(tarball).to_bytes());
-        assert!(verify_official_tarball(
-            index.authorizes(
-                "io.example.official",
-                "floter-official",
-                "example",
-                Some(&signature_config(&publisher)),
-            ),
-            tarball,
-            signature.as_bytes(),
-            &signature_config(&publisher),
-        )
-        .unwrap());
-    }
-
-    #[test]
-    fn rejects_ed25519_signature_for_changed_tarball() {
-        let signing_key = SigningKey::from_bytes(&[9; 32]);
-        let signature = format!(
-            "ed25519:{}\n",
-            base64::engine::general_purpose::STANDARD
-                .encode(signing_key.sign(b"extension tarball").to_bytes())
-        );
-
-        assert_eq!(
-            verify_signature(
-                b"changed tarball",
-                signature.as_bytes(),
-                &signature_config(&signing_key)
-            )
-            .unwrap_err(),
-            "Extension signature verification failed"
-        );
-    }
-
-    #[test]
-    fn rejects_malformed_ed25519_signature_material() {
-        let signing_key = SigningKey::from_bytes(&[11; 32]);
-        let mut config = signature_config(&signing_key);
-        config.public_key = "ed25519:not-base64!".into();
-        assert!(verify_signature(b"tarball", b"not-base64!", &config).is_err());
-
-        let config = signature_config(&signing_key);
-        assert!(verify_signature(b"tarball", b"not-base64!", &config).is_err());
-    }
-
-    #[test]
-    fn rejects_archive_escape_paths() {
-        assert!(safe_archive_path(Path::new("package/bin/tool")).is_ok());
-        assert!(safe_archive_path(Path::new("package/../tool")).is_err());
-        assert!(safe_archive_path(Path::new("other/tool")).is_err());
-        assert!(safe_archive_path(Path::new("/package/tool")).is_err());
-    }
-
-    #[test]
-    fn safely_extracts_regular_npm_package_files() {
-        let bytes = archive_with_file("package/bin/tool", b"provider");
-        let directory = tempfile::tempdir().unwrap();
-        safe_unpack(&bytes, directory.path()).unwrap();
-        assert_eq!(
-            std::fs::read(directory.path().join("bin/tool")).unwrap(),
-            b"provider"
-        );
-    }
-
-    #[test]
-    fn validates_scoped_package_names() {
-        assert!(validate_package_name("@scope/floter-tool").is_ok());
-        assert!(validate_package_name("floter-tool").is_ok());
-        assert!(validate_package_name("scope/tool/extra").is_err());
-        assert!(validate_package_name("../tool").is_err());
-        assert!(validate_package_name("@/tool").is_err());
-        assert!(validate_package_name("@scope/").is_err());
-        assert!(validate_package_name("UPPER").is_err());
-    }
-
-    #[test]
-    fn permission_escalation_requires_a_new_approval() {
-        let installed = [Permission::FilesystemRead];
-        assert!(!has_added_permissions(&installed, &installed));
-        assert!(!has_added_permissions(&installed, &[]));
-        assert!(has_added_permissions(
-            &installed,
-            &[Permission::FilesystemRead, Permission::NetworkFetch],
-        ));
-    }
-
     #[test]
     fn installation_requires_exact_permission_confirmation() {
         let requested = [Permission::FilesystemRead, Permission::NetworkFetch];
@@ -4314,29 +2419,5 @@ mod tests {
         assert_eq!(review.extension_name, "V Tools");
         assert_eq!(review.permissions[0].permission, Permission::FilesystemRead);
         assert_eq!(review.permissions[0].title, "读取文件");
-    }
-
-    #[test]
-    fn recognizes_fep_and_npm_deprecation_metadata() {
-        let package: PackageJson = serde_json::from_str(
-            r#"{
-                "name": "floter-old-tool",
-                "version": "1.0.0",
-                "floter": {
-                    "manifest": "floter.extension.json",
-                    "deprecated": true
-                }
-            }"#,
-        )
-        .unwrap();
-        assert_eq!(
-            deprecation_notice(package.floter.as_ref(), package.deprecated.as_deref()),
-            Some(String::new())
-        );
-        assert_eq!(
-            deprecation_notice(None, Some("  Use floter-new-tool instead.  ")),
-            Some("Use floter-new-tool instead.".to_string())
-        );
-        assert_eq!(deprecation_notice(None, Some("  ")), None);
     }
 }

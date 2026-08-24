@@ -5,8 +5,6 @@ pub mod catalog;
 pub mod config;
 pub mod conformance;
 pub mod cwd_policy;
-pub mod download;
-pub mod gitlab_source;
 pub mod health;
 pub mod install;
 pub mod inventory;
@@ -24,11 +22,7 @@ pub mod recommendations;
 pub mod registry;
 pub mod resolver;
 pub mod session_restore;
-pub mod source_bundle;
-pub mod source_inference;
-pub mod source_resolver;
 pub mod sync;
-pub mod target;
 pub mod terminal_capability;
 pub mod tool_lock;
 pub mod tool_manifests;
@@ -47,7 +41,7 @@ pub use catalog::{
 };
 pub use config::{ConfigurationDescriptor, ExtensionConfiguration};
 pub use cwd_policy::{CwdContext, CwdPolicy};
-pub use install::{ExtensionInstallRequest, ExtensionPermissionReview, ExtensionSearchResult};
+pub use install::{ExtensionInstallRequest, ExtensionPermissionReview};
 pub use inventory::{
     DiscoveryQuality, DiscoverySource, ToolCandidate, ToolInventory, ToolInventorySnapshot,
     ToolLocator,
@@ -62,10 +56,6 @@ pub use probe::{ProbeQuality, ProbeResult, ProviderDescriber};
 pub use profile::{Profile, ProfileKind, ProfileStack};
 pub use provider::{ExecutionMode, ExecutionPlan, ProviderDescription, ProviderResponse};
 pub use resolver::{ResolveRequest, ResolveResult, ScoreBreakdown, ScoredCandidate};
-pub use source_bundle::{SourceBundleExportRequest, SourceBundleExportResult};
-pub use source_inference::SourceInferenceReport;
-pub use source_resolver::{SourceResolution, SourceResolveRequest};
-pub use target::{Mount, NetworkPolicy, Target, TargetRuntime};
 pub use terminal_capability::{
     Da1Report, DecrqmResult, DecrqmState, Negotiation, ProbeReport, TerminalCapability,
     TerminalColor, TerminalIo,

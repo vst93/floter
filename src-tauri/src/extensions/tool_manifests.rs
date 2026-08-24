@@ -105,10 +105,8 @@ fn load(path: &Path) -> Option<DiscoveredManifest> {
         .to_string();
     // An unparseable sibling falls back to the generic single-command
     // descriptor instead of poisoning a valid manifest.
-    let descriptor_bytes =
-        sibling_descriptor_bytes(path, &stem).filter(|bytes| {
-            crate::extensions::provider::ProviderDescription::parse(bytes).is_ok()
-        });
+    let descriptor_bytes = sibling_descriptor_bytes(path, &stem)
+        .filter(|bytes| crate::extensions::provider::ProviderDescription::parse(bytes).is_ok());
     Some(DiscoveredManifest {
         source_path: path.to_path_buf(),
         stem,

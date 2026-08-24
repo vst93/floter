@@ -97,14 +97,6 @@ pub struct OfficialIndexEntry {
 }
 
 impl OfficialIndex {
-    pub fn search_verified(&self, package: &str, publisher: Option<&str>) -> bool {
-        publisher.is_some_and(|publisher| {
-            self.entries
-                .iter()
-                .any(|entry| entry.npm_package == package && entry.publisher == publisher)
-        })
-    }
-
     pub fn authorizes(
         &self,
         extension_id: &str,
@@ -479,12 +471,6 @@ mod tests {
         )
         .is_ok());
         assert!(verify(&signed_envelope(&index, &[new]), &roots, Utc::now()).is_ok());
-    }
-
-    #[test]
-    fn unavailable_index_cannot_upgrade_a_package_to_official() {
-        let index: Option<OfficialIndex> = Err::<OfficialIndex, _>("offline").ok();
-        assert!(!index.is_some_and(|index| index.search_verified("v-tools", Some("vst93"))));
     }
 
     #[test]

@@ -6,7 +6,7 @@ use crate::extensions::config::{self, ExtensionConfiguration};
 use crate::extensions::health::HealthReport;
 use crate::extensions::install::{
     self, CustomIntegrationDefinition, CustomIntegrationRequest, ExtensionInstallRequest,
-    ExtensionPermissionReview, ExtensionSearchResult, ExtensionUpdateCandidate,
+    ExtensionPermissionReview,
 };
 use crate::extensions::inventory::{self, ToolCandidate, ToolLocator};
 use crate::extensions::lock::{
@@ -15,9 +15,6 @@ use crate::extensions::lock::{
 };
 use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget, Runtime};
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
-use crate::extensions::source_bundle::{self, SourceBundleExportRequest, SourceBundleExportResult};
-use crate::extensions::source_inference::{self, SourceInferenceReport};
-use crate::extensions::source_resolver::{self, SourceResolution, SourceResolveRequest};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
 use crate::extensions::tool_manifests;
 use crate::extensions::{
@@ -30,30 +27,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-
-#[tauri::command]
-pub async fn extensions_infer_source(path: String) -> Result<SourceInferenceReport, String> {
-    tauri::async_runtime::spawn_blocking(move || source_inference::infer(Path::new(&path)))
-        .await
-        .map_err(|error| format!("Source inference task failed: {error}"))?
-}
-
-#[tauri::command]
-pub async fn extensions_export_source_bundle(
-    request: SourceBundleExportRequest,
-) -> Result<SourceBundleExportResult, String> {
-    tauri::async_runtime::spawn_blocking(move || source_bundle::export(&request))
-        .await
-        .map_err(|error| format!("Source bundle export task failed: {error}"))?
-}
-
-#[tauri::command]
-pub async fn extensions_resolve_source(
-    state: State<'_, ExtensionState>,
-    request: SourceResolveRequest,
-) -> Result<SourceResolution, String> {
-    source_resolver::resolve(&state, request).await
-}
 
 #[tauri::command]
 pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
@@ -194,7 +167,10 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
         })
         .collect();
     for (tool, tool_candidates) in &manifest_rows {
-        items.push(ExtensionListItem::suggested_manifest(tool, tool_candidates.clone()));
+        items.push(ExtensionListItem::suggested_manifest(
+            tool,
+            tool_candidates.clone(),
+        ));
     }
     // Discovery suggestions: PATH executables that are not connected yet and
     // do not collide with a known integration name. Sorted by discovery
@@ -210,9 +186,10 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
         if !install::is_linked_executable_public(path) {
             continue;
         }
-        if reserved_executables.iter().any(|reserved| {
-            reserved.eq_ignore_ascii_case(&path.to_string_lossy())
-        }) {
+        if reserved_executables
+            .iter()
+            .any(|reserved| reserved.eq_ignore_ascii_case(&path.to_string_lossy()))
+        {
             continue;
         }
         if lock.extensions.values().any(|entry| {
@@ -231,7 +208,11 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
         }
         suggestions.push(candidate.clone());
     }
-    suggestions.sort_by(|left, right| left.quality.cmp(&right.quality).then(left.name.cmp(&right.name)));
+    suggestions.sort_by(|left, right| {
+        left.quality
+            .cmp(&right.quality)
+            .then(left.name.cmp(&right.name))
+    });
     if suggestions.len() > 12 {
         suggestions.truncate(12);
     }
@@ -637,7 +618,9 @@ pub(crate) fn manifest_suggestions(
                 .extensions
                 .values()
                 .any(|entry| entry.executable_path.eq_ignore_ascii_case(&path_text))
-                || reserved_paths.iter().any(|reserved| reserved.eq_ignore_ascii_case(&path_text))
+                || reserved_paths
+                    .iter()
+                    .any(|reserved| reserved.eq_ignore_ascii_case(&path_text))
             {
                 continue;
             }
@@ -812,22 +795,10 @@ pub async fn extensions_import(
         }
         let review = match entry.distribution_source {
             ExtensionDistributionSource::Npm => {
-                let package = entry.package.clone().ok_or_else(|| {
-                    format!("NPM integration {} has no package in the export", entry.id)
-                })?;
-                install::permissions_summary(
-                    &state,
-                    &ExtensionInstallRequest {
-                        source: install::InstallSource::Npm,
-                        package: Some(package),
-                        version: Some(entry.version.clone()),
-                        manifest_path: None,
-                        executable_path: None,
-                        approved_permissions: None,
-                    },
-                    locale,
-                )
-                .await?
+                // NPM distribution is retired: there is nothing to review
+                // offline, and the import itself will report the entry as
+                // failed with guidance to reconnect it as a local tool.
+                continue;
             }
             ExtensionDistributionSource::Local | ExtensionDistributionSource::BuiltIn => {
                 let manifest = entry
@@ -1006,15 +977,6 @@ pub async fn extensions_connect_tool(
     let entry = install::connect_tool(&state, candidate).await?;
     state.invalidate_provider_commands().await;
     Ok(entry)
-}
-
-#[tauri::command]
-pub async fn extensions_permissions_summary(
-    state: State<'_, ExtensionState>,
-    request: ExtensionInstallRequest,
-    locale: Option<String>,
-) -> Result<ExtensionPermissionReview, String> {
-    install::permissions_summary(&state, &request, locale.as_deref().unwrap_or("en")).await
 }
 
 #[tauri::command]
@@ -1468,108 +1430,6 @@ async fn set_enabled(
     Ok(entry)
 }
 
-#[tauri::command]
-pub async fn extensions_update(
-    state: State<'_, ExtensionState>,
-    id: String,
-    version: Option<String>,
-    approved_permissions: Option<Vec<Permission>>,
-) -> Result<ExtensionLockEntry, String> {
-    let entry = install::update(
-        &state,
-        &id,
-        version.as_deref(),
-        approved_permissions.as_deref(),
-    )
-    .await?;
-    state.invalidate_provider_commands().await;
-    Ok(entry)
-}
-
-#[tauri::command]
-pub async fn extensions_check_updates(
-    state: State<'_, ExtensionState>,
-) -> Result<ExtensionUpdateCheck, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let mut updates = Vec::new();
-    let mut failures = Vec::new();
-    for entry in lock.list() {
-        record_update_result(
-            &entry.id,
-            install::update_candidate(&state, &entry).await,
-            &mut updates,
-            &mut failures,
-        );
-    }
-    Ok(ExtensionUpdateCheck {
-        candidates: updates,
-        failures,
-    })
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExtensionUpdateCheck {
-    pub candidates: Vec<ExtensionUpdateCandidate>,
-    pub failures: Vec<ExtensionUpdateFailure>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExtensionUpdateFailure {
-    pub id: String,
-    pub message: String,
-}
-
-fn record_update_result(
-    extension_id: &str,
-    result: Result<Option<ExtensionUpdateCandidate>, String>,
-    updates: &mut Vec<ExtensionUpdateCandidate>,
-    failures: &mut Vec<ExtensionUpdateFailure>,
-) {
-    match result {
-        Ok(Some(candidate)) => updates.push(candidate),
-        Ok(None) => {}
-        Err(message) => failures.push(ExtensionUpdateFailure {
-            id: extension_id.to_string(),
-            message,
-        }),
-    }
-}
-
-async fn set_release_policy(
-    state: &ExtensionState,
-    id: &str,
-    pinned: Option<bool>,
-    channel: Option<&str>,
-) -> Result<ExtensionLockEntry, String> {
-    let _guard = state.mutation_lock.lock().await;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    let previous = lock.get(id)?.clone();
-    lock.set_release_policy(id, pinned, channel)?;
-    let entry = lock.get(id)?.clone();
-    crate::extensions::transaction::commit_lock(state, &previous, &entry)?;
-    Ok(entry)
-}
-
-#[tauri::command]
-pub async fn extensions_set_pinned(
-    state: State<'_, ExtensionState>,
-    id: String,
-    pinned: bool,
-) -> Result<ExtensionLockEntry, String> {
-    set_release_policy(&state, &id, Some(pinned), None).await
-}
-
-#[tauri::command]
-pub async fn extensions_set_channel(
-    state: State<'_, ExtensionState>,
-    id: String,
-    channel: String,
-) -> Result<ExtensionLockEntry, String> {
-    set_release_policy(&state, &id, None, Some(&channel)).await
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtensionRepairReport {
@@ -1620,17 +1480,7 @@ pub async fn extensions_repair(
             let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
             lock.mark_broken(&id, &code, &problem)?;
             lock.save(&state.paths.lock_file)?;
-            let action = if current.distribution_source == ExtensionDistributionSource::Npm {
-                match install::repair_managed(&state, &id).await {
-                    Ok(_) => "reinstalled-locked-version",
-                    Err(repair_error) => {
-                        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-                        lock.mark_broken(&id, &code, &repair_error)?;
-                        lock.save(&state.paths.lock_file)?;
-                        return Err(format!("Cannot repair {id}: {repair_error}"));
-                    }
-                }
-            } else if current.runtime_ownership == ExtensionRuntimeOwnership::System {
+            let action = if current.runtime_ownership == ExtensionRuntimeOwnership::System {
                 match reconnect_system(&state, &id, None).await {
                     Ok(_) => "reconnected-system-runtime",
                     Err(repair_error) => {
@@ -1659,27 +1509,6 @@ pub async fn extensions_repair(
             })
         }
     }
-}
-
-#[tauri::command]
-pub async fn extensions_reinstall(
-    state: State<'_, ExtensionState>,
-    id: String,
-    approved_permissions: Option<Vec<Permission>>,
-) -> Result<ExtensionLockEntry, String> {
-    let entry = install::reinstall(&state, &id, approved_permissions.as_deref()).await?;
-    state.invalidate_provider_commands().await;
-    Ok(entry)
-}
-
-#[tauri::command]
-pub async fn extensions_rollback(
-    state: State<'_, ExtensionState>,
-    id: String,
-) -> Result<ExtensionLockEntry, String> {
-    let entry = install::rollback(&state, &id).await?;
-    state.invalidate_provider_commands().await;
-    Ok(entry)
 }
 
 #[tauri::command]
@@ -1937,15 +1766,6 @@ pub async fn extensions_launch(
 }
 
 #[tauri::command]
-pub async fn extensions_search(
-    state: State<'_, ExtensionState>,
-    query: String,
-    limit: Option<usize>,
-) -> Result<Vec<ExtensionSearchResult>, String> {
-    install::search(&state, &query, limit.unwrap_or(20)).await
-}
-
-#[tauri::command]
 pub async fn extensions_config_get(
     state: State<'_, ExtensionState>,
     id: String,
@@ -2042,7 +1862,6 @@ pub async fn catalog_complete(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::install::ExtensionUpdateKind;
 
     const MANIFEST_JSON: &str = r#"{
         "schemaVersion": "2.0",
@@ -2091,12 +1910,7 @@ mod tests {
         let candidates = vec![candidate.clone()];
 
         // Not connected yet: the manifest becomes a suggestion row.
-        let rows = manifest_suggestions(
-            &ExtensionsLock::default(),
-            &[],
-            &candidates,
-            &tools,
-        );
+        let rows = manifest_suggestions(&ExtensionsLock::default(), &[], &candidates, &tools);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].0.manifest.id, "local.demo.tool");
         assert!(!rows[0].1.is_empty());
@@ -2160,34 +1974,5 @@ mod tests {
             .into_owned();
         lock.extensions.insert("other.tool".into(), entry);
         assert!(manifest_suggestions(&lock, &[], &candidates, &tools).is_empty());
-    }
-
-    #[test]
-    fn update_checks_keep_successes_when_another_extension_fails() {
-        let mut updates = Vec::new();
-        let mut failures = Vec::new();
-        record_update_result(
-            "example.ready",
-            Ok(Some(ExtensionUpdateCandidate {
-                id: "example.ready".to_string(),
-                version: "1.0.1".to_string(),
-                kind: ExtensionUpdateKind::Patch,
-            })),
-            &mut updates,
-            &mut failures,
-        );
-        record_update_result(
-            "example.offline",
-            Err("registry unavailable".to_string()),
-            &mut updates,
-            &mut failures,
-        );
-        record_update_result("example.current", Ok(None), &mut updates, &mut failures);
-
-        assert_eq!(updates.len(), 1);
-        assert_eq!(updates[0].id, "example.ready");
-        assert_eq!(failures.len(), 1);
-        assert_eq!(failures[0].id, "example.offline");
-        assert_eq!(failures[0].message, "registry unavailable");
     }
 }

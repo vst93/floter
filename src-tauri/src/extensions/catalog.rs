@@ -873,7 +873,11 @@ mod tests {
         let tool = &tools[0];
         std::fs::create_dir_all(root).unwrap();
         std::fs::write(root.join("floter.extension.json"), tool.manifest_bytes).unwrap();
-        std::fs::write(root.join("provider-description.json"), tool.descriptor_bytes).unwrap();
+        std::fs::write(
+            root.join("provider-description.json"),
+            tool.descriptor_bytes,
+        )
+        .unwrap();
         crate::extensions::lock::ExtensionLockEntry {
             id: tool.manifest.id.clone(),
             name: tool.manifest.name.clone(),
@@ -962,11 +966,7 @@ mod tests {
         let tool = &tools[0];
         let root = directory.path().join("integration");
         std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(
-            root.join("floter.extension.json"),
-            tool.manifest_bytes,
-        )
-        .unwrap();
+        std::fs::write(root.join("floter.extension.json"), tool.manifest_bytes).unwrap();
         std::fs::write(
             root.join("provider-description.json"),
             tool.descriptor_bytes,
