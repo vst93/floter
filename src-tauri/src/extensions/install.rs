@@ -1,3 +1,4 @@
+use crate::extensions::help_args;
 use crate::extensions::lock::{
     unix_now, validate_id, ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
@@ -177,6 +178,15 @@ async fn create_custom_integration_locked(
         }
         path
     };
+    // Connect-time parameter hints: run one bounded `--help` probe against the
+    // executable and parse its option definitions so launcher completions can
+    // suggest real flags for the connected tool. Best-effort by contract — any
+    // failure yields an empty list and never blocks the connection.
+    let derived_arguments = if script_mode {
+        Vec::new()
+    } else {
+        help_args::probe_derive_arguments(&executable).await
+    };
     if script_mode
         && request
             .script_content
@@ -299,7 +309,7 @@ async fn create_custom_integration_locked(
                     "mode": "pty",
                     "workingDirectory": "current"
                 },
-                "arguments": []
+                "arguments": help_args::to_json_array(&derived_arguments)
             }]
         }))
         .map_err(|error| format!("Cannot serialize custom provider description: {error}"))?;
@@ -1526,7 +1536,7 @@ pub(crate) async fn linked_tool_version(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::catalog::{self, CatalogSearchRequest};
+    use crate::extensions::catalog::{self, CatalogSearchRequest, CompletionRequest};
     use crate::extensions::sync;
     use crate::extensions::ExtensionPaths;
     use chrono::Utc;
@@ -1602,7 +1612,8 @@ mod tests {
 
     #[test]
     fn tool_binding_approval_rejects_missing_permission() {
-        let result = validate_tool_binding_approval(&[Permission::Environment, Permission::ProcessSpawn]);
+        let result =
+            validate_tool_binding_approval(&[Permission::Environment, Permission::ProcessSpawn]);
         assert_eq!(
             result.unwrap_err(),
             "Tool permission approval does not match the disclosure (expected: environment, process-spawn, filesystem-read; got: process-spawn, environment)"
@@ -1815,7 +1826,9 @@ mod tests {
         // fingerprint binding. If that check ever failed right after connect,
         // the entry would be marked broken and silently vanish from search —
         // so both the command list and a query for the command name must hit.
-        let commands = catalog::load_provider_commands_uncached(&state).await.unwrap();
+        let commands = catalog::load_provider_commands_uncached(&state)
+            .await
+            .unwrap();
         assert!(!commands.is_empty());
         let entries = catalog::search(&state, &catalog_request("findable"), &[])
             .await
@@ -2006,6 +2019,102 @@ mod tests {
         assert_eq!(Path::new(&plan.program), executable);
         assert_eq!(plan.args, ["prefix with spaces", "user value"]);
         assert!(plan.inherit_environment);
+    }
+
+    /// End-to-end proof of connect-time parameter hints: connecting a custom
+    /// integration whose binary prints a known help text must populate the
+    /// generated descriptor's arguments, and the launcher catalog must then
+    /// suggest those flags (with descriptions) during completion.
+    #[tokio::test]
+    async fn connected_tool_completions_include_help_derived_flags() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        // The help text intentionally mixes styles and includes -h/--help so
+        // the exclusion logic is exercised through the real pipeline.
+        #[cfg(not(windows))]
+        let executable = {
+            use std::os::unix::fs::PermissionsExt;
+            let path = script_directory.path().join("demo-tool.sh");
+            std::fs::write(
+                &path,
+                concat!(
+                    "#!/bin/sh\n",
+                    "if [ \"$1\" = \"--help\" ]; then\n",
+                    "cat <<'EOF'\n",
+                    "Usage: demo-tool [options]\n",
+                    "\n",
+                    "Options:\n",
+                    "  -o, --output <FILE>    Write result to FILE\n",
+                    "      --verbose          Enable verbose logging\n",
+                    "  -h, --help             Show this help\n",
+                    "EOF\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "echo done\n"
+                ),
+            )
+            .unwrap();
+            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&path, permissions).unwrap();
+            path
+        };
+        #[cfg(windows)]
+        let executable = {
+            let path = script_directory.path().join("demo-tool.cmd");
+            std::fs::write(
+                &path,
+                "@echo off\r\nif \"%1\"==\"--help\" (\r\necho   -o, --output FILE    Write result to FILE\r\necho   --verbose            Enable verbose logging\r\n)\r\n",
+            )
+            .unwrap();
+            path
+        };
+        create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.demo-help-test".into(),
+                name: "Demo help test".into(),
+                command: "demo-help-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let response = catalog::complete(
+            &state,
+            &CompletionRequest {
+                command: "demo-help-test".into(),
+                tokens: vec!["demo-help-test".into(), "--".into()],
+                cwd: None,
+            },
+        )
+        .await
+        .unwrap();
+        assert!(!response.dynamic);
+
+        let output = response
+            .items
+            .iter()
+            .find(|item| item.value == "--output")
+            .expect("connected tool should suggest its derived --output flag");
+        assert_eq!(output.description, "Write result to FILE");
+        let verbose = response
+            .items
+            .iter()
+            .find(|item| item.value == "--verbose")
+            .expect("connected tool should suggest its derived --verbose flag");
+        assert_eq!(verbose.description, "Enable verbose logging");
+        assert!(response.items.iter().all(|item| item.value != "--help"));
     }
 
     #[tokio::test]

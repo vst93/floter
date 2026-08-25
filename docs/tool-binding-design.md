@@ -73,6 +73,12 @@ Execution Plan → PTY（现状保留）
 验收：PATH 上有 `v` 时，面板可见 → 一键接入 → 搜索框敲 `v --version`
 或其子命令即可执行，与手动创建的自定义集成行为完全一致。
 
+补充（connect-time 参数提示）：一键接入在生成 descriptor 时会对可执行文件运行一次
+带总超时（约 3s）的 `--help` 探测（复用 `capability_probe`，接受任意退出码），并用通用
+逐行解析器 `src-tauri/src/extensions/help_args.rs` 尽力提取选项定义（兼容 clap/argparse/
+cobra/go flag 风格），写入静态描述的 `arguments`。解析失败或无输出时保持 `[]`，
+绝不阻断连接；launcher 补全（`static_completions`）因此能直接提示已接入工具的参数与说明。
+
 ### Phase B：v-tools 平权
 
 - `connect_bundled` 改为调用与 `connect_tool` 相同的通路；

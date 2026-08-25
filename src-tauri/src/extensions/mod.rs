@@ -6,6 +6,7 @@ pub mod config;
 pub mod conformance;
 pub mod cwd_policy;
 pub mod health;
+pub mod help_args;
 pub mod install;
 pub mod inventory;
 pub mod lifecycle;
