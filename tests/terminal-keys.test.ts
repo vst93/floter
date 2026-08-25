@@ -70,6 +70,18 @@ test("terminal control and Meta shortcuts stay on the key encoder path", () => {
   assert.equal(shouldUseTerminalTextInput(keyEvent("Enter")), false);
 });
 
+test("Alt keeps its Meta prefix on Enter, Backspace, Escape, and Tab", () => {
+  // readline's backward-kill-word needs ESC DEL, not a bare DEL.
+  assert.deepEqual(encoded("Backspace", { altKey: true }), [27, 127]);
+  assert.deepEqual(encoded("Enter", { altKey: true }), [27, 13]);
+  assert.deepEqual(encoded("Escape", { altKey: true }), [27, 27]);
+  assert.deepEqual(encoded("Tab", { altKey: true }), [27, 9]);
+  // Without Alt the sequences stay unchanged.
+  assert.deepEqual(encoded("Backspace"), [127]);
+  assert.deepEqual(encoded("Enter"), [13]);
+  assert.deepEqual(encoded("Escape"), [27]);
+});
+
 test("IME confirmation keys are recognized after WebKit clears isComposing", () => {
   assert.equal(isTerminalCompositionKey(keyEvent("Process", { isComposing: true })), true);
   assert.equal(isTerminalCompositionKey(keyEvent("Enter", { keyCode: 229 })), true);

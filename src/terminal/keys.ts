@@ -98,10 +98,13 @@ export function encodeKey(e: KeyboardEvent, mode: number): Uint8Array | null {
   const appCursor = (mode & APP_CURSOR) !== 0;
 
   switch (key) {
-    case "Enter": return new Uint8Array([13]);
-    case "Backspace": return new Uint8Array([127]);
-    case "Tab": return e.shiftKey ? esc("[Z") : new Uint8Array([9]);
-    case "Escape": return new Uint8Array([27]);
+    // Alt keeps its Meta role here exactly as on the printable path below:
+    // readline binds ESC DEL to `backward-kill-word`, so stripping the prefix
+    // silently turns Alt+Backspace into a single-character delete.
+    case "Enter": return withAltPrefix(new Uint8Array([13]), e);
+    case "Backspace": return withAltPrefix(new Uint8Array([127]), e);
+    case "Tab": return withAltPrefix(e.shiftKey ? esc("[Z") : new Uint8Array([9]), e);
+    case "Escape": return withAltPrefix(new Uint8Array([27]), e);
     case "ArrowUp": return csiKey("A", e, appCursor ? "OA" : "[A");
     case "ArrowDown": return csiKey("B", e, appCursor ? "OB" : "[B");
     case "ArrowRight": return csiKey("C", e, appCursor ? "OC" : "[C");
