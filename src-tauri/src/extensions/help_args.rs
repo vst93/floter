@@ -18,32 +18,335 @@ use std::time::Duration;
 /// launcher completions.
 const MAX_ARGUMENTS: usize = 40;
 
+/// Upper bound on derived subcommands (mirrors the `MAX_ARGUMENTS` spirit:
+/// root command + at most this many per-subcommand descriptor commands).
+const MAX_SUBCOMMANDS: usize = 40;
+
+/// How many subcommands get their own second-level help probe at connect
+/// time. Tools with huge plugin lists must not turn one connection into a
+/// process storm; entries beyond this budget simply ship without flags.
+const MAX_SUBCOMMAND_PROBES: usize = 12;
+
+/// Total wall-clock budget for the whole second-level probing phase (`--help`
+/// plus a `-h` retry per subcommand). Per-probe failures and timeouts yield
+/// no arguments for that subcommand and never block the connection.
+const SUBCOMMAND_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
+
 /// Total wall-clock budget for the connect-time `--help` probe. The probe
 /// itself already has its own timeout; this outer bound keeps connects snappy
 /// even when a binary hangs before the inner timeout fires.
 const HELP_DERIVE_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Run `executable --help` once (any exit code counts) and parse option
-/// definitions from its output, preferring stdout and falling back to stderr
-/// when stdout is empty. Returns an empty vector on every failure: help
-/// parsing is purely additive and must never block a connection.
-pub async fn probe_derive_arguments(executable: &Path) -> Vec<ArgumentDescriptor> {
-    let probe = CapabilityProbe::custom("help-args", ["--help"]).expect_exit_code(None);
-    let derived = tokio::time::timeout(HELP_DERIVE_TIMEOUT, async move {
-        let result = probe.probe(executable).await.ok()?;
-        let text = if result.stdout.trim().is_empty() {
-            result.stderr.as_str()
-        } else {
-            result.stdout.as_str()
-        };
-        (!text.trim().is_empty()).then(|| derive_arguments(text))
-    })
-    .await;
-    match derived {
-        Ok(Some(arguments)) => arguments,
-        // Timed out, could not execute, or produced no readable help text.
-        _ => Vec::new(),
+/// One subcommand/plugin entry extracted from a listing-style `--help`
+/// output (v-style plugin rows, cobra `Available Commands:` sections).
+#[derive(Debug, Clone)]
+pub struct DerivedSubcommand {
+    /// Sanitized name: lowercase ASCII alphanumerics plus `-`/`_`, starting
+    /// with a letter or digit — the same charset generated commands use.
+    pub name: String,
+    /// Aliases captured from an `(aliases: a, b)` group when present.
+    pub aliases: Vec<String>,
+    /// Description from the indented follow-up line (v style) or the same-line
+    /// remainder after a wide gap (cobra style). Empty when none was found.
+    pub description: String,
+    /// Flags parsed from the subcommand's own help output; empty unless
+    /// [`probe_derive`] managed to probe it within budget.
+    pub arguments: Vec<ArgumentDescriptor>,
+}
+
+/// Full connect-time derivation: root-level argument hints plus one entry per
+/// detected subcommand (each carrying its own probed flags when available).
+#[derive(Debug, Clone, Default)]
+pub struct HelpDerivation {
+    pub root_arguments: Vec<ArgumentDescriptor>,
+    pub subcommands: Vec<DerivedSubcommand>,
+}
+
+/// Capture the help text produced by `executable args…` (any exit code
+/// counts), preferring stdout and falling back to stderr when stdout is
+/// empty. Returns `None` when nothing readable came back in time.
+async fn probe_help_text(executable: &Path, args: &[&str]) -> Option<String> {
+    let probe = CapabilityProbe::custom("help-args", args.iter().copied()).expect_exit_code(None);
+    let result = tokio::time::timeout(HELP_DERIVE_TIMEOUT, probe.probe(executable))
+        .await
+        .ok()?
+        .ok()?;
+    let text = if result.stdout.trim().is_empty() {
+        result.stderr.as_str()
+    } else {
+        result.stdout.as_str()
+    };
+    (!text.trim().is_empty()).then(|| text.to_string())
+}
+
+/// Run `executable --help` once and derive everything Floter understands from
+/// it: root option definitions and, when the output turns out to be a
+/// subcommand/plugin listing instead of an option listing, one entry per
+/// listed subcommand — each probed once for its own help (`<sub> --help`,
+/// retried with `<sub> -h` when empty) so its real flags can be suggested.
+/// Best-effort by contract: any failure degrades silently (root-only or no
+/// flags at all) and never blocks a connection.
+pub async fn probe_derive(executable: &Path) -> HelpDerivation {
+    let Some(root_text) = probe_help_text(executable, &["--help"]).await else {
+        return HelpDerivation::default();
+    };
+    let root_arguments = derive_arguments(&root_text);
+    let candidates = derive_subcommands(&root_text);
+    let subcommands = probe_subcommand_help(executable, &candidates).await;
+    HelpDerivation {
+        root_arguments,
+        subcommands,
     }
+}
+
+/// Thin wrapper kept for callers that only need root-level hints.
+pub async fn probe_derive_arguments(executable: &Path) -> Vec<ArgumentDescriptor> {
+    probe_derive(executable).await.root_arguments
+}
+
+/// Probe up to [`MAX_SUBCOMMAND_PROBES`] subcommands concurrently within one
+/// total budget and attach each probe's derived flags to its entry. Results
+/// are returned in the candidates' original order regardless of which probe
+/// finished first; failed probes contribute empty flag lists.
+async fn probe_subcommand_help(
+    executable: &Path,
+    candidates: &[DerivedSubcommand],
+) -> Vec<DerivedSubcommand> {
+    let selected: Vec<&DerivedSubcommand> = candidates.iter().take(MAX_SUBCOMMAND_PROBES).collect();
+    if selected.is_empty() {
+        return Vec::new();
+    }
+    let mut set = tokio::task::JoinSet::new();
+    for candidate in &selected {
+        let executable = executable.to_path_buf();
+        let name = candidate.name.clone();
+        set.spawn(async move {
+            let arguments = tokio::time::timeout(SUBCOMMAND_PROBE_TIMEOUT, async {
+                let mut text = probe_help_text(&executable, &[name.as_str(), "--help"]).await;
+                if text.as_deref().is_none_or(|text| text.trim().is_empty()) {
+                    // Some tools only answer the short form (v plugins do).
+                    text = probe_help_text(&executable, &[name.as_str(), "-h"]).await;
+                }
+                text.map(|text| derive_arguments(&text)).unwrap_or_default()
+            })
+            .await;
+            (name, arguments.unwrap_or_default())
+        });
+    }
+    let mut probed = std::collections::HashMap::new();
+    while let Some(joined) = set.join_next().await {
+        if let Ok((name, arguments)) = joined {
+            probed.insert(name, arguments);
+        }
+    }
+    selected
+        .into_iter()
+        .map(|candidate| DerivedSubcommand {
+            arguments: probed.remove(&candidate.name).unwrap_or_default(),
+            ..candidate.clone()
+        })
+        .collect()
+}
+
+/// Extract subcommand entries from a listing-style help output.
+///
+/// Two best-effort shapes are recognized:
+/// - v-style plugin rows anywhere in the output: leading non-word glyphs
+///   (emoji, punctuation) are stripped, the first token becomes the candidate
+///   name, a following version-looking token is ignored, and `(aliases: a,
+///   b)` groups are captured; the description comes from the next indented
+///   line.
+/// - cobra/go-style rows inside `Commands:` / `Available Commands:` /
+///   `Subcommands:` sections: `name` + wide gap + description on the same
+///   line.
+///
+/// Flag lines, usage banners, URLs, and obvious non-commands (`help`,
+/// `version`, `completion`, `man`) never become entries; names failing the
+/// generated-command charset are skipped; results dedupe by name, keep
+/// first-seen order, and cap at [`MAX_SUBCOMMANDS`].
+pub fn derive_subcommands(help_output: &str) -> Vec<DerivedSubcommand> {
+    const NON_COMMANDS: [&str; 4] = ["help", "version", "completion", "man"];
+    let mut subcommands: Vec<DerivedSubcommand> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // Index of the most recent v-style row still awaiting its indented
+    // description line.
+    let mut pending: Option<usize> = None;
+    // True while inside a Commands/Available Commands/Subcommands section
+    // (cobra-style listings), enabling same-line row recognition there.
+    let mut in_command_section = false;
+
+    for line in help_output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let indented = line.starts_with([' ', '\t']);
+        if is_section_header(trimmed) {
+            let lowered = trimmed.to_ascii_lowercase();
+            in_command_section = lowered.contains("command") || lowered.contains("plugin");
+            pending = None;
+            continue;
+        }
+        // Usage banners and URLs never introduce an entry.
+        if skipped_line(trimmed) {
+            continue;
+        }
+        // Flag definitions are never subcommands.
+        if trimmed.starts_with('-') {
+            continue;
+        }
+        // Indented follow-up line describing the previous v-style row.
+        if indented && !in_command_section {
+            if let Some(index) = pending {
+                if subcommands[index].description.is_empty() {
+                    subcommands[index].description = trimmed.to_string();
+                }
+                pending = None;
+            }
+            continue;
+        }
+        if subcommands.len() >= MAX_SUBCOMMANDS {
+            break;
+        }
+
+        let (remainder, aliases) = extract_aliases(trimmed);
+        let parsed = if in_command_section && indented {
+            command_section_row(&remainder)
+        } else if !indented {
+            listing_row(&remainder)
+        } else {
+            None
+        };
+        let Some((name, description)) = parsed else {
+            continue;
+        };
+        if NON_COMMANDS.contains(&name.as_str()) || !seen.insert(name.clone()) {
+            continue;
+        }
+        pending = Some(subcommands.len());
+        subcommands.push(DerivedSubcommand {
+            name,
+            aliases,
+            description,
+            arguments: Vec::new(),
+        });
+    }
+    subcommands
+}
+
+/// Parse one v-style listing row into `(name, description)`. The description
+/// is always empty here — v-style rows take theirs from the next indented
+/// line, and any same-line remainder is metadata (author, homepage).
+fn listing_row(remainder: &str) -> Option<(String, String)> {
+    let rest = remainder.trim_start_matches(|character: char| !character.is_ascii_alphanumeric());
+    if rest.is_empty() {
+        return None;
+    }
+    let token_end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+    // Strict charset: unscoped prose lines must not slip through as entries,
+    // so mixed-case tokens ("Run …", "Version: …") are rejected outright.
+    let name = sanitize_subcommand_name(&rest[..token_end], true)?;
+    let after = rest[token_end..].trim_start();
+    // Ignore a version-looking token directly after the name (`jv 1.0.0`).
+    let after = match after.split_whitespace().next() {
+        Some(token) if is_version_token(token) => after[token.len()..].trim_start(),
+        _ => after,
+    };
+    // Banner/usage shapes (`demo - Gadgets…`, `demo [options]`) are not
+    // entries even though their first token looks like a valid name.
+    if after.starts_with('-') || after.starts_with('[') || after.starts_with('<') {
+        return None;
+    }
+    Some((name, String::new()))
+}
+
+/// Parse one cobra/go-style row (`  get    Get something`) into
+/// `(name, same-line description)`. Requires the wide gap that separates the
+/// definition column from the description column.
+fn command_section_row(line: &str) -> Option<(String, String)> {
+    let rest = line.trim_start_matches(|character: char| !character.is_ascii_alphanumeric());
+    if rest.is_empty() {
+        return None;
+    }
+    let token_end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+    let name = sanitize_subcommand_name(&rest[..token_end], false)?;
+    let after = &rest[token_end..];
+    let gap = after.len() - after.trim_start().len();
+    (gap >= 2).then(|| (name, after.trim().to_string()))
+}
+
+/// Validate and canonicalize a candidate name against the generated-command
+/// charset: lowercase ASCII alphanumerics plus `-`/`_`, starting with a
+/// letter or digit. Trailing list punctuation (`,`, `:`, `.`, `;`) is
+/// stripped first; when `strict` is set, uppercase letters are rejected
+/// instead of folded (used for unscoped lines where mixed case usually means
+/// prose rather than a command name).
+fn sanitize_subcommand_name(raw: &str, strict: bool) -> Option<String> {
+    let raw = raw.trim_end_matches([',', ':', '.', ';']);
+    if raw.is_empty() {
+        return None;
+    }
+    let mut name = String::with_capacity(raw.len());
+    for character in raw.chars() {
+        if character.is_ascii_uppercase() {
+            if strict {
+                return None;
+            }
+            name.push(character.to_ascii_lowercase());
+        } else if character.is_ascii_lowercase()
+            || character.is_ascii_digit()
+            || matches!(character, '-' | '_')
+        {
+            name.push(character);
+        } else {
+            return None;
+        }
+    }
+    let first = name.chars().next()?;
+    first.is_ascii_alphanumeric().then_some(name)
+}
+
+/// Version-looking token: digits and dots with at least one dot (`1.0.0`,
+/// `0.2`). Single numbers stay untouched so numeric subcommand names work.
+fn is_version_token(token: &str) -> bool {
+    !token.is_empty()
+        && token.contains('.')
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+}
+
+/// Split a trailing `(aliases: a, b)` group off a listing row. Returns the
+/// remaining text plus the collected, validated alias list.
+fn extract_aliases(trimmed: &str) -> (String, Vec<String>) {
+    let lowered = trimmed.to_ascii_lowercase();
+    let Some(marker) = lowered.find("(aliases") else {
+        return (trimmed.to_string(), Vec::new());
+    };
+    let Some(offset) = trimmed[marker..].find(')') else {
+        return (trimmed.to_string(), Vec::new());
+    };
+    let inner = trimmed[marker + "(aliases".len()..marker + offset]
+        .trim()
+        .trim_start_matches(':')
+        .trim();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let aliases = inner
+        .split(',')
+        .map(str::trim)
+        .filter(|alias| {
+            !alias.is_empty()
+                && !alias
+                    .chars()
+                    .any(|character| character.is_whitespace() || matches!(character, '(' | ')'))
+                && seen.insert(alias.to_string())
+        })
+        .map(String::from)
+        .collect();
+    (
+        format!("{}{}", &trimmed[..marker], &trimmed[marker + offset + 1..]),
+        aliases,
+    )
 }
 
 /// Parse raw `--help` output into ordered argument descriptors.
@@ -511,6 +814,132 @@ Options:
         ] {
             assert!(derive_arguments(garbage).is_empty(), "{garbage:?}");
         }
+    }
+
+    #[test]
+    fn parses_v_style_plugin_rows_with_aliases_and_descriptions() {
+        let help = "\
+v - Gadgets under the terminal
+Version: dev  🏠 https://github.com/vst93/v
+
+Available Plugins
+==================================================
+📦 json2excel 0.0.1 👤 vst  (aliases: j2e)
+  convert json data to excel file
+
+📦 jv 1.0.0 👤 vst
+  JSON Viewer & Formatter - format, compress, escape, ...
+📦 codec 0.3 (aliases: cc, enc)
+
+Run v <command> -h for detailed help.
+";
+        let subcommands = derive_subcommands(help);
+        assert_eq!(
+            subcommands
+                .iter()
+                .map(|sub| sub.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["json2excel", "jv", "codec"]
+        );
+        assert_eq!(subcommands[0].aliases, ["j2e"]);
+        assert_eq!(
+            subcommands[0].description,
+            "convert json data to excel file"
+        );
+        assert_eq!(
+            subcommands[1].description,
+            "JSON Viewer & Formatter - format, compress, escape, ..."
+        );
+        assert_eq!(subcommands[2].aliases, ["cc", "enc"]);
+        assert!(subcommands[2].description.is_empty());
+    }
+
+    #[test]
+    fn parses_cobra_available_commands_sections() {
+        let help = "\
+Usage:
+  mycli [command]
+
+Available Commands:
+  get         Get something from somewhere
+  set         Set something useful
+  completion  Generate the autocompletion script
+  help        Help about any command
+
+Flags:
+  -h, --help   help for mycli
+
+Use \"mycli [command] --help\" for more information.
+";
+        let subcommands = derive_subcommands(help);
+        assert_eq!(
+            subcommands
+                .iter()
+                .map(|sub| (sub.name.as_str(), sub.description.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("get", "Get something from somewhere"),
+                ("set", "Set something useful")
+            ]
+        );
+    }
+
+    #[test]
+    fn flag_lines_urls_and_banners_never_become_subcommands() {
+        let help = "\
+Options:
+  -f         Format JSON
+  -sort      Sort keys
+Docs: https://example.com/docs
+mytool - A banner description
+usage: mytool [options]
+";
+        assert!(derive_subcommands(help).is_empty());
+    }
+
+    #[test]
+    fn invalid_or_prose_names_are_skipped() {
+        let help = "\
+🚀 Bad-Name 1.0
+@@@ !!!
+Run demo <command> -h now
+ok-name 1.2.3
+  indented prose line without a section
+";
+        let names = derive_subcommands(help)
+            .into_iter()
+            .map(|sub| sub.name)
+            .collect::<Vec<_>>();
+        // Only the valid lowercase row survives; "Bad-Name", "Run", and the
+        // glyph-only row are rejected by the strict charset check.
+        assert_eq!(names, vec!["ok-name"]);
+    }
+
+    #[test]
+    fn dedupes_subcommands_and_caps_the_result() {
+        let mut help = String::from("Available Commands:\n");
+        help.push_str("  dup        First occurrence\n");
+        help.push_str("  dup        Second occurrence\n");
+        for index in 0..MAX_SUBCOMMANDS + 5 {
+            help.push_str(&format!("  cmd-{index}       Command {index}\n"));
+        }
+        let subcommands = derive_subcommands(&help);
+        assert_eq!(subcommands.len(), MAX_SUBCOMMANDS);
+        assert_eq!(subcommands[0].name, "dup");
+        assert_eq!(subcommands[0].description, "First occurrence");
+        assert_eq!(subcommands[1].name, "cmd-0");
+    }
+
+    #[test]
+    fn version_tokens_are_ignored_but_numeric_names_survive() {
+        assert!(is_version_token("0.0.1"));
+        assert!(is_version_token("1.10"));
+        assert!(!is_version_token("dev"));
+        assert!(!is_version_token("42"));
+        let subcommands = derive_subcommands("📦 7zip 1.0.0 👤 vst\n  zip tool\n");
+        assert_eq!(subcommands.len(), 1);
+        assert_eq!(subcommands[0].name, "7zip");
+        assert_eq!(subcommands[0].description, "zip tool");
     }
 
     #[test]

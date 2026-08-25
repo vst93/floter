@@ -79,6 +79,14 @@ Execution Plan → PTY（现状保留）
 cobra/go flag 风格），写入静态描述的 `arguments`。解析失败或无输出时保持 `[]`，
 绝不阻断连接；launcher 补全（`static_completions`）因此能直接提示已接入工具的参数与说明。
 
+补充（子命令展开）：当顶层 `--help` 是「子命令/插件列表」而非选项列表时（如 v 的插件清单、
+cobra 的 Available Commands 段落），解析器会额外尽力提取每个子命令的名称、别名与描述，并对其
+逐一探测二级帮助（先 `<sub> --help`，无输出再试 `<sub> -h`；最多探测 12 个，整体约 4 秒预算，
+并发执行、结果按原顺序归位）。接入时除根命令外，还会为每个子命令生成一个独立的描述符命令
+（别名保留，`argsPrefix` 追加子命令名，与推荐工具的多命令 descriptor 形状一致，上限 40 个），
+launcher 因此能按子命令补全其专属 flag。全部步骤仍为尽力而为：任一失败只回退为根命令
+（或无参数），绝不阻断连接。
+
 ### Phase B：v-tools 平权
 
 - `connect_bundled` 改为调用与 `connect_tool` 相同的通路；

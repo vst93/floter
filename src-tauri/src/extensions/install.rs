@@ -179,13 +179,15 @@ async fn create_custom_integration_locked(
         path
     };
     // Connect-time parameter hints: run one bounded `--help` probe against the
-    // executable and parse its option definitions so launcher completions can
-    // suggest real flags for the connected tool. Best-effort by contract — any
-    // failure yields an empty list and never blocks the connection.
-    let derived_arguments = if script_mode {
-        Vec::new()
+    // executable and derive root option definitions plus any subcommand
+    // entries (each probed once more for its own flags), so launcher
+    // completions can suggest real parameters for the connected tool.
+    // Best-effort by contract — any failure yields an empty derivation and
+    // never blocks the connection.
+    let derivation = if script_mode {
+        help_args::HelpDerivation::default()
     } else {
-        help_args::probe_derive_arguments(&executable).await
+        help_args::probe_derive(&executable).await
     };
     if script_mode
         && request
@@ -289,6 +291,52 @@ async fn create_custom_integration_locked(
         package_bytes.push(b'\n');
         std::fs::write(&package_path, package_bytes)
             .map_err(|error| format!("Cannot write custom integration package: {error}"))?;
+        // One descriptor command per derived subcommand (in derivation order):
+        // same execution shape as the root command with the subcommand name
+        // appended to argsPrefix so it runs `<executable> <sub>`; mirrors the
+        // multi-command descriptors shipped by the recommended-tools flow.
+        let mut commands = vec![serde_json::json!({
+            "id": command,
+            "name": name,
+            "description": manifest.description,
+            "aliases": [],
+            "keywords": [],
+            "execution": {
+                "program": "self",
+                "argsPrefix": request.args_prefix.clone(),
+                "mode": "pty",
+                "workingDirectory": "current"
+            },
+            "arguments": help_args::to_json_array(&derivation.root_arguments)
+        })];
+        for subcommand in &derivation.subcommands {
+            if subcommand.name == command {
+                continue;
+            }
+            commands.push(serde_json::json!({
+                "id": subcommand.name,
+                "name": format!("{name} {}", subcommand.name),
+                "description": if subcommand.description.is_empty() {
+                    format!("Subcommand of {name}")
+                } else {
+                    subcommand.description.clone()
+                },
+                "aliases": subcommand.aliases,
+                "keywords": [],
+                "execution": {
+                    "program": "self",
+                    "argsPrefix": request
+                        .args_prefix
+                        .iter()
+                        .chain(std::iter::once(&subcommand.name))
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    "mode": "pty",
+                    "workingDirectory": "current"
+                },
+                "arguments": help_args::to_json_array(&subcommand.arguments)
+            }));
+        }
         let mut descriptor_bytes = serde_json::to_vec_pretty(&serde_json::json!({
             "protocolVersion": "1.0",
             "provider": {
@@ -297,20 +345,7 @@ async fn create_custom_integration_locked(
                 "version": request.version.trim(),
                 "description": manifest.description
             },
-            "commands": [{
-                "id": command,
-                "name": name,
-                "description": manifest.description,
-                "aliases": [],
-                "keywords": [],
-                "execution": {
-                    "program": "self",
-                    "argsPrefix": request.args_prefix,
-                    "mode": "pty",
-                    "workingDirectory": "current"
-                },
-                "arguments": help_args::to_json_array(&derived_arguments)
-            }]
+            "commands": commands
         }))
         .map_err(|error| format!("Cannot serialize custom provider description: {error}"))?;
         descriptor_bytes.push(b'\n');
@@ -2115,6 +2150,170 @@ mod tests {
             .expect("connected tool should suggest its derived --verbose flag");
         assert_eq!(verbose.description, "Enable verbose logging");
         assert!(response.items.iter().all(|item| item.value != "--help"));
+    }
+
+    /// End-to-end proof of subcommand-aware help parsing: a tool whose
+    /// top-level `--help` is a v-style plugin listing (no option lines at all)
+    /// must surface each plugin as its own runnable descriptor command — with
+    /// aliases and per-subcommand flags probed from second-level help.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connected_tool_exposes_subcommands_with_aliases_and_probed_flags() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = {
+            let path = script_directory.path().join("subber.sh");
+            std::fs::write(
+                &path,
+                concat!(
+                    "#!/bin/sh\n",
+                    "if [ \"$1\" = \"--help\" ]; then\n",
+                    "cat <<'EOF'\n",
+                    "subber - Gadgets under the terminal\n",
+                    "Version: dev  🏠 https://example.com/subber\n",
+                    "\n",
+                    "Available Plugins\n",
+                    "==================================================\n",
+                    "📦 alpha 1.0.0 👤 vst  (aliases: al)\n",
+                    "  First gadget does things\n",
+                    "📦 beta 0.2.0 👤 vst\n",
+                    "  Second gadget does other things\n",
+                    "\n",
+                    "Run subber <command> -h for detailed help.\n",
+                    "EOF\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "if [ \"$1\" = \"alpha\" ]; then\n",
+                    "printf 'Modes:\\n  -f         Format (pretty-print)\\nOptions:\\n  -sort   Sort object keys alphabetically\\n'\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "if [ \"$1\" = \"beta\" ]; then\n",
+                    "printf 'Options:\\n  -raw   Disable colored output\\n'\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "echo done\n"
+                ),
+            )
+            .unwrap();
+            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&path, permissions).unwrap();
+            path
+        };
+        create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.subber-test".into(),
+                name: "Subber Test".into(),
+                command: "subber-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        // Root + one runnable command per derived subcommand, aliases kept.
+        // Assert through the generated descriptor file, which is exactly what
+        // the provider pipeline loads.
+        let descriptor_path = state
+            .paths
+            .data
+            .join("local.subber-test")
+            .join("integration")
+            .join("provider-description.json");
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        let ids = descriptor["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|command| command["id"].as_str().unwrap().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, ["subber-test", "alpha", "beta"]);
+        assert_eq!(
+            catalog::load_provider_commands_uncached(&state)
+                .await
+                .unwrap()
+                .len(),
+            3
+        );
+        let results = catalog::search(&state, &catalog_request("alpha"), &[])
+            .await
+            .unwrap();
+        let alpha = results
+            .iter()
+            .find(|entry| entry.command == "alpha")
+            .expect("derived subcommand should be searchable");
+        assert_eq!(alpha.aliases, ["al"]);
+        assert_eq!(alpha.description, "First gadget does things");
+
+        // Argument completion on a subcommand surfaces ITS probed flags with
+        // descriptions (`v jv -` style usage).
+        let response = catalog::complete(
+            &state,
+            &CompletionRequest {
+                command: "alpha".into(),
+                tokens: vec!["alpha".into(), "-".into()],
+                cwd: None,
+            },
+        )
+        .await
+        .unwrap();
+        let format_flag = response
+            .items
+            .iter()
+            .find(|item| item.value == "-f")
+            .expect("subcommand should suggest its derived -f flag");
+        assert_eq!(format_flag.description, "Format (pretty-print)");
+        let sort_flag = response
+            .items
+            .iter()
+            .find(|item| item.value == "-sort")
+            .expect("subcommand should suggest its derived -sort flag");
+        assert_eq!(sort_flag.description, "Sort object keys alphabetically");
+
+        // Catalog search finds the subcommand through its alias too.
+        let results = catalog::search(&state, &catalog_request("al"), &[])
+            .await
+            .unwrap();
+        assert!(results.iter().any(|entry| entry.command == "alpha"));
+
+        // A subcommand execution plan runs `<executable> alpha <user args>`.
+        let results = catalog::search(
+            &state,
+            &CatalogSearchRequest {
+                query: "beta".into(),
+                tokens: vec!["beta".into(), "user value".into()],
+                environment: BTreeMap::new(),
+                cwd: None,
+                limit: 10,
+                include_system_commands: false,
+            },
+            &[],
+        )
+        .await
+        .unwrap();
+        let protected = results
+            .iter()
+            .find(|entry| entry.command == "beta")
+            .and_then(|entry| entry.execution.as_ref())
+            .expect("subcommand should expose an execution plan");
+        let plan = state
+            .take_execution_plan(protected.plan_token.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(Path::new(&plan.program), executable);
+        assert_eq!(plan.args, ["beta", "user value"]);
     }
 
     #[tokio::test]
