@@ -26,7 +26,7 @@ use commands::extensions::{
     extensions_pick_local_manifest, extensions_pick_local_package,
     extensions_recommended_permissions, extensions_reconnect_system,
     extensions_refresh_official_status, extensions_repair, extensions_reprobe,
-    extensions_search_tools, extensions_uninstall,
+    extensions_reprobe_commands, extensions_search_tools, extensions_uninstall,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1213,6 +1213,7 @@ pub fn run() {
             extensions_diagnose,
             extensions_health,
             extensions_reprobe,
+            extensions_reprobe_commands,
             extensions_launch,
             extensions_config_get,
             extensions_config_set,

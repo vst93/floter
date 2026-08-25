@@ -854,6 +854,30 @@ Run v <command> -h for detailed help.
         assert!(subcommands[2].description.is_empty());
     }
 
+    /// Indented rows inside a Commands/Plugins section follow the cobra shape
+    /// and require the wide definition-column gap; an indented single-spaced
+    /// row matches neither documented listing style and must yield no entry.
+    /// (This is why live fixtures must print v-style plugin rows unindented.)
+    #[test]
+    fn rejects_indented_section_row_without_wide_gap() {
+        let help = "\
+Available Plugins
+  alpha 1.0.0 (aliases: al)
+    First gadget
+";
+        assert!(derive_subcommands(help).is_empty());
+        // The same row unindented is the documented v-style listing shape.
+        let help = "\
+Available Plugins
+alpha 1.0.0 (aliases: al)
+    First gadget
+";
+        let subcommands = derive_subcommands(help);
+        assert_eq!(subcommands.len(), 1);
+        assert_eq!(subcommands[0].name, "alpha");
+        assert_eq!(subcommands[0].aliases, ["al"]);
+    }
+
     #[test]
     fn parses_cobra_available_commands_sections() {
         let help = "\

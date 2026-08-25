@@ -446,6 +446,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [reprobingCommands, setReprobingCommands] = useState(false);
+  // Bumped to force the drawer's details effect (provider/diagnose/config)
+  // to reload without a lock-entry change, e.g. after a command re-probe.
+  const [detailReloadTick, setDetailReloadTick] = useState(0);
   const [configuration, setConfiguration] = useState<ExtensionConfiguration | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, JsonValue>>({});
   const [savedConfigValues, setSavedConfigValues] = useState<Record<string, JsonValue>>({});
@@ -667,7 +671,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       if (primaryError) setDetailError(errorMessage(primaryError));
       setDetailLoading(false);
     });
-  }, [selectedId, selected?.updatedAt]);
+  }, [selectedId, selected?.updatedAt, detailReloadTick]);
 
   const handleReprobe = async () => {
     if (!selectedId || healthLoading) return;
@@ -681,6 +685,24 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       if (generation === detailGeneration.current) setDetailError(errorMessage(nextError));
     } finally {
       if (generation === detailGeneration.current) setHealthLoading(false);
+    }
+  };
+
+  const handleReprobeCommands = async () => {
+    if (!selected || reprobingCommands || busy) return;
+    setReprobingCommands(true);
+    try {
+      const report = await invoke<{ rootArguments: number; subcommands: number }>(
+        "extensions_reprobe_commands",
+        { id: selected.id },
+      );
+      await refresh();
+      setDetailReloadTick((tick) => tick + 1);
+      showSuccess(t("settings.extensions.reprobedCommands", { subcommands: report.subcommands, arguments: report.rootArguments }));
+    } catch (nextError) {
+      showError(errorMessage(nextError));
+    } finally {
+      setReprobingCommands(false);
     }
   };
 
@@ -1348,6 +1370,20 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                     ))}
                   </div>
                 ) : !detailLoading && <p className="extension-detail-empty">{t("settings.extensions.noCommands")}</p>}
+                {selected.generatedCustom && (
+                  <button
+                    type="button"
+                    className="extensions-action-button"
+                    disabled={Boolean(busy) || reprobingCommands}
+                    aria-busy={reprobingCommands}
+                    onClick={() => void handleReprobeCommands()}
+                  >
+                    {reprobingCommands
+                      ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
+                      : <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />}
+                    {reprobingCommands ? t("settings.extensions.reprobing") : t("settings.extensions.reprobeCommands")}
+                  </button>
+                )}
               </section>
 
               <section className="extension-detail-block">

@@ -1421,7 +1421,23 @@ async fn set_enabled(
     let entry = lock.get(id)?.clone();
     lock.save(&state.paths.lock_file)?;
     state.invalidate_provider_commands().await;
+    if enabled {
+        // Best-effort re-derivation of help-derived parameter hints after
+        // (re)enabling a generated custom integration. Bounded (~4s), so it
+        // can run inline; every failure is swallowed because the previous
+        // descriptor stays valid and enabling must not fail over it.
+        install::reprobe_after_enable(state, &entry).await;
+    }
     Ok(entry)
+}
+
+#[tauri::command]
+pub async fn extensions_reprobe_commands(
+    state: State<'_, ExtensionState>,
+    id: String,
+) -> Result<install::ReprobeReport, String> {
+    let _guard = state.mutation_lock.lock().await;
+    install::reprobe_tool_commands(&state, &id).await
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -295,48 +295,13 @@ async fn create_custom_integration_locked(
         // same execution shape as the root command with the subcommand name
         // appended to argsPrefix so it runs `<executable> <sub>`; mirrors the
         // multi-command descriptors shipped by the recommended-tools flow.
-        let mut commands = vec![serde_json::json!({
-            "id": command,
-            "name": name,
-            "description": manifest.description,
-            "aliases": [],
-            "keywords": [],
-            "execution": {
-                "program": "self",
-                "argsPrefix": request.args_prefix.clone(),
-                "mode": "pty",
-                "workingDirectory": "current"
-            },
-            "arguments": help_args::to_json_array(&derivation.root_arguments)
-        })];
-        for subcommand in &derivation.subcommands {
-            if subcommand.name == command {
-                continue;
-            }
-            commands.push(serde_json::json!({
-                "id": subcommand.name,
-                "name": format!("{name} {}", subcommand.name),
-                "description": if subcommand.description.is_empty() {
-                    format!("Subcommand of {name}")
-                } else {
-                    subcommand.description.clone()
-                },
-                "aliases": subcommand.aliases,
-                "keywords": [],
-                "execution": {
-                    "program": "self",
-                    "argsPrefix": request
-                        .args_prefix
-                        .iter()
-                        .chain(std::iter::once(&subcommand.name))
-                        .cloned()
-                        .collect::<Vec<_>>(),
-                    "mode": "pty",
-                    "workingDirectory": "current"
-                },
-                "arguments": help_args::to_json_array(&subcommand.arguments)
-            }));
-        }
+        let commands = derived_descriptor_commands(
+            &command,
+            name,
+            &manifest.description,
+            &request.args_prefix,
+            &derivation,
+        );
         let mut descriptor_bytes = serde_json::to_vec_pretty(&serde_json::json!({
             "protocolVersion": "1.0",
             "provider": {
@@ -351,6 +316,11 @@ async fn create_custom_integration_locked(
         descriptor_bytes.push(b'\n');
         std::fs::write(&descriptor_path, descriptor_bytes)
             .map_err(|error| format!("Cannot write custom provider description: {error}"))?;
+        if !script_mode {
+            // Probe record sidecar: best-effort by contract — a failure here
+            // must never fail the connection.
+            let _ = write_help_probe_sidecar(&package_root, &derivation);
+        }
         if script_mode {
             std::fs::write(
                 &script_path,
@@ -382,6 +352,236 @@ async fn create_custom_integration_locked(
         let _ = std::fs::remove_dir_all(&package_root);
     }
     result
+}
+
+/// Descriptor command payload shared by connect-time generation and later
+/// re-probes: the root command carrying `args_prefix`, plus one runnable
+/// command per derived subcommand with its own probed flags.
+fn derived_descriptor_commands(
+    command_id: &str,
+    name: &str,
+    root_description: &str,
+    args_prefix: &[String],
+    derivation: &help_args::HelpDerivation,
+) -> Vec<serde_json::Value> {
+    let mut commands = vec![serde_json::json!({
+        "id": command_id,
+        "name": name,
+        "description": root_description,
+        "aliases": [],
+        "keywords": [],
+        "execution": {
+            "program": "self",
+            "argsPrefix": args_prefix,
+            "mode": "pty",
+            "workingDirectory": "current"
+        },
+        "arguments": help_args::to_json_array(&derivation.root_arguments)
+    })];
+    for subcommand in &derivation.subcommands {
+        if subcommand.name == command_id {
+            continue;
+        }
+        commands.push(serde_json::json!({
+            "id": subcommand.name,
+            "name": format!("{name} {}", subcommand.name),
+            "description": if subcommand.description.is_empty() {
+                format!("Subcommand of {name}")
+            } else {
+                subcommand.description.clone()
+            },
+            "aliases": subcommand.aliases,
+            "keywords": [],
+            "execution": {
+                "program": "self",
+                "argsPrefix": args_prefix
+                    .iter()
+                    .chain(std::iter::once(&subcommand.name))
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                "mode": "pty",
+                "workingDirectory": "current"
+            },
+            "arguments": help_args::to_json_array(&subcommand.arguments)
+        }));
+    }
+    commands
+}
+
+/// One sidecar record per probed subcommand for `help-probe.json`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HelpProbeSubcommand<'a> {
+    name: &'a str,
+    aliases: &'a [String],
+    argument_count: usize,
+}
+
+/// Sidecar probe record written next to `provider-description.json`. Purely
+/// informational (when the flags were derived and how much was found); never
+/// read back to make decisions.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HelpProbeRecord<'a> {
+    probed_at: u64,
+    root_argument_count: usize,
+    subcommands: Vec<HelpProbeSubcommand<'a>>,
+}
+
+fn write_help_probe_sidecar(
+    package_root: &Path,
+    derivation: &help_args::HelpDerivation,
+) -> Result<(), String> {
+    let record = HelpProbeRecord {
+        probed_at: unix_now(),
+        root_argument_count: derivation.root_arguments.len(),
+        subcommands: derivation
+            .subcommands
+            .iter()
+            .map(|subcommand| HelpProbeSubcommand {
+                name: &subcommand.name,
+                aliases: &subcommand.aliases,
+                argument_count: subcommand.arguments.len(),
+            })
+            .collect(),
+    };
+    let mut bytes = serde_json::to_vec_pretty(&record)
+        .map_err(|error| format!("Cannot serialize help probe record: {error}"))?;
+    bytes.push(b'\n');
+    std::fs::write(package_root.join("help-probe.json"), bytes)
+        .map_err(|error| format!("Cannot write help probe record: {error}"))
+}
+
+/// Result of a successful [`reprobe_tool_commands`] run: how many argument
+/// hints the fresh derivation produced.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReprobeReport {
+    pub root_arguments: usize,
+    pub subcommands: usize,
+}
+
+/// Re-run the connect-time help derivation for a generated custom
+/// integration and regenerate its static descriptor in place. The current
+/// descriptor is authoritative for everything user-visible (root command
+/// id/name/description, provider block, configured `argsPrefix`); only the
+/// derived `arguments` arrays and the subcommand command list are rebuilt.
+/// The refreshed descriptor replaces the old one atomically (temp + rename)
+/// and the `help-probe.json` sidecar is refreshed best-effort.
+///
+/// Callers must already hold the extension mutation lock; this routine does
+/// not take it so it can run inline from other locked mutations.
+pub async fn reprobe_tool_commands(
+    state: &ExtensionState,
+    id: &str,
+) -> Result<ReprobeReport, String> {
+    validate_id(id)?;
+    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+        .get(id)?
+        .clone();
+    if !is_generated_custom_integration(&entry) {
+        return Err(format!(
+            "Integration {id} was not generated by Floter and cannot be re-probed"
+        ));
+    }
+    if entry.provider_kind != ExtensionProviderKind::StaticDescriptor {
+        return Err(format!(
+            "Integration {id} does not use a static descriptor to re-probe"
+        ));
+    }
+    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    if matches!(manifest.runtime, Runtime::Script { .. }) {
+        return Err("Script integrations have no executable to probe".to_string());
+    }
+    let executable = PathBuf::from(&entry.executable_path);
+    if !is_linked_executable(&executable) {
+        return Err(format!(
+            "Tool executable is not available: {}; reconnect the integration first",
+            executable.display()
+        ));
+    }
+    let root = Path::new(&entry.manifest_path)
+        .parent()
+        .ok_or("Custom integration manifest has no parent directory")?;
+    let descriptor_path = root.join(
+        manifest
+            .provider
+            .descriptor
+            .as_deref()
+            .unwrap_or("provider-description.json"),
+    );
+    let mut descriptor: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&descriptor_path)
+            .map_err(|error| format!("Cannot read custom integration descriptor: {error}"))?,
+    )
+    .map_err(|error| format!("Cannot parse custom integration descriptor: {error}"))?;
+    let commands = descriptor
+        .get_mut("commands")
+        .and_then(|commands| commands.as_array_mut())
+        .ok_or("Custom integration descriptor has no command list")?;
+    let root_command = commands
+        .first()
+        .ok_or("Custom integration descriptor has no command")?
+        .clone();
+    let command_id = root_command["id"].as_str().unwrap_or_default().to_string();
+    let name = root_command["name"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    let root_description = root_command["description"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    let args_prefix = root_command["execution"]["argsPrefix"]
+        .as_array()
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let derivation = help_args::probe_derive(&executable).await;
+    *commands = derived_descriptor_commands(
+        &command_id,
+        &name,
+        &root_description,
+        &args_prefix,
+        &derivation,
+    );
+    let mut descriptor_bytes = serde_json::to_vec_pretty(&descriptor)
+        .map_err(|error| format!("Cannot serialize custom provider description: {error}"))?;
+    descriptor_bytes.push(b'\n');
+    let temp_path = root.join(".provider-description.reprobing.tmp");
+    std::fs::write(&temp_path, descriptor_bytes)
+        .map_err(|error| format!("Cannot stage custom provider description: {error}"))?;
+    if let Err(error) = std::fs::rename(&temp_path, &descriptor_path) {
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(format!(
+            "Cannot update custom provider description: {error}"
+        ));
+    }
+    let _ = write_help_probe_sidecar(root, &derivation);
+    state.invalidate_provider_commands().await;
+    Ok(ReprobeReport {
+        root_arguments: derivation.root_arguments.len(),
+        subcommands: derivation.subcommands.len(),
+    })
+}
+
+/// Enable-path variant of [`reprobe_tool_commands`]: silently degrades to a
+/// no-op for anything not worth re-probing, and swallows every error — the
+/// previous descriptor stays valid, and enabling must never fail because
+/// re-probing did.
+pub async fn reprobe_after_enable(state: &ExtensionState, entry: &ExtensionLockEntry) {
+    if !entry.enabled
+        || !is_generated_custom_integration(entry)
+        || entry.provider_kind != ExtensionProviderKind::StaticDescriptor
+    {
+        return;
+    }
+    let _ = reprobe_tool_commands(state, &entry.id).await;
 }
 
 pub fn is_generated_custom_integration(entry: &ExtensionLockEntry) -> bool {
@@ -2314,6 +2514,246 @@ mod tests {
             .unwrap();
         assert_eq!(Path::new(&plan.program), executable);
         assert_eq!(plan.args, ["beta", "user value"]);
+    }
+
+    /// Re-probe contract: after the tool's second-level help changes,
+    /// `reprobe_tool_commands` must regenerate the descriptor with the new
+    /// flag while preserving the root command identity/argsPrefix, and
+    /// refresh the `help-probe.json` sidecar.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn reprobe_picks_up_modified_subcommand_help_and_refreshes_the_sidecar() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = {
+            let path = script_directory.path().join("reprober.sh");
+            std::fs::write(
+                &path,
+                concat!(
+                    "#!/bin/sh\n",
+                    "if [ \"$1\" = \"--help\" ]; then\n",
+                    "printf 'Available Plugins\\nalpha 1.0.0 (aliases: al)\\n    First gadget\\n'\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "if [ \"$1\" = \"alpha\" ]; then\n",
+                    "printf 'Options:\\n  -f         Format output\\n'\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "echo done\n"
+                ),
+            )
+            .unwrap();
+            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&path, permissions).unwrap();
+            path
+        };
+        create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.reprober-test".into(),
+                name: "Reprober Test".into(),
+                command: "reprober-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: vec!["--prefix".into()],
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+        let installed_at = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get("local.reprober-test")
+            .unwrap()
+            .installed_at;
+        let package_root = state
+            .paths
+            .data
+            .join("local.reprober-test")
+            .join("integration");
+        let descriptor_path = package_root.join("provider-description.json");
+        let before: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        assert!(!serde_json::to_string(&before).unwrap().contains("--extra"));
+        assert_eq!(
+            before["commands"][0]["execution"]["argsPrefix"],
+            serde_json::json!(["--prefix"])
+        );
+
+        // The tool upgrade: its subcommand help now exposes an extra flag.
+        std::fs::write(
+            &executable,
+            concat!(
+                "#!/bin/sh\n",
+                "if [ \"$1\" = \"--help\" ]; then\n",
+                "printf 'Available Plugins\\nalpha 1.0.0 (aliases: al)\\n    First gadget\\n'\n",
+                "exit 0\n",
+                "fi\n",
+                "if [ \"$1\" = \"alpha\" ]; then\n",
+                "printf 'Options:\\n  -f         Format output\\n  -x, --extra   Extra thing\\n'\n",
+                "exit 0\n",
+                "fi\n",
+                "echo done\n"
+            ),
+        )
+        .unwrap();
+
+        let report = super::reprobe_tool_commands(&state, "local.reprober-test")
+            .await
+            .unwrap();
+        assert_eq!(report.subcommands, 1);
+
+        let after: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        let alpha_arguments = &after["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|command| command["id"] == "alpha")
+            .expect("alpha command must survive the re-probe")["arguments"];
+        assert!(serde_json::to_string(alpha_arguments)
+            .unwrap()
+            .contains("--extra"));
+        // Root command identity and configured argsPrefix are preserved.
+        assert_eq!(after["commands"][0]["id"], "reprober-test");
+        assert_eq!(
+            after["commands"][0]["execution"]["argsPrefix"],
+            serde_json::json!(["--prefix"])
+        );
+
+        let sidecar: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(package_root.join("help-probe.json")).unwrap())
+                .unwrap();
+        assert!(sidecar["probedAt"].as_u64().unwrap() >= installed_at);
+        assert_eq!(sidecar["rootArgumentCount"].as_u64().unwrap(), 0);
+        assert_eq!(sidecar["subcommands"][0]["name"], "alpha");
+        assert_eq!(
+            sidecar["subcommands"][0]["aliases"],
+            serde_json::json!(["al"])
+        );
+    }
+
+    /// Enable-path re-probe: disabling, upgrading the tool's help, then
+    /// re-enabling must refresh the derived flags through the same silent
+    /// helper the enable command uses — and enabling must never fail (or
+    /// panic) when the executable has vanished.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn enable_reprobe_picks_up_new_flags_and_survives_a_deleted_executable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = {
+            let path = script_directory.path().join("enabler.sh");
+            std::fs::write(
+                &path,
+                concat!(
+                    "#!/bin/sh\n",
+                    "if [ \"$1\" = \"--help\" ]; then\n",
+                    "printf 'Options:\\n  -old   Old flag\\n'\n",
+                    "exit 0\n",
+                    "fi\n",
+                    "echo done\n"
+                ),
+            )
+            .unwrap();
+            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&path, permissions).unwrap();
+            path
+        };
+        create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.enabler-test".into(),
+                name: "Enabler Test".into(),
+                command: "enabler-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+        let descriptor_path = state
+            .paths
+            .data
+            .join("local.enabler-test")
+            .join("integration")
+            .join("provider-description.json");
+
+        set_enabled_for_test(&state, "local.enabler-test", false).await;
+        std::fs::write(
+            &executable,
+            concat!(
+                "#!/bin/sh\n",
+                "if [ \"$1\" = \"--help\" ]; then\n",
+                "printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'\n",
+                "exit 0\n",
+                "fi\n",
+                "echo done\n"
+            ),
+        )
+        .unwrap();
+        set_enabled_for_test(&state, "local.enabler-test", true).await;
+        let entry = ExtensionsLock::load(&state.paths.lock_file)
+            .unwrap()
+            .get("local.enabler-test")
+            .unwrap()
+            .clone();
+        super::reprobe_after_enable(&state, &entry).await;
+
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        assert!(serde_json::to_string(&descriptor).unwrap().contains("-new"));
+
+        // A deleted executable must degrade silently on the enable path but
+        // surface a helpful error through the manual routine.
+        std::fs::remove_file(&executable).unwrap();
+        super::reprobe_after_enable(&state, &entry).await;
+        let error = super::reprobe_tool_commands(&state, "local.enabler-test")
+            .await
+            .unwrap_err();
+        assert!(error.contains("not available"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn manual_reprobe_rejects_script_integrations_with_a_clear_error() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        create_custom_integration(
+            &state,
+            script_request("local.script-reprobe", "Script reprobe", "script-reprobe"),
+        )
+        .await
+        .unwrap();
+        let error = super::reprobe_tool_commands(&state, "local.script-reprobe")
+            .await
+            .unwrap_err();
+        assert!(
+            error.contains("Script integrations have no executable"),
+            "{error}"
+        );
     }
 
     #[tokio::test]
