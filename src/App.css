@@ -1477,6 +1477,70 @@ input:focus {
   color: var(--accent);
 }
 
+/* Panel-level feedback surfaces as a fixed toast stack in the top-right
+   corner, above every extension overlay (drawer backdrop z-20, dialogs z-40). */
+.extensions-toasts {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.extensions-toast {
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: var(--ext-border);
+  border-radius: var(--ext-radius);
+  background: var(--surface-opaque);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .28);
+  color: var(--text-secondary);
+  font-size: 11px;
+  animation: extensions-toast-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.extensions-toast svg {
+  flex: 0 0 auto;
+}
+
+.extensions-toast span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.extensions-toast .extensions-icon-button {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.extensions-toast--error {
+  color: var(--text-warning);
+}
+
+.extensions-toast--success {
+  color: var(--accent);
+}
+
+@keyframes extensions-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .extensions-installed {
   min-width: 0;
   display: grid;

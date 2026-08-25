@@ -369,6 +369,49 @@ pub fn tool_binding_permissions() -> Vec<Permission> {
     ]
 }
 
+/// Kebab-case label matching the serde representation of `Permission`.
+fn permission_label(permission: &Permission) -> &'static str {
+    match permission {
+        Permission::FilesystemRead => "filesystem-read",
+        Permission::FilesystemWrite => "filesystem-write",
+        Permission::NetworkFetch => "network-fetch",
+        Permission::ProcessSpawn => "process-spawn",
+        Permission::ClipboardRead => "clipboard-read",
+        Permission::ClipboardWrite => "clipboard-write",
+        Permission::Environment => "environment",
+    }
+}
+
+fn permission_labels(permissions: &[Permission]) -> String {
+    permissions
+        .iter()
+        .map(permission_label)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Exact-set match between the user-approved permissions and the disclosure
+/// for one-click tool connections. Both sides are canonicalized (sorted and
+/// deduplicated) before comparing so ordering never matters; any missing or
+/// extra permission still fails.
+pub fn validate_tool_binding_approval(approved: &[Permission]) -> Result<(), String> {
+    fn canonical(mut set: Vec<Permission>) -> Vec<Permission> {
+        set.sort();
+        set.dedup();
+        set
+    }
+    let expected = tool_binding_permissions();
+    let approved = canonical(approved.to_vec());
+    if approved != canonical(expected.clone()) {
+        return Err(format!(
+            "Tool permission approval does not match the disclosure (expected: {}; got: {})",
+            permission_labels(&expected),
+            permission_labels(&approved),
+        ));
+    }
+    Ok(())
+}
+
 fn sanitized_command_from_executable(stem: &str) -> String {
     let mut command: String = stem
         .to_ascii_lowercase()
@@ -1545,6 +1588,48 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
         }
+    }
+
+    #[test]
+    fn tool_binding_approval_accepts_disclosure_in_any_order() {
+        validate_tool_binding_approval(&[
+            Permission::FilesystemRead,
+            Permission::Environment,
+            Permission::ProcessSpawn,
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn tool_binding_approval_rejects_missing_permission() {
+        let result = validate_tool_binding_approval(&[Permission::Environment, Permission::ProcessSpawn]);
+        assert_eq!(
+            result.unwrap_err(),
+            "Tool permission approval does not match the disclosure (expected: environment, process-spawn, filesystem-read; got: process-spawn, environment)"
+        );
+    }
+
+    #[test]
+    fn tool_binding_approval_rejects_extra_permission() {
+        let result = validate_tool_binding_approval(&[
+            Permission::Environment,
+            Permission::ProcessSpawn,
+            Permission::FilesystemRead,
+            Permission::NetworkFetch,
+        ]);
+        assert_eq!(
+            result.unwrap_err(),
+            "Tool permission approval does not match the disclosure (expected: environment, process-spawn, filesystem-read; got: filesystem-read, network-fetch, process-spawn, environment)"
+        );
+    }
+
+    #[test]
+    fn tool_binding_approval_rejects_empty_approval() {
+        let result = validate_tool_binding_approval(&[]);
+        assert_eq!(
+            result.unwrap_err(),
+            "Tool permission approval does not match the disclosure (expected: environment, process-spawn, filesystem-read; got: )"
+        );
     }
 
     #[test]

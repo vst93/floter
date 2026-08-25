@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
@@ -412,10 +412,27 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
+type PanelToast = { id: number; kind: "error" | "success"; text: string };
+
+function ExtensionsToast({ toast, t, onDismiss }: { toast: PanelToast; t: Translate; onDismiss: (id: number) => void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => onDismiss(toast.id), toast.kind === "error" ? 8000 : 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast.id, toast.kind, onDismiss]);
+  return (
+    <div className={`extensions-toast extensions-toast--${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}>
+      {toast.kind === "error"
+        ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+        : <Check size={15} strokeWidth={2} aria-hidden="true" />}
+      <span>{toast.text}</span>
+      <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.dismissNotice")} onClick={() => onDismiss(toast.id)}><X size={13} strokeWidth={2} /></button>
+    </div>
+  );
+}
+
 export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<ExtensionOperation>(null);
   const [detectedQuery, setDetectedQuery] = useState("");
   const [detectedResults, setDetectedResults] = useState<ExecutableToolCandidate[]>([]);
@@ -453,7 +470,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const toolSearchNeedsRefresh = useRef(true);
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
-  const [operationNotice, setOperationNotice] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<PanelToast[]>([]);
+  const toastIdRef = useRef(0);
   const detailGeneration = useRef(0);
   const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const localDialogRef = useRef<HTMLElement | null>(null);
@@ -464,7 +482,16 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const drawerRef = useRef<HTMLElement | null>(null);
   const refreshGeneration = useRef(0);
   const refreshRef = useRef<() => Promise<void>>(async () => {});
-  const extensionActions = useExtensionActions({ refresh: () => refreshRef.current(), onError: (nextError) => setError(errorMessage(nextError)), onComplete: () => setOperationNotice(t("settings.extensions.operationComplete")) });
+  const dismissToast = useCallback((id: number) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }, []);
+  const pushToast = useCallback((kind: PanelToast["kind"], text: string) => {
+    const id = ++toastIdRef.current;
+    setToasts((current) => [...current, { id, kind, text }].slice(-3));
+  }, []);
+  const showError = useCallback((text: string) => pushToast("error", text), [pushToast]);
+  const showSuccess = useCallback((text: string) => pushToast("success", text), [pushToast]);
+  const extensionActions = useExtensionActions({ refresh: () => refreshRef.current(), onError: (nextError) => showError(errorMessage(nextError)), onComplete: () => showSuccess(t("settings.extensions.operationComplete")) });
   useEffect(() => {
     setBusy(extensionActions.busy as ExtensionOperation);
   }, [extensionActions.busy]);
@@ -560,14 +587,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const refresh = async () => {
     const generation = ++refreshGeneration.current;
     setLoading(true);
-    setError(null);
     try {
       const entries = await invoke<Extension[]>("extensions_list");
       if (generation !== refreshGeneration.current) return;
       setExtensions(entries);
       void refreshOfficialStatus(generation).catch(() => {});
     } catch (nextError) {
-      if (generation === refreshGeneration.current) setError(localErrorMessage(nextError, t));
+      if (generation === refreshGeneration.current) showError(localErrorMessage(nextError, t));
     } finally {
       if (generation === refreshGeneration.current) setLoading(false);
     }
@@ -707,7 +733,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   }, [showCustomIntegration, customIntegrationLoading]);
 
   const runMutation = async (id: string, kind: MutationKind, action: () => Promise<unknown>): Promise<boolean> => {
-    setError(null);
     const result = await extensionActions.runMutation(id, kind, action);
     if (result && kind === "uninstall") setSelectedId(null);
     return result;
@@ -716,14 +741,13 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const exportExtensions = async () => {
     if (syncOperation) return;
     setSyncOperation("export");
-    setError(null);
     setExportResult(null);
     setImportReport(null);
     try {
       const result = await invoke<ExtensionsExportResult | null>("extensions_export");
       if (result) setExportResult(result);
     } catch (nextError) {
-      setError(errorMessage(nextError));
+      showError(errorMessage(nextError));
     } finally {
       setSyncOperation(null);
     }
@@ -732,7 +756,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const importExtensions = async () => {
     if (syncOperation) return;
     setSyncOperation("import");
-    setError(null);
     setExportResult(null);
     setImportReport(null);
     try {
@@ -742,7 +765,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         await refresh();
       }
     } catch (nextError) {
-      setError(errorMessage(nextError));
+      showError(errorMessage(nextError));
     } finally {
       setSyncOperation(null);
     }
@@ -772,7 +795,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     );
     if (removed) {
       setRemovalTarget(null);
-      setOperationNotice(t(
+      showSuccess(t(
         removalKind(extension) === "custom"
           ? "settings.extensions.customDeleted"
           : removalKind(extension) === "npm"
@@ -788,7 +811,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const connectRecommendedAt = async (extension: Extension, executablePath: string | null) => {
     if (busy || !extension.runtimeAvailable) return;
     setBusy({ id: extension.id, kind: "install" });
-    setError(null);
     try {
       const review = await invoke<PermissionReview>("extensions_recommended_permissions", { id: extension.id, locale });
       const confirmKey = extension.manifestSuggestion ? "settings.extensions.confirmConnectManifest" : "settings.extensions.confirmConnectRecommended";
@@ -803,10 +825,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         approvedPermissions: review.permissions.map(({ permission }) => permission),
       });
       await refresh();
-      setOperationNotice(t("settings.extensions.connectedNotice", { name: extension.name }));
+      showSuccess(t("settings.extensions.connectedNotice", { name: extension.name }));
       setPendingToolSelection(null);
     } catch (nextError) {
-      setError(errorMessage(nextError));
+      showError(errorMessage(nextError));
     } finally {
       setBusy(null);
     }
@@ -833,7 +855,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       }))) return false;
       await invoke("extensions_connect_tool", { candidate, approvedPermissions: permissions });
     }).then((done) => {
-      if (done) setOperationNotice(t("settings.extensions.connectedNotice", { name: candidate.name }));
+      if (done) showSuccess(t("settings.extensions.connectedNotice", { name: candidate.name }));
     });
   };
 
@@ -854,7 +876,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const connectLocal = async () => {
     if (busy) return;
     setBusy({ id: "local", kind: "install" });
-    setError(null);
     try {
       const manifestPath = await invoke<string | null>("extensions_pick_local_package");
       if (!manifestPath) return;
@@ -868,7 +889,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       const details = await invoke<{ extensionName: string; runtime: string; platforms: string[]; source: string; permissions: PermissionReview }>("extensions_local_manifest_review", { manifestPath, locale });
       setPendingLocal({ review: details.permissions, request, name: details.extensionName, runtime: details.runtime, platforms: details.platforms, source: details.source });
     } catch (nextError) {
-      setError(errorMessage(nextError));
+      showError(errorMessage(nextError));
     } finally {
       setBusy(null);
     }
@@ -882,8 +903,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       await invoke("extensions_install", { request: { ...pending.request, approvedPermissions: pending.review.permissions.map(({ permission }) => permission) } });
       await refresh();
       setPendingLocal(null);
-      setOperationNotice(t("settings.extensions.connectedNotice", { name: pending.name }));
-    } catch (nextError) { setError(errorMessage(nextError)); }
+      showSuccess(t("settings.extensions.connectedNotice", { name: pending.name }));
+    } catch (nextError) { showError(errorMessage(nextError)); }
     finally { setBusy(null); }
   };
 
@@ -912,9 +933,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       customSavedRef.current = { ...definition, scriptLanguage: definition.scriptLanguage ?? "shell", scriptContent: definition.scriptContent ?? "", argsPrefix: [...definition.argsPrefix], versionArgs: [...definition.versionArgs], permissions: [...definition.permissions], platforms: [...definition.platforms] };
       setCustomDirty(false);
     } catch (nextError) {
-      const message = errorMessage(nextError);
-      setCustomIntegrationError(message);
-      setError(message);
+      setCustomIntegrationError(errorMessage(nextError));
     } finally {
       setCustomIntegrationLoading(false);
     }
@@ -952,7 +971,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     event.preventDefault();
     if (busy) return;
     setBusy({ id: customIntegration.id, kind: editingCustomId ? "save" : "install" });
-    setError(null);
     setCustomIntegrationError(null);
     try {
       const request = {
@@ -976,12 +994,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         : t("settings.extensions.customCreated", { name: customIntegration.name });
       setShowCustomIntegration(false);
       resetCustomIntegration();
-      setOperationNotice(notice);
+      showSuccess(notice);
       await refresh();
     } catch (nextError) {
-      const message = errorMessage(nextError);
-      setCustomIntegrationError(message);
-      setError(message);
+      setCustomIntegrationError(errorMessage(nextError));
     } finally {
       setBusy(null);
     }
@@ -991,14 +1007,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     if (customContentOperation) return;
     setCustomContentOperation("copy");
     setCustomIntegrationError(null);
-    setError(null);
     try {
       await navigator.clipboard.writeText(content);
-      setOperationNotice(notice);
+      showSuccess(notice);
     } catch (nextError) {
-      const message = errorMessage(nextError);
-      setCustomIntegrationError(message);
-      setError(message);
+      setCustomIntegrationError(errorMessage(nextError));
     } finally {
       setCustomContentOperation(null);
     }
@@ -1011,15 +1024,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     if (customContentOperation) return;
     setCustomContentOperation("export");
     setCustomIntegrationError(null);
-    setError(null);
     const extension = customIntegration.scriptLanguage === "shell" ? "sh" : customIntegration.scriptLanguage === "powershell" ? "ps1" : "js";
     try {
       const path = await invoke<string | null>("extensions_custom_export_script", { id: customIntegration.id, content: customIntegration.scriptContent, extension });
-      if (path) setOperationNotice(t("settings.extensions.customScriptExported"));
+      if (path) showSuccess(t("settings.extensions.customScriptExported"));
     } catch (nextError) {
-      const message = errorMessage(nextError);
-      setCustomIntegrationError(message);
-      setError(message);
+      setCustomIntegrationError(errorMessage(nextError));
     } finally {
       setCustomContentOperation(null);
     }
@@ -1062,11 +1072,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       setConfigValues(saved.values);
       setSavedConfigValues(saved.values);
       setConfigNotice(t("settings.extensions.configSaved"));
-      setOperationNotice(t("settings.extensions.configSaved"));
+      showSuccess(t("settings.extensions.configSaved"));
     } catch (nextError) {
       const message = errorMessage(nextError);
       setDetailError(message);
-      setError(message);
+      showError(message);
     } finally {
       setBusy(null);
     }
@@ -1087,11 +1097,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       const json = await invoke<string>("extensions_config_copy", { id: selected.id, values: configValues });
       await navigator.clipboard.writeText(json);
       setConfigNotice(t("settings.extensions.configCopied"));
-      setOperationNotice(t("settings.extensions.configCopied"));
+      showSuccess(t("settings.extensions.configCopied"));
     } catch (nextError) {
       const message = errorMessage(nextError);
       setDetailError(message);
-      setError(message);
+      showError(message);
     } finally {
       setConfigOperation(null);
     }
@@ -1106,12 +1116,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       const path = await invoke<string | null>("extensions_config_export", { id: selected.id, values: configValues });
       if (path) {
         setConfigNotice(t("settings.extensions.configExported"));
-        setOperationNotice(t("settings.extensions.configExported"));
+        showSuccess(t("settings.extensions.configExported"));
       }
     } catch (nextError) {
       const message = errorMessage(nextError);
       setDetailError(message);
-      setError(message);
+      showError(message);
     } finally {
       setConfigOperation(null);
     }
@@ -1178,21 +1188,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
           <span className="settings-switch__thumb" />
         </button>
       </div>
-
-      {error && (
-        <div className="extensions-notice extensions-notice--error" role="alert">
-          <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {operationNotice && (
-        <div className="extensions-notice extensions-notice--success" role="status">
-          <Check size={15} strokeWidth={2} aria-hidden="true" />
-          <span>{operationNotice}</span>
-          <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.dismissNotice")} onClick={() => setOperationNotice(null)}><X size={13} strokeWidth={2} /></button>
-        </div>
-      )}
 
       <div className="extensions-installed">
         <div className="extensions-sync-toolbar">
@@ -1640,6 +1635,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               </button>
             </footer>
           </aside>
+        </div>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="extensions-toasts">
+          {toasts.map((toast) => <ExtensionsToast key={toast.id} toast={toast} t={t} onDismiss={dismissToast} />)}
         </div>
       )}
     </section>

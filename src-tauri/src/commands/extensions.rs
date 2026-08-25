@@ -967,13 +967,7 @@ pub async fn extensions_connect_tool(
     if !candidate.available {
         return Err(format!("Tool {} is not available", candidate.name));
     }
-    let expected = install::tool_binding_permissions();
-    let mut approved = approved_permissions;
-    approved.sort();
-    approved.dedup();
-    if approved != expected {
-        return Err("Permission approval does not match the disclosure for this tool".to_string());
-    }
+    install::validate_tool_binding_approval(&approved_permissions)?;
     let entry = install::connect_tool(&state, candidate).await?;
     state.invalidate_provider_commands().await;
     Ok(entry)
