@@ -863,16 +863,17 @@ export default function App() {
 
   // Catalog providers can perform I/O while loading their descriptors, so the
   // request shares one debounce window and stale responses are discarded.
-  // Command discovery is opt-in: unless the user enabled it on the Integrations
-  // settings page, the launcher only ever searches applications and system
-  // actions, and typed lines run through the action bar instead.
+  // Provider-connected and local commands are ALWAYS searchable — the user
+  // explicitly connected them. Only the noisy system-command discovery stays
+  // opt-in behind the Integrations settings toggle.
   useEffect(() => {
     const value = query.trim();
     const generation = ++catalogRequestGeneration.current;
-    if (!value || !settings.show_commands_in_search) {
+    if (!value) {
       setCatalogSuggestions([]);
       return;
     }
+    const includeSystemCommands = settings.show_commands_in_search;
 
     setCatalogSuggestions([]);
     const timer = window.setTimeout(() => {
@@ -895,7 +896,7 @@ export default function App() {
           environment: searchLine.environment,
           cwd: null,
           limit: 20,
-          includeSystemCommands: true,
+          includeSystemCommands,
         },
       }) : Promise.resolve<CatalogEntry[]>([]);
       const complete = wantsCompletion
@@ -911,7 +912,14 @@ export default function App() {
       Promise.all([search, complete])
         .then(([entries, completion]) => {
           if (catalogRequestGeneration.current !== generation) return;
-          const commands = entries.filter((entry) => entry.sourceKind !== "systemApplication");
+          // Flag on: everything except application entries (they have their own
+          // result list). Flag off: only explicitly connected provider/local
+          // commands — system commands stay hidden.
+          const commands = entries.filter((entry) =>
+            includeSystemCommands
+              ? entry.sourceKind !== "systemApplication"
+              : entry.sourceKind === "provider" || entry.sourceKind === "local",
+          );
           const exact = commands.find((entry) =>
             entry.command === command ||
             entry.qualifiedCommand === command ||

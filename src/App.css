@@ -1422,8 +1422,6 @@ input:focus {
 
 .extensions-icon-button:focus-visible,
 .extensions-action-button:focus-visible,
-.extensions-search button:focus-visible,
-.extensions-search input:focus-visible,
 .extension-config-field input:focus-visible,
 .extension-config-field select:focus-visible {
   outline: 1px solid var(--accent-ring);
@@ -1559,10 +1557,6 @@ input:focus {
   color: var(--text-secondary);
   font-size: 10px;
   font-weight: 650;
-}
-
-.extensions-search--detected {
-  margin-bottom: 2px;
 }
 
 .extensions-sync-toolbar {
@@ -1906,88 +1900,6 @@ input:focus {
   font-size: 11px;
 }
 
-.extensions-search {
-  min-width: 0;
-  height: 36px;
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 8px;
-  padding: 0 4px 0 9px;
-  border: var(--ext-border);
-  border-radius: var(--ext-radius);
-  background: var(--surface-control);
-  color: var(--text-muted);
-}
-
-.extensions-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 11.5px;
-  user-select: text;
-}
-
-.extensions-search input::placeholder {
-  color: var(--text-placeholder);
-}
-
-.extensions-search button {
-  height: var(--extensions-control-height);
-  padding: 0 10px;
-  border-radius: var(--ext-radius);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-size: 10.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  min-width: max-content;
-  flex: 0 0 auto;
-  cursor: pointer;
-}
-
-.extensions-search button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
-}
-
-.extensions-search__clear {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: var(--ext-radius);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  opacity: 0;
-  transform: scale(0.85);
-  transition: opacity 180ms ease, transform 180ms ease, background-color 120ms ease, color 120ms ease;
-}
-
-.extensions-search:focus-within .extensions-search__clear,
-.extensions-search__clear:focus {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.extensions-search__clear:hover {
-  border-color: var(--stroke-control);
-  background: var(--ext-bg-hover);
-  color: var(--text-primary);
-}
-
-.extensions-search button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .extension-permission-backdrop {
   position: fixed;
   inset: 0;
@@ -2259,6 +2171,8 @@ input:focus {
 .extension-tool-results span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
 .extension-tool-results strong { min-width: 0; display: grid; gap: 1px; color: var(--text-strong); }
 .extension-tool-results strong small { overflow: hidden; color: var(--text-strong); font-size: 8.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.extension-tool-results strong small.extension-tool-result__badge { display: inline-flex; align-items: center; gap: 3px; width: fit-content; color: var(--accent); }
+.extension-tool-results__header { padding: 6px 8px 3px; color: var(--text-tertiary); font-size: 9px; font-weight: 650; }
 .extension-custom-permissions { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; border: 0; }
 .extension-custom-permissions legend { width: 100%; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-weight: 650; text-transform: uppercase; }
 .extension-custom-permissions__hint { width: 100%; margin: -2px 0 2px; color: var(--text-tertiary); font-size: 9.5px; line-height: 1.35; }

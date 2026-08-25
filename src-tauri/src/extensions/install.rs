@@ -1796,6 +1796,35 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    async fn connected_tool_is_immediately_searchable_in_the_catalog() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = directory.path().join("findable");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        connect_tool(&state, discovered_candidate(&executable, "Findable"))
+            .await
+            .unwrap();
+
+        // The first provider-command load performs the System-runtime
+        // fingerprint binding. If that check ever failed right after connect,
+        // the entry would be marked broken and silently vanish from search —
+        // so both the command list and a query for the command name must hit.
+        let commands = catalog::load_provider_commands_uncached(&state).await.unwrap();
+        assert!(!commands.is_empty());
+        let entries = catalog::search(&state, &catalog_request("findable"), &[])
+            .await
+            .unwrap();
+        assert!(entries.iter().any(|entry| entry.command == "findable"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
     async fn connect_tool_binds_a_discovered_executable_like_a_custom_integration() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());

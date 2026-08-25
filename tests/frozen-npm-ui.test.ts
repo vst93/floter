@@ -43,7 +43,10 @@ test("panel keeps local connection paths working", async () => {
     "extensions_enable",
     "extensions_disable",
     "extensions_uninstall",
-    "extensions_connect_tool",
+    // extensions_connect_tool was retired from the panel: PATH discoveries are
+    // connected through the create-custom-integration drawer
+    // (extensions_create_custom), recommendations through
+    // extensions_connect_recommended.
     "extensions_connect_recommended",
     "extensions_create_custom",
     "extensions_search_tools",

@@ -391,7 +391,7 @@ async fn loaded_provider_commands(
     Ok(commands)
 }
 
-async fn load_provider_commands_uncached(
+pub(crate) async fn load_provider_commands_uncached(
     state: &ExtensionState,
 ) -> Result<Vec<LoadedProviderCommand>, String> {
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;

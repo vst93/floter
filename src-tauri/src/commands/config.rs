@@ -81,8 +81,8 @@ pub struct AppSettings {
     pub terminal_opacity: u8,
     /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
     pub shortcuts: HashMap<String, String>,
-    /// Whether extension/provider commands appear in launcher search results.
-    /// Off by default: commands are opt-in from the Integrations settings page.
+    /// Whether system-command discovery appears in launcher search results.
+    /// Off by default; provider-connected tools are always searchable.
     pub show_commands_in_search: bool,
 }
 

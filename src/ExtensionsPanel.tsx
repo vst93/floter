@@ -13,7 +13,6 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Trash2,
   Unplug,
   Wrench,
@@ -219,6 +218,14 @@ type ToolCandidate = {
 };
 
 export type ExecutableToolCandidate = ToolCandidate & { locator: Extract<ToolLocator, { kind: "executable" }> };
+
+// Suggestion rows for the create-custom-integration drawer's executable
+// picker: authored recommendations (shipped v-tools and convention-location
+// manifests) and raw PATH discoveries. Both kinds end up as identical
+// ToolBindings, but each keeps its own connect flow.
+export type ToolSuggestion =
+  | { kind: "recommendation"; extension: Extension }
+  | { kind: "candidate"; candidate: ExecutableToolCandidate };
 
 export type CustomIntegrationForm = {
   mode: "executable" | "script";
@@ -434,10 +441,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<ExtensionOperation>(null);
-  const [detectedQuery, setDetectedQuery] = useState("");
-  const [detectedResults, setDetectedResults] = useState<ExecutableToolCandidate[]>([]);
-  const [detectedSearching, setDetectedSearching] = useState(false);
-  const [detectedFailed, setDetectedFailed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderResponse | null>(null);
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
@@ -541,40 +544,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const configDirty = configuration?.descriptor.owner === "host"
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
 
-  // Manual PATH-tool search for the detected section. Device-wide results,
-  // minus anything already connected or unavailable.
-  const detectedCandidates = useMemo(
-    () => detectedResults.filter((candidate) => candidate.available && !connectedPaths.has(candidate.locator.path)),
-    [detectedResults, connectedPaths],
-  );
-
-  useEffect(() => {
-    const query = detectedQuery.trim();
-    if (!query) {
-      setDetectedResults([]);
-      setDetectedFailed(false);
-      setDetectedSearching(false);
-      return;
-    }
-    let cancelled = false;
-    setDetectedSearching(true);
-    const timer = window.setTimeout(() => {
-      void invoke<ToolCandidate[]>("extensions_search_tools", { query, limit: 12, forceRefresh: false, executableOnly: true })
-        .then((results) => {
-          if (cancelled) return;
-          setDetectedResults(results.filter((candidate): candidate is ExecutableToolCandidate => candidate.locator.kind === "executable"));
-          setDetectedFailed(false);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setDetectedResults([]);
-          setDetectedFailed(true);
-        })
-        .finally(() => { if (!cancelled) setDetectedSearching(false); });
-    }, 200);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [detectedQuery]);
-
   const refreshOfficialStatus = async (generation: number) => {
     const statuses = await invoke<Record<string, boolean>>("extensions_refresh_official_status");
     if (generation !== refreshGeneration.current) return;
@@ -623,7 +592,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       void invoke<ToolCandidate[]>("extensions_search_tools", { query, limit: 12, forceRefresh, executableOnly: true })
         .then((results) => {
           if (cancelled) return;
-          setToolResults(results.filter((candidate): candidate is ExecutableToolCandidate => candidate.locator.kind === "executable" && candidate.available));
+          setToolResults(results.filter((candidate): candidate is ExecutableToolCandidate =>
+            candidate.locator.kind === "executable"
+              && candidate.available
+              && !connectedPaths.has(candidate.locator.path),
+          ));
           setToolHighlight(0);
         })
         .catch(() => {
@@ -635,7 +608,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         .finally(() => { if (!cancelled) setToolSearching(false); });
     }, 120);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [showCustomIntegration, customIntegration.mode, customIntegration.executablePath]);
+  }, [showCustomIntegration, customIntegration.mode, customIntegration.executablePath, connectedPaths]);
 
   useEffect(() => {
     toolResultsRef.current
@@ -842,37 +815,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     void connectRecommendedAt(extension, extension.toolCandidates[0]?.locator.path ?? null);
   };
 
-  // One-click connection for a PATH tool candidate. The backend derives
-  // manifest + descriptor from the candidate; the fixed disclosure set is
-  // confirmed inline, then the regular custom-integration pipeline runs.
-  const connectToolCandidate = (candidate: ExecutableToolCandidate) => {
-    const permissions: PermissionName[] = ["environment", "process-spawn", "filesystem-read"];
-    void runMutation(candidate.id, "install", async () => {
-      if (!window.confirm(t("settings.extensions.confirmConnectTool", {
-        name: candidate.name,
-        path: candidate.locator.path,
-        permissions: permissions.map((permission) => t(`settings.extensions.permission.${permission}`)).join(", "),
-      }))) return false;
-      await invoke("extensions_connect_tool", { candidate, approvedPermissions: permissions });
-    }).then((done) => {
-      if (done) showSuccess(t("settings.extensions.connectedNotice", { name: candidate.name }));
-    });
-  };
-
-  const connectDiscoveredTool = (extension: Extension) => {
-    if (!extension.executablePath) return;
-    connectToolCandidate({
-      id: extension.id,
-      name: extension.name,
-      locator: { kind: "executable", path: extension.executablePath },
-      version: extension.toolVersion,
-      sources: ["path"],
-      quality: "auto-detected",
-      available: extension.runtimeAvailable,
-      fingerprint: null,
-    });
-  };
-
   const connectLocal = async () => {
     if (busy) return;
     setBusy({ id: "local", kind: "install" });
@@ -953,17 +895,44 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     setToolResults([]);
   };
 
+  // Suggestions for the drawer's executable picker. While the executable path
+  // is empty (idle state) authored recommendations come first, followed by a
+  // device-wide PATH scan minus anything already connected; once the user
+  // types, normal search results take over through the same list.
+  const toolSuggestions = useMemo<ToolSuggestion[]>(() => {
+    const candidates = toolResults.map((candidate): ToolSuggestion => ({ kind: "candidate", candidate }));
+    if (customIntegration.executablePath.trim()) return candidates;
+    return [
+      ...suggestedExtensions.map((extension): ToolSuggestion => ({ kind: "recommendation", extension })),
+      ...candidates,
+    ];
+  }, [toolResults, suggestedExtensions, customIntegration.executablePath]);
+
+  const chooseToolSuggestion = (item: ToolSuggestion) => {
+    if (item.kind === "candidate") {
+      chooseToolCandidate(item.candidate);
+      return;
+    }
+    // Recommendations carry an authored manifest, so they connect through the
+    // recommendation pipeline (permission review, confirm text, multi-candidate
+    // chooser) instead of the generic custom-integration form. Close the drawer
+    // without a discard prompt — nothing was edited.
+    setShowCustomIntegration(false);
+    resetCustomIntegration();
+    void connectRecommended(item.extension);
+  };
+
   const handleToolSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (!toolResults.length) return;
+    if (!toolSuggestions.length) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setToolHighlight((index) => Math.min(index + 1, toolResults.length - 1));
+      setToolHighlight((index) => Math.min(index + 1, toolSuggestions.length - 1));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setToolHighlight((index) => Math.max(index - 1, 0));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      chooseToolCandidate(toolResults[toolHighlight]);
+      chooseToolSuggestion(toolSuggestions[toolHighlight]);
     }
   };
 
@@ -1293,96 +1262,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
             ))}
           </div>
         </section>
-
-        <section className="extensions-section">
-          <h3 className="extensions-section-title">{t("settings.extensions.section.detected")}</h3>
-          <form className="extensions-search extensions-search--detected" onSubmit={(event) => event.preventDefault()}>
-            <Search size={16} strokeWidth={2} aria-hidden="true" />
-            <input
-              value={detectedQuery}
-              onChange={(event) => setDetectedQuery(event.target.value)}
-              placeholder={t("settings.extensions.detectedSearchPlaceholder")}
-              aria-label={t("settings.extensions.detectedSearchPlaceholder")}
-            />
-            {detectedQuery && (
-              <button
-                type="button"
-                className="extensions-search__clear"
-                aria-label={t("settings.extensions.dismissNotice")}
-                onClick={() => setDetectedQuery("")}
-              >
-                <X size={14} strokeWidth={2} />
-              </button>
-            )}
-          </form>
-          <div className="extensions-list extensions-list--installed">
-            {detectedQuery.trim() ? (
-              detectedSearching ? (
-                <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.searching")} />
-              ) : detectedCandidates.length ? detectedCandidates.map((candidate) => (
-                <article key={candidate.id} className="extension-row extension-row--detected">
-                  <div className="extension-row__open">
-                    <span className="extension-row__icon">
-                      <Package size={17} strokeWidth={2} aria-hidden="true" />
-                    </span>
-                    <span className="extension-row__main">
-                      <span className="extension-row__title">
-                        <strong>{candidate.name}</strong>
-                      </span>
-                      <span className="extension-row__meta" title={candidate.locator.path}>
-                        <span>{candidate.locator.path}</span>
-                        <span>{candidate.sources.join(" · ")}</span>
-                      </span>
-                    </span>
-                  </div>
-                  <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
-                      aria-label={t("settings.extensions.connect")}
-                      title={t("settings.extensions.connect")}
-                      disabled={Boolean(busy)}
-                      onClick={() => connectToolCandidate(candidate)}
-                    >
-                      <Link2 size={14} strokeWidth={2} aria-hidden="true" />
-                    </button>
-                  </div>
-                </article>
-              )) : (
-                <EmptyState
-                  icon={<Search size={20} strokeWidth={2} />}
-                  text={t(detectedFailed ? "settings.extensions.customToolSearchFailed" : "settings.extensions.customToolNoResults")}
-                  query={detectedQuery.trim()}
-                />
-              )
-            ) : loading ? (
-              <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
-            ) : suggestedExtensions.length === 0 ? (
-              <EmptyState icon={<Check size={20} strokeWidth={2} />} text={t("settings.extensions.emptyDetected")} />
-            ) : suggestedExtensions.map((extension) => (
-              <ExtensionRowComponent
-                key={extension.id}
-                extension={extension}
-                operation={busy}
-                t={t}
-                onOpen={() => setSelectedId(extension.id)}
-                onConnect={() => {
-                  // Manifest suggestions carry a full authored manifest,
-                  // so they connect through the same pipeline as shipped
-                  // recommendations instead of regenerating one.
-                  return extension.recommended || extension.manifestSuggestion
-                    ? void connectRecommended(extension)
-                    : connectDiscoveredTool(extension);
-                }}
-                onRepair={() => extension.homepage && void invoke("open_url", { url: extension.homepage })}
-                onReconnect={() => void reconnectSystem(extension)}
-                onToggle={() => void toggleExtension(extension)}
-                onEdit={() => void editCustomIntegration(extension)}
-                onUninstall={() => uninstallExtension(extension)}
-              />
-            ))}
-          </div>
-        </section>
       </div>
       {pendingLocal && <LocalInstallDialog pending={pendingLocal} busy={Boolean(busy)} t={t} dialogRef={localDialogRef} stopPropagation={stopRowClick} onCancel={() => setPendingLocal(null)} onConfirm={() => void confirmLocal()} />}
       {pendingToolSelection && (
@@ -1412,7 +1291,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       )}
 
       {removalTarget && <RemovalDialog extension={removalTarget} busy={Boolean(busy)} t={t} dialogRef={removalDialogRef} stopPropagation={stopRowClick} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />}
-      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} toolResults={toolResults} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolCandidate} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
+      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} toolSuggestions={toolSuggestions} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolSuggestion} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
 
       {selected && (
         <div className="extension-drawer-backdrop" role="presentation" onMouseDown={closeDetails}>
