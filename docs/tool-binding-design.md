@@ -97,7 +97,7 @@ launcher 因此能按子命令补全其专属 flag。全部步骤仍为尽力而
 ### Phase C：broken 状态贯通
 
 - catalog 加载时对 binding 失败的条目标记 broken（带错误码落盘）而非仅 eprintln；
-- 面板行内显示 broken 徽标 + "重新检测"操作（替代 repair/reinstall 四套按钮）。
+- 面板行内显示 broken 徽标 + "重新检测"操作（已完成：行内异常徽标悬停显示原因，broken 行提供统一"重新检测"动作，复用 `extensions_repair`）。
 
 ### Phase D（远期）：约定位置 manifest 与分发渠道
 

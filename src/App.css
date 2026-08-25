@@ -1737,6 +1737,7 @@ input:focus {
 
 .extension-status--broken {
   color: var(--text-warning);
+  background: color-mix(in srgb, var(--text-warning) 10%, transparent);
 }
 
 .extension-status--recommended {

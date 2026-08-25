@@ -97,7 +97,14 @@ export function ExtensionRow({
             </span>
           )}
           <span>{t(`settings.extensions.runtimeSource.${extension.runtimeSource}`)}</span>
-          <span className={`extension-status extension-status--${extension.state}`}>{status}</span>
+          <span
+            className={`extension-status extension-status--${extension.state}`}
+            title={extension.state === "broken"
+              ? extension.brokenReason || extension.lastErrorCode || undefined
+              : undefined}
+          >
+            {status}
+          </span>
           {!extension.runtimeAvailable && (
             <span className="extension-status extension-status--broken">
               {t("settings.extensions.runtimeUnavailable")}
@@ -139,7 +146,26 @@ export function ExtensionRow({
           </button>
         ) : null}
 
+        {extension.connected && extension.state === "broken" && (
+          <button
+            type="button"
+            className="extensions-icon-button extensions-icon-button--row"
+            aria-label={t("settings.extensions.recheck")}
+            title={t("settings.extensions.recheck")}
+            aria-busy={rowRepairBusy}
+            disabled={busy}
+            onClick={onRepair}
+          >
+            {rowRepairBusy ? (
+              <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <Wrench size={14} strokeWidth={2} aria-hidden="true" />
+            )}
+          </button>
+        )}
+
         {extension.connected
+          && extension.state !== "broken"
           && !extension.runtimeAvailable
           && (extension.reconnectAvailable || extension.homepage) && (
           <button

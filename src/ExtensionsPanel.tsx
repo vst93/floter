@@ -772,11 +772,21 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     () => invoke(extension.enabled ? "extensions_disable" : "extensions_enable", { id: extension.id }),
   );
 
-  const repairExtension = (extension: Extension) => runMutation(
-    extension.id,
-    "repair",
-    () => invoke("extensions_repair", { id: extension.id }),
-  );
+  // Re-check verifies the installed extension and repairs it when needed;
+  // the toast reports which of the two happened.
+  const repairExtension = async (extension: Extension) => {
+    if (extensionActions.busy) return;
+    extensionActions.setBusy({ id: extension.id, kind: "repair" });
+    try {
+      const report = await invoke<{ repaired: boolean }>("extensions_repair", { id: extension.id });
+      await refreshRef.current();
+      showSuccess(t(report.repaired ? "settings.extensions.repairedNotice" : "settings.extensions.recheckedNotice"));
+    } catch (error) {
+      showError(errorMessage(error));
+    } finally {
+      extensionActions.setBusy(null);
+    }
+  };
 
   const uninstallExtension = (extension: Extension) => setRemovalTarget(extension);
 
