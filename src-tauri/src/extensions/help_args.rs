@@ -166,6 +166,7 @@ async fn probe_subcommand_help(
 /// first-seen order, and cap at [`MAX_SUBCOMMANDS`].
 pub fn derive_subcommands(help_output: &str) -> Vec<DerivedSubcommand> {
     const NON_COMMANDS: [&str; 4] = ["help", "version", "completion", "man"];
+    let help_output = strip_ansi(help_output);
     let mut subcommands: Vec<DerivedSubcommand> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     // Index of the most recent v-style row still awaiting its indented
@@ -178,6 +179,13 @@ pub fn derive_subcommands(help_output: &str) -> Vec<DerivedSubcommand> {
     for line in help_output.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
+            continue;
+        }
+        // Decorative rules (`====`, `----`, box-drawing runs), glyph-only
+        // rows, and obvious meta lines (`Version: ...` banners, `Run ... -h
+        // for details` footers) are never entries. A pending row survives
+        // them so a description following a rule line still lands.
+        if is_punctuation_run(trimmed) || is_meta_line(trimmed) {
             continue;
         }
         let indented = line.starts_with([' ', '\t']);
@@ -234,11 +242,82 @@ pub fn derive_subcommands(help_output: &str) -> Vec<DerivedSubcommand> {
     subcommands
 }
 
+/// Remove ANSI escape sequences (CSI runs ending in a final byte, OSC
+/// strings terminated by BEL or ST, and bare two-byte escapes). Tools that
+/// colorize their help regardless of whether stdout is a TTY would otherwise
+/// poison every token with escape-sequence fragments.
+fn strip_ansi(text: &str) -> String {
+    let mut cleaned = String::with_capacity(text.len());
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character != '\u{1b}' {
+            cleaned.push(character);
+            continue;
+        }
+        match characters.peek() {
+            Some('[') => {
+                characters.next();
+                // Parameter and intermediate bytes, then one final byte.
+                while let Some(next) = characters.next() {
+                    if ('\u{40}'..='\u{7e}').contains(&next) {
+                        break;
+                    }
+                }
+            }
+            Some(']') => {
+                characters.next();
+                while let Some(next) = characters.next() {
+                    match next {
+                        '\u{7}' => break,
+                        '\u{1b}' => {
+                            characters.next();
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            // Two-byte escape (charset selection etc.) - drop one follower.
+            _ => {
+                characters.next();
+            }
+        }
+    }
+    cleaned
+}
+
+/// Strip leading decoration from a token: emoji/Symbol codepoints, variation
+/// selectors, and other non-word glyphs. A meaningful leading `-` (option
+/// marker) is never stripped.
+fn strip_leading_decoration(token: &str) -> &str {
+    token.trim_start_matches(|character: char| {
+        !character.is_ascii_alphanumeric() && !matches!(character, '-' | '_')
+    })
+}
+
+/// Decorative filler: non-empty lines carrying no alphanumeric character at
+/// all (`====`, `----`, box-drawing rules, lone emoji). Never definitions.
+fn is_punctuation_run(trimmed: &str) -> bool {
+    !trimmed.is_empty()
+        && trimmed
+            .chars()
+            .all(|character| !character.is_alphanumeric())
+}
+
+/// Obvious meta banners and footers: `Version: ...` headers and `Run ...
+/// -h/--help for ...` style pointers. Their first word is prose, never a
+/// command name or option.
+fn is_meta_line(trimmed: &str) -> bool {
+    let lowered = trimmed.to_ascii_lowercase();
+    lowered.starts_with("version:")
+        || (lowered.starts_with("run ") && (lowered.contains("-h") || lowered.contains("--help")))
+}
+
 /// Parse one v-style listing row into `(name, description)`. The description
-/// is always empty here — v-style rows take theirs from the next indented
+/// is always empty here - v-style rows take theirs from the next indented
 /// line, and any same-line remainder is metadata (author, homepage).
 fn listing_row(remainder: &str) -> Option<(String, String)> {
-    let rest = remainder.trim_start_matches(|character: char| !character.is_ascii_alphanumeric());
+    let rest = strip_leading_decoration(remainder);
     if rest.is_empty() {
         return None;
     }
@@ -264,7 +343,7 @@ fn listing_row(remainder: &str) -> Option<(String, String)> {
 /// `(name, same-line description)`. Requires the wide gap that separates the
 /// definition column from the description column.
 fn command_section_row(line: &str) -> Option<(String, String)> {
-    let rest = line.trim_start_matches(|character: char| !character.is_ascii_alphanumeric());
+    let rest = strip_leading_decoration(line);
     if rest.is_empty() {
         return None;
     }
@@ -355,9 +434,10 @@ fn extract_aliases(trimmed: &str) -> (String, Vec<String>) {
 /// narrow exception — an indented plain-text line following an option whose
 /// description is still empty is treated as its description (Go `flag` style).
 pub fn derive_arguments(help_output: &str) -> Vec<ArgumentDescriptor> {
+    let help_output = strip_ansi(help_output);
     let mut arguments: Vec<ArgumentDescriptor> = Vec::new();
     let mut seen_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for line in help_output.lines() {
+    'lines: for line in help_output.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || skipped_line(trimmed) {
             continue;
@@ -376,43 +456,50 @@ pub fn derive_arguments(help_output: &str) -> Vec<ArgumentDescriptor> {
             }
             continue;
         }
-        let Some(raw) = parse_option_line(line) else {
-            continue;
+        // Either a classic option-definition line or a compact flag-summary
+        // row (`I/O: -pipe (auto) -file <path> -clip`); anything else is
+        // prose and yields no candidates.
+        let candidates = match parse_option_line(line) {
+            Some(raw) => vec![raw],
+            None => parse_summary_flags(trimmed),
         };
-        if raw.names.is_empty()
-            || raw
+        for raw in candidates {
+            if raw.names.is_empty()
+                || raw
+                    .names
+                    .iter()
+                    .any(|name| matches!(name.as_str(), "-h" | "--help" | "-V" | "--version"))
+            {
+                continue;
+            }
+            // Dedupe by canonical long name (or first flag when no long form
+            // exists) so the same option reached through wrapped or repeated
+            // listings - or through both an options section and a summary
+            // line - is only suggested once.
+            let key = raw
                 .names
                 .iter()
-                .any(|name| matches!(name.as_str(), "-h" | "--help" | "-V" | "--version"))
-        {
-            continue;
-        }
-        // Dedupe by canonical long name (or first flag when no long form
-        // exists) so the same option reached through wrapped or repeated
-        // listings is only suggested once.
-        let key = raw
-            .names
-            .iter()
-            .find(|name| name.starts_with("--"))
-            .cloned()
-            .unwrap_or_else(|| raw.names[0].clone());
-        if !seen_keys.insert(key) {
-            continue;
-        }
-        let takes_value = raw.value_hint.is_some();
-        let kind = argument_kind(raw.value_hint.as_deref(), takes_value);
-        arguments.push(ArgumentDescriptor {
-            names: raw.names,
-            kind,
-            description: raw.description,
-            takes_value,
-            required: false,
-            repeatable: false,
-            values: Vec::new(),
-            value_hint: raw.value_hint,
-        });
-        if arguments.len() >= MAX_ARGUMENTS {
-            break;
+                .find(|name| name.starts_with("--"))
+                .cloned()
+                .unwrap_or_else(|| raw.names[0].clone());
+            if !seen_keys.insert(key) {
+                continue;
+            }
+            let takes_value = raw.value_hint.is_some();
+            let kind = argument_kind(raw.value_hint.as_deref(), takes_value);
+            arguments.push(ArgumentDescriptor {
+                names: raw.names,
+                kind,
+                description: raw.description,
+                takes_value,
+                required: false,
+                repeatable: false,
+                values: Vec::new(),
+                value_hint: raw.value_hint,
+            });
+            if arguments.len() >= MAX_ARGUMENTS {
+                break 'lines;
+            }
         }
     }
     arguments
@@ -626,6 +713,81 @@ fn placeholder_value(token: &str) -> Option<String> {
 /// Inline value after `=`: bracketed forms or any non-empty remainder.
 fn inline_value(text: &str) -> Option<String> {
     placeholder_value(text).or((!text.is_empty()).then(|| text.to_string()))
+}
+
+/// Bounds for compact flag-summary recognition: at least this many distinct
+/// flags must appear on one line, never more than the cap.
+const MIN_SUMMARY_FLAGS: usize = 3;
+const MAX_SUMMARY_FLAGS: usize = 16;
+
+/// Parse a compact one-line flag summary into option definitions.
+///
+/// Shape: a short label ending in `:` (at most [`MAX_LABEL_CHARS`] characters,
+/// e.g. `I/O:` or `Flags:`) followed by at least [`MIN_SUMMARY_FLAGS`]
+/// distinct `-word` tokens separated by middle dots, commas, bare whitespace,
+/// or parenthesized annotations (`(auto)`); a placeholder token directly
+/// after a flag attaches as its value hint (`-out <path>`). Every remaining
+/// token must be explainable, so prose lines (`Note: see -a and -b below`)
+/// are rejected wholesale instead of mining stray dashes.
+fn parse_summary_flags(trimmed: &str) -> Vec<RawOption> {
+    const MAX_LABEL_CHARS: usize = 8;
+    let Some((label, rest)) = trimmed.split_once(':') else {
+        return Vec::new();
+    };
+    let label = label.trim();
+    if label.is_empty()
+        || label.chars().count() > MAX_LABEL_CHARS
+        || !label
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '/')
+    {
+        return Vec::new();
+    }
+    let mut names: Vec<String> = Vec::new();
+    let mut hints: Vec<Option<String>> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for token in rest.split_whitespace() {
+        // Separator debris and annotation groups: middle dot, comma,
+        // semicolon, empty parens, `(auto)`.
+        if token
+            .chars()
+            .all(|character| matches!(character, '\u{b7}' | ',' | ';' | '(' | ')'))
+            || (token.starts_with('(')
+                && token.ends_with(')')
+                && token.len() >= 2
+                && !token[1..token.len() - 1].chars().any(char::is_whitespace))
+        {
+            continue;
+        }
+        if let Some((flag, inline)) = flag_token(token) {
+            if seen.insert(flag.clone()) {
+                names.push(flag);
+                hints.push(inline.and_then(inline_value));
+            }
+            continue;
+        }
+        // Placeholder belonging to the preceding flag (`-out <path>`).
+        if let Some(hint) = placeholder_value(token) {
+            if let Some(slot) = hints.last_mut() {
+                slot.get_or_insert(hint);
+            }
+            continue;
+        }
+        // Unexplainable token: prose, not a summary.
+        return Vec::new();
+    }
+    if names.len() < MIN_SUMMARY_FLAGS || names.len() > MAX_SUMMARY_FLAGS {
+        return Vec::new();
+    }
+    names
+        .into_iter()
+        .zip(hints)
+        .map(|(name, value_hint)| RawOption {
+            names: vec![name],
+            value_hint,
+            description: String::new(),
+        })
+        .collect()
 }
 
 /// Map a value hint onto a descriptor kind. Flags stay `Flag`; hints naming
@@ -975,5 +1137,233 @@ ok-name 1.2.3
         assert!(json[0].get("valueHint").is_some());
         assert!(json[1].get("valueHint").is_none());
         assert_eq!(json[1]["kind"], "flag");
+    }
+
+    // Verbatim root `--help` output of a hand-rolled Go tool with an emoji-
+    // decorated plugin listing, version/author tokens, rule lines, a version
+    // banner, and a footer pointer.
+    const DECORATED_ROOT_HELP: &str = "v - Gadgets under the terminal
+Version: dev  \u{1f3e0} https://github.com/example/v
+
+Available Plugins
+==================================================
+\u{1f4e6} json2excel 0.0.1 \u{1f464} vst
+  convert json data to excel file
+
+\u{1f4e6} jv 1.0.0 \u{1f464} vst
+  JSON Viewer & Formatter - format, compress, escape, and interactively browse JSON
+
+\u{1f4e6} diff 1.0.0 \u{1f464} vst
+  Side-by-side text diff viewer with search and inline word-level highlighting
+
+\u{1f4e6} codec 1.0.0 \u{1f464} vst
+  Encode/Decode text: base64, base32, url, hex, html, unicode
+
+\u{1f4e6} cp 0.0.1 \u{1f464} vst
+  Copy text to clipboard (designed for pipe mode)
+
+\u{1f4e6} gencm 1.0.0 \u{1f464} vst
+  Generate commit message from staged changes using AI
+
+\u{1f4e6} genpwd 1.0.0 \u{1f464} vst
+  Random password generator with interactive TUI - configure rules and generate secure passwords
+
+\u{1f4e6} pwd 0.0.1 \u{1f464} vst
+  print working directory and copy to clipboard
+
+\u{1f4e6} tt 0.0.1 \u{1f464} vst
+  provides mutual conversion of timestamp and date
+
+\u{1f4e6} tr 0.0.1 \u{1f464} vst
+  Translate text (need internet connection)
+
+\u{1f4e6} vc 1.0.0 \u{1f464} vst
+  v-connection: multi-device text sharing via a channel
+
+--------------------------------------------------
+Run v <command> -h for detailed help.
+";
+
+    #[test]
+    fn parses_decorated_plugin_listing_verbatim() {
+        let subcommands = derive_subcommands(DECORATED_ROOT_HELP);
+        assert!(subcommands.len() >= 10);
+        let by_name: std::collections::HashMap<_, _> = subcommands
+            .iter()
+            .map(|sub| (sub.name.as_str(), sub))
+            .collect();
+        assert_eq!(
+            by_name["json2excel"].description,
+            "convert json data to excel file"
+        );
+        assert_eq!(
+            by_name["jv"].description,
+            "JSON Viewer & Formatter - format, compress, escape, and interactively browse JSON"
+        );
+        assert_eq!(
+            by_name["vc"].description,
+            "v-connection: multi-device text sharing via a channel"
+        );
+        // The root output carries no option definitions at all.
+        assert!(derive_arguments(DECORATED_ROOT_HELP).is_empty());
+        // Rule lines, the version banner, and the footer never become
+        // entries.
+        assert!(!by_name.contains_key("version"));
+        assert!(!by_name.contains_key("run"));
+        assert!(!by_name.values().any(|sub| sub.name.starts_with('=')));
+    }
+
+    // Verbatim second-level help of one of its plugins: single-dash long
+    // options, a Modes block, and a compact one-line flag summary.
+    const DECORATED_SUBCOMMAND_HELP: &str = "--------------------------------------------------
+jv - JSON Viewer & Formatter v1.0.0
+
+Usage:
+  v jv [flags]           Read from clipboard (default)
+  v jv -file       Read from file
+  echo '{...}' | v jv    Read from pipe/stdin
+
+Modes:
+  (default)  Interactive tree viewer (browse, fold/unfold, copy, edit)
+  -f         Format (pretty-print) JSON
+  -c         Compress (minify) JSON
+  -e         Escape non-ASCII to \\uXXXX
+  -u         Unescape \\uXXXX to UTF-8
+
+Options:
+  -sort   Sort object keys alphabetically
+  -raw    Disable colored output (with -f)
+
+I/O: -pipe (auto) \u{b7} -file  \u{b7} -url  \u{b7} -clip \u{b7} -out  \u{b7} -copy \u{b7} -h
+     Priority: pipe > -file > -url > clipboard
+
+Non-JSON input is opened as plain editable text.
+Press ? inside the viewer for the full key reference.
+--------------------------------------------------
+";
+
+    #[test]
+    fn parses_single_dash_options_and_summary_line_verbatim() {
+        let arguments = derive_arguments(DECORATED_SUBCOMMAND_HELP);
+        let flat: Vec<String> = arguments
+            .iter()
+            .flat_map(|argument| argument.names.iter().cloned())
+            .collect();
+        for expected in [
+            "-sort", "-raw", "-f", "-c", "-e", "-u", "-pipe", "-file", "-url", "-clip", "-out",
+            "-copy",
+        ] {
+            assert!(flat.contains(&expected.to_string()), "missing {expected}");
+        }
+        // Help/version options stay excluded per module policy, and neither
+        // usage rows (`echo '{...}' | v jv`) nor prose become arguments.
+        assert!(!flat.contains(&"-h".to_string()));
+        assert_eq!(arguments.len(), flat.len());
+        assert!(arguments
+            .iter()
+            .all(|argument| argument.kind == ArgumentKind::Flag));
+        assert_eq!(arguments[4].names, ["-sort"]);
+        assert_eq!(arguments[4].description, "Sort object keys alphabetically");
+        assert_eq!(arguments[5].description, "Disable colored output (with -f)");
+    }
+
+    #[test]
+    fn ansi_color_codes_are_stripped_before_parsing() {
+        // Tools that colorize regardless of stdout being a TTY would
+        // otherwise poison every token with escape fragments.
+        let colored = "\u{1b}[33;1m\u{1f4e6} jv\u{1b}[0m \u{1b}[32m1.0.0\u{1b}[0m \u{1f464} dev\n  JSON viewer\n";
+        let subcommands = derive_subcommands(colored);
+        assert_eq!(subcommands.len(), 1);
+        assert_eq!(subcommands[0].name, "jv");
+        assert_eq!(subcommands[0].description, "JSON viewer");
+
+        let colored_flags = "Options:\n  \u{1b}[0;32m-sort\u{1b}[0m   Sort keys\n  \u{1b}[0;32m-out\u{1b}[0m <path>  Write path\n";
+        let arguments = derive_arguments(colored_flags);
+        assert_eq!(names(&arguments), vec![vec!["-sort"], vec!["-out"]]);
+        assert_eq!(arguments[1].value_hint.as_deref(), Some("path"));
+    }
+
+    #[test]
+    fn decoration_strip_keeps_option_markers_and_word_characters() {
+        assert_eq!(
+            strip_leading_decoration("\u{1f4e6} json2excel"),
+            "json2excel"
+        );
+        assert_eq!(strip_leading_decoration("\u{fe0f}\u{1f464} vst"), "vst");
+        assert_eq!(strip_leading_decoration("====="), "");
+        // Meaningful leading dashes survive.
+        assert_eq!(strip_leading_decoration("-sort"), "-sort");
+        assert_eq!(strip_leading_decoration("--output"), "--output");
+        assert_eq!(strip_leading_decoration("plain"), "plain");
+    }
+
+    #[test]
+    fn punctuation_runs_and_meta_lines_are_ignored() {
+        assert!(is_punctuation_run("===="));
+        assert!(is_punctuation_run("----"));
+        assert!(is_punctuation_run("\u{2500}\u{2500}\u{2500}"));
+        assert!(!is_punctuation_run("-sort   Sort keys"));
+        assert!(is_meta_line("Version: dev  \u{1f3e0} https://example.com"));
+        assert!(is_meta_line("Run v <command> -h for detailed help."));
+        assert!(is_meta_line("run demo --help now"));
+        assert!(!is_meta_line("jv - JSON Viewer v1.0.0"));
+        // Integration: none of them produce entries or arguments.
+        let noise = "Version: 2.0\n============\n----\nRun tool -h for details.\n";
+        assert!(derive_subcommands(noise).is_empty());
+        assert!(derive_arguments(noise).is_empty());
+    }
+
+    #[test]
+    fn single_dash_long_options_accept_placeholders() {
+        let plain = parse_option_line("  -sort   Sort object keys alphabetically")
+            .expect("single-dash long option");
+        assert_eq!(plain.names, ["-sort"]);
+        assert!(!plain.value_hint.is_some());
+
+        let bracketed =
+            parse_option_line("  -k <a.b.c>   Key path description").expect("bracketed hint");
+        assert_eq!(bracketed.names, ["-k"]);
+        assert_eq!(bracketed.value_hint.as_deref(), Some("a.b.c"));
+
+        let upper = parse_option_line("  -k VALUE   Key description").expect("upper hint");
+        assert_eq!(upper.value_hint.as_deref(), Some("VALUE"));
+    }
+
+    #[test]
+    fn compact_summary_lines_yield_flag_arguments() {
+        let raws = parse_summary_flags(
+            "I/O: -pipe (auto) \u{b7} -file <path> \u{b7} -url <u> \u{b7} -clip \u{b7} -copy",
+        );
+        let extracted: Vec<_> = raws
+            .iter()
+            .map(|raw| (raw.names[0].as_str(), raw.value_hint.as_deref()))
+            .collect();
+        assert_eq!(
+            extracted,
+            vec![
+                ("-pipe", None),
+                ("-file", Some("path")),
+                ("-url", Some("u")),
+                ("-clip", None),
+                ("-copy", None),
+            ]
+        );
+
+        // Too few flags, overlong labels, stray prose words, and priority
+        // chains without dashes are rejected wholesale.
+        assert!(parse_summary_flags("I/O: -a -b").is_empty());
+        assert!(parse_summary_flags("Longer-label: -a -b -c").is_empty());
+        assert!(parse_summary_flags("Note: see -a and -b below").is_empty());
+        assert!(parse_summary_flags("Priority: pipe > -file > -url > clipboard").is_empty());
+        assert!(parse_summary_flags("no label at all").is_empty());
+    }
+
+    #[test]
+    fn author_tokens_after_version_never_become_the_name() {
+        let subcommands =
+            derive_subcommands("\u{1f4e6} toolname 1.2.3 \u{1f464} someone\n  does things\n");
+        assert_eq!(subcommands.len(), 1);
+        assert_eq!(subcommands[0].name, "toolname");
+        assert_eq!(subcommands[0].description, "does things");
     }
 }
