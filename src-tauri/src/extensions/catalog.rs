@@ -9,18 +9,35 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-const PROVIDER_COMMAND_CACHE_TTL: Duration = Duration::from_secs(2);
+// Correctness does NOT depend on this TTL being short: every mutating path
+// (enable/disable, connect, reprobe, custom update, config changes) calls
+// `ExtensionState::invalidate_provider_commands`, which drops the cached
+// entry immediately. The TTL exists purely as a safety net against a missed
+// invalidation hook, so it only bounds how long a stale table can survive.
+const PROVIDER_COMMAND_CACHE_TTL: Duration = Duration::from_secs(60);
 
 #[derive(Default)]
 pub(crate) struct ProviderCommandCache {
-    commands: tokio::sync::Mutex<Option<(Instant, Vec<LoadedProviderCommand>)>>,
+    /// Fresh entry plus its creation time; shared with readers via `Arc`.
+    cached: tokio::sync::Mutex<Option<(Instant, Arc<Vec<LoadedProviderCommand>>)>>,
+    /// Serializes reloads so concurrent misses share ONE disk reload.
+    reload: tokio::sync::Mutex<()>,
 }
 
 impl ProviderCommandCache {
     pub async fn invalidate(&self) {
-        *self.commands.lock().await = None;
+        *self.cached.lock().await = None;
+    }
+
+    /// Test-only: push the stored creation time backwards to simulate expiry.
+    #[cfg(test)]
+    async fn age_entry_for_test(&self, delta: Duration) {
+        if let Some((created, _)) = self.cached.lock().await.as_mut() {
+            *created = created.checked_sub(delta).unwrap_or_else(Instant::now);
+        }
     }
 }
 
@@ -201,7 +218,7 @@ pub async fn complete(
         .map_or((None, request.command.as_str()), |(namespace, command)| {
             (Some(namespace), command)
         });
-    let Some(provider) = providers.into_iter().find(|provider| {
+    let Some(provider) = providers.iter().find(|provider| {
         requested_namespace.is_none_or(|requested| requested == provider.namespace)
             && (provider.descriptor.id == command_name
                 || provider
@@ -344,29 +361,29 @@ async fn provider_entries(
     let providers = loaded_provider_commands(state).await?;
     let cwd = cwd.map(Path::new);
     let mut entries = Vec::new();
-    for provider in providers {
-        let descriptor = provider.descriptor;
-        let invocation = provider.invocation;
-        let namespace = provider.namespace;
-        let source_name = provider.source_name;
+    for provider in providers.iter() {
+        let descriptor = &provider.descriptor;
         let runtime_available = provider.runtime_available;
-        let mut args = provider.configured_args;
+        let mut args = provider.configured_args.clone();
         args.extend_from_slice(user_args);
-        let plan = execution_plan(&descriptor, &invocation, args, cwd)
+        let plan = execution_plan(descriptor, &provider.invocation, args, cwd)
             .and_then(|mut plan| {
                 plan.user_args_start = plan.args.len().checked_sub(user_args.len());
                 state.protect_execution_plan(plan)
             })
             .ok();
         entries.push(CatalogEntry {
-            id: format!("provider:{}:{}", invocation.extension_id, descriptor.id),
+            id: format!(
+                "provider:{}:{}",
+                provider.invocation.extension_id, descriptor.id
+            ),
             command: descriptor.id.clone(),
-            qualified_command: format!("{namespace}:{}", descriptor.id),
-            namespace,
+            qualified_command: format!("{}:{}", provider.namespace, descriptor.id),
+            namespace: provider.namespace.clone(),
             name: descriptor.name.clone(),
             description: descriptor.description.clone(),
             source_kind: CatalogSourceKind::Provider,
-            source_name,
+            source_name: provider.source_name.clone(),
             aliases: descriptor.aliases.clone(),
             arguments: descriptor.arguments.clone(),
             execution: plan,
@@ -379,15 +396,30 @@ async fn provider_entries(
 
 async fn loaded_provider_commands(
     state: &ExtensionState,
-) -> Result<Vec<LoadedProviderCommand>, String> {
-    let mut cache = state.provider_commands.commands.lock().await;
-    if let Some((created, commands)) = cache.as_ref() {
-        if created.elapsed() <= PROVIDER_COMMAND_CACHE_TTL {
-            return Ok(commands.clone());
+) -> Result<Arc<Vec<LoadedProviderCommand>>, String> {
+    // Fast path: a fresh entry answers with an Arc clone and never touches
+    // the reload guard.
+    {
+        let cache = state.provider_commands.cached.lock().await;
+        if let Some((created, commands)) = cache.as_ref() {
+            if created.elapsed() <= PROVIDER_COMMAND_CACHE_TTL {
+                return Ok(Arc::clone(commands));
+            }
         }
     }
-    let commands = load_provider_commands_uncached(state).await?;
-    *cache = Some((Instant::now(), commands.clone()));
+    // Singleflight: concurrent misses line up on the reload guard instead of
+    // each performing its own full disk reload + parse pass.
+    let _reload = state.provider_commands.reload.lock().await;
+    // Re-check after acquiring the guard: another task may have refilled
+    // the cache while we waited.
+    let mut cache = state.provider_commands.cached.lock().await;
+    if let Some((created, commands)) = cache.as_ref() {
+        if created.elapsed() <= PROVIDER_COMMAND_CACHE_TTL {
+            return Ok(Arc::clone(commands));
+        }
+    }
+    let commands = Arc::new(load_provider_commands_uncached(state).await?);
+    *cache = Some((Instant::now(), Arc::clone(&commands)));
     Ok(commands)
 }
 
@@ -1256,5 +1288,97 @@ mod tests {
             ["-f", "-file", "-fresh"]
         );
         assert_eq!(response.items[1].description, "Dynamic file");
+    }
+
+    #[cfg(unix)]
+    fn cached_provider_state(
+        directory: &tempfile::TempDir,
+    ) -> (ExtensionState, crate::extensions::lock::ExtensionLockEntry) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let root = directory.path().join("integration");
+        let entry = recommended_local_entry(&root, &executable);
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.lock_file).unwrap();
+        (state, entry)
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn fresh_cache_hits_share_one_arc() {
+        let directory = tempfile::tempdir().unwrap();
+        let (state, _entry) = cached_provider_state(&directory);
+
+        let first = loaded_provider_commands(&state).await.unwrap();
+        assert_eq!(first.len(), 5);
+        let second = loaded_provider_commands(&state).await.unwrap();
+
+        assert!(Arc::ptr_eq(&first, &second));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn expired_entry_reloads_after_underlying_data_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        let (state, entry) = cached_provider_state(&directory);
+
+        let first = loaded_provider_commands(&state).await.unwrap();
+        assert_eq!(first.len(), 5);
+
+        // Change the underlying data: disable the integration so a reload
+        // must produce a different table.
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        lock.extensions.get_mut(&entry.id).unwrap().enabled = false;
+        lock.save(&state.paths.lock_file).unwrap();
+
+        // Still fresh: the stale table is served (TTL is only a safety net).
+        let cached = loaded_provider_commands(&state).await.unwrap();
+        assert!(Arc::ptr_eq(&first, &cached));
+
+        // Age the stored entry past the TTL; the next call must reload.
+        state
+            .provider_commands
+            .age_entry_for_test(PROVIDER_COMMAND_CACHE_TTL + Duration::from_secs(1))
+            .await;
+        let reloaded = loaded_provider_commands(&state).await.unwrap();
+        assert!(!Arc::ptr_eq(&first, &reloaded));
+        assert!(reloaded.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn concurrent_misses_share_a_single_reload() {
+        let directory = tempfile::tempdir().unwrap();
+        let (state, _entry) = cached_provider_state(&directory);
+        let state = Arc::new(state);
+
+        // All 8 tasks race against a cold cache. Singleflight must serialize
+        // the reload so every task observes the exact same shared Arc; without
+        // the reload guard each task would get its own freshly loaded table.
+        let mut handles = Vec::new();
+        for _ in 0..8 {
+            let state = Arc::clone(&state);
+            handles.push(tokio::spawn(async move {
+                loaded_provider_commands(&state).await.unwrap()
+            }));
+        }
+        let mut results = Vec::with_capacity(handles.len());
+        for handle in handles {
+            results.push(handle.await.unwrap());
+        }
+
+        for commands in &results {
+            assert_eq!(commands.len(), 5);
+            assert!(Arc::ptr_eq(commands, &results[0]));
+        }
     }
 }
