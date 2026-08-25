@@ -11,7 +11,8 @@ export type ShortcutAction =
   | "copy_selection"
   | "paste"
   | "open_settings"
-  | "select_result";
+  | "select_result"
+  | "pin_terminal";
 
 export type ShortcutMap = Record<ShortcutAction, string>;
 
@@ -34,6 +35,10 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   paste: IS_MAC ? "Cmd+V" : "Ctrl+Shift+V",
   open_settings: `${APP_MODIFIER}+Comma`,
   select_result: `${APP_MODIFIER}+1`,
+  // Free against every other default on all platforms (the closest neighbours
+  // are Ctrl+Shift+C/V for copy/paste); verified against DEFAULT_SHORTCUTS and
+  // the select_result modifier family.
+  pin_terminal: IS_MAC ? "Cmd+Shift+P" : "Ctrl+Shift+P",
 };
 
 /** Display order of the shortcuts section. */
@@ -45,6 +50,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   "paste",
   "open_settings",
   "select_result",
+  "pin_terminal",
 ];
 
 type Modifiers = { ctrl: boolean; alt: boolean; shift: boolean; meta: boolean };

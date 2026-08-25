@@ -857,7 +857,9 @@ impl TerminalManager {
         }
     }
 
-    // This mirrors the named Tauri command arguments without a lossy wrapper.
+    /// Spawn a terminal session and return its daemon-side session id, so the
+    /// caller can re-attach the same PTY elsewhere later (session list, pin
+    /// card) without a listing round-trip.
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         &self,
@@ -871,7 +873,7 @@ impl TerminalManager {
         theme: Option<String>,
         cols: u16,
         rows: u16,
-    ) -> Result<(), String> {
+    ) -> Result<String, String> {
         let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
         if let Some(session) = sessions.remove(&id) {
             session.close();
@@ -891,10 +893,12 @@ impl TerminalManager {
             cols,
             rows,
         )?;
+        let session_id = session.broker.session_id().to_string();
         sessions.insert(id, session);
-        Ok(())
+        Ok(session_id)
     }
 
+    // This mirrors the named Tauri command arguments without a lossy wrapper.
     #[allow(clippy::too_many_arguments)]
     pub fn attach_existing(
         &self,
@@ -905,7 +909,7 @@ impl TerminalManager {
         theme: Option<String>,
         cols: u16,
         rows: u16,
-    ) -> Result<(), String> {
+    ) -> Result<String, String> {
         let identity = SessionIdentity {
             id: id.clone(),
             generation,
@@ -915,8 +919,9 @@ impl TerminalManager {
         if let Some(previous) = sessions.remove(&id) {
             previous.close();
         }
+        let session_id = session.broker.session_id().to_string();
         sessions.insert(id, session);
-        Ok(())
+        Ok(session_id)
     }
 
     pub fn set_theme(&self, id: &str, theme: &str) -> Result<(), String> {

@@ -30,9 +30,9 @@ use commands::extensions::{
 };
 use commands::system::system_power;
 use commands::terminal::{
-    open_in_default_terminal, term_attach_existing, term_close, term_input, term_kill_session,
-    term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to, term_set_theme,
-    term_spawn, term_wheel, TerminalState,
+    open_in_default_terminal, term_attach_existing, term_close, term_detach_view, term_input,
+    term_kill_session, term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to,
+    term_set_theme, term_spawn, term_wheel, TerminalState,
 };
 use extensions::ExtensionState;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -1172,6 +1172,7 @@ pub fn run() {
             open_path,
             open_url,
             term_close,
+            term_detach_view,
             get_settings,
             save_settings,
             set_launch_at_startup,

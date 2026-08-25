@@ -54,7 +54,7 @@ pub fn term_spawn(
     theme: Option<String>,
     cols: Option<u16>,
     rows: Option<u16>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     let (cwd, command) = match execution {
         Some(plan) => {
@@ -121,7 +121,7 @@ pub fn term_attach_existing(
     state: State<'_, TerminalState>,
     app: AppHandle,
     request: AttachExistingRequest,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     manager.attach_existing(
         request.id,
@@ -243,4 +243,20 @@ pub async fn open_in_default_terminal(
 pub fn term_close(state: State<'_, TerminalState>, id: String) -> Result<(), String> {
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     manager.close(&id)
+}
+
+/// Close a terminal *view* while keeping its PTY alive in the daemon.
+///
+/// Used by the pin card: pinning hands the session currently rendered in the
+/// main view over to the card, which needs the broker session to survive the
+/// detach. `generation` guards against closing a newer session that replaced
+/// this one while the call was in flight.
+#[tauri::command]
+pub fn term_detach_view(
+    state: State<'_, TerminalState>,
+    id: String,
+    generation: u64,
+) -> Result<(), String> {
+    let manager = state.0.lock().map_err(|e| e.to_string())?;
+    manager.close_if_generation(&id, generation, true)
 }

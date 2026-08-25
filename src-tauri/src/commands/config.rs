@@ -16,6 +16,7 @@ pub const COPY_SELECTION: &str = "copy_selection";
 pub const PASTE: &str = "paste";
 pub const OPEN_SETTINGS: &str = "open_settings";
 pub const SELECT_RESULT: &str = "select_result";
+pub const PIN_TERMINAL: &str = "pin_terminal";
 
 const DEFAULT_TERMINAL_WIDTH: f64 = 860.0;
 const DEFAULT_TERMINAL_HEIGHT: f64 = 600.0;
@@ -35,7 +36,7 @@ static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const SETTINGS_BACKUP_FILE_NAME: &str = "settings.json.backup";
 
-const SHORTCUT_ACTIONS: [&str; 7] = [
+const SHORTCUT_ACTIONS: [&str; 8] = [
     TOGGLE_WINDOW,
     NEW_COMMAND,
     OPEN_EXTERNAL_TERMINAL,
@@ -43,6 +44,7 @@ const SHORTCUT_ACTIONS: [&str; 7] = [
     PASTE,
     OPEN_SETTINGS,
     SELECT_RESULT,
+    PIN_TERMINAL,
 ];
 
 /// Shortcut fallback for the window toggle, which is registered with the OS and
@@ -134,6 +136,14 @@ pub fn default_shortcuts() -> HashMap<String, String> {
         ),
         (OPEN_SETTINGS, format!("{APP_MODIFIER}+Comma")),
         (SELECT_RESULT, format!("{APP_MODIFIER}+1")),
+        (
+            PIN_TERMINAL,
+            if cfg!(target_os = "macos") {
+                "Cmd+Shift+P".to_string()
+            } else {
+                "Ctrl+Shift+P".to_string()
+            },
+        ),
     ]
     .into_iter()
     .map(|(action, shortcut)| (action.to_string(), shortcut))
