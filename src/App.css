@@ -3271,31 +3271,43 @@ canvas {
 
 /* ── Clipboard history page ─────────────────────────────────────────────── */
 
-/* The clipboard page IS a terminal page. It renders inside the terminal card —
-   `.terminal-shell` supplies the window padding and platform shadow room,
-   `.terminal-panel` the card material, rounded corners and overflow clipping
-   (see App.tsx's clipboard branch) — so there is no separate card here. The
-   panel fills the card's body full-bleed; the flex chain below keeps the list
-   scrolling at every window height while the radius stays on the panel. */
+/* The clipboard page IS a terminal page: it renders inside `.terminal-panel`
+   (see App.tsx's clipboard branch), whose background in terminal mode is
+   painted by the xterm canvas — and is transparent otherwise. So the panel
+   carries its OWN complete surface here, exactly the material a standalone
+   card would have: the input gradient over `--input-bg`, the sheen on top and
+   a backdrop blur behind. Both theme variable sets resolve these to readable
+   surfaces; `.terminal-panel`'s border, radius and overflow clipping keep the
+   window shape and shadow intact around it.
+   Layout is three fixed-or-flex bands — topbar / list / footer — where the
+   list is the only shrinking child and its `min-height: 0` is what lets
+   scrolling work at any window height. */
 .clipboard-panel {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
   font-family: "SF Mono", Menlo, Monaco, Consolas, "Cascadia Mono", monospace;
+  background:
+    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
+    var(--input-bg);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  backdrop-filter: blur(26px) saturate(160%);
+  overflow: hidden;
 }
 
-/* Prompt line: `filter❯` reads like a shell prompt, the input sits beside it
-   (the × clear affordance appears only once there is text to clear), and the
-   全部/收藏 tab bar closes the row. One hairline underneath separates it from
-   the history — no other chrome. */
+/* Topbar: one coherent row at a fixed height — prompt glyph, filter input,
+   clear × (only when there is something to clear) and the 全部/收藏 tabs —
+   everything vertically centred on one hairline-bounded band. */
 .clipboard-panel__topbar {
   flex: 0 0 auto;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 11px 14px 9px;
+  gap: 10px;
+  padding: 0 12px 0 14px;
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -3309,6 +3321,7 @@ canvas {
 .clipboard-panel__search {
   flex: 1 1 auto;
   min-width: 0;
+  height: 100%;
   border: none;
   background: transparent;
   color: var(--text-primary);
@@ -3329,7 +3342,7 @@ canvas {
 /* The × that clears a non-empty filter: bare glyph, muted until hovered. */
 .clipboard-panel__filter-clear {
   flex: 0 0 auto;
-  padding: 0 1px;
+  padding: 2px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -3343,27 +3356,33 @@ canvas {
   color: var(--text-secondary);
 }
 
-/* 全部 / 收藏 tab bar: the page's primary navigation. Active tab carries the
-   accent and full-weight label; counts sit beside each label in muted type.
-   Roving tabindex — exactly one tab is in the page's tab order, arrows move
-   between them when focus is on the bar. */
+/* 全部 / 收藏 segmented control: a quiet two-slot group; the active slot takes
+   the accent tint plus an inset accent edge so the state reads unmistakably
+   against both the dark and the light variable set. Counts sit beside each
+   label in small tabular numerals. Tabs switch directly via Left/Right or
+   1/2 anywhere in the panel — the buttons themselves are plain click targets,
+   no roving focus. */
 .clipboard-panel__tabs {
   flex: 0 0 auto;
   display: flex;
   gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--icon-surface);
 }
 
 .clipboard-panel__tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 9px;
+  gap: 6px;
+  padding: 3px 10px;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--text-tertiary);
   font: inherit;
   font-size: 12px;
+  line-height: 1.3;
   cursor: pointer;
 }
 
@@ -3378,6 +3397,11 @@ canvas {
 
 .clipboard-panel__tab--active {
   background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
+  color: var(--accent);
+}
+
+.clipboard-panel__tab--active:hover {
   color: var(--accent);
 }
 
@@ -3387,48 +3411,60 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+.clipboard-panel__tab--active .clipboard-panel__tab-count {
+  color: var(--accent);
+  opacity: 0.72;
+}
+
 /* The history itself scrolls at any height: this is the only flexible child
    that may shrink, and `min-height: 0` is what lets it. */
 .clipboard-panel__list {
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 4px 6px 8px;
+  padding: 6px 8px 10px;
   list-style: none;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-/* Rows are plain terminal lines — no chips, no per-row borders. Fixed row
-   rhythm comes from the shared vertical padding; every trailing column is
-   right-aligned against the same stable edge before the star. */
+/* Rows are clean grid lines: `[marker] [preview] [meta] [star]`. The preview
+   column absorbs all width changes, so the meta columns — char count and age
+   — hold a stable right edge row after row, and the star never moves. */
 .clipboard-row {
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto 20px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 6px 10px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-.clipboard-row--selected {
+.clipboard-row:hover {
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+
+.clipboard-row--selected,
+.clipboard-row--selected:hover {
   background: var(--accent-tint);
   color: var(--text-primary);
   /* The inset edge keeps the selection unmistakable on both theme variable
-   * sets, where the tint alone can read faintly against odd backgrounds. */
+   * sets, where the tint alone can read faintly. */
   box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
 /* The type marker doubles as the image thumbnail slot: text entries get a
    prompt-like glyph, image entries their own pixels once they resolve. */
 .clipboard-row__marker {
-  flex: 0 0 auto;
   width: 36px;
   height: 24px;
   display: inline-flex;
@@ -3453,8 +3489,11 @@ canvas {
   letter-spacing: 0.04em;
 }
 
+.clipboard-row__marker--files {
+  font-size: 12px;
+}
+
 .clipboard-row__preview {
-  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -3462,34 +3501,46 @@ canvas {
   font-size: 12px;
 }
 
-/* Character count and age form two right-aligned numeric columns after the
-   preview; tabular numerals keep the digits steady row to row. The age column
-   is fixed-width because its widest value — the concrete datetime every entry
-   older than a day shows — is always exactly 16 characters; border-box keeps
-   the missing-file pill inside that same stable right edge. */
+.clipboard-row__preview-dir,
+.clipboard-row__preview-extra {
+  color: var(--text-muted);
+}
+
+/* Meta cluster: char count + age, right-aligned as one block so both land on
+   the same stable edge before the star. Tabular numerals keep digits steady
+   row to row; primary preview is brighter than this secondary layer by two
+   text steps (`--text-primary` vs `--text-muted`/`--text-tertiary`). */
+.clipboard-row__meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  white-space: nowrap;
+}
+
 .clipboard-row__chars {
   flex: 0 0 auto;
-  min-width: 8ch;
+  min-width: 7ch;
   text-align: right;
-  white-space: nowrap;
   color: var(--text-muted);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
+/* Fixed width because its widest value — the concrete datetime every entry
+   older than a day shows — is always exactly 16 characters. */
 .clipboard-row__age {
   flex: 0 0 auto;
   width: 16ch;
   box-sizing: border-box;
   text-align: right;
-  white-space: nowrap;
   color: var(--text-tertiary);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
 .clipboard-row__star {
-  flex: 0 0 auto;
+  justify-self: end;
   width: 18px;
   padding: 0;
   border: none;
@@ -3511,8 +3562,8 @@ canvas {
 }
 
 /* Missing files rows dim as a whole but stay readable; the 「文件不存在」
-   label renders as a quiet status pill sitting in the age column's slot, so
-   it aligns to the same right edge as every real age. */
+   label renders as a quiet warning pill sitting in the age's slot inside the
+   meta cluster, aligned to the same right edge as every real age. */
 .clipboard-row--missing {
   opacity: 0.65;
 }
@@ -3526,17 +3577,9 @@ canvas {
   border: 1px solid var(--hairline);
   border-radius: 999px;
   padding: 1px 7px;
+  width: auto;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.clipboard-row__preview-dir,
-.clipboard-row__preview-extra {
-  color: var(--text-muted);
-}
-
-.clipboard-row__marker--files {
-  font-size: 12px;
 }
 
 /* Empty history, empty favorites and no filter matches share one quiet hint
@@ -3556,16 +3599,16 @@ canvas {
   user-select: none;
 }
 
-/* One-line footer: key hints left, Clear right. Hairline top border, muted,
-   ~28px tall — present but never loud. */
+/* Footer: key hints left, Clear right, fixed height, hairline top border —
+   visually separated from the list above. */
 .clipboard-panel__footer {
   flex: 0 0 auto;
-  height: 28px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 12px;
+  padding: 0 10px 0 14px;
   border-top: 1px solid var(--hairline);
   color: var(--text-tertiary);
   font-size: 11px;

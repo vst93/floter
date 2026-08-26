@@ -31,9 +31,10 @@ type ClipboardView = "all" | "favorites";
  * terminal mode; see App.tsx's clipboard branch), full-bleed and monospace:
  * one prompt-like search line with an 全部/收藏 segmented control, then plain
  * terminal rows — type marker, one-line preview, character count and relative
- * age for text, favorite star. Keyboard-first: arrows move, Enter puts the
- * entry back on the system clipboard (pasting it into the embedded terminal
- * when one is live), F stars, Delete removes, Esc closes.
+ * age for text, favorite star. Keyboard-first: Left/Right switch the tabs
+ * directly, Up/Down move the selection, Enter puts the entry back on the
+ * system clipboard (pasting it into the embedded terminal when one is live),
+ * F stars, Delete removes, Esc closes.
  *
  * Files entries hold path references only: the row shows a glyph or — for a
  * single image file — the file's own pixels read on demand. Existence of
@@ -57,7 +58,6 @@ export function ClipboardPanel({
    * state map alone cannot, since its snapshot at cleanup time is empty. */
   const liveThumbnailUrls = useRef<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const reload = useCallback((): Promise<ClipboardEntry[]> => {
     return invoke<unknown[]>("clipboard_get_entries", { filter: null })
@@ -214,6 +214,18 @@ export function ClipboardPanel({
         onClose();
         return;
       }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        // Tabs switch DIRECTLY on the keypress — no focus dance between the
+        // tab buttons first. Works from anywhere in the panel, filter field
+        // included: the caret never needs arrow navigation in a one-line
+        // filter that is always selected-over on refocus.
+        event.preventDefault();
+        event.stopPropagation();
+        const next: ClipboardView = view === "all" ? "favorites" : "all";
+        setView(next);
+        setSelected(0);
+        return;
+      }
       if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
@@ -262,10 +274,11 @@ export function ClipboardPanel({
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, selected, onClose]);
+  }, [filtered, selected, view, onClose]);
 
-  /** Shared switch logic for click and keyboard activation: a tab change
-   * always lands on row 0, so the selection never points across lists. */
+  /** Click activation of a tab: a view change always lands on row 0, so the
+   * selection never points across lists. Keyboard Left/Right switches views
+   * directly in the keydown handler above with the same landing rule. */
   const switchView = (next: ClipboardView) => {
     setView(next);
     setSelected(0);
@@ -319,21 +332,10 @@ export function ClipboardPanel({
           className="clipboard-panel__tabs"
           role="tablist"
           aria-label={t("clipboard.title")}
-          onKeyDown={(event) => {
-            // Two tabs, so either arrow moves to the other one; the moved-to
-            // tab takes focus so repeated arrows keep working.
-            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-            event.preventDefault();
-            const next: ClipboardView = view === "all" ? "favorites" : "all";
-            switchView(next);
-            tabRefs.current[next === "all" ? 0 : 1]?.focus();
-          }}
         >
           <button
             type="button"
             role="tab"
-            ref={(node) => { tabRefs.current[0] = node; }}
-            tabIndex={view === "all" ? 0 : -1}
             aria-selected={view === "all"}
             className={`clipboard-panel__tab${view === "all" ? " clipboard-panel__tab--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
@@ -345,8 +347,6 @@ export function ClipboardPanel({
           <button
             type="button"
             role="tab"
-            ref={(node) => { tabRefs.current[1] = node; }}
-            tabIndex={view === "favorites" ? 0 : -1}
             aria-selected={view === "favorites"}
             className={`clipboard-panel__tab${view === "favorites" ? " clipboard-panel__tab--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
@@ -419,15 +419,17 @@ export function ClipboardPanel({
                     clipboardPreview(entry)
                   )}
                 </span>
-                {entry.kind === "text" && entry.text ? (
-                  <span className="clipboard-row__chars">
-                    {t("clipboard.chars", { n: entry.text.length })}
+                <span className="clipboard-row__meta">
+                  {entry.kind === "text" && entry.text ? (
+                    <span className="clipboard-row__chars">
+                      {t("clipboard.chars", { n: entry.text.length })}
+                    </span>
+                  ) : null}
+                  <span className={`clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`}>
+                    {missing
+                      ? t("clipboard.missing")
+                      : formatClipboardAge(entry.created_at, now)}
                   </span>
-                ) : null}
-                <span className={`clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`}>
-                  {missing
-                    ? t("clipboard.missing")
-                    : formatClipboardAge(entry.created_at, now)}
                 </span>
                 <button
                   type="button"
