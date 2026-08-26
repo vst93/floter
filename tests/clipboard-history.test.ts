@@ -112,10 +112,16 @@ test("preview shows the first line of text, capped with an ellipsis", () => {
   assert.ok(preview.startsWith("x".repeat(120)));
 });
 
-test("preview labels images with their dimensions", () => {
-  assert.equal(clipboardPreview(entry({ kind: "image", width: 320, height: 240 })), "[image 320x240]");
+test("preview labels bare images with their dimensions", () => {
+  assert.equal(
+    clipboardPreview(entry({ kind: "image", text: null, width: 320, height: 240 })),
+    "[image 320x240]",
+  );
   // Missing dimensions degrade to question marks rather than crashing.
-  assert.equal(clipboardPreview(entry({ kind: "image", width: null, height: undefined }) as ClipboardEntry), "[image ?x?]");
+  assert.equal(
+    clipboardPreview(entry({ kind: "image", text: null, width: null, height: undefined }) as ClipboardEntry),
+    "[image ?x?]",
+  );
 });
 
 test("age formats compactly across unit boundaries, without seconds", () => {
@@ -265,4 +271,74 @@ test("formatFilesPreview splits basename, muted prefix and count suffix", () => 
 test("shellQuotePath escapes embedded single quotes POSIX-style", () => {
   assert.equal(shellQuotePath("/home/u/my file.pdf"), "'/home/u/my file.pdf'");
   assert.equal(shellQuotePath("/home/u/it's.pdf"), "'/home/u/it'\\''s.pdf'");
+});
+
+test("normalizeEntries keeps an image row's caption text", () => {
+  const rows = [
+    {
+      id: "cap",
+      kind: "image",
+      text: "architecture diagram",
+      image_file: "cap.png",
+      width: 8,
+      height: 6,
+      hash: "h",
+      created_at: 1,
+      favorite: false,
+    },
+  ];
+
+  const entries = normalizeEntries(rows);
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].kind, "image");
+  assert.equal(entries[0].text, "architecture diagram");
+});
+
+test("a captioned image matches its caption in the filter and stays an image", () => {
+  const captioned = entry({
+    id: "img-cap",
+    kind: "image",
+    text: "sprint planning board",
+    width: 40,
+    height: 30,
+  });
+  const bare = entry({ id: "img-bare", kind: "image", text: null, width: 10, height: 10 });
+
+  // The caption is a filter target…
+  assert.deepEqual(
+    filterClipboardEntries([captioned, bare], "planning").map((item) => item.id),
+    ["img-cap"],
+  );
+  // …and any image row (bare or captioned) still answers to its own name in
+  // either language.
+  assert.deepEqual(
+    filterClipboardEntries([captioned, bare], "图片").map((item) => item.id),
+    ["img-cap", "img-bare"],
+  );
+  // Filtering never rewrites what a row IS.
+  assert.equal(filterClipboardEntries([captioned], "planning")[0].kind, "image");
+});
+
+test("clipboardPreview shows an image caption's first line, WxH otherwise", () => {
+  const captioned = entry({ kind: "image", text: "first line\nsecond line", width: 40, height: 30 });
+  assert.equal(clipboardPreview(captioned), "first line");
+
+  // Leading blank lines are not the caption; trimmed storage makes the first
+  // visible line win.
+  const padded = entry({ kind: "image", text: "  \nreal caption" });
+  assert.equal(clipboardPreview(padded), "real caption");
+
+  const bare = entry({ kind: "image", text: null, width: 40, height: 30 });
+  assert.equal(clipboardPreview(bare), "[image 40x30]");
+
+  const unknown = entry({ kind: "image", text: null, width: null, height: null });
+  assert.equal(clipboardPreview(unknown), "[image ?x?]");
+
+  // A long caption is capped like a long text preview.
+  const long = entry({ kind: "image", text: "x".repeat(80), width: 1, height: 1 });
+  const shown = clipboardPreview(long);
+  assert.ok(shown.startsWith("x"));
+  assert.ok(shown.endsWith("…"));
+  assert.ok(shown.length <= 61);
 });

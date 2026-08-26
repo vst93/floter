@@ -1562,12 +1562,20 @@ export default function App() {
     };
   }, []);
 
+  // The renderer is bound to the canvas element of the mode that mounted it.
+  // Keyed on `mode` too, so leaving the terminal page (for the clipboard page
+  // or settings) tears the renderer down with its canvas and re-entering
+  // builds a fresh one against the newly mounted node. Frames fully replace
+  // each other and `frameRef` survives the flip, so the switch is lossless:
+  // the last frame repaints immediately and the embedded PTY never stopped
+  // running underneath.
   useEffect(() => {
-    if (!terminalMounted) {
+    if (!terminalMounted || mode === "clipboard" || mode === "settings") {
       termOpened.current = false;
       rendererRef.current = null;
       return;
     }
+    if (mode !== "terminal") return;
     if (!canvasRef.current || !mountRef.current || termOpened.current) return;
 
     const renderer = new TerminalCanvas(canvasRef.current, {
@@ -1630,7 +1638,7 @@ export default function App() {
       termOpened.current = false;
       rendererRef.current = null;
     };
-  }, [settings.font_family, settings.font_size, terminalMounted]);
+  }, [settings.font_family, settings.font_size, terminalMounted, mode]);
 
   // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
   // grid current; this listener persists the logical window dimensions after a
@@ -1715,14 +1723,13 @@ export default function App() {
     }
 
     if (mode === "clipboard") {
-      // Never treated as a restore: the backend's reveal machinery puts back
-      // the previous surface's dimensions, so sizing this panel is always the
-      // frontend's job.
-      const available = window.screen.availHeight;
-      const height = Math.min(520, Math.max(320, Math.floor(available * 0.55)));
-      getCurrentWindow()
-        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
-        .catch(() => undefined);
+      // Sizing is owned by the BACKEND on this path: the clipboard page is a
+      // terminal page and takes exactly the terminal window's saved geometry
+      // through the same `show_terminal` machinery (`show_clipboard` in
+      // lib.rs). The frontend deliberately never calls setSize while the page
+      // is up — one side owns the size, so a stale launcher measurement can
+      // never shrink the window out from under a long list again.
+      invoke("show_clipboard").catch(() => undefined);
       return;
     }
 
@@ -1734,6 +1741,11 @@ export default function App() {
         // above, so the measured height is applied again once it has.
         invoke("show_input")
           .then(() => {
+            // The clipboard hotkey can summon the panel between this effect's
+            // start and the command's completion; its reply must not then
+            // shrink the window back to launcher height. Only the surface that
+            // is actually showing may size itself.
+            if (modeRef.current !== "collapsed") return;
             syncLauncherHeight();
             focusCollapsedInput();
             if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
@@ -1845,12 +1857,14 @@ export default function App() {
     };
   }, []);
 
-  // The global clipboard hotkey: summon the panel over whatever surface was
-  // up (remembering it for the return trip), or hide floter entirely when the
-  // panel is already showing.
+  // The global clipboard hotkey. The payload says whether the window was
+  // visible when the key went down: only then does pressing it again mean
+  // "hide" — a summon from hidden state always opens the panel, even though
+  // the frontend mode may never have left "clipboard" while the window was
+  // away (the backend has already revealed the window by now).
   useEffect(() => {
-    const unlistenClipboardPromise = listen("floter://clipboard", () => {
-      if (modeRef.current === "clipboard") {
+    const unlistenClipboardPromise = listen<boolean>("floter://clipboard", (event) => {
+      if (event.payload && modeRef.current === "clipboard") {
         invoke("hide_window").catch(() => undefined);
         return;
       }
@@ -2268,6 +2282,14 @@ export default function App() {
       }
 
       if (mode === "settings") {
+        // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the panel — a
+        // convention every overlay surface in floter follows.
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeSettings();
+          return;
+        }
         if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
           event.preventDefault();
           closeSettings();
@@ -2473,18 +2495,18 @@ export default function App() {
     setMode("collapsed");
   };
 
-  /** Dismiss the clipboard panel; the mode effect re-homes the window onto the
-   * surface it was summoned from. */
+  /** Dismiss the clipboard page; the mode effect sends the window back onto
+   * the remembered surface through its normal restore path (`show_input` /
+   * `show_terminal`). */
   const closeClipboardPanel = () => {
     suppressBlurUntil.current = Date.now() + 400;
     setMode(clipboardReturnMode.current);
   };
 
-  /** Bring the clipboard panel up over whatever surface is showing, remembering
-   * it for the return trip. Deliberately does NOT arm `restoringMode`: the
-   * backend's reveal machinery restores the previous surface's dimensions, so
-   * sizing this panel is the frontend's job (the mode effect applies the
-   * 320–520px height whenever the summon is not treated as a restore). */
+  /** Bring the clipboard page up over whatever surface is showing, remembering
+   * it for the return trip. Deliberately does NOT arm `restoringMode`: sizing
+   * belongs to the backend here — the mode effect calls `show_clipboard`,
+   * which applies the same saved geometry terminal mode uses. */
   const openClipboardPanel = () => {
     suppressBlurUntil.current = Date.now() + 400;
     clipboardReturnMode.current =
@@ -3802,17 +3824,25 @@ export default function App() {
   }
 
   if (mode === "clipboard") {
+    // The clipboard page IS a terminal page: it renders in the very shell the
+    // terminal mode uses — same `.terminal-shell` window padding, same
+    // `.terminal-panel` card material, radius and platform shadows — shown in
+    // place of the terminal canvas while active. The window geometry comes
+    // from the backend's `show_clipboard` (same saved size as terminal mode);
+    // the embedded PTY keeps running underneath, untouched.
     return (
-      <div className="collapsed-shell">
+      <div className="terminal-shell">
         {pinnedCardElement}
-        <div className="clipboard-card" data-no-drag>
-          <ClipboardPanel
-            t={t}
-            terminalActive={ptyReady.current}
-            onPasteText={(text) => sendTerminalText(text, true)}
-            onClose={closeClipboardPanel}
-          />
-        </div>
+        <section className="terminal-panel terminal-panel--entered">
+          <div className="terminal-panel__body">
+            <ClipboardPanel
+              t={t}
+              terminalActive={ptyReady.current}
+              onPasteText={(text) => sendTerminalText(text, true)}
+              onClose={closeClipboardPanel}
+            />
+          </div>
+        </section>
       </div>
     );
   }

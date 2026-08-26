@@ -6,6 +6,8 @@ export type ClipboardEntry = {
   id: string;
   /** "text" | "image" | "files" */
   kind: string;
+  /** Text content; on an image entry, the caption stored when the copy rode
+   * along with non-whitespace text (preview line + filter target). */
   text?: string | null;
   /** Absolute paths referenced by a "files" entry; contents are never stored
    * or shipped over IPC, only the path strings themselves. */
@@ -59,8 +61,11 @@ export const normalizeEntries = (rows: unknown): ClipboardEntry[] => {
 /**
  * Case-insensitive substring filter over the panel's search line. Text entries
  * match on their content; files entries on any stored path (a basename is a
- * substring of its own path); images answer to their own names in either UI
- * language, since there is nothing else to say about them.
+ * substring of its own path); image entries match a stored caption (an
+ * image+text copy stores one image entry whose `text` is the caption) and a
+ * bare image — nothing to say about it but its name — still answers to that
+ * name in either UI language. Filtering only decides which rows are kept; an
+ * image entry never turns into text because of its caption.
  */
 export const filterClipboardEntries = (
   entries: ClipboardEntry[],
@@ -68,13 +73,16 @@ export const filterClipboardEntries = (
 ): ClipboardEntry[] => {
   const needle = query.trim().toLowerCase();
   if (!needle) return entries.slice();
-  return entries.filter((entry) =>
-    entry.kind === "text"
-      ? (entry.text ?? "").toLowerCase().includes(needle)
-      : entry.kind === "files"
-        ? (entry.paths ?? []).some((path) => path.toLowerCase().includes(needle))
-        : ["image", "img", "图片"].some((word) => word.includes(needle)),
-  );
+  return entries.filter((entry) => {
+    if (entry.kind === "files") {
+      return (entry.paths ?? []).some((path) => path.toLowerCase().includes(needle));
+    }
+    // Text content, or an image's caption.
+    if ((entry.text ?? "").toLowerCase().includes(needle)) return true;
+    return entry.kind === "image"
+      ? ["image", "img", "图片"].some((word) => word.includes(needle))
+      : false;
+  });
 };
 
 const IMAGE_PREVIEW_MAX = 60;
@@ -171,15 +179,30 @@ export const shellQuotePath = (path: string): string => `'${path.split("'").join
 
 /**
  * The one-line preview shown on each row: the first line of a text entry,
- * trimmed and capped, or an `[image WxH]` label for images.
+ * trimmed and capped. An image entry shows its caption's first line when a
+ * simultaneous text copy rode along with the pixels, and falls back to an
+ * `[image WxH]` label when there is none.
  */
 export const clipboardPreview = (entry: ClipboardEntry, maxLength = 120): string => {
+  // Captions are stored trimmed, so the first line is the real one; skipping
+  // blank lines here costs nothing and covers anything older that was not.
+  const firstLine =
+    entry.kind === "text"
+      ? (entry.text ?? "").split("\n")[0].trim()
+      : (entry.text ?? "")
+          .split("\n")
+          .map((line) => line.trim())
+          .find(Boolean) ?? "";
   if (entry.kind !== "text") {
-    const width = Number.isFinite(entry.width) ? entry.width : "?";
-    const height = Number.isFinite(entry.height) ? entry.height : "?";
-    return `[image ${width}x${height}]`;
+    if (!firstLine) {
+      const width = Number.isFinite(entry.width) ? entry.width : "?";
+      const height = Number.isFinite(entry.height) ? entry.height : "?";
+      return `[image ${width}x${height}]`;
+    }
+    return firstLine.length > IMAGE_PREVIEW_MAX
+      ? `${firstLine.slice(0, IMAGE_PREVIEW_MAX)}…`
+      : firstLine;
   }
-  const firstLine = (entry.text ?? "").split("\n")[0].trim();
   const cap = Math.max(1, Math.min(maxLength, IMAGE_PREVIEW_MAX * 2));
   return firstLine.length > cap ? `${firstLine.slice(0, cap)}…` : firstLine;
 };

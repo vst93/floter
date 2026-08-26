@@ -292,6 +292,14 @@ function useDialogFocus(
     const handleKeyDown = (event: KeyboardEvent) => {
       const dialog = dialogRef.current;
       if (!dialog || !interactiveRef.current) return;
+      // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the surface — a
+      // convention every overlay in floter follows, alongside Escape below.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        event.stopPropagation();
+        escapeHandlerRef.current();
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();

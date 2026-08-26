@@ -149,6 +149,11 @@ pub fn clipboard_get_entries(
     Ok(entries
         .into_iter()
         .filter(|entry| match (&entry.text, &entry.paths) {
+            // Text entries match on content; image entries carrying a caption
+            // (a simultaneous image+text copy stores one image entry whose
+            // `text` is the caption) match on it too. The arm only decides
+            // *whether* a row is kept — the kind is never touched here, so a
+            // captioned image still renders as an image row.
             (Some(text), _) => text.to_lowercase().contains(&needle),
             // Files entries answer to any stored path; a basename is a
             // substring of its own full path, so both come free.
@@ -231,6 +236,11 @@ pub fn clipboard_copy_entry(app: AppHandle, id: String) -> Result<(), String> {
             let file = entry.image_file.clone().ok_or("Image entry has no file")?;
             let bytes = store::read_image(&paths, &file)?;
             let (width, height, rgba) = monitor::decode_png(&bytes)?;
+            // An entry captured with a caption restores as IMAGE ONLY: arboard
+            // cannot set pixels and text in one atomic write, and a two-step
+            // write would hand the clipboard to another app mid-way. The
+            // caption survives in history; only the pixels go back to the
+            // system clipboard.
             clipboard
                 .set_image(arboard::ImageData {
                     width: width as usize,
@@ -434,19 +444,22 @@ fn ensure_panel_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> 
 }
 
 /// Show the window (revealing it first when hidden) and tell the frontend to
-/// flip its clipboard panel; pressing the hotkey again closes it.
+/// flip its clipboard panel. The payload records whether the window was
+/// already visible: only then does pressing the hotkey again mean "close" —
+/// a summon from hidden state must always OPEN the panel, even when the
+/// frontend's mode never left "clipboard" while the window was away.
 fn toggle_panel(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
     let state = app.state::<AppState>();
-    if !state
+    let was_visible = state
         .window_visible
-        .load(std::sync::atomic::Ordering::SeqCst)
-    {
+        .load(std::sync::atomic::Ordering::SeqCst);
+    if !was_visible {
         let _ = crate::reveal_saved_mode(&window, &state);
     }
-    let _ = window.emit("floter://clipboard", ());
+    let _ = window.emit("floter://clipboard", was_visible);
 }
 
 // ---- Lifecycle ------------------------------------------------------------

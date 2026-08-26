@@ -3269,43 +3269,49 @@ canvas {
   font-size: 11px;
 }
 
-/* ── Clipboard history panel ─────────────────────────────────────────────── */
+/* ── Clipboard history page ─────────────────────────────────────────────── */
 
-/* The card mirrors the collapsed launcher's material so the panel reads as the
-   same object at a different height. It is not draggable: a list of rows wants
-   clicks to land on rows, not on a caption bar. */
-.clipboard-card {
-  position: relative;
-  width: 100%;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--input-stroke);
-  border-radius: var(--window-radius);
-  background:
-    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
-    var(--input-bg);
-  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
-  -webkit-backdrop-filter: blur(26px) saturate(160%);
-  backdrop-filter: blur(26px) saturate(160%);
-  overflow: hidden;
-}
-
+/* The clipboard page IS a terminal page. It renders inside the terminal card —
+   `.terminal-shell` supplies the window padding and platform shadow room,
+   `.terminal-panel` the card material, rounded corners and overflow clipping
+   (see App.tsx's clipboard branch) — so there is no separate card here. The
+   panel fills the card's body full-bleed; the flex chain below keeps the list
+   scrolling at every window height while the radius stays on the panel. */
 .clipboard-panel {
-  flex: 1;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
   font-family: "SF Mono", Menlo, Monaco, Consolas, "Cascadia Mono", monospace;
 }
 
-.clipboard-panel__search {
+/* Prompt line: `filter❯` reads like a shell prompt, the input sits beside it,
+   and the 全部/收藏 segmented control closes the row. One hairline underneath
+   separates it from the history — no other chrome. */
+.clipboard-panel__topbar {
   flex: 0 0 auto;
-  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px 9px;
   border-bottom: 1px solid var(--hairline);
+}
+
+.clipboard-panel__prompt {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+  user-select: none;
+}
+
+.clipboard-panel__search {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
   background: transparent;
   color: var(--text-primary);
-  padding: 12px 14px 10px;
+  padding: 0;
   font: inherit;
   font-size: 13px;
   caret-color: var(--accent);
@@ -3319,14 +3325,12 @@ canvas {
   outline: none;
 }
 
-/* 全部 / 收藏 segmented control: a slim text-only pair directly under the
-   search line, hairline-separated like everything else in the panel. */
+/* 全部 / 收藏 segmented control: a slim text-only pair at the search line's
+   end, hairline-separated like everything else on the page. */
 .clipboard-panel__tabs {
   flex: 0 0 auto;
   display: flex;
   gap: 2px;
-  padding: 4px 10px;
-  border-bottom: 1px solid var(--hairline);
 }
 
 .clipboard-panel__tab {
@@ -3349,23 +3353,27 @@ canvas {
   color: var(--text-primary);
 }
 
+/* The history itself scrolls at any height: this is the only flexible child
+   that may shrink, and `min-height: 0` is what lets it. */
 .clipboard-panel__list {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 3px 4px 6px;
+  padding: 4px 6px 8px;
   list-style: none;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
+/* Rows are plain terminal lines — no chips, no per-row borders. */
 .clipboard-row {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
@@ -3415,20 +3423,40 @@ canvas {
   font-size: 12px;
 }
 
+/* Character count and age form two right-aligned numeric columns after the
+   preview; tabular numerals keep the digits steady row to row. The age column
+   is fixed-width because its widest value — the concrete datetime every entry
+   older than a day shows — is always exactly 16 characters. */
+.clipboard-row__chars {
+  flex: 0 0 auto;
+  min-width: 8ch;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
 .clipboard-row__age {
   flex: 0 0 auto;
+  width: 16ch;
+  text-align: right;
+  white-space: nowrap;
   color: var(--text-tertiary);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .clipboard-row__star {
   flex: 0 0 auto;
-  padding: 0 2px;
+  width: 18px;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--text-tertiary);
   font-size: 13px;
   line-height: 1;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -3452,14 +3480,6 @@ canvas {
 .clipboard-row__preview-dir,
 .clipboard-row__preview-extra {
   color: var(--text-muted);
-}
-
-/* Character count on text rows: one muted span beside the age; the age column
-   is already variable width, so this costs no reflow elsewhere. */
-.clipboard-row__chars {
-  flex: 0 0 auto;
-  color: var(--text-muted);
-  font-size: 10px;
 }
 
 .clipboard-row__marker--files {
@@ -3510,32 +3530,6 @@ canvas {
 
 .settings-privacy-hint {
   color: var(--text-warning);
-}
-
-.platform-windows .clipboard-card {
-  border: 0;
-  box-shadow:
-    0 4px 16px var(--window-shadow-ambient),
-    0 1px 4px var(--window-shadow-contact),
-    inset 0 0 0 1px var(--input-stroke),
-    inset 0 1px 0 var(--edge-highlight),
-    inset 0 -1px 0 var(--edge-shadow);
-}
-
-.platform-linux .clipboard-card {
-  box-shadow:
-    0 4px 18px var(--window-shadow-ambient),
-    0 1px 5px var(--window-shadow-contact),
-    inset 0 1px 0 var(--edge-highlight),
-    inset 0 -1px 0 var(--edge-shadow);
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .clipboard-card {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    background: var(--surface-opaque);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

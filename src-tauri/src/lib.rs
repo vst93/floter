@@ -856,6 +856,46 @@ fn save_terminal_size(
     Ok(())
 }
 
+/// Geometry for the clipboard page.
+///
+/// The clipboard view is a terminal page: it occupies the very same window,
+/// sized by the exact same saved `terminal_width`/`terminal_height` pair the
+/// terminal mode uses, through the same clamp-and-resize machinery.
+///
+/// Sizing ownership on the clipboard path lives entirely HERE. Entering
+/// clipboard mode makes the frontend call this command and it never resizes
+/// the window itself while the page is up (see the `mode === "clipboard"`
+/// branch of the mode effect in `App.tsx`); leaving goes back through the
+/// existing `show_input` / `show_terminal` restore paths. That single rule is
+/// what killed an old race where a stale `show_input` completion could shrink
+/// the window back to the launcher's height after the panel had sized up,
+/// leaving a long list unable to scroll inside a clipped corner.
+///
+/// The `terminal_mode` flag is deliberately left untouched: the clipboard page
+/// is an overlay on whatever surface is underneath, so a later
+/// [`reveal_saved_mode`] still reopens that surface's dimensions.
+#[tauri::command]
+fn show_clipboard(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
+    let (width, height) = saved_terminal_size();
+    let (width, height) = terminal_size_for_monitor(&window, &state, width, height);
+    if let Ok(mut current) = state.terminal_height.lock() {
+        *current = height;
+    }
+    // Not edge-resizable while the page is up: there is no terminal grid to
+    // reflow, and the saved terminal size must stay exactly what the terminal
+    // mode left it at.
+    window
+        .set_resizable(false)
+        .map_err(|error| error.to_string())?;
+    resize_window(&window, width, height, preserve_anchor)?;
+    reveal_window(&window)?;
+    if !preserve_anchor {
+        let _ = move_to_default_position(&window, width, &state);
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn hide_window(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     remember_monitor(&window, &state);
@@ -1198,6 +1238,7 @@ pub fn run() {
             resume_shortcuts,
             set_recording_flag,
             show_terminal,
+            show_clipboard,
             hide_window,
             quit_app,
             show_input,

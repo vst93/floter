@@ -25,11 +25,13 @@ type ClipboardPanelProps = {
 type ClipboardView = "all" | "favorites";
 
 /**
- * The terminal-styled clipboard history panel.
+ * The clipboard history page — a terminal application surface.
  *
- * One row per entry — type marker, one-line preview, character count and
- * relative age for text, favorite star — under a single search line with an
- * 全部/收藏 segmented control. Keyboard-first: arrows move, Enter puts the
+ * It renders INSIDE the terminal card (the same shell and window geometry as
+ * terminal mode; see App.tsx's clipboard branch), full-bleed and monospace:
+ * one prompt-like search line with an 全部/收藏 segmented control, then plain
+ * terminal rows — type marker, one-line preview, character count and relative
+ * age for text, favorite star. Keyboard-first: arrows move, Enter puts the
  * entry back on the system clipboard (pasting it into the embedded terminal
  * when one is live), F stars, Delete removes, Esc closes.
  *
@@ -254,49 +256,59 @@ export function ClipboardPanel({
 
   const now = Date.now();
 
+  // Terminal-page anatomy: a prompt-like search line (`filter❯`) with the
+  // 全部/收藏 segmented control on the same row, the history as plain lines
+  // under it, and a one-line hint footer. Everything is monospace via the
+  // panel class; the page fills the terminal card it is mounted into (see
+  // App.css, `.clipboard-panel`).
   return (
     <div className="clipboard-panel">
-      <input
-        ref={searchRef}
-        className="clipboard-panel__search"
-        value={filter}
-        placeholder={t("clipboard.filter")}
-        aria-label={t("clipboard.title")}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        onChange={(event) => {
-          setFilter(event.target.value);
-          setSelected(0);
-        }}
-      />
-      <div className="clipboard-panel__tabs" role="tablist" aria-label={t("clipboard.title")}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "all"}
-          className={`clipboard-panel__tab${view === "all" ? " clipboard-panel__tab--active" : ""}`}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            setView("all");
+      <div className="clipboard-panel__topbar">
+        <span className="clipboard-panel__prompt" aria-hidden="true">
+          {t("clipboard.prompt")}❯
+        </span>
+        <input
+          ref={searchRef}
+          className="clipboard-panel__search"
+          value={filter}
+          placeholder={t("clipboard.filter")}
+          aria-label={t("clipboard.title")}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          onChange={(event) => {
+            setFilter(event.target.value);
             setSelected(0);
           }}
-        >
-          {t("clipboard.tabAll")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "favorites"}
-          className={`clipboard-panel__tab${view === "favorites" ? " clipboard-panel__tab--active" : ""}`}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            setView("favorites");
-            setSelected(0);
-          }}
-        >
-          {t("clipboard.tabFavorites")}
-        </button>
+        />
+        <div className="clipboard-panel__tabs" role="tablist" aria-label={t("clipboard.title")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "all"}
+            className={`clipboard-panel__tab${view === "all" ? " clipboard-panel__tab--active" : ""}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setView("all");
+              setSelected(0);
+            }}
+          >
+            {t("clipboard.tabAll")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "favorites"}
+            className={`clipboard-panel__tab${view === "favorites" ? " clipboard-panel__tab--active" : ""}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setView("favorites");
+              setSelected(0);
+            }}
+          >
+            {t("clipboard.tabFavorites")}
+          </button>
+        </div>
       </div>
       {filtered.length === 0 ? (
         <div className="clipboard-panel__empty">

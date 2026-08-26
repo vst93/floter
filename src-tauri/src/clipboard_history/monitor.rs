@@ -110,61 +110,85 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
         }
     }
 
-    // Text next; only when there is no readable text do we look at images,
-    // which keeps the common text case at one syscall-ish round trip.
-    if let Ok(text) = clipboard.get_text() {
-        if !text.trim().is_empty() {
-            if text.len() > MAX_TEXT_BYTES {
-                // Too big to keep. Not recorded in `last_hash` either, so the
-                // user paying the cost of a smaller copy still gets captured.
+    // Text and images are read together, because a single copy can carry
+    // BOTH: an editor handing over pixels plus their caption must store ONE
+    // image entry whose `text` field is that caption — never two entries, and
+    // never the text alone shadowing the image.
+    let raw_text = clipboard.get_text().ok();
+    let image_result = clipboard.get_image();
+
+    if let Ok(image) = image_result {
+        let width = image.width as u32;
+        let height = image.height as u32;
+        if width > 0 && height > 0 {
+            let rgba = image.bytes.into_owned();
+            let png = match encode_png(width, height, &rgba) {
+                Ok(png) => png,
+                Err(error) => {
+                    eprintln!("floter: clipboard image encoding failed: {error}");
+                    return None;
+                }
+            };
+            if png.len() > MAX_IMAGE_PNG_BYTES {
+                eprintln!(
+                    "floter: clipboard image too large ({} bytes), skipped",
+                    png.len()
+                );
                 return None;
             }
-            let hash = store::content_hash(text.as_bytes());
-            if last_hash.as_deref() == Some(hash.as_str())
-                || capture_text(app, text, &hash).is_err()
-            {
-                // Either already the newest entry (duplicate copy) or storage
-                // failed; either way do not re-record the same content.
-                return Some(hash);
-            }
+            let caption = caption_for(raw_text.as_deref(), MAX_TEXT_BYTES);
+            // Dimensions go into the hash: identical pixels at different sizes
+            // are different content. The caption does too — see [`image_hash`].
+            let hash = image_hash(width, height, &rgba, caption.as_deref());
+            let _ = capture_image(app, &png, width, height, &hash, caption);
             return Some(hash);
         }
     }
 
-    let image = match clipboard.get_image() {
-        Ok(image) => image,
-        Err(_) => return None,
-    };
-    let width = image.width as u32;
-    let height = image.height as u32;
-    if width == 0 || height == 0 {
+    // No usable image: readable non-whitespace text becomes a text entry.
+    let Some(text) = raw_text else { return None };
+    if text.trim().is_empty() {
         return None;
     }
-    let rgba = image.bytes.into_owned();
-    let png = match encode_png(width, height, &rgba) {
-        Ok(png) => png,
-        Err(error) => {
-            eprintln!("floter: clipboard image encoding failed: {error}");
-            return None;
-        }
-    };
-    if png.len() > MAX_IMAGE_PNG_BYTES {
-        eprintln!(
-            "floter: clipboard image too large ({} bytes), skipped",
-            png.len()
-        );
+    if text.len() > MAX_TEXT_BYTES {
+        // Too big to keep. Not recorded in `last_hash` either, so the
+        // user paying the cost of a smaller copy still gets captured.
         return None;
     }
-    // Dimensions go into the hash: identical pixels at different sizes are
-    // different content, and RGBA bytes alone would collide across resizes
-    // far less often than a plain byte hash suggests they should be kept.
-    let mut hashed = Vec::with_capacity(rgba.len() + 8);
+    let hash = store::content_hash(text.as_bytes());
+    if last_hash.as_deref() == Some(hash.as_str()) || capture_text(app, text, &hash).is_err() {
+        // Either already the newest entry (duplicate copy) or storage failed;
+        // either way do not re-record the same content.
+        return Some(hash);
+    }
+    Some(hash)
+}
+
+/// The caption stored alongside an image captured with text on the same
+/// clipboard: the trimmed text when it is real content, `None` when it is
+/// whitespace-only or too large to keep. Whitespace-only text does not count —
+/// screenshots routinely ride along invisible leftovers. Stored trimmed so
+/// the row preview's first-line split sees the caption's actual first line.
+pub fn caption_for(text: Option<&str>, max_bytes: usize) -> Option<String> {
+    let trimmed = text?.trim();
+    if trimmed.is_empty() || trimmed.len() > max_bytes {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
+/// Identity of an image capture: dimensions, RGBA bytes and — when a caption
+/// rode along — its UTF-8 bytes. Re-copying the same pixels with different
+/// text is different history; the same pair hashes equal and dedupes.
+pub fn image_hash(width: u32, height: u32, rgba: &[u8], caption: Option<&str>) -> String {
+    let mut hashed = Vec::with_capacity(rgba.len() + caption.map_or(0, str::len) + 8);
     hashed.extend_from_slice(&width.to_be_bytes());
     hashed.extend_from_slice(&height.to_be_bytes());
-    hashed.extend_from_slice(&rgba);
-    let hash = store::content_hash(&hashed);
-    let _ = capture_image(app, &png, width, height, &hash);
-    Some(hash)
+    hashed.extend_from_slice(rgba);
+    if let Some(caption) = caption {
+        hashed.extend_from_slice(caption.as_bytes());
+    }
+    store::content_hash(&hashed)
 }
 
 fn capture_text(app: &AppHandle, text: String, hash: &str) -> Result<(), String> {
@@ -219,6 +243,7 @@ fn capture_image(
     width: u32,
     height: u32,
     hash: &str,
+    caption: Option<String>,
 ) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
     // The PNG lands on disk before the history is touched: a failed write then
@@ -232,7 +257,10 @@ fn capture_image(
             ClipboardEntry {
                 id: id.clone(),
                 kind: "image".to_string(),
-                text: None,
+                // A simultaneous image+text copy stores its caption here:
+                // one entry, pixels plus words. Restore stays image-only —
+                // see `clipboard_copy_entry` for why.
+                text: caption,
                 paths: None,
                 image_file: Some(format!("{id}.png")),
                 width: Some(width),
@@ -453,5 +481,59 @@ mod tests {
                 .expect("capture")
                 .hash;
         assert_eq!(forward, backward);
+    }
+
+    fn sample_rgba(width: u32, height: u32) -> Vec<u8> {
+        (0..width * height * 4)
+            .map(|byte| (byte % 251) as u8)
+            .collect()
+    }
+
+    #[test]
+    fn caption_storage_trims_content_and_refuses_blanks_and_oversize() {
+        assert_eq!(
+            caption_for(Some("  screenshot notes \n"), MAX_TEXT_BYTES),
+            Some("screenshot notes".to_string())
+        );
+        // Whitespace-only text riding on an image is not a caption.
+        assert_eq!(caption_for(Some("  \n\t "), MAX_TEXT_BYTES), None);
+        assert_eq!(caption_for(None, MAX_TEXT_BYTES), None);
+        // Too large to keep: dropped rather than truncated mid-grapheme.
+        let oversized = "x".repeat(MAX_TEXT_BYTES + 1);
+        assert_eq!(caption_for(Some(&oversized), MAX_TEXT_BYTES), None);
+    }
+
+    #[test]
+    fn image_hash_is_stable_and_caption_sensitive() {
+        let rgba = sample_rgba(2, 2);
+        let bare = image_hash(2, 2, &rgba, None);
+        assert_eq!(bare, image_hash(2, 2, &rgba, None));
+        // Same pixels with a caption hash differently, in either direction.
+        let captioned = image_hash(2, 2, &rgba, Some("diagram"));
+        assert_ne!(bare, captioned);
+        assert_ne!(captioned, image_hash(2, 2, &rgba, Some("chart")));
+        // So do different pixels or dimensions.
+        assert_ne!(bare, image_hash(2, 3, &rgba, None));
+        assert_ne!(bare, image_hash(2, 2, &vec![0u8; 2 * 2 * 4], None));
+    }
+
+    #[test]
+    fn a_captioned_image_entry_round_trips_with_its_text() {
+        let entry = ClipboardEntry {
+            id: "cap".to_string(),
+            kind: "image".to_string(),
+            text: caption_for(Some("architecture diagram"), MAX_TEXT_BYTES),
+            paths: None,
+            image_file: Some("cap.png".to_string()),
+            width: Some(8),
+            height: Some(8),
+            hash: image_hash(8, 8, &[0; 16], Some("architecture diagram")),
+            created_at: 1,
+            favorite: false,
+        };
+        let json = serde_json::to_string(&entry).expect("serialize");
+        let parsed: ClipboardEntry = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed.text.as_deref(), Some("architecture diagram"));
+        assert_eq!(parsed.kind, "image");
     }
 }
