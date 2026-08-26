@@ -1052,6 +1052,31 @@ fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+/// Prefix of the environment variables injected by the herdr session manager.
+const HERDR_ENV_PREFIX: &str = "HERDR_";
+
+/// Drop every entry whose key starts with [`HERDR_ENV_PREFIX`], keeping all
+/// other entries unchanged.
+fn filtered_env<I>(env: I) -> Vec<(String, String)>
+where
+    I: IntoIterator<Item = (String, String)>,
+{
+    env.into_iter()
+        .filter(|(key, _)| !key.starts_with(HERDR_ENV_PREFIX))
+        .collect()
+}
+
+/// Strip every inherited `HERDR_*` variable from `command` so externally
+/// spawned terminal emulators cannot mistake themselves for nested herdr
+/// sessions. All other environment entries pass through unchanged.
+fn strip_herdr_vars(command: &mut Command) -> &mut Command {
+    command.env_clear();
+    for (key, value) in filtered_env(std::env::vars()) {
+        command.env(key, value);
+    }
+    command
+}
+
 /// AppleScript used to start Floter's attach helper in Terminal.app's
 /// interactive shell. Terminal creates a default window while cold-starting,
 /// before it handles even the first `do script` Apple Event. Reuse that window
@@ -1087,7 +1112,7 @@ end run"#;
 #[cfg(target_os = "macos")]
 fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, String> {
     if let Some(command) = resume_command {
-        let status = Command::new("/usr/bin/osascript")
+        let status = strip_herdr_vars(Command::new("/usr/bin/osascript"))
             .args(["-e", MACOS_TERMINAL_SCRIPT, "--"])
             .arg(dir)
             .arg(command)
@@ -1101,7 +1126,7 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, St
         ));
     }
 
-    let status = Command::new("/usr/bin/open")
+    let status = strip_herdr_vars(Command::new("/usr/bin/open"))
         .args(["-b", "com.apple.Terminal"])
         .arg(dir)
         .status()
@@ -1159,7 +1184,7 @@ fn open_named_terminal_at(name: &str, dir: &Path, resume_command: &str) -> Resul
             command.args(["-e", &shell, "-lc", &script]);
         }
     }
-    command
+    strip_herdr_vars(&mut command)
         .spawn()
         .map(|_| true)
         .map_err(|error| format!("failed to start terminal emulator '{name}': {error}"))
@@ -1318,7 +1343,7 @@ fn open_terminal_at_with_preference(
                 }
             }
         }
-        if command.spawn().is_ok() {
+        if strip_herdr_vars(&mut command).spawn().is_ok() {
             return Ok(resume_command.is_some());
         }
     }
@@ -1338,6 +1363,98 @@ mod tests {
             .contains("if terminalWasRunning then\n            do script handoffCommand"));
         assert!(
             MACOS_TERMINAL_SCRIPT.contains("do script handoffCommand in selected tab of window 1")
+        );
+    }
+
+    #[test]
+    fn herdr_env_filter_drops_only_herdr_keys() {
+        let env = vec![
+            ("HERDR_ENV".to_string(), "1".to_string()),
+            (
+                "HERDR_SOCKET_PATH".to_string(),
+                "/tmp/herdr.sock".to_string(),
+            ),
+            (
+                "HERDR_BIN_PATH".to_string(),
+                "/usr/local/bin/herdr".to_string(),
+            ),
+            ("HERDR_WORKSPACE_ID".to_string(), "ws-1".to_string()),
+            ("HERDR_TAB_ID".to_string(), "tab-1".to_string()),
+            ("HERDR_PANE_ID".to_string(), "pane-1".to_string()),
+            ("PATH".to_string(), "/usr/bin:/bin".to_string()),
+            ("SHELL".to_string(), "/bin/zsh".to_string()),
+            // Prefix must match up to the underscore separator.
+            ("HERDRA_KEEP".to_string(), "kept".to_string()),
+            ("THERDR_IGNORED".to_string(), "kept".to_string()),
+        ];
+        let filtered = filtered_env(env);
+        let keys: Vec<&str> = filtered.iter().map(|(key, _)| key.as_str()).collect();
+        assert!(!keys.iter().any(|key| key.starts_with("HERDR_")));
+        assert!(keys.contains(&"PATH"));
+        assert!(keys.contains(&"SHELL"));
+        assert!(keys.contains(&"HERDRA_KEEP"));
+        assert!(keys.contains(&"THERDR_IGNORED"));
+        assert_eq!(filtered.len(), 4);
+    }
+
+    #[test]
+    fn strip_herdr_vars_rebuilds_command_env_without_herdr_entries() {
+        let mut command = Command::new("true");
+        command.env("FLTER_PRESET", "gone-after-env-clear");
+        strip_herdr_vars(&mut command);
+        let command_env: Vec<(String, String)> = command
+            .get_envs()
+            .filter_map(|(key, value)| {
+                value.map(|value| {
+                    (
+                        key.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
+            })
+            .collect();
+        for (key, value) in std::env::vars() {
+            if key.starts_with(HERDR_ENV_PREFIX) {
+                assert!(
+                    !command_env.iter().any(|(k, _)| k == &key),
+                    "HERDR_ variable {key} leaked into spawned terminal env"
+                );
+            } else {
+                assert_eq!(
+                    command_env
+                        .iter()
+                        .find(|(k, _)| k == &key)
+                        .map(|(_, v)| v.as_str()),
+                    Some(value.as_str()),
+                    "non-herdr variable {key} was altered"
+                );
+            }
+        }
+        // `env_clear()` wipes everything previously set on the command; only
+        // the sanitized copy of the parent environment remains.
+        assert!(
+            !command_env.iter().any(|(key, _)| key == "FLTER_PRESET"),
+            "env_clear() failed to reset pre-existing command env"
+        );
+
+        let mut command = Command::new("true");
+        command.env("HERDR_PANE_ID", "leak");
+        strip_herdr_vars(&mut command);
+        let command_env: Vec<(String, String)> = command
+            .get_envs()
+            .filter_map(|(key, value)| {
+                value.map(|value| {
+                    (
+                        key.to_string_lossy().into_owned(),
+                        value.to_string_lossy().into_owned(),
+                    )
+                })
+            })
+            .collect();
+        assert_eq!(
+            command_env.iter().find(|(k, _)| k == "HERDR_PANE_ID"),
+            None,
+            "explicitly set HERDR_ variable must be stripped"
         );
     }
 
