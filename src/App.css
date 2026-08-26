@@ -3286,9 +3286,10 @@ canvas {
   font-family: "SF Mono", Menlo, Monaco, Consolas, "Cascadia Mono", monospace;
 }
 
-/* Prompt line: `filter❯` reads like a shell prompt, the input sits beside it,
-   and the 全部/收藏 segmented control closes the row. One hairline underneath
-   separates it from the history — no other chrome. */
+/* Prompt line: `filter❯` reads like a shell prompt, the input sits beside it
+   (the × clear affordance appears only once there is text to clear), and the
+   全部/收藏 tab bar closes the row. One hairline underneath separates it from
+   the history — no other chrome. */
 .clipboard-panel__topbar {
   flex: 0 0 auto;
   display: flex;
@@ -3325,8 +3326,27 @@ canvas {
   outline: none;
 }
 
-/* 全部 / 收藏 segmented control: a slim text-only pair at the search line's
-   end, hairline-separated like everything else on the page. */
+/* The × that clears a non-empty filter: bare glyph, muted until hovered. */
+.clipboard-panel__filter-clear {
+  flex: 0 0 auto;
+  padding: 0 1px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.clipboard-panel__filter-clear:hover {
+  color: var(--text-secondary);
+}
+
+/* 全部 / 收藏 tab bar: the page's primary navigation. Active tab carries the
+   accent and full-weight label; counts sit beside each label in muted type.
+   Roving tabindex — exactly one tab is in the page's tab order, arrows move
+   between them when focus is on the bar. */
 .clipboard-panel__tabs {
   flex: 0 0 auto;
   display: flex;
@@ -3334,13 +3354,16 @@ canvas {
 }
 
 .clipboard-panel__tab {
-  padding: 1px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--text-tertiary);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -3348,9 +3371,20 @@ canvas {
   color: var(--text-secondary);
 }
 
+.clipboard-panel__tab:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: -1px;
+}
+
 .clipboard-panel__tab--active {
   background: var(--accent-tint);
-  color: var(--text-primary);
+  color: var(--accent);
+}
+
+.clipboard-panel__tab-count {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* The history itself scrolls at any height: this is the only flexible child
@@ -3365,13 +3399,15 @@ canvas {
   overscroll-behavior: contain;
 }
 
-/* Rows are plain terminal lines — no chips, no per-row borders. */
+/* Rows are plain terminal lines — no chips, no per-row borders. Fixed row
+   rhythm comes from the shared vertical padding; every trailing column is
+   right-aligned against the same stable edge before the star. */
 .clipboard-row {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border: none;
   border-radius: 4px;
   background: transparent;
@@ -3384,6 +3420,9 @@ canvas {
 .clipboard-row--selected {
   background: var(--accent-tint);
   color: var(--text-primary);
+  /* The inset edge keeps the selection unmistakable on both theme variable
+   * sets, where the tint alone can read faintly against odd backgrounds. */
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
 /* The type marker doubles as the image thumbnail slot: text entries get a
@@ -3426,7 +3465,8 @@ canvas {
 /* Character count and age form two right-aligned numeric columns after the
    preview; tabular numerals keep the digits steady row to row. The age column
    is fixed-width because its widest value — the concrete datetime every entry
-   older than a day shows — is always exactly 16 characters. */
+   older than a day shows — is always exactly 16 characters; border-box keeps
+   the missing-file pill inside that same stable right edge. */
 .clipboard-row__chars {
   flex: 0 0 auto;
   min-width: 8ch;
@@ -3440,6 +3480,7 @@ canvas {
 .clipboard-row__age {
   flex: 0 0 auto;
   width: 16ch;
+  box-sizing: border-box;
   text-align: right;
   white-space: nowrap;
   color: var(--text-tertiary);
@@ -3469,12 +3510,24 @@ canvas {
   color: var(--accent);
 }
 
+/* Missing files rows dim as a whole but stay readable; the 「文件不存在」
+   label renders as a quiet status pill sitting in the age column's slot, so
+   it aligns to the same right edge as every real age. */
 .clipboard-row--missing {
-  opacity: 0.5;
+  opacity: 0.65;
 }
 
 .clipboard-row__age--missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   color: var(--text-warning);
+  font-size: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 1px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .clipboard-row__preview-dir,
@@ -3486,10 +3539,21 @@ canvas {
   font-size: 12px;
 }
 
+/* Empty history, empty favorites and no filter matches share one quiet hint
+   block: icon-less, centered, floating in the upper third of the list area. */
 .clipboard-panel__empty {
-  padding: 18px 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 24px 18px;
   color: var(--text-muted);
   font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+  user-select: none;
 }
 
 /* One-line footer: key hints left, Clear right. Hairline top border, muted,
@@ -3515,16 +3579,19 @@ canvas {
 
 .clipboard-panel__clear {
   flex: 0 0 auto;
-  padding: 0;
-  border: none;
+  padding: 1px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
   background: transparent;
   color: var(--text-tertiary);
   font: inherit;
   font-size: 11px;
+  line-height: 1.4;
   cursor: pointer;
 }
 
 .clipboard-panel__clear:hover {
+  border-color: var(--accent-edge);
   color: var(--text-warning);
 }
 

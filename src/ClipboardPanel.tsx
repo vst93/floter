@@ -57,6 +57,7 @@ export function ClipboardPanel({
    * state map alone cannot, since its snapshot at cleanup time is empty. */
   const liveThumbnailUrls = useRef<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const reload = useCallback((): Promise<ClipboardEntry[]> => {
     return invoke<unknown[]>("clipboard_get_entries", { filter: null })
@@ -236,6 +237,15 @@ export function ClipboardPanel({
       // Content-editing keys stay in the search field; everything below is
       // only reachable once focus has moved off it (Tab into the list).
       if (inSearch) return;
+      if (event.key === "1" || event.key === "2") {
+        // Direct tab jump — only reachable once focus has left the filter
+        // field, so typing "12" still filters instead of switching tabs.
+        event.preventDefault();
+        event.stopPropagation();
+        setView(event.key === "1" ? "all" : "favorites");
+        setSelected(0);
+        return;
+      }
       if (event.key === "f" || event.key === "F" || event.key === "*") {
         event.preventDefault();
         event.stopPropagation();
@@ -254,6 +264,14 @@ export function ClipboardPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, selected, onClose]);
 
+  /** Shared switch logic for click and keyboard activation: a tab change
+   * always lands on row 0, so the selection never points across lists. */
+  const switchView = (next: ClipboardView) => {
+    setView(next);
+    setSelected(0);
+  };
+
+  const favoritesCount = entries.reduce((total, entry) => total + (entry.favorite ? 1 : 0), 0);
   const now = Date.now();
 
   // Terminal-page anatomy: a prompt-like search line (`filter❯`) with the
@@ -281,32 +299,61 @@ export function ClipboardPanel({
             setSelected(0);
           }}
         />
-        <div className="clipboard-panel__tabs" role="tablist" aria-label={t("clipboard.title")}>
+        {filter && (
+          <button
+            type="button"
+            className="clipboard-panel__filter-clear"
+            aria-label={t("clipboard.filterClear")}
+            title={t("clipboard.filterClear")}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setFilter("");
+              setSelected(0);
+              searchRef.current?.focus();
+            }}
+          >
+            ×
+          </button>
+        )}
+        <div
+          className="clipboard-panel__tabs"
+          role="tablist"
+          aria-label={t("clipboard.title")}
+          onKeyDown={(event) => {
+            // Two tabs, so either arrow moves to the other one; the moved-to
+            // tab takes focus so repeated arrows keep working.
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            const next: ClipboardView = view === "all" ? "favorites" : "all";
+            switchView(next);
+            tabRefs.current[next === "all" ? 0 : 1]?.focus();
+          }}
+        >
           <button
             type="button"
             role="tab"
+            ref={(node) => { tabRefs.current[0] = node; }}
+            tabIndex={view === "all" ? 0 : -1}
             aria-selected={view === "all"}
             className={`clipboard-panel__tab${view === "all" ? " clipboard-panel__tab--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              setView("all");
-              setSelected(0);
-            }}
+            onClick={() => switchView("all")}
           >
             {t("clipboard.tabAll")}
+            <span className="clipboard-panel__tab-count">{entries.length}</span>
           </button>
           <button
             type="button"
             role="tab"
+            ref={(node) => { tabRefs.current[1] = node; }}
+            tabIndex={view === "favorites" ? 0 : -1}
             aria-selected={view === "favorites"}
             className={`clipboard-panel__tab${view === "favorites" ? " clipboard-panel__tab--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              setView("favorites");
-              setSelected(0);
-            }}
+            onClick={() => switchView("favorites")}
           >
             {t("clipboard.tabFavorites")}
+            <span className="clipboard-panel__tab-count">{favoritesCount}</span>
           </button>
         </div>
       </div>
