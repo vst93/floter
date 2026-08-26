@@ -3319,6 +3319,36 @@ canvas {
   outline: none;
 }
 
+/* 全部 / 收藏 segmented control: a slim text-only pair directly under the
+   search line, hairline-separated like everything else in the panel. */
+.clipboard-panel__tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.clipboard-panel__tab {
+  padding: 1px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.clipboard-panel__tab:hover {
+  color: var(--text-secondary);
+}
+
+.clipboard-panel__tab--active {
+  background: var(--accent-tint);
+  color: var(--text-primary);
+}
+
 .clipboard-panel__list {
   flex: 1;
   min-height: 0;
@@ -3424,6 +3454,14 @@ canvas {
   color: var(--text-muted);
 }
 
+/* Character count on text rows: one muted span beside the age; the age column
+   is already variable width, so this costs no reflow elsewhere. */
+.clipboard-row__chars {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
 .clipboard-row__marker--files {
   font-size: 12px;
 }
@@ -3432,6 +3470,42 @@ canvas {
   padding: 18px 14px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* One-line footer: key hints left, Clear right. Hairline top border, muted,
+   ~28px tall — present but never loud. */
+.clipboard-panel__footer {
+  flex: 0 0 auto;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-top: 1px solid var(--hairline);
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.clipboard-panel__hints {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.clipboard-panel__clear {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.clipboard-panel__clear:hover {
+  color: var(--text-warning);
 }
 
 .settings-privacy-hint {

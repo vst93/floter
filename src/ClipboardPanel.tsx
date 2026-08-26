@@ -22,13 +22,16 @@ type ClipboardPanelProps = {
   onClose: () => void;
 };
 
+type ClipboardView = "all" | "favorites";
+
 /**
  * The terminal-styled clipboard history panel.
  *
- * One row per entry — type marker, one-line preview, relative age, favorite
- * star — under a single search line. Keyboard-first: arrows move, Enter puts
- * the entry back on the system clipboard (pasting it into the embedded
- * terminal when one is live), F stars, Delete removes, Esc closes.
+ * One row per entry — type marker, one-line preview, character count and
+ * relative age for text, favorite star — under a single search line with an
+ * 全部/收藏 segmented control. Keyboard-first: arrows move, Enter puts the
+ * entry back on the system clipboard (pasting it into the embedded terminal
+ * when one is live), F stars, Delete removes, Esc closes.
  *
  * Files entries hold path references only: the row shows a glyph or — for a
  * single image file — the file's own pixels read on demand. Existence of
@@ -43,6 +46,7 @@ export function ClipboardPanel({
 }: ClipboardPanelProps) {
   const [entries, setEntries] = useState<ClipboardEntry[]>([]);
   const [filter, setFilter] = useState("");
+  const [view, setView] = useState<ClipboardView>("all");
   const [selected, setSelected] = useState(0);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   /** Per-files-entry existence, fetched once per load; `false` = missing. */
@@ -122,7 +126,10 @@ export function ClipboardPanel({
     );
   }, [entries.length]);
 
-  const filtered = filterClipboardEntries(entries, filter);
+  const scoped = view === "favorites"
+    ? entries.filter((entry) => entry.favorite)
+    : entries;
+  const filtered = filterClipboardEntries(scoped, filter);
 
   const activate = async (entry: ClipboardEntry | undefined) => {
     if (!entry || statuses[entry.id] === false) return;
@@ -165,6 +172,18 @@ export function ClipboardPanel({
     } catch {
       await reload();
     }
+  };
+
+  /** Wipe every non-favorite entry — the backend's contract guarantees
+   * favorites survive, so one click needs no confirmation dialog. */
+  const clearHistory = async () => {
+    try {
+      await invoke("clipboard_clear_history");
+    } catch {
+      // A failed clear leaves the history as it was; reload shows the truth.
+    }
+    setSelected(0);
+    await reload();
   };
 
   useEffect(() => {
@@ -243,8 +262,44 @@ export function ClipboardPanel({
           setSelected(0);
         }}
       />
+      <div className="clipboard-panel__tabs" role="tablist" aria-label={t("clipboard.title")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "all"}
+          className={`clipboard-panel__tab${view === "all" ? " clipboard-panel__tab--active" : ""}`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            setView("all");
+            setSelected(0);
+          }}
+        >
+          {t("clipboard.tabAll")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "favorites"}
+          className={`clipboard-panel__tab${view === "favorites" ? " clipboard-panel__tab--active" : ""}`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            setView("favorites");
+            setSelected(0);
+          }}
+        >
+          {t("clipboard.tabFavorites")}
+        </button>
+      </div>
       {filtered.length === 0 ? (
-        <div className="clipboard-panel__empty">{t(entries.length ? "clipboard.emptyFilter" : "clipboard.empty")}</div>
+        <div className="clipboard-panel__empty">
+          {t(
+            scoped.length
+              ? "clipboard.emptyFilter"
+              : view === "favorites"
+                ? "clipboard.emptyFavorites"
+                : "clipboard.empty",
+          )}
+        </div>
       ) : (
         <ul className="clipboard-panel__list" role="listbox" aria-label={t("clipboard.title")}>
           {filtered.map((entry, index) => {
@@ -297,6 +352,11 @@ export function ClipboardPanel({
                     clipboardPreview(entry)
                   )}
                 </span>
+                {entry.kind === "text" && entry.text ? (
+                  <span className="clipboard-row__chars">
+                    {t("clipboard.chars", { n: entry.text.length })}
+                  </span>
+                ) : null}
                 <span className={`clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`}>
                   {missing
                     ? t("clipboard.missing")
@@ -322,6 +382,21 @@ export function ClipboardPanel({
           })}
         </ul>
       )}
+      <div className="clipboard-panel__footer">
+        <span className="clipboard-panel__hints">
+          {t("clipboard.hintPaste")} · {t("clipboard.hintStar")} · {t("clipboard.hintDelete")}
+        </span>
+        <button
+          type="button"
+          className="clipboard-panel__clear"
+          title={t("clipboard.clearTitle")}
+          aria-label={t("clipboard.clearTitle")}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => void clearHistory()}
+        >
+          {t("clipboard.clear")}
+        </button>
+      </div>
     </div>
   );
 }

@@ -59,7 +59,7 @@ pub fn app_store_paths() -> Option<StorePaths> {
 }
 
 /// Stable identity of a piece of clipboard content, used both to skip polls
-/// that saw nothing new and to drop consecutive duplicates of one copy.
+/// that saw nothing new and to dedupe re-copies across the whole history.
 pub fn content_hash(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut hex = String::with_capacity(digest.len() * 2);
@@ -149,11 +149,34 @@ pub fn prune_entries(
     (survivors, dropped)
 }
 
-/// Whether the content `hash` names is already the newest stored entry, i.e.
-/// copying it again should be a no-op rather than a fresh entry that shadows
-/// the previous one's timestamp.
-pub fn is_duplicate_of_newest(hash: &str, entries: &[ClipboardEntry]) -> bool {
-    entries.first().is_some_and(|newest| newest.hash == hash)
+/// Fold a fresh capture into the history per full-history dedupe.
+///
+/// - Content already sitting on top (any favorite state) is a no-op: `false`
+///   is returned and the history is untouched — the copy is where the user
+///   expects it, so refreshing its timestamp buys nothing.
+/// - Otherwise every *non-favorite* entry carrying the same hash — anywhere in
+///   the history, not just consecutively — is removed and the capture lands on
+///   top with its fresh timestamp: re-copying something promotes it.
+/// - A favorited entry holding the same content survives untouched and its
+///   flag carries onto the new top entry. Favorites are never silently
+///   dropped by a re-copy; they are only ever removed explicitly.
+///
+/// Hash comparison is content-based per kind, so this applies to text, image,
+/// and files captures alike; hashes of different kinds do not collide.
+pub fn fold_capture(entries: &mut Vec<ClipboardEntry>, mut capture: ClipboardEntry) -> bool {
+    if entries
+        .first()
+        .is_some_and(|newest| newest.hash == capture.hash)
+    {
+        return false;
+    }
+    let carries_favorite = entries
+        .iter()
+        .any(|entry| entry.hash == capture.hash && entry.favorite);
+    entries.retain(|entry| !(entry.hash == capture.hash && !entry.favorite));
+    capture.favorite = carries_favorite;
+    entries.insert(0, capture);
+    true
 }
 
 /// Identity of a multi-file copy: sha256 over the sorted, `\n`-joined
@@ -304,18 +327,87 @@ mod tests {
     }
 
     #[test]
-    fn identical_content_hashes_equal_so_consecutive_copies_dedupe() {
+    fn identical_content_hashes_equal_across_kinds() {
         assert_eq!(content_hash(b"hello"), content_hash(b"hello"));
         assert_ne!(content_hash(b"hello"), content_hash(b"world"));
-        assert!(is_duplicate_of_newest(
-            &content_hash(b"same"),
-            &[text_entry("e", 1, false, &content_hash(b"same"))]
+    }
+
+    #[test]
+    fn duplicate_at_top_is_a_no_op_regardless_of_favorite_state() {
+        let now = 1_700_000_000_000;
+        for favorite in [false, true] {
+            let mut entries = vec![text_entry("top", now, favorite, "h")];
+            let capture = text_entry("fresh", now + 5, false, "h");
+
+            assert!(!fold_capture(&mut entries, capture));
+
+            assert_eq!(entries.len(), 1);
+            assert_eq!(entries[0].id, "top");
+            assert_eq!(entries[0].created_at, now);
+            assert_eq!(entries[0].favorite, favorite);
+        }
+    }
+
+    #[test]
+    fn duplicate_older_elsewhere_moves_to_top_with_fresh_timestamp() {
+        let now = 1_700_000_000_000;
+        let mut entries = vec![
+            text_entry("newer", now - 1000, false, "h2"),
+            text_entry("older", now - 60_000, false, "h1"),
+        ];
+
+        assert!(fold_capture(
+            &mut entries,
+            text_entry("fresh", now, false, "h1")
         ));
-        assert!(!is_duplicate_of_newest(
-            &content_hash(b"different"),
-            &[text_entry("e", 1, false, &content_hash(b"same"))]
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].id, "fresh");
+        assert_eq!(entries[0].created_at, now);
+        assert_eq!(entries[1].id, "newer");
+        assert!(!entries.iter().any(|entry| entry.id == "older"));
+    }
+
+    #[test]
+    fn favorited_duplicate_survives_and_carries_its_flag_to_the_top() {
+        let now = 1_700_000_000_000;
+        let mut entries = vec![
+            text_entry("other", now - 500, false, "h2"),
+            text_entry("starred", now - 60_000, true, "h1"),
+        ];
+
+        assert!(fold_capture(
+            &mut entries,
+            text_entry("fresh", now, false, "h1")
         ));
-        assert!(!is_duplicate_of_newest(&content_hash(b"anything"), &[]));
+
+        // The starred entry stays put; the fresh copy lands on top carrying
+        // the favorite flag.
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].id, "fresh");
+        assert_eq!(entries[0].favorite, true);
+        assert!(entries.iter().any(|entry| entry.id == "starred"));
+    }
+
+    #[test]
+    fn a_hash_match_only_touches_entries_of_the_same_content() {
+        let now = 1_700_000_000_000;
+        let mut entries = vec![
+            text_entry("text", now - 1000, false, "htext"),
+            text_entry("image", now - 2000, false, "himage"),
+            text_entry("files", now - 3000, false, "hfiles"),
+        ];
+
+        assert!(fold_capture(
+            &mut entries,
+            text_entry("fresh", now, false, "himage")
+        ));
+
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].id, "fresh");
+        assert!(entries.iter().any(|entry| entry.id == "text"));
+        assert!(entries.iter().any(|entry| entry.id == "files"));
+        assert!(!entries.iter().any(|entry| entry.id == "image"));
     }
 
     #[test]

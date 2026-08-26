@@ -44,7 +44,8 @@ pub struct ClipboardEntry {
     pub width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
-    /// Content identity used to skip unchanged polls and consecutive copies.
+    /// Content identity used to skip unchanged polls and to dedupe re-copies
+    /// across the whole history.
     pub hash: String,
     /// Unix timestamp in milliseconds.
     pub created_at: i64,

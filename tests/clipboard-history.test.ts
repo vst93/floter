@@ -4,6 +4,7 @@ import {
   clipboardPreview,
   filterClipboardEntries,
   formatClipboardAge,
+  formatClipboardDateTime,
   formatFilesPreview,
   imageFileMime,
   isFilesPreviewCandidate,
@@ -117,20 +118,57 @@ test("preview labels images with their dimensions", () => {
   assert.equal(clipboardPreview(entry({ kind: "image", width: null, height: undefined }) as ClipboardEntry), "[image ?x?]");
 });
 
-test("age formats compactly across unit boundaries", () => {
+test("age formats compactly across unit boundaries, without seconds", () => {
   const now = 10_000_000;
   const at = (secondsBefore: number) => now - secondsBefore * 1000;
 
-  assert.equal(formatClipboardAge(at(42), now), "42s");
-  assert.equal(formatClipboardAge(at(59), now), "59s");
+  // Seconds never show: anything under an hour reads in whole minutes.
+  assert.equal(formatClipboardAge(at(0), now), "0m");
+  assert.equal(formatClipboardAge(at(42), now), "0m");
+  assert.equal(formatClipboardAge(at(59), now), "0m");
   assert.equal(formatClipboardAge(at(60), now), "1m");
   // Minutes roll into hours at the hour mark.
   assert.equal(formatClipboardAge(at(90 * 60), now), "1h");
   assert.equal(formatClipboardAge(at(23 * 60 * 60), now), "23h");
-  assert.equal(formatClipboardAge(at(24 * 60 * 60), now), "1d");
-  assert.equal(formatClipboardAge(at(45 * 24 * 60 * 60), now), "45d");
+  // A day or older answers with a concrete local datetime instead of `Nd`.
+  const dayOld = at(24 * 60 * 60);
+  assert.equal(formatClipboardAge(dayOld, now), formatClipboardDateTime(dayOld));
+  const monthOld = at(45 * 24 * 60 * 60);
+  assert.equal(
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(formatClipboardAge(monthOld, now)),
+    true,
+  );
   // A future timestamp (clock skew) clamps to zero rather than going negative.
-  assert.equal(formatClipboardAge(now + 5000, now), "0s");
+  assert.equal(formatClipboardAge(now + 5000, now), "0m");
+  // Non-finite inputs degrade to an empty label.
+  assert.equal(formatClipboardAge(Number.NaN, now), "");
+  assert.equal(formatClipboardAge(at(42), Number.NaN), "");
+});
+
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+/** Local expectation built with the same clock the formatter must use. */
+const localDateTime = (ms: number): string => {
+  const date = new Date(ms);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+    + `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+test("formatClipboardDateTime renders a padded local YYYY-MM-DD HH:mm", () => {
+  // Known epoch instants, formatted against whatever local zone the test runs
+  // in — the shape is the contract, not particular wall-clock digits.
+  for (const ms of [0, 1_700_000_000_123, 951_782_400_000, 4_102_444_800_000]) {
+    assert.equal(formatClipboardDateTime(ms), localDateTime(ms));
+  }
+  // Zero-padding: a same-day instant one minute after midnight formats with
+  // two-digit fields regardless of timezone.
+  const midnight = new Date();
+  midnight.setHours(0, 7, 0, 0);
+  assert.equal(formatClipboardDateTime(midnight.getTime()), localDateTime(midnight.getTime()));
+  assert.match(formatClipboardDateTime(midnight.getTime()), / \d{2}:\d{2}$/);
+
+  // Non-finite input degrades to empty rather than "Invalid Date".
+  assert.equal(formatClipboardDateTime(Number.NaN), "");
 });
 
 test("filter matches files entries against full paths and basenames", () => {

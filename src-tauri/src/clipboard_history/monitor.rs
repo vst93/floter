@@ -169,11 +169,8 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
 
 fn capture_text(app: &AppHandle, text: String, hash: &str) -> Result<(), String> {
     super::mutate_history(app, |entries| {
-        if store::is_duplicate_of_newest(hash, entries) {
-            return Ok(());
-        }
-        entries.insert(
-            0,
+        if !store::fold_capture(
+            entries,
             ClipboardEntry {
                 id: uuid::Uuid::new_v4().to_string(),
                 kind: "text".to_string(),
@@ -186,18 +183,17 @@ fn capture_text(app: &AppHandle, text: String, hash: &str) -> Result<(), String>
                 created_at: now_ms(),
                 favorite: false,
             },
-        );
+        ) {
+            return Ok(());
+        }
         prune_and_save(entries)
     })
 }
 
 fn capture_files(app: &AppHandle, capture: &FilesCapture) -> Result<(), String> {
     super::mutate_history(app, |entries| {
-        if store::is_duplicate_of_newest(&capture.hash, entries) {
-            return Ok(());
-        }
-        entries.insert(
-            0,
+        if !store::fold_capture(
+            entries,
             ClipboardEntry {
                 id: uuid::Uuid::new_v4().to_string(),
                 kind: "files".to_string(),
@@ -210,7 +206,9 @@ fn capture_files(app: &AppHandle, capture: &FilesCapture) -> Result<(), String> 
                 created_at: now_ms(),
                 favorite: false,
             },
-        );
+        ) {
+            return Ok(());
+        }
         prune_and_save(entries)
     })
 }
@@ -223,14 +221,14 @@ fn capture_image(
     hash: &str,
 ) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
+    // The PNG lands on disk before the history is touched: a failed write then
+    // leaves both memory and index exactly as they were. The id is a fresh
+    // UUID, so nothing else can be holding that file name.
+    let id = uuid::Uuid::new_v4().to_string();
+    store::write_image(&paths, &id, png)?;
     super::mutate_history(app, |entries| {
-        if store::is_duplicate_of_newest(hash, entries) {
-            return Ok(());
-        }
-        let id = uuid::Uuid::new_v4().to_string();
-        store::write_image(&paths, &id, png)?;
-        entries.insert(
-            0,
+        if !store::fold_capture(
+            entries,
             ClipboardEntry {
                 id: id.clone(),
                 kind: "image".to_string(),
@@ -243,7 +241,12 @@ fn capture_image(
                 created_at: now_ms(),
                 favorite: false,
             },
-        );
+        ) {
+            // Duplicate of the top entry: the PNG we just wrote has no row
+            // and would linger until the next orphan pass; take it now.
+            store::delete_image(&paths, &format!("{id}.png"));
+            return Ok(());
+        }
         if let Err(error) = prune_and_save(entries) {
             // Do not leave the freshly written PNG behind without an index row.
             store::delete_image(&paths, &format!("{id}.png"));

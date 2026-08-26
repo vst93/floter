@@ -185,17 +185,28 @@ export const clipboardPreview = (entry: ClipboardEntry, maxLength = 120): string
 };
 
 /**
- * Compact relative age in the terminal's own vocabulary: `42s`, `5m`, `3h`,
- * `21d`. Unit glyphs are shared by both UI languages, so no translation table
- * is involved.
+ * Compact relative age in the terminal's own vocabulary: `42m`, `5h`, and for
+ * anything older a concrete local datetime via [`formatClipboardDateTime`].
+ * Seconds never appear — they churn too fast to read.
  */
 export const formatClipboardAge = (createdAtMs: number, nowMs: number): string => {
   if (!Number.isFinite(createdAtMs) || !Number.isFinite(nowMs)) return "";
   const seconds = Math.max(0, Math.floor((nowMs - createdAtMs) / 1000));
-  if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
+  return formatClipboardDateTime(createdAtMs);
+};
+
+/**
+ * Concrete local datetime, `YYYY-MM-DD HH:mm`, zero-padded. Local time only —
+ * no locale formatting, so both UI languages render the identical shape.
+ */
+export const formatClipboardDateTime = (ms: number): string => {
+  if (!Number.isFinite(ms)) return "";
+  const date = new Date(ms);
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+    + `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };

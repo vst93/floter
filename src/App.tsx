@@ -114,7 +114,7 @@ type LocalApplication = {
 /** Answer to `check_applications`: whether a rescan would find anything new. */
 type ApplicationsStatus = { upToDate: boolean; count: number };
 
-type SystemAction = "restart" | "shutdown";
+type SystemAction = "restart" | "shutdown" | "clipboard";
 
 type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
 
@@ -367,6 +367,22 @@ const SYSTEM_COMMANDS: {
     // 关机 → gj, 关闭电脑 → gbdn. Neither character has a second reading.
     initials: "gjgbdn",
   },
+  {
+    action: "clipboard",
+    titleKey: "system.clipboardHistory",
+    subtitleKey: "system.clipboardHistorySubtitle",
+    searchNames: [
+      "clipboard",
+      "clipboard history",
+      "paste history",
+      "剪贴板",
+      "剪贴板历史",
+      "粘贴历史",
+    ].map(normalizeSearch),
+    // 剪贴板 → jtb, 剪贴板历史 → jtbls, 粘贴历史 → ntls; plus the English
+    // initials so `ch` reaches it too.
+    initials: "chjtblsjtblsntls",
+  },
 ];
 
 // Where an application came from, read off the shape of its path: `.app`
@@ -385,8 +401,9 @@ const appSubtitleKey = (path: string): MessageKey => {
   return "launcher.application";
 };
 
-/** Lucide `rotate-cw` for restart, `power` for shutdown. */
-const SystemActionIcon = ({ action }: { action: "restart" | "shutdown" }) => (
+/** Lucide `rotate-cw` for restart, `power` for shutdown, `clipboard` for the
+ *  clipboard panel. */
+const SystemActionIcon = ({ action }: { action: SystemAction }) => (
   <svg
     viewBox="0 0 24 24"
     width="16"
@@ -403,10 +420,15 @@ const SystemActionIcon = ({ action }: { action: "restart" | "shutdown" }) => (
         <path d="M21 12a9 9 0 1 1-2.64-6.36" />
         <path d="M21 3v6h-6" />
       </>
-    ) : (
+    ) : action === "shutdown" ? (
       <>
         <path d="M12 2v10" />
         <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
+      </>
+    ) : (
+      <>
+        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
       </>
     )}
   </svg>
@@ -1693,13 +1715,14 @@ export default function App() {
     }
 
     if (mode === "clipboard") {
-      if (!isRestoring) {
-        const available = window.screen.availHeight;
-        const height = Math.min(520, Math.max(320, Math.floor(available * 0.55)));
-        getCurrentWindow()
-          .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
-          .catch(() => undefined);
-      }
+      // Never treated as a restore: the backend's reveal machinery puts back
+      // the previous surface's dimensions, so sizing this panel is always the
+      // frontend's job.
+      const available = window.screen.availHeight;
+      const height = Math.min(520, Math.max(320, Math.floor(available * 0.55)));
+      getCurrentWindow()
+        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+        .catch(() => undefined);
       return;
     }
 
@@ -1831,11 +1854,7 @@ export default function App() {
         invoke("hide_window").catch(() => undefined);
         return;
       }
-      clipboardReturnMode.current =
-        modeRef.current === "terminal" ? "terminal" : "collapsed";
-      suppressBlurUntil.current = Date.now() + 400;
-      restoringMode.current = "clipboard";
-      setMode("clipboard");
+      openClipboardPanel();
     });
 
     return () => {
@@ -2461,6 +2480,18 @@ export default function App() {
     setMode(clipboardReturnMode.current);
   };
 
+  /** Bring the clipboard panel up over whatever surface is showing, remembering
+   * it for the return trip. Deliberately does NOT arm `restoringMode`: the
+   * backend's reveal machinery restores the previous surface's dimensions, so
+   * sizing this panel is the frontend's job (the mode effect applies the
+   * 320–520px height whenever the summon is not treated as a restore). */
+  const openClipboardPanel = () => {
+    suppressBlurUntil.current = Date.now() + 400;
+    clipboardReturnMode.current =
+      modeRef.current === "terminal" ? "terminal" : "collapsed";
+    setMode("clipboard");
+  };
+
   const quitApp = async () => {
     if (appQuitting.current) return;
     appQuitting.current = true;
@@ -2989,6 +3020,15 @@ export default function App() {
   };
 
   const runSystemAction = async (item: Extract<LauncherItem, { type: "system" }>) => {
+    // The clipboard panel is a plain view flip — no confirmation, no window
+    // hiding, just the same open path the global hotkey takes.
+    if (item.action === "clipboard") {
+      setQuery("");
+      setHistoryIndex(-1);
+      openClipboardPanel();
+      return;
+    }
+
     if (systemPowerOpening.current) return;
 
     const confirmationKey = item.action === "restart"
