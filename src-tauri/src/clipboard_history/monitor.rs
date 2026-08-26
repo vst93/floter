@@ -1,11 +1,11 @@
 //! The background clipboard monitor.
 //!
-//! A tokio task polls `arboard` for text and images on a fixed interval for
-//! as long as floter runs and the setting is on. Every poll hashes what it
-//! sees so unchanged clipboards and consecutive copies of the same content
-//! cost nothing, and every clipboard access failure is logged and survived —
-//! another application holding the clipboard is a normal Tuesday, not an
-//! error worth crashing over.
+//! A tokio task polls `arboard` for file lists, text, and images on a fixed
+//! interval for as long as floter runs and the setting is on. Every poll
+//! hashes what it sees so unchanged clipboards and consecutive copies of the
+//! same content cost nothing, and every clipboard access failure is logged
+//! and survived — another application holding the clipboard is a normal
+//! Tuesday, not an error worth crashing over.
 
 use super::store;
 use super::ClipboardEntry;
@@ -30,6 +30,51 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
+/// A validated file-copy capture: the original absolute path strings to store,
+/// plus the identity hash computed from their canonicalized forms.
+pub struct FilesCapture {
+    pub originals: Vec<String>,
+    pub hash: String,
+}
+
+/// Decide whether a clipboard file list is worth recording, without touching
+/// the filesystem beyond the caller-supplied `exists` oracle (so tests stay
+/// fs-free).
+///
+/// Paths that no longer exist are dropped; if none survive, the copy is
+/// skipped entirely (`None`). Canonicalized paths feed the hash only — stored
+/// entries keep the original strings, because history never copies contents
+/// and has no business rewriting paths either.
+pub fn prepare_files_capture(
+    paths: &[String],
+    exists: impl Fn(&str) -> bool,
+) -> Option<FilesCapture> {
+    let mut originals: Vec<String> = Vec::new();
+    let mut canonical: Vec<String> = Vec::new();
+    for raw in paths {
+        let raw = raw.trim();
+        if raw.is_empty() || originals.iter().any(|seen| seen == raw) {
+            continue;
+        }
+        if !exists(raw) {
+            continue;
+        }
+        originals.push(raw.to_string());
+        canonical.push(
+            std::fs::canonicalize(raw)
+                .map(|path| path.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| raw.to_string()),
+        );
+    }
+    if originals.is_empty() {
+        return None;
+    }
+    Some(FilesCapture {
+        originals,
+        hash: store::files_hash(&canonical),
+    })
+}
+
 /// One sampling pass. Returns the hash of whatever was last seen so the
 /// caller can skip identical follow-up polls; `None` means the clipboard was
 /// unreadable or held nothing capturable.
@@ -45,7 +90,27 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
         }
     };
 
-    // Text first; only when there is no readable text do we look at images,
+    // Files first: a Finder/Explorer selection usually ALSO carries a plain
+    // text rendition of its paths, and recording that instead would lose the
+    // file semantics. arboard reads native file lists everywhere we ship
+    // (CF_HDROP / NSFilenamesPboardType / text/uri-list); an empty list or
+    // one whose every path has vanished falls through to text/image so stale
+    // references do not shadow readable content.
+    if let Ok(file_paths) = clipboard.get().file_list() {
+        let originals: Vec<String> = file_paths
+            .iter()
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect();
+        if let Some(capture) = prepare_files_capture(&originals, |path| {
+            // Metadata only: existence check, never a read of the contents.
+            std::fs::metadata(path).is_ok()
+        }) {
+            let _ = capture_files(app, &capture);
+            return Some(capture.hash);
+        }
+    }
+
+    // Text next; only when there is no readable text do we look at images,
     // which keeps the common text case at one syscall-ish round trip.
     if let Ok(text) = clipboard.get_text() {
         if !text.trim().is_empty() {
@@ -113,10 +178,35 @@ fn capture_text(app: &AppHandle, text: String, hash: &str) -> Result<(), String>
                 id: uuid::Uuid::new_v4().to_string(),
                 kind: "text".to_string(),
                 text: Some(text),
+                paths: None,
                 image_file: None,
                 width: None,
                 height: None,
                 hash: hash.to_string(),
+                created_at: now_ms(),
+                favorite: false,
+            },
+        );
+        prune_and_save(entries)
+    })
+}
+
+fn capture_files(app: &AppHandle, capture: &FilesCapture) -> Result<(), String> {
+    super::mutate_history(app, |entries| {
+        if store::is_duplicate_of_newest(&capture.hash, entries) {
+            return Ok(());
+        }
+        entries.insert(
+            0,
+            ClipboardEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                kind: "files".to_string(),
+                text: None,
+                paths: Some(capture.originals.clone()),
+                image_file: None,
+                width: None,
+                height: None,
+                hash: capture.hash.clone(),
                 created_at: now_ms(),
                 favorite: false,
             },
@@ -145,6 +235,7 @@ fn capture_image(
                 id: id.clone(),
                 kind: "image".to_string(),
                 text: None,
+                paths: None,
                 image_file: Some(format!("{id}.png")),
                 width: Some(width),
                 height: Some(height),
@@ -313,5 +404,51 @@ mod tests {
     #[test]
     fn short_buffers_are_refused_before_encoding() {
         assert!(encode_png(4, 4, &[0u8; 4]).is_err());
+    }
+
+    #[test]
+    fn files_capture_skips_when_every_path_is_missing() {
+        let capture = prepare_files_capture(
+            &["/gone/a.txt".to_string(), "/gone/b.txt".to_string()],
+            |_| false,
+        );
+        assert!(capture.is_none());
+    }
+
+    #[test]
+    fn files_capture_keeps_existing_originals_and_drops_the_rest() {
+        let capture = prepare_files_capture(
+            &[
+                "/live/a.txt".to_string(),
+                "/gone/b.txt".to_string(),
+                // Duplicates and blanks are noise, not items.
+                "/live/a.txt".to_string(),
+                "   ".to_string(),
+                "/live/c.txt".to_string(),
+            ],
+            |path| path.starts_with("/live"),
+        )
+        .expect("some paths survive");
+
+        assert_eq!(
+            capture.originals,
+            vec!["/live/a.txt".to_string(), "/live/c.txt".to_string()]
+        );
+        // Hash still forms over both survivors even though canonicalize
+        // cannot resolve these fake paths.
+        assert_eq!(capture.hash, store::files_hash(&capture.originals));
+    }
+
+    #[test]
+    fn files_capture_hash_is_order_insensitive() {
+        let forward =
+            prepare_files_capture(&["/live/a".to_string(), "/live/b".to_string()], |_| true)
+                .expect("capture")
+                .hash;
+        let backward =
+            prepare_files_capture(&["/live/b".to_string(), "/live/a".to_string()], |_| true)
+                .expect("capture")
+                .hash;
+        assert_eq!(forward, backward);
     }
 }

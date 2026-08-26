@@ -156,6 +156,16 @@ pub fn is_duplicate_of_newest(hash: &str, entries: &[ClipboardEntry]) -> bool {
     entries.first().is_some_and(|newest| newest.hash == hash)
 }
 
+/// Identity of a multi-file copy: sha256 over the sorted, `\n`-joined
+/// canonical paths. Sorting makes the same selection re-copied in a different
+/// order dedupe to one entry; joining keeps `a/b` + `c` distinct from
+/// `a` + `b/c`. Callers pass canonical paths; stored entries keep originals.
+pub fn files_hash(canonical_paths: &[String]) -> String {
+    let mut sorted: Vec<&str> = canonical_paths.iter().map(String::as_str).collect();
+    sorted.sort_unstable();
+    content_hash(sorted.join("\n").as_bytes())
+}
+
 pub fn write_image(paths: &StorePaths, id: &str, png_bytes: &[u8]) -> Result<(), String> {
     std::fs::create_dir_all(paths.images_dir()).map_err(|error| error.to_string())?;
     std::fs::write(paths.images_dir().join(format!("{id}.png")), png_bytes)
@@ -211,6 +221,7 @@ mod tests {
             id: id.to_string(),
             kind: "text".to_string(),
             text: Some(id.to_string()),
+            paths: None,
             image_file: None,
             width: None,
             height: None,
@@ -308,6 +319,21 @@ mod tests {
     }
 
     #[test]
+    fn files_hash_is_order_insensitive_but_content_sensitive() {
+        let ab = vec!["/a".to_string(), "/b".to_string()];
+        let ba = vec!["/b".to_string(), "/a".to_string()];
+        assert_eq!(files_hash(&ab), files_hash(&ba));
+
+        let ac = vec!["/a".to_string(), "/c".to_string()];
+        assert_ne!(files_hash(&ab), files_hash(&ac));
+
+        // Joining (not concatenating) keeps path-boundary collisions apart.
+        let split = vec!["/a/b".to_string(), "/c".to_string()];
+        let merged = vec!["/a".to_string(), "/b/c".to_string()];
+        assert_ne!(files_hash(&split), files_hash(&merged));
+    }
+
+    #[test]
     fn index_round_trips_through_disk() {
         let directory = tempfile::tempdir().expect("temp dir");
         let paths = StorePaths {
@@ -319,6 +345,7 @@ mod tests {
                 id: "img".to_string(),
                 kind: "image".to_string(),
                 text: None,
+                paths: None,
                 image_file: Some("img.png".to_string()),
                 width: Some(4),
                 height: Some(6),
@@ -362,6 +389,7 @@ mod tests {
             id: "live".to_string(),
             kind: "image".to_string(),
             text: None,
+            paths: None,
             image_file: Some("live.png".to_string()),
             width: None,
             height: None,

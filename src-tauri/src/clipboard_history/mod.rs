@@ -1,7 +1,14 @@
 //! Built-in clipboard history.
 //!
 //! When enabled in settings (default on), a background monitor captures every
-//! system-wide copy of text or images for as long as floter runs. Entries are
+//! system-wide copy of text, images, or file lists for as long as floter runs.
+//!
+//! File copies (`kind: "files"`) store **references only**: the original
+//! absolute path strings plus a hash derived from their canonicalized forms.
+//! File contents are never copied into the history. Capture relies on
+//! arboard's native file-list support, which version 3.6 covers everywhere we
+//! ship: Windows CF_HDROP, macOS NSFilenamesPboardType, and Linux X11/Wayland
+//! via `text/uri-list`. No text-sniffing heuristic is involved. Entries are
 //! stored locally under the app data directory, survive restarts, and are
 //! surfaced in a terminal-styled panel summoned by a dedicated global hotkey
 //! (`Alt+V` by default, rebindable in settings).
@@ -11,6 +18,7 @@ pub mod store;
 
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager};
@@ -21,10 +29,14 @@ use crate::AppState;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClipboardEntry {
     pub id: String,
-    /// "text" | "image"
+    /// "text" | "image" | "files"
     pub kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// Absolute paths referenced by a "files" entry — one entry holds every
+    /// item of a single copy operation. Paths only; never file contents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paths: Option<Vec<String>>,
     /// File name inside the history's `images/` directory; image entries only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_file: Option<String>,
@@ -135,9 +147,14 @@ pub fn clipboard_get_entries(
     }
     Ok(entries
         .into_iter()
-        .filter(|entry| match &entry.text {
-            Some(text) => text.to_lowercase().contains(&needle),
-            None => ["image", "img", "图片"]
+        .filter(|entry| match (&entry.text, &entry.paths) {
+            (Some(text), _) => text.to_lowercase().contains(&needle),
+            // Files entries answer to any stored path; a basename is a
+            // substring of its own full path, so both come free.
+            (None, Some(paths)) => paths
+                .iter()
+                .any(|path| path.to_lowercase().contains(&needle)),
+            (None, None) => ["image", "img", "图片"]
                 .iter()
                 .any(|word| word.contains(&needle)),
         })
@@ -221,8 +238,111 @@ pub fn clipboard_copy_entry(app: AppHandle, id: String) -> Result<(), String> {
                 })
                 .map_err(|error| error.to_string())
         }
+        "files" => {
+            let stored = entry
+                .paths
+                .clone()
+                .filter(|paths| !paths.is_empty())
+                .ok_or("Files entry has no paths")?;
+            // Best effort: hand back the real file list where the platform
+            // supports writing one, otherwise plain text of the original
+            // paths. Either way the frontend pastes the same strings itself.
+            if clipboard.set().file_list(&stored).is_ok() {
+                return Ok(());
+            }
+            clipboard
+                .set_text(stored.join("\n"))
+                .map_err(|error| error.to_string())
+        }
         other => Err(format!("Unknown clipboard entry kind: {other}")),
     }
+}
+
+/// Existence map for files entries: `true` = every stored path still exists.
+/// Called once per panel load; each check is a bare `metadata()` stat, cheap
+/// enough to run for the whole visible history.
+#[tauri::command]
+pub fn clipboard_entry_statuses(
+    app: AppHandle,
+    ids: Vec<String>,
+) -> Result<HashMap<String, bool>, String> {
+    let entries = read_history(&app)?;
+    let mut statuses = HashMap::with_capacity(ids.len());
+    for id in ids {
+        let complete = entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .and_then(|entry| entry.paths.as_ref())
+            .map(|paths| {
+                !paths.is_empty() && paths.iter().all(|path| std::fs::metadata(path).is_ok())
+            })
+            // Non-files entries have nothing to go missing.
+            .unwrap_or(true);
+        statuses.insert(id, complete);
+    }
+    Ok(statuses)
+}
+
+/// Extensions whose bytes the webview can render directly in a row thumbnail.
+pub const PREVIEW_IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
+/// Hard ceiling for preview reads (10 MB).
+pub const MAX_PREVIEW_BYTES: u64 = 10 * 1024 * 1024;
+
+/// Whether `path` names a file of a previewable raster-image format, judged by
+/// extension alone. Aware of both separators so a Windows-style stored path
+/// behaves identically to a POSIX one.
+pub fn is_image_file_path(path: &str) -> bool {
+    let name = match path.rfind(|c| c == '/' || c == '\\') {
+        Some(index) => &path[index + 1..],
+        None => path,
+    };
+    let Some(dot) = name.rfind('.') else {
+        return false;
+    };
+    if dot + 1 >= name.len() {
+        return false;
+    }
+    let extension = name[dot + 1..].to_ascii_lowercase();
+    PREVIEW_IMAGE_EXTENSIONS.contains(&extension.as_str())
+}
+
+/// Whether a files entry qualifies for an in-panel pixel preview: exactly one
+/// path whose extension names a renderable format. Size is gated at read time
+/// in [`clipboard_read_file_preview`] — stat-ing here would defeat the point
+/// of a pure predicate.
+pub fn is_files_preview_candidate(paths: Option<&[String]>) -> bool {
+    match paths {
+        Some([single]) => is_image_file_path(single),
+        _ => false,
+    }
+}
+
+/// Bytes of the single image file a files entry points at, for rendering the
+/// row thumbnail straight from disk. Strictly gated: known id, exactly one
+/// path, an existing regular file, an image extension, and the size cap.
+/// Stored paths are our own data, but they still refuse NUL bytes.
+#[tauri::command]
+pub fn clipboard_read_file_preview(app: AppHandle, id: String) -> Result<Vec<u8>, String> {
+    let entry = read_history(&app)?
+        .into_iter()
+        .find(|entry| entry.id == id)
+        .ok_or_else(|| format!("Unknown clipboard entry: {id}"))?;
+    let paths = entry.paths.as_deref().ok_or("Entry has no file paths")?;
+    if !is_files_preview_candidate(Some(paths)) {
+        return Err("Entry has no previewable image file".to_string());
+    }
+    let path = &paths[0];
+    if path.contains('\0') {
+        return Err("Invalid file path".to_string());
+    }
+    let metadata = std::fs::metadata(path).map_err(|error| error.to_string())?;
+    if !metadata.is_file() {
+        return Err("Not a regular file".to_string());
+    }
+    if metadata.len() > MAX_PREVIEW_BYTES {
+        return Err("File too large for preview".to_string());
+    }
+    std::fs::read(path).map_err(|error| error.to_string())
 }
 
 /// PNG bytes of a stored image entry, for thumbnail rendering in the panel.
@@ -367,6 +487,7 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             kind: "text".to_string(),
             text: Some(format!("content-{hash}")),
+            paths: None,
             image_file: None,
             width: None,
             height: None,
@@ -407,5 +528,62 @@ mod tests {
     #[test]
     fn now_ms_is_a_plausible_unix_timestamp() {
         assert!(now_ms() > 1_600_000_000_000);
+    }
+
+    #[test]
+    fn files_entry_round_trips_and_old_rows_without_paths_still_load() {
+        // An index written before files existed: no `paths` key at all.
+        let legacy = r#"{
+            "id": "f",
+            "kind": "files",
+            "hash": "h",
+            "created_at": 1,
+            "favorite": false
+        }"#;
+        let parsed: ClipboardEntry = serde_json::from_str(legacy).expect("deserialize");
+        assert_eq!(parsed.kind, "files");
+        assert!(parsed.paths.is_none());
+
+        let entry = ClipboardEntry {
+            id: "f2".to_string(),
+            kind: "files".to_string(),
+            text: None,
+            paths: Some(vec!["/tmp/a".to_string(), "/tmp/b".to_string()]),
+            image_file: None,
+            width: None,
+            height: None,
+            hash: "h".to_string(),
+            created_at: 2,
+            favorite: false,
+        };
+        let serialized = serde_json::to_string(&entry).expect("serialize");
+        assert!(serialized.contains("/tmp/a"));
+        assert!(!serialized.contains("image_file"));
+        let back: ClipboardEntry = serde_json::from_str(&serialized).expect("deserialize");
+        assert_eq!(back, entry);
+    }
+
+    #[test]
+    fn preview_candidates_need_exactly_one_image_extension_path() {
+        let one = vec!["/x/pic.PNG".to_string()];
+        assert!(is_files_preview_candidate(Some(one.as_slice())));
+
+        let two = vec!["/x/pic.png".to_string(), "/y/pic.jpg".to_string()];
+        assert!(!is_files_preview_candidate(Some(two.as_slice())));
+
+        let text = vec!["/x/notes.txt".to_string()];
+        assert!(!is_files_preview_candidate(Some(text.as_slice())));
+        assert!(!is_files_preview_candidate(None));
+    }
+
+    #[test]
+    fn image_extension_check_understands_both_path_styles() {
+        assert!(is_image_file_path("/a/b/c.png"));
+        assert!(is_image_file_path("C:\\a\\b\\c.JPG"));
+        // A dot earlier in the path does not make an extension.
+        assert!(is_image_file_path("/a/b.d/c.webp"));
+        assert!(!is_image_file_path("/a/b/c.txt"));
+        assert!(!is_image_file_path("/a/b/c"));
+        assert!(!is_image_file_path("/a/b/c."));
     }
 }

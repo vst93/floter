@@ -4,7 +4,12 @@ import {
   clipboardPreview,
   filterClipboardEntries,
   formatClipboardAge,
+  formatFilesPreview,
+  imageFileMime,
+  isFilesPreviewCandidate,
+  looksLikeDirectoryPath,
   normalizeEntries,
+  shellQuotePath,
   type ClipboardEntry,
 } from "./clipboard-history";
 import type { Translate } from "./i18n";
@@ -24,6 +29,11 @@ type ClipboardPanelProps = {
  * star — under a single search line. Keyboard-first: arrows move, Enter puts
  * the entry back on the system clipboard (pasting it into the embedded
  * terminal when one is live), F stars, Delete removes, Esc closes.
+ *
+ * Files entries hold path references only: the row shows a glyph or — for a
+ * single image file — the file's own pixels read on demand. Existence of
+ * every referenced path is checked once per load; rows whose files have
+ * vanished render dimmed with a missing label and refuse to activate.
  */
 export function ClipboardPanel({
   t,
@@ -35,6 +45,8 @@ export function ClipboardPanel({
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState(0);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+  /** Per-files-entry existence, fetched once per load; `false` = missing. */
+  const [statuses, setStatuses] = useState<Record<string, boolean>>({});
   /** Every object URL ever handed out, so unmount can revoke them all — the
    * state map alone cannot, since its snapshot at cleanup time is empty. */
   const liveThumbnailUrls = useRef<Set<string>>(new Set());
@@ -66,6 +78,30 @@ export function ClipboardPanel({
           })
           .catch(() => undefined);
       }
+      // Single-path image files preview straight from disk through the same
+      // blob-URL machinery.
+      for (const entry of loaded.filter((candidate) =>
+        candidate.kind === "files" && isFilesPreviewCandidate(candidate.paths),
+      )) {
+        const mime = imageFileMime(entry.paths![0]);
+        invoke<number[]>("clipboard_read_file_preview", { id: entry.id })
+          .then((bytes) => {
+            const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
+            liveThumbnailUrls.current.add(url);
+            setThumbnails((current) => ({ ...current, [entry.id]: url }));
+          })
+          .catch(() => undefined);
+      }
+      // Existence check for every files row: pure metadata on our own stored
+      // paths, so one round trip covers the whole history.
+      const fileIds = loaded.filter((entry) => entry.kind === "files").map((entry) => entry.id);
+      if (fileIds.length === 0) {
+        setStatuses({});
+        return;
+      }
+      invoke<Record<string, boolean>>("clipboard_entry_statuses", { ids: fileIds })
+        .then(setStatuses)
+        .catch(() => setStatuses({}));
     });
   }, [reload]);
 
@@ -89,7 +125,7 @@ export function ClipboardPanel({
   const filtered = filterClipboardEntries(entries, filter);
 
   const activate = async (entry: ClipboardEntry | undefined) => {
-    if (!entry) return;
+    if (!entry || statuses[entry.id] === false) return;
     try {
       await invoke("clipboard_copy_entry", { id: entry.id });
     } catch {
@@ -99,6 +135,9 @@ export function ClipboardPanel({
     }
     if (entry.kind === "text" && terminalActive) {
       onPasteText(entry.text ?? "");
+    } else if (entry.kind === "files" && terminalActive) {
+      // Shell-quoted so spaces and quotes in paths survive the shell.
+      onPasteText((entry.paths ?? []).map(shellQuotePath).join(" "));
     }
     onClose();
   };
@@ -208,34 +247,61 @@ export function ClipboardPanel({
         <div className="clipboard-panel__empty">{t(entries.length ? "clipboard.emptyFilter" : "clipboard.empty")}</div>
       ) : (
         <ul className="clipboard-panel__list" role="listbox" aria-label={t("clipboard.title")}>
-          {filtered.map((entry, index) => (
+          {filtered.map((entry, index) => {
+            const missing = statuses[entry.id] === false;
+            const filesPreview = entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
+            const hasThumbnail = Boolean(thumbnails[entry.id]) && !missing;
+            const markerClass = [
+              "clipboard-row__marker",
+              entry.kind === "image" ? "clipboard-row__marker--image" : "",
+              entry.kind === "files" ? "clipboard-row__marker--files" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
             <li key={entry.id}>
               <button
                 type="button"
                 role="option"
                 aria-selected={index === selected}
                 tabIndex={-1}
-                className={`clipboard-row${index === selected ? " clipboard-row--selected" : ""}`}
+                className={`clipboard-row${index === selected ? " clipboard-row--selected" : ""}${missing ? " clipboard-row--missing" : ""}`}
+                title={entry.kind === "files" ? (entry.paths ?? []).join("\n") : undefined}
                 onMouseMove={() => setSelected(index)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => void activate(entry)}
               >
-                <span
-                  className={`clipboard-row__marker${entry.kind === "image" ? " clipboard-row__marker--image" : ""}`}
-                  aria-hidden="true"
-                >
-                  {entry.kind === "image" ? (
-                    thumbnails[entry.id]
+                <span className={markerClass} aria-hidden="true">
+                  {(entry.kind === "image" || (entry.kind === "files" && isFilesPreviewCandidate(entry.paths))) ? (
+                    hasThumbnail
                       ? <img src={thumbnails[entry.id]} alt="" draggable={false} />
                       : "[?]"
+                  ) : entry.kind === "files" ? (
+                    (entry.paths?.length ?? 0) > 0 && looksLikeDirectoryPath(entry.paths![0]) ? "▸" : "▪"
                   ) : (
                     "›"
                   )}
                 </span>
                 <span className="clipboard-row__preview">
-                  {clipboardPreview(entry)}
+                  {filesPreview ? (
+                    <>
+                      {filesPreview.dirname && (
+                        <span className="clipboard-row__preview-dir">{filesPreview.dirname}</span>
+                      )}
+                      <span>{filesPreview.basename}</span>
+                      {filesPreview.extra > 0 && (
+                        <span className="clipboard-row__preview-extra"> +{filesPreview.extra}</span>
+                      )}
+                    </>
+                  ) : (
+                    clipboardPreview(entry)
+                  )}
                 </span>
-                <span className="clipboard-row__age">{formatClipboardAge(entry.created_at, now)}</span>
+                <span className={`clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`}>
+                  {missing
+                    ? t("clipboard.missing")
+                    : formatClipboardAge(entry.created_at, now)}
+                </span>
                 <button
                   type="button"
                   tabIndex={-1}
@@ -252,7 +318,8 @@ export function ClipboardPanel({
                 </button>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

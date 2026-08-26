@@ -1243,6 +1243,8 @@ pub fn run() {
             clipboard_history::clipboard_copy_entry,
             clipboard_history::clipboard_clear_history,
             clipboard_history::clipboard_read_image,
+            clipboard_history::clipboard_entry_statuses,
+            clipboard_history::clipboard_read_file_preview,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

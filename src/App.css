@@ -3411,6 +3411,23 @@ canvas {
   color: var(--accent);
 }
 
+.clipboard-row--missing {
+  opacity: 0.5;
+}
+
+.clipboard-row__age--missing {
+  color: var(--text-warning);
+}
+
+.clipboard-row__preview-dir,
+.clipboard-row__preview-extra {
+  color: var(--text-muted);
+}
+
+.clipboard-row__marker--files {
+  font-size: 12px;
+}
+
 .clipboard-panel__empty {
   padding: 18px 14px;
   color: var(--text-muted);
