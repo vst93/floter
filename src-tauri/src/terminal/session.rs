@@ -1112,7 +1112,8 @@ end run"#;
 #[cfg(target_os = "macos")]
 fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, String> {
     if let Some(command) = resume_command {
-        let status = strip_herdr_vars(Command::new("/usr/bin/osascript"))
+        let mut osascript = Command::new("/usr/bin/osascript");
+        let status = strip_herdr_vars(&mut osascript)
             .args(["-e", MACOS_TERMINAL_SCRIPT, "--"])
             .arg(dir)
             .arg(command)
@@ -1126,7 +1127,8 @@ fn open_terminal_at(dir: &Path, resume_command: Option<&str>) -> Result<bool, St
         ));
     }
 
-    let status = strip_herdr_vars(Command::new("/usr/bin/open"))
+    let mut opener = Command::new("/usr/bin/open");
+    let status = strip_herdr_vars(&mut opener)
         .args(["-b", "com.apple.Terminal"])
         .arg(dir)
         .status()
