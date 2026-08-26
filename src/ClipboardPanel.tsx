@@ -190,6 +190,14 @@ export function ClipboardPanel({
     // Capture phase so the launcher's window-level handlers never see a key
     // this panel has claimed.
     const onKeyDown = (event: KeyboardEvent) => {
+      // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the panel — a
+      // convention every overlay surface in floter follows.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+        return;
+      }
       if (event.metaKey || event.ctrlKey) return;
       const inSearch = event.target === searchRef.current;
       if (event.altKey && !inSearch && event.key.length === 1) {
