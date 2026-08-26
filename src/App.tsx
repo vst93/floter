@@ -33,10 +33,11 @@ import {
   LANGUAGE_OPTIONS,
   type Language,
   type MessageKey,
-  type Translate,
 } from "./i18n";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
-import { ClipboardPanel } from "./ClipboardPanel";
+import { PluginPageHost } from "./plugins/PluginPageHost";
+import { ShortcutRecorder } from "./ShortcutRecorder";
+import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
   classifyActionBar,
@@ -64,7 +65,6 @@ import {
   matchesShortcutModifiers,
   normalizeResultShortcut,
   SHORTCUT_ACTIONS,
-  shortcutFromEvent,
   withShortcutDefaults,
   type ShortcutAction,
   type ShortcutMap,
@@ -80,7 +80,9 @@ if (IS_WINDOWS) {
   document.documentElement.classList.add("platform-linux");
 }
 
-type ViewMode = "collapsed" | "terminal" | "settings" | "clipboard";
+/** Any surface a plugin page can be opened over; it replaces the canvas and
+ * returns to the remembered one when dismissed. */
+type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
 type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
 type CursorShape = "beam" | "block" | "underline";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
@@ -509,97 +511,6 @@ function OpacityControl({ label, value, onChange }: OpacityControlProps) {
   );
 }
 
-type ShortcutRecorderProps = {
-  action: string;
-  shortcut: string;
-  recording: boolean;
-  onToggle: (action: string) => void;
-  onCapture: (action: string, shortcut: string) => void;
-  onCancel: () => void;
-  t: Translate;
-};
-
-/**
- * A single rebindable shortcut.
- *
- * While recording it owns the keyboard: the listener runs in the capture phase
- * and stops propagation, so neither the app's own handler nor the browser sees
- * the combination being pressed. A press without any modifier is ignored —
- * binding a bare letter would swallow it everywhere in the app.
- */
-function ShortcutRecorder({
-  action,
-  shortcut,
-  recording,
-  onToggle,
-  onCapture,
-  onCancel,
-  t,
-}: ShortcutRecorderProps) {
-  // Windows swallows Alt+Space so its window menu never opens over the panel,
-  // which also keeps the combination from ever reaching this recorder. The flag
-  // lifts that for as long as one is listening; the cleanup runs on capture, on
-  // cancel and on unmount, so it cannot be left raised. Kept in its own effect,
-  // keyed on nothing but `recording`, so a re-render of the settings panel does
-  // not lower and raise it again mid-recording.
-  useEffect(() => {
-    if (!IS_WINDOWS || !recording) return;
-    invoke("set_recording_flag", { on: true }).catch(() => undefined);
-    return () => {
-      invoke("set_recording_flag", { on: false }).catch(() => undefined);
-    };
-  }, [recording]);
-
-  useEffect(() => {
-    if (!recording) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const bare = !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
-      if (event.key === "Escape" && bare) {
-        onCancel();
-        return;
-      }
-      const next = shortcutFromEvent(event);
-      if (!next) return;
-      if (bare && !/^F\d{1,2}$/.test(next)) return;
-      onCapture(action, next);
-    };
-
-    // If the window loses focus while recording (user clicked away, Cmd-Tab,
-    // etc.), cancel immediately and restore shortcuts. Otherwise the global
-    // shortcuts stay suspended and the user's hotkey is dead.
-    const onBlur = () => onCancel();
-
-    window.addEventListener("keydown", onKeyDown, true);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, true);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [action, onCancel, onCapture, recording]);
-
-  return (
-    <button
-      type="button"
-      className={`shortcut-recorder${recording ? " shortcut-recorder--recording" : ""}`}
-      aria-label={t("settings.shortcut.record")}
-      title={t("settings.shortcut.record")}
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={() => onToggle(action)}
-    >
-      {recording ? (
-        <span className="shortcut-recorder__prompt">{t("settings.shortcut.recording")}</span>
-      ) : (
-        <span className="shortcut-recorder__keys">{formatShortcut(shortcut)}</span>
-      )}
-    </button>
-  );
-}
-
-
 type FramePayload = { id: string; generation: number; frame: string };
 type ExitPayload = { id: string; generation: number; code: number | null };
 
@@ -661,8 +572,12 @@ export default function App() {
    * current value (the clipboard hotkey toggles against it). */
   const modeRef = useRef<ViewMode>("collapsed");
   useEffect(() => { modeRef.current = mode; }, [mode]);
-  /** Where the clipboard panel returns to when dismissed. */
-  const clipboardReturnMode = useRef<"collapsed" | "terminal">("collapsed");
+  /** Where an open plugin page returns to when dismissed. */
+  const pluginReturnMode = useRef<"collapsed" | "terminal">("collapsed");
+  /** Which plugin page is showing while `mode === "plugin"` (one at a time). */
+  const [pluginPageId, setPluginPageId] = useState<string | null>(null);
+  const pluginPageIdRef = useRef<string | null>(null);
+  useEffect(() => { pluginPageIdRef.current = pluginPageId; }, [pluginPageId]);
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
   const [terminalMounted, setTerminalMounted] = useState(false);
@@ -853,7 +768,8 @@ export default function App() {
   // `auto` is resolved here rather than in CSS: the canvas renderer reads the
   // same custom properties through `getComputedStyle` and needs a concrete
   // answer, so a single resolved value drives both and they cannot disagree.
-  const resolvedTheme = settings.theme === "auto" ? systemTheme : settings.theme;
+  const resolvedTheme: "dark" | "light" =
+    settings.theme === "auto" ? systemTheme : settings.theme === "light" ? "light" : "dark";
 
   // Keep document metadata in sync with the active locale. Tauri does not show
   // the document title in the main window, but it is still exposed to screen
@@ -1530,6 +1446,17 @@ export default function App() {
       .catch(() => undefined);
   }, []);
 
+  // A cold start with `floter clip` records a pending plugin page in the
+  // backend during setup; consume it once this component's listeners are up.
+  useEffect(() => {
+    invoke<string | null>("take_pending_plugin_page")
+      .then((pending) => {
+        if (pending) openPluginPage(pending);
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const unlistenFramePromise = listen<FramePayload>("term://frame", (event) => {
       if (
@@ -1570,7 +1497,7 @@ export default function App() {
   // the last frame repaints immediately and the embedded PTY never stopped
   // running underneath.
   useEffect(() => {
-    if (!terminalMounted || mode === "clipboard" || mode === "settings") {
+    if (!terminalMounted || mode === "plugin" || mode === "settings") {
       termOpened.current = false;
       rendererRef.current = null;
       return;
@@ -1722,14 +1649,14 @@ export default function App() {
       return;
     }
 
-    if (mode === "clipboard") {
-      // Sizing is owned by the BACKEND on this path: the clipboard page is a
+    if (mode === "plugin") {
+      // Sizing is owned by the BACKEND on this path: a plugin page is a
       // terminal page and takes exactly the terminal window's saved geometry
-      // through the same `show_terminal` machinery (`show_clipboard` in
-      // lib.rs). The frontend deliberately never calls setSize while the page
-      // is up — one side owns the size, so a stale launcher measurement can
-      // never shrink the window out from under a long list again.
-      invoke("show_clipboard").catch(() => undefined);
+      // through the same machinery (`show_plugin_page` in lib.rs). The
+      // frontend deliberately never calls setSize while the page is up — one
+      // side owns the size, so a stale launcher measurement can never shrink
+      // the window out from under a long list again.
+      invoke("show_plugin_page").catch(() => undefined);
       return;
     }
 
@@ -1857,22 +1784,23 @@ export default function App() {
     };
   }, []);
 
-  // The global clipboard hotkey. The payload says whether the window was
-  // visible when the key went down: only then does pressing it again mean
-  // "hide" — a summon from hidden state always opens the panel, even though
-  // the frontend mode may never have left "clipboard" while the window was
-  // away (the backend has already revealed the window by now).
+  // A plugin-page request. One internal path serves every trigger: the global
+  // hotkey, `floter clip` (running instance or cold start) and the launcher's
+  // system entry. `toggle` says the window was already visible when the hotkey
+  // went down: only then does pressing it again mean "hide" — and only for the
+  // very page that is already showing; any other request always opens.
   useEffect(() => {
-    const unlistenClipboardPromise = listen<boolean>("floter://clipboard", (event) => {
-      if (event.payload && modeRef.current === "clipboard") {
+    const unlistenPagePromise = listen<{ id: string; toggle: boolean }>("floter://plugin-page", (event) => {
+      const { id, toggle } = event.payload;
+      if (toggle && modeRef.current === "plugin" && pluginPageIdRef.current === id) {
         invoke("hide_window").catch(() => undefined);
         return;
       }
-      openClipboardPanel();
+      openPluginPage(id);
     });
 
     return () => {
-      unlistenClipboardPromise.then((unlisten) => unlisten());
+      unlistenPagePromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -2297,10 +2225,21 @@ export default function App() {
         return;
       }
 
-      if (mode === "clipboard") {
-        // The clipboard panel owns the keyboard through a capture-phase
-        // listener; keys that reach here were not claimed by it and must not
-        // fall through to launcher handling.
+      if (mode === "plugin") {
+        // While the plugin page (a sandboxed iframe) owns focus it claims its
+        // own keys; presses that reach here found the host still holding the
+        // keyboard and must not fall through to launcher handling. Esc and
+        // Cmd/Ctrl+W close, matching what the page itself does with them.
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+          event.preventDefault();
+          event.stopPropagation();
+          closePluginPage();
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closePluginPage();
+        }
         return;
       }
 
@@ -2495,23 +2434,27 @@ export default function App() {
     setMode("collapsed");
   };
 
-  /** Dismiss the clipboard page; the mode effect sends the window back onto
+  /** Dismiss the plugin page; the mode effect sends the window back onto
    * the remembered surface through its normal restore path (`show_input` /
    * `show_terminal`). */
-  const closeClipboardPanel = () => {
+  const closePluginPage = () => {
     suppressBlurUntil.current = Date.now() + 400;
-    setMode(clipboardReturnMode.current);
+    setPluginPageId(null);
+    setMode(pluginReturnMode.current);
   };
 
-  /** Bring the clipboard page up over whatever surface is showing, remembering
-   * it for the return trip. Deliberately does NOT arm `restoringMode`: sizing
-   * belongs to the backend here — the mode effect calls `show_clipboard`,
-   * which applies the same saved geometry terminal mode uses. */
-  const openClipboardPanel = () => {
+  /** Open a plugin page over whatever surface is showing, remembering it for
+   * the return trip. One path for every trigger — hotkey, `floter clip`, the
+   * launcher entry, a cold-start request. Deliberately does NOT arm
+   * `restoringMode`: sizing belongs to the backend here — the mode effect
+   * calls `show_plugin_page`, which applies the same saved geometry terminal
+   * mode uses. */
+  const openPluginPage = (pluginId: string) => {
     suppressBlurUntil.current = Date.now() + 400;
-    clipboardReturnMode.current =
+    pluginReturnMode.current =
       modeRef.current === "terminal" ? "terminal" : "collapsed";
-    setMode("clipboard");
+    setPluginPageId(pluginId);
+    setMode("plugin");
   };
 
   const quitApp = async () => {
@@ -3042,12 +2985,13 @@ export default function App() {
   };
 
   const runSystemAction = async (item: Extract<LauncherItem, { type: "system" }>) => {
-    // The clipboard panel is a plain view flip — no confirmation, no window
-    // hiding, just the same open path the global hotkey takes.
+    // The clipboard page is a plain view flip — no confirmation, no window
+    // hiding, just the same open path the global hotkey and `floter clip`
+    // take.
     if (item.action === "clipboard") {
       setQuery("");
       setHistoryIndex(-1);
-      openClipboardPanel();
+      openPluginPage(CLIPBOARD_PLUGIN_ID);
       return;
     }
 
@@ -3491,59 +3435,6 @@ export default function App() {
               </div>
             </section>
 
-            <section className="settings-section">
-              <h2 className="settings-section__label">{t("settings.clipboardHistory")}</h2>
-              <div className="settings-option settings-option--static">
-                <span className="settings-option__main">
-                  <span className="settings-option__label">
-                    {t("settings.clipboardHistory")}
-                  </span>
-                  <span className="settings-option__description">
-                    {t("settings.clipboardHistoryHint")}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className={`settings-switch${settings.clipboard_history_enabled ? " settings-switch--active" : ""}`}
-                  role="switch"
-                  aria-checked={settings.clipboard_history_enabled}
-                  aria-label={t("settings.clipboardHistory")}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() =>
-                    changeGeneralSetting("clipboard_history_enabled", !settings.clipboard_history_enabled)
-                  }
-                >
-                  <span className="settings-switch__thumb" />
-                </button>
-              </div>
-              {settings.clipboard_history_enabled && (
-                <div className="settings-option settings-option--static">
-                  <span className="settings-option__main">
-                    <span className="settings-option__label">
-                      {t("settings.clipboardHotkey")}
-                    </span>
-                    {rejectedAction === CLIPBOARD_HOTKEY_ACTION && (
-                      <span className="settings-option__description settings-option__description--warning">
-                        {t("settings.shortcut.rejected")}
-                      </span>
-                    )}
-                  </span>
-                  <ShortcutRecorder
-                    action={CLIPBOARD_HOTKEY_ACTION}
-                    shortcut={settings.clipboard_history_hotkey}
-                    recording={recordingAction === CLIPBOARD_HOTKEY_ACTION}
-                    onToggle={toggleRecording}
-                    onCapture={captureShortcut}
-                    onCancel={cancelRecording}
-                    t={t}
-                  />
-                </div>
-              )}
-              <p className="settings-section__hint settings-privacy-hint">
-                {t("settings.clipboardPrivacy")}
-              </p>
-            </section>
-
             <section className="settings-section terminal-appearance-settings">
               <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
               <div className="terminal-appearance-settings__grid">
@@ -3760,6 +3651,25 @@ export default function App() {
               onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
               showCommandsInSearch={settings.show_commands_in_search}
               onToggleCommandsInSearch={toggleCommandsInSearch}
+              basePlugins={[
+                {
+                  id: CLIPBOARD_PLUGIN_ID,
+                  titleKey: "settings.clipboardHistory",
+                  descriptionKey: "settings.clipboardHistoryHint",
+                  enabled: settings.clipboard_history_enabled,
+                  hotkey: settings.clipboard_history_hotkey,
+                  hotkeyAction: CLIPBOARD_HOTKEY_ACTION,
+                  hotkeyRecording: recordingAction === CLIPBOARD_HOTKEY_ACTION,
+                  hotkeyRejected: rejectedAction === CLIPBOARD_HOTKEY_ACTION,
+                },
+              ]}
+              onToggleBasePlugin={(id, enabled) => {
+                if (id !== CLIPBOARD_PLUGIN_ID) return;
+                changeGeneralSetting("clipboard_history_enabled", enabled);
+              }}
+              onBasePluginHotkeyToggle={toggleRecording}
+              onBasePluginHotkeyCapture={captureShortcut}
+              onBasePluginHotkeyCancel={cancelRecording}
             />
             )}
 
@@ -3823,23 +3733,27 @@ export default function App() {
     );
   }
 
-  if (mode === "clipboard") {
-    // The clipboard page IS a terminal page: it renders in the very shell the
+  if (mode === "plugin" && pluginPageId) {
+    // A plugin page IS a terminal page: it renders in the very shell the
     // terminal mode uses — same `.terminal-shell` window padding, same
     // `.terminal-panel` card material, radius and platform shadows — shown in
     // place of the terminal canvas while active. The window geometry comes
-    // from the backend's `show_clipboard` (same saved size as terminal mode);
-    // the embedded PTY keeps running underneath, untouched.
+    // from the backend's `show_plugin_page` (same saved size as terminal
+    // mode); the embedded PTY keeps running underneath, untouched. The page
+    // itself is whatever HTML the plugin declared, hosted through the generic
+    // sandboxed-iframe + bridge pipeline.
     return (
       <div className="terminal-shell">
         {pinnedCardElement}
         <section className="terminal-panel terminal-panel--entered">
           <div className="terminal-panel__body">
-            <ClipboardPanel
-              t={t}
-              terminalActive={ptyReady.current}
-              onPasteText={(text) => sendTerminalText(text, true)}
-              onClose={closeClipboardPanel}
+            <PluginPageHost
+              pluginId={pluginPageId}
+              language={language}
+              theme={resolvedTheme}
+              mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
+              terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
+              onClose={closePluginPage}
             />
           </div>
         </section>

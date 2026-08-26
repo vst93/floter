@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import type { Translate } from "./i18n";
+import { ShortcutRecorder } from "./ShortcutRecorder";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
@@ -380,6 +381,29 @@ type ExtensionsPanelProps = {
   showCommandsInSearch: boolean;
   /** Flip the launcher command-discovery setting and persist it. */
   onToggleCommandsInSearch: () => void;
+  /** Registered base plugins — built-in functionality that ships with floter
+   * and is switched on/off here (the ONE obvious place). */
+  basePlugins: BasePluginRow[];
+  /** Enable/disable a base plugin; tears its runtime down when disabled. */
+  onToggleBasePlugin: (id: string, enabled: boolean) => void;
+  /** Hotkey recording plumbing for base plugins that own a global hotkey,
+   * shared with the shortcuts page's recorders in App.tsx state. */
+  onBasePluginHotkeyToggle: (action: string) => void;
+  onBasePluginHotkeyCapture: (action: string, shortcut: string) => void;
+  onBasePluginHotkeyCancel: () => void;
+};
+
+export type BasePluginRow = {
+  id: string;
+  titleKey: Parameters<Translate>[0];
+  descriptionKey: Parameters<Translate>[0];
+  enabled: boolean;
+  /** Present when the plugin owns a rebindable global hotkey; the action id
+   * routes recording/capture back through App's shared shortcut state. */
+  hotkey?: string;
+  hotkeyAction?: string;
+  hotkeyRecording?: boolean;
+  hotkeyRejected?: boolean;
 };
 
 type PermissionName =
@@ -445,7 +469,7 @@ function ExtensionsToast({ toast, t, onDismiss }: { toast: PanelToast; t: Transl
   );
 }
 
-export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin, onBasePluginHotkeyToggle, onBasePluginHotkeyCapture, onBasePluginHotkeyCancel }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<ExtensionOperation>(null);
@@ -1279,6 +1303,55 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
           </div>
         )}
 
+        <section className="extensions-section extensions-section--base">
+          <h3 className="extensions-section-title">{t("settings.plugins.baseSection")}</h3>
+          <p className="settings-section__hint extensions-base-plugin__hint">{t("settings.plugins.baseHint")}</p>
+          <div className="extensions-list extensions-list--base">
+            {basePlugins.map((plugin) => (
+              <div key={plugin.id} className="extensions-base-plugin">
+                <span className="extensions-base-plugin__main">
+                  <span className="extensions-base-plugin__name">{t(plugin.titleKey)}</span>
+                  <span className="extensions-base-plugin__description">{t(plugin.descriptionKey)}</span>
+                  {plugin.hotkey !== undefined && plugin.enabled && (
+                    <span className="extensions-base-plugin__hotkey">
+                      <span className="extensions-base-plugin__hotkey-label">
+                        {t("settings.clipboardHotkey")}
+                        {plugin.hotkeyRejected && (
+                          <span className="settings-option__description settings-option__description--warning extensions-base-plugin__rejected">
+                            {t("settings.shortcut.rejected")}
+                          </span>
+                        )}
+                      </span>
+                      <ShortcutRecorder
+                        action={plugin.hotkeyAction ?? plugin.id}
+                        shortcut={plugin.hotkey}
+                        recording={Boolean(plugin.hotkeyRecording)}
+                        onToggle={onBasePluginHotkeyToggle}
+                        onCapture={onBasePluginHotkeyCapture}
+                        onCancel={onBasePluginHotkeyCancel}
+                        t={t}
+                      />
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className={`settings-switch${plugin.enabled ? " settings-switch--active" : ""}`}
+                  role="switch"
+                  aria-checked={plugin.enabled}
+                  aria-label={t(plugin.titleKey)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => onToggleBasePlugin(plugin.id, !plugin.enabled)}
+                >
+                  <span className="settings-switch__thumb" />
+                </button>
+              </div>
+            ))}
+            <p className="extensions-base-plugin__privacy settings-privacy-hint">
+              {t("settings.clipboardPrivacy")}
+            </p>
+          </div>
+        </section>
         <section className="extensions-section">
           <h3 className="extensions-section-title">{t("settings.extensions.section.connected")}</h3>
           <div className="extensions-list extensions-list--installed">

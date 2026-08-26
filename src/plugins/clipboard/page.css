@@ -1,0 +1,12 @@
+/*
+ * Stylesheet for the clipboard history plugin page.
+ *
+ * The page reuses floter's shared stylesheet wholesale: it renders inside its
+ * own sandboxed iframe document, so importing the full app CSS costs nothing
+ * at runtime (unused rules are inert there) and keeps every color variable,
+ * row style and reduced-motion rule in exactly one place. The theme is chosen
+ * at runtime by `main.ts` via `[data-theme]`, and the opacity custom
+ * properties arrive through bootstrap query params so the page's background
+ * matches the terminal surface behind it.
+ */
+@import "../../App.css";

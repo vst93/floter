@@ -21,7 +21,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 use crate::AppState;
@@ -444,22 +444,11 @@ fn ensure_panel_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> 
 }
 
 /// Show the window (revealing it first when hidden) and tell the frontend to
-/// flip its clipboard panel. The payload records whether the window was
-/// already visible: only then does pressing the hotkey again mean "close" —
-/// a summon from hidden state must always OPEN the panel, even when the
-/// frontend's mode never left "clipboard" while the window was away.
+/// flip its clipboard page. This is now a thin alias over the generic plugin-
+/// page toggle — the hotkey is just another invocation of `floter clip`, and
+/// only differs in that pressing it again while the page is up means "hide".
 fn toggle_panel(app: &AppHandle) {
-    let Some(window) = app.get_webview_window("main") else {
-        return;
-    };
-    let state = app.state::<AppState>();
-    let was_visible = state
-        .window_visible
-        .load(std::sync::atomic::Ordering::SeqCst);
-    if !was_visible {
-        let _ = crate::reveal_saved_mode(&window, &state);
-    }
-    let _ = window.emit("floter://clipboard", was_visible);
+    crate::plugin_pages::toggle_plugin_page(app, crate::plugin_pages::CLIPBOARD_PLUGIN_ID);
 }
 
 // ---- Lifecycle ------------------------------------------------------------

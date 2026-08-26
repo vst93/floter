@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Floter</title>
+  </head>
+  <body>
+    <!--
+      The clipboard history page, served through floter's generic plugin-page
+      pipeline. It runs inside a sandboxed iframe in the main window and talks
+      to the host exclusively over the postMessage bridge (see
+      src/plugins/PluginPageHost.tsx) — no Tauri APIs, no same-origin access.
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/plugins/clipboard/main.ts"></script>
+  </body>
+</html>

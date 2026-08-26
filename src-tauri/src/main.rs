@@ -24,6 +24,15 @@ fn main() {
         return;
     }
 
+    // `floter clip` opens the clipboard plugin page. A running instance is
+    // poked through the control socket and this process exits; when nobody is
+    // listening this IS the cold start, so fall through to normal app
+    // initialization, which records the pending page request for the frontend.
+    #[cfg(target_os = "linux")]
+    if floter_lib::ipc::wants_clip(arguments.clone()) && floter_lib::ipc::send_clip().is_ok() {
+        return;
+    }
+
     // Avoid initializing GTK/WebKit in an ordinary second Linux process. The
     // single-instance plugin below remains the race-safe fallback while the
     // first process is still creating its socket.

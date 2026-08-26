@@ -5,6 +5,7 @@ pub mod extensions;
 pub mod ipc;
 #[cfg(target_os = "linux")]
 mod linux_render;
+pub mod plugin_pages;
 mod terminal;
 
 use commands::actions::{open_path, open_url};
@@ -99,6 +100,9 @@ struct AppState {
     /// Same bookkeeping for the clipboard panel's hotkey; owned by the
     /// clipboard history module.
     clipboard_shortcut: Mutex<String>,
+    /// A plugin page requested by the launch arguments (`floter clip` on a
+    /// cold start), consumed once by the frontend once its listeners are up.
+    pending_plugin_open: Mutex<Option<String>>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
     /// no cursor position at all, so remembering where the panel was dismissed
@@ -856,26 +860,30 @@ fn save_terminal_size(
     Ok(())
 }
 
-/// Geometry for the clipboard page.
+/// Geometry for a plugin HTML page.
 ///
-/// The clipboard view is a terminal page: it occupies the very same window,
-/// sized by the exact same saved `terminal_width`/`terminal_height` pair the
-/// terminal mode uses, through the same clamp-and-resize machinery.
+/// A plugin page IS a terminal page: it occupies the very same window, sized
+/// by the exact same saved `terminal_width`/`terminal_height` pair the
+/// terminal mode uses, through the same clamp-and-resize machinery. One
+/// command serves every plugin — nothing here knows which page is showing.
 ///
-/// Sizing ownership on the clipboard path lives entirely HERE. Entering
-/// clipboard mode makes the frontend call this command and it never resizes
-/// the window itself while the page is up (see the `mode === "clipboard"`
-/// branch of the mode effect in `App.tsx`); leaving goes back through the
-/// existing `show_input` / `show_terminal` restore paths. That single rule is
-/// what killed an old race where a stale `show_input` completion could shrink
+/// Sizing ownership on this path lives entirely HERE. Entering plugin-page
+/// mode makes the frontend call this command and it never resizes the window
+/// itself while the page is up (see the `mode === "plugin"` branch of the
+/// mode effect in `App.tsx`); leaving goes back through the existing
+/// `show_input` / `show_terminal` restore paths. That single rule is what
+/// killed an old race where a stale `show_input` completion could shrink
 /// the window back to the launcher's height after the panel had sized up,
 /// leaving a long list unable to scroll inside a clipped corner.
 ///
-/// The `terminal_mode` flag is deliberately left untouched: the clipboard page
-/// is an overlay on whatever surface is underneath, so a later
+/// The `terminal_mode` flag is deliberately left untouched: a plugin page is
+/// an overlay on whatever surface is underneath, so a later
 /// [`reveal_saved_mode`] still reopens that surface's dimensions.
 #[tauri::command]
-fn show_clipboard(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
+fn show_plugin_page(
+    window: WebviewWindow,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
     let (width, height) = saved_terminal_size();
     let (width, height) = terminal_size_for_monitor(&window, &state, width, height);
@@ -1038,8 +1046,15 @@ pub fn run() {
             if arguments.iter().any(|argument| argument == "--background") {
                 return;
             }
+            // `floter clip` against a running instance opens the clipboard
+            // page in place of the plain reveal.
+            let wants_clip = arguments.iter().any(|argument| argument == "clip");
             let handle = app.clone();
             let _ = app.run_on_main_thread(move || {
+                if wants_clip {
+                    plugin_pages::open_plugin_page(&handle, plugin_pages::CLIPBOARD_PLUGIN_ID);
+                    return;
+                }
                 if let Some(window) = handle.get_webview_window("main") {
                     let state = handle.state::<AppState>();
                     let _ = reveal_saved_mode(&window, &state);
@@ -1064,10 +1079,19 @@ pub fn run() {
             tray_items: Mutex::new(None),
             toggle_shortcut: Mutex::new(String::new()),
             clipboard_shortcut: Mutex::new(String::new()),
+            pending_plugin_open: Mutex::new(None),
             last_monitor: Mutex::new(None),
         })
         .manage(clipboard_history::ClipboardState::default())
         .setup(|app| {
+            // `floter clip` as the very first launch must land on the clipboard
+            // page instead of the plain launcher. Stored for the frontend to
+            // pick up — its event listeners may not exist yet this early.
+            if std::env::args().skip(1).any(|argument| argument == "clip") {
+                if let Ok(mut slot) = app.state::<AppState>().pending_plugin_open.lock() {
+                    *slot = Some(plugin_pages::CLIPBOARD_PLUGIN_ID.to_string());
+                }
+            }
             let extension_state = ExtensionState::new().map_err(std::io::Error::other)?;
             app.manage(extension_state);
             // floter is tray-resident, and the non-activating NSPanel must not
@@ -1238,7 +1262,10 @@ pub fn run() {
             resume_shortcuts,
             set_recording_flag,
             show_terminal,
-            show_clipboard,
+            show_plugin_page,
+            plugin_pages::plugin_page_descriptor,
+            plugin_pages::builtin_plugins_list,
+            plugin_pages::take_pending_plugin_page,
             hide_window,
             quit_app,
             show_input,

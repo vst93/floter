@@ -8,6 +8,17 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // Plugin pages are separate HTML documents (each becomes a sandboxed iframe
+  // inside the app window), so they build as their own Vite entry points.
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        "plugins/clipboard": "plugins/clipboard/index.html",
+      },
+    },
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

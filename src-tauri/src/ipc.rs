@@ -68,6 +68,11 @@ pub fn send_ping() -> Result<(), String> {
     send_command_to(&socket_path(), "ping")
 }
 
+/// Ask the running instance to open the clipboard plugin page (`floter clip`).
+pub fn send_clip() -> Result<(), String> {
+    send_command_to(&socket_path(), "clip")
+}
+
 fn send_command_to(path: &Path, command: &str) -> Result<(), String> {
     let mut stream = UnixStream::connect(path).map_err(|error| {
         format!(
@@ -151,15 +156,21 @@ fn serve_connection(app: &AppHandle, stream: UnixStream) {
         if command == "ping" {
             continue;
         }
-        if command != "toggle" && command != "show" {
+        if command != "toggle" && command != "show" && command != "clip" {
             continue;
         }
         let toggle = command == "toggle";
+        let clip = command == "clip";
         // Showing and hiding windows has to happen on the main thread; this is
         // an arbitrary background thread.
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
-            if toggle {
+            if clip {
+                crate::plugin_pages::open_plugin_page(
+                    &handle,
+                    crate::plugin_pages::CLIPBOARD_PLUGIN_ID,
+                );
+            } else if toggle {
                 crate::toggle_window_visibility(&handle);
             } else if let Some(window) = handle.get_webview_window("main") {
                 let state = handle.state::<crate::AppState>();
@@ -180,6 +191,11 @@ pub fn cleanup() {
 /// Whether the given argument list asks for the `--toggle` CLI path.
 pub fn wants_toggle<I: IntoIterator<Item = String>>(args: I) -> bool {
     args.into_iter().skip(1).any(|arg| arg == "--toggle")
+}
+
+/// Whether the given argument list is a `floter clip` invocation.
+pub fn wants_clip<I: IntoIterator<Item = String>>(args: I) -> bool {
+    args.into_iter().skip(1).any(|arg| arg == "clip")
 }
 
 #[cfg(test)]
@@ -208,6 +224,22 @@ mod tests {
         assert!(!wants_toggle(args(&["floter", "--version"])));
         // The program name is not a flag, even when it is spelled like one.
         assert!(!wants_toggle(args(&["--toggle"])));
+    }
+
+    #[test]
+    fn recognizes_the_clip_subcommand() {
+        let args = |list: &[&str]| {
+            list.iter()
+                .map(|arg| (*arg).to_string())
+                .collect::<Vec<_>>()
+        };
+
+        assert!(wants_clip(args(&["floter", "clip"])));
+        assert!(wants_clip(args(&["floter", "--background", "clip"])));
+        assert!(!wants_clip(args(&["floter"])));
+        assert!(!wants_clip(args(&["floter", "--toggle"])));
+        // The program name is not a subcommand.
+        assert!(!wants_clip(args(&["clip"])));
     }
 
     #[test]

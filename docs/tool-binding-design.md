@@ -109,3 +109,62 @@ launcher 因此能按子命令补全其专属 flag。全部步骤仍为尽力而
 以下代码不再维护、新功能不得依赖（Phase C 完成后评估物理删除）：
 `official_index.rs`、`download.rs` 的 SRI 部分、`registry.rs` NPM 解析、
 Updates tab 及 update/rollback/reinstall/pin/channel 命令链。
+
+## 插件 HTML 页面机制（2026-08-30 新增）
+
+剪贴板面板曾是一个硬编码的 ViewMode，违背了「搜索+终端」的基础原则。现在 floter 有一套
+**通用的插件页面机制**：任何插件（内置基础插件、未来的外部集成）都可以声明一个 HTML 页面，
+打开时替换整个画布区域，复用终端页面的窗口几何与外壳。
+
+### 声明
+
+- 内置插件：注册在 `src-tauri/src/plugin_pages.rs` 的静态 registry 中——每条
+  `PluginPageDescriptor` 含稳定 id、i18n 标题/描述 key、页面资源路径
+  （如 `plugins/clipboard/index.html`，随前端 dist 打包）与 **命令白名单**。
+- 外部集成（远期）：在其集成目录放置 `page.html`，由 descriptor 引用；白名单随 descriptor
+  一并声明。机制本身不感知剪贴板。
+- 扩展生态可见性：`builtin_plugins_list` 命令把基础插件列进 Installed 页，开关就在那里
+  （这是唯一的开关位；旧的 General 设置项已移除）。插件的持久化状态即其原有 settings 字段
+  （`clipboard_history_enabled`，serde default 保证旧文件可读）——**没有第二个僵尸开关**。
+  启动时按该状态 reconcile 监听器与热键（`clipboard_history::sync_runtime`）：
+  开 → 监听 + 全局热键注册；关 → 双双拆除。
+
+### 渲染
+
+- `show_plugin_page` 命令（原 `show_clipboard` 泛化改名）：页面占用的就是终端页面的同一
+  窗口，走同一套 saved-size + clamp + resize 机器。尺寸所有权完全在后端，前端在页面存续期
+  绝不 setSize。PTY 在底下继续存活。
+- 同一时间只允许一个插件页面打开；Esc / Cmd+W / Ctrl+W / 再次调用关闭并回到记忆中的表面。
+- 实现选择 **sandbox iframe（无 allow-same-origin）** 而非 srcDoc 注入：外部插件 HTML 的
+  可信度低于我们自己的代码。不透明 origin 意味着页面无法触碰宿主 DOM、没有任何 Tauri IPC
+  面，其唯一能力是白名单桥允许的事。内置剪贴板页也走同一条管线（dogfood）。
+
+### Bridge
+
+页面与宿主之间的全部通信是一条极简 postMessage 协议（`src/plugin-pages.ts`，纯逻辑、有
+node 测试）：
+
+```
+page → host: {floter:"invoke", id, command, args?}   // 白名单校验后由宿主 invoke()
+host → page: {floter:"result", id, ok:true, value} | {…ok:false, error}
+page → host: {floter:"close"}                        // 关闭页面回到记忆表面
+```
+
+宿主侧 `src/plugins/PluginPageHost.tsx` 校验 `event.source === iframe.contentWindow` 与
+每插件命令白名单后才执行调用；现有权限模型日后可在同一接缝上继续收紧。启动参数（语言、主题、
+透明度）通过 URL query 传入——沙箱页无法读取存储或宿主文档。
+
+### 生命周期与调用路径
+
+- **一条内部路径，多个触发源**：`plugin_pages::open_plugin_page`（总是打开）与
+  `toggle_plugin_page`（热键专用：同页已开则隐藏）。触发源：全局热键（默认 Alt+V）、
+  CLI `floter clip`、launcher 系统条目、冷启动请求（setup 记入 pending，前端挂载后取走；
+  已运行实例经 single-instance 回调或 Wayland 控制 socket 的 `clip` 命令转发）。
+- `floter clip` 冷启动 = 正常启动后直接落到剪贴板页；其他未知参数行为不变。
+
+### 现状
+
+- 第一个用户：剪贴板历史（`plugins/clipboard/index.html` +
+  `src/plugins/clipboard/main.ts`），已从 React 面板提取为独立 HTML+JS，经 Vite 多入口
+  构建（`vite.config.ts` rollupOptions.input），复用共享样式表与纯逻辑模块。
+- CSP 相应放宽了一处：`img-src` 增加 `blob:`（缩略图字节过桥后在沙箱页内转 blob URL 渲染）。
