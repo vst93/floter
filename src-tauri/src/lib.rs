@@ -1,3 +1,4 @@
+mod clipboard_history;
 mod commands;
 pub mod extensions;
 #[cfg(target_os = "linux")]
@@ -95,6 +96,9 @@ struct AppState {
     /// one in the settings file: a stored binding another app owns falls back to
     /// the default, and the next rebind has to release what was really taken.
     toggle_shortcut: Mutex<String>,
+    /// Same bookkeeping for the clipboard panel's hotkey; owned by the
+    /// clipboard history module.
+    clipboard_shortcut: Mutex<String>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
     /// no cursor position at all, so remembering where the panel was dismissed
@@ -1019,8 +1023,10 @@ pub fn run() {
             terminal_height: Mutex::new(saved_terminal_size().1),
             tray_items: Mutex::new(None),
             toggle_shortcut: Mutex::new(String::new()),
+            clipboard_shortcut: Mutex::new(String::new()),
             last_monitor: Mutex::new(None),
         })
+        .manage(clipboard_history::ClipboardState::default())
         .setup(|app| {
             let extension_state = ExtensionState::new().map_err(std::io::Error::other)?;
             app.manage(extension_state);
@@ -1149,6 +1155,14 @@ pub fn run() {
                 }
             }
 
+            // Clipboard history monitor + panel hotkey, only when enabled
+            // (the default). Failures inside are logged, never fatal.
+            clipboard_history::initialize(
+                app.handle(),
+                settings.clipboard_history_enabled,
+                &settings.clipboard_history_hotkey,
+            );
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1222,6 +1236,13 @@ pub fn run() {
             extensions_config_export,
             catalog_search,
             catalog_complete,
+            commands::config::update_clipboard_hotkey,
+            clipboard_history::clipboard_get_entries,
+            clipboard_history::clipboard_set_favorite,
+            clipboard_history::clipboard_delete,
+            clipboard_history::clipboard_copy_entry,
+            clipboard_history::clipboard_clear_history,
+            clipboard_history::clipboard_read_image,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

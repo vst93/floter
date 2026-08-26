@@ -3268,3 +3268,188 @@ canvas {
   color: var(--text-muted);
   font-size: 11px;
 }
+
+/* ── Clipboard history panel ─────────────────────────────────────────────── */
+
+/* The card mirrors the collapsed launcher's material so the panel reads as the
+   same object at a different height. It is not draggable: a list of rows wants
+   clicks to land on rows, not on a caption bar. */
+.clipboard-card {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--input-stroke);
+  border-radius: var(--window-radius);
+  background:
+    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
+    var(--input-bg);
+  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  backdrop-filter: blur(26px) saturate(160%);
+  overflow: hidden;
+}
+
+.clipboard-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Cascadia Mono", monospace;
+}
+
+.clipboard-panel__search {
+  flex: 0 0 auto;
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 12px 14px 10px;
+  font: inherit;
+  font-size: 13px;
+  caret-color: var(--accent);
+}
+
+.clipboard-panel__search::placeholder {
+  color: var(--text-placeholder);
+}
+
+.clipboard-panel__search:focus {
+  outline: none;
+}
+
+.clipboard-panel__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 3px 4px 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.clipboard-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clipboard-row--selected {
+  background: var(--accent-tint);
+  color: var(--text-primary);
+}
+
+/* The type marker doubles as the image thumbnail slot: text entries get a
+   prompt-like glyph, image entries their own pixels once they resolve. */
+.clipboard-row__marker {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--icon-surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.clipboard-row__marker img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.clipboard-row__marker--image {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.clipboard-row__preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.clipboard-row__age {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.clipboard-row__star {
+  flex: 0 0 auto;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.clipboard-row__star:hover,
+.clipboard-row__star:focus-visible {
+  color: var(--text-secondary);
+}
+
+.clipboard-row__star--on {
+  color: var(--accent);
+}
+
+.clipboard-panel__empty {
+  padding: 18px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.settings-privacy-hint {
+  color: var(--text-warning);
+}
+
+.platform-windows .clipboard-card {
+  border: 0;
+  box-shadow:
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--input-stroke),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-linux .clipboard-card {
+  box-shadow:
+    0 4px 18px var(--window-shadow-ambient),
+    0 1px 5px var(--window-shadow-contact),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .clipboard-card {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--surface-opaque);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clipboard-row,
+  .clipboard-row__star {
+    transition: none;
+  }
+}

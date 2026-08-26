@@ -51,6 +51,13 @@ const SHORTCUT_ACTIONS: [&str; 8] = [
 /// therefore must not collide with the platform's own bindings.
 pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Space";
 
+/// Action id for the clipboard panel hotkey, which is stored as its own
+/// settings field rather than in the shortcuts map (it is registered and
+/// rebound by `clipboard_history`, not by the shortcut plumbing here).
+pub const CLIPBOARD_PANEL: &str = "clipboard_panel";
+/// Free against every default in [`default_shortcuts`] on all platforms.
+pub const DEFAULT_CLIPBOARD_HOTKEY: &str = "Alt+V";
+
 /// The modifier apps use for their own commands: Cmd on macOS, Ctrl elsewhere.
 #[cfg(target_os = "macos")]
 const APP_MODIFIER: &str = "Cmd";
@@ -86,6 +93,10 @@ pub struct AppSettings {
     /// Whether system-command discovery appears in launcher search results.
     /// Off by default; provider-connected tools are always searchable.
     pub show_commands_in_search: bool,
+    /// Whether the built-in clipboard history monitor runs (default on).
+    pub clipboard_history_enabled: bool,
+    /// Global hotkey that summons the clipboard panel.
+    pub clipboard_history_hotkey: String,
 }
 
 impl Default for AppSettings {
@@ -105,6 +116,8 @@ impl Default for AppSettings {
             terminal_opacity: DEFAULT_TERMINAL_OPACITY,
             shortcuts: default_shortcuts(),
             show_commands_in_search: false,
+            clipboard_history_enabled: true,
+            clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
         }
     }
 }
@@ -274,6 +287,14 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         .get(TOGGLE_WINDOW)
         .cloned()
         .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
+    // A hand-edited or legacy clipboard hotkey falls back to the default
+    // rather than silently registering something unparseable. A bare key
+    // without any modifier would swallow ordinary typing system-wide, so it
+    // does not count as valid either.
+    settings.clipboard_history_hotkey =
+        normalize_shortcut(CLIPBOARD_PANEL, &settings.clipboard_history_hotkey)
+            .filter(|normalized| normalized.contains('+'))
+            .unwrap_or_else(|| DEFAULT_CLIPBOARD_HOTKEY.to_string());
     settings
 }
 
@@ -286,6 +307,9 @@ fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> 
     submitted.terminal_height = stored.terminal_height;
     submitted.shortcuts = resolved_shortcuts(stored);
     submitted.hotkey = stored.hotkey.clone();
+    // The clipboard hotkey is owned by its dedicated command; a stale frontend
+    // snapshot must not resurrect an older binding.
+    submitted.clipboard_history_hotkey = stored.clipboard_history_hotkey.clone();
     normalize_settings(submitted)
 }
 
@@ -420,6 +444,13 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
     let settings = merge_frontend_settings(settings, &stored);
     write_settings(&settings)?;
     crate::apply_tray_language(&app, &settings.language);
+    // Keep the monitor and its global hotkey in step with the switch. Both
+    // branches are idempotent, so this is safe on every settings save.
+    crate::clipboard_history::sync_runtime(
+        &app,
+        settings.clipboard_history_enabled,
+        &settings.clipboard_history_hotkey,
+    );
     Ok(())
 }
 
@@ -502,6 +533,43 @@ pub fn update_shortcut(
     Ok(())
 }
 
+/// Rebind the clipboard panel's global hotkey and persist it.
+///
+/// The same contract as `update_shortcut` for the window toggle: the new
+/// combination is claimed from the OS before anything is written, so a
+/// conflict leaves both the file and the live registration untouched.
+#[tauri::command]
+pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<(), String> {
+    let _guard = settings_lock()?;
+    let normalized = normalize_shortcut(CLIPBOARD_PANEL, &hotkey)
+        .ok_or_else(|| "Invalid shortcut".to_string())?;
+
+    let mut settings = load_settings();
+    if resolved_shortcuts(&settings)
+        .values()
+        .any(|existing| existing.eq_ignore_ascii_case(&normalized))
+    {
+        return Err("Shortcut conflicts with another action".to_string());
+    }
+    if settings.clipboard_history_hotkey == normalized {
+        return Ok(());
+    }
+
+    let previous = settings.clipboard_history_hotkey.clone();
+    let enabled = settings.clipboard_history_enabled;
+    if enabled {
+        crate::clipboard_history::rebind_panel_shortcut(&app, &normalized)?;
+    }
+    settings.clipboard_history_hotkey = normalized;
+    if let Err(error) = write_settings(&normalize_settings(settings)) {
+        if enabled {
+            let _ = crate::clipboard_history::rebind_panel_shortcut(&app, &previous);
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+
 /// Build version injected at compile time.
 ///
 /// `CARGO_PKG_VERSION` comes from `Cargo.toml`, which the release workflow
@@ -541,14 +609,22 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
         .lock()
         .map(|value| value.clone())
         .unwrap_or_default();
-    if active.eq_ignore_ascii_case(&toggle) && app.global_shortcut().is_registered(toggle.as_str())
-    {
-        return Ok(());
+    let toggle_already_live = active.eq_ignore_ascii_case(&toggle)
+        && app.global_shortcut().is_registered(toggle.as_str());
+    if !toggle_already_live {
+        if !active.is_empty() && app.global_shortcut().is_registered(active.as_str()) {
+            let _ = app.global_shortcut().unregister(active.as_str());
+        }
+        crate::register_toggle_shortcut(&app, &toggle)?;
     }
-    if !active.is_empty() && app.global_shortcut().is_registered(active.as_str()) {
-        let _ = app.global_shortcut().unregister(active.as_str());
-    }
-    crate::register_toggle_shortcut(&app, &toggle)
+    // Recording suspends every global shortcut; put the clipboard panel's back
+    // exactly as the toggle's is above.
+    crate::clipboard_history::sync_runtime(
+        &app,
+        settings.clipboard_history_enabled,
+        &settings.clipboard_history_hotkey,
+    );
+    Ok(())
 }
 
 #[cfg(test)]
@@ -565,6 +641,37 @@ mod tests {
     fn older_settings_keep_command_discovery_hidden() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(!settings.show_commands_in_search);
+    }
+
+    #[test]
+    fn older_settings_enable_clipboard_history_with_the_default_hotkey() {
+        let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(settings.clipboard_history_enabled);
+        assert_eq!(settings.clipboard_history_hotkey, DEFAULT_CLIPBOARD_HOTKEY);
+        assert_eq!(DEFAULT_CLIPBOARD_HOTKEY, "Alt+V");
+        // The suggested default must stay free of every built-in binding.
+        assert!(default_shortcuts()
+            .values()
+            .all(|shortcut| !shortcut.eq_ignore_ascii_case(DEFAULT_CLIPBOARD_HOTKEY)));
+    }
+
+    #[test]
+    fn an_unparseable_clipboard_hotkey_falls_back_to_the_default() {
+        let settings = normalize_settings(AppSettings {
+            clipboard_history_hotkey: "not a shortcut at all".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(settings.clipboard_history_hotkey, DEFAULT_CLIPBOARD_HOTKEY);
+    }
+
+    #[test]
+    fn frontend_snapshots_do_not_resurrect_a_stale_clipboard_hotkey() {
+        let stored = AppSettings {
+            clipboard_history_hotkey: "Ctrl+Alt+B".into(),
+            ..AppSettings::default()
+        };
+        let merged = merge_frontend_settings(AppSettings::default(), &stored);
+        assert_eq!(merged.clipboard_history_hotkey, "Ctrl+Alt+B");
     }
 
     #[test]

@@ -49,6 +49,14 @@ jsonschema = { version = "0.33", default-features = false }
 qscreen-daemon = { path = "vendor/qscreen-daemon" }
 qscreen-protocol = { git = "https://github.com/dualface/qscreen.git", rev = "3783e78b47875c7714e4b85a2e0c806b27c75a6a" }
 qscreen-shared = { path = "vendor/qscreen-shared" }
+# System-wide clipboard access for the built-in history. X11 support is
+# compiled in by default on Linux; `wayland-data-control` adds the
+# Wayland data-control protocol so captures work on both session types.
+arboard = { version = "3", default-features = false, features = ["image-data", "wayland-data-control"] }
+# PNG encoding/decoding for captured clipboard images (smaller than pulling in
+# the whole `image` crate for one codec).
+png = "0.17"
+
 # Pinyin initials for the launcher: a Chinese application name is unreachable
 # from a Latin keyboard otherwise, and typing the initials is how it is searched
 # for everywhere else on the system.

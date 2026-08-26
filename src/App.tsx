@@ -36,6 +36,7 @@ import {
   type Translate,
 } from "./i18n";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
+import { ClipboardPanel } from "./ClipboardPanel";
 import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
   classifyActionBar,
@@ -79,7 +80,7 @@ if (IS_WINDOWS) {
   document.documentElement.classList.add("platform-linux");
 }
 
-type ViewMode = "collapsed" | "terminal" | "settings";
+type ViewMode = "collapsed" | "terminal" | "settings" | "clipboard";
 type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
 type CursorShape = "beam" | "block" | "underline";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
@@ -195,6 +196,10 @@ type AppSettings = {
   shortcuts: ShortcutMap;
   /** Whether extension/provider commands appear in launcher search results. */
   show_commands_in_search: boolean;
+  /** Whether the built-in clipboard history monitor runs (default on). */
+  clipboard_history_enabled: boolean;
+  /** Global hotkey that summons the clipboard panel. */
+  clipboard_history_hotkey: string;
 };
 
 /**
@@ -272,6 +277,9 @@ const TERMINAL_FOCUS_RETRY = 180;
 const ICON_LOAD_DELAY = 250;
 const CATALOG_SEARCH_DELAY = 140;
 const COMMAND_LINE_SYNTAX = IS_WINDOWS ? "windows" : "posix";
+
+/** Pseudo action id under which the clipboard hotkey is recorded in settings UI. */
+const CLIPBOARD_HOTKEY_ACTION = "clipboard_hotkey";
 
 const normalizeFontSize = (value: number): number =>
   Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
@@ -480,11 +488,11 @@ function OpacityControl({ label, value, onChange }: OpacityControlProps) {
 }
 
 type ShortcutRecorderProps = {
-  action: ShortcutAction;
+  action: string;
   shortcut: string;
   recording: boolean;
-  onToggle: (action: ShortcutAction) => void;
-  onCapture: (action: ShortcutAction, shortcut: string) => void;
+  onToggle: (action: string) => void;
+  onCapture: (action: string, shortcut: string) => void;
   onCancel: () => void;
   t: Translate;
 };
@@ -627,6 +635,12 @@ export default function App() {
   const appScanning = useRef(false);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
+  /** Ref mirror of `mode` so event listeners registered once can still see the
+   * current value (the clipboard hotkey toggles against it). */
+  const modeRef = useRef<ViewMode>("collapsed");
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+  /** Where the clipboard panel returns to when dismissed. */
+  const clipboardReturnMode = useRef<"collapsed" | "terminal">("collapsed");
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
   const [terminalMounted, setTerminalMounted] = useState(false);
@@ -690,6 +704,8 @@ export default function App() {
     terminal_opacity: 92,
     shortcuts: DEFAULT_SHORTCUTS,
     show_commands_in_search: false,
+    clipboard_history_enabled: true,
+    clipboard_history_hotkey: "Alt+V",
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
@@ -743,8 +759,8 @@ export default function App() {
     }
     return hydrationSavePromise.current;
   };
-  const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
-  const [rejectedAction, setRejectedAction] = useState<ShortcutAction | null>(null);
+  const [recordingAction, setRecordingAction] = useState<string | null>(null);
+  const [rejectedAction, setRejectedAction] = useState<string | null>(null);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
@@ -1461,6 +1477,8 @@ export default function App() {
           main_opacity: normalizeOpacity(loaded.main_opacity ?? 94),
           terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
+          clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
+          clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "Alt+V",
         };
         const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
         settingsRef.current = hydrated;
@@ -1674,6 +1692,17 @@ export default function App() {
       return;
     }
 
+    if (mode === "clipboard") {
+      if (!isRestoring) {
+        const available = window.screen.availHeight;
+        const height = Math.min(520, Math.max(320, Math.floor(available * 0.55)));
+        getCurrentWindow()
+          .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+          .catch(() => undefined);
+      }
+      return;
+    }
+
     if (mode === "collapsed") {
       if (!isRestoring) {
         // `show_input` resizes to the bare input row, which is the right height
@@ -1790,6 +1819,27 @@ export default function App() {
     return () => {
       unlistenModePromise.then((unlisten) => unlisten());
       unlistenRevealPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
+  // The global clipboard hotkey: summon the panel over whatever surface was
+  // up (remembering it for the return trip), or hide floter entirely when the
+  // panel is already showing.
+  useEffect(() => {
+    const unlistenClipboardPromise = listen("floter://clipboard", () => {
+      if (modeRef.current === "clipboard") {
+        invoke("hide_window").catch(() => undefined);
+        return;
+      }
+      clipboardReturnMode.current =
+        modeRef.current === "terminal" ? "terminal" : "collapsed";
+      suppressBlurUntil.current = Date.now() + 400;
+      restoringMode.current = "clipboard";
+      setMode("clipboard");
+    });
+
+    return () => {
+      unlistenClipboardPromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -2206,6 +2256,13 @@ export default function App() {
         return;
       }
 
+      if (mode === "clipboard") {
+        // The clipboard panel owns the keyboard through a capture-phase
+        // listener; keys that reach here were not claimed by it and must not
+        // fall through to launcher handling.
+        return;
+      }
+
       // Collapsed-mode input handling.
       if (matchesShortcut(event, shortcuts.open_settings)) {
         event.preventDefault();
@@ -2397,6 +2454,13 @@ export default function App() {
     setMode("collapsed");
   };
 
+  /** Dismiss the clipboard panel; the mode effect re-homes the window onto the
+   * surface it was summoned from. */
+  const closeClipboardPanel = () => {
+    suppressBlurUntil.current = Date.now() + 400;
+    setMode(clipboardReturnMode.current);
+  };
+
   const quitApp = async () => {
     if (appQuitting.current) return;
     appQuitting.current = true;
@@ -2520,7 +2584,7 @@ export default function App() {
     }
   };
 
-  const toggleRecording = (action: ShortcutAction) => {
+  const toggleRecording = (action: string) => {
     setRejectedAction(null);
     setRecordingAction((current) => {
       if (current === action) {
@@ -2563,7 +2627,7 @@ export default function App() {
 
   // Store the new binding optimistically; the backend is the authority on
   // whether a system-wide combination can actually be taken.
-  const captureShortcut = (action: ShortcutAction, next: string) => {
+  const captureShortcut = (action: string, next: string) => {
     setRecordingAction(null);
     setRejectedAction(null);
     if (action === "select_result") {
@@ -2575,7 +2639,43 @@ export default function App() {
       }
       next = normalized;
     }
-    const previous = shortcuts[action];
+    if (action === CLIPBOARD_HOTKEY_ACTION) {
+      const previousHotkey = settingsRef.current.clipboard_history_hotkey;
+      const conflict = SHORTCUT_ACTIONS.some(
+        (candidate) => shortcuts[candidate].toLowerCase() === next.toLowerCase(),
+      );
+      if (conflict) {
+        setRejectedAction(action);
+        invoke("resume_shortcuts").catch(() => undefined);
+        return;
+      }
+      if (next === previousHotkey) {
+        invoke("resume_shortcuts").catch(() => undefined);
+        return;
+      }
+      settingsHydration.markChanged("clipboard_history_hotkey");
+      setSettings((current) => {
+        const updated = { ...current, clipboard_history_hotkey: next };
+        settingsRef.current = updated;
+        return updated;
+      });
+      suppressBlurUntil.current = Date.now() + 400;
+      invoke("update_clipboard_hotkey", { hotkey: next })
+        .then(() => {
+          invoke("resume_shortcuts").catch(() => undefined);
+        })
+        .catch(() => {
+          setSettings((current) => {
+            const rolledBack = { ...current, clipboard_history_hotkey: previousHotkey };
+            settingsRef.current = rolledBack;
+            return rolledBack;
+          });
+          setRejectedAction(action);
+          invoke("resume_shortcuts").catch(() => undefined);
+        });
+      return;
+    }
+    const previous = shortcuts[action as ShortcutAction];
     const conflict = SHORTCUT_ACTIONS.some(
       (candidate) => candidate !== action && shortcuts[candidate].toLowerCase() === next.toLowerCase(),
     );
@@ -3329,6 +3429,59 @@ export default function App() {
               </div>
             </section>
 
+            <section className="settings-section">
+              <h2 className="settings-section__label">{t("settings.clipboardHistory")}</h2>
+              <div className="settings-option settings-option--static">
+                <span className="settings-option__main">
+                  <span className="settings-option__label">
+                    {t("settings.clipboardHistory")}
+                  </span>
+                  <span className="settings-option__description">
+                    {t("settings.clipboardHistoryHint")}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={`settings-switch${settings.clipboard_history_enabled ? " settings-switch--active" : ""}`}
+                  role="switch"
+                  aria-checked={settings.clipboard_history_enabled}
+                  aria-label={t("settings.clipboardHistory")}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() =>
+                    changeGeneralSetting("clipboard_history_enabled", !settings.clipboard_history_enabled)
+                  }
+                >
+                  <span className="settings-switch__thumb" />
+                </button>
+              </div>
+              {settings.clipboard_history_enabled && (
+                <div className="settings-option settings-option--static">
+                  <span className="settings-option__main">
+                    <span className="settings-option__label">
+                      {t("settings.clipboardHotkey")}
+                    </span>
+                    {rejectedAction === CLIPBOARD_HOTKEY_ACTION && (
+                      <span className="settings-option__description settings-option__description--warning">
+                        {t("settings.shortcut.rejected")}
+                      </span>
+                    )}
+                  </span>
+                  <ShortcutRecorder
+                    action={CLIPBOARD_HOTKEY_ACTION}
+                    shortcut={settings.clipboard_history_hotkey}
+                    recording={recordingAction === CLIPBOARD_HOTKEY_ACTION}
+                    onToggle={toggleRecording}
+                    onCapture={captureShortcut}
+                    onCancel={cancelRecording}
+                    t={t}
+                  />
+                </div>
+              )}
+              <p className="settings-section__hint settings-privacy-hint">
+                {t("settings.clipboardPrivacy")}
+              </p>
+            </section>
+
             <section className="settings-section terminal-appearance-settings">
               <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
               <div className="terminal-appearance-settings__grid">
@@ -3603,6 +3756,22 @@ export default function App() {
             )}
             </main>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "clipboard") {
+    return (
+      <div className="collapsed-shell">
+        {pinnedCardElement}
+        <div className="clipboard-card" data-no-drag>
+          <ClipboardPanel
+            t={t}
+            terminalActive={ptyReady.current}
+            onPasteText={(text) => sendTerminalText(text, true)}
+            onClose={closeClipboardPanel}
+          />
         </div>
       </div>
     );
