@@ -149,6 +149,9 @@ const en = {
   "shortcut.pin_terminal": "Pin terminal",
   "shortcut.pin_terminal.description":
     "Pins the terminal into a floating card, or restores it. Press again to pin a newer terminal",
+  "shortcut.clipboard_panel": "Clipboard panel",
+  "shortcut.clipboard_panel.description": "Opens the clipboard history",
+  "settings.clipboardHotkeyClear": "Clear shortcut",
   "terminal.pinnedOverlay": "Session pinned to floating card",
   "terminal.pinnedOverlayHint": "Press {shortcut} to bring it back here",
   "terminal.pinnedClose": "Unpin session",
@@ -510,6 +513,9 @@ const zh: Record<MessageKey, string> = {
   "shortcut.pin_terminal": "固定终端",
   "shortcut.pin_terminal.description":
     "把当前终端固定为悬浮卡片，或恢复回终端页。再次按下可固定新的终端",
+  "shortcut.clipboard_panel": "剪贴板面板",
+  "shortcut.clipboard_panel.description": "打开剪贴板历史",
+  "settings.clipboardHotkeyClear": "清除快捷键",
   "terminal.pinnedOverlay": "会话已固定到悬浮卡片",
   "terminal.pinnedOverlayHint": "按 {shortcut} 可恢复到此处",
   "terminal.pinnedClose": "取消固定",

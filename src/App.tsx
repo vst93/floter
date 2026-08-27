@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
   SquareTerminal,
   Trash2,
+  X,
 } from "lucide-react";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
 import { PinnedTerminalCard } from "./terminal/PinnedTerminalCard";
@@ -642,7 +643,9 @@ export default function App() {
     shortcuts: DEFAULT_SHORTCUTS,
     show_commands_in_search: false,
     clipboard_history_enabled: true,
-    clipboard_history_hotkey: "Alt+V",
+    // The clipboard panel ships with NO global hotkey; users may bind one on
+    // the shortcuts settings page.
+    clipboard_history_hotkey: "",
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
@@ -1416,7 +1419,7 @@ export default function App() {
           terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
-          clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "Alt+V",
+          clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
         };
         const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
         settingsRef.current = hydrated;
@@ -2621,6 +2624,29 @@ export default function App() {
     }
   };
 
+  // Clear/disable the clipboard panel hotkey from the shortcuts settings
+  // page. Optimistic like captureShortcut: persist "" (the backend treats an
+  // empty string as unregister-and-disable) and roll back on failure.
+  const clearClipboardHotkey = () => {
+    const previousHotkey = settingsRef.current.clipboard_history_hotkey;
+    if (!previousHotkey) return;
+    settingsHydration.markChanged("clipboard_history_hotkey");
+    setSettings((current) => {
+      const updated = { ...current, clipboard_history_hotkey: "" };
+      settingsRef.current = updated;
+      return updated;
+    });
+    setRejectedAction(null);
+    invoke("update_clipboard_hotkey", { hotkey: "" }).catch(() => {
+      setSettings((current) => {
+        const rolledBack = { ...current, clipboard_history_hotkey: previousHotkey };
+        settingsRef.current = rolledBack;
+        return rolledBack;
+      });
+      setRejectedAction(CLIPBOARD_HOTKEY_ACTION);
+    });
+  };
+
   // Store the new binding optimistically; the backend is the authority on
   // whether a system-wide combination can actually be taken.
   const captureShortcut = (action: string, next: string) => {
@@ -3560,6 +3586,44 @@ export default function App() {
                     </div>
                   );
                 })}
+                {/* The clipboard panel's trigger is stored as its own settings
+                    field (`clipboard_history_hotkey`), not in the shortcuts
+                    map — recording reuses the shared CLIPBOARD_HOTKEY_ACTION
+                    plumbing above. Default is disabled: empty means no global
+                    hotkey is registered. */}
+                <div className="settings-option settings-option--static">
+                  <span className="settings-option__main">
+                    <span className="settings-option__label">{t("shortcut.clipboard_panel")}</span>
+                    {rejectedAction === CLIPBOARD_HOTKEY_ACTION && (
+                      <span className="settings-option__description settings-option__description--warning">
+                        {t("settings.shortcut.rejected")}
+                      </span>
+                    )}
+                  </span>
+                  <span className="settings-option__hotkey-controls">
+                    <ShortcutRecorder
+                      action={CLIPBOARD_HOTKEY_ACTION}
+                      shortcut={settings.clipboard_history_hotkey}
+                      recording={recordingAction === CLIPBOARD_HOTKEY_ACTION}
+                      onToggle={toggleRecording}
+                      onCapture={captureShortcut}
+                      onCancel={cancelRecording}
+                      t={t}
+                    />
+                    {settings.clipboard_history_hotkey && (
+                      <button
+                        type="button"
+                        className="session-manager__icon-button session-manager__icon-button--danger"
+                        aria-label={t("settings.clipboardHotkeyClear")}
+                        title={t("settings.clipboardHotkeyClear")}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={clearClipboardHotkey}
+                      >
+                        <X size={14} strokeWidth={1.9} aria-hidden="true" />
+                      </button>
+                    )}
+                  </span>
+                </div>
               </div>
               <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
             </section>
@@ -3657,19 +3721,12 @@ export default function App() {
                   titleKey: "settings.clipboardHistory",
                   descriptionKey: "settings.clipboardHistoryHint",
                   enabled: settings.clipboard_history_enabled,
-                  hotkey: settings.clipboard_history_hotkey,
-                  hotkeyAction: CLIPBOARD_HOTKEY_ACTION,
-                  hotkeyRecording: recordingAction === CLIPBOARD_HOTKEY_ACTION,
-                  hotkeyRejected: rejectedAction === CLIPBOARD_HOTKEY_ACTION,
                 },
               ]}
               onToggleBasePlugin={(id, enabled) => {
                 if (id !== CLIPBOARD_PLUGIN_ID) return;
                 changeGeneralSetting("clipboard_history_enabled", enabled);
               }}
-              onBasePluginHotkeyToggle={toggleRecording}
-              onBasePluginHotkeyCapture={captureShortcut}
-              onBasePluginHotkeyCancel={cancelRecording}
             />
             )}
 

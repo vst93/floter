@@ -25,8 +25,8 @@ type ShortcutRecorderProps = {
  * the combination being pressed. A press without any modifier is ignored —
  * binding a bare letter would swallow it everywhere in the app.
  *
- * Shared by the shortcuts settings page and the base-plugin rows in the
- * extensions panel (the clipboard hotkey is recorded there now).
+ * Shared by the shortcuts settings page, including the clipboard panel entry
+ * whose binding lives in its own settings field.
  */
 export function ShortcutRecorder({
   action,

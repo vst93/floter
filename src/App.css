@@ -1154,6 +1154,15 @@ input:focus {
   cursor: default;
 }
 
+/* Recorder plus its clear (×) affordance for shortcuts that can be disabled,
+   e.g. the clipboard panel entry — recorder and button on one line. */
+.settings-option__hotkey-controls {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .settings-option--static:hover {
   background: transparent;
 }
@@ -3292,7 +3301,12 @@ canvas {
   font-family: "SF Mono", Menlo, Monaco, Consolas, "Cascadia Mono", monospace;
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
-    var(--input-bg);
+    /* Transparency follows the terminal page's configured opacity — the same
+       `--terminal-opacity` custom property the host window sets and the same
+       mechanism every terminal-backed surface uses (.pinned-card included).
+       No hardcoded level lives here; only this variable decides how opaque
+       the panel is. */
+    rgb(18 19 22 / var(--terminal-opacity));
   -webkit-backdrop-filter: blur(26px) saturate(160%);
   backdrop-filter: blur(26px) saturate(160%);
   overflow: hidden;

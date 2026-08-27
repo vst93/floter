@@ -55,8 +55,11 @@ pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Space";
 /// settings field rather than in the shortcuts map (it is registered and
 /// rebound by `clipboard_history`, not by the shortcut plumbing here).
 pub const CLIPBOARD_PANEL: &str = "clipboard_panel";
-/// Free against every default in [`default_shortcuts`] on all platforms.
-pub const DEFAULT_CLIPBOARD_HOTKEY: &str = "Alt+V";
+/// The clipboard panel ships with NO global hotkey: nothing is registered on
+/// startup and the panel stays reachable through launcher search and
+/// `floter clip`. Users may bind one in Shortcuts settings; an empty string
+/// here always means "no hotkey".
+pub const DEFAULT_CLIPBOARD_HOTKEY: &str = "";
 
 /// The modifier apps use for their own commands: Cmd on macOS, Ctrl elsewhere.
 #[cfg(target_os = "macos")]
@@ -287,14 +290,15 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         .get(TOGGLE_WINDOW)
         .cloned()
         .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
-    // A hand-edited or legacy clipboard hotkey falls back to the default
-    // rather than silently registering something unparseable. A bare key
+    // A hand-edited or unparseable clipboard hotkey falls back to NO hotkey
+    // rather than silently registering something unexpected. A bare key
     // without any modifier would swallow ordinary typing system-wide, so it
-    // does not count as valid either.
+    // does not count as valid either. An empty string is the legitimate
+    // disabled state.
     settings.clipboard_history_hotkey =
         normalize_shortcut(CLIPBOARD_PANEL, &settings.clipboard_history_hotkey)
             .filter(|normalized| normalized.contains('+'))
-            .unwrap_or_else(|| DEFAULT_CLIPBOARD_HOTKEY.to_string());
+            .unwrap_or_default();
     settings
 }
 
@@ -537,14 +541,36 @@ pub fn update_shortcut(
 ///
 /// The same contract as `update_shortcut` for the window toggle: the new
 /// combination is claimed from the OS before anything is written, so a
-/// conflict leaves both the file and the live registration untouched.
+/// conflict leaves both the file and the live registration untouched. An
+/// empty (or whitespace-only) string unregisters the hotkey and persists the
+/// disabled state — that is how the Shortcuts settings page turns it off.
 #[tauri::command]
 pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<(), String> {
     let _guard = settings_lock()?;
+    let mut settings = load_settings();
+    let enabled = settings.clipboard_history_enabled;
+
+    if hotkey.trim().is_empty() {
+        let previous = settings.clipboard_history_hotkey.clone();
+        if previous.is_empty() {
+            return Ok(());
+        }
+        if enabled {
+            crate::clipboard_history::unregister_panel_shortcut(&app);
+        }
+        settings.clipboard_history_hotkey = String::new();
+        if let Err(error) = write_settings(&normalize_settings(settings)) {
+            if enabled {
+                let _ = crate::clipboard_history::rebind_panel_shortcut(&app, &previous);
+            }
+            return Err(error);
+        }
+        return Ok(());
+    }
+
     let normalized = normalize_shortcut(CLIPBOARD_PANEL, &hotkey)
         .ok_or_else(|| "Invalid shortcut".to_string())?;
 
-    let mut settings = load_settings();
     if resolved_shortcuts(&settings)
         .values()
         .any(|existing| existing.eq_ignore_ascii_case(&normalized))
@@ -556,7 +582,6 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
     }
 
     let previous = settings.clipboard_history_hotkey.clone();
-    let enabled = settings.clipboard_history_enabled;
     if enabled {
         crate::clipboard_history::rebind_panel_shortcut(&app, &normalized)?;
     }
@@ -644,24 +669,22 @@ mod tests {
     }
 
     #[test]
-    fn older_settings_enable_clipboard_history_with_the_default_hotkey() {
+    fn older_settings_enable_clipboard_history_without_a_hotkey() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.clipboard_history_enabled);
+        // The clipboard panel ships with no global hotkey at all — startup
+        // must not register anything, and an empty string means disabled.
         assert_eq!(settings.clipboard_history_hotkey, DEFAULT_CLIPBOARD_HOTKEY);
-        assert_eq!(DEFAULT_CLIPBOARD_HOTKEY, "Alt+V");
-        // The suggested default must stay free of every built-in binding.
-        assert!(default_shortcuts()
-            .values()
-            .all(|shortcut| !shortcut.eq_ignore_ascii_case(DEFAULT_CLIPBOARD_HOTKEY)));
+        assert_eq!(DEFAULT_CLIPBOARD_HOTKEY, "");
     }
 
     #[test]
-    fn an_unparseable_clipboard_hotkey_falls_back_to_the_default() {
+    fn an_unparseable_clipboard_hotkey_falls_back_to_no_hotkey() {
         let settings = normalize_settings(AppSettings {
             clipboard_history_hotkey: "not a shortcut at all".into(),
             ..AppSettings::default()
         });
-        assert_eq!(settings.clipboard_history_hotkey, DEFAULT_CLIPBOARD_HOTKEY);
+        assert_eq!(settings.clipboard_history_hotkey, "");
     }
 
     #[test]

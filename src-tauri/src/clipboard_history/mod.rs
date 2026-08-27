@@ -10,8 +10,9 @@
 //! ship: Windows CF_HDROP, macOS NSFilenamesPboardType, and Linux X11/Wayland
 //! via `text/uri-list`. No text-sniffing heuristic is involved. Entries are
 //! stored locally under the app data directory, survive restarts, and are
-//! surfaced in a terminal-styled panel summoned by a dedicated global hotkey
-//! (`Alt+V` by default, rebindable in settings).
+//! surfaced in a terminal-styled panel summoned from launcher search,
+//! `floter clip`, or an optional global hotkey the user binds in Shortcuts
+//! settings (disabled by default).
 
 pub mod monitor;
 pub mod store;
@@ -454,24 +455,33 @@ fn toggle_panel(app: &AppHandle) {
 // ---- Lifecycle ------------------------------------------------------------
 
 /// Called once from the setup hook: start the monitor and register the hotkey
-/// only when the setting says so. Failures are logged, never fatal — a system
-/// that refuses the hotkey still gets the monitor, and the panel remains
-/// reachable through the launcher.
+/// only when the setting says so. An empty hotkey means "no global shortcut"
+/// — nothing is registered and the panel stays reachable through launcher
+/// search and `floter clip`. Failures are logged, never fatal — a system
+/// that refuses the hotkey still gets the monitor.
 pub fn initialize(app: &AppHandle, enabled: bool, hotkey: &str) {
     if !enabled {
         return;
     }
     monitor::start(app);
+    if hotkey.trim().is_empty() {
+        return;
+    }
     if let Err(error) = register_panel_shortcut(app, hotkey) {
         eprintln!("floter: clipboard panel shortcut registration failed: {error}");
     }
 }
 
 /// Reconcile runtime state (monitor + hotkey) with the settings after any
-/// change. Both branches are idempotent, so callers need not diff first.
+/// change. Both branches are idempotent, so callers need not diff first. An
+/// empty hotkey always ends up with no shortcut registered.
 pub fn sync_runtime(app: &AppHandle, enabled: bool, hotkey: &str) {
     if enabled {
         monitor::start(app);
+        if hotkey.trim().is_empty() {
+            unregister_panel_shortcut(app);
+            return;
+        }
         if let Err(error) = ensure_panel_shortcut(app, hotkey) {
             eprintln!("floter: clipboard panel shortcut registration failed: {error}");
         }

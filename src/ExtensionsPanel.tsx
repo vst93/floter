@@ -19,7 +19,6 @@ import {
   X,
 } from "lucide-react";
 import type { Translate } from "./i18n";
-import { ShortcutRecorder } from "./ShortcutRecorder";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
@@ -386,11 +385,6 @@ type ExtensionsPanelProps = {
   basePlugins: BasePluginRow[];
   /** Enable/disable a base plugin; tears its runtime down when disabled. */
   onToggleBasePlugin: (id: string, enabled: boolean) => void;
-  /** Hotkey recording plumbing for base plugins that own a global hotkey,
-   * shared with the shortcuts page's recorders in App.tsx state. */
-  onBasePluginHotkeyToggle: (action: string) => void;
-  onBasePluginHotkeyCapture: (action: string, shortcut: string) => void;
-  onBasePluginHotkeyCancel: () => void;
 };
 
 export type BasePluginRow = {
@@ -398,12 +392,6 @@ export type BasePluginRow = {
   titleKey: Parameters<Translate>[0];
   descriptionKey: Parameters<Translate>[0];
   enabled: boolean;
-  /** Present when the plugin owns a rebindable global hotkey; the action id
-   * routes recording/capture back through App's shared shortcut state. */
-  hotkey?: string;
-  hotkeyAction?: string;
-  hotkeyRecording?: boolean;
-  hotkeyRejected?: boolean;
 };
 
 type PermissionName =
@@ -469,7 +457,7 @@ function ExtensionsToast({ toast, t, onDismiss }: { toast: PanelToast; t: Transl
   );
 }
 
-export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin, onBasePluginHotkeyToggle, onBasePluginHotkeyCapture, onBasePluginHotkeyCancel }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<ExtensionOperation>(null);
@@ -1312,27 +1300,6 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 <span className="extensions-base-plugin__main">
                   <span className="extensions-base-plugin__name">{t(plugin.titleKey)}</span>
                   <span className="extensions-base-plugin__description">{t(plugin.descriptionKey)}</span>
-                  {plugin.hotkey !== undefined && plugin.enabled && (
-                    <span className="extensions-base-plugin__hotkey">
-                      <span className="extensions-base-plugin__hotkey-label">
-                        {t("settings.clipboardHotkey")}
-                        {plugin.hotkeyRejected && (
-                          <span className="settings-option__description settings-option__description--warning extensions-base-plugin__rejected">
-                            {t("settings.shortcut.rejected")}
-                          </span>
-                        )}
-                      </span>
-                      <ShortcutRecorder
-                        action={plugin.hotkeyAction ?? plugin.id}
-                        shortcut={plugin.hotkey}
-                        recording={Boolean(plugin.hotkeyRecording)}
-                        onToggle={onBasePluginHotkeyToggle}
-                        onCapture={onBasePluginHotkeyCapture}
-                        onCancel={onBasePluginHotkeyCancel}
-                        t={t}
-                      />
-                    </span>
-                  )}
                 </span>
                 <button
                   type="button"

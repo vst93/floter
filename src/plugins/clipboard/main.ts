@@ -3,9 +3,15 @@
 // This is the extracted, framework-free successor of the old in-app React
 // panel: same markup classes (the shared stylesheet is imported below), same
 // history/favorites/tabs/files/images behavior, and floter's Spotlight
-// keyboard discipline — typing always routes to the filter field, Tab toggles
-// the all/favorites view, Cmd/Ctrl+Backspace deletes the selected row, focus
-// stays pinned to the input.
+// keyboard discipline — typing anywhere routes to the filter field, Backspace
+// from the list routes a character deletion into the filter (never a row),
+// Tab toggles the all/favorites view, single-key row commands (F/* favorite,
+// D/Del delete) only fire once the user deliberately clicked into the list,
+// and Cmd/Ctrl+Backspace deletes the selected row from any focus.
+//
+// The surface's transparency level follows the terminal page's configured
+// opacity: `page.css` colors the panel with the same `--terminal-opacity`
+// custom property the host window sets, so moving one slider moves both.
 //
 // It runs inside a sandboxed iframe served by the generic plugin-page
 // pipeline and reaches the host ONLY through the postMessage bridge — every
@@ -292,7 +298,9 @@ const render = () => {
       selected = index;
       render();
     });
-    button.addEventListener("mousedown", (event) => event.preventDefault());
+    // No mousedown hijack: a click genuinely moves focus into the list — that
+    // deliberate step away from the filter is what arms the single-key row
+    // commands. Hovering alone never steals focus.
     button.addEventListener("click", () => void activate(entry));
     star.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -362,6 +370,7 @@ const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
   const nextFavorite = !entry.favorite;
   entry.favorite = nextFavorite;
   render();
+  searchInput.focus();
   try {
     await invokeCommand<void>("clipboard_set_favorite", {
       id: entry.id,
@@ -369,6 +378,7 @@ const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
     });
   } catch {
     await reload().then(render);
+    searchInput.focus();
   }
 };
 
@@ -376,10 +386,12 @@ const removeEntry = async (entry: ClipboardEntry | undefined) => {
   if (!entry) return;
   entries = entries.filter((candidate) => candidate.id !== entry.id);
   render();
+  searchInput.focus();
   try {
     await invokeCommand<void>("clipboard_delete", { id: entry.id });
   } catch {
     await reload().then(render);
+    searchInput.focus();
   }
 };
 
@@ -391,18 +403,35 @@ const clearHistory = async () => {
   }
   selected = 0;
   await reload().then(render);
+  searchInput.focus();
 };
 
 // ---- keyboard model -------------------------------------------------------
 
-/**
- * Spotlight focus discipline, owned entirely here (the host window never sees
- * a key while the iframe has focus): typing always lands in the filter field,
- * which keeps focus for the page's whole visit; Tab toggles the view;
- * Cmd/Ctrl+Backspace deletes the selected row; Enter puts the entry back on
- * the system clipboard and closes; Esc / Cmd+W close.
- */
-window.addEventListener("keydown", (event: KeyboardEvent) => {
+/** Route one character into the filter: append, redraw, own the field. */
+const sendCharToFilter = (char: string) => {
+  filterText += char;
+  searchInput.value = filterText;
+  selected = 0;
+  render();
+  searchInput.focus();
+};
+
+/** Delete the filter's last character and take focus — what Backspace means
+ * whenever the input itself is not focused, so an edit key can never reach a
+ * row through accident. */
+const backspaceIntoFilter = () => {
+  filterText = filterText.slice(0, -1);
+  searchInput.value = filterText;
+  selected = 0;
+  render();
+  searchInput.focus();
+};
+
+window.addEventListener("keydown", (event) => {
+  // Capture phase: this handler decides before anything (default traversal
+  // included) can act on the press.
+
   // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the page — the same
   // convention every overlay surface in floter follows.
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
@@ -411,6 +440,8 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     requestClose();
     return;
   }
+  // Cmd/Ctrl+Backspace deletes the selected row from ANY focus — the explicit,
+  // collision-free escape hatch that survives even while the filter is held.
   if ((event.metaKey || event.ctrlKey) && event.key === "Backspace") {
     event.preventDefault();
     event.stopPropagation();
@@ -418,15 +449,6 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     searchInput.focus();
     return;
   }
-  if (event.metaKey || event.ctrlKey) {
-    // Platform copy/paste/cut shortcuts keep working inside the filter field.
-    return;
-  }
-  if (event.altKey && event.key.length === 1 && document.activeElement !== searchInput) {
-    // Alt+letter combinations belong to global shortcuts; ignore.
-    return;
-  }
-
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
@@ -435,7 +457,8 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
   }
   if (event.key === "Tab") {
     // Tab TOGGLES the view rather than walking focus away from the input —
-    // the caret belongs to the filter for as long as this page is up.
+    // intercepted before default focus traversal from any focus, filter
+    // included.
     event.preventDefault();
     event.stopPropagation();
     view = view === "all" ? "favorites" : "all";
@@ -445,8 +468,9 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     return;
   }
   if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-    // Tabs also switch directly on the keypress — no focus dance between the
-    // tab buttons first.
+    // Tabs also switch directly — but only while the list owns attention; the
+    // same keys are ordinary caret moves inside the filter.
+    if (document.activeElement === searchInput) return;
     event.preventDefault();
     event.stopPropagation();
     view = view === "all" ? "favorites" : "all";
@@ -476,10 +500,37 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     void activate(filteredEntries()[selected]);
     return;
   }
-  const inSearch = document.activeElement === searchInput;
-  if (inSearch) {
-    // Content-editing keys stay in the filter field; everything below only
-    // fires when the press happened outside it.
+
+  if (document.activeElement === searchInput) {
+    // While the filter holds focus every remaining key — characters,
+    // Backspace, Delete — is ordinary text editing inside it. Row commands
+    // are unreachable here; press-wise the two worlds cannot collide.
+    return;
+  }
+  if (event.metaKey || event.ctrlKey) {
+    // Platform copy/paste/cut shortcuts keep working.
+    return;
+  }
+  if (event.altKey && event.key.length === 1) {
+    // Alt+letter combinations belong to global shortcuts; ignore.
+    return;
+  }
+
+  // List-focus territory: the user deliberately stepped off the filter
+  // (clicked into the list). Single-key row commands live here, and focus
+  // returns to the filter after each one.
+  if (event.key === "f" || event.key === "F" || event.key === "*") {
+    event.preventDefault();
+    event.stopPropagation();
+    void toggleFavorite(filteredEntries()[selected]);
+    searchInput.focus();
+    return;
+  }
+  if (event.key === "d" || event.key === "D" || event.key === "Delete") {
+    event.preventDefault();
+    event.stopPropagation();
+    void removeEntry(filteredEntries()[selected]);
+    searchInput.focus();
     return;
   }
   if (event.key === "1" || event.key === "2") {
@@ -490,35 +541,22 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     render();
     return;
   }
-  if (event.key === "f" || event.key === "F" || event.key === "*") {
+  if (event.key === "Backspace") {
+    // Editing keys route into the filter, never to a row: Backspace erases
+    // the filter's last character and takes focus back.
     event.preventDefault();
     event.stopPropagation();
-    void toggleFavorite(filteredEntries()[selected]);
+    backspaceIntoFilter();
     return;
   }
-  if (event.key === "Delete" || event.key === "d" || event.key === "D") {
+  // Any other printable character typed anywhere lands in the filter —
+  // inserted by hand because the field was not focused when the press
+  // happened, and nothing else would insert it.
+  if (event.key.length === 1) {
     event.preventDefault();
     event.stopPropagation();
-    void removeEntry(filteredEntries()[selected]);
+    sendCharToFilter(event.key);
   }
-});
-
-/**
- * A printable key typed anywhere outside the field is inserted by hand — the
- * field was not focused when the press happened (a click landed on a row, say)
- * and nothing else will insert it. This is what keeps "typing routes to the
- * filter" literally true.
- */
-window.addEventListener("keypress", (event) => {
-  if (document.activeElement === searchInput) return;
-  if (event.metaKey || event.ctrlKey || event.altKey) return;
-  if (event.key.length !== 1) return;
-  event.preventDefault();
-  filterText = filterText + event.key;
-  searchInput.value = filterText;
-  selected = 0;
-  render();
-  searchInput.focus();
 });
 
 // ---- wiring ---------------------------------------------------------------
