@@ -679,10 +679,16 @@ input:focus {
   transform: scale(0.997);
 }
 
+/* The settings card is the floater body. It is the containing block for
+   position:fixed descendants — backdrop-filter implies that containing block,
+   and `contain` states the contract explicitly — so every fixed overlay
+   rendered inside it (extension toasts, backdrops, dialogs, drawer) is
+   positioned against the card, never against the OS screen. */
 .settings-card {
   position: relative;
   width: 100%;
   height: 100%;
+  contain: layout paint;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--input-stroke);
@@ -1484,20 +1490,25 @@ input:focus {
   color: var(--accent);
 }
 
-/* Panel-level feedback surfaces as a fixed toast stack in the top-right
-   corner, above every extension overlay (drawer backdrop z-20, dialogs z-40). */
+/* Panel-level feedback surfaces, anchored to the floater body, not the OS
+   screen: `position: fixed` resolves against the settings card (see the
+   containment note on `.settings-card`), so the stack hugs the card's
+   top-right corner just below the 56px window header instead of drifting
+   toward a far screen edge or covering the window controls. Layered above
+   every extension overlay (drawer backdrop z-20, dialogs z-40). */
 .extensions-toasts {
   position: fixed;
-  top: 16px;
+  top: 64px; /* settings-card header height (56px) + breathing room */
   right: 16px;
   z-index: 50;
+  /* Container-relative, not `100vw`: the reference here is the floater body. */
+  width: min(360px, calc(100% - 32px));
   display: grid;
   gap: 8px;
-  justify-items: end;
 }
 
 .extensions-toast {
-  width: min(360px, calc(100vw - 32px));
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1910,6 +1921,10 @@ input:focus {
   font-size: 11px;
 }
 
+/* Modal overlay scoped to the floater body: fixed positioning resolves
+   against `.settings-card` (see the containment note there), so `inset: 0`
+   dims only the card and the dialog centers within the floater — the whole
+   OS screen is never dimmed. */
 .extension-permission-backdrop {
   position: fixed;
   inset: 0;
@@ -1922,7 +1937,7 @@ input:focus {
 
 .extension-permission-dialog {
   width: min(420px, 100%);
-  max-height: min(520px, calc(100vh - 40px));
+  max-height: min(520px, calc(100% - 40px));
   display: flex;
   flex-direction: column;
   border: 1px solid var(--input-stroke);
@@ -2127,7 +2142,7 @@ input:focus {
 
 .extension-custom-dialog {
   width: min(560px, 100%);
-  max-height: min(680px, calc(100vh - 32px));
+  max-height: min(680px, calc(100% - 32px));
   display: flex;
   flex-direction: column;
   border: 1px solid var(--input-stroke);
@@ -2190,7 +2205,7 @@ input:focus {
 .extension-custom-permissions input { width: 14px; min-height: 14px; accent-color: var(--accent); }
 .extension-custom-permission-boundary { padding: 8px 9px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-control); color: var(--text-muted); font-size: 9.5px; line-height: 1.4; }
 .extension-custom-permission-boundary svg { margin-top: 1px; color: var(--text-tertiary); }
-.extension-removal-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 17px; display: grid; gap: 14px; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-opaque); box-shadow: 0 18px 60px rgba(0, 0, 0, .28); }
+.extension-removal-dialog { width: min(440px, 100%); max-height: calc(100% - 32px); padding: 17px; display: grid; gap: 14px; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-opaque); box-shadow: 0 18px 60px rgba(0, 0, 0, .28); }
 .extension-removal-dialog > header { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text-primary); }
 .extension-removal-dialog > header > svg { margin-top: 2px; color: var(--text-warning); }
 .extension-removal-dialog h3, .extension-removal-dialog p { margin: 0; }
@@ -2207,6 +2222,10 @@ input:focus {
 .extension-argument-editor__row .extensions-icon-button { width: 28px; height: 28px; min-height: 28px; }
 .extension-argument-editor__empty { min-height: 29px; padding: 7px; border: 1px dashed var(--hairline); border-radius: var(--ext-radius); color: var(--text-tertiary); font-size: 10px; }
 
+/* Detail drawer: the backdrop is fixed-scoped to the floater body (see the
+   containment note on `.settings-card`), so `inset: 56px 0 0` starts below
+   the 56px settings header and `justify-content: flex-end` pins the drawer
+   to the card's right edge — never the screen edge. */
 .extension-drawer-backdrop {
   position: fixed;
   inset: 56px 0 0;
@@ -2555,7 +2574,7 @@ input:focus {
   .extension-permission-backdrop { padding: 8px; }
   .extension-permission-dialog,
   .extension-custom-dialog,
-  .extension-removal-dialog { max-height: calc(100vh - 16px); }
+  .extension-removal-dialog { max-height: calc(100% - 16px); }
   .extension-drawer-backdrop { inset-block-start: 40px; }
 }
 
@@ -3031,6 +3050,9 @@ canvas {
 
 /* ── Update banner ─────────────────────────────────────────────────────── */
 
+/* In-flow banner inside the About section, the section's only child: when it
+   appears or is replaced the settings window keeps its fixed height and the
+   scrollable content simply grows/shrinks — no sibling content jumps. */
 .update-banner {
   display: flex;
   align-items: center;
@@ -3040,6 +3062,7 @@ canvas {
   border-radius: 8px;
   background: var(--accent-tint);
   border: 1px solid var(--icon-edge);
+  animation: feedback-enter 150ms ease-out;
 }
 
 .update-banner__info {
@@ -3136,7 +3159,11 @@ canvas {
 
 /* An in-window overlay: the pinned session keeps its own broker attach and
    renderer, so the card is purely a frontend surface. It stays mounted in
-   every mode (frames keep landing) but is only visible in terminal mode. */
+   every mode (frames keep landing) but is only visible in terminal mode.
+   Scoping: the shells establish the containing block for fixed descendants
+   (will-change: transform), so the card lives inside the floater window, and
+   its geometry is clamped to the live viewport by `clampCardGeometry` (with
+   re-clamping on resize), so it can never spill past the app surface. */
 .pinned-card {
   position: fixed;
   z-index: 60;
