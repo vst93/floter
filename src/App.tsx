@@ -1443,6 +1443,20 @@ export default function App() {
     void loadSettings();
   }, [settingsHydration]);
 
+  // The webview's built-in right-click menu must never appear, on any
+  // surface. A capture-phase window listener covers every element including
+  // nodes without their own React handler (launcher card, settings pages,
+  // plugin iframe chrome); the per-element handlers stay as belt-and-braces.
+  useEffect(() => {
+    const suppressContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("contextmenu", suppressContextMenu, true);
+    return () => {
+      window.removeEventListener("contextmenu", suppressContextMenu, true);
+    };
+  }, []);
+
   useEffect(() => {
     invoke<string>("app_version")
       .then(setAppVersion)
@@ -2035,6 +2049,21 @@ export default function App() {
     reportTerminalMouse("move", 3, event.clientX, event.clientY, event);
   };
 
+  /** Read the system clipboard. The webview's own Clipboard API cannot be
+   * relied on here — WebKitGTK ships without `navigator.clipboard`, and
+   * WKWebView rejects programmatic reads outside its strict gesture policy —
+   * so both directions go through the arboard-backed backend commands and
+   * fall back to the JS API only where that exists (browser dev builds). */
+  const readSystemClipboard = (): Promise<string> =>
+    invoke<string>("clipboard_read_text").catch(() => navigator.clipboard.readText());
+
+  /** Write the system clipboard; see `readSystemClipboard` for why this takes
+   * the Rust path first. */
+  const writeSystemClipboard = (text: string): Promise<void> =>
+    invoke("clipboard_write_text", { text })
+      .then(() => undefined)
+      .catch(() => navigator.clipboard.writeText(text));
+
   const copySelection = async () => {
     const renderer = rendererRef.current;
     const sel = selectionRef.current;
@@ -2042,7 +2071,7 @@ export default function App() {
     const text = renderer.selectionText(sel);
     if (text) {
       try {
-        await navigator.clipboard.writeText(text);
+        await writeSystemClipboard(text);
       } catch {
         // Clipboard unavailable; selection remains highlighted.
         return;
@@ -2059,7 +2088,7 @@ export default function App() {
   };
 
   const sendTerminalText = (text: string, bracketed = false) => {
-    if (!text) return;
+    if (!text || !ptyReady.current) return;
     const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
     void invoke("term_input", {
       id: terminalInputTarget(),
@@ -2089,7 +2118,7 @@ export default function App() {
     if (!renderer) return;
     let text = "";
     try {
-      text = await navigator.clipboard.readText();
+      text = await readSystemClipboard();
     } catch {
       return;
     }
@@ -2195,6 +2224,19 @@ export default function App() {
             id: terminalInputTarget(),
             delta: event.key === "PageUp" ? lines : -lines,
           });
+          return;
+        }
+        // The shell receives keystrokes only while the terminal's own proxy
+        // input holds the keyboard AND the PTY is ready. Anything else is
+        // dropped here rather than forwarded: presses that arrive during a
+        // launcher→terminal transition, or while focus sits on a header
+        // button, would otherwise land at the prompt as phantom commands —
+        // exactly the "command not found" reports for text the user typed in
+        // the launcher and never meant for the shell.
+        if (
+          document.activeElement !== terminalTextInputRef.current ||
+          !ptyReady.current
+        ) {
           return;
         }
         if (

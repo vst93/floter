@@ -30,6 +30,7 @@ use commands::extensions::{
     extensions_refresh_official_status, extensions_repair, extensions_reprobe,
     extensions_reprobe_commands, extensions_search_tools, extensions_uninstall,
 };
+use commands::clipboard::{clipboard_read_text, clipboard_write_text};
 use commands::system::system_power;
 use commands::terminal::{
     open_in_default_terminal, term_attach_existing, term_close, term_detach_view, term_input,
@@ -1261,6 +1262,8 @@ pub fn run() {
             suspend_shortcuts,
             resume_shortcuts,
             set_recording_flag,
+            clipboard_write_text,
+            clipboard_read_text,
             show_terminal,
             show_plugin_page,
             plugin_pages::plugin_page_descriptor,
