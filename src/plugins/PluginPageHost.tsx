@@ -8,7 +8,7 @@ import {
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
-import type { Language } from "../i18n";
+import { createTranslator, type Language, type MessageKey } from "../i18n";
 
 /**
  * Host side of the generic plugin-page mechanism.
@@ -59,12 +59,18 @@ export function PluginPageHost({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [descriptor, setDescriptor] = useState<PluginPageDescriptorInfo | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  /** Bumped by the error state's retry button to re-run the descriptor fetch. */
+  const [reloadNonce, setReloadNonce] = useState(0);
   /** Correlation ids → resolvers for in-flight bridge invocations. */
   const pendingCalls = useRef(new Map<number, PendingCall>());
   // Ref mirrors so the once-registered message listener always sees current
   // values without resubscribing (and dropping in-flight calls) on re-render.
   const allowedRef = useRef<readonly string[]>([]);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  // The descriptor's human name arrives as an i18n KEY (`titleKey`); translate
+  // it here so the iframe's accessible name reads as a label, never as a raw
+  // dictionary key.
+  const t = useMemo(() => createTranslator(language), [language]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +93,7 @@ export function PluginPageHost({
       }
       pendingCalls.current.clear();
     };
-  }, [pluginId]);
+  }, [pluginId, reloadNonce]);
 
   useEffect(() => {
     frameRef.current = iframeRef.current;
@@ -170,14 +176,23 @@ export function PluginPageHost({
           ref={iframeRef}
           className="plugin-page-host__frame"
           src={src}
-          title={descriptor?.titleKey ?? pluginId}
+          title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId}
           // Opaque origin: scripts yes, same-origin access and Tauri APIs no.
           sandbox="allow-scripts"
           onLoad={handleFrameLoad}
         />
       ) : loadFailed ? (
         <div className="plugin-page-host__error" role="alert">
-          {pluginId}
+          <span className="plugin-page-host__error-title">
+            {t("plugin.pageError")}
+          </span>
+          <button
+            type="button"
+            className="update-banner__button"
+            onClick={() => setReloadNonce((nonce) => nonce + 1)}
+          >
+            {t("settings.retry")}
+          </button>
         </div>
       ) : null}
     </div>
