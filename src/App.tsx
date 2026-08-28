@@ -3969,7 +3969,16 @@ export default function App() {
               </svg>
             </button>
           </div>
-          {(launcherResults.length > 0 || actionBar || launcherFeedback || appsError) && (
+          {/* The clip wrapper is what animates: grid-template-rows 0fr → 1fr
+              collapses/expands the whole bottom area without a hard height
+              jump. The content stays mounted, only the class flips. */}
+          <div
+            className={
+              launcherResults.length > 0 || actionBar || launcherFeedback || appsError
+                ? "launcher-bottom-clip launcher-bottom-clip--open"
+                : "launcher-bottom-clip"
+            }
+          >
             <div className="launcher-bottom">
               {appsError && (
                 <div className="launcher-feedback" role="alert">
@@ -4091,7 +4100,7 @@ export default function App() {
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     );
