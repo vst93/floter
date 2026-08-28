@@ -1235,60 +1235,62 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       </div>
 
       <div className="extensions-installed">
-        <div className="extensions-sync-toolbar">
-          <div className="extensions-sync-toolbar__group">
-            <button
-              type="button"
-              className="extensions-action-button extensions-action-button--primary"
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              ref={customCreateButtonRef}
-              onClick={openCreateCustomIntegration}
-            >
-              <Plus size={14} strokeWidth={2} aria-hidden="true" />
-              {t("settings.extensions.createCustom")}
-            </button>
-            <button
-              type="button"
-              className="extensions-action-button"
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              title={t("settings.extensions.chooseManifestHint")}
-              onClick={() => void connectLocal()}
-            >
-              <Link2 size={14} strokeWidth={2} aria-hidden="true" />
-              {t("settings.extensions.chooseManifest")}
-            </button>
+        <div className="extensions-sync-cluster">
+          <div className="extensions-sync-toolbar">
+            <div className="extensions-sync-toolbar__group">
+              <button
+                type="button"
+                className="extensions-action-button extensions-action-button--primary"
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                ref={customCreateButtonRef}
+                onClick={openCreateCustomIntegration}
+              >
+                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+                {t("settings.extensions.createCustom")}
+              </button>
+              <button
+                type="button"
+                className="extensions-action-button"
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                title={t("settings.extensions.chooseManifestHint")}
+                onClick={() => void connectLocal()}
+              >
+                <Link2 size={14} strokeWidth={2} aria-hidden="true" />
+                {t("settings.extensions.chooseManifest")}
+              </button>
+            </div>
+            <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--transfer">
+              <button
+                type="button"
+                className="extensions-action-button"
+                aria-busy={syncOperation === "export"}
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                onClick={() => void exportExtensions()}
+              >
+                {syncOperation === "export" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileDown size={14} strokeWidth={2} aria-hidden="true" />}
+                {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
+              </button>
+              <button
+                type="button"
+                className="extensions-action-button"
+                aria-busy={syncOperation === "import"}
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                onClick={() => void importExtensions()}
+              >
+                {syncOperation === "import" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileUp size={14} strokeWidth={2} aria-hidden="true" />}
+                {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
+              </button>
+            </div>
           </div>
-          <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--transfer">
-            <button
-              type="button"
-              className="extensions-action-button"
-              aria-busy={syncOperation === "export"}
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              onClick={() => void exportExtensions()}
-            >
-              {syncOperation === "export" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileDown size={14} strokeWidth={2} aria-hidden="true" />}
-              {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
-            </button>
-            <button
-              type="button"
-              className="extensions-action-button"
-              aria-busy={syncOperation === "import"}
-              disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-              onClick={() => void importExtensions()}
-            >
-              {syncOperation === "import" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileUp size={14} strokeWidth={2} aria-hidden="true" />}
-              {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
-            </button>
-          </div>
-        </div>
-        <div className="extensions-package-hints">
-          <div className="extensions-package-hint" role="note">
-            <FileDown size={13} strokeWidth={2} aria-hidden="true" />
-            <span>{t("settings.extensions.fileTransferHint")}</span>
-          </div>
-          <div className="extensions-package-hint" role="note">
-            <Link2 size={13} strokeWidth={2} aria-hidden="true" />
-            <span>{t("settings.extensions.chooseManifestHint")}</span>
+          <div className="extensions-package-hints">
+            <div className="extensions-package-hint" role="note">
+              <FileDown size={13} strokeWidth={2} aria-hidden="true" />
+              <span>{t("settings.extensions.fileTransferHint")}</span>
+            </div>
+            <div className="extensions-package-hint" role="note">
+              <Link2 size={13} strokeWidth={2} aria-hidden="true" />
+              <span>{t("settings.extensions.chooseManifestHint")}</span>
+            </div>
           </div>
         </div>
         {exportResult && (
@@ -1316,7 +1318,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         )}
 
         <section className="extensions-section extensions-section--base">
-          <h3 className="extensions-section-title">{t("settings.plugins.baseSection")}</h3>
+          <h3 className="extensions-section-title">
+            <span>{t("settings.plugins.baseSection")}</span>
+            <span className="extension-status">{basePlugins.length}</span>
+          </h3>
           <p className="settings-section__hint extensions-base-plugin__hint">{t("settings.plugins.baseHint")}</p>
           <div className="extensions-list extensions-list--base">
             {basePlugins.map((plugin) => (
@@ -1344,7 +1349,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
           </div>
         </section>
         <section className="extensions-section">
-          <h3 className="extensions-section-title">{t("settings.extensions.section.connected")}</h3>
+          <h3 className="extensions-section-title">
+            <span>{t("settings.extensions.section.connected")}</span>
+            <span className="extension-status">
+              {loading
+                ? <LoaderCircle className="extensions-spinner" size={11} strokeWidth={2} aria-hidden="true" />
+                : connectedExtensions.length}
+            </span>
+          </h3>
           <div className="extensions-list extensions-list--installed">
             {loading ? (
               <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
