@@ -2612,6 +2612,21 @@ input:focus {
   border-top: 1px solid var(--hairline);
 }
 
+/* Inline discard confirmation (drawers): message plus keep/discard actions
+   sitting directly above the drawer footer, replacing the blocking
+   window.confirm flows. Reuses .extensions-notice--error coloring. */
+.extension-discard-bar {
+  margin: 0 12px;
+  padding: 8px 10px;
+}
+
+.extension-discard-bar .extensions-action-button {
+  height: 24px;
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 10px;
+}
+
 @media (hover: none), (pointer: coarse) {
   .extension-row__actions {
     opacity: 1;

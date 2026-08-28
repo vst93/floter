@@ -493,6 +493,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [toolSearchFailed, setToolSearchFailed] = useState(false);
   const [toolHighlight, setToolHighlight] = useState(0);
   const [customDirty, setCustomDirty] = useState(false);
+  // Inline discard confirmations (replacing window.confirm): armed while the
+  // bar above a drawer footer asks "discard unsaved changes?". Cleared as
+  // soon as the user edits again, saves, or dismisses the bar.
+  const [detailsDiscardArmed, setDetailsDiscardArmed] = useState(false);
+  const [customDiscardArmed, setCustomDiscardArmed] = useState(false);
   const customSavedRef = useRef<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
   const toolSearchNeedsRefresh = useRef(true);
   const suppressToolSearch = useRef(false);
@@ -525,6 +530,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
 
   const updateCustomIntegration = (update: (current: CustomIntegrationForm) => CustomIntegrationForm) => {
     setCustomIntegrationError(null);
+    setCustomDiscardArmed(false);
     setCustomIntegration((current) => {
       const next = update(current);
       setCustomDirty(JSON.stringify(next) !== JSON.stringify(customSavedRef.current));
@@ -542,12 +548,22 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     setToolHighlight(0);
     toolSearchNeedsRefresh.current = true;
     setCustomDirty(false);
+    setCustomDiscardArmed(false);
     customSavedRef.current = fresh;
   };
 
   const closeCustomIntegration = () => {
     if (busy || customIntegrationLoading) return;
-    if (customDirty && !window.confirm(t("settings.extensions.customDiscardConfirm"))) return;
+    if (customDirty) {
+      setCustomDiscardArmed(true);
+      return;
+    }
+    setShowCustomIntegration(false);
+    resetCustomIntegration();
+  };
+
+  const discardCustomIntegration = () => {
+    setCustomDiscardArmed(false);
     setShowCustomIntegration(false);
     resetCustomIntegration();
   };
@@ -736,11 +752,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     if (!busy) setRemovalTarget(null);
   });
   useDialogFocus(showCustomIntegration, customDialogRef, closeCustomIntegration);
-  useDialogFocus(Boolean(selectedId), drawerRef, () => {
-    if (!configDirty || window.confirm(t("settings.extensions.configDiscardConfirm"))) {
-      setSelectedId(null);
-    }
-  }, !showCustomIntegration && !removalTarget && !pendingLocal && !pendingToolSelection);
+  useDialogFocus(Boolean(selectedId), drawerRef, () => closeDetails(), !showCustomIntegration && !removalTarget && !pendingLocal && !pendingToolSelection);
+
+  useEffect(() => {
+    if (!configDirty) setDetailsDiscardArmed(false);
+  }, [configDirty]);
 
   useEffect(() => {
     if (!showCustomIntegration || customIntegrationLoading) return;
@@ -1149,7 +1165,15 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const closeDetails = () => {
-    if (configDirty && !window.confirm(t("settings.extensions.configDiscardConfirm"))) return;
+    if (configDirty) {
+      setDetailsDiscardArmed(true);
+      return;
+    }
+    setSelectedId(null);
+  };
+
+  const discardDetailsChanges = () => {
+    setDetailsDiscardArmed(false);
     setSelectedId(null);
   };
 
@@ -1371,7 +1395,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       )}
 
       {removalTarget && <RemovalDialog extension={removalTarget} busy={Boolean(busy)} t={t} dialogRef={removalDialogRef} stopPropagation={stopRowClick} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />}
-      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} toolSuggestions={toolSuggestions} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolSuggestion} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
+      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} discardArmed={customDiscardArmed} onDismissDiscard={() => setCustomDiscardArmed(false)} onDiscard={discardCustomIntegration} toolSuggestions={toolSuggestions} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolSuggestion} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
 
       {selected && (
         <div className="extension-drawer-backdrop" role="presentation" onMouseDown={closeDetails}>
@@ -1567,6 +1591,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                           t={t}
                           onChange={(value) => {
                             setConfigNotice(null);
+                            setDetailsDiscardArmed(false);
                             setConfigValues((current) => ({ ...current, [field.key]: value }));
                           }}
                         />
@@ -1585,6 +1610,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 </section>
               )}
             </div>
+            {detailsDiscardArmed && configDirty && (
+              <div className="extensions-notice extensions-notice--error extension-discard-bar" role="alert">
+                <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+                <span>{t("settings.extensions.configDiscardConfirm")}</span>
+                <button type="button" className="extensions-action-button" onClick={() => setDetailsDiscardArmed(false)}>{t("settings.extensions.cancel")}</button>
+                <button type="button" className="extensions-action-button extensions-action-button--danger" onClick={discardDetailsChanges}>{t("settings.extensions.discard")}</button>
+              </div>
+            )}
             <footer className="extension-drawer__footer">
               {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void invoke("open_path", { path: selected.manifestPath.replace(/[\\/]floter\.extension\.json$/, "") })}>
                 <ExternalLink size={14} strokeWidth={2} />{t("settings.extensions.openGeneratedLocation")}
