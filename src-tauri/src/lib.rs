@@ -313,6 +313,36 @@ fn on_wayland() -> bool {
     false
 }
 
+/// Lock or unlock user resizing, with the Wayland caveat handled.
+///
+/// Everywhere else, `set_resizable(false)` only stops the *user* from dragging
+/// the edges; programmatic `set_size` still goes through — X11 honours
+/// geometry changes regardless of the size hints, and Windows and macOS keep
+/// the two paths apart the same way. Wayland cannot make that distinction:
+/// GTK implements a non-resizable window by pinning its min and max size
+/// hints to the current size, and the compositor clamps EVERY resize — the
+/// panel's own included — into that box. The launcher is sized from the
+/// webview on every keystroke and the settings and plugin panels resize
+/// themselves when they open, so a window locked on Wayland is a window whose
+/// height never follows its content again: the result list grows underneath a
+/// fixed surface, every page switch keeps the previous page's height, and the
+/// leftover transparent surface keeps answering clicks the user aimed at the
+/// desktop beside the card — which is why click-outside-to-hide appeared
+/// broken there too.
+///
+/// So on Wayland a lock request is answered with "stay unlocked". Nothing is
+/// given up: an undecorated window has no frame the compositor lets the user
+/// grab, so the flag buys no user-resizability there in the first place.
+/// Callers that need the window re-locked once their geometry has landed (the
+/// plugin page) do it themselves, explicitly.
+fn set_panel_resizable(window: &WebviewWindow, resizable: bool) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if on_wayland() {
+        return window.set_resizable(true).map_err(|error| error.to_string());
+    }
+    window.set_resizable(resizable).map_err(|error| error.to_string())
+}
+
 /// The monitor holding the focused window, asked of X11 through `xprop` and
 /// then `xdotool` or `xwininfo`. This is the keyboard user's answer to "which
 /// screen am I on": it stays right even when the mouse was left elsewhere.
@@ -746,7 +776,7 @@ fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), Str
     } else {
         INPUT_WINDOW_WIDTH
     };
-    let _ = window.set_resizable(terminal);
+    let _ = set_panel_resizable(window, terminal);
 
     // Reveal first, position second: macOS' window server ignores geometry set
     // on an unmapped window, so a `set_position` made while hidden is discarded
@@ -893,11 +923,15 @@ fn show_plugin_page(
     }
     // Not edge-resizable while the page is up: there is no terminal grid to
     // reflow, and the saved terminal size must stay exactly what the terminal
-    // mode left it at.
-    window
-        .set_resizable(false)
-        .map_err(|error| error.to_string())?;
+    // mode left it at. On Wayland the lock has to come AFTER the resize (see
+    // [`set_panel_resizable`] — a locked window cannot be resized there at
+    // all), so the unlock happens first and the lock is restored below.
+    set_panel_resizable(&window, false)?;
     resize_window(&window, width, height, preserve_anchor)?;
+    #[cfg(target_os = "linux")]
+    if on_wayland() {
+        let _ = window.set_resizable(false);
+    };
     reveal_window(&window)?;
     if !preserve_anchor {
         let _ = move_to_default_position(&window, width, &state);
@@ -940,9 +974,11 @@ fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     // Flip the mode before resizing so an in-flight frontend resize callback
     // cannot persist the compact launcher dimensions as the terminal size.
     state.terminal_mode.store(false, Ordering::SeqCst);
-    window
-        .set_resizable(false)
-        .map_err(|error| error.to_string())?;
+    // Deliberately left unlocked on Wayland: the frontend keeps calling
+    // `setSize` on this window as the result list grows and shrinks, and a
+    // Wayland lock would clamp every one of those calls to the height the
+    // window happens to carry right now (see [`set_panel_resizable`]).
+    set_panel_resizable(&window, false)?;
     resize_window(
         &window,
         INPUT_WINDOW_WIDTH,
@@ -1167,7 +1203,7 @@ pub fn run() {
             window
                 .set_background_color(Some(Color(0, 0, 0, 0)))
                 .map_err(std::io::Error::other)?;
-            window.set_resizable(false)?;
+            set_panel_resizable(&window, false)?;
             let shadow_window = window.clone();
             window.on_window_event(move |event| {
                 match event {

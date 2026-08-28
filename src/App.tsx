@@ -714,6 +714,17 @@ export default function App() {
   const [terminalFeedback, setTerminalFeedback] = useState<MessageKey | null>(null);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
+  /** Mirror of the OS focus state as the listener below has seen it. Lives in
+   *  a ref rather than the effect so it survives the re-subscription every
+   *  mode change makes: a Focused(false) that arrives without a matching
+   *  Focused(true) before it is not a blur the user produced, it is GTK
+   *  reporting a window that never had keyboard focus — on Wayland the
+   *  compositor can refuse the activation request a global-hotkey summon
+   *  makes (focus-stealing prevention), the panel maps unfocused, and the
+   *  first report it then hands out must not be read as "the user clicked
+   *  away". Hiding on that would dismiss the panel the instant it appeared
+   *  on exactly the platforms where it never got focus to lose. */
+  const windowFocusedRef = useRef(false);
 
   const language = normalizeLanguage(settings.language);
   const t = useMemo(() => createTranslator(language), [language]);
@@ -1875,6 +1886,7 @@ export default function App() {
     currentWindow.onFocusChanged(({ payload: focused }) => {
       if (!mounted) return;
       if (focused) {
+        windowFocusedRef.current = true;
         if (mode === "collapsed") {
           focusCollapsedInput(20);
           focusCollapsedInput(80);
@@ -1889,6 +1901,13 @@ export default function App() {
       if (mode === "terminal" && (activeRenderer()?.mode ?? 0) & FOCUS_IN_OUT) {
         invoke("term_input", { id: terminalInputTarget(), data: [27, 91, 79] });
       }
+      // Only a real focused → unfocused transition may hide the panel; see
+      // `windowFocusedRef`. A focus report suppressed by the grace window
+      // leaves the flag set on purpose: the window genuinely is unfocused at
+      // that point, and the next report the compositor sends should still be
+      // allowed to dismiss it.
+      if (!windowFocusedRef.current) return;
+      windowFocusedRef.current = false;
       if (Date.now() < suppressBlurUntil.current) {
         return;
       }
