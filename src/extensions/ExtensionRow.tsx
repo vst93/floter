@@ -188,27 +188,6 @@ export function ExtensionRow({
         )}
 
         {extension.connected && (
-          <span className="extension-row__toggle-slot">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={extension.enabled}
-              aria-label={extension.enabled ? t("settings.extensions.disable") : t("settings.extensions.enable")}
-              aria-busy={rowToggleBusy}
-              className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}${rowToggleBusy ? " settings-switch--loading" : ""}`}
-              disabled={busy || extension.state === "broken"}
-              onClick={onToggle}
-            >
-              {rowToggleBusy ? (
-                <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" />
-              ) : (
-                <span className="settings-switch__thumb" />
-              )}
-            </button>
-          </span>
-        )}
-
-        {extension.connected && (
           <details className="extension-menu">
             <summary
               className={`extensions-icon-button extensions-icon-button--row${busy ? " extensions-icon-button--disabled" : ""}`}
@@ -233,6 +212,27 @@ export function ExtensionRow({
           </details>
         )}
       </div>
+
+      {extension.connected && (
+        <span className="extension-row__toggle-slot" onClick={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={extension.enabled}
+            aria-label={extension.enabled ? t("settings.extensions.disable") : t("settings.extensions.enable")}
+            aria-busy={rowToggleBusy}
+            className={`settings-switch${extension.enabled ? " settings-switch--active" : ""}${rowToggleBusy ? " settings-switch--loading" : ""}`}
+            disabled={busy || extension.state === "broken"}
+            onClick={onToggle}
+          >
+            {rowToggleBusy ? (
+              <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <span className="settings-switch__thumb" />
+            )}
+          </button>
+        </span>
+      )}
     </article>
   );
 }

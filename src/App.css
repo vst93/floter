@@ -1654,7 +1654,7 @@ input:focus {
      of clipping; --extensions-row-height stays the layout contract. */
   min-height: var(--extensions-row-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   padding: 8px 6px;
@@ -2606,7 +2606,8 @@ input:focus {
   .extension-custom-form__grid { grid-template-columns: 1fr; }
   .extension-custom-form__wide { grid-column: 1; }
   .extension-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
   }
 
   .extensions-package-hints {
