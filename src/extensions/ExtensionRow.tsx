@@ -10,6 +10,7 @@ import {
   Wrench,
 } from "lucide-react";
 import type { Translate } from "../i18n";
+import { useEffect, useRef } from "react";
 import type { Extension, ExtensionOperation } from "../ExtensionsPanel";
 
 type Props = {
@@ -63,6 +64,22 @@ export function ExtensionRow({
   onUninstall,
 }: Props) {
   const busy = Boolean(operation);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+
+  const closeMenu = () => {
+    if (menuRef.current?.open) menuRef.current.open = false;
+  };
+
+  useEffect(() => {
+    const handleMouseDown = (event: MouseEvent) => {
+      const details = menuRef.current;
+      if (details?.open && event.target instanceof Node && !details.contains(event.target)) {
+        details.open = false;
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
   const rowBusy = operation?.id === extension.id;
   const rowToggleBusy = rowBusy && (operation?.kind === "enable" || operation?.kind === "disable");
   const rowInstallBusy = rowBusy && operation?.kind === "install";
@@ -188,7 +205,7 @@ export function ExtensionRow({
         )}
 
         {extension.connected && (
-          <details className="extension-menu">
+          <details ref={menuRef} className="extension-menu">
             <summary
               className={`extensions-icon-button extensions-icon-button--row${busy ? " extensions-icon-button--disabled" : ""}`}
               aria-label={t("settings.extensions.moreActions")}
@@ -200,11 +217,11 @@ export function ExtensionRow({
             </summary>
             <div className="extension-menu__items">
               {extension.generatedCustom && (
-                <button type="button" disabled={busy} onClick={onEdit}>
+                <button type="button" disabled={busy} onClick={() => { closeMenu(); onEdit(); }}>
                   {t("settings.extensions.editCustom")}
                 </button>
               )}
-              <button type="button" className="extension-menu__danger" disabled={busy} onClick={onUninstall}>
+              <button type="button" className="extension-menu__danger" disabled={busy} onClick={() => { closeMenu(); onUninstall(); }}>
                 {kind === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
                 {t(kind === "custom" ? "settings.extensions.deleteCustom" : kind === "npm" ? "settings.extensions.uninstall" : kind === "system" ? "settings.extensions.disconnect" : "settings.extensions.removePackage")}
               </button>
