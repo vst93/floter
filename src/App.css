@@ -2241,7 +2241,8 @@ input:focus {
 .extension-custom-form select:focus-visible,
 .extension-custom-form textarea:focus-visible,
 .extension-custom-mode__item:focus-visible { outline: 1px solid var(--accent-ring); outline-offset: 1px; }
-.extension-tool-results { max-height: 130px; display: grid; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); }
+.extension-tool-results-anchor { position: relative; }
+.extension-tool-results { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 10; max-height: 130px; display: grid; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-opaque); box-shadow: 0 6px 18px var(--window-shadow-ambient); }
 .extension-tool-results:empty { display: none; }
 .extension-tool-results > span { padding: 8px; color: var(--text-tertiary); font-size: 10px; }
 .extension-tool-results button { min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid var(--hairline); background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color 120ms ease, color 120ms ease; }
