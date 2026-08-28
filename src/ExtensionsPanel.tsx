@@ -1427,22 +1427,22 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.info")}</h4>
                 <dl className="extension-metadata">
-                  <div><dt>{t("settings.extensions.integrationKind")}</dt><dd>{t(integrationKindKey(selected))}</dd></div>
-                  <div><dt>{t("settings.extensions.author")}</dt><dd>{selected.publisherName}</dd></div>
-                  <div><dt>{t("settings.extensions.source")}</dt><dd>{t(`settings.extensions.runtimeSource.${selected.runtimeSource}`)}</dd></div>
-                  <div><dt>{t("settings.extensions.integrationVersion")}</dt><dd>{selected.packageVersion}</dd></div>
-                  <div><dt>{t("settings.extensions.toolVersion")}</dt><dd>{selected.toolVersion ?? t("settings.extensions.unavailable")}</dd></div>
-                  <div><dt>{t("settings.extensions.availability")}</dt><dd>{t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}</dd></div>
-                  <div><dt>{t("settings.extensions.status")}</dt><dd>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
+                  <div><dt>{t("settings.extensions.integrationKind")}</dt><dd title={t(integrationKindKey(selected))}>{t(integrationKindKey(selected))}</dd></div>
+                  <div><dt>{t("settings.extensions.author")}</dt><dd title={selected.publisherName}>{selected.publisherName}</dd></div>
+                  <div><dt>{t("settings.extensions.source")}</dt><dd title={t(`settings.extensions.runtimeSource.${selected.runtimeSource}`)}>{t(`settings.extensions.runtimeSource.${selected.runtimeSource}`)}</dd></div>
+                  <div><dt>{t("settings.extensions.integrationVersion")}</dt><dd title={selected.packageVersion}>{selected.packageVersion}</dd></div>
+                  <div><dt>{t("settings.extensions.toolVersion")}</dt><dd title={selected.toolVersion ?? t("settings.extensions.unavailable")}>{selected.toolVersion ?? t("settings.extensions.unavailable")}</dd></div>
+                  <div><dt>{t("settings.extensions.availability")}</dt><dd title={t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}>{t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}</dd></div>
+                  <div><dt>{t("settings.extensions.status")}</dt><dd title={t(`settings.extensions.status.${selected.state}`)}>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
                   {selected.state === "broken" && (selected.lastErrorCode || selected.brokenReason) && (
-                    <div><dt>{t("settings.extensions.brokenDetail")}</dt><dd>{selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` · ${selected.brokenReason}` : ""}</dd></div>
+                    <div><dt>{t("settings.extensions.brokenDetail")}</dt><dd className="extension-metadata__dd--wrap" title={[selected.lastErrorCode, selected.brokenReason].filter(Boolean).join(" · ")}>{selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` · ${selected.brokenReason}` : ""}</dd></div>
                   )}
                   {selected.approvedAt ? (
-                    <div><dt>{t("settings.extensions.approvedAt")}</dt><dd>{new Date(selected.approvedAt * 1000).toLocaleString(locale)}</dd></div>
+                    <div><dt>{t("settings.extensions.approvedAt")}</dt><dd title={new Date(selected.approvedAt * 1000).toLocaleString(locale)}>{new Date(selected.approvedAt * 1000).toLocaleString(locale)}</dd></div>
                   ) : null}
-                  <div><dt>{t("settings.extensions.signature")}</dt><dd>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
-                  <div><dt>{t("settings.extensions.trust")}</dt><dd>{t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</dd></div>
-                  <div><dt>{t("settings.extensions.homepage")}</dt><dd>{selected.homepage ?? t("settings.extensions.unavailable")}</dd></div>
+                  <div><dt>{t("settings.extensions.signature")}</dt><dd title={t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
+                  <div><dt>{t("settings.extensions.trust")}</dt><dd title={t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}>{t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</dd></div>
+                  <div><dt>{t("settings.extensions.homepage")}</dt><dd className="extension-metadata__dd--wrap" title={selected.homepage ?? t("settings.extensions.unavailable")}>{selected.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || t("settings.extensions.noDescription")}</p>
               </section>

@@ -2434,6 +2434,12 @@ input:focus {
   white-space: nowrap;
 }
 
+.extension-metadata dd.extension-metadata__dd--wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
 .extension-detail-description,
 .extension-detail-empty {
   margin: 0;
