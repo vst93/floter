@@ -1513,6 +1513,12 @@ input:focus {
   gap: 8px;
 }
 
+/* When the detail drawer (width: min(430px, 88%)) or a dialog is open, slide
+   the stack clear of the drawer so it never covers the header's close button. */
+.extensions-toasts--offset {
+  right: calc(min(430px, 88%) + 12px);
+}
+
 .extensions-toast {
   min-width: 0;
   display: flex;

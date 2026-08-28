@@ -1612,7 +1612,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       )}
 
       {toasts.length > 0 && (
-        <div className="extensions-toasts">
+        <div className={`extensions-toasts${selected || showCustomIntegration ? " extensions-toasts--offset" : ""}`}>
           {toasts.map((toast) => <ExtensionsToast key={toast.id} toast={toast} t={t} onDismiss={dismissToast} />)}
         </div>
       )}
