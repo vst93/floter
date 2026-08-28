@@ -48,6 +48,7 @@ import {
   normalizeSearch,
   nextLauncherSelection,
   parseCommandLine,
+  recentItems,
   scoreApp,
   shouldDefaultToActionBar,
   type ActionBarKind,
@@ -203,6 +204,8 @@ type AppSettings = {
   clipboard_history_enabled: boolean;
   /** Global hotkey that summons the clipboard panel. */
   clipboard_history_hotkey: string;
+  /** Application path -> launch count, ranking the empty-query recent list. */
+  launch_counts: Record<string, number>;
 };
 
 /**
@@ -646,6 +649,7 @@ export default function App() {
     // The clipboard panel ships with NO global hotkey; users may bind one on
     // the shortcuts settings page.
     clipboard_history_hotkey: "",
+    launch_counts: {},
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
@@ -947,7 +951,34 @@ export default function App() {
   const launcherResults = useMemo<LauncherItem[]>(() => {
     const command = query.trim();
     const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
-    if (!command) return [];
+    if (!command) {
+      // The empty query is the launcher's front door: a summon with nothing
+      // typed yet still has something useful to offer. Rank the applications
+      // the user actually starts by launch count and render them as ordinary
+      // results, so the numbered shortcuts and Enter work unchanged. Typing
+      // any character leaves this branch.
+      const byPath = new Map(searchableApps.map((entry) => [entry.app.path, entry]));
+      const recentPaths = recentItems(
+        settings.launch_counts,
+        searchableApps.map((entry) => entry.app.path),
+        MAX_RESULTS - 1,
+      );
+      const recentRows: LauncherItem[] = [];
+      for (const path of recentPaths) {
+        const entry = byPath.get(path);
+        if (!entry) continue;
+        const app = entry.app;
+        recentRows.push({
+          type: "app",
+          id: app.path,
+          title: app.localizedName || app.name,
+          subtitle:
+            (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
+          app,
+        });
+      }
+      return recentRows;
+    }
 
     // A query of nothing but punctuation normalizes away entirely; it can only
     // ever be an action-bar command.
@@ -1058,7 +1089,7 @@ export default function App() {
     // The action bar occupies the final row. Keep at least one local match when
     // applications or power actions matched alongside catalog commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [catalogSuggestions, query, searchableApps, t]);
+  }, [catalogSuggestions, query, searchableApps, settings.launch_counts, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     const value = query.trim();
@@ -1420,6 +1451,7 @@ export default function App() {
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
+          launch_counts: loaded.launch_counts ?? {},
         };
         const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
         settingsRef.current = hydrated;
@@ -3099,9 +3131,26 @@ export default function App() {
     }
   };
 
+  /** Count an application launch so the empty-query state can rank it. The
+   *  counter rides the ordinary settings persistence; no dedicated command. */
+  const recordLaunch = (path: string) => {
+    const updated: AppSettings = {
+      ...settingsRef.current,
+      launch_counts: {
+        ...settingsRef.current.launch_counts,
+        [path]: (settingsRef.current.launch_counts[path] ?? 0) + 1,
+      },
+    };
+    settingsHydration.markChanged("launch_counts");
+    settingsRef.current = updated;
+    setSettings(updated);
+    persistSettings().catch(() => undefined);
+  };
+
   const runLauncherItem = (item: LauncherItem | undefined) => {
     if (!item) return;
     if (item.type === "app") {
+      recordLaunch(item.app.path);
       void launchApplication(item.app);
       return;
     }
@@ -4009,6 +4058,15 @@ export default function App() {
                 <div id="launcher-options" className="launcher-options" role="listbox" aria-label={t("launcher.results")}>
                   {launcherResults.length > 0 && (
                     <div className="launcher-results" role="presentation">
+                      {!query.trim() && (
+                        <div
+                          className="launcher-section-title"
+                          role="presentation"
+                          title={t("launcher.recentHint")}
+                        >
+                          {t("launcher.recent")}
+                        </div>
+                      )}
                       {launcherResults.map((item, index) => {
                         const selected = !selectedActionBar && index === selectedResultIndex;
                         const unavailable = item.type === "command" && !item.execution;

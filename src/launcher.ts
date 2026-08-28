@@ -35,6 +35,24 @@ export const launcherShortcutSlots = (runnableResults: boolean[]): Array<number 
   });
 };
 
+/** Rank application paths for the empty-query state: most launched first.
+ *
+ * Only paths with a count take a slot — an application never launched should
+ * not crowd out one the user actually starts. Ties keep the scan order of
+ * `paths`, so a stable application list yields a stable recent row.
+ */
+export const recentItems = (
+  counts: Record<string, number>,
+  paths: string[],
+  limit: number,
+): string[] =>
+  paths
+    .map((path, index) => ({ path, index, count: counts[path] ?? 0 }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => b.count - a.count || a.index - b.index)
+    .slice(0, limit)
+    .map((entry) => entry.path);
+
 export const COMMAND_WORDS = new Set([
   "cd", "git", "npm", "ls", "cat", "echo", "curl", "wget", "ssh",
   "cp", "mv", "rm", "mkdir", "touch", "chmod", "grep", "find",

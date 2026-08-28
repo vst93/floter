@@ -100,6 +100,9 @@ pub struct AppSettings {
     pub clipboard_history_enabled: bool,
     /// Global hotkey that summons the clipboard panel.
     pub clipboard_history_hotkey: String,
+    /// Application path -> launch count, ranking the launcher's empty-query
+    /// recent list. Owned by the frontend; no dedicated command persists it.
+    pub launch_counts: HashMap<String, u32>,
 }
 
 impl Default for AppSettings {
@@ -121,6 +124,7 @@ impl Default for AppSettings {
             show_commands_in_search: false,
             clipboard_history_enabled: true,
             clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
+            launch_counts: HashMap::new(),
         }
     }
 }
@@ -655,6 +659,12 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn older_settings_start_with_no_launch_counts() {
+        let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(settings.launch_counts.is_empty());
+    }
 
     #[test]
     fn older_settings_do_not_enable_autostart() {
