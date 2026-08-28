@@ -2618,6 +2618,16 @@ input:focus {
   border-top: 1px solid var(--hairline);
 }
 
+/* Group the footer buttons by weight: the secondary actions (open
+   location / edit / recheck) pack to one side and the destructive
+   action is pinned to the far edge, so the two groups never read as
+   one undifferentiated row. The single auto margin absorbs all free
+   space, and once the row wraps the danger button lands alone on its
+   own line, still aligned to the end edge. */
+.extension-drawer__footer > .extensions-action-button--danger {
+  margin-inline-start: auto;
+}
+
 /* Inline discard confirmation (drawers): message plus keep/discard actions
    sitting directly above the drawer footer, replacing the blocking
    window.confirm flows. Reuses .extensions-notice--error coloring. */
