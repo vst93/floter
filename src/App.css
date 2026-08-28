@@ -1368,10 +1368,11 @@ input:focus {
   --ext-bg-hover: var(--surface-control-hover);
   --ext-bg-selected: var(--accent-tint-hover);
   --ext-border: 1px solid var(--stroke-control);
-  --extensions-control-height: 28px;
-  --extensions-row-height: 52px;
-  --extensions-icon-size: 28px;
-  --extensions-inline-gap: 4px;
+  --extensions-control-height: 30px;
+  --extensions-row-height: 66px;
+  --extensions-icon-size: 30px;
+  --extensions-inline-gap: 5px;
+  --extensions-section-gap: 20px;
   position: relative;
   min-height: 280px;
   cursor: default;
@@ -1387,7 +1388,7 @@ input:focus {
    header and the tabs, clickable as a whole like the general-settings rows. */
 .extensions-panel__search-toggle {
   min-height: 40px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   padding: 4px 10px;
   border: 1px solid var(--stroke-control);
   border-radius: var(--ext-radius);
@@ -1464,12 +1465,13 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 9px;
+  padding: 7px 10px;
   border: var(--ext-border);
   border-radius: var(--ext-radius);
   background: var(--surface-control);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.45;
 }
 
 .extensions-notice svg {
@@ -1482,12 +1484,16 @@ input:focus {
   overflow-wrap: anywhere;
 }
 
+/* Result notices read as outcomes, one quiet band per event — visually
+   distinct from the toasts (floating, top-right) and the plain hints. */
 .extensions-notice--error {
   color: var(--text-warning);
+  background: color-mix(in srgb, var(--text-warning) 7%, var(--surface-control));
 }
 
 .extensions-notice--success {
   color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-control));
 }
 
 /* Panel-level feedback surfaces, anchored to the floater body, not the OS
@@ -1562,45 +1568,65 @@ input:focus {
 .extensions-installed {
   min-width: 0;
   display: grid;
-  gap: 12px;
+  /* One rhythm for the whole page: major sections breathe apart while
+     everything inside a section stays tight. */
+  gap: var(--extensions-section-gap);
 }
 
 .extensions-section {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .extensions-section-title {
   margin: 0;
   padding: 0 4px;
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 650;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
+/* One framed action bar: create/connect cluster on the left, transfer
+   (export/import) on the right behind a divider — the four buttons read as
+   two groups inside a single control surface instead of a flat row. */
 .extensions-sync-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 8px 14px;
+  padding: 8px 10px;
+  border: var(--ext-border);
+  border-radius: calc(var(--ext-radius) + 2px);
 }
 
 .extensions-sync-toolbar__group {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--extensions-inline-gap);
+  gap: 8px;
 }
 
+.extensions-sync-toolbar__group--transfer {
+  margin-inline-start: auto;
+  padding-inline-start: 14px;
+  border-inline-start: 1px solid var(--stroke-control);
+}
+
+/* Hints are caption text pinned to the toolbar they describe — quiet and
+   borderless so they never compete with result notices or toasts. */
 .extensions-package-hints {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 3px 18px;
+  margin-top: -10px;
+  padding: 0 2px;
 }
-.extensions-package-hint { padding: 7px 8px; display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 6px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-control); color: var(--text-secondary); font-size: 9.5px; line-height: 1.4; }
-.extensions-package-hint svg { margin-top: 1px; }
+.extensions-package-hint { padding: 0; display: grid; grid-template-columns: 13px minmax(0, 1fr); gap: 6px; align-items: center; border: 0; border-radius: 0; background: transparent; color: var(--text-tertiary); font-size: 9px; line-height: 1.5; }
+.extensions-package-hint svg { margin-top: 0; flex: 0 0 auto; color: var(--text-tertiary); }
 
 .extensions-list {
   min-width: 0;
@@ -1611,6 +1637,12 @@ input:focus {
   border-top: var(--ext-border);
 }
 
+/* Base-plugin cards sit in their own column so they read as toggle cards,
+   clearly distinct from the hairline-separated installed list below. */
+.extensions-list--base {
+  gap: 8px;
+}
+
 .extensions-list--installed > .extension-row:not(:last-child) {
   border-bottom: 1px solid var(--hairline);
 }
@@ -1618,12 +1650,14 @@ input:focus {
 .extension-row {
   position: relative;
   min-width: 0;
-  height: var(--extensions-row-height);
+  /* min-height (not height) so a wrapped meta line can grow the row instead
+     of clipping; --extensions-row-height stays the layout contract. */
+  min-height: var(--extensions-row-height);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 4px 3px;
+  gap: 12px;
+  padding: 8px 6px;
   cursor: pointer;
   transition: background-color 120ms ease;
 }
@@ -1659,6 +1693,18 @@ input:focus {
   cursor: default;
 }
 
+/* Not-yet-connected tools read as "pending": dashed ghost icon, slightly
+   receded title — scannable separation from the connected list above. */
+.extension-row--detected .extension-row__icon {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.extension-row--detected .extension-row__title strong {
+  color: var(--text-secondary);
+}
+
 .extension-row--broken {
   background: color-mix(in srgb, var(--text-warning) 5%, transparent);
 }
@@ -1672,7 +1718,7 @@ input:focus {
   display: grid;
   grid-template-columns: var(--extensions-icon-size) minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -1694,21 +1740,20 @@ input:focus {
 .extension-row__main {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 5px;
 }
-
 .extension-row__title {
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 7px;
+  gap: 8px;
 }
 
 .extension-row__title strong {
   min-width: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1721,34 +1766,45 @@ input:focus {
   font-variant-numeric: tabular-nums;
 }
 
-.extension-row__title span {
-  color: var(--text-strong);
-}
-
+/* Secondary identity line: allowed to wrap (row grows) instead of clipping,
+   with dot separators and tertiary weight so it stays below the title. */
 .extension-row__meta {
   min-width: 0;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
-  color: var(--text-strong);
-  font-size: 9.5px;
+  gap: 3px 8px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.55;
   overflow: hidden;
-  white-space: nowrap;
 }
 
 .extension-row__meta > span:not(.extension-status) {
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.extension-row__meta > span:not(:first-child):not(.extension-status)::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--text-tertiary);
+  opacity: 0.7;
+}
+
+.extension-row__meta > .extension-status {
+  margin-left: 2px;
+}
+
 .extension-status {
   flex: 0 0 auto;
-  padding: 1px 5px;
+  padding: 2px 7px;
   border-radius: var(--ext-radius);
   background: var(--surface-control);
-  color: var(--text-strong);
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
 .extension-status--enabled {
@@ -1800,7 +1856,7 @@ input:focus {
 }
 
 .extension-row__toggle-slot .settings-switch__thumb {
-  top: 5px;
+  top: 6px;
   left: 5px;
   width: 18px;
   height: 18px;
@@ -1817,12 +1873,12 @@ input:focus {
   align-items: center;
   justify-content: center;
   gap: var(--extensions-inline-gap);
-  padding: 0 9px;
+  padding: 0 10px;
   border: var(--ext-border);
   border-radius: var(--ext-radius);
   background: var(--surface-control);
   color: var(--text-strong);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
   flex: 0 0 auto;
@@ -1886,7 +1942,7 @@ input:focus {
 
 .extension-menu__items button {
   width: 100%;
-  min-height: 28px;
+  min-height: 30px;
   display: flex;
   align-items: center;
   gap: var(--extensions-inline-gap);
@@ -2555,6 +2611,13 @@ input:focus {
 
   .extensions-package-hints {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The divider makes no sense once the groups stack. */
+  .extensions-sync-toolbar__group--transfer {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+    border-inline-start: 0;
   }
 
   .extension-drawer {
@@ -3703,16 +3766,17 @@ canvas {
    switched on and off HERE, in the extensions ecosystem's Installed surface.
    One obvious place: the old General-settings toggle is gone. */
 .extensions-base-plugin__hint {
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .extensions-base-plugin {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--stroke-control);
+  border-radius: 10px;
   background: var(--surface-control);
 }
 
