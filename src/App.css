@@ -2353,6 +2353,24 @@ input:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.extension-drawer__header .extension-status {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-variant-numeric: normal;
+  white-space: nowrap;
+}
+
+.extension-drawer__header .extension-status--enabled {
+  color: var(--accent);
+}
+
+.extension-drawer__header .extension-status--broken {
+  color: var(--text-warning);
+  background: color-mix(in srgb, var(--text-warning) 10%, transparent);
+}
+
 .extension-drawer__body {
   flex: 1;
   min-height: 0;

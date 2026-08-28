@@ -1388,6 +1388,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               <div>
                 <h3 id="extension-drawer-title">{selected.name}</h3>
                 <span>v{selected.currentVersion}</span>
+                <span className={`extension-status extension-status--${selected.state}`}>{t(`settings.extensions.status.${selected.state}`)}</span>
               </div>
               <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.closeDetails")} data-dialog-initial onClick={closeDetails}>
                 <X size={17} strokeWidth={2} aria-hidden="true" />
@@ -1396,6 +1397,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
             <div className="extension-drawer__body">
               {detailLoading && <div className="extension-drawer__loading"><LoaderCircle className="extensions-spinner" size={17} strokeWidth={2} />{t("settings.extensions.loadingDetails")}</div>}
               {detailError && <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{detailError}</span></div>}
+              {selected.state === "broken" && (selected.brokenReason || selected.lastErrorCode) && (
+                <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.brokenDetail")}: {selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` ${selected.brokenReason}` : ""}</span></div>
+              )}
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.info")}</h4>
                 <dl className="extension-metadata">
