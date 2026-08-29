@@ -507,8 +507,7 @@ input:focus {
 .launcher-result {
   width: 100%;
   height: 42px;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 9px 0 11px;
@@ -535,6 +534,7 @@ input:focus {
 }
 
 .launcher-result__icon {
+  flex: 0 0 auto;
   width: 28px;
   height: 28px;
   display: grid;
@@ -572,6 +572,7 @@ input:focus {
 }
 
 .launcher-result__main {
+  flex: 1 1 0;
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -584,14 +585,35 @@ input:focus {
   white-space: nowrap;
 }
 
+/* Source sits at a fixed slot on the row's right edge instead of hanging off
+   the subtitle: an inline suffix is the first thing ellipsis eats on a narrow
+   window, precisely when "where did this result come from" matters most. The
+   full text stays reachable through the title tooltip. */
 .launcher-result__source {
-  margin-left: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 510;
+  text-align: right;
 }
 
-.launcher-result__source::before {
-  content: "·";
-  margin-right: 6px;
+.launcher-result--selected .launcher-result__source {
+  color: var(--text-secondary);
+}
+
+/* Runtime-unavailable and command-conflict never live in truncatable text:
+   an 8px dot reads at any width, and the title attribute carries the words. */
+.launcher-result__warning {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-warning);
 }
 
 .launcher-result__title {

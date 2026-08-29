@@ -74,6 +74,7 @@ import {
   LauncherResults,
   appSubtitleKey,
   type ActionBar,
+  type CommandWarning,
   type LauncherItem,
   type SystemAction,
 } from "./launcher/LauncherResults";
@@ -865,12 +866,12 @@ export default function App() {
       .slice(0, commandLimit)
       .map((suggestion) => {
         const { entry } = suggestion;
-        const unavailable = !entry.runtimeAvailable
-          ? ` · ${t("extensions.runtimeUnavailable")}`
-          : "";
-        const conflict = (commandCounts.get(entry.command) ?? 0) > 1
-          ? ` · ${t("extensions.conflict")}`
-          : "";
+        // Warnings stay out of the subtitle string: they render as an
+        // always-visible dot beside the source label, so a narrow window can
+        // never truncate them away.
+        const warnings: CommandWarning[] = [];
+        if (!entry.runtimeAvailable) warnings.push("unavailable");
+        if ((commandCounts.get(entry.command) ?? 0) > 1) warnings.push("conflict");
         if (suggestion.kind === "completion") {
           const dynamic = suggestion.dynamic
             ? ` · ${t("extensions.dynamicCompletion")}`
@@ -879,7 +880,8 @@ export default function App() {
             type: "command",
             id: `${entry.id}:completion:${suggestion.completion.value}`,
             title: suggestion.completion.label,
-            subtitle: `${suggestion.completion.description}${dynamic}${unavailable}`,
+            subtitle: `${suggestion.completion.description}${dynamic}`,
+            warnings,
             sourceName: entry.sourceName,
             commandLine: suggestion.commandLine,
             execution: suggestion.execution,
@@ -890,7 +892,8 @@ export default function App() {
           type: "command",
           id: entry.id,
           title: entry.command,
-          subtitle: `${entry.description}${conflict}${unavailable}`,
+          subtitle: entry.description,
+          warnings,
           sourceName: entry.sourceName,
           commandLine: parsedQuery.commandIndex !== null && (
             parsedQuery.commandIndex > 0 ||
