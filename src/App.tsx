@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
@@ -13,17 +13,17 @@ import {
   SlidersHorizontal,
   SquareTerminal,
 } from "lucide-react";
-import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
+import { TerminalCanvas } from "./terminal/render";
 import { PinnedTerminalCard } from "./terminal/PinnedTerminalCard";
 import { PINNED_SESSION_ID } from "./terminal/pinState";
-import { usePinnedTerminal } from "./hooks/usePinnedTerminal";
+import { useTerminalView, terminalFontFamily } from "./hooks/useTerminalView";
+import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
+import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import {
   encodeKey,
   FOCUS_IN_OUT,
   isTerminalCompositionKey,
-  MOUSE_MOTION,
   shouldUseTerminalTextInput,
-  usesMouseReporting,
 } from "./terminal/keys";
 import {
   createTranslator,
@@ -36,17 +36,7 @@ import { PluginPageHost } from "./plugins/PluginPageHost";
 import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
-  classifyActionBar,
-  completedCommandLine,
-  executionWithCompletion,
-  launcherShortcutSlots,
-  normalizeSearch,
   nextLauncherSelection,
-  parseCommandLine,
-  recentItems,
-  scoreApp,
-  shouldDefaultToActionBar,
-  type CompletionItem,
   type ExecutionPlan,
 } from "./launcher";
 import {
@@ -78,11 +68,8 @@ import { SessionsPage } from "./settings/SessionsPage";
 import { AboutPage } from "./settings/AboutPage";
 import {
   LauncherResults,
-  appSubtitleKey,
   type ActionBar,
-  type CommandWarning,
   type LauncherItem,
-  type SystemAction,
 } from "./launcher/LauncherResults";
 import "./App.css";
 
@@ -96,9 +83,8 @@ if (IS_WINDOWS) {
 
 /** Any surface a plugin page can be opened over; it replaces the canvas and
  * returns to the remembered one when dismissed. */
-type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
+export type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
 export type CursorShape = "beam" | "block" | "underline";
-type ExternalTerminalOutcome = { session_handed_off: boolean };
 
 export type BrokerSessionInfo = {
   sessionId: string;
@@ -126,51 +112,6 @@ export type LocalApplication = {
   aliases?: string[] | null;
 };
 
-/** Answer to `check_applications`: whether a rescan would find anything new. */
-type ApplicationsStatus = { upToDate: boolean; count: number };
-
-type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
-
-type CatalogArgument = {
-  names: string[];
-  kind: "flag" | "string" | "integer" | "number" | "path" | "directory" | "url" | "enum" | "command";
-  description: string;
-  takesValue: boolean;
-  required: boolean;
-  repeatable: boolean;
-  values: string[];
-  valueHint: string | null;
-};
-
-type CatalogEntry = {
-  id: string;
-  command: string;
-  namespace: string;
-  qualifiedCommand: string;
-  name: string;
-  description: string;
-  sourceKind: CatalogSourceKind;
-  sourceName: string;
-  aliases: string[];
-  arguments: CatalogArgument[];
-  execution: ExecutionPlan | null;
-  runtimeAvailable: boolean;
-  frequency: number;
-};
-
-type CatalogCompletionResponse = { items: CompletionItem[]; dynamic: boolean };
-
-type CatalogSuggestion =
-  | { kind: "catalog"; entry: CatalogEntry }
-  | {
-      kind: "completion";
-      entry: CatalogEntry;
-      completion: CompletionItem;
-      commandLine: string;
-      execution: ExecutionPlan | null;
-      dynamic: boolean;
-    };
-
 export type AppSettings = {
   hotkey: string;
   hide_on_blur: boolean;
@@ -195,17 +136,9 @@ export type AppSettings = {
   last_settings_page: SettingsPage;
 };
 
-const FALLBACK_FONT_FAMILY =
-  "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
-const LINE_HEIGHT = 1.4;
-const PADDING_X = 3;
-const PADDING_Y = 3;
 const INPUT_WINDOW_WIDTH = 720;
 const SETTINGS_WINDOW_HEIGHT = 580;
 const SETTINGS_MIN_HEIGHT = 420;
-const TERMINAL_SIZE_SAVE_DELAY = 280;
-const MAX_RESULTS = 6;
-const BRACKETED_PASTE = 1 << 4;
 /** How long the panel ignores a blur after a Windows drag; see `startDrag`.
  *  `start_dragging()` opens a modal move loop the webview spends unfocused,
  *  just like the old `WM_NCLBUTTONDOWN` path did - so the same grace period is
@@ -217,123 +150,11 @@ const DRAG_BLUR_GRACE = 600;
 const TERMINAL_FOCUS_RETRY = 180;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
-const ICON_LOAD_DELAY = 250;
-const CATALOG_SEARCH_DELAY = 140;
-const COMMAND_LINE_SYNTAX = IS_WINDOWS ? "windows" : "posix";
-
-const terminalFontFamily = (value: string): string => {
-  const family = value.trim();
-  if (!family || family === "monospace") return FALLBACK_FONT_FAMILY;
-  const escaped = family.replace(/[\\']/g, "\\$&");
-  return `'${escaped}',${FALLBACK_FONT_FAMILY}`;
-};
-
-type ModifierEvent = {
-  shiftKey: boolean;
-  altKey: boolean;
-  ctrlKey: boolean;
-  metaKey: boolean;
-};
-
-function terminalMouseModifiers(event: ModifierEvent): number {
-  return (event.shiftKey ? 4 : 0) | (event.altKey || event.metaKey ? 8 : 0) | (event.ctrlKey ? 16 : 0);
-}
-
-/** An application with its searchable names normalized once, up front. */
-type SearchableApp = {
-  app: LocalApplication;
-  names: string[];
-  initials: string;
-  aliases: string[];
-};
-
-/**
- * Best score for a needle across an application's names, its initials and the
- * aliases the platform knows it by.
- *
- * The three are separate keys rather than one list because they need different
- * ceilings. The initials are a shorthand: `wyyyy` *is* the whole of
- * "网易云音乐"'s key, so it would otherwise score a perfect 1000 and outrank an
- * application whose actual name the query spells out in full. An alias is
- * weaker still — nobody looking at the launcher can see that "企业微信" is also
- * `WXWork`, so a match on one is a guess about intent, and it is capped below
- * every visible-name match. Loose subsequence hits are dropped there entirely
- * for the same reason: a bundle identifier is long enough that some scattered
- * subsequence of almost any query can be found in one.
- */
-/**
- * The built-in power actions, searched like applications.
- *
- * `searchNames` carries the wording of *every* language rather than only the
- * current one: the UI language says nothing about the keyboard the query is
- * typed on, so "restart" has to find the entry on a Chinese UI and "关机" on an
- * English one. They are normalized here, once, for the same reason application
- * names are — see [`scoreNormalized`].
- *
- * `initials` is the pinyin key, the same shorthand [`compute_initials`] builds
- * for an application in the backend, and it exists for the same reason: a
- * Chinese name is unreachable from a Latin keyboard otherwise. It is written out
- * by hand because these two entries are the only names the frontend owns, and
- * shipping a pinyin table to the webview to spell four of them would cost more
- * than it saves. Only the Chinese spellings are covered — the English ones are
- * already whole entries in `searchNames`.
- */
-const SYSTEM_COMMANDS: {
-  action: SystemAction;
-  titleKey: MessageKey;
-  subtitleKey: MessageKey;
-  searchNames: string[];
-  initials: string;
-}[] = [
-  {
-    action: "restart",
-    titleKey: "system.restart",
-    subtitleKey: "system.restartSubtitle",
-    searchNames: ["restart", "reboot", "重启", "重新启动"].map(normalizeSearch),
-    // 重启 → cq, 重新启动 → cxqd, then both again under 重's other reading. 重 is
-    // chóng here and zhòng when it means "heavy", and which one a person reaches
-    // for is a coin toss — an IME trains either. Both spellings are keys to the
-    // same action, so both are in.
-    initials: "cqcxqdzqzxqd",
-  },
-  {
-    action: "shutdown",
-    titleKey: "system.shutdown",
-    subtitleKey: "system.shutdownSubtitle",
-    searchNames: ["shutdown", "shut down", "power off", "关机", "关闭电脑"].map(normalizeSearch),
-    // 关机 → gj, 关闭电脑 → gbdn. Neither character has a second reading.
-    initials: "gjgbdn",
-  },
-  {
-    action: "clipboard",
-    titleKey: "system.clipboardHistory",
-    subtitleKey: "system.clipboardHistorySubtitle",
-    searchNames: [
-      "clipboard",
-      "clipboard history",
-      "paste history",
-      "剪贴板",
-      "剪贴板历史",
-      "粘贴历史",
-    ].map(normalizeSearch),
-    // 剪贴板 → jtb, 剪贴板历史 → jtbls, 粘贴历史 → ntls; plus the English
-    // initials so `ch` reaches it too.
-    initials: "chjtblsjtblsntls",
-  },
-];
-
-
-type FramePayload = { id: string; generation: number; frame: string };
-type ExitPayload = { id: string; generation: number; code: number | null };
 
 /** Identity zone in the terminal bar: a status dot plus the session title
  * (the command the session was launched with, else the broker session name).
  * The exit event flips it to the exited state. */
-type MainSessionIdentity = { title: string; exited: boolean; exitCode: number | null };
-
-type DragState =
-  | { mode: "none" | "select" | "scroll" }
-  | { mode: "mouse"; button: number };
+export type MainSessionIdentity = { title: string; exited: boolean; exitCode: number | null };
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -343,24 +164,12 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const terminalTextInputRef = useRef<HTMLTextAreaElement>(null);
   const terminalComposing = useRef(false);
-  const rendererRef = useRef<TerminalCanvas | null>(null);
-  const frameRef = useRef<Uint8Array | null>(null);
-  const blinkRef = useRef(true);
-  const dimsRef = useRef<{ cols: number; rows: number }>({ cols: 80, rows: 24 });
-  const selectionRef = useRef<Selection | null>(null);
-  const dragRef = useRef<DragState>({ mode: "none" });
-  const lastScrollAt = useRef(0);
-  const lastMouseReportAt = useRef(0);
-  const wheelRemainder = useRef(0);
-  const terminalSizeSaveTimer = useRef<number | null>(null);
-  const pendingTerminalSize = useRef<{ width: number; height: number } | null>(null);
   const settingsSaveTimer = useRef<number | null>(null);
   const settingsHydration = useMemo(() => createSettingsHydration<AppSettings>(), []);
   const settingsLoadPromise = useRef<Promise<void> | null>(null);
   const hydrationSavePromise = useRef<Promise<void> | null>(null);
   const settingsSaveGeneration = useRef(0);
   const appQuitting = useRef(false);
-  const clickSeq = useRef({ count: 0, time: 0, col: -1, row: -1 });
 
   const ptyReady = useRef(false);
   const terminalGeneration = useRef<number | null>(null);
@@ -369,20 +178,13 @@ export default function App() {
    * listing round-trip. */
   const mainBrokerSessionIdRef = useRef<string | null>(null);
   const pinnedRendererRef = useRef<TerminalCanvas | null>(null);
-  const pinBusy = useRef(false);
   const nextTerminalGeneration = useRef(Date.now());
   const sessionClosePromise = useRef<Promise<unknown> | null>(null);
-  const termOpened = useRef(false);
   const terminalOpening = useRef(false);
-  const externalTerminalOpening = useRef(false);
   const systemPowerOpening = useRef(false);
   const launcherFeedbackTimer = useRef<number | null>(null);
   const terminalFeedbackTimer = useRef<number | null>(null);
-  const draftBeforeHistory = useRef("");
   const restoringMode = useRef<ViewMode | null>(null);
-  /** Guards against two scans overlapping: a cold cache reads as out of date, so
-   * a summon during the very first scan would otherwise start a second one. */
-  const appScanning = useRef(false);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
   /** Ref mirror of `mode` so event listeners registered once can still see the
@@ -397,7 +199,6 @@ export default function App() {
   useEffect(() => { pluginPageIdRef.current = pluginPageId; }, [pluginPageId]);
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
-  const [terminalMounted, setTerminalMounted] = useState(false);
   /** Header identity (status dot + title) for the session in the main terminal
    * view; null until a spawn/attach has described it. */
   const [mainSessionIdentity, setMainSessionIdentity] = useState<MainSessionIdentity | null>(null);
@@ -414,25 +215,7 @@ export default function App() {
   /** True while the card holds the only view of a live session (the main slot
    * is empty); drives the placeholder in the terminal panel. */
   const [mainPinnedAway, setMainPinnedAway] = useState(false);
-  const { pinState, dispatchPinEvent, geometry: cardGeometry, updateGeometry: updateCardGeometry } = usePinnedTerminal();
-  const pinStateRef = useRef(pinState);
-  pinStateRef.current = pinState;
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [applications, setApplications] = useState<LocalApplication[]>([]);
-  /** True until the first scan settles, whether it hit the cache or not. */
-  const [appsLoading, setAppsLoading] = useState(true);
-  const [appsError, setAppsError] = useState(false);
   const [appVersion, setAppVersion] = useState("DEV");
-  const [appIconUrls, setAppIconUrls] = useState<Record<string, string>>({});
-  // Ref mirror of `appIconUrls` so the icon-loading effect can check which
-  // icons are already resolved without subscribing to the state change —
-  // without this, every icon that resolves re-triggers the effect, which
-  // re-sets the timer, which delays every subsequent icon.
-  const appIconUrlsRef = useRef(appIconUrls);
-  const appIconAttempts = useRef(new Set<string>());
-  useEffect(() => { appIconUrlsRef.current = appIconUrls; }, [appIconUrls]);
-  const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogSuggestion[]>([]);
   const [terminalSessions, setTerminalSessions] = useState<BrokerSessionInfo[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState(false);
@@ -446,7 +229,6 @@ export default function App() {
   // loading/error state; an older response may otherwise resurrect a session
   // that a later refresh has already removed.
   const sessionsRequestGeneration = useRef(0);
-  const catalogRequestGeneration = useRef(0);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
    * Enter runs. The two selections are exclusive but kept apart, because the
@@ -610,6 +392,150 @@ export default function App() {
   const resolvedTheme: "dark" | "light" =
     settings.theme === "auto" ? systemTheme : settings.theme === "light" ? "light" : "dark";
 
+  // Hoisted above the hook calls so the option objects below can reference
+  // them; the bodies are unchanged.
+  const focusCollapsedInput = (delay = 0) => {
+    window.setTimeout(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      const length = input.value.length;
+      input.setSelectionRange(length, length);
+    }, delay);
+  };
+
+  const refreshTerminalSessions = () => {
+    const generation = beginRequest(sessionsRequestGeneration);
+    setSessionsLoading(true);
+    setSessionsError(false);
+    return invoke<BrokerSessionInfo[]>("term_list_sessions")
+      .then((sessions) => {
+        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
+        setTerminalSessions(sessions);
+        setSessionsError(false);
+      })
+      .catch(() => {
+        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
+        setTerminalSessions([]);
+        setSessionsError(true);
+      })
+      .finally(() => {
+        if (isCurrentRequest(sessionsRequestGeneration, generation)) {
+          setSessionsLoading(false);
+        }
+      });
+  };
+
+  // ---- extracted hooks ----------------------------------------------------
+  // Terminal canvas lifecycle, input and selection; launcher data; pin card
+  // coordination. Each hook owns the code moved out of this component
+  // verbatim; see src/hooks/.
+
+  const {
+    setTerminalMounted,
+    rendererRef,
+    dimsRef,
+    selectionRef,
+    render,
+    terminalInputTarget,
+    activeRenderer,
+    focusTerminalView,
+    closeTerminalSession,
+    ensureTerminalSession,
+    describeMainSession,
+    resetTerminalFrontendState,
+    openInTerminal,
+    copySelection,
+    pasteClipboard,
+    onCanvasMouseDown,
+    onCanvasMouseMove,
+    onTerminalTextInput,
+    flushTerminalTextInput,
+  } = useTerminalView({
+    canvasRef,
+    mountRef,
+    terminalTextInputRef,
+    terminalComposing,
+    mode,
+    fontFamily: settings.font_family,
+    fontSize: settings.font_size,
+    resolvedTheme,
+    ptyReady,
+    terminalGeneration,
+    nextTerminalGeneration,
+    mainBrokerSessionIdRef,
+    pinnedRendererRef,
+    activeSurfaceRef,
+    setActiveSurface,
+    sessionClosePromise,
+    restoringMode,
+    setMainSessionIdentity,
+    setMainPinnedAway,
+    setTerminalFeedback,
+    setQuery,
+    setMode,
+    focusCollapsedInput,
+    showTerminalFeedback,
+    t,
+  });
+
+  const {
+    applications,
+    appsLoading,
+    appsError,
+    appIconUrls,
+    launcherResults,
+    actionBar,
+    runnableResultFlags,
+    resultShortcutSlots,
+    firstRunnableResultIndex,
+    defaultsToActionBar,
+    scanApplications,
+    refreshApplicationsIfStale,
+    history,
+    historyIndex,
+    setHistoryIndex,
+    draftBeforeHistory,
+    rememberCommand,
+    recordLaunch,
+  } = useLauncherCatalog({
+    query,
+    launchCounts: settings.launch_counts,
+    showCommandsInSearch: settings.show_commands_in_search,
+    t,
+    settingsRef,
+    settingsHydration,
+    setSettings,
+    persistSettings,
+  });
+
+  const {
+    pinState,
+    pinStateRef,
+    dispatchPinEvent,
+    cardGeometry,
+    updateCardGeometry,
+    togglePinnedTerminal,
+    unpinPinnedSession,
+    handlePinnedSessionExit,
+  } = usePinCoordinator({
+    mode,
+    resolvedTheme,
+    ptyReady,
+    terminalGeneration,
+    nextTerminalGeneration,
+    mainBrokerSessionIdRef,
+    dimsRef,
+    setActiveSurface,
+    setMainPinnedAway,
+    setMainSessionIdentity,
+    describeMainSession,
+    focusTerminalView,
+    resetTerminalFrontendState,
+    showTerminalFeedback,
+    refreshTerminalSessions,
+  });
+
   // Keep document metadata in sync with the active locale. Tauri does not show
   // the document title in the main window, but it is still exposed to screen
   // readers, browser tooling, and platform window switchers.
@@ -647,374 +573,6 @@ export default function App() {
     invoke("term_set_theme", { id: PINNED_SESSION_ID, theme: resolvedTheme }).catch(() => undefined);
   }, [resolvedTheme]);
 
-  // Normalizing every application name is done once per application list rather
-  // than once per keystroke: it is the dominant cost of a search, and the list
-  // only changes when applications are installed or removed.
-  const searchableApps = useMemo<SearchableApp[]>(
-    () =>
-      applications.map((app) => ({
-        app,
-        // Deduplicated: an application with no localized name yields the same
-        // normalized string from all three candidates.
-        names: [
-          ...new Set(
-            [app.name, app.localizedName, `${app.localizedName ?? ""} ${app.name}`]
-              .filter((name): name is string => Boolean(name))
-              .map(normalizeSearch)
-              .filter(Boolean),
-          ),
-        ],
-        // Already lowercase and separator-free from the backend, so it needs no
-        // normalizing of its own. Defensive against a cached list written before
-        // the field existed.
-        initials: app.initials || "",
-        // Normalized like the names, and deduplicated against them: an alias
-        // that repeats a name would only score the same match a second time,
-        // under a lower ceiling.
-        aliases: [
-          ...new Set(
-            (app.aliases ?? [])
-              .map(normalizeSearch)
-              .filter(Boolean),
-          ),
-        ],
-      })),
-    [applications],
-  );
-
-  // Catalog providers can perform I/O while loading their descriptors, so the
-  // request shares one debounce window and stale responses are discarded.
-  // Provider-connected and local commands are ALWAYS searchable — the user
-  // explicitly connected them. Only the noisy system-command discovery stays
-  // opt-in behind the Integrations settings toggle.
-  useEffect(() => {
-    const value = query.trim();
-    const generation = ++catalogRequestGeneration.current;
-    if (!value) {
-      setCatalogSuggestions([]);
-      return;
-    }
-    const includeSystemCommands = settings.show_commands_in_search;
-
-    setCatalogSuggestions([]);
-    const timer = window.setTimeout(() => {
-      const searchLine = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
-      const completionLine = parseCommandLine(query, true, COMMAND_LINE_SYNTAX);
-      const commandIndex = completionLine.commandIndex;
-      const command = commandIndex === null ? "" : completionLine.tokens[commandIndex] ?? "";
-      const structuredCommand = !searchLine.shellSyntax && commandIndex !== null;
-      const searchTokens = searchLine.commandIndex === null
-        ? []
-        : searchLine.tokens.slice(searchLine.commandIndex);
-      const completionTokens = commandIndex === null
-        ? []
-        : completionLine.tokens.slice(commandIndex);
-      const wantsCompletion = structuredCommand && completionTokens.length > 1;
-      const search = structuredCommand ? invoke<CatalogEntry[]>("catalog_search", {
-        request: {
-          query,
-          tokens: searchTokens,
-          environment: searchLine.environment,
-          cwd: null,
-          limit: 20,
-          includeSystemCommands,
-        },
-      }) : Promise.resolve<CatalogEntry[]>([]);
-      const complete = wantsCompletion
-        ? invoke<CatalogCompletionResponse>("catalog_complete", {
-            request: {
-              command,
-              tokens: completionTokens,
-              cwd: null,
-            },
-          }).catch(() => null)
-        : Promise.resolve<CatalogCompletionResponse | null>(null);
-
-      Promise.all([search, complete])
-        .then(([entries, completion]) => {
-          if (catalogRequestGeneration.current !== generation) return;
-          // Flag on: everything except application entries (they have their own
-          // result list). Flag off: only explicitly connected provider/local
-          // commands — system commands stay hidden.
-          const commands = entries.filter((entry) =>
-            includeSystemCommands
-              ? entry.sourceKind !== "systemApplication"
-              : entry.sourceKind === "provider" || entry.sourceKind === "local",
-          );
-          const exact = commands.find((entry) =>
-            entry.command === command ||
-            entry.qualifiedCommand === command ||
-            entry.aliases.includes(command),
-          );
-          if (exact && completion?.items.length) {
-            setCatalogSuggestions(completion.items.map((item) => ({
-              kind: "completion",
-              entry: exact,
-              completion: item,
-              commandLine: completedCommandLine(
-                query,
-                completionLine.fragmentStart,
-                item,
-                COMMAND_LINE_SYNTAX,
-              ),
-              execution: executionWithCompletion(exact, completionTokens, item),
-              dynamic: completion.dynamic,
-            })));
-            return;
-          }
-          setCatalogSuggestions(commands.map((entry) => ({ kind: "catalog", entry })));
-        })
-        .catch(() => {
-          if (catalogRequestGeneration.current === generation) setCatalogSuggestions([]);
-        });
-    }, CATALOG_SEARCH_DELAY);
-
-    return () => window.clearTimeout(timer);
-  }, [query, settings.show_commands_in_search]);
-
-  /**
-   * The numbered result list: applications and the built-in system actions.
-   *
-   * Running the query as a command used to live in here too, wedged into the
-   * second slot. It is the action bar now — a command is not a search result, it
-   * is what to do with a search that found nothing, and giving it a row of its
-   * own leaves every numbered slot for something that was actually matched.
-   */
-  const launcherResults = useMemo<LauncherItem[]>(() => {
-    const command = query.trim();
-    const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
-    if (!command) {
-      // The empty query is the launcher's front door: a summon with nothing
-      // typed yet still has something useful to offer. Rank the applications
-      // the user actually starts by launch count and render them as ordinary
-      // results, so the numbered shortcuts and Enter work unchanged. Typing
-      // any character leaves this branch.
-      const byPath = new Map(searchableApps.map((entry) => [entry.app.path, entry]));
-      const recentPaths = recentItems(
-        settings.launch_counts,
-        searchableApps.map((entry) => entry.app.path),
-        MAX_RESULTS - 1,
-      );
-      const recentRows: LauncherItem[] = [];
-      for (const path of recentPaths) {
-        const entry = byPath.get(path);
-        if (!entry) continue;
-        const app = entry.app;
-        recentRows.push({
-          type: "app",
-          id: app.path,
-          title: app.localizedName || app.name,
-          subtitle:
-            (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
-          app,
-        });
-      }
-      return recentRows;
-    }
-
-    // A query of nothing but punctuation normalizes away entirely; it can only
-    // ever be an action-bar command.
-    const needle = normalizeSearch(command);
-    if (!needle) return [];
-
-    // Applications and the power actions are scored the same way and ranked
-    // against each other, so "restart" reaches the power action while "restic"
-    // still reaches the application.
-    const matches: { item: LauncherItem; score: number }[] = [];
-
-    for (const entry of searchableApps) {
-      const score = scoreApp(needle, entry.names, entry.initials, entry.aliases);
-      if (!score) continue;
-      const app = entry.app;
-      matches.push({
-        item: {
-          type: "app",
-          id: app.path,
-          title: app.localizedName || app.name,
-          // Showing the original name next to a localized title is the most
-          // useful subtitle; failing that, whatever description the platform
-          // ships, and only then the generic category.
-          subtitle:
-            (app.localizedName && app.name) || app.comment || t(appSubtitleKey(app.path)),
-          app,
-        },
-        score,
-      });
-    }
-
-    for (const entry of SYSTEM_COMMANDS) {
-      const title = t(entry.titleKey);
-      // Scored exactly like an application: the names in every language, plus the
-      // pinyin key that `gj` and `cq` reach the entry through.
-      const score = scoreApp(
-        needle,
-        [normalizeSearch(title), ...entry.searchNames],
-        entry.initials,
-        // The power actions have no alias to speak of: their names are already
-        // written out in every language the launcher searches.
-        [],
-      );
-      if (!score) continue;
-      matches.push({
-        item: {
-          type: "system",
-          id: `system-${entry.action}`,
-          title,
-          subtitle: t(entry.subtitleKey),
-          action: entry.action,
-        },
-        score,
-      });
-    }
-
-    const rankedMatches = matches
-      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
-      .map((match) => match.item);
-    const commandLimit = rankedMatches.length
-      ? Math.min(3, MAX_RESULTS - 2)
-      : MAX_RESULTS - 1;
-    const commandCounts = catalogSuggestions.reduce<Map<string, number>>((counts, suggestion) => {
-      const command = suggestion.entry.command;
-      counts.set(command, (counts.get(command) ?? 0) + 1);
-      return counts;
-    }, new Map());
-    const commandItems: LauncherItem[] = catalogSuggestions
-      .slice(0, commandLimit)
-      .map((suggestion) => {
-        const { entry } = suggestion;
-        // Warnings stay out of the subtitle string: they render as an
-        // always-visible dot beside the source label, so a narrow window can
-        // never truncate them away.
-        const warnings: CommandWarning[] = [];
-        if (!entry.runtimeAvailable) warnings.push("unavailable");
-        if ((commandCounts.get(entry.command) ?? 0) > 1) warnings.push("conflict");
-        if (suggestion.kind === "completion") {
-          const dynamic = suggestion.dynamic
-            ? ` · ${t("extensions.dynamicCompletion")}`
-            : "";
-          return {
-            type: "command",
-            id: `${entry.id}:completion:${suggestion.completion.value}`,
-            title: suggestion.completion.label,
-            subtitle: `${suggestion.completion.description}${dynamic}`,
-            warnings,
-            sourceName: entry.sourceName,
-            commandLine: suggestion.commandLine,
-            execution: suggestion.execution,
-            completion: true,
-          };
-        }
-        return {
-          type: "command",
-          id: entry.id,
-          title: entry.command,
-          subtitle: entry.description,
-          warnings,
-          sourceName: entry.sourceName,
-          commandLine: parsedQuery.commandIndex !== null && (
-            parsedQuery.commandIndex > 0 ||
-            parsedQuery.tokens.length > parsedQuery.commandIndex + 1
-          ) ? query : `${entry.command} `,
-          execution: entry.execution,
-          completion: false,
-        };
-      });
-
-    // The action bar occupies the final row. Keep at least one local match when
-    // applications or power actions matched alongside catalog commands.
-    return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [catalogSuggestions, query, searchableApps, settings.launch_counts, t]);
-
-  const actionBar = useMemo<ActionBar | null>(() => {
-    const value = query.trim();
-    if (!value) return null;
-    const type = classifyActionBar(value);
-    const label = type === "url"
-      ? t("launcher.openInBrowser")
-      : type === "path"
-        ? t("launcher.openInFiles")
-        : t("launcher.runInShell");
-    return { type, label, value };
-  }, [query, t]);
-
-  const runnableResultFlags = launcherResults.map(
-    (item) => item.type !== "command" || Boolean(item.execution),
-  );
-  const resultShortcutSlots = launcherShortcutSlots(runnableResultFlags);
-  const runnableResultCount = runnableResultFlags.filter(Boolean).length;
-  const hasRunnableCommandResult = launcherResults.some(
-    (item) => item.type === "command" && Boolean(item.execution),
-  );
-  const firstRunnableResultIndex = runnableResultFlags.indexOf(true);
-
-  /**
-   * Whether a fresh query starts out on the action bar rather than on the first
-   * result.
-   *
-   * A boolean rather than something the effect below recomputes, so that the
-   * effect fires when the *answer* changes and not merely when the result list is
-   * rebuilt. A background application refresh can give `launcherResults` a new
-   * identity even when nothing about the visible matches changed —
-   * depending on the list itself would throw away a selection the user had
-   * already moved with the arrow keys.
-   */
-  const defaultsToActionBar = useMemo(() => {
-    if (!actionBar) return false;
-    return shouldDefaultToActionBar(
-      query,
-      actionBar.type,
-      launcherResults.length,
-      runnableResultCount,
-      hasRunnableCommandResult,
-    );
-  }, [actionBar, hasRunnableCommandResult, launcherResults.length, query, runnableResultCount]);
-
-  // A full scan walks every application directory, so the two callers below
-  // share one: the initial load and a refresh after a summon must never end up
-  // running at the same time.
-  const scanApplications = (forceRefresh: boolean) => {
-    if (appScanning.current) return;
-    appScanning.current = true;
-    setAppsLoading(true);
-    setAppsError(false);
-    invoke<LocalApplication[]>("list_applications", { forceRefresh })
-      .then((nextApplications) => {
-        setApplications(nextApplications);
-        setAppsError(false);
-      })
-      .catch(() => setAppsError(true))
-      .finally(() => {
-        appScanning.current = false;
-        setAppsLoading(false);
-      });
-  };
-
-  const refreshTerminalSessions = () => {
-    const generation = beginRequest(sessionsRequestGeneration);
-    setSessionsLoading(true);
-    setSessionsError(false);
-    return invoke<BrokerSessionInfo[]>("term_list_sessions")
-      .then((sessions) => {
-        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
-        setTerminalSessions(sessions);
-        setSessionsError(false);
-      })
-      .catch(() => {
-        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
-        setTerminalSessions([]);
-        setSessionsError(true);
-      })
-      .finally(() => {
-        if (isCurrentRequest(sessionsRequestGeneration, generation)) {
-          setSessionsLoading(false);
-        }
-      });
-  };
-
-  useEffect(() => {
-    scanApplications(false);
-  }, []);
-
   // A new query starts from its own default: the first result for a name, the
   // action bar for a command line, a URL or a path. See `defaultsToActionBar`.
   useEffect(() => {
@@ -1048,83 +606,6 @@ export default function App() {
     if (mode !== "collapsed") return;
     syncLauncherHeight();
   }, [actionBar, launcherFeedback, launcherResults.length, mode]);
-
-  useEffect(() => {
-    const missing = launcherResults
-      .filter((item): item is Extract<LauncherItem, { type: "app" }> => item.type === "app")
-      .filter(
-        (item) =>
-          !appIconUrlsRef.current[item.app.path] &&
-          !appIconAttempts.current.has(item.app.path),
-      )
-      .slice(0, 6);
-
-    if (!missing.length) return;
-    let cancelled = false;
-
-    // Resolving an icon means walking the platform's icon directories, so it
-    // waits for the query to settle: every keystroke changes the result list,
-    // and the only list worth fetching for is the one the user stops on.
-    const timer = window.setTimeout(() => {
-      // A missing icon is still a completed lookup. Remember it so an app that
-      // has no platform icon does not trigger the same work on every query.
-      for (const item of missing) appIconAttempts.current.add(item.app.path);
-
-      // Parallel: all icons resolve at once, and a single state update
-      // carries every result so the renderer is not kicked once per icon.
-      Promise.all(
-        missing.map((item) =>
-          invoke<string | null>("application_icon", { path: item.app.path })
-            .then((path) => ({ path: item.app.path, icon: path }))
-            .catch(() => null),
-        ),
-      ).then((results) => {
-        if (cancelled) return;
-        const newIcons: Record<string, string> = {};
-        for (const result of results) {
-          if (result?.icon) {
-            newIcons[result.path] = convertFileSrc(result.icon);
-          }
-        }
-        if (Object.keys(newIcons).length) {
-          setAppIconUrls((current) => ({ ...current, ...newIcons }));
-        }
-      });
-    }, ICON_LOAD_DELAY);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [launcherResults]);
-
-  const positionTerminalTextInput = () => {
-    const renderer = rendererRef.current;
-    const input = terminalTextInputRef.current;
-    if (!renderer || !input) return;
-    const cursor = renderer.cursorRect();
-    input.style.transform = `translate(${cursor.x}px, ${cursor.y}px)`;
-    input.style.height = `${cursor.height}px`;
-  };
-
-  const render = () => {
-    const renderer = rendererRef.current;
-    const frame = frameRef.current;
-    if (renderer && frame) {
-      renderer.draw(frame, blinkRef.current, selectionRef.current);
-      positionTerminalTextInput();
-    }
-  };
-
-  /** The frontend id keystrokes must reach right now: the main view, or the
-   * pinned card after its body was clicked. */
-  const terminalInputTarget = (): string =>
-    activeSurfaceRef.current === "pinned" ? PINNED_SESSION_ID : "main";
-
-  /** The renderer whose emulator mode governs key encoding for the active
-   * surface — the two views can run programs with different modes. */
-  const activeRenderer = (): TerminalCanvas | null =>
-    activeSurfaceRef.current === "pinned" ? pinnedRendererRef.current : rendererRef.current;
 
   /**
    * Size the launcher window to the rows currently laid out inside it.
@@ -1163,16 +644,6 @@ export default function App() {
       .catch(() => undefined);
   };
 
-  const focusCollapsedInput = (delay = 0) => {
-    window.setTimeout(() => {
-      const input = inputRef.current;
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      const length = input.value.length;
-      input.setSelectionRange(length, length);
-    }, delay);
-  };
-
   // The terminal canvas is the active element when collapsed mode is committed.
   // Focus the newly mounted input in that same commit instead of relying only on
   // timers that can race the native terminal-to-launcher resize.
@@ -1184,93 +655,6 @@ export default function App() {
     const length = input.value.length;
     input.setSelectionRange(length, length);
   }, [mode]);
-
-  const focusTerminalView = (delay = 0) => {
-    window.setTimeout(() => {
-      relayoutAndResize();
-      terminalTextInputRef.current?.focus({ preventScroll: true });
-    }, delay);
-  };
-
-  const relayoutAndResize = () => {
-    const renderer = rendererRef.current;
-    const mount = mountRef.current;
-    if (!renderer || !mount) return;
-    const rect = mount.getBoundingClientRect();
-    const layout = renderer.relayout(rect.width, rect.height);
-    dimsRef.current = layout;
-    positionTerminalTextInput();
-    invoke("term_resize", { id: "main", cols: layout.cols, rows: layout.rows });
-    render();
-  };
-
-  const resetTerminalFrontendState = () => {
-    frameRef.current = null;
-    selectionRef.current = null;
-    dragRef.current = { mode: "none" };
-    clickSeq.current = { count: 0, time: 0, col: -1, row: -1 };
-  };
-
-  const closeTerminalSession = () => {
-    ptyReady.current = false;
-    terminalGeneration.current = null;
-    resetTerminalFrontendState();
-    const closing = invoke("term_close", { id: "main" }).catch(() => undefined);
-    sessionClosePromise.current = closing;
-    closing.finally(() => {
-      if (sessionClosePromise.current === closing) {
-        sessionClosePromise.current = null;
-      }
-    });
-  };
-
-  const ensureTerminalSession = async (
-    initialCommand: string | null = null,
-    execution: ExecutionPlan | null = null,
-  ) => {
-    if (sessionClosePromise.current) {
-      await sessionClosePromise.current;
-    }
-    if (ptyReady.current) return;
-    const { cols, rows } = dimsRef.current;
-    const generation = ++nextTerminalGeneration.current;
-    terminalGeneration.current = generation;
-    try {
-      // term_spawn hands back the daemon-side session id (see the Rust
-      // command), remembered so pinning can re-attach this PTY to the card.
-      const brokerSessionId = await invoke<string>("term_spawn", {
-        id: "main",
-        generation,
-        shell: null,
-        initialCommand,
-        execution,
-        theme: resolvedTheme,
-        cols,
-        rows,
-      });
-      if (terminalGeneration.current === generation) {
-        ptyReady.current = true;
-        mainBrokerSessionIdRef.current = brokerSessionId;
-        setMainPinnedAway(false);
-        void describeMainSession(brokerSessionId, initialCommand);
-      }
-    } catch (error) {
-      if (terminalGeneration.current === generation) {
-        terminalGeneration.current = null;
-      }
-      throw error;
-    }
-  };
-
-  const handleTerminalExit = () => {
-    closeTerminalSession();
-    setTerminalFeedback(null);
-    setQuery("");
-    setTerminalMounted(false);
-    setMode("collapsed");
-    focusCollapsedInput(90);
-    focusCollapsedInput(140);
-  };
 
   const loadSettings = (): Promise<void> => {
     if (settingsLoadPromise.current) return settingsLoadPromise.current;
@@ -1345,168 +729,6 @@ export default function App() {
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const unlistenFramePromise = listen<FramePayload>("term://frame", (event) => {
-      if (
-        event.payload.id !== "main" ||
-        event.payload.generation !== terminalGeneration.current
-      )
-        return;
-      frameRef.current = decodeFrame(event.payload.frame);
-      blinkRef.current = true;
-      render();
-    });
-
-    const unlistenExitPromise = listen<ExitPayload>("term://exit", (event) => {
-      if (
-        event.payload.id !== "main" ||
-        event.payload.generation !== terminalGeneration.current
-      )
-        return;
-      // Record the exit before the collapse: the identity zone carries the
-      // running→exited transition, and any later describe of this session
-      // would otherwise show a live dot for a dead PTY.
-      setMainSessionIdentity((current) =>
-        current ? { ...current, exited: true, exitCode: event.payload.code } : current,
-      );
-      handleTerminalExit();
-    });
-
-    return () => {
-      unlistenFramePromise.then((unlisten) => unlisten());
-      unlistenExitPromise.then((unlisten) => unlisten());
-      rendererRef.current = null;
-      frameRef.current = null;
-      termOpened.current = false;
-      ptyReady.current = false;
-      terminalGeneration.current = null;
-    };
-  }, []);
-
-  // The renderer is bound to the canvas element of the mode that mounted it.
-  // Keyed on `mode` too, so leaving the terminal page (for the clipboard page
-  // or settings) tears the renderer down with its canvas and re-entering
-  // builds a fresh one against the newly mounted node. Frames fully replace
-  // each other and `frameRef` survives the flip, so the switch is lossless:
-  // the last frame repaints immediately and the embedded PTY never stopped
-  // running underneath.
-  useEffect(() => {
-    if (!terminalMounted || mode === "plugin" || mode === "settings") {
-      termOpened.current = false;
-      rendererRef.current = null;
-      return;
-    }
-    if (mode !== "terminal") return;
-    if (!canvasRef.current || !mountRef.current || termOpened.current) return;
-
-    const renderer = new TerminalCanvas(canvasRef.current, {
-      fontFamily: terminalFontFamily(settings.font_family),
-      fontSize: normalizeFontSize(settings.font_size),
-      lineHeight: LINE_HEIGHT,
-      paddingX: PADDING_X,
-      paddingY: PADDING_Y,
-    });
-    rendererRef.current = renderer;
-    termOpened.current = true;
-
-    relayoutAndResize();
-
-    const resizeObserver = new ResizeObserver(() => relayoutAndResize());
-    resizeObserver.observe(mountRef.current);
-
-    const onWheelNative = (event: WheelEvent) => {
-      const renderer = rendererRef.current;
-      if (!renderer || event.deltaY === 0) return;
-      event.preventDefault();
-
-      const page = renderer.cellHeight * Math.max(1, renderer.rows);
-      const pixels =
-        event.deltaMode === WheelEvent.DOM_DELTA_LINE
-          ? event.deltaY * renderer.cellHeight
-          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-            ? event.deltaY * page
-            : event.deltaY;
-      const unit = Math.max(24, renderer.cellHeight * 1.5);
-      wheelRemainder.current += pixels;
-      const rawSteps = Math.trunc(wheelRemainder.current / unit);
-      if (rawSteps === 0) return;
-      wheelRemainder.current -= rawSteps * unit;
-
-      const point = renderer.pixelToCell(event.offsetX, event.offsetY) ?? {
-        col: Math.max(0, Math.min(renderer.cols - 1, Math.floor(event.offsetX / renderer.cellWidth))),
-        row: Math.max(0, Math.min(renderer.rows - 1, Math.floor(event.offsetY / renderer.cellHeight))),
-      };
-      invoke("term_wheel", {
-        id: "main",
-        delta: Math.max(-8, Math.min(8, -rawSteps)),
-        column: point.col,
-        row: point.row,
-        modifiers: terminalMouseModifiers(event),
-      });
-    };
-    wheelRemainder.current = 0;
-    canvasRef.current.addEventListener("wheel", onWheelNative, { passive: false });
-
-    const blink = window.setInterval(() => {
-      blinkRef.current = !blinkRef.current;
-      render();
-    }, 530);
-
-    return () => {
-      window.clearInterval(blink);
-      resizeObserver.disconnect();
-      canvasRef.current?.removeEventListener("wheel", onWheelNative);
-      termOpened.current = false;
-      rendererRef.current = null;
-    };
-  }, [settings.font_family, settings.font_size, terminalMounted, mode]);
-
-  // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
-  // grid current; this listener persists the logical window dimensions after a
-  // short idle period, so a single drag writes once rather than every frame.
-  useEffect(() => {
-    if (!terminalMounted || mode !== "terminal") return;
-    const currentWindow = getCurrentWindow();
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-
-    currentWindow.onResized(async ({ payload }) => {
-      if (disposed) return;
-      const scale = await currentWindow.scaleFactor().catch(() => window.devicePixelRatio || 1);
-      const width = payload.width / scale;
-      const height = payload.height / scale;
-      if (!Number.isFinite(width) || !Number.isFinite(height)) return;
-      pendingTerminalSize.current = { width, height };
-      if (terminalSizeSaveTimer.current !== null) {
-        window.clearTimeout(terminalSizeSaveTimer.current);
-      }
-      terminalSizeSaveTimer.current = window.setTimeout(() => {
-        terminalSizeSaveTimer.current = null;
-        const pending = pendingTerminalSize.current;
-        pendingTerminalSize.current = null;
-        if (pending) invoke("save_terminal_size", pending).catch(() => undefined);
-      }, TERMINAL_SIZE_SAVE_DELAY);
-    }).then((dispose) => {
-      if (disposed) {
-        dispose();
-      } else {
-        unlisten = dispose;
-      }
-    });
-
-    return () => {
-      disposed = true;
-      unlisten?.();
-      if (terminalSizeSaveTimer.current !== null) {
-        window.clearTimeout(terminalSizeSaveTimer.current);
-        terminalSizeSaveTimer.current = null;
-      }
-      const pending = pendingTerminalSize.current;
-      pendingTerminalSize.current = null;
-      if (pending) invoke("save_terminal_size", pending).catch(() => undefined);
-    };
-  }, [mode, terminalMounted]);
 
   // Settings is a compact work panel, not a document. Its header stays fixed
   // while the body scrolls; smaller displays get a proportional cap.
@@ -1650,14 +872,7 @@ export default function App() {
         return;
       }
 
-      // Only the launcher needs applications. The backend coalesces checks
-      // inside a platform-specific cooldown and performs any directory walk on
-      // a blocking thread; a changed source refreshes behind the existing list.
-      invoke<ApplicationsStatus>("check_applications")
-        .then((status) => {
-          if (!status.upToDate) scanApplications(true);
-        })
-        .catch(() => undefined);
+      refreshApplicationsIfStale();
 
       restoringMode.current = "collapsed";
       setLauncherFeedback(null);
@@ -1756,287 +971,6 @@ export default function App() {
       unlisten?.();
     };
   }, [mode, settings.hide_on_blur]);
-
-  // ---- selection / scroll helpers ---------------------------------------
-
-  const clampCell = (px: number, py: number): CellPoint | null => {
-    const renderer = rendererRef.current;
-    if (!renderer) return null;
-    let col = Math.floor((px - PADDING_X) / renderer.cellWidth);
-    let row = Math.floor((py - PADDING_Y) / renderer.cellHeight);
-    col = Math.max(0, Math.min(renderer.cols - 1, col));
-    row = Math.max(0, Math.min(renderer.rows - 1, row));
-    return { col, row };
-  };
-
-  const applyScrollbar = (py: number) => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    const now = Date.now();
-    if (now - lastScrollAt.current < 24) return;
-    lastScrollAt.current = now;
-    invoke("term_scroll_to", { id: "main", offset: renderer.offsetFromDragY(py) });
-  };
-
-  const reportTerminalMouse = (
-    kind: "press" | "release" | "move",
-    button: number,
-    clientX: number,
-    clientY: number,
-    modifiers: ModifierEvent,
-  ) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const cell = clampCell(clientX - rect.left, clientY - rect.top);
-    if (!cell) return;
-    invoke("term_mouse", {
-      id: "main",
-      kind,
-      button,
-      column: cell.col,
-      row: cell.row,
-      modifiers: terminalMouseModifiers(modifiers),
-    });
-  };
-
-  const onWindowMouseMove = (event: MouseEvent) => {
-    const canvas = canvasRef.current;
-    const renderer = rendererRef.current;
-    if (!canvas || !renderer) return;
-    const rect = canvas.getBoundingClientRect();
-    const px = event.clientX - rect.left;
-    const py = event.clientY - rect.top;
-    const drag = dragRef.current;
-    if (drag.mode === "mouse") {
-      const now = performance.now();
-      if (now - lastMouseReportAt.current >= 16) {
-        lastMouseReportAt.current = now;
-        reportTerminalMouse("move", drag.button, event.clientX, event.clientY, event);
-      }
-      return;
-    }
-    if (drag.mode === "scroll") {
-      applyScrollbar(py);
-      return;
-    }
-    if (drag.mode === "select") {
-      const cell = clampCell(px, py);
-      const sel = selectionRef.current;
-      if (sel && cell) {
-        selectionRef.current = { ...sel, endCol: cell.col, endRow: cell.row };
-        render();
-      }
-    }
-  };
-
-  const onWindowMouseUp = (event: MouseEvent) => {
-    const drag = dragRef.current;
-    if (drag.mode === "mouse") {
-      reportTerminalMouse("release", drag.button, event.clientX, event.clientY, event);
-    }
-    dragRef.current = { mode: "none" };
-    window.removeEventListener("mousemove", onWindowMouseMove);
-    window.removeEventListener("mouseup", onWindowMouseUp);
-  };
-
-  const beginDrag = () => {
-    window.addEventListener("mousemove", onWindowMouseMove);
-    window.addEventListener("mouseup", onWindowMouseUp);
-  };
-
-  const onCanvasMouseDown = (e: React.MouseEvent) => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    // Clicking the main area always reclaims the keyboard from the card.
-    setActiveSurface("main");
-    terminalTextInputRef.current?.focus({ preventScroll: true });
-    const px = e.nativeEvent.offsetX;
-    const py = e.nativeEvent.offsetY;
-
-    if (renderer.hitScrollbar(px, py)) {
-      dragRef.current = { mode: "scroll" };
-      applyScrollbar(py);
-      beginDrag();
-      e.preventDefault();
-      return;
-    }
-
-    const cell = renderer.pixelToCell(px, py);
-    if (cell && usesMouseReporting(renderer.mode) && !e.shiftKey) {
-      selectionRef.current = null;
-      dragRef.current = { mode: "mouse", button: e.button };
-      reportTerminalMouse("press", e.button, e.clientX, e.clientY, e);
-      beginDrag();
-      e.preventDefault();
-      return;
-    }
-
-    const now = Date.now();
-    const seq = clickSeq.current;
-    const sameCell = cell && seq.col === cell.col && seq.row === cell.row && now - seq.time < 400;
-    const count = sameCell ? seq.count + 1 : 1;
-    clickSeq.current = {
-      count,
-      time: now,
-      col: cell?.col ?? -1,
-      row: cell?.row ?? -1,
-    };
-
-    if (!cell) {
-      selectionRef.current = null;
-      render();
-      return;
-    }
-
-    if (count === 2) {
-      selectionRef.current = renderer.wordSelection(cell);
-      render();
-      e.preventDefault();
-      return;
-    }
-    if (count >= 3) {
-      selectionRef.current = {
-        startCol: 0,
-        startRow: cell.row,
-        endCol: renderer.cols - 1,
-        endRow: cell.row,
-      };
-      render();
-      e.preventDefault();
-      return;
-    }
-
-    selectionRef.current = {
-      startCol: cell.col,
-      startRow: cell.row,
-      endCol: cell.col,
-      endRow: cell.row,
-    };
-    dragRef.current = { mode: "select" };
-    render();
-    beginDrag();
-    e.preventDefault();
-  };
-
-  const onCanvasMouseMove = (event: React.MouseEvent) => {
-    const renderer = rendererRef.current;
-    if (
-      !renderer ||
-      dragRef.current.mode !== "none" ||
-      event.shiftKey ||
-      (renderer.mode & MOUSE_MOTION) === 0
-    ) {
-      return;
-    }
-    const now = performance.now();
-    if (now - lastMouseReportAt.current < 16) return;
-    lastMouseReportAt.current = now;
-    reportTerminalMouse("move", 3, event.clientX, event.clientY, event);
-  };
-
-  /** Read the system clipboard. The webview's own Clipboard API cannot be
-   * relied on here — WebKitGTK ships without `navigator.clipboard`, and
-   * WKWebView rejects programmatic reads outside its strict gesture policy —
-   * so both directions go through the arboard-backed backend commands and
-   * fall back to the JS API only where that exists (browser dev builds). */
-  const readSystemClipboard = (): Promise<string> =>
-    invoke<string>("clipboard_read_text").catch(() => navigator.clipboard.readText());
-
-  /** Write the system clipboard; see `readSystemClipboard` for why this takes
-   * the Rust path first. */
-  const writeSystemClipboard = (text: string): Promise<void> =>
-    invoke("clipboard_write_text", { text })
-      .then(() => undefined)
-      .catch(() => navigator.clipboard.writeText(text));
-
-  const copySelection = async () => {
-    const renderer = rendererRef.current;
-    const sel = selectionRef.current;
-    if (!renderer || !sel) return;
-    const text = renderer.selectionText(sel);
-    if (text) {
-      try {
-        await writeSystemClipboard(text);
-      } catch {
-        // Clipboard unavailable; selection remains highlighted.
-        return;
-      }
-      // Where the copy shortcut is Ctrl-based it is also the shell's interrupt,
-      // so the highlight is dropped after a copy: the next press then reaches
-      // the shell instead of copying the same text again. macOS copies with Cmd
-      // and keeps its selection.
-      if (!IS_MAC) {
-        selectionRef.current = null;
-        render();
-      }
-    }
-  };
-
-  const sendTerminalText = (text: string, bracketed = false) => {
-    if (!text || !ptyReady.current) return;
-    const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
-    void invoke("term_input", {
-      id: terminalInputTarget(),
-      data: Array.from(new TextEncoder().encode(payload)),
-    });
-  };
-
-  const flushTerminalTextInput = (bracketed = false) => {
-    const input = terminalTextInputRef.current;
-    if (!input || terminalComposing.current || !input.value) return;
-    const text = input.value;
-    input.value = "";
-    sendTerminalText(text, bracketed);
-  };
-
-  const onTerminalTextInput = (event: React.FormEvent<HTMLTextAreaElement>) => {
-    const nativeEvent = event.nativeEvent as InputEvent;
-    if (nativeEvent.isComposing || terminalComposing.current) return;
-    const bracketedPaste =
-      nativeEvent.inputType === "insertFromPaste" &&
-      Boolean((activeRenderer()?.mode ?? 0) & BRACKETED_PASTE);
-    flushTerminalTextInput(bracketedPaste);
-  };
-
-  const pasteClipboard = async () => {
-    const renderer = activeRenderer();
-    if (!renderer) return;
-    let text = "";
-    try {
-      text = await readSystemClipboard();
-    } catch {
-      return;
-    }
-    if (!text) return;
-    sendTerminalText(text, (renderer.mode & BRACKETED_PASTE) !== 0);
-  };
-
-  // Hand the broker-owned PTY to the system terminal without restarting it.
-  const openInTerminal = async () => {
-    if (externalTerminalOpening.current || !ptyReady.current) return;
-    externalTerminalOpening.current = true;
-    setTerminalFeedback(null);
-    try {
-      const outcome = await invoke<ExternalTerminalOutcome>("open_in_default_terminal", {
-        id: "main",
-      });
-      if (outcome.session_handed_off) {
-        restoringMode.current = "collapsed";
-        closeTerminalSession();
-        setQuery("");
-        setTerminalMounted(false);
-        setMode("collapsed");
-        await invoke("show_input");
-      }
-      await invoke("hide_window");
-    } catch {
-      showTerminalFeedback("launcher.error.externalTerminal");
-      focusTerminalView();
-    } finally {
-      externalTerminalOpening.current = false;
-    }
-  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -2257,12 +1191,6 @@ export default function App() {
       .finally(() => {
         suppressBlurUntil.current = Date.now() + DRAG_BLUR_GRACE;
       });
-  };
-
-  const rememberCommand = (command: string) => {
-    setHistory((current) => [command, ...current.filter((entry) => entry !== command)].slice(0, 20));
-    setHistoryIndex(-1);
-    draftBeforeHistory.current = "";
   };
 
   const returnToInputMode = async () => {
@@ -2778,168 +1706,6 @@ export default function App() {
     }
   };
 
-  // ---- pin card -----------------------------------------------------------
-
-  /** Look up a human-readable session name for the card header. */
-  const lookupSessionLabel = async (brokerSessionId: string): Promise<string | null> => {
-    try {
-      const sessions = await invoke<BrokerSessionInfo[]>("term_list_sessions");
-      return sessions.find((entry) => entry.sessionId === brokerSessionId)?.name || null;
-    } catch {
-      return null;
-    }
-  };
-
-  /** Fill the terminal bar's identity zone for `brokerSessionId`: the command
-   * the session was launched with when present, else the broker's session
-   * name, else the generic session title. The session list also reports the
-   * exit state, so an attach of an already-dead session shows that instead of
-   * a live dot. */
-  const describeMainSession = async (brokerSessionId: string, initialCommand: string | null) => {
-    const fallbackTitle = t("terminal.sessionTitle", { id: brokerSessionId.slice(0, 8) });
-    try {
-      const sessions = await invoke<BrokerSessionInfo[]>("term_list_sessions");
-      const info = sessions.find((entry) => entry.sessionId === brokerSessionId);
-      setMainSessionIdentity({
-        title: initialCommand || info?.name || fallbackTitle,
-        exited: info?.exited ?? false,
-        exitCode: info?.exited ? info.exitCode : null,
-      });
-    } catch {
-      setMainSessionIdentity({ title: initialCommand || fallbackTitle, exited: false, exitCode: null });
-    }
-  };
-
-  /** Attach `brokerSessionId` to the card's frontend id with a fresh view
-   * generation; resolves to that generation. */
-  const attachAsPinned = async (brokerSessionId: string): Promise<number> => {
-    const generation = ++nextTerminalGeneration.current;
-    await invoke("term_attach_existing", {
-      request: {
-        id: PINNED_SESSION_ID,
-        generation,
-        brokerSessionId,
-        theme: resolvedTheme,
-        cols: dimsRef.current.cols,
-        rows: dimsRef.current.rows,
-      },
-    });
-    return generation;
-  };
-
-  /** Release the main view's session without killing its PTY, so the card can
-   * take it over. */
-  const detachMainView = async () => {
-    terminalGeneration.current = null;
-    ptyReady.current = false;
-    mainBrokerSessionIdRef.current = null;
-    setMainSessionIdentity(null);
-    resetTerminalFrontendState();
-    setActiveSurface("main");
-  };
-
-  /** Pin (or, when something is already pinned and a new main session is
-   * running, replace) — the current main session moves into the card. */
-  const pinCurrentMain = async () => {
-    const brokerSessionId = mainBrokerSessionIdRef.current;
-    const generation = terminalGeneration.current;
-    if (!ptyReady.current || !brokerSessionId || generation === null) return;
-    pinBusy.current = true;
-    try {
-      // Detach first, then attach the same PTY under the card's id. If the
-      // attach fails the session stays alive in the daemon, resumable from the
-      // session list.
-      await invoke("term_detach_view", { id: "main", generation });
-      await detachMainView();
-      setMainPinnedAway(true);
-      const pinnedGeneration = await attachAsPinned(brokerSessionId);
-      dispatchPinEvent({ type: "pin", brokerSessionId, generation: pinnedGeneration });
-      void lookupSessionLabel(brokerSessionId).then((label) => {
-        if (label) dispatchPinEvent({ type: "label", label });
-      });
-    } catch {
-      showTerminalFeedback("launcher.error.session");
-      refreshTerminalSessions();
-    } finally {
-      pinBusy.current = false;
-    }
-  };
-
-  /** Reattach a broker session into the main terminal view. Only valid while
-   * the main slot is free (`ptyReady` false). */
-  const resumeIntoMainView = async (brokerSessionId: string) => {
-    const generation = ++nextTerminalGeneration.current;
-    terminalGeneration.current = generation;
-    try {
-      const attachedId = await invoke<string>("term_attach_existing", {
-        request: {
-          id: "main",
-          generation,
-          brokerSessionId,
-          theme: resolvedTheme,
-          cols: dimsRef.current.cols,
-          rows: dimsRef.current.rows,
-        },
-      });
-      ptyReady.current = true;
-      mainBrokerSessionIdRef.current = attachedId;
-      setMainPinnedAway(false);
-      void describeMainSession(attachedId, null);
-      focusTerminalView();
-    } catch {
-      terminalGeneration.current = null;
-      showTerminalFeedback("launcher.error.session");
-      refreshTerminalSessions();
-    }
-  };
-
-  /** Dismiss the card; the pinned session returns to the normal flow — back
-   * into the main view when that is free, otherwise left detached in the
-   * session list. */
-  const unpinPinnedSession = async () => {
-    const pinned = pinStateRef.current;
-    if (pinned.status !== "pinned" || pinBusy.current) return;
-    pinBusy.current = true;
-    try {
-      // Attached views close by detaching only — the PTY survives.
-      await invoke("term_close", { id: PINNED_SESSION_ID });
-    } catch {
-      // Already gone; still drop the card state below.
-    }
-    const { brokerSessionId } = pinned.session;
-    dispatchPinEvent({ type: "unpin" });
-    setActiveSurface("main");
-    if (!ptyReady.current && mode === "terminal") {
-      await resumeIntoMainView(brokerSessionId);
-    }
-    pinBusy.current = false;
-  };
-
-  /** Shortcut entry point: pin / unpin / replace, depending on what is live. */
-  const togglePinnedTerminal = async () => {
-    if (pinBusy.current) return;
-    const pinned = pinStateRef.current;
-    if (pinned.status === "pinned") {
-      await unpinPinnedSession();
-      if (ptyReady.current) {
-        // A newer session runs in the main area: move the card to it. The old
-        // session was released into the normal list/view flow above.
-        await pinCurrentMain();
-      }
-      return;
-    }
-    await pinCurrentMain();
-  };
-
-  /** The pinned PTY exited on its own: remove the card, nothing to restore. */
-  const handlePinnedSessionExit = useCallback(() => {
-    const pinned = pinStateRef.current;
-    if (pinned.status !== "pinned") return;
-    dispatchPinEvent({ type: "sessionClosed", generation: pinned.session.generation });
-    setActiveSurface("main");
-    setMainPinnedAway(false);
-  }, [dispatchPinEvent, setActiveSurface]);
-
   const launchApplication = async (app: LocalApplication) => {
     setLauncherFeedback(null);
     try {
@@ -3030,22 +1796,6 @@ export default function App() {
     } finally {
       systemPowerOpening.current = false;
     }
-  };
-
-  /** Count an application launch so the empty-query state can rank it. The
-   *  counter rides the ordinary settings persistence; no dedicated command. */
-  const recordLaunch = (path: string) => {
-    const updated: AppSettings = {
-      ...settingsRef.current,
-      launch_counts: {
-        ...settingsRef.current.launch_counts,
-        [path]: (settingsRef.current.launch_counts[path] ?? 0) + 1,
-      },
-    };
-    settingsHydration.markChanged("launch_counts");
-    settingsRef.current = updated;
-    setSettings(updated);
-    persistSettings().catch(() => undefined);
   };
 
   const runLauncherItem = (item: LauncherItem | undefined) => {
