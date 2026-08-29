@@ -103,6 +103,9 @@ pub struct AppSettings {
     /// Application path -> launch count, ranking the launcher's empty-query
     /// recent list. Owned by the frontend; no dedicated command persists it.
     pub launch_counts: HashMap<String, u32>,
+    /// Settings page the user last had open, restored on the next launch.
+    /// Owned by the frontend, which validates the value before saving.
+    pub last_settings_page: String,
 }
 
 impl Default for AppSettings {
@@ -125,6 +128,7 @@ impl Default for AppSettings {
             clipboard_history_enabled: true,
             clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
             launch_counts: HashMap::new(),
+            last_settings_page: "general".to_string(),
         }
     }
 }

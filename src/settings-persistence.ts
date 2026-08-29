@@ -1,3 +1,21 @@
+/** Settings pages in sidebar order; also the ↑/↓ navigation cycle. */
+export const SETTINGS_PAGES = [
+  "general",
+  "sessions",
+  "shortcuts",
+  "integrations",
+  "about",
+] as const;
+
+export type SettingsPage = (typeof SETTINGS_PAGES)[number];
+
+/** Map a persisted page name onto a known page; anything else falls back. */
+export function normalizeSettingsPage(value: unknown): SettingsPage {
+  return (SETTINGS_PAGES as readonly string[]).includes(value as string)
+    ? (value as SettingsPage)
+    : "general";
+}
+
 export type SettingsHydration<T extends object> = {
   isReady: () => boolean;
   hasFailed: () => boolean;

@@ -855,6 +855,20 @@ input:focus {
   gap: 18px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Remounted (key={settingsPage}) on every page switch, so this replays as
+     an enter transition for each page. */
+  animation: settings-page-enter 140ms ease-out;
+}
+
+@keyframes settings-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .settings-save-alert {
@@ -3212,6 +3226,7 @@ canvas {
   .collapsed-shell,
   .terminal-shell,
   .settings-shell,
+  .settings-content,
   .terminal-panel--entered {
     animation: none;
   }

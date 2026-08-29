@@ -65,7 +65,13 @@ import {
   type ShortcutAction,
   type ShortcutMap,
 } from "./shortcuts";
-import { createSerialSettingsWriter, createSettingsHydration } from "./settings-persistence";
+import {
+  createSerialSettingsWriter,
+  createSettingsHydration,
+  normalizeSettingsPage,
+  SETTINGS_PAGES,
+  type SettingsPage,
+} from "./settings-persistence";
 import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
 import { ShortcutsPage, CLIPBOARD_HOTKEY_ACTION } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -91,7 +97,6 @@ if (IS_WINDOWS) {
 /** Any surface a plugin page can be opened over; it replaces the canvas and
  * returns to the remembered one when dismissed. */
 type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
-type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
 export type CursorShape = "beam" | "block" | "underline";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
 
@@ -186,6 +191,8 @@ export type AppSettings = {
   clipboard_history_hotkey: string;
   /** Application path -> launch count, ranking the empty-query recent list. */
   launch_counts: Record<string, number>;
+  /** Settings page that was open last, restored on the next launch. */
+  last_settings_page: SettingsPage;
 };
 
 const FALLBACK_FONT_FAMILY =
@@ -463,6 +470,7 @@ export default function App() {
     // the shortcuts settings page.
     clipboard_history_hotkey: "",
     launch_counts: {},
+    last_settings_page: "general",
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
@@ -1279,10 +1287,15 @@ export default function App() {
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
           launch_counts: loaded.launch_counts ?? {},
+          last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
         };
         const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
         settingsRef.current = hydrated;
         setSettings(hydrated);
+        // Reopen on the page the user last left settings on. The merged value
+        // wins over `normalized`: a page chosen while the load was in flight
+        // must not be clobbered by the disk snapshot.
+        setSettingsPage(hydrated.last_settings_page);
         setSettingsLoadFailed(false);
         settingsHydration.finish();
       })
@@ -2277,6 +2290,20 @@ export default function App() {
     if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
   };
 
+  /** Sidebar buttons by page, so ↑/↓ can move focus with the selection. */
+  const settingsSidebarButtons = useRef(new Map<SettingsPage, HTMLButtonElement>());
+  /** Switch pages and remember the choice for the next launch. */
+  const changeSettingsPage = (page: SettingsPage) => {
+    setSettingsPage(page);
+    if (settingsRef.current.last_settings_page === page) return;
+    const updated = { ...settingsRef.current, last_settings_page: page };
+    settingsRef.current = updated;
+    setSettings(updated);
+    // A page chosen while the load is still in flight must survive hydration.
+    settingsHydration.markChanged("last_settings_page");
+    void persistSettings().catch(() => undefined);
+  };
+
   const openSettings = (page?: SettingsPage) => {
     suppressBlurUntil.current = Date.now() + 400;
     const nextPage = page ?? settingsPage;
@@ -3268,11 +3295,24 @@ export default function App() {
                 <button
                   key={page}
                   type="button"
+                  ref={(node) => {
+                    if (node) settingsSidebarButtons.current.set(page, node);
+                    else settingsSidebarButtons.current.delete(page);
+                  }}
                   className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"}
                   aria-current={settingsPage === page ? "page" : undefined}
                   onClick={() => {
-                    setSettingsPage(page);
+                    changeSettingsPage(page);
                     if (page === "sessions") void refreshTerminalSessions();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                    event.preventDefault();
+                    const delta = event.key === "ArrowDown" ? 1 : SETTINGS_PAGES.length - 1;
+                    const next = SETTINGS_PAGES[(SETTINGS_PAGES.indexOf(page) + delta) % SETTINGS_PAGES.length];
+                    settingsSidebarButtons.current.get(next)?.focus();
+                    changeSettingsPage(next);
+                    if (next === "sessions") void refreshTerminalSessions();
                   }}
                 >
                   <Icon size={15} strokeWidth={2} aria-hidden="true" />
@@ -3280,7 +3320,7 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            <main className="settings-content" data-no-drag>
+            <main className="settings-content" data-no-drag key={settingsPage}>
             {settingsLoadFailed && (
               <div className="settings-save-alert" role="alert">
                 <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
