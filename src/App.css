@@ -1363,6 +1363,7 @@ input:focus {
 }
 
 .session-manager__icon-button {
+  position: relative;
   width: 28px;
   height: 28px;
   display: inline-flex;
@@ -1374,6 +1375,51 @@ input:focus {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+}
+
+/* Accent micro-badge on the resume button: marks running-but-detached
+   sessions as resumable, distinguishing them from exited ones. */
+.session-manager__resume-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Two-step kill confirmation: the 14px icon button expands in place into a
+   short danger-tinted text pill asking "terminate?", auto-disarming after
+   3s. Same rhythm as the extensions inline discard confirmation. */
+.session-manager__kill-confirm {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--text-warning) 55%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text-warning) 10%, transparent);
+  color: var(--text-warning);
+  font-size: 10.5px;
+  font-weight: 620;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.session-manager__kill-confirm:hover:not(:disabled) {
+  border-color: var(--text-warning);
+  background: color-mix(in srgb, var(--text-warning) 18%, transparent);
+}
+
+.session-manager__kill-confirm:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.session-manager__kill-confirm:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .session-manager__icon-button:hover:not(:disabled) {

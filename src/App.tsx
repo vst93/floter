@@ -9,12 +9,9 @@ import {
   Blocks,
   Info,
   Keyboard,
-  Play,
   RefreshCw,
   SlidersHorizontal,
   SquareTerminal,
-  Trash2,
-  X,
 } from "lucide-react";
 import { TerminalCanvas, decodeFrame, type CellPoint, type Selection } from "./terminal/render";
 import { PinnedTerminalCard } from "./terminal/PinnedTerminalCard";
@@ -31,13 +28,11 @@ import {
 import {
   createTranslator,
   normalizeLanguage,
-  LANGUAGE_OPTIONS,
   type Language,
   type MessageKey,
 } from "./i18n";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
-import { ShortcutRecorder } from "./ShortcutRecorder";
 import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
@@ -51,7 +46,6 @@ import {
   recentItems,
   scoreApp,
   shouldDefaultToActionBar,
-  type ActionBarKind,
   type CompletionItem,
   type ExecutionPlan,
 } from "./launcher";
@@ -72,6 +66,17 @@ import {
   type ShortcutMap,
 } from "./shortcuts";
 import { createSerialSettingsWriter, createSettingsHydration } from "./settings-persistence";
+import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
+import { ShortcutsPage, CLIPBOARD_HOTKEY_ACTION } from "./settings/ShortcutsPage";
+import { SessionsPage } from "./settings/SessionsPage";
+import { AboutPage } from "./settings/AboutPage";
+import {
+  LauncherResults,
+  appSubtitleKey,
+  type ActionBar,
+  type LauncherItem,
+  type SystemAction,
+} from "./launcher/LauncherResults";
 import "./App.css";
 
 if (IS_WINDOWS) {
@@ -86,10 +91,10 @@ if (IS_WINDOWS) {
  * returns to the remembered one when dismissed. */
 type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
 type SettingsPage = "general" | "shortcuts" | "sessions" | "integrations" | "about";
-type CursorShape = "beam" | "block" | "underline";
+export type CursorShape = "beam" | "block" | "underline";
 type ExternalTerminalOutcome = { session_handed_off: boolean };
 
-type BrokerSessionInfo = {
+export type BrokerSessionInfo = {
   sessionId: string;
   name: string;
   attached: boolean;
@@ -102,7 +107,7 @@ type BrokerSessionInfo = {
   cwd: string;
 };
 
-type LocalApplication = {
+export type LocalApplication = {
   name: string;
   localizedName?: string | null;
   path: string;
@@ -117,8 +122,6 @@ type LocalApplication = {
 
 /** Answer to `check_applications`: whether a rescan would find anything new. */
 type ApplicationsStatus = { upToDate: boolean; count: number };
-
-type SystemAction = "restart" | "shutdown" | "clipboard";
 
 type CatalogSourceKind = "systemApplication" | "systemCommand" | "local" | "provider";
 
@@ -162,31 +165,7 @@ type CatalogSuggestion =
       dynamic: boolean;
     };
 
-type LauncherItem =
-  | { type: "app"; id: string; title: string; subtitle: string; app: LocalApplication }
-  | {
-      type: "command";
-      id: string;
-      title: string;
-      subtitle: string;
-      sourceName: string;
-      commandLine: string;
-      execution: ExecutionPlan | null;
-      completion: boolean;
-    }
-  | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction };
-
-/**
- * What the query does when it is not the name of anything installed.
- *
- * This is the row below the results, and unlike them there is always exactly one
- * of it for a non-empty query: every string is *something* the shell can be
- * handed, and a few shapes of string are better answered by the browser or the
- * file manager instead.
- */
-type ActionBar = { type: ActionBarKind; label: string; value: string };
-
-type AppSettings = {
+export type AppSettings = {
   hotkey: string;
   hide_on_blur: boolean;
   launch_at_startup: boolean;
@@ -206,56 +185,6 @@ type AppSettings = {
   clipboard_history_hotkey: string;
   /** Application path -> launch count, ranking the empty-query recent list. */
   launch_counts: Record<string, number>;
-};
-
-/**
- * The appearance choices, in the order they are offered.
- *
- * `auto` first because it is the default and the one most people want. Unlike
- * `LANGUAGE_OPTIONS` these live here rather than in i18n.ts: a language is
- * always named in itself ("English", "中文"), while a theme name is ordinary
- * prose that has to be translated, so there is nothing to keep beside the
- * dictionaries.
- */
-const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
-  { value: "auto", labelKey: "settings.theme.auto" },
-  { value: "dark", labelKey: "settings.theme.dark" },
-  { value: "light", labelKey: "settings.theme.light" },
-];
-
-const MIN_OPACITY = 10;
-const MAX_OPACITY = 100;
-const OPACITY_PRESETS = [25, 50, 75, 100];
-const OPACITY_SNAP_DISTANCE = 2;
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 48;
-const FONT_FAMILY_OPTIONS = [
-  { value: "monospace", label: "System Mono" },
-  { value: "JetBrains Mono", label: "JetBrains Mono" },
-  { value: "SF Mono", label: "SF Mono" },
-  { value: "Cascadia Mono", label: "Cascadia Mono" },
-  { value: "Menlo", label: "Menlo" },
-  { value: "Consolas", label: "Consolas" },
-] as const;
-const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
-  { value: "beam", labelKey: "settings.cursor.beam" },
-  { value: "block", labelKey: "settings.cursor.block" },
-  { value: "underline", labelKey: "settings.cursor.underline" },
-];
-
-const normalizeOpacity = (value: number): number => {
-  const safeValue = Number.isFinite(value) ? value : MAX_OPACITY;
-  const clamped = Math.round(Math.min(MAX_OPACITY, Math.max(MIN_OPACITY, safeValue)));
-  return OPACITY_PRESETS.find((preset) => Math.abs(preset - clamped) <= OPACITY_SNAP_DISTANCE)
-    ?? clamped;
-};
-
-const formatBytes = (bytes: number): string => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  const value = bytes / 1024 ** index;
-  return `${index === 0 ? Math.round(value) : value.toFixed(1)} ${units[index]}`;
 };
 
 const FALLBACK_FONT_FAMILY =
@@ -283,12 +212,6 @@ const TERMINAL_FOCUS_RETRY = 180;
 const ICON_LOAD_DELAY = 250;
 const CATALOG_SEARCH_DELAY = 140;
 const COMMAND_LINE_SYNTAX = IS_WINDOWS ? "windows" : "posix";
-
-/** Pseudo action id under which the clipboard hotkey is recorded in settings UI. */
-const CLIPBOARD_HOTKEY_ACTION = "clipboard_hotkey";
-
-const normalizeFontSize = (value: number): number =>
-  Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
 
 const terminalFontFamily = (value: string): string => {
   const family = value.trim();
@@ -391,129 +314,6 @@ const SYSTEM_COMMANDS: {
   },
 ];
 
-// Where an application came from, read off the shape of its path: `.app`
-// bundles on macOS, `.desktop` entries on Linux, Start Menu shortcuts on
-// Windows.
-const appSubtitleKey = (path: string): MessageKey => {
-  if (IS_MAC) {
-    if (path.startsWith("/Applications/")) return "launcher.application";
-    if (path.startsWith("/System/Applications/")) return "launcher.systemApplication";
-    if (path.includes("/Applications/")) return "launcher.userApplication";
-    return "launcher.application";
-  }
-  if (/^([A-Za-z]:)?[\\/]Users[\\/]/.test(path)) return "launcher.userApplication";
-  if (path.startsWith("/home/") || path.startsWith("/root/")) return "launcher.userApplication";
-  if (/^\/(usr|opt|var)\//.test(path)) return "launcher.systemApplication";
-  return "launcher.application";
-};
-
-/** Lucide `rotate-cw` for restart, `power` for shutdown, `clipboard` for the
- *  clipboard panel. */
-const SystemActionIcon = ({ action }: { action: SystemAction }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width="16"
-    height="16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    {action === "restart" ? (
-      <>
-        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-        <path d="M21 3v6h-6" />
-      </>
-    ) : action === "shutdown" ? (
-      <>
-        <path d="M12 2v10" />
-        <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
-      </>
-    ) : (
-      <>
-        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      </>
-    )}
-  </svg>
-);
-
-/**
- * The action bar's icon: Lucide `external-link` for a URL, `folder` for a path,
- * and a shell prompt for everything else.
- *
- * The `$` is a glyph rather than Lucide's `terminal` because it is what the row
- * below it in the terminal will actually say, and it reads as "a command line"
- * to anyone who has ever seen one.
- */
-const ActionBarIcon = ({ kind }: { kind: ActionBarKind }) => {
-  if (kind === "shell") return <span>$</span>;
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {kind === "url" ? (
-        <>
-          <path d="M15 3h6v6" />
-          <path d="M10 14 21 3" />
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-        </>
-      ) : (
-        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-      )}
-    </svg>
-  );
-};
-
-type OpacityControlProps = {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-};
-
-function OpacityControl({ label, value, onChange }: OpacityControlProps) {
-  return (
-    <div className="opacity-control">
-      <div className="opacity-control__header">
-        <label className="opacity-control__label">{label}</label>
-        <output className="opacity-control__value">{value}%</output>
-      </div>
-      <input
-        className="opacity-control__range"
-        type="range"
-        min={MIN_OPACITY}
-        max={MAX_OPACITY}
-        step="1"
-        value={value}
-        aria-label={label}
-        onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
-      />
-      <div className="opacity-control__presets" aria-label={label}>
-        {OPACITY_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            className={`opacity-control__preset${value === preset ? " opacity-control__preset--active" : ""}`}
-            aria-pressed={value === preset}
-            onClick={() => onChange(preset)}
-          >
-            {preset}%
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 type FramePayload = { id: string; generation: number; frame: string };
 type ExitPayload = { id: string; generation: number; code: number | null };
@@ -621,6 +421,10 @@ export default function App() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState(false);
   const [sessionActionId, setSessionActionId] = useState<string | null>(null);
+  // Two-step kill confirmation: while set, that row's kill button shows a
+  // short confirm pill instead of the icon. Cleared by a second click, a
+  // different row's kill click, or a 3s timeout.
+  const [killConfirmId, setKillConfirmId] = useState<string | null>(null);
   // Session refreshes can overlap when the user switches pages or retries
   // quickly. Only the newest response is allowed to update the list and its
   // loading/error state; an older response may otherwise resurrect a session
@@ -2465,8 +2269,13 @@ export default function App() {
 
   const killTerminalSession = async (session: BrokerSessionInfo) => {
     if (sessionActionId) return;
-    const label = session.name || session.sessionId.slice(0, 8);
-    if (!window.confirm(t("terminal.sessionKillConfirm", { name: label }))) return;
+    // First click arms the inline confirm instead of blocking with
+    // window.confirm (same rhythm as the extensions discard bar).
+    if (killConfirmId !== session.sessionId) {
+      setKillConfirmId(session.sessionId);
+      return;
+    }
+    setKillConfirmId(null);
     setSessionActionId(session.sessionId);
     try {
       await invoke("term_kill_session", { sessionId: session.sessionId });
@@ -2477,6 +2286,12 @@ export default function App() {
       setSessionActionId(null);
     }
   };
+
+  useEffect(() => {
+    if (!killConfirmId) return;
+    const timer = window.setTimeout(() => setKillConfirmId(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [killConfirmId]);
 
   useEffect(() => {
     check().then((update) => {
@@ -3366,10 +3181,6 @@ export default function App() {
   ) : null;
 
   if (mode === "settings") {
-    const updatePercent =
-      updateProgress && updateProgress.total > 0
-        ? Math.min(100, (updateProgress.downloaded / updateProgress.total) * 100)
-        : 0;
     return (
       <div className="settings-shell">
         {pinnedCardElement}
@@ -3468,354 +3279,48 @@ export default function App() {
                 </button>
               </div>
             )}
-            {settingsPage === "general" && <>
-            <div className="settings-preferences">
-              <section className="settings-section">
-                <h2 className="settings-section__label">{t("settings.theme")}</h2>
-                <div
-                  className="settings-options settings-options--inline"
-                  role="radiogroup"
-                  aria-label={t("settings.theme")}
-                >
-                  {THEME_OPTIONS.map((option) => {
-                    const active = option.value === settings.theme;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        className={`settings-option${active ? " settings-option--active" : ""}`}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => changeTheme(option.value)}
-                      >
-                        <span className="settings-option__label">{t(option.labelKey)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="settings-section__hint">{t("settings.themeHint")}</p>
-              </section>
-
-              <section className="settings-section">
-                <h2 className="settings-section__label">{t("settings.language")}</h2>
-                <div
-                  className="settings-options settings-options--inline"
-                  role="radiogroup"
-                  aria-label={t("settings.language")}
-                >
-                  {LANGUAGE_OPTIONS.map((option) => {
-                    const active = option.value === language;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        className={`settings-option${active ? " settings-option--active" : ""}`}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => changeLanguage(option.value)}
-                      >
-                        <span className="settings-option__label">{option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="settings-section__hint">{t("settings.languageHint")}</p>
-              </section>
-            </div>
-
-            <section className="settings-section">
-              <div className="settings-option settings-option--static">
-                <span className="settings-option__main">
-                  <span className="settings-option__label">
-                    {t("settings.launchAtStartup")}
-                  </span>
-                  <span className="settings-option__description">
-                    {t("settings.launchAtStartupHint")}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className={`settings-switch${settings.launch_at_startup ? " settings-switch--active" : ""}`}
-                  role="switch"
-                  aria-checked={settings.launch_at_startup}
-                  aria-label={t("settings.launchAtStartup")}
-                  disabled={autostartUpdating}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => void changeLaunchAtStartup(!settings.launch_at_startup)}
-                >
-                  <span className="settings-switch__thumb" />
-                </button>
-              </div>
-              <div className="settings-option settings-option--static">
-                <span className="settings-option__main">
-                  <span className="settings-option__label">
-                    {t("settings.hideOnBlur")}
-                  </span>
-                  <span className="settings-option__description">
-                    {t("settings.hideOnBlurHint")}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className={`settings-switch${settings.hide_on_blur ? " settings-switch--active" : ""}`}
-                  role="switch"
-                  aria-checked={settings.hide_on_blur}
-                  aria-label={t("settings.hideOnBlur")}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => changeGeneralSetting("hide_on_blur", !settings.hide_on_blur)}
-                >
-                  <span className="settings-switch__thumb" />
-                </button>
-              </div>
-            </section>
-
-            <section className="settings-section terminal-appearance-settings">
-              <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
-              <div className="terminal-appearance-settings__grid">
-                <label className="terminal-setting-control">
-                  <span className="terminal-setting-control__header">
-                    <span>{t("settings.fontSize")}</span>
-                    <output>{normalizeFontSize(settings.font_size)} px</output>
-                  </span>
-                  <input
-                    type="range"
-                    min={MIN_FONT_SIZE}
-                    max={MAX_FONT_SIZE}
-                    step="1"
-                    value={normalizeFontSize(settings.font_size)}
-                    aria-label={t("settings.fontSize")}
-                    onChange={(event) => changeFontSize(Number(event.currentTarget.value))}
-                  />
-                </label>
-                <label className="terminal-setting-control">
-                  <span className="terminal-setting-control__header">
-                    <span>{t("settings.fontFamily")}</span>
-                  </span>
-                  <select
-                    value={settings.font_family}
-                    aria-label={t("settings.fontFamily")}
-                    onChange={(event) => changeGeneralSetting("font_family", event.currentTarget.value)}
-                  >
-                    {!FONT_FAMILY_OPTIONS.some((option) => option.value === settings.font_family) && (
-                      <option value={settings.font_family}>{settings.font_family}</option>
-                    )}
-                    {FONT_FAMILY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="terminal-setting-control terminal-setting-control--cursor">
-                <span className="terminal-setting-control__header">
-                  <span>{t("settings.cursorShape")}</span>
-                </span>
-                <div
-                  className="settings-options settings-options--inline"
-                  role="radiogroup"
-                  aria-label={t("settings.cursorShape")}
-                >
-                  {CURSOR_SHAPE_OPTIONS.map((option) => {
-                    const active = option.value === settings.cursor_shape;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        className={`settings-option${active ? " settings-option--active" : ""}`}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => changeGeneralSetting("cursor_shape", option.value)}
-                      >
-                        <span className="settings-option__label">{t(option.labelKey)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <p className="settings-section__hint">{t("settings.terminalAppearanceHint")}</p>
-            </section>
-
-            <section className="settings-section settings-section--material">
-              <h2 className="settings-section__label">{t("settings.opacity")}</h2>
-              <div className="opacity-controls">
-                <OpacityControl
-                  label={t("settings.opacity.main")}
-                  value={normalizeOpacity(settings.main_opacity)}
-                  onChange={(value) => changeOpacity("main_opacity", value)}
-                />
-                <OpacityControl
-                  label={t("settings.opacity.terminal")}
-                  value={normalizeOpacity(settings.terminal_opacity)}
-                  onChange={(value) => changeOpacity("terminal_opacity", value)}
-                />
-              </div>
-              <p className="settings-section__hint">{t("settings.opacityHint")}</p>
-            </section>
-            </>}
+            {settingsPage === "general" && (
+            <GeneralPage
+              t={t}
+              settings={settings}
+              language={language}
+              autostartUpdating={autostartUpdating}
+              onChangeTheme={changeTheme}
+              onChangeLanguage={changeLanguage}
+              onChangeGeneralSetting={changeGeneralSetting}
+              onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
+              onChangeFontSize={changeFontSize}
+              onChangeOpacity={changeOpacity}
+            />
+            )}
 
             {settingsPage === "shortcuts" && (
-            <section className="settings-section">
-              <div className="settings-section__heading">
-                <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
-                <button
-                  type="button"
-                  className="settings-reset"
-                  title={t("settings.shortcutsResetHint")}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => void restoreDefaultShortcuts()}
-                >
-                  <span className="settings-reset__icon" aria-hidden="true">↺</span>
-                  <span>{t("settings.shortcutsReset")}</span>
-                </button>
-              </div>
-              <div className="settings-options">
-                {SHORTCUT_ACTIONS.map((action) => {
-                  const labelKey: MessageKey = `shortcut.${action}`;
-                  const rejected = rejectedAction === action;
-                  return (
-                    <div key={action} className="settings-option settings-option--static">
-                      <span className="settings-option__main">
-                        <span className="settings-option__label">{t(labelKey)}</span>
-                        {rejected && (
-                          <span className="settings-option__description settings-option__description--warning">
-                            {t("settings.shortcut.rejected")}
-                          </span>
-                        )}
-                      </span>
-                      <ShortcutRecorder
-                        action={action}
-                        shortcut={shortcuts[action]}
-                        recording={recordingAction === action}
-                        onToggle={toggleRecording}
-                        onCapture={captureShortcut}
-                        onCancel={cancelRecording}
-                        t={t}
-                      />
-                    </div>
-                  );
-                })}
-                {/* The clipboard panel's trigger is stored as its own settings
-                    field (`clipboard_history_hotkey`), not in the shortcuts
-                    map — recording reuses the shared CLIPBOARD_HOTKEY_ACTION
-                    plumbing above. Default is disabled: empty means no global
-                    hotkey is registered. */}
-                <div className="settings-option settings-option--static">
-                  <span className="settings-option__main">
-                    <span className="settings-option__label">{t("shortcut.clipboard_panel")}</span>
-                    {rejectedAction === CLIPBOARD_HOTKEY_ACTION && (
-                      <span className="settings-option__description settings-option__description--warning">
-                        {t("settings.shortcut.rejected")}
-                      </span>
-                    )}
-                  </span>
-                  <span className="settings-option__hotkey-controls">
-                    <ShortcutRecorder
-                      action={CLIPBOARD_HOTKEY_ACTION}
-                      shortcut={settings.clipboard_history_hotkey}
-                      recording={recordingAction === CLIPBOARD_HOTKEY_ACTION}
-                      onToggle={toggleRecording}
-                      onCapture={captureShortcut}
-                      onCancel={cancelRecording}
-                      t={t}
-                    />
-                    {settings.clipboard_history_hotkey && (
-                      <button
-                        type="button"
-                        className="session-manager__icon-button session-manager__icon-button--danger"
-                        aria-label={t("settings.clipboardHotkeyClear")}
-                        title={t("settings.clipboardHotkeyClear")}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={clearClipboardHotkey}
-                      >
-                        <X size={14} strokeWidth={1.9} aria-hidden="true" />
-                      </button>
-                    )}
-                  </span>
-                </div>
-              </div>
-              <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
-            </section>
+            <ShortcutsPage
+              t={t}
+              shortcuts={shortcuts}
+              clipboardHotkey={settings.clipboard_history_hotkey}
+              rejectedAction={rejectedAction}
+              recordingAction={recordingAction}
+              onToggleRecording={toggleRecording}
+              onCaptureShortcut={captureShortcut}
+              onCancelRecording={cancelRecording}
+              onRestoreDefaults={() => void restoreDefaultShortcuts()}
+              onClearClipboardHotkey={clearClipboardHotkey}
+            />
             )}
 
             {settingsPage === "sessions" && (
-            <section className="settings-section session-manager">
-              <div className="settings-section__heading">
-                <h2 className="settings-section__label">{t("terminal.sessions")}</h2>
-                <button
-                  type="button"
-                  className="session-manager__icon-button"
-                  aria-label={t("terminal.sessionsRefresh")}
-                  title={t("terminal.sessionsRefresh")}
-                  disabled={sessionsLoading}
-                  onClick={() => void refreshTerminalSessions()}
-                >
-                  <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />
-                </button>
-              </div>
-
-              {terminalSessions.length === 0 ? (
-                <div className="session-manager__empty" role={sessionsError ? "alert" : undefined}>
-                  {sessionsError ? <AlertCircle size={20} strokeWidth={1.6} aria-hidden="true" /> : <SquareTerminal size={20} strokeWidth={1.6} aria-hidden="true" />}
-                  <span>{sessionsLoading ? t("terminal.sessionsLoading") : sessionsError ? t("terminal.sessionsError") : t("terminal.sessionsEmpty")}</span>
-                </div>
-              ) : (
-                <div className="session-manager__list">
-                  {terminalSessions.map((session) => {
-                    const busy = sessionActionId === session.sessionId;
-                    const state = session.exited
-                      ? t("terminal.sessionExited")
-                      : session.attached
-                        ? t("terminal.sessionAttached")
-                        : t("terminal.sessionDetached");
-                    const created = new Date(session.createdAt);
-                    return (
-                      <div key={session.sessionId} className="session-manager__row">
-                        <span className="session-manager__marker" aria-hidden="true">
-                          <SquareTerminal size={16} strokeWidth={1.8} />
-                        </span>
-                        <span className="session-manager__main">
-                          <span className="session-manager__name">
-                            {session.name || t("terminal.sessionTitle", { id: session.sessionId.slice(0, 8) })}
-                          </span>
-                          <span className="session-manager__cwd">{session.cwd || "~"}</span>
-                          <span className="session-manager__meta">
-                            <span className={session.exited ? "session-state session-state--exited" : "session-state"}>
-                              {state}
-                            </span>
-                            <span>{session.size || `${session.width}x${session.height}`}</span>
-                            {!Number.isNaN(created.getTime()) && <span>{sessionDateFormatter.format(created)}</span>}
-                          </span>
-                        </span>
-                        <span className="session-manager__actions">
-                          <button
-                            type="button"
-                            className="session-manager__icon-button"
-                            aria-label={t("terminal.sessionResume")}
-                            title={t("terminal.sessionResume")}
-                            disabled={session.exited || busy || sessionActionId !== null}
-                            onClick={() => void resumeTerminalSession(session)}
-                          >
-                            <Play size={14} strokeWidth={1.9} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            className="session-manager__icon-button session-manager__icon-button--danger"
-                            aria-label={t("terminal.sessionKill")}
-                            title={t("terminal.sessionKill")}
-                            disabled={busy || sessionActionId !== null}
-                            onClick={() => void killTerminalSession(session)}
-                          >
-                            <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
-                          </button>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+            <SessionsPage
+              t={t}
+              sessions={terminalSessions}
+              loading={sessionsLoading}
+              error={sessionsError}
+              actionId={sessionActionId}
+              dateFormatter={sessionDateFormatter}
+              onResume={(session) => void resumeTerminalSession(session)}
+              onKill={(session) => void killTerminalSession(session)}
+              onRefresh={() => void refreshTerminalSessions()}
+            />
             )}
 
             {settingsPage === "integrations" && (
@@ -3841,57 +3346,15 @@ export default function App() {
             )}
 
             {settingsPage === "about" && (
-            <section className="settings-section">
-              <div className="update-banner">
-                <div className="update-banner__info">
-                  <span className="update-banner__title">
-                    {t("settings.currentVersion")}: v{appVersion}
-                  </span>
-                  <span className="update-banner__desc">
-                    {updateFailed
-                      ? t("settings.updateFailed")
-                      : updateInfo
-                        ? `${t("settings.latestVersion")}: v${updateInfo.version}`
-                        : t("settings.upToDate")}
-                  </span>
-                </div>
-                {updateProgress ? (
-                  <div className="update-banner__progress">
-                    <div className="update-banner__progress-track">
-                      <div
-                        className="update-banner__progress-bar"
-                        style={{ width: `${updatePercent}%` }}
-                      />
-                    </div>
-                    <span className="update-banner__progress-label">
-                      {updateProgress.total > 0
-                        ? `${Math.round(updatePercent)}% · ${formatBytes(updateProgress.downloaded)} / ${formatBytes(updateProgress.total)}`
-                        : formatBytes(updateProgress.downloaded)}
-                    </span>
-                  </div>
-                ) : updateDownloading ? (
-                  <button type="button" className="update-banner__button" disabled>
-                    {t("settings.installing")}
-                  </button>
-                ) : updateFailed ? (
-                  <button
-                    type="button"
-                    className="update-banner__button"
-                    onClick={downloadAndInstallUpdate}
-                  >
-                    {t("settings.retry")}
-                  </button>
-                ) : updateInfo ? (
-                  <button
-                    type="button"
-                    className="update-banner__button"
-                    onClick={downloadAndInstallUpdate}
-                  >
-                    {t("settings.downloadUpdate")}
-                  </button>
-                ) : null}
-              </div>
-            </section>
+            <AboutPage
+              t={t}
+              appVersion={appVersion}
+              updateInfo={updateInfo}
+              updateDownloading={updateDownloading}
+              updateProgress={updateProgress}
+              updateFailed={updateFailed}
+              onDownloadUpdate={downloadAndInstallUpdate}
+            />
             )}
             </main>
           </div>
@@ -4073,109 +3536,27 @@ export default function App() {
                   <span>{t(launcherFeedback)}</span>
                 </div>
               )}
-              {(launcherResults.length > 0 || actionBar) && (
-                <div id="launcher-options" className="launcher-options" role="listbox" aria-label={t("launcher.results")}>
-                  {launcherResults.length > 0 && (
-                    <div className="launcher-results" role="presentation">
-                      {!query.trim() && (
-                        <div
-                          className="launcher-section-title"
-                          role="presentation"
-                          title={t("launcher.recentHint")}
-                        >
-                          {t("launcher.recent")}
-                        </div>
-                      )}
-                      {launcherResults.map((item, index) => {
-                        const selected = !selectedActionBar && index === selectedResultIndex;
-                        const unavailable = item.type === "command" && !item.execution;
-                        const shortcutSlot = resultShortcutSlots[index];
-                        return (
-                          <button
-                            id={`launcher-option-${index}`}
-                            key={item.id}
-                            type="button"
-                            className={`launcher-result${selected ? " launcher-result--selected" : ""}${
-                              unavailable ? " launcher-result--unavailable" : ""
-                            }`}
-                            role="option"
-                            aria-selected={selected}
-                            aria-disabled={unavailable}
-                            tabIndex={-1}
-                            onMouseMove={() => {
-                              if (unavailable) return;
-                              setSelectedActionBar(false);
-                              setSelectedResultIndex(index);
-                            }}
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => runLauncherItem(item)}
-                          >
-                            <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
-                              {item.type === "app" && appIconUrls[item.app.path] ? (
-                                <img src={appIconUrls[item.app.path]} alt="" />
-                              ) : item.type === "system" ? (
-                                <SystemActionIcon action={item.action} />
-                              ) : (
-                                // The placeholder for an application whose icon has
-                                // not resolved yet: a first letter over a real icon
-                                // reads as a different application rather than as a
-                                // pending one.
-                                <span>$</span>
-                              )}
-                            </span>
-                            <span className="launcher-result__main">
-                              <span className="launcher-result__title">{item.title}</span>
-                              <span className="launcher-result__subtitle">
-                                {item.subtitle}
-                                <span className="launcher-result__source">
-                                  {t("extensions.source", {
-                                    source: item.type === "command"
-                                      ? item.sourceName
-                                      : item.type === "app"
-                                        ? t(appSubtitleKey(item.app.path))
-                                        : t("extensions.builtIn"),
-                                  })}
-                                </span>
-                              </span>
-                            </span>
-                            <span className="launcher-result__action">
-                              {shortcutSlot === null
-                                ? ""
-                                : formatResultShortcut(shortcuts.select_result, shortcutSlot)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {actionBar && (
-                    <button
-                      id="launcher-option-action"
-                      type="button"
-                      className={`launcher-action-bar launcher-action-bar--${actionBar.type}${
-                        selectedActionBar ? " launcher-action-bar--selected" : ""
-                      }`}
-                      role="option"
-                      aria-selected={selectedActionBar}
-                      tabIndex={-1}
-                      onMouseMove={() => setSelectedActionBar(true)}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => executeActionBar(actionBar)}
-                    >
-                      <span className="launcher-action-bar__icon">
-                        <ActionBarIcon kind={actionBar.type} />
-                      </span>
-                      <span className="launcher-action-bar__main">
-                        <span className="launcher-action-bar__title">{actionBar.value}</span>
-                        <span className="launcher-action-bar__subtitle">{actionBar.label}</span>
-                      </span>
-                      <span className="launcher-action-bar__hint">
-                        {actionBarShortcut}
-                      </span>
-                    </button>
-                  )}
-                </div>
-              )}
+              <LauncherResults
+                t={t}
+                results={launcherResults}
+                actionBar={actionBar}
+                appIconUrls={appIconUrls}
+                selectedResultIndex={selectedResultIndex}
+                selectedActionBar={selectedActionBar}
+                resultShortcutSlots={resultShortcutSlots}
+                actionBarShortcut={actionBarShortcut}
+                selectResultShortcut={shortcuts.select_result}
+                showRecentTitle={!query.trim()}
+                onSelectResult={(index) => {
+                  setSelectedActionBar(false);
+                  setSelectedResultIndex(index);
+                }}
+                onSelectActionBar={() => setSelectedActionBar(true)}
+                onRunResult={runLauncherItem}
+                onRunActionBar={() => {
+                  if (actionBar) executeActionBar(actionBar);
+                }}
+              />
             </div>
           </div>
         </div>
