@@ -119,7 +119,19 @@ export function SessionsPage({
               <div
                 key={session.sessionId}
                 className={`session-manager__row${resumable ? " session-manager__row--resumable" : ""}`}
+                role={resumable ? "button" : undefined}
+                tabIndex={resumable && actionId === null ? 0 : undefined}
+                aria-disabled={resumable && actionId !== null ? true : undefined}
                 onClick={resumable && actionId === null ? () => onResume(session) : undefined}
+                onKeyDown={
+                  resumable && actionId === null
+                    ? (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        onResume(session);
+                      }
+                    : undefined
+                }
               >
                 <span className="session-manager__marker" aria-hidden="true">
                   <SquareTerminal size={16} strokeWidth={1.8} />
