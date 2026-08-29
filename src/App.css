@@ -1329,6 +1329,18 @@ input:focus {
   border-top: 1px solid var(--hairline);
 }
 
+/* Resumable rows are whole-row hit targets: any click outside the action
+   buttons resumes the session, so they get pointer affordance and a hover
+   wash like a list item. */
+.session-manager__row--resumable {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.session-manager__row--resumable:hover {
+  background: var(--surface-control-hover);
+}
+
 .session-manager__marker {
   width: 28px;
   height: 28px;

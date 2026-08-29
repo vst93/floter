@@ -8,6 +8,11 @@ import type { BrokerSessionInfo } from "../App";
  * inline discard confirmation (75fff0b). */
 const KILL_CONFIRM_TIMEOUT = 3000;
 
+/** While this page is mounted and the window is visible, re-list sessions on
+ * this cadence: they come and go out of band (new daemons, exits, attaches)
+ * and the list would otherwise silently go stale. */
+const SESSIONS_POLL_INTERVAL = 5000;
+
 type SessionsPageProps = {
   t: Translate;
   sessions: BrokerSessionInfo[];
@@ -60,6 +65,20 @@ export function SessionsPage({
     }, KILL_CONFIRM_TIMEOUT);
   };
 
+  // Keep the latest callback without re-arming the interval on every render
+  // (refreshTerminalSessions is a fresh function each App render).
+  const onRefreshRef = useRef(onRefresh);
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") onRefreshRef.current();
+    }, SESSIONS_POLL_INTERVAL);
+    return () => window.clearInterval(interval);
+  }, []);
+
   useEffect(() => () => {
     if (killArmTimer.current !== null) window.clearTimeout(killArmTimer.current);
   }, []);
@@ -89,6 +108,7 @@ export function SessionsPage({
         <div className="session-manager__list">
           {sessions.map((session) => {
             const busy = actionId === session.sessionId;
+            const resumable = !session.exited && !session.attached;
             const state = session.exited
               ? t("terminal.sessionExited")
               : session.attached
@@ -96,7 +116,11 @@ export function SessionsPage({
                 : t("terminal.sessionDetached");
             const created = new Date(session.createdAt);
             return (
-              <div key={session.sessionId} className="session-manager__row">
+              <div
+                key={session.sessionId}
+                className={`session-manager__row${resumable ? " session-manager__row--resumable" : ""}`}
+                onClick={resumable && actionId === null ? () => onResume(session) : undefined}
+              >
                 <span className="session-manager__marker" aria-hidden="true">
                   <SquareTerminal size={16} strokeWidth={1.8} />
                 </span>
@@ -116,13 +140,14 @@ export function SessionsPage({
                 <span className="session-manager__actions">
                   <button
                     type="button"
-                    className={`session-manager__icon-button${
-                      !session.exited && !session.attached ? " session-manager__icon-button--resumable" : ""
-                    }`}
+                    className={`session-manager__icon-button${resumable ? " session-manager__icon-button--resumable" : ""}`}
                     aria-label={t("terminal.sessionResume")}
                     title={t("terminal.sessionResume")}
                     disabled={session.exited || busy || actionId !== null}
-                    onClick={() => onResume(session)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onResume(session);
+                    }}
                   >
                     <Play size={14} strokeWidth={1.9} aria-hidden="true" />
                   </button>
@@ -133,7 +158,8 @@ export function SessionsPage({
                       aria-label={t("terminal.sessionKillArm")}
                       disabled={actionId !== null}
                       onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation();
                         disarmKill();
                         onKill(session);
                       }}
@@ -148,7 +174,10 @@ export function SessionsPage({
                       aria-label={t("terminal.sessionKill")}
                       title={t("terminal.sessionKill")}
                       disabled={busy || actionId !== null}
-                      onClick={() => armKill(session.sessionId)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        armKill(session.sessionId);
+                      }}
                     >
                       <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
                     </button>
