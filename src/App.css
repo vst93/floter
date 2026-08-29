@@ -587,15 +587,19 @@ input:focus {
 
 /* Source sits at a fixed slot on the row's right edge instead of hanging off
    the subtitle: an inline suffix is the first thing ellipsis eats on a narrow
-   window, precisely when "where did this result come from" matters most. The
-   full text stays reachable through the title tooltip. */
+   window, precisely when "where did this result come from" matters most.
+   Long paths wrap to at most two lines inside the fixed 42px row instead of
+   being cut off, and the title tooltip still carries the full text. */
 .launcher-result__source {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 30%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 510;
