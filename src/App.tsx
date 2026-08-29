@@ -319,6 +319,11 @@ const SYSTEM_COMMANDS: {
 type FramePayload = { id: string; generation: number; frame: string };
 type ExitPayload = { id: string; generation: number; code: number | null };
 
+/** Identity zone in the terminal bar: a status dot plus the session title
+ * (the command the session was launched with, else the broker session name).
+ * The exit event flips it to the exited state. */
+type MainSessionIdentity = { title: string; exited: boolean; exitCode: number | null };
+
 type DragState =
   | { mode: "none" | "select" | "scroll" }
   | { mode: "mouse"; button: number };
@@ -386,6 +391,9 @@ export default function App() {
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
   const [terminalMounted, setTerminalMounted] = useState(false);
+  /** Header identity (status dot + title) for the session in the main terminal
+   * view; null until a spawn/attach has described it. */
+  const [mainSessionIdentity, setMainSessionIdentity] = useState<MainSessionIdentity | null>(null);
   // Which surface owns the keyboard: the main terminal area or the pin card.
   // Clicking a surface claims it; Escape or an outside click returns it to the
   // main view. Mirrored into a ref because the window keydown handler must see
@@ -1236,6 +1244,7 @@ export default function App() {
         ptyReady.current = true;
         mainBrokerSessionIdRef.current = brokerSessionId;
         setMainPinnedAway(false);
+        void describeMainSession(brokerSessionId, initialCommand);
       }
     } catch (error) {
       if (terminalGeneration.current === generation) {
@@ -1342,6 +1351,12 @@ export default function App() {
         event.payload.generation !== terminalGeneration.current
       )
         return;
+      // Record the exit before the collapse: the identity zone carries the
+      // running→exited transition, and any later describe of this session
+      // would otherwise show a live dot for a dead PTY.
+      setMainSessionIdentity((current) =>
+        current ? { ...current, exited: true, exitCode: event.payload.code } : current,
+      );
       handleTerminalExit();
     });
 
@@ -2748,6 +2763,26 @@ export default function App() {
     }
   };
 
+  /** Fill the terminal bar's identity zone for `brokerSessionId`: the command
+   * the session was launched with when present, else the broker's session
+   * name, else the generic session title. The session list also reports the
+   * exit state, so an attach of an already-dead session shows that instead of
+   * a live dot. */
+  const describeMainSession = async (brokerSessionId: string, initialCommand: string | null) => {
+    const fallbackTitle = t("terminal.sessionTitle", { id: brokerSessionId.slice(0, 8) });
+    try {
+      const sessions = await invoke<BrokerSessionInfo[]>("term_list_sessions");
+      const info = sessions.find((entry) => entry.sessionId === brokerSessionId);
+      setMainSessionIdentity({
+        title: initialCommand || info?.name || fallbackTitle,
+        exited: info?.exited ?? false,
+        exitCode: info?.exited ? info.exitCode : null,
+      });
+    } catch {
+      setMainSessionIdentity({ title: initialCommand || fallbackTitle, exited: false, exitCode: null });
+    }
+  };
+
   /** Attach `brokerSessionId` to the card's frontend id with a fresh view
    * generation; resolves to that generation. */
   const attachAsPinned = async (brokerSessionId: string): Promise<number> => {
@@ -2771,6 +2806,7 @@ export default function App() {
     terminalGeneration.current = null;
     ptyReady.current = false;
     mainBrokerSessionIdRef.current = null;
+    setMainSessionIdentity(null);
     resetTerminalFrontendState();
     setActiveSurface("main");
   };
@@ -2821,6 +2857,7 @@ export default function App() {
       ptyReady.current = true;
       mainBrokerSessionIdRef.current = attachedId;
       setMainPinnedAway(false);
+      void describeMainSession(attachedId, null);
       focusTerminalView();
     } catch {
       terminalGeneration.current = null;
@@ -3567,12 +3604,29 @@ export default function App() {
     );
   }
 
+  const identityTitle = mainSessionIdentity
+    ? mainSessionIdentity.exited
+      ? `${mainSessionIdentity.title} · ${t("terminal.headerExited", {
+          code: mainSessionIdentity.exitCode ?? 0,
+        })}`
+      : mainSessionIdentity.title
+    : null;
+
   return (
     <div className="terminal-shell">
       {pinnedCardElement}
       <section className="terminal-panel terminal-panel--entered">
         <header className="terminal-bar" onMouseDown={startDrag}>
           <div className="terminal-bar__frost" />
+          {mainSessionIdentity && (
+            <div className="terminal-bar__identity" title={identityTitle ?? undefined}>
+              <span
+                className={`terminal-bar__dot${mainSessionIdentity.exited ? " terminal-bar__dot--exited" : ""}`}
+                aria-hidden="true"
+              />
+              <span className="terminal-bar__title">{identityTitle}</span>
+            </div>
+          )}
           <div className="terminal-panel__actions">
             <button
               className="toolbar-button toolbar-button--popout"
