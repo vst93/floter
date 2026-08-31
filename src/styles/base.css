@@ -1,0 +1,446 @@
+/* Global foundation: reset, theme variables, element defaults, the shared
+   shell frame, scrollbar, and the global accessibility / platform overrides
+   (reduced motion & transparency, contrast, Windows/Linux window chrome).
+   Imported LAST on purpose: the override blocks at the bottom must win the
+   cascade over every surface file's equal-specificity rules. */
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V4 */
+* {
+  box-sizing: border-box;
+}
+
+/* Dark is the default set; `[data-theme="light"]` below overrides only what has
+   to change. `auto` never reaches CSS — App.tsx resolves it against
+   `prefers-color-scheme` and writes the concrete value onto <html>, so this file
+   holds each palette exactly once and the terminal renderer (which reads these
+   same variables through getComputedStyle) always sees a resolved answer. */
+:root {
+  color-scheme: dark;
+
+  /* Window corner radius. DWM rounding is disabled on Windows (see
+     `configure_windows_frame` in lib.rs) and macOS never rounds a borderless
+     window, so CSS is the sole source of the corner shape on every platform —
+     and the drop shadow around it belongs to the window server, never to a
+     surface below. A `box-shadow` cast by a card that fills its own window has
+     nowhere to land: it is clipped at the window edge, and what survives reads
+     as a square outline around the rounded corners. */
+  --window-radius: 10px;
+
+  /* Card surfaces. The values are supplied by the settings panel and clamped
+     before persistence; alpha applies to materials only, never text. */
+  --main-opacity: 0.94;
+  --terminal-opacity: 0.92;
+  --input-bg: rgb(18 19 22 / var(--main-opacity));
+  --input-bg-active: rgb(19 20 23 / var(--main-opacity));
+  --input-stroke: rgba(255, 255, 255, 0.08);
+  --input-stroke-active: rgba(143, 183, 255, 0.24);
+  /* Recessed areas inside a card: the result strip and the settings body. */
+  --surface-sunken: rgba(17, 18, 20, 0.72);
+  --surface-sunken-soft: rgba(17, 18, 20, 0.52);
+  /* Stand-in for the whole stack where transparency is turned off. */
+  --surface-opaque: rgba(28, 29, 32, 0.98);
+
+  /* Controls */
+  --surface-control: rgba(255, 255, 255, 0.055);
+  --surface-control-hover: rgba(255, 255, 255, 0.105);
+  --surface-control-active: rgba(255, 255, 255, 0.14);
+  --stroke-control: rgba(255, 255, 255, 0.075);
+
+  /* Glass: the top-down gradient and the 1px edges that give a card depth. */
+  --sheen-top: rgba(255, 255, 255, 0.046);
+  --sheen-bottom: rgba(255, 255, 255, 0.01);
+  --sheen-top-active: rgba(255, 255, 255, 0.056);
+  --sheen-bottom-active: rgba(255, 255, 255, 0.012);
+  --edge-highlight: rgba(255, 255, 255, 0.11);
+  --edge-highlight-active: rgba(255, 255, 255, 0.13);
+  --edge-shadow: rgba(0, 0, 0, 0.22);
+  --window-shadow-ambient: rgba(0, 0, 0, 0.3);
+  --window-shadow-contact: rgba(0, 0, 0, 0.2);
+  --hairline: rgba(255, 255, 255, 0.055);
+  /* A key cap reads as one because of these two, not because of its border. */
+  --keycap-highlight: rgba(255, 255, 255, 0.07);
+  --keycap-shadow: rgba(0, 0, 0, 0.28);
+
+  /* Text */
+  --text-primary: #f2f3f5;
+  --text-strong: rgba(244, 245, 247, 0.94);
+  --text-secondary: rgba(238, 239, 242, 0.66);
+  --text-muted: rgba(238, 239, 242, 0.42);
+  --text-tertiary: rgba(238, 239, 242, 0.36);
+  --text-placeholder: rgba(238, 239, 242, 0.4);
+  --text-warning: rgba(255, 173, 158, 0.72);
+
+  /* Accent */
+  --accent: #8fb7ff;
+  --accent-contrast: #15171b;
+  --accent-tint: rgba(143, 183, 255, 0.13);
+  --accent-tint-hover: rgba(143, 183, 255, 0.19);
+  --accent-edge: rgba(143, 183, 255, 0.3);
+  --accent-edge-strong: rgba(143, 183, 255, 0.72);
+  --accent-glow: rgba(143, 183, 255, 0.08);
+  --accent-wash: rgba(143, 183, 255, 0.055);
+  --accent-ring: rgba(122, 167, 255, 0.78);
+
+  /* Result icons */
+  --icon-surface: rgba(255, 255, 255, 0.055);
+  --icon-edge: rgba(255, 255, 255, 0.055);
+  /* Warm rather than the accent blue: a power action is the one launcher entry
+     that cannot be undone by closing a window. */
+  --system-icon-surface: rgba(255, 176, 132, 0.115);
+  --system-icon-text: rgba(255, 209, 178, 0.82);
+  /* The selected action bar, when it holds a shell command. Green rather than the
+     accent blue the result rows are selected in: the two selections are moved
+     between with the same arrow keys, and the colour is what says which of them
+     Enter is about to reach. A URL or a path keeps the blue — those open
+     something, the way a result does. */
+  --action-shell-tint: rgba(72, 187, 120, 0.13);
+
+  /* Terminal. `--terminal-fg` and `--terminal-cursor` are read by the canvas
+     renderer, not by any rule here: the frame the backend sends marks a cell as
+     "default coloured" and the renderer paints those in the theme's colours. */
+  --terminal-bg: #111214;
+  --terminal-fg: #d7dae0;
+  --terminal-cursor: #8bd5ca;
+  --terminal-selection: rgba(255, 255, 255, 0.16);
+  --terminal-scrollbar: rgba(255, 255, 255, 0.32);
+  --terminal-bar: rgba(27, 28, 31, 0.72);
+  --terminal-bar-top: rgba(41, 42, 46, 0.74);
+  --terminal-bar-bottom: rgba(23, 24, 27, 0.52);
+
+  --scrollbar-thumb: rgba(238, 239, 242, 0.16);
+
+  /* Borders used only under `prefers-contrast: more`. */
+  --stroke-contrast: rgba(255, 255, 255, 0.42);
+  --stroke-contrast-soft: rgba(255, 255, 255, 0.34);
+  --text-placeholder-contrast: rgba(242, 243, 245, 0.58);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --input-bg: rgb(250 250 252 / var(--main-opacity));
+  --input-bg-active: rgb(253 253 255 / var(--main-opacity));
+  --input-stroke: rgba(0, 0, 0, 0.1);
+  --input-stroke-active: rgba(10, 108, 255, 0.28);
+  --surface-sunken: rgba(243, 244, 247, 0.82);
+  --surface-sunken-soft: rgba(243, 244, 247, 0.58);
+  --surface-opaque: rgba(250, 250, 252, 0.99);
+
+  --surface-control: rgba(0, 0, 0, 0.04);
+  --surface-control-hover: rgba(0, 0, 0, 0.075);
+  --surface-control-active: rgba(0, 0, 0, 0.11);
+  --stroke-control: rgba(0, 0, 0, 0.08);
+
+  /* The sheen inverts: on a light card the highlight is the opaque white and
+     the shadow is what has to stay subtle, or every edge turns into a groove. */
+  --sheen-top: rgba(255, 255, 255, 0.66);
+  --sheen-bottom: rgba(255, 255, 255, 0.22);
+  --sheen-top-active: rgba(255, 255, 255, 0.78);
+  --sheen-bottom-active: rgba(255, 255, 255, 0.28);
+  --edge-highlight: rgba(255, 255, 255, 0.92);
+  --edge-highlight-active: rgba(255, 255, 255, 0.96);
+  --edge-shadow: rgba(0, 0, 0, 0.055);
+  --window-shadow-ambient: rgba(0, 0, 0, 0.18);
+  --window-shadow-contact: rgba(0, 0, 0, 0.12);
+  --hairline: rgba(0, 0, 0, 0.07);
+  --keycap-highlight: rgba(255, 255, 255, 0.9);
+  --keycap-shadow: rgba(0, 0, 0, 0.09);
+
+  --text-primary: #1d1d1f;
+  --text-strong: rgba(23, 23, 26, 0.94);
+  --text-secondary: rgba(60, 60, 67, 0.66);
+  --text-muted: rgba(60, 60, 67, 0.5);
+  --text-tertiary: rgba(60, 60, 67, 0.4);
+  --text-placeholder: rgba(60, 60, 67, 0.42);
+  --text-warning: #b3261e;
+
+  /* Darker than the dark theme's accent: the same pastel blue that reads as
+     bright on near-black is barely there on white, and it has to carry the
+     check mark and the recording pill's text. */
+  --accent: #075ed8;
+  --accent-contrast: #f7f9ff;
+  --accent-tint: rgba(7, 94, 216, 0.1);
+  --accent-tint-hover: rgba(7, 94, 216, 0.15);
+  --accent-edge: rgba(7, 94, 216, 0.34);
+  --accent-edge-strong: rgba(7, 94, 216, 0.66);
+  /* Both of these carry more alpha than their dark counterparts, which is what
+     it takes to be equally visible: a light colour laid over near-black gains
+     contrast, while the same alpha of blue over near-white barely moves the
+     pixel. `--accent-glow` is the focus ring around the collapsed card and
+     `--accent-wash` the aura inside it — at the dark theme's values neither
+     was there at all in light mode. */
+  --accent-glow: rgba(7, 94, 216, 0.18);
+  --accent-wash: rgba(7, 94, 216, 0.075);
+  --accent-ring: rgba(7, 94, 216, 0.8);
+
+  --icon-surface: rgba(0, 0, 0, 0.05);
+  --icon-edge: rgba(0, 0, 0, 0.06);
+  --system-icon-surface: rgba(214, 118, 44, 0.13);
+  --system-icon-text: #a24d15;
+  /* Darker and a shade less saturated than the dark theme's: the same green over
+     a light surface reads as a much stronger wash than it does over a dark one. */
+  --action-shell-tint: rgba(28, 138, 78, 0.12);
+
+  /* A soft warm gray rather than near-white: the terminal is the one surface
+     that is filled edge to edge with a command's own colours, and many of them
+     (git diff, `ls` defaults) are dark enough that a paper-white field behind
+     them is what makes the panel tiring to read. The foreground darkens with it
+     so the contrast the palette started with is kept. */
+  --terminal-bg: #f8f8fa;
+  --terminal-fg: #202124;
+  --terminal-cursor: #007c86;
+  --terminal-selection: rgba(10, 108, 255, 0.18);
+  --terminal-scrollbar: rgba(60, 60, 67, 0.34);
+  --terminal-bar: rgba(238, 239, 243, 0.78);
+  --terminal-bar-top: rgba(252, 252, 254, 0.86);
+  --terminal-bar-bottom: rgba(236, 237, 241, 0.6);
+
+  --scrollbar-thumb: rgba(60, 60, 67, 0.26);
+
+  --stroke-contrast: rgba(0, 0, 0, 0.5);
+  --stroke-contrast-soft: rgba(0, 0, 0, 0.36);
+  --text-placeholder-contrast: rgba(28, 28, 32, 0.68);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  font-optical-sizing: auto;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: none;
+}
+
+input:focus {
+  outline: none;
+}
+
+.collapsed-shell,
+.terminal-shell,
+.settings-shell {
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  background: transparent;
+  transform-origin: center top;
+  will-change: opacity, transform;
+  animation: shell-enter 150ms cubic-bezier(0.22, 0.82, 0.2, 1);
+}
+
+@keyframes shell-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.986) translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+canvas {
+  display: block;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsed-shell,
+  .terminal-shell,
+  .settings-shell,
+  .settings-content,
+  .terminal-panel--entered {
+    animation: none;
+  }
+
+  .collapsed-card,
+  .collapsed-card__settings,
+  .launcher-bottom-clip,
+  .settings-option,
+  .settings-switch,
+  .settings-switch__thumb,
+  .shortcut-recorder,
+  .toolbar-button,
+  .extensions-icon-button,
+  .extensions-action-button,
+  .extension-row,
+  .extension-tool-results button,
+  .extension-drawer-backdrop,
+  .extension-drawer,
+  .collapsed-card__aura,
+  .terminal-bar,
+  .terminal-panel__actions,
+  .terminal-bar__frost {
+    transition: none;
+  }
+
+  /* The recorder still needs to read as armed without the pulse. */
+  .shortcut-recorder--recording {
+    animation: none;
+    box-shadow: inset 0 0 0 1px var(--accent-edge-strong);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .collapsed-card,
+  .settings-card,
+  .terminal-bar__frost {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--surface-opaque);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .collapsed-card,
+  .settings-card,
+  .terminal-panel {
+    border-color: var(--stroke-contrast);
+  }
+
+  .collapsed-card__input::placeholder {
+    color: var(--text-placeholder-contrast);
+  }
+
+  .settings-option {
+    box-shadow: inset 0 0 0 1px var(--stroke-contrast-soft);
+  }
+
+  .shortcut-recorder {
+    box-shadow: inset 0 0 0 1px var(--stroke-contrast);
+    color: var(--text-primary);
+  }
+}
+
+/* An undecorated Windows window reaches exactly to these surfaces. Its edge is
+   therefore painted inward so no square pixel can survive outside the radius.
+   Other platforms retain the border declared above. The radius follows the
+   system's own: Windows 11 rounds an application window at 8px, and floter
+   draws its corners itself there (DWM rounding is off), so it should round to
+   the same figure rather than to macOS' slightly larger one. */
+.platform-windows {
+  --window-radius: 8px;
+}
+
+/* The native frame is off (`shadow: false` in tauri.conf.json), so the gray
+   DWM outline around the corners is gone with it - and so is the drop shadow
+   it doubled as.  The shell is given asymmetric padding - more at the bottom
+   and right, less at the top and left - so an outward box-shadow has room to
+   land on the sides a panel naturally casts a shadow toward (it hangs from
+   the top of the screen and lights from above-left), while the sides it sits
+   flush against need almost none.  The inward edge strokes that gave the card
+   definition on every other platform are kept here too. */
+.platform-windows .collapsed-shell {
+  padding: 4px 10px 12px 4px;
+}
+
+.platform-windows .settings-shell,
+.platform-windows .terminal-shell {
+  padding: 10px;
+}
+
+.platform-windows .collapsed-card,
+.platform-windows .settings-card,
+.platform-windows .terminal-panel {
+  border: 0;
+  box-shadow:
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--input-stroke),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-windows .collapsed-card:focus-within {
+  box-shadow:
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--input-stroke-active),
+    inset 0 1px 0 var(--edge-highlight-active),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-windows .terminal-panel {
+  box-shadow:
+    0 4px 16px var(--window-shadow-ambient),
+    0 1px 4px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--input-stroke),
+    inset 0 1px 0 var(--keycap-highlight),
+    inset 0 -1px 0 var(--keycap-shadow);
+}
+
+@media (prefers-contrast: more) {
+  .platform-windows .collapsed-card,
+  .platform-windows .settings-card,
+  .platform-windows .terminal-panel {
+    box-shadow:
+      0 4px 16px var(--window-shadow-ambient),
+      0 1px 4px var(--window-shadow-contact),
+      inset 0 0 0 1px var(--stroke-contrast);
+  }
+}
+
+/* Linux compositors disagree on whether a transparent undecorated window gets
+   a native shadow. Keep the depth inside the transparent webview allocation so
+   X11 and Wayland render the same edge, with symmetric room because neither
+   compositor exposes a stable light direction to the application. */
+.platform-linux .settings-shell,
+.platform-linux .terminal-shell {
+  padding: 10px;
+}
+
+.platform-linux .collapsed-shell {
+  padding: 0;
+}
+
+.platform-linux .collapsed-card,
+.platform-linux .settings-card,
+.platform-linux .terminal-panel {
+  box-shadow:
+    0 4px 18px var(--window-shadow-ambient),
+    0 1px 5px var(--window-shadow-contact),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-linux .collapsed-card {
+  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
+}
+
+.platform-linux .collapsed-card:focus-within {
+  box-shadow:
+    0 4px 18px var(--window-shadow-ambient),
+    0 1px 5px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--accent-glow),
+    inset 0 1px 0 var(--edge-highlight-active),
+    inset 0 -1px 0 var(--edge-shadow);
+}

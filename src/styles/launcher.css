@@ -1,0 +1,500 @@
+/* Launcher surface: the collapsed card (input row, aura, buttons) and the
+   result list / action bar that grows beneath it. */
+.collapsed-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapsed-card {
+  position: relative;
+  width: 100%;
+  /* Not `height`: the window is sized to this card (see the measuring layout
+     effect in App.tsx), so the card has to be free to be taller than the window
+     it currently sits in. Pinned to an exact height it would instead squeeze its
+     own rows — a flex item with nothing to give — and the bottom of the action
+     bar would be cut off by the window edge. `min-height` still fills a window
+     that happens to be larger, which is what the moment between a shrinking
+     result list and the resize landing looks like. */
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  border: 1px solid var(--input-stroke);
+  border-radius: var(--window-radius);
+  background:
+    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
+    var(--input-bg);
+  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  backdrop-filter: blur(26px) saturate(160%);
+  user-select: none;
+  cursor: grab;
+  overflow: hidden;
+  transition: transform 120ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.collapsed-card:focus-within {
+  border-color: var(--input-stroke-active);
+  background:
+    linear-gradient(180deg, var(--sheen-top-active), var(--sheen-bottom-active)),
+    var(--input-bg-active);
+  /* Inward, like every other edge here: a ring drawn outside the card lands
+     outside the window and is clipped away, corners first. */
+  box-shadow:
+    inset 0 0 0 1px var(--accent-glow),
+    inset 0 1px 0 var(--edge-highlight-active),
+    inset 0 -1px 0 var(--edge-shadow);
+}
+
+.collapsed-card:active {
+  transform: none;
+}
+
+.collapsed-card__input-row {
+  position: relative;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  overflow: hidden;
+}
+
+.collapsed-card__aura {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--accent-wash), transparent 42%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.collapsed-card--filled .collapsed-card__aura,
+.collapsed-card:focus-within .collapsed-card__aura {
+  opacity: 1;
+}
+
+.collapsed-card__input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 460;
+  line-height: 1.3;
+  letter-spacing: 0;
+  caret-color: var(--accent);
+}
+
+.collapsed-card__input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.collapsed-card__settings {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, transform 80ms ease;
+}
+
+.collapsed-card__settings:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-strong);
+}
+
+.collapsed-card__settings:active {
+  transform: scale(0.94);
+}
+
+.collapsed-card__settings:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+/* The whole area below the input: the result list, the action bar, or both. The
+   sunken field and the hairline that separates it from the input live here
+   rather than on the list, so that an action bar with nothing matched above it
+   sits in the same panel a list would have. The inset is the same on all four
+   sides: a selected row is a tinted rectangle, and an even margin around it is
+   the difference between a row sitting in a field and a row resting on the
+   bottom edge of one. */
+.launcher-bottom {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0;
+  padding: 4px;
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-sunken);
+}
+
+/* Height animation for the whole bottom area. The wrapper is always mounted
+   while the collapsed card is up; only its class flips, so the 0fr → 1fr
+   grid-row transition (and the fade) runs in both directions instead of the
+   card snapping to a new height. Visibility is kept in the transition so the
+   hidden state only applies after the collapse finishes — the content stays
+   unfocusable when closed, exactly as when it was unmounted. */
+.launcher-bottom-clip {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    grid-template-rows 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 140ms;
+}
+
+.launcher-bottom-clip--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    grid-template-rows 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+
+/* The 0fr track only collapses when its child can shrink below its content. */
+.launcher-bottom-clip > .launcher-bottom {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.launcher-feedback {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--system-icon-surface);
+  color: var(--text-warning);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.launcher-feedback__icon,
+.terminal-feedback__icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.launcher-feedback__retry {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.launcher-feedback__retry:hover {
+  border-color: var(--stroke-control);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
+.launcher-feedback__retry:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+.launcher-results {
+  display: grid;
+  gap: 1px;
+}
+
+.launcher-section-title {
+  padding: 2px 11px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.launcher-options {
+  display: grid;
+  gap: 0;
+}
+
+.launcher-result {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 9px 0 11px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.launcher-result--selected {
+  background: var(--accent-tint);
+}
+
+.launcher-result--unavailable {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.launcher-result--unavailable .launcher-result__icon,
+.launcher-result--unavailable .launcher-result__title,
+.launcher-result--unavailable .launcher-result__subtitle {
+  opacity: 0.62;
+}
+
+.launcher-result__icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px var(--icon-edge);
+}
+
+.launcher-result__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The same neutral surface an application's placeholder gets, because the two
+   carry the same `$` glyph and mean the same thing — "run this". A tint of the
+   accent here read as a *kind* of result rather than as one row's icon, and the
+   selected row already owns that colour. */
+.launcher-result__icon--command {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+}
+
+/* Warm rather than the accent blue: a power action is the one launcher entry
+   that cannot be undone by closing a window. */
+.launcher-result__icon--system {
+  background: var(--system-icon-surface);
+  color: var(--system-icon-text);
+}
+
+.launcher-result__main {
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.launcher-result__title,
+.launcher-result__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Source sits at a fixed slot on the row's right edge instead of hanging off
+   the subtitle: an inline suffix is the first thing ellipsis eats on a narrow
+   window, precisely when "where did this result come from" matters most.
+   Long paths wrap to at most two lines inside the fixed 42px row instead of
+   being cut off, and the title tooltip still carries the full text. */
+.launcher-result__source {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 30%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 510;
+  text-align: right;
+}
+
+.launcher-result--selected .launcher-result__source {
+  color: var(--text-secondary);
+}
+
+/* Runtime-unavailable and command-conflict never live in truncatable text:
+   an 8px dot reads at any width, and the title attribute carries the words. */
+.launcher-result__warning {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-warning);
+}
+
+.launcher-result__title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 580;
+  line-height: 1.2;
+}
+
+.launcher-result__subtitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 510;
+  line-height: 1.15;
+}
+
+.launcher-result__action {
+  min-width: 30px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 620;
+  text-align: right;
+}
+
+.launcher-result--selected .launcher-result__action {
+  color: var(--text-secondary);
+}
+
+.launcher-result:not(.launcher-result--unavailable):active {
+  transform: scale(0.997);
+}
+
+/* The action bar: what the query does when it is not the name of anything
+   installed. Deliberately the same metrics as a result row — it is selected with
+   the same keys and run with the same Enter, so it should read as one more row
+   and not as a footer. */
+.launcher-action-bar {
+  width: 100%;
+  height: 42px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 9px 0 11px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Only divided from a list that is actually there: with nothing matched the
+   action bar is the panel's only row, and a second hairline 3px under the one
+   below the input would read as an empty list rather than as no list. */
+.launcher-results + .launcher-action-bar {
+  margin-top: 3px;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0 0 7px 7px;
+}
+
+.launcher-action-bar--selected {
+  background: var(--accent-tint);
+}
+
+.launcher-action-bar--selected.launcher-action-bar--shell {
+  background: var(--action-shell-tint);
+}
+
+.launcher-action-bar__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px var(--icon-edge);
+}
+
+/* The `$` is a prompt, so it is set in the font a prompt is set in. */
+.launcher-action-bar--shell .launcher-action-bar__icon {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+.launcher-action-bar__main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.launcher-action-bar__hint {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--icon-surface);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.launcher-action-bar__title,
+.launcher-action-bar__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Monospace, unlike a result's title: this row shows the string as it will be
+   handed over — a command line, a URL, a path — and the proportional face the
+   application names use hides the difference between a space and two. */
+.launcher-action-bar__title {
+  color: var(--text-strong);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  font-weight: 520;
+  line-height: 1.2;
+}
+
+.launcher-action-bar__subtitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 510;
+  line-height: 1.15;
+}
+
+.launcher-action-bar:active {
+  transform: scale(0.997);
+}
+
+/* ── Action bar shortcut hint ───────────────────────────────────────────── */
+
+.launcher-action-bar__hint {
+  white-space: nowrap;
+}

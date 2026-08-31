@@ -1,0 +1,152 @@
+/* Pinned floating terminal card: an in-window overlay with its own broker
+   attach and renderer, plus the main-view placeholder shown while the card
+   holds the only view of the session. */
+/* ── Pinned floating terminal card ────────────────────────────────────── */
+
+/* An in-window overlay: the pinned session keeps its own broker attach and
+   renderer, so the card is purely a frontend surface. It stays mounted in
+   every mode (frames keep landing) but is only visible in terminal mode.
+   Scoping: the shells establish the containing block for fixed descendants
+   (will-change: transform), so the card lives inside the floater window, and
+   its geometry is clamped to the live viewport by `clampCardGeometry` (with
+   re-clamping on resize), so it can never spill past the app surface. */
+.pinned-card {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--edge-highlight);
+  background:
+    linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
+    rgb(18 19 22 / var(--terminal-opacity));
+  box-shadow:
+    0 12px 34px var(--window-shadow-ambient),
+    0 2px 8px var(--window-shadow-contact);
+  animation: feedback-enter 150ms ease-out;
+}
+
+.pinned-card--focused {
+  border-color: var(--accent-edge-strong);
+}
+
+.pinned-card--hidden {
+  /* Kept in the tree so frames and layout survive mode transitions; simply
+     not painted while the launcher or settings own the window. */
+  display: none;
+}
+
+.pinned-card__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 6px 0 10px;
+  cursor: grab;
+  user-select: none;
+  background:
+    linear-gradient(180deg, var(--terminal-bar-top), var(--terminal-bar-bottom)),
+    var(--terminal-bar);
+  border-bottom: 1px solid var(--hairline);
+  touch-action: none;
+}
+
+.pinned-card__header:active {
+  cursor: grabbing;
+}
+
+.pinned-card__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.pinned-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1;
+}
+
+.pinned-card__close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.pinned-card__close:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
+.pinned-card__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: transparent;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.pinned-card__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.pinned-card__resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+/* Placeholder for the main terminal area while the card holds the only view
+   of the session. */
+.terminal-pinned-note {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 16px;
+  text-align: center;
+  background: color-mix(in srgb, var(--surface-opaque) 55%, transparent);
+  pointer-events: none;
+}
+
+.terminal-pinned-note__title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.terminal-pinned-note span:not(.terminal-pinned-note__title) {
+  color: var(--text-muted);
+  font-size: 11px;
+}

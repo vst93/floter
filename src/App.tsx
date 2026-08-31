@@ -19,26 +19,21 @@ import { PINNED_SESSION_ID } from "./terminal/pinState";
 import { useTerminalView, terminalFontFamily } from "./hooks/useTerminalView";
 import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
 import { usePinCoordinator } from "./hooks/usePinCoordinator";
+import { useTimedFeedback } from "./hooks/useTimedFeedback";
+import { useLauncherActions } from "./hooks/useLauncherActions";
+import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import {
-  encodeKey,
   FOCUS_IN_OUT,
-  isTerminalCompositionKey,
-  shouldUseTerminalTextInput,
 } from "./terminal/keys";
 import {
   createTranslator,
   normalizeLanguage,
   type Language,
-  type MessageKey,
 } from "./i18n";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
 import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import { beginRequest, isCurrentRequest } from "./request-generation";
-import {
-  nextLauncherSelection,
-  type ExecutionPlan,
-} from "./launcher";
 import {
   DEFAULT_SHORTCUTS,
   formatResultShortcut,
@@ -46,8 +41,6 @@ import {
   IS_LINUX,
   IS_MAC,
   IS_WINDOWS,
-  matchesResultShortcut,
-  matchesShortcut,
   matchesShortcutModifiers,
   normalizeResultShortcut,
   SHORTCUT_ACTIONS,
@@ -68,10 +61,13 @@ import { SessionsPage } from "./settings/SessionsPage";
 import { AboutPage } from "./settings/AboutPage";
 import {
   LauncherResults,
-  type ActionBar,
-  type LauncherItem,
 } from "./launcher/LauncherResults";
-import "./App.css";
+import "./styles/launcher.css";
+import "./styles/terminal.css";
+import "./styles/settings.css";
+import "./styles/extensions.css";
+import "./styles/pinned-card.css";
+import "./styles/base.css";
 
 if (IS_WINDOWS) {
   document.documentElement.classList.add("platform-windows");
@@ -182,8 +178,6 @@ export default function App() {
   const sessionClosePromise = useRef<Promise<unknown> | null>(null);
   const terminalOpening = useRef(false);
   const systemPowerOpening = useRef(false);
-  const launcherFeedbackTimer = useRef<number | null>(null);
-  const terminalFeedbackTimer = useRef<number | null>(null);
   const restoringMode = useRef<ViewMode | null>(null);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
@@ -313,8 +307,6 @@ export default function App() {
   const [updateDownloading, setUpdateDownloading] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number } | null>(null);
   const [updateFailed, setUpdateFailed] = useState(false);
-  const [launcherFeedback, setLauncherFeedback] = useState<MessageKey | null>(null);
-  const [terminalFeedback, setTerminalFeedback] = useState<MessageKey | null>(null);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
   /** Mirror of the OS focus state as the listener below has seen it. Lives in
@@ -347,27 +339,15 @@ export default function App() {
     [shortcuts.select_result],
   );
 
-  const showLauncherFeedback = (key: MessageKey) => {
-    setLauncherFeedback(key);
-    if (launcherFeedbackTimer.current !== null) {
-      window.clearTimeout(launcherFeedbackTimer.current);
-    }
-    launcherFeedbackTimer.current = window.setTimeout(() => {
-      launcherFeedbackTimer.current = null;
-      setLauncherFeedback(null);
-    }, 4500);
-  };
+  const {
+    launcherFeedback,
+    terminalFeedback,
+    setLauncherFeedback,
+    setTerminalFeedback,
+    showLauncherFeedback,
+    showTerminalFeedback,
+  } = useTimedFeedback();
 
-  const showTerminalFeedback = (key: MessageKey) => {
-    setTerminalFeedback(key);
-    if (terminalFeedbackTimer.current !== null) {
-      window.clearTimeout(terminalFeedbackTimer.current);
-    }
-    terminalFeedbackTimer.current = window.setTimeout(() => {
-      terminalFeedbackTimer.current = null;
-      setTerminalFeedback(null);
-    }, 4500);
-  };
 
   // The system appearance, tracked whether or not it is currently being followed.
   // Subscribing unconditionally rather than only in `auto` mode keeps this from
@@ -424,6 +404,69 @@ export default function App() {
           setSessionsLoading(false);
         }
       });
+  };
+
+  const returnToInputMode = async () => {
+    // Resizing a native window can temporarily move keyboard focus back to the
+    // webview itself. Mark this as an explicit restoration so the mode effect
+    // does not race a second `show_input` call, then focus only after the native
+    // resize/reveal has completed.
+    restoringMode.current = "collapsed";
+    suppressBlurUntil.current = Date.now() + 400;
+    setTerminalFeedback(null);
+    setLauncherFeedback(null);
+    closeTerminalSession();
+    setQuery("");
+    setTerminalMounted(false);
+    setMode("collapsed");
+    try {
+      await invoke("show_input");
+      syncLauncherHeight();
+    } catch {
+      // The DOM still transitions back to a usable launcher even if the native
+      // resize failed; keep the keyboard recovery below independent of IPC.
+    }
+    focusCollapsedInput();
+    focusCollapsedInput(80);
+    if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
+  };
+
+  const openSettings = (page?: SettingsPage) => {
+    suppressBlurUntil.current = Date.now() + 400;
+    const nextPage = page ?? settingsPage;
+    setSettingsPage(nextPage);
+    if (nextPage === "sessions") void refreshTerminalSessions();
+    setMode("settings");
+  };
+
+  const closeSettings = () => {
+    // The window is already anchored; letting the collapsed layout effect restore
+    // the height keeps a pending query's result list intact.
+    restoringMode.current = "collapsed";
+    setMode("collapsed");
+  };
+
+  /** Dismiss the plugin page; the mode effect sends the window back onto
+   * the remembered surface through its normal restore path (`show_input` /
+   * `show_terminal`). */
+  const closePluginPage = () => {
+    suppressBlurUntil.current = Date.now() + 400;
+    setPluginPageId(null);
+    setMode(pluginReturnMode.current);
+  };
+
+  /** Open a plugin page over whatever surface is showing, remembering it for
+   * the return trip. One path for every trigger — hotkey, `floter clip`, the
+   * launcher entry, a cold-start request. Deliberately does NOT arm
+   * `restoringMode`: sizing belongs to the backend here — the mode effect
+   * calls `show_plugin_page`, which applies the same saved geometry terminal
+   * mode uses. */
+  const openPluginPage = (pluginId: string) => {
+    suppressBlurUntil.current = Date.now() + 400;
+    pluginReturnMode.current =
+      modeRef.current === "terminal" ? "terminal" : "collapsed";
+    setPluginPageId(pluginId);
+    setMode("plugin");
   };
 
   // ---- extracted hooks ----------------------------------------------------
@@ -534,6 +577,90 @@ export default function App() {
     resetTerminalFrontendState,
     showTerminalFeedback,
     refreshTerminalSessions,
+  });
+
+  const {
+    runCommand,
+    resumeTerminalSession,
+    executeActionBar,
+    runLauncherItem,
+    handleLauncherKey,
+  } = useLauncherActions({
+    query,
+    resolvedTheme,
+    t,
+    terminalOpening,
+    systemPowerOpening,
+    ptyReady,
+    mainBrokerSessionIdRef,
+    terminalGeneration,
+    nextTerminalGeneration,
+    sessionClosePromise,
+    dimsRef,
+    pinStateRef,
+    dispatchPinEvent,
+    setMainPinnedAway,
+    setLauncherFeedback,
+    setTerminalFeedback,
+    showLauncherFeedback,
+    setTerminalMounted,
+    setMode,
+    setQuery,
+    setHistoryIndex,
+    setSelectedResultIndex,
+    setSelectedActionBar,
+    ensureTerminalSession,
+    openInTerminal,
+    focusTerminalView,
+    focusCollapsedInput,
+    rememberCommand,
+    recordLaunch,
+    refreshTerminalSessions,
+    openPluginPage,
+    isComposing,
+    actionBar,
+    shortcuts,
+    launcherResults,
+    resultShortcutSlots,
+    runnableResultFlags,
+    selectedResultIndex,
+    selectedActionBar,
+    history,
+    historyIndex,
+    draftBeforeHistory,
+    collapsedCardRef,
+  });
+
+  useAppKeyboard({
+    mode,
+    shortcuts,
+    recordingAction,
+    launcherResults,
+    query,
+    inputRef,
+    selectionRef,
+    dimsRef,
+    ptyReady,
+    terminalTextInputRef,
+    terminalInputTarget,
+    activeRenderer,
+    activeSurfaceRef,
+    setActiveSurface,
+    focusCollapsedInput,
+    returnToInputMode,
+    openInTerminal,
+    togglePinnedTerminal,
+    copySelection,
+    pasteClipboard,
+    closeSettings,
+    openSettings,
+    closePluginPage,
+    runLauncherItem,
+    handleLauncherKey,
+    resultShortcutSlots,
+    setQuery,
+    setHistoryIndex,
+    collapsedCardRef,
   });
 
   // Keep document metadata in sync with the active locale. Tauri does not show
@@ -972,204 +1099,6 @@ export default function App() {
     };
   }, [mode, settings.hide_on_blur]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      // The recorder listens in the capture phase; this is only a safety net.
-      if (recordingAction) return;
-
-      if (mode === "terminal") {
-        // While an IME owns the keyboard, even Enter and configured shortcuts
-        // can be part of candidate selection. WebKit may report the confirming
-        // key with keyCode 229 after clearing isComposing.
-        if (isTerminalCompositionKey(event)) return;
-
-        // App shortcuts first, everything else is forwarded to the shell.
-        if (matchesShortcut(event, shortcuts.new_command)) {
-          event.preventDefault();
-          // On macOS the panel can update its first responder once more when Cmd
-          // is released. Reassert the input after the complete shortcut is up.
-          const onShortcutRelease = (release: KeyboardEvent) => {
-            if (release.metaKey || release.ctrlKey || release.altKey || release.shiftKey) return;
-            window.removeEventListener("keyup", onShortcutRelease);
-            focusCollapsedInput();
-          };
-          window.addEventListener("keyup", onShortcutRelease);
-          window.setTimeout(() => {
-            window.removeEventListener("keyup", onShortcutRelease);
-          }, 1500);
-          returnToInputMode();
-          return;
-        }
-        if (matchesShortcut(event, shortcuts.open_external_terminal)) {
-          event.preventDefault();
-          void openInTerminal();
-          return;
-        }
-        // Pin / unpin / move the floating card. Only meaningful while a
-        // terminal session view is open (the requirement's precondition).
-        if (matchesShortcut(event, shortcuts.pin_terminal)) {
-          event.preventDefault();
-          void togglePinnedTerminal();
-          return;
-        }
-        // While the card owns the keyboard, Escape hands it back to the main
-        // surface instead of reaching the pinned session's shell.
-        if (event.key === "Escape" && activeSurfaceRef.current === "pinned") {
-          event.preventDefault();
-          setActiveSurface("main");
-          return;
-        }
-        // Copy only claims the combination when there is something to copy, so
-        // a Ctrl+C binding still interrupts the foreground process otherwise.
-        if (selectionRef.current && matchesShortcut(event, shortcuts.copy_selection)) {
-          event.preventDefault();
-          copySelection();
-          return;
-        }
-        if (matchesShortcut(event, shortcuts.paste)) {
-          event.preventDefault();
-          pasteClipboard();
-          return;
-        }
-        // macOS keeps swallowing every other Cmd combo: those are window-level
-        // shortcuts, never shell input. Ctrl combos on Windows and Linux are
-        // the shell's (Ctrl+C, Ctrl+D, Ctrl+L, ...) and fall through.
-        if (IS_MAC && event.metaKey && !event.altKey) {
-          return;
-        }
-        if (event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) {
-          event.preventDefault();
-          const lines = dimsRef.current.rows;
-          invoke("term_scroll", {
-            id: terminalInputTarget(),
-            delta: event.key === "PageUp" ? lines : -lines,
-          });
-          return;
-        }
-        // The shell receives keystrokes only while the terminal's own proxy
-        // input holds the keyboard AND the PTY is ready. Anything else is
-        // dropped here rather than forwarded: presses that arrive during a
-        // launcher→terminal transition, or while focus sits on a header
-        // button, would otherwise land at the prompt as phantom commands —
-        // exactly the "command not found" reports for text the user typed in
-        // the launcher and never meant for the shell.
-        if (
-          document.activeElement !== terminalTextInputRef.current ||
-          !ptyReady.current
-        ) {
-          return;
-        }
-        if (
-          event.target === terminalTextInputRef.current &&
-          shouldUseTerminalTextInput(event)
-        ) {
-          return;
-        }
-        const renderer = activeRenderer();
-        const encoded = renderer ? encodeKey(event, renderer.mode) : null;
-        if (encoded) {
-          event.preventDefault();
-          invoke("term_input", { id: terminalInputTarget(), data: Array.from(encoded) });
-        }
-        return;
-      }
-
-      if (mode === "settings") {
-        // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the panel — a
-        // convention every overlay surface in floter follows.
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-          event.preventDefault();
-          event.stopPropagation();
-          closeSettings();
-          return;
-        }
-        if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
-          event.preventDefault();
-          closeSettings();
-        }
-        return;
-      }
-
-      if (mode === "plugin") {
-        // While the plugin page (a sandboxed iframe) owns focus it claims its
-        // own keys; presses that reach here found the host still holding the
-        // keyboard and must not fall through to launcher handling. Esc and
-        // Cmd/Ctrl+W close, matching what the page itself does with them.
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-          event.preventDefault();
-          event.stopPropagation();
-          closePluginPage();
-          return;
-        }
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closePluginPage();
-        }
-        return;
-      }
-
-      // Collapsed-mode input handling.
-      if (matchesShortcut(event, shortcuts.open_settings)) {
-        event.preventDefault();
-        openSettings();
-        return;
-      }
-
-      if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
-        event.preventDefault();
-        invoke("hide_window");
-        return;
-      }
-
-      const inputFocused = document.activeElement === inputRef.current;
-      const resultNumber = inputFocused ? null : matchesResultShortcut(event, shortcuts.select_result);
-      if (resultNumber !== null) {
-        const resultIndex = resultShortcutSlots.indexOf(resultNumber);
-        if (resultIndex >= 0) {
-          event.preventDefault();
-          runLauncherItem(launcherResults[resultIndex]);
-        }
-        return;
-      }
-      if (inputFocused) return;
-
-      // Tab deliberately moves from the query into the session and settings
-      // controls. Once focus is inside the card, leave ordinary button
-      // keyboard handling to the browser instead of treating it as accidental.
-      const activeElement = document.activeElement;
-      if (activeElement && collapsedCardRef.current?.contains(activeElement)) return;
-
-      // Below here the input does not have the keyboard, which in this mode is
-      // only intentional while focus is on one of the card's own controls.
-      // Anything outside the card takes the field back and then does what it
-      // would have done had the field never lost it.
-      focusCollapsedInput();
-
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      if (event.key === "Backspace") {
-        event.preventDefault();
-        setQuery((current) => current.slice(0, -1));
-        return;
-      }
-
-      // A printable key is typed into the query by hand: the field was not
-      // focused when the press happened, so nothing else will insert it.
-      if (event.key.length === 1) {
-        event.preventDefault();
-        setQuery((current) => `${current}${event.key}`);
-        setHistoryIndex(-1);
-        return;
-      }
-
-      // Enter, the arrows, Tab — the keys the field's own handler owns.
-      handleLauncherKey(event);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [launcherResults, mode, query, recordingAction, shortcuts]);
-
   const startDrag = (event: React.MouseEvent) => {
     if ((event.target as HTMLElement).closest("button, input, select, textarea, a, summary, [role='dialog'], [data-no-drag]")) {
       return;
@@ -1193,31 +1122,6 @@ export default function App() {
       });
   };
 
-  const returnToInputMode = async () => {
-    // Resizing a native window can temporarily move keyboard focus back to the
-    // webview itself. Mark this as an explicit restoration so the mode effect
-    // does not race a second `show_input` call, then focus only after the native
-    // resize/reveal has completed.
-    restoringMode.current = "collapsed";
-    suppressBlurUntil.current = Date.now() + 400;
-    setTerminalFeedback(null);
-    setLauncherFeedback(null);
-    closeTerminalSession();
-    setQuery("");
-    setTerminalMounted(false);
-    setMode("collapsed");
-    try {
-      await invoke("show_input");
-      syncLauncherHeight();
-    } catch {
-      // The DOM still transitions back to a usable launcher even if the native
-      // resize failed; keep the keyboard recovery below independent of IPC.
-    }
-    focusCollapsedInput();
-    focusCollapsedInput(80);
-    if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
-  };
-
   /** Sidebar buttons by page, so ↑/↓ can move focus with the selection. */
   const settingsSidebarButtons = useRef(new Map<SettingsPage, HTMLButtonElement>());
   /** Switch pages and remember the choice for the next launch. */
@@ -1230,14 +1134,6 @@ export default function App() {
     // A page chosen while the load is still in flight must survive hydration.
     settingsHydration.markChanged("last_settings_page");
     void persistSettings().catch(() => undefined);
-  };
-
-  const openSettings = (page?: SettingsPage) => {
-    suppressBlurUntil.current = Date.now() + 400;
-    const nextPage = page ?? settingsPage;
-    setSettingsPage(nextPage);
-    if (nextPage === "sessions") void refreshTerminalSessions();
-    setMode("settings");
   };
 
   const killTerminalSession = async (session: BrokerSessionInfo) => {
@@ -1311,36 +1207,6 @@ export default function App() {
     }
   };
 
-  const closeSettings = () => {
-    // The window is already anchored; letting the collapsed layout effect restore
-    // the height keeps a pending query's result list intact.
-    restoringMode.current = "collapsed";
-    setMode("collapsed");
-  };
-
-  /** Dismiss the plugin page; the mode effect sends the window back onto
-   * the remembered surface through its normal restore path (`show_input` /
-   * `show_terminal`). */
-  const closePluginPage = () => {
-    suppressBlurUntil.current = Date.now() + 400;
-    setPluginPageId(null);
-    setMode(pluginReturnMode.current);
-  };
-
-  /** Open a plugin page over whatever surface is showing, remembering it for
-   * the return trip. One path for every trigger — hotkey, `floter clip`, the
-   * launcher entry, a cold-start request. Deliberately does NOT arm
-   * `restoringMode`: sizing belongs to the backend here — the mode effect
-   * calls `show_plugin_page`, which applies the same saved geometry terminal
-   * mode uses. */
-  const openPluginPage = (pluginId: string) => {
-    suppressBlurUntil.current = Date.now() + 400;
-    pluginReturnMode.current =
-      modeRef.current === "terminal" ? "terminal" : "collapsed";
-    setPluginPageId(pluginId);
-    setMode("plugin");
-  };
-
   const quitApp = async () => {
     if (appQuitting.current) return;
     appQuitting.current = true;
@@ -1368,15 +1234,11 @@ export default function App() {
     }
   };
 
+  // The launcher/terminal feedback timers are owned (and cleaned up) by
+  // `useTimedFeedback`.
   useEffect(() => () => {
     if (settingsSaveTimer.current !== null) {
       window.clearTimeout(settingsSaveTimer.current);
-    }
-    if (launcherFeedbackTimer.current !== null) {
-      window.clearTimeout(launcherFeedbackTimer.current);
-    }
-    if (terminalFeedbackTimer.current !== null) {
-      window.clearTimeout(terminalFeedbackTimer.current);
     }
   }, []);
 
@@ -1619,355 +1481,6 @@ export default function App() {
       setRejectedAction(action);
       invoke("resume_shortcuts").catch(() => undefined);
     });
-  };
-
-  const runCommand = async (
-    execution: ExecutionPlan | null = null,
-    commandLine = query.trim(),
-  ) => {
-    const command = commandLine.trim();
-    if (!command || terminalOpening.current) return;
-
-    terminalOpening.current = true;
-    setLauncherFeedback(null);
-    setTerminalFeedback(null);
-    setTerminalMounted(true);
-    setMode("terminal");
-    try {
-      await ensureTerminalSession(execution ? null : command, execution);
-      rememberCommand(command);
-      setQuery("");
-      if (execution?.mode === "external") {
-        await openInTerminal();
-      } else {
-        focusTerminalView();
-      }
-    } catch {
-      showLauncherFeedback("launcher.error.command");
-      setTerminalMounted(false);
-      setMode("collapsed");
-      focusCollapsedInput(50);
-    } finally {
-      terminalOpening.current = false;
-    }
-  };
-
-  const resumeTerminalSession = async (session: BrokerSessionInfo) => {
-    if (terminalOpening.current) return;
-    terminalOpening.current = true;
-    setLauncherFeedback(null);
-    setTerminalFeedback(null);
-    // Resuming the very session the card is showing would attach a second
-    // client to one PTY; hand it back to the main view instead.
-    const pinned = pinStateRef.current;
-    if (pinned.status === "pinned" && pinned.session.brokerSessionId === session.sessionId) {
-      try {
-        await invoke("term_close", { id: PINNED_SESSION_ID });
-      } catch {
-        // The card view may already be gone; either way the resume proceeds.
-      }
-      dispatchPinEvent({ type: "unpin" });
-      setMainPinnedAway(false);
-    }
-    setTerminalMounted(true);
-    setMode("terminal");
-    try {
-      if (sessionClosePromise.current) await sessionClosePromise.current;
-      const { cols, rows } = dimsRef.current;
-      const generation = ++nextTerminalGeneration.current;
-      terminalGeneration.current = generation;
-      const brokerSessionId = await invoke<string>("term_attach_existing", {
-        request: {
-          id: "main",
-          generation,
-          brokerSessionId: session.sessionId,
-          theme: resolvedTheme,
-          cols,
-          rows,
-        },
-      });
-      if (terminalGeneration.current === generation) {
-        ptyReady.current = true;
-        mainBrokerSessionIdRef.current = brokerSessionId;
-        setMainPinnedAway(false);
-      }
-      setQuery("");
-      focusTerminalView();
-    } catch {
-      showLauncherFeedback("launcher.error.session");
-      terminalGeneration.current = null;
-      ptyReady.current = false;
-      setTerminalMounted(false);
-      setMode("collapsed");
-      refreshTerminalSessions();
-      focusCollapsedInput(50);
-    } finally {
-      terminalOpening.current = false;
-    }
-  };
-
-  const launchApplication = async (app: LocalApplication) => {
-    setLauncherFeedback(null);
-    try {
-      await invoke("open_application", { path: app.path });
-      setQuery("");
-      setHistoryIndex(-1);
-      invoke("hide_window");
-    } catch {
-      showLauncherFeedback("launcher.error.application");
-      // Keep the launcher open so the user can revise the query.
-    }
-  };
-
-  /**
-   * Hand the query to the system and close, unless the system refused it.
-   *
-   * A path that does not exist is the common refusal, and closing on one would
-   * throw away the path that has just been typed — so the launcher stays up for
-   * it to be corrected, exactly as a failed application launch does.
-   */
-  const openWithSystem = async (command: "open_url" | "open_path", args: Record<string, string>) => {
-    setLauncherFeedback(null);
-    try {
-      await invoke(command, args);
-    } catch {
-      showLauncherFeedback(command === "open_url" ? "launcher.error.url" : "launcher.error.path");
-      return;
-    }
-    setQuery("");
-    setHistoryIndex(-1);
-    invoke("hide_window");
-  };
-
-  const executeActionBar = (action: ActionBar) => {
-    if (action.type === "url") {
-      void openWithSystem("open_url", { url: action.value });
-      return;
-    }
-    if (action.type === "path") {
-      void openWithSystem("open_path", { path: action.value });
-      return;
-    }
-    void runCommand();
-  };
-
-  const runSystemAction = async (item: Extract<LauncherItem, { type: "system" }>) => {
-    // The clipboard page is a plain view flip — no confirmation, no window
-    // hiding, just the same open path the global hotkey and `floter clip`
-    // take.
-    if (item.action === "clipboard") {
-      setQuery("");
-      setHistoryIndex(-1);
-      openPluginPage(CLIPBOARD_PLUGIN_ID);
-      return;
-    }
-
-    if (systemPowerOpening.current) return;
-
-    const confirmationKey = item.action === "restart"
-      ? "system.restartConfirm"
-      : "system.shutdownConfirm";
-    if (!window.confirm(t(confirmationKey))) {
-      focusCollapsedInput();
-      return;
-    }
-
-    systemPowerOpening.current = true;
-    setLauncherFeedback(null);
-    try {
-      // The launcher is an always-on-top panel. Move it out of the way before
-      // macOS presents its own confirmation, or that dialog can appear behind
-      // the panel. Linux and Windows execute immediately after this point.
-      await invoke("hide_window");
-      await invoke("system_power", { action: item.action });
-      setQuery("");
-      setHistoryIndex(-1);
-    } catch {
-      // A missing system utility or rejected spawn must not look like success.
-      // Restore the launcher with the original query intact so it can be retried.
-      setMode("collapsed");
-      await invoke("show_input").catch(() => undefined);
-      showLauncherFeedback(
-        item.action === "restart"
-          ? "launcher.error.restart"
-          : "launcher.error.shutdown",
-      );
-      focusCollapsedInput(50);
-    } finally {
-      systemPowerOpening.current = false;
-    }
-  };
-
-  const runLauncherItem = (item: LauncherItem | undefined) => {
-    if (!item) return;
-    if (item.type === "app") {
-      recordLaunch(item.app.path);
-      void launchApplication(item.app);
-      return;
-    }
-    if (item.type === "system") {
-      void runSystemAction(item);
-      return;
-    }
-    if (item.execution && item.sourceName) {
-      void runCommand(item.execution, item.commandLine);
-      return;
-    }
-    // A catalog row with an unavailable runtime remains visible for discovery,
-    // but is not silently reinterpreted by the user's shell.
-    showLauncherFeedback("extensions.runtimeUnavailable");
-  };
-
-  /**
-   * Everything the launcher does with a key press.
-   *
-   * Reached two ways: from the input's own handler, and from the window
-   * listener when the input has somehow lost the keyboard — a stray click, a
-   * reveal that landed before the element was there. The second path is why
-   * this takes a plain `KeyboardEvent` rather than React's wrapper.
-   */
-  const handleLauncherKey = (event: KeyboardEvent) => {
-    // CJK IME: while composing (user picking candidates), all keys go to the
-    // IME. WebKit clears `isComposing` too early for the Enter that confirms a
-    // candidate, but keeps the conventional IME keyCode (229) on that event.
-    // Checking the event itself avoids leaving a flag behind that swallows the
-    // user's next deliberate Enter after composition has already finished.
-    if (isComposing.current || event.isComposing || event.keyCode === 229) return;
-
-    // Holding the same modifier as the numbered-result shortcut highlights the
-    // command row. It makes Cmd/Ctrl+Enter discoverable without giving the row a
-    // competing number.
-    if (
-      actionBar &&
-      ["Meta", "Control", "Alt", "Shift"].includes(event.key) &&
-      matchesShortcutModifiers(event, shortcuts.select_result)
-    ) {
-      setSelectedActionBar(true);
-      return;
-    }
-    // Numbered results only: the action bar has no number, so `Cmd/Ctrl+1` can
-    // never run a command by mistake.
-    const resultNumber = matchesResultShortcut(event, shortcuts.select_result);
-    if (resultNumber !== null) {
-      const resultIndex = resultShortcutSlots.indexOf(resultNumber);
-      if (resultIndex >= 0) {
-        event.preventDefault();
-        runLauncherItem(launcherResults[resultIndex]);
-      }
-      return;
-    }
-
-    if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
-      event.preventDefault();
-      invoke("hide_window");
-      return;
-    }
-
-    if (
-      event.key === "Enter" &&
-      actionBar &&
-      matchesShortcutModifiers(event, shortcuts.select_result)
-    ) {
-      event.preventDefault();
-      executeActionBar(actionBar);
-      return;
-    }
-
-    if (event.key === "Enter") {
-      event.preventDefault();
-      // The list can empty out between a keystroke and the effect that moves the
-      // selection off it, so an empty one falls back to the action bar rather
-      // than running nothing at all.
-      if (actionBar && (selectedActionBar || !launcherResults.length)) {
-        executeActionBar(actionBar);
-      } else {
-        runLauncherItem(launcherResults[selectedResultIndex]);
-      }
-      return;
-    }
-
-    if (event.key === "Tab" && !event.shiftKey && !selectedActionBar) {
-      const selected = launcherResults[selectedResultIndex];
-      if (
-        selected?.type === "command" &&
-        selected.execution &&
-        selected.commandLine !== query
-      ) {
-        event.preventDefault();
-        setQuery(selected.commandLine);
-        setHistoryIndex(-1);
-        return;
-      }
-    }
-
-    if (event.key === "Tab" && event.shiftKey) {
-      const controls = collapsedCardRef.current?.querySelectorAll<HTMLButtonElement>(
-        ".collapsed-card__input-row button:not(:disabled)",
-      );
-      const lastControl = controls?.[controls.length - 1];
-      if (lastControl) {
-        event.preventDefault();
-        lastControl.focus();
-      }
-      return;
-    }
-
-    // The results and the action bar are navigated as one loop that wraps at
-    // both ends. With no query there is neither, and the arrows fall through to
-    // the shell history below.
-    if (actionBar || launcherResults.length) {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        const selection = nextLauncherSelection(
-          runnableResultFlags,
-          selectedResultIndex,
-          selectedActionBar,
-          Boolean(actionBar),
-          1,
-        );
-        setSelectedActionBar(selection.actionBar);
-        setSelectedResultIndex(selection.resultIndex);
-        return;
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        const selection = nextLauncherSelection(
-          runnableResultFlags,
-          selectedResultIndex,
-          selectedActionBar,
-          Boolean(actionBar),
-          -1,
-        );
-        setSelectedActionBar(selection.actionBar);
-        setSelectedResultIndex(selection.resultIndex);
-        return;
-      }
-
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      if (!history.length) return;
-      if (historyIndex === -1) draftBeforeHistory.current = query;
-      const nextIndex = Math.min(historyIndex + 1, history.length - 1);
-      setHistoryIndex(nextIndex);
-      setQuery(history[nextIndex]);
-      return;
-    }
-
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      if (historyIndex === -1) return;
-      const nextIndex = historyIndex - 1;
-      if (nextIndex < 0) {
-        setHistoryIndex(-1);
-        setQuery(draftBeforeHistory.current);
-      } else {
-        setHistoryIndex(nextIndex);
-        setQuery(history[nextIndex]);
-      }
-    }
   };
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) =>
