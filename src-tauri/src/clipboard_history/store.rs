@@ -16,7 +16,7 @@ use std::sync::{Mutex, MutexGuard};
 
 /// Newest N non-favorite entries are kept. Favorites are exempt from both
 /// this cap and the age cap below.
-pub const MAX_NON_FAVORITE_ENTRIES: usize = 200;
+pub const MAX_NON_FAVORITE_ENTRIES: usize = 300;
 /// Non-favorite entries older than this are dropped (30 days, in ms).
 pub const RETENTION_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 
