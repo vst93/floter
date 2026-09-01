@@ -218,7 +218,7 @@ export function PluginPageHost({
           src={src}
           title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId}
           // Opaque origin: scripts yes, same-origin access and Tauri APIs no.
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           onLoad={handleFrameLoad}
         />
       ) : loadFailed || descriptor ? (
