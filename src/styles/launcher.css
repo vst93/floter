@@ -125,6 +125,91 @@
   outline-offset: 2px;
 }
 
+.collapsed-card__keymap {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+
+.collapsed-card__keymap-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, transform 80ms ease;
+}
+
+.collapsed-card__keymap-toggle:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-strong);
+}
+
+.collapsed-card__keymap-toggle:active {
+  transform: scale(0.92);
+}
+
+.collapsed-card__keymap-toggle:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.collapsed-card__keymap-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+  animation: keymap-popover-in 120ms ease-out;
+}
+
+@keyframes keymap-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.collapsed-card__keymap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.collapsed-card__keymap-row kbd {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--surface-control);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
 /* The whole area below the input: the result list, the action bar, or both. The
    sunken field and the hairline that separates it from the input live here
    rather than on the list, so that an action bar with nothing matched above it

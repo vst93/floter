@@ -237,6 +237,28 @@ export default function App() {
   const [updateFailed, setUpdateFailed] = useState(false);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
+  const [showKeymapHint, setShowKeymapHint] = useState(false);
+  const keymapHintRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showKeymapHint) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        keymapHintRef.current &&
+        !keymapHintRef.current.contains(event.target as Node)
+      ) {
+        setShowKeymapHint(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowKeymapHint(false);
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [showKeymapHint]);
 
   // Settings: state, hydration, persistence, and the change* mutators. The
   // hook owns every ref/state above the line and exposes them; downstream
@@ -1823,6 +1845,44 @@ export default function App() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
+            <div
+              className="collapsed-card__keymap"
+              ref={keymapHintRef}
+            >
+              <button
+                type="button"
+                className="collapsed-card__keymap-toggle"
+                aria-label={t("input.keymapHint")}
+                aria-expanded={showKeymapHint}
+                title={t("input.keymapHint")}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowKeymapHint((value) => !value);
+                }}
+              >
+                <Keyboard size={14} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              {showKeymapHint && (
+                <div className="collapsed-card__keymap-popover" role="dialog" aria-label={t("input.keymapHint")}>
+                  <div className="collapsed-card__keymap-row">
+                    <kbd>{formatShortcut(shortcuts.new_command)}</kbd>
+                    <span>{t("shortcut.new_command")}</span>
+                  </div>
+                  <div className="collapsed-card__keymap-row">
+                    <kbd>{formatShortcut(shortcuts.open_external_terminal)}</kbd>
+                    <span>{t("shortcut.open_external_terminal")}</span>
+                  </div>
+                  <div className="collapsed-card__keymap-row">
+                    <kbd>{formatShortcut(shortcuts.pin_terminal)}</kbd>
+                    <span>{t("shortcut.pin_terminal")}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           {/* The clip wrapper is what animates: grid-template-rows 0fr → 1fr
               collapses/expands the whole bottom area without a hard height
