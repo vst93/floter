@@ -659,6 +659,7 @@ export function useLauncherCatalog(options: {
     scanApplications,
     refreshApplicationsIfStale,
     history,
+    setHistory,
     historyIndex,
     setHistoryIndex,
     draftBeforeHistory,

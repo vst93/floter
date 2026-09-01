@@ -23,6 +23,7 @@ import {
 import { SETTINGS_PAGES, type SettingsPage } from "../settings-persistence";
 import type { ViewMode } from "../App";
 import type { LauncherItem } from "../launcher/LauncherResults";
+import type { MessageKey } from "../i18n";
 
 export function useAppKeyboard(options: {
   mode: ViewMode;
@@ -57,6 +58,8 @@ export function useAppKeyboard(options: {
   handleLauncherKey: (event: KeyboardEvent) => void;
   resultShortcutSlots: Array<number | null>;
   setQuery: Dispatch<SetStateAction<string>>;
+  setHistory: Dispatch<SetStateAction<string[]>>;
+  showLauncherFeedback: (key: MessageKey, duration?: number) => void;
   setHistoryIndex: Dispatch<SetStateAction<number>>;
   collapsedCardRef: RefObject<HTMLDivElement | null>;
 }) {
@@ -92,6 +95,8 @@ export function useAppKeyboard(options: {
     handleLauncherKey,
     resultShortcutSlots,
     setQuery,
+    setHistory,
+    showLauncherFeedback,
     setHistoryIndex,
     collapsedCardRef,
   } = options;
@@ -267,6 +272,21 @@ export function useAppKeyboard(options: {
         return;
       }
 
+      // Ctrl+Shift+Backspace clears the typed-command history. Launcher-only:
+      // the terminal owns the keyboard in its own mode and we must not steal a
+      // key the shell is waiting for.
+      if (
+        event.ctrlKey &&
+        event.shiftKey &&
+        event.key === "Backspace"
+      ) {
+        event.preventDefault();
+        setHistory([]);
+        setHistoryIndex(-1);
+        showLauncherFeedback("launcher.historyCleared");
+        return;
+      }
+
       if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
         event.preventDefault();
         invoke("hide_window");
@@ -320,5 +340,5 @@ export function useAppKeyboard(options: {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [launcherResults, mode, query, recordingAction, shortcuts]);
+  }, [launcherResults, mode, query, recordingAction, shortcuts, setHistory, showLauncherFeedback]);
 }

@@ -496,6 +496,7 @@ export default function App() {
     scanApplications,
     refreshApplicationsIfStale,
     history,
+    setHistory,
     historyIndex,
     setHistoryIndex,
     draftBeforeHistory,
@@ -630,6 +631,8 @@ export default function App() {
     handleLauncherKey,
     resultShortcutSlots,
     setQuery,
+    setHistory,
+    showLauncherFeedback,
     setHistoryIndex,
     collapsedCardRef,
   });
