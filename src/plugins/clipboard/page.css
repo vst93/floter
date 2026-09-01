@@ -1,9 +1,9 @@
 /*
  * Stylesheet for the clipboard history plugin page.
  *
- * Standalone fallbacks come FIRST so the page is visible even if the
- * @import chain fails or is blocked in the sandboxed iframe. The shared
- * stylesheets below override these with the full design tokens.
+ * This page runs in a sandboxed iframe with no access to the parent document's
+ * styles. Vite strips @imports from iframe CSS, so this file is self-contained.
+ * All design tokens are defined as fallback custom properties here.
  */
 :root {
   --main-opacity: 0.94;
@@ -279,14 +279,3 @@ html, body {
   border-color: var(--accent-edge);
   color: var(--text-primary);
 }
-
-/* Shared stylesheets: override fallbacks above. The import order mirrors
-   App.tsx: surface files first, then the global foundation last. These
-   may be blocked in a sandboxed iframe; the fallbacks above ensure the
-   page is still usable. */
-@import "../../styles/launcher.css";
-@import "../../styles/terminal.css";
-@import "../../styles/settings.css";
-@import "../../styles/extensions.css";
-@import "../../styles/pinned-card.css";
-@import "../../styles/base.css";
