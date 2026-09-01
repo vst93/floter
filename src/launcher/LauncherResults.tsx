@@ -1,6 +1,9 @@
 import type { Translate, MessageKey } from "../i18n";
 import type { LocalApplication } from "../App";
 import { IS_MAC, formatResultShortcut } from "../shortcuts";
+import {
+  Terminal as TerminalIcon,
+} from "lucide-react";
 import type { ActionBarKind, ExecutionPlan } from "../launcher";
 
 export type SystemAction = "restart" | "shutdown" | "clipboard";
@@ -77,15 +80,11 @@ const SystemActionIcon = ({ action }: { action: SystemAction }) => (
 );
 
 /**
- * The action bar's icon: Lucide `external-link` for a URL, `folder` for a path,
- * and a shell prompt for everything else.
- *
- * The `$` is a glyph rather than Lucide's `terminal` because it is what the row
- * below it in the terminal will actually say, and it reads as "a command line"
- * to anyone who has ever seen one.
+ * The action bar's icon: Lucide `terminal` for a shell, `external-link` for a
+ * URL, and `folder` for a path.
  */
 const ActionBarIcon = ({ kind }: { kind: ActionBarKind }) => {
-  if (kind === "shell") return <span>$</span>;
+  if (kind === "shell") return <TerminalIcon size={16} />;
   return (
     <svg
       viewBox="0 0 24 24"
