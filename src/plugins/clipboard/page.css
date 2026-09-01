@@ -8,8 +8,8 @@
 :root {
   --main-opacity: 0.94;
   --terminal-opacity: 0.92;
-  --input-bg: rgba(18, 19, 20, var(--main-opacity));
-  --input-bg-active: rgba(19, 20, 23, var(--main-opacity));
+  --input-bg: rgba(18, 19, 20, 0.94);
+  --input-bg-active: rgba(19, 20, 23, 0.94);
   --input-stroke: rgba(255, 255, 255, 0.08);
   --input-stroke-active: rgba(143, 183, 255, 0.24);
   --surface-sunken: rgba(17, 18, 20, 0.72);
@@ -55,7 +55,7 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: rgba(17, 18, 20, var(--terminal-opacity));
+  background: rgba(17, 18, 20, 0.92);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;

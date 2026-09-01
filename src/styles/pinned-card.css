@@ -20,7 +20,7 @@
   border: 1px solid var(--edge-highlight);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
-    rgba(18, 19, 22, var(--terminal-opacity));
+    rgba(18, 19, 22, 0.92);
   box-shadow:
     0 12px 34px var(--window-shadow-ambient),
     0 2px 8px var(--window-shadow-contact);

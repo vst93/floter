@@ -38,8 +38,8 @@
      before persistence; alpha applies to materials only, never text. */
   --main-opacity: 0.94;
   --terminal-opacity: 0.92;
-  --input-bg: rgba(18, 19, 22, var(--main-opacity));
-  --input-bg-active: rgba(19, 20, 23, var(--main-opacity));
+  --input-bg: rgba(18, 19, 22, 0.94);
+  --input-bg-active: rgba(19, 20, 23, 0.94);
   --input-stroke: rgba(255, 255, 255, 0.08);
   --input-stroke-active: rgba(143, 183, 255, 0.24);
   /* Recessed areas inside a card: the result strip and the settings body. */
@@ -126,8 +126,8 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --input-bg: rgba(250, 250, 252, var(--main-opacity));
-  --input-bg-active: rgba(253, 253, 255, var(--main-opacity));
+  --input-bg: rgba(250, 250, 252, 0.94);
+  --input-bg-active: rgba(253, 253, 255, 0.94);
   --input-stroke: rgba(0, 0, 0, 0.1);
   --input-stroke-active: rgba(10, 108, 255, 0.28);
   --surface-sunken: rgba(243, 244, 247, 0.82);
