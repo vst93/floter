@@ -1276,7 +1276,7 @@ export default function App() {
     }
     settingsSaveTimer.current = window.setTimeout(() => {
       settingsSaveTimer.current = null;
-      persistSettings().catch(() => undefined);
+      persistSettings().catch(() => setSettingsSaveFailed(true));
     }, 180);
   };
 
@@ -1292,7 +1292,7 @@ export default function App() {
     }
     settingsSaveTimer.current = window.setTimeout(() => {
       settingsSaveTimer.current = null;
-      persistSettings().catch(() => undefined);
+      persistSettings().catch(() => setSettingsSaveFailed(true));
     }, 180);
   };
 
@@ -1303,7 +1303,7 @@ export default function App() {
     settingsRef.current = updated;
     setSettings(updated);
     suppressBlurUntil.current = Date.now() + 400;
-    persistSettings().catch(() => undefined);
+    persistSettings().catch(() => setSettingsSaveFailed(true));
   };
 
   const toggleCommandsInSearch = () => {
