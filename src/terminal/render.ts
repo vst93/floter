@@ -823,9 +823,29 @@ export function wheelScrollSteps(
 }
 
 /** Decode a base64 frame into raw bytes. */
+let _cachedFrameHash = 0;
+let _cachedFrameInput = "";
+let _cachedFrameResult: Uint8Array | null = null;
+
+/** djb2 hash — fast, sufficient for frame dedup. */
+function hashString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
 export function decodeFrame(b64: string): Uint8Array {
+  const h = hashString(b64);
+  if (_cachedFrameResult && h === _cachedFrameHash && b64 === _cachedFrameInput) {
+    return _cachedFrameResult;
+  }
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  _cachedFrameHash = h;
+  _cachedFrameInput = b64;
+  _cachedFrameResult = bytes;
   return bytes;
 }
