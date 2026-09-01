@@ -363,6 +363,10 @@ export function useTerminalView(options: {
   // each other and `frameRef` survives the flip, so the switch is lossless:
   // the last frame repaints immediately and the embedded PTY never stopped
   // running underneath.
+  // Renderer lifecycle: creation, wheel listener, resize observer, blink
+  // interval. Keyed only on `mode` and `terminalMounted` so font changes do
+  // not tear down the renderer and rebind listeners — font changes are
+  // handled by the effect below, which just re-measures cells and relayouts.
   useEffect(() => {
     if (!terminalMounted || mode === "plugin" || mode === "settings") {
       termOpened.current = false;
@@ -422,7 +426,15 @@ export function useTerminalView(options: {
       termOpened.current = false;
       rendererRef.current = null;
     };
-  }, [fontFamily, fontSize, terminalMounted, mode]);
+  }, [terminalMounted, mode]);
+
+  // Font change: re-measure cells and relayout without rebuilding the
+  // renderer or rebinding listeners. The renderer's relayout() already
+  // calls measureCell() internally, so cell dimensions stay correct.
+  useEffect(() => {
+    if (!rendererRef.current) return;
+    relayoutAndResize();
+  }, [fontFamily, fontSize]);
 
   // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
   // grid current; this listener persists the logical window dimensions after a
