@@ -246,6 +246,11 @@ const render = () => {
           : "clipboard.empty",
     );
     content.append(empty);
+
+    const privacy = document.createElement("div");
+    privacy.className = "clipboard-panel__empty-privacy";
+    privacy.textContent = t("settings.clipboardPrivacy");
+    content.append(privacy);
     return;
   }
 
