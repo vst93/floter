@@ -85,7 +85,7 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
     let mut clipboard = match arboard::Clipboard::new() {
         Ok(clipboard) => clipboard,
         Err(error) => {
-            eprintln!("floter: clipboard unavailable: {error}");
+            tracing::warn!("floter: clipboard unavailable: {error}");
             return None;
         }
     };
@@ -125,12 +125,12 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
             let png = match encode_png(width, height, &rgba) {
                 Ok(png) => png,
                 Err(error) => {
-                    eprintln!("floter: clipboard image encoding failed: {error}");
+                    tracing::warn!("floter: clipboard image encoding failed: {error}");
                     return None;
                 }
             };
             if png.len() > MAX_IMAGE_PNG_BYTES {
-                eprintln!(
+                tracing::debug!(
                     "floter: clipboard image too large ({} bytes), skipped",
                     png.len()
                 );
@@ -380,7 +380,7 @@ pub fn start(app: &AppHandle) {
                 tauri::async_runtime::spawn_blocking(move || poll_once(&poll_app, poll_last)).await;
             match polled {
                 Ok(next) => last_hash = next,
-                Err(error) => eprintln!("floter: clipboard poll panicked: {error}"),
+                Err(error) => tracing::warn!("floter: clipboard poll panicked: {error}"),
             }
         }
     });

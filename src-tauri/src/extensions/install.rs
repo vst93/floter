@@ -1555,7 +1555,7 @@ pub(crate) async fn install_linked(
                 let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
             }
             Err(e) => {
-                eprintln!("Probe run failed for {}: {}", manifest.id, e);
+                tracing::warn!("Probe run failed for {}: {}", manifest.id, e);
             }
         }
     }

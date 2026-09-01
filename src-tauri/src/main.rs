@@ -5,7 +5,7 @@ fn main() {
     let arguments = std::env::args().collect::<Vec<_>>();
     if let Some(result) = floter_lib::prepare_terminal_process(&arguments) {
         if let Err(error) = result {
-            eprintln!("floter terminal helper: {error}");
+            tracing::error!("floter terminal helper: {error}");
             std::process::exit(1);
         }
         return;
@@ -18,7 +18,7 @@ fn main() {
     #[cfg(target_os = "linux")]
     if floter_lib::ipc::wants_toggle(arguments.clone()) {
         if let Err(error) = floter_lib::ipc::send_toggle() {
-            eprintln!("floter --toggle: {error}");
+            tracing::error!("floter --toggle: {error}");
             std::process::exit(1);
         }
         return;

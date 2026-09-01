@@ -42,6 +42,8 @@ sha2 = "0.10.9"
 tar = "0.4.46"
 flate2 = "1.1.9"
 jsonschema = { version = "0.33", default-features = false }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # qscreen owns the persistent PTY while Floter remains responsible for input
 # encoding and rendering. Pin the audited revision: these crates are not yet
 # published on crates.io and following main would make the wire protocol

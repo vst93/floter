@@ -1288,7 +1288,7 @@ mod tests {
         let parsed = parsed.load(Ordering::Relaxed);
         assert_eq!(code, Some(0));
         assert!(parsed >= PAYLOAD, "large output was truncated: {parsed}");
-        eprintln!(
+        tracing::debug!(
             "broker + Alacritty: {:.1} MiB/s ({parsed} bytes in {:.3}s)",
             parsed as f64 / 1024.0 / 1024.0 / elapsed.as_secs_f64(),
             elapsed.as_secs_f64()

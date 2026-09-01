@@ -221,7 +221,7 @@ fn cursor_monitor(window: &WebviewWindow) -> Option<Monitor> {
     // [`monitor_containing`] for why tao's own answer cannot be trusted.
     let monitor = monitor_containing(window, cursor)
         .or_else(|| window.monitor_from_point(cursor.x, cursor.y).ok().flatten());
-    eprintln!(
+    tracing::debug!(
         "floter: cursor {:?} -> monitor {:?}",
         (cursor.x, cursor.y),
         monitor
@@ -495,7 +495,7 @@ fn default_position(
     let x = (area_x + (area_width - logical_width) / 2.0).clamp(area_x, max_x);
     let y = (area_y + (area_height - terminal_height) / 2.0).clamp(area_y, max_y);
 
-    eprintln!(
+    tracing::debug!(
         "floter: placing on {:?} at {:?} work_area {:?}/{:?} scale {scale} -> ({x}, {y})",
         monitor.name(),
         *monitor.position(),
@@ -1073,13 +1073,26 @@ pub fn rebind_toggle_shortcut(app: &AppHandle, next: &str) -> Result<(), String>
 /// create it.
 #[cfg(target_os = "linux")]
 fn print_toggle_hint(reason: &str) {
-    eprintln!("{reason}");
-    eprintln!("Bind 'floter --toggle' as a custom shortcut in your compositor settings.");
+    tracing::warn!("{reason}");
+    tracing::warn!("Bind 'floter --toggle' as a custom shortcut in your compositor settings.");
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(deprecated)]
 pub fn run() {
+    // Initialize tracing subscriber so users can set RUST_LOG=warn in production.
+    // Without this, all eprintln! output floods macOS Console.app.
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with_target(false)
+        .with_level(true)
+        .try_init();
+
+    tracing::info!("floter starting up");
+
     // Before the builder, and therefore before anything initializes GTK: this
     // is the last point at which the renderer WebKitGTK will use can still be
     // chosen. See `linux_render` for why that choice cannot be made later.
@@ -1147,7 +1160,7 @@ pub fn run() {
 
             let settings = load_settings();
             if let Err(error) = ensure_launch_at_startup(settings.launch_at_startup) {
-                eprintln!("failed to reconcile launch-at-startup registration: {error}");
+                tracing::error!("failed to reconcile launch-at-startup registration: {error}");
             }
             let (show_label, quit_label) = tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
@@ -1245,7 +1258,7 @@ pub fn run() {
                 // A stored combination can be rejected by the OS (another app
                 // owns it, or the settings file was hand-edited); fall back to
                 // the default so the panel stays reachable.
-                eprintln!("failed to register global shortcut {shortcut}: {error}");
+                tracing::warn!("failed to register global shortcut {shortcut}: {error}");
                 if shortcut != DEFAULT_TOGGLE_WINDOW {
                     let _ = register_toggle_shortcut(app.handle(), DEFAULT_TOGGLE_WINDOW);
                 }
@@ -1256,7 +1269,7 @@ pub fn run() {
                     );
                 }
             } else {
-                eprintln!("registered global shortcut: {shortcut}");
+                tracing::info!("registered global shortcut: {shortcut}");
                 // The grab was accepted by Xwayland, which is not the same as it
                 // ever being delivered: the compositor keeps the key to itself.
                 #[cfg(target_os = "linux")]
