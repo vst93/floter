@@ -1,38 +1,55 @@
 /*
  * Stylesheet for the clipboard history plugin page.
  *
- * The page reuses floter's shared stylesheets wholesale: it renders inside its
- * own sandboxed iframe document, so importing the full app CSS costs nothing
- * at runtime (unused rules are inert there) and keeps every color variable,
- * row style and reduced-motion rule in exactly one place. The theme is chosen
- * at runtime by `main.ts` via `[data-theme]`, and the opacity custom
- * properties arrive through bootstrap query params so the page's background
- * matches the terminal surface behind it.
- *
- * The import order mirrors App.tsx: surface files first, then the global
- * foundation last, so the override blocks at its bottom win the cascade.
+ * Standalone fallbacks come FIRST so the page is visible even if the
+ * @import chain fails or is blocked in the sandboxed iframe. The shared
+ * stylesheets below override these with the full design tokens.
  */
-@import "../../styles/launcher.css";
-@import "../../styles/terminal.css";
-@import "../../styles/settings.css";
-@import "../../styles/extensions.css";
-@import "../../styles/pinned-card.css";
-@import "../../styles/base.css";
-
-/* Standalone fallbacks: the page is visible even if the @import chain is
-   slow to arrive or the sandbox blocks an import. These mirror base.css
-   tokens but do not depend on them. */
 :root {
   --main-opacity: 0.94;
   --terminal-opacity: 0.92;
+  --input-bg: rgb(18 19 20 / var(--main-opacity));
+  --input-bg-active: rgb(19 20 23 / var(--main-opacity));
+  --input-stroke: rgba(255, 255, 255, 0.08);
+  --input-stroke-active: rgba(143, 183, 255, 0.24);
+  --surface-sunken: rgba(17, 18, 20, 0.72);
+  --surface-sunken-soft: rgba(17, 18, 20, 0.52);
+  --surface-control: rgba(255, 255, 255, 0.055);
+  --surface-control-hover: rgba(255, 255, 255, 0.105);
+  --surface-opaque: rgba(28, 29, 32, 0.98);
+  --sheen-top: rgba(255, 255, 255, 0.046);
+  --sheen-bottom: rgba(255, 255, 255, 0.01);
+  --edge-highlight: rgba(255, 255, 255, 0.11);
+  --edge-shadow: rgba(0, 0, 0, 0.22);
+  --hairline: rgba(255, 255, 255, 0.055);
   --text-primary: #f2f3f5;
+  --text-strong: rgba(244, 245, 247, 0.94);
   --text-secondary: rgba(238, 239, 242, 0.66);
   --text-muted: rgba(238, 239, 242, 0.42);
   --text-tertiary: rgba(238, 239, 242, 0.36);
-  --hairline: rgba(255, 255, 255, 0.06);
+  --text-placeholder: rgba(238, 239, 242, 0.4);
+  --text-warning: rgba(255, 173, 158, 0.72);
   --accent: #8fb7ff;
+  --accent-contrast: #15171b;
   --accent-tint: rgba(143, 183, 255, 0.13);
-  --surface-sunken: rgba(17, 18, 20, 0.72);
+  --accent-tint-hover: rgba(143, 183, 255, 0.19);
+  --accent-edge: rgba(143, 183, 255, 0.3);
+  --accent-edge-strong: rgba(143, 183, 255, 0.72);
+  --accent-glow: rgba(143, 183, 255, 0.08);
+  --accent-wash: rgba(143, 183, 255, 0.055);
+  --accent-ring: rgba(122, 167, 255, 0.78);
+  --icon-surface: rgba(255, 255, 255, 0.055);
+  --icon-edge: rgba(255, 255, 255, 0.055);
+  --system-icon-surface: rgba(255, 176, 132, 0.115);
+  --system-icon-text: rgba(255, 209, 178, 0.82);
+  --action-shell-tint: rgba(72, 187, 120, 0.13);
+  --terminal-bg: #111214;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --window-shadow-ambient: rgba(0, 0, 0, 0.3);
+  --window-shadow-contact: rgba(0, 0, 0, 0.2);
+  --keycap-highlight: rgba(255, 255, 255, 0.07);
+  --keycap-shadow: rgba(0, 0, 0, 0.28);
+  --stroke-control: rgba(255, 255, 255, 0.075);
 }
 
 html, body {
@@ -189,7 +206,7 @@ html, body {
 }
 
 .clipboard-row__age--missing {
-  color: var(--text-warning, rgba(255, 173, 158, 0.72));
+  color: var(--text-warning);
 }
 
 .clipboard-row__star {
@@ -259,6 +276,17 @@ html, body {
 }
 
 .clipboard-panel__clear:hover {
-  border-color: var(--accent-edge, rgba(143, 183, 255, 0.3));
+  border-color: var(--accent-edge);
   color: var(--text-primary);
 }
+
+/* Shared stylesheets: override fallbacks above. The import order mirrors
+   App.tsx: surface files first, then the global foundation last. These
+   may be blocked in a sandboxed iframe; the fallbacks above ensure the
+   page is still usable. */
+@import "../../styles/launcher.css";
+@import "../../styles/terminal.css";
+@import "../../styles/settings.css";
+@import "../../styles/extensions.css";
+@import "../../styles/pinned-card.css";
+@import "../../styles/base.css";
