@@ -41,7 +41,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 5px;
+  height: 28px;
   z-index: 5;
   display: flex;
   align-items: center;
@@ -49,12 +49,6 @@
   padding: 0 7px;
   cursor: grab;
   user-select: none;
-  transition: height 130ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.terminal-bar:hover,
-.terminal-bar:focus-within {
-  height: 28px;
 }
 
 .terminal-bar__frost {
@@ -66,19 +60,13 @@
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
   border-bottom: 1px solid var(--hairline);
-  opacity: 0;
-  transition: opacity 130ms ease;
+  opacity: 1;
   pointer-events: none;
 }
 
-.terminal-bar:hover .terminal-bar__frost,
-.terminal-bar:focus-within .terminal-bar__frost {
-  opacity: 1;
-}
-
 /* Identity zone: status dot + session title, left of the action buttons.
-   Fades in with the bar's expansion exactly like the actions; pointer-events
-   stay off so the whole bar keeps working as the drag handle. */
+   Always visible; pointer-events stay off so the whole bar keeps working
+   as the drag handle. */
 .terminal-bar__identity {
   position: relative;
   z-index: 1;
@@ -88,16 +76,9 @@
   flex: 1;
   min-width: 0;
   margin-right: 8px;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity 120ms ease, transform 130ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  pointer-events: none;
-}
-
-.terminal-bar:hover .terminal-bar__identity,
-.terminal-bar:focus-within .terminal-bar__identity {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: none;
 }
 
 .terminal-bar__dot {
@@ -137,7 +118,10 @@
 
 .terminal-panel__body {
   position: absolute;
-  inset: 0;
+  top: 28px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   padding: 0;
   background: transparent;
 }
@@ -218,13 +202,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity 120ms ease, transform 130ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.terminal-bar:hover .terminal-panel__actions,
-.terminal-bar:focus-within .terminal-panel__actions {
   opacity: 1;
   transform: translateY(0);
 }
