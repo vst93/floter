@@ -42,7 +42,7 @@ export function useLauncherActions(options: {
   setMainPinnedAway: (value: boolean) => void;
   setLauncherFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   setTerminalFeedback: Dispatch<SetStateAction<MessageKey | null>>;
-  showLauncherFeedback: (key: MessageKey) => void;
+  showLauncherFeedback: (key: MessageKey, duration?: number) => void;
   setTerminalMounted: (value: boolean) => void;
   setMode: (mode: ViewMode) => void;
   setQuery: Dispatch<SetStateAction<string>>;
@@ -330,7 +330,7 @@ export function useLauncherActions(options: {
     }
     // A catalog row with an unavailable runtime remains visible for discovery,
     // but is not silently reinterpreted by the user's shell.
-    showLauncherFeedback("extensions.runtimeUnavailable");
+    showLauncherFeedback("extensions.runtimeUnavailable", 9000);
   };
 
   /**

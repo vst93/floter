@@ -1896,7 +1896,7 @@ export default function App() {
                 </div>
               )}
               {launcherFeedback && (
-                <div className="launcher-feedback" role="status" aria-live="polite">
+                <div className="launcher-feedback launcher-feedback--warning" role="alert" aria-live="assertive">
                   <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
                   <span>{t(launcherFeedback)}</span>
                 </div>

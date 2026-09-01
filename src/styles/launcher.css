@@ -197,6 +197,14 @@
   line-height: 1.2;
 }
 
+/* A runtime-unavailable or other warning feedback: a stronger border and
+   opaque background so it reads as a blocking message, not a status hint. */
+.launcher-feedback--warning {
+  background: color-mix(in srgb, var(--text-warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-warning) 45%, transparent);
+  font-weight: 600;
+}
+
 .launcher-feedback__icon,
 .terminal-feedback__icon {
   width: 16px;

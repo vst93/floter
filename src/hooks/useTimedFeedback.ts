@@ -14,7 +14,7 @@ export function useTimedFeedback() {
   const launcherFeedbackTimer = useRef<number | null>(null);
   const terminalFeedbackTimer = useRef<number | null>(null);
 
-  const showLauncherFeedback = (key: MessageKey) => {
+  const showLauncherFeedback = (key: MessageKey, duration = 4500) => {
     setLauncherFeedback(key);
     if (launcherFeedbackTimer.current !== null) {
       window.clearTimeout(launcherFeedbackTimer.current);
@@ -22,7 +22,7 @@ export function useTimedFeedback() {
     launcherFeedbackTimer.current = window.setTimeout(() => {
       launcherFeedbackTimer.current = null;
       setLauncherFeedback(null);
-    }, 4500);
+    }, duration);
   };
 
   const showTerminalFeedback = (key: MessageKey) => {
