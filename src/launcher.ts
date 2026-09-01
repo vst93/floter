@@ -17,7 +17,13 @@ export type CompletionItem = {
   description: string;
 };
 
-export type ActionBarKind = "shell" | "url" | "path";
+export type ActionBarKind =
+  | "shell"
+  | "url"
+  | "path"
+  | "restart"
+  | "shutdown"
+  | "clipboard";
 export type CommandLineSyntax = "posix" | "windows";
 
 export type LauncherSelection = {
@@ -68,6 +74,26 @@ export const COMMAND_WORDS = new Set([
 const URL_QUERY = /^(?:https?|ftp):\/\//i;
 const PATH_QUERY = /^[/~.]|^[A-Za-z]:[\\/]|^\\\\/;
 const ALIAS_SCORE_CAP = 690;
+
+/**
+ * Power / clipboard queries that the action bar should claim and dispatch to
+ * the same handler `runLauncherItem` uses for the matching system result.
+ *
+ * Mirrors the searchable names in `useLauncherCatalog.ts` so the action bar
+ * matches what the result list would have shown — the user typing "restart"
+ * reaches the power action whether it landed on the action bar or on the
+ * numbered row above it.
+ */
+const SYSTEM_ACTION_QUERIES: Record<string, "restart" | "shutdown" | "clipboard"> = {
+  restart: "restart",
+  reboot: "restart",
+  shutdown: "shutdown",
+  "shut down": "shutdown",
+  "power off": "shutdown",
+  clipboard: "clipboard",
+  "clipboard history": "clipboard",
+  "paste history": "clipboard",
+};
 
 export const normalizeSearch = (value: string): string =>
   value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -243,6 +269,12 @@ export const scoreApp = (
 };
 
 export const classifyActionBar = (value: string): ActionBarKind => {
+  // Power and clipboard queries are claimed before the URL / path checks so
+  // typing `restart` does not get re-routed through a shell. The action bar
+  // dispatches them to the same handler `runLauncherItem` uses for the
+  // matching system result row.
+  const systemAction = SYSTEM_ACTION_QUERIES[normalizeSearch(value)];
+  if (systemAction) return systemAction;
   if (URL_QUERY.test(value)) return "url";
   if (PATH_QUERY.test(value)) return "path";
   return "shell";

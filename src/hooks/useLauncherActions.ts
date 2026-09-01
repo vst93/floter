@@ -250,6 +250,38 @@ export function useLauncherActions(options: {
       void openWithSystem("open_path", { path: action.value });
       return;
     }
+    // Power and clipboard kinds are claimed by `classifyActionBar` so the
+    // user reaches them through the action bar — the result list can also
+    // show them. Hand off to the same handler `runLauncherItem` uses for
+    // the matching system row, with a synthesized item carrying the same
+    // shape `useLauncherCatalog` produces.
+    if (
+      action.type === "restart" ||
+      action.type === "shutdown" ||
+      action.type === "clipboard"
+    ) {
+      const systemAction = action.type;
+      const titleKey =
+        systemAction === "restart"
+          ? "system.restart"
+          : systemAction === "shutdown"
+            ? "system.shutdown"
+            : "system.clipboardHistory";
+      const subtitleKey =
+        systemAction === "restart"
+          ? "system.restartSubtitle"
+          : systemAction === "shutdown"
+            ? "system.shutdownSubtitle"
+            : "system.clipboardHistorySubtitle";
+      void runSystemAction({
+        type: "system",
+        id: `system-${systemAction}`,
+        title: t(titleKey),
+        subtitle: t(subtitleKey),
+        action: systemAction,
+      });
+      return;
+    }
     void runCommand();
   };
 

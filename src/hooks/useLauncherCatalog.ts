@@ -493,7 +493,13 @@ export function useLauncherCatalog(options: {
       ? t("launcher.openInBrowser")
       : type === "path"
         ? t("launcher.openInFiles")
-        : t("launcher.runInShell");
+        : type === "restart"
+          ? t("system.restart")
+          : type === "shutdown"
+            ? t("system.shutdown")
+            : type === "clipboard"
+              ? t("system.clipboardHistory")
+              : t("launcher.runInShell");
     return { type, label, value };
   }, [query, t]);
 
