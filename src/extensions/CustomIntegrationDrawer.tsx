@@ -26,7 +26,7 @@ type ToolSuggestionOptionProps = {
 function ToolSuggestionOption({ item, index, highlight, recommendedLabel, onHighlight, onChoose }: ToolSuggestionOptionProps) {
   const name = item.kind === "recommendation" ? item.extension.name : item.candidate.name;
   const path = item.kind === "recommendation" ? item.extension.executablePath : item.candidate.locator.path;
-  return <button id={`extension-tool-result-${index}`} type="button" role="option" tabIndex={-1} aria-selected={index === highlight} className={index === highlight ? "extension-tool-result--active" : ""} onMouseEnter={onHighlight} onClick={onChoose}><strong>{name}{item.kind === "recommendation" ? <small className="extension-tool-result__badge"><Star size={9} strokeWidth={2.4} aria-hidden="true" />{recommendedLabel}</small> : <small>{item.candidate.sources.join(" · ")}</small>}</strong><span>{path}</span></button>;
+  return <button id={`extension-tool-result-${index}`} type="button" role="option" tabIndex={-1} aria-selected={index === highlight} className={`extension-tool-result${index === highlight ? " extension-tool-result--active" : ""}`} onMouseEnter={onHighlight} onClick={onChoose}><strong>{name}{item.kind === "recommendation" ? <small className="extension-tool-result__badge"><Star size={9} strokeWidth={2.4} aria-hidden="true" />{recommendedLabel}</small> : <small>{item.candidate.sources.join(" · ")}</small>}</strong><span>{path}</span></button>;
 }
 
 function ArgumentListEditor({ values, label, addLabel, removeLabel, emptyLabel, onChange }: { values: string[]; label: string; addLabel: string; removeLabel: string; emptyLabel: string; onChange: (values: string[]) => void }) {

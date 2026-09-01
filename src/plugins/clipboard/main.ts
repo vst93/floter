@@ -672,5 +672,13 @@ clearButton.addEventListener("click", () => void clearHistory());
 // Focus the filter on load — the page owns the keyboard from the first frame.
 searchInput.focus();
 
-void reload().then(render);
+// Render immediately so the page is never blank (falls back to page.css
+// styles even if the @import chain is slow), then hydrate with data.
 render();
+void reload().then(render).catch(() => {
+  // Only mark failed on a real bridge error, not on empty results.
+  if (entries.length === 0) {
+    loadFailed = true;
+    render();
+  }
+});

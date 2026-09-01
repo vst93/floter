@@ -910,19 +910,19 @@
 .extension-custom-form textarea:focus-visible,
 .extension-custom-mode__item:focus-visible { outline: 1px solid var(--accent-ring); outline-offset: 1px; }
 .extension-tool-results-anchor { position: relative; }
-.extension-tool-results { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 10; max-height: 130px; display: grid; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-opaque); box-shadow: 0 6px 18px var(--window-shadow-ambient); }
+.extension-tool-results { position: absolute; inset-inline: 0; top: 100%; z-index: 100; max-height: 200px; display: flex; flex-direction: column; overflow-y: auto; margin-top: 4px; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--surface-opaque); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15); }
 .extension-tool-results:empty { display: none; }
-.extension-tool-results > span { padding: 8px; color: var(--text-tertiary); font-size: 10px; }
-.extension-tool-results button { min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid var(--hairline); background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color 120ms ease, color 120ms ease; }
+.extension-tool-results > span { padding: 10px 12px; color: var(--text-tertiary); font-size: 11px; }
+.extension-tool-results button { min-width: 0; width: 100%; padding: 8px 12px; display: flex; align-items: center; gap: 10px; border: none; border-bottom: 1px solid var(--hairline); background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color 100ms ease; }
+.extension-tool-results button:last-child { border-bottom: none; }
 @media (hover: hover) and (pointer: fine) { .extension-tool-results button:hover { background: var(--ext-bg-hover); } }
 .extension-tool-results button.extension-tool-result--active { background: var(--ext-bg-selected); color: var(--accent); }
-.extension-custom-form__actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.extension-tool-results strong,
-.extension-tool-results span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
-.extension-tool-results strong { min-width: 0; display: grid; gap: 1px; color: var(--text-strong); }
-.extension-tool-results strong small { overflow: hidden; color: var(--text-strong); font-size: 9.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-.extension-tool-results strong small.extension-tool-result__badge { display: inline-flex; align-items: center; gap: 3px; width: fit-content; color: var(--accent); }
-.extension-tool-results__header { padding: 6px 8px 3px; color: var(--text-tertiary); font-size: 9px; font-weight: 650; }
+.extension-tool-results strong { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 500; }
+.extension-tool-results span { flex: 0 0 auto; max-width: 60%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--text-muted); font-family: "SF Mono", Menlo, Monaco, monospace; }
+.extension-tool-results strong small { overflow: hidden; color: var(--text-tertiary); font-size: 9px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.extension-tool-results strong small.extension-tool-result__badge { display: inline-flex; align-items: center; gap: 3px; width: fit-content; padding: 1px 5px; border-radius: 3px; background: var(--accent-tint); color: var(--accent); }
+.extension-tool-results__header { padding: 8px 12px 4px; color: var(--text-tertiary); font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; }
+.extension-tool-results .extension-tool-result__icon { width: 16px; height: 16px; flex: 0 0 auto; }
 .extension-custom-permissions { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; border: 0; }
 .extension-custom-permissions legend { width: 100%; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-weight: 650; text-transform: uppercase; }
 .extension-custom-permissions__hint { width: 100%; margin: -2px 0 2px; color: var(--text-tertiary); font-size: 9.5px; line-height: 1.35; }
