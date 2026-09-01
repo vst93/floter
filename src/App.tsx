@@ -22,6 +22,7 @@ import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
 import { useLauncherActions } from "./hooks/useLauncherActions";
 import { useAppKeyboard } from "./hooks/useAppKeyboard";
+import { useSettings } from "./hooks/useSettings";
 import {
   FOCUS_IN_OUT,
 } from "./terminal/keys";
@@ -35,7 +36,6 @@ import { PluginPageHost } from "./plugins/PluginPageHost";
 import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
-  DEFAULT_SHORTCUTS,
   formatResultShortcut,
   formatShortcut,
   IS_LINUX,
@@ -48,12 +48,7 @@ import {
   type ShortcutAction,
   type ShortcutMap,
 } from "./shortcuts";
-import {
-  createSerialSettingsWriter,
-  createSettingsHydration,
-  normalizeSettingsPage,
-  type SettingsPage,
-} from "./settings-persistence";
+import { type SettingsPage } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
 import { ShortcutsPage, CLIPBOARD_HOTKEY_ACTION } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -163,11 +158,6 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const terminalTextInputRef = useRef<HTMLTextAreaElement>(null);
   const terminalComposing = useRef(false);
-  const settingsSaveTimer = useRef<number | null>(null);
-  const settingsHydration = useMemo(() => createSettingsHydration<AppSettings>(), []);
-  const settingsLoadPromise = useRef<Promise<void> | null>(null);
-  const hydrationSavePromise = useRef<Promise<void> | null>(null);
-  const settingsSaveGeneration = useRef(0);
   const appQuitting = useRef(false);
 
   const ptyReady = useRef(false);
@@ -199,7 +189,6 @@ export default function App() {
   const [pluginPageId, setPluginPageId] = useState<string | null>(null);
   const pluginPageIdRef = useRef<string | null>(null);
   useEffect(() => { pluginPageIdRef.current = pluginPageId; }, [pluginPageId]);
-  const [settingsPage, setSettingsPage] = useState<SettingsPage>("general");
   const [query, setQuery] = useState("");
   /** Header identity (status dot + title) for the session in the main terminal
    * view; null until a spawn/attach has described it. */
@@ -239,79 +228,6 @@ export default function App() {
    * Enter runs. The two selections are exclusive but kept apart, because the
    * action bar is not a result: it is never numbered and never in `Ctrl+N`. */
   const [selectedActionBar, setSelectedActionBar] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({
-    hotkey: "Ctrl+Space",
-    hide_on_blur: true,
-    launch_at_startup: false,
-    theme: "dark",
-    font_size: 14,
-    font_family: "monospace",
-    cursor_shape: "beam",
-    language: "en",
-    main_opacity: 94,
-    terminal_opacity: 92,
-    shortcuts: DEFAULT_SHORTCUTS,
-    show_commands_in_search: false,
-    show_recent_in_launcher: true,
-    clipboard_history_enabled: true,
-    // The clipboard panel ships with NO global hotkey; users may bind one on
-    // the shortcuts settings page.
-    clipboard_history_hotkey: "",
-    launch_counts: {},
-    last_settings_page: "general",
-  });
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsSaveFailed, setSettingsSaveFailed] = useState(false);
-  const [settingsLoading, setSettingsLoading] = useState(true);
-  const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
-  const settingsRef = useRef(settings);
-  useEffect(() => { settingsRef.current = settings; }, [settings]);
-
-  const saveSettings = useMemo(
-    () => createSerialSettingsWriter<AppSettings>((next) =>
-      invoke("save_settings", { settings: next }),
-    ),
-    [],
-  );
-
-  const commitSettings = (next: AppSettings): Promise<void> => {
-    const generation = ++settingsSaveGeneration.current;
-    setSettingsSaving(true);
-    return saveSettings(next).then(
-      () => {
-        if (settingsSaveGeneration.current !== generation) return;
-        setSettingsSaving(false);
-        setSettingsSaveFailed(false);
-      },
-      (error) => {
-        if (settingsSaveGeneration.current === generation) {
-          setSettingsSaving(false);
-          setSettingsSaveFailed(true);
-        }
-        throw error;
-      },
-    );
-  };
-
-  // Startup remains interactive while settings load. Delay and coalesce writes
-  // until hydration finishes so a default frontend snapshot cannot overwrite
-  // fields that have not arrived from disk yet.
-  const persistSettings = (): Promise<void> => {
-    if (settingsHydration.isReady()) {
-      return commitSettings(settingsRef.current);
-    }
-    if (!hydrationSavePromise.current) {
-      const pending = settingsHydration
-        .waitUntilReady()
-        .then(() => commitSettings(settingsRef.current));
-      hydrationSavePromise.current = pending;
-      const clearPending = () => {
-        if (hydrationSavePromise.current === pending) hydrationSavePromise.current = null;
-      };
-      void pending.then(clearPending, clearPending);
-    }
-    return hydrationSavePromise.current;
-  };
   const [recordingAction, setRecordingAction] = useState<string | null>(null);
   const [rejectedAction, setRejectedAction] = useState<string | null>(null);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
@@ -321,6 +237,36 @@ export default function App() {
   const [updateFailed, setUpdateFailed] = useState(false);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
+
+  // Settings: state, hydration, persistence, and the change* mutators. The
+  // hook owns every ref/state above the line and exposes them; downstream
+  // hooks (`useLauncherCatalog`) take the refs/saves it returns.
+  const {
+    settings,
+    setSettings,
+    settingsPage,
+    setSettingsPage,
+    settingsSaving,
+    settingsSaveFailed,
+    settingsLoading,
+    settingsLoadFailed,
+    settingsRef,
+    settingsHydration,
+    loadSettings,
+    commitSettings,
+    persistSettings,
+    changeOpacity,
+    changeFontSize,
+    changeGeneralSetting,
+    changeTheme,
+    changeLanguage,
+    changeLaunchAtStartup,
+    flushPendingSave,
+  } = useSettings({
+    suppressBlurUntil,
+    autostartUpdating,
+    setAutostartUpdating,
+  });
   /** Mirror of the OS focus state as the listener below has seen it. Lives in
    *  a ref rather than the effect so it survives the re-subscription every
    *  mode change makes: a Focused(false) that arrives without a matching
