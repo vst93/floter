@@ -6,7 +6,7 @@
 
 import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { PINNED_SESSION_ID } from "../terminal/pinState";
+import { PINNED_SESSION_ID, type PinEvent } from "../terminal/pinState";
 import { usePinnedTerminal } from "./usePinnedTerminal";
 import type { BrokerSessionInfo, MainSessionIdentity, ViewMode } from "../App";
 import type { MessageKey } from "../i18n";
@@ -15,6 +15,10 @@ export function usePinCoordinator(options: {
   mode: ViewMode;
   resolvedTheme: "dark" | "light";
   ptyReady: RefObject<boolean>;
+  /** Set here, read by the input gates: whether the CARD's view is attached to
+   * a live session. Kept apart from `ptyReady`, which only ever describes the
+   * main slot — and which pinning empties. */
+  pinnedReady: RefObject<boolean>;
   terminalGeneration: RefObject<number | null>;
   nextTerminalGeneration: RefObject<number>;
   mainBrokerSessionIdRef: RefObject<string | null>;
@@ -32,6 +36,7 @@ export function usePinCoordinator(options: {
     mode,
     resolvedTheme,
     ptyReady,
+    pinnedReady,
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
@@ -47,9 +52,38 @@ export function usePinCoordinator(options: {
   } = options;
 
   const pinBusy = useRef(false);
-  const { pinState, dispatchPinEvent, geometry: cardGeometry, updateGeometry: updateCardGeometry } = usePinnedTerminal();
+  const {
+    pinState,
+    dispatchPinEvent: dispatchRawPinEvent,
+    geometry: cardGeometry,
+    updateGeometry: updateCardGeometry,
+  } = usePinnedTerminal();
   const pinStateRef = useRef(pinState);
   pinStateRef.current = pinState;
+
+  /**
+   * The reducer dispatch, wrapped so that `pinnedReady` cannot outlive the card.
+   *
+   * Every path that removes the card goes through an event — this hook's unpin
+   * and exit handlers, and the session-resume path in `useLauncherActions`,
+   * which takes over the pinned session directly. Clearing here rather than at
+   * each call site means a future fourth path cannot leave the flag set, which
+   * would let keystrokes be posted to a view that no longer exists.
+   */
+  const dispatchPinEvent = useCallback(
+    (event: PinEvent) => {
+      if (event.type === "unpin") {
+        pinnedReady.current = false;
+      } else if (event.type === "sessionClosed") {
+        const pinned = pinStateRef.current;
+        if (pinned.status === "pinned" && pinned.session.generation === event.generation) {
+          pinnedReady.current = false;
+        }
+      }
+      dispatchRawPinEvent(event);
+    },
+    [dispatchRawPinEvent, pinnedReady],
+  );
 
   /** Look up a human-readable session name for the card header. */
   const lookupSessionLabel = async (brokerSessionId: string): Promise<string | null> => {
@@ -75,6 +109,10 @@ export function usePinCoordinator(options: {
         rows: dimsRef.current.rows,
       },
     });
+    // The card's view is attached and can take input from here on. Set only on
+    // the success path: a throw leaves the flag alone, and the caller's error
+    // branch releases the session into the session list instead.
+    pinnedReady.current = true;
     return generation;
   };
 
@@ -171,8 +209,15 @@ export function usePinCoordinator(options: {
     if (pinBusy.current) return;
     const pinned = pinStateRef.current;
     if (pinned.status === "pinned") {
+      // Sampled BEFORE the unpin, because unpinning into an empty main slot
+      // fills that slot: `unpinPinnedSession` resumes the session there and sets
+      // `ptyReady`. Reading the flag afterwards would therefore see the session
+      // just handed back and immediately re-pin it, and the shortcut could never
+      // unpin anything. What the re-pin is actually for is the other case — a
+      // NEWER session already running in the main area, which the card moves to.
+      const mainWasLive = ptyReady.current;
       await unpinPinnedSession();
-      if (ptyReady.current) {
+      if (mainWasLive) {
         // A newer session runs in the main area: move the card to it. The old
         // session was released into the normal list/view flow above.
         await pinCurrentMain();

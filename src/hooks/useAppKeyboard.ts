@@ -33,7 +33,8 @@ export function useAppKeyboard(options: {
   inputRef: RefObject<HTMLInputElement | null>;
   selectionRef: RefObject<Selection | null>;
   dimsRef: RefObject<{ cols: number; rows: number }>;
-  ptyReady: RefObject<boolean>;
+  /** Whether the surface that currently owns the keyboard can take input. */
+  surfaceReady: () => boolean;
   terminalTextInputRef: RefObject<HTMLTextAreaElement | null>;
   terminalInputTarget: () => string;
   activeRenderer: () => TerminalCanvas | null;
@@ -64,7 +65,7 @@ export function useAppKeyboard(options: {
     inputRef,
     selectionRef,
     dimsRef,
-    ptyReady,
+    surfaceReady,
     terminalTextInputRef,
     terminalInputTarget,
     activeRenderer,
@@ -136,7 +137,15 @@ export function useAppKeyboard(options: {
         }
         // Copy only claims the combination when there is something to copy, so
         // a Ctrl+C binding still interrupts the foreground process otherwise.
-        if (selectionRef.current && matchesShortcut(event, shortcuts.copy_selection)) {
+        // `selectionRef` and `copySelection` are both main-view-only: the card
+        // has no selection of its own, so while it owns the keyboard this must
+        // not fire — it would copy text from the other surface, and swallow the
+        // press the pinned shell was waiting for.
+        if (
+          activeSurfaceRef.current === "main" &&
+          selectionRef.current &&
+          matchesShortcut(event, shortcuts.copy_selection)
+        ) {
           event.preventDefault();
           copySelection();
           return;
@@ -154,7 +163,12 @@ export function useAppKeyboard(options: {
         }
         if (event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) {
           event.preventDefault();
-          const lines = dimsRef.current.rows;
+          // A page is the active surface's own row count. `dimsRef` measures the
+          // main grid, and the card is typically much shorter, so using it there
+          // would scroll the pinned session past whole screens of output the
+          // user never saw. Falls back to the main dims when the card's renderer
+          // has not laid out yet.
+          const lines = Math.max(1, activeRenderer()?.rows ?? dimsRef.current.rows);
           invoke("term_scroll", {
             id: terminalInputTarget(),
             delta: event.key === "PageUp" ? lines : -lines,
@@ -168,9 +182,11 @@ export function useAppKeyboard(options: {
         // button, would otherwise land at the prompt as phantom commands —
         // exactly the "command not found" reports for text the user typed in
         // the launcher and never meant for the shell.
+        // Readiness is asked of the surface that owns the keyboard, not of the
+        // main view: while the card is focused the main slot is empty by design.
         if (
           document.activeElement !== terminalTextInputRef.current ||
-          !ptyReady.current
+          !surfaceReady()
         ) {
           return;
         }

@@ -293,7 +293,10 @@ export const formatShortcut = (value: string | undefined): string => {
   if (shortcut.ctrl) parts.push("Ctrl");
   if (shortcut.alt) parts.push("Alt");
   if (shortcut.shift) parts.push("Shift");
-  if (shortcut.meta) parts.push("Win");
+  // "Super" on Linux, matching both the key's name on that platform and what
+  // `shortcutFromEvent` stores — a binding recorded as "Super+K" displayed back
+  // as "Win+K" reads as a different shortcut than the one that was pressed.
+  if (shortcut.meta) parts.push(IS_LINUX ? "Super" : "Win");
   parts.push(formatKey(shortcut.key));
   return parts.join("+");
 };

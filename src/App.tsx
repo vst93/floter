@@ -168,6 +168,11 @@ export default function App() {
   const appQuitting = useRef(false);
 
   const ptyReady = useRef(false);
+  /** The card's counterpart to `ptyReady`. Both live here, next to the other
+   * broker-side bookkeeping, because the pin coordinator writes this one and the
+   * terminal view's input gates read it. `ptyReady` describes the MAIN slot
+   * only, and pinning empties that slot by design. */
+  const pinnedReady = useRef(false);
   const terminalGeneration = useRef<number | null>(null);
   /** Daemon-side id of the PTY the main view is attached to; captured at
    * spawn/attach so pinning can hand the session to the card without a
@@ -482,6 +487,7 @@ export default function App() {
     render,
     terminalInputTarget,
     activeRenderer,
+    surfaceReady,
     focusTerminalView,
     closeTerminalSession,
     ensureTerminalSession,
@@ -504,6 +510,7 @@ export default function App() {
     fontSize: settings.font_size,
     resolvedTheme,
     ptyReady,
+    pinnedReady,
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
@@ -565,6 +572,7 @@ export default function App() {
     mode,
     resolvedTheme,
     ptyReady,
+    pinnedReady,
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
@@ -640,7 +648,7 @@ export default function App() {
     inputRef,
     selectionRef,
     dimsRef,
-    ptyReady,
+    surfaceReady,
     terminalTextInputRef,
     terminalInputTarget,
     activeRenderer,

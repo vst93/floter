@@ -130,6 +130,10 @@ export class TerminalCanvas {
   // for every burst of terminal output.
   private bg = FALLBACK_BG;
   private bgOpacity = 1;
+  /** `bg` at `bgOpacity` as a ready-to-assign fill. Precomputed here because it
+   * is the one translucent colour painted on every single frame, and the packed
+   * colour cache can only hold opaque entries. */
+  private bgFill = "";
   private fg = FALLBACK_FG;
   private cursor = FALLBACK_CURSOR;
   private selection = FALLBACK_SELECTION;
@@ -173,6 +177,7 @@ export class TerminalCanvas {
     // integers the cell colours use have nowhere to put an alpha channel.
     this.selection = cssColor(style, "--terminal-selection", FALLBACK_SELECTION);
     this.scrollbar = cssColor(style, "--terminal-scrollbar", FALLBACK_SCROLLBAR);
+    this.bgFill = this.color(this.bg, this.bgOpacity);
   }
 
   private fontString(bold: boolean, italic: boolean): string {
@@ -226,17 +231,25 @@ export class TerminalCanvas {
   }
 
   private color(packed: number, alpha = 1): string {
-    if (alpha !== 1) {
-      const red = (packed >> 16) & 0xff;
-      const green = (packed >> 8) & 0xff;
-      const blue = packed & 0xff;
-      return `rgb(${red} ${green} ${blue} / ${alpha})`;
-    }
-    let s = this.colorCache.get(packed);
+    // Keyed on colour *and* alpha: the translucent variants are as re-requested
+    // as the opaque ones, and building the string is what this avoids. Alpha is
+    // quantized to 1/255 so a slider dragged through many float values cannot
+    // grow the cache without bound.
+    const rgb = packed & 0xffffff;
+    const quantAlpha = Math.round(Math.min(1, Math.max(0, alpha)) * 255);
+    const key = quantAlpha === 255 ? rgb : rgb + (quantAlpha + 1) * 0x1000000;
+    let s = this.colorCache.get(key);
     if (s) return s;
-    s = `#${(packed & 0xffffff).toString(16).padStart(6, "0")}`;
+    if (quantAlpha === 255) {
+      s = `#${rgb.toString(16).padStart(6, "0")}`;
+    } else {
+      const red = (rgb >> 16) & 0xff;
+      const green = (rgb >> 8) & 0xff;
+      const blue = rgb & 0xff;
+      s = `rgb(${red} ${green} ${blue} / ${quantAlpha / 255})`;
+    }
     if (this.colorCache.size > 4096) this.colorCache.clear();
-    this.colorCache.set(packed, s);
+    this.colorCache.set(key, s);
     return s;
   }
 
@@ -255,15 +268,24 @@ export class TerminalCanvas {
     const themeFg = this.fg;
 
     ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
-    ctx.fillStyle = this.color(themeBg, this.bgOpacity);
+    ctx.fillStyle = this.bgFill;
     ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
 
-    this.lastBytes = bytes;
     if (bytes.byteLength < HEADER_BYTES) return;
 
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const cols = dv.getUint16(0, true);
     const rows = dv.getUint16(2, true);
+    // The cell loop below reads `cols * rows` fixed-size records straight
+    // through, so the header's own dimensions have to be covered by the bytes
+    // that actually arrived. A frame truncated in transit would otherwise throw
+    // a RangeError out of the middle of the paint, leaving the canvas holding
+    // half a grid; dropping it whole keeps the previous frame on screen until
+    // the next complete one lands. `lastBytes` is only adopted once the frame
+    // has passed, so selection and word-expansion never read a short buffer.
+    if (bytes.byteLength < HEADER_BYTES + cols * rows * CELL_BYTES) return;
+
+    this.lastBytes = bytes;
     this.combining = readCombining(bytes, cols * rows);
     const cursorCol = dv.getUint16(4, true);
     const cursorRow = dv.getUint16(6, true);
@@ -538,12 +560,27 @@ export class TerminalCanvas {
     };
   }
 
-  /** True if the pixel is within the scrollbar track. */
-  hitScrollbar(px: number, _py: number): boolean {
+  /**
+   * True if the pixel is within the scrollbar track *while the bar is up*.
+   *
+   * The visibility check is the point: the bar only shows during a scroll or a
+   * hover (see `SCROLLBAR_LINGER`), and a hit test that ignored the fade would
+   * leave the rightmost few pixels of the canvas permanently armed. A click
+   * there — on text, with nothing drawn over it — would begin a scrollbar drag
+   * and jump the view to wherever in the scrollback that y sat. The track's own
+   * vertical extent is honoured for the same reason.
+   */
+  hitScrollbar(px: number, py: number): boolean {
     if ((this.mode & ALT_SCREEN) !== 0 || this.historySize <= 0) return false;
+    if (this.scrollbarAlpha() <= 0) return false;
     const rect = this.scrollbarRect();
     if (!rect) return false;
-    return px >= rect.x && px <= rect.x + rect.w;
+    return (
+      px >= rect.x &&
+      px <= rect.x + rect.w &&
+      py >= rect.y &&
+      py <= rect.y + rect.h
+    );
   }
 
   /** Scrollbar geometry (track + thumb) in canvas space. */
@@ -741,6 +778,48 @@ function mix(a: number, b: number, t: number): number {
   const g = Math.round(ag + (bg - ag) * t);
   const bl = Math.round(ab + (bb - ab) * t);
   return (r << 16) | (g << 8) | bl;
+}
+
+/** Mutable accumulator for [`wheelScrollSteps`]; a React ref satisfies it. */
+export interface WheelRemainder {
+  current: number;
+}
+
+/**
+ * Wheel delta -> whole scroll steps, shared by every surface that scrolls a
+ * session (the main view and the pinned card).
+ *
+ * Two things make this worth having in one place. `deltaMode` is not always
+ * pixels: a mouse whose driver reports DOM_DELTA_LINE sends deltas of 1..3, and
+ * a naive `deltaY / unit` truncates every one of them to zero, so the wheel does
+ * nothing at all. And truncation on its own discards the fraction it dropped,
+ * which is most of the travel from a trackpad's many small deltas — the
+ * remainder is carried into the next event instead, so slow scrolling
+ * accumulates rather than being thrown away one event at a time.
+ *
+ * Returns 0 when the accumulated travel has not yet reached one step, already
+ * clamped to the range the backend accepts.
+ */
+export function wheelScrollSteps(
+  event: WheelEvent,
+  renderer: TerminalCanvas,
+  remainder: WheelRemainder,
+): number {
+  const page = renderer.cellHeight * Math.max(1, renderer.rows);
+  const pixels =
+    event.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? event.deltaY * renderer.cellHeight
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+        ? event.deltaY * page
+        : event.deltaY;
+  const unit = Math.max(24, renderer.cellHeight * 1.5);
+  remainder.current += pixels;
+  const rawSteps = Math.trunc(remainder.current / unit);
+  if (rawSteps === 0) return 0;
+  remainder.current -= rawSteps * unit;
+  // Negated: a positive deltaY scrolls the content down, which moves the view
+  // *back* through the scrollback.
+  return Math.max(-8, Math.min(8, -rawSteps));
 }
 
 /** Decode a base64 frame into raw bytes. */

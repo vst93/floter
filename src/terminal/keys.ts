@@ -85,6 +85,13 @@ export function encodeKey(e: KeyboardEvent, mode: number): Uint8Array | null {
     // 0x03 (ETX) and interrupts the foreground process. The app's own handler
     // claims these when it can act on them; when it cannot, the correct
     // outcome is still no bytes at all rather than SIGINT or 0x16.
+    //
+    // C and V are hardcoded because this function is given only the event and
+    // the emulator mode, not the settings. That holds for the default bindings
+    // and for every rebinding that keeps the letters; a user who moves copy to
+    // some other Ctrl+Shift letter would get the C0 character for it. Fixing
+    // that means passing the configured bindings in — worth doing when the
+    // clipboard chords become freely rebindable, not before.
     if (!IS_MAC && e.shiftKey && (code === 0x43 || code === 0x56)) return null;
     if (code >= 0x41 && code <= 0x5a) {
       return withAltPrefix(new Uint8Array([code - 0x40]), e);

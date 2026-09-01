@@ -20,7 +20,7 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { TerminalCanvas, decodeFrame } from "./render";
+import { TerminalCanvas, decodeFrame, wheelScrollSteps } from "./render";
 import { PINNED_SESSION_ID, type CardGeometry, type PinnedSession } from "./pinState";
 import type { Translate } from "../i18n";
 
@@ -72,6 +72,8 @@ export function PinnedTerminalCard({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<Uint8Array | null>(null);
   const blinkRef = useRef(true);
+  /** Carried-over wheel travel too small to have moved a whole row yet. */
+  const wheelRemainder = useRef(0);
   const geometryRef = useRef(geometry);
   const sessionRef = useRef(session);
   geometryRef.current = geometry;
@@ -193,10 +195,20 @@ export function PinnedTerminalCard({
     const onMove = (move: PointerEvent) => {
       onGeometryChange(apply(startGeometry, move.clientX - startX, move.clientY - startY));
     };
-    const onUp = () => {
+    const onUp = (end: PointerEvent) => {
       target.removeEventListener("pointermove", onMove);
       target.removeEventListener("pointerup", onUp);
       target.removeEventListener("pointercancel", onUp);
+      // Capture is what routes the pointer to the header/handle for the whole
+      // gesture; left held, that element keeps receiving pointer events after
+      // the button is up, so hover states elsewhere stop working and the next
+      // press can be delivered to the wrong element. `pointercancel` fires when
+      // the browser has already dropped the capture, hence the guard.
+      try {
+        target.releasePointerCapture(end.pointerId);
+      } catch {
+        // Already released with the capture; nothing to undo.
+      }
     };
     target.setPointerCapture(event.pointerId);
     target.addEventListener("pointermove", onMove);
@@ -226,16 +238,19 @@ export function PinnedTerminalCard({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    wheelRemainder.current = 0;
     const onWheel = (event: WheelEvent) => {
       const renderer = rendererRef.current;
       if (!renderer || event.deltaY === 0) return;
       event.preventDefault();
-      const unit = Math.max(24, renderer.cellHeight * 1.5);
-      const steps = Math.trunc(event.deltaY / unit);
-      if (steps === 0) return;
+      // Shared with the main view: line-mode wheels and the sub-step travel of a
+      // trackpad both need handling, and doing it by hand here is what left this
+      // surface unable to scroll for anyone whose mouse reports lines.
+      const delta = wheelScrollSteps(event, renderer, wheelRemainder);
+      if (delta === 0) return;
       invoke("term_wheel", {
         id: PINNED_SESSION_ID,
-        delta: Math.max(-8, Math.min(8, -steps)),
+        delta,
         column: 0,
         row: 0,
         modifiers: 0,

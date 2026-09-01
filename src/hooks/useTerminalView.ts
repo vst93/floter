@@ -19,7 +19,12 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { TerminalCanvas, decodeFrame, type Selection } from "../terminal/render";
+import {
+  TerminalCanvas,
+  decodeFrame,
+  wheelScrollSteps,
+  type Selection,
+} from "../terminal/render";
 import { MOUSE_MOTION, usesMouseReporting } from "../terminal/keys";
 import { PINNED_SESSION_ID } from "../terminal/pinState";
 import { normalizeFontSize } from "../settings/GeneralPage";
@@ -77,6 +82,8 @@ export function useTerminalView(options: {
   fontSize: number;
   resolvedTheme: "dark" | "light";
   ptyReady: RefObject<boolean>;
+  /** Card counterpart of `ptyReady`; see `surfaceReady` below. */
+  pinnedReady: RefObject<boolean>;
   terminalGeneration: RefObject<number | null>;
   nextTerminalGeneration: RefObject<number>;
   mainBrokerSessionIdRef: RefObject<string | null>;
@@ -104,6 +111,7 @@ export function useTerminalView(options: {
     fontSize,
     resolvedTheme,
     ptyReady,
+    pinnedReady,
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
@@ -165,6 +173,17 @@ export function useTerminalView(options: {
    * surface — the two views can run programs with different modes. */
   const activeRenderer = (): TerminalCanvas | null =>
     activeSurfaceRef.current === "pinned" ? pinnedRendererRef.current : rendererRef.current;
+
+  /**
+   * Whether the surface that owns the keyboard has a session able to receive
+   * input. Per-surface on purpose: `ptyReady` tracks the MAIN view's slot, and
+   * pinning deliberately empties that slot (the session moved to the card), so
+   * a gate written against `ptyReady` alone drops every keystroke aimed at a
+   * pinned card — the card would draw frames and answer the mouse while
+   * silently ignoring the keyboard.
+   */
+  const surfaceReady = (): boolean =>
+    activeSurfaceRef.current === "pinned" ? pinnedReady.current : ptyReady.current;
 
   const focusTerminalView = (delay = 0) => {
     window.setTimeout(() => {
@@ -373,18 +392,8 @@ export function useTerminalView(options: {
       if (!renderer || event.deltaY === 0) return;
       event.preventDefault();
 
-      const page = renderer.cellHeight * Math.max(1, renderer.rows);
-      const pixels =
-        event.deltaMode === WheelEvent.DOM_DELTA_LINE
-          ? event.deltaY * renderer.cellHeight
-          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-            ? event.deltaY * page
-            : event.deltaY;
-      const unit = Math.max(24, renderer.cellHeight * 1.5);
-      wheelRemainder.current += pixels;
-      const rawSteps = Math.trunc(wheelRemainder.current / unit);
-      if (rawSteps === 0) return;
-      wheelRemainder.current -= rawSteps * unit;
+      const delta = wheelScrollSteps(event, renderer, wheelRemainder);
+      if (delta === 0) return;
 
       const point = renderer.pixelToCell(event.offsetX, event.offsetY) ?? {
         col: Math.max(0, Math.min(renderer.cols - 1, Math.floor(event.offsetX / renderer.cellWidth))),
@@ -392,7 +401,7 @@ export function useTerminalView(options: {
       };
       invoke("term_wheel", {
         id: "main",
-        delta: Math.max(-8, Math.min(8, -rawSteps)),
+        delta,
         column: point.col,
         row: point.row,
         modifiers: terminalMouseModifiers(event),
@@ -678,7 +687,10 @@ export function useTerminalView(options: {
   };
 
   const sendTerminalText = (text: string, bracketed = false) => {
-    if (!text || !ptyReady.current) return;
+    // Gated on the *target* surface's readiness, matching `terminalInputTarget`
+    // below: typed text, IME commits and pastes all go to the card while it owns
+    // the keyboard, and the main slot is empty precisely then.
+    if (!text || !surfaceReady()) return;
     const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
     void invoke("term_input", {
       id: terminalInputTarget(),
@@ -725,6 +737,7 @@ export function useTerminalView(options: {
     render,
     terminalInputTarget,
     activeRenderer,
+    surfaceReady,
     focusTerminalView,
     relayoutAndResize,
     resetTerminalFrontendState,
