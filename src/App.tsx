@@ -61,6 +61,7 @@ import { SessionsPage } from "./settings/SessionsPage";
 import { AboutPage } from "./settings/AboutPage";
 import {
   LauncherResults,
+  type LauncherItem,
 } from "./launcher/LauncherResults";
 import "./styles/launcher.css";
 import "./styles/terminal.css";
@@ -226,6 +227,9 @@ export default function App() {
   // short confirm pill instead of the icon. Cleared by a second click, a
   // different row's kill click, or a 3s timeout.
   const [killConfirmId, setKillConfirmId] = useState<string | null>(null);
+  // Two-step system power confirmation: armed while the restart/shutdown row
+  // shows an inline "Execute? Cancel?" banner. Enter executes, Esc cancels.
+  const [pendingSystemAction, setPendingSystemAction] = useState<Extract<LauncherItem, { type: "system" }> | null>(null);
   // Session refreshes can overlap when the user switches pages or retries
   // quickly. Only the newest response is allowed to update the list and its
   // loading/error state; an older response may otherwise resurrect a session
@@ -598,6 +602,9 @@ export default function App() {
     executeActionBar,
     runLauncherItem,
     handleLauncherKey,
+    pendingSystemAction: armedSystemAction,
+    executeSystemAction,
+    cancelSystemAction,
   } = useLauncherActions({
     query,
     resolvedTheme,
@@ -642,6 +649,8 @@ export default function App() {
     historyIndex,
     draftBeforeHistory,
     collapsedCardRef,
+    pendingSystemAction,
+    setPendingSystemAction,
   });
 
   useAppKeyboard({
@@ -1890,6 +1899,32 @@ export default function App() {
                 <div className="launcher-feedback" role="status" aria-live="polite">
                   <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
                   <span>{t(launcherFeedback)}</span>
+                </div>
+              )}
+              {pendingSystemAction && (
+                <div className="launcher-system-confirm" role="alert">
+                  <AlertCircle className="launcher-system-confirm__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                  <span className="launcher-system-confirm__message">
+                    {t(pendingSystemAction.action === "restart"
+                      ? "system.restartConfirm"
+                      : "system.shutdownConfirm")}
+                  </span>
+                  <button
+                    type="button"
+                    className="launcher-system-confirm__execute"
+                    onClick={() => void executeSystemAction()}
+                  >
+                    {t(pendingSystemAction.action === "restart"
+                      ? "system.restart"
+                      : "system.shutdown")}
+                  </button>
+                  <button
+                    type="button"
+                    className="launcher-system-confirm__cancel"
+                    onClick={() => cancelSystemAction()}
+                  >
+                    {t("settings.extensions.cancel")}
+                  </button>
                 </div>
               )}
               <LauncherResults

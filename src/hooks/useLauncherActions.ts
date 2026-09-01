@@ -72,6 +72,8 @@ export function useLauncherActions(options: {
   historyIndex: number;
   draftBeforeHistory: RefObject<string>;
   collapsedCardRef: RefObject<HTMLDivElement | null>;
+  pendingSystemAction: Extract<LauncherItem, { type: "system" }> | null;
+  setPendingSystemAction: Dispatch<SetStateAction<Extract<LauncherItem, { type: "system" }> | null>>;
 }) {
   const {
     query,
@@ -117,6 +119,8 @@ export function useLauncherActions(options: {
     historyIndex,
     draftBeforeHistory,
     collapsedCardRef,
+    pendingSystemAction,
+    setPendingSystemAction,
   } = options;
 
   const runCommand = async (
@@ -260,29 +264,37 @@ export function useLauncherActions(options: {
       return;
     }
 
-    if (systemPowerOpening.current) return;
-
-    const confirmationKey = item.action === "restart"
-      ? "system.restartConfirm"
-      : "system.shutdownConfirm";
-    if (!window.confirm(t(confirmationKey))) {
-      focusCollapsedInput();
+    // Cancel any previously armed confirmation and dismiss this one: selecting
+    // a different system action does not transfer the confirmation.
+    if (pendingSystemAction) {
+      setPendingSystemAction(null);
       return;
     }
 
+    // First click: arm the confirmation and surface an inline banner. Esc or
+    // a second click on the same row cancels.
+    setPendingSystemAction(item);
+  };
+
+  /** Run the previously armed system action. Called when the inline
+   *  confirmation banner is confirmed (Enter). */
+  const executeSystemAction = async () => {
+    const item = pendingSystemAction;
+    if (!item) return;
+
+    setPendingSystemAction(null);
+
+    if (item.action === "clipboard") return;
+
+    if (systemPowerOpening.current) return;
     systemPowerOpening.current = true;
     setLauncherFeedback(null);
     try {
-      // The launcher is an always-on-top panel. Move it out of the way before
-      // macOS presents its own confirmation, or that dialog can appear behind
-      // the panel. Linux and Windows execute immediately after this point.
       await invoke("hide_window");
       await invoke("system_power", { action: item.action });
       setQuery("");
       setHistoryIndex(-1);
     } catch {
-      // A missing system utility or rejected spawn must not look like success.
-      // Restore the launcher with the original query intact so it can be retried.
       setMode("collapsed");
       await invoke("show_input").catch(() => undefined);
       showLauncherFeedback(
@@ -294,6 +306,11 @@ export function useLauncherActions(options: {
     } finally {
       systemPowerOpening.current = false;
     }
+  };
+
+  const cancelSystemAction = () => {
+    setPendingSystemAction(null);
+    focusCollapsedInput();
   };
 
   const runLauncherItem = (item: LauncherItem | undefined) => {
@@ -331,6 +348,26 @@ export function useLauncherActions(options: {
     // Checking the event itself avoids leaving a flag behind that swallows the
     // user's next deliberate Enter after composition has already finished.
     if (isComposing.current || event.isComposing || event.keyCode === 229) return;
+
+    // A pending system action (restart/shutdown) is armed: Enter executes it,
+    // Esc cancels. Nothing else is reachable until the user decides.
+    if (pendingSystemAction) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void executeSystemAction();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelSystemAction();
+        return;
+      }
+      // Swallow every other key while the confirmation is armed — the
+      // launcher list is still visible underneath, but the action is a
+      // deliberate two-step gesture and stray typing must not run anything.
+      event.preventDefault();
+      return;
+    }
 
     // Holding the same modifier as the numbered-result shortcut highlights the
     // command row. It makes Cmd/Ctrl+Enter discoverable without giving the row a
@@ -477,5 +514,8 @@ export function useLauncherActions(options: {
     runSystemAction,
     runLauncherItem,
     handleLauncherKey,
+    pendingSystemAction,
+    executeSystemAction,
+    cancelSystemAction,
   };
 }

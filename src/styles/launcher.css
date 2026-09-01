@@ -233,6 +233,70 @@
   outline-offset: 1px;
 }
 
+.launcher-system-confirm {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--system-icon-surface);
+  color: var(--text-warning);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.launcher-system-confirm__icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.launcher-system-confirm__message {
+  flex: 1 1 auto;
+}
+
+.launcher-system-confirm__execute,
+.launcher-system-confirm__cancel {
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.launcher-system-confirm__execute {
+  background: color-mix(in srgb, var(--text-warning) 18%, transparent);
+  border-color: var(--stroke-control);
+}
+
+.launcher-system-confirm__execute:hover {
+  background: color-mix(in srgb, var(--text-warning) 28%, transparent);
+}
+
+.launcher-system-confirm__execute:focus-visible,
+.launcher-system-confirm__cancel:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+.launcher-system-confirm__cancel:hover {
+  border-color: var(--stroke-control);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
 .launcher-results {
   display: grid;
   gap: 1px;
