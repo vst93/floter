@@ -128,7 +128,9 @@ export type AppSettings = {
   launch_counts: Record<string, number>;
   /** Settings page that was open last, restored on the next launch. */
   last_settings_page: SettingsPage;
-};
+  /** Whether the first-run onboarding tip has been dismissed. */
+  seen_tip: boolean;
+}
 
 const INPUT_WINDOW_WIDTH = 720;
 const SETTINGS_WINDOW_HEIGHT = 580;
@@ -218,6 +220,8 @@ export default function App() {
   // Two-step system power confirmation: armed while the restart/shutdown row
   // shows an inline "Execute? Cancel?" banner. Enter executes, Esc cancels.
   const [pendingSystemAction, setPendingSystemAction] = useState<Extract<LauncherItem, { type: "system" }> | null>(null);
+  /** First-run onboarding tip: shown once in the launcher until dismissed. */
+  const [showOnboardingTip, setShowOnboardingTip] = useState(false);
   // Session refreshes can overlap when the user switches pages or retries
   // quickly. Only the newest response is allowed to update the list and its
   // loading/error state; an older response may otherwise resurrect a session
@@ -834,6 +838,20 @@ export default function App() {
   useEffect(() => {
     void loadSettings();
   }, [settingsHydration]);
+
+  // Show the first-run onboarding tip in the launcher the first time the user
+  // opens it; persist dismissal as `seen_tip` so it never returns.
+  useEffect(() => {
+    if (settingsLoading) return;
+    setShowOnboardingTip(!settings.seen_tip && mode === "collapsed");
+  }, [settingsLoading, settings.seen_tip, mode]);
+
+  const dismissOnboardingTip = useCallback(() => {
+    setShowOnboardingTip(false);
+    if (!settings.seen_tip) {
+      changeGeneralSetting("seen_tip", true);
+    }
+  }, [settings.seen_tip, changeGeneralSetting]);
 
   // The webview's built-in right-click menu must never appear, on any
   // surface. A capture-phase window listener covers every element including
@@ -1900,6 +1918,31 @@ export default function App() {
               )}
             </div>
           </div>
+          {/* First-run onboarding tip: a small dismissible banner shown above
+              the result area the first time the user opens the launcher. */}
+          {showOnboardingTip && (
+            <div className="launcher-tip" role="status">
+              <div className="launcher-tip__body">
+                <span className="launcher-tip__icon" aria-hidden="true">
+                  <Info size={14} strokeWidth={1.8} />
+                </span>
+                <div className="launcher-tip__text">
+                  <div className="launcher-tip__title">{t("launcher.tipTitle")}</div>
+                  <div className="launcher-tip__message">{t("launcher.tipMessage")}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="launcher-tip__dismiss"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  dismissOnboardingTip();
+                }}
+              >
+                {t("launcher.tipDismiss")}
+              </button>
+            </div>
+          )}
           {/* The clip wrapper is what animates: grid-template-rows 0fr → 1fr
               collapses/expands the whole bottom area without a hard height
               jump. The content stays mounted, only the class flips. */}

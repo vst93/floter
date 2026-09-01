@@ -47,6 +47,7 @@ const SETTINGS_DEFAULTS: AppSettings = {
   clipboard_history_hotkey: "",
   launch_counts: {},
   last_settings_page: "general",
+  seen_tip: false,
 };
 
 /** Debounce window for the slider-driven opacity and font-size writes. */
@@ -170,6 +171,7 @@ export function useSettings(options: {
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
           launch_counts: loaded.launch_counts ?? {},
           last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
+          seen_tip: loaded.seen_tip ?? false,
         };
         const hydrated = settingsHydration.mergeLoaded(
           settingsRef.current,
