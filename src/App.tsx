@@ -223,6 +223,9 @@ export default function App() {
   // loading/error state; an older response may otherwise resurrect a session
   // that a later refresh has already removed.
   const sessionsRequestGeneration = useRef(0);
+  /** Guard against stacked refreshes when rapidly navigating to the sessions
+   * page. Each new call resets a 500ms window; only the last one fires. */
+  const sessionsRefreshTimer = useRef<number | null>(null);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
    * Enter runs. The two selections are exclusive but kept apart, because the
@@ -364,6 +367,16 @@ export default function App() {
     }, delay);
   };
 
+  const scheduleSessionRefresh = () => {
+    if (sessionsRefreshTimer.current !== null) {
+      window.clearTimeout(sessionsRefreshTimer.current);
+    }
+    sessionsRefreshTimer.current = window.setTimeout(() => {
+      sessionsRefreshTimer.current = null;
+      void refreshTerminalSessions();
+    }, 500);
+  };
+
   const refreshTerminalSessions = () => {
     const generation = beginRequest(sessionsRequestGeneration);
     setSessionsLoading(true);
@@ -415,7 +428,7 @@ export default function App() {
     suppressBlurUntil.current = Date.now() + 400;
     const nextPage = page ?? settingsPage;
     setSettingsPage(nextPage);
-    if (nextPage === "sessions") void refreshTerminalSessions();
+    if (nextPage === "sessions") scheduleSessionRefresh();
     setMode("settings");
   };
 
@@ -1252,6 +1265,9 @@ export default function App() {
     if (settingsSaveTimer.current !== null) {
       window.clearTimeout(settingsSaveTimer.current);
     }
+    if (sessionsRefreshTimer.current !== null) {
+      window.clearTimeout(sessionsRefreshTimer.current);
+    }
   }, []);
 
   const changeOpacity = (field: "main_opacity" | "terminal_opacity", next: number) => {
@@ -1578,7 +1594,7 @@ export default function App() {
                   aria-current={settingsPage === page ? "page" : undefined}
                   onClick={() => {
                     changeSettingsPage(page);
-                    if (page === "sessions") void refreshTerminalSessions();
+                    if (page === "sessions") scheduleSessionRefresh();
                   }}
                 >
                   <Icon size={15} strokeWidth={2} aria-hidden="true" />
