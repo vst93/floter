@@ -20,7 +20,7 @@ import {
   matchesShortcut,
   type ShortcutMap,
 } from "../shortcuts";
-import type { SettingsPage } from "../settings-persistence";
+import { SETTINGS_PAGES, type SettingsPage } from "../settings-persistence";
 import type { ViewMode } from "../App";
 import type { LauncherItem } from "../launcher/LauncherResults";
 
@@ -48,6 +48,10 @@ export function useAppKeyboard(options: {
   pasteClipboard: () => void;
   closeSettings: () => void;
   openSettings: (page?: SettingsPage) => void;
+  settingsPage: SettingsPage;
+  changeSettingsPage: (page: SettingsPage) => void;
+  settingsSidebarButtons: RefObject<Map<SettingsPage, HTMLButtonElement>>;
+  refreshTerminalSessions: () => Promise<void>;
   closePluginPage: () => void;
   runLauncherItem: (item: LauncherItem | undefined) => void;
   handleLauncherKey: (event: KeyboardEvent) => void;
@@ -79,6 +83,10 @@ export function useAppKeyboard(options: {
     pasteClipboard,
     closeSettings,
     openSettings,
+    settingsPage,
+    changeSettingsPage,
+    settingsSidebarButtons,
+    refreshTerminalSessions,
     closePluginPage,
     runLauncherItem,
     handleLauncherKey,
@@ -217,6 +225,19 @@ export function useAppKeyboard(options: {
         if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
           event.preventDefault();
           closeSettings();
+          return;
+        }
+        // ArrowUp/ArrowDown cycle through sidebar pages from anywhere in the
+        // settings panel — not just when a sidebar button holds focus.
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          const delta = event.key === "ArrowDown" ? 1 : SETTINGS_PAGES.length - 1;
+          const next =
+            SETTINGS_PAGES[(SETTINGS_PAGES.indexOf(settingsPage) + delta) % SETTINGS_PAGES.length];
+          settingsSidebarButtons.current.get(next)?.focus();
+          changeSettingsPage(next);
+          if (next === "sessions") void refreshTerminalSessions();
+          return;
         }
         return;
       }

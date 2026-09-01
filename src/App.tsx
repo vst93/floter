@@ -52,7 +52,6 @@ import {
   createSerialSettingsWriter,
   createSettingsHydration,
   normalizeSettingsPage,
-  SETTINGS_PAGES,
   type SettingsPage,
 } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
@@ -676,6 +675,10 @@ export default function App() {
     pasteClipboard,
     closeSettings,
     openSettings,
+    settingsPage,
+    changeSettingsPage,
+    settingsSidebarButtons,
+    refreshTerminalSessions,
     closePluginPage,
     runLauncherItem,
     handleLauncherKey,
@@ -1605,15 +1608,6 @@ export default function App() {
                   onClick={() => {
                     changeSettingsPage(page);
                     if (page === "sessions") void refreshTerminalSessions();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-                    event.preventDefault();
-                    const delta = event.key === "ArrowDown" ? 1 : SETTINGS_PAGES.length - 1;
-                    const next = SETTINGS_PAGES[(SETTINGS_PAGES.indexOf(page) + delta) % SETTINGS_PAGES.length];
-                    settingsSidebarButtons.current.get(next)?.focus();
-                    changeSettingsPage(next);
-                    if (next === "sessions") void refreshTerminalSessions();
                   }}
                 >
                   <Icon size={15} strokeWidth={2} aria-hidden="true" />
