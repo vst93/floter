@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Play, RefreshCw, SquareTerminal, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowUpDown, Play, RefreshCw, SquareTerminal, Trash2 } from "lucide-react";
 import type { Translate } from "../i18n";
 import type { BrokerSessionInfo } from "../App";
 
@@ -45,6 +45,7 @@ export function SessionsPage({
   // irreversible action. The first click arms the button: it expands in place
   // into a "terminate?" text button tinted with the danger color, and a
   // second click (or 3s of inactivity) decides.
+  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [killArmedId, setKillArmedId] = useState<string | null>(null);
   const killArmTimer = useRef<number | null>(null);
 
@@ -71,6 +72,12 @@ export function SessionsPage({
   useEffect(() => {
     onRefreshRef.current = onRefresh;
   }, [onRefresh]);
+
+  const sorted = [...sessions].sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime();
+    const tb = new Date(b.createdAt).getTime();
+    return sortBy === "newest" ? tb - ta : ta - tb;
+  });
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -101,12 +108,39 @@ export function SessionsPage({
 
       {sessions.length === 0 ? (
         <div className="session-manager__empty" role={error ? "alert" : undefined}>
-          {error ? <AlertCircle size={20} strokeWidth={1.6} aria-hidden="true" /> : <SquareTerminal size={20} strokeWidth={1.6} aria-hidden="true" />}
-          <span>{loading ? t("terminal.sessionsLoading") : error ? t("terminal.sessionsError") : t("terminal.sessionsEmpty")}</span>
+          {error ? (
+            <>
+              <AlertCircle size={22} strokeWidth={1.6} aria-hidden="true" />
+              <span>{t("terminal.sessionsError")}</span>
+              <span className="session-manager__empty-hint">{t("terminal.sessionsRefreshHint")}</span>
+            </>
+          ) : loading ? (
+            <>
+              <RefreshCw size={22} strokeWidth={1.6} aria-hidden="true" />
+              <span>{t("terminal.sessionsLoading")}</span>
+            </>
+          ) : (
+            <>
+              <SquareTerminal size={22} strokeWidth={1.6} aria-hidden="true" />
+              <span>{t("terminal.sessionsEmpty")}</span>
+              <span className="session-manager__empty-hint">{t("terminal.sessionsEmptyHint")}</span>
+            </>
+          )}
         </div>
       ) : (
-        <div className="session-manager__list">
-          {sessions.map((session) => {
+        <>
+          <div className="session-manager__sort">
+            <button
+              type="button"
+              className="session-manager__sort-toggle"
+              onClick={() => setSortBy((s) => (s === "newest" ? "oldest" : "newest"))}
+            >
+              <ArrowUpDown size={13} strokeWidth={1.8} aria-hidden="true" />
+              <span>{sortBy === "newest" ? t("terminal.sortNewest") : t("terminal.sortOldest")}</span>
+            </button>
+          </div>
+          <div className="session-manager__list">
+            {sorted.map((session) => {
             const busy = actionId === session.sessionId;
             const resumable = !session.exited && !session.attached;
             const state = session.exited
@@ -198,7 +232,8 @@ export function SessionsPage({
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </section>
   );
