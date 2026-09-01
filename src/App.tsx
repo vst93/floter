@@ -23,6 +23,7 @@ import { useTimedFeedback } from "./hooks/useTimedFeedback";
 import { useLauncherActions } from "./hooks/useLauncherActions";
 import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import { useSettings } from "./hooks/useSettings";
+import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import {
   FOCUS_IN_OUT,
 } from "./terminal/keys";
@@ -42,15 +43,12 @@ import {
   IS_MAC,
   IS_WINDOWS,
   matchesShortcutModifiers,
-  normalizeResultShortcut,
-  SHORTCUT_ACTIONS,
   withShortcutDefaults,
-  type ShortcutAction,
   type ShortcutMap,
 } from "./shortcuts";
 import { type SettingsPage } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
-import { ShortcutsPage, CLIPBOARD_HOTKEY_ACTION } from "./settings/ShortcutsPage";
+import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
 import { AboutPage } from "./settings/AboutPage";
 import {
@@ -235,8 +233,6 @@ export default function App() {
    * Enter runs. The two selections are exclusive but kept apart, because the
    * action bar is not a result: it is never numbered and never in `Ctrl+N`. */
   const [selectedActionBar, setSelectedActionBar] = useState(false);
-  const [recordingAction, setRecordingAction] = useState<string | null>(null);
-  const [rejectedAction, setRejectedAction] = useState<string | null>(null);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
@@ -321,6 +317,28 @@ export default function App() {
     () => withShortcutDefaults(settings.shortcuts),
     [settings.shortcuts],
   );
+
+  // Imperative shortcut recording & capture: the row of the settings page
+  // flips between idle / recording / rejected, and an in-flight capture
+  // optimistically swaps the binding in `settings.shortcuts` (or
+  // `clipboard_history_hotkey`) before asking the backend to take it.
+  const {
+    toggle: toggleRecording,
+    cancel: cancelRecording,
+    capture: captureShortcut,
+    clearClipboardHotkey,
+    restoreDefaults: restoreDefaultShortcuts,
+    reset: resetRecording,
+    rejectedAction,
+    recordingAction,
+  } = useShortcutCapture({
+    settings,
+    setSettings,
+    settingsRef,
+    shortcuts,
+    settingsHydration,
+    suppressBlurUntil,
+  });
   const actionBarShortcut = useMemo(
     () => formatResultShortcut(shortcuts.select_result, "Enter"),
     [shortcuts.select_result],
@@ -900,15 +918,14 @@ export default function App() {
   }, [mode]);
 
   // An armed recorder unmounts with the panel, but the flag that hands it the
-  // keyboard lives here. Leaving it set would mute every key handler in the app,
-  // so it is cleared on the way out of settings — the panel can be left by the
-  // close button, the global toggle or the tray, and each of those would
-  // otherwise need its own reset.
+  // keyboard lives in `useShortcutCapture`. Leaving it set would mute every
+  // key handler in the app, so it is cleared on the way out of settings —
+  // the panel can be left by the close button, the global toggle or the
+  // tray, and each of those would otherwise need its own reset.
   useEffect(() => {
     if (mode === "settings") return;
-    setRecordingAction(null);
-    setRejectedAction(null);
-  }, [mode]);
+    resetRecording();
+  }, [mode, resetRecording]);
 
   useEffect(() => {
     const isRestoring = restoringMode.current === mode;
@@ -1370,163 +1387,6 @@ export default function App() {
     } finally {
       setAutostartUpdating(false);
     }
-  };
-
-  const toggleRecording = (action: string) => {
-    setRejectedAction(null);
-    setRecordingAction((current) => {
-      if (current === action) {
-        invoke("resume_shortcuts").catch(() => undefined);
-        return null;
-      }
-      invoke("suspend_shortcuts").catch(() => undefined);
-      return action;
-    });
-  };
-
-  const cancelRecording = () => {
-    setRecordingAction(null);
-    invoke("resume_shortcuts").catch(() => undefined);
-  };
-
-  const restoreDefaultShortcuts = async () => {
-    if (recordingAction) {
-      await invoke("resume_shortcuts").catch(() => undefined);
-    }
-    try {
-      const shortcuts = await invoke<ShortcutMap>("reset_shortcuts");
-      settingsHydration.markChanged("hotkey");
-      settingsHydration.markChanged("shortcuts");
-      setSettings((current) => {
-        const updated = {
-          ...current,
-          hotkey: shortcuts.toggle_window,
-          shortcuts,
-        };
-        settingsRef.current = updated;
-        return updated;
-      });
-      setRecordingAction(null);
-      setRejectedAction(null);
-    } catch {
-      // Keep the current shortcuts if the system rejects the default toggle.
-    }
-  };
-
-  // Clear/disable the clipboard panel hotkey from the shortcuts settings
-  // page. Optimistic like captureShortcut: persist "" (the backend treats an
-  // empty string as unregister-and-disable) and roll back on failure.
-  const clearClipboardHotkey = () => {
-    const previousHotkey = settingsRef.current.clipboard_history_hotkey;
-    if (!previousHotkey) return;
-    settingsHydration.markChanged("clipboard_history_hotkey");
-    setSettings((current) => {
-      const updated = { ...current, clipboard_history_hotkey: "" };
-      settingsRef.current = updated;
-      return updated;
-    });
-    setRejectedAction(null);
-    invoke("update_clipboard_hotkey", { hotkey: "" }).catch(() => {
-      setSettings((current) => {
-        const rolledBack = { ...current, clipboard_history_hotkey: previousHotkey };
-        settingsRef.current = rolledBack;
-        return rolledBack;
-      });
-      setRejectedAction(CLIPBOARD_HOTKEY_ACTION);
-    });
-  };
-
-  // Store the new binding optimistically; the backend is the authority on
-  // whether a system-wide combination can actually be taken.
-  const captureShortcut = (action: string, next: string) => {
-    setRecordingAction(null);
-    setRejectedAction(null);
-    if (action === "select_result") {
-      const normalized = normalizeResultShortcut(next);
-      if (!normalized) {
-        setRejectedAction(action);
-        invoke("resume_shortcuts").catch(() => undefined);
-        return;
-      }
-      next = normalized;
-    }
-    if (action === CLIPBOARD_HOTKEY_ACTION) {
-      const previousHotkey = settingsRef.current.clipboard_history_hotkey;
-      const conflict = SHORTCUT_ACTIONS.some(
-        (candidate) => shortcuts[candidate].toLowerCase() === next.toLowerCase(),
-      );
-      if (conflict) {
-        setRejectedAction(action);
-        invoke("resume_shortcuts").catch(() => undefined);
-        return;
-      }
-      if (next === previousHotkey) {
-        invoke("resume_shortcuts").catch(() => undefined);
-        return;
-      }
-      settingsHydration.markChanged("clipboard_history_hotkey");
-      setSettings((current) => {
-        const updated = { ...current, clipboard_history_hotkey: next };
-        settingsRef.current = updated;
-        return updated;
-      });
-      suppressBlurUntil.current = Date.now() + 400;
-      invoke("update_clipboard_hotkey", { hotkey: next })
-        .then(() => {
-          invoke("resume_shortcuts").catch(() => undefined);
-        })
-        .catch(() => {
-          setSettings((current) => {
-            const rolledBack = { ...current, clipboard_history_hotkey: previousHotkey };
-            settingsRef.current = rolledBack;
-            return rolledBack;
-          });
-          setRejectedAction(action);
-          invoke("resume_shortcuts").catch(() => undefined);
-        });
-      return;
-    }
-    const previous = shortcuts[action as ShortcutAction];
-    const conflict = SHORTCUT_ACTIONS.some(
-      (candidate) => candidate !== action && shortcuts[candidate].toLowerCase() === next.toLowerCase(),
-    );
-    if (conflict) {
-      setRejectedAction(action);
-      invoke("resume_shortcuts").catch(() => undefined);
-      return;
-    }
-    if (next === previous) {
-      invoke("resume_shortcuts").catch(() => undefined);
-      return;
-    }
-
-    settingsHydration.markChanged("shortcuts");
-    if (action === "toggle_window") settingsHydration.markChanged("hotkey");
-    setSettings((current) => {
-      const updated = {
-        ...current,
-        ...(action === "toggle_window" ? { hotkey: next } : {}),
-        shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: next },
-      };
-      settingsRef.current = updated;
-      return updated;
-    });
-    suppressBlurUntil.current = Date.now() + 400;
-    invoke("update_shortcut", { action, shortcut: next }).then(() => {
-      invoke("resume_shortcuts").catch(() => undefined);
-    }).catch(() => {
-      setSettings((current) => {
-        const rolledBack = {
-          ...current,
-          ...(action === "toggle_window" ? { hotkey: previous } : {}),
-          shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
-        };
-        settingsRef.current = rolledBack;
-        return rolledBack;
-      });
-      setRejectedAction(action);
-      invoke("resume_shortcuts").catch(() => undefined);
-    });
   };
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) =>
