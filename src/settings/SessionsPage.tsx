@@ -110,7 +110,7 @@ export function SessionsPage({
             const busy = actionId === session.sessionId;
             const resumable = !session.exited && !session.attached;
             const state = session.exited
-              ? t("terminal.sessionExited")
+              ? t("terminal.sessionExited") + (session.exitCode !== 0 ? ` · exit ${session.exitCode}` : "")
               : session.attached
                 ? t("terminal.sessionAttached")
                 : t("terminal.sessionDetached");
