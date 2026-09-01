@@ -117,7 +117,7 @@
 }
 
 .collapsed-card__settings:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 
 .collapsed-card__settings:focus-visible {
@@ -390,7 +390,8 @@
 }
 
 .launcher-result:not(.launcher-result--unavailable):active {
-  transform: scale(0.997);
+  transform: scale(0.986);
+  background: var(--surface-control-hover);
 }
 
 /* The action bar: what the query does when it is not the name of anything
@@ -497,7 +498,7 @@
 }
 
 .launcher-action-bar:active {
-  transform: scale(0.997);
+  transform: scale(0.986);
 }
 
 /* ── Action bar shortcut hint ───────────────────────────────────────────── */

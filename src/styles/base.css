@@ -25,6 +25,15 @@
      as a square outline around the rounded corners. */
   --window-radius: 10px;
 
+  /* Shared easings. `--spring` overshoots its end value slightly before
+     settling, which is what separates a panel that appears from one that is
+     placed; `--ease-in-out` is for anything that has to leave and return along
+     the same path. `--ease-out-back` is an alias kept for readability at call
+     sites that describe the motion rather than the feel. */
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
   /* Card surfaces. The values are supplied by the settings panel and clamped
      before persistence; alpha applies to materials only, never text. */
   --main-opacity: 0.94;
@@ -254,13 +263,13 @@ input:focus {
   background: transparent;
   transform-origin: center top;
   will-change: opacity, transform;
-  animation: shell-enter 150ms cubic-bezier(0.22, 0.82, 0.2, 1);
+  animation: shell-enter 200ms var(--spring);
 }
 
 @keyframes shell-enter {
   from {
     opacity: 0;
-    transform: scale(0.986) translateY(3px);
+    transform: scale(0.97) translateY(6px);
   }
   to {
     opacity: 1;
@@ -272,18 +281,42 @@ canvas {
   display: block;
 }
 
+/* Overlay-style bars: the track is always transparent and the thumb only paints
+   while the pointer is over the scrolling element, so a list at rest shows its
+   content and not its chrome. The width is reserved either way — the thumb
+   fading in must not reflow the row it sits beside. */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+/* Firefox has no thumb pseudo-element; `scrollbar-color` inherits, so setting it
+   on hover reaches the bar of whichever element is under the pointer. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::selection {
+  background: var(--accent-tint);
+  color: var(--text-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
