@@ -1967,6 +1967,14 @@ export default function App() {
                   if (actionBar) executeActionBar(actionBar);
                 }}
               />
+              {launcherResults.length === 0 &&
+                !actionBar &&
+                !query.trim() &&
+                !settings.show_commands_in_search && (
+                  <div className="launcher-hint" role="status">
+                    {t("launcher.enableIntegrationsHint")}
+                  </div>
+                )}
             </div>
           </div>
         </div>

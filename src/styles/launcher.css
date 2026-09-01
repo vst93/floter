@@ -326,6 +326,19 @@
   outline-offset: 1px;
 }
 
+/* A one-line greyed suggestion shown when the launcher is empty because
+   show_commands_in_search is off — points users toward integrations. */
+.launcher-hint {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: var(--text-muted, color-mix(in srgb, var(--text-primary) 45%, transparent));
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
 .launcher-system-confirm {
   min-height: 30px;
   display: flex;
