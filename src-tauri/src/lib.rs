@@ -1151,7 +1151,10 @@ pub fn run() {
             }
             let (show_label, quit_label) = tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
+            #[cfg(target_os = "macos")]
+            let quit_item = MenuItem::with_id(app, "quit", quit_label, true, Some("Cmd+Q"))?;
+            #[cfg(not(target_os = "macos"))]
+            let quit_item = MenuItem::with_id(app, "quit", quit_label, true, Some("Ctrl+Q"))?;
             let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
             if let Ok(mut items) = app.state::<AppState>().tray_items.lock() {
                 *items = Some(TrayMenuItems {
