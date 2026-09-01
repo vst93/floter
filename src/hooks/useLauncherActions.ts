@@ -348,7 +348,7 @@ export function useLauncherActions(options: {
   const runLauncherItem = (item: LauncherItem | undefined) => {
     if (!item) return;
     if (item.type === "app") {
-      recordLaunch(item.app.path);
+      recordLaunch(item.id);
       void launchApplication(item.app);
       return;
     }
