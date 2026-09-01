@@ -30,23 +30,38 @@ import {
   normalizeEntries,
   type ClipboardEntry,
 } from "../../clipboard-history";
-import { BRIDGE_TAG, isBridgeResult } from "../../plugin-pages";
+import { BRIDGE_TAG, isBridgeOpacity, isBridgeResult } from "../../plugin-pages";
 
 // ---- bridge client -------------------------------------------------------
 
-type PendingCall = { resolve: (value: unknown) => void; reject: (error: string) => void };
+type PendingCall = {
+  resolve: (value: unknown) => void;
+  reject: (error: string) => void;
+  timer: number;
+};
 
 const pending = new Map<number, PendingCall>();
 let nextCallId = 1;
+
+/** How long to wait for the host's reply before giving up on a call. Without
+ * this a dropped or ignored message leaves the promise pending forever, and
+ * the awaiting UI (a reload, a favorite toggle) hangs with no way back. */
+const BRIDGE_TIMEOUT_MS = 10_000;
 
 window.addEventListener("message", (event: MessageEvent) => {
   // Only the host window may talk to us.
   if (event.source !== window.parent) return;
   const data: unknown = event.data;
+  if (isBridgeOpacity(data)) {
+    // Opacity sliders moved host-side; restyle in place.
+    applyOpacity(data.mainOpacity, data.terminalOpacity);
+    return;
+  }
   if (!isBridgeResult(data)) return;
   const call = pending.get(data.id);
   if (!call) return;
   pending.delete(data.id);
+  window.clearTimeout(call.timer);
   if (data.ok) call.resolve(data.value);
   else call.reject(data.error);
 });
@@ -58,9 +73,14 @@ const invokeCommand = <T>(
 ): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const id = nextCallId++;
+    const timer = window.setTimeout(() => {
+      pending.delete(id);
+      reject(`Bridge call timed out after ${BRIDGE_TIMEOUT_MS}ms: ${command}`);
+    }, BRIDGE_TIMEOUT_MS);
     pending.set(id, {
       resolve: (value) => resolve(value as T),
       reject: (error) => reject(error),
+      timer,
     });
     window.parent.postMessage({ [BRIDGE_TAG]: "invoke", id, command, args: args ?? {} }, "*");
   });
@@ -75,14 +95,22 @@ const params = new URLSearchParams(window.location.search);
 const t: Translate = createTranslator(normalizeLanguage(params.get("lang") ?? "en"));
 const theme = params.get("theme") === "light" ? "light" : "dark";
 const rootStyle = document.documentElement.style;
-rootStyle.setProperty(
-  "--main-opacity",
-  String(Number(params.get("main-opacity") ?? "0.94") || 0.94),
-);
-rootStyle.setProperty(
-  "--terminal-opacity",
-  String(Number(params.get("terminal-opacity") ?? "0.92") || 0.92),
-);
+
+function applyOpacity(main: number, terminal: number) {
+  rootStyle.setProperty("--main-opacity", String(main));
+  rootStyle.setProperty("--terminal-opacity", String(terminal));
+}
+
+/** Parse one opacity param, keeping a deliberate `0` (fully transparent) —
+ * `Number(x) || fallback` silently promoted it to the default. */
+const opacityParam = (name: string, fallback: number): number => {
+  const raw = params.get(name);
+  if (raw === null || raw.trim() === "") return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+};
+
+applyOpacity(opacityParam("main-opacity", 0.94), opacityParam("terminal-opacity", 0.92));
 document.documentElement.setAttribute("data-theme", theme);
 
 // ---- state ----------------------------------------------------------------
@@ -95,6 +123,10 @@ let view: ClipboardView = "all";
 let selected = 0;
 const thumbnails = new Map<string, string>();
 let statuses: Record<string, boolean> = {};
+/** True when the last entry fetch failed or timed out — an empty list then
+ * means "we could not ask", not "nothing copied yet", so the page offers a
+ * retry instead of a misleading empty state. */
+let loadFailed = false;
 
 const scopedEntries = (): ClipboardEntry[] =>
   view === "favorites" ? entries.filter((entry) => entry.favorite) : entries;
@@ -182,6 +214,27 @@ const render = () => {
   selected = filtered.length ? Math.min(selected, filtered.length - 1) : 0;
 
   content.replaceChildren();
+  if (loadFailed && entries.length === 0) {
+    const failure = document.createElement("div");
+    failure.className = "clipboard-panel__empty";
+    failure.setAttribute("role", "alert");
+    const label = document.createElement("span");
+    label.textContent = t("plugin.pageError");
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "clipboard-panel__clear";
+    retry.textContent = t("settings.retry");
+    retry.addEventListener("mousedown", (event) => event.preventDefault());
+    retry.addEventListener("click", () => {
+      void reload().then(() => {
+        render();
+        searchInput.focus();
+      });
+    });
+    failure.append(label, retry);
+    content.append(failure);
+    return;
+  }
   if (filtered.length === 0) {
     const empty = document.createElement("div");
     empty.className = "clipboard-panel__empty";
@@ -316,23 +369,45 @@ const render = () => {
 // ---- data -----------------------------------------------------------------
 
 const setThumbnail = (id: string, bytes: number[], mime: string) => {
+  // Each blob URL pins its bytes in memory until revoked; overwriting an
+  // entry's thumbnail (a reload re-fetches every image) would otherwise leak
+  // the previous one for the life of the page.
+  const previous = thumbnails.get(id);
+  if (previous) URL.revokeObjectURL(previous);
   const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
   thumbnails.set(id, url);
   render();
 };
 
+window.addEventListener("pagehide", () => {
+  for (const url of thumbnails.values()) URL.revokeObjectURL(url);
+  thumbnails.clear();
+});
+
+/** Bumped on every reload so a slower earlier pass cannot overwrite the newer
+ * one's entries, statuses or thumbnails with stale data. */
+let reloadGen = 0;
+
 const reload = async () => {
+  const gen = ++reloadGen;
   try {
     const rows = await invokeCommand<unknown[]>("clipboard_get_entries", { filter: null });
+    if (gen !== reloadGen) return;
     entries = normalizeEntries(rows);
+    loadFailed = false;
   } catch {
+    if (gen !== reloadGen) return;
     entries = [];
+    loadFailed = true;
   }
   // Thumbnails for image entries and single-image files entries, fetched once
   // per load; bytes cross the bridge as plain arrays and become blob URLs.
   for (const entry of entries.filter((candidate) => candidate.kind === "image")) {
     invokeCommand<number[]>("clipboard_read_image", { id: entry.id })
-      .then((bytes) => setThumbnail(entry.id, bytes, "image/png"))
+      .then((bytes) => {
+        if (gen !== reloadGen) return;
+        setThumbnail(entry.id, bytes, "image/png");
+      })
       .catch(() => undefined);
   }
   for (const entry of entries.filter(
@@ -340,17 +415,22 @@ const reload = async () => {
   )) {
     const mime = imageFileMime(entry.paths![0]);
     invokeCommand<number[]>("clipboard_read_file_preview", { id: entry.id })
-      .then((bytes) => setThumbnail(entry.id, bytes, mime))
+      .then((bytes) => {
+        if (gen !== reloadGen) return;
+        setThumbnail(entry.id, bytes, mime);
+      })
       .catch(() => undefined);
   }
   const fileIds = entries
     .filter((entry) => entry.kind === "files")
     .map((entry) => entry.id);
-  statuses = fileIds.length
+  const nextStatuses = fileIds.length
     ? await invokeCommand<Record<string, boolean>>("clipboard_entry_statuses", {
         ids: fileIds,
       }).catch(() => ({}))
     : {};
+  if (gen !== reloadGen) return;
+  statuses = nextStatuses;
 };
 
 const activate = async (entry: ClipboardEntry | undefined) => {
@@ -557,7 +637,7 @@ window.addEventListener("keydown", (event) => {
     event.stopPropagation();
     sendCharToFilter(event.key);
   }
-});
+}, { capture: true });
 
 // ---- wiring ---------------------------------------------------------------
 

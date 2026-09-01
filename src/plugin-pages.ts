@@ -32,10 +32,24 @@ export type BridgeResult =
   | { [BRIDGE_TAG]: "result"; id: number; ok: true; value: unknown }
   | { [BRIDGE_TAG]: "result"; id: number; ok: false; error: string };
 
+/**
+ * Host → page: live opacity update. Opacity is also a bootstrap query param,
+ * but the sliders move mid-session; pushing the new values as a message lets
+ * the page restyle in place instead of forcing an iframe remount (which would
+ * throw away the page's filter text, selection and scroll position).
+ */
+export type BridgeOpacity = {
+  [BRIDGE_TAG]: "opacity";
+  mainOpacity: number;
+  terminalOpacity: number;
+};
+
 export type BridgeFromPage = BridgeRequest | BridgeClose;
 
+// Arrays are objects but never valid bridge payloads: `args` travels into a
+// named-args invoke call, so an array would silently become `{0: …}`.
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const isBridgeRequest = (data: unknown): data is BridgeRequest =>
   isRecord(data) &&
@@ -50,6 +64,14 @@ export const isBridgeRequest = (data: unknown): data is BridgeRequest =>
 
 export const isBridgeClose = (data: unknown): data is BridgeClose =>
   isRecord(data) && data[BRIDGE_TAG] === "close";
+
+export const isBridgeOpacity = (data: unknown): data is BridgeOpacity =>
+  isRecord(data) &&
+  data[BRIDGE_TAG] === "opacity" &&
+  typeof data.mainOpacity === "number" &&
+  Number.isFinite(data.mainOpacity) &&
+  typeof data.terminalOpacity === "number" &&
+  Number.isFinite(data.terminalOpacity);
 
 export const isBridgeResult = (data: unknown): data is BridgeResult =>
   isRecord(data) &&
@@ -78,13 +100,28 @@ export const commandAllowed = (
  *
  * Pure so node tests can pin the shapes both a dev-server URL and a packaged
  * `tauri://` URL produce.
+ *
+ * Throws when `page` resolves off the app's own origin: a descriptor's `page`
+ * comes from a plugin, so an absolute URL there would otherwise load a remote
+ * document into a frame the host feeds bootstrap params and answers bridge
+ * invocations for. Protocol and host are compared alongside `origin` because
+ * non-special schemes (`tauri:`) report an opaque `"null"` origin that would
+ * otherwise match anything.
  */
 export const buildPluginPageUrl = (
   base: string,
   page: string,
   params?: Record<string, string | number>,
 ): string => {
-  const url = new URL(page, base);
+  const baseUrl = new URL(base);
+  const url = new URL(page, baseUrl);
+  if (
+    url.origin !== baseUrl.origin ||
+    url.protocol !== baseUrl.protocol ||
+    url.host !== baseUrl.host
+  ) {
+    throw new Error(`Plugin page must stay on the app origin: ${page}`);
+  }
   for (const [key, value] of Object.entries(params ?? {})) {
     url.searchParams.set(key, String(value));
   }

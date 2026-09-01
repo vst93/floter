@@ -460,7 +460,6 @@ function ExtensionsToast({ toast, t, onDismiss }: { toast: PanelToast; t: Transl
 export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<ExtensionOperation>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderResponse | null>(null);
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
@@ -524,9 +523,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const showError = useCallback((text: string) => pushToast("error", text), [pushToast]);
   const showSuccess = useCallback((text: string) => pushToast("success", text), [pushToast]);
   const extensionActions = useExtensionActions({ refresh: () => refreshRef.current(), onError: (nextError) => showError(errorMessage(nextError)), onComplete: () => showSuccess(t("settings.extensions.operationComplete")) });
-  useEffect(() => {
-    setBusy(extensionActions.busy as ExtensionOperation);
-  }, [extensionActions.busy]);
+  // One owner for busy state. A local mirror used to shadow it, so operations
+  // that set it directly were invisible to runMutation's guard (and vice
+  // versa) — two mutations could run at once.
+  const busy = extensionActions.busy as ExtensionOperation;
+  const setBusy = extensionActions.setBusy;
 
   const updateCustomIntegration = (update: (current: CustomIntegrationForm) => CustomIntegrationForm) => {
     setCustomIntegrationError(null);

@@ -8,6 +8,7 @@ import {
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
+import type { BridgeOpacity } from "../plugin-pages";
 import { createTranslator, type Language, type MessageKey } from "../i18n";
 
 /**
@@ -43,11 +44,6 @@ type PluginPageHostProps = {
   onClose: () => void;
 };
 
-type PendingCall = {
-  resolve: (value: unknown) => void;
-  reject: (error: string) => void;
-};
-
 export function PluginPageHost({
   pluginId,
   language,
@@ -61,12 +57,15 @@ export function PluginPageHost({
   const [loadFailed, setLoadFailed] = useState(false);
   /** Bumped by the error state's retry button to re-run the descriptor fetch. */
   const [reloadNonce, setReloadNonce] = useState(0);
-  /** Correlation ids → resolvers for in-flight bridge invocations. */
-  const pendingCalls = useRef(new Map<number, PendingCall>());
-  // Ref mirrors so the once-registered message listener always sees current
-  // values without resubscribing (and dropping in-flight calls) on re-render.
+  /** True once the current document has loaded and can receive messages. */
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  // Ref mirror so the once-registered message listener always sees the current
+  // allowlist without resubscribing on re-render.
   const allowedRef = useRef<readonly string[]>([]);
-  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  // Read (not depended on) when building the iframe src, so slider moves
+  // reach a live page as a message instead of as a remount.
+  const opacityRef = useRef({ mainOpacity, terminalOpacity });
+  opacityRef.current = { mainOpacity, terminalOpacity };
   // The descriptor's human name arrives as an i18n KEY (`titleKey`); translate
   // it here so the iframe's accessible name reads as a label, never as a raw
   // dictionary key.
@@ -88,17 +87,15 @@ export function PluginPageHost({
     return () => {
       cancelled = true;
       allowedRef.current = [];
-      for (const call of pendingCalls.current.values()) {
-        call.reject("Plugin page closed");
-      }
-      pendingCalls.current.clear();
     };
   }, [pluginId, reloadNonce]);
 
   useEffect(() => {
-    frameRef.current = iframeRef.current;
     const onMessage = (event: MessageEvent) => {
-      const frame = frameRef.current;
+      // Read the ref at event time: this listener registers before the
+      // descriptor resolves, so any value captured now would be stale for the
+      // whole life of the page.
+      const frame = iframeRef.current;
       if (!frame || event.source !== frame.contentWindow) return;
       const data: unknown = event.data;
 
@@ -150,6 +147,7 @@ export function PluginPageHost({
   }, [onClose]);
 
   const handleFrameLoad = useCallback(() => {
+    setFrameLoaded(true);
     // Hand the keyboard to the page: its own Spotlight discipline (typing
     // routes to its filter input) takes over from here.
     iframeRef.current?.focus();
@@ -159,15 +157,40 @@ export function PluginPageHost({
   // sandboxed page cannot read itself. Re-keying the iframe when they change
   // is acceptable — plugin pages are transient overlays, and theme/language
   // changes mid-session are rare enough that a remount beats staleness.
+  //
+  // Opacity is deliberately absent from the deps: it is read from the ref for
+  // the initial bootstrap, then pushed as a message (below) so dragging a
+  // slider restyles the live page instead of remounting it mid-interaction.
   const src = useMemo(() => {
     if (!descriptor) return null;
-    return buildPluginPageUrl(document.baseURI, descriptor.page, {
-      lang: language,
-      theme,
-      "main-opacity": mainOpacity,
-      "terminal-opacity": terminalOpacity,
-    });
-  }, [descriptor, language, theme, mainOpacity, terminalOpacity]);
+    try {
+      return buildPluginPageUrl(document.baseURI, descriptor.page, {
+        lang: language,
+        theme,
+        "main-opacity": opacityRef.current.mainOpacity,
+        "terminal-opacity": opacityRef.current.terminalOpacity,
+      });
+    } catch {
+      // A page that resolves off-origin is a registry bug, not something to
+      // load: fall through to the error state's retry.
+      return null;
+    }
+  }, [descriptor, language, theme]);
+
+  // A fresh document (new descriptor, language or theme) has no listener yet.
+  useEffect(() => {
+    setFrameLoaded(false);
+  }, [src]);
+
+  useEffect(() => {
+    if (!frameLoaded) return;
+    const message: BridgeOpacity = {
+      [BRIDGE_TAG]: "opacity",
+      mainOpacity,
+      terminalOpacity,
+    };
+    iframeRef.current?.contentWindow?.postMessage(message, "*");
+  }, [frameLoaded, mainOpacity, terminalOpacity]);
 
   return (
     <div className="plugin-page-host" data-plugin-id={pluginId}>
@@ -181,7 +204,8 @@ export function PluginPageHost({
           sandbox="allow-scripts"
           onLoad={handleFrameLoad}
         />
-      ) : loadFailed ? (
+      ) : loadFailed || descriptor ? (
+        // `descriptor && !src` means the page URL was rejected as off-origin.
         <div className="plugin-page-host__error" role="alert">
           <span className="plugin-page-host__error-title">
             {t("plugin.pageError")}
