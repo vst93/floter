@@ -59,7 +59,15 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use terminal::session::TerminalManager;
 
 const INPUT_WINDOW_WIDTH: f64 = 720.0;
-const INPUT_WINDOW_HEIGHT: f64 = 56.0;
+/// Height of the launcher card as CSS lays it out: a 56px input row plus the
+/// card's top and bottom border. Windows additionally needs the shell padding
+/// that gives the card's box-shadow room outside it (`.platform-windows
+/// .collapsed-shell`: 4px top + 12px bottom). Allocating less than this clips
+/// the bottom of the input row until the frontend's first resize lands.
+#[cfg(not(target_os = "windows"))]
+const INPUT_WINDOW_HEIGHT: f64 = 58.0;
+#[cfg(target_os = "windows")]
+const INPUT_WINDOW_HEIGHT: f64 = 72.0;
 const TERMINAL_WINDOW_HEIGHT: f64 = 600.0;
 
 /// Configure and, when requested, run the terminal broker's process-only

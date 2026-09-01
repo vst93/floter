@@ -28,8 +28,11 @@ import type { ExecutionPlan } from "../launcher";
 import type { BrokerSessionInfo, MainSessionIdentity, ViewMode } from "../App";
 import type { MessageKey, Translate } from "../i18n";
 
+// 'DejaVu Sans Mono' and 'Liberation Mono' are the monospace faces actually
+// present on Linux desktops; without them the stack falls through to a generic
+// `monospace` whose fontconfig match is frequently not a terminal face at all.
 const FALLBACK_FONT_FAMILY =
-  "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono',monospace";
+  "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono','DejaVu Sans Mono','Liberation Mono',monospace";
 const LINE_HEIGHT = 1.4;
 const PADDING_X = 3;
 const PADDING_Y = 3;

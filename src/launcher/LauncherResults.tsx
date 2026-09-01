@@ -149,7 +149,12 @@ export function LauncherResults({
   onRunResult,
   onRunActionBar,
 }: LauncherResultsProps) {
-  if (results.length === 0 && !actionBar) return null;
+  // The container stays mounted even with nothing to show. Returning `null`
+  // here used to unmount and rebuild every row on the keystroke that emptied
+  // or refilled the list, which is a layout and paint of the whole subtree at
+  // exactly the moment the window is being resized. Empty, it is a zero-height
+  // grid; the enclosing clip wrapper is what hides the bottom area, and it
+  // takes this out of the accessibility tree with it.
   return (
     <div id="launcher-options" className="launcher-options" role="listbox" aria-label={t("launcher.results")}>
       {results.length > 0 && (

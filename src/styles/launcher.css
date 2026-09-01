@@ -404,6 +404,14 @@
   grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+  /* Unconditional, and deliberately not toggled by whether a list sits above:
+     these 4px used to appear and disappear as the result count crossed 0/1,
+     which moved the action bar — and the window's height — by 4px on the
+     keystroke that emptied or filled the list. A separator that is always
+     there costs one hairline in the no-results case and buys a bottom edge
+     that never jumps while typing. */
+  margin-top: 3px;
+  border-top: 1px solid var(--hairline);
   padding: 0 9px 0 11px;
   border-radius: 7px;
   background: transparent;
@@ -412,12 +420,11 @@
   cursor: pointer;
 }
 
-/* Only divided from a list that is actually there: with nothing matched the
-   action bar is the panel's only row, and a second hairline 3px under the one
-   below the input would read as an empty list rather than as no list. */
+/* Square top corners when a list actually sits above, so the action bar reads
+   as the last row of that list rather than as a separate card. Paint only —
+   the separator's metrics live on `.launcher-action-bar` unconditionally so
+   that nothing here can move the panel's bottom edge as results come and go. */
 .launcher-results + .launcher-action-bar {
-  margin-top: 3px;
-  border-top: 1px solid var(--hairline);
   border-radius: 0 0 7px 7px;
 }
 

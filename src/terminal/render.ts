@@ -37,6 +37,10 @@ const FLAG_DIM = 1 << 4;
 const FLAG_HIDDEN = 1 << 5;
 const FLAG_WIDE = 1 << 6;
 
+/** Breathing room added to the ink-derived cell-height floor, so a descender
+ *  on one row never touches a cap on the next. */
+const CELL_INK_PADDING = 1;
+
 const CURSOR_BLOCK = 0;
 const CURSOR_UNDERLINE = 1;
 const CURSOR_BEAM = 2;
@@ -179,9 +183,22 @@ export class TerminalCanvas {
   private measureCell(): void {
     const ctx = this.ctx;
     ctx.font = this.fontString(true, false);
-    const width = ctx.measureText("M").width;
-    this.cellWidth = Math.max(1, Math.ceil(width));
-    this.cellHeight = Math.max(1, Math.ceil(this.opts.fontSize * this.opts.lineHeight));
+    const metrics = ctx.measureText("M");
+    this.cellWidth = Math.max(1, Math.ceil(metrics.width));
+    // `fontSize * lineHeight` assumes a face's ink fits inside its em box.
+    // Several of the monospace faces that Linux actually ships (DejaVu Sans
+    // Mono among them) have ascent + descent well over 1em, so at tighter line
+    // heights that assumption clips descenders and stacked diacritics. The
+    // face's own bounding box is the true floor. The line-height setting still
+    // decides the row height whenever it asks for more than the ink needs,
+    // which is the case for the default 1.4 on every platform.
+    const ink = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+    const inkFloor = Number.isFinite(ink) ? Math.ceil(ink) + CELL_INK_PADDING : 0;
+    this.cellHeight = Math.max(
+      1,
+      Math.ceil(this.opts.fontSize * this.opts.lineHeight),
+      inkFloor,
+    );
   }
 
   /** (Re)compute the backing store and derived grid dimensions. */

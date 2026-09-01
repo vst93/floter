@@ -3,6 +3,8 @@
 // Honors the terminal's `APP_CURSOR` mode bit (carried in each rendered frame)
 // so that arrow keys behave correctly inside full-screen apps (vim, less, ...).
 
+import { IS_MAC } from "../shortcuts";
+
 const APP_CURSOR = 1 << 1;
 export const MOUSE_REPORT_CLICK = 1 << 3;
 export const MOUSE_MOTION = 1 << 6;
@@ -77,6 +79,13 @@ export function encodeKey(e: KeyboardEvent, mode: number): Uint8Array | null {
   // Ctrl sequences -> C0 control characters.
   if (e.ctrlKey && !altGraph && key.length === 1) {
     const code = key.toUpperCase().charCodeAt(0);
+    // Ctrl+Shift+C / Ctrl+Shift+V are the clipboard chords everywhere except
+    // macOS, and Shift does not change which control character Ctrl produces:
+    // without this guard a copy press with no selection falls through to
+    // 0x03 (ETX) and interrupts the foreground process. The app's own handler
+    // claims these when it can act on them; when it cannot, the correct
+    // outcome is still no bytes at all rather than SIGINT or 0x16.
+    if (!IS_MAC && e.shiftKey && (code === 0x43 || code === 0x56)) return null;
     if (code >= 0x41 && code <= 0x5a) {
       return withAltPrefix(new Uint8Array([code - 0x40]), e);
     }

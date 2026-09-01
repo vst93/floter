@@ -36,7 +36,10 @@ const MAX_RESULTS = 6;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 const ICON_LOAD_DELAY = 250;
-const CATALOG_SEARCH_DELAY = 140;
+/** Idle window before a query is searched. Long enough that an ordinary typing
+ * cadence produces one result list — and so one window resize — per pause
+ * rather than one per keystroke. */
+const CATALOG_SEARCH_DELAY = 200;
 const COMMAND_LINE_SYNTAX = IS_WINDOWS ? "windows" : "posix";
 
 /** An application with its searchable names normalized once, up front. */

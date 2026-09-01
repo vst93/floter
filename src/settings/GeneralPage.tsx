@@ -21,6 +21,8 @@ const FONT_FAMILY_OPTIONS = [
   { value: "Cascadia Mono", label: "Cascadia Mono" },
   { value: "Menlo", label: "Menlo" },
   { value: "Consolas", label: "Consolas" },
+  { value: "DejaVu Sans Mono", label: "DejaVu Sans Mono" },
+  { value: "Liberation Mono", label: "Liberation Mono" },
 ] as const;
 const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
   { value: "beam", labelKey: "settings.cursor.beam" },

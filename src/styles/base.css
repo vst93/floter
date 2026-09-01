@@ -210,12 +210,25 @@ body,
   overflow: hidden;
   background: transparent;
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  /* "Noto Sans"/"Ubuntu"/"Cantarell" carry the Linux desktops, where none of
+     the preceding families exist and the bare `sans-serif` fallback resolves
+     to whatever fontconfig happens to rank first. */
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
+    "Noto Sans", "Ubuntu", "Cantarell", sans-serif;
   font-optical-sizing: auto;
 }
 
 body {
   -webkit-font-smoothing: antialiased;
+}
+
+/* `geometricPrecision` asks the engine to ignore hinting and place glyphs on
+   fractional positions. That is the right trade on macOS, whose faces are
+   designed for it. On Linux it turns off FreeType's hinting, which is what
+   keeps stems aligned to the pixel grid at UI sizes — the same text renders
+   noticeably blurrier. Left to the engine's default (`auto`) everywhere else. */
+.platform-macos body {
   text-rendering: geometricPrecision;
 }
 
@@ -418,8 +431,12 @@ canvas {
   padding: 10px;
 }
 
+/* Not flush: the focused card draws its ring and shadow outward, and with no
+   padding the window edge clips them — corners first. 4px is enough for the
+   ring plus the contact shadow. `syncLauncherHeight` adds this padding back
+   into the window height it requests, so the card keeps its full size. */
 .platform-linux .collapsed-shell {
-  padding: 0;
+  padding: 4px;
 }
 
 .platform-linux .collapsed-card,
