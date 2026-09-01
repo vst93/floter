@@ -91,6 +91,8 @@ tauri_panel! {
 
 struct TrayMenuItems {
     show: MenuItem<Wry>,
+    settings: MenuItem<Wry>,
+    reload: MenuItem<Wry>,
     quit: MenuItem<Wry>,
 }
 
@@ -138,23 +140,25 @@ impl AppState {
     }
 }
 
-fn tray_labels(language: &str) -> (&'static str, &'static str) {
+fn tray_labels(language: &str) -> (&'static str, &'static str, &'static str, &'static str) {
     match language {
-        "zh" => ("显示 floter", "退出"),
-        _ => ("Show floter", "Quit"),
+        "zh" => ("显示 floter", "设置…", "重新扫描", "退出"),
+        _ => ("Show floter", "Settings…", "Reload", "Quit"),
     }
 }
 
 /// Retitle the tray menu in the given language. Called on startup and whenever
 /// the language setting changes, so the tray never lags behind the UI.
 pub fn apply_tray_language(app: &AppHandle, language: &str) {
-    let (show, quit) = tray_labels(language);
+    let (show, settings, reload, quit) = tray_labels(language);
     let state = app.state::<AppState>();
     let Ok(items) = state.tray_items.lock() else {
         return;
     };
     if let Some(items) = items.as_ref() {
         let _ = items.show.set_text(show);
+        let _ = items.settings.set_text(settings);
+        let _ = items.reload.set_text(reload);
         let _ = items.quit.set_text(quit);
     }
 }
@@ -1162,16 +1166,26 @@ pub fn run() {
             if let Err(error) = ensure_launch_at_startup(settings.launch_at_startup) {
                 tracing::error!("failed to reconcile launch-at-startup registration: {error}");
             }
-            let (show_label, quit_label) = tray_labels(&settings.language);
+            let (show_label, settings_label, reload_label, quit_label) =
+                tray_labels(&settings.language);
             let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
+            let settings_item =
+                MenuItem::with_id(app, "settings", settings_label, true, None::<&str>)?;
+            let reload_item =
+                MenuItem::with_id(app, "reload", reload_label, true, None::<&str>)?;
             #[cfg(target_os = "macos")]
             let quit_item = MenuItem::with_id(app, "quit", quit_label, true, Some("Cmd+Q"))?;
             #[cfg(not(target_os = "macos"))]
             let quit_item = MenuItem::with_id(app, "quit", quit_label, true, Some("Ctrl+Q"))?;
-            let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            let tray_menu = Menu::with_items(
+                app,
+                &[&show_item, &settings_item, &reload_item, &quit_item],
+            )?;
             if let Ok(mut items) = app.state::<AppState>().tray_items.lock() {
                 *items = Some(TrayMenuItems {
                     show: show_item.clone(),
+                    settings: settings_item.clone(),
+                    reload: reload_item.clone(),
                     quit: quit_item.clone(),
                 });
             }
@@ -1190,6 +1204,20 @@ pub fn run() {
                             let state = app.state::<AppState>();
                             let _ = reveal_saved_mode(&window, &state);
                         }
+                    }
+                    "settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let state = app.state::<AppState>();
+                            let _ = reveal_saved_mode(&window, &state);
+                        }
+                        let _ = app.emit("floter://open-settings", ());
+                    }
+                    "reload" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let state = app.state::<AppState>();
+                            let _ = reveal_saved_mode(&window, &state);
+                        }
+                        let _ = app.emit("floter://reload-apps", ());
                     }
                     "quit" => app.exit(0),
                     _ => {}

@@ -1063,6 +1063,22 @@ export default function App() {
     };
   }, []);
 
+  // Tray menu hooks: "Settings" and "Reload" surface here so the existing
+  // IPC commands (`hide_window`/settings flow / `list_applications`) can do the
+  // work — the tray is just a trigger, the frontend is what owns the modes.
+  useEffect(() => {
+    const unlistenSettingsPromise = listen("floter://open-settings", () => {
+      openSettings();
+    });
+    const unlistenReloadPromise = listen("floter://reload-apps", () => {
+      scanApplications(true);
+    });
+    return () => {
+      unlistenSettingsPromise.then((unlisten) => unlisten());
+      unlistenReloadPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
   // While the card owns the keyboard, any press outside it hands focus back
   // to the main surface (Escape is handled in the keydown path).
   useEffect(() => {
