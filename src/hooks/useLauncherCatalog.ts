@@ -631,12 +631,12 @@ export function useLauncherCatalog(options: {
 
   /** Count an application launch so the empty-query state can rank it. The
    *  counter rides the ordinary settings persistence; no dedicated command. */
-  const recordLaunch = (path: string) => {
+  const recordLaunch = (id: string) => {
     const updated: AppSettings = {
       ...settingsRef.current,
       launch_counts: {
         ...settingsRef.current.launch_counts,
-        [path]: (settingsRef.current.launch_counts[path] ?? 0) + 1,
+        [id]: (settingsRef.current.launch_counts[id] ?? 0) + 1,
       },
     };
     settingsHydration.markChanged("launch_counts");

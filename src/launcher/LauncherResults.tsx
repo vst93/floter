@@ -1,8 +1,10 @@
+import { Fragment } from "react";
 import type { Translate, MessageKey } from "../i18n";
 import type { LocalApplication } from "../App";
 import { IS_MAC, formatResultShortcut } from "../shortcuts";
 import {
   Terminal as TerminalIcon,
+  History as HistoryIcon,
 } from "lucide-react";
 import type { ActionBarKind, ExecutionPlan } from "../launcher";
 
@@ -26,7 +28,14 @@ export type LauncherItem =
       execution: ExecutionPlan | null;
       completion: boolean;
     }
-  | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction };
+  | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction }
+  /**
+   * A previously typed command line, surfaced in the empty-query state so the
+   * user can recall a recent command with a click or Enter. Not a result and
+   * not a catalog entry — it has no execution plan, only the text to put
+   * back into the input.
+   */
+  | { type: "history"; id: string; title: string; commandLine: string };
 
 export type ActionBar = { type: ActionBarKind; label: string; value: string };
 
@@ -171,66 +180,89 @@ export function LauncherResults({
             const selected = !selectedActionBar && index === selectedResultIndex;
             const unavailable = item.type === "command" && !item.execution;
             const warnings = item.type === "command" ? item.warnings : [];
+            const isHistory = item.type === "history";
             const source = item.type === "command"
               ? item.sourceName
               : item.type === "app"
                 ? t(appSubtitleKey(item.app.path))
-                : t("extensions.builtIn");
+                : isHistory
+                  ? t("launcher.history")
+                  : t("extensions.builtIn");
             const shortcutSlot = resultShortcutSlots[index];
+            // The empty-query state stacks two sections inside a single result
+            // list: recents first, then the last few typed commands. The first
+            // history row gets the section title; later rows flow under it
+            // without their own heading.
+            const historySectionStartsHere =
+              isHistory && (index === 0 || results[index - 1].type !== "history");
             return (
-              <button
-                id={`launcher-option-${index}`}
-                key={item.id}
-                type="button"
-                className={`launcher-result${selected ? " launcher-result--selected" : ""}${
-                  unavailable ? " launcher-result--unavailable" : ""
-                }`}
-                role="option"
-                aria-selected={selected}
-                aria-disabled={unavailable}
-                tabIndex={-1}
-                onMouseMove={() => {
-                  if (unavailable) return;
-                  onSelectResult(index);
-                }}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => onRunResult(item)}
-              >
-                <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
-                  {item.type === "app" && appIconUrls[item.app.path] ? (
-                    <img src={appIconUrls[item.app.path]} alt="" />
-                  ) : item.type === "system" ? (
-                    <SystemActionIcon action={item.action} />
-                  ) : (
-                    // The placeholder for an application whose icon has
-                    // not resolved yet: a first letter over a real icon
-                    // reads as a different application rather than as a
-                    // pending one.
-                    <span>$</span>
-                  )}
-                </span>
-                <span className="launcher-result__main">
-                  <span className="launcher-result__title">{item.title}</span>
-                  <span className="launcher-result__subtitle">{item.subtitle}</span>
-                </span>
-                {warnings.map((warning) => (
-                  <span
-                    key={warning}
-                    className="launcher-result__warning"
-                    title={t(warning === "unavailable"
-                      ? "extensions.runtimeUnavailable"
-                      : "extensions.conflict")}
-                  />
-                ))}
-                <span className="launcher-result__source" title={source}>
-                  {source}
-                </span>
-                <span className="launcher-result__action">
-                  {shortcutSlot === null
-                    ? ""
-                    : formatResultShortcut(selectResultShortcut, shortcutSlot)}
-                </span>
-              </button>
+              <Fragment key={item.id}>
+                {historySectionStartsHere && (
+                  <div
+                    className="launcher-section-title"
+                    role="presentation"
+                    title={t("launcher.historyHint")}
+                  >
+                    {t("launcher.history")}
+                  </div>
+                )}
+                <button
+                  id={`launcher-option-${index}`}
+                  type="button"
+                  className={`launcher-result${selected ? " launcher-result--selected" : ""}${
+                    unavailable ? " launcher-result--unavailable" : ""
+                  }${isHistory ? " launcher-result--history" : ""}`}
+                  role="option"
+                  aria-selected={selected}
+                  aria-disabled={unavailable}
+                  tabIndex={-1}
+                  onMouseMove={() => {
+                    if (unavailable) return;
+                    onSelectResult(index);
+                  }}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => onRunResult(item)}
+                >
+                  <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
+                    {item.type === "app" && appIconUrls[item.app.path] ? (
+                      <img src={appIconUrls[item.app.path]} alt="" />
+                    ) : item.type === "system" ? (
+                      <SystemActionIcon action={item.action} />
+                    ) : isHistory ? (
+                      <HistoryIcon />
+                    ) : (
+                      // The placeholder for an application whose icon has
+                      // not resolved yet: a first letter over a real icon
+                      // reads as a different application rather than as a
+                      // pending one.
+                      <span>$</span>
+                    )}
+                  </span>
+                  <span className="launcher-result__main">
+                    <span className="launcher-result__title">{item.title}</span>
+                    <span className="launcher-result__subtitle">
+                      {isHistory ? t("launcher.history") : item.subtitle}
+                    </span>
+                  </span>
+                  {warnings.map((warning) => (
+                    <span
+                      key={warning}
+                      className="launcher-result__warning"
+                      title={t(warning === "unavailable"
+                        ? "extensions.runtimeUnavailable"
+                        : "extensions.conflict")}
+                    />
+                  ))}
+                  <span className="launcher-result__source" title={source}>
+                    {source}
+                  </span>
+                  <span className="launcher-result__action">
+                    {shortcutSlot === null
+                      ? ""
+                      : formatResultShortcut(selectResultShortcut, shortcutSlot)}
+                  </span>
+                </button>
+              </Fragment>
             );
           })}
         </div>
@@ -244,6 +276,7 @@ export function LauncherResults({
           }`}
           role="option"
           aria-selected={selectedActionBar}
+          aria-label={t("launcher.runInShell")}
           tabIndex={-1}
           onMouseMove={() => onSelectActionBar()}
           onMouseDown={(event) => event.preventDefault()}
