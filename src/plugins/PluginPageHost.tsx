@@ -27,6 +27,11 @@ import { createTranslator, type Language, type MessageKey } from "../i18n";
  * exercised for real.
  */
 
+/** How long to wait for the backend's page descriptor before showing the retry
+ * state. Mirrors the page-side bridge timeout in `clipboard/main.ts` so both
+ * ends of the pipeline give up on a silent host after the same delay. */
+const DESCRIPTOR_TIMEOUT_MS = 10_000;
+
 export type PluginPageDescriptorInfo = {
   id: string;
   titleKey: string;
@@ -75,6 +80,14 @@ export function PluginPageHost({
     let cancelled = false;
     setDescriptor(null);
     setLoadFailed(false);
+    // A descriptor fetch that never settles would leave this host rendering
+    // `null` forever (see the JSX below) — and because the window itself is
+    // transparent, an empty host is not a blank panel but a see-through hole
+    // onto the desktop, with no error state and no way back. Time it out so a
+    // hung command surfaces the retry instead of an invisible surface.
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setLoadFailed(true);
+    }, DESCRIPTOR_TIMEOUT_MS);
     invoke<PluginPageDescriptorInfo>("plugin_page_descriptor", { id: pluginId })
       .then((info) => {
         if (cancelled) return;
@@ -83,9 +96,13 @@ export function PluginPageHost({
       })
       .catch(() => {
         if (!cancelled) setLoadFailed(true);
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
       });
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
       allowedRef.current = [];
     };
   }, [pluginId, reloadNonce]);
@@ -218,7 +235,12 @@ export function PluginPageHost({
             {t("settings.retry")}
           </button>
         </div>
-      ) : null}
+      ) : (
+        // Descriptor still in flight. Render an opaque placeholder rather than
+        // nothing: this host fills a transparent window, so an empty subtree
+        // shows the desktop through the panel for as long as the fetch takes.
+        <div className="plugin-page-host__loading" aria-busy="true" />
+      )}
     </div>
   );
 }

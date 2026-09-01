@@ -8,8 +8,8 @@
 :root {
   --main-opacity: 0.94;
   --terminal-opacity: 0.92;
-  --input-bg: rgb(18 19 20 / var(--main-opacity));
-  --input-bg-active: rgb(19 20 23 / var(--main-opacity));
+  --input-bg: rgba(18, 19, 20, var(--main-opacity));
+  --input-bg-active: rgba(19, 20, 23, var(--main-opacity));
   --input-stroke: rgba(255, 255, 255, 0.08);
   --input-stroke-active: rgba(143, 183, 255, 0.24);
   --surface-sunken: rgba(17, 18, 20, 0.72);
@@ -55,7 +55,7 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: rgb(17 18 20 / var(--terminal-opacity));
+  background: rgba(17, 18, 20, var(--terminal-opacity));
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
@@ -91,7 +91,7 @@ html, body {
   padding: 6px 10px;
   border: 1px solid var(--hairline);
   border-radius: 6px;
-  background: rgb(255 255 255 / 0.04);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
   font: inherit;
   outline: none;
@@ -170,7 +170,7 @@ html, body {
   display: grid;
   place-items: center;
   border-radius: 4px;
-  background: rgb(255 255 255 / 0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   font-size: 12px;
   overflow: hidden;
