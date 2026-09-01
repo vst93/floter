@@ -214,6 +214,27 @@ export function GeneralPage({
           <span className="settings-switch__thumb" />
         </button>
       </div>
+      <div className="settings-option settings-option--static">
+        <span className="settings-option__main">
+          <span className="settings-option__label">
+            {t("settings.showRecentInLauncher")}
+          </span>
+          <span className="settings-option__description">
+            {t("settings.showRecentInLauncherHint")}
+          </span>
+        </span>
+        <button
+          type="button"
+          className={`settings-switch${settings.show_recent_in_launcher ? " settings-switch--active" : ""}`}
+          role="switch"
+          aria-checked={settings.show_recent_in_launcher}
+          aria-label={t("settings.showRecentInLauncher")}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onChangeGeneralSetting("show_recent_in_launcher", !settings.show_recent_in_launcher)}
+        >
+          <span className="settings-switch__thumb" />
+        </button>
+      </div>
     </section>
 
     <section className="settings-section terminal-appearance-settings">

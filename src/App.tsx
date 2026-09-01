@@ -122,6 +122,9 @@ export type AppSettings = {
   shortcuts: ShortcutMap;
   /** Whether extension/provider commands appear in launcher search results. */
   show_commands_in_search: boolean;
+  /** Whether the empty launcher offers the most-launched applications
+   * (default on). Off leaves the result list empty until something is typed. */
+  show_recent_in_launcher: boolean;
   /** Whether the built-in clipboard history monitor runs (default on). */
   clipboard_history_enabled: boolean;
   /** Global hotkey that summons the clipboard panel. */
@@ -246,6 +249,7 @@ export default function App() {
     terminal_opacity: 92,
     shortcuts: DEFAULT_SHORTCUTS,
     show_commands_in_search: false,
+    show_recent_in_launcher: true,
     clipboard_history_enabled: true,
     // The clipboard panel ships with NO global hotkey; users may bind one on
     // the shortcuts settings page.
@@ -552,6 +556,7 @@ export default function App() {
     query,
     launchCounts: settings.launch_counts,
     showCommandsInSearch: settings.show_commands_in_search,
+    showRecentInLauncher: settings.show_recent_in_launcher,
     t,
     settingsRef,
     settingsHydration,

@@ -96,6 +96,9 @@ pub struct AppSettings {
     /// Whether system-command discovery appears in launcher search results.
     /// Off by default; provider-connected tools are always searchable.
     pub show_commands_in_search: bool,
+    /// Whether the launcher's empty query offers the most-launched applications.
+    /// On by default; off leaves the list empty until something is typed.
+    pub show_recent_in_launcher: bool,
     /// Whether the built-in clipboard history monitor runs (default on).
     pub clipboard_history_enabled: bool,
     /// Global hotkey that summons the clipboard panel.
@@ -125,6 +128,7 @@ impl Default for AppSettings {
             terminal_opacity: DEFAULT_TERMINAL_OPACITY,
             shortcuts: default_shortcuts(),
             show_commands_in_search: false,
+            show_recent_in_launcher: true,
             clipboard_history_enabled: true,
             clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
             launch_counts: HashMap::new(),
@@ -680,6 +684,12 @@ mod tests {
     fn older_settings_keep_command_discovery_hidden() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(!settings.show_commands_in_search);
+    }
+
+    #[test]
+    fn older_settings_keep_the_launcher_recent_list() {
+        let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(settings.show_recent_in_launcher);
     }
 
     #[test]

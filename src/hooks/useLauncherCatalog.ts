@@ -163,6 +163,9 @@ export function useLauncherCatalog(options: {
   launchCounts: Record<string, number>;
   /** `settings.show_commands_in_search`. */
   showCommandsInSearch: boolean;
+  /** `settings.show_recent_in_launcher` — whether the empty query offers the
+   * most-launched applications at all. */
+  showRecentInLauncher: boolean;
   t: Translate;
   settingsRef: RefObject<AppSettings>;
   settingsHydration: ReturnType<typeof createSettingsHydration<AppSettings>>;
@@ -173,6 +176,7 @@ export function useLauncherCatalog(options: {
     query,
     launchCounts,
     showCommandsInSearch,
+    showRecentInLauncher,
     t,
     settingsRef,
     settingsHydration,
@@ -342,7 +346,9 @@ export function useLauncherCatalog(options: {
       // typed yet still has something useful to offer. Rank the applications
       // the user actually starts by launch count and render them as ordinary
       // results, so the numbered shortcuts and Enter work unchanged. Typing
-      // any character leaves this branch.
+      // any character leaves this branch. Turning the setting off empties the
+      // front door instead: nothing is offered until something is typed.
+      if (!showRecentInLauncher) return [];
       const byPath = new Map(searchableApps.map((entry) => [entry.app.path, entry]));
       const recentPaths = recentItems(
         launchCounts,
@@ -477,7 +483,7 @@ export function useLauncherCatalog(options: {
     // The action bar occupies the final row. Keep at least one local match when
     // applications or power actions matched alongside catalog commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [catalogSuggestions, query, searchableApps, launchCounts, t]);
+  }, [catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     const value = query.trim();
