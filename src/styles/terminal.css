@@ -583,20 +583,30 @@
 }
 
 /* Empty history, empty favorites and no filter matches share one quiet hint
-   block: icon-less, centered, floating in the upper third of the list area. */
+   block: icon-less, centered, floating in the upper third of the list area.
+   The privacy note underneath is a smaller, even-more-muted line. */
 .clipboard-panel__empty {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   padding: 64px 24px 18px;
+  gap: 12px;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.6;
   text-align: center;
   user-select: none;
+}
+
+.clipboard-panel__empty-privacy {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.5;
+  max-width: 320px;
 }
 
 /* Footer: key hints left, Clear right, fixed height, hairline top border —

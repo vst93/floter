@@ -691,10 +691,6 @@
   background: var(--accent-tint);
 }
 
-.launcher-action-bar--selected.launcher-action-bar--shell {
-  background: var(--action-shell-tint);
-}
-
 .launcher-action-bar__icon {
   width: 28px;
   height: 28px;

@@ -220,6 +220,7 @@ export function SessionsPage({
                       aria-label={t("terminal.sessionKill")}
                       title={t("terminal.sessionKill")}
                       disabled={busy || actionId !== null}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={(event) => {
                         event.stopPropagation();
                         armKill(session.sessionId);

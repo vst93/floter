@@ -24,6 +24,7 @@ import { useLauncherActions } from "./hooks/useLauncherActions";
 import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
+import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
 import {
   FOCUS_IN_OUT,
 } from "./terminal/keys";
@@ -499,7 +500,7 @@ export default function App() {
     setMode("collapsed");
     try {
       await invoke("show_input");
-      syncLauncherHeight();
+      syncLauncherHeight(collapsedCardRef);
     } catch {
       // The DOM still transitions back to a usable launcher even if the native
       // resize failed; keep the keyboard recovery below independent of IPC.
@@ -822,61 +823,12 @@ export default function App() {
   }, [launcherResults.length]);
 
   // The launcher window is exactly as tall as the rows inside it, measured
-  // rather than predicted.
-  //
-  // The height used to be added up from constants — one row height, one gap,
-  // one padding — and the sum came out a few pixels short of what the
-  // stylesheet actually produced, so the bottom of the action bar was cut off
-  // by the window edge. Every one of those numbers duplicated a CSS value that
-  // could be changed without anyone thinking to come back here; reading the
-  // laid-out rows keeps the two in step by construction, and covers the
-  // platform differences (Windows draws no card border) for free.
-  //
-  // `useLayoutEffect` so the measurement happens on the frame the rows were
-  // committed, before the window is painted at the old size. Offsets rather
-  // than `getBoundingClientRect`, because the shell plays a scale animation on
-  // entry and a rect measured mid-animation is a rect scaled by 0.986.
-  useLayoutEffect(() => {
-    if (mode !== "collapsed") return;
-    syncLauncherHeight();
-  }, [actionBar, launcherFeedback, launcherResults.length, mode]);
-
-  /**
-   * Size the launcher window to the rows currently laid out inside it.
-   *
-   * Measured to the bottom of the card's last child rather than from the card's
-   * own box: the card is at least as tall as the window it sits in, so its
-   * height says what the window *is* rather than what it should be. `offsetTop`
-   * starts inside the card's border, so both borders are added back on — and
-   * offsets rather than `getBoundingClientRect`, because the shell plays a
-   * scale animation on entry and a rect measured mid-animation is a rect
-   * scaled by 0.986.
-   */
-  const syncLauncherHeight = () => {
-    const card = collapsedCardRef.current;
-    const last = card?.lastElementChild as HTMLElement | null;
-    if (!card || !last) return;
-    const style = getComputedStyle(card);
-    const frame =
-      (parseFloat(style.borderTopWidth) || 0) +
-      (parseFloat(style.borderBottomWidth) || 0) +
-      (parseFloat(style.paddingBottom) || 0);
-    let height = Math.ceil(last.offsetTop + last.offsetHeight + frame);
-    if (!height) return;
-    // The shell wrapping the card may carry padding (Windows uses it to give
-    // the CSS box-shadow room outside the card), and the window has to be
-    // that much taller for the padding to actually show.
-    const shell = card.parentElement;
-    if (shell) {
-      const shellStyle = getComputedStyle(shell);
-      height +=
-        (parseFloat(shellStyle.paddingTop) || 0) +
-        (parseFloat(shellStyle.paddingBottom) || 0);
-    }
-    getCurrentWindow()
-      .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
-      .catch(() => undefined);
-  };
+  // rather than predicted. Extracted into useLauncherHeight hook.
+  useLauncherHeight(mode, collapsedCardRef, [
+    actionBar,
+    launcherFeedback,
+    launcherResults.length,
+  ]);
 
   // The terminal canvas is the active element when collapsed mode is committed.
   // Focus the newly mounted input in that same commit instead of relying only on
@@ -1021,7 +973,7 @@ export default function App() {
             // shrink the window back to launcher height. Only the surface that
             // is actually showing may size itself.
             if (modeRef.current !== "collapsed") return;
-            syncLauncherHeight();
+            syncLauncherHeight(collapsedCardRef);
             focusCollapsedInput();
             if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
           })

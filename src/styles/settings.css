@@ -774,6 +774,51 @@
   font-size: 11px;
 }
 
+.session-manager__empty-hint {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.session-manager__sort {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 4px;
+}
+
+.session-manager__sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--stroke-control);
+  border-radius: 5px;
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
+}
+
+.session-manager__sort-toggle:hover {
+  background: var(--surface-control-hover);
+  border-color: var(--accent-edge);
+  color: var(--text-primary);
+}
+
+.session-manager__sort-toggle:active {
+  transform: scale(0.96);
+}
+
+.session-manager__sort-toggle:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
 .shortcut-recorder {
   min-width: 82px;
   min-height: 27px;
