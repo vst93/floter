@@ -491,13 +491,14 @@
 }
 
 .launcher-section-title {
-  padding: 2px 11px 3px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  padding: 6px 11px 4px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   user-select: none;
+  opacity: 0.85;
 }
 
 .launcher-options {
@@ -532,6 +533,15 @@
 .launcher-result--unavailable .launcher-result__title,
 .launcher-result--unavailable .launcher-result__subtitle {
   opacity: 0.62;
+}
+
+.launcher-result--history {
+  opacity: 0.92;
+}
+
+.launcher-result--history .launcher-result__icon {
+  background: var(--surface-control);
+  color: var(--text-muted);
 }
 
 .launcher-result__icon {

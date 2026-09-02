@@ -25,6 +25,7 @@ import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
+import { useSessionManagement } from "./hooks/useSessionManagement";
 import {
   FOCUS_IN_OUT,
 } from "./terminal/keys";
@@ -36,7 +37,6 @@ import {
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
 import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
-import { beginRequest, isCurrentRequest } from "./request-generation";
 import {
   formatResultShortcut,
   formatShortcut,
@@ -208,32 +208,16 @@ export default function App() {
    * is empty); drives the placeholder in the terminal panel. */
   const [mainPinnedAway, setMainPinnedAway] = useState(false);
   const [appVersion, setAppVersion] = useState("DEV");
-  const [terminalSessions, setTerminalSessions] = useState<BrokerSessionInfo[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [sessionsError, setSessionsError] = useState(false);
-  const [sessionActionId, setSessionActionId] = useState<string | null>(null);
-  // Two-step kill confirmation: while set, that row's kill button shows a
-  // short confirm pill instead of the icon. Cleared by a second click, a
-  // different row's kill click, or a 3s timeout.
-  const [killConfirmId, setKillConfirmId] = useState<string | null>(null);
-  // Two-step system power confirmation: armed while the restart/shutdown row
-  // shows an inline "Execute? Cancel?" banner. Enter executes, Esc cancels.
-  const [pendingSystemAction, setPendingSystemAction] = useState<Extract<LauncherItem, { type: "system" }> | null>(null);
-  /** First-run onboarding tip: shown once in the launcher until dismissed. */
-  const [showOnboardingTip, setShowOnboardingTip] = useState(false);
-  // Session refreshes can overlap when the user switches pages or retries
-  // quickly. Only the newest response is allowed to update the list and its
-  // loading/error state; an older response may otherwise resurrect a session
-  // that a later refresh has already removed.
-  const sessionsRequestGeneration = useRef(0);
-  /** Guard against stacked refreshes when rapidly navigating to the sessions
-   * page. Each new call resets a 500ms window; only the last one fires. */
-  const sessionsRefreshTimer = useRef<number | null>(null);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
    * Enter runs. The two selections are exclusive but kept apart, because the
    * action bar is not a result: it is never numbered and never in `Ctrl+N`. */
   const [selectedActionBar, setSelectedActionBar] = useState(false);
+  // Two-step system power confirmation: armed while the restart/shutdown row
+  // shows an inline "Execute? Cancel?" banner. Enter executes, Esc cancels.
+  const [pendingSystemAction, setPendingSystemAction] = useState<Extract<LauncherItem, { type: "system" }> | null>(null);
+  /** First-run onboarding tip: shown once in the launcher until dismissed. */
+  const [showOnboardingTip, setShowOnboardingTip] = useState(false);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
@@ -417,6 +401,16 @@ export default function App() {
     showTerminalFeedback,
   } = useTimedFeedback();
 
+  const {
+    sessions: terminalSessions,
+    loading: sessionsLoading,
+    error: sessionsError,
+    actionId: sessionActionId,
+    refreshSessions: refreshTerminalSessions,
+    scheduleRefresh: scheduleSessionRefresh,
+    killSession: killTerminalSession,
+  } = useSessionManagement();
+
 
   // The system appearance, tracked whether or not it is currently being followed.
   // Subscribing unconditionally rather than only in `auto` mode keeps this from
@@ -451,38 +445,6 @@ export default function App() {
       const length = input.value.length;
       input.setSelectionRange(length, length);
     }, delay);
-  };
-
-  const scheduleSessionRefresh = () => {
-    if (sessionsRefreshTimer.current !== null) {
-      window.clearTimeout(sessionsRefreshTimer.current);
-    }
-    sessionsRefreshTimer.current = window.setTimeout(() => {
-      sessionsRefreshTimer.current = null;
-      void refreshTerminalSessions();
-    }, 500);
-  };
-
-  const refreshTerminalSessions = () => {
-    const generation = beginRequest(sessionsRequestGeneration);
-    setSessionsLoading(true);
-    setSessionsError(false);
-    return invoke<BrokerSessionInfo[]>("term_list_sessions")
-      .then((sessions) => {
-        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
-        setTerminalSessions(sessions);
-        setSessionsError(false);
-      })
-      .catch(() => {
-        if (!isCurrentRequest(sessionsRequestGeneration, generation)) return;
-        setTerminalSessions([]);
-        setSessionsError(true);
-      })
-      .finally(() => {
-        if (isCurrentRequest(sessionsRequestGeneration, generation)) {
-          setSessionsLoading(false);
-        }
-      });
   };
 
   const returnToInputMode = async () => {
@@ -1194,31 +1156,6 @@ export default function App() {
       });
   };
 
-  const killTerminalSession = async (session: BrokerSessionInfo) => {
-    if (sessionActionId) return;
-    // First click arms the inline confirm instead of blocking with
-    // window.confirm (same rhythm as the extensions discard bar).
-    if (killConfirmId !== session.sessionId) {
-      setKillConfirmId(session.sessionId);
-      return;
-    }
-    setKillConfirmId(null);
-    setSessionActionId(session.sessionId);
-    try {
-      await invoke("term_kill_session", { sessionId: session.sessionId });
-      await refreshTerminalSessions();
-    } catch {
-      await refreshTerminalSessions();
-    } finally {
-      setSessionActionId(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!killConfirmId) return;
-    const timer = window.setTimeout(() => setKillConfirmId(null), 3000);
-    return () => window.clearTimeout(timer);
-  }, [killConfirmId]);
 
   useEffect(() => {
     check().then((update) => {

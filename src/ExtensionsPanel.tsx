@@ -182,6 +182,11 @@ type ConfigOperation = "copy" | "export" | null;
 type CustomContentOperation = "copy" | "export" | null;
 type RemovalTarget = Extension | null;
 type PendingToolSelection = { extension: Extension; action: "connect" | "reconnect" } | null;
+type PendingPermissionReview = {
+  extension: Extension;
+  executablePath: string | null;
+  review: PermissionReview;
+} | null;
 
 type DiscoverySource =
   | "path"
@@ -478,6 +483,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [detailError, setDetailError] = useState<string | null>(null);
   const [pendingLocal, setPendingLocal] = useState<{ review: PermissionReview; request: InstallRequest; name: string; runtime: string; platforms: string[]; source: string } | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<PendingToolSelection>(null);
+  const [pendingPermissionReview, setPendingPermissionReview] = useState<PendingPermissionReview>(null);
   const [syncOperation, setSyncOperation] = useState<SyncOperation | null>(null);
   const [exportResult, setExportResult] = useState<ExtensionsExportResult | null>(null);
   const [importReport, setImportReport] = useState<ExtensionsImportReport | null>(null);
@@ -507,6 +513,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const localDialogRef = useRef<HTMLElement | null>(null);
   const toolSelectionDialogRef = useRef<HTMLElement | null>(null);
+  const permissionReviewDialogRef = useRef<HTMLElement | null>(null);
   const removalDialogRef = useRef<HTMLElement | null>(null);
   const customDialogRef = useRef<HTMLElement | null>(null);
   const toolResultsRef = useRef<HTMLDivElement | null>(null);
@@ -749,11 +756,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   useDialogFocus(Boolean(pendingToolSelection), toolSelectionDialogRef, () => {
     if (!busy) setPendingToolSelection(null);
   });
+  useDialogFocus(Boolean(pendingPermissionReview), permissionReviewDialogRef, () => {
+    if (!busy) setPendingPermissionReview(null);
+  });
   useDialogFocus(Boolean(removalTarget), removalDialogRef, () => {
     if (!busy) setRemovalTarget(null);
   });
   useDialogFocus(showCustomIntegration, customDialogRef, closeCustomIntegration);
-  useDialogFocus(Boolean(selectedId), drawerRef, () => closeDetails(), !showCustomIntegration && !removalTarget && !pendingLocal && !pendingToolSelection);
+  useDialogFocus(Boolean(selectedId), drawerRef, () => closeDetails(), !showCustomIntegration && !removalTarget && !pendingLocal && !pendingToolSelection && !pendingPermissionReview);
 
   useEffect(() => {
     if (!configDirty) setDetailsDiscardArmed(false);
@@ -855,12 +865,31 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     setBusy({ id: extension.id, kind: "install" });
     try {
       const review = await invoke<PermissionReview>("extensions_recommended_permissions", { id: extension.id, locale });
-      const confirmKey = extension.manifestSuggestion ? "settings.extensions.confirmConnectManifest" : "settings.extensions.confirmConnectRecommended";
-      if (review.permissions.length && !window.confirm(t(confirmKey, {
-        name: extension.name,
-        path: executablePath ?? extension.executablePath,
-        permissions: review.permissions.map((permission) => permission.title).join(", "),
-      }))) return;
+      if (review.permissions.length) {
+        setPendingPermissionReview({ extension, executablePath, review });
+        setBusy(null);
+        return;
+      }
+      await invoke("extensions_connect_recommended", {
+        id: extension.id,
+        executablePath,
+        approvedPermissions: [],
+      });
+      await refresh();
+      showSuccess(t("settings.extensions.connectedNotice", { name: extension.name }));
+      setPendingToolSelection(null);
+    } catch (nextError) {
+      showError(errorMessage(nextError));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const confirmPermissionReview = async () => {
+    if (!pendingPermissionReview || busy) return;
+    const { extension, executablePath, review } = pendingPermissionReview;
+    setBusy({ id: extension.id, kind: "install" });
+    try {
       await invoke("extensions_connect_recommended", {
         id: extension.id,
         executablePath,
@@ -868,6 +897,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       });
       await refresh();
       showSuccess(t("settings.extensions.connectedNotice", { name: extension.name }));
+      setPendingPermissionReview(null);
       setPendingToolSelection(null);
     } catch (nextError) {
       showError(errorMessage(nextError));
@@ -1381,6 +1411,32 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         </section>
       </div>
       {pendingLocal && <LocalInstallDialog pending={pendingLocal} busy={Boolean(busy)} t={t} dialogRef={localDialogRef} stopPropagation={stopRowClick} onCancel={() => setPendingLocal(null)} onConfirm={() => void confirmLocal()} />}
+      {pendingPermissionReview && (
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingPermissionReview(null); }}>
+          <section ref={permissionReviewDialogRef} className="extension-permission-dialog extension-permission-dialog--review" role="dialog" aria-modal="true" aria-labelledby="permission-review-title" tabIndex={-1} onMouseDown={stopRowClick}>
+            <header>
+              <AlertCircle size={18} strokeWidth={2} aria-hidden="true" />
+              <div>
+                <h3 id="permission-review-title">{t(pendingPermissionReview.extension.manifestSuggestion ? "settings.extensions.confirmConnectManifest" : "settings.extensions.confirmConnectRecommended", { name: pendingPermissionReview.extension.name })}</h3>
+                <p>{pendingPermissionReview.executablePath ?? pendingPermissionReview.extension.executablePath}</p>
+              </div>
+            </header>
+            <div className="extension-permission-list">
+              <span className="extension-permission-list__label">{t("settings.extensions.permissionsRequired")}</span>
+              {pendingPermissionReview.review.permissions.map((perm) => (
+                <div key={perm.permission} className="extension-permission-item">
+                  <strong>{perm.title}</strong>
+                  <span>{perm.description}</span>
+                </div>
+              ))}
+            </div>
+            <footer>
+              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingPermissionReview(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmPermissionReview()}>{busy ? t("settings.extensions.connecting") : t("settings.extensions.connect")}</button>
+            </footer>
+          </section>
+        </div>
+      )}
       {pendingToolSelection && (
         <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingToolSelection(null); }}>
           <section ref={toolSelectionDialogRef} className="extension-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="extension-tool-selection-title" aria-describedby="extension-tool-selection-hint" tabIndex={-1} onMouseDown={stopRowClick}>
