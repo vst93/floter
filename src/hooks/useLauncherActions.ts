@@ -356,7 +356,14 @@ export function useLauncherActions(options: {
       void runSystemAction(item);
       return;
     }
-    if (item.execution && item.sourceName) {
+    if (item.type === "history") {
+      // History items recall the command line without executing it.
+      setQuery(item.commandLine);
+      setHistoryIndex(-1);
+      focusCollapsedInput();
+      return;
+    }
+    if (item.type === "command" && item.execution && item.sourceName) {
       void runCommand(item.execution, item.commandLine);
       return;
     }

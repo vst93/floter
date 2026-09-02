@@ -174,6 +174,186 @@ const countBadge = (count: number) => {
   return badge;
 };
 
+/** Text-entry marker: a plain chevron prefix, the same glyph the list has
+ * used since the in-app React panel. */
+const renderHistoryEntry = (marker: HTMLElement) => {
+  marker.textContent = "›";
+};
+
+/** Image-entry marker: the thumbnail when the bytes have arrived, a "[?]"
+ * placeholder while they are still in flight or have failed. */
+const renderImageEntry = (
+  marker: HTMLElement,
+  entry: ClipboardEntry,
+  hasThumbnail: boolean,
+) => {
+  if (hasThumbnail) {
+    const img = document.createElement("img");
+    img.src = thumbnails.get(entry.id)!;
+    img.alt = "";
+    img.draggable = false;
+    marker.append(img);
+  } else {
+    marker.textContent = "[?]";
+  }
+};
+
+/** Files-entry marker: thumbnail if the first path is an image file, a
+ * triangle for directory paths, a square for individual files. */
+const renderFilesEntry = (
+  marker: HTMLElement,
+  entry: ClipboardEntry,
+  hasThumbnail: boolean,
+) => {
+  if (isFilesPreviewCandidate(entry.paths)) {
+    if (hasThumbnail) {
+      const img = document.createElement("img");
+      img.src = thumbnails.get(entry.id)!;
+      img.alt = "";
+      img.draggable = false;
+      marker.append(img);
+    } else {
+      marker.textContent = "[?]";
+    }
+  } else {
+    marker.textContent =
+      (entry.paths?.length ?? 0) > 0 && looksLikeDirectoryPath(entry.paths![0])
+        ? "▸"
+        : "▪";
+  }
+};
+
+/** Empty-state markup: the localized "nothing here" message and the privacy
+ * note underneath. The failure-with-retry case is a separate path in render()
+ * because it carries a button and a reload promise. */
+const renderEmpty = (): DocumentFragment => {
+  const fragment = document.createDocumentFragment();
+  const empty = document.createElement("div");
+  empty.className = "clipboard-panel__empty";
+  empty.textContent = t(
+    scopedEntries().length
+      ? "clipboard.emptyFilter"
+      : view === "favorites"
+        ? "clipboard.emptyFavorites"
+        : "clipboard.empty",
+  );
+  fragment.append(empty);
+
+  const privacy = document.createElement("div");
+  privacy.className = "clipboard-panel__empty-privacy";
+  privacy.textContent = t("settings.clipboardPrivacy");
+  fragment.append(privacy);
+
+  return fragment;
+};
+
+/** Build one row's <li>: a button with marker, preview, meta, and a star,
+ * plus the hover/click wiring that makes it a real list option. `now` is
+ * passed in so every row's age is relative to the same render moment, not to
+ * the millisecond this row happened to be built. */
+const renderRow = (
+  entry: ClipboardEntry,
+  index: number,
+  selected: number,
+  now: number,
+): HTMLLIElement => {
+  const missing = statuses[entry.id] === false;
+  const filesPreview =
+    entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
+  const hasThumbnail = thumbnails.has(entry.id) && !missing;
+
+  const row = document.createElement("li");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.setAttribute("role", "option");
+  button.setAttribute("aria-selected", String(index === selected));
+  button.tabIndex = -1;
+  button.className =
+    `clipboard-row${index === selected ? " clipboard-row--selected" : ""}` +
+    `${missing ? " clipboard-row--missing" : ""}`;
+  if (entry.kind === "files") button.title = (entry.paths ?? []).join("\n");
+
+  const marker = document.createElement("span");
+  marker.className = [
+    "clipboard-row__marker",
+    entry.kind === "image" ? "clipboard-row__marker--image" : "",
+    entry.kind === "files" ? "clipboard-row__marker--files" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  marker.setAttribute("aria-hidden", "true");
+  if (entry.kind === "image") {
+    renderImageEntry(marker, entry, hasThumbnail);
+  } else if (entry.kind === "files") {
+    renderFilesEntry(marker, entry, hasThumbnail);
+  } else {
+    renderHistoryEntry(marker);
+  }
+
+  const preview = document.createElement("span");
+  preview.className = "clipboard-row__preview";
+  if (filesPreview) {
+    if (filesPreview.dirname) {
+      const dir = document.createElement("span");
+      dir.className = "clipboard-row__preview-dir";
+      dir.textContent = filesPreview.dirname;
+      preview.append(dir);
+    }
+    const base = document.createElement("span");
+    base.textContent = filesPreview.basename;
+    preview.append(base);
+    if (filesPreview.extra > 0) {
+      const extra = document.createElement("span");
+      extra.className = "clipboard-row__preview-extra";
+      extra.textContent = ` +${filesPreview.extra}`;
+      preview.append(extra);
+    }
+  } else {
+    preview.textContent = clipboardPreview(entry);
+  }
+
+  const meta = document.createElement("span");
+  meta.className = "clipboard-row__meta";
+  if (entry.kind === "text" && entry.text) {
+    const chars = document.createElement("span");
+    chars.className = "clipboard-row__chars";
+    chars.textContent = t("clipboard.chars", { n: entry.text.length });
+    meta.append(chars);
+  }
+  const age = document.createElement("span");
+  age.className = `clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`;
+  age.textContent = missing
+    ? t("clipboard.missing")
+    : formatClipboardAge(entry.created_at, now);
+  meta.append(age);
+
+  const star = document.createElement("button");
+  star.type = "button";
+  star.tabIndex = -1;
+  star.className = `clipboard-row__star${entry.favorite ? " clipboard-row__star--on" : ""}`;
+  star.setAttribute("aria-label", t("clipboard.favorite"));
+  star.title = t("clipboard.favorite");
+  star.textContent = entry.favorite ? "★" : "☆";
+
+  button.append(marker, preview, meta, star);
+  button.addEventListener("mousemove", () => {
+    if (selected === index) return;
+    selected = index;
+    render();
+  });
+  // No mousedown hijack: a click genuinely moves focus into the list — that
+  // deliberate step away from the filter is what arms the single-key row
+  // commands. Hovering alone never steals focus.
+  button.addEventListener("click", () => void activate(entry));
+  star.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void toggleFavorite(entry);
+  });
+
+  row.append(button);
+  return row;
+};
+
 /** Rebuild the whole page's dynamic bits. The filter input is never rebuilt,
  * so its focus and caret survive every render — focus stays pinned there by
  * construction. */
@@ -236,21 +416,7 @@ const render = () => {
     return;
   }
   if (filtered.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "clipboard-panel__empty";
-    empty.textContent = t(
-      scopedEntries().length
-        ? "clipboard.emptyFilter"
-        : view === "favorites"
-          ? "clipboard.emptyFavorites"
-          : "clipboard.empty",
-    );
-    content.append(empty);
-
-    const privacy = document.createElement("div");
-    privacy.className = "clipboard-panel__empty-privacy";
-    privacy.textContent = t("settings.clipboardPrivacy");
-    content.append(privacy);
+    content.append(renderEmpty());
     return;
   }
 
@@ -261,112 +427,7 @@ const render = () => {
 
   const now = Date.now();
   filtered.forEach((entry, index) => {
-    const missing = statuses[entry.id] === false;
-    const filesPreview =
-      entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
-    const hasThumbnail = thumbnails.has(entry.id) && !missing;
-
-    const row = document.createElement("li");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("role", "option");
-    button.setAttribute("aria-selected", String(index === selected));
-    button.tabIndex = -1;
-    button.className =
-      `clipboard-row${index === selected ? " clipboard-row--selected" : ""}` +
-      `${missing ? " clipboard-row--missing" : ""}`;
-    if (entry.kind === "files") button.title = (entry.paths ?? []).join("\n");
-
-    const marker = document.createElement("span");
-    marker.className = [
-      "clipboard-row__marker",
-      entry.kind === "image" ? "clipboard-row__marker--image" : "",
-      entry.kind === "files" ? "clipboard-row__marker--files" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    marker.setAttribute("aria-hidden", "true");
-    if (entry.kind === "image" || (entry.kind === "files" && isFilesPreviewCandidate(entry.paths))) {
-      if (hasThumbnail) {
-        const img = document.createElement("img");
-        img.src = thumbnails.get(entry.id)!;
-        img.alt = "";
-        img.draggable = false;
-        marker.append(img);
-      } else {
-        marker.textContent = "[?]";
-      }
-    } else if (entry.kind === "files") {
-      marker.textContent =
-        (entry.paths?.length ?? 0) > 0 && looksLikeDirectoryPath(entry.paths![0])
-          ? "▸"
-          : "▪";
-    } else {
-      marker.textContent = "›";
-    }
-
-    const preview = document.createElement("span");
-    preview.className = "clipboard-row__preview";
-    if (filesPreview) {
-      if (filesPreview.dirname) {
-        const dir = document.createElement("span");
-        dir.className = "clipboard-row__preview-dir";
-        dir.textContent = filesPreview.dirname;
-        preview.append(dir);
-      }
-      const base = document.createElement("span");
-      base.textContent = filesPreview.basename;
-      preview.append(base);
-      if (filesPreview.extra > 0) {
-        const extra = document.createElement("span");
-        extra.className = "clipboard-row__preview-extra";
-        extra.textContent = ` +${filesPreview.extra}`;
-        preview.append(extra);
-      }
-    } else {
-      preview.textContent = clipboardPreview(entry);
-    }
-
-    const meta = document.createElement("span");
-    meta.className = "clipboard-row__meta";
-    if (entry.kind === "text" && entry.text) {
-      const chars = document.createElement("span");
-      chars.className = "clipboard-row__chars";
-      chars.textContent = t("clipboard.chars", { n: entry.text.length });
-      meta.append(chars);
-    }
-    const age = document.createElement("span");
-    age.className = `clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`;
-    age.textContent = missing
-      ? t("clipboard.missing")
-      : formatClipboardAge(entry.created_at, now);
-    meta.append(age);
-
-    const star = document.createElement("button");
-    star.type = "button";
-    star.tabIndex = -1;
-    star.className = `clipboard-row__star${entry.favorite ? " clipboard-row__star--on" : ""}`;
-    star.setAttribute("aria-label", t("clipboard.favorite"));
-    star.title = t("clipboard.favorite");
-    star.textContent = entry.favorite ? "★" : "☆";
-
-    button.append(marker, preview, meta, star);
-    button.addEventListener("mousemove", () => {
-      if (selected === index) return;
-      selected = index;
-      render();
-    });
-    // No mousedown hijack: a click genuinely moves focus into the list — that
-    // deliberate step away from the filter is what arms the single-key row
-    // commands. Hovering alone never steals focus.
-    button.addEventListener("click", () => void activate(entry));
-    star.addEventListener("click", (event) => {
-      event.stopPropagation();
-      void toggleFavorite(entry);
-    });
-
-    row.append(button);
-    list.append(row);
+    list.append(renderRow(entry, index, selected, now));
   });
   content.append(list);
 };

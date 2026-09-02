@@ -46,7 +46,7 @@ import {
   withShortcutDefaults,
   type ShortcutMap,
 } from "./shortcuts";
-import { type SettingsPage } from "./settings-persistence";
+import { type SettingsPage, normalizeSettingsPage } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -277,16 +277,7 @@ export default function App() {
     settingsLoadFailed,
     settingsRef,
     settingsHydration,
-    loadSettings,
-    commitSettings,
     persistSettings,
-    changeOpacity,
-    changeFontSize,
-    changeGeneralSetting,
-    changeTheme,
-    changeLanguage,
-    changeLaunchAtStartup,
-    flushPendingSave,
   } = useSettings({
     suppressBlurUntil,
     autostartUpdating,
@@ -317,6 +308,78 @@ export default function App() {
     () => withShortcutDefaults(settings.shortcuts),
     [settings.shortcuts],
   );
+
+  const changeOpacity = (field: "main_opacity" | "terminal_opacity", next: number) => {
+    const value = normalizeOpacity(next);
+    if (value === settingsRef.current[field]) return;
+    const updated: AppSettings = { ...settingsRef.current, [field]: value };
+    settingsHydration.markChanged(field);
+    settingsRef.current = updated;
+    setSettings(updated);
+    void persistSettings();
+  };
+
+  const changeFontSize = (next: number) => {
+    const fontSize = normalizeFontSize(next);
+    if (fontSize === settingsRef.current.font_size) return;
+    const updated = { ...settingsRef.current, font_size: fontSize };
+    settingsHydration.markChanged("font_size");
+    settingsRef.current = updated;
+    setSettings(updated);
+    void persistSettings();
+  };
+
+  const changeGeneralSetting = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
+    if (settingsRef.current[field] === value) return;
+    const updated = { ...settingsRef.current, [field]: value };
+    settingsHydration.markChanged(field);
+    settingsRef.current = updated;
+    setSettings(updated);
+    suppressBlurUntil.current = Date.now() + 400;
+    void persistSettings();
+  };
+
+  const toggleCommandsInSearch = () => {
+    changeGeneralSetting("show_commands_in_search", !settingsRef.current.show_commands_in_search);
+  };
+
+  const changeTheme = (theme: string) => {
+    if (theme === settings.theme) return;
+    changeGeneralSetting("theme", theme);
+  };
+
+  const changeLanguage = (next: Language) => {
+    if (next === language) return;
+    changeGeneralSetting("language", next);
+  };
+
+  const changeLaunchAtStartup = async (enabled: boolean) => {
+    if (autostartUpdating || enabled === settingsRef.current.launch_at_startup) return;
+    const previous = settingsRef.current.launch_at_startup;
+    const updated: AppSettings = { ...settingsRef.current, launch_at_startup: enabled };
+    settingsHydration.markChanged("launch_at_startup");
+    settingsRef.current = updated;
+    setSettings(updated);
+    setAutostartUpdating(true);
+    suppressBlurUntil.current = Date.now() + 400;
+    try {
+      await invoke("set_launch_at_startup", { enabled });
+      const latest = { ...settingsRef.current, launch_at_startup: enabled };
+      settingsRef.current = latest;
+      await persistSettings();
+    } catch {
+      await invoke("set_launch_at_startup", { enabled: previous }).catch(() => undefined);
+      setSettings((current) => {
+        const rolledBack = current.launch_at_startup === enabled
+          ? { ...current, launch_at_startup: previous }
+          : current;
+        settingsRef.current = rolledBack;
+        return rolledBack;
+      });
+    } finally {
+      setAutostartUpdating(false);
+    }
+  };
 
   // Imperative shortcut recording & capture: the row of the settings page
   // flips between idle / recording / rejected, and an in-flight capture
@@ -605,7 +668,6 @@ export default function App() {
     executeActionBar,
     runLauncherItem,
     handleLauncherKey,
-    pendingSystemAction: armedSystemAction,
     executeSystemAction,
     cancelSystemAction,
   } = useLauncherActions({
@@ -655,6 +717,20 @@ export default function App() {
     pendingSystemAction,
     setPendingSystemAction,
   });
+
+  /** Sidebar buttons by page, so ↑/↓ can move focus with the selection. */
+  const settingsSidebarButtons = useRef(new Map<SettingsPage, HTMLButtonElement>());
+  /** Switch pages and remember the choice for the next launch. */
+  const changeSettingsPage = (page: SettingsPage) => {
+    setSettingsPage(page);
+    if (settingsRef.current.last_settings_page === page) return;
+    const updated = { ...settingsRef.current, last_settings_page: page };
+    settingsRef.current = updated;
+    setSettings(updated);
+    // A page chosen while the load is still in flight must survive hydration.
+    settingsHydration.markChanged("last_settings_page");
+    void persistSettings().catch(() => undefined);
+  };
 
   useAppKeyboard({
     mode,
@@ -814,10 +890,9 @@ export default function App() {
     input.setSelectionRange(length, length);
   }, [mode]);
 
-  const loadSettings = (): Promise<void> => {
-    if (settingsLoadPromise.current) return settingsLoadPromise.current;
-    setSettingsLoading(true);
-    const request = invoke<AppSettings>("get_settings")
+  useEffect(() => {
+    // Load settings on mount
+    invoke<AppSettings>("get_settings")
       .then((loaded) => {
         const normalized = {
           ...loaded,
@@ -834,28 +909,13 @@ export default function App() {
         const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
         settingsRef.current = hydrated;
         setSettings(hydrated);
-        // Reopen on the page the user last left settings on. The merged value
-        // wins over `normalized`: a page chosen while the load was in flight
-        // must not be clobbered by the disk snapshot.
         setSettingsPage(hydrated.last_settings_page);
-        setSettingsLoadFailed(false);
         settingsHydration.finish();
       })
       .catch(() => {
         settingsHydration.markFailed();
-        setSettingsLoadFailed(true);
-      })
-      .finally(() => {
-        if (settingsLoadPromise.current === request) settingsLoadPromise.current = null;
-        setSettingsLoading(false);
       });
-    settingsLoadPromise.current = request;
-    return request;
-  };
-
-  useEffect(() => {
-    void loadSettings();
-  }, [settingsHydration]);
+  }, []);
 
   // Show the first-run onboarding tip in the launcher the first time the user
   // opens it; persist dismissal as `seen_tip` so it never returns.
@@ -1182,20 +1242,6 @@ export default function App() {
       });
   };
 
-  /** Sidebar buttons by page, so ↑/↓ can move focus with the selection. */
-  const settingsSidebarButtons = useRef(new Map<SettingsPage, HTMLButtonElement>());
-  /** Switch pages and remember the choice for the next launch. */
-  const changeSettingsPage = (page: SettingsPage) => {
-    setSettingsPage(page);
-    if (settingsRef.current.last_settings_page === page) return;
-    const updated = { ...settingsRef.current, last_settings_page: page };
-    settingsRef.current = updated;
-    setSettings(updated);
-    // A page chosen while the load is still in flight must survive hydration.
-    settingsHydration.markChanged("last_settings_page");
-    void persistSettings().catch(() => undefined);
-  };
-
   const killTerminalSession = async (session: BrokerSessionInfo) => {
     if (sessionActionId) return;
     // First click arms the inline confirm instead of blocking with
@@ -1270,13 +1316,6 @@ export default function App() {
   const quitApp = async () => {
     if (appQuitting.current) return;
     appQuitting.current = true;
-    // Slider changes are debounced. Flush the current full snapshot before the
-    // component unmounts, otherwise quitting inside that debounce window drops
-    // the user's final value when the cleanup below cancels the timer.
-    if (settingsSaveTimer.current !== null) {
-      window.clearTimeout(settingsSaveTimer.current);
-      settingsSaveTimer.current = null;
-    }
     if (settingsHydration.hasFailed()) {
       try {
         await invoke("quit_app");
@@ -1289,103 +1328,7 @@ export default function App() {
       await persistSettings();
       await invoke("quit_app");
     } catch {
-      // The save state above keeps the settings window open with a retry action.
       appQuitting.current = false;
-    }
-  };
-
-  // The launcher/terminal feedback timers are owned (and cleaned up) by
-  // `useTimedFeedback`.
-  useEffect(() => () => {
-    if (settingsSaveTimer.current !== null) {
-      window.clearTimeout(settingsSaveTimer.current);
-    }
-    if (sessionsRefreshTimer.current !== null) {
-      window.clearTimeout(sessionsRefreshTimer.current);
-    }
-  }, []);
-
-  const changeOpacity = (field: "main_opacity" | "terminal_opacity", next: number) => {
-    const value = normalizeOpacity(next);
-    if (value === settingsRef.current[field]) return;
-    const updated: AppSettings = { ...settingsRef.current, [field]: value };
-    settingsHydration.markChanged(field);
-    settingsRef.current = updated;
-    setSettings(updated);
-    if (settingsSaveTimer.current !== null) {
-      window.clearTimeout(settingsSaveTimer.current);
-    }
-    settingsSaveTimer.current = window.setTimeout(() => {
-      settingsSaveTimer.current = null;
-      persistSettings().catch(() => setSettingsSaveFailed(true));
-    }, 180);
-  };
-
-  const changeFontSize = (next: number) => {
-    const fontSize = normalizeFontSize(next);
-    if (fontSize === settingsRef.current.font_size) return;
-    const updated = { ...settingsRef.current, font_size: fontSize };
-    settingsHydration.markChanged("font_size");
-    settingsRef.current = updated;
-    setSettings(updated);
-    if (settingsSaveTimer.current !== null) {
-      window.clearTimeout(settingsSaveTimer.current);
-    }
-    settingsSaveTimer.current = window.setTimeout(() => {
-      settingsSaveTimer.current = null;
-      persistSettings().catch(() => setSettingsSaveFailed(true));
-    }, 180);
-  };
-
-  const changeGeneralSetting = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
-    if (settingsRef.current[field] === value) return;
-    const updated = { ...settingsRef.current, [field]: value };
-    settingsHydration.markChanged(field);
-    settingsRef.current = updated;
-    setSettings(updated);
-    suppressBlurUntil.current = Date.now() + 400;
-    persistSettings().catch(() => setSettingsSaveFailed(true));
-  };
-
-  const toggleCommandsInSearch = () => {
-    changeGeneralSetting("show_commands_in_search", !settingsRef.current.show_commands_in_search);
-  };
-
-  const changeTheme = (theme: string) => {
-    if (theme === settings.theme) return;
-    changeGeneralSetting("theme", theme);
-  };
-
-  const changeLanguage = (next: Language) => {
-    if (next === language) return;
-    changeGeneralSetting("language", next);
-  };
-
-  const changeLaunchAtStartup = async (enabled: boolean) => {
-    if (autostartUpdating || enabled === settingsRef.current.launch_at_startup) return;
-    const previous = settingsRef.current.launch_at_startup;
-    const updated: AppSettings = { ...settingsRef.current, launch_at_startup: enabled };
-    settingsHydration.markChanged("launch_at_startup");
-    settingsRef.current = updated;
-    setSettings(updated);
-    setAutostartUpdating(true);
-    suppressBlurUntil.current = Date.now() + 400;
-    try {
-      await invoke("set_launch_at_startup", { enabled });
-      const latest = { ...settingsRef.current, launch_at_startup: enabled };
-      settingsRef.current = latest;
-      await persistSettings();
-    } catch {
-      await invoke("set_launch_at_startup", { enabled: previous }).catch(() => undefined);
-      setSettings((current) => {
-        const rolledBack = current.launch_at_startup === enabled
-          ? { ...current, launch_at_startup: previous }
-          : current;
-        settingsRef.current = rolledBack;
-        return rolledBack;
-      });
-    } finally {
-      setAutostartUpdating(false);
     }
   };
 
@@ -1485,19 +1428,6 @@ export default function App() {
               <div className="settings-save-alert" role="alert">
                 <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
                 <span>{t("settings.loadFailed")}</span>
-                <button
-                  type="button"
-                  disabled={settingsLoading}
-                  onClick={() => void loadSettings()}
-                >
-                  <RefreshCw
-                    className={settingsLoading ? "settings-save-alert__spinner" : undefined}
-                    size={14}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
-                  {t(settingsLoading ? "settings.loading" : "settings.retryLoad")}
-                </button>
               </div>
             )}
             {settingsSaveFailed && (

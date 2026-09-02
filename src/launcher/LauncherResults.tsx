@@ -231,11 +231,7 @@ export function LauncherResults({
                     ) : isHistory ? (
                       <HistoryIcon />
                     ) : (
-                      // The placeholder for an application whose icon has
-                      // not resolved yet: a first letter over a real icon
-                      // reads as a different application rather than as a
-                      // pending one.
-                      <span>$</span>
+                      <TerminalIcon />
                     )}
                   </span>
                   <span className="launcher-result__main">
