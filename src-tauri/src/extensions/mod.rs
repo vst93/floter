@@ -15,6 +15,7 @@ pub mod manifest;
 pub mod official_index;
 pub mod platform;
 pub mod probe;
+pub mod probe_executor;
 pub mod probe_runner;
 pub mod profile;
 pub mod provider;

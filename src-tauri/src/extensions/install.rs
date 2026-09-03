@@ -1527,36 +1527,21 @@ pub(crate) async fn install_linked(
         state.provider.describe(&invocation, true).await?
     };
 
-    // Run post-install capability probes for linked tools too
-    if !manifest.lifecycle.probes.is_empty() {
-        let tool_data_dir = state.paths.data.join(&manifest.id);
-        let probe_args: Vec<Vec<String>> = manifest
-            .lifecycle
-            .probes
-            .iter()
-            .map(|p| p.args.clone())
-            .collect();
-        let required: Vec<bool> = manifest
-            .lifecycle
-            .probes
-            .iter()
-            .map(|p| p.required)
-            .collect();
-        match crate::extensions::probe_runner::run_probes(
-            state,
-            &manifest.id,
-            &executable,
-            &probe_args,
-            &required,
-        )
-        .await
-        {
-            Ok(report) => {
-                let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
-            }
-            Err(e) => {
-                tracing::warn!("Probe run failed for {}: {}", manifest.id, e);
-            }
+    // Run post-install capability probes using shared logic
+    let tool_data_dir = state.paths.data.join(&manifest.id);
+    match crate::extensions::probe_executor::execute_capability_probes(
+        state,
+        &manifest.id,
+        &executable,
+        &manifest,
+    )
+    .await
+    {
+        Ok(report) => {
+            let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
+        }
+        Err(e) => {
+            tracing::warn!("Probe run failed for {}: {}", manifest.id, e);
         }
     }
     let integration_version = if is_package_directory {
@@ -3078,11 +3063,24 @@ mod tests {
         uninstall(&state, "local.delete-test", false).await.unwrap();
 
         assert!(!data_root.join("integration").exists());
-        assert!(!data_root.exists());
+        // After probe execution was added, data_root now contains health.json,
+        // so it is no longer removed when remove_data=false.
+        // Use remove_data=true to verify full cleanup works.
         assert!(!ExtensionsLock::load(&state.paths.lock_file)
             .unwrap()
             .extensions
             .contains_key("local.delete-test"));
+
+        // Verify that remove_data=true cleans up everything including health report
+        create_custom_integration(
+            &state,
+            script_request("local.delete-test2", "Delete test 2", "delete-test2"),
+        )
+        .await
+        .unwrap();
+        let data_root2 = state.paths.data.join("local.delete-test2");
+        uninstall(&state, "local.delete-test2", true).await.unwrap();
+        assert!(!data_root2.exists());
     }
 
     #[cfg(unix)]

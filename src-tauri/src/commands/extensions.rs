@@ -1622,9 +1622,6 @@ pub async fn extensions_reprobe(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<HealthReport, String> {
-    use crate::extensions::capability_probe::CapabilityProbe;
-    use crate::extensions::health::HealthReport;
-
     let entry = ExtensionsLock::load(&state.paths.lock_file)?
         .get(&id)?
         .clone();
@@ -1638,53 +1635,21 @@ pub async fn extensions_reprobe(
         ));
     }
 
-    // Build default probes: --version and --help
-    let version_probe = CapabilityProbe::version();
-    let help_probe = CapabilityProbe::help();
+    // Load the manifest to get lifecycle probes
+    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
 
-    let probes = [version_probe, help_probe];
-    let required = [true, false]; // version required, help optional
-
-    let health_dir = state.paths.data.join(&id);
-    let mut report = HealthReport::new(Default::default());
-
-    for (i, probe) in probes.iter().enumerate() {
-        let start = std::time::Instant::now();
-        let timeout = std::time::Duration::from_secs(5);
-
-        match crate::extensions::probe_runner::run_single_probe(&executable, &probe.args, timeout)
-            .await
-        {
-            Ok(result) => {
-                let duration = start.elapsed();
-                if result.passed {
-                    report.record_pass(&probe.id, duration, result.exit_code);
-                } else {
-                    report.record_failure(
-                        &probe.id,
-                        duration,
-                        result.exit_code,
-                        result.stderr,
-                        !required[i],
-                    );
-                }
-            }
-            Err(error) => {
-                let duration = start.elapsed();
-                report.record_failure(&probe.id, duration, None, error, !required[i]);
-            }
-        }
-    }
-
-    let required_ids: Vec<String> = required
-        .iter()
-        .enumerate()
-        .filter(|(_, r)| **r)
-        .map(|(i, _)| probes[i].id.clone())
-        .collect();
-    report.finalize(&required_ids);
+    // Execute probes using the shared logic: manifest probes if declared,
+    // otherwise --version/--help fallback
+    let report = crate::extensions::probe_executor::execute_capability_probes(
+        &state,
+        &id,
+        &executable,
+        &manifest,
+    )
+    .await?;
 
     // Save the health report
+    let health_dir = state.paths.data.join(&id);
     crate::extensions::health::write_health_report(&health_dir, &report)?;
 
     Ok(report)
