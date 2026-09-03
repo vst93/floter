@@ -13,8 +13,9 @@ use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
-use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget, Runtime};
+use crate::extensions::manifest::{self, ExtensionManifest, Permission, PlatformTarget, Runtime};
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
+use crate::extensions::session_restore;
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
 use crate::extensions::tool_manifests;
 use crate::extensions::{
@@ -1671,23 +1672,41 @@ pub async fn extensions_launch(
         .get(&id)?
         .clone();
 
+    // Load manifest to read lifecycle.launch configuration
+    let manifest_path = std::path::Path::new(&entry.manifest_path);
+    let manifest = ExtensionManifest::load(manifest_path)?;
+    let launch_config = manifest.lifecycle.launch.as_ref();
+
     // Get tool data directory
     let tool_data_dir = state.paths.data.join(&id);
     std::fs::create_dir_all(&tool_data_dir)
         .map_err(|e| format!("Cannot create tool data dir: {e}"))?;
 
-    // Resolve cwd
+    // Resolve cwd using manifest-declared policy or default
     let active_session_cwd = cwd.as_deref().map(std::path::Path::new);
-    let cwd_context = CwdContext::new(active_session_cwd, &tool_data_dir, false);
+    let has_filesystem_permission = entry
+        .approved_permissions
+        .contains(&manifest::Permission::FilesystemRead)
+        || entry
+            .approved_permissions
+            .contains(&manifest::Permission::FilesystemWrite);
+    let cwd_context = CwdContext::new(
+        active_session_cwd,
+        &tool_data_dir,
+        has_filesystem_permission,
+    );
 
-    // Default policy: InheritActiveSession
-    let policy = crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession;
+    let policy = launch_config
+        .and_then(|cfg| parse_cwd_policy_from_manifest(&cfg.cwd_policy).ok())
+        .unwrap_or(crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession);
     let resolved_cwd = policy.resolve(&cwd_context)?;
 
-    // Resolve session
+    // Resolve session using manifest-declared restore policy or default
     let sessions_dir = tool_data_dir.join("sessions");
     let session_resolver = SessionResolver::new(sessions_dir);
-    let restore_policy = RestorePolicy::Reattach;
+    let restore_policy = launch_config
+        .map(|cfg| parse_restore_policy(&cfg.restore_policy))
+        .unwrap_or(RestorePolicy::Reattach);
 
     let tool_version = entry.package_version.clone();
     let session = session_resolver.resolve(SessionResolveRequest {
@@ -1714,6 +1733,31 @@ pub async fn extensions_launch(
     };
     session_resolver.write_session(&session_desc)?;
 
+    // Build terminal config from manifest or default
+    let terminal_config = launch_config
+        .and_then(|cfg| cfg.terminal.as_ref())
+        .map(|term| {
+            serde_json::json!({
+                "required": term.required,
+                "color": &term.color,
+                "unicode": term.unicode,
+                "bracketedPaste": term.bracketed_paste,
+                "synchronizedOutput": if term.synchronized_output { "required" } else { "preferred" },
+                "keyboardProtocol": term.keyboard_protocol.as_deref().unwrap_or("kitty-preferred"),
+                "mouse": term.mouse.as_deref()
+            })
+        })
+        .unwrap_or_else(|| {
+            serde_json::json!({
+                "required": true,
+                "color": "truecolor",
+                "unicode": true,
+                "bracketedPaste": true,
+                "synchronizedOutput": "preferred",
+                "keyboardProtocol": "kitty-preferred"
+            })
+        });
+
     // Build launch plan
     let launch_plan = serde_json::json!({
         "sessionId": session_id,
@@ -1722,14 +1766,7 @@ pub async fn extensions_launch(
         "argv": argv,
         "cwd": resolved_cwd.to_string_lossy(),
         "isRestart": is_restart,
-        "terminal": {
-            "required": true,
-            "color": "truecolor",
-            "unicode": true,
-            "bracketedPaste": true,
-            "synchronizedOutput": "preferred",
-            "keyboardProtocol": "kitty-preferred"
-        },
+        "terminal": terminal_config,
         "environment": {
             "TERM": "floter-256color",
             "COLORTERM": "truecolor",
@@ -1738,6 +1775,34 @@ pub async fn extensions_launch(
     });
 
     Ok(launch_plan)
+}
+
+/// Parse CwdPolicy from manifest's JSON value representation
+fn parse_cwd_policy_from_manifest(
+    value: &serde_json::Value,
+) -> Result<crate::extensions::cwd_policy::CwdPolicy, String> {
+    use crate::extensions::cwd_policy::CwdPolicy;
+
+    match value.as_str() {
+        Some("inheritActiveSession") => Ok(CwdPolicy::InheritActiveSession),
+        Some("toolData") => Ok(CwdPolicy::ToolData),
+        Some("home") => Ok(CwdPolicy::Home),
+        _ => {
+            // Try to deserialize as a structured policy (ProjectRoot or Fixed)
+            serde_json::from_value(value.clone())
+                .map_err(|e| format!("Invalid cwd_policy in manifest: {e}"))
+        }
+    }
+}
+
+/// Parse RestorePolicy from manifest string
+fn parse_restore_policy(value: &str) -> session_restore::RestorePolicy {
+    use crate::extensions::session_restore::RestorePolicy;
+    match value {
+        "restart" => RestorePolicy::Restart,
+        "none" => RestorePolicy::None,
+        _ => RestorePolicy::Reattach, // default to reattach for unknown values
+    }
 }
 
 #[tauri::command]
@@ -1949,5 +2014,73 @@ mod tests {
             .into_owned();
         lock.extensions.insert("other.tool".into(), entry);
         assert!(manifest_suggestions(&lock, &[], &candidates, &tools).is_empty());
+    }
+
+    #[test]
+    fn parse_cwd_policy_from_manifest_handles_string_variants() {
+        use crate::extensions::cwd_policy::CwdPolicy;
+
+        let inherit = serde_json::json!("inheritActiveSession");
+        assert!(matches!(
+            parse_cwd_policy_from_manifest(&inherit).unwrap(),
+            CwdPolicy::InheritActiveSession
+        ));
+
+        let tool_data = serde_json::json!("toolData");
+        assert!(matches!(
+            parse_cwd_policy_from_manifest(&tool_data).unwrap(),
+            CwdPolicy::ToolData
+        ));
+
+        let home = serde_json::json!("home");
+        assert!(matches!(
+            parse_cwd_policy_from_manifest(&home).unwrap(),
+            CwdPolicy::Home
+        ));
+    }
+
+    #[test]
+    fn parse_cwd_policy_from_manifest_handles_project_root() {
+        use crate::extensions::cwd_policy::CwdPolicy;
+
+        // Note: serde field names are snake_case (max_depth), not camelCase
+        let project_root = serde_json::json!({
+            "policy": "projectRoot",
+            "markers": [".git", "Cargo.toml"],
+            "max_depth": 10
+        });
+        let parsed = parse_cwd_policy_from_manifest(&project_root).unwrap();
+        match parsed {
+            CwdPolicy::ProjectRoot { markers, max_depth } => {
+                assert_eq!(markers, vec![".git", "Cargo.toml"]);
+                assert_eq!(max_depth, 10);
+            }
+            _ => panic!("Expected ProjectRoot policy"),
+        }
+
+        // Test that omitted max_depth gets default value
+        let project_root_default = serde_json::json!({
+            "policy": "projectRoot"
+        });
+        match parse_cwd_policy_from_manifest(&project_root_default).unwrap() {
+            CwdPolicy::ProjectRoot {
+                markers: _,
+                max_depth,
+            } => {
+                assert_eq!(max_depth, 32); // default value
+            }
+            _ => panic!("Expected ProjectRoot policy"),
+        }
+    }
+
+    #[test]
+    fn parse_restore_policy_handles_all_variants() {
+        use crate::extensions::session_restore::RestorePolicy;
+
+        assert_eq!(parse_restore_policy("reattach"), RestorePolicy::Reattach);
+        assert_eq!(parse_restore_policy("restart"), RestorePolicy::Restart);
+        assert_eq!(parse_restore_policy("none"), RestorePolicy::None);
+        // Unknown values default to reattach
+        assert_eq!(parse_restore_policy("unknown"), RestorePolicy::Reattach);
     }
 }
