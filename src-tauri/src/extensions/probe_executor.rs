@@ -125,22 +125,225 @@ async fn execute_default_probes(executable: &Path) -> Result<HealthReport, Strin
 
 #[cfg(test)]
 mod tests {
-    use crate::extensions::lifecycle::CapabilityProbeEntry;
+    use super::*;
+    use crate::extensions::health::HealthStatus;
+    use crate::extensions::lifecycle::{CapabilityProbeEntry, ToolLifecycle};
+    use crate::extensions::manifest::ExtensionManifest;
 
-    #[test]
-    fn manifest_with_probes_uses_declared_probes() {
+    fn minimal_manifest() -> ExtensionManifest {
+        let json = r#"{
+            "schemaVersion": "2.0",
+            "id": "test.tool",
+            "name": "Test Tool",
+            "publisher": {"id": "test", "name": "Test"},
+            "compatibility": {"floter": ">=0.1.0", "providerProtocol": "^1.0"},
+            "distribution": {"type": "local"},
+            "runtime": {"type": "system", "executableNames": ["tool"]},
+            "provider": {"type": "executable", "argsPrefix": []}
+        }"#;
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn manifest_with_probes_executes_declared_probes() {
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let tool = runtime.join("tool");
+
+        // Fake binary that passes on --check
+        std::fs::write(
+            &tool,
+            b"#!/bin/sh\nif [ \"$1\" = \"--check\" ]; then exit 0; else exit 1; fi\n",
+        )
+        .unwrap();
+        crate::extensions::install::make_executable(&tool).unwrap();
+
+        let mut manifest = minimal_manifest();
+        manifest.lifecycle = ToolLifecycle {
+            probes: vec![CapabilityProbeEntry {
+                id: "custom-check".to_string(),
+                args: vec!["--check".to_string()],
+                timeout_ms: 2000,
+                required: true,
+            }],
+            ..Default::default()
+        };
+
+        let report = execute_manifest_probes(&tool, &manifest.lifecycle.probes)
+            .await
+            .unwrap();
+
+        assert_eq!(report.status, HealthStatus::Healthy);
+        assert_eq!(report.probes.len(), 1);
+        assert_eq!(report.probes[0].probe_id, "custom-check");
+        assert!(report.probes[0].passed);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn manifest_without_probes_falls_back_to_version_and_help() {
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let tool = runtime.join("tool");
+
+        // Fake binary that passes on --version
+        std::fs::write(
+            &tool,
+            b"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo \"1.0.0\"; exit 0; fi\nexit 1\n",
+        )
+        .unwrap();
+        crate::extensions::install::make_executable(&tool).unwrap();
+
+        let manifest = minimal_manifest();
+        assert!(manifest.lifecycle.probes.is_empty());
+
+        let report = execute_default_probes(&tool).await.unwrap();
+
+        // Should have attempted version (required) and help (optional)
+        assert!(report.probes.iter().any(|p| p.probe_id == "version"));
+        let version_probe = report
+            .probes
+            .iter()
+            .find(|p| p.probe_id == "version")
+            .unwrap();
+        assert!(version_probe.passed);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn required_probe_failure_results_in_unhealthy() {
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let tool = runtime.join("tool");
+
+        // Fake binary that fails
+        std::fs::write(&tool, b"#!/bin/sh\nexit 1\n").unwrap();
+        crate::extensions::install::make_executable(&tool).unwrap();
+
         let probes = vec![CapabilityProbeEntry {
-            id: "custom-check".to_string(),
+            id: "required-check".to_string(),
             args: vec!["--check".to_string()],
             timeout_ms: 2000,
             required: true,
         }];
-        assert!(!probes.is_empty());
+
+        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+
+        assert_eq!(report.status, HealthStatus::Unhealthy);
+        assert_eq!(report.failures.len(), 1);
+        assert_eq!(report.failures[0].probe, "required-check");
+        assert!(!report.failures[0].retryable);
     }
 
-    #[test]
-    fn manifest_without_probes_falls_back_to_defaults() {
-        let probes: Vec<CapabilityProbeEntry> = vec![];
-        assert!(probes.is_empty());
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn optional_probe_failure_results_in_degraded() {
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let tool = runtime.join("tool");
+
+        // Fake binary that fails
+        std::fs::write(&tool, b"#!/bin/sh\nexit 1\n").unwrap();
+        crate::extensions::install::make_executable(&tool).unwrap();
+
+        let probes = vec![CapabilityProbeEntry {
+            id: "optional-check".to_string(),
+            args: vec!["--feature".to_string()],
+            timeout_ms: 2000,
+            required: false,
+        }];
+
+        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+
+        assert_eq!(report.status, HealthStatus::Degraded);
+        assert_eq!(report.failures.len(), 1);
+        assert_eq!(report.failures[0].probe, "optional-check");
+        assert!(report.failures[0].retryable);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn probe_timeout_is_recorded_as_failure() {
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let tool = runtime.join("tool");
+
+        // Fake binary that sleeps longer than timeout
+        std::fs::write(&tool, b"#!/bin/sh\nsleep 10\n").unwrap();
+        crate::extensions::install::make_executable(&tool).unwrap();
+
+        let probes = vec![CapabilityProbeEntry {
+            id: "timeout-check".to_string(),
+            args: vec!["--check".to_string()],
+            timeout_ms: 100, // Short timeout to avoid test hanging
+            required: true,
+        }];
+
+        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+
+        assert_eq!(report.status, HealthStatus::Unhealthy);
+        assert_eq!(report.failures.len(), 1);
+        assert!(report.failures[0].stderr.contains("timed out"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn mixed_required_and_optional_probes() {
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = temp.path().join("runtime");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let tool = runtime.join("tool");
+
+        // Fake binary: passes on --required, fails on --optional
+        std::fs::write(
+            &tool,
+            b"#!/bin/sh\nif [ \"$1\" = \"--required\" ]; then exit 0; else exit 1; fi\n",
+        )
+        .unwrap();
+        crate::extensions::install::make_executable(&tool).unwrap();
+
+        let probes = vec![
+            CapabilityProbeEntry {
+                id: "required-probe".to_string(),
+                args: vec!["--required".to_string()],
+                timeout_ms: 2000,
+                required: true,
+            },
+            CapabilityProbeEntry {
+                id: "optional-probe".to_string(),
+                args: vec!["--optional".to_string()],
+                timeout_ms: 2000,
+                required: false,
+            },
+        ];
+
+        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+
+        // Required passed, optional failed → Degraded
+        assert_eq!(report.status, HealthStatus::Degraded);
+        assert_eq!(report.probes.len(), 2);
+
+        let required = report
+            .probes
+            .iter()
+            .find(|p| p.probe_id == "required-probe")
+            .unwrap();
+        assert!(required.passed);
+
+        let optional = report
+            .probes
+            .iter()
+            .find(|p| p.probe_id == "optional-probe")
+            .unwrap();
+        assert!(!optional.passed);
+
+        assert_eq!(report.failures.len(), 1);
+        assert_eq!(report.failures[0].probe, "optional-probe");
     }
 }
