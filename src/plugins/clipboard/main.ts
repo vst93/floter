@@ -30,7 +30,7 @@ import {
   normalizeEntries,
   type ClipboardEntry,
 } from "../../clipboard-history";
-import { BRIDGE_TAG, isBridgeOpacity, isBridgeResult } from "../../plugin-pages";
+import { BRIDGE_TAG, isBridgeOpacity, isBridgeTheme, isBridgeResult } from "../../plugin-pages";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -55,6 +55,11 @@ window.addEventListener("message", (event: MessageEvent) => {
   if (isBridgeOpacity(data)) {
     // Opacity sliders moved host-side; restyle in place.
     applyOpacity(data.mainOpacity, data.terminalOpacity);
+    return;
+  }
+  if (isBridgeTheme(data)) {
+    // Theme changed host-side; update the page's data-theme attribute.
+    document.documentElement.setAttribute("data-theme", data.theme);
     return;
   }
   if (!isBridgeResult(data)) return;
@@ -465,9 +470,31 @@ const reload = async () => {
     if (gen !== reloadGen) return;
     entries = [];
     loadFailed = true;
+    return;
   }
-  // Thumbnails for image entries and single-image files entries, fetched once
-  // per load; bytes cross the bridge as plain arrays and become blob URLs.
+
+  // Render immediately with entry data, before fetching thumbnails or statuses.
+  // First paint shows the text content; images populate progressively.
+  render();
+
+  // File statuses: batch fetch for all file entries.
+  const fileIds = entries
+    .filter((entry) => entry.kind === "files")
+    .map((entry) => entry.id);
+  if (fileIds.length) {
+    invokeCommand<Record<string, boolean>>("clipboard_entry_statuses", {
+      ids: fileIds,
+    })
+      .then((nextStatuses) => {
+        if (gen !== reloadGen) return;
+        statuses = nextStatuses;
+        render();
+      })
+      .catch(() => undefined);
+  }
+
+  // Thumbnails: fetched progressively after the list is already visible.
+  // Each thumbnail arrival triggers a single-row repaint through setThumbnail.
   for (const entry of entries.filter((candidate) => candidate.kind === "image")) {
     invokeCommand<number[]>("clipboard_read_image", { id: entry.id })
       .then((bytes) => {
@@ -487,16 +514,6 @@ const reload = async () => {
       })
       .catch(() => undefined);
   }
-  const fileIds = entries
-    .filter((entry) => entry.kind === "files")
-    .map((entry) => entry.id);
-  const nextStatuses = fileIds.length
-    ? await invokeCommand<Record<string, boolean>>("clipboard_entry_statuses", {
-        ids: fileIds,
-      }).catch(() => ({}))
-    : {};
-  if (gen !== reloadGen) return;
-  statuses = nextStatuses;
 };
 
 const activate = async (entry: ClipboardEntry | undefined) => {

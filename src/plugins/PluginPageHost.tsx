@@ -8,7 +8,7 @@ import {
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
-import type { BridgeOpacity } from "../plugin-pages";
+import type { BridgeOpacity, BridgeTheme } from "../plugin-pages";
 import { createTranslator, type Language, type MessageKey } from "../i18n";
 
 /**
@@ -40,7 +40,7 @@ export type PluginPageDescriptorInfo = {
 };
 
 type PluginPageHostProps = {
-  pluginId: string;
+  pluginId: string | null;
   /** Bootstrap values handed to the page via query params. */
   language: Language;
   theme: "dark" | "light";
@@ -77,9 +77,21 @@ export function PluginPageHost({
   const t = useMemo(() => createTranslator(language), [language]);
 
   useEffect(() => {
+    if (!pluginId) {
+      // pluginId went null: the page was closed. Keep the iframe alive but hidden
+      // so reopening is instant. Don't clear descriptor/src — the page stays
+      // mounted in the background.
+      return;
+    }
     let cancelled = false;
-    setDescriptor(null);
     setLoadFailed(false);
+    // Only fetch descriptor if we don't have one yet, or pluginId changed to
+    // a different plugin (switching pages, not toggling the same one).
+    if (descriptor && descriptor.id === pluginId) {
+      // Same page as before: already loaded, just show it.
+      return;
+    }
+    setDescriptor(null);
     // A descriptor fetch that never settles would leave this host rendering
     // `null` forever (see the JSX below) — and because the window itself is
     // transparent, an empty host is not a blank panel but a see-through hole
@@ -103,9 +115,8 @@ export function PluginPageHost({
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
-      allowedRef.current = [];
     };
-  }, [pluginId, reloadNonce]);
+  }, [pluginId, reloadNonce, descriptor]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -165,10 +176,24 @@ export function PluginPageHost({
 
   const handleFrameLoad = useCallback(() => {
     setFrameLoaded(true);
+    // Bootstrap the newly loaded page with current settings.
+    if (iframeRef.current?.contentWindow) {
+      const opacityMessage: BridgeOpacity = {
+        [BRIDGE_TAG]: "opacity",
+        mainOpacity: opacityRef.current.mainOpacity,
+        terminalOpacity: opacityRef.current.terminalOpacity,
+      };
+      const themeMessage: BridgeTheme = {
+        [BRIDGE_TAG]: "theme",
+        theme,
+      };
+      iframeRef.current.contentWindow.postMessage(opacityMessage, "*");
+      iframeRef.current.contentWindow.postMessage(themeMessage, "*");
+    }
     // Hand the keyboard to the page: its own Spotlight discipline (typing
     // routes to its filter input) takes over from here.
     iframeRef.current?.focus();
-  }, []);
+  }, [theme]);
 
   // Bootstrap params double as a cache-buster-free way to pass settings the
   // sandboxed page cannot read itself. Re-keying the iframe when they change
@@ -201,24 +226,33 @@ export function PluginPageHost({
 
   useEffect(() => {
     if (!frameLoaded) return;
-    const message: BridgeOpacity = {
+    const opacityMessage: BridgeOpacity = {
       [BRIDGE_TAG]: "opacity",
       mainOpacity,
       terminalOpacity,
     };
-    iframeRef.current?.contentWindow?.postMessage(message, "*");
+    iframeRef.current?.contentWindow?.postMessage(opacityMessage, "*");
   }, [frameLoaded, mainOpacity, terminalOpacity]);
 
+  useEffect(() => {
+    if (!frameLoaded) return;
+    const themeMessage: BridgeTheme = {
+      [BRIDGE_TAG]: "theme",
+      theme,
+    };
+    iframeRef.current?.contentWindow?.postMessage(themeMessage, "*");
+  }, [frameLoaded, theme]);
+
   return (
-    <div className="plugin-page-host" data-plugin-id={pluginId}>
+    <div className="plugin-page-host" data-plugin-id={pluginId ?? ""} style={{ display: pluginId ? "block" : "none" }}>
       {src ? (
         <iframe
           ref={iframeRef}
           className="plugin-page-host__frame"
           src={src}
-          title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId}
+          title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId ?? ""}
           // Opaque origin: scripts yes, same-origin access and Tauri APIs no.
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           onLoad={handleFrameLoad}
         />
       ) : loadFailed || descriptor ? (
@@ -235,12 +269,12 @@ export function PluginPageHost({
             {t("settings.retry")}
           </button>
         </div>
-      ) : (
+      ) : pluginId ? (
         // Descriptor still in flight. Render an opaque placeholder rather than
         // nothing: this host fills a transparent window, so an empty subtree
         // shows the desktop through the panel for as long as the fetch takes.
         <div className="plugin-page-host__loading" aria-busy="true" />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1431,6 +1431,12 @@ export default function App() {
     // mode); the embedded PTY keeps running underneath, untouched. The page
     // itself is whatever HTML the plugin declared, hosted through the generic
     // sandboxed-iframe + bridge pipeline.
+    //
+    // The host is rendered persistently (even when mode !== "plugin") to keep
+    // the iframe alive across toggles — tearing it down and recreating it on
+    // every open caused visible jank. When pluginPageId is null, the host hides
+    // its iframe but keeps it mounted, so reopening is instant and preserves
+    // the page's filter text, selection and scroll position.
     return (
       <div className="terminal-shell">
         {pinnedCardElement}
@@ -1715,6 +1721,18 @@ export default function App() {
                 )}
             </div>
           </div>
+          {/* Keep the plugin page iframe alive (hidden) even in collapsed mode so
+              reopening the clipboard page is instant and preserves its state. */}
+          <div style={{ display: "none" }}>
+            <PluginPageHost
+              pluginId={null}
+              language={language}
+              theme={resolvedTheme}
+              mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
+              terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
+              onClose={closePluginPage}
+            />
+          </div>
         </div>
       </div>
     );
@@ -1795,6 +1813,18 @@ export default function App() {
                 // sees an empty value when onInput already flushed it.
                 queueMicrotask(() => flushTerminalTextInput());
               }}
+            />
+          </div>
+          {/* Keep the plugin page iframe alive (hidden) even in terminal mode so
+              reopening the clipboard page is instant and preserves its state. */}
+          <div style={{ display: "none" }}>
+            <PluginPageHost
+              pluginId={null}
+              language={language}
+              theme={resolvedTheme}
+              mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
+              terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
+              onClose={closePluginPage}
             />
           </div>
           {mainPinnedAway && (

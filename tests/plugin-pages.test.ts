@@ -10,8 +10,10 @@ import {
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
+  isBridgeOpacity,
   isBridgeRequest,
   isBridgeResult,
+  isBridgeTheme,
 } from "../src/plugin-pages.ts";
 
 test("invoke requests are recognized with optional args", () => {
@@ -111,4 +113,32 @@ test("page URLs resolve against the app base and carry bootstrap params", () => 
   // building itself stays neutral so the test pins the shape only.
   const nested = buildPluginPageUrl("tauri://localhost/", "../escape.html");
   assert.ok(nested.includes("escape.html"));
+});
+
+test("opacity messages are recognized with finite values", () => {
+  assert.ok(isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: 0.94, terminalOpacity: 0.92 }));
+  assert.ok(isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: 0, terminalOpacity: 1 }));
+  assert.equal(
+    isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: Number.NaN, terminalOpacity: 0.9 }),
+    false,
+    "NaN rejected",
+  );
+  assert.equal(
+    isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: "0.94", terminalOpacity: 0.9 }),
+    false,
+    "string rejected",
+  );
+  assert.equal(isBridgeOpacity({ [BRIDGE_TAG]: "opacity" }), false, "missing fields");
+});
+
+test("theme messages are recognized with dark or light", () => {
+  assert.ok(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: "dark" }));
+  assert.ok(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: "light" }));
+  assert.equal(
+    isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: "auto" }),
+    false,
+    "auto not a valid page theme",
+  );
+  assert.equal(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: null }), false);
+  assert.equal(isBridgeTheme({ [BRIDGE_TAG]: "theme" }), false);
 });

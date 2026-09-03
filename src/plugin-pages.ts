@@ -44,6 +44,16 @@ export type BridgeOpacity = {
   terminalOpacity: number;
 };
 
+/**
+ * Host → page: live theme update. Theme is also a bootstrap query param, but
+ * the app theme can change mid-session (user toggles dark/light in settings);
+ * pushing the new value as a message lets the page update in place.
+ */
+export type BridgeTheme = {
+  [BRIDGE_TAG]: "theme";
+  theme: "dark" | "light";
+};
+
 export type BridgeFromPage = BridgeRequest | BridgeClose;
 
 // Arrays are objects but never valid bridge payloads: `args` travels into a
@@ -72,6 +82,11 @@ export const isBridgeOpacity = (data: unknown): data is BridgeOpacity =>
   Number.isFinite(data.mainOpacity) &&
   typeof data.terminalOpacity === "number" &&
   Number.isFinite(data.terminalOpacity);
+
+export const isBridgeTheme = (data: unknown): data is BridgeTheme =>
+  isRecord(data) &&
+  data[BRIDGE_TAG] === "theme" &&
+  (data.theme === "dark" || data.theme === "light");
 
 export const isBridgeResult = (data: unknown): data is BridgeResult =>
   isRecord(data) &&
