@@ -13,6 +13,7 @@ use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
 use commands::autostart::{ensure_launch_at_startup, set_launch_at_startup};
+use commands::clipboard::{clipboard_read_text, clipboard_write_text};
 use commands::config::{
     app_version, get_settings, get_shortcuts, load_settings, reset_shortcuts, resolved_shortcuts,
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
@@ -30,7 +31,6 @@ use commands::extensions::{
     extensions_refresh_official_status, extensions_repair, extensions_reprobe,
     extensions_reprobe_commands, extensions_search_tools, extensions_uninstall,
 };
-use commands::clipboard::{clipboard_read_text, clipboard_write_text};
 use commands::system::system_power;
 use commands::terminal::{
     open_in_default_terminal, term_attach_existing, term_close, term_detach_view, term_input,
@@ -350,9 +350,13 @@ fn on_wayland() -> bool {
 fn set_panel_resizable(window: &WebviewWindow, resizable: bool) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     if on_wayland() {
-        return window.set_resizable(true).map_err(|error| error.to_string());
+        return window
+            .set_resizable(true)
+            .map_err(|error| error.to_string());
     }
-    window.set_resizable(resizable).map_err(|error| error.to_string())
+    window
+        .set_resizable(resizable)
+        .map_err(|error| error.to_string())
 }
 
 /// The monitor holding the focused window, asked of X11 through `xprop` and

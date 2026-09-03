@@ -808,4 +808,45 @@ mod tests {
         );
         assert!(entry.approved_at > 0);
     }
+
+    #[test]
+    fn old_lock_entries_load_with_default_phase_2_fields() {
+        // Regression: Phase 2 added approved_at, approved_manifest_digest,
+        // last_error_code, last_error_detail, broken_reason, and
+        // enabled_before_broken. Lock files written before Phase 2 must still
+        // load, with new fields taking serde defaults and pinned/channel
+        // preserved.
+        let old_entry_json = serde_json::json!({
+            "id": "example.tool",
+            "name": "Example Tool",
+            "publisherId": "example.publisher",
+            "publisherName": "Example Publisher",
+            "distributionSource": "local",
+            "runtimeOwnership": "system",
+            "providerKind": "executable",
+            "state": "enabled",
+            "enabled": true,
+            "packageVersion": "1.0.0",
+            "currentVersion": "1.0.0",
+            "manifestPath": "/path/to/manifest",
+            "executablePath": "/usr/bin/example",
+            "installedAt": 1693000000,
+            "updatedAt": 1693000000,
+            "pinned": true,
+            "channel": "beta",
+            "approvedPermissions": ["filesystem-read"]
+        });
+        let entry: ExtensionLockEntry = serde_json::from_value(old_entry_json).unwrap();
+        assert_eq!(entry.id, "example.tool");
+        assert_eq!(entry.pinned, true);
+        assert_eq!(entry.channel, "beta");
+        assert_eq!(entry.approved_permissions.len(), 1);
+        // New Phase 2 fields default correctly:
+        assert_eq!(entry.approved_at, 0);
+        assert_eq!(entry.approved_manifest_digest, None);
+        assert_eq!(entry.last_error_code, None);
+        assert_eq!(entry.last_error_detail, None);
+        assert_eq!(entry.broken_reason, None);
+        assert_eq!(entry.enabled_before_broken, None);
+    }
 }
