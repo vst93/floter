@@ -849,4 +849,67 @@ mod tests {
         assert_eq!(entry.broken_reason, None);
         assert_eq!(entry.enabled_before_broken, None);
     }
+
+    #[test]
+    fn empty_permission_approval_binds_to_manifest_digest() {
+        use crate::extensions::manifest::Permission;
+
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(
+            "example.tool".into(),
+            test_entry("example.tool", ExtensionStateKind::Enabled),
+        );
+
+        // Record approval for an empty permission set (native disclosure only).
+        lock.record_permission_approval("example.tool", &[], "digest-1")
+            .unwrap();
+
+        // Empty set validates against the same digest.
+        assert!(lock.has_valid_approval("example.tool", &[], "digest-1"));
+
+        // Different digest invalidates even when both are empty.
+        assert!(!lock.has_valid_approval("example.tool", &[], "digest-2"));
+
+        // Non-empty set does not match empty approval.
+        assert!(!lock.has_valid_approval("example.tool", &[Permission::NetworkFetch], "digest-1"));
+    }
+
+    #[test]
+    fn mark_and_clear_broken_are_idempotent() {
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(
+            "example.tool".into(),
+            test_entry("example.tool", ExtensionStateKind::Enabled),
+        );
+
+        // First mark_broken transitions to broken.
+        assert!(lock
+            .mark_broken("example.tool", "code-1", "reason-1")
+            .unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.state, ExtensionStateKind::Broken);
+        assert_eq!(entry.broken_reason.as_deref(), Some("reason-1"));
+        assert_eq!(entry.last_error_code.as_deref(), Some("code-1"));
+
+        // Second mark_broken is idempotent: state stays broken, reason unchanged.
+        assert!(lock
+            .mark_broken("example.tool", "code-2", "reason-2")
+            .unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.state, ExtensionStateKind::Broken);
+        assert_eq!(entry.broken_reason.as_deref(), Some("reason-1"));
+        assert_eq!(entry.last_error_code.as_deref(), Some("code-2"));
+
+        // First clear_broken transitions out of broken.
+        assert!(lock.clear_broken("example.tool").unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.state, ExtensionStateKind::Enabled);
+        assert_eq!(entry.broken_reason, None);
+        assert_eq!(entry.last_error_code, None);
+
+        // Second clear_broken is idempotent: no-op when not broken.
+        assert!(!lock.clear_broken("example.tool").unwrap());
+        let entry = lock.get("example.tool").unwrap();
+        assert_eq!(entry.state, ExtensionStateKind::Enabled);
+    }
 }

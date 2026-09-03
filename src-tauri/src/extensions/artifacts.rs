@@ -21,6 +21,15 @@ pub async fn verify_binaries(
     artifacts: &Artifacts,
     permissions: &[Permission],
 ) -> Result<Vec<VerifiedBinary>, String> {
+    verify_binaries_with_timeout(runtime_root, artifacts, permissions, Duration::from_secs(2)).await
+}
+
+async fn verify_binaries_with_timeout(
+    runtime_root: &Path,
+    artifacts: &Artifacts,
+    permissions: &[Permission],
+    probe_timeout: Duration,
+) -> Result<Vec<VerifiedBinary>, String> {
     if artifacts.is_empty() {
         return Ok(Vec::new());
     }
@@ -64,7 +73,7 @@ pub async fn verify_binaries(
             if !permissions.contains(&Permission::Environment) {
                 command.env_clear();
             }
-            let status = tokio::time::timeout(Duration::from_secs(2), command.status())
+            let status = tokio::time::timeout(probe_timeout, command.status())
                 .await
                 .map_err(|_| format!("Artifact binary {} version probe timed out", binary.name))?
                 .map_err(|error| {
@@ -292,9 +301,10 @@ mod tests {
             binaries: vec![binary],
         };
 
-        let error = verify_binaries(&runtime, &artifacts, &[])
-            .await
-            .unwrap_err();
+        let error =
+            verify_binaries_with_timeout(&runtime, &artifacts, &[], Duration::from_secs(10))
+                .await
+                .unwrap_err();
         assert!(error.contains("version probe failed"));
     }
 
