@@ -3,7 +3,7 @@
 // Honors the terminal's `APP_CURSOR` mode bit (carried in each rendered frame)
 // so that arrow keys behave correctly inside full-screen apps (vim, less, ...).
 
-import { IS_MAC } from "../shortcuts";
+import { IS_MAC } from "../shortcuts.ts";
 
 const APP_CURSOR = 1 << 1;
 export const MOUSE_REPORT_CLICK = 1 << 3;
