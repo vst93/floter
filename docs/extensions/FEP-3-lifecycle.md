@@ -1,6 +1,6 @@
 # FEP-3：安装生命周期与安全
 
-状态：Draft 2 · **部分实现**（install/update/rollback/reinstall/repair/uninstall 均有真实实现与测试：`install.rs`、`transaction.rs`；官方签名索引已落地：`official_index.rs`。遗留：`broken` 持久状态无写入路径；lock/current.json/journal 非单一事务；只保留一代 previous；卸载先提交 lock 后删文件）
+状态：Draft 2 · **部分实现**（install/update/rollback/reinstall/repair/uninstall 均有真实实现与测试：`install.rs`、`transaction.rs`；官方签名索引已落地：`official_index.rs`。`broken` 持久状态已有写入路径：mark_broken/clear_broken（`lock.rs:277-334`）在 repair 流程中调用（`commands/extensions.rs:1315,1463,1509,1563`、`catalog.rs:444`），有幂等性测试（e174e51）。遗留：lock/current.json/journal 非单一事务；只保留一代 previous；卸载先提交 lock 后删文件）
 
 ## 持久状态与操作阶段
 

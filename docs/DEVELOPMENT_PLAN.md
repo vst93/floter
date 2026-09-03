@@ -8,7 +8,7 @@
 > **权威状态以代码核查为准，本文的阶段勾选是历史规划记录**：
 > - 完整度核查：`docs/extensions/COMPLETENESS_AUDIT.md`（2026-08-13 初核 + 2026-08-22 复核）
 > - 架构审计与重构路线图：`docs/plugin-system-audit.md`（2026-08-22）
-> - 已知未完成项：`broken` 持久状态无写入路径、`extensions_reprobe`/`extensions_launch` 未读取 manifest 声明、官方索引缺版本范围/撤销、SDK 仅为文档指南、V 动态 Provider 参考实现与三平台 E2E 测试未落地。远端同步传输层（Cloud/Git/WebDAV）明确不做承诺。
+> - 已知未完成项：`extensions_reprobe`/`extensions_launch` 未读取 manifest 声明、官方索引缺版本范围/撤销、SDK 仅为文档指南、V 动态 Provider 参考实现与三平台 E2E 测试未落地。远端同步传输层（Cloud/Git/WebDAV）明确不做承诺。
 
 > Manifest v2 已将分发来源、运行时所有权和 Provider 类型拆为独立字段；v1
 > manifest、lock 和同步导出在读取时自动迁移。

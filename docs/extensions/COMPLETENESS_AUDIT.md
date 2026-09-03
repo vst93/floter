@@ -33,8 +33,8 @@
 ## 3. 当前真实缺口（按优先级）
 
 1. **P1 · 无聚合根**：lock / tool-lock / current.json 三处共同描述一个扩展，职责重叠导致状态字段重复和漂移——重构路线图 Phase 3 的目标。
-2. **P1 · `broken` 状态未落盘**：枚举与转移测试存在，但没有任何写入路径；repair/diagnose 失败不会让列表显示"已损坏"。全仓库 `rg ExtensionStateKind::Broken` 仅命中定义与测试。
-3. **P1 · 权限审计记录缺失**：lock 不记录 approved set、批准时间/来源/digest，权限批准是一次 IPC 内的数组比较（`install.rs:934-950`）。
+2. **P1 · `broken` 状态已落盘**（✅ Phase 2 已完成）：mark_broken/clear_broken 方法（`lock.rs:277-334`）在 repair 流程中调用（`commands/extensions.rs:1315,1463,1509,1563`、`catalog.rs:444`），有幂等性测试（e174e51）。
+3. **P1 · 权限审计记录已落盘**（✅ Phase 2 已完成）：lock 记录 approved_permissions/approved_at/approved_manifest_digest（`lock.rs:121-134`），安装时写入（`install.rs:1610-1612`），有 digest 绑定验证（`lock.rs:360-375`）与测试（549d233, e174e51）。
 4. **P1 · reprobe/launch 忽略 manifest**：`extensions_reprobe` 硬编码 `--version/--help`（`commands/extensions.rs:1405-1474`）；`extensions_launch` 忽略 lifecycle launch/cwd/restore 声明（`commands/extensions.rs:1478-1559`）。
 5. **P2 · 文档漂移**：FEP-1~6 全部停留 Draft 状态未随实现推进；本文初核正文的旧判定以第 1 节表格为准。
 

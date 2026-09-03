@@ -216,7 +216,7 @@ Host Services          # command catalog、config store、health、UI/IPC
 #### Phase 2：状态/错误/权限审计补齐
 
 - **改动**：为 lock entry 增加 `approvedPermissions`、manifest/content digest、approvedAt、approvalSource、lastErrorCode、lastOperationId；所有 verify/describe/probe/install 错误按 `broken` 状态和结构化 error code 落盘；前端显示“声明权限”和“Host 实际强制范围”。
-- **涉及文件**：`src-tauri/src/extensions/lock.rs`、`install.rs`、`commands/extensions.rs`、`src/ExtensionsPanel.tsx`、`src/extensions/ExtensionRow.tsx`、相关 schema/测试。
+- **涉及文件**：`src-tauri/src/extensions/lock.rs`、`install.rs`、`commands/extensions.rs`、`src/ExtensionsPanel.tsx`、`src/extensions/ExtensionRow.tsx`（注：ExtensionRow.tsx 实际存在于 `src/extensions/` 而非内联）、相关 schema/测试。
 - **工作量**：M。
 - **风险**：中；lock schema migration 与旧安装兼容。
 - **验收标准**：新增权限必须绑定同一 manifest digest 才可提交；重启后 broken 状态可见；repair 成功清除 broken 并记录 operation；UI 明确 native disclosure 不是 sandbox；旧 schema 自动迁移且不丢 pinned/channel。
@@ -302,7 +302,7 @@ Host Services          # command catalog、config store、health、UI/IPC
 | Ed25519 tarball 验签 + 官方签名索引 | `install.rs:1756-1867`、`official_index.rs:13-63,108-176,245-314` | `cargo test`（篡改/过期/key rotation） | FEP-4 · 已实现（索引治理遗留 Phase 7） |
 | 安装/更新/reinstall/rollback/repair/uninstall | `install.rs:1015-1459,1548-1934`、`commands/extensions.rs:1221-1261` | `cargo test`（274+ 用例含失败路径）；无故障注入覆盖每个提交点 | FEP-3 · 部分实现 |
 | 事务 journal 与启动恢复 | `transaction.rs:24-65,253-373,469-547` | `cargo test`（枚举顺序/恢复推断）；缺 kill/断电故障注入 | FEP-3 · 半成品（Phase 3 目标） |
-| 权限审批与执行层强制 | `install.rs:934-982`、`provider.rs:408-430,526-587,696-728` | `cargo test`（env 隔离/spawn 限制正反例） | FEP-5 · 部分实现（审计记录缺失，Phase 2 目标） |
+| 权限审批与执行层强制 | `lock.rs:121-134,360-375`、`install.rs:1610-1612`、`provider.rs:408-430,526-587,696-728` | `cargo test`（env 隔离/spawn 限制/digest 绑定/空权限集绑定：549d233, e174e51） | FEP-5 · 部分实现（审计记录已落盘；OS sandbox 待 Phase 6） |
 | 声明式配置 + secret generation | `config.rs:125-191,820-892,906-960` | `cargo test`（两阶段失败/并发/启动修复） | FEP-6 · 已实现 |
 | 本地导入/导出事务 | `sync.rs:65-218,313-428,734-810` | `cargo test`（preflight/回滚/幂等） | 计划 §5.3 · 已实现（明确为本地文件移植） |
 | Catalog 搜索/命名空间/冲突 | `catalog.rs:115-187,329-662` | `cargo test`（排序/启停/冲突） | FEP-2 · 已实现 |
