@@ -8,7 +8,7 @@ import {
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
-import type { BridgeOpacity, BridgeTheme } from "../plugin-pages";
+import type { BridgeOpacity, BridgeTheme, BridgeReload } from "../plugin-pages";
 import { createTranslator, type Language, type MessageKey } from "../i18n";
 
 /**
@@ -88,7 +88,11 @@ export function PluginPageHost({
     // Only fetch descriptor if we don't have one yet, or pluginId changed to
     // a different plugin (switching pages, not toggling the same one).
     if (descriptor && descriptor.id === pluginId) {
-      // Same page as before: already loaded, just show it.
+      // Same page as before: already loaded, just show it and tell it to reload.
+      if (frameLoaded && iframeRef.current?.contentWindow) {
+        const reloadMessage: BridgeReload = { [BRIDGE_TAG]: "reload" };
+        iframeRef.current.contentWindow.postMessage(reloadMessage, "*");
+      }
       return;
     }
     setDescriptor(null);
@@ -116,7 +120,7 @@ export function PluginPageHost({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [pluginId, reloadNonce, descriptor]);
+  }, [pluginId, reloadNonce, descriptor, frameLoaded]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {

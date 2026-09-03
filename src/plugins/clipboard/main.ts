@@ -30,7 +30,7 @@ import {
   normalizeEntries,
   type ClipboardEntry,
 } from "../../clipboard-history";
-import { BRIDGE_TAG, isBridgeOpacity, isBridgeTheme, isBridgeResult } from "../../plugin-pages";
+import { BRIDGE_TAG, isBridgeOpacity, isBridgeTheme, isBridgeResult, isBridgeReload } from "../../plugin-pages";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -60,6 +60,11 @@ window.addEventListener("message", (event: MessageEvent) => {
   if (isBridgeTheme(data)) {
     // Theme changed host-side; update the page's data-theme attribute.
     document.documentElement.setAttribute("data-theme", data.theme);
+    return;
+  }
+  if (isBridgeReload(data)) {
+    // Page just became visible after being hidden; reload data.
+    void handleReload();
     return;
   }
   if (!isBridgeResult(data)) return;
@@ -132,6 +137,8 @@ let statuses: Record<string, boolean> = {};
  * means "we could not ask", not "nothing copied yet", so the page offers a
  * retry instead of a misleading empty state. */
 let loadFailed = false;
+/** Interval ID for periodic refresh while visible. */
+let refreshInterval: number | null = null;
 
 const scopedEntries = (): ClipboardEntry[] =>
   view === "favorites" ? entries.filter((entry) => entry.favorite) : entries;
@@ -459,8 +466,17 @@ window.addEventListener("pagehide", () => {
  * one's entries, statuses or thumbnails with stale data. */
 let reloadGen = 0;
 
+/**
+ * Reload entries, statuses, and thumbnails. Preserves user state: filter text,
+ * current tab, scroll position, and selected row (by anchoring to the entry id;
+ * if that entry vanished, reset to row 0).
+ */
 const reload = async () => {
   const gen = ++reloadGen;
+  // Anchor the current selection by entry id so we can restore it after reload.
+  const filtered = filteredEntries();
+  const anchorId = filtered.length > 0 ? filtered[selected]?.id : null;
+
   try {
     const rows = await invokeCommand<unknown[]>("clipboard_get_entries", { filter: null });
     if (gen !== reloadGen) return;
@@ -471,6 +487,20 @@ const reload = async () => {
     entries = [];
     loadFailed = true;
     return;
+  }
+
+  // Restore selection: find the anchored entry in the new filtered list.
+  if (anchorId) {
+    const newFiltered = filteredEntries();
+    const anchorIndex = newFiltered.findIndex((e) => e.id === anchorId);
+    if (anchorIndex >= 0) {
+      selected = anchorIndex;
+    } else {
+      // Anchored entry vanished; reset to row 0.
+      selected = 0;
+    }
+  } else {
+    selected = 0;
   }
 
   // Render immediately with entry data, before fetching thumbnails or statuses.
@@ -514,6 +544,43 @@ const reload = async () => {
       })
       .catch(() => undefined);
   }
+};
+
+/**
+ * Start periodic refresh: poll every 2s while visible. 2s is fresh enough given
+ * the backend monitor polls the system clipboard every ~900ms, so the page lags
+ * behind the monitor by at most one poll cycle.
+ */
+const startPeriodicRefresh = () => {
+  if (refreshInterval !== null) return; // Already running.
+  refreshInterval = window.setInterval(() => {
+    void reload();
+  }, 2000);
+};
+
+/** Stop periodic refresh when the page is hidden. */
+const stopPeriodicRefresh = () => {
+  if (refreshInterval !== null) {
+    window.clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+};
+
+/**
+ * Handle the reload message from the host: page just became visible. Refresh
+ * data immediately, reset scroll to top, and start the periodic refresh.
+ */
+const handleReload = async () => {
+  await reload();
+  // Scroll to top.
+  const list = content.querySelector<HTMLElement>(".clipboard-panel__list");
+  if (list) list.scrollTop = 0;
+  startPeriodicRefresh();
+};
+
+/** Handle the page becoming hidden: stop the periodic refresh. */
+const handleHidden = () => {
+  stopPeriodicRefresh();
 };
 
 const activate = async (entry: ClipboardEntry | undefined) => {
@@ -758,10 +825,22 @@ searchInput.focus();
 // Render immediately so the page is never blank (falls back to page.css
 // styles even if the @import chain is slow), then hydrate with data.
 render();
-void reload().then(render).catch(() => {
+void reload().then(() => {
+  render();
+  // Start periodic refresh after initial load.
+  startPeriodicRefresh();
+}).catch(() => {
   // Only mark failed on a real bridge error, not on empty results.
   if (entries.length === 0) {
     loadFailed = true;
     render();
+  }
+});
+
+// Stop periodic refresh when the page is about to be hidden (not unloaded,
+// since the iframe persists across toggles).
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    handleHidden();
   }
 });

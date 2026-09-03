@@ -11,6 +11,7 @@ import {
   commandAllowed,
   isBridgeClose,
   isBridgeOpacity,
+  isBridgeReload,
   isBridgeRequest,
   isBridgeResult,
   isBridgeTheme,
@@ -141,4 +142,11 @@ test("theme messages are recognized with dark or light", () => {
   );
   assert.equal(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: null }), false);
   assert.equal(isBridgeTheme({ [BRIDGE_TAG]: "theme" }), false);
+});
+
+test("reload messages are recognized", () => {
+  assert.ok(isBridgeReload({ [BRIDGE_TAG]: "reload" }));
+  assert.equal(isBridgeReload({ [BRIDGE_TAG]: "invoke", id: 1, command: "c" }), false);
+  assert.equal(isBridgeReload(null), false);
+  assert.equal(isBridgeReload({}), false);
 });

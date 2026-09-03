@@ -54,6 +54,15 @@ export type BridgeTheme = {
   theme: "dark" | "light";
 };
 
+/**
+ * Host → page: the page was just revealed after being hidden. Sent when the
+ * plugin toggles from hidden (pluginId null) to shown. The page should reload
+ * its data to show fresh content.
+ */
+export type BridgeReload = {
+  [BRIDGE_TAG]: "reload";
+};
+
 export type BridgeFromPage = BridgeRequest | BridgeClose;
 
 // Arrays are objects but never valid bridge payloads: `args` travels into a
@@ -87,6 +96,9 @@ export const isBridgeTheme = (data: unknown): data is BridgeTheme =>
   isRecord(data) &&
   data[BRIDGE_TAG] === "theme" &&
   (data.theme === "dark" || data.theme === "light");
+
+export const isBridgeReload = (data: unknown): data is BridgeReload =>
+  isRecord(data) && data[BRIDGE_TAG] === "reload";
 
 export const isBridgeResult = (data: unknown): data is BridgeResult =>
   isRecord(data) &&
