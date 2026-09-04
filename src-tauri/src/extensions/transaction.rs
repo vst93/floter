@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-pub const TRANSACTION_JOURNAL_SCHEMA_VERSION: u32 = 2;
+pub const TRANSACTION_JOURNAL_SCHEMA_VERSION: u32 = 3;
 
 /// Number of installed versions kept on disk besides the current one: the
 /// current version plus one previous version survive an update, so rollback
@@ -49,6 +49,16 @@ pub enum TransactionState {
     Cleaned,
 }
 
+/// Uninstall operation type tracked in the removal journal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RemovalKind {
+    /// Extension tree staged for removal but lock not yet updated.
+    Staged,
+    /// Lock entry removed; physical cleanup remains.
+    Committed,
+}
+
 // NOTE: the staged-pipeline writers (`begin`, `progress`, `commit_version`,
 // `commit_lock`) were removed together with the NPM distribution pipeline.
 // `recover`, `write_journal`, and this enum stay because journals written by
@@ -74,8 +84,37 @@ pub struct InstallationJournal {
     pub state: TransactionState,
 }
 
+/// Uninstall-specific journal (schema v3+). Records pending removal so a crash
+/// mid-uninstall can be completed on next startup without losing the fact that
+/// removal was requested, even if lock commit succeeded but physical deletion
+/// failed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemovalJournal {
+    pub schema_version: u32,
+    pub transaction_id: String,
+    pub extension_id: String,
+    /// Lock entry snapshot before removal, for rollback if needed.
+    pub removed_entry: ExtensionLockEntry,
+    /// Staged removal directory path (renamed from original location).
+    pub staged_path: Option<PathBuf>,
+    /// Additional paths to delete (generated integration, data).
+    #[serde(default)]
+    pub cleanup_paths: Vec<PathBuf>,
+    /// Whether the lock entry has been removed.
+    #[serde(default)]
+    pub removal_kind: Option<RemovalKind>,
+    /// Whether user data should be deleted.
+    #[serde(default)]
+    pub remove_data: bool,
+}
+
 fn journal_dir(state: &ExtensionState) -> PathBuf {
     state.paths.extensions.join(".transactions")
+}
+
+fn removal_journal_path(state: &ExtensionState, transaction_id: &str) -> PathBuf {
+    journal_dir(state).join(format!("removal-{}.json", transaction_id))
 }
 
 /// Persist a journal atomically. Production code no longer creates new
@@ -104,6 +143,34 @@ pub(crate) fn write_journal(
         .map_err(|error| format!("Cannot persist extension transaction journal: {error}"))?;
     sync_directory(&directory)
         .map_err(|error| format!("Cannot sync extension transaction journal: {error}"))?;
+    Ok(path)
+}
+
+/// Write a removal journal atomically. Used by uninstall to record pending
+/// removal before committing the lock, so crash/I/O failure during cleanup
+/// can be recovered on next startup.
+pub(crate) fn write_removal_journal(
+    state: &ExtensionState,
+    journal: &RemovalJournal,
+) -> Result<PathBuf, String> {
+    let directory = journal_dir(state);
+    std::fs::create_dir_all(&directory)
+        .map_err(|error| format!("Cannot create removal transaction journal: {error}"))?;
+    let path = removal_journal_path(state, &journal.transaction_id);
+    let bytes = serde_json::to_vec_pretty(journal)
+        .map_err(|error| format!("Cannot serialize removal transaction journal: {error}"))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(&directory)
+        .map_err(|error| format!("Cannot create removal transaction journal: {error}"))?;
+    temporary
+        .write_all(&bytes)
+        .and_then(|_| temporary.flush())
+        .and_then(|_| temporary.as_file().sync_all())
+        .map_err(|error| format!("Cannot write removal transaction journal: {error}"))?;
+    temporary
+        .persist(&path)
+        .map_err(|error| format!("Cannot persist removal transaction journal: {error}"))?;
+    sync_directory(&directory)
+        .map_err(|error| format!("Cannot sync removal transaction journal: {error}"))?;
     Ok(path)
 }
 
@@ -163,6 +230,76 @@ fn retain_versions(state: &ExtensionState, entry: &ExtensionLockEntry) -> Result
     Ok(())
 }
 
+/// Recover interrupted removal (uninstall) transactions. Two branches:
+///
+/// 1. Lock entry still exists → removal was requested but never committed;
+///    restore any staged paths and drop the journal (user can retry).
+/// 2. Lock entry is gone → removal committed but physical cleanup failed;
+///    finish deleting staged paths and cleanup_paths, then remove journal.
+///
+/// This ensures uninstall either completes fully (no lock entry, no residue)
+/// or fails cleanly (lock entry intact, extension still functional).
+fn recover_removal_journals(
+    state: &ExtensionState,
+    lock: &mut ExtensionsLock,
+) -> Result<(), String> {
+    let directory = journal_dir(state);
+    for item in std::fs::read_dir(&directory)
+        .map_err(|error| format!("Cannot scan removal transaction journals: {error}"))?
+    {
+        let item = item
+            .map_err(|error| format!("Cannot read removal transaction journal: {error}"))?;
+        let path = item.path();
+        if !path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("removal-") && name.ends_with(".json"))
+        {
+            continue;
+        }
+        let bytes = std::fs::read(&path)
+            .map_err(|error| format!("Cannot read removal transaction journal: {error}"))?;
+        let journal: RemovalJournal = match serde_json::from_slice(&bytes) {
+            Ok(journal) => journal,
+            Err(_) => {
+                let _ = std::fs::rename(&path, path.with_extension("json.corrupt"));
+                continue;
+            }
+        };
+        if journal.schema_version > TRANSACTION_JOURNAL_SCHEMA_VERSION {
+            return Err(format!(
+                "Unsupported removal transaction journal schema {}",
+                journal.schema_version
+            ));
+        }
+        let lock_entry_exists = lock.extensions.contains_key(&journal.extension_id);
+        if lock_entry_exists {
+            // Removal never committed: restore staged path if it exists.
+            if let Some(staged) = &journal.staged_path {
+                let original = state.paths.extensions.join(&journal.extension_id);
+                if staged.exists() && !original.exists() {
+                    let _ = std::fs::rename(staged, &original);
+                }
+            }
+            remove_journal(&path)?;
+        } else {
+            // Removal committed: finish physical cleanup.
+            if let Some(staged) = &journal.staged_path {
+                if staged.exists() {
+                    let _ = std::fs::remove_dir_all(staged);
+                }
+            }
+            for cleanup_path in &journal.cleanup_paths {
+                if cleanup_path.exists() {
+                    let _ = std::fs::remove_dir_all(cleanup_path);
+                }
+            }
+            remove_journal(&path)?;
+        }
+    }
+    Ok(())
+}
+
 /// Recover interrupted transactions at startup. Four recovery branches are
 /// distinguished (crash-consistent journaling plan):
 ///
@@ -177,6 +314,10 @@ fn retain_versions(state: &ExtensionState, entry: &ExtensionLockEntry) -> Result
 ///
 /// A journal that never reached `Staged` (no `staged_version`) has no filesystem
 /// side effects; it is dropped and the lock is left untouched.
+///
+/// Removal journals (schema v3+) are processed separately: if the lock entry
+/// still exists, the removal never committed, so drop the journal and restore
+/// staged paths; if the lock entry is gone, finish physical cleanup.
 pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
     // Staging cleanup is independent of whether any journal exists: a crash
     // before the first journal write still leaves an unpacked staging tree.
@@ -186,6 +327,10 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
         return Ok(());
     }
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+
+    // Recover removal journals first: they must complete before install journals.
+    recover_removal_journals(state, &mut lock)?;
+
     let mut entries: Vec<(PathBuf, InstallationJournal)> = Vec::new();
     for item in std::fs::read_dir(&directory)
         .map_err(|error| format!("Cannot scan extension transaction journal: {error}"))?
@@ -194,6 +339,13 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
             item.map_err(|error| format!("Cannot read extension transaction journal: {error}"))?;
         let path = item.path();
         if path.extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        // Skip removal journals — already processed above.
+        if path.file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("removal-"))
+        {
             continue;
         }
         let bytes = std::fs::read(&path)
@@ -205,7 +357,7 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
                 continue;
             }
         };
-        if journal.schema_version != TRANSACTION_JOURNAL_SCHEMA_VERSION {
+        if journal.schema_version > TRANSACTION_JOURNAL_SCHEMA_VERSION {
             return Err(format!(
                 "Unsupported extension transaction journal schema {}",
                 journal.schema_version
