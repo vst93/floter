@@ -10,7 +10,9 @@
       The clipboard history page, served through floter's generic plugin-page
       pipeline. It runs inside a sandboxed iframe in the main window and talks
       to the host exclusively over the postMessage bridge (see
-      src/plugins/PluginPageHost.tsx) — no Tauri APIs, no same-origin access.
+      src/plugins/PluginPageHost.tsx) — no Tauri APIs, and it uses the
+      sandboxed bridge for all host communication. The built-in page is allowed
+      same-origin only because WebKit otherwise blocks its local stylesheet.
     -->
     <div id="root"></div>
     <script type="module" src="/src/plugins/clipboard/main.ts"></script>

@@ -514,24 +514,9 @@
 }
 
 .extension-row__toggle-slot .settings-switch {
-  width: 40px;
-  height: var(--extensions-control-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--ext-radius);
-  flex: 0 0 auto;
-}
-
-.extension-row__toggle-slot .settings-switch__thumb {
-  top: 6px;
-  left: 5px;
-  width: 18px;
-  height: 18px;
-}
-
-.extension-row__toggle-slot .settings-switch--active .settings-switch__thumb {
-  transform: translateX(12px);
 }
 
 .extensions-action-button {

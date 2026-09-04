@@ -225,28 +225,6 @@ export default function App() {
   const [updateFailed, setUpdateFailed] = useState(false);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
-  const [showKeymapHint, setShowKeymapHint] = useState(false);
-  const keymapHintRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!showKeymapHint) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        keymapHintRef.current &&
-        !keymapHintRef.current.contains(event.target as Node)
-      ) {
-        setShowKeymapHint(false);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setShowKeymapHint(false);
-    };
-    window.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [showKeymapHint]);
 
   // Settings: state, hydration, persistence, and the change* mutators. The
   // hook owns every ref/state above the line and exposes them; downstream
@@ -784,10 +762,15 @@ export default function App() {
     });
   }, [launcherResults.length]);
 
+  // The action bar is a secondary control for a visible result list. Do not
+  // expand the result area for an unmatched query just because the generic
+  // shell fallback exists; feedback rows remain independently visible below.
+  const visibleActionBar = launcherResults.length > 0 ? actionBar : null;
+
   // The launcher window is exactly as tall as the rows inside it, measured
   // rather than predicted. Extracted into useLauncherHeight hook.
   useLauncherHeight(mode, collapsedCardRef, [
-    actionBar,
+    visibleActionBar,
     launcherFeedback,
     launcherResults.length,
   ]);
@@ -1026,6 +1009,27 @@ export default function App() {
       setMode("collapsed");
       focusCollapsedInput(90);
       focusCollapsedInput(140);
+      // A hidden launcher can retain the height of its previous result list;
+      // when it is revealed the mode may already be "collapsed", so the
+      // mode effect will not run again. Measure after the state commit to
+      // restore the compact window before it is painted with stale space.
+      window.requestAnimationFrame(() => {
+        if (modeRef.current === "collapsed") {
+          syncLauncherHeight(collapsedCardRef);
+        }
+      });
+      // A webview resuming from a hidden state can run that rAF against a
+      // layout that has not been recomputed since it was frozen; one delayed
+      // sync catches the settled measurement. Gated on restoringMode so a
+      // mode switch that happened in between is never clobbered.
+      window.setTimeout(() => {
+        if (
+          modeRef.current === "collapsed" &&
+          restoringMode.current === "collapsed"
+        ) {
+          syncLauncherHeight(collapsedCardRef);
+        }
+      }, 120);
       window.setTimeout(() => {
         if (restoringMode.current === "collapsed") {
           restoringMode.current = null;
@@ -1440,7 +1444,7 @@ export default function App() {
     return (
       <div className="terminal-shell">
         {pinnedCardElement}
-        <section className="terminal-panel terminal-panel--entered">
+        <section className="terminal-panel terminal-panel--entered terminal-panel--plugin">
           <div className="terminal-panel__body">
             <PluginPageHost
               pluginId={pluginPageId}
@@ -1483,10 +1487,10 @@ export default function App() {
               role="combobox"
               aria-label={t("input.placeholder")}
               aria-autocomplete="list"
-              aria-expanded={launcherResults.length > 0 || Boolean(actionBar)}
-              aria-controls={launcherResults.length > 0 || actionBar ? "launcher-options" : undefined}
+              aria-expanded={launcherResults.length > 0}
+              aria-controls={launcherResults.length > 0 ? "launcher-options" : undefined}
               aria-activedescendant={
-                selectedActionBar && actionBar
+                selectedActionBar && visibleActionBar
                   ? "launcher-option-action"
                   : launcherResults[selectedResultIndex]
                     ? `launcher-option-${selectedResultIndex}`
@@ -1564,44 +1568,6 @@ export default function App() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
-            <div
-              className="collapsed-card__keymap"
-              ref={keymapHintRef}
-            >
-              <button
-                type="button"
-                className="collapsed-card__keymap-toggle"
-                aria-label={t("input.keymapHint")}
-                aria-expanded={showKeymapHint}
-                title={t("input.keymapHint")}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setShowKeymapHint((value) => !value);
-                }}
-              >
-                <Keyboard size={14} strokeWidth={1.8} aria-hidden="true" />
-              </button>
-              {showKeymapHint && (
-                <div className="collapsed-card__keymap-popover" role="dialog" aria-label={t("input.keymapHint")}>
-                  <div className="collapsed-card__keymap-row">
-                    <kbd>{formatShortcut(shortcuts.new_command)}</kbd>
-                    <span>{t("shortcut.new_command")}</span>
-                  </div>
-                  <div className="collapsed-card__keymap-row">
-                    <kbd>{formatShortcut(shortcuts.open_external_terminal)}</kbd>
-                    <span>{t("shortcut.open_external_terminal")}</span>
-                  </div>
-                  <div className="collapsed-card__keymap-row">
-                    <kbd>{formatShortcut(shortcuts.pin_terminal)}</kbd>
-                    <span>{t("shortcut.pin_terminal")}</span>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
           {/* First-run onboarding tip: a small dismissible banner shown above
               the result area the first time the user opens the launcher. */}
@@ -1628,12 +1594,12 @@ export default function App() {
               </button>
             </div>
           )}
-          {/* The clip wrapper is what animates: grid-template-rows 0fr → 1fr
-              collapses/expands the whole bottom area without a hard height
-              jump. The content stays mounted, only the class flips. */}
+          {/* The clip controls visibility while the native window height follows
+              the measured content. Its contents fade in and out without a
+              competing CSS height animation. */}
           <div
             className={
-              launcherResults.length > 0 || actionBar || launcherFeedback || appsError
+              launcherResults.length > 0 || launcherFeedback || appsError
                 ? "launcher-bottom-clip launcher-bottom-clip--open"
                 : "launcher-bottom-clip"
             }
@@ -1693,7 +1659,7 @@ export default function App() {
               <LauncherResults
                 t={t}
                 results={launcherResults}
-                actionBar={actionBar}
+                actionBar={visibleActionBar}
                 appIconUrls={appIconUrls}
                 selectedResultIndex={selectedResultIndex}
                 selectedActionBar={selectedActionBar}
@@ -1708,7 +1674,7 @@ export default function App() {
                 onSelectActionBar={() => setSelectedActionBar(true)}
                 onRunResult={runLauncherItem}
                 onRunActionBar={() => {
-                  if (actionBar) executeActionBar(actionBar);
+                  if (visibleActionBar) executeActionBar(visibleActionBar);
                 }}
               />
               {launcherResults.length === 0 &&

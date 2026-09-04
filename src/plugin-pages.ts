@@ -3,10 +3,12 @@
 // and allowlist checks. Kept free of React and Tauri so the node test suite
 // can exercise it directly (see tests/plugin-pages.test.ts).
 //
-// The contract: a plugin page runs in a sandboxed iframe (no same-origin, no
-// Tauri APIs). It asks the host to invoke commands on its behalf and to close
-// it; the host replies with results. Every message carries a `floter` type
-// tag; unknown messages are ignored rather than erroring.
+// The contract: a plugin page runs in a sandboxed iframe. External pages use
+// an opaque origin (no same-origin, no Tauri APIs); the trusted built-in page
+// may opt into same-origin only when WebKit requires it to load local assets.
+// Every page still talks to the host through the postMessage bridge. Every
+// message carries a `floter` type tag; unknown messages are ignored rather
+// than erroring.
 
 /** Stable id of the built-in clipboard base plugin, mirroring the backend's
  * registry (src-tauri/src/plugin_pages.rs). */

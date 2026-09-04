@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   BRIDGE_TAG,
+  CLIPBOARD_PLUGIN_ID,
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
@@ -19,12 +20,13 @@ import { createTranslator, type Language, type MessageKey } from "../i18n";
  * backend's `show_plugin_page`), and bridges postMessage traffic to
  * `invoke()` behind the page's per-plugin command allowlist.
  *
- * Why an iframe, sandboxed without allow-same-origin: plugin HTML — external
- * integrations especially — is less trusted than our own app code. The opaque
- * origin means the page cannot touch the host DOM or any Tauri surface; its
- * only capability is what the allowlisted bridge permits. Our own built-in
- * clipboard page deliberately rides this same pipeline so the mechanism is
- * exercised for real.
+ * Why an iframe rather than injecting the HTML into the app document:
+ * external plugin HTML is less trusted than our own. A sandboxed frame without
+ * `allow-same-origin` gets an opaque origin — no DOM access to the host app, no
+ * Tauri IPC surface at all. The built-in clipboard page is the one trusted
+ * exception: WebKit refuses its same-origin stylesheet request from an opaque
+ * sandbox, so that page opts into `allow-same-origin` while remaining sandboxed.
+ * Its only host capability is still the allowlisted bridge.
  */
 
 /** How long to wait for the backend's page descriptor before showing the retry
@@ -255,8 +257,9 @@ export function PluginPageHost({
           className="plugin-page-host__frame"
           src={src}
           title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId ?? ""}
-          // Opaque origin: scripts yes, same-origin access and Tauri APIs no.
-          sandbox="allow-scripts"
+          // WebKit needs same-origin for the built-in page to load its bundled
+          // stylesheet; external plugin pages retain the opaque-origin sandbox.
+          sandbox={pluginId === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
           onLoad={handleFrameLoad}
         />
       ) : loadFailed || descriptor ? (

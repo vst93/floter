@@ -800,6 +800,16 @@ fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), Str
     // order costs nothing on the other platforms — both calls land in the same
     // event loop tick, so there is no visible jump.
     reveal_window(window)?;
+    if !terminal {
+        // A collapsed reveal must never inherit whatever geometry the panel
+        // died with: a height left over from a long result list rides every
+        // later reveal as blank space below the input (and, when the reveal
+        // event lands before the webview has mounted its listeners, nothing
+        // ever corrects it afterwards). Re-home the window onto the launcher's
+        // own baseline now that it is mapped and the geometry will stick; the
+        // frontend then grows it to the content it measures.
+        let _ = resize_window(window, INPUT_WINDOW_WIDTH, INPUT_WINDOW_HEIGHT, false);
+    }
     let _ = move_to_default_position(window, width, state);
     state.window_visible.store(true, Ordering::SeqCst);
     let _ = window.emit("floter://revealed", mode);

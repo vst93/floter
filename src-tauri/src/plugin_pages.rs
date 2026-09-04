@@ -17,11 +17,11 @@
 //! clipboard-specific.
 //!
 //! Why an iframe rather than injecting the HTML into the app document:
-//! external plugin HTML is less trusted than our own. A sandboxed frame
-//! without `allow-same-origin` gets an opaque origin — no DOM access to the
-//! host app, no Tauri IPC surface at all — so even a malicious page can only
-//! do what the allowlisted bridge commands permit. Serving our own clipboard
-//! page through the identical pipeline keeps the mechanism honest end to end.
+//! external plugin HTML is less trusted than our own. External pages use a
+//! sandboxed opaque origin — no DOM access to the host app, no Tauri IPC
+//! surface at all. The trusted built-in clipboard page is the one exception:
+//! WebKit needs same-origin enabled there to load its bundled stylesheet. Its
+//! only host capability remains the allowlisted bridge.
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};

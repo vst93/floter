@@ -58,8 +58,12 @@ window.addEventListener("message", (event: MessageEvent) => {
     return;
   }
   if (isBridgeTheme(data)) {
-    // Theme changed host-side; update the page's data-theme attribute.
+    // Theme changed host-side; update the page's data-theme attribute and its
+    // opaque page background without relying on rgba() variable alpha syntax.
+    activeTheme = data.theme;
     document.documentElement.setAttribute("data-theme", data.theme);
+    const rawOpacity = Number(rootStyle.getPropertyValue("--terminal-opacity"));
+    applyPageBackground(Number.isFinite(rawOpacity) ? rawOpacity : 0.92);
     return;
   }
   if (isBridgeReload(data)) {
@@ -103,12 +107,24 @@ const requestClose = () => {
 
 const params = new URLSearchParams(window.location.search);
 const t: Translate = createTranslator(normalizeLanguage(params.get("lang") ?? "en"));
-const theme = params.get("theme") === "light" ? "light" : "dark";
+const theme: "dark" | "light" = params.get("theme") === "light" ? "light" : "dark";
+let activeTheme: "dark" | "light" = theme;
 const rootStyle = document.documentElement.style;
+const pageRgb = {
+  dark: "17, 18, 20",
+  light: "250, 250, 252",
+} as const;
+
+function applyPageBackground(terminal: number) {
+  // WebKit rejects rgba() when its alpha argument is a CSS variable. Keep the
+  // complete color as one custom property instead of composing it in CSS.
+  rootStyle.setProperty("--page-bg", `rgba(${pageRgb[activeTheme]}, ${terminal})`);
+}
 
 function applyOpacity(main: number, terminal: number) {
   rootStyle.setProperty("--main-opacity", String(main));
   rootStyle.setProperty("--terminal-opacity", String(terminal));
+  applyPageBackground(terminal);
 }
 
 /** Parse one opacity param, keeping a deliberate `0` (fully transparent) —
@@ -176,6 +192,7 @@ const tabFavorites = root.querySelector<HTMLButtonElement>('[data-view="favorite
 const content = root.querySelector<HTMLElement>(".clipboard-panel__content")!;
 const hints = root.querySelector<HTMLElement>(".clipboard-panel__hints")!;
 const clearButton = root.querySelector<HTMLButtonElement>(".clipboard-panel__clear")!;
+const panel = root.querySelector<HTMLElement>(".clipboard-panel")!;
 
 // ---- rendering ------------------------------------------------------------
 
@@ -259,10 +276,40 @@ const renderEmpty = (): DocumentFragment => {
   return fragment;
 };
 
-/** Build one row's <li>: a button with marker, preview, meta, and a star,
- * plus the hover/click wiring that makes it a real list option. `now` is
- * passed in so every row's age is relative to the same render moment, not to
- * the millisecond this row happened to be built. */
+type InputMode = "pointer" | "keyboard";
+let inputMode: InputMode = "pointer";
+
+const setInputMode = (mode: InputMode) => {
+  if (inputMode === mode) return;
+  inputMode = mode;
+  panel.classList.toggle("clipboard-panel--keyboard-mode", mode === "keyboard");
+};
+
+// Follow the platform convention used by command palettes: keyboard navigation
+// owns the highlight until the pointer actually moves again.
+document.addEventListener("pointermove", () => setInputMode("pointer"), {
+  capture: true,
+  passive: true,
+});
+document.addEventListener("pointerdown", () => setInputMode("pointer"), true);
+document.addEventListener("keydown", () => setInputMode("keyboard"), true);
+
+const focusSelectedRow = () => {
+  content.querySelector<HTMLElement>(`[data-row-index="${selected}"]`)?.focus();
+};
+
+const syncRowSelection = (index: number) => {
+  if (selected === index) return;
+  const previous = content.querySelector<HTMLElement>(".clipboard-row--selected");
+  previous?.classList.remove("clipboard-row--selected");
+  previous?.setAttribute("aria-selected", "false");
+  const next = content.querySelector<HTMLElement>(`[data-row-index="${index}"]`);
+  next?.classList.add("clipboard-row--selected");
+  next?.setAttribute("aria-selected", "true");
+  selected = index;
+};
+
+/** Build one list item with a separate favorite control. */
 const renderRow = (
   entry: ClipboardEntry,
   index: number,
@@ -275,11 +322,11 @@ const renderRow = (
   const hasThumbnail = thumbnails.has(entry.id) && !missing;
 
   const row = document.createElement("li");
-  const button = document.createElement("button");
-  button.type = "button";
+  const button = document.createElement("div");
   button.setAttribute("role", "option");
   button.setAttribute("aria-selected", String(index === selected));
-  button.tabIndex = -1;
+  button.tabIndex = 0;
+  button.dataset.rowIndex = String(index);
   button.className =
     `clipboard-row${index === selected ? " clipboard-row--selected" : ""}` +
     `${missing ? " clipboard-row--missing" : ""}`;
@@ -348,14 +395,16 @@ const renderRow = (
   star.textContent = entry.favorite ? "★" : "☆";
 
   button.append(marker, preview, meta, star);
-  button.addEventListener("mousemove", () => {
-    if (selected === index) return;
-    selected = index;
-    render();
+  button.addEventListener("pointerdown", () => {
+    // Clicking selects the row before the action runs; hovering alone never
+    // changes the keyboard selection.
+    setInputMode("pointer");
+    syncRowSelection(index);
+    button.focus();
   });
-  // No mousedown hijack: a click genuinely moves focus into the list — that
-  // deliberate step away from the filter is what arms the single-key row
-  // commands. Hovering alone never steals focus.
+  // The CSS :hover state is intentionally visual-only. Keeping pointer
+  // movement out of `selected` prevents the mouse from hijacking arrow-key
+  // navigation while the user scans the list.
   button.addEventListener("click", () => void activate(entry));
   star.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -480,8 +529,30 @@ const reload = async () => {
   try {
     const rows = await invokeCommand<unknown[]>("clipboard_get_entries", { filter: null });
     if (gen !== reloadGen) return;
-    entries = normalizeEntries(rows);
+    const nextEntries = normalizeEntries(rows);
+    const entriesChanged = JSON.stringify(nextEntries) !== JSON.stringify(entries);
+    const wasFailed = loadFailed;
     loadFailed = false;
+    if (!entriesChanged) {
+      // Polling should not rebuild hundreds of DOM rows or re-request every
+      // thumbnail when the clipboard has not changed.
+      if (wasFailed) render();
+      return;
+    }
+    entries = nextEntries;
+
+    // Drop object URLs for records that no longer exist before repainting.
+    const liveThumbnailIds = new Set(
+      entries
+        .filter((entry) => entry.kind === "image" || isFilesPreviewCandidate(entry.paths))
+        .map((entry) => entry.id),
+    );
+    for (const [id, url] of thumbnails) {
+      if (!liveThumbnailIds.has(id)) {
+        URL.revokeObjectURL(url);
+        thumbnails.delete(id);
+      }
+    }
   } catch {
     if (gen !== reloadGen) return;
     entries = [];
@@ -525,7 +596,9 @@ const reload = async () => {
 
   // Thumbnails: fetched progressively after the list is already visible.
   // Each thumbnail arrival triggers a single-row repaint through setThumbnail.
-  for (const entry of entries.filter((candidate) => candidate.kind === "image")) {
+  for (const entry of entries.filter(
+    (candidate) => candidate.kind === "image" && !thumbnails.has(candidate.id),
+  )) {
     invokeCommand<number[]>("clipboard_read_image", { id: entry.id })
       .then((bytes) => {
         if (gen !== reloadGen) return;
@@ -534,7 +607,10 @@ const reload = async () => {
       .catch(() => undefined);
   }
   for (const entry of entries.filter(
-    (candidate) => candidate.kind === "files" && isFilesPreviewCandidate(candidate.paths),
+    (candidate) =>
+      candidate.kind === "files" &&
+      isFilesPreviewCandidate(candidate.paths) &&
+      !thumbnails.has(candidate.id),
   )) {
     const mime = imageFileMime(entry.paths![0]);
     invokeCommand<number[]>("clipboard_read_file_preview", { id: entry.id })
@@ -572,9 +648,8 @@ const stopPeriodicRefresh = () => {
  */
 const handleReload = async () => {
   await reload();
-  // Scroll to top.
-  const list = content.querySelector<HTMLElement>(".clipboard-panel__list");
-  if (list) list.scrollTop = 0;
+  // Scroll the actual overflow container to the top.
+  content.scrollTop = 0;
   startPeriodicRefresh();
 };
 
@@ -706,6 +781,7 @@ window.addEventListener("keydown", (event) => {
     view = view === "all" ? "favorites" : "all";
     selected = 0;
     render();
+    focusSelectedRow();
     return;
   }
   if (event.key === "ArrowDown") {
@@ -714,6 +790,7 @@ window.addEventListener("keydown", (event) => {
     const length = filteredEntries().length;
     selected = length ? (selected + 1) % length : 0;
     render();
+    focusSelectedRow();
     return;
   }
   if (event.key === "ArrowUp") {
@@ -722,6 +799,7 @@ window.addEventListener("keydown", (event) => {
     const length = filteredEntries().length;
     selected = length ? (selected - 1 + length) % length : 0;
     render();
+    focusSelectedRow();
     return;
   }
   if (event.key === "Enter") {
@@ -769,6 +847,7 @@ window.addEventListener("keydown", (event) => {
     view = event.key === "1" ? "all" : "favorites";
     selected = 0;
     render();
+    focusSelectedRow();
     return;
   }
   if (event.key === "Backspace") {

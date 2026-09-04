@@ -33,8 +33,16 @@ export function syncLauncherHeight(
   collapsedCardRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const card = collapsedCardRef.current;
-  const last = card?.lastElementChild as HTMLElement | null;
-  if (!card || !last) return;
+  if (!card) return;
+
+  // The card keeps a display:none plugin host mounted after the launcher
+  // content. Walk backwards to the last child that participates in layout so
+  // the hidden host is ignored while the collapsed result clip can still
+  // contribute its real offset (zero when there are no results).
+  const last = Array.from(card.children)
+    .reverse()
+    .find((child) => getComputedStyle(child).display !== "none") as HTMLElement | undefined;
+  if (!last) return;
 
   const style = getComputedStyle(card);
   const frame =
