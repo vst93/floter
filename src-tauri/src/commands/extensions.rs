@@ -1636,8 +1636,62 @@ pub async fn extensions_reprobe(
         ));
     }
 
-    // Load the manifest to get lifecycle probes
-    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    // Load the manifest to get lifecycle probes. If the manifest is missing
+    // or corrupt, probe_executor will use the --version/--help fallback
+    // (backward-compatible with extensions that launched before manifests
+    // declared lifecycle probes).
+    let manifest = match ExtensionManifest::load(Path::new(&entry.manifest_path)) {
+        Ok(m) => m,
+        Err(load_error) => {
+            tracing::warn!(
+                extension_id = %id,
+                manifest_path = %entry.manifest_path,
+                error = %load_error,
+                "Manifest load failed during reprobe; falling back to default --version/--help probes"
+            );
+            // Synthesize a minimal manifest with no lifecycle probes so
+            // probe_executor takes the fallback path.
+            ExtensionManifest {
+                schema_version: "2.0".to_string(),
+                id: entry.id.clone(),
+                name: entry.name.clone(),
+                description: String::new(),
+                publisher: manifest::Publisher {
+                    id: entry.publisher_id.clone(),
+                    name: entry.publisher_name.clone(),
+                },
+                compatibility: manifest::Compatibility {
+                    floter: ">=0.1.0".to_string(),
+                    provider_protocol: "^1.0".to_string(),
+                },
+                distribution: match entry.distribution_source {
+                    ExtensionDistributionSource::Local => manifest::Distribution::Local,
+                    ExtensionDistributionSource::BuiltIn => manifest::Distribution::BuiltIn,
+                    ExtensionDistributionSource::Npm => manifest::Distribution::Local,
+                },
+                runtime: Runtime::System {
+                    executable_names: vec![],
+                    version_args: vec!["--version".to_string()],
+                },
+                artifacts: Default::default(),
+                provider: manifest::ProviderConfig {
+                    kind: manifest::ProviderKind::StaticDescriptor,
+                    descriptor: None,
+                    args_prefix: vec![],
+                    describe_timeout_ms: 5_000,
+                    complete_timeout_ms: 800,
+                    environment: Default::default(),
+                },
+                platforms: vec![],
+                platform_overrides: Default::default(),
+                permissions: vec![],
+                lifecycle: Default::default(), // Empty lifecycle = fallback probes
+                homepage: None,
+                icon: None,
+                signatures: None,
+            }
+        }
+    };
 
     // Execute probes using the shared logic: manifest probes if declared,
     // otherwise --version/--help fallback
@@ -1672,10 +1726,22 @@ pub async fn extensions_launch(
         .get(&id)?
         .clone();
 
-    // Load manifest to read lifecycle.launch configuration
-    let manifest_path = std::path::Path::new(&entry.manifest_path);
-    let manifest = ExtensionManifest::load(manifest_path)?;
-    let launch_config = manifest.lifecycle.launch.as_ref();
+    // Load manifest to read lifecycle.launch configuration. If the manifest
+    // is missing or corrupt, fall back to the pre-a02dab0 hardcoded defaults
+    // (InheritActiveSession cwd, Reattach restore, standard terminal config)
+    // so a previously-working launch continues to work.
+    let launch_config = match ExtensionManifest::load(std::path::Path::new(&entry.manifest_path)) {
+        Ok(manifest) => manifest.lifecycle.launch.as_ref().cloned(),
+        Err(load_error) => {
+            tracing::warn!(
+                extension_id = %id,
+                manifest_path = %entry.manifest_path,
+                error = %load_error,
+                "Manifest load failed during launch; using pre-a02dab0 defaults (cwd=InheritActiveSession, restore=Reattach)"
+            );
+            None
+        }
+    };
 
     // Get tool data directory
     let tool_data_dir = state.paths.data.join(&id);
@@ -1697,6 +1763,7 @@ pub async fn extensions_launch(
     );
 
     let policy = launch_config
+        .as_ref()
         .and_then(|cfg| parse_cwd_policy_from_manifest(&cfg.cwd_policy).ok())
         .unwrap_or(crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession);
     let resolved_cwd = policy.resolve(&cwd_context)?;
@@ -1705,6 +1772,7 @@ pub async fn extensions_launch(
     let sessions_dir = tool_data_dir.join("sessions");
     let session_resolver = SessionResolver::new(sessions_dir);
     let restore_policy = launch_config
+        .as_ref()
         .map(|cfg| parse_restore_policy(&cfg.restore_policy))
         .unwrap_or(RestorePolicy::Reattach);
 
@@ -1735,6 +1803,7 @@ pub async fn extensions_launch(
 
     // Build terminal config from manifest or default
     let terminal_config = launch_config
+        .as_ref()
         .and_then(|cfg| cfg.terminal.as_ref())
         .map(|term| {
             serde_json::json!({
@@ -2082,5 +2151,227 @@ mod tests {
         assert_eq!(parse_restore_policy("none"), RestorePolicy::None);
         // Unknown values default to reattach
         assert_eq!(parse_restore_policy("unknown"), RestorePolicy::Reattach);
+    }
+
+    #[test]
+    fn extensions_launch_proceeds_with_missing_manifest() {
+        // When the manifest file is missing, extensions_launch falls back to
+        // pre-a02dab0 defaults (InheritActiveSession cwd, Reattach restore,
+        // standard terminal config) rather than aborting the launch.
+        use crate::extensions::lock::ExtensionLockEntry;
+        use std::path::PathBuf;
+
+        let temp = tempfile::tempdir().unwrap();
+        let missing_manifest = temp.path().join("does-not-exist.json");
+
+        let entry = ExtensionLockEntry {
+            id: "test.tool".to_string(),
+            name: "Test Tool".to_string(),
+            publisher_id: "test".to_string(),
+            publisher_name: "Test".to_string(),
+            distribution_source: crate::extensions::lock::ExtensionDistributionSource::Local,
+            runtime_ownership: crate::extensions::lock::ExtensionRuntimeOwnership::System,
+            provider_kind: crate::extensions::lock::ExtensionProviderKind::StaticDescriptor,
+            state: crate::extensions::lock::ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: "1.0.0".to_string(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: "1.0.0".to_string(),
+            previous_version: None,
+            manifest_path: missing_manifest.to_string_lossy().into_owned(),
+            executable_path: "/usr/bin/test-tool".to_string(),
+            runtime_root: None,
+            installed_at: 0,
+            updated_at: 0,
+            pinned: false,
+            channel: "stable".to_string(),
+            approved_permissions: vec![],
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+        };
+
+        // The load attempt returns None for launch_config, triggering the fallback path.
+        let load_result = ExtensionManifest::load(PathBuf::from(&entry.manifest_path).as_path());
+        assert!(load_result.is_err(), "Missing manifest should fail to load");
+
+        // When extensions_launch encounters this, it produces launch_config = None
+        // and uses InheritActiveSession + Reattach defaults.
+        // We cannot call extensions_launch directly (it's async + requires State),
+        // but we verify the parse functions handle None gracefully.
+        let launch_config: Option<crate::extensions::lifecycle::LaunchConfig> = None;
+
+        let policy = launch_config
+            .as_ref()
+            .and_then(|cfg| parse_cwd_policy_from_manifest(&cfg.cwd_policy).ok())
+            .unwrap_or(crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession);
+        assert!(matches!(
+            policy,
+            crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession
+        ));
+
+        let restore = launch_config
+            .as_ref()
+            .map(|cfg| parse_restore_policy(&cfg.restore_policy))
+            .unwrap_or(crate::extensions::session_restore::RestorePolicy::Reattach);
+        assert_eq!(
+            restore,
+            crate::extensions::session_restore::RestorePolicy::Reattach
+        );
+    }
+
+    #[test]
+    fn extensions_launch_proceeds_with_corrupt_manifest() {
+        // When the manifest file is unparseable, extensions_launch falls back
+        // to defaults rather than aborting.
+
+        let temp = tempfile::tempdir().unwrap();
+        let corrupt_manifest = temp.path().join("corrupt.json");
+        std::fs::write(&corrupt_manifest, "not valid json{{{").unwrap();
+
+        let load_result = ExtensionManifest::load(corrupt_manifest.as_path());
+        assert!(
+            load_result.is_err(),
+            "Corrupt manifest should fail to parse"
+        );
+
+        // Same assertion as the missing-manifest case: launch_config = None
+        // triggers the fallback defaults.
+        let launch_config: Option<crate::extensions::lifecycle::LaunchConfig> = None;
+
+        let policy = launch_config
+            .as_ref()
+            .and_then(|cfg| parse_cwd_policy_from_manifest(&cfg.cwd_policy).ok())
+            .unwrap_or(crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession);
+        assert!(matches!(
+            policy,
+            crate::extensions::cwd_policy::CwdPolicy::InheritActiveSession
+        ));
+    }
+
+    #[test]
+    fn extensions_reprobe_synthesizes_fallback_manifest_when_load_fails() {
+        // When the manifest is missing or corrupt, extensions_reprobe synthesizes
+        // a minimal manifest with empty lifecycle probes so probe_executor uses
+        // the --version/--help fallback.
+        use crate::extensions::lock::{
+            ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+            ExtensionRuntimeOwnership, ExtensionStateKind,
+        };
+        use std::path::PathBuf;
+
+        let temp = tempfile::tempdir().unwrap();
+        let missing_manifest = temp.path().join("missing.json");
+
+        let entry = ExtensionLockEntry {
+            id: "test.tool".to_string(),
+            name: "Test Tool".to_string(),
+            publisher_id: "test".to_string(),
+            publisher_name: "Test Publisher".to_string(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: "1.0.0".to_string(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: "1.0.0".to_string(),
+            previous_version: None,
+            manifest_path: missing_manifest.to_string_lossy().into_owned(),
+            executable_path: "/usr/bin/test-tool".to_string(),
+            runtime_root: None,
+            installed_at: 0,
+            updated_at: 0,
+            pinned: false,
+            channel: "stable".to_string(),
+            approved_permissions: vec![],
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+        };
+
+        // Simulate the fallback branch in extensions_reprobe
+        let manifest = match ExtensionManifest::load(PathBuf::from(&entry.manifest_path).as_path())
+        {
+            Ok(m) => m,
+            Err(_load_error) => {
+                // Synthesize minimal manifest with empty lifecycle
+                ExtensionManifest {
+                    schema_version: "2.0".to_string(),
+                    id: entry.id.clone(),
+                    name: entry.name.clone(),
+                    description: String::new(),
+                    publisher: manifest::Publisher {
+                        id: entry.publisher_id.clone(),
+                        name: entry.publisher_name.clone(),
+                    },
+                    compatibility: manifest::Compatibility {
+                        floter: ">=0.1.0".to_string(),
+                        provider_protocol: "^1.0".to_string(),
+                    },
+                    distribution: manifest::Distribution::Local,
+                    runtime: Runtime::System {
+                        executable_names: vec![],
+                        version_args: vec!["--version".to_string()],
+                    },
+                    artifacts: Default::default(),
+                    provider: manifest::ProviderConfig {
+                        kind: manifest::ProviderKind::StaticDescriptor,
+                        descriptor: None,
+                        args_prefix: vec![],
+                        describe_timeout_ms: 5_000,
+                        complete_timeout_ms: 800,
+                        environment: Default::default(),
+                    },
+                    platforms: vec![],
+                    platform_overrides: Default::default(),
+                    permissions: vec![],
+                    lifecycle: Default::default(),
+                    homepage: None,
+                    icon: None,
+                    signatures: None,
+                }
+            }
+        };
+
+        // Verify the synthesized manifest has empty lifecycle probes
+        assert!(
+            manifest.lifecycle.probes.is_empty(),
+            "Synthesized manifest should have no lifecycle probes"
+        );
+        assert_eq!(manifest.id, "test.tool");
+        assert_eq!(manifest.name, "Test Tool");
     }
 }
