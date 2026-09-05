@@ -875,10 +875,31 @@ pub async fn update_custom_integration(
         .map_err(|error| format!("Cannot prepare custom integration backup: {error}"))?;
     std::fs::rename(&root, &backup_path)
         .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
+
+    // Write edit journal BEFORE removing lock entry. Custom integrations in data
+    // dir need the actual backup_path, not an extensions-dir path.
+    let transaction_id = format!("edit-{}-{}", extension_id, current.updated_at);
+    let journal = crate::extensions::transaction::RemovalJournal {
+        schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
+        transaction_id: transaction_id.clone(),
+        extension_id: extension_id.to_string(),
+        removed_entry: current.clone(),
+        // For custom integrations, staged_path is the backup in data dir, and
+        // cleanup_paths includes the target root for proper recovery.
+        staged_path: Some(backup_path.clone()),
+        cleanup_paths: vec![root.clone()],
+        removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
+        remove_data: false,
+        intent: crate::extensions::transaction::RemovalIntent::Edit,
+    };
+    let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
+
+    // Now safe to remove lock entry: if we crash here, recovery will restore it.
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.remove(extension_id);
     if let Err(error) = lock.save(&state.paths.lock_file) {
         let _ = std::fs::rename(&backup_path, &root);
+        let _ = std::fs::remove_file(&journal_path);
         return Err(format!(
             "Cannot stage custom integration lock update: {error}"
         ));
@@ -898,36 +919,42 @@ pub async fn update_custom_integration(
             updated.installed_at = current.installed_at;
             if let Err(error) = lock.save(&state.paths.lock_file) {
                 let _ = std::fs::remove_dir_all(&root);
-                let files = std::fs::rename(&backup_path, &root);
+                let _ = std::fs::rename(&backup_path, &root);
                 let mut restore = ExtensionsLock::load(&state.paths.lock_file)?;
                 restore.extensions.insert(extension_id.to_string(), current);
-                let restored_lock = restore.save(&state.paths.lock_file);
+                let _ = restore.save(&state.paths.lock_file);
+                let _ = std::fs::remove_file(&journal_path);
                 return Err(format!(
-                    "Cannot finalize custom integration update: {error}; rollback files={:?}, lock={:?}",
-                    files.err(),
-                    restored_lock.err()
+                    "Cannot finalize custom integration update: {error}"
                 ));
             }
         }
         let _ = std::fs::remove_dir_all(&backup_path);
+        let _ = std::fs::remove_file(&journal_path);
         return Ok(lock.get(extension_id)?.clone());
     }
 
+    // Operation failed: restore old integration and lock entry in-process.
     let _ = std::fs::remove_dir_all(&root);
-    let restore_files = std::fs::rename(&backup_path, &root)
-        .map_err(|error| format!("Cannot restore custom integration files: {error}"));
+    if let Err(error) = std::fs::rename(&backup_path, &root) {
+        // Backup restoration failed: leave journal for recovery.
+        return Err(format!(
+            "Cannot restore custom integration files: {error}; journal left for recovery"
+        ));
+    }
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.insert(extension_id.to_string(), current);
-    let restore_lock = lock.save(&state.paths.lock_file);
-    match (result, restore_files, restore_lock) {
-        (Err(error), Ok(()), Ok(())) => Err(error),
-        (Err(error), files, lock) => Err(format!(
-            "{error}; rollback failed: files={:?}, lock={:?}",
-            files.err(),
-            lock.err()
-        )),
-        _ => unreachable!(),
+    if let Err(lock_error) = lock.save(&state.paths.lock_file) {
+        // Lock restoration failed: leave journal for recovery.
+        return Err(format!(
+            "{}; lock restore failed: {}; journal left for recovery",
+            result.unwrap_err(),
+            lock_error
+        ));
     }
+    // In-process rollback succeeded: remove journal and report original error.
+    let _ = std::fs::remove_file(&journal_path);
+    result
 }
 
 fn script_extension(language: ScriptLanguage) -> &'static str {
@@ -1363,6 +1390,7 @@ pub async fn uninstall(
         cleanup_paths: cleanup_paths.clone(),
         removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
         remove_data,
+        intent: crate::extensions::transaction::RemovalIntent::Remove,
     };
     let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
 
@@ -3472,6 +3500,7 @@ mod tests {
             cleanup_paths: Vec::new(),
             removal_kind: Some(crate::extensions::transaction::RemovalKind::Committed),
             remove_data: false,
+            intent: crate::extensions::transaction::RemovalIntent::Remove,
         };
         crate::extensions::transaction::write_removal_journal(&state, &journal).unwrap();
 
@@ -3492,6 +3521,228 @@ mod tests {
                         .file_name()
                         .to_string_lossy()
                         .starts_with(&format!("removal-uninstall-{}", extension_id)))
+        );
+    }
+
+    #[tokio::test]
+    async fn edit_crash_before_lock_removal_restores_original() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.edit-crash-test";
+
+        // Create original integration.
+        let original = create_custom_integration(&state, script_request(id, "Original", "original"))
+            .await
+            .unwrap();
+
+        let root = state.paths.data.join(id).join("integration");
+        let original_script = std::fs::read(root.join("provider.sh")).unwrap();
+
+        // Simulate crash after journal write but before lock removal:
+        // files moved to backup, journal written, but lock still has entry.
+        let backup_path = state
+            .paths
+            .data
+            .join(id)
+            .join(format!(".{}-editing-crash", id));
+        std::fs::rename(&root, &backup_path).unwrap();
+
+        let journal = crate::extensions::transaction::RemovalJournal {
+            schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            transaction_id: format!("edit-{}-{}", id, original.updated_at),
+            extension_id: id.to_string(),
+            removed_entry: original.clone(),
+            staged_path: Some(backup_path.clone()),
+            cleanup_paths: vec![root.clone()],
+            removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
+            remove_data: false,
+            intent: crate::extensions::transaction::RemovalIntent::Edit,
+        };
+        crate::extensions::transaction::write_removal_journal(&state, &journal).unwrap();
+
+        // Recovery should restore backup to root using cleanup_paths[0] as target.
+        crate::extensions::transaction::recover(&state).unwrap();
+
+        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let restored = lock.get(id).unwrap();
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.updated_at, original.updated_at);
+        assert!(root.exists(), "Integration root should be restored");
+        assert!(!backup_path.exists(), "Backup should be removed");
+        assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), original_script);
+
+        let definition = custom_integration_definition(&state, id).unwrap();
+        assert_eq!(definition.script_content.as_deref(), Some("printf original"));
+    }
+
+    #[tokio::test]
+    async fn edit_crash_after_lock_removal_completes_on_recovery() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.edit-commit-test";
+
+        // Create original integration.
+        let original = create_custom_integration(&state, script_request(id, "Original", "original"))
+            .await
+            .unwrap();
+        let original_updated_at = original.updated_at;
+
+        let root = state.paths.data.join(id).join("integration");
+        let original_script = std::fs::read(root.join("provider.sh")).unwrap();
+        let backup_path = state
+            .paths
+            .data
+            .join(id)
+            .join(format!(".{}-editing-committed", id));
+        std::fs::rename(&root, &backup_path).unwrap();
+
+        // Simulate crash after lock removal but before new content written:
+        // lock has no entry, journal exists with intent=Edit + Staged kind.
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        lock.extensions.remove(id);
+        lock.save(&state.paths.lock_file).unwrap();
+
+        let journal = crate::extensions::transaction::RemovalJournal {
+            schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            transaction_id: format!("edit-{}-{}", id, original_updated_at),
+            extension_id: id.to_string(),
+            removed_entry: original.clone(),
+            staged_path: Some(backup_path.clone()),
+            cleanup_paths: vec![root.clone()],
+            removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
+            remove_data: false,
+            intent: crate::extensions::transaction::RemovalIntent::Edit,
+        };
+        crate::extensions::transaction::write_removal_journal(&state, &journal).unwrap();
+
+        // Recovery should RESTORE: old content back, lock entry re-inserted.
+        crate::extensions::transaction::recover(&state).unwrap();
+
+        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let restored = lock.get(id).unwrap();
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.updated_at, original_updated_at);
+        assert!(root.exists(), "Integration root should be restored");
+        assert!(!backup_path.exists(), "Backup should be removed after restore");
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            original_script,
+            "Original script content should be restored"
+        );
+    }
+
+    #[tokio::test]
+    async fn edit_failure_restores_original_in_process() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.edit-fail-test";
+
+        create_custom_integration(&state, script_request(id, "Original", "original"))
+            .await
+            .unwrap();
+
+        let root = state.paths.data.join(id).join("integration");
+        let original_script = std::fs::read(root.join("provider.sh")).unwrap();
+
+        // Attempt edit with invalid script content (empty).
+        let mut invalid = script_request(id, "Updated", "updated");
+        invalid.script_content = Some(String::new());
+        let result = update_custom_integration(&state, id, invalid).await;
+        assert!(result.is_err());
+
+        // Original integration should be fully restored in-process.
+        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        assert!(lock.extensions.contains_key(id));
+
+        let definition = custom_integration_definition(&state, id).unwrap();
+        assert_eq!(definition.name, "Original");
+        assert_eq!(definition.script_content.as_deref(), Some("printf original"));
+        assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), original_script);
+
+        // Journal should be removed (in-process rollback succeeded).
+        let journal_dir = state.paths.extensions.join(".transactions");
+        assert!(
+            !journal_dir.exists()
+                || !journal_dir
+                    .read_dir()
+                    .unwrap()
+                    .flatten()
+                    .any(|e| e
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with(&format!("removal-edit-{}", id)))
+        );
+    }
+
+    #[tokio::test]
+    async fn edit_crash_after_new_content_written_keeps_new_content() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.edit-completed-test";
+
+        // Create original integration.
+        let original = create_custom_integration(&state, script_request(id, "Original", "original"))
+            .await
+            .unwrap();
+        let original_updated_at = original.updated_at;
+
+        let root = state.paths.data.join(id).join("integration");
+        let backup_path = state
+            .paths
+            .data
+            .join(id)
+            .join(format!(".{}-editing-backup", id));
+
+        // Simulate edit that wrote new content but crashed before journal removal:
+        // 1. Old content backed up
+        std::fs::rename(&root, &backup_path).unwrap();
+
+        // 2. Lock entry removed (as update_custom_integration does)
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        lock.extensions.remove(id);
+        lock.save(&state.paths.lock_file).unwrap();
+
+        // 3. Journal written with intent=Edit
+        let journal = crate::extensions::transaction::RemovalJournal {
+            schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            transaction_id: format!("edit-{}-{}", id, original_updated_at),
+            extension_id: id.to_string(),
+            removed_entry: original.clone(),
+            staged_path: Some(backup_path.clone()),
+            cleanup_paths: vec![root.clone()],
+            removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
+            remove_data: false,
+            intent: crate::extensions::transaction::RemovalIntent::Edit,
+        };
+        crate::extensions::transaction::write_removal_journal(&state, &journal).unwrap();
+
+        // 4. New content written
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("provider.sh"), b"printf new").unwrap();
+
+        // Recovery should detect new_root exists and keep it, removing backup and journal.
+        crate::extensions::transaction::recover(&state).unwrap();
+
+        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        assert!(!lock.extensions.contains_key(id), "Lock entry should still be absent (edit never finished lock update)");
+        assert!(root.exists(), "New content should be kept");
+        assert!(!backup_path.exists(), "Backup should be removed");
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            b"printf new",
+            "New content should be preserved"
         );
     }
 
@@ -3569,6 +3820,7 @@ mod tests {
             cleanup_paths: Vec::new(),
             removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
             remove_data: false,
+            intent: crate::extensions::transaction::RemovalIntent::Remove,
         };
         crate::extensions::transaction::write_removal_journal(&state, &journal).unwrap();
 

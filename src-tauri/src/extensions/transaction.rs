@@ -56,6 +56,17 @@ pub enum RemovalKind {
     Committed,
 }
 
+/// Intent behind a removal journal: uninstall vs edit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RemovalIntent {
+    /// Permanent removal (uninstall).
+    #[default]
+    Remove,
+    /// Temporary backup for edit operation.
+    Edit,
+}
+
 // NOTE: the staged-pipeline writers (`begin`, `progress`, `commit_version`,
 // `commit_lock`) were removed together with the NPM distribution pipeline.
 // `recover`, `write_journal`, and this enum stay because journals written by
@@ -104,6 +115,9 @@ pub struct RemovalJournal {
     /// Whether user data should be deleted.
     #[serde(default)]
     pub remove_data: bool,
+    /// Intent: Remove (uninstall) or Edit (temporary backup).
+    #[serde(default)]
+    pub intent: RemovalIntent,
 }
 
 fn journal_dir(state: &ExtensionState) -> PathBuf {
@@ -183,21 +197,22 @@ fn remove_journal(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Recover interrupted removal (uninstall) transactions. Two branches:
+/// Recover interrupted removal (uninstall/edit) transactions. Three branches:
 ///
-/// 1. Lock entry still exists → removal was requested but never committed;
+/// 1. Lock entry still exists → removal/edit was requested but never committed;
 ///    restore any staged paths and drop the journal (user can retry).
-/// 2. Lock entry is gone → removal committed but physical cleanup failed;
-///    finish deleting staged paths and cleanup_paths, then remove journal.
+/// 2. Lock entry is gone + intent=Remove → uninstall committed but physical
+///    cleanup failed; finish deleting staged paths and cleanup_paths.
+/// 3. Lock entry is gone + intent=Edit → edit lock removal happened but new
+///    content may or may not be committed; restore if new content missing.
 ///
 /// This ensures uninstall either completes fully (no lock entry, no residue)
-/// or fails cleanly (lock entry intact, extension still functional).
+/// or fails cleanly (lock entry intact, extension still functional), and edits
+/// restore the old content if the new content was never written.
 ///
-/// The journal is removed ONLY when all planned deletions succeed (or the paths
-/// no longer exist). If any deletion fails, the journal is kept on disk so the
-/// next startup retries the operation. This prevents losing auto-recovery for
-/// residual files when cleanup fails due to locked files, I/O errors, or
-/// permission issues.
+/// The journal is removed ONLY when all planned operations succeed (or the paths
+/// no longer exist). If any deletion/restore fails, the journal is kept on disk
+/// so the next startup retries the operation.
 fn recover_removal_journals(
     state: &ExtensionState,
     lock: &mut ExtensionsLock,
@@ -233,44 +248,120 @@ fn recover_removal_journals(
         }
         let lock_entry_exists = lock.extensions.contains_key(&journal.extension_id);
         if lock_entry_exists {
-            // Removal never committed: restore staged path if it exists.
+            // Removal never committed (Staged branch): restore staged path if it exists.
             if let Some(staged) = &journal.staged_path {
-                let original = state.paths.extensions.join(&journal.extension_id);
+                // Defect 1 fix: Determine restore target from WHERE staged_path lives,
+                // not from cleanup_paths (which includes data dir for normal uninstall
+                // with remove_data=true, causing wrong-location restore).
+                let staged_canonical = staged.canonicalize().unwrap_or_else(|_| staged.clone());
+                let extensions_canonical = state
+                    .paths
+                    .extensions
+                    .canonicalize()
+                    .unwrap_or_else(|_| state.paths.extensions.clone());
+
+                let original = if staged_canonical.starts_with(&extensions_canonical) {
+                    // Normal extension uninstall: staged is .removing-{id}- in extensions dir
+                    state.paths.extensions.join(&journal.extension_id)
+                } else if !journal.cleanup_paths.is_empty() {
+                    // Custom integration edit: staged is backup in data dir
+                    journal.cleanup_paths[0].clone()
+                } else {
+                    // Fallback: use extensions dir (shouldn't happen)
+                    state.paths.extensions.join(&journal.extension_id)
+                };
+
                 if staged.exists() && !original.exists() {
-                    let _ = std::fs::rename(staged, &original);
+                    // Defect 3 fix: Keep journal if restore fails
+                    if let Err(error) = std::fs::rename(staged, &original) {
+                        tracing::warn!(
+                            "Removal recovery: cannot restore {} to {}: {}; will retry on next startup",
+                            staged.display(),
+                            original.display(),
+                            error
+                        );
+                        continue; // Keep journal, skip to next item
+                    }
                 }
             }
             remove_journal(&path)?;
         } else {
-            // Removal committed: finish physical cleanup. Keep the journal if
-            // any deletion fails so recovery can retry on next startup.
-            let mut cleanup_failed = false;
-            if let Some(staged) = &journal.staged_path {
-                if staged.exists() {
-                    if let Err(error) = std::fs::remove_dir_all(staged) {
-                        tracing::warn!(
-                            "Removal recovery: cannot delete {}: {}; will retry on next startup",
-                            staged.display(),
-                            error
-                        );
-                        cleanup_failed = true;
+            // Lock entry gone (Committed branch): intent decides semantics
+            match journal.intent {
+                RemovalIntent::Edit => {
+                    // Defect 2 fix: Edit journals get restore semantics when lock entry absent
+                    if let Some(staged) = &journal.staged_path {
+                        if !journal.cleanup_paths.is_empty() {
+                            let new_root = &journal.cleanup_paths[0];
+                            if new_root.exists() {
+                                // New content already written: edit completed, remove backup and journal
+                                if staged.exists() {
+                                    let _ = std::fs::remove_dir_all(staged);
+                                }
+                                remove_journal(&path)?;
+                            } else if staged.exists() {
+                                // New content missing: restore old content and lock entry
+                                if let Err(error) = std::fs::rename(staged, new_root) {
+                                    tracing::warn!(
+                                        "Edit recovery: cannot restore {} to {}: {}; will retry on next startup",
+                                        staged.display(),
+                                        new_root.display(),
+                                        error
+                                    );
+                                    continue; // Keep journal
+                                }
+                                // Re-insert lock entry
+                                lock.extensions.insert(
+                                    journal.extension_id.clone(),
+                                    journal.removed_entry.clone(),
+                                );
+                                lock.save(&state.paths.lock_file)?;
+                                remove_journal(&path)?;
+                            } else {
+                                // Both staged and new_root gone: nothing to restore
+                                remove_journal(&path)?;
+                            }
+                        } else {
+                            // No cleanup_paths: shouldn't happen for edit, treat as no-op
+                            remove_journal(&path)?;
+                        }
+                    } else {
+                        // No staged_path: nothing to restore
+                        remove_journal(&path)?;
                     }
                 }
-            }
-            for cleanup_path in &journal.cleanup_paths {
-                if cleanup_path.exists() {
-                    if let Err(error) = std::fs::remove_dir_all(cleanup_path) {
-                        tracing::warn!(
-                            "Removal recovery: cannot delete {}: {}; will retry on next startup",
-                            cleanup_path.display(),
-                            error
-                        );
-                        cleanup_failed = true;
+                RemovalIntent::Remove => {
+                    // Uninstall committed: finish physical cleanup. Keep the journal if
+                    // any deletion fails so recovery can retry on next startup.
+                    let mut cleanup_failed = false;
+                    if let Some(staged) = &journal.staged_path {
+                        if staged.exists() {
+                            if let Err(error) = std::fs::remove_dir_all(staged) {
+                                tracing::warn!(
+                                    "Removal recovery: cannot delete {}: {}; will retry on next startup",
+                                    staged.display(),
+                                    error
+                                );
+                                cleanup_failed = true;
+                            }
+                        }
+                    }
+                    for cleanup_path in &journal.cleanup_paths {
+                        if cleanup_path.exists() {
+                            if let Err(error) = std::fs::remove_dir_all(cleanup_path) {
+                                tracing::warn!(
+                                    "Removal recovery: cannot delete {}: {}; will retry on next startup",
+                                    cleanup_path.display(),
+                                    error
+                                );
+                                cleanup_failed = true;
+                            }
+                        }
+                    }
+                    if !cleanup_failed {
+                        remove_journal(&path)?;
                     }
                 }
-            }
-            if !cleanup_failed {
-                remove_journal(&path)?;
             }
         }
     }
@@ -808,6 +899,7 @@ mod tests {
             cleanup_paths: Vec::new(),
             removal_kind: Some(RemovalKind::Committed),
             remove_data: false,
+            intent: RemovalIntent::Remove,
         };
         let journal_path = write_removal_journal(&state, &journal).unwrap();
 
@@ -849,6 +941,7 @@ mod tests {
             cleanup_paths: vec![cleanup_path.clone()],
             removal_kind: Some(RemovalKind::Committed),
             remove_data: true,
+            intent: RemovalIntent::Remove,
         };
         let journal_path = write_removal_journal(&state, &journal).unwrap();
 
