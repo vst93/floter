@@ -741,6 +741,49 @@ mod tests {
         assert!(!journal.staged_version.as_ref().unwrap().exists());
     }
 
+    #[test]
+    fn recovery_after_migration_processes_install_journal() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let journal = staged_journal(
+            &state,
+            "example.migrated",
+            Some("1.0.0"),
+            "2.0.0",
+            true,
+            TransactionState::Activated,
+        );
+        let target = journal.target_version.clone().unwrap();
+        let backup = journal.backup_version.clone().unwrap();
+        std::fs::create_dir_all(&target).unwrap();
+        std::fs::create_dir_all(&backup).unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions
+            .insert(journal.new_entry.id.clone(), journal.new_entry.clone());
+        lock.save_legacy(&state.paths.lock_file).unwrap();
+        let journal_path = write_journal(&state, &journal).unwrap();
+        crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+
+        recover(&state).unwrap();
+
+        assert!(target.exists());
+        assert!(!backup.exists());
+        assert!(!journal_path.exists());
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.lock_file)
+                .unwrap()
+                .get("example.migrated")
+                .unwrap()
+                .current_version,
+            "2.0.0"
+        );
+        let pointer: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(state.paths.extensions.join("example.migrated/current.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(pointer["version"], "2.0.0");
+    }
+
     fn staged_version_with_invalid_shim_manifest(
         state: &ExtensionState,
         entry: &ExtensionLockEntry,

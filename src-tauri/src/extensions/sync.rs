@@ -1228,7 +1228,10 @@ mod tests {
             &approvals,
         )
         .await;
-        let lock_after_first = std::fs::read(&state.paths.lock_file).unwrap();
+        // Loading through the repository adapter completes the first-startup
+        // migration before comparing the persisted snapshot.
+        let _ = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock_after_first = std::fs::read(&state.paths.repository_file).unwrap();
         let second = import_document(
             &state,
             Path::new("fixture.json"),
@@ -1241,7 +1244,7 @@ mod tests {
         assert_eq!(second.skipped.len(), 1);
         assert!(second.failed.is_empty());
         assert_eq!(
-            std::fs::read(&state.paths.lock_file).unwrap(),
+            std::fs::read(&state.paths.repository_file).unwrap(),
             lock_after_first
         );
     }

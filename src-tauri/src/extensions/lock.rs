@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::extensions::asset_matcher::AssetSelection;
 use crate::extensions::manifest::Permission;
 
-const LOCK_SCHEMA_VERSION: u32 = 2;
+pub(crate) const LOCK_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -161,6 +161,13 @@ fn default_channel() -> String {
 
 impl ExtensionsLock {
     pub fn load(path: &Path) -> Result<Self, String> {
+        if crate::extensions::repository::is_legacy_lock_path(path) {
+            return crate::extensions::repository::load_for_legacy_path(path);
+        }
+        Self::load_legacy(path)
+    }
+
+    pub(crate) fn load_legacy(path: &Path) -> Result<Self, String> {
         if !path.exists() {
             return Ok(Self::default());
         }
@@ -174,7 +181,12 @@ impl ExtensionsLock {
                 lock.schema_version
             ));
         }
-        for (id, entry) in &lock.extensions {
+        lock.validate_entries()?;
+        Ok(lock)
+    }
+
+    pub(crate) fn validate_entries(&self) -> Result<(), String> {
+        for (id, entry) in &self.extensions {
             validate_id(id)?;
             if entry.id != *id {
                 return Err(format!(
@@ -191,10 +203,14 @@ impl ExtensionsLock {
                 normalize_release_channel(&entry.channel)?;
             }
         }
-        Ok(lock)
+        Ok(())
     }
 
     pub fn save(&self, path: &Path) -> Result<(), String> {
+        self.save_legacy(path)
+    }
+
+    pub(crate) fn save_legacy(&self, path: &Path) -> Result<(), String> {
         let parent = path.parent().ok_or("Invalid extension lock path")?;
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("Cannot create lock directory: {error}"))?;
