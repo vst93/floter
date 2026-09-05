@@ -23,9 +23,6 @@ use std::path::{Path, PathBuf};
 
 pub const TRANSACTION_JOURNAL_SCHEMA_VERSION: u32 = 3;
 
-/// Number of installed versions kept on disk besides the current one: the
-/// current version plus one previous version survive an update, so rollback
-/// only switches the pointer and never needs to re-download.
 /// Stage of an installation transaction. Older journals (schema v1) did not
 /// carry a stage; they are treated as [`TransactionState::Resolved`] and the
 /// pre-existing `lock_committed` flag decides their recovery branch.
@@ -186,50 +183,6 @@ fn remove_journal(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Remove on-disk version directories outside the retained set (current plus
-/// the single previous version). Used after a successful activation so old
-/// versions do not accumulate, and by recovery for committed journals.
-fn retain_versions(state: &ExtensionState, entry: &ExtensionLockEntry) -> Result<(), String> {
-    let versions = state.paths.extensions.join(&entry.id).join("versions");
-    if !versions.is_dir() {
-        return Ok(());
-    }
-    let mut retained = vec![entry.current_version.clone()];
-    if let Some(previous) = &entry.previous_version {
-        retained.push(previous.clone());
-    }
-    let mut removed = false;
-    for item in std::fs::read_dir(&versions)
-        .map_err(|error| format!("Cannot scan retained extension versions: {error}"))?
-    {
-        let item =
-            item.map_err(|error| format!("Cannot scan retained extension versions: {error}"))?;
-        if !item
-            .file_type()
-            .map_err(|error| format!("Cannot inspect retained extension version: {error}"))?
-            .is_dir()
-        {
-            continue;
-        }
-        let name = item.file_name().to_string_lossy().into_owned();
-        if retained.iter().any(|keep| keep == &name) {
-            continue;
-        }
-        std::fs::remove_dir_all(item.path()).map_err(|error| {
-            format!(
-                "Cannot remove retained extension version {}: {error}",
-                item.path().display()
-            )
-        })?;
-        removed = true;
-    }
-    if removed {
-        sync_directory(&versions)
-            .map_err(|error| format!("Cannot sync extension versions directory: {error}"))?;
-    }
-    Ok(())
-}
-
 /// Recover interrupted removal (uninstall) transactions. Two branches:
 ///
 /// 1. Lock entry still exists → removal was requested but never committed;
@@ -239,6 +192,12 @@ fn retain_versions(state: &ExtensionState, entry: &ExtensionLockEntry) -> Result
 ///
 /// This ensures uninstall either completes fully (no lock entry, no residue)
 /// or fails cleanly (lock entry intact, extension still functional).
+///
+/// The journal is removed ONLY when all planned deletions succeed (or the paths
+/// no longer exist). If any deletion fails, the journal is kept on disk so the
+/// next startup retries the operation. This prevents losing auto-recovery for
+/// residual files when cleanup fails due to locked files, I/O errors, or
+/// permission issues.
 fn recover_removal_journals(
     state: &ExtensionState,
     lock: &mut ExtensionsLock,
@@ -283,18 +242,36 @@ fn recover_removal_journals(
             }
             remove_journal(&path)?;
         } else {
-            // Removal committed: finish physical cleanup.
+            // Removal committed: finish physical cleanup. Keep the journal if
+            // any deletion fails so recovery can retry on next startup.
+            let mut cleanup_failed = false;
             if let Some(staged) = &journal.staged_path {
                 if staged.exists() {
-                    let _ = std::fs::remove_dir_all(staged);
+                    if let Err(error) = std::fs::remove_dir_all(staged) {
+                        tracing::warn!(
+                            "Removal recovery: cannot delete {}: {}; will retry on next startup",
+                            staged.display(),
+                            error
+                        );
+                        cleanup_failed = true;
+                    }
                 }
             }
             for cleanup_path in &journal.cleanup_paths {
                 if cleanup_path.exists() {
-                    let _ = std::fs::remove_dir_all(cleanup_path);
+                    if let Err(error) = std::fs::remove_dir_all(cleanup_path) {
+                        tracing::warn!(
+                            "Removal recovery: cannot delete {}: {}; will retry on next startup",
+                            cleanup_path.display(),
+                            error
+                        );
+                        cleanup_failed = true;
+                    }
                 }
             }
-            remove_journal(&path)?;
+            if !cleanup_failed {
+                remove_journal(&path)?;
+            }
         }
     }
     Ok(())
@@ -396,7 +373,6 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
                     let _ = std::fs::remove_dir_all(staged);
                 }
             }
-            let _ = retain_versions(state, &journal.new_entry);
             crate::extensions::artifacts::activate_entry_shims(
                 &state.paths.extensions,
                 &journal.new_entry,
@@ -809,28 +785,88 @@ mod tests {
     }
 
     #[test]
-    fn retention_keeps_current_and_previous_only() {
+    fn removal_journal_persists_when_cleanup_fails_on_first_recovery() {
+        // Committed removal journal with cleanup failure: journal must survive
+        // so next recovery retries. Simulate a locked/undeletable directory by
+        // replacing it with a file (portable failure mechanism).
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let mut entry = journal_entry(state.paths.root.as_path(), "2.0.0", "example.retain");
-        entry.previous_version = Some("1.5.0".into());
-        let versions = state
+        let entry = journal_entry(state.paths.root.as_path(), "1.0.0", "example.cleanup-fail");
+        let staged_path = state
             .paths
             .extensions
-            .join("example.retain")
-            .join("versions");
-        for version in ["1.0.0", "1.5.0", "1.9.0", "2.0.0", "0.9.0"] {
-            std::fs::create_dir_all(versions.join(version)).unwrap();
-        }
-        std::fs::create_dir_all(versions.join("2.0.0.txn-backup-0000")).unwrap();
+            .join(".removing-example.cleanup-fail-staged");
+        std::fs::create_dir_all(&staged_path).unwrap();
+        std::fs::write(staged_path.join("data"), b"residue").unwrap();
 
-        retain_versions(&state, &entry).unwrap();
+        let journal = RemovalJournal {
+            schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            transaction_id: "removal-cleanup-fail".into(),
+            extension_id: "example.cleanup-fail".into(),
+            removed_entry: entry.clone(),
+            staged_path: Some(staged_path.clone()),
+            cleanup_paths: Vec::new(),
+            removal_kind: Some(RemovalKind::Committed),
+            remove_data: false,
+        };
+        let journal_path = write_removal_journal(&state, &journal).unwrap();
 
-        assert!(versions.join("2.0.0").exists());
-        assert!(versions.join("1.5.0").exists());
-        assert!(!versions.join("1.0.0").exists());
-        assert!(!versions.join("1.9.0").exists());
-        assert!(!versions.join("0.9.0").exists());
-        assert!(!versions.join("2.0.0.txn-backup-0000").exists());
+        // Replace staged directory with a file to simulate deletion failure.
+        std::fs::remove_dir_all(&staged_path).unwrap();
+        std::fs::write(&staged_path, b"locked").unwrap();
+
+        let mut lock = ExtensionsLock::default();
+        recover_removal_journals(&state, &mut lock).unwrap();
+
+        // Journal must still exist because cleanup failed.
+        assert!(journal_path.exists());
+        // Staged path obstacle remains (simulated locked file).
+        assert!(staged_path.exists());
+
+        // Second recovery after removing the obstacle completes cleanup.
+        std::fs::remove_file(&staged_path).unwrap();
+        recover_removal_journals(&state, &mut lock).unwrap();
+        assert!(!journal_path.exists());
+        assert!(!staged_path.exists());
+    }
+
+    #[test]
+    fn removal_journal_persists_when_cleanup_path_fails() {
+        // Cleanup path deletion failure: journal survives for retry.
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let entry = journal_entry(state.paths.root.as_path(), "1.0.0", "example.cleanup-path-fail");
+        let cleanup_path = state.paths.data.join("example.cleanup-path-fail");
+        std::fs::create_dir_all(&cleanup_path).unwrap();
+        std::fs::write(cleanup_path.join("data"), b"user data").unwrap();
+
+        let journal = RemovalJournal {
+            schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            transaction_id: "removal-cleanup-path".into(),
+            extension_id: "example.cleanup-path-fail".into(),
+            removed_entry: entry,
+            staged_path: None,
+            cleanup_paths: vec![cleanup_path.clone()],
+            removal_kind: Some(RemovalKind::Committed),
+            remove_data: true,
+        };
+        let journal_path = write_removal_journal(&state, &journal).unwrap();
+
+        // Replace cleanup directory with a file to simulate deletion failure.
+        std::fs::remove_dir_all(&cleanup_path).unwrap();
+        std::fs::write(&cleanup_path, b"locked").unwrap();
+
+        let mut lock = ExtensionsLock::default();
+        recover_removal_journals(&state, &mut lock).unwrap();
+
+        // Journal persists because cleanup failed.
+        assert!(journal_path.exists());
+        assert!(cleanup_path.exists());
+
+        // Remove obstacle and retry.
+        std::fs::remove_file(&cleanup_path).unwrap();
+        recover_removal_journals(&state, &mut lock).unwrap();
+        assert!(!journal_path.exists());
+        assert!(!cleanup_path.exists());
     }
 }
