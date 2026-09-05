@@ -86,6 +86,7 @@ function OpacityControl({ label, value, onChange }: OpacityControlProps) {
 }
 
 type GeneralPageProps = {
+  busy: boolean;
   t: Translate;
   settings: AppSettings;
   language: Language;
@@ -101,6 +102,7 @@ type GeneralPageProps = {
 /** The general settings page: theme, language, window behaviour and terminal
  * appearance. All state lives in `App` and arrives through props. */
 export function GeneralPage({
+  busy,
   t,
   settings,
   language,
@@ -113,7 +115,7 @@ export function GeneralPage({
   onChangeOpacity,
 }: GeneralPageProps) {
   return (
-    <>
+    <fieldset className="settings-controls" disabled={busy || autostartUpdating} aria-busy={busy || autostartUpdating}>
     <div className="settings-preferences">
       <section className="settings-section">
         <h2 className="settings-section__label">{t("settings.theme")}</h2>
@@ -130,6 +132,7 @@ export function GeneralPage({
                 type="button"
                 role="radio"
                 aria-checked={active}
+                tabIndex={active ? 0 : -1}
                 className={`settings-option${active ? " settings-option--active" : ""}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onChangeTheme(option.value)}
@@ -157,6 +160,7 @@ export function GeneralPage({
                 type="button"
                 role="radio"
                 aria-checked={active}
+                tabIndex={active ? 0 : -1}
                 className={`settings-option${active ? " settings-option--active" : ""}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onChangeLanguage(option.value)}
@@ -290,6 +294,7 @@ export function GeneralPage({
                 type="button"
                 role="radio"
                 aria-checked={active}
+                tabIndex={active ? 0 : -1}
                 className={`settings-option${active ? " settings-option--active" : ""}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onChangeGeneralSetting("cursor_shape", option.value)}
@@ -319,6 +324,6 @@ export function GeneralPage({
       </div>
       <p className="settings-section__hint">{t("settings.opacityHint")}</p>
     </section>
-    </>
+    </fieldset>
   );
 }

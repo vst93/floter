@@ -90,8 +90,21 @@ export function SessionsPage({
     if (killArmTimer.current !== null) window.clearTimeout(killArmTimer.current);
   }, []);
 
+  useEffect(() => {
+    if (!killArmedId) return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      disarmKill();
+    };
+    document.addEventListener("keydown", cancel, true);
+    return () => document.removeEventListener("keydown", cancel, true);
+  }, [killArmedId]);
+
   return (
     <section className="settings-section session-manager">
+      {error && sessions.length > 0 && <div className="settings-save-alert" role="alert">{t("terminal.sessionsError")}</div>}
       <div className="settings-section__heading">
         <h2 className="settings-section__label">{t("terminal.sessions")}</h2>
         <button
@@ -160,6 +173,7 @@ export function SessionsPage({
                 onKeyDown={
                   resumable && actionId === null
                     ? (event) => {
+                        if (event.target !== event.currentTarget || event.repeat || event.nativeEvent.isComposing) return;
                         if (event.key !== "Enter" && event.key !== " ") return;
                         event.preventDefault();
                         onResume(session);
@@ -200,7 +214,8 @@ export function SessionsPage({
                   {killArmedId === session.sessionId ? (
                     <button
                       type="button"
-                      className="session-manager__confirm"
+                      className="session-manager__kill-confirm"
+                      data-destructive-confirm
                       aria-label={t("terminal.sessionKillArm")}
                       disabled={actionId !== null}
                       onMouseDown={(event) => event.preventDefault()}

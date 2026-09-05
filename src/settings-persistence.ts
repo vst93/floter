@@ -85,3 +85,12 @@ export function createSerialSettingsWriter<T>(
     return operation;
   };
 }
+
+/** Revert rejected fields without overwriting edits made after that request. */
+export function rollbackRejectedSettings<T extends object>(current: T, attempted: T, confirmed: T): T {
+  const next = { ...current };
+  for (const field of Object.keys(attempted) as Array<keyof T>) {
+    if (Object.is(current[field], attempted[field])) next[field] = confirmed[field];
+  }
+  return next;
+}

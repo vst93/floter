@@ -14,8 +14,33 @@ import {
   isBridgeReload,
   isBridgeRequest,
   isBridgeResult,
+  isBridgeResultForSession,
   isBridgeTheme,
+  isBridgeVisibility,
 } from "../src/plugin-pages.ts";
+
+test("bridge session tokens survive requests and replies without admitting malformed tokens", () => {
+  const request = { floter: "invoke", id: 1, session: "new-document", command: "clipboard_get_entries" };
+  assert.ok(isBridgeRequest(request));
+  assert.ok(isBridgeResult({ floter: "result", id: 1, session: request.session, ok: true, value: [] }));
+  assert.equal(isBridgeRequest({ ...request, session: {} }), false);
+  assert.equal(isBridgeRequest({ ...request, session: "x".repeat(129) }), false);
+  assert.equal(isBridgeResult({ floter: "result", id: 1, session: 42, ok: false, error: "failed" }), false);
+});
+
+test("bridge visibility carries an explicit boolean for CSS-hidden frames", () => {
+  assert.ok(isBridgeVisibility({ floter: "visibility", visible: false }));
+  assert.ok(isBridgeVisibility({ floter: "visibility", visible: true }));
+  assert.equal(isBridgeVisibility({ floter: "visibility", visible: "false" }), false);
+  assert.equal(isBridgeVisibility({ floter: "reload", visible: true }), false);
+});
+
+test("a reloaded page rejects an old document's reply even when request ids match", () => {
+  const delayed = { floter: "result", id: 1, session: "old-document", ok: true, value: ["old"] };
+  assert.equal(isBridgeResultForSession(delayed, "new-document"), false);
+  assert.equal(isBridgeResultForSession({ ...delayed, session: "new-document" }, "new-document"), true);
+  assert.equal(isBridgeResultForSession({ ...delayed, session: undefined }, "new-document"), false);
+});
 
 test("invoke requests are recognized with optional args", () => {
   assert.ok(

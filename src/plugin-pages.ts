@@ -22,6 +22,7 @@ export type BridgeRequest = {
   [BRIDGE_TAG]: "invoke";
   /** Caller-chosen correlation id echoed back on the result. */
   id: number;
+  session?: string;
   command: string;
   args?: Record<string, unknown> | null;
 };
@@ -31,8 +32,10 @@ export type BridgeClose = { [BRIDGE_TAG]: "close" };
 
 /** Host → page: result of a bridge invocation, matched by correlation id. */
 export type BridgeResult =
-  | { [BRIDGE_TAG]: "result"; id: number; ok: true; value: unknown }
-  | { [BRIDGE_TAG]: "result"; id: number; ok: false; error: string };
+  | { [BRIDGE_TAG]: "result"; id: number; session?: string; ok: true; value: unknown }
+  | { [BRIDGE_TAG]: "result"; id: number; session?: string; ok: false; error: string };
+
+export type BridgeVisibility = { [BRIDGE_TAG]: "visibility"; visible: boolean };
 
 /**
  * Host → page: live opacity update. Opacity is also a bootstrap query param,
@@ -77,6 +80,7 @@ export const isBridgeRequest = (data: unknown): data is BridgeRequest =>
   data[BRIDGE_TAG] === "invoke" &&
   typeof data.id === "number" &&
   Number.isFinite(data.id) &&
+  (data.session === undefined || (typeof data.session === "string" && data.session.length <= 128)) &&
   typeof data.command === "string" &&
   data.command.length > 0 &&
   // A missing args field is fine; anything present must be an object (or null)
@@ -102,14 +106,21 @@ export const isBridgeTheme = (data: unknown): data is BridgeTheme =>
 export const isBridgeReload = (data: unknown): data is BridgeReload =>
   isRecord(data) && data[BRIDGE_TAG] === "reload";
 
+export const isBridgeVisibility = (data: unknown): data is BridgeVisibility =>
+  isRecord(data) && data[BRIDGE_TAG] === "visibility" && typeof data.visible === "boolean";
+
 export const isBridgeResult = (data: unknown): data is BridgeResult =>
   isRecord(data) &&
   data[BRIDGE_TAG] === "result" &&
   typeof data.id === "number" &&
   Number.isFinite(data.id) &&
+  (data.session === undefined || (typeof data.session === "string" && data.session.length <= 128)) &&
   (data.ok === true
     ? "value" in data
     : data.ok === false && typeof data.error === "string");
+
+export const isBridgeResultForSession = (data: unknown, session: string): data is BridgeResult =>
+  isBridgeResult(data) && data.session === session;
 
 /**
  * Whether a plugin page may call `command`. The host enforces this before

@@ -11,7 +11,7 @@ const panelSources = [
   "src/ExtensionsPanel.tsx",
   "src/extensions/ExtensionRow.tsx",
   "src/extensions/LocalInstallDialog.tsx",
-  "src/extensions/RemovalDialog.tsx",
+  "src/extensions/RemovalConfirmation.tsx",
   "src/extensions/CustomIntegrationDrawer.tsx",
 ];
 

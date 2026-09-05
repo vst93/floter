@@ -186,13 +186,10 @@ export const shellQuotePath = (path: string): string => `'${path.split("'").join
 export const clipboardPreview = (entry: ClipboardEntry, maxLength = 120): string => {
   // Captions are stored trimmed, so the first line is the real one; skipping
   // blank lines here costs nothing and covers anything older that was not.
-  const firstLine =
-    entry.kind === "text"
-      ? (entry.text ?? "").split("\n")[0].trim()
-      : (entry.text ?? "")
-          .split("\n")
-          .map((line) => line.trim())
-          .find(Boolean) ?? "";
+  const text = entry.text ?? "";
+  const source = entry.kind === "text" ? text : text.trimStart();
+  const end = source.indexOf("\n");
+  const firstLine = source.slice(0, end < 0 ? source.length : end).trim();
   if (entry.kind !== "text") {
     if (!firstLine) {
       const width = Number.isFinite(entry.width) ? entry.width : "?";
@@ -206,6 +203,38 @@ export const clipboardPreview = (entry: ClipboardEntry, maxLength = 120): string
   const cap = Math.max(1, Math.min(maxLength, IMAGE_PREVIEW_MAX * 2));
   return firstLine.length > cap ? `${firstLine.slice(0, cap)}…` : firstLine;
 };
+
+/** Content is immutable for an id/hash. Avoid serializing payloads on every poll. */
+export const sameClipboardSnapshot = (left: ClipboardEntry[], right: ClipboardEntry[]): boolean =>
+  left.length === right.length && left.every((entry, index) => {
+    const next = right[index];
+    return entry.id === next.id && entry.hash === next.hash && entry.kind === next.kind
+      && entry.created_at === next.created_at && entry.favorite === next.favorite;
+  });
+
+export type ClipboardSession = {
+  filterText: string;
+  view: "all" | "favorites";
+  selectedId: string | null;
+  scrollTop: number;
+};
+
+export function normalizeClipboardSession(raw: unknown): ClipboardSession {
+  const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  return {
+    filterText: typeof value.filterText === "string" ? value.filterText.slice(0, 512) : "",
+    view: value.view === "favorites" ? "favorites" : "all",
+    selectedId: typeof value.selectedId === "string" ? value.selectedId : null,
+    scrollTop: typeof value.scrollTop === "number" && Number.isFinite(value.scrollTop) ? Math.max(0, value.scrollTop) : 0,
+  };
+}
+
+export type ClipboardKeyContext = "search" | "row" | "control";
+
+/** Keys that belong to an IME or a focused button must not paste a row. */
+export function shouldActivateClipboardEntry(event: { key: string; isComposing?: boolean; keyCode?: number; repeat?: boolean }, context: ClipboardKeyContext): boolean {
+  return event.key === "Enter" && !event.isComposing && event.keyCode !== 229 && !event.repeat && context !== "control";
+}
 
 /**
  * Compact relative age in the terminal's own vocabulary: `42m`, `5h`, and for

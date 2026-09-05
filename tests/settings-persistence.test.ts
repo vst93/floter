@@ -3,7 +3,22 @@ import test from "node:test";
 import {
   createSerialSettingsWriter,
   createSettingsHydration,
+  rollbackRejectedSettings,
 } from "../src/settings-persistence.ts";
+
+test("a rejected switch restores the last confirmed backend value", () => {
+  const confirmed = { enabled: true, theme: "dark" };
+  const attempted = { ...confirmed, enabled: false };
+  assert.deepEqual(rollbackRejectedSettings(attempted, attempted, confirmed), confirmed);
+});
+
+test("rollback preserves edits made while a save was in flight", () => {
+  const confirmed = { enabled: true, opacity: 90 };
+  const attempted = { enabled: false, opacity: 80 };
+  assert.deepEqual(rollbackRejectedSettings({ ...attempted, opacity: 70 }, attempted, confirmed), {
+    enabled: true, opacity: 70,
+  });
+});
 
 test("settings hydration preserves edits made while the disk read is in flight", () => {
   type Settings = { theme: string; fontSize: number; language: string };

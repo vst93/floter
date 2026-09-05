@@ -7,6 +7,7 @@
 // setter and callback it touches, so the behaviour is unchanged.
 
 import { invoke } from "@tauri-apps/api/core";
+import { useRef } from "react";
 import type {
   Dispatch,
   RefObject,
@@ -75,6 +76,7 @@ export function useLauncherActions(options: {
   pendingSystemAction: Extract<LauncherItem, { type: "system" }> | null;
   setPendingSystemAction: Dispatch<SetStateAction<Extract<LauncherItem, { type: "system" }> | null>>;
 }) {
+  const launcherOpening = useRef(false);
   const {
     query,
     resolvedTheme,
@@ -209,6 +211,8 @@ export function useLauncherActions(options: {
   };
 
   const launchApplication = async (app: LocalApplication) => {
+    if (launcherOpening.current) return;
+    launcherOpening.current = true;
     setLauncherFeedback(null);
     try {
       await invoke("open_application", { path: app.path });
@@ -218,6 +222,8 @@ export function useLauncherActions(options: {
     } catch {
       showLauncherFeedback("launcher.error.application");
       // Keep the launcher open so the user can revise the query.
+    } finally {
+      launcherOpening.current = false;
     }
   };
 
@@ -229,12 +235,16 @@ export function useLauncherActions(options: {
    * it to be corrected, exactly as a failed application launch does.
    */
   const openWithSystem = async (command: "open_url" | "open_path", args: Record<string, string>) => {
+    if (launcherOpening.current) return;
+    launcherOpening.current = true;
     setLauncherFeedback(null);
     try {
       await invoke(command, args);
     } catch {
       showLauncherFeedback(command === "open_url" ? "launcher.error.url" : "launcher.error.path");
       return;
+    } finally {
+      launcherOpening.current = false;
     }
     setQuery("");
     setHistoryIndex(-1);
@@ -309,7 +319,7 @@ export function useLauncherActions(options: {
   };
 
   /** Run the previously armed system action. Called when the inline
-   *  confirmation banner is confirmed (Enter). */
+   *  confirmation control is deliberately activated by click or Space. */
   const executeSystemAction = async () => {
     const item = pendingSystemAction;
     if (!item) return;
@@ -387,13 +397,16 @@ export function useLauncherActions(options: {
     // Checking the event itself avoids leaving a flag behind that swallows the
     // user's next deliberate Enter after composition has already finished.
     if (isComposing.current || event.isComposing || event.keyCode === 229) return;
+    if (event.repeat && event.key === "Enter") {
+      event.preventDefault();
+      return;
+    }
 
-    // A pending system action (restart/shutdown) is armed: Enter executes it,
-    // Esc cancels. Nothing else is reachable until the user decides.
+    // A pending power action requires its dedicated confirmation control.
+    // Input Enter cannot execute it; Escape cancels and Tab reaches controls.
     if (pendingSystemAction) {
       if (event.key === "Enter") {
         event.preventDefault();
-        void executeSystemAction();
         return;
       }
       if (event.key === "Escape") {
@@ -404,7 +417,7 @@ export function useLauncherActions(options: {
       // Swallow every other key while the confirmation is armed — the
       // launcher list is still visible underneath, but the action is a
       // deliberate two-step gesture and stray typing must not run anything.
-      event.preventDefault();
+      if (event.key !== "Tab") event.preventDefault();
       return;
     }
 

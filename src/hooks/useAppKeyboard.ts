@@ -68,7 +68,6 @@ export function useAppKeyboard(options: {
     shortcuts,
     recordingAction,
     launcherResults,
-    query,
     inputRef,
     selectionRef,
     dimsRef,
@@ -103,6 +102,27 @@ export function useAppKeyboard(options: {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isTerminalCompositionKey(event)) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (event.key === "Enter" && target?.closest("[data-destructive-confirm]")) {
+        event.preventDefault();
+        return;
+      }
+      if (event.repeat && ["Enter", " "].includes(event.key) && target?.closest("button")) {
+        event.preventDefault();
+        return;
+      }
+      const radio = target?.closest<HTMLButtonElement>('[role="radio"]');
+      if (radio && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
+        const radios = Array.from(radio.closest('[role="radiogroup"]')?.querySelectorAll<HTMLButtonElement>('button[role="radio"]:not(:disabled)') ?? []);
+        const index = radios.indexOf(radio);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? radios.length - 1
+          : (index + (["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 1) + radios.length) % radios.length;
+        event.preventDefault();
+        radios[next]?.focus();
+        radios[next]?.click();
+        return;
+      }
       // The recorder listens in the capture phase; this is only a safety net.
       if (recordingAction) return;
 
@@ -219,6 +239,7 @@ export function useAppKeyboard(options: {
       }
 
       if (mode === "settings") {
+        if (target?.closest('[aria-modal="true"]')) return;
         // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the panel — a
         // convention every overlay surface in floter follows.
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
@@ -232,9 +253,8 @@ export function useAppKeyboard(options: {
           closeSettings();
           return;
         }
-        // ArrowUp/ArrowDown cycle through sidebar pages from anywhere in the
-        // settings panel — not just when a sidebar button holds focus.
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        // Sidebar arrows leave editing and native select/range controls alone.
+        if ((event.key === "ArrowDown" || event.key === "ArrowUp") && target?.closest(".settings-sidebar")) {
           event.preventDefault();
           const delta = event.key === "ArrowDown" ? 1 : SETTINGS_PAGES.length - 1;
           const next =
@@ -317,6 +337,12 @@ export function useAppKeyboard(options: {
       // would have done had the field never lost it.
       focusCollapsedInput();
 
+      // Losing focus must never turn an unrelated Enter into an execution.
+      if (event.key === "Enter" || isTerminalCompositionKey(event)) {
+        event.preventDefault();
+        return;
+      }
+
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (event.key === "Backspace") {
@@ -340,5 +366,5 @@ export function useAppKeyboard(options: {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [launcherResults, mode, query, recordingAction, shortcuts, setHistory, showLauncherFeedback]);
+  });
 }

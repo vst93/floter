@@ -60,6 +60,10 @@ body,
   margin: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   overflow: hidden;
@@ -129,7 +133,8 @@ button {
 
 .clipboard-panel__search {
   width: 100%;
-  height: auto;
+  height: 36px;
+  min-height: 36px;
   min-width: 0;
   flex: 1 1 auto;
   box-sizing: border-box;
@@ -175,9 +180,11 @@ button {
   transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
 
+@media (hover: hover) {
 .clipboard-panel__filter-clear:hover {
   background: var(--hairline-strong);
   color: var(--text-primary);
+}
 }
 
 .clipboard-panel__filter-clear:active,
@@ -215,8 +222,10 @@ button {
   transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
 
+@media (hover: hover) {
 .clipboard-panel__tab:hover {
   color: var(--text-primary);
+}
 }
 
 .clipboard-panel__tab:focus-visible,
@@ -289,10 +298,12 @@ button {
   transition: background-color 110ms ease-out, border-color 110ms ease-out, color 110ms ease-out;
 }
 
+@media (hover: hover) {
 .clipboard-row:hover {
   border-color: var(--hairline);
   background: var(--surface-control);
   color: var(--text-primary);
+}
 }
 
 .clipboard-row--selected,
@@ -406,9 +417,12 @@ button {
   transition: color 110ms ease-out, transform 110ms ease-out;
 }
 
-.clipboard-row__star:hover,
 .clipboard-row__star--on {
   color: var(--accent);
+}
+
+@media (hover: hover) {
+  .clipboard-row__star:hover { color: var(--accent); }
 }
 
 .clipboard-row--missing {
@@ -466,10 +480,31 @@ button {
   transition: background-color 110ms ease-out, border-color 110ms ease-out, color 110ms ease-out, transform 110ms ease-out;
 }
 
+@media (hover: hover) {
 .clipboard-panel__clear:hover {
   border-color: var(--accent-edge);
   background: var(--surface-control);
   color: var(--text-primary);
+}
+}
+
+.clipboard-panel__notice {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-top: 1px solid var(--hairline);
+  color: var(--text-warning);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.clipboard-panel__clear[data-destructive-confirm="true"] {
+  color: var(--text-warning);
+  border-color: currentColor;
+}
+
+.clipboard-panel button:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 @media (max-width: 680px) {

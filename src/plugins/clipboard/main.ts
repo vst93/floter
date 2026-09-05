@@ -28,9 +28,12 @@ import {
   isFilesPreviewCandidate,
   looksLikeDirectoryPath,
   normalizeEntries,
+  normalizeClipboardSession,
+  sameClipboardSnapshot,
+  shouldActivateClipboardEntry,
   type ClipboardEntry,
 } from "../../clipboard-history";
-import { BRIDGE_TAG, isBridgeOpacity, isBridgeTheme, isBridgeResult, isBridgeReload } from "../../plugin-pages";
+import { BRIDGE_TAG, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -42,6 +45,7 @@ type PendingCall = {
 
 const pending = new Map<number, PendingCall>();
 let nextCallId = 1;
+const bridgeSession = crypto.randomUUID();
 
 /** How long to wait for the host's reply before giving up on a call. Without
  * this a dropped or ignored message leaves the promise pending forever, and
@@ -52,6 +56,11 @@ window.addEventListener("message", (event: MessageEvent) => {
   // Only the host window may talk to us.
   if (event.source !== window.parent) return;
   const data: unknown = event.data;
+  if (isBridgeVisibility(data)) {
+    if (data.visible) void handleReload();
+    else handleHidden();
+    return;
+  }
   if (isBridgeOpacity(data)) {
     // Opacity sliders moved host-side; restyle in place.
     applyOpacity(data.mainOpacity, data.terminalOpacity);
@@ -71,7 +80,7 @@ window.addEventListener("message", (event: MessageEvent) => {
     void handleReload();
     return;
   }
-  if (!isBridgeResult(data)) return;
+  if (!isBridgeResultForSession(data, bridgeSession)) return;
   const call = pending.get(data.id);
   if (!call) return;
   pending.delete(data.id);
@@ -86,6 +95,7 @@ const invokeCommand = <T>(
   args?: Record<string, unknown>,
 ): Promise<T> =>
   new Promise<T>((resolve, reject) => {
+    if (pageDisposed) { reject("Clipboard page closed"); return; }
     const id = nextCallId++;
     const timer = window.setTimeout(() => {
       pending.delete(id);
@@ -96,7 +106,7 @@ const invokeCommand = <T>(
       reject: (error) => reject(error),
       timer,
     });
-    window.parent.postMessage({ [BRIDGE_TAG]: "invoke", id, command, args: args ?? {} }, "*");
+    window.parent.postMessage({ [BRIDGE_TAG]: "invoke", id, session: bridgeSession, command, args: args ?? {} }, "*");
   });
 
 const requestClose = () => {
@@ -142,11 +152,23 @@ document.documentElement.setAttribute("data-theme", theme);
 // ---- state ----------------------------------------------------------------
 
 type ClipboardView = "all" | "favorites";
+const SESSION_KEY = "floter.clipboard.session";
+const savedSession = (() => {
+  try { return normalizeClipboardSession(JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? "null")); }
+  catch { return normalizeClipboardSession(null); }
+})();
 
 let entries: ClipboardEntry[] = [];
-let filterText = "";
-let view: ClipboardView = "all";
+let filterText = savedSession.filterText;
+let view: ClipboardView = savedSession.view;
 let selected = 0;
+let hydrated = false;
+let busy = false;
+let clearArmed = false;
+let clearTimer: number | null = null;
+let noticeTimer: number | null = null;
+let pageVisible = true;
+let pageDisposed = false;
 const thumbnails = new Map<string, string>();
 let statuses: Record<string, boolean> = {};
 /** True when the last entry fetch failed or timed out — an empty list then
@@ -169,7 +191,7 @@ root.innerHTML = `
   <div class="clipboard-panel">
     <div class="clipboard-panel__topbar">
       <span class="clipboard-panel__prompt" aria-hidden="true"></span>
-      <input class="clipboard-panel__search" spellcheck="false" autocapitalize="off" autocorrect="off" />
+      <input class="clipboard-panel__search" maxlength="512" spellcheck="false" autocapitalize="off" autocorrect="off" />
       <button type="button" class="clipboard-panel__filter-clear" hidden>×</button>
       <div class="clipboard-panel__tabs" role="tablist">
         <button type="button" role="tab" class="clipboard-panel__tab" data-view="all"></button>
@@ -177,6 +199,7 @@ root.innerHTML = `
       </div>
     </div>
     <div class="clipboard-panel__content"></div>
+    <div class="clipboard-panel__notice" role="alert" hidden></div>
     <div class="clipboard-panel__footer">
       <span class="clipboard-panel__hints"></span>
       <button type="button" class="clipboard-panel__clear"></button>
@@ -186,6 +209,24 @@ root.innerHTML = `
 
 const promptLabel = root.querySelector<HTMLElement>(".clipboard-panel__prompt")!;
 const searchInput = root.querySelector<HTMLInputElement>(".clipboard-panel__search")!;
+searchInput.value = filterText;
+const notice = root.querySelector<HTMLElement>(".clipboard-panel__notice")!;
+
+const showError = () => {
+  notice.textContent = t("clipboard.actionFailed");
+  notice.hidden = false;
+  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
+  noticeTimer = window.setTimeout(() => { notice.hidden = true; }, 5000);
+};
+
+const saveSession = () => {
+  if (!hydrated) return;
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      filterText, view, selectedId: filteredEntries()[selected]?.id ?? null, scrollTop: content.scrollTop,
+    }));
+  } catch { /* Session storage may be unavailable in a sandbox. */ }
+};
 const filterClear = root.querySelector<HTMLButtonElement>(".clipboard-panel__filter-clear")!;
 const tabAll = root.querySelector<HTMLButtonElement>('[data-view="all"]')!;
 const tabFavorites = root.querySelector<HTMLButtonElement>('[data-view="favorites"]')!;
@@ -307,6 +348,7 @@ const syncRowSelection = (index: number) => {
   next?.classList.add("clipboard-row--selected");
   next?.setAttribute("aria-selected", "true");
   selected = index;
+  saveSession();
 };
 
 /** Build one list item with a separate favorite control. */
@@ -327,10 +369,11 @@ const renderRow = (
   button.setAttribute("aria-selected", String(index === selected));
   button.tabIndex = 0;
   button.dataset.rowIndex = String(index);
+  button.dataset.rowId = entry.id;
   button.className =
     `clipboard-row${index === selected ? " clipboard-row--selected" : ""}` +
     `${missing ? " clipboard-row--missing" : ""}`;
-  if (entry.kind === "files") button.title = (entry.paths ?? []).join("\n");
+  if (entry.kind === "files") button.title = (entry.paths ?? []).slice(0, 20).join("\n");
 
   const marker = document.createElement("span");
   marker.className = [
@@ -391,6 +434,8 @@ const renderRow = (
   star.tabIndex = -1;
   star.className = `clipboard-row__star${entry.favorite ? " clipboard-row__star--on" : ""}`;
   star.setAttribute("aria-label", t("clipboard.favorite"));
+  star.setAttribute("aria-pressed", String(entry.favorite));
+  star.disabled = busy;
   star.title = t("clipboard.favorite");
   star.textContent = entry.favorite ? "★" : "☆";
 
@@ -419,12 +464,28 @@ const renderRow = (
  * so its focus and caret survive every render — focus stays pinned there by
  * construction. */
 const render = () => {
+  const focused = document.activeElement;
+  const rowFocused = focused instanceof HTMLElement && Boolean(focused.closest(".clipboard-row"));
+  const starFocused = focused instanceof HTMLElement && focused.classList.contains("clipboard-row__star");
+  const scrollTop = hydrated ? content.scrollTop : savedSession.scrollTop;
+  const finish = () => {
+    if (rowFocused) {
+      const row = content.querySelector<HTMLElement>(`[data-row-index="${selected}"]`);
+      const target = starFocused ? row?.querySelector<HTMLElement>(".clipboard-row__star") : row;
+      (target ?? searchInput).focus({ preventScroll: true });
+    }
+    content.scrollTop = scrollTop;
+    saveSession();
+  };
   promptLabel.textContent = `${t("clipboard.prompt")}❯`;
   searchInput.placeholder = t("clipboard.filter");
   searchInput.setAttribute("aria-label", t("clipboard.title"));
   filterClear.setAttribute("aria-label", t("clipboard.filterClear"));
   filterClear.title = t("clipboard.filterClear");
-  clearButton.textContent = t("clipboard.clear");
+  clearButton.textContent = t(clearArmed ? "clipboard.clearConfirm" : "clipboard.clear");
+  clearButton.dataset.destructiveConfirm = String(clearArmed);
+  clearButton.disabled = busy || !entries.some((entry) => !entry.favorite);
+  panel.setAttribute("aria-busy", String(busy));
   clearButton.title = t("clipboard.clearTitle");
   clearButton.setAttribute("aria-label", t("clipboard.clearTitle"));
   hints.textContent = [
@@ -467,6 +528,7 @@ const render = () => {
     retry.textContent = t("settings.retry");
     retry.addEventListener("mousedown", (event) => event.preventDefault());
     retry.addEventListener("click", () => {
+      retry.disabled = true;
       void reload().then(() => {
         render();
         searchInput.focus();
@@ -474,10 +536,12 @@ const render = () => {
     });
     failure.append(label, retry);
     content.append(failure);
+    finish();
     return;
   }
   if (filtered.length === 0) {
     content.append(renderEmpty());
+    finish();
     return;
   }
 
@@ -491,6 +555,7 @@ const render = () => {
     list.append(renderRow(entry, index, selected, now));
   });
   content.append(list);
+  finish();
 };
 
 // ---- data -----------------------------------------------------------------
@@ -503,10 +568,29 @@ const setThumbnail = (id: string, bytes: number[], mime: string) => {
   if (previous) URL.revokeObjectURL(previous);
   const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
   thumbnails.set(id, url);
-  render();
+  const marker = content.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"] .clipboard-row__marker`);
+  if (marker) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "";
+    img.draggable = false;
+    marker.replaceChildren(img);
+  }
 };
 
 window.addEventListener("pagehide", () => {
+  pageVisible = false;
+  pageDisposed = true;
+  saveSession();
+  stopPeriodicRefresh();
+  if (clearTimer !== null) window.clearTimeout(clearTimer);
+  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
+  reloadGen += 1;
+  for (const call of pending.values()) {
+    window.clearTimeout(call.timer);
+    call.reject("Clipboard page closed");
+  }
+  pending.clear();
   for (const url of thumbnails.values()) URL.revokeObjectURL(url);
   thumbnails.clear();
 });
@@ -514,32 +598,31 @@ window.addEventListener("pagehide", () => {
 /** Bumped on every reload so a slower earlier pass cannot overwrite the newer
  * one's entries, statuses or thumbnails with stale data. */
 let reloadGen = 0;
+let reloadPending: Promise<void> | null = null;
+const thumbnailPending = new Set<string>();
 
 /**
  * Reload entries, statuses, and thumbnails. Preserves user state: filter text,
  * current tab, scroll position, and selected row (by anchoring to the entry id;
  * if that entry vanished, reset to row 0).
  */
-const reload = async () => {
+const reloadData = async () => {
   const gen = ++reloadGen;
-  // Anchor the current selection by entry id so we can restore it after reload.
-  const filtered = filteredEntries();
-  const anchorId = filtered.length > 0 ? filtered[selected]?.id : null;
 
   try {
     const rows = await invokeCommand<unknown[]>("clipboard_get_entries", { filter: null });
     if (gen !== reloadGen) return;
     const nextEntries = normalizeEntries(rows);
-    const entriesChanged = JSON.stringify(nextEntries) !== JSON.stringify(entries);
+    const entriesChanged = !sameClipboardSnapshot(nextEntries, entries);
     const wasFailed = loadFailed;
     loadFailed = false;
-    if (!entriesChanged) {
-      // Polling should not rebuild hundreds of DOM rows or re-request every
-      // thumbnail when the clipboard has not changed.
-      if (wasFailed) render();
-      return;
+    // Read the selection at completion: the user can move it during a fetch.
+    const anchorId = hydrated ? filteredEntries()[selected]?.id : savedSession.selectedId;
+    if (entriesChanged) entries = nextEntries;
+    if (entriesChanged || !hydrated) {
+      const index = filteredEntries().findIndex((entry) => entry.id === anchorId);
+      selected = Math.max(0, index);
     }
-    entries = nextEntries;
 
     // Drop object URLs for records that no longer exist before repainting.
     const liveThumbnailIds = new Set(
@@ -553,30 +636,16 @@ const reload = async () => {
         thumbnails.delete(id);
       }
     }
+    if (entriesChanged || wasFailed || !hydrated) render();
+    hydrated = true;
+    saveSession();
   } catch {
     if (gen !== reloadGen) return;
-    entries = [];
     loadFailed = true;
+    if (entries.length) showError();
+    else render();
     return;
   }
-
-  // Restore selection: find the anchored entry in the new filtered list.
-  if (anchorId) {
-    const newFiltered = filteredEntries();
-    const anchorIndex = newFiltered.findIndex((e) => e.id === anchorId);
-    if (anchorIndex >= 0) {
-      selected = anchorIndex;
-    } else {
-      // Anchored entry vanished; reset to row 0.
-      selected = 0;
-    }
-  } else {
-    selected = 0;
-  }
-
-  // Render immediately with entry data, before fetching thumbnails or statuses.
-  // First paint shows the text content; images populate progressively.
-  render();
 
   // File statuses: batch fetch for all file entries.
   const fileIds = entries
@@ -588,38 +657,40 @@ const reload = async () => {
     })
       .then((nextStatuses) => {
         if (gen !== reloadGen) return;
+        const changed = Object.keys(statuses).length !== Object.keys(nextStatuses).length
+          || Object.entries(nextStatuses).some(([id, value]) => statuses[id] !== value);
         statuses = nextStatuses;
-        render();
+        if (changed) render();
       })
       .catch(() => undefined);
   }
 
-  // Thumbnails: fetched progressively after the list is already visible.
-  // Each thumbnail arrival triggers a single-row repaint through setThumbnail.
-  for (const entry of entries.filter(
-    (candidate) => candidate.kind === "image" && !thumbnails.has(candidate.id),
-  )) {
-    invokeCommand<number[]>("clipboard_read_image", { id: entry.id })
-      .then((bytes) => {
-        if (gen !== reloadGen) return;
-        setThumbnail(entry.id, bytes, "image/png");
-      })
-      .catch(() => undefined);
-  }
-  for (const entry of entries.filter(
-    (candidate) =>
-      candidate.kind === "files" &&
-      isFilesPreviewCandidate(candidate.paths) &&
-      !thumbnails.has(candidate.id),
-  )) {
-    const mime = imageFileMime(entry.paths![0]);
-    invokeCommand<number[]>("clipboard_read_file_preview", { id: entry.id })
-      .then((bytes) => {
-        if (gen !== reloadGen) return;
-        setThumbnail(entry.id, bytes, mime);
-      })
-      .catch(() => undefined);
-  }
+  // Bound parallel binary transfers. Failed optional previews retry next poll,
+  // including when the entry metadata has not changed.
+  const queue = entries.filter((entry) => (entry.kind === "image" || isFilesPreviewCandidate(entry.paths))
+    && !thumbnails.has(entry.id) && !thumbnailPending.has(entry.id));
+  const worker = async () => {
+    for (let entry = queue.shift(); entry && gen === reloadGen; entry = queue.shift()) {
+      thumbnailPending.add(entry.id);
+      try {
+        const bytes = await invokeCommand<number[]>(entry.kind === "image" ? "clipboard_read_image" : "clipboard_read_file_preview", { id: entry.id });
+        if (gen === reloadGen && entries.some((current) => current.id === entry.id)) {
+          setThumbnail(entry.id, bytes, entry.kind === "image" ? "image/png" : imageFileMime(entry.paths![0]));
+        }
+      } catch { /* Optional preview; the next refresh retries it. */ }
+      finally { thumbnailPending.delete(entry.id); }
+    }
+  };
+  const slots = Math.max(0, 4 - thumbnailPending.size);
+  for (let index = 0; index < slots; index += 1) void worker();
+};
+
+const reload = (): Promise<void> => {
+  if (pageDisposed || !pageVisible) return Promise.resolve();
+  if (reloadPending) return reloadPending;
+  const request = reloadData().finally(() => { reloadPending = null; });
+  reloadPending = request;
+  return request;
 };
 
 /**
@@ -628,9 +699,9 @@ const reload = async () => {
  * behind the monitor by at most one poll cycle.
  */
 const startPeriodicRefresh = () => {
-  if (refreshInterval !== null) return; // Already running.
+  if (refreshInterval !== null || !pageVisible || pageDisposed) return;
   refreshInterval = window.setInterval(() => {
-    void reload();
+    if (!busy) void reload();
   }, 2000);
 };
 
@@ -644,36 +715,52 @@ const stopPeriodicRefresh = () => {
 
 /**
  * Handle the reload message from the host: page just became visible. Refresh
- * data immediately, reset scroll to top, and start the periodic refresh.
+ * data immediately, retain session state, and start the periodic refresh.
  */
 const handleReload = async () => {
+  if (pageDisposed) return;
+  const wasHidden = !pageVisible;
+  pageVisible = true;
+  if (wasHidden) await reloadPending;
+  if (!pageVisible || pageDisposed) return;
   await reload();
-  // Scroll the actual overflow container to the top.
-  content.scrollTop = 0;
+  if (!pageVisible || pageDisposed) return;
+  searchInput.focus({ preventScroll: true });
   startPeriodicRefresh();
 };
 
 /** Handle the page becoming hidden: stop the periodic refresh. */
 const handleHidden = () => {
+  pageVisible = false;
+  reloadGen += 1;
+  saveSession();
+  disarmClear();
   stopPeriodicRefresh();
 };
 
 const activate = async (entry: ClipboardEntry | undefined) => {
-  if (!entry || statuses[entry.id] === false) return;
+  if (!entry || busy || statuses[entry.id] === false) return;
+  busy = true;
+  render();
   try {
     await invokeCommand<void>("clipboard_copy_entry", { id: entry.id });
   } catch {
     // The clipboard may be held by another app; keep the page open so the
     // user can retry instead of silently losing the action.
+    showError();
     return;
+  } finally {
+    busy = false;
+    render();
   }
-  requestClose();
+  if (pageVisible && !pageDisposed) requestClose();
 };
 
 const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
-  if (!entry) return;
+  if (!entry || busy) return;
+  busy = true;
+  reloadGen += 1;
   const nextFavorite = !entry.favorite;
-  entry.favorite = nextFavorite;
   render();
   searchInput.focus();
   try {
@@ -681,41 +768,75 @@ const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
       id: entry.id,
       favorite: nextFavorite,
     });
+    entries = entries.map((current) => current.id === entry.id ? { ...current, favorite: nextFavorite } : current);
   } catch {
-    await reload().then(render);
-    searchInput.focus();
+    showError();
+  } finally {
+    await reloadPending;
+    await reload();
+    busy = false;
+    render();
   }
 };
 
 const removeEntry = async (entry: ClipboardEntry | undefined) => {
-  if (!entry) return;
-  entries = entries.filter((candidate) => candidate.id !== entry.id);
+  if (!entry || busy) return;
+  busy = true;
+  reloadGen += 1;
   render();
   searchInput.focus();
   try {
     await invokeCommand<void>("clipboard_delete", { id: entry.id });
+    entries = entries.filter((candidate) => candidate.id !== entry.id);
   } catch {
-    await reload().then(render);
-    searchInput.focus();
+    showError();
+  } finally {
+    await reloadPending;
+    await reload();
+    busy = false;
+    render();
   }
 };
 
 const clearHistory = async () => {
+  if (busy) return;
+  if (!clearArmed) {
+    clearArmed = true;
+    clearTimer = window.setTimeout(disarmClear, 3000);
+    render();
+    return;
+  }
+  disarmClear();
+  busy = true;
+  reloadGen += 1;
+  render();
   try {
     await invokeCommand<void>("clipboard_clear_history");
+    entries = entries.filter((entry) => entry.favorite);
   } catch {
-    // A failed clear leaves the history as it was; the reload shows the truth.
+    showError();
+  } finally {
+    selected = 0;
+    await reloadPending;
+    await reload();
+    busy = false;
+    render();
+    searchInput.focus();
   }
-  selected = 0;
-  await reload().then(render);
-  searchInput.focus();
+};
+
+const disarmClear = () => {
+  clearArmed = false;
+  if (clearTimer !== null) window.clearTimeout(clearTimer);
+  clearTimer = null;
+  render();
 };
 
 // ---- keyboard model -------------------------------------------------------
 
 /** Route one character into the filter: append, redraw, own the field. */
 const sendCharToFilter = (char: string) => {
-  filterText += char;
+  filterText = (filterText + char).slice(0, 512);
   searchInput.value = filterText;
   selected = 0;
   render();
@@ -734,6 +855,23 @@ const backspaceIntoFilter = () => {
 };
 
 window.addEventListener("keydown", (event) => {
+  if (event.isComposing || event.keyCode === 229 || composing) return;
+  const focusedControl = document.activeElement instanceof HTMLButtonElement;
+  if (event.key === "Escape" && clearArmed) {
+    event.preventDefault();
+    event.stopPropagation();
+    disarmClear();
+    searchInput.focus();
+    return;
+  }
+  if (event.repeat && ["Enter", "Delete", "Backspace", "d", "D", "f", "F", "*"].includes(event.key) && (document.activeElement !== searchInput || event.ctrlKey || event.metaKey || event.key === "Enter")) {
+    event.preventDefault();
+    return;
+  }
+  if (focusedControl && (event.key === "Enter" || event.key === " ")) {
+    if (event.key === "Enter" && document.activeElement === clearButton) event.preventDefault();
+    return;
+  }
   // Capture phase: this handler decides before anything (default traversal
   // included) can act on the press.
 
@@ -802,7 +940,7 @@ window.addEventListener("keydown", (event) => {
     focusSelectedRow();
     return;
   }
-  if (event.key === "Enter") {
+  if (shouldActivateClipboardEntry(event, document.activeElement === searchInput ? "search" : "row")) {
     event.preventDefault();
     event.stopPropagation();
     void activate(filteredEntries()[selected]);
@@ -870,7 +1008,11 @@ window.addEventListener("keydown", (event) => {
 
 // ---- wiring ---------------------------------------------------------------
 
+let composing = false;
+searchInput.addEventListener("compositionstart", () => { composing = true; });
+searchInput.addEventListener("compositionend", () => { composing = false; });
 searchInput.addEventListener("input", () => {
+  if (clearArmed) disarmClear();
   filterText = searchInput.value;
   selected = 0;
   render();
@@ -897,6 +1039,19 @@ for (const [tab, next] of [
 }
 clearButton.addEventListener("mousedown", (event) => event.preventDefault());
 clearButton.addEventListener("click", () => void clearHistory());
+content.addEventListener("scroll", saveSession, { passive: true });
+
+window.addEventListener("paste", (event) => {
+  if (document.activeElement === searchInput) return;
+  const text = event.clipboardData?.getData("text");
+  if (!text) return;
+  event.preventDefault();
+  filterText = (filterText + text).slice(0, 512);
+  searchInput.value = filterText;
+  selected = 0;
+  render();
+  searchInput.focus();
+});
 
 // Focus the filter on load — the page owns the keyboard from the first frame.
 searchInput.focus();
@@ -921,5 +1076,7 @@ void reload().then(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     handleHidden();
+  } else {
+    void handleReload();
   }
 });

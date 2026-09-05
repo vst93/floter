@@ -34,8 +34,11 @@
   border-radius: var(--ext-radius);
 }
 
+@media (hover: hover) {
+
 .extensions-panel__search-toggle:hover {
   background: var(--ext-bg-hover);
+}
 }
 
 .extensions-icon-button {
@@ -58,10 +61,13 @@
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+@media (hover: hover) {
+
 .extensions-icon-button:hover:not(:disabled):not(.extensions-icon-button--disabled) {
   border-color: var(--stroke-control);
   background: var(--ext-bg-hover);
   color: var(--text-primary);
+}
 }
 
 .extensions-icon-button--primary {
@@ -70,10 +76,13 @@
   color: var(--accent-contrast);
 }
 
+@media (hover: hover) {
+
 .extensions-icon-button--primary:hover:not(:disabled):not(.extensions-icon-button--disabled) {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
   color: var(--accent-contrast);
+}
 }
 
 .extensions-icon-button:focus-visible,
@@ -153,10 +162,13 @@
   gap: 8px;
 }
 
-/* When the detail drawer (width: min(430px, 88%)) or a dialog is open, slide
-   the stack clear of the drawer so it never covers the header's close button. */
+/* Keep notices within narrow windows and clear of overlay header controls. */
 .extensions-toasts--offset {
-  right: calc(min(430px, 88%) + 12px);
+  right: 16px;
+  top: auto;
+  bottom: 16px;
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
 }
 
 .extensions-toast {
@@ -341,12 +353,18 @@
   transition: background-color 120ms ease;
 }
 
+@media (hover: hover) {
+
 .extension-row:hover:not(.extension-row--detected) {
   background: var(--ext-bg-hover);
 }
+}
+
+@media (hover: hover) {
 
 .extension-row:hover:not(.extension-row--detected)::before {
   background: var(--accent);
+}
 }
 
 .extension-row--selected {
@@ -500,11 +518,18 @@
   transition: opacity 150ms ease, visibility 150ms ease;
 }
 
-.extension-row:hover .extension-row__actions,
 .extension-row:focus-within .extension-row__actions,
 .extension-row--selected .extension-row__actions {
   opacity: 1;
   visibility: visible;
+}
+
+@media (hover: hover) {
+
+.extension-row:hover .extension-row__actions {
+  opacity: 1;
+  visibility: visible;
+}
 }
 
 .extension-row__toggle-slot {
@@ -540,10 +565,13 @@
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+@media (hover: hover) {
+
 .extensions-action-button:hover:not(:disabled) {
   border-color: var(--accent-edge);
   background: var(--ext-bg-hover);
   color: var(--text-primary);
+}
 }
 
 .extensions-action-button--primary {
@@ -552,10 +580,13 @@
   color: var(--accent-contrast);
 }
 
+@media (hover: hover) {
+
 .extensions-action-button--primary:hover:not(:disabled) {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
   color: var(--accent-contrast);
+}
 }
 
 .extensions-action-button--danger,
@@ -609,9 +640,12 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .extension-menu__items button:hover:not(:disabled) {
   background: var(--ext-bg-hover);
   color: var(--text-primary);
+}
 }
 
 .extension-menu__items button:disabled {
@@ -829,10 +863,17 @@
   cursor: pointer;
 }
 
-.extension-tool-choice-list > button:hover,
 .extension-tool-choice-list > button:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+
+@media (hover: hover) {
+
+.extension-tool-choice-list > button:hover {
+  border-color: var(--accent);
+  outline: none;
+}
 }
 
 .extension-tool-choice-list strong,
@@ -917,6 +958,7 @@
 .extension-custom-dialog__loading { min-height: 42px; padding: 12px 14px; display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: 10.5px; }
 
 .extension-custom-form { min-height: 0; padding: 12px 14px 0; display: grid; gap: 12px; overflow-y: auto; }
+.extension-custom-form__fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
 .extension-custom-form__error { margin: 10px 14px 0; overflow-wrap: anywhere; }
 .extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: var(--ext-radius); background: var(--surface-control); box-shadow: inset 0 0 0 1px var(--stroke-control); }
 .extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: var(--ext-radius); background: transparent; color: var(--text-strong); cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap; }

@@ -784,18 +784,6 @@ mod tests {
         assert_eq!(pointer["version"], "2.0.0");
     }
 
-    fn staged_version_with_invalid_shim_manifest(
-        state: &ExtensionState,
-        entry: &ExtensionLockEntry,
-        name: &str,
-    ) -> PathBuf {
-        let staged = state.paths.root.join(name);
-        std::fs::create_dir_all(staged.join(".floter-binaries")).unwrap();
-        std::fs::write(staged.join("floter.extension.json"), b"not json").unwrap();
-        assert!(entry.manifest_path.ends_with("floter.extension.json"));
-        staged
-    }
-
     #[test]
     fn recovery_finishes_cleanup_when_lock_was_committed() {
         let directory = tempfile::tempdir().unwrap();

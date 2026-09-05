@@ -11,6 +11,9 @@ import {
   isImageFilePath,
   looksLikeDirectoryPath,
   normalizeEntries,
+  normalizeClipboardSession,
+  sameClipboardSnapshot,
+  shouldActivateClipboardEntry,
   shellQuotePath,
   splitFilePath,
   type ClipboardEntry,
@@ -27,6 +30,42 @@ const entry = (overrides: Partial<ClipboardEntry>): ClipboardEntry => ({
   created_at: 0,
   favorite: false,
   ...overrides,
+});
+
+test("clipboard snapshots detect order, favorite, kind and capture changes without reading payloads", () => {
+  const original = entry({});
+  const copy = { ...original };
+  Object.defineProperty(copy, "text", { get() { throw new Error("metadata comparison must not read large text"); } });
+  assert.equal(sameClipboardSnapshot([original], [copy]), true);
+  for (const change of [{ id: "other" }, { hash: "new" }, { favorite: true }, { created_at: 1 }, { kind: "files" }]) {
+    assert.equal(sameClipboardSnapshot([original], [{ ...original, ...change }]), false);
+  }
+  assert.equal(sameClipboardSnapshot([original], []), false);
+});
+
+test("clipboard session retains tab, query, selection and scroll across a page remount", () => {
+  const session = { filterText: "report", view: "favorites", selectedId: "saved", scrollTop: 384 };
+  assert.deepEqual(normalizeClipboardSession(JSON.parse(JSON.stringify(session))), session);
+  assert.deepEqual(normalizeClipboardSession({ view: "bad", scrollTop: Infinity, filterText: 10 }), {
+    filterText: "", view: "all", selectedId: null, scrollTop: 0,
+  });
+  assert.equal(normalizeClipboardSession({ filterText: "x".repeat(10 * 1024 * 1024) }).filterText.length, 512);
+});
+
+test("clipboard Enter never activates a row for IME confirmation, repeat or a focused control", () => {
+  assert.equal(shouldActivateClipboardEntry({ key: "Enter" }, "search"), true);
+  assert.equal(shouldActivateClipboardEntry({ key: "Enter" }, "row"), true);
+  for (const event of [{ key: "Enter", isComposing: true }, { key: "Enter", keyCode: 229 }, { key: "Enter", repeat: true }, { key: "Tab" }]) {
+    assert.equal(shouldActivateClipboardEntry(event, "search"), false);
+  }
+  assert.equal(shouldActivateClipboardEntry({ key: "Enter" }, "control"), false);
+});
+
+test("large multiline clipboard content produces only a compact first-line preview", () => {
+  const text = "first line\n" + "body\n".repeat(2 * 1024 * 1024);
+  assert.equal(clipboardPreview(entry({ text })), "first line");
+  assert.equal(clipboardPreview(entry({ kind: "image", text: " \n" + text })), "first line");
+  assert.equal(clipboardPreview(entry({ text: "x".repeat(10 * 1024 * 1024) })).length, 121);
 });
 
 test("normalizeEntries keeps well-formed rows and drops malformed ones", () => {

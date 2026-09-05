@@ -9,7 +9,7 @@ import {
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
-import type { BridgeOpacity, BridgeTheme, BridgeReload } from "../plugin-pages";
+import type { BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility } from "../plugin-pages";
 import { createTranslator, type Language, type MessageKey } from "../i18n";
 
 /**
@@ -69,6 +69,8 @@ export function PluginPageHost({
   // Ref mirror so the once-registered message listener always sees the current
   // allowlist without resubscribing on re-render.
   const allowedRef = useRef<readonly string[]>([]);
+  const activeRef = useRef(pluginId);
+  activeRef.current = pluginId;
   // Read (not depended on) when building the iframe src, so slider moves
   // reach a live page as a message instead of as a remount.
   const opacityRef = useRef({ mainOpacity, terminalOpacity });
@@ -98,6 +100,7 @@ export function PluginPageHost({
       return;
     }
     setDescriptor(null);
+    allowedRef.current = [];
     // A descriptor fetch that never settles would leave this host rendering
     // `null` forever (see the JSX below) — and because the window itself is
     // transparent, an empty host is not a blank panel but a see-through hole
@@ -139,6 +142,7 @@ export function PluginPageHost({
             {
               [BRIDGE_TAG]: "result",
               id: data.id,
+              session: data.session,
               ok: false,
               error: `Command not allowed for this plugin page: ${data.command}`,
             },
@@ -149,7 +153,7 @@ export function PluginPageHost({
         invoke(data.command, (data.args ?? {}) as Record<string, unknown>)
           .then((value) => {
             frame.contentWindow?.postMessage(
-              { [BRIDGE_TAG]: "result", id: data.id, ok: true, value },
+              { [BRIDGE_TAG]: "result", id: data.id, session: data.session, ok: true, value },
               "*",
             );
           })
@@ -158,6 +162,7 @@ export function PluginPageHost({
               {
                 [BRIDGE_TAG]: "result",
                 id: data.id,
+                session: data.session,
                 ok: false,
                 error: error instanceof Error ? error.message : String(error),
               },
@@ -168,7 +173,7 @@ export function PluginPageHost({
       }
 
       if (isBridgeClose(data)) {
-        onClose();
+        if (activeRef.current) onClose();
         return;
       }
 
@@ -198,7 +203,7 @@ export function PluginPageHost({
     }
     // Hand the keyboard to the page: its own Spotlight discipline (typing
     // routes to its filter input) takes over from here.
-    iframeRef.current?.focus();
+    if (activeRef.current) iframeRef.current?.focus();
   }, [theme]);
 
   // Bootstrap params double as a cache-buster-free way to pass settings the
@@ -232,6 +237,15 @@ export function PluginPageHost({
 
   useEffect(() => {
     if (!frameLoaded) return;
+    const frame = iframeRef.current?.contentWindow;
+    const message: BridgeVisibility = { [BRIDGE_TAG]: "visibility", visible: Boolean(pluginId) };
+    frame?.postMessage(message, "*");
+    if (pluginId) iframeRef.current?.focus();
+    return () => frame?.postMessage({ [BRIDGE_TAG]: "visibility", visible: false }, "*");
+  }, [frameLoaded, pluginId]);
+
+  useEffect(() => {
+    if (!frameLoaded) return;
     const opacityMessage: BridgeOpacity = {
       [BRIDGE_TAG]: "opacity",
       mainOpacity,
@@ -259,7 +273,7 @@ export function PluginPageHost({
           title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId ?? ""}
           // WebKit needs same-origin for the built-in page to load its bundled
           // stylesheet; external plugin pages retain the opaque-origin sandbox.
-          sandbox={pluginId === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
+          sandbox={descriptor?.id === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
           onLoad={handleFrameLoad}
         />
       ) : loadFailed || descriptor ? (
@@ -271,7 +285,7 @@ export function PluginPageHost({
           <button
             type="button"
             className="update-banner__button"
-            onClick={() => setReloadNonce((nonce) => nonce + 1)}
+            onClick={() => { setDescriptor(null); setReloadNonce((nonce) => nonce + 1); }}
           >
             {t("settings.retry")}
           </button>

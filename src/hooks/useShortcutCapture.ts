@@ -22,6 +22,7 @@ import {
 import { CLIPBOARD_HOTKEY_ACTION } from "../settings/ShortcutsPage";
 import type { AppSettings } from "../App";
 import type { SettingsHydration } from "../settings-persistence";
+import { useImmediateState } from "./useImmediateState";
 
 /** Blur suppress window after a non-slider settings edit. */
 const SETTINGS_BLUR_SUPPRESS_MS = 400;
@@ -48,20 +49,24 @@ export function useShortcutCapture(options: {
   } = options;
 
   // ---- State ---------------------------------------------------------------
-  const [recordingAction, setRecordingAction] = useState<string | null>(null);
+  const [recordingAction, setRecordingAction, recordingRef] = useImmediateState<string | null>(null);
   const [rejectedAction, setRejectedAction] = useState<string | null>(null);
+  const [saving, setSaving, savingRef] = useImmediateState(false);
 
   // ---- Recording toggle ----------------------------------------------------
-  const toggle = useCallback((action: string) => {
+  const toggle = useCallback(async (action: string) => {
+    if (savingRef.current) return;
+    setSaving(true);
     setRejectedAction(null);
-    setRecordingAction((current) => {
-      if (current === action) {
-        invoke("resume_shortcuts").catch(() => undefined);
-        return null;
-      }
-      invoke("suspend_shortcuts").catch(() => undefined);
-      return action;
-    });
+    const next = recordingRef.current === action ? null : action;
+    try {
+      await invoke(next ? "suspend_shortcuts" : "resume_shortcuts");
+      setRecordingAction(next);
+    } catch {
+      setRejectedAction(action);
+    } finally {
+      setSaving(false);
+    }
   }, []);
 
   const cancel = useCallback(() => {
@@ -73,8 +78,10 @@ export function useShortcutCapture(options: {
   // Optimistic like capture: persist "" (the backend treats an empty string
   // as unregister-and-disable) and roll back on failure.
   const clearClipboardHotkey = useCallback(() => {
+    if (savingRef.current) return;
     const previousHotkey = settingsRef.current.clipboard_history_hotkey;
     if (!previousHotkey) return;
+    setSaving(true);
     settingsHydration.markChanged("clipboard_history_hotkey");
     setSettings((current) => {
       const updated = { ...current, clipboard_history_hotkey: "" };
@@ -89,11 +96,13 @@ export function useShortcutCapture(options: {
         return rolledBack;
       });
       setRejectedAction(CLIPBOARD_HOTKEY_ACTION);
-    });
+    }).finally(() => setSaving(false));
   }, [setSettings, settingsRef, settingsHydration]);
 
   // ---- Restore defaults ----------------------------------------------------
   const restoreDefaults = useCallback(async () => {
+    if (savingRef.current) return;
+    setSaving(true);
     if (recordingAction) {
       await invoke("resume_shortcuts").catch(() => undefined);
     }
@@ -114,6 +123,9 @@ export function useShortcutCapture(options: {
       setRejectedAction(null);
     } catch {
       // Keep the current shortcuts if the system rejects the default toggle.
+      setRejectedAction("reset");
+    } finally {
+      setSaving(false);
     }
   }, [recordingAction, setSettings, settingsRef, settingsHydration]);
 
@@ -122,6 +134,7 @@ export function useShortcutCapture(options: {
   // whether a system-wide combination can actually be taken.
   const capture = useCallback(
     (action: string, next: string) => {
+      if (savingRef.current) return;
       setRecordingAction(null);
       setRejectedAction(null);
       if (action === "select_result") {
@@ -154,6 +167,7 @@ export function useShortcutCapture(options: {
           return updated;
         });
         suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
+        setSaving(true);
         invoke("update_clipboard_hotkey", { hotkey: next })
           .then(() => {
             invoke("resume_shortcuts").catch(() => undefined);
@@ -166,7 +180,7 @@ export function useShortcutCapture(options: {
             });
             setRejectedAction(action);
             invoke("resume_shortcuts").catch(() => undefined);
-          });
+          }).finally(() => setSaving(false));
         return;
       }
       const previous = shortcuts[action as ShortcutAction];
@@ -195,6 +209,7 @@ export function useShortcutCapture(options: {
         return updated;
       });
       suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
+      setSaving(true);
       invoke("update_shortcut", { action, shortcut: next }).then(() => {
         invoke("resume_shortcuts").catch(() => undefined);
       }).catch(() => {
@@ -209,7 +224,7 @@ export function useShortcutCapture(options: {
         });
         setRejectedAction(action);
         invoke("resume_shortcuts").catch(() => undefined);
-      });
+      }).finally(() => setSaving(false));
     },
     [setSettings, settingsRef, settingsHydration, shortcuts, suppressBlurUntil],
   );
@@ -228,6 +243,7 @@ export function useShortcutCapture(options: {
   }, []);
 
   return {
+    saving,
     toggle,
     cancel,
     capture,

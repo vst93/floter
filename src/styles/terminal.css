@@ -230,9 +230,12 @@
   transition: transform 80ms ease, background 110ms ease, color 110ms ease;
 }
 
+@media (hover: hover) {
+
 .toolbar-button:hover {
   background: var(--surface-control-hover);
   color: var(--text-strong);
+}
 }
 
 .toolbar-button:active {

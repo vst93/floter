@@ -60,6 +60,8 @@ pub struct ClipboardEntry {
 pub struct ClipboardState {
     entries: Mutex<Option<Vec<ClipboardEntry>>>,
     monitor: Mutex<Option<monitor::MonitorHandle>>,
+    #[cfg(target_os = "linux")]
+    clipboard_owner: Mutex<Option<arboard::Clipboard>>,
 }
 
 impl Default for ClipboardState {
@@ -67,6 +69,8 @@ impl Default for ClipboardState {
         Self {
             entries: Mutex::new(None),
             monitor: Mutex::new(None),
+            #[cfg(target_os = "linux")]
+            clipboard_owner: Mutex::new(None),
         }
     }
 }
@@ -85,13 +89,11 @@ fn ensure_loaded(entries: &mut Vec<ClipboardEntry>) -> Result<(), String> {
     let loaded = store::load_index(&paths);
     let (kept, dropped) = store::prune_entries(loaded, now_ms());
     if !dropped.is_empty() {
-        let _ = store::save_index(&paths, &kept);
-        for entry in &dropped {
-            if let Some(file) = &entry.image_file {
-                store::delete_image(&paths, file);
-            }
+        if let Err(error) = store::save_index(&paths, &kept) {
+            tracing::warn!("floter: clipboard retention save failed: {error}");
+        } else {
+            store::remove_orphan_images(&paths, &kept);
         }
-        store::remove_orphan_images(&paths, &kept);
     }
     *entries = kept;
     Ok(())
@@ -132,7 +134,7 @@ fn mutate_history<T>(
         *cache = Some(loaded);
     }
     let entries = cache.as_mut().expect("just initialized");
-    f(entries)
+    store::update_entries(entries, f)
 }
 
 // ---- Tauri commands ------------------------------------------------------
@@ -203,8 +205,7 @@ pub fn clipboard_delete(app: AppHandle, id: String) -> Result<(), String> {
 pub fn clipboard_clear_history(app: AppHandle) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
     mutate_history(&app, |entries| {
-        let removed: Vec<ClipboardEntry> =
-            entries.drain(..).filter(|entry| !entry.favorite).collect();
+        let removed = store::take_non_favorites(entries);
         store::save_index(&paths, entries)?;
         for entry in &removed {
             if let Some(file) = &entry.image_file {
@@ -256,18 +257,27 @@ pub fn clipboard_copy_entry(app: AppHandle, id: String) -> Result<(), String> {
                 .clone()
                 .filter(|paths| !paths.is_empty())
                 .ok_or("Files entry has no paths")?;
-            // Best effort: hand back the real file list where the platform
-            // supports writing one, otherwise plain text of the original
-            // paths. Either way the frontend pastes the same strings itself.
-            if clipboard.set().file_list(&stored).is_ok() {
-                return Ok(());
-            }
+            // A failed native file-list write must not claim that references
+            // were restored after replacing them with a different data type.
             clipboard
-                .set_text(stored.join("\n"))
+                .set()
+                .file_list(&stored)
                 .map_err(|error| error.to_string())
         }
         other => Err(format!("Unknown clipboard entry kind: {other}")),
+    }?;
+    // X11 serves the selection from this handle. Dropping the last owner
+    // loses the restored data on desktops without a clipboard manager.
+    #[cfg(target_os = "linux")]
+    {
+        let state = app.state::<ClipboardState>();
+        let mut owner = state
+            .clipboard_owner
+            .lock()
+            .map_err(|_| "Clipboard owner poisoned".to_string())?;
+        *owner = Some(clipboard);
     }
+    Ok(())
 }
 
 /// Existence map for files entries: `true` = every stored path still exists.

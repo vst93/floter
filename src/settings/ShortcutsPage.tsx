@@ -7,6 +7,7 @@ import { SHORTCUT_ACTIONS, type ShortcutMap } from "../shortcuts";
 export const CLIPBOARD_HOTKEY_ACTION = "clipboard_hotkey";
 
 type ShortcutsPageProps = {
+  busy: boolean;
   t: Translate;
   shortcuts: ShortcutMap;
   clipboardHotkey: string;
@@ -22,6 +23,7 @@ type ShortcutsPageProps = {
 /** The shortcuts settings page: one recorder per action plus the clipboard
  * panel hotkey. All state lives in `App` and arrives through props. */
 export function ShortcutsPage({
+  busy,
   t,
   shortcuts,
   clipboardHotkey,
@@ -34,7 +36,8 @@ export function ShortcutsPage({
   onClearClipboardHotkey,
 }: ShortcutsPageProps) {
   return (
-    <section className="settings-section">
+    <fieldset className="settings-section settings-controls" disabled={busy} aria-busy={busy}>
+      {rejectedAction && <div className="settings-save-alert" role="alert">{t("settings.shortcut.rejected")}</div>}
       <div className="settings-section__heading">
         <h2 className="settings-section__label">{t("settings.shortcuts")}</h2>
         <button
@@ -114,6 +117,6 @@ export function ShortcutsPage({
         </div>
       </div>
       <p className="settings-section__hint">{t("settings.shortcutsHint")}</p>
-    </section>
+    </fieldset>
   );
 }

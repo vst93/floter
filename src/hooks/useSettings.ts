@@ -20,6 +20,7 @@ import {
   createSerialSettingsWriter,
   createSettingsHydration,
   normalizeSettingsPage,
+  rollbackRejectedSettings,
   type SettingsPage,
 } from "../settings-persistence";
 import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
@@ -65,7 +66,7 @@ export function useSettings(options: {
   /** Setter for the `autostartUpdating` busy flag. */
   setAutostartUpdating: Dispatch<SetStateAction<boolean>>;
 }) {
-  const { suppressBlurUntil, autostartUpdating, setAutostartUpdating } = options;
+  const { suppressBlurUntil, setAutostartUpdating } = options;
 
   // ---- State ---------------------------------------------------------------
   const [settings, setSettings] = useState<AppSettings>(SETTINGS_DEFAULTS);
@@ -85,6 +86,9 @@ export function useSettings(options: {
   const settingsLoadPromise = useRef<Promise<void> | null>(null);
   const hydrationSavePromise = useRef<Promise<void> | null>(null);
   const settingsRef = useRef(settings);
+  const confirmedSettings = useRef(settings);
+  const pendingFields = useRef(new Set<keyof AppSettings>());
+  const autostartBusy = useRef(false);
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
@@ -116,12 +120,26 @@ export function useSettings(options: {
       setSettingsSaving(true);
       return saveSettings(next).then(
         () => {
+          confirmedSettings.current = next;
           if (settingsSaveGeneration.current !== generation) return;
           setSettingsSaving(false);
           setSettingsSaveFailed(false);
         },
-        (error) => {
+        async (error) => {
+          // Shortcut commands persist independently of this writer. Re-read
+          // their authoritative values before reverting a failed snapshot.
+          let confirmed = confirmedSettings.current;
+          try {
+            const loaded = await invoke<AppSettings>("get_settings");
+            confirmed = { ...confirmed, ...loaded, shortcuts: withShortcutDefaults(loaded.shortcuts) };
+          } catch {
+            // Keep the last acknowledged snapshot if the optional read fails.
+          }
           if (settingsSaveGeneration.current === generation) {
+            confirmedSettings.current = confirmed;
+            const reverted = rollbackRejectedSettings(settingsRef.current, next, confirmed);
+            settingsRef.current = reverted;
+            setSettings(reverted);
             setSettingsSaving(false);
             setSettingsSaveFailed(true);
           }
@@ -177,6 +195,7 @@ export function useSettings(options: {
           settingsRef.current,
           normalized,
         );
+        confirmedSettings.current = normalized;
         settingsRef.current = hydrated;
         setSettings(hydrated);
         // Reopen on the page the user last left settings on. The merged value
@@ -241,13 +260,15 @@ export function useSettings(options: {
 
   const changeGeneralSetting = useCallback(
     <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
-      if (settingsRef.current[field] === value) return;
+      if (pendingFields.current.has(field) || settingsRef.current[field] === value) return;
+      pendingFields.current.add(field);
       const updated = { ...settingsRef.current, [field]: value };
       settingsHydration.markChanged(field);
       settingsRef.current = updated;
       setSettings(updated);
       suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
-      persistSettings().catch(() => setSettingsSaveFailed(true));
+      void persistSettings().catch(() => setSettingsSaveFailed(true))
+        .finally(() => pendingFields.current.delete(field));
     },
     [settingsHydration, persistSettings, suppressBlurUntil],
   );
@@ -271,11 +292,12 @@ export function useSettings(options: {
   const changeLaunchAtStartup = useCallback(
     async (enabled: boolean) => {
       if (
-        autostartUpdating ||
+        autostartBusy.current ||
         enabled === settingsRef.current.launch_at_startup
       ) {
         return;
       }
+      autostartBusy.current = true;
       const previous = settingsRef.current.launch_at_startup;
       const updated: AppSettings = {
         ...settingsRef.current,
@@ -292,6 +314,7 @@ export function useSettings(options: {
         settingsRef.current = latest;
         await persistSettings();
       } catch {
+        setSettingsSaveFailed(true);
         await invoke("set_launch_at_startup", { enabled: previous }).catch(
           () => undefined,
         );
@@ -304,11 +327,11 @@ export function useSettings(options: {
           return rolledBack;
         });
       } finally {
+        autostartBusy.current = false;
         setAutostartUpdating(false);
       }
     },
     [
-      autostartUpdating,
       settingsHydration,
       persistSettings,
       suppressBlurUntil,
@@ -328,6 +351,7 @@ export function useSettings(options: {
   }, [persistSettings]);
 
   return {
+    dismissSaveError: () => setSettingsSaveFailed(false),
     // State values (consumed by App.tsx JSX and other hooks)
     settings,
     setSettings,

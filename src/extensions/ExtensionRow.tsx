@@ -67,7 +67,10 @@ export function ExtensionRow({
   const menuRef = useRef<HTMLDetailsElement>(null);
 
   const closeMenu = () => {
-    if (menuRef.current?.open) menuRef.current.open = false;
+    if (menuRef.current?.open) {
+      menuRef.current.open = false;
+      menuRef.current.querySelector("summary")?.focus();
+    }
   };
 
   useEffect(() => {
@@ -205,7 +208,17 @@ export function ExtensionRow({
         )}
 
         {extension.connected && (
-          <details ref={menuRef} className="extension-menu">
+          <details ref={menuRef} className="extension-menu" onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu();
+          }} onToggle={() => {
+            if (!menuRef.current?.open) return;
+            document.querySelectorAll<HTMLDetailsElement>(".extension-menu[open]").forEach((menu) => {
+              if (menu !== menuRef.current) menu.open = false;
+            });
+          }}>
             <summary
               className={`extensions-icon-button extensions-icon-button--row${busy ? " extensions-icon-button--disabled" : ""}`}
               aria-label={t("settings.extensions.moreActions")}

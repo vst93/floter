@@ -290,22 +290,25 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn failing_version_probe_rejects_the_binary_set() {
-        let directory = tempfile::tempdir().unwrap();
-        let runtime = directory.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-        std::fs::write(&tool, b"#!/bin/sh\nexit 7\n").unwrap();
-        let mut binary = artifact("tool", "tool", BinaryRole::Public, true);
+        // A concurrently forked child can inherit even a private fixture's write
+        // descriptor until exec. Never write the executable during the test run.
+        let runtime = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let mut binary = artifact("tool", "failing-probe.sh", BinaryRole::Public, true);
         binary.version_args = vec!["--version".into()];
         let artifacts = Artifacts {
             binaries: vec![binary],
         };
 
+        let started = std::time::Instant::now();
         let error =
             verify_binaries_with_timeout(&runtime, &artifacts, &[], Duration::from_secs(10))
                 .await
                 .unwrap_err();
-        assert!(error.contains("version probe failed"));
+        assert!(
+            error.contains("version probe failed"),
+            "Unexpected probe result after {:?}: {error}",
+            started.elapsed()
+        );
     }
 
     #[test]

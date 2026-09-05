@@ -145,20 +145,19 @@ mod tests {
     }
 
     #[cfg(unix)]
+    fn fixture(name: &str) -> std::path::PathBuf {
+        let tool = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name);
+        // Never open an executable inode for writing while other tests fork.
+        crate::extensions::install::make_executable(&tool).unwrap();
+        tool
+    }
+
+    #[cfg(unix)]
     #[tokio::test]
     async fn manifest_with_probes_executes_declared_probes() {
-        let temp = tempfile::tempdir().unwrap();
-        let runtime = temp.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-
-        // Fake binary that passes on --check
-        std::fs::write(
-            &tool,
-            b"#!/bin/sh\nif [ \"$1\" = \"--check\" ]; then exit 0; else exit 1; fi\n",
-        )
-        .unwrap();
-        crate::extensions::install::make_executable(&tool).unwrap();
+        let tool = fixture("capability-probe.sh");
 
         let mut manifest = minimal_manifest();
         manifest.lifecycle = ToolLifecycle {
@@ -184,18 +183,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn manifest_without_probes_falls_back_to_version_and_help() {
-        let temp = tempfile::tempdir().unwrap();
-        let runtime = temp.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-
-        // Fake binary that passes on --version
-        std::fs::write(
-            &tool,
-            b"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo \"1.0.0\"; exit 0; fi\nexit 1\n",
-        )
-        .unwrap();
-        crate::extensions::install::make_executable(&tool).unwrap();
+        let tool = fixture("capability-probe.sh");
 
         let manifest = minimal_manifest();
         assert!(manifest.lifecycle.probes.is_empty());
@@ -215,14 +203,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn required_probe_failure_results_in_unhealthy() {
-        let temp = tempfile::tempdir().unwrap();
-        let runtime = temp.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-
-        // Fake binary that fails
-        std::fs::write(&tool, b"#!/bin/sh\nexit 1\n").unwrap();
-        crate::extensions::install::make_executable(&tool).unwrap();
+        let tool = fixture("failing-probe.sh");
 
         let probes = vec![CapabilityProbeEntry {
             id: "required-check".to_string(),
@@ -242,14 +223,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn optional_probe_failure_results_in_degraded() {
-        let temp = tempfile::tempdir().unwrap();
-        let runtime = temp.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-
-        // Fake binary that fails
-        std::fs::write(&tool, b"#!/bin/sh\nexit 1\n").unwrap();
-        crate::extensions::install::make_executable(&tool).unwrap();
+        let tool = fixture("failing-probe.sh");
 
         let probes = vec![CapabilityProbeEntry {
             id: "optional-check".to_string(),
@@ -269,18 +243,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn probe_timeout_is_recorded_as_failure() {
-        let temp = tempfile::tempdir().unwrap();
-        let runtime = temp.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-
-        // Fake binary that sleeps longer than timeout
-        std::fs::write(&tool, b"#!/bin/sh\nsleep 10\n").unwrap();
-        crate::extensions::install::make_executable(&tool).unwrap();
+        let tool = fixture("capability-probe.sh");
 
         let probes = vec![CapabilityProbeEntry {
             id: "timeout-check".to_string(),
-            args: vec!["--check".to_string()],
+            args: vec!["--sleep".to_string()],
             timeout_ms: 100, // Short timeout to avoid test hanging
             required: true,
         }];
@@ -289,24 +256,16 @@ mod tests {
 
         assert_eq!(report.status, HealthStatus::Unhealthy);
         assert_eq!(report.failures.len(), 1);
-        assert!(report.failures[0].stderr.contains("timed out"));
+        assert!(
+            report.failures[0].stderr.contains("timed out"),
+            "{report:?}"
+        );
     }
 
     #[cfg(unix)]
     #[tokio::test]
     async fn mixed_required_and_optional_probes() {
-        let temp = tempfile::tempdir().unwrap();
-        let runtime = temp.path().join("runtime");
-        std::fs::create_dir_all(&runtime).unwrap();
-        let tool = runtime.join("tool");
-
-        // Fake binary: passes on --required, fails on --optional
-        std::fs::write(
-            &tool,
-            b"#!/bin/sh\nif [ \"$1\" = \"--required\" ]; then exit 0; else exit 1; fi\n",
-        )
-        .unwrap();
-        crate::extensions::install::make_executable(&tool).unwrap();
+        let tool = fixture("capability-probe.sh");
 
         let probes = vec![
             CapabilityProbeEntry {

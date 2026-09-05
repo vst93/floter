@@ -72,10 +72,26 @@ pub fn content_hash(bytes: &[u8]) -> String {
 /// Load the index, recovering from a corrupt or missing file with an empty
 /// history — same philosophy as settings recovery in `commands/config.rs`.
 pub fn load_index(paths: &StorePaths) -> Vec<ClipboardEntry> {
-    std::fs::read(paths.index_file())
+    let mut entries: Vec<ClipboardEntry> = std::fs::read(paths.index_file())
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // Old indexes used newline-joined file hashes. Refresh their identities
+    // without rewriting references or dropping rows for paths now missing.
+    for entry in entries.iter_mut().filter(|entry| entry.kind == "files") {
+        if let Some(originals) = &entry.paths {
+            let canonical = originals
+                .iter()
+                .map(|path| {
+                    std::fs::canonicalize(path)
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| path.clone())
+                })
+                .collect::<Vec<_>>();
+            entry.hash = files_hash(&canonical);
+        }
+    }
+    entries
 }
 
 /// Replace the index atomically. A crash mid-write leaves the previous index
@@ -164,29 +180,48 @@ pub fn prune_entries(
 /// Hash comparison is content-based per kind, so this applies to text, image,
 /// and files captures alike; hashes of different kinds do not collide.
 pub fn fold_capture(entries: &mut Vec<ClipboardEntry>, mut capture: ClipboardEntry) -> bool {
-    if entries
-        .first()
-        .is_some_and(|newest| newest.hash == capture.hash)
-    {
+    let matches = |entry: &ClipboardEntry| entry.kind == capture.kind && entry.hash == capture.hash;
+    if entries.first().is_some_and(matches) {
         return false;
     }
-    let carries_favorite = entries
-        .iter()
-        .any(|entry| entry.hash == capture.hash && entry.favorite);
-    entries.retain(|entry| !(entry.hash == capture.hash && !entry.favorite));
+    let carries_favorite = entries.iter().any(|entry| matches(entry) && entry.favorite);
+    entries.retain(|entry| !matches(entry) || entry.favorite);
     capture.favorite = carries_favorite;
     entries.insert(0, capture);
     true
 }
 
-/// Identity of a multi-file copy: sha256 over the sorted, `\n`-joined
-/// canonical paths. Sorting makes the same selection re-copied in a different
-/// order dedupe to one entry; joining keeps `a/b` + `c` distinct from
-/// `a` + `b/c`. Callers pass canonical paths; stored entries keep originals.
+/// Length-prefixed paths avoid ambiguity when a filename contains a newline.
+/// Sorting makes re-copying a selection in a different order dedupe.
 pub fn files_hash(canonical_paths: &[String]) -> String {
     let mut sorted: Vec<&str> = canonical_paths.iter().map(String::as_str).collect();
     sorted.sort_unstable();
-    content_hash(sorted.join("\n").as_bytes())
+    sorted.dedup();
+    let mut encoded = b"files\0".to_vec();
+    for path in sorted {
+        encoded.extend_from_slice(&(path.len() as u64).to_be_bytes());
+        encoded.extend_from_slice(path.as_bytes());
+    }
+    content_hash(&encoded)
+}
+
+/// Commit the memory snapshot only after its persistence operation succeeds.
+pub fn update_entries<T>(
+    entries: &mut Vec<ClipboardEntry>,
+    update: impl FnOnce(&mut Vec<ClipboardEntry>) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut next = entries.clone();
+    let result = update(&mut next)?;
+    *entries = next;
+    Ok(result)
+}
+
+pub fn take_non_favorites(entries: &mut Vec<ClipboardEntry>) -> Vec<ClipboardEntry> {
+    let (favorites, removed) = std::mem::take(entries)
+        .into_iter()
+        .partition(|entry| entry.favorite);
+    *entries = favorites;
+    removed
 }
 
 pub fn write_image(paths: &StorePaths, id: &str, png_bytes: &[u8]) -> Result<(), String> {
@@ -252,6 +287,136 @@ mod tests {
             created_at,
             favorite,
         }
+    }
+
+    #[test]
+    fn old_file_hashes_migrate_without_losing_references_or_favorites() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = StorePaths {
+            root: directory.path().join("history"),
+        };
+        let referenced = directory.path().join("reference with trailing space ");
+        std::fs::create_dir(&referenced).unwrap();
+        let original = referenced.to_string_lossy().into_owned();
+        let canonical = std::fs::canonicalize(&referenced)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let mut old = text_entry("old", 1, false, &content_hash(canonical.as_bytes()));
+        old.kind = "files".into();
+        old.paths = Some(vec![original.clone()]);
+        let mut favorite = old.clone();
+        favorite.id = "favorite".into();
+        favorite.favorite = true;
+        let mut missing = old.clone();
+        missing.id = "missing".into();
+        missing.paths = Some(vec![directory
+            .path()
+            .join("missing")
+            .to_string_lossy()
+            .into_owned()]);
+        save_index(
+            &paths,
+            &[
+                text_entry("latest", 3, false, "text"),
+                old,
+                favorite,
+                missing.clone(),
+            ],
+        )
+        .unwrap();
+
+        let mut entries = load_index(&paths);
+        assert_eq!(entries[1].paths, Some(vec![original]));
+        assert_eq!(entries[1].hash, files_hash(&[canonical]));
+        assert!(entries[2].favorite);
+        assert_eq!(entries[3].paths, missing.paths);
+        assert_eq!(entries[3].hash, files_hash(missing.paths.as_ref().unwrap()));
+        let mut recopy = entries[1].clone();
+        recopy.id = "recopy".into();
+        recopy.created_at = 4;
+        assert!(fold_capture(&mut entries, recopy));
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["recopy", "latest", "favorite", "missing"]
+        );
+        assert!(entries[0].favorite && entries[2].favorite);
+    }
+
+    #[test]
+    fn clearing_history_preserves_all_favorites_and_their_image_references() {
+        let mut favorite = text_entry("saved-image", 1, true, "saved");
+        favorite.kind = "image".into();
+        favorite.image_file = Some("saved-image.png".into());
+        let mut entries = vec![
+            text_entry("recent", 3, false, "recent"),
+            favorite.clone(),
+            text_entry("saved-text", 0, true, "text"),
+        ];
+        let removed = take_non_favorites(&mut entries);
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0].id, "recent");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0], favorite);
+        assert!(take_non_favorites(&mut entries).is_empty());
+        let directory = tempfile::tempdir().unwrap();
+        let paths = StorePaths {
+            root: directory.path().into(),
+        };
+        write_image(&paths, "saved-image", b"pixels").unwrap();
+        save_index(&paths, &entries).unwrap();
+        remove_orphan_images(&paths, &entries);
+        assert_eq!(load_index(&paths), entries);
+        assert_eq!(read_image(&paths, "saved-image.png").unwrap(), b"pixels");
+    }
+
+    #[test]
+    fn failed_persistence_does_not_publish_a_mutated_cache() {
+        let directory = tempfile::tempdir().unwrap();
+        let blocked = directory.path().join("not-a-directory");
+        std::fs::write(&blocked, b"blocked").unwrap();
+        let paths = StorePaths { root: blocked };
+        let mut entries = vec![text_entry("kept", 1, true, "content")];
+        let original = entries.clone();
+        let result = update_entries(&mut entries, |next| {
+            next.clear();
+            save_index(&paths, next)
+        });
+        assert!(result.is_err());
+        assert_eq!(entries, original);
+        update_entries(&mut entries, |next| {
+            next[0].favorite = false;
+            Ok(())
+        })
+        .unwrap();
+        assert!(!entries[0].favorite);
+    }
+
+    #[test]
+    fn dedupe_does_not_remove_a_different_clipboard_kind() {
+        let text = text_entry("text", 1, false, "same-hash");
+        let mut files = text_entry("files", 2, false, "same-hash");
+        files.kind = "files".into();
+        files.paths = Some(vec!["/tmp/example".into()]);
+        let mut entries = vec![text.clone()];
+        assert!(fold_capture(&mut entries, files.clone()));
+        assert_eq!(entries, vec![files, text]);
+    }
+
+    #[test]
+    fn files_hash_distinguishes_newlines_in_names_and_path_boundaries() {
+        assert_ne!(
+            files_hash(&["/a\n/b".into()]),
+            files_hash(&["/a".into(), "/b".into()])
+        );
+        assert_ne!(files_hash(&["/a".into()]), content_hash(b"/a"));
+        assert_eq!(
+            files_hash(&["/a".into(), "/a".into()]),
+            files_hash(&["/a".into()])
+        );
     }
 
     #[test]

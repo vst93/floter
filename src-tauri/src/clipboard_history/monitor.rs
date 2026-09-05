@@ -9,6 +9,7 @@
 
 use super::store;
 use super::ClipboardEntry;
+use std::collections::HashSet;
 use std::io::Cursor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -20,6 +21,8 @@ use tauri::{AppHandle, Manager};
 pub const POLL_INTERVAL_MS: u64 = 900;
 /// Text above this size is not captured (512 KB).
 pub const MAX_TEXT_BYTES: usize = 512 * 1024;
+pub const MAX_FILES: usize = 4096;
+pub const MAX_FILE_PATH_BYTES: usize = 512 * 1024;
 /// Images whose PNG encoding exceeds this are not captured (~20 MB).
 pub const MAX_IMAGE_PNG_BYTES: usize = 20 * 1024 * 1024;
 
@@ -49,11 +52,16 @@ pub fn prepare_files_capture(
     paths: &[String],
     exists: impl Fn(&str) -> bool,
 ) -> Option<FilesCapture> {
+    if paths.len() > MAX_FILES || paths.iter().map(String::len).sum::<usize>() > MAX_FILE_PATH_BYTES
+    {
+        return None;
+    }
     let mut originals: Vec<String> = Vec::new();
     let mut canonical: Vec<String> = Vec::new();
+    let mut seen = HashSet::new();
     for raw in paths {
-        let raw = raw.trim();
-        if raw.is_empty() || originals.iter().any(|seen| seen == raw) {
+        let raw = raw.as_str();
+        if raw.trim().is_empty() || !seen.insert(raw) {
             continue;
         }
         if !exists(raw) {
@@ -105,8 +113,10 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
             // Metadata only: existence check, never a read of the contents.
             std::fs::metadata(path).is_ok()
         }) {
-            let _ = capture_files(app, &capture);
-            return Some(capture.hash);
+            if last_hash.as_deref() == Some(&capture.hash) {
+                return last_hash;
+            }
+            return capture_result_hash(capture.hash.clone(), capture_files(app, &capture));
         }
     }
 
@@ -122,6 +132,11 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
         let height = image.height as u32;
         if width > 0 && height > 0 {
             let rgba = image.bytes.into_owned();
+            let caption = caption_for(raw_text.as_deref(), MAX_TEXT_BYTES);
+            let hash = image_hash(width, height, &rgba, caption.as_deref());
+            if last_hash.as_deref() == Some(&hash) {
+                return last_hash;
+            }
             let png = match encode_png(width, height, &rgba) {
                 Ok(png) => png,
                 Err(error) => {
@@ -136,32 +151,38 @@ pub fn poll_once(app: &AppHandle, last_hash: Option<String>) -> Option<String> {
                 );
                 return None;
             }
-            let caption = caption_for(raw_text.as_deref(), MAX_TEXT_BYTES);
-            // Dimensions go into the hash: identical pixels at different sizes
-            // are different content. The caption does too — see [`image_hash`].
-            let hash = image_hash(width, height, &rgba, caption.as_deref());
-            let _ = capture_image(app, &png, width, height, &hash, caption);
-            return Some(hash);
+            let result = capture_image(app, &png, width, height, &hash, caption);
+            return capture_result_hash(hash, result);
         }
     }
 
     // No usable image: readable non-whitespace text becomes a text entry.
     let Some(text) = raw_text else { return None };
-    if text.trim().is_empty() {
-        return None;
-    }
-    if text.len() > MAX_TEXT_BYTES {
+    if !text_is_capturable(&text) {
         // Too big to keep. Not recorded in `last_hash` either, so the
         // user paying the cost of a smaller copy still gets captured.
         return None;
     }
     let hash = store::content_hash(text.as_bytes());
-    if last_hash.as_deref() == Some(hash.as_str()) || capture_text(app, text, &hash).is_err() {
-        // Either already the newest entry (duplicate copy) or storage failed;
-        // either way do not re-record the same content.
-        return Some(hash);
+    if last_hash.as_deref() == Some(hash.as_str()) {
+        return last_hash;
     }
-    Some(hash)
+    let result = capture_text(app, text, &hash);
+    capture_result_hash(hash, result)
+}
+
+fn text_is_capturable(text: &str) -> bool {
+    text.len() <= MAX_TEXT_BYTES && !text.trim().is_empty()
+}
+
+fn capture_result_hash(hash: String, result: Result<(), String>) -> Option<String> {
+    match result {
+        Ok(()) => Some(hash),
+        Err(error) => {
+            tracing::warn!("floter: clipboard capture failed, will retry: {error}");
+            None
+        }
+    }
 }
 
 /// The caption stored alongside an image captured with text on the same
@@ -246,12 +267,11 @@ fn capture_image(
     caption: Option<String>,
 ) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
-    // The PNG lands on disk before the history is touched: a failed write then
-    // leaves both memory and index exactly as they were. The id is a fresh
-    // UUID, so nothing else can be holding that file name.
     let id = uuid::Uuid::new_v4().to_string();
-    store::write_image(&paths, &id, png)?;
     super::mutate_history(app, |entries| {
+        // Serialize PNG creation with index writes and orphan cleanup.
+        // No other writer can remove this file before its row is committed.
+        store::write_image(&paths, &id, png)?;
         if !store::fold_capture(
             entries,
             ClipboardEntry {
@@ -402,6 +422,37 @@ pub fn stop(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_capture_is_retried_on_the_next_poll() {
+        assert_eq!(
+            capture_result_hash("hash".into(), Err("disk full".into())),
+            None
+        );
+        assert_eq!(
+            capture_result_hash("hash".into(), Ok(())),
+            Some("hash".into())
+        );
+    }
+
+    #[test]
+    fn huge_text_and_file_lists_are_rejected_before_processing() {
+        assert!(!text_is_capturable(&"x".repeat(10 * 1024 * 1024)));
+        assert!(text_is_capturable(&"x".repeat(MAX_TEXT_BYTES)));
+        assert!(!text_is_capturable(" \n\t"));
+        let never_stat = |_: &str| -> bool { panic!("oversize input must not stat files") };
+        assert!(prepare_files_capture(&vec!["/x".into(); MAX_FILES + 1], never_stat).is_none());
+        assert!(
+            prepare_files_capture(&["x".repeat(MAX_FILE_PATH_BYTES + 1)], never_stat).is_none()
+        );
+    }
+
+    #[test]
+    fn files_capture_preserves_whitespace_in_real_names() {
+        let paths = vec!["/tmp/ends in space ".into(), "/tmp/ends in space ".into()];
+        let capture = prepare_files_capture(&paths, |_| true).unwrap();
+        assert_eq!(capture.originals, vec!["/tmp/ends in space "]);
+    }
 
     #[test]
     fn png_round_trips_pixels() {

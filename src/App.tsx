@@ -12,6 +12,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   SquareTerminal,
+  X,
 } from "lucide-react";
 import { TerminalCanvas } from "./terminal/render";
 import { PinnedTerminalCard } from "./terminal/PinnedTerminalCard";
@@ -26,6 +27,7 @@ import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
 import { useSessionManagement } from "./hooks/useSessionManagement";
+import { useTimedReset } from "./hooks/useTimedReset";
 import {
   FOCUS_IN_OUT,
 } from "./terminal/keys";
@@ -47,7 +49,7 @@ import {
   withShortcutDefaults,
   type ShortcutMap,
 } from "./shortcuts";
-import { type SettingsPage, normalizeSettingsPage } from "./settings-persistence";
+import { type SettingsPage } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -214,13 +216,15 @@ export default function App() {
    * action bar is not a result: it is never numbered and never in `Ctrl+N`. */
   const [selectedActionBar, setSelectedActionBar] = useState(false);
   // Two-step system power confirmation: armed while the restart/shutdown row
-  // shows an inline "Execute? Cancel?" banner. Enter executes, Esc cancels.
+  // shows an inline confirmation. Input Enter is inert; Escape cancels.
   const [pendingSystemAction, setPendingSystemAction] = useState<Extract<LauncherItem, { type: "system" }> | null>(null);
+  useTimedReset(pendingSystemAction, () => setPendingSystemAction(null));
   /** First-run onboarding tip: shown once in the launcher until dismissed. */
   const [showOnboardingTip, setShowOnboardingTip] = useState(false);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
+  const updateBusy = useRef(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number } | null>(null);
   const [updateFailed, setUpdateFailed] = useState(false);
   const isComposing = useRef(false);
@@ -236,16 +240,25 @@ export default function App() {
     setSettingsPage,
     settingsSaving,
     settingsSaveFailed,
+    dismissSaveError,
     settingsLoading,
     settingsLoadFailed,
     settingsRef,
     settingsHydration,
     persistSettings,
+    loadSettings,
+    changeOpacity,
+    changeFontSize,
+    changeGeneralSetting,
+    changeTheme,
+    changeLanguage,
+    changeLaunchAtStartup,
   } = useSettings({
     suppressBlurUntil,
     autostartUpdating,
     setAutostartUpdating,
   });
+  useTimedReset(settingsSaveFailed, dismissSaveError, 5000);
   /** Mirror of the OS focus state as the listener below has seen it. Lives in
    *  a ref rather than the effect so it survives the re-subscription every
    *  mode change makes: a Focused(false) that arrives without a matching
@@ -272,76 +285,8 @@ export default function App() {
     [settings.shortcuts],
   );
 
-  const changeOpacity = (field: "main_opacity" | "terminal_opacity", next: number) => {
-    const value = normalizeOpacity(next);
-    if (value === settingsRef.current[field]) return;
-    const updated: AppSettings = { ...settingsRef.current, [field]: value };
-    settingsHydration.markChanged(field);
-    settingsRef.current = updated;
-    setSettings(updated);
-    void persistSettings();
-  };
-
-  const changeFontSize = (next: number) => {
-    const fontSize = normalizeFontSize(next);
-    if (fontSize === settingsRef.current.font_size) return;
-    const updated = { ...settingsRef.current, font_size: fontSize };
-    settingsHydration.markChanged("font_size");
-    settingsRef.current = updated;
-    setSettings(updated);
-    void persistSettings();
-  };
-
-  const changeGeneralSetting = <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => {
-    if (settingsRef.current[field] === value) return;
-    const updated = { ...settingsRef.current, [field]: value };
-    settingsHydration.markChanged(field);
-    settingsRef.current = updated;
-    setSettings(updated);
-    suppressBlurUntil.current = Date.now() + 400;
-    void persistSettings();
-  };
-
   const toggleCommandsInSearch = () => {
     changeGeneralSetting("show_commands_in_search", !settingsRef.current.show_commands_in_search);
-  };
-
-  const changeTheme = (theme: string) => {
-    if (theme === settings.theme) return;
-    changeGeneralSetting("theme", theme);
-  };
-
-  const changeLanguage = (next: Language) => {
-    if (next === language) return;
-    changeGeneralSetting("language", next);
-  };
-
-  const changeLaunchAtStartup = async (enabled: boolean) => {
-    if (autostartUpdating || enabled === settingsRef.current.launch_at_startup) return;
-    const previous = settingsRef.current.launch_at_startup;
-    const updated: AppSettings = { ...settingsRef.current, launch_at_startup: enabled };
-    settingsHydration.markChanged("launch_at_startup");
-    settingsRef.current = updated;
-    setSettings(updated);
-    setAutostartUpdating(true);
-    suppressBlurUntil.current = Date.now() + 400;
-    try {
-      await invoke("set_launch_at_startup", { enabled });
-      const latest = { ...settingsRef.current, launch_at_startup: enabled };
-      settingsRef.current = latest;
-      await persistSettings();
-    } catch {
-      await invoke("set_launch_at_startup", { enabled: previous }).catch(() => undefined);
-      setSettings((current) => {
-        const rolledBack = current.launch_at_startup === enabled
-          ? { ...current, launch_at_startup: previous }
-          : current;
-        settingsRef.current = rolledBack;
-        return rolledBack;
-      });
-    } finally {
-      setAutostartUpdating(false);
-    }
   };
 
   // Imperative shortcut recording & capture: the row of the settings page
@@ -357,6 +302,7 @@ export default function App() {
     reset: resetRecording,
     rejectedAction,
     recordingAction,
+    saving: shortcutsSaving,
   } = useShortcutCapture({
     settings,
     setSettings,
@@ -417,6 +363,7 @@ export default function App() {
   // them; the bodies are unchanged.
   const focusCollapsedInput = (delay = 0) => {
     window.setTimeout(() => {
+      if (modeRef.current !== "collapsed") return;
       const input = inputRef.current;
       if (!input) return;
       input.focus({ preventScroll: true });
@@ -482,8 +429,11 @@ export default function App() {
    * mode uses. */
   const openPluginPage = (pluginId: string) => {
     suppressBlurUntil.current = Date.now() + 400;
-    pluginReturnMode.current =
-      modeRef.current === "terminal" ? "terminal" : "collapsed";
+    if (modeRef.current !== "plugin") {
+      pluginReturnMode.current = modeRef.current === "terminal" ? "terminal" : "collapsed";
+    }
+    modeRef.current = "plugin";
+    pluginPageIdRef.current = pluginId;
     setPluginPageId(pluginId);
     setMode("plugin");
   };
@@ -788,31 +738,8 @@ export default function App() {
   }, [mode]);
 
   useEffect(() => {
-    // Load settings on mount
-    invoke<AppSettings>("get_settings")
-      .then((loaded) => {
-        const normalized = {
-          ...loaded,
-          language: normalizeLanguage(loaded.language),
-          launch_at_startup: loaded.launch_at_startup ?? false,
-          main_opacity: normalizeOpacity(loaded.main_opacity ?? 94),
-          terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
-          shortcuts: withShortcutDefaults(loaded.shortcuts),
-          clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
-          clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
-          launch_counts: loaded.launch_counts ?? {},
-          last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
-        };
-        const hydrated = settingsHydration.mergeLoaded(settingsRef.current, normalized);
-        settingsRef.current = hydrated;
-        setSettings(hydrated);
-        setSettingsPage(hydrated.last_settings_page);
-        settingsHydration.finish();
-      })
-      .catch(() => {
-        settingsHydration.markFailed();
-      });
-  }, []);
+    void loadSettings();
+  }, [loadSettings]);
 
   // Show the first-run onboarding tip in the launcher the first time the user
   // opens it; persist dismissal as `seen_tip` so it never returns.
@@ -984,6 +911,19 @@ export default function App() {
     });
 
     const unlistenRevealPromise = listen<string>("floter://revealed", (event) => {
+      if (modeRef.current === "settings") {
+        // The native toggle only remembers terminal/launcher geometry. Keep
+        // the mounted editor and its draft, then restore the settings height.
+        const height = Math.min(SETTINGS_WINDOW_HEIGHT, Math.max(240, window.screen.availHeight - 24));
+        void getCurrentWindow().setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height)).catch(() => undefined);
+        const dialog = document.querySelector<HTMLElement>('[aria-modal="true"]:not([inert])');
+        if (dialog && !dialog.contains(document.activeElement)) dialog.focus();
+        return;
+      }
+      if (modeRef.current === "plugin") {
+        void invoke("show_plugin_page").catch(() => undefined);
+        return;
+      }
       if (event.payload === "terminal") {
         restoringMode.current = "terminal";
         setTerminalMounted(true);
@@ -1170,7 +1110,8 @@ export default function App() {
   }, []);
 
   const downloadAndInstallUpdate = async () => {
-    if (updateDownloading) return;
+    if (updateBusy.current) return;
+    updateBusy.current = true;
     setUpdateDownloading(true);
     setUpdateFailed(false);
     setUpdateProgress(null);
@@ -1203,6 +1144,8 @@ export default function App() {
       setUpdateFailed(true);
       setUpdateDownloading(false);
       setUpdateProgress(null);
+    } finally {
+      updateBusy.current = false;
     }
   };
 
@@ -1321,29 +1264,25 @@ export default function App() {
               <div className="settings-save-alert" role="alert">
                 <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
                 <span>{t("settings.loadFailed")}</span>
+                <button type="button" disabled={settingsLoading} onClick={() => void loadSettings()}>{t("settings.retry")}</button>
               </div>
             )}
             {settingsSaveFailed && (
-              <div className="settings-save-alert" role="alert">
+              <div className="settings-save-alert settings-save-alert--toast" role="alert">
                 <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
                 <span>{t("settings.saveFailed")}</span>
                 <button
                   type="button"
-                  disabled={settingsSaving}
-                  onClick={() => void persistSettings().catch(() => undefined)}
+                  aria-label={t("settings.extensions.dismissNotice")}
+                  onClick={dismissSaveError}
                 >
-                  <RefreshCw
-                    className={settingsSaving ? "settings-save-alert__spinner" : undefined}
-                    size={14}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
-                  {t(settingsSaving ? "settings.saving" : "settings.retrySave")}
+                  <X size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
               </div>
             )}
             {settingsPage === "general" && (
             <GeneralPage
+              busy={settingsSaving || settingsLoading}
               t={t}
               settings={settings}
               language={language}
@@ -1359,6 +1298,7 @@ export default function App() {
 
             {settingsPage === "shortcuts" && (
             <ShortcutsPage
+              busy={shortcutsSaving || settingsLoading}
               t={t}
               shortcuts={shortcuts}
               clipboardHotkey={settings.clipboard_history_hotkey}
@@ -1388,6 +1328,7 @@ export default function App() {
 
             {settingsPage === "integrations" && (
             <ExtensionsPanel
+              settingsBusy={settingsSaving || settingsLoading || autostartUpdating}
               t={t}
               locale={language}
               onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
@@ -1476,8 +1417,11 @@ export default function App() {
         <div
           ref={collapsedCardRef}
           className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
+          style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - 220)}px` } as React.CSSProperties}
           onMouseDown={startDrag}
-          onClick={() => focusCollapsedInput()}
+          onClick={(event) => {
+            if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
+          }}
         >
           <div className="collapsed-card__input-row">
             <div className="collapsed-card__aura" aria-hidden="true" />
@@ -1641,6 +1585,7 @@ export default function App() {
                   <button
                     type="button"
                     className="launcher-system-confirm__execute"
+                    data-destructive-confirm
                     onClick={() => void executeSystemAction()}
                   >
                     {t(pendingSystemAction.action === "restart"

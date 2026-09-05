@@ -94,9 +94,17 @@
   transition: background 110ms ease, color 110ms ease;
 }
 
+@media (hover: hover) {
+
 .pinned-card__close:hover {
   background: var(--surface-control-hover);
   color: var(--text-primary);
+}
+}
+
+.pinned-card__close:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: -2px;
 }
 
 .pinned-card__body {

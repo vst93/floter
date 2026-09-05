@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type RefObject } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
@@ -23,7 +23,9 @@ import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
 import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
-import { RemovalDialog } from "./extensions/RemovalDialog";
+import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
+import { useImmediateState } from "./hooks/useImmediateState";
+import { useTimedReset } from "./hooks/useTimedReset";
 
 type ExtensionDistributionSource = "npm" | "local" | "built-in";
 type ExtensionRuntimeOwnership = "bundled" | "system";
@@ -285,7 +287,7 @@ function useDialogFocus(
   interactiveRef.current = interactive;
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !interactive) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
@@ -294,9 +296,27 @@ function useDialogFocus(
       const initial = dialog?.querySelector<HTMLElement>("[data-dialog-initial]");
       (initial ?? dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialog)?.focus();
     }, 0);
+    const inertElements = new Map<HTMLElement, boolean>();
+    let branch: HTMLElement | null = dialogRef.current?.parentElement ?? null;
+    while (branch?.parentElement) {
+      for (const sibling of Array.from(branch.parentElement.children)) {
+        if (sibling !== branch && sibling instanceof HTMLElement && !sibling.classList.contains("extensions-toasts")) {
+          inertElements.set(sibling, sibling.inert);
+          sibling.inert = true;
+        }
+      }
+      if (branch.parentElement.classList.contains("settings-card")) break;
+      branch = branch.parentElement;
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
       const dialog = dialogRef.current;
       if (!dialog || !interactiveRef.current) return;
+      if (event.isComposing || event.keyCode === 229) return;
+      if (event.key === "Enter" && (event.target as HTMLElement)?.closest("[data-destructive-confirm]")) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the surface — a
       // convention every overlay in floter follows, alongside Escape below.
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
@@ -313,7 +333,7 @@ function useDialogFocus(
       }
       if (event.key !== "Tab") return;
       const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-        .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+        .filter((element) => element.getClientRects().length > 0 && !element.closest("[inert]"));
       if (!focusable.length) {
         event.preventDefault();
         dialog.focus();
@@ -333,9 +353,14 @@ function useDialogFocus(
     return () => {
       window.clearTimeout(focusInitial);
       document.removeEventListener("keydown", handleKeyDown, true);
-      window.setTimeout(() => previouslyFocused?.focus(), 0);
+      for (const [element, wasInert] of inertElements) element.inert = wasInert;
+      window.setTimeout(() => {
+        if (previouslyFocused?.isConnected && !previouslyFocused.closest("[inert]")) {
+          previouslyFocused.focus({ preventScroll: true });
+        }
+      }, 0);
     };
-  }, [active, dialogRef]);
+  }, [active, dialogRef, interactive]);
 }
 
 type ExtensionSourceKey =
@@ -378,6 +403,7 @@ type ExtensionsImportReport = {
 };
 
 type ExtensionsPanelProps = {
+  settingsBusy: boolean;
   t: Translate;
   locale: "en" | "zh";
   onOpenCommand: (plan: ExtensionExecutionPlan, label: string) => void | Promise<void>;
@@ -462,36 +488,36 @@ function ExtensionsToast({ toast, t, onDismiss }: { toast: PanelToast; t: Transl
   );
 }
 
-export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderResponse | null>(null);
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
-  const [healthLoading, setHealthLoading] = useState(false);
-  const [reprobingCommands, setReprobingCommands] = useState(false);
+  const [healthLoading, setHealthLoading, healthLoadingRef] = useImmediateState(false);
+  const [reprobingCommands, setReprobingCommands, reprobingRef] = useImmediateState(false);
   // Bumped to force the drawer's details effect (provider/diagnose/config)
   // to reload without a lock-entry change, e.g. after a command re-probe.
   const [detailReloadTick, setDetailReloadTick] = useState(0);
   const [configuration, setConfiguration] = useState<ExtensionConfiguration | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, JsonValue>>({});
   const [savedConfigValues, setSavedConfigValues] = useState<Record<string, JsonValue>>({});
-  const [configOperation, setConfigOperation] = useState<ConfigOperation>(null);
+  const [configOperation, setConfigOperation, configOperationRef] = useImmediateState<ConfigOperation>(null);
   const [configNotice, setConfigNotice] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [pendingLocal, setPendingLocal] = useState<{ review: PermissionReview; request: InstallRequest; name: string; runtime: string; platforms: string[]; source: string } | null>(null);
-  const [pendingToolSelection, setPendingToolSelection] = useState<PendingToolSelection>(null);
+  const [pendingToolSelection, setPendingToolSelection, toolSelectionRef] = useImmediateState<PendingToolSelection>(null);
   const [pendingPermissionReview, setPendingPermissionReview] = useState<PendingPermissionReview>(null);
-  const [syncOperation, setSyncOperation] = useState<SyncOperation | null>(null);
+  const [syncOperation, setSyncOperation, syncOperationRef] = useImmediateState<SyncOperation | null>(null);
   const [exportResult, setExportResult] = useState<ExtensionsExportResult | null>(null);
   const [importReport, setImportReport] = useState<ExtensionsImportReport | null>(null);
   const [showCustomIntegration, setShowCustomIntegration] = useState(false);
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
-  const [customIntegrationLoading, setCustomIntegrationLoading] = useState(false);
+  const [customIntegrationLoading, setCustomIntegrationLoading, customLoadingRef] = useImmediateState(false);
   const [customIntegrationError, setCustomIntegrationError] = useState<string | null>(null);
-  const [customContentOperation, setCustomContentOperation] = useState<CustomContentOperation>(null);
+  const [customContentOperation, setCustomContentOperation, customContentRef] = useImmediateState<CustomContentOperation>(null);
   const [customIntegration, setCustomIntegration] = useState<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
   const [toolResults, setToolResults] = useState<ExecutableToolCandidate[]>([]);
   const [toolSearching, setToolSearching] = useState(false);
@@ -504,6 +530,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const [detailsDiscardArmed, setDetailsDiscardArmed] = useState(false);
   const [customDiscardArmed, setCustomDiscardArmed] = useState(false);
   const customSavedRef = useRef<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
+  const customGeneration = useRef(0);
   const toolSearchNeedsRefresh = useRef(true);
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
@@ -514,11 +541,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const localDialogRef = useRef<HTMLElement | null>(null);
   const toolSelectionDialogRef = useRef<HTMLElement | null>(null);
   const permissionReviewDialogRef = useRef<HTMLElement | null>(null);
-  const removalDialogRef = useRef<HTMLElement | null>(null);
   const customDialogRef = useRef<HTMLElement | null>(null);
   const toolResultsRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const refreshGeneration = useRef(0);
+  const refreshPending = useRef<Promise<void> | null>(null);
   const refreshRef = useRef<() => Promise<void>>(async () => {});
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -529,12 +556,20 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   }, []);
   const showError = useCallback((text: string) => pushToast("error", text), [pushToast]);
   const showSuccess = useCallback((text: string) => pushToast("success", text), [pushToast]);
-  const extensionActions = useExtensionActions({ refresh: () => refreshRef.current(), onError: (nextError) => showError(errorMessage(nextError)), onComplete: () => showSuccess(t("settings.extensions.operationComplete")) });
+  const refreshAfterMutation = async () => {
+    await refreshPending.current;
+    await refreshRef.current();
+  };
+  const extensionActions = useExtensionActions({ refresh: refreshAfterMutation, onError: (nextError) => showError(errorMessage(nextError)), onComplete: () => showSuccess(t("settings.extensions.operationComplete")) });
   // One owner for busy state. A local mirror used to shadow it, so operations
   // that set it directly were invisible to runMutation's guard (and vice
   // versa) — two mutations could run at once.
   const busy = extensionActions.busy as ExtensionOperation;
   const setBusy = extensionActions.setBusy;
+  const busyRef = extensionActions.busyRef;
+  useTimedReset(removalTarget, () => setRemovalTarget(null));
+  useTimedReset(detailsDiscardArmed, () => setDetailsDiscardArmed(false));
+  useTimedReset(customDiscardArmed, () => setCustomDiscardArmed(false));
 
   const updateCustomIntegration = (update: (current: CustomIntegrationForm) => CustomIntegrationForm) => {
     setCustomIntegrationError(null);
@@ -547,6 +582,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const resetCustomIntegration = () => {
+    customGeneration.current += 1;
+    setCustomIntegrationLoading(false);
     setEditingCustomId(null);
     const fresh = { ...DEFAULT_CUSTOM_INTEGRATION, argsPrefix: [], versionArgs: [], permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions], platforms: [CURRENT_PLATFORM] as Array<"darwin" | "linux" | "windows"> };
     setCustomIntegration(fresh);
@@ -561,7 +598,10 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const closeCustomIntegration = () => {
-    if (busy || customIntegrationLoading) return;
+    if (customDiscardArmed) {
+      setCustomDiscardArmed(false);
+      return;
+    }
     if (customDirty) {
       setCustomDiscardArmed(true);
       return;
@@ -601,7 +641,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     })));
   };
 
-  const refresh = async () => {
+  const refreshData = async () => {
     const generation = ++refreshGeneration.current;
     setLoading(true);
     try {
@@ -614,6 +654,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     } finally {
       if (generation === refreshGeneration.current) setLoading(false);
     }
+  };
+  const refresh = () => {
+    if (refreshPending.current) return refreshPending.current;
+    const request = refreshData().finally(() => { refreshPending.current = null; });
+    refreshPending.current = request;
+    return request;
   };
   refreshRef.current = refresh;
 
@@ -718,7 +764,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   }, [selectedId, selected?.updatedAt, detailReloadTick]);
 
   const handleReprobe = async () => {
-    if (!selectedId || healthLoading) return;
+    if (!selectedId || healthLoadingRef.current) return;
     const generation = detailGeneration.current;
     setHealthLoading(true);
     setDetailError(null);
@@ -726,21 +772,24 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       const report = await invoke<HealthReport>("extensions_reprobe", { id: selectedId });
       if (generation === detailGeneration.current) setHealthReport(report);
     } catch (nextError) {
-      if (generation === detailGeneration.current) setDetailError(errorMessage(nextError));
+      if (generation === detailGeneration.current) {
+        setDetailError(errorMessage(nextError));
+        showError(errorMessage(nextError));
+      }
     } finally {
       if (generation === detailGeneration.current) setHealthLoading(false);
     }
   };
 
   const handleReprobeCommands = async () => {
-    if (!selected || reprobingCommands || busy) return;
+    if (!selected || reprobingRef.current || busyRef.current) return;
     setReprobingCommands(true);
     try {
       const report = await invoke<{ rootArguments: number; subcommands: number }>(
         "extensions_reprobe_commands",
         { id: selected.id },
       );
-      await refresh();
+      await refreshAfterMutation();
       setDetailReloadTick((tick) => tick + 1);
       showSuccess(t("settings.extensions.reprobedCommands", { subcommands: report.subcommands, arguments: report.rootArguments }));
     } catch (nextError) {
@@ -750,20 +799,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     }
   };
 
-  useDialogFocus(Boolean(pendingLocal), localDialogRef, () => {
-    if (!busy) setPendingLocal(null);
-  });
-  useDialogFocus(Boolean(pendingToolSelection), toolSelectionDialogRef, () => {
-    if (!busy) setPendingToolSelection(null);
-  });
-  useDialogFocus(Boolean(pendingPermissionReview), permissionReviewDialogRef, () => {
-    if (!busy) setPendingPermissionReview(null);
-  });
-  useDialogFocus(Boolean(removalTarget), removalDialogRef, () => {
-    if (!busy) setRemovalTarget(null);
-  });
+  useDialogFocus(Boolean(pendingLocal), localDialogRef, () => setPendingLocal(null));
+  useDialogFocus(Boolean(pendingToolSelection), toolSelectionDialogRef, () => setPendingToolSelection(null));
+  useDialogFocus(Boolean(pendingPermissionReview), permissionReviewDialogRef, () => setPendingPermissionReview(null));
   useDialogFocus(showCustomIntegration, customDialogRef, closeCustomIntegration);
-  useDialogFocus(Boolean(selectedId), drawerRef, () => closeDetails(), !showCustomIntegration && !removalTarget && !pendingLocal && !pendingToolSelection && !pendingPermissionReview);
+  useDialogFocus(Boolean(selectedId), drawerRef, () => closeDetails(), !showCustomIntegration && !pendingLocal && !pendingToolSelection && !pendingPermissionReview);
 
   useEffect(() => {
     if (!configDirty) setDetailsDiscardArmed(false);
@@ -781,7 +821,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const exportExtensions = async () => {
-    if (syncOperation) return;
+    if (syncOperationRef.current) return;
     setSyncOperation("export");
     setExportResult(null);
     setImportReport(null);
@@ -796,7 +836,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const importExtensions = async () => {
-    if (syncOperation) return;
+    if (syncOperationRef.current) return;
     setSyncOperation("import");
     setExportResult(null);
     setImportReport(null);
@@ -804,7 +844,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       const report = await invoke<ExtensionsImportReport | null>("extensions_import", { locale });
       if (report) {
         setImportReport(report);
-        await refresh();
+        await refreshAfterMutation();
       }
     } catch (nextError) {
       showError(errorMessage(nextError));
@@ -822,11 +862,11 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   // Re-check verifies the installed extension and repairs it when needed;
   // the toast reports which of the two happened.
   const repairExtension = async (extension: Extension) => {
-    if (extensionActions.busy) return;
+    if (busyRef.current) return;
     extensionActions.setBusy({ id: extension.id, kind: "repair" });
     try {
       const report = await invoke<{ repaired: boolean }>("extensions_repair", { id: extension.id });
-      await refreshRef.current();
+      await refreshAfterMutation();
       showSuccess(t(report.repaired ? "settings.extensions.repairedNotice" : "settings.extensions.recheckedNotice"));
     } catch (error) {
       showError(errorMessage(error));
@@ -838,7 +878,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   const uninstallExtension = (extension: Extension) => setRemovalTarget(extension);
 
   const confirmRemoval = async () => {
-    if (!removalTarget || busy) return;
+    if (!removalTarget || busyRef.current) return;
     const extension = removalTarget;
     const removed = await runMutation(
       extension.id,
@@ -861,11 +901,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const connectRecommendedAt = async (extension: Extension, executablePath: string | null) => {
-    if (busy || !extension.runtimeAvailable) return;
+    if (busyRef.current || !extension.runtimeAvailable) return;
+    const selection = toolSelectionRef.current;
     setBusy({ id: extension.id, kind: "install" });
     try {
       const review = await invoke<PermissionReview>("extensions_recommended_permissions", { id: extension.id, locale });
+      if (selection && toolSelectionRef.current !== selection) return;
       if (review.permissions.length) {
+        setPendingToolSelection(null);
         setPendingPermissionReview({ extension, executablePath, review });
         setBusy(null);
         return;
@@ -875,7 +918,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         executablePath,
         approvedPermissions: [],
       });
-      await refresh();
+      await refreshAfterMutation();
       showSuccess(t("settings.extensions.connectedNotice", { name: extension.name }));
       setPendingToolSelection(null);
     } catch (nextError) {
@@ -886,7 +929,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const confirmPermissionReview = async () => {
-    if (!pendingPermissionReview || busy) return;
+    if (!pendingPermissionReview || busyRef.current) return;
     const { extension, executablePath, review } = pendingPermissionReview;
     setBusy({ id: extension.id, kind: "install" });
     try {
@@ -895,7 +938,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
         executablePath,
         approvedPermissions: review.permissions.map(({ permission }) => permission),
       });
-      await refresh();
+      await refreshAfterMutation();
       showSuccess(t("settings.extensions.connectedNotice", { name: extension.name }));
       setPendingPermissionReview(null);
       setPendingToolSelection(null);
@@ -907,6 +950,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const connectRecommended = (extension: Extension) => {
+    if (busyRef.current) return;
     if (extension.toolCandidates.length > 1) {
       setPendingToolSelection({ extension, action: "connect" });
       return;
@@ -915,7 +959,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const connectLocal = async () => {
-    if (busy) return;
+    if (busyRef.current) return;
     setBusy({ id: "local", kind: "install" });
     try {
       const manifestPath = await invoke<string | null>("extensions_pick_local_package");
@@ -937,12 +981,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const confirmLocal = async () => {
-    if (!pendingLocal || busy) return;
+    if (!pendingLocal || busyRef.current) return;
     const pending = pendingLocal;
     setBusy({ id: "local", kind: "install" });
     try {
       await invoke("extensions_install", { request: { ...pending.request, approvedPermissions: pending.review.permissions.map(({ permission }) => permission) } });
-      await refresh();
+      await refreshAfterMutation();
       setPendingLocal(null);
       showSuccess(t("settings.extensions.connectedNotice", { name: pending.name }));
     } catch (nextError) { showError(errorMessage(nextError)); }
@@ -950,18 +994,22 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const openCreateCustomIntegration = () => {
+    if (busyRef.current || showCustomIntegration) return;
     resetCustomIntegration();
     setShowCustomIntegration(true);
   };
 
   const editCustomIntegration = async (extension: Extension) => {
-    if (!extension.generatedCustom || busy || customIntegrationLoading) return;
+    if (!extension.generatedCustom || busyRef.current || customLoadingRef.current) return;
+    resetCustomIntegration();
+    const generation = customGeneration.current;
     setCustomIntegrationLoading(true);
     setEditingCustomId(extension.id);
     setCustomIntegrationError(null);
     setShowCustomIntegration(true);
     try {
       const definition = await invoke<CustomIntegrationForm>("extensions_custom_get", { id: extension.id });
+      if (generation !== customGeneration.current) return;
       setCustomIntegration({
         ...definition,
         scriptLanguage: definition.scriptLanguage ?? "shell",
@@ -974,9 +1022,9 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
       customSavedRef.current = { ...definition, scriptLanguage: definition.scriptLanguage ?? "shell", scriptContent: definition.scriptContent ?? "", argsPrefix: [...definition.argsPrefix], versionArgs: [...definition.versionArgs], permissions: [...definition.permissions], platforms: [...definition.platforms] };
       setCustomDirty(false);
     } catch (nextError) {
-      setCustomIntegrationError(errorMessage(nextError));
+      if (generation === customGeneration.current) setCustomIntegrationError(errorMessage(nextError));
     } finally {
-      setCustomIntegrationLoading(false);
+      if (generation === customGeneration.current) setCustomIntegrationLoading(false);
     }
   };
 
@@ -1000,12 +1048,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   // types, normal search results take over through the same list.
   const toolSuggestions = useMemo<ToolSuggestion[]>(() => {
     const candidates = toolResults.map((candidate): ToolSuggestion => ({ kind: "candidate", candidate }));
-    if (customIntegration.executablePath.trim()) return candidates;
+    if (customIntegration.executablePath.trim() || customDirty || editingCustomId) return candidates;
     return [
       ...suggestedExtensions.map((extension): ToolSuggestion => ({ kind: "recommendation", extension })),
       ...candidates,
     ];
-  }, [toolResults, suggestedExtensions, customIntegration.executablePath]);
+  }, [toolResults, suggestedExtensions, customIntegration.executablePath, customDirty, editingCustomId]);
 
   const chooseToolSuggestion = (item: ToolSuggestion) => {
     if (item.kind === "candidate") {
@@ -1022,6 +1070,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const handleToolSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (!toolSuggestions.length) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -1037,7 +1086,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
 
   const createCustomIntegration = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy) return;
+    if (busyRef.current || customLoadingRef.current) return;
+    const generation = customGeneration.current;
     setBusy({ id: customIntegration.id, kind: editingCustomId ? "save" : "install" });
     setCustomIntegrationError(null);
     try {
@@ -1055,24 +1105,26 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
           ...request,
         },
       });
-      customSavedRef.current = customIntegration;
-      setCustomDirty(false);
       const notice = editingCustomId
         ? t("settings.extensions.customUpdated", { name: customIntegration.name })
         : t("settings.extensions.customCreated", { name: customIntegration.name });
-      setShowCustomIntegration(false);
-      resetCustomIntegration();
+      if (generation === customGeneration.current) {
+        setShowCustomIntegration(false);
+        resetCustomIntegration();
+      }
       showSuccess(notice);
-      await refresh();
+      await refreshAfterMutation();
     } catch (nextError) {
-      setCustomIntegrationError(errorMessage(nextError));
+      const message = errorMessage(nextError);
+      if (generation === customGeneration.current) setCustomIntegrationError(message);
+      showError(message);
     } finally {
       setBusy(null);
     }
   };
 
   const copyCustomContent = async (content: string, notice: string) => {
-    if (customContentOperation) return;
+    if (customContentRef.current) return;
     setCustomContentOperation("copy");
     setCustomIntegrationError(null);
     try {
@@ -1089,7 +1141,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
     await copyCustomContent(plan, t("settings.extensions.customPlanCopied"));
   };
   const exportCustomScript = async () => {
-    if (customContentOperation) return;
+    if (customContentRef.current) return;
     setCustomContentOperation("export");
     setCustomIntegrationError(null);
     const extension = customIntegration.scriptLanguage === "shell" ? "sh" : customIntegration.scriptLanguage === "powershell" ? "ps1" : "js";
@@ -1113,6 +1165,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const reconnectSystem = (extension: Extension) => {
+    if (busyRef.current) return;
     if (extension.toolCandidates.length > 1) {
       setPendingToolSelection({ extension, action: "reconnect" });
       return;
@@ -1128,7 +1181,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const saveConfiguration = async () => {
-    if (busy || !selected || !configuration || configuration.descriptor.owner !== "host") return;
+    if (busyRef.current || !selected || !configuration || configuration.descriptor.owner !== "host") return;
     setBusy({ id: selected.id, kind: "save" });
     setDetailError(null);
     try {
@@ -1157,7 +1210,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   );
 
   const copyConfiguration = async () => {
-    if (!selected || !configuration || configuration.descriptor.owner !== "host" || configOperation) return;
+    if (!selected || !configuration || configuration.descriptor.owner !== "host" || configOperationRef.current) return;
     setConfigOperation("copy");
     setDetailError(null);
     setConfigNotice(null);
@@ -1176,7 +1229,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const exportConfiguration = async () => {
-    if (!selected || !configuration || configuration.descriptor.owner !== "host" || configOperation) return;
+    if (!selected || !configuration || configuration.descriptor.owner !== "host" || configOperationRef.current) return;
     setConfigOperation("export");
     setDetailError(null);
     setConfigNotice(null);
@@ -1196,6 +1249,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const closeDetails = () => {
+    if (removalTarget) { setRemovalTarget(null); return; }
+    if (detailsDiscardArmed) { setDetailsDiscardArmed(false); return; }
     if (configDirty) {
       setDetailsDiscardArmed(true);
       return;
@@ -1221,6 +1276,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
   };
 
   const stopRowClick = (event: MouseEvent) => event.stopPropagation();
+  const removalConfirmation = removalTarget && <RemovalConfirmation extension={removalTarget} busy={Boolean(busy)} t={t} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />;
 
   return (
     <section className="settings-section extensions-panel" data-no-drag>
@@ -1257,6 +1313,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
           className={`settings-switch${showCommandsInSearch ? " settings-switch--active" : ""}`}
           role="switch"
           aria-checked={showCommandsInSearch}
+          disabled={settingsBusy}
+          aria-busy={settingsBusy}
           aria-label={t("settings.extensions.showInSearch")}
           onMouseDown={(event) => event.preventDefault()}
           onClick={onToggleCommandsInSearch}
@@ -1366,6 +1424,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                   className={`settings-switch${plugin.enabled ? " settings-switch--active" : ""}`}
                   role="switch"
                   aria-checked={plugin.enabled}
+                  disabled={settingsBusy}
+                  aria-busy={settingsBusy}
                   aria-label={t(plugin.titleKey)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onToggleBasePlugin(plugin.id, !plugin.enabled)}
@@ -1394,8 +1454,8 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
             ) : connectedExtensions.length === 0 ? (
               <EmptyState icon={<Package size={20} strokeWidth={2} />} text={t("settings.extensions.emptyInstalled")} />
             ) : connectedExtensions.map((extension) => (
+              <Fragment key={extension.id}>
               <ExtensionRowComponent
-                key={extension.id}
                 extension={extension}
                 operation={busy}
                 t={t}
@@ -1406,13 +1466,15 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 onEdit={() => void editCustomIntegration(extension)}
                 onUninstall={() => uninstallExtension(extension)}
               />
+              {!selected && removalTarget?.id === extension.id && removalConfirmation}
+              </Fragment>
             ))}
           </div>
         </section>
       </div>
       {pendingLocal && <LocalInstallDialog pending={pendingLocal} busy={Boolean(busy)} t={t} dialogRef={localDialogRef} stopPropagation={stopRowClick} onCancel={() => setPendingLocal(null)} onConfirm={() => void confirmLocal()} />}
       {pendingPermissionReview && (
-        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingPermissionReview(null); }}>
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => setPendingPermissionReview(null)}>
           <section ref={permissionReviewDialogRef} className="extension-permission-dialog extension-permission-dialog--review" role="dialog" aria-modal="true" aria-labelledby="permission-review-title" tabIndex={-1} onMouseDown={stopRowClick}>
             <header>
               <AlertCircle size={18} strokeWidth={2} aria-hidden="true" />
@@ -1431,14 +1493,14 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               ))}
             </div>
             <footer>
-              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingPermissionReview(null)}>{t("settings.extensions.cancel")}</button>
-              <button type="button" className="extensions-action-button extensions-action-button--primary" data-dialog-initial disabled={Boolean(busy)} onClick={() => void confirmPermissionReview()}>{busy ? t("settings.extensions.connecting") : t("settings.extensions.connect")}</button>
+              <button type="button" className="extensions-action-button" data-dialog-initial onClick={() => setPendingPermissionReview(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button extensions-action-button--primary" disabled={Boolean(busy)} onClick={() => void confirmPermissionReview()}>{busy ? t("settings.extensions.connecting") : t("settings.extensions.connect")}</button>
             </footer>
           </section>
         </div>
       )}
       {pendingToolSelection && (
-        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => { if (!busy) setPendingToolSelection(null); }}>
+        <div className="extension-permission-backdrop" role="presentation" onMouseDown={() => setPendingToolSelection(null)}>
           <section ref={toolSelectionDialogRef} className="extension-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="extension-tool-selection-title" aria-describedby="extension-tool-selection-hint" tabIndex={-1} onMouseDown={stopRowClick}>
             <header>
               <Link2 size={18} strokeWidth={2} aria-hidden="true" />
@@ -1457,17 +1519,16 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
               ))}
             </div>
             <footer>
-              <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => setPendingToolSelection(null)}>{t("settings.extensions.cancel")}</button>
+              <button type="button" className="extensions-action-button" onClick={() => setPendingToolSelection(null)}>{t("settings.extensions.cancel")}</button>
             </footer>
           </section>
         </div>
       )}
 
-      {removalTarget && <RemovalDialog extension={removalTarget} busy={Boolean(busy)} t={t} dialogRef={removalDialogRef} stopPropagation={stopRowClick} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />}
       <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} discardArmed={customDiscardArmed} onDismissDiscard={() => setCustomDiscardArmed(false)} onDiscard={discardCustomIntegration} toolSuggestions={toolSuggestions} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolSuggestion} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
 
       {selected && (
-        <div className="extension-drawer-backdrop" role="presentation" onMouseDown={closeDetails}>
+        <div className="extension-drawer-backdrop" role="presentation" style={showCustomIntegration || pendingLocal || pendingToolSelection || pendingPermissionReview ? { display: "none" } : undefined} onMouseDown={closeDetails}>
           <aside
             ref={drawerRef}
             className="extension-drawer"
@@ -1655,6 +1716,7 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                       {configuration.descriptor.schema.map((field) => (
                         <ConfigFieldControl
                           key={field.key}
+                          disabled={Boolean(busy)}
                           field={field}
                           value={configValues[field.key] ?? field.default}
                           t={t}
@@ -1684,11 +1746,12 @@ export function ExtensionsPanel({ t, locale, onOpenCommand, showCommandsInSearch
                 <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
                 <span>{t("settings.extensions.configDiscardConfirm")}</span>
                 <button type="button" className="extensions-action-button" onClick={() => setDetailsDiscardArmed(false)}>{t("settings.extensions.cancel")}</button>
-                <button type="button" className="extensions-action-button extensions-action-button--danger" onClick={discardDetailsChanges}>{t("settings.extensions.discard")}</button>
+                <button type="button" data-destructive-confirm className="extensions-action-button extensions-action-button--danger" onClick={discardDetailsChanges}>{t("settings.extensions.discard")}</button>
               </div>
             )}
+            {removalConfirmation}
             <footer className="extension-drawer__footer">
-              {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void invoke("open_path", { path: selected.manifestPath.replace(/[\\/]floter\.extension\.json$/, "") })}>
+              {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void runMutation(selected.id, "repair", () => invoke("open_path", { path: selected.manifestPath.replace(/[\\/]floter\.extension\.json$/, "") }))}>
                 <ExternalLink size={14} strokeWidth={2} />{t("settings.extensions.openGeneratedLocation")}
               </button>}
               {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void editCustomIntegration(selected)}>
@@ -1731,13 +1794,14 @@ function EmptyState({ icon, text, query }: { icon: React.ReactNode; text: string
 }
 
 type ConfigFieldControlProps = {
+  disabled: boolean;
   field: ConfigField;
   value: JsonValue | undefined;
   t: Translate;
   onChange: (value: JsonValue) => void;
 };
 
-function ConfigFieldControl({ field, value, t, onChange }: ConfigFieldControlProps) {
+function ConfigFieldControl({ disabled, field, value, t, onChange }: ConfigFieldControlProps) {
   const id = `extension-config-${field.key}`;
   const label = field.label || field.key;
   let control: React.ReactNode;
@@ -1745,6 +1809,7 @@ function ConfigFieldControl({ field, value, t, onChange }: ConfigFieldControlPro
     control = (
       <button
         id={id}
+        disabled={disabled}
         type="button"
         role="switch"
         aria-checked={value === true}
@@ -1756,6 +1821,7 @@ function ConfigFieldControl({ field, value, t, onChange }: ConfigFieldControlPro
     control = (
       <select
         id={id}
+        disabled={disabled}
         required={field.required}
         value={displayJson(value ?? "")}
         onChange={(event) => {
@@ -1772,6 +1838,7 @@ function ConfigFieldControl({ field, value, t, onChange }: ConfigFieldControlPro
     control = (
       <select
         id={id}
+        disabled={disabled}
         multiple
         required={field.required}
         value={selectedValues}
@@ -1786,6 +1853,7 @@ function ConfigFieldControl({ field, value, t, onChange }: ConfigFieldControlPro
     control = (
       <input
         id={id}
+        disabled={disabled}
         type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
         required={field.required}
         min={field.minimum ?? undefined}

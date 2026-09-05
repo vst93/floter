@@ -3487,7 +3487,7 @@ mod tests {
             .join(format!(".removing-{}-staged", extension_id));
         std::fs::rename(&installed_root, &staged_path).unwrap();
 
-        let mut lock = ExtensionsLock::default();
+        let lock = ExtensionsLock::default();
         // Lock has NO entry (removal committed).
         lock.save(&state.paths.lock_file).unwrap();
 

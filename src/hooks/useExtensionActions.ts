@@ -38,5 +38,5 @@ export function useExtensionActions({ refresh, onError, onComplete }: UseExtensi
     }
   }, [onComplete, onError, refresh, setBusy]);
 
-  return { busy, setBusy, runMutation };
+  return { busy, busyRef, setBusy, runMutation };
 }

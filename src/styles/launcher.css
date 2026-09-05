@@ -112,9 +112,12 @@
   transition: color 120ms ease, background 120ms ease, transform 80ms ease;
 }
 
+@media (hover: hover) {
+
 .collapsed-card__settings:hover {
   background: var(--surface-control-hover);
   color: var(--text-strong);
+}
 }
 
 .collapsed-card__settings:active {
@@ -226,10 +229,13 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .launcher-feedback__retry:hover {
   border-color: var(--stroke-control);
   background: var(--surface-control-hover);
   color: var(--text-primary);
+}
 }
 
 .launcher-feedback__retry:focus-visible {
@@ -321,10 +327,13 @@
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
+@media (hover: hover) {
+
 .launcher-tip__dismiss:hover {
   background: var(--surface-control-hover);
   color: var(--text-primary);
   border-color: var(--stroke-control);
+}
 }
 
 .launcher-tip__dismiss:focus-visible {
@@ -380,8 +389,11 @@
   border-color: var(--stroke-control);
 }
 
+@media (hover: hover) {
+
 .launcher-system-confirm__execute:hover {
   background: color-mix(in srgb, var(--text-warning) 28%, transparent);
+}
 }
 
 .launcher-system-confirm__execute:focus-visible,
@@ -390,15 +402,23 @@
   outline-offset: 1px;
 }
 
+@media (hover: hover) {
+
 .launcher-system-confirm__cancel:hover {
   border-color: var(--stroke-control);
   background: var(--surface-control-hover);
   color: var(--text-primary);
 }
+}
 
 .launcher-results {
   display: grid;
   gap: 1px;
+  min-height: 0;
+  max-height: min(420px, var(--launcher-results-height, 420px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .launcher-section-title {

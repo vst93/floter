@@ -100,9 +100,33 @@
 
 .settings-sidebar__item svg { flex: 0 0 auto; }
 .settings-sidebar__item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (hover: hover) {
 .settings-sidebar__item:hover { background: var(--surface-control-hover); color: var(--text-primary); }
+}
 .settings-sidebar__item--active { background: var(--accent-tint); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
 .settings-sidebar__item:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+
+.settings-controls {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.settings-controls:disabled :is(button, input, select),
+.extension-custom-form__fields:disabled :is(button, input, select, textarea) {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.settings-save-alert--toast {
+  position: fixed;
+  inset: auto 16px 16px;
+  z-index: 50;
+  background: var(--surface-opaque);
+}
 
 .settings-content {
   min-width: 0;
@@ -171,11 +195,14 @@
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
+@media (hover: hover) {
+
 .settings-save-alert button:not(:disabled):hover {
   border-color: var(--accent-edge);
   background: var(--surface-control-hover);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
+}
 }
 
 .settings-save-alert button:disabled {
@@ -257,10 +284,13 @@
   text-align: center;
 }
 
+@media (hover: hover) {
+
 .settings-reset:hover {
   border-color: var(--input-stroke);
   background: var(--accent-tint);
   color: var(--accent);
+}
 }
 
 .settings-reset:active {
@@ -344,10 +374,13 @@
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
+@media (hover: hover) {
+
 .opacity-control__preset:hover {
   border-color: var(--stroke-control);
   background: var(--surface-control-hover);
   color: var(--text-secondary);
+}
 }
 
 .opacity-control__preset--active {
@@ -456,8 +489,11 @@
   transition: background 120ms ease, box-shadow 120ms ease, transform 80ms ease;
 }
 
+@media (hover: hover) {
+
 .settings-option:hover {
   background: var(--surface-control-hover);
+}
 }
 
 .settings-option:active {
@@ -516,8 +552,11 @@
   gap: 6px;
 }
 
+@media (hover: hover) {
+
 .settings-option--static:hover {
   background: transparent;
+}
 }
 
 .settings-option--static:active {
@@ -613,8 +652,11 @@
   transition: background-color 120ms ease;
 }
 
+@media (hover: hover) {
+
 .session-manager__row--resumable:hover {
   background: var(--surface-control-hover);
+}
 }
 
 /* Keyboard activation mirrors the click: hover wash plus an accent ring
@@ -729,9 +771,12 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .session-manager__kill-confirm:hover:not(:disabled) {
   border-color: var(--text-warning);
   background: color-mix(in srgb, var(--text-warning) 18%, transparent);
+}
 }
 
 .session-manager__kill-confirm:focus-visible {
@@ -744,14 +789,20 @@
   cursor: default;
 }
 
+@media (hover: hover) {
+
 .session-manager__icon-button:hover:not(:disabled) {
   border-color: var(--stroke-control);
   background: var(--surface-control-hover);
   color: var(--text-primary);
 }
+}
+
+@media (hover: hover) {
 
 .session-manager__icon-button--danger:hover:not(:disabled) {
   color: var(--text-warning);
+}
 }
 
 .session-manager__icon-button:focus-visible {
@@ -804,10 +855,13 @@
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
 }
 
+@media (hover: hover) {
+
 .session-manager__sort-toggle:hover {
   background: var(--surface-control-hover);
   border-color: var(--accent-edge);
   color: var(--text-primary);
+}
 }
 
 .session-manager__sort-toggle:active {
@@ -837,10 +891,13 @@
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
+@media (hover: hover) {
+
 .shortcut-recorder:hover {
   background: var(--surface-control-hover);
   border-color: var(--accent-edge, var(--stroke-control));
   color: var(--text-strong);
+}
 }
 
 .shortcut-recorder:focus-visible {
@@ -855,9 +912,12 @@
   animation: shortcut-recording 1.4s ease-in-out infinite;
 }
 
+@media (hover: hover) {
+
 .shortcut-recorder--recording:hover {
   background: var(--accent-tint-hover);
   color: var(--accent);
+}
 }
 
 @keyframes shortcut-recording {
@@ -934,8 +994,11 @@
   cursor: default;
 }
 
+@media (hover: hover) {
+
 .update-banner__button:not(:disabled):hover {
   opacity: 0.9;
+}
 }
 
 .update-banner__progress {
@@ -974,8 +1037,11 @@
   color: var(--text-tertiary);
 }
 
+@media (hover: hover) {
+
 .toolbar-button--quit:hover {
   color: #e05555;
+}
 }
 
 .toolbar-button--quit:active {
