@@ -3,9 +3,8 @@
 //! The repository deliberately carries the same entry shape as
 //! [`ExtensionsLock`].  This keeps the schema change narrow while existing
 //! install, uninstall, sync, and recovery code continues to use the lock type
-//! in memory.  Writers are redirected by `ExtensionsLock::save` once a
-//! repository has been established; call sites therefore remain unchanged for
-//! this slice.
+//! in memory. `ExtensionsLock::save` always writes the repository schema;
+//! legacy lock files and their migrated archives are read-only fallback inputs.
 
 use crate::extensions::lock::{
     sync_directory, ExtensionLockEntry, ExtensionsLock, LOCK_SCHEMA_VERSION,
@@ -96,18 +95,32 @@ pub(crate) fn is_legacy_lock_path(path: &Path) -> bool {
 }
 
 fn read_repository(path: &Path) -> Result<ExtensionsLock, String> {
-    let bytes = std::fs::read(path)
-        .map_err(|error| format!("Cannot read extension repository {}: {error}", path.display()))?;
-    let repository: ExtensionRepository = serde_json::from_slice(&bytes).map_err(|error| {
-        format!("Invalid extension repository {}: {error}", path.display())
+    let bytes = std::fs::read(path).map_err(|error| {
+        format!(
+            "Cannot read extension repository {}: {error}",
+            path.display()
+        )
     })?;
+    let repository: ExtensionRepository = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Invalid extension repository {}: {error}", path.display()))?;
     repository.into_lock(path)
 }
 
-fn write_repository(path: &Path, lock: &ExtensionsLock) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .ok_or("Invalid extension repository path")?;
+pub(crate) fn write_repository(path: &Path, lock: &ExtensionsLock) -> Result<(), String> {
+    if is_legacy_lock_path(path)
+        || path
+            .file_name()
+            .is_some_and(|name| name == "extensions.lock.json.migrated")
+    {
+        let repository = repository_path(path);
+        tracing::warn!(
+            legacy_path = %path.display(),
+            repository_path = %repository.display(),
+            "Legacy extension state save target; redirecting to repository"
+        );
+        return write_repository(&repository, lock);
+    }
+    let parent = path.parent().ok_or("Invalid extension repository path")?;
     std::fs::create_dir_all(parent)
         .map_err(|error| format!("Cannot create repository directory: {error}"))?;
     let bytes = serde_json::to_vec_pretty(&ExtensionRepository::from(lock))
@@ -131,8 +144,12 @@ fn archive_file(path: &Path, archive: &Path, label: &str) -> Result<(), String> 
         return Ok(());
     }
     if archive.exists() {
-        std::fs::remove_file(archive)
-            .map_err(|error| format!("Cannot replace {label} archive {}: {error}", archive.display()))?;
+        std::fs::remove_file(archive).map_err(|error| {
+            format!(
+                "Cannot replace {label} archive {}: {error}",
+                archive.display()
+            )
+        })?;
     }
     std::fs::rename(path, archive)
         .map_err(|error| format!("Cannot archive {label} {}: {error}", path.display()))?;
@@ -143,34 +160,24 @@ fn archive_file(path: &Path, archive: &Path, label: &str) -> Result<(), String> 
     Ok(())
 }
 
-/// Migrate the live legacy lock to the repository. The repository is written
+/// Migrate the legacy lock to the repository. The repository is written
 /// and synced before the lock is renamed, so a crash leaves either the old
-/// lock or a complete repository. When both files exist, the lock was written
-/// by the pre-slice-5 writers; if it contains IDs absent from the repository,
-/// its contents win and are migrated again.
-pub(crate) fn migrate_to_repository(
-    paths: &ExtensionPaths,
-) -> Result<MigrationOutcome, String> {
+/// lock or a complete repository. A valid repository is authoritative even
+/// when a legacy file remains beside it (for example, after an archive failure).
+pub(crate) fn migrate_to_repository(paths: &ExtensionPaths) -> Result<MigrationOutcome, String> {
     let lock_path = &paths.lock_file;
-    let repository = repository_path(lock_path);
+    let repository = &paths.repository_file;
+    if repository.exists() {
+        read_repository(repository)?;
+        return Ok(MigrationOutcome::Noop);
+    }
     if !lock_path.exists() {
         return Ok(MigrationOutcome::Noop);
     }
 
     let lock = ExtensionsLock::load_legacy(lock_path)?;
-    if repository.exists() {
-        let current = read_repository(&repository)?;
-        let lock_differs = serde_json::to_value(&lock.extensions).ok()
-            != serde_json::to_value(&current.extensions).ok();
-        if !lock_differs {
-            return Ok(MigrationOutcome::Noop);
-        }
-        // The legacy lock was the live writer until Slice 5 swaps writers. Its
-        // complete snapshot wins whenever it differs, including removals and
-        // edits, while the repository remains the first load candidate.
-    }
 
-    write_repository(&repository, &lock)?;
+    write_repository(repository, &lock)?;
     archive_file(
         lock_path,
         &migrated_lock_path(lock_path),
@@ -183,38 +190,7 @@ pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, S
     let repository = repository_path(lock_path);
     if repository.exists() {
         match read_repository(&repository) {
-            Ok(repository_lock) => {
-                // Normally the old lock has already been archived. If a
-                // pre-slice-5 writer left it beside the repository, its live
-                // snapshot wins whenever it differs from the repository.
-                if lock_path.exists() {
-                    match ExtensionsLock::load_legacy(lock_path) {
-                        Ok(lock)
-                            if serde_json::to_value(&lock.extensions).ok()
-                                != serde_json::to_value(&repository_lock.extensions).ok() =>
-                        {
-                            let paths = ExtensionPaths::from_root(
-                                lock_path
-                                    .parent()
-                                    .unwrap_or_else(|| Path::new("."))
-                                    .to_path_buf(),
-                            );
-                            if let Err(error) = migrate_to_repository(&paths) {
-                                tracing::warn!(
-                                    "Extension repository re-migration failed; using repository: {error}"
-                                );
-                            } else if let Ok(lock) = read_repository(&repository) {
-                                return Ok(lock);
-                            }
-                        }
-                        Ok(_) => {}
-                        Err(error) => tracing::warn!(
-                            "Ignoring invalid legacy extension lock beside repository: {error}"
-                        ),
-                    }
-                }
-                return Ok(repository_lock);
-            }
+            Ok(repository_lock) => return Ok(repository_lock),
             Err(error) => {
                 tracing::warn!("Extension repository is invalid; archiving it: {error}");
                 if let Err(error) = archive_file(
@@ -222,7 +198,9 @@ pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, S
                     &corrupt_repository_path(&repository),
                     "corrupt extension repository",
                 ) {
-                    tracing::warn!("Cannot archive corrupt extension repository; trying legacy data: {error}");
+                    tracing::warn!(
+                        "Cannot archive corrupt extension repository; trying legacy data: {error}"
+                    );
                 }
             }
         }
@@ -238,11 +216,15 @@ pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, S
                         .to_path_buf(),
                 );
                 if let Err(error) = migrate_to_repository(&paths) {
-                    tracing::warn!("Extension repository migration failed; using legacy lock: {error}");
+                    tracing::warn!(
+                        "Extension repository migration failed; using legacy lock: {error}"
+                    );
                 }
                 return Ok(lock);
             }
-            Err(error) => tracing::warn!("Invalid extension lock; trying migrated archive: {error}"),
+            Err(error) => {
+                tracing::warn!("Invalid extension lock; trying migrated archive: {error}")
+            }
         }
     }
 
@@ -334,7 +316,10 @@ mod tests {
         );
         assert!(!paths.lock_file.exists());
         assert!(migrated_lock_path(&paths.lock_file).exists());
-        assert_eq!(migrate_to_repository(&paths).unwrap(), MigrationOutcome::Noop);
+        assert_eq!(
+            migrate_to_repository(&paths).unwrap(),
+            MigrationOutcome::Noop
+        );
     }
 
     #[test]
@@ -353,17 +338,128 @@ mod tests {
     }
 
     #[test]
-    fn migration_prefers_legacy_entries_missing_from_repository() {
+    fn migration_and_loader_keep_repository_authoritative_beside_legacy() {
         let directory = tempfile::tempdir().unwrap();
         let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
         let repository_lock = fixture_lock("example.repository");
         write_repository(&repository_path(&paths.lock_file), &repository_lock).unwrap();
         let legacy_lock = fixture_lock("example.legacy");
         legacy_lock.save_legacy(&paths.lock_file).unwrap();
-        assert_eq!(migrate_to_repository(&paths).unwrap(), MigrationOutcome::Migrated);
-        let loaded = read_repository(&repository_path(&paths.lock_file)).unwrap();
+        let legacy_bytes = std::fs::read(&paths.lock_file).unwrap();
+        assert_eq!(
+            migrate_to_repository(&paths).unwrap(),
+            MigrationOutcome::Noop
+        );
+        for path in [&paths.lock_file, &paths.repository_file] {
+            let loaded = ExtensionsLock::load(path).unwrap();
+            assert!(loaded.extensions.contains_key("example.repository"));
+            assert!(!loaded.extensions.contains_key("example.legacy"));
+        }
+
+        ExtensionsLock::default()
+            .save(&paths.repository_file)
+            .unwrap();
+        assert_eq!(
+            migrate_to_repository(&paths).unwrap(),
+            MigrationOutcome::Noop
+        );
+        assert!(ExtensionsLock::load(&paths.lock_file)
+            .unwrap()
+            .extensions
+            .is_empty());
+        assert_eq!(std::fs::read(&paths.lock_file).unwrap(), legacy_bytes);
+    }
+
+    #[test]
+    fn legacy_write_tripwire_warns_and_redirects_without_changing_legacy_files() {
+        for migrated in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+            let original = fixture_lock("example.legacy");
+            original.save_legacy(&paths.lock_file).unwrap();
+            let legacy_bytes = std::fs::read(&paths.lock_file).unwrap();
+            if migrated {
+                migrate_to_repository(&paths).unwrap();
+            }
+            let log_path = directory.path().join("tripwire.log");
+            let subscriber = tracing_subscriber::fmt()
+                .without_time()
+                .with_ansi(false)
+                .with_max_level(tracing::Level::WARN)
+                .with_writer(std::fs::File::create(&log_path).unwrap())
+                .finish();
+            let changed = fixture_lock("example.updated");
+            tracing::subscriber::with_default(subscriber, || {
+                changed.save(&paths.lock_file).unwrap();
+                if migrated {
+                    changed.save(&migrated_lock_path(&paths.lock_file)).unwrap();
+                }
+            });
+
+            let logs = std::fs::read_to_string(log_path).unwrap();
+            assert!(logs.contains("WARN"), "{logs}");
+            assert!(
+                logs.contains("Legacy extension state save target; redirecting to repository"),
+                "{logs}"
+            );
+            assert!(
+                logs.contains(&paths.lock_file.display().to_string()),
+                "{logs}"
+            );
+            let repository = read_repository(&paths.repository_file).unwrap();
+            assert!(repository.extensions.contains_key("example.updated"));
+            assert!(!repository.extensions.contains_key("example.legacy"));
+            if migrated {
+                assert!(!paths.lock_file.exists());
+                assert_eq!(
+                    std::fs::read(migrated_lock_path(&paths.lock_file)).unwrap(),
+                    legacy_bytes
+                );
+            } else {
+                assert_eq!(std::fs::read(&paths.lock_file).unwrap(), legacy_bytes);
+            }
+        }
+    }
+
+    #[test]
+    fn repository_save_load_round_trip_without_legacy_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = ExtensionPaths::from_root(directory.path().join("new-root"));
+        let lock = fixture_lock("example.fresh");
+        lock.save(&paths.repository_file).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&paths.repository_file).unwrap()).unwrap();
+        assert_eq!(json["schemaVersion"], REPOSITORY_SCHEMA_VERSION);
+        let loaded = ExtensionsLock::load(&paths.repository_file).unwrap();
+        assert_eq!(
+            serde_json::to_value(loaded).unwrap(),
+            serde_json::to_value(lock).unwrap()
+        );
+        assert!(!paths.lock_file.exists());
+        assert!(!migrated_lock_path(&paths.lock_file).exists());
+        assert_eq!(std::fs::read_dir(&paths.root).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn repository_load_falls_back_when_migration_archive_fails() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+        let lock = fixture_lock("example.legacy");
+        lock.save_legacy(&paths.lock_file).unwrap();
+        let legacy_bytes = std::fs::read(&paths.lock_file).unwrap();
+        // An archive directory makes the rename fail after the repository commit.
+        std::fs::create_dir(migrated_lock_path(&paths.lock_file)).unwrap();
+        let loaded = ExtensionsLock::load(&paths.repository_file).unwrap();
         assert!(loaded.extensions.contains_key("example.legacy"));
-        assert!(!loaded.extensions.contains_key("example.repository"));
+        assert!(paths.repository_file.exists());
+        ExtensionsLock::default()
+            .save(&paths.repository_file)
+            .unwrap();
+        assert!(ExtensionsLock::load(&paths.repository_file)
+            .unwrap()
+            .extensions
+            .is_empty());
+        assert_eq!(std::fs::read(&paths.lock_file).unwrap(), legacy_bytes);
     }
 
     #[test]
@@ -390,7 +486,8 @@ mod tests {
         );
 
         std::fs::remove_file(repository_path(&paths.lock_file)).unwrap();
-        lock.save_legacy(&migrated_lock_path(&paths.lock_file)).unwrap();
+        lock.save_legacy(&migrated_lock_path(&paths.lock_file))
+            .unwrap();
         std::fs::write(&repository_path(&paths.lock_file), b"not json").unwrap();
         let loaded = ExtensionsLock::load(&paths.lock_file).unwrap();
         assert_eq!(
@@ -398,5 +495,16 @@ mod tests {
             serde_json::to_value(&lock.extensions).unwrap()
         );
         assert!(corrupt_repository_path(&repository_path(&paths.lock_file)).exists());
+        let archive_bytes = std::fs::read(migrated_lock_path(&paths.lock_file)).unwrap();
+        loaded.save(&paths.repository_file).unwrap();
+        assert!(ExtensionsLock::load(&paths.repository_file)
+            .unwrap()
+            .extensions
+            .contains_key("example.repository"));
+        assert!(!paths.lock_file.exists());
+        assert_eq!(
+            std::fs::read(migrated_lock_path(&paths.lock_file)).unwrap(),
+            archive_bytes
+        );
     }
 }

@@ -876,7 +876,7 @@ pub async fn update_custom_integration(
     std::fs::rename(&root, &backup_path)
         .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
 
-    // Write edit journal BEFORE removing lock entry. Custom integrations in data
+    // Write edit journal BEFORE removing the repository entry. Integrations in data
     // dir need the actual backup_path, not an extensions-dir path.
     let transaction_id = format!("edit-{}-{}", extension_id, current.updated_at);
     let journal = crate::extensions::transaction::RemovalJournal {
@@ -894,14 +894,14 @@ pub async fn update_custom_integration(
     };
     let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
 
-    // Now safe to remove lock entry: if we crash here, recovery will restore it.
+    // Now safe to remove the repository entry: recovery can restore it after a crash.
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.remove(extension_id);
-    if let Err(error) = lock.save(&state.paths.lock_file) {
+    if let Err(error) = lock.save(&state.paths.repository_file) {
         let _ = std::fs::rename(&backup_path, &root);
         let _ = std::fs::remove_file(&journal_path);
         return Err(format!(
-            "Cannot stage custom integration lock update: {error}"
+            "Cannot stage custom integration repository update: {error}"
         ));
     }
     drop(lock);
@@ -917,12 +917,12 @@ pub async fn update_custom_integration(
                 ExtensionStateKind::Disabled
             };
             updated.installed_at = current.installed_at;
-            if let Err(error) = lock.save(&state.paths.lock_file) {
+            if let Err(error) = lock.save(&state.paths.repository_file) {
                 let _ = std::fs::remove_dir_all(&root);
                 let _ = std::fs::rename(&backup_path, &root);
                 let mut restore = ExtensionsLock::load(&state.paths.lock_file)?;
                 restore.extensions.insert(extension_id.to_string(), current);
-                let _ = restore.save(&state.paths.lock_file);
+                let _ = restore.save(&state.paths.repository_file);
                 let _ = std::fs::remove_file(&journal_path);
                 return Err(format!(
                     "Cannot finalize custom integration update: {error}"
@@ -934,7 +934,7 @@ pub async fn update_custom_integration(
         return Ok(lock.get(extension_id)?.clone());
     }
 
-    // Operation failed: restore old integration and lock entry in-process.
+    // Operation failed: restore old integration and repository entry in-process.
     let _ = std::fs::remove_dir_all(&root);
     if let Err(error) = std::fs::rename(&backup_path, &root) {
         // Backup restoration failed: leave journal for recovery.
@@ -944,10 +944,10 @@ pub async fn update_custom_integration(
     }
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.insert(extension_id.to_string(), current);
-    if let Err(lock_error) = lock.save(&state.paths.lock_file) {
-        // Lock restoration failed: leave journal for recovery.
+    if let Err(lock_error) = lock.save(&state.paths.repository_file) {
+        // Repository restoration failed: leave journal for recovery.
         return Err(format!(
-            "{}; lock restore failed: {}; journal left for recovery",
+            "{}; repository restore failed: {}; journal left for recovery",
             result.unwrap_err(),
             lock_error
         ));
@@ -1379,7 +1379,7 @@ pub async fn uninstall(
         staged_path = Some(target.clone());
     }
 
-    // Write removal journal BEFORE committing lock. This records the intent to
+    // Write removal journal BEFORE committing the repository. This records intent to
     // remove, so crash/I/O failure during cleanup can be recovered on restart.
     let journal = crate::extensions::transaction::RemovalJournal {
         schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
@@ -1394,9 +1394,9 @@ pub async fn uninstall(
     };
     let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
 
-    // Commit lock removal. If this fails, rollback staging and remove journal.
+    // Commit repository removal. If this fails, rollback staging and remove journal.
     lock.extensions.remove(extension_id);
-    if let Err(error) = lock.save(&state.paths.lock_file) {
+    if let Err(error) = lock.save(&state.paths.repository_file) {
         if let Some(target) = &staged_path {
             let _ = std::fs::rename(target, &source);
         }
@@ -1404,7 +1404,7 @@ pub async fn uninstall(
         return Err(error);
     }
 
-    // Update journal to mark lock as committed.
+    // Update journal to mark repository state as committed.
     let journal = crate::extensions::transaction::RemovalJournal {
         removal_kind: Some(crate::extensions::transaction::RemovalKind::Committed),
         ..journal
@@ -1660,7 +1660,7 @@ pub(crate) async fn install_linked(
         enabled_before_broken: None,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
-    lock.save(&state.paths.lock_file)?;
+    lock.save(&state.paths.repository_file)?;
     Ok(entry)
 }
 
@@ -1939,7 +1939,7 @@ mod tests {
         std::fs::create_dir_all(&backup).unwrap();
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(old.id.clone(), old.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         crate::extensions::transaction::write_journal(
             &state,
             &crate::extensions::transaction::InstallationJournal {
@@ -1988,7 +1988,7 @@ mod tests {
         std::fs::create_dir_all(&backup).unwrap();
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(new.id.clone(), new.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         crate::extensions::transaction::write_journal(
             &state,
             &crate::extensions::transaction::InstallationJournal {
@@ -2053,7 +2053,7 @@ mod tests {
     async fn set_enabled_for_test(state: &ExtensionState, id: &str, enabled: bool) {
         let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
         lock.set_enabled(id, enabled).unwrap();
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         state.invalidate_provider_commands().await;
     }
 
@@ -2888,6 +2888,96 @@ mod tests {
         assert!(error.contains("Runtime is unavailable"));
     }
 
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn writer_swap_install_uninstall_edit_and_import_after_migration() {
+        find_script_interpreter(ScriptLanguage::Shell).unwrap();
+        for retained_legacy in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+            crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+            let archive = state.paths.root.join("extensions.lock.json.migrated");
+            let legacy_bytes = std::fs::read(&archive).unwrap();
+            if retained_legacy {
+                // Model a legacy file left beside the repository after migration.
+                std::fs::copy(&archive, &state.paths.lock_file).unwrap();
+            }
+            let snapshot = || -> serde_json::Value {
+                assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
+                if retained_legacy {
+                    assert_eq!(std::fs::read(&state.paths.lock_file).unwrap(), legacy_bytes);
+                } else {
+                    assert!(!state.paths.lock_file.exists());
+                }
+                let json: serde_json::Value = serde_json::from_slice(
+                    &std::fs::read(&state.paths.repository_file).unwrap(),
+                ).unwrap();
+                assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
+                json
+            };
+
+            let source = test_state(&directory.path().join("source"));
+            let linked = create_custom_integration(
+                &source, script_request("local.linked-writer", "Linked", "linked"),
+            ).await.unwrap();
+            install(&state, ExtensionInstallRequest {
+                source: InstallSource::Linked,
+                package: None,
+                version: None,
+                manifest_path: Some(linked.manifest_path),
+                executable_path: None,
+                approved_permissions: Some(linked.approved_permissions),
+            }).await.unwrap();
+            assert_eq!(snapshot()["extensions"]["local.linked-writer"]["name"], "Linked");
+            uninstall(&state, "local.linked-writer", true).await.unwrap();
+            assert!(snapshot()["extensions"].as_object().unwrap().is_empty());
+
+            let id = "local.writer-swap";
+            let mut request = script_request(id, "Original", "original");
+            create_custom_integration(&state, request.clone()).await.unwrap();
+            assert_eq!(snapshot()["extensions"][id]["name"], "Original");
+            set_enabled_for_test(&state, id, false).await;
+            let before_edit = snapshot();
+            let mut invalid = request.clone();
+            invalid.script_content = Some(String::new());
+            assert!(update_custom_integration(&state, id, invalid).await.is_err());
+            assert_eq!(snapshot(), before_edit);
+
+            request.name = "Edited".into();
+            request.version = "2.0.0".into();
+            request.script_content = Some("printf edited".into());
+            update_custom_integration(&state, id, request.clone()).await.unwrap();
+            let edited = snapshot();
+            assert_eq!(edited["extensions"][id]["name"], "Edited");
+            assert_eq!(edited["extensions"][id]["currentVersion"], "2.0.0");
+            assert_eq!(edited["extensions"][id]["enabled"], false);
+            assert_eq!(edited["extensions"][id]["installedAt"], before_edit["extensions"][id]["installedAt"]);
+
+            let export = sync::build_export(&state, Utc::now()).unwrap();
+            assert_eq!(export.extensions.len(), 1);
+            assert_eq!(export.extensions[0].version, "2.0.0");
+            assert!(!export.extensions[0].enabled);
+            uninstall(&state, id, true).await.unwrap();
+            assert!(snapshot()["extensions"].as_object().unwrap().is_empty());
+
+            let report = sync::import_document(
+                &state,
+                Path::new("writer-swap.json"),
+                export,
+                &BTreeMap::from([(id.to_string(), request.permissions)]),
+            ).await;
+            assert!(report.failed.is_empty(), "{:?}", report.failed);
+            assert_eq!(report.succeeded.len(), 1);
+            let imported = snapshot();
+            assert_eq!(imported["extensions"][id]["currentVersion"], "2.0.0");
+            assert_eq!(imported["extensions"][id]["enabled"], false);
+            crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+            assert_eq!(ExtensionsLock::load(&state.paths.lock_file).unwrap().get(id).unwrap().name, "Edited");
+            assert_eq!(snapshot(), imported);
+        }
+    }
+
     #[tokio::test]
     async fn edits_and_reloads_a_generated_custom_integration() {
         if find_script_interpreter(ScriptLanguage::Shell).is_err() {
@@ -3280,7 +3370,7 @@ mod tests {
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry);
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         let original_mode = directory.path().metadata().unwrap().permissions().mode();
         std::fs::set_permissions(
@@ -3393,7 +3483,7 @@ mod tests {
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         // Simulate deletion failure by making the staged directory unreadable.
         // We cannot truly prevent deletion in a portable way, so we verify the
@@ -3489,7 +3579,7 @@ mod tests {
 
         let lock = ExtensionsLock::default();
         // Lock has NO entry (removal committed).
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         let journal = crate::extensions::transaction::RemovalJournal {
             schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
@@ -3606,7 +3696,7 @@ mod tests {
         // lock has no entry, journal exists with intent=Edit + Staged kind.
         let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
         lock.extensions.remove(id);
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         let journal = crate::extensions::transaction::RemovalJournal {
             schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
@@ -3712,7 +3802,7 @@ mod tests {
         // 2. Lock entry removed (as update_custom_integration does)
         let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
         lock.extensions.remove(id);
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         // 3. Journal written with intent=Edit
         let journal = crate::extensions::transaction::RemovalJournal {
@@ -3809,7 +3899,7 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         // Lock STILL HAS entry (removal not committed).
         lock.extensions.insert(extension_id.into(), entry.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         let journal = crate::extensions::transaction::RemovalJournal {
             schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,

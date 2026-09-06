@@ -705,7 +705,7 @@ fn restore_enabled_locked(
         state.provider.cancel_completions();
     }
     lock.set_enabled(extension_id, enabled)?;
-    lock.save(&state.paths.lock_file)?;
+    lock.save(&state.paths.repository_file)?;
     Ok(true)
 }
 
@@ -765,7 +765,7 @@ impl ImportSnapshot {
             )?;
             restore_directory(&state.paths.data.join(&item.id), item.data.as_deref())?;
         }
-        self.lock.save(&state.paths.lock_file)?;
+        self.lock.save(&state.paths.repository_file)?;
         for entry in self.lock.extensions.values() {
             crate::extensions::lock::write_current_pointer(&state.paths.extensions, entry)?;
         }
@@ -1106,6 +1106,11 @@ mod tests {
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
                 .unwrap();
+        ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+        crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+        let before = std::fs::read(&state.paths.repository_file).unwrap();
+        let archive = state.paths.root.join("extensions.lock.json.migrated");
+        let archive_bytes = std::fs::read(&archive).unwrap();
         let entries = vec![
             portable_script_entry("local.transaction-a", "a"),
             portable_script_entry("local.transaction-b", "b"),
@@ -1123,6 +1128,9 @@ mod tests {
 
         assert_eq!(report.failed.len(), 1);
         assert!(report.succeeded.is_empty());
+        assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
+        assert!(!state.paths.lock_file.exists());
+        assert_eq!(std::fs::read(archive).unwrap(), archive_bytes);
         assert!(ExtensionsLock::load(&state.paths.lock_file)
             .unwrap()
             .extensions
@@ -1185,7 +1193,11 @@ mod tests {
         original_entry.executable_path = version_root.join("tool").to_string_lossy().into_owned();
         let mut original_lock = ExtensionsLock::default();
         original_lock.extensions.insert(id.into(), original_entry);
-        original_lock.save(&state.paths.lock_file).unwrap();
+        original_lock.save_legacy(&state.paths.lock_file).unwrap();
+        crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+        let before = std::fs::read(&state.paths.repository_file).unwrap();
+        let archive = state.paths.root.join("extensions.lock.json.migrated");
+        let archive_bytes = std::fs::read(&archive).unwrap();
         let snapshot = ImportSnapshot::capture(&state, std::iter::once(id)).unwrap();
 
         std::fs::remove_dir_all(state.paths.extensions.join(id)).unwrap();
@@ -1194,11 +1206,14 @@ mod tests {
         std::fs::write(new_version.join("new-file"), b"new").unwrap();
         std::fs::write(data_root.join("config.json"), b"new-config").unwrap();
         ExtensionsLock::default()
-            .save(&state.paths.lock_file)
+            .save(&state.paths.repository_file)
             .unwrap();
 
         snapshot.restore(&state).unwrap();
 
+        assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
+        assert!(!state.paths.lock_file.exists());
+        assert_eq!(std::fs::read(archive).unwrap(), archive_bytes);
         let restored = ExtensionsLock::load(&state.paths.lock_file).unwrap();
         assert_eq!(restored.get(id).unwrap().current_version, "1.0.0");
         assert!(version_root.join("old-file").exists());
@@ -1228,9 +1243,6 @@ mod tests {
             &approvals,
         )
         .await;
-        // Loading through the repository adapter completes the first-startup
-        // migration before comparing the persisted snapshot.
-        let _ = ExtensionsLock::load(&state.paths.lock_file).unwrap();
         let lock_after_first = std::fs::read(&state.paths.repository_file).unwrap();
         let second = import_document(
             &state,
@@ -1243,6 +1255,7 @@ mod tests {
         assert_eq!(first.succeeded.len(), 1);
         assert_eq!(second.skipped.len(), 1);
         assert!(second.failed.is_empty());
+        assert!(!state.paths.lock_file.exists());
         assert_eq!(
             std::fs::read(&state.paths.repository_file).unwrap(),
             lock_after_first

@@ -1332,7 +1332,7 @@ async fn reconnect_system(
         }
         previous
     };
-    if let Err(error) = lock.save(&state.paths.lock_file) {
+    if let Err(error) = lock.save(&state.paths.repository_file) {
         let rollback = state
             .tool_lock
             .lock()
@@ -1357,7 +1357,7 @@ pub async fn extensions_uninstall(
     id: String,
     remove_data: Option<bool>,
 ) -> Result<(), String> {
-    // Commit the binding removal before touching the extension lock. If the
+    // Commit the binding removal before touching the extension repository. If the
     // uninstall itself fails, restore the binding so the two state files do
     // not describe different installations.
     let previous_tool_lock = {
@@ -1420,7 +1420,7 @@ async fn set_enabled(
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.set_enabled(id, enabled)?;
     let entry = lock.get(id)?.clone();
-    lock.save(&state.paths.lock_file)?;
+    lock.save(&state.paths.repository_file)?;
     state.invalidate_provider_commands().await;
     if enabled {
         // Best-effort re-derivation of help-derived parameter hints after
@@ -1463,7 +1463,7 @@ pub async fn extensions_repair(
             let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
             if lock.clear_broken(&id)? {
                 let cleared = lock.get(&id)?.clone();
-                lock.save(&state.paths.lock_file)?;
+                lock.save(&state.paths.repository_file)?;
                 return Ok(ExtensionRepairReport {
                     id,
                     repaired: false,
@@ -1490,14 +1490,14 @@ pub async fn extensions_repair(
             let code = install::classify_verify_error(&problem);
             let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
             lock.mark_broken(&id, &code, &problem)?;
-            lock.save(&state.paths.lock_file)?;
+            lock.save(&state.paths.repository_file)?;
             let action = if current.runtime_ownership == ExtensionRuntimeOwnership::System {
                 match reconnect_system(&state, &id, None).await {
                     Ok(_) => "reconnected-system-runtime",
                     Err(repair_error) => {
                         let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
                         lock.mark_broken(&id, &code, &repair_error)?;
-                        lock.save(&state.paths.lock_file)?;
+                        lock.save(&state.paths.repository_file)?;
                         return Err(format!("Cannot repair {id}: {repair_error}"));
                     }
                 }
@@ -1508,7 +1508,7 @@ pub async fn extensions_repair(
             // and drop the recorded error.
             let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
             lock.clear_broken(&id)?;
-            lock.save(&state.paths.lock_file)?;
+            lock.save(&state.paths.repository_file)?;
             let entry = lock.get(&id)?.clone();
             state.invalidate_provider_commands().await;
             Ok(ExtensionRepairReport {
@@ -1562,7 +1562,7 @@ async fn clear_broken_after_success(state: &ExtensionState, id: &str) -> Result<
         return Ok(());
     }
     if lock.clear_broken(id)? {
-        lock.save(&state.paths.lock_file)?;
+        lock.save(&state.paths.repository_file)?;
     }
     Ok(())
 }
@@ -1971,6 +1971,49 @@ pub async fn catalog_complete(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn writer_swap_enable_disable_after_migration() {
+        use crate::extensions::manifest::ScriptLanguage;
+        use crate::extensions::ExtensionPaths;
+
+        install::find_script_interpreter(ScriptLanguage::Shell).unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let state = ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf())).unwrap();
+        ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+        crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+        let archive = state.paths.root.join("extensions.lock.json.migrated");
+        let legacy_bytes = std::fs::read(&archive).unwrap();
+        let entry = install::create_custom_integration(&state, install::CustomIntegrationRequest {
+            id: "local.enable-writer".into(),
+            name: "Enable writer".into(),
+            command: "enable-writer".into(),
+            version: "1.0.0".into(),
+            executable_path: String::new(),
+            mode: "script".into(),
+            script_language: Some(ScriptLanguage::Shell),
+            script_content: Some("printf test".into()),
+            args_prefix: Vec::new(),
+            version_args: Vec::new(),
+            permissions: Vec::new(),
+            platforms: vec![crate::extensions::PlatformTarget::current().unwrap().os],
+        }).await.unwrap();
+
+        for enabled in [false, true] {
+            // Exercise the exact handler shared by the enable/disable IPC commands.
+            let updated = set_enabled(&state, &entry.id, enabled).await.unwrap();
+            assert_eq!(updated.enabled, enabled);
+            let json: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(&state.paths.repository_file).unwrap(),
+            ).unwrap();
+            assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
+            assert_eq!(json["extensions"][&entry.id]["enabled"], enabled);
+            assert_eq!(json["extensions"][&entry.id]["state"], if enabled { "enabled" } else { "disabled" });
+            assert!(!state.paths.lock_file.exists());
+            assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
+        }
+    }
 
     const MANIFEST_JSON: &str = r#"{
         "schemaVersion": "2.0",

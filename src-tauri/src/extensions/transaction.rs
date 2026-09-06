@@ -1,11 +1,11 @@
-//! Crash-consistent installation transactions.
+//! Recovery for legacy installation transactions and current removal/edit journals.
 //!
-//! Every install/update/rollback flows through a journal that is fsynced before
-//! any visible state changes. The journal records which transaction stage was
+//! Journals retain their entry schema while state writes go to the repository.
+//! The journal records which transaction stage was
 //! reached, so a crash at any point can be resolved on the next startup
 //! ([`recover`]) without guessing: uncommitted transactions restore the
 //! previously active version, committed transactions finish their cleanup, and
-//! the `current.json` pointer is rebuilt from the lock.
+//! the `current.json` pointer is rebuilt from the repository.
 //!
 //! The stage machine is `resolved -> downloading -> downloaded -> verified ->
 //! staged -> activated -> cleaned` (FEP/plan "确定性安装"). Download itself is
@@ -40,7 +40,7 @@ pub enum TransactionState {
     Verified,
     /// Staging is complete and ready to be atomically activated.
     Staged,
-    /// Version directory swapped and lock committed; cleanup remains.
+    /// Version directory swapped and repository committed; cleanup remains.
     Activated,
     /// Backup/retained-version cleanup finished; journal may be removed.
     Cleaned,
@@ -50,9 +50,9 @@ pub enum TransactionState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RemovalKind {
-    /// Extension tree staged for removal but lock not yet updated.
+    /// Extension tree staged for removal but repository not yet updated.
     Staged,
-    /// Lock entry removed; physical cleanup remains.
+    /// Repository entry removed; physical cleanup remains.
     Committed,
 }
 
@@ -94,7 +94,7 @@ pub struct InstallationJournal {
 
 /// Uninstall-specific journal (schema v3+). Records pending removal so a crash
 /// mid-uninstall can be completed on next startup without losing the fact that
-/// removal was requested, even if lock commit succeeded but physical deletion
+/// removal was requested, even if repository commit succeeded but physical deletion
 /// failed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,14 +102,14 @@ pub struct RemovalJournal {
     pub schema_version: u32,
     pub transaction_id: String,
     pub extension_id: String,
-    /// Lock entry snapshot before removal, for rollback if needed.
+    /// Repository entry snapshot before removal, for rollback if needed.
     pub removed_entry: ExtensionLockEntry,
     /// Staged removal directory path (renamed from original location).
     pub staged_path: Option<PathBuf>,
     /// Additional paths to delete (generated integration, data).
     #[serde(default)]
     pub cleanup_paths: Vec<PathBuf>,
-    /// Whether the lock entry has been removed.
+    /// Whether the repository entry has been removed.
     #[serde(default)]
     pub removal_kind: Option<RemovalKind>,
     /// Whether user data should be deleted.
@@ -158,7 +158,7 @@ pub(crate) fn write_journal(
 }
 
 /// Write a removal journal atomically. Used by uninstall to record pending
-/// removal before committing the lock, so crash/I/O failure during cleanup
+/// removal before committing the repository, so crash/I/O failure during cleanup
 /// can be recovered on next startup.
 pub(crate) fn write_removal_journal(
     state: &ExtensionState,
@@ -199,15 +199,15 @@ fn remove_journal(path: &Path) -> Result<(), String> {
 
 /// Recover interrupted removal (uninstall/edit) transactions. Three branches:
 ///
-/// 1. Lock entry still exists → removal/edit was requested but never committed;
+/// 1. Repository entry still exists → removal/edit was requested but never committed;
 ///    restore any staged paths and drop the journal (user can retry).
-/// 2. Lock entry is gone + intent=Remove → uninstall committed but physical
+/// 2. Repository entry is gone + intent=Remove → uninstall committed but physical
 ///    cleanup failed; finish deleting staged paths and cleanup_paths.
-/// 3. Lock entry is gone + intent=Edit → edit lock removal happened but new
+/// 3. Repository entry is gone + intent=Edit → edit removal happened but new
 ///    content may or may not be committed; restore if new content missing.
 ///
-/// This ensures uninstall either completes fully (no lock entry, no residue)
-/// or fails cleanly (lock entry intact, extension still functional), and edits
+/// This ensures uninstall either completes fully (no repository entry, no residue)
+/// or fails cleanly (entry intact, extension still functional), and edits
 /// restore the old content if the new content was never written.
 ///
 /// The journal is removed ONLY when all planned operations succeed (or the paths
@@ -286,10 +286,10 @@ fn recover_removal_journals(
             }
             remove_journal(&path)?;
         } else {
-            // Lock entry gone (Committed branch): intent decides semantics
+            // Repository entry gone (Committed branch): intent decides semantics
             match journal.intent {
                 RemovalIntent::Edit => {
-                    // Defect 2 fix: Edit journals get restore semantics when lock entry absent
+                    // Edit journals restore the original when its repository entry is absent.
                     if let Some(staged) = &journal.staged_path {
                         if !journal.cleanup_paths.is_empty() {
                             let new_root = &journal.cleanup_paths[0];
@@ -300,7 +300,7 @@ fn recover_removal_journals(
                                 }
                                 remove_journal(&path)?;
                             } else if staged.exists() {
-                                // New content missing: restore old content and lock entry
+                                // New content missing: restore old content and repository entry
                                 if let Err(error) = std::fs::rename(staged, new_root) {
                                     tracing::warn!(
                                         "Edit recovery: cannot restore {} to {}: {}; will retry on next startup",
@@ -310,12 +310,12 @@ fn recover_removal_journals(
                                     );
                                     continue; // Keep journal
                                 }
-                                // Re-insert lock entry
+                                // Persist the restored entry before removing its journal.
                                 lock.extensions.insert(
                                     journal.extension_id.clone(),
                                     journal.removed_entry.clone(),
                                 );
-                                lock.save(&state.paths.lock_file)?;
+                                lock.save(&state.paths.repository_file)?;
                                 remove_journal(&path)?;
                             } else {
                                 // Both staged and new_root gone: nothing to restore
@@ -373,19 +373,19 @@ fn recover_removal_journals(
 ///
 /// 1. `activated = false` (or a v1 journal without `lock_committed`): the
 ///    transaction never became visible; remove the staged target, restore the
-///    backup directory and reinstall the old lock entry.
-/// 2. `activated = true` and the lock already points at the new entry: the
+///    backup directory and reinstall the old repository entry.
+/// 2. `activated = true` and the repository already points at the new entry: the
 ///    version swap committed; finish cleanup (backup, staging, retention).
-/// 3. Lock and `current.json` disagree: rebuild every pointer from the lock.
+/// 3. Repository and `current.json` disagree: rebuild every pointer from the repository.
 /// 4. Unreadable journal: quarantine as `.corrupt`; never guess-delete version
 ///    directories.
 ///
 /// A journal that never reached `Staged` (no `staged_version`) has no filesystem
-/// side effects; it is dropped and the lock is left untouched.
+/// side effects; it is dropped and repository entries are left untouched.
 ///
-/// Removal journals (schema v3+) are processed separately: if the lock entry
+/// Removal journals (schema v3+) are processed separately: if the repository entry
 /// still exists, the removal never committed, so drop the journal and restore
-/// staged paths; if the lock entry is gone, finish physical cleanup.
+/// staged paths; if the entry is gone, finish cleanup or restore an interrupted edit.
 pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
     // Staging cleanup is independent of whether any journal exists: a crash
     // before the first journal write still leaves an unpacked staging tree.
@@ -440,8 +440,8 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
             .then(a.0.cmp(&b.0))
     });
     for (path, journal) in &entries {
-        // The lock write and the journal's committed flag are intentionally
-        // separate durable writes. If the process dies between them, the lock
+        // The repository write and the journal's committed flag are intentionally
+        // separate durable writes. If the process dies between them, the repository
         // is still the source of truth. This also covers a first install,
         // where there is no old entry to compare against.
         let lock_matches_new = lock
@@ -500,7 +500,7 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
             remove_journal(path)?;
         }
     }
-    lock.save(&state.paths.lock_file)?;
+    lock.save(&state.paths.repository_file)?;
     rebuild_current_pointers(state, &lock)?;
     Ok(())
 }
@@ -543,9 +543,9 @@ fn remove_orphaned_staging(state: &ExtensionState) -> Result<(), String> {
 fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Result<(), String> {
     for entry in lock.extensions.values() {
         crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
-        // A pointer is the runtime-facing projection of the lock. If it
+        // A pointer is the runtime-facing projection of the repository. If it
         // cannot be rewritten, startup must fail loudly instead of leaving a
-        // valid lock paired with a stale executable shim.
+        // valid repository paired with a stale executable shim.
         write_current_pointer(&state.paths.extensions, entry)?;
     }
     Ok(())
@@ -667,6 +667,94 @@ mod tests {
     }
 
     #[test]
+    fn recovery_writeback_through_repo_restores_install_entry() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+        crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+        let archive = state.paths.root.join("extensions.lock.json.migrated");
+        let archive_bytes = std::fs::read(&archive).unwrap();
+        let before = std::fs::read(&state.paths.repository_file).unwrap();
+        let journal = staged_journal(
+            &state, "example.repo-recovery", Some("1.0.0"), "2.0.0", false, TransactionState::Staged,
+        );
+        std::fs::create_dir_all(journal.target_version.as_ref().unwrap()).unwrap();
+        let journal_path = write_journal(&state, &journal).unwrap();
+
+        recover(&state).unwrap();
+
+        let after = std::fs::read(&state.paths.repository_file).unwrap();
+        assert_ne!(after, before);
+        let json: serde_json::Value = serde_json::from_slice(&after).unwrap();
+        assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
+        assert_eq!(json["extensions"][&journal.extension_id], serde_json::to_value(journal.old_entry.as_ref().unwrap()).unwrap());
+        assert!(!journal_path.exists());
+        assert!(!journal.target_version.as_ref().unwrap().exists());
+        assert!(!state.paths.lock_file.exists());
+        assert_eq!(std::fs::read(&archive).unwrap(), archive_bytes);
+        let pointer: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(state.paths.extensions.join(&journal.extension_id).join("current.json")).unwrap(),
+        ).unwrap();
+        assert_eq!(pointer["version"], "1.0.0");
+        recover(&state).unwrap();
+        assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), after);
+        assert!(!state.paths.lock_file.exists());
+    }
+
+    #[test]
+    fn recovery_writeback_through_repo_restores_edit_entry() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "example.edit-recovery";
+        let root = state.paths.data.join(id).join("integration");
+        let backup = state.paths.data.join(id).join(".editing-backup");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("provider.sh"), b"original").unwrap();
+        let mut original = journal_entry(directory.path(), "1.0.0", id);
+        original.distribution_source = ExtensionDistributionSource::Local;
+        original.runtime_ownership = ExtensionRuntimeOwnership::System;
+        original.manifest_path = root.join("floter.extension.json").to_string_lossy().into_owned();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(id.into(), original.clone());
+        lock.save_legacy(&state.paths.lock_file).unwrap();
+        crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
+        let archive = state.paths.root.join("extensions.lock.json.migrated");
+        let archive_bytes = std::fs::read(&archive).unwrap();
+        std::fs::rename(&root, &backup).unwrap();
+        let journal_path = write_removal_journal(&state, &RemovalJournal {
+            schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+            transaction_id: "edit-repo-recovery".into(),
+            extension_id: id.into(),
+            removed_entry: original.clone(),
+            staged_path: Some(backup.clone()),
+            cleanup_paths: vec![root.clone()],
+            removal_kind: Some(RemovalKind::Staged),
+            remove_data: false,
+            intent: RemovalIntent::Edit,
+        }).unwrap();
+        // Crash after entry removal, before the replacement integration is written.
+        lock.extensions.remove(id);
+        lock.save(&state.paths.repository_file).unwrap();
+        let before = std::fs::read(&state.paths.repository_file).unwrap();
+
+        recover(&state).unwrap();
+
+        let after = std::fs::read(&state.paths.repository_file).unwrap();
+        assert_ne!(after, before);
+        let json: serde_json::Value = serde_json::from_slice(&after).unwrap();
+        assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
+        assert_eq!(json["extensions"][id], serde_json::to_value(original).unwrap());
+        assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), b"original");
+        assert!(!backup.exists());
+        assert!(!journal_path.exists());
+        assert!(!state.paths.lock_file.exists());
+        assert_eq!(std::fs::read(&archive).unwrap(), archive_bytes);
+        recover(&state).unwrap();
+        assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), after);
+        assert!(!state.paths.lock_file.exists());
+    }
+
+    #[test]
     fn recovery_rolls_back_directory_when_lock_was_not_committed() {
         // Crash after the staged version moved into place but before the lock
         // committed: the new version must be removed and the old backup
@@ -691,7 +779,7 @@ mod tests {
             journal.old_entry.clone().unwrap().id.clone(),
             journal.old_entry.clone().unwrap(),
         );
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         write_journal(&state, &journal).unwrap();
 
         recover(&state).unwrap();
@@ -731,7 +819,7 @@ mod tests {
             journal.old_entry.clone().unwrap().id.clone(),
             journal.old_entry.clone().unwrap(),
         );
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         write_journal(&state, &journal).unwrap();
 
         recover(&state).unwrap();
@@ -803,7 +891,7 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         lock.extensions
             .insert(journal.new_entry.id.clone(), journal.new_entry.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         write_journal(&state, &journal).unwrap();
 
         recover(&state).unwrap();
@@ -840,7 +928,7 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         lock.extensions
             .insert(journal.new_entry.id.clone(), journal.new_entry.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         write_journal(&state, &journal).unwrap();
 
         recover(&state).unwrap();

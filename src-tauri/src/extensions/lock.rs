@@ -164,6 +164,14 @@ impl ExtensionsLock {
         if crate::extensions::repository::is_legacy_lock_path(path) {
             return crate::extensions::repository::load_for_legacy_path(path);
         }
+        if path
+            .file_name()
+            .is_some_and(|name| name == "extension-repository.json")
+        {
+            return crate::extensions::repository::load_for_legacy_path(
+                &path.with_file_name("extensions.lock.json"),
+            );
+        }
         Self::load_legacy(path)
     }
 
@@ -207,9 +215,11 @@ impl ExtensionsLock {
     }
 
     pub fn save(&self, path: &Path) -> Result<(), String> {
-        self.save_legacy(path)
+        crate::extensions::repository::write_repository(path, self)
     }
 
+    /// Only fixtures may write the retired format; production state uses `save`.
+    #[cfg(test)]
     pub(crate) fn save_legacy(&self, path: &Path) -> Result<(), String> {
         let parent = path.parent().ok_or("Invalid extension lock path")?;
         std::fs::create_dir_all(parent)

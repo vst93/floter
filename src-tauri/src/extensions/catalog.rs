@@ -566,7 +566,7 @@ pub(crate) async fn load_provider_commands_uncached(
         }));
     }
     if lock_changed {
-        if let Err(error) = lock.save(&state.paths.lock_file) {
+        if let Err(error) = lock.save(&state.paths.repository_file) {
             eprintln!("floter: cannot persist extension binding state: {error}");
         }
     }
@@ -1096,7 +1096,7 @@ mod tests {
         .unwrap();
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(entry.id.clone(), entry.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         // First load binds the executable and exposes the provider commands.
         let commands = load_provider_commands_uncached(&state).await.unwrap();
@@ -1174,7 +1174,7 @@ mod tests {
         lock.extensions.insert(entry.id.clone(), entry.clone());
         lock.mark_broken(&entry.id, "binding-missing", "Executable is gone")
             .unwrap();
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         assert_eq!(
             lock.get(&entry.id).unwrap().enabled_before_broken,
             Some(false)
@@ -1308,7 +1308,7 @@ mod tests {
         .unwrap();
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(entry.id.clone(), entry.clone());
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
         (state, entry)
     }
 
@@ -1338,7 +1338,7 @@ mod tests {
         // must produce a different table.
         let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
         lock.extensions.get_mut(&entry.id).unwrap().enabled = false;
-        lock.save(&state.paths.lock_file).unwrap();
+        lock.save(&state.paths.repository_file).unwrap();
 
         // Still fresh: the stale table is served (TTL is only a safety net).
         let cached = loaded_provider_commands(&state).await.unwrap();
