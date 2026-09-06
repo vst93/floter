@@ -31,6 +31,52 @@ pub mod tool_lock;
 pub mod tool_manifests;
 pub(crate) mod transaction;
 
+/// Test-only crash injection hook used at durable state commit boundaries.
+///
+/// In production this compiles to a no-op. A test scope arms one label; the
+/// matching call consumes it and panics immediately before that boundary.
+/// Recovery runs after the scope has unwound.
+pub(crate) fn commit_point(label: &str) {
+    #[cfg(test)]
+    {
+        let should_fail = COMMIT_POINT
+            .try_with(|armed| {
+                if armed.get() == Some(label) {
+                    armed.take();
+                    true
+                } else {
+                    false
+                }
+            })
+            .unwrap_or(false);
+        if should_fail {
+            panic!("injected crash at commit point {label}");
+        }
+    }
+    #[cfg(not(test))]
+    let _ = label;
+}
+
+#[cfg(test)]
+tokio::task_local! {
+    static COMMIT_POINT: std::cell::Cell<Option<&'static str>>;
+}
+
+#[cfg(test)]
+pub(crate) fn with_commit_point<T>(label: &'static str, operation: impl FnOnce() -> T) -> T {
+    COMMIT_POINT.sync_scope(std::cell::Cell::new(Some(label)), operation)
+}
+
+#[cfg(test)]
+pub(crate) async fn with_async_commit_point<T>(
+    label: &'static str,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    COMMIT_POINT
+        .scope(std::cell::Cell::new(Some(label)), operation)
+        .await
+}
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -283,6 +329,55 @@ mod tests {
     use super::*;
     use crate::extensions::provider::{ExecutionMode, ExecutionPlan};
     use std::collections::BTreeMap;
+
+    #[test]
+    fn commit_point_scopes_isolate_threads_and_match_once() {
+        with_commit_point("scope-test", || {
+            std::thread::spawn(|| commit_point("scope-test"))
+                .join()
+                .unwrap();
+            commit_point("another-label");
+            assert!(std::panic::catch_unwind(|| commit_point("scope-test")).is_err());
+            commit_point("scope-test");
+        });
+        with_commit_point("scope-test", || {});
+        commit_point("scope-test");
+        assert!(std::panic::catch_unwind(|| {
+            with_commit_point("scope-test", || panic!("unrelated panic"));
+        })
+        .is_err());
+        commit_point("scope-test");
+    }
+
+    async fn assert_async_commit_point_isolation() {
+        let (armed_sender, armed_receiver) = tokio::sync::oneshot::channel();
+        let (release_sender, release_receiver) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(with_async_commit_point("scope-test", async move {
+            armed_sender.send(()).unwrap();
+            release_receiver.await.unwrap();
+            commit_point("scope-test");
+        }));
+        armed_receiver.await.unwrap();
+        commit_point("scope-test");
+        release_sender.send(()).unwrap();
+        let error = task.await.unwrap_err();
+        assert!(error.is_panic());
+        assert_eq!(
+            error.into_panic().downcast_ref::<String>().map(String::as_str),
+            Some("injected crash at commit point scope-test")
+        );
+        commit_point("scope-test");
+    }
+
+    #[tokio::test]
+    async fn commit_point_scopes_isolate_tasks_on_one_thread() {
+        assert_async_commit_point_isolation().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn commit_point_scopes_isolate_tasks_across_worker_threads() {
+        assert_async_commit_point_isolation().await;
+    }
 
     #[test]
     fn protected_execution_plans_keep_secrets_out_of_ipc_and_are_single_use() {

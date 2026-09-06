@@ -132,9 +132,11 @@ pub(crate) fn write_repository(path: &Path, lock: &ExtensionsLock) -> Result<(),
         .and_then(|_| temporary.flush())
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|error| format!("Cannot write extension repository: {error}"))?;
+    crate::extensions::commit_point("repository-persist");
     temporary
         .persist(path)
         .map_err(|error| format!("Cannot persist extension repository: {error}"))?;
+    crate::extensions::commit_point("repository-directory-sync");
     sync_directory(parent)
         .map_err(|error| format!("Cannot sync extension repository directory: {error}"))
 }
@@ -151,9 +153,11 @@ fn archive_file(path: &Path, archive: &Path, label: &str) -> Result<(), String> 
             )
         })?;
     }
+    crate::extensions::commit_point("repository-archive-rename");
     std::fs::rename(path, archive)
         .map_err(|error| format!("Cannot archive {label} {}: {error}", path.display()))?;
     if let Some(parent) = archive.parent() {
+        crate::extensions::commit_point("repository-archive-directory-sync");
         sync_directory(parent)
             .map_err(|error| format!("Cannot sync {label} archive directory: {error}"))?;
     }
@@ -506,5 +510,50 @@ mod tests {
             std::fs::read(migrated_lock_path(&paths.lock_file)).unwrap(),
             archive_bytes
         );
+    }
+
+    #[test]
+    fn fresh_state_recovery_does_not_preempt_legacy_migration() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = crate::extensions::ExtensionState::from_paths(ExtensionPaths::from_root(
+            directory.path().to_path_buf(),
+        ))
+        .unwrap();
+        assert!(!state.paths.repository_file.exists());
+        assert!(!state.paths.extensions.join(".transactions").exists());
+        let lock = fixture_lock("example.late-migration");
+        lock.save_legacy(&state.paths.lock_file).unwrap();
+        let legacy_bytes = std::fs::read(&state.paths.lock_file).unwrap();
+
+        assert_eq!(migrate_to_repository(&state.paths).unwrap(), MigrationOutcome::Migrated);
+        assert_eq!(
+            std::fs::read(migrated_lock_path(&state.paths.lock_file)).unwrap(),
+            legacy_bytes
+        );
+        assert!(!state.paths.lock_file.exists());
+        assert!(read_repository(&state.paths.repository_file)
+            .unwrap()
+            .extensions
+            .contains_key("example.late-migration"));
+    }
+
+    #[test]
+    fn fault_at_legacy_archive_rename_keeps_repository_authoritative() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+        let lock = fixture_lock("example.archive-fault");
+        lock.save_legacy(&paths.lock_file).unwrap();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::extensions::with_commit_point("repository-archive-rename", || {
+                migrate_to_repository(&paths).unwrap();
+            });
+        }));
+        assert!(result.is_err());
+        assert!(read_repository(&paths.repository_file)
+            .unwrap()
+            .extensions
+            .contains_key("example.archive-fault"));
+        assert!(paths.lock_file.exists());
+        assert_eq!(migrate_to_repository(&paths).unwrap(), MigrationOutcome::Noop);
     }
 }

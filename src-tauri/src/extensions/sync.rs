@@ -653,16 +653,20 @@ async fn commit_preflight_linked(
         .map_err(|error| format!("Cannot create imported integration data directory: {error}"))?;
     let target = data_root.join("sync");
     let temporary = data_root.join(format!(".sync-import-{}", uuid::Uuid::new_v4()));
+    let backup = data_root.join(format!(".sync-import-backup-{}", uuid::Uuid::new_v4()));
     copy_directory(&staged_sync, &temporary)?;
     if target.exists() {
-        std::fs::remove_dir_all(&target)
-            .map_err(|error| format!("Cannot replace imported integration files: {error}"))?;
+        crate::extensions::commit_point("sync-import-backup-rename");
+        std::fs::rename(&target, &backup)
+            .map_err(|error| format!("Cannot stage imported integration files: {error}"))?;
     }
+    crate::extensions::commit_point("sync-import-rename");
     std::fs::rename(&temporary, &target)
         .map_err(|error| format!("Cannot commit imported integration files: {error}"))?;
+    crate::extensions::commit_point("sync-import-directory-sync");
     crate::extensions::lock::sync_directory(&data_root)
         .map_err(|error| format!("Cannot sync imported integration directory: {error}"))?;
-    install::install_linked(
+    let result = install::install_linked(
         state,
         ExtensionInstallRequest {
             source: InstallSource::Linked,
@@ -681,7 +685,13 @@ async fn commit_preflight_linked(
                 .map(|manifest| manifest.permissions.clone()),
         },
     )
-    .await
+    .await;
+    if result.is_ok() && backup.exists() {
+        crate::extensions::commit_point("sync-import-backup-remove");
+        std::fs::remove_dir_all(&backup)
+            .map_err(|error| format!("Cannot remove imported integration backup: {error}"))?;
+    }
+    result
 }
 
 fn imported_manifest_path(data_root: &Path, extension_id: &str) -> Result<PathBuf, String> {
@@ -832,6 +842,7 @@ fn atomic_write(path: &Path, bytes: &[u8], label: &str) -> Result<(), String> {
         .and_then(|_| temporary.flush())
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|error| format!("Cannot write {label}: {error}"))?;
+    crate::extensions::commit_point("sync-atomic-persist");
     temporary
         .persist(path)
         .map(|_| ())
@@ -1260,6 +1271,51 @@ mod tests {
             std::fs::read(&state.paths.repository_file).unwrap(),
             lock_after_first
         );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn fault_at_sync_directory_commit_cleans_staging_on_recovery() {
+        if install::find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
+                .unwrap(),
+        );
+        let entry = portable_script_entry("local.sync-fault", "stable");
+        let approvals = fixture_approvals(std::slice::from_ref(&entry));
+        let task_state = std::sync::Arc::clone(&state);
+        let task = tokio::spawn(async move {
+            crate::extensions::with_async_commit_point(
+                "sync-import-rename",
+                import_document(
+                    &task_state,
+                    Path::new("fault.json"),
+                    import_document_with(vec![entry]),
+                    &approvals,
+                ),
+            )
+            .await
+        });
+        let result = task.await;
+        assert!(result.is_err());
+
+        crate::extensions::transaction::recover(&state).unwrap();
+        assert!(ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .extensions
+            .is_empty());
+        let data_root = state.paths.data.join("local.sync-fault");
+        assert!(!data_root.join("sync").exists());
+        assert!(!data_root
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|item| item.ok())
+            .any(|item| item.file_name().to_string_lossy().starts_with(".sync-import-")));
     }
 
     #[test]

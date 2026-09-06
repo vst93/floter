@@ -556,6 +556,7 @@ pub async fn reprobe_tool_commands(
     let temp_path = root.join(".provider-description.reprobing.tmp");
     std::fs::write(&temp_path, descriptor_bytes)
         .map_err(|error| format!("Cannot stage custom provider description: {error}"))?;
+    crate::extensions::commit_point("descriptor-rename");
     if let Err(error) = std::fs::rename(&temp_path, &descriptor_path) {
         let _ = std::fs::remove_file(&temp_path);
         return Err(format!(
@@ -873,6 +874,7 @@ pub async fn update_custom_integration(
     backup
         .close()
         .map_err(|error| format!("Cannot prepare custom integration backup: {error}"))?;
+    crate::extensions::commit_point("edit-stage-rename");
     std::fs::rename(&root, &backup_path)
         .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
 
@@ -897,6 +899,7 @@ pub async fn update_custom_integration(
     // Now safe to remove the repository entry: recovery can restore it after a crash.
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.remove(extension_id);
+    crate::extensions::commit_point("edit-repository-remove");
     if let Err(error) = lock.save(&state.paths.repository_file) {
         let _ = std::fs::rename(&backup_path, &root);
         let _ = std::fs::remove_file(&journal_path);
@@ -917,6 +920,7 @@ pub async fn update_custom_integration(
                 ExtensionStateKind::Disabled
             };
             updated.installed_at = current.installed_at;
+            crate::extensions::commit_point("edit-repository-finalize");
             if let Err(error) = lock.save(&state.paths.repository_file) {
                 let _ = std::fs::remove_dir_all(&root);
                 let _ = std::fs::rename(&backup_path, &root);
@@ -936,6 +940,7 @@ pub async fn update_custom_integration(
 
     // Operation failed: restore old integration and repository entry in-process.
     let _ = std::fs::remove_dir_all(&root);
+    crate::extensions::commit_point("edit-rollback-rename");
     if let Err(error) = std::fs::rename(&backup_path, &root) {
         // Backup restoration failed: leave journal for recovery.
         return Err(format!(
@@ -1370,6 +1375,7 @@ pub async fn uninstall(
         placeholder
             .close()
             .map_err(|error| format!("Cannot prepare removal transaction: {error}"))?;
+        crate::extensions::commit_point("uninstall-stage-rename");
         std::fs::rename(&source, &target).map_err(|error| {
             format!(
                 "Cannot stage extension {} for removal: {error}",
@@ -1396,6 +1402,7 @@ pub async fn uninstall(
 
     // Commit repository removal. If this fails, rollback staging and remove journal.
     lock.extensions.remove(extension_id);
+    crate::extensions::commit_point("uninstall-repository-remove");
     if let Err(error) = lock.save(&state.paths.repository_file) {
         if let Some(target) = &staged_path {
             let _ = std::fs::rename(target, &source);
@@ -1660,6 +1667,7 @@ pub(crate) async fn install_linked(
         enabled_before_broken: None,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
+    crate::extensions::commit_point("install-repository-add");
     lock.save(&state.paths.repository_file)?;
     Ok(entry)
 }
@@ -2978,6 +2986,73 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn fault_at_edit_repository_commit_recovers_the_previous_generation() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(test_state(directory.path()));
+        let id = "local.fault-edit-commit";
+        let request = script_request(id, "Original", "fault-edit");
+        create_custom_integration(&state, request.clone()).await.unwrap();
+        let mut changed = request;
+        changed.name = "Changed".into();
+        changed.version = "2.0.0".into();
+        changed.script_content = Some("printf changed".into());
+
+        let task_state = std::sync::Arc::clone(&state);
+        let task = tokio::spawn(async move {
+            crate::extensions::with_async_commit_point(
+                "edit-repository-remove",
+                update_custom_integration(&task_state, id, changed),
+            )
+            .await
+        });
+        let result = task.await;
+        assert!(result.is_err());
+
+        crate::extensions::transaction::recover(&state).unwrap();
+        let restored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .clone();
+        assert_eq!(restored.name, "Original");
+        assert!(state.paths.data.join(id).join("integration").exists());
+        let journal_dir = state.paths.extensions.join(".transactions");
+        assert!(!journal_dir
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|item| item.file_name().to_string_lossy().contains("fault-edit-commit")));
+    }
+
+    #[tokio::test]
+    async fn fault_at_install_repository_commit_removes_generated_orphans() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(test_state(directory.path()));
+        let id = "local.fault-install-commit";
+        let request = script_request(id, "Install fault", "install-fault");
+        let task_state = std::sync::Arc::clone(&state);
+        let task = tokio::spawn(async move {
+            crate::extensions::with_async_commit_point(
+                "install-repository-add",
+                create_custom_integration(&task_state, request),
+            )
+            .await
+        });
+        let result = task.await;
+        assert!(result.is_err());
+
+        crate::extensions::transaction::recover(&state).unwrap();
+        assert!(ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(id)
+            .is_err());
+        assert!(!state.paths.data.join(id).join("integration").exists());
+    }
+
     #[tokio::test]
     async fn edits_and_reloads_a_generated_custom_integration() {
         if find_script_interpreter(ScriptLanguage::Shell).is_err() {
@@ -3518,6 +3593,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn fault_after_uninstall_repository_commit_does_not_resurrect_entry() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(test_state(directory.path()));
+        let entry = journal_entry(&state, "1.0.0");
+        let extension_root = state.paths.extensions.join(&entry.id);
+        std::fs::create_dir_all(&extension_root).unwrap();
+        std::fs::write(extension_root.join("payload"), b"payload").unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+
+        let task_state = std::sync::Arc::clone(&state);
+        let id = entry.id.clone();
+        let task = tokio::spawn(async move {
+            crate::extensions::with_async_commit_point(
+                "repository-directory-sync",
+                uninstall(&task_state, &id, false),
+            )
+            .await
+        });
+        let result = task.await;
+        assert!(result.is_err());
+
+        crate::extensions::transaction::recover(&state).unwrap();
+        let recovered = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+        assert!(!recovered.extensions.contains_key(&entry.id));
+        assert!(!extension_root.exists());
+        let journal_dir = state.paths.extensions.join(".transactions");
+        assert!(!journal_dir
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|item| item.file_name().to_string_lossy().starts_with("removal-")));
+    }
+
+    #[tokio::test]
     async fn uninstall_recovery_completes_pending_removal() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
@@ -3774,7 +3887,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn edit_crash_after_new_content_written_keeps_new_content() {
+    async fn edit_crash_after_uncommitted_content_written_restores_original() {
         if find_script_interpreter(ScriptLanguage::Shell).is_err() {
             return;
         }
@@ -3789,6 +3902,7 @@ mod tests {
         let original_updated_at = original.updated_at;
 
         let root = state.paths.data.join(id).join("integration");
+        let original_script = std::fs::read(root.join("provider.sh")).unwrap();
         let backup_path = state
             .paths
             .data
@@ -3822,18 +3936,101 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("provider.sh"), b"printf new").unwrap();
 
-        // Recovery should detect new_root exists and keep it, removing backup and journal.
+        // Files alone do not commit an edit; restore the registered generation.
         crate::extensions::transaction::recover(&state).unwrap();
 
         let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
-        assert!(!lock.extensions.contains_key(id), "Lock entry should still be absent (edit never finished lock update)");
-        assert!(root.exists(), "New content should be kept");
+        assert_eq!(
+            serde_json::to_value(lock.get(id).unwrap()).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+        assert!(root.exists(), "Original content should be restored");
         assert!(!backup_path.exists(), "Backup should be removed");
         assert_eq!(
             std::fs::read(root.join("provider.sh")).unwrap(),
-            b"printf new",
-            "New content should be preserved"
+            original_script,
+            "Uncommitted content must not replace the original generation"
         );
+        let journal_path = state.paths.extensions.join(".transactions")
+            .join(format!("removal-{}.json", journal.transaction_id));
+        assert!(!journal_path.exists());
+        crate::extensions::transaction::recover(&state).unwrap();
+        let recovered = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+        assert_eq!(
+            serde_json::to_value(recovered.get(id).unwrap()).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            original_script
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn edit_crash_after_repository_commit_keeps_new_generation() {
+        find_script_interpreter(ScriptLanguage::Shell).unwrap();
+        for unchanged_metadata in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "local.edit-committed-generation";
+            let original = create_custom_integration(&state, script_request(id, "Original", "original"))
+                .await
+                .unwrap();
+            let root = state.paths.data.join(id).join("integration");
+            let backup = state.paths.data.join(id).join(".editing-backup");
+            std::fs::rename(&root, &backup).unwrap();
+            let journal = crate::extensions::transaction::RemovalJournal {
+                schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                transaction_id: "edit-committed-generation".into(),
+                extension_id: id.into(),
+                removed_entry: original.clone(),
+                staged_path: Some(backup.clone()),
+                cleanup_paths: vec![root.clone()],
+                removal_kind: Some(crate::extensions::transaction::RemovalKind::Staged),
+                remove_data: false,
+                intent: crate::extensions::transaction::RemovalIntent::Edit,
+            };
+            let journal_path =
+                crate::extensions::transaction::write_removal_journal(&state, &journal).unwrap();
+            ExtensionsLock::default()
+                .save(&state.paths.repository_file)
+                .unwrap();
+            let mut request = script_request(id, "Original", "original");
+            if !unchanged_metadata {
+                request.name = "Changed".into();
+                request.version = "2.0.0".into();
+            }
+            request.script_content = Some("printf changed".into());
+            let mut updated = create_custom_integration(&state, request).await.unwrap();
+            // A script-only edit in the same timestamp second can have identical metadata.
+            updated.installed_at = original.installed_at;
+            updated.updated_at = original.updated_at;
+            updated.approved_at = original.approved_at;
+            let updated_json = serde_json::to_value(&updated).unwrap();
+            assert_eq!(updated_json == serde_json::to_value(original).unwrap(), unchanged_metadata);
+            let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+            lock.extensions.insert(id.into(), updated);
+            lock.save(&state.paths.repository_file).unwrap();
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                crate::extensions::with_commit_point("journal-remove", || {
+                    crate::extensions::transaction::recover(&state).unwrap();
+                });
+            }));
+            assert!(result.is_err());
+            assert!(!backup.exists());
+            assert!(journal_path.exists());
+
+            for _ in 0..2 {
+                crate::extensions::transaction::recover(&state).unwrap();
+                let recovered = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+                assert_eq!(serde_json::to_value(recovered.get(id).unwrap()).unwrap(), updated_json);
+                assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), b"printf changed");
+                assert!(!backup.exists());
+                assert!(!journal_path.exists());
+            }
+        }
     }
 
     #[tokio::test]

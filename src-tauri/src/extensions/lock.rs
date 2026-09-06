@@ -467,9 +467,11 @@ pub fn write_current_pointer(
         .and_then(|_| temporary.flush())
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|error| format!("Cannot write current pointer: {error}"))?;
+    crate::extensions::commit_point("current-pointer-persist");
     temporary
         .persist(path)
         .map_err(|error| format!("Cannot persist current pointer: {error}"))?;
+    crate::extensions::commit_point("current-pointer-directory-sync");
     sync_directory(&parent)
         .map_err(|error| format!("Cannot sync current pointer directory: {error}"))
 }

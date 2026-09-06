@@ -121,6 +121,7 @@ pub fn prepare_shim_metadata(
             content.as_bytes(),
         )?;
     }
+    crate::extensions::commit_point("artifact-directory-sync");
     sync_directory(&directory).map_err(|error| format!("Cannot sync binary shim metadata: {error}"))
 }
 
@@ -181,6 +182,7 @@ fn write_stable_shim(extension_root: &Path, name: &str) -> Result<(), String> {
     }
     atomic_write(&path, script.as_bytes())?;
     crate::extensions::install::make_executable(&path)?;
+    crate::extensions::commit_point("shim-directory-sync");
     sync_directory(&directory).map_err(|error| format!("Cannot sync extension shims: {error}"))
 }
 
@@ -232,6 +234,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .and_then(|_| temporary.flush())
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|error| format!("Cannot write extension shim: {error}"))?;
+    crate::extensions::commit_point("artifact-persist");
     temporary
         .persist(path)
         .map(|_| ())
@@ -322,6 +325,36 @@ mod tests {
         assert!(write_stable_shim(&extension, "tool")
             .unwrap_err()
             .contains("Refusing to overwrite"));
+    }
+
+    #[test]
+    fn fault_at_shim_commit_is_repaired_by_projection_rebuild() {
+        let directory = tempfile::tempdir().unwrap();
+        let extension = directory.path().join("example.fault-shim");
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::extensions::with_commit_point("artifact-persist", || {
+                write_stable_shim(&extension, "tool").unwrap();
+            });
+        }));
+        assert!(result.is_err());
+        write_stable_shim(&extension, "tool").unwrap();
+        assert!(shim_path(&extension.join("shims"), "tool").is_file());
+    }
+
+    #[test]
+    fn fault_at_shim_directory_sync_is_repaired_by_projection_rebuild() {
+        let directory = tempfile::tempdir().unwrap();
+        let extension = directory.path().join("example.fault-shim-sync");
+        write_stable_shim(&extension, "tool").unwrap();
+        std::fs::remove_file(shim_path(&extension.join("shims"), "tool")).unwrap();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::extensions::with_commit_point("shim-directory-sync", || {
+                write_stable_shim(&extension, "tool").unwrap();
+            });
+        }));
+        assert!(result.is_err());
+        write_stable_shim(&extension, "tool").unwrap();
+        assert!(shim_path(&extension.join("shims"), "tool").is_file());
     }
 
     #[cfg(unix)]
