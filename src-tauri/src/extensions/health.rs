@@ -1,7 +1,9 @@
 use crate::extensions::capability_probe::CapabilityReport;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use std::io::Write;
+#[cfg(test)]
 use std::path::Path;
 use std::time::Duration;
 
@@ -45,7 +47,7 @@ pub struct ProbeRecord {
     pub stderr: String,
 }
 
-/// Aggregated health report written to `health.json`.
+/// Aggregated lifecycle health, persisted in the extension repository entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HealthReport {
@@ -130,7 +132,8 @@ impl HealthReport {
     }
 }
 
-/// Writes a health report to the tool's health.json file.
+/// Legacy sidecar fixture; production reports use the repository writer.
+#[cfg(test)]
 pub fn write_health_report(health_dir: &Path, report: &HealthReport) -> Result<(), String> {
     std::fs::create_dir_all(health_dir)
         .map_err(|error| format!("Cannot create health directory: {error}"))?;
@@ -148,7 +151,7 @@ pub fn write_health_report(health_dir: &Path, report: &HealthReport) -> Result<(
     Ok(())
 }
 
-/// Reads a health report from the tool's health.json file.
+#[cfg(test)]
 pub fn read_health_report(health_dir: &Path) -> Result<Option<HealthReport>, String> {
     let path = health_dir.join("health.json");
     if !path.exists() {

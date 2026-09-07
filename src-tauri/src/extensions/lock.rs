@@ -157,6 +157,9 @@ pub struct ExtensionLockEntry {
     /// back to the persisted `enabled` flag.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled_before_broken: Option<bool>,
+    /// Last executed lifecycle probe set, committed with its broken-state transition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub probe_report: Option<crate::extensions::health::HealthReport>,
 }
 
 fn default_channel() -> String {
@@ -305,11 +308,18 @@ impl ExtensionsLock {
     /// the entry broke (`enabledBeforeBroken`); entries broken before that
     /// field existed fall back to the persisted `enabled` flag's value,
     /// mirroring how enable/disable persists both fields.
+    /// A required-probe failure must first be replaced by a passing report.
     pub fn clear_broken(&mut self, id: &str) -> Result<bool, String> {
         let entry = self
             .extensions
             .get_mut(id)
             .ok_or_else(|| format!("Extension is not installed: {id}"))?;
+        // Binding/describe success alone cannot supersede a required probe failure.
+        if entry.probe_report.as_ref().is_some_and(|report| {
+            report.status == crate::extensions::health::HealthStatus::Unhealthy
+        }) {
+            return Ok(false);
+        }
         let was_broken = entry.state == ExtensionStateKind::Broken;
         if was_broken {
             if !ExtensionStateKind::Broken.may_transition_to(ExtensionStateKind::Enabled) {

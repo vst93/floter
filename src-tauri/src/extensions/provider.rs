@@ -609,7 +609,7 @@ fn execution_host(program: PathBuf) -> (PathBuf, Vec<String>) {
     (program, Vec::new())
 }
 
-fn provider_command(executable: &Path) -> tokio::process::Command {
+pub(crate) fn provider_command(executable: &Path) -> tokio::process::Command {
     #[cfg(target_os = "windows")]
     {
         let extension = executable

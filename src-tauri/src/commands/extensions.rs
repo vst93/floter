@@ -8,6 +8,7 @@ use crate::extensions::install::{
     self, CustomIntegrationDefinition, CustomIntegrationRequest, ExtensionInstallRequest,
     ExtensionPermissionReview,
 };
+use crate::extensions::probe_executor;
 use crate::extensions::inventory::{self, ToolCandidate, ToolLocator};
 use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
@@ -374,6 +375,7 @@ impl ExtensionListItem {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
@@ -440,6 +442,7 @@ impl ExtensionListItem {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
         Self {
             runtime_available: candidate.available,
@@ -523,6 +526,7 @@ impl ExtensionListItem {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
@@ -1250,6 +1254,14 @@ async fn reconnect_system(
     executable_path: Option<&str>,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
+    reconnect_system_locked(state, id, executable_path).await
+}
+
+async fn reconnect_system_locked(
+    state: &ExtensionState,
+    id: &str,
+    executable_path: Option<&str>,
+) -> Result<ExtensionLockEntry, String> {
     let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let current = lock
         .extensions
@@ -1293,7 +1305,7 @@ async fn reconnect_system(
                 crate::extensions::manifest::Runtime::Bundled { .. } => Vec::new(),
             },
             config: resolved.provider,
-            permissions: manifest.permissions,
+            permissions: manifest.permissions.clone(),
         };
         let _ = config::apply_persisted_configuration(&state.paths.data, &mut invocation)?;
         let response = state.provider.describe(&invocation, true).await?;
@@ -1302,6 +1314,19 @@ async fn reconnect_system(
         }
     }
 
+    let mut probe_entry = current.clone();
+    probe_entry.executable_path = executable.to_string_lossy().into_owned();
+    probe_entry.tool_version = tool_version.clone();
+    let invocation =
+        crate::extensions::registry::provider_invocation_with_manifest(&probe_entry, &manifest)?;
+    let report = probe_executor::execute_capability_probes(&invocation, &manifest).await;
+    let problem = probe_executor::verification_error(&report);
+    probe_executor::record_report(&mut lock, id, report)?;
+    if let Some(problem) = problem {
+        lock.save(&state.paths.repository_file)?;
+        state.invalidate_provider_commands().await;
+        return Err(problem);
+    }
     {
         let entry = lock
             .extensions
@@ -1346,7 +1371,6 @@ async fn reconnect_system(
             rollback.err()
         ));
     }
-    drop(_guard);
     state.invalidate_provider_commands().await;
     Ok(entry)
 }
@@ -1456,7 +1480,12 @@ pub async fn extensions_repair(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<ExtensionRepairReport, String> {
-    match install::verify_installed(&state, &id).await {
+    repair(&state, id).await
+}
+
+async fn repair(state: &ExtensionState, id: String) -> Result<ExtensionRepairReport, String> {
+    let _guard = state.mutation_lock.lock().await;
+    match install::verify_installed_locked(state, &id).await {
         Ok(entry) => {
             // Verification passing clears any stale operation-error record so
             // the health section reflects the current, verified state.
@@ -1492,7 +1521,7 @@ pub async fn extensions_repair(
             lock.mark_broken(&id, &code, &problem)?;
             lock.save(&state.paths.repository_file)?;
             let action = if current.runtime_ownership == ExtensionRuntimeOwnership::System {
-                match reconnect_system(&state, &id, None).await {
+                match reconnect_system_locked(state, &id, None).await {
                     Ok(_) => "reconnected-system-runtime",
                     Err(repair_error) => {
                         let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
@@ -1610,12 +1639,16 @@ pub async fn extensions_health(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<HealthReport, String> {
-    let _entry = ExtensionsLock::load(&state.paths.repository_file)?
-        .get(&id)?
+    health_report(&state, &id)
+}
+
+fn health_report(state: &ExtensionState, id: &str) -> Result<HealthReport, String> {
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
+        .get(id)?
         .clone();
-    let health_dir = state.paths.data.join(&id);
-    crate::extensions::health::read_health_report(&health_dir)?
-        .ok_or_else(|| format!("No health report for {id}. Run 'extensions_describe {id}' first."))
+    entry
+        .probe_report
+        .ok_or_else(|| format!("No health report for {id}. Run 'extensions_reprobe {id}' first."))
 }
 
 #[tauri::command]
@@ -1623,90 +1656,42 @@ pub async fn extensions_reprobe(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<HealthReport, String> {
-    let entry = ExtensionsLock::load(&state.paths.repository_file)?
-        .get(&id)?
-        .clone();
+    reprobe(&state, &id).await
+}
 
-    // Get the tool's executable path
-    let executable = std::path::PathBuf::from(&entry.executable_path);
-    if !executable.exists() {
-        return Err(format!(
-            "Tool executable not found: {}",
-            executable.display()
-        ));
-    }
-
-    // Load the manifest to get lifecycle probes. If the manifest is missing
-    // or corrupt, probe_executor will use the --version/--help fallback
-    // (backward-compatible with extensions that launched before manifests
-    // declared lifecycle probes).
-    let manifest = match ExtensionManifest::load(Path::new(&entry.manifest_path)) {
-        Ok(m) => m,
-        Err(load_error) => {
-            tracing::warn!(
-                extension_id = %id,
-                manifest_path = %entry.manifest_path,
-                error = %load_error,
-                "Manifest load failed during reprobe; falling back to default --version/--help probes"
-            );
-            // Synthesize a minimal manifest with no lifecycle probes so
-            // probe_executor takes the fallback path.
-            ExtensionManifest {
-                schema_version: "2.0".to_string(),
-                id: entry.id.clone(),
-                name: entry.name.clone(),
-                description: String::new(),
-                publisher: manifest::Publisher {
-                    id: entry.publisher_id.clone(),
-                    name: entry.publisher_name.clone(),
-                },
-                compatibility: manifest::Compatibility {
-                    floter: ">=0.1.0".to_string(),
-                    provider_protocol: "^1.0".to_string(),
-                },
-                distribution: match entry.distribution_source {
-                    ExtensionDistributionSource::Local => manifest::Distribution::Local,
-                    ExtensionDistributionSource::BuiltIn => manifest::Distribution::BuiltIn,
-                    ExtensionDistributionSource::Npm => manifest::Distribution::Local,
-                },
-                runtime: Runtime::System {
-                    executable_names: vec![],
-                    version_args: vec!["--version".to_string()],
-                },
-                artifacts: Default::default(),
-                provider: manifest::ProviderConfig {
-                    kind: manifest::ProviderKind::StaticDescriptor,
-                    descriptor: None,
-                    args_prefix: vec![],
-                    describe_timeout_ms: 5_000,
-                    complete_timeout_ms: 800,
-                    environment: Default::default(),
-                },
-                platforms: vec![],
-                platform_overrides: Default::default(),
-                permissions: vec![],
-                lifecycle: Default::default(), // Empty lifecycle = fallback probes
-                homepage: None,
-                icon: None,
-                signatures: None,
-            }
+async fn reprobe(state: &ExtensionState, id: &str) -> Result<HealthReport, String> {
+    let _guard = state.mutation_lock.lock().await;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
+    let entry = lock.get(id)?.clone();
+    let resolved = ExtensionManifest::load(Path::new(&entry.manifest_path)).and_then(|manifest| {
+        if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
+            return Err(format!("Installed manifest identity does not match {id}"));
+        }
+        // No declaration means no work, even if an old tool is unavailable.
+        if manifest.lifecycle.probes.is_empty() {
+            return Ok((manifest, None));
+        }
+        let invocation =
+            crate::extensions::registry::provider_invocation_with_manifest(&entry, &manifest)?;
+        Ok((manifest, Some(invocation)))
+    });
+    let (manifest, invocation) = match resolved {
+        Ok(resolved) => resolved,
+        Err(problem) => {
+            lock.mark_broken(id, &install::classify_verify_error(&problem), &problem)?;
+            lock.save(&state.paths.repository_file)?;
+            state.invalidate_provider_commands().await;
+            return Err(problem);
         }
     };
-
-    // Execute probes using the shared logic: manifest probes if declared,
-    // otherwise --version/--help fallback
-    let report = crate::extensions::probe_executor::execute_capability_probes(
-        &state,
-        &id,
-        &executable,
-        &manifest,
-    )
-    .await?;
-
-    // Save the health report
-    let health_dir = state.paths.data.join(&id);
-    crate::extensions::health::write_health_report(&health_dir, &report)?;
-
+    let Some(invocation) = invocation else {
+        return Ok(HealthReport::new(Default::default()));
+    };
+    let report = probe_executor::execute_capability_probes(&invocation, &manifest).await;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
+    probe_executor::record_report(&mut lock, id, report.clone())?;
+    lock.save(&state.paths.repository_file)?;
+    state.invalidate_provider_commands().await;
     Ok(report)
 }
 
@@ -2248,6 +2233,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
 
         // The load attempt returns None for launch_config, triggering the fallback path.
@@ -2308,113 +2294,472 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn extensions_reprobe_synthesizes_fallback_manifest_when_load_fails() {
-        // When the manifest is missing or corrupt, extensions_reprobe synthesizes
-        // a minimal manifest with empty lifecycle probes so probe_executor uses
-        // the --version/--help fallback.
-        use crate::extensions::lock::{
-            ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
-            ExtensionRuntimeOwnership, ExtensionStateKind,
-        };
+    #[cfg(unix)]
+    mod lifecycle_probes {
+        use super::*;
+        use crate::extensions::health::HealthStatus;
+        use crate::extensions::ExtensionPaths;
         use std::path::PathBuf;
 
-        let temp = tempfile::tempdir().unwrap();
-        let missing_manifest = temp.path().join("missing.json");
+        const ID: &str = "test.lifecycle";
+        const INVOCATIONS: &str =
+            "--stored-version|platform\n--health|platform\n--usage|platform\n";
 
-        let entry = ExtensionLockEntry {
-            id: "test.tool".to_string(),
-            name: "Test Tool".to_string(),
-            publisher_id: "test".to_string(),
-            publisher_name: "Test Publisher".to_string(),
-            distribution_source: ExtensionDistributionSource::Local,
-            runtime_ownership: ExtensionRuntimeOwnership::System,
-            provider_kind: ExtensionProviderKind::StaticDescriptor,
-            state: ExtensionStateKind::Enabled,
-            enabled: true,
-            package_name: None,
-            package_version: "1.0.0".to_string(),
-            tool_version: None,
-            integrity: None,
-            runtime_integrity: None,
-            content_integrity: None,
-            previous_integrity: None,
-            previous_runtime_integrity: None,
-            previous_content_integrity: None,
-            asset_selection: None,
-            signature_verified: false,
-            previous_signature_verified: None,
-            official_verified: false,
-            previous_official_verified: None,
-            current_version: "1.0.0".to_string(),
-            previous_version: None,
-            manifest_path: missing_manifest.to_string_lossy().into_owned(),
-            executable_path: "/usr/bin/test-tool".to_string(),
-            runtime_root: None,
-            installed_at: 0,
-            updated_at: 0,
-            pinned: false,
-            channel: "stable".to_string(),
-            approved_permissions: vec![],
-            approved_at: 0,
-            approved_manifest_digest: None,
-            last_error_code: None,
-            last_error_detail: None,
-            last_error_at: None,
-            broken_reason: None,
-            enabled_before_broken: None,
-        };
+        struct Fixture {
+            root: tempfile::TempDir,
+            state: ExtensionState,
+            manifest: serde_json::Value,
+            manifest_path: PathBuf,
+            executable: PathBuf,
+            marker: PathBuf,
+            control: PathBuf,
+        }
 
-        // Simulate the fallback branch in extensions_reprobe
-        let manifest = match ExtensionManifest::load(PathBuf::from(&entry.manifest_path).as_path())
-        {
-            Ok(m) => m,
-            Err(_load_error) => {
-                // Synthesize minimal manifest with empty lifecycle
-                ExtensionManifest {
-                    schema_version: "2.0".to_string(),
-                    id: entry.id.clone(),
-                    name: entry.name.clone(),
-                    description: String::new(),
-                    publisher: manifest::Publisher {
-                        id: entry.publisher_id.clone(),
-                        name: entry.publisher_name.clone(),
+        impl Fixture {
+            fn new(script: bool) -> Self {
+                let root = tempfile::tempdir().unwrap();
+                let state = ExtensionState::from_paths(ExtensionPaths::from_root(
+                    root.path().join("state"),
+                ))
+                .unwrap();
+                let executable = Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/capability-probe.sh");
+                install::make_executable(&executable).unwrap();
+                let marker = root.path().join("invocations");
+                let control = root.path().join("behavior");
+                std::fs::write(&control, "healthy\n").unwrap();
+                let manifest_path = root.path().join("floter.extension.json");
+                let runtime = if script {
+                    // Read by the interpreter, never exec a newly written inode.
+                    std::fs::write(
+                        root.path().join("tool.sh"),
+                        include_bytes!("../../tests/fixtures/capability-probe.sh"),
+                    )
+                    .unwrap();
+                    serde_json::json!({"type": "script", "language": "shell", "path": "tool.sh"})
+                } else {
+                    serde_json::json!({"type": "system", "executableNames": ["capability-probe.sh"]})
+                };
+                let manifest = serde_json::json!({
+                    "schemaVersion": "2.0", "id": ID, "name": "Lifecycle fixture",
+                    "publisher": {"id": "test", "name": "Test"},
+                    "compatibility": {"floter": ">=0.1.0", "providerProtocol": "^1.0"},
+                    "distribution": {"type": "local"}, "runtime": runtime,
+                    "provider": {
+                        "type": "static-descriptor", "descriptor": "description.json",
+                        "argsPrefix": ["--provider-only"],
+                        "environment": {
+                            "FLOTER_PROBE_MARKER": marker, "FLOTER_PROBE_CONTROL": control,
+                            "FLOTER_PROBE_VALUE": "base"
+                        }
                     },
-                    compatibility: manifest::Compatibility {
-                        floter: ">=0.1.0".to_string(),
-                        provider_protocol: "^1.0".to_string(),
+                    "platformOverrides": {
+                        PlatformTarget::current().unwrap().identifier(): {
+                            "environment": {"FLOTER_PROBE_VALUE": "platform"}
+                        }
                     },
-                    distribution: manifest::Distribution::Local,
-                    runtime: Runtime::System {
-                        executable_names: vec![],
-                        version_args: vec!["--version".to_string()],
-                    },
-                    artifacts: Default::default(),
-                    provider: manifest::ProviderConfig {
-                        kind: manifest::ProviderKind::StaticDescriptor,
-                        descriptor: None,
-                        args_prefix: vec![],
-                        describe_timeout_ms: 5_000,
-                        complete_timeout_ms: 800,
-                        environment: Default::default(),
-                    },
-                    platforms: vec![],
-                    platform_overrides: Default::default(),
-                    permissions: vec![],
-                    lifecycle: Default::default(),
-                    homepage: None,
-                    icon: None,
-                    signatures: None,
-                }
+                    "lifecycle": {"probes": [
+                        {"id": "version", "args": ["--stored-version"], "required": true, "timeoutMs": 10000},
+                        {"id": "health", "args": ["--health"], "required": true, "timeoutMs": 10000},
+                        {"id": "help", "args": ["--usage"], "required": false, "timeoutMs": 10000}
+                    ]}
+                });
+                std::fs::write(root.path().join("description.json"), serde_json::to_vec(&serde_json::json!({
+                    "protocolVersion": "1.0", "provider": {"id": ID, "name": "Fixture", "version": "1.0.0"},
+                    "commands": [{"id": "fixture", "name": "Fixture", "description": "Fixture command", "execution": {"program": "self", "argsPrefix": [], "mode": "capture"}}]
+                })).unwrap()).unwrap();
+                let fixture = Self {
+                    root,
+                    state,
+                    manifest,
+                    manifest_path,
+                    executable,
+                    marker,
+                    control,
+                };
+                fixture.save_manifest();
+                fixture
             }
-        };
 
-        // Verify the synthesized manifest has empty lifecycle probes
-        assert!(
-            manifest.lifecycle.probes.is_empty(),
-            "Synthesized manifest should have no lifecycle probes"
-        );
-        assert_eq!(manifest.id, "test.tool");
-        assert_eq!(manifest.name, "Test Tool");
+            fn save_manifest(&self) {
+                std::fs::write(
+                    &self.manifest_path,
+                    serde_json::to_vec(&self.manifest).unwrap(),
+                )
+                .unwrap();
+            }
+
+            fn behavior(&self, behavior: &str) {
+                std::fs::write(&self.control, format!("{behavior}\n")).unwrap();
+            }
+
+            async fn install(&self) -> ExtensionLockEntry {
+                install::install(
+                    &self.state,
+                    ExtensionInstallRequest {
+                        source: install::InstallSource::Linked,
+                        manifest_path: Some(self.manifest_path.to_string_lossy().into_owned()),
+                        executable_path: (self.manifest["runtime"]["type"] == "system")
+                            .then(|| self.executable.to_string_lossy().into_owned()),
+                        package: None,
+                        version: None,
+                        approved_permissions: None,
+                    },
+                )
+                .await
+                .unwrap()
+            }
+
+            fn entry(&self) -> ExtensionLockEntry {
+                ExtensionsLock::load(&self.state.paths.repository_file)
+                    .unwrap()
+                    .get(ID)
+                    .unwrap()
+                    .clone()
+            }
+
+            fn bind(&self) {
+                let manifest = ExtensionManifest::load(&self.manifest_path).unwrap();
+                let candidate =
+                    inspect_manifest_executable(&manifest, &self.executable.to_string_lossy())
+                        .unwrap();
+                persist_tool_binding(&self.state, ID, &candidate).unwrap();
+            }
+        }
+
+        fn assert_broken(entry: &ExtensionLockEntry, code: &str) {
+            assert_eq!(entry.state, ExtensionStateKind::Broken);
+            assert!(!entry.enabled);
+            assert_eq!(entry.last_error_code.as_deref(), Some(code));
+            assert!(entry.last_error_at.is_some());
+            assert!(entry
+                .broken_reason
+                .as_deref()
+                .is_some_and(|reason| !reason.is_empty()));
+        }
+
+        #[tokio::test]
+        async fn install_repair_reprobe_execute_the_same_ordered_set_on_system_and_script_targets()
+        {
+            for script in [false, true] {
+                let fixture = Fixture::new(script);
+                let entry = fixture.install().await;
+                assert_eq!(entry.state, ExtensionStateKind::Enabled);
+                assert_eq!(
+                    std::fs::read_to_string(&fixture.marker).unwrap(),
+                    INVOCATIONS
+                );
+                let repaired = repair(&fixture.state, ID.into()).await.unwrap();
+                assert_eq!(repaired.action, "verified");
+                assert!(!repaired.repaired);
+                assert_eq!(
+                    std::fs::read_to_string(&fixture.marker).unwrap(),
+                    INVOCATIONS.repeat(2)
+                );
+                let report = reprobe(&fixture.state, ID).await.unwrap();
+                assert_eq!(
+                    std::fs::read_to_string(&fixture.marker).unwrap(),
+                    INVOCATIONS.repeat(3)
+                );
+                for report in [
+                    entry.probe_report.unwrap(),
+                    repaired.entry.probe_report.unwrap(),
+                    report.clone(),
+                ] {
+                    assert_eq!(report.status, HealthStatus::Healthy);
+                    assert_eq!(
+                        report
+                            .probes
+                            .iter()
+                            .map(|p| (p.probe_id.as_str(), p.passed, p.exit_code))
+                            .collect::<Vec<_>>(),
+                        vec![
+                            ("version", true, Some(0)),
+                            ("health", true, Some(0)),
+                            ("help", true, Some(0))
+                        ]
+                    );
+                }
+                let restarted = ExtensionState::from_paths(fixture.state.paths.clone()).unwrap();
+                assert_eq!(
+                    serde_json::to_value(health_report(&restarted, ID).unwrap()).unwrap(),
+                    serde_json::to_value(report).unwrap()
+                );
+                assert!(!fixture
+                    .state
+                    .paths
+                    .data
+                    .join(ID)
+                    .join("health.json")
+                    .exists());
+            }
+        }
+
+        #[tokio::test]
+        async fn reprobe_failure_and_recovery_persist_the_install_taxonomy_and_enabled_intent() {
+            for enabled in [true, false] {
+                let fixture = Fixture::new(false);
+                fixture.behavior("fail-health");
+                let installed = fixture.install().await;
+                assert_broken(&installed, "verification-failed");
+                let initial_reason = installed.broken_reason.clone();
+                let failed = reprobe(&fixture.state, ID).await.unwrap();
+                assert_eq!(failed.status, HealthStatus::Unhealthy);
+                assert_eq!(failed.failures[0].probe, "health");
+                assert_eq!(failed.failures[0].exit_code, Some(23));
+                assert_eq!(
+                    fixture.entry().last_error_detail,
+                    installed.last_error_detail
+                );
+                assert_eq!(fixture.entry().broken_reason, initial_reason);
+                fixture.behavior("healthy");
+                reprobe(&fixture.state, ID).await.unwrap();
+                let mut lock = ExtensionsLock::load(&fixture.state.paths.repository_file).unwrap();
+                lock.set_enabled(ID, enabled).unwrap();
+                lock.save(&fixture.state.paths.repository_file).unwrap();
+                fixture.behavior("fail-version");
+                reprobe(&fixture.state, ID).await.unwrap();
+                assert_broken(&fixture.entry(), "verification-failed");
+                assert_eq!(fixture.entry().enabled_before_broken, Some(enabled));
+                let restarted = ExtensionState::from_paths(fixture.state.paths.clone()).unwrap();
+                assert_eq!(
+                    health_report(&restarted, ID).unwrap().failures[0].probe,
+                    "version"
+                );
+                fixture.behavior("healthy");
+                assert_eq!(
+                    reprobe(&restarted, ID).await.unwrap().status,
+                    HealthStatus::Healthy
+                );
+                let restored = fixture.entry();
+                assert_eq!(restored.enabled, enabled);
+                assert_eq!(
+                    restored.state,
+                    if enabled {
+                        ExtensionStateKind::Enabled
+                    } else {
+                        ExtensionStateKind::Disabled
+                    }
+                );
+                assert_eq!(restored.enabled_before_broken, None);
+                assert_eq!(restored.broken_reason, None);
+                assert_eq!(restored.last_error_code, None);
+                assert_eq!(restored.last_error_detail, None);
+                assert_eq!(restored.last_error_at, None);
+            }
+        }
+
+        #[tokio::test]
+        async fn repair_reconnect_cannot_clear_failed_probes_and_recovers_after_they_pass() {
+            let fixture = Fixture::new(false);
+            fixture.behavior("fail-health");
+            let installed = fixture.install().await;
+            fixture.bind();
+            let error = repair(&fixture.state, ID.into()).await.unwrap_err();
+            assert!(error.contains("Lifecycle probe 'health' failed"), "{error}");
+            // Install, verification, and the replacement-target verification.
+            assert_eq!(
+                std::fs::read_to_string(&fixture.marker).unwrap(),
+                INVOCATIONS.repeat(3)
+            );
+            assert_broken(&fixture.entry(), "verification-failed");
+            assert_eq!(
+                fixture.entry().last_error_detail,
+                installed.last_error_detail
+            );
+            fixture.behavior("healthy");
+            let repaired = repair(&fixture.state, ID.into()).await.unwrap();
+            assert_eq!(repaired.entry.state, ExtensionStateKind::Enabled);
+            assert_eq!(repaired.entry.last_error_code, None);
+            assert_eq!(
+                health_report(&fixture.state, ID).unwrap().status,
+                HealthStatus::Healthy
+            );
+        }
+
+        #[tokio::test]
+        async fn binding_and_describe_success_do_not_erase_required_probe_failure() {
+            let fixture = Fixture::new(false);
+            fixture.behavior("fail-health");
+            fixture.install().await;
+            fixture.bind();
+            catalog::load_provider_commands_uncached(&fixture.state)
+                .await
+                .unwrap();
+            clear_broken_after_success(&fixture.state, ID)
+                .await
+                .unwrap();
+            assert_broken(&fixture.entry(), "verification-failed");
+            assert_eq!(
+                std::fs::read_to_string(&fixture.marker).unwrap(),
+                INVOCATIONS
+            );
+        }
+
+        #[tokio::test]
+        async fn optional_probe_failure_remains_degraded_and_runnable_on_all_surfaces() {
+            let fixture = Fixture::new(false);
+            fixture.behavior("fail-help");
+            let installed = fixture.install().await;
+            let repaired = repair(&fixture.state, ID.into()).await.unwrap();
+            let report = reprobe(&fixture.state, ID).await.unwrap();
+            for report in [
+                installed.probe_report.unwrap(),
+                repaired.entry.probe_report.unwrap(),
+                report,
+            ] {
+                assert_eq!(report.status, HealthStatus::Degraded);
+                assert_eq!(report.failures[0].probe, "help");
+                assert!(report.failures[0].retryable);
+            }
+            assert_eq!(fixture.entry().state, ExtensionStateKind::Enabled);
+            assert_eq!(fixture.entry().last_error_code, None);
+            assert_eq!(
+                std::fs::read_to_string(&fixture.marker).unwrap(),
+                INVOCATIONS.repeat(3)
+            );
+        }
+
+        #[tokio::test]
+        async fn empty_lifecycle_reprobe_is_a_noop_even_with_an_unavailable_legacy_runtime() {
+            let mut fixture = Fixture::new(false);
+            fixture
+                .manifest
+                .as_object_mut()
+                .unwrap()
+                .remove("lifecycle");
+            fixture.save_manifest();
+            fixture.install().await;
+            assert!(!fixture.marker.exists());
+            for broken in [false, true] {
+                let mut lock = ExtensionsLock::load(&fixture.state.paths.repository_file).unwrap();
+                lock.extensions.get_mut(ID).unwrap().executable_path = fixture
+                    .root
+                    .path()
+                    .join("missing-tool")
+                    .to_string_lossy()
+                    .into_owned();
+                if broken {
+                    lock.mark_broken(ID, "runtime-unavailable", "previous failure")
+                        .unwrap();
+                }
+                lock.save(&fixture.state.paths.repository_file).unwrap();
+                let before = std::fs::read(&fixture.state.paths.repository_file).unwrap();
+                assert_eq!(
+                    reprobe(&fixture.state, ID).await.unwrap().status,
+                    HealthStatus::Unknown
+                );
+                assert_eq!(
+                    std::fs::read(&fixture.state.paths.repository_file).unwrap(),
+                    before
+                );
+                assert!(!fixture.marker.exists());
+                assert!(!fixture
+                    .state
+                    .paths
+                    .data
+                    .join(ID)
+                    .join("health.json")
+                    .exists());
+            }
+        }
+
+        #[tokio::test]
+        async fn reprobe_rejects_unreadable_or_mismatched_manifests_without_inventing_probes() {
+            for problem in ["missing", "corrupt", "identity"] {
+                let mut fixture = Fixture::new(false);
+                fixture.install().await;
+                let code = match problem {
+                    "missing" => {
+                        std::fs::remove_file(&fixture.manifest_path).unwrap();
+                        "manifest-unreadable"
+                    }
+                    "corrupt" => {
+                        std::fs::write(&fixture.manifest_path, b"{bad json").unwrap();
+                        "manifest-unreadable"
+                    }
+                    _ => {
+                        fixture.manifest["id"] = "test.other".into();
+                        fixture.save_manifest();
+                        "identity-mismatch"
+                    }
+                };
+                let error = reprobe(&fixture.state, ID).await.unwrap_err();
+                assert_eq!(install::classify_verify_error(&error), code);
+                assert_broken(&fixture.entry(), code);
+                assert_eq!(
+                    std::fs::read_to_string(&fixture.marker).unwrap(),
+                    INVOCATIONS
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn reprobe_honors_the_stored_timeout_and_persists_the_failure() {
+            let mut fixture = Fixture::new(false);
+            fixture.install().await;
+            fixture.behavior("timeout");
+            fixture.manifest["lifecycle"]["probes"][1]["timeoutMs"] = 100.into();
+            fixture.save_manifest();
+            let report = reprobe(&fixture.state, ID).await.unwrap();
+            assert_eq!(report.status, HealthStatus::Unhealthy);
+            assert_eq!(report.failures[0].probe, "health");
+            assert!(report.failures[0].stderr.contains("timed out after 100 ms"));
+            assert_eq!(report.probes[2].probe_id, "help");
+            assert!(report.probes[2].passed);
+            assert_broken(&fixture.entry(), "verification-failed");
+            assert_eq!(
+                health_report(&fixture.state, ID).unwrap().failures[0].stderr,
+                report.failures[0].stderr
+            );
+        }
+
+        #[tokio::test]
+        async fn reprobe_repository_write_failure_keeps_report_and_state_atomic() {
+            use crate::extensions::fault_test_support::{skip_readonly_as_root, ReadonlyDirectory};
+            if skip_readonly_as_root() {
+                return;
+            }
+            let fixture = Fixture::new(false);
+            fixture.install().await;
+            fixture.behavior("fail-health");
+            let before = std::fs::read(&fixture.state.paths.repository_file).unwrap();
+            let readonly =
+                ReadonlyDirectory::new(fixture.state.paths.repository_file.parent().unwrap());
+            let error = crate::extensions::with_async_commit_point_action(
+                "repository-persist",
+                readonly.arm(),
+                reprobe(&fixture.state, ID),
+            )
+            .await
+            .unwrap_err();
+            assert!(
+                error.contains("Cannot persist extension repository"),
+                "{error}"
+            );
+            assert_eq!(
+                std::fs::read(&fixture.state.paths.repository_file).unwrap(),
+                before
+            );
+            assert_eq!(fixture.entry().state, ExtensionStateKind::Enabled);
+            assert_eq!(
+                health_report(&fixture.state, ID).unwrap().status,
+                HealthStatus::Healthy
+            );
+            assert!(!fixture
+                .state
+                .paths
+                .data
+                .join(ID)
+                .join("health.json")
+                .exists());
+            drop(readonly);
+            reprobe(&fixture.state, ID).await.unwrap();
+            assert_broken(&fixture.entry(), "verification-failed");
+            assert_eq!(
+                health_report(&fixture.state, ID).unwrap().status,
+                HealthStatus::Unhealthy
+            );
+        }
     }
 }

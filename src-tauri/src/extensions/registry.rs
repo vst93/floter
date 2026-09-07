@@ -7,6 +7,13 @@ use std::path::{Path, PathBuf};
 
 pub fn provider_invocation(entry: &ExtensionLockEntry) -> Result<ProviderInvocation, String> {
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    provider_invocation_with_manifest(entry, &manifest)
+}
+
+pub(crate) fn provider_invocation_with_manifest(
+    entry: &ExtensionLockEntry,
+    manifest: &ExtensionManifest,
+) -> Result<ProviderInvocation, String> {
     if manifest.id != entry.id || manifest.publisher.id != entry.publisher_id {
         return Err(format!(
             "Manifest identity does not match lock entry {}",
@@ -20,9 +27,32 @@ pub fn provider_invocation(entry: &ExtensionLockEntry) -> Result<ProviderInvocat
     };
     let permissions = manifest.permissions.clone();
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
-    let (executable, executable_prefix) = match &manifest.runtime {
+    let (executable, executable_prefix) = resolve_runtime_target(
+        manifest,
+        Path::new(&entry.manifest_path),
+        Path::new(&entry.executable_path),
+    )?;
+    Ok(ProviderInvocation {
+        extension_id: entry.id.clone(),
+        executable,
+        executable_prefix,
+        runtime_root: entry.runtime_root.as_ref().map(PathBuf::from),
+        package_version: entry.package_version.clone(),
+        tool_version_hint: entry.tool_version.clone(),
+        version_args,
+        config: resolved.provider,
+        permissions,
+    })
+}
+
+pub(crate) fn resolve_runtime_target(
+    manifest: &ExtensionManifest,
+    manifest_path: &Path,
+    executable: &Path,
+) -> Result<(PathBuf, Vec<String>), String> {
+    match &manifest.runtime {
         Runtime::Script { language, path, .. } => {
-            let script = Path::new(&entry.manifest_path)
+            let script = manifest_path
                 .parent()
                 .ok_or("Script manifest has no parent directory")?
                 .join(path);
@@ -37,21 +67,10 @@ pub fn provider_invocation(entry: &ExtensionLockEntry) -> Result<ProviderInvocat
                     vec!["-File".into(), script.to_string_lossy().into_owned()]
                 }
             };
-            (super::install::find_script_interpreter(*language)?, args)
+            Ok((super::install::find_script_interpreter(*language)?, args))
         }
-        _ => (PathBuf::from(&entry.executable_path), Vec::new()),
-    };
-    Ok(ProviderInvocation {
-        extension_id: entry.id.clone(),
-        executable,
-        executable_prefix,
-        runtime_root: entry.runtime_root.as_ref().map(PathBuf::from),
-        package_version: entry.package_version.clone(),
-        tool_version_hint: entry.tool_version.clone(),
-        version_args,
-        config: resolved.provider,
-        permissions,
-    })
+        _ => Ok((executable.to_path_buf(), Vec::new())),
+    }
 }
 
 pub fn runtime_available(entry: &ExtensionLockEntry) -> bool {

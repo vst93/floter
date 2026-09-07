@@ -7,6 +7,7 @@ use crate::extensions::manifest::{
     validate_relative_path, Compatibility, Distribution, ExtensionManifest, Permission, PlatformOs,
     PlatformTarget, ProviderConfig, ProviderKind, Publisher, Runtime, ScriptLanguage,
 };
+use crate::extensions::probe_executor;
 use crate::extensions::provider::ProviderInvocation;
 use crate::extensions::ExtensionState;
 use semver::Version;
@@ -1289,6 +1290,14 @@ pub async fn verify_installed(
     state: &ExtensionState,
     extension_id: &str,
 ) -> Result<ExtensionLockEntry, String> {
+    let _guard = state.mutation_lock.lock().await;
+    verify_installed_locked(state, extension_id).await
+}
+
+pub(crate) async fn verify_installed_locked(
+    state: &ExtensionState,
+    extension_id: &str,
+) -> Result<ExtensionLockEntry, String> {
     let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(extension_id)?
         .clone();
@@ -1298,17 +1307,30 @@ pub async fn verify_installed(
             "Installed manifest identity does not match {extension_id}"
         ));
     }
+    let invocation =
+        crate::extensions::registry::provider_invocation_with_manifest(&entry, &manifest)?;
     match entry.provider_kind {
         ExtensionProviderKind::Executable => {
-            let invocation = crate::extensions::registry::provider_invocation(&entry)?;
             state.provider.describe(&invocation, true).await?;
         }
         ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic => {
             crate::extensions::registry::static_description(&entry)?;
-            if !crate::extensions::registry::runtime_available(&entry) {
+            if !invocation.executable.is_file() {
                 return Err(format!("Runtime is unavailable for extension {}", entry.id));
             }
         }
+    }
+    let report = probe_executor::execute_capability_probes(&invocation, &manifest).await;
+    let problem = probe_executor::verification_error(&report);
+    if report.status != crate::extensions::health::HealthStatus::Unknown {
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
+        probe_executor::record_report(&mut lock, extension_id, report)?;
+        lock.save(&state.paths.repository_file)?;
+        state.invalidate_provider_commands().await;
+        if let Some(problem) = problem {
+            return Err(problem);
+        }
+        return Ok(lock.get(extension_id)?.clone());
     }
     Ok(entry)
 }
@@ -1509,26 +1531,11 @@ pub(crate) async fn install_linked(
         find_system_executable(&manifest)?
     };
     let tool_version = linked_tool_version(&manifest, &resolved.provider, &executable).await;
-    let executable_prefix = match &manifest.runtime {
-        Runtime::Script { language, path, .. } => {
-            let script = manifest_path.parent().unwrap_or(Path::new(".")).join(path);
-            if !script.is_file() {
-                return Err(format!("Script file is missing: {}", script.display()));
-            }
-            match language {
-                ScriptLanguage::Js => vec![script.to_string_lossy().into_owned()],
-                ScriptLanguage::Shell => vec![script.to_string_lossy().into_owned()],
-                ScriptLanguage::Powershell => {
-                    vec!["-File".into(), script.to_string_lossy().into_owned()]
-                }
-            }
-        }
-        _ => Vec::new(),
-    };
-    let executable = match &manifest.runtime {
-        Runtime::Script { language, .. } => find_script_interpreter(*language)?,
-        _ => executable,
-    };
+    let (executable, executable_prefix) = crate::extensions::registry::resolve_runtime_target(
+        &manifest,
+        &manifest_path,
+        &executable,
+    )?;
     let invocation = ProviderInvocation {
         extension_id: manifest.id.clone(),
         executable: executable.clone(),
@@ -1570,23 +1577,7 @@ pub(crate) async fn install_linked(
         state.provider.describe(&invocation, true).await?
     };
 
-    // Run post-install capability probes using shared logic
-    let tool_data_dir = state.paths.data.join(&manifest.id);
-    match crate::extensions::probe_executor::execute_capability_probes(
-        state,
-        &manifest.id,
-        &executable,
-        &manifest,
-    )
-    .await
-    {
-        Ok(report) => {
-            let _ = crate::extensions::health::write_health_report(&tool_data_dir, &report);
-        }
-        Err(e) => {
-            tracing::warn!("Probe run failed for {}: {}", manifest.id, e);
-        }
-    }
+    let report = probe_executor::execute_capability_probes(&invocation, &manifest).await;
     let integration_version = if is_package_directory {
         package_version
     } else {
@@ -1643,11 +1634,13 @@ pub(crate) async fn install_linked(
         last_error_at: None,
         broken_reason: None,
         enabled_before_broken: None,
+        probe_report: None,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
+    probe_executor::record_report(&mut lock, &entry.id, report)?;
     crate::extensions::commit_point("install-repository-add");
     lock.save(&state.paths.repository_file)?;
-    Ok(entry)
+    Ok(lock.get(&entry.id)?.clone())
 }
 
 fn load_package_entry(root: &Path) -> Result<(PackageJson, PathBuf), String> {
@@ -1861,6 +1854,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         }
     }
 
@@ -4039,15 +4033,13 @@ mod tests {
         uninstall(&state, "local.delete-test", false).await.unwrap();
 
         assert!(!data_root.join("integration").exists());
-        // After probe execution was added, data_root now contains health.json,
-        // so it is no longer removed when remove_data=false.
-        // Use remove_data=true to verify full cleanup works.
+        assert!(!data_root.join("health.json").exists());
         assert!(!ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .contains_key("local.delete-test"));
 
-        // Verify that remove_data=true cleans up everything including health report
+        // Explicit data removal also removes the integration root.
         create_custom_integration(
             &state,
             script_request("local.delete-test2", "Delete test 2", "delete-test2"),
@@ -4195,6 +4187,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry);
@@ -4308,6 +4301,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry.clone());
@@ -4434,6 +4428,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
 
         // Write a committed removal journal manually (simulating crash after lock commit).
@@ -4837,6 +4832,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         };
 
         // Write a staged removal journal (simulating crash before lock commit).

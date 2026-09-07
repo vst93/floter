@@ -1,47 +1,32 @@
-//! Shared probe execution logic for install and reprobe operations.
-//!
-//! This module provides the unified probe selection and execution strategy:
-//! - If the manifest declares lifecycle probes, execute those
-//! - Otherwise fall back to --version/--help for backward compatibility
+//! Manifest lifecycle probes shared by install, repair and reprobe.
 
-use crate::extensions::capability_probe::CapabilityProbe;
-use crate::extensions::health::HealthReport;
-use crate::extensions::lifecycle::CapabilityProbeEntry;
+use crate::extensions::health::{HealthReport, HealthStatus};
+use crate::extensions::lock::ExtensionsLock;
 use crate::extensions::manifest::ExtensionManifest;
-use crate::extensions::ExtensionState;
-use std::path::Path;
+use crate::extensions::provider::ProviderInvocation;
 use std::time::Duration;
 
-/// Execute capability probes for a tool, using manifest-declared probes if present,
-/// otherwise falling back to --version/--help.
+/// Probe arguments are complete tool arguments, independent of the provider
+/// protocol prefix. Script/interpreter prefixes and platform environment come
+/// from the same resolved invocation used by installation and verification.
+/// Empty lifecycle declarations execute nothing, including for v1 manifests.
 pub async fn execute_capability_probes(
-    _state: &ExtensionState,
-    _tool_id: &str,
-    executable: &Path,
+    invocation: &ProviderInvocation,
     manifest: &ExtensionManifest,
-) -> Result<HealthReport, String> {
-    if manifest.lifecycle.probes.is_empty() {
-        // Backward compatibility: no probes declared → use --version/--help
-        execute_default_probes(executable).await
-    } else {
-        // Execute the declared probes
-        execute_manifest_probes(executable, &manifest.lifecycle.probes).await
-    }
-}
-
-/// Execute the manifest-declared probes.
-async fn execute_manifest_probes(
-    executable: &Path,
-    probe_entries: &[CapabilityProbeEntry],
-) -> Result<HealthReport, String> {
+) -> HealthReport {
+    let probe_entries = &manifest.lifecycle.probes;
     let mut report = HealthReport::new(Default::default());
 
     for entry in probe_entries {
         let start = std::time::Instant::now();
         let timeout = Duration::from_millis(entry.timeout_ms);
 
-        match crate::extensions::probe_runner::run_single_probe(executable, &entry.args, timeout)
-            .await
+        match crate::extensions::probe_runner::run_invocation_probe(
+            invocation,
+            &entry.args,
+            timeout,
+        )
+        .await
         {
             Ok(result) => {
                 let duration = start.elapsed();
@@ -71,56 +56,51 @@ async fn execute_manifest_probes(
         .collect();
     report.finalize(&required_ids);
 
-    Ok(report)
+    report
 }
 
-/// Execute the default --version/--help probes for backward compatibility.
-async fn execute_default_probes(executable: &Path) -> Result<HealthReport, String> {
-    let version_probe = CapabilityProbe::version();
-    let help_probe = CapabilityProbe::help();
-
-    let probes = [version_probe, help_probe];
-    let required = [true, false]; // version required, help optional
-
-    let mut report = HealthReport::new(Default::default());
-
-    for (i, probe) in probes.iter().enumerate() {
-        let start = std::time::Instant::now();
-        let timeout = Duration::from_secs(5);
-
-        match crate::extensions::probe_runner::run_single_probe(executable, &probe.args, timeout)
-            .await
-        {
-            Ok(result) => {
-                let duration = start.elapsed();
-                if result.passed {
-                    report.record_pass(&probe.id, duration, result.exit_code);
-                } else {
-                    report.record_failure(
-                        &probe.id,
-                        duration,
-                        result.exit_code,
-                        result.stderr,
-                        !required[i],
-                    );
-                }
-            }
-            Err(error) => {
-                let duration = start.elapsed();
-                report.record_failure(&probe.id, duration, None, error, !required[i]);
-            }
-        }
-    }
-
-    let required_ids: Vec<String> = required
+pub(crate) fn verification_error(report: &HealthReport) -> Option<String> {
+    let failures = report
+        .failures
         .iter()
-        .enumerate()
-        .filter(|(_, r)| **r)
-        .map(|(i, _)| probes[i].id.clone())
-        .collect();
-    report.finalize(&required_ids);
+        .filter(|failure| !failure.retryable)
+        .map(|failure| {
+            format!(
+                "Lifecycle probe '{}' failed (exit code {:?}): {}",
+                failure.probe, failure.exit_code, failure.stderr
+            )
+        })
+        .collect::<Vec<_>>();
+    (report.status == HealthStatus::Unhealthy).then(|| failures.join("; "))
+}
 
-    Ok(report)
+/// Update the report and Phase 2 state in memory for a single repository save.
+/// An empty probe set proves nothing and cannot erase an earlier failure.
+pub(crate) fn record_report(
+    lock: &mut ExtensionsLock,
+    id: &str,
+    report: HealthReport,
+) -> Result<(), String> {
+    if report.status == HealthStatus::Unknown {
+        return Ok(());
+    }
+    let problem = verification_error(&report);
+    let entry = lock
+        .extensions
+        .get_mut(id)
+        .ok_or_else(|| format!("Extension is not installed: {id}"))?;
+    entry.probe_report = Some(report);
+    entry.updated_at = crate::extensions::lock::unix_now();
+    if let Some(problem) = problem {
+        lock.mark_broken(
+            id,
+            &crate::extensions::install::classify_verify_error(&problem),
+            &problem,
+        )?;
+    } else {
+        lock.clear_broken(id)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -129,6 +109,7 @@ mod tests {
     use crate::extensions::health::HealthStatus;
     use crate::extensions::lifecycle::{CapabilityProbeEntry, ToolLifecycle};
     use crate::extensions::manifest::ExtensionManifest;
+    use std::path::Path;
 
     fn minimal_manifest() -> ExtensionManifest {
         let json = r#"{
@@ -142,6 +123,23 @@ mod tests {
             "provider": {"type": "executable", "argsPrefix": []}
         }"#;
         serde_json::from_str(json).unwrap()
+    }
+
+    async fn probe_fixture(tool: &Path, probes: &[CapabilityProbeEntry]) -> HealthReport {
+        let mut manifest = minimal_manifest();
+        manifest.lifecycle.probes = probes.to_vec();
+        let invocation = ProviderInvocation {
+            extension_id: manifest.id.clone(),
+            executable: tool.to_path_buf(),
+            executable_prefix: Vec::new(),
+            runtime_root: None,
+            package_version: "1.0.0".into(),
+            tool_version_hint: None,
+            version_args: Vec::new(),
+            config: manifest.provider.clone(),
+            permissions: manifest.permissions.clone(),
+        };
+        execute_capability_probes(&invocation, &manifest).await
     }
 
     #[cfg(unix)]
@@ -170,9 +168,7 @@ mod tests {
             ..Default::default()
         };
 
-        let report = execute_manifest_probes(&tool, &manifest.lifecycle.probes)
-            .await
-            .unwrap();
+        let report = probe_fixture(&tool, &manifest.lifecycle.probes).await;
 
         assert_eq!(report.status, HealthStatus::Healthy);
         assert_eq!(report.probes.len(), 1);
@@ -182,22 +178,10 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn manifest_without_probes_falls_back_to_version_and_help() {
-        let tool = fixture("capability-probe.sh");
-
-        let manifest = minimal_manifest();
-        assert!(manifest.lifecycle.probes.is_empty());
-
-        let report = execute_default_probes(&tool).await.unwrap();
-
-        // Should have attempted version (required) and help (optional)
-        assert!(report.probes.iter().any(|p| p.probe_id == "version"));
-        let version_probe = report
-            .probes
-            .iter()
-            .find(|p| p.probe_id == "version")
-            .unwrap();
-        assert!(version_probe.passed);
+    async fn manifest_without_probes_does_not_attempt_to_start_a_missing_tool() {
+        let directory = tempfile::tempdir().unwrap();
+        let report = probe_fixture(&directory.path().join("missing"), &[]).await;
+        assert_eq!(report.status, HealthStatus::Unknown);
     }
 
     #[cfg(unix)]
@@ -212,7 +196,7 @@ mod tests {
             required: true,
         }];
 
-        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+        let report = probe_fixture(&tool, &probes).await;
 
         assert_eq!(report.status, HealthStatus::Unhealthy);
         assert_eq!(report.failures.len(), 1);
@@ -232,7 +216,7 @@ mod tests {
             required: false,
         }];
 
-        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+        let report = probe_fixture(&tool, &probes).await;
 
         assert_eq!(report.status, HealthStatus::Degraded);
         assert_eq!(report.failures.len(), 1);
@@ -252,7 +236,7 @@ mod tests {
             required: true,
         }];
 
-        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+        let report = probe_fixture(&tool, &probes).await;
 
         assert_eq!(report.status, HealthStatus::Unhealthy);
         assert_eq!(report.failures.len(), 1);
@@ -282,7 +266,7 @@ mod tests {
             },
         ];
 
-        let report = execute_manifest_probes(&tool, &probes).await.unwrap();
+        let report = probe_fixture(&tool, &probes).await;
 
         // Required passed, optional failed → Degraded
         assert_eq!(report.status, HealthStatus::Degraded);

@@ -60,7 +60,42 @@ pub async fn run_single_probe(
     args: &[String],
     timeout: Duration,
 ) -> Result<ProbeResult, String> {
-    let mut command = tokio::process::Command::new(executable);
+    run_probe_command(
+        tokio::process::Command::new(executable),
+        executable,
+        args,
+        timeout,
+    )
+    .await
+}
+
+pub(crate) async fn run_invocation_probe(
+    invocation: &crate::extensions::provider::ProviderInvocation,
+    args: &[String],
+    timeout: Duration,
+) -> Result<ProbeResult, String> {
+    let mut command = crate::extensions::provider::provider_command(&invocation.executable);
+    if !invocation
+        .permissions
+        .contains(&crate::extensions::manifest::Permission::Environment)
+    {
+        command.env_clear();
+    }
+    command.args(&invocation.executable_prefix).envs(
+        crate::extensions::proxy::command_environment(
+            &invocation.permissions,
+            &invocation.config.environment,
+        ),
+    );
+    run_probe_command(command, &invocation.executable, args, timeout).await
+}
+
+async fn run_probe_command(
+    mut command: tokio::process::Command,
+    executable: &Path,
+    args: &[String],
+    timeout: Duration,
+) -> Result<ProbeResult, String> {
     command
         .args(args)
         .stdin(std::process::Stdio::null())

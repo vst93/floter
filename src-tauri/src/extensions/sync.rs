@@ -908,6 +908,7 @@ mod tests {
             last_error_at: None,
             broken_reason: None,
             enabled_before_broken: None,
+            probe_report: None,
         }
     }
 
