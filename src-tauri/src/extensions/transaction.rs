@@ -51,7 +51,7 @@ pub enum TransactionState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RemovalKind {
-    /// Extension tree staged for removal but repository not yet updated.
+    /// Removal prepared; the tree may not yet be staged and the repository is unchanged.
     Staged,
     /// Repository entry removed; physical cleanup remains.
     Committed,
@@ -105,7 +105,7 @@ pub struct RemovalJournal {
     pub extension_id: String,
     /// Repository entry snapshot before removal, for rollback if needed.
     pub removed_entry: ExtensionLockEntry,
-    /// Staged removal directory path (renamed from original location).
+    /// Planned backup path; it may be absent before staging or after restoration/cleanup.
     pub staged_path: Option<PathBuf>,
     /// Additional paths to delete (generated integration, data).
     #[serde(default)]
@@ -160,9 +160,7 @@ pub(crate) fn write_journal(
     Ok(path)
 }
 
-/// Write a removal journal atomically. Used by uninstall to record pending
-/// removal before committing the repository, so crash/I/O failure during cleanup
-/// can be recovered on next startup.
+/// Persist removal/edit intent before moving the live tree or committing the repository.
 pub(crate) fn write_removal_journal(
     state: &ExtensionState,
     journal: &RemovalJournal,
@@ -187,6 +185,9 @@ pub(crate) fn write_removal_journal(
     crate::extensions::commit_point("removal-journal-directory-sync");
     sync_directory(&directory)
         .map_err(|error| format!("Cannot sync removal transaction journal: {error}"))?;
+    crate::extensions::commit_point("removal-journal-parent-directory-sync");
+    sync_directory(&state.paths.extensions)
+        .map_err(|error| format!("Cannot sync removal journal parent directory: {error}"))?;
     Ok(path)
 }
 
@@ -203,6 +204,18 @@ fn remove_journal(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Finish earlier attempts before a mutation can replace their journals.
+/// Callers must hold the extension mutation lock.
+pub(crate) fn recover_pending_removals(state: &ExtensionState) -> Result<(), String> {
+    if journal_dir(state).is_dir() {
+        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        if !recover_removal_journals(state, &mut lock)? {
+            return Err("Extension removal recovery is pending; journal left for recovery".into());
+        }
+    }
+    Ok(())
+}
+
 /// Recover interrupted removals and edits using the repository's commit state.
 /// An uninstall with an entry restores its staged files; one without an entry
 /// finishes cleanup. An edit keeps a committed replacement and otherwise
@@ -210,12 +223,13 @@ fn remove_journal(path: &Path) -> Result<(), String> {
 ///
 /// The journal is removed ONLY when all planned operations succeed (or the paths
 /// no longer exist). If any deletion/restore fails, the journal is kept on disk
-/// so the next startup retries the operation.
+/// so the next startup retries the operation. Returns false if work remains.
 fn recover_removal_journals(
     state: &ExtensionState,
     lock: &mut ExtensionsLock,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     let directory = journal_dir(state);
+    let mut complete = true;
     for item in std::fs::read_dir(&directory)
         .map_err(|error| format!("Cannot scan removal transaction journals: {error}"))?
     {
@@ -248,7 +262,7 @@ fn recover_removal_journals(
         }
         let lock_entry_exists = lock.extensions.contains_key(&journal.extension_id);
         if lock_entry_exists && journal.intent != RemovalIntent::Edit {
-            // Removal never committed (Staged branch): restore staged path if it exists.
+            // An absent backup means staging never ran or restoration already completed.
             if let Some(staged) = &journal.staged_path {
                 // Defect 1 fix: Determine restore target from WHERE staged_path lives,
                 // not from cleanup_paths (which includes data dir for normal uninstall
@@ -281,8 +295,14 @@ fn recover_removal_journals(
                             original.display(),
                             error
                         );
+                        complete = false;
                         continue; // Keep journal, skip to next item
                     }
+                }
+                if let Some(parent) = original.parent() {
+                    sync_directory(parent).map_err(|error| {
+                        format!("Cannot sync restored extension directory: {error}")
+                    })?;
                 }
             }
             remove_journal(&path)?;
@@ -303,13 +323,15 @@ fn recover_removal_journals(
 
                             if lock_entry_exists && new_root.exists() {
                                 // Editing removes the entry before creating replacement files.
-                                // An entry plus files therefore means the edit committed (or
-                                // rollback restored it), even when the metadata is unchanged.
+                                // Entry plus files also covers a journal written before staging
+                                // and a completed rollback, even with identical metadata.
                                 if staged.exists() {
                                     std::fs::remove_dir_all(staged).map_err(|error| {
                                         format!("Cannot remove completed edit backup: {error}")
                                     })?;
                                 }
+                                sync_directory(new_root.parent().ok_or("Invalid edit root")?)
+                                    .map_err(|error| format!("Cannot sync edited integration directory: {error}"))?;
                                 remove_journal(&path)?;
                             } else if staged.exists() {
                                 // The repository still contains the old entry (or is missing it),
@@ -320,16 +342,7 @@ fn recover_removal_journals(
                                         format!("Cannot remove incomplete edited integration: {error}")
                                     })?;
                                 }
-                                crate::extensions::commit_point("edit-recovery-restore");
-                                if let Err(error) = std::fs::rename(staged, new_root) {
-                                    tracing::warn!(
-                                        "Edit recovery: cannot restore {} to {}: {}; will retry on next startup",
-                                        staged.display(),
-                                        new_root.display(),
-                                        error
-                                    );
-                                    continue; // Keep journal
-                                }
+                                // Persist the old entry before consuming its only backup.
                                 if !lock.extensions.contains_key(&journal.extension_id)
                                     || repository_is_new
                                 {
@@ -339,6 +352,19 @@ fn recover_removal_journals(
                                     );
                                     lock.save(&state.paths.repository_file)?;
                                 }
+                                crate::extensions::commit_point("edit-recovery-restore");
+                                if let Err(error) = std::fs::rename(staged, new_root) {
+                                    tracing::warn!(
+                                        "Edit recovery: cannot restore {} to {}: {}; will retry on next startup",
+                                        staged.display(),
+                                        new_root.display(),
+                                        error
+                                    );
+                                    complete = false;
+                                    continue; // Keep journal
+                                }
+                                sync_directory(new_root.parent().ok_or("Invalid edit root")?)
+                                    .map_err(|error| format!("Cannot sync restored integration directory: {error}"))?;
                                 remove_journal(&path)?;
                             } else if new_root.exists() {
                                 // New files without a matching repository entry are an orphaned
@@ -393,12 +419,14 @@ fn recover_removal_journals(
                     }
                     if !cleanup_failed {
                         remove_journal(&path)?;
+                    } else {
+                        complete = false;
                     }
                 }
             }
         }
     }
-    Ok(())
+    Ok(complete)
 }
 
 /// Recover interrupted transactions at startup. Four recovery branches are
@@ -1541,6 +1569,103 @@ mod tests {
                 removal_kind: Some(RemovalKind::Staged),
                 remove_data: true,
                 intent: RemovalIntent::Remove,
+            }
+        }
+
+        fn recovery_without_staged_backup(intent: RemovalIntent) {
+            for absent_path in [false, true] {
+                for kind in [RemovalKind::Staged, RemovalKind::Committed] {
+                    let directory = tempfile::tempdir().unwrap();
+                    let state = test_state(directory.path());
+                    let id = "example.unstaged";
+                    let expected = installed_fixture(&state, id);
+                    let entry = expected.get(id).unwrap();
+                    let tree = Path::new(&entry.manifest_path).parent().unwrap().to_path_buf();
+                    let backup = state.paths.extensions.join(".removing-unstaged");
+                    let data = state.paths.data.join(id);
+                    std::fs::create_dir_all(&data).unwrap();
+                    std::fs::write(data.join("keep"), b"user data").unwrap();
+                    let path = write_removal_journal(&state, &RemovalJournal {
+                        schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                        transaction_id: "unstaged".into(),
+                        extension_id: id.into(),
+                        removed_entry: entry.clone(),
+                        staged_path: absent_path.then(|| backup.clone()),
+                        cleanup_paths: if intent == RemovalIntent::Edit { vec![tree.clone()] } else { vec![data.clone()] },
+                        removal_kind: Some(kind),
+                        remove_data: true,
+                        intent,
+                    }).unwrap();
+                    let repository = std::fs::read(&state.paths.repository_file).unwrap();
+                    assert!(!backup.exists());
+                    for _ in 0..3 {
+                        let fresh = test_state(directory.path());
+                        recover(&fresh).unwrap();
+                        recover(&fresh).unwrap();
+                        assert_repository_unchanged(&fresh, &expected);
+                        assert_eq!(std::fs::read(&fresh.paths.repository_file).unwrap(), repository);
+                        assert!(tree.is_dir());
+                        assert_eq!(std::fs::read(data.join("keep")).unwrap(), b"user data");
+                        assert!(!path.exists());
+                        assert!(!backup.exists());
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn removal_recovery_tolerates_missing_and_absent_staged_paths() {
+            recovery_without_staged_backup(RemovalIntent::Remove);
+        }
+
+        #[test]
+        fn edit_recovery_tolerates_missing_and_absent_staged_paths() {
+            recovery_without_staged_backup(RemovalIntent::Edit);
+        }
+
+        #[test]
+        fn readonly_edit_recovery_repository_restore_keeps_the_only_backup_until_retry() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "example.restore-write";
+            let expected = installed_fixture(&state, id);
+            let entry = expected.get(id).unwrap();
+            let tree = Path::new(&entry.manifest_path).parent().unwrap();
+            let backup = state.paths.extensions.join(".editing-restore-write");
+            let path = write_removal_journal(&state, &RemovalJournal {
+                schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                transaction_id: "restore-write".into(),
+                extension_id: id.into(),
+                removed_entry: entry.clone(),
+                staged_path: Some(backup.clone()),
+                cleanup_paths: vec![tree.into()],
+                removal_kind: Some(RemovalKind::Staged),
+                remove_data: false,
+                intent: RemovalIntent::Edit,
+            }).unwrap();
+            std::fs::rename(tree, &backup).unwrap();
+            ExtensionsLock::default().save(&state.paths.repository_file).unwrap();
+            let journal_bytes = std::fs::read(&path).unwrap();
+            let repository = std::fs::read(&state.paths.repository_file).unwrap();
+            let readonly = ReadonlyDirectory::new(&state.paths.root);
+            let error = with_commit_point_action("repository-persist", readonly.arm(), || {
+                recover(&state)
+            }).unwrap_err();
+            assert!(error.contains("Cannot persist extension repository"), "{error}");
+            assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), repository);
+            assert_eq!(std::fs::read(&path).unwrap(), journal_bytes);
+            assert!(!tree.exists());
+            assert_eq!(std::fs::read(backup.join("runtime/tool")).unwrap(), b"installed executable");
+            drop(readonly);
+            for _ in 0..3 {
+                let fresh = test_state(directory.path());
+                recover(&fresh).unwrap();
+                assert_repository_unchanged(&fresh, &expected);
+                assert!(!path.exists());
+                assert!(!backup.exists());
             }
         }
 

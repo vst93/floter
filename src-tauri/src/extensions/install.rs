@@ -856,6 +856,7 @@ pub async fn update_custom_integration(
         return Err("Custom integration ID cannot be changed after creation".to_string());
     }
     let _guard = state.mutation_lock.lock().await;
+    crate::extensions::transaction::recover_pending_removals(state)?;
     let lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let current = lock.get(extension_id)?.clone();
     if !is_generated_custom_integration(&current) {
@@ -874,12 +875,7 @@ pub async fn update_custom_integration(
     backup
         .close()
         .map_err(|error| format!("Cannot prepare custom integration backup: {error}"))?;
-    crate::extensions::commit_point("edit-stage-rename");
-    std::fs::rename(&root, &backup_path)
-        .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
-
-    // Write edit journal BEFORE removing the repository entry. Integrations in data
-    // dir need the actual backup_path, not an extensions-dir path.
+    // Persist the planned backup before moving the live integration.
     let transaction_id = format!("edit-{}-{}", extension_id, current.updated_at);
     let journal = crate::extensions::transaction::RemovalJournal {
         schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
@@ -894,15 +890,18 @@ pub async fn update_custom_integration(
         remove_data: false,
         intent: crate::extensions::transaction::RemovalIntent::Edit,
     };
-    let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
+    crate::extensions::transaction::write_removal_journal(state, &journal)?;
+    crate::extensions::commit_point("edit-stage-rename");
+    std::fs::rename(&root, &backup_path)
+        .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
 
     // Now safe to remove the repository entry: recovery can restore it after a crash.
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     lock.extensions.remove(extension_id);
     crate::extensions::commit_point("edit-repository-remove");
     if let Err(error) = lock.save(&state.paths.repository_file) {
-        let _ = std::fs::rename(&backup_path, &root);
-        let _ = std::fs::remove_file(&journal_path);
+        crate::extensions::transaction::recover_pending_removals(state)
+            .map_err(|recovery| format!("{error}; {recovery}"))?;
         return Err(format!(
             "Cannot stage custom integration repository update: {error}"
         ));
@@ -922,44 +921,23 @@ pub async fn update_custom_integration(
             updated.installed_at = current.installed_at;
             crate::extensions::commit_point("edit-repository-finalize");
             if let Err(error) = lock.save(&state.paths.repository_file) {
-                let _ = std::fs::remove_dir_all(&root);
-                let _ = std::fs::rename(&backup_path, &root);
-                let mut restore = ExtensionsLock::load(&state.paths.lock_file)?;
-                restore.extensions.insert(extension_id.to_string(), current);
-                let _ = restore.save(&state.paths.repository_file);
-                let _ = std::fs::remove_file(&journal_path);
+                crate::extensions::transaction::recover_pending_removals(state)
+                    .map_err(|recovery| format!("{error}; {recovery}"))?;
                 return Err(format!(
                     "Cannot finalize custom integration update: {error}"
                 ));
             }
         }
-        let _ = std::fs::remove_dir_all(&backup_path);
-        let _ = std::fs::remove_file(&journal_path);
+        crate::extensions::transaction::recover_pending_removals(state)?;
         return Ok(lock.get(extension_id)?.clone());
     }
 
-    // Operation failed: restore old integration and repository entry in-process.
-    let _ = std::fs::remove_dir_all(&root);
+    // Resolve failures from the persisted repository, retaining any unfinished journal.
     crate::extensions::commit_point("edit-rollback-rename");
-    if let Err(error) = std::fs::rename(&backup_path, &root) {
-        // Backup restoration failed: leave journal for recovery.
-        return Err(format!(
-            "Cannot restore custom integration files: {error}; journal left for recovery"
-        ));
-    }
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
-    lock.extensions.insert(extension_id.to_string(), current);
-    if let Err(lock_error) = lock.save(&state.paths.repository_file) {
-        // Repository restoration failed: leave journal for recovery.
-        return Err(format!(
-            "{}; repository restore failed: {}; journal left for recovery",
-            result.unwrap_err(),
-            lock_error
-        ));
-    }
-    // In-process rollback succeeded: remove journal and report original error.
-    let _ = std::fs::remove_file(&journal_path);
-    result
+    let error = result.unwrap_err();
+    crate::extensions::transaction::recover_pending_removals(state)
+        .map_err(|recovery| format!("{error}; {recovery}"))?;
+    Err(error)
 }
 
 fn script_extension(language: ScriptLanguage) -> &'static str {
@@ -1343,6 +1321,7 @@ pub async fn uninstall(
     let _guard = state.mutation_lock.lock().await;
     validate_id(extension_id)?;
     state.provider.cancel_completions();
+    crate::extensions::transaction::recover_pending_removals(state)?;
     let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
     let entry = lock.get(extension_id)?.clone();
     let generated_local_root = state.paths.data.join(extension_id).join("integration");
@@ -1364,7 +1343,7 @@ pub async fn uninstall(
     let transaction_id = format!("uninstall-{}-{}", extension_id, entry.updated_at);
     let mut staged_path = None;
 
-    // Stage extension directory for removal if it exists.
+    // Reserve a backup path without moving the live extension.
     let source = state.paths.extensions.join(extension_id);
     if source.exists() {
         let placeholder = tempfile::Builder::new()
@@ -1375,18 +1354,10 @@ pub async fn uninstall(
         placeholder
             .close()
             .map_err(|error| format!("Cannot prepare removal transaction: {error}"))?;
-        crate::extensions::commit_point("uninstall-stage-rename");
-        std::fs::rename(&source, &target).map_err(|error| {
-            format!(
-                "Cannot stage extension {} for removal: {error}",
-                source.display()
-            )
-        })?;
-        staged_path = Some(target.clone());
+        staged_path = Some(target);
     }
 
-    // Write removal journal BEFORE committing the repository. This records intent to
-    // remove, so crash/I/O failure during cleanup can be recovered on restart.
+    // Journal the planned backup durably before staging or committing removal.
     let journal = crate::extensions::transaction::RemovalJournal {
         schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
         transaction_id: transaction_id.clone(),
@@ -1399,15 +1370,22 @@ pub async fn uninstall(
         intent: crate::extensions::transaction::RemovalIntent::Remove,
     };
     let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
+    if let Some(target) = &staged_path {
+        crate::extensions::commit_point("uninstall-stage-rename");
+        std::fs::rename(&source, target).map_err(|error| {
+            format!(
+                "Cannot stage extension {} for removal: {error}",
+                source.display()
+            )
+        })?;
+    }
 
-    // Commit repository removal. If this fails, rollback staging and remove journal.
+    // Recovery decides whether a failed save reached its atomic repository rename.
     lock.extensions.remove(extension_id);
     crate::extensions::commit_point("uninstall-repository-remove");
     if let Err(error) = lock.save(&state.paths.repository_file) {
-        if let Some(target) = &staged_path {
-            let _ = std::fs::rename(target, &source);
-        }
-        let _ = std::fs::remove_file(&journal_path);
+        crate::extensions::transaction::recover_pending_removals(state)
+            .map_err(|recovery| format!("{error}; {recovery}"))?;
         return Err(error);
     }
 
@@ -2990,11 +2968,281 @@ mod tests {
     mod unix_faults {
         use super::*;
         use crate::extensions::fault_test_support::{
-            crash_child_root, kill_at_commit_point, run_crash_child, skip_readonly_as_root,
+            crash_child_boundary, crash_child_root, kill_at_commit_point, run_crash_child, skip_readonly_as_root,
             ReadonlyDirectory,
         };
         use crate::extensions::transaction::{recover, RemovalJournal, RemovalKind};
         use crate::extensions::with_async_commit_point_action;
+        use std::os::unix::fs::PermissionsExt;
+        use std::sync::Arc;
+
+        const WINDOW_ID: &str = "local.journal-window";
+
+        fn window_request(changed: bool) -> CustomIntegrationRequest {
+            let mut request = script_request(WINDOW_ID, "Original", "window");
+            if changed {
+                request.name = "Changed".into();
+                request.script_content = Some("printf changed".into());
+            }
+            request
+        }
+
+        async fn window_operation(state: &ExtensionState, operation: &str) -> Result<(), String> {
+            match operation {
+                "uninstall" => uninstall(state, WINDOW_ID, true).await,
+                "edit" => update_custom_integration(state, WINDOW_ID, window_request(true))
+                    .await
+                    .map(|_| ()),
+                _ => unreachable!(),
+            }
+        }
+
+        struct WindowFixture {
+            state: Arc<ExtensionState>,
+            entry: ExtensionLockEntry,
+            tree: PathBuf,
+            repository: Vec<u8>,
+            files: BTreeMap<PathBuf, (Vec<u8>, u32)>,
+            executable: Vec<u8>,
+        }
+
+        impl WindowFixture {
+            async fn new(root: &Path, operation: &str) -> Self {
+                let state = Arc::new(test_state(root));
+                create_custom_integration(
+                    &state,
+                    script_request("local.retained", "Retained", "retained"),
+                )
+                .await
+                .unwrap();
+                let entry = if operation == "uninstall" {
+                    // Install a real linked script inside the tree uninstall moves.
+                    let prepared_root = tempfile::tempdir().unwrap();
+                    let prepared = test_state(prepared_root.path());
+                    create_custom_integration(&prepared, window_request(false))
+                        .await
+                        .unwrap();
+                    let tree = state.paths.extensions.join(WINDOW_ID);
+                    std::fs::rename(
+                        prepared.paths.data.join(WINDOW_ID).join("integration"),
+                        &tree,
+                    )
+                    .unwrap();
+                    install(
+                        &state,
+                        ExtensionInstallRequest {
+                            source: InstallSource::Linked,
+                            package: None,
+                            version: None,
+                            manifest_path: Some(tree.to_string_lossy().into_owned()),
+                            executable_path: None,
+                            approved_permissions: Some(window_request(false).permissions),
+                        },
+                    )
+                    .await
+                    .unwrap()
+                } else {
+                    create_custom_integration(&state, window_request(false))
+                        .await
+                        .unwrap()
+                };
+                let data = state.paths.data.join(WINDOW_ID);
+                std::fs::create_dir_all(&data).unwrap();
+                std::fs::write(data.join("user-data"), b"preserved user data").unwrap();
+                let tree = Path::new(&entry.manifest_path).parent().unwrap().to_path_buf();
+                let files = std::fs::read_dir(&tree)
+                    .unwrap()
+                    .map(|item| {
+                        let path = item.unwrap().path();
+                        let bytes = std::fs::read(&path).unwrap();
+                        let mode = path.metadata().unwrap().permissions().mode();
+                        (path.file_name().unwrap().into(), (bytes, mode))
+                    })
+                    .collect();
+                let executable = std::fs::read(&entry.executable_path).unwrap();
+                let repository = std::fs::read(&state.paths.repository_file).unwrap();
+                Self { state, entry, tree, repository, files, executable }
+            }
+
+            fn journal_path(&self, operation: &str) -> PathBuf {
+                self.state.paths.extensions.join(".transactions").join(format!(
+                    "removal-{operation}-{WINDOW_ID}-{}.json", self.entry.updated_at
+                ))
+            }
+
+            fn assert_tree(&self, tree: &Path) {
+                assert_eq!(std::fs::read_dir(tree).unwrap().count(), self.files.len());
+                for (relative, (bytes, mode)) in &self.files {
+                    let path = tree.join(relative);
+                    assert_eq!(&std::fs::read(&path).unwrap(), bytes, "{}", path.display());
+                    assert_eq!(path.metadata().unwrap().permissions().mode(), *mode);
+                }
+            }
+
+            fn assert_no_staging(&self) {
+                for parent in [
+                    self.state.paths.extensions.clone(),
+                    self.state.paths.data.join(WINDOW_ID),
+                ] {
+                    if parent.exists() {
+                        for item in std::fs::read_dir(parent).unwrap() {
+                            let item = item.unwrap();
+                            let name = item.file_name();
+                            let name = name.to_string_lossy();
+                            assert!(!name.starts_with(".removing-"), "{name}");
+                            assert!(!name.starts_with(&format!(".{WINDOW_ID}-editing-")), "{name}");
+                        }
+                    }
+                }
+            }
+
+            async fn assert_pristine(&self, state: &ExtensionState) {
+                assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), self.repository);
+                assert_eq!(
+                    serde_json::to_value(verify_installed(state, WINDOW_ID).await.unwrap()).unwrap(),
+                    serde_json::to_value(&self.entry).unwrap()
+                );
+                self.assert_tree(&self.tree);
+                assert_eq!(std::fs::read(&self.entry.executable_path).unwrap(), self.executable);
+                let output = std::process::Command::new(&self.entry.executable_path)
+                    .arg(self.tree.join("provider.sh"))
+                    .output()
+                    .unwrap();
+                assert!(output.status.success(), "{output:?}");
+                assert_eq!(output.stdout, b"original");
+                assert_eq!(
+                    std::fs::read(state.paths.data.join(WINDOW_ID).join("user-data")).unwrap(),
+                    b"preserved user data"
+                );
+                self.assert_no_staging();
+            }
+
+            async fn assert_fresh_recovery(&self, operation: &str) {
+                for _ in 0..3 {
+                    let fresh = test_state(&self.state.paths.root);
+                    recover(&fresh).unwrap();
+                    recover(&fresh).unwrap();
+                    self.assert_pristine(&fresh).await;
+                    assert!(!self.journal_path(operation).exists());
+                }
+            }
+
+            async fn assert_retry(&self, operation: &str) {
+                window_operation(&self.state, operation).await.unwrap();
+                for _ in 0..3 {
+                    let fresh = test_state(&self.state.paths.root);
+                    recover(&fresh).unwrap();
+                    let lock = ExtensionsLock::load(&fresh.paths.repository_file).unwrap();
+                    assert_eq!(lock.get("local.retained").unwrap().name, "Retained");
+                    if operation == "uninstall" {
+                        assert_eq!(lock.extensions.len(), 1);
+                        assert!(lock.get(WINDOW_ID).is_err());
+                        assert!(!self.tree.exists());
+                        assert!(!fresh.paths.data.join(WINDOW_ID).exists());
+                    } else {
+                        assert_eq!(lock.extensions.len(), 2);
+                        assert_eq!(verify_installed(&fresh, WINDOW_ID).await.unwrap().name, "Changed");
+                        assert_eq!(std::fs::read(self.tree.join("provider.sh")).unwrap(), b"printf changed");
+                    }
+                    self.assert_no_staging();
+                    assert!(!self.journal_path(operation).exists());
+                    assert!(std::fs::read_dir(fresh.paths.extensions.join(".transactions"))
+                        .unwrap()
+                        .all(|item| item.unwrap().path().extension().is_none_or(|ext| ext != "json")));
+                }
+            }
+        }
+
+        async fn readonly_window(operation: &'static str, boundary: &str) {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let fixture = WindowFixture::new(directory.path(), operation).await;
+            let journals = fixture.state.paths.extensions.join(".transactions");
+            std::fs::create_dir_all(&journals).unwrap();
+            let journal_path = fixture.journal_path(operation);
+            let tree = fixture.tree.clone();
+            let journal_guard = ReadonlyDirectory::new(&journals);
+            let tree_guard = ReadonlyDirectory::new(tree.parent().unwrap());
+            let repository_guard = ReadonlyDirectory::new(&fixture.state.paths.root);
+            let (label, action): (_, Box<dyn FnOnce() + Send>) = match boundary {
+                "first-write" => {
+                    let deny = journal_guard.arm();
+                    ("removal-journal-persist", Box::new(move || {
+                        // This assertion reproduces the old destructive staging window.
+                        assert!(tree.is_dir(), "first journal write must precede live-tree staging");
+                        deny();
+                    }))
+                }
+                "stage" => {
+                    let deny = tree_guard.arm();
+                    let path = journal_path.clone();
+                    let label = if operation == "edit" { "edit-stage-rename" } else { "uninstall-stage-rename" };
+                    (label, Box::new(move || {
+                        let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+                        assert!(!journal.staged_path.unwrap().exists());
+                        assert!(tree.is_dir());
+                        deny();
+                    }))
+                }
+                "repository" => {
+                    let deny_tree = tree_guard.arm();
+                    let deny_repository = repository_guard.arm();
+                    let path = journal_path.clone();
+                    ("repository-persist", Box::new(move || {
+                        let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+                        assert!(journal.staged_path.unwrap().is_dir());
+                        assert!(!tree.exists());
+                        deny_tree();
+                        deny_repository();
+                    }))
+                }
+                _ => unreachable!(),
+            };
+            let error = with_async_commit_point_action(
+                label,
+                action,
+                window_operation(&fixture.state, operation),
+            ).await.unwrap_err();
+            let expected = match boundary {
+                "first-write" => "Cannot persist removal transaction journal",
+                "stage" => "Cannot stage",
+                "repository" => "Cannot persist extension repository",
+                _ => unreachable!(),
+            };
+            assert!(error.contains(expected), "{error}");
+            assert_eq!(std::fs::read(&fixture.state.paths.repository_file).unwrap(), fixture.repository);
+            if boundary == "first-write" {
+                assert!(!journal_path.exists());
+                fixture.assert_pristine(&fixture.state).await;
+            } else {
+                let bytes = std::fs::read(&journal_path).unwrap();
+                let journal: RemovalJournal = serde_json::from_slice(&bytes).unwrap();
+                assert_eq!(journal.removal_kind, Some(RemovalKind::Staged));
+                assert_eq!(serde_json::to_value(&journal.removed_entry).unwrap(), serde_json::to_value(&fixture.entry).unwrap());
+                if boundary == "repository" {
+                    fixture.assert_tree(journal.staged_path.as_ref().unwrap());
+                    assert!(!fixture.tree.exists());
+                    // A retry must not replace an unresolved backup's journal.
+                    assert!(window_operation(&fixture.state, operation).await.is_err());
+                    assert_eq!(std::fs::read(&journal_path).unwrap(), bytes);
+                } else {
+                    assert!(!journal.staged_path.unwrap().exists());
+                    fixture.assert_pristine(&fixture.state).await;
+                }
+            }
+            drop(journal_guard);
+            drop(tree_guard);
+            drop(repository_guard);
+            if boundary == "stage" {
+                // Retry on the same state, before startup can clear the missing-backup journal.
+                fixture.assert_retry(operation).await;
+            } else {
+                fixture.assert_fresh_recovery(operation).await;
+                fixture.assert_retry(operation).await;
+            }
+        }
 
         async fn readonly_repository_operation(operation: &str) {
             if skip_readonly_as_root() {
@@ -3091,51 +3339,188 @@ mod tests {
 
         #[tokio::test]
         async fn readonly_initial_removal_journal_rejects_uninstall_and_allows_retry() {
+            readonly_window("uninstall", "first-write").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_initial_removal_journal_rejects_edit_and_allows_retry() {
+            readonly_window("edit", "first-write").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_uninstall_stage_rename_keeps_journal_and_allows_direct_retry() {
+            readonly_window("uninstall", "stage").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_edit_stage_rename_keeps_journal_and_allows_direct_retry() {
+            readonly_window("edit", "stage").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_uninstall_rollback_keeps_staged_tree_journal_for_fresh_recovery() {
+            readonly_window("uninstall", "repository").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_edit_rollback_keeps_staged_tree_journal_for_fresh_recovery() {
+            readonly_window("edit", "repository").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_edit_finalization_preserves_the_committed_replacement() {
             if skip_readonly_as_root() {
                 return;
             }
             let directory = tempfile::tempdir().unwrap();
-            let state = test_state(directory.path());
-            let id = "local.readonly-journal";
-            let entry =
-                create_custom_integration(&state, script_request(id, "Original", "journal"))
-                    .await
-                    .unwrap();
-            let before = std::fs::read(&state.paths.repository_file).unwrap();
-            let journals = state.paths.extensions.join(".transactions");
-            std::fs::create_dir_all(&journals).unwrap();
-            let readonly = ReadonlyDirectory::new(&journals);
+            let fixture = WindowFixture::new(directory.path(), "edit").await;
+            let readonly = ReadonlyDirectory::new(&fixture.state.paths.root);
             let error = with_async_commit_point_action(
-                "removal-journal-persist",
+                "edit-repository-finalize",
                 readonly.arm(),
-                uninstall(&state, id, true),
-            )
-            .await
-            .unwrap_err();
-            assert!(
-                error.contains("Cannot persist removal transaction journal"),
-                "{error}"
-            );
-            assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
-            assert!(Path::new(&entry.manifest_path).is_file());
-            assert!(!journals
-                .join(format!("removal-uninstall-{id}-{}.json", entry.updated_at))
-                .exists());
+                window_operation(&fixture.state, "edit"),
+            ).await.unwrap_err();
+            assert!(error.contains("Cannot finalize custom integration update"), "{error}");
+            let repository = std::fs::read(&fixture.state.paths.repository_file).unwrap();
+            assert_ne!(repository, fixture.repository);
             drop(readonly);
+            for _ in 0..3 {
+                let fresh = test_state(directory.path());
+                recover(&fresh).unwrap();
+                assert_eq!(std::fs::read(&fresh.paths.repository_file).unwrap(), repository);
+                assert_eq!(verify_installed(&fresh, WINDOW_ID).await.unwrap().name, "Changed");
+                let output = std::process::Command::new(&fixture.entry.executable_path)
+                    .arg(fixture.tree.join("provider.sh")).output().unwrap();
+                assert!(output.status.success());
+                assert_eq!(output.stdout, b"changed");
+                fixture.assert_no_staging();
+                assert!(!fixture.journal_path("edit").exists());
+            }
+        }
 
-            let restarted = test_state(directory.path());
-            assert_eq!(
-                std::fs::read(&restarted.paths.repository_file).unwrap(),
-                before
-            );
-            assert!(Path::new(&entry.manifest_path).is_file());
-            uninstall(&restarted, id, true).await.unwrap();
-            recover(&restarted).unwrap();
-            assert!(ExtensionsLock::load(&restarted.paths.repository_file)
-                .unwrap()
-                .get(id)
-                .is_err());
-            assert!(!restarted.paths.data.join(id).exists());
+        #[tokio::test]
+        async fn readonly_edit_backup_cleanup_keeps_the_committed_journal_for_retry() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let fixture = WindowFixture::new(directory.path(), "edit").await;
+            let readonly = ReadonlyDirectory::new(fixture.tree.parent().unwrap());
+            let error = with_async_commit_point_action(
+                "edit-repository-finalize",
+                readonly.arm(),
+                window_operation(&fixture.state, "edit"),
+            ).await.unwrap_err();
+            assert!(error.contains("Cannot remove completed edit backup"), "{error}");
+            let repository = std::fs::read(&fixture.state.paths.repository_file).unwrap();
+            let path = fixture.journal_path("edit");
+            let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            let backup = journal.staged_path.unwrap();
+            assert!(backup.is_dir());
+            assert_eq!(std::fs::read(fixture.tree.join("provider.sh")).unwrap(), b"printf changed");
+            drop(readonly);
+            for _ in 0..3 {
+                let fresh = test_state(directory.path());
+                recover(&fresh).unwrap();
+                assert_eq!(std::fs::read(&fresh.paths.repository_file).unwrap(), repository);
+                assert_eq!(verify_installed(&fresh, WINDOW_ID).await.unwrap().name, "Changed");
+                assert_eq!(std::fs::read(fixture.tree.join("provider.sh")).unwrap(), b"printf changed");
+                assert!(!backup.exists());
+                assert!(!path.exists());
+                fixture.assert_no_staging();
+            }
+        }
+
+        fn window_boundaries(operation: &str) -> [&'static str; 5] {
+            [
+                "removal-journal-persist",
+                "removal-journal-directory-sync",
+                "removal-journal-parent-directory-sync",
+                if operation == "edit" { "edit-stage-rename" } else { "uninstall-stage-rename" },
+                if operation == "edit" { "edit-repository-remove" } else { "uninstall-repository-remove" },
+            ]
+        }
+
+        async fn retry_interrupted_window(operation: &'static str) {
+            for label in window_boundaries(operation) {
+                let directory = tempfile::tempdir().unwrap();
+                let fixture = WindowFixture::new(directory.path(), operation).await;
+                let state = Arc::clone(&fixture.state);
+                let failure = tokio::spawn(async move {
+                    crate::extensions::with_async_commit_point(
+                        label,
+                        window_operation(&state, operation),
+                    ).await
+                }).await.unwrap_err();
+                assert!(failure.is_panic());
+                assert_eq!(std::fs::read(&fixture.state.paths.repository_file).unwrap(), fixture.repository);
+                // No fresh state construction or explicit recover before retrying.
+                fixture.assert_retry(operation).await;
+            }
+        }
+
+        #[tokio::test]
+        async fn uninstall_retries_interrupted_journaling_and_staging_without_restart() {
+            retry_interrupted_window("uninstall").await;
+        }
+
+        #[tokio::test]
+        async fn edit_retries_interrupted_journaling_and_staging_without_restart() {
+            retry_interrupted_window("edit").await;
+        }
+
+        async fn crash_window(name: &'static str, operation: &'static str) {
+            if let Some(root) = crash_child_root(name) {
+                let state = test_state(&root);
+                let selected = crash_child_boundary();
+                let label = window_boundaries(operation)
+                    .into_iter()
+                    .find(|label| *label == selected)
+                    .expect("known window boundary");
+                with_async_commit_point_action(
+                    label,
+                    kill_at_commit_point(label),
+                    window_operation(&state, operation),
+                ).await.unwrap();
+                panic!("crash boundary was not reached");
+            }
+            for label in window_boundaries(operation) {
+                let directory = tempfile::tempdir().unwrap();
+                let fixture = WindowFixture::new(directory.path(), operation).await;
+                run_crash_child(name, directory.path(), label);
+                assert_eq!(std::fs::read(&fixture.state.paths.repository_file).unwrap(), fixture.repository);
+                let path = fixture.journal_path(operation);
+                if label == "removal-journal-persist" {
+                    assert!(!path.exists());
+                    fixture.assert_pristine(&fixture.state).await;
+                } else {
+                    let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    assert_eq!(journal.removal_kind, Some(RemovalKind::Staged));
+                    assert_eq!(serde_json::to_value(&journal.removed_entry).unwrap(), serde_json::to_value(&fixture.entry).unwrap());
+                    let staged = journal.staged_path.as_ref().unwrap();
+                    if label.ends_with("repository-remove") {
+                        assert!(!fixture.tree.exists());
+                        fixture.assert_tree(staged);
+                    } else {
+                        assert!(!staged.exists());
+                        fixture.assert_pristine(&fixture.state).await;
+                    }
+                }
+                fixture.assert_fresh_recovery(operation).await;
+                fixture.assert_retry(operation).await;
+            }
+        }
+
+        #[tokio::test]
+        #[ignore = "manual Unix process-crash simulation"]
+        async fn crash_simulation_uninstall_across_first_journal_and_stage_boundaries() {
+            crash_window(concat!(module_path!(), "::crash_simulation_uninstall_across_first_journal_and_stage_boundaries"), "uninstall").await;
+        }
+
+        #[tokio::test]
+        #[ignore = "manual Unix process-crash simulation"]
+        async fn crash_simulation_edit_across_first_journal_and_stage_boundaries() {
+            crash_window(concat!(module_path!(), "::crash_simulation_edit_across_first_journal_and_stage_boundaries"), "edit").await;
         }
 
         #[tokio::test]

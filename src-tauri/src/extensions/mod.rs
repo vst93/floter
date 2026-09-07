@@ -227,6 +227,10 @@ pub(crate) mod fault_test_support {
         }
     }
 
+    pub(crate) fn crash_child_boundary() -> String {
+        std::env::var("FLOTER_CRASH_BOUNDARY").expect("child crash boundary")
+    }
+
     pub(crate) fn run_crash_child(name: &str, root: &Path, label: &str) {
         // module_path! includes the crate name; libtest's exact names omit it.
         let test_name = name
@@ -236,6 +240,7 @@ pub(crate) mod fault_test_support {
             .args(["--ignored", "--exact", test_name, "--nocapture"])
             .env("FLOTER_CRASH_TEST", name)
             .env("FLOTER_CRASH_ROOT", root)
+            .env("FLOTER_CRASH_BOUNDARY", label)
             .output()
             .unwrap();
         let stderr = String::from_utf8_lossy(&output.stderr);
