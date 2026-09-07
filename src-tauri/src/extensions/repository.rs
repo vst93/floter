@@ -20,14 +20,8 @@ pub const REPOSITORY_SCHEMA_VERSION: u32 = 1;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtensionRepository {
-    #[serde(default = "default_repository_schema_version")]
     pub schema_version: u32,
-    #[serde(default)]
     pub extensions: BTreeMap<String, ExtensionLockEntry>,
-}
-
-fn default_repository_schema_version() -> u32 {
-    REPOSITORY_SCHEMA_VERSION
 }
 
 impl Default for ExtensionRepository {
@@ -180,6 +174,9 @@ pub(crate) fn migrate_to_repository(paths: &ExtensionPaths) -> Result<MigrationO
     }
 
     let lock = ExtensionsLock::load_legacy(lock_path)?;
+    if lock.extensions.is_empty() && corrupt_repository_path(repository).exists() {
+        return Err("Cannot migrate empty legacy state over a corrupt repository".into());
+    }
 
     write_repository(repository, &lock)?;
     archive_file(
@@ -192,6 +189,10 @@ pub(crate) fn migrate_to_repository(paths: &ExtensionPaths) -> Result<MigrationO
 
 pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, String> {
     let repository = repository_path(lock_path);
+    let had_repository = repository.exists() || corrupt_repository_path(&repository).exists();
+    let had_state = had_repository
+        || lock_path.exists()
+        || migrated_lock_path(lock_path).exists();
     if repository.exists() {
         match read_repository(&repository) {
             Ok(repository_lock) => return Ok(repository_lock),
@@ -212,7 +213,7 @@ pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, S
 
     if lock_path.exists() {
         match ExtensionsLock::load_legacy(lock_path) {
-            Ok(lock) => {
+            Ok(lock) if !had_repository || !lock.extensions.is_empty() => {
                 let paths = ExtensionPaths::from_root(
                     lock_path
                         .parent()
@@ -226,6 +227,7 @@ pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, S
                 }
                 return Ok(lock);
             }
+            Ok(_) => {}
             Err(error) => {
                 tracing::warn!("Invalid extension lock; trying migrated archive: {error}")
             }
@@ -235,13 +237,20 @@ pub(crate) fn load_for_legacy_path(lock_path: &Path) -> Result<ExtensionsLock, S
     let migrated = migrated_lock_path(lock_path);
     if migrated.exists() {
         match ExtensionsLock::load_legacy(&migrated) {
-            Ok(lock) => return Ok(lock),
+            Ok(lock) if !had_repository || !lock.extensions.is_empty() => return Ok(lock),
+            Ok(_) => {}
             Err(error) => tracing::warn!(
-                "Invalid migrated extension lock; starting with an empty repository: {error}"
+                "Invalid migrated extension lock: {error}"
             ),
         }
     }
 
+    if had_state {
+        return Err(format!(
+            "No valid extension repository or legacy lock at {}; refusing to use an empty state",
+            lock_path.display()
+        ));
+    }
     tracing::warn!(
         "No valid extension repository or legacy lock at {}; starting with an empty lock",
         lock_path.display()
@@ -467,13 +476,13 @@ mod tests {
     }
 
     #[test]
-    fn invalid_repository_and_legacy_lock_degrade_to_empty() {
+    fn invalid_repository_and_legacy_lock_abort_loading() {
         let directory = tempfile::tempdir().unwrap();
         let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
         std::fs::write(repository_path(&paths.lock_file), b"not json").unwrap();
         std::fs::write(&paths.lock_file, b"not json").unwrap();
-        let loaded = ExtensionsLock::load(&paths.lock_file).unwrap();
-        assert!(loaded.extensions.is_empty());
+        assert!(ExtensionsLock::load(&paths.lock_file).is_err());
+        assert!(ExtensionsLock::load(&paths.lock_file).is_err());
         assert!(corrupt_repository_path(&repository_path(&paths.lock_file)).exists());
     }
 
@@ -555,5 +564,184 @@ mod tests {
             .contains_key("example.archive-fault"));
         assert!(paths.lock_file.exists());
         assert_eq!(migrate_to_repository(&paths).unwrap(), MigrationOutcome::Noop);
+    }
+
+    #[cfg(unix)]
+    mod unix_faults {
+        use super::*;
+        use crate::extensions::fault_test_support::{
+            skip_readonly_as_root, Corruption, ReadonlyDirectory,
+        };
+        use crate::extensions::{transaction, with_commit_point_action, ExtensionState};
+
+        #[test]
+        fn corrupt_repository_aborts_repeated_recovery_without_erasing_extensions() {
+            for corruption in Corruption::ALL {
+                let directory = tempfile::tempdir().unwrap();
+                let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+                let state = ExtensionState::from_paths(paths.clone()).unwrap();
+                let lock = fixture_lock("example.corrupt-repository");
+                lock.save(&paths.repository_file).unwrap();
+                let integration = paths.data.join("example.corrupt-repository/integration");
+                std::fs::create_dir_all(&integration).unwrap();
+                std::fs::write(integration.join("keep"), b"installed content").unwrap();
+                std::fs::create_dir_all(paths.extensions.join(".transactions")).unwrap();
+                let corrupted = corruption.apply(&paths.repository_file);
+
+                for _ in 0..2 {
+                    let error = transaction::recover(&state).unwrap_err();
+                    assert!(error.contains("refusing to use an empty state"), "{error}");
+                    assert!(ExtensionsLock::load(&paths.repository_file).is_err());
+                    assert!(ExtensionState::from_paths(paths.clone()).is_err());
+                    assert!(!paths.repository_file.exists());
+                    assert_eq!(
+                        std::fs::read(corrupt_repository_path(&paths.repository_file)).unwrap(),
+                        corrupted
+                    );
+                    assert_eq!(
+                        std::fs::read(integration.join("keep")).unwrap(),
+                        b"installed content"
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn corrupt_repository_recovers_each_valid_legacy_fallback() {
+            for corruption in Corruption::ALL {
+                for migrated in [false, true] {
+                    let directory = tempfile::tempdir().unwrap();
+                    let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+                    let state = ExtensionState::from_paths(paths.clone()).unwrap();
+                    let lock = fixture_lock("example.corrupt-fallback");
+                    let fallback = if migrated {
+                        migrated_lock_path(&paths.lock_file)
+                    } else {
+                        paths.lock_file.clone()
+                    };
+                    lock.save_legacy(&fallback).unwrap();
+                    let legacy_bytes = std::fs::read(&fallback).unwrap();
+                    lock.save(&paths.repository_file).unwrap();
+                    let corrupted = corruption.apply(&paths.repository_file);
+
+                    for _ in 0..2 {
+                        transaction::recover(&state).unwrap();
+                        let loaded = ExtensionsLock::load(&paths.repository_file).unwrap();
+                        assert_eq!(
+                            serde_json::to_value(&loaded).unwrap(),
+                            serde_json::to_value(&lock).unwrap()
+                        );
+                        assert_eq!(
+                            std::fs::read(corrupt_repository_path(&paths.repository_file)).unwrap(),
+                            corrupted
+                        );
+                        assert_eq!(
+                            std::fs::read(migrated_lock_path(&paths.lock_file)).unwrap(),
+                            legacy_bytes
+                        );
+                        assert!(!paths.lock_file.exists());
+                        // An archived fallback is read in place; a live lock is migrated.
+                        assert_eq!(paths.repository_file.exists(), !migrated);
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn corrupt_repository_rejects_empty_legacy_fallbacks() {
+            for migrated in [false, true] {
+                let directory = tempfile::tempdir().unwrap();
+                let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+                let state = ExtensionState::from_paths(paths.clone()).unwrap();
+                fixture_lock("example.nonempty")
+                    .save(&paths.repository_file)
+                    .unwrap();
+                let fallback = if migrated {
+                    migrated_lock_path(&paths.lock_file)
+                } else {
+                    paths.lock_file.clone()
+                };
+                ExtensionsLock::default().save_legacy(&fallback).unwrap();
+                let before = std::fs::read(&fallback).unwrap();
+                let corrupted = Corruption::Truncated.apply(&paths.repository_file);
+                for _ in 0..2 {
+                    assert!(transaction::recover(&state).is_err());
+                    assert!(ExtensionState::from_paths(paths.clone()).is_err());
+                    assert!(!paths.repository_file.exists());
+                    assert_eq!(std::fs::read(&fallback).unwrap(), before);
+                    assert_eq!(
+                        std::fs::read(corrupt_repository_path(&paths.repository_file)).unwrap(),
+                        corrupted
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn invalid_repository_schema_cannot_default_to_authoritative_empty_state() {
+            let invalid = [
+                serde_json::json!({}),
+                serde_json::json!({"schemaVersion": REPOSITORY_SCHEMA_VERSION}),
+                serde_json::json!({"extensions": {}}),
+                serde_json::json!({"schemaVersion": REPOSITORY_SCHEMA_VERSION + 1, "extensions": {}}),
+                {
+                    let mut value = serde_json::to_value(ExtensionRepository::from(&fixture_lock(
+                        "example.schema",
+                    )))
+                    .unwrap();
+                    value["extensions"]["example.schema"]["id"] = "example.mismatched".into();
+                    value
+                },
+            ];
+            for value in invalid {
+                let directory = tempfile::tempdir().unwrap();
+                let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+                let bytes = serde_json::to_vec(&value).unwrap();
+                std::fs::write(&paths.repository_file, &bytes).unwrap();
+                for _ in 0..2 {
+                    assert!(
+                        ExtensionsLock::load(&paths.repository_file).is_err(),
+                        "{value}"
+                    );
+                    assert!(!paths.repository_file.exists());
+                    assert_eq!(
+                        std::fs::read(corrupt_repository_path(&paths.repository_file)).unwrap(),
+                        bytes
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn readonly_corrupt_repository_archive_aborts_and_retries_cleanly() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+            let state = ExtensionState::from_paths(paths.clone()).unwrap();
+            fixture_lock("example.readonly-corrupt")
+                .save(&paths.repository_file)
+                .unwrap();
+            let corrupted = Corruption::Flipped.apply(&paths.repository_file);
+            let readonly = ReadonlyDirectory::new(&paths.root);
+            let error =
+                with_commit_point_action("repository-archive-rename", readonly.arm(), || {
+                    transaction::recover(&state)
+                })
+                .unwrap_err();
+            assert!(error.contains("refusing to use an empty state"), "{error}");
+            assert_eq!(std::fs::read(&paths.repository_file).unwrap(), corrupted);
+            assert!(!corrupt_repository_path(&paths.repository_file).exists());
+            drop(readonly);
+
+            assert!(transaction::recover(&state).is_err());
+            assert!(!paths.repository_file.exists());
+            assert_eq!(
+                std::fs::read(corrupt_repository_path(&paths.repository_file)).unwrap(),
+                corrupted
+            );
+            assert!(transaction::recover(&state).is_err());
+        }
     }
 }

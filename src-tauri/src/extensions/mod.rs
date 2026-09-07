@@ -34,23 +34,27 @@ pub(crate) mod transaction;
 /// Test-only crash injection hook used at durable state commit boundaries.
 ///
 /// In production this compiles to a no-op. A test scope arms one label; the
-/// matching call consumes it and panics immediately before that boundary.
-/// Recovery runs after the scope has unwound.
+/// matching call consumes it immediately before that boundary. Tests can panic
+/// or run a scoped action; production never holds fault state.
 pub(crate) fn commit_point(label: &str) {
     #[cfg(test)]
     {
-        let should_fail = COMMIT_POINT
+        let fault = COMMIT_POINT
             .try_with(|armed| {
-                if armed.get() == Some(label) {
-                    armed.take();
-                    true
+                let mut armed = armed.borrow_mut();
+                if armed.as_ref().is_some_and(|fault| fault.label == label) {
+                    armed.take()
                 } else {
-                    false
+                    None
                 }
             })
-            .unwrap_or(false);
-        if should_fail {
-            panic!("injected crash at commit point {label}");
+            .unwrap_or(None);
+        if let Some(fault) = fault {
+            match fault.action {
+                CommitPointAction::Panic => panic!("injected crash at commit point {label}"),
+                #[cfg(unix)]
+                CommitPointAction::Run(action) => action(),
+            }
         }
     }
     #[cfg(not(test))]
@@ -58,13 +62,32 @@ pub(crate) fn commit_point(label: &str) {
 }
 
 #[cfg(test)]
+struct CommitPointFault {
+    label: &'static str,
+    action: CommitPointAction,
+}
+
+#[cfg(test)]
+enum CommitPointAction {
+    Panic,
+    #[cfg(unix)]
+    Run(Box<dyn FnOnce() + Send>),
+}
+
+#[cfg(test)]
 tokio::task_local! {
-    static COMMIT_POINT: std::cell::Cell<Option<&'static str>>;
+    static COMMIT_POINT: std::cell::RefCell<Option<CommitPointFault>>;
 }
 
 #[cfg(test)]
 pub(crate) fn with_commit_point<T>(label: &'static str, operation: impl FnOnce() -> T) -> T {
-    COMMIT_POINT.sync_scope(std::cell::Cell::new(Some(label)), operation)
+    COMMIT_POINT.sync_scope(
+        std::cell::RefCell::new(Some(CommitPointFault {
+            label,
+            action: CommitPointAction::Panic,
+        })),
+        operation,
+    )
 }
 
 #[cfg(test)]
@@ -73,8 +96,161 @@ pub(crate) async fn with_async_commit_point<T>(
     operation: impl std::future::Future<Output = T>,
 ) -> T {
     COMMIT_POINT
-        .scope(std::cell::Cell::new(Some(label)), operation)
+        .scope(
+            std::cell::RefCell::new(Some(CommitPointFault {
+                label,
+                action: CommitPointAction::Panic,
+            })),
+            operation,
+        )
         .await
+}
+
+#[cfg(all(test, unix))]
+pub(crate) fn with_commit_point_action<T>(
+    label: &'static str,
+    action: impl FnOnce() + Send + 'static,
+    operation: impl FnOnce() -> T,
+) -> T {
+    COMMIT_POINT.sync_scope(
+        std::cell::RefCell::new(Some(CommitPointFault {
+            label,
+            action: CommitPointAction::Run(Box::new(action)),
+        })),
+        operation,
+    )
+}
+
+#[cfg(all(test, unix))]
+pub(crate) async fn with_async_commit_point_action<T>(
+    label: &'static str,
+    action: impl FnOnce() + Send + 'static,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    COMMIT_POINT
+        .scope(
+            std::cell::RefCell::new(Some(CommitPointFault {
+                label,
+                action: CommitPointAction::Run(Box::new(action)),
+            })),
+            operation,
+        )
+        .await
+}
+
+#[cfg(all(test, unix))]
+pub(crate) mod fault_test_support {
+    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::process::ExitStatusExt;
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+
+    pub(crate) fn skip_readonly_as_root() -> bool {
+        // geteuid has no preconditions and does not change process credentials.
+        if unsafe { libc::geteuid() } == 0 {
+            eprintln!("SKIPPED readonly-fs test: euid 0 bypasses chmod permissions");
+            true
+        } else {
+            false
+        }
+    }
+
+    pub(crate) struct ReadonlyDirectory {
+        path: PathBuf,
+        original: std::fs::Permissions,
+    }
+
+    impl ReadonlyDirectory {
+        pub(crate) fn new(path: &Path) -> Arc<Self> {
+            Arc::new(Self {
+                path: path.to_path_buf(),
+                original: std::fs::metadata(path).unwrap().permissions(),
+            })
+        }
+
+        pub(crate) fn arm(self: &Arc<Self>) -> impl FnOnce() + Send + 'static {
+            let guard = Arc::clone(self);
+            move || {
+                std::fs::set_permissions(&guard.path, std::fs::Permissions::from_mode(0o555))
+                    .unwrap();
+            }
+        }
+    }
+
+    impl Drop for ReadonlyDirectory {
+        fn drop(&mut self) {
+            if let Err(error) = std::fs::set_permissions(&self.path, self.original.clone()) {
+                eprintln!(
+                    "Cannot restore test directory {}: {error}",
+                    self.path.display()
+                );
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    pub(crate) enum Corruption {
+        Truncated,
+        Flipped,
+        Garbage,
+    }
+
+    impl Corruption {
+        pub(crate) const ALL: [Self; 3] = [Self::Truncated, Self::Flipped, Self::Garbage];
+
+        pub(crate) fn apply(self, path: &Path) -> Vec<u8> {
+            let mut bytes = std::fs::read(path).unwrap();
+            let middle = bytes.len() / 2;
+            match self {
+                Self::Truncated => bytes.truncate(middle),
+                Self::Flipped => bytes[middle] ^= 0xff,
+                Self::Garbage => bytes = b"not a JSON document\0\xff".to_vec(),
+            }
+            assert!(serde_json::from_slice::<serde_json::Value>(&bytes).is_err());
+            std::fs::write(path, &bytes).unwrap();
+            bytes
+        }
+    }
+
+    pub(crate) fn crash_child_root(name: &str) -> Option<PathBuf> {
+        (std::env::var("FLOTER_CRASH_TEST").as_deref() == Ok(name)).then(|| {
+            PathBuf::from(std::env::var_os("FLOTER_CRASH_ROOT").expect("child fixture root"))
+        })
+    }
+
+    pub(crate) fn kill_at_commit_point(label: &'static str) -> impl FnOnce() + Send {
+        move || {
+            eprintln!("crash boundary reached: {label}");
+            // Kill only this re-executed child, without unwinding or a core dump.
+            unsafe { libc::raise(libc::SIGKILL) };
+            unreachable!("SIGKILL must terminate the crash child");
+        }
+    }
+
+    pub(crate) fn run_crash_child(name: &str, root: &Path, label: &str) {
+        // module_path! includes the crate name; libtest's exact names omit it.
+        let test_name = name
+            .strip_prefix(concat!(env!("CARGO_CRATE_NAME"), "::"))
+            .unwrap_or(name);
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--ignored", "--exact", test_name, "--nocapture"])
+            .env("FLOTER_CRASH_TEST", name)
+            .env("FLOTER_CRASH_ROOT", root)
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(
+            output.status.signal(),
+            Some(libc::SIGKILL),
+            "child status: {}; stdout: {}; stderr: {stderr}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(
+            stderr.contains(&format!("crash boundary reached: {label}")),
+            "{stderr}"
+        );
+    }
 }
 
 use std::collections::HashMap;
@@ -329,6 +505,147 @@ mod tests {
     use super::*;
     use crate::extensions::provider::{ExecutionMode, ExecutionPlan};
     use std::collections::BTreeMap;
+
+    #[cfg(unix)]
+    #[test]
+    fn commit_point_actions_are_nested_one_shot_and_thread_scoped() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let outer = Arc::clone(&calls);
+        with_commit_point_action(
+            "action-scope",
+            move || {
+                outer.fetch_add(1, Ordering::SeqCst);
+            },
+            || {
+                std::thread::spawn(|| commit_point("action-scope"))
+                    .join()
+                    .unwrap();
+                commit_point("another-label");
+                assert_eq!(calls.load(Ordering::SeqCst), 0);
+                let inner = Arc::clone(&calls);
+                with_commit_point_action(
+                    "action-scope",
+                    move || {
+                        inner.fetch_add(10, Ordering::SeqCst);
+                    },
+                    || {
+                        commit_point("action-scope");
+                        commit_point("action-scope");
+                    },
+                );
+                commit_point("action-scope");
+                commit_point("action-scope");
+            },
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 11);
+        with_commit_point_action("action-scope", || panic!("unconsumed action leaked"), || {});
+        let unwind = std::panic::catch_unwind(|| {
+            with_commit_point_action(
+                "action-scope",
+                || panic!("unwound action leaked"),
+                || {
+                    panic!("unrelated panic");
+                },
+            );
+        });
+        assert!(unwind.is_err());
+        commit_point("action-scope");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn commit_point_actions_follow_tasks_and_drop_on_cancellation() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let action_calls = Arc::clone(&calls);
+        let (ready, armed) = tokio::sync::oneshot::channel();
+        let (release, resume) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(with_async_commit_point_action(
+            "action-scope",
+            move || {
+                action_calls.fetch_add(1, Ordering::SeqCst);
+            },
+            async move {
+                ready.send(()).unwrap();
+                resume.await.unwrap();
+                commit_point("action-scope");
+                commit_point("action-scope");
+            },
+        ));
+        armed.await.unwrap();
+        commit_point("action-scope");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        release.send(()).unwrap();
+        task.await.unwrap();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+        let cancelled_calls = Arc::clone(&calls);
+        tokio::select! {
+            biased;
+            _ = with_async_commit_point_action("action-scope", move || {
+                cancelled_calls.fetch_add(1, Ordering::SeqCst);
+            }, std::future::pending::<()>()) => unreachable!(),
+            _ = std::future::ready(()) => {},
+        }
+        commit_point("action-scope");
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(Arc::strong_count(&calls), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn readonly_directory_guard_restores_permissions_after_panic() {
+        use fault_test_support::{skip_readonly_as_root, ReadonlyDirectory};
+        use std::os::unix::fs::PermissionsExt;
+
+        if skip_readonly_as_root() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let original = std::fs::metadata(directory.path())
+            .unwrap()
+            .permissions()
+            .mode();
+        let result = std::panic::catch_unwind(|| {
+            let readonly = ReadonlyDirectory::new(directory.path());
+            with_commit_point_action("readonly-guard", readonly.arm(), || {
+                commit_point("readonly-guard");
+                assert_eq!(
+                    std::fs::metadata(directory.path())
+                        .unwrap()
+                        .permissions()
+                        .mode()
+                        & 0o777,
+                    0o555
+                );
+                assert_eq!(
+                    std::fs::write(directory.path().join("blocked"), b"blocked")
+                        .unwrap_err()
+                        .kind(),
+                    std::io::ErrorKind::PermissionDenied
+                );
+                panic!("exercise permission restoration during unwind");
+            });
+        });
+        let panic = result.unwrap_err();
+        assert_eq!(
+            panic.downcast_ref::<&str>().copied(),
+            Some("exercise permission restoration during unwind")
+        );
+        assert_eq!(
+            std::fs::metadata(directory.path())
+                .unwrap()
+                .permissions()
+                .mode(),
+            original
+        );
+        std::fs::write(directory.path().join("restored"), b"writable").unwrap();
+    }
 
     #[test]
     fn commit_point_scopes_isolate_threads_and_match_once() {

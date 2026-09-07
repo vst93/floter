@@ -2987,6 +2987,374 @@ mod tests {
     }
 
     #[cfg(unix)]
+    mod unix_faults {
+        use super::*;
+        use crate::extensions::fault_test_support::{
+            crash_child_root, kill_at_commit_point, run_crash_child, skip_readonly_as_root,
+            ReadonlyDirectory,
+        };
+        use crate::extensions::transaction::{recover, RemovalJournal, RemovalKind};
+        use crate::extensions::with_async_commit_point_action;
+
+        async fn readonly_repository_operation(operation: &str) {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            create_custom_integration(
+                &state,
+                script_request("local.retained", "Retained", "retained"),
+            )
+            .await
+            .unwrap();
+            let id = "local.readonly";
+            let request = script_request(id, "Original", "readonly");
+            if operation != "install" {
+                create_custom_integration(&state, request.clone())
+                    .await
+                    .unwrap();
+            }
+            let source = state.paths.extensions.join(id);
+            if operation == "uninstall" {
+                std::fs::create_dir_all(&source).unwrap();
+                std::fs::write(source.join("payload"), b"keep extension files").unwrap();
+            }
+            let before = std::fs::read(&state.paths.repository_file).unwrap();
+            let readonly = ReadonlyDirectory::new(&state.paths.root);
+            let error =
+                with_async_commit_point_action("repository-persist", readonly.arm(), async {
+                    match operation {
+                        "install" => create_custom_integration(&state, request).await.map(|_| ()),
+                        "uninstall" => uninstall(&state, id, true).await,
+                        "edit" => {
+                            let mut changed = request;
+                            changed.name = "Changed".into();
+                            changed.script_content = Some("printf changed".into());
+                            update_custom_integration(&state, id, changed)
+                                .await
+                                .map(|_| ())
+                        }
+                        _ => unreachable!(),
+                    }
+                })
+                .await
+                .unwrap_err();
+            assert!(
+                error.contains("Cannot persist extension repository"),
+                "{error}"
+            );
+            assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
+            if operation == "uninstall" {
+                assert_eq!(
+                    std::fs::read(source.join("payload")).unwrap(),
+                    b"keep extension files"
+                );
+            }
+            drop(readonly);
+
+            let restarted = test_state(directory.path());
+            for _ in 0..2 {
+                recover(&restarted).unwrap();
+                assert_eq!(
+                    std::fs::read(&restarted.paths.repository_file).unwrap(),
+                    before
+                );
+                let root = restarted.paths.data.join(id).join("integration");
+                if operation == "install" {
+                    assert!(!root.exists());
+                } else {
+                    assert_eq!(
+                        std::fs::read(root.join("provider.sh")).unwrap(),
+                        b"printf original"
+                    );
+                }
+            }
+            let journals = restarted.paths.extensions.join(".transactions");
+            assert!(!journals.exists() || std::fs::read_dir(journals).unwrap().next().is_none());
+        }
+
+        #[tokio::test]
+        async fn readonly_install_repository_persist_returns_error_without_partial_state() {
+            readonly_repository_operation("install").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_uninstall_repository_persist_restores_files_and_entry() {
+            readonly_repository_operation("uninstall").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_edit_repository_persist_restores_the_original_generation() {
+            readonly_repository_operation("edit").await;
+        }
+
+        #[tokio::test]
+        async fn readonly_initial_removal_journal_rejects_uninstall_and_allows_retry() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "local.readonly-journal";
+            let entry =
+                create_custom_integration(&state, script_request(id, "Original", "journal"))
+                    .await
+                    .unwrap();
+            let before = std::fs::read(&state.paths.repository_file).unwrap();
+            let journals = state.paths.extensions.join(".transactions");
+            std::fs::create_dir_all(&journals).unwrap();
+            let readonly = ReadonlyDirectory::new(&journals);
+            let error = with_async_commit_point_action(
+                "removal-journal-persist",
+                readonly.arm(),
+                uninstall(&state, id, true),
+            )
+            .await
+            .unwrap_err();
+            assert!(
+                error.contains("Cannot persist removal transaction journal"),
+                "{error}"
+            );
+            assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
+            assert!(Path::new(&entry.manifest_path).is_file());
+            assert!(!journals
+                .join(format!("removal-uninstall-{id}-{}.json", entry.updated_at))
+                .exists());
+            drop(readonly);
+
+            let restarted = test_state(directory.path());
+            assert_eq!(
+                std::fs::read(&restarted.paths.repository_file).unwrap(),
+                before
+            );
+            assert!(Path::new(&entry.manifest_path).is_file());
+            uninstall(&restarted, id, true).await.unwrap();
+            recover(&restarted).unwrap();
+            assert!(ExtensionsLock::load(&restarted.paths.repository_file)
+                .unwrap()
+                .get(id)
+                .is_err());
+            assert!(!restarted.paths.data.join(id).exists());
+        }
+
+        #[tokio::test]
+        async fn readonly_committed_journal_update_keeps_intent_for_next_startup() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "local.readonly-journal-update";
+            let entry =
+                create_custom_integration(&state, script_request(id, "Original", "journal"))
+                    .await
+                    .unwrap();
+            let journals = state.paths.extensions.join(".transactions");
+            std::fs::create_dir_all(&journals).unwrap();
+            let readonly = ReadonlyDirectory::new(&journals);
+            with_async_commit_point_action(
+                "repository-directory-sync",
+                readonly.arm(),
+                uninstall(&state, id, true),
+            )
+            .await
+            .unwrap();
+            let path = journals.join(format!("removal-uninstall-{id}-{}.json", entry.updated_at));
+            let journal: RemovalJournal =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            assert_eq!(journal.removal_kind, Some(RemovalKind::Staged));
+            assert_eq!(
+                serde_json::to_value(&journal.removed_entry).unwrap(),
+                serde_json::to_value(&entry).unwrap()
+            );
+            assert!(ExtensionsLock::load(&state.paths.repository_file)
+                .unwrap()
+                .get(id)
+                .is_err());
+            assert!(!state.paths.data.join(id).exists());
+            drop(readonly);
+
+            let restarted = test_state(directory.path());
+            assert!(!path.exists());
+            for _ in 0..2 {
+                recover(&restarted).unwrap();
+                assert!(ExtensionsLock::load(&restarted.paths.repository_file)
+                    .unwrap()
+                    .get(id)
+                    .is_err());
+                assert!(!restarted.paths.data.join(id).exists());
+            }
+        }
+
+        #[tokio::test]
+        #[ignore = "manual Unix process-crash simulation"]
+        async fn crash_simulation_install_between_repository_rename_and_directory_sync() {
+            const NAME: &str = concat!(
+                module_path!(),
+                "::crash_simulation_install_between_repository_rename_and_directory_sync"
+            );
+            const LABEL: &str = "repository-directory-sync";
+            let id = "local.crash-install";
+            if let Some(root) = crash_child_root(NAME) {
+                let state = test_state(&root);
+                create_custom_integration(
+                    &state,
+                    script_request("local.retained", "Retained", "retained"),
+                )
+                .await
+                .unwrap();
+                with_async_commit_point_action(
+                    LABEL,
+                    kill_at_commit_point(LABEL),
+                    create_custom_integration(&state, script_request(id, "Installed", "installed")),
+                )
+                .await
+                .unwrap();
+                panic!("crash boundary was not reached");
+            }
+            let directory = tempfile::tempdir().unwrap();
+            run_crash_child(NAME, directory.path(), LABEL);
+            let state = test_state(directory.path());
+            for _ in 0..2 {
+                recover(&state).unwrap();
+                let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+                assert_eq!(lock.extensions.len(), 2);
+                assert_eq!(lock.get(id).unwrap().name, "Installed");
+                assert_eq!(lock.get("local.retained").unwrap().name, "Retained");
+                assert_eq!(
+                    std::fs::read(state.paths.data.join(id).join("integration/provider.sh"))
+                        .unwrap(),
+                    b"printf original"
+                );
+            }
+        }
+
+        #[tokio::test]
+        #[ignore = "manual Unix process-crash simulation"]
+        async fn crash_simulation_uninstall_between_repository_rename_and_directory_sync() {
+            const NAME: &str = concat!(
+                module_path!(),
+                "::crash_simulation_uninstall_between_repository_rename_and_directory_sync"
+            );
+            const LABEL: &str = "repository-directory-sync";
+            let id = "local.crash-uninstall";
+            if let Some(root) = crash_child_root(NAME) {
+                let state = test_state(&root);
+                create_custom_integration(&state, script_request(id, "Removed", "removed"))
+                    .await
+                    .unwrap();
+                create_custom_integration(
+                    &state,
+                    script_request("local.retained", "Retained", "retained"),
+                )
+                .await
+                .unwrap();
+                let source = state.paths.extensions.join(id);
+                std::fs::create_dir_all(&source).unwrap();
+                std::fs::write(source.join("payload"), b"removed files").unwrap();
+                with_async_commit_point_action(
+                    LABEL,
+                    kill_at_commit_point(LABEL),
+                    uninstall(&state, id, true),
+                )
+                .await
+                .unwrap();
+                panic!("crash boundary was not reached");
+            }
+            let directory = tempfile::tempdir().unwrap();
+            run_crash_child(NAME, directory.path(), LABEL);
+            let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+            assert_eq!(
+                std::fs::read_dir(paths.extensions.join(".transactions"))
+                    .unwrap()
+                    .count(),
+                1
+            );
+            assert!(paths.data.join(id).exists());
+            let state = test_state(directory.path());
+            for _ in 0..2 {
+                recover(&state).unwrap();
+                let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+                assert_eq!(lock.extensions.len(), 1);
+                assert!(lock.get(id).is_err());
+                assert_eq!(lock.get("local.retained").unwrap().name, "Retained");
+                assert!(!paths.data.join(id).exists());
+                assert!(!paths.extensions.join(id).exists());
+                assert!(std::fs::read_dir(paths.extensions.join(".transactions"))
+                    .unwrap()
+                    .next()
+                    .is_none());
+                assert!(std::fs::read_dir(&paths.extensions).unwrap().all(|item| {
+                    !item
+                        .unwrap()
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with(".removing-")
+                }));
+            }
+        }
+
+        #[tokio::test]
+        #[ignore = "manual Unix process-crash simulation"]
+        async fn crash_simulation_edit_after_journal_sync_before_repository_persist() {
+            const NAME: &str = concat!(
+                module_path!(),
+                "::crash_simulation_edit_after_journal_sync_before_repository_persist"
+            );
+            const LABEL: &str = "edit-repository-remove";
+            let id = "local.crash-edit";
+            if let Some(root) = crash_child_root(NAME) {
+                let state = test_state(&root);
+                let mut request = script_request(id, "Original", "edited");
+                create_custom_integration(&state, request.clone())
+                    .await
+                    .unwrap();
+                request.name = "Changed".into();
+                request.script_content = Some("printf changed".into());
+                with_async_commit_point_action(
+                    LABEL,
+                    kill_at_commit_point(LABEL),
+                    update_custom_integration(&state, id, request),
+                )
+                .await
+                .unwrap();
+                panic!("crash boundary was not reached");
+            }
+            let directory = tempfile::tempdir().unwrap();
+            run_crash_child(NAME, directory.path(), LABEL);
+            let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+            let path = std::fs::read_dir(paths.extensions.join(".transactions"))
+                .unwrap()
+                .next()
+                .unwrap()
+                .unwrap()
+                .path();
+            let journal: RemovalJournal =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            let backup = journal.staged_path.as_ref().unwrap();
+            assert!(backup.is_dir());
+            assert!(!paths.data.join(id).join("integration").exists());
+            let state = test_state(directory.path());
+            for _ in 0..2 {
+                recover(&state).unwrap();
+                let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+                assert_eq!(lock.extensions.len(), 1);
+                assert_eq!(
+                    serde_json::to_value(lock.get(id).unwrap()).unwrap(),
+                    serde_json::to_value(&journal.removed_entry).unwrap()
+                );
+                assert_eq!(
+                    std::fs::read(paths.data.join(id).join("integration/provider.sh")).unwrap(),
+                    b"printf original"
+                );
+                assert!(!path.exists());
+                assert!(!backup.exists());
+            }
+        }
+    }
+
+    #[cfg(unix)]
     #[tokio::test]
     async fn fault_at_edit_repository_commit_recovers_the_previous_generation() {
         let directory = tempfile::tempdir().unwrap();

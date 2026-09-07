@@ -235,7 +235,8 @@ fn recover_removal_journals(
             Ok(journal) => journal,
             Err(_) => {
                 crate::extensions::commit_point("removal-journal-quarantine");
-                let _ = std::fs::rename(&path, path.with_extension("json.corrupt"));
+                std::fs::rename(&path, path.with_extension("json.corrupt"))
+                    .map_err(|error| format!("Cannot quarantine removal transaction journal: {error}"))?;
                 continue;
             }
         };
@@ -461,7 +462,8 @@ fn recover_install_journals(state: &ExtensionState, lock: &mut ExtensionsLock) -
             Ok(journal) => journal,
             Err(_) => {
                 crate::extensions::commit_point("install-journal-quarantine");
-                let _ = std::fs::rename(&path, path.with_extension("json.corrupt"));
+                std::fs::rename(&path, path.with_extension("json.corrupt"))
+                    .map_err(|error| format!("Cannot quarantine extension transaction journal: {error}"))?;
                 continue;
             }
         };
@@ -1487,6 +1489,433 @@ mod tests {
             .unwrap()
             .get(id)
             .is_ok());
+    }
+
+    #[cfg(unix)]
+    mod unix_faults {
+        use super::*;
+        use crate::extensions::fault_test_support::{
+            crash_child_root, kill_at_commit_point, run_crash_child, skip_readonly_as_root,
+            Corruption, ReadonlyDirectory,
+        };
+        use crate::extensions::with_commit_point_action;
+
+        fn installed_fixture(state: &ExtensionState, id: &str) -> ExtensionsLock {
+            let entry = journal_entry(&state.paths.root, "1.0.0", id);
+            let mut lock = ExtensionsLock::default();
+            std::fs::create_dir_all(Path::new(&entry.executable_path).parent().unwrap()).unwrap();
+            std::fs::write(&entry.executable_path, b"installed executable").unwrap();
+            lock.extensions.insert(id.into(), entry);
+            lock.save(&state.paths.repository_file).unwrap();
+            lock
+        }
+
+        fn assert_repository_unchanged(state: &ExtensionState, expected: &ExtensionsLock) {
+            let actual = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+            assert_eq!(
+                serde_json::to_value(&actual).unwrap(),
+                serde_json::to_value(expected).unwrap()
+            );
+            for entry in expected.extensions.values() {
+                assert_eq!(
+                    std::fs::read(&entry.executable_path).unwrap(),
+                    b"installed executable"
+                );
+            }
+        }
+
+        fn removal_fixture(state: &ExtensionState, entry: &ExtensionLockEntry) -> RemovalJournal {
+            let staged = state.paths.extensions.join(".removing-fault");
+            let cleanup = state.paths.data.join(&entry.id).join("user-data");
+            for path in [&staged, &cleanup] {
+                std::fs::create_dir_all(path).unwrap();
+                std::fs::write(path.join("keep"), b"do not guess-delete").unwrap();
+            }
+            RemovalJournal {
+                schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                transaction_id: "fault-removal".into(),
+                extension_id: entry.id.clone(),
+                removed_entry: entry.clone(),
+                staged_path: Some(staged),
+                cleanup_paths: vec![cleanup],
+                removal_kind: Some(RemovalKind::Staged),
+                remove_data: true,
+                intent: RemovalIntent::Remove,
+            }
+        }
+
+        #[test]
+        fn corrupt_current_pointer_is_rebuilt_from_the_repository() {
+            for corruption in Corruption::ALL {
+                let directory = tempfile::tempdir().unwrap();
+                let state = test_state(directory.path());
+                let lock = installed_fixture(&state, "example.corrupt-pointer");
+                let entry = lock.extensions.values().next().unwrap();
+                write_current_pointer(&state.paths.extensions, entry).unwrap();
+                let path = crate::extensions::lock::current_pointer_path(
+                    &state.paths.extensions,
+                    &entry.id,
+                )
+                .unwrap();
+                let expected = std::fs::read(&path).unwrap();
+                corruption.apply(&path);
+
+                let restarted = test_state(directory.path());
+                for _ in 0..2 {
+                    recover(&restarted).unwrap();
+                    assert_eq!(std::fs::read(&path).unwrap(), expected);
+                    assert_repository_unchanged(&restarted, &lock);
+                }
+            }
+        }
+
+        #[test]
+        fn corrupt_install_journal_is_archived_without_guessing_cleanup() {
+            for corruption in Corruption::ALL {
+                let directory = tempfile::tempdir().unwrap();
+                let state = test_state(directory.path());
+                let id = "example.corrupt-install-journal";
+                let lock = installed_fixture(&state, id);
+                let journal = staged_journal(
+                    &state,
+                    id,
+                    Some("1.0.0"),
+                    "2.0.0",
+                    false,
+                    TransactionState::Staged,
+                );
+                let retained = [
+                    journal.staged_version.as_ref().unwrap(),
+                    journal.target_version.as_ref().unwrap(),
+                    journal.backup_version.as_ref().unwrap(),
+                ];
+                for path in retained {
+                    std::fs::create_dir_all(path).unwrap();
+                    std::fs::write(path.join("keep"), b"do not guess-delete").unwrap();
+                }
+                let path = write_journal(&state, &journal).unwrap();
+                let corrupted = corruption.apply(&path);
+
+                let restarted = test_state(directory.path());
+                for _ in 0..2 {
+                    recover(&restarted).unwrap();
+                    assert!(!path.exists());
+                    assert_eq!(
+                        std::fs::read(path.with_extension("json.corrupt")).unwrap(),
+                        corrupted
+                    );
+                    assert_repository_unchanged(&restarted, &lock);
+                    for retained in retained {
+                        assert_eq!(
+                            std::fs::read(retained.join("keep")).unwrap(),
+                            b"do not guess-delete"
+                        );
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn corrupt_removal_journal_is_archived_without_guessing_cleanup() {
+            for corruption in Corruption::ALL {
+                let directory = tempfile::tempdir().unwrap();
+                let state = test_state(directory.path());
+                let lock = installed_fixture(&state, "example.corrupt-removal-journal");
+                let journal = removal_fixture(&state, lock.extensions.values().next().unwrap());
+                let path = write_removal_journal(&state, &journal).unwrap();
+                let corrupted = corruption.apply(&path);
+
+                let restarted = test_state(directory.path());
+                for _ in 0..2 {
+                    recover(&restarted).unwrap();
+                    assert!(!path.exists());
+                    assert_eq!(
+                        std::fs::read(path.with_extension("json.corrupt")).unwrap(),
+                        corrupted
+                    );
+                    assert_repository_unchanged(&restarted, &lock);
+                    for retained in journal
+                        .staged_path
+                        .iter()
+                        .chain(journal.cleanup_paths.iter())
+                    {
+                        assert_eq!(
+                            std::fs::read(retained.join("keep")).unwrap(),
+                            b"do not guess-delete"
+                        );
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn unsupported_journal_schemas_abort_without_modifying_state() {
+            for removal in [false, true] {
+                let directory = tempfile::tempdir().unwrap();
+                let state = test_state(directory.path());
+                let id = "example.future-journal";
+                let lock = installed_fixture(&state, id);
+                let path = if removal {
+                    let mut journal = removal_fixture(&state, lock.get(id).unwrap());
+                    journal.schema_version += 1;
+                    write_removal_journal(&state, &journal).unwrap()
+                } else {
+                    let mut journal = staged_journal(
+                        &state,
+                        id,
+                        Some("1.0.0"),
+                        "2.0.0",
+                        false,
+                        TransactionState::Staged,
+                    );
+                    journal.schema_version += 1;
+                    write_journal(&state, &journal).unwrap()
+                };
+                let bytes = std::fs::read(&path).unwrap();
+                for _ in 0..2 {
+                    let error = recover(&state).unwrap_err();
+                    assert!(
+                        error.contains("Unsupported") && error.contains("journal schema"),
+                        "{error}"
+                    );
+                    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+                    assert!(!path.with_extension("json.corrupt").exists());
+                    assert_repository_unchanged(&state, &lock);
+                }
+            }
+        }
+
+        #[test]
+        fn readonly_journal_quarantine_aborts_and_retries_on_next_startup() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            for removal in [false, true] {
+                let directory = tempfile::tempdir().unwrap();
+                let state = test_state(directory.path());
+                let id = "example.readonly-quarantine";
+                let lock = installed_fixture(&state, id);
+                let (path, label) = if removal {
+                    (
+                        write_removal_journal(
+                            &state,
+                            &removal_fixture(&state, lock.get(id).unwrap()),
+                        )
+                        .unwrap(),
+                        "removal-journal-quarantine",
+                    )
+                } else {
+                    (
+                        write_journal(
+                            &state,
+                            &staged_journal(
+                                &state,
+                                id,
+                                Some("1.0.0"),
+                                "2.0.0",
+                                false,
+                                TransactionState::Staged,
+                            ),
+                        )
+                        .unwrap(),
+                        "install-journal-quarantine",
+                    )
+                };
+                let corrupted = Corruption::Flipped.apply(&path);
+                let readonly = ReadonlyDirectory::new(&journal_dir(&state));
+                let error = with_commit_point_action(label, readonly.arm(), || recover(&state))
+                    .unwrap_err();
+                assert!(error.contains("Cannot quarantine"), "{error}");
+                assert_eq!(std::fs::read(&path).unwrap(), corrupted);
+                assert!(!path.with_extension("json.corrupt").exists());
+                assert_repository_unchanged(&state, &lock);
+                drop(readonly);
+
+                let restarted = test_state(directory.path());
+                recover(&restarted).unwrap();
+                assert!(!path.exists());
+                assert_eq!(
+                    std::fs::read(path.with_extension("json.corrupt")).unwrap(),
+                    corrupted
+                );
+                assert_repository_unchanged(&restarted, &lock);
+            }
+        }
+
+        #[test]
+        fn readonly_install_journal_update_preserves_the_durable_rollback_record() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "example.readonly-install-journal";
+            let lock = installed_fixture(&state, id);
+            let mut journal = staged_journal(
+                &state,
+                id,
+                Some("1.0.0"),
+                "2.0.0",
+                false,
+                TransactionState::Staged,
+            );
+            let target = journal.target_version.as_ref().unwrap().clone();
+            std::fs::create_dir_all(&target).unwrap();
+            std::fs::write(target.join("uncommitted"), b"new content").unwrap();
+            let path = write_journal(&state, &journal).unwrap();
+            let before = std::fs::read(&path).unwrap();
+            journal.lock_committed = true;
+            journal.state = TransactionState::Activated;
+            let readonly = ReadonlyDirectory::new(&journal_dir(&state));
+            let error = with_commit_point_action("install-journal-persist", readonly.arm(), || {
+                write_journal(&state, &journal)
+            })
+            .unwrap_err();
+            assert!(
+                error.contains("Cannot persist extension transaction journal"),
+                "{error}"
+            );
+            assert_eq!(std::fs::read(&path).unwrap(), before);
+            assert_repository_unchanged(&state, &lock);
+            drop(readonly);
+
+            let restarted = test_state(directory.path());
+            for _ in 0..2 {
+                recover(&restarted).unwrap();
+                assert!(!path.exists());
+                assert!(!target.exists());
+                assert_repository_unchanged(&restarted, &lock);
+            }
+        }
+
+        #[test]
+        fn readonly_recovery_journal_removal_preserves_pending_work_for_retry() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "example.readonly-recovery";
+            let lock = installed_fixture(&state, id);
+            let journal = removal_fixture(&state, lock.get(id).unwrap());
+            let path = write_removal_journal(&state, &journal).unwrap();
+            let before = std::fs::read(&path).unwrap();
+            let readonly = ReadonlyDirectory::new(&journal_dir(&state));
+            let error = with_commit_point_action("journal-remove", readonly.arm(), || {
+                ExtensionState::from_paths(state.paths.clone()).map(|_| ())
+            })
+            .unwrap_err();
+            assert!(
+                error.contains("Cannot remove extension transaction journal"),
+                "{error}"
+            );
+            assert_eq!(std::fs::read(&path).unwrap(), before);
+            assert_repository_unchanged(&state, &lock);
+            drop(readonly);
+
+            let restarted = test_state(directory.path());
+            recover(&restarted).unwrap();
+            assert!(!path.exists());
+            assert_repository_unchanged(&restarted, &lock);
+        }
+
+        #[test]
+        fn readonly_recovery_pointer_persist_fails_cleanly_and_rebuilds_on_retry() {
+            if skip_readonly_as_root() {
+                return;
+            }
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let id = "example.readonly-pointer";
+            let lock = installed_fixture(&state, id);
+            let path =
+                crate::extensions::lock::current_pointer_path(&state.paths.extensions, id).unwrap();
+            std::fs::write(&path, b"stale pointer").unwrap();
+            let readonly = ReadonlyDirectory::new(path.parent().unwrap());
+            let error = with_commit_point_action("current-pointer-persist", readonly.arm(), || {
+                ExtensionState::from_paths(state.paths.clone()).map(|_| ())
+            })
+            .unwrap_err();
+            assert!(error.contains("Cannot persist current pointer"), "{error}");
+            assert_eq!(std::fs::read(&path).unwrap(), b"stale pointer");
+            assert_repository_unchanged(&state, &lock);
+            drop(readonly);
+
+            let restarted = test_state(directory.path());
+            recover(&restarted).unwrap();
+            let pointer: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            assert_eq!(pointer["version"], "1.0.0");
+            assert_repository_unchanged(&restarted, &lock);
+        }
+
+        #[test]
+        #[ignore = "manual Unix process-crash simulation"]
+        fn crash_simulation_during_projection_rebuild_replays_committed_journal() {
+            const NAME: &str = concat!(
+                module_path!(),
+                "::crash_simulation_during_projection_rebuild_replays_committed_journal"
+            );
+            const LABEL: &str = "current-pointer-persist";
+            let id = "example.crash-projection";
+            if let Some(root) = crash_child_root(NAME) {
+                let state = test_state(&root);
+                let mut lock = installed_fixture(&state, id);
+                write_current_pointer(&state.paths.extensions, lock.get(id).unwrap()).unwrap();
+                let journal = staged_journal(
+                    &state,
+                    id,
+                    Some("1.0.0"),
+                    "2.0.0",
+                    false,
+                    TransactionState::Staged,
+                );
+                let target = journal.target_version.as_ref().unwrap();
+                let backup = journal.backup_version.as_ref().unwrap();
+                std::fs::create_dir_all(target).unwrap();
+                std::fs::write(target.join("keep"), b"committed content").unwrap();
+                std::fs::create_dir_all(backup).unwrap();
+                std::fs::write(backup.join("old"), b"obsolete backup").unwrap();
+                write_journal(&state, &journal).unwrap();
+                lock.extensions.insert(id.into(), journal.new_entry.clone());
+                lock.save(&state.paths.repository_file).unwrap();
+                with_commit_point_action(LABEL, kill_at_commit_point(LABEL), || recover(&state))
+                    .unwrap();
+                panic!("crash boundary was not reached");
+            }
+            let directory = tempfile::tempdir().unwrap();
+            run_crash_child(NAME, directory.path(), LABEL);
+            let paths = ExtensionPaths::from_root(directory.path().to_path_buf());
+            let pointer_path =
+                crate::extensions::lock::current_pointer_path(&paths.extensions, id).unwrap();
+            let stale: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&pointer_path).unwrap()).unwrap();
+            assert_eq!(stale["version"], "1.0.0");
+            assert!(std::fs::read_dir(paths.extensions.join(".transactions"))
+                .unwrap()
+                .next()
+                .is_none());
+            let state = test_state(directory.path());
+            for _ in 0..2 {
+                recover(&state).unwrap();
+                let lock = ExtensionsLock::load(&paths.repository_file).unwrap();
+                assert_eq!(lock.extensions.len(), 1);
+                assert_eq!(lock.get(id).unwrap().current_version, "2.0.0");
+                let pointer: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&pointer_path).unwrap()).unwrap();
+                assert_eq!(pointer["version"], "2.0.0");
+                assert_eq!(pointer["previousVersion"], "1.0.0");
+                assert_eq!(
+                    std::fs::read(paths.extensions.join(id).join("versions/2.0.0/keep")).unwrap(),
+                    b"committed content"
+                );
+                assert!(!paths
+                    .extensions
+                    .join(id)
+                    .join("versions/2.0.0.txn-backup-0000")
+                    .exists());
+            }
+        }
     }
 
     #[test]
