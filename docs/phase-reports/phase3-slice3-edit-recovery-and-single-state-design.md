@@ -1,5 +1,13 @@
 # Phase 3 Slice 3 Implementation Report
 
+> Phase 3 slice 8 status (2026-09-07): this report's inventory and proposed
+> schema are historical. `extension-repository.json` plus journals is now the
+> sole extension state source. `ExtensionsLock` remains the live in-memory API
+> over the repository envelope; it must not be deleted. Normal loads/saves use
+> the repository path. One explicit recovery entry durably imports old lock or
+> `.migrated` inputs before journal/projection cleanup; `.corrupt` prevents
+> empty-state resets. Current pointers and shims are derived projections.
+
 **Date:** 2026-09-05  
 **Branch:** main  
 **HEAD:** be21ef2 (before this work)  
@@ -61,15 +69,15 @@ All three tests exercise the actual `update_custom_integration()` and `recover()
 
 ## Task 2: Single-State-Source Design Report
 
-### 1. Current State Artifact Inventory
+### 1. Historical Slice-3 State Artifact Inventory
 
 All paths relative to `~/.config/floter` (or `ExtensionPaths.root`).
 
-#### True State (multiple sources of truth)
+#### Pre-Repository State (superseded by slices 4-8)
 
 | Path | Owner | Schema Version | Purpose | Derivable? |
 |------|-------|----------------|---------|------------|
-| `extensions.lock.json` | `lock.rs:104-148` | lock v1 | Master extension registry: id, version, enabled, manifest_path, executable_path, permissions, timestamps | **Primary source** |
+| `extensions.lock.json` | historical `lock.rs:104-148` | legacy lock | Former master registry; now only an input to explicit startup migration | **Retired; repository is authoritative** |
 | `extensions/{id}/current.json` | `lock.rs:418-449` | none | Version pointer for NPM extensions: `{version, previous_version}` | ❌ Projection from lock |
 | `extensions/{id}/.floter-binaries/` | `artifacts.rs:101-168` | none | Shim metadata: per-binary `.path` files with relative paths | ❌ Projection from manifest + lock |
 | `tool-lock.json` | `tool_lock.rs:48-81` | v1 | User-selected tool bindings (inventory → lock) | Separate concern (not extension state) |
@@ -177,10 +185,11 @@ All paths relative to `~/.config/floter` (or `ExtensionPaths.root`).
 4. Write `extension-repository.json` atomically (temp + rename + fsync)
 5. Fsync parent directory
 6. Rename `extensions.lock.json` → `extensions.lock.json.migrated` (archive, not delete)
-7. **Rollback plan:** If new repo file corrupted on next startup:
+7. **Recovery contract (updated in slice 8):** If the repository is corrupt on startup:
    - Detect schema error on `extension-repository.json`
-   - Rename `.migrated` → `.json` (restore old lock)
-   - Log warning, let user retry migration after investigation
+   - Quarantine as `.corrupt`; keep `.migrated` in place as a migration recovery input
+   - Explicit recovery validates and durably writes a repository before continuing
+   - Invalid/empty recovery inputs after corruption abort startup, including retries
 
 **Journal integration:** No change to journal format or recovery logic. Journals already record full `ExtensionLockEntry`, so they're compatible with new repository schema. Recovery writes to repository instead of lock.
 
@@ -193,7 +202,9 @@ All paths relative to `~/.config/floter` (or `ExtensionPaths.root`).
 - Current pointer read by shim scripts (can't inline 50-line JSON parser into every shim)
 - Both are **deterministic projections** — can always be rebuilt from repository + manifest
 
-**Compatibility:** Old code paths (`ExtensionsLock::load`) redirected to new repository loader with schema adapter. Deprecation warning on first load, hard error in 0.4.0.
+**Compatibility (slice 8):** `ExtensionsLock::load/save` use only the repository
+path and reject legacy targets. Startup recovery retains one migration entry
+for older installations and interrupted migrations; there is no read-time fallback.
 
 ---
 
@@ -281,6 +292,10 @@ All paths relative to `~/.config/floter` (or `ExtensionPaths.root`).
 
 ### 5. Recommended Slice Breakdown
 
+Slices 4-7 below retain the original planning history. Their old loader and
+rollback wording is superseded by the repository-only contract at the top of
+this report. Slice 8 is updated to reflect the implementation that followed.
+
 **Slice 4: Repository schema + migration (no fault injection yet)**
 - Add `extension-repository.json` schema (copy `ExtensionLockEntry` structure)
 - Write `migrate_to_repository()` in `transaction.rs` (load lock → write repo → archive lock)
@@ -313,10 +328,12 @@ All paths relative to `~/.config/floter` (or `ExtensionPaths.root`).
 - **Commit:** "test: crash + corruption fault injection (Phase 3 slice 7)"
 
 **Slice 8: Remove legacy lock code**
-- Delete `ExtensionsLock` struct, `lock.save()`, `lock.load()`
-- Remove `extensions.lock.json` compatibility loader (hard error if found)
-- Update docs to reference repository as single state source
-- **Verification:** Grep for `ExtensionsLock`, confirm no references, run full test suite
+- Keep `ExtensionsLock`, `ExtensionLockEntry`, and live load/save methods: slice 5 routes them through the repository schema/writer.
+- Remove implicit legacy-path loaders and write redirects; normal reads/writes address only `extension-repository.json`.
+- Keep one explicit startup migration entry for pre-repository trees and interrupted migration recovery, including `.migrated` and `.corrupt` left by pre-slice-7 builds. Commit repository state before cleanup; never run on in-memory legacy fallback after a failed write.
+- Keep installation-journal replay for old-build crashes; compile its fixture writer only in tests. Preserve current removal/edit journals, pointers, and shims.
+- Update docs to reference repository plus journals as the single extension state source.
+- **Verification:** Legacy load/save targets error with named paths; startup migration and stale-file coexistence preserve entries; replay and crash/fault tests retain coverage; run full Rust/TypeScript/build/Node pipeline.
 - **Commit:** "refactor: remove legacy extensions.lock (Phase 3 slice 8)"
 
 **Timeline:** Slice 4-5 are foundational (1 week). Slice 6 is testability (3 days). Slice 7-8 are polish (optional, 1 week total).

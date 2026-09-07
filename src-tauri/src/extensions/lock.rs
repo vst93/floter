@@ -1,3 +1,7 @@
+//! Live repository entries, state transitions, approvals, and current pointers.
+//! `ExtensionsLock` retains its in-memory name and legacy serde shape for
+//! migration/journals; load/save use only the versioned repository envelope.
+
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -149,7 +153,7 @@ pub struct ExtensionLockEntry {
     /// `mark_broken` forces `enabled=false` while the runtime is unusable;
     /// this remembers what the user actually wanted so `clear_broken` can
     /// restore it. `None` on entries broken before the field existed (serde
-    /// default keeps old lock files loading), in which case clearing falls
+    /// default keeps older repository entries loading), in which case clearing falls
     /// back to the persisted `enabled` flag.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled_before_broken: Option<bool>,
@@ -161,36 +165,7 @@ fn default_channel() -> String {
 
 impl ExtensionsLock {
     pub fn load(path: &Path) -> Result<Self, String> {
-        if crate::extensions::repository::is_legacy_lock_path(path) {
-            return crate::extensions::repository::load_for_legacy_path(path);
-        }
-        if path
-            .file_name()
-            .is_some_and(|name| name == "extension-repository.json")
-        {
-            return crate::extensions::repository::load_for_legacy_path(
-                &path.with_file_name("extensions.lock.json"),
-            );
-        }
-        Self::load_legacy(path)
-    }
-
-    pub(crate) fn load_legacy(path: &Path) -> Result<Self, String> {
-        if !path.exists() {
-            return Ok(Self::default());
-        }
-        let bytes = std::fs::read(path)
-            .map_err(|error| format!("Cannot read extension lock {}: {error}", path.display()))?;
-        let lock: Self = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("Invalid extension lock {}: {error}", path.display()))?;
-        if lock.schema_version != LOCK_SCHEMA_VERSION {
-            return Err(format!(
-                "Unsupported extensions.lock.json schema version {}",
-                lock.schema_version
-            ));
-        }
-        lock.validate_entries()?;
-        Ok(lock)
+        crate::extensions::repository::load_repository(path)
     }
 
     pub(crate) fn validate_entries(&self) -> Result<(), String> {
@@ -575,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_lock_file_with_populated_npm_entry_still_loads() {
+    fn legacy_lock_file_with_populated_npm_entry_migrates() {
         // Regression for the NPM distribution removal: lock files written by
         // older builds carry managed entries with integrity/signature fields
         // populated. They must keep parsing without error.
@@ -626,7 +601,10 @@ mod tests {
         )
         .unwrap();
 
-        let lock = ExtensionsLock::load(&path).unwrap();
+        let paths = crate::extensions::ExtensionPaths::from_root(directory.path().to_path_buf());
+        assert!(ExtensionsLock::load(&path).unwrap_err().contains("extensions.lock.json"));
+        crate::extensions::repository::migrate_to_repository(&paths).unwrap();
+        let lock = ExtensionsLock::load(&paths.repository_file).unwrap();
         let entry = lock.extensions.get("legacy.npm.tool").unwrap();
         assert_eq!(entry.distribution_source, ExtensionDistributionSource::Npm);
         assert_eq!(

@@ -6,6 +6,12 @@ died silently before writing its report (rc 0, truncated output — the known
 self-consistent diff for Tasks 1–2; Hermes reviewed the full diff, ran the
 independent verification pipeline, and committed it.
 
+> Current contract after slices 5-8: "lock" in this historical report maps to
+> the in-memory `ExtensionsLock` API over `extension-repository.json`. Repository
+> plus journals is the only extension state source; legacy files are explicit
+> startup migration inputs. Journal retry duties remain, and R10 persists the
+> removal journal before destructive staging.
+
 ## Task 1 — Recovery debt fix (landed)
 
 `recover_removal_journals()` (src-tauri/src/extensions/transaction.rs, committed

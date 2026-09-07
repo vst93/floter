@@ -426,7 +426,7 @@ async fn loaded_provider_commands(
 pub(crate) async fn load_provider_commands_uncached(
     state: &ExtensionState,
 ) -> Result<Vec<LoadedProviderCommand>, String> {
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entries: Vec<crate::extensions::lock::ExtensionLockEntry> =
         lock.extensions.values().cloned().collect();
     let mut lock_changed = false;
@@ -1106,7 +1106,7 @@ mod tests {
         std::fs::remove_file(&executable).unwrap();
         let commands = load_provider_commands_uncached(&state).await.unwrap();
         assert!(commands.is_empty());
-        let broken = ExtensionsLock::load(&state.paths.lock_file)
+        let broken = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get(&entry.id)
             .unwrap()
@@ -1135,7 +1135,7 @@ mod tests {
             .unwrap();
         let commands = load_provider_commands_uncached(&state).await.unwrap();
         assert!(commands.is_empty());
-        let restored = ExtensionsLock::load(&state.paths.lock_file)
+        let restored = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get(&entry.id)
             .unwrap()
@@ -1188,7 +1188,7 @@ mod tests {
             .set_times(std::fs::FileTimes::new().set_modified(original_modified))
             .unwrap();
         load_provider_commands_uncached(&state).await.unwrap();
-        let restored = ExtensionsLock::load(&state.paths.lock_file)
+        let restored = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get(&entry.id)
             .unwrap()
@@ -1336,7 +1336,7 @@ mod tests {
 
         // Change the underlying data: disable the integration so a reload
         // must produce a different table.
-        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         lock.extensions.get_mut(&entry.id).unwrap().enabled = false;
         lock.save(&state.paths.repository_file).unwrap();
 

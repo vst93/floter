@@ -7,11 +7,9 @@
 //! previously active version, committed transactions finish their cleanup, and
 //! the `current.json` pointer is rebuilt from the repository.
 //!
-//! The stage machine is `resolved -> downloading -> downloaded -> verified ->
-//! staged -> activated -> cleaned` (FEP/plan "确定性安装"). Download itself is
-//! resumable via `.part` files with an independent journal (see `download.rs`);
-//! the transaction journal only records which stage the install pipeline
-//! reached before it stopped.
+//! Old installation journals record `resolved -> downloading -> downloaded ->
+//! verified -> staged -> activated -> cleaned`. The NPM download/install pipeline
+//! is retired, but an upgrade after a crash can still leave its journals behind.
 
 use crate::extensions::lock::{
     sync_directory, write_current_pointer, ExtensionLockEntry, ExtensionsLock,
@@ -33,7 +31,7 @@ pub enum TransactionState {
     /// Version selection finished; nothing has been downloaded yet.
     #[default]
     Resolved,
-    /// Tarball download in progress (resumable via `download.rs` `.part`).
+    /// Tarball download was in progress in the retired NPM pipeline.
     Downloading,
     /// Downloads finished and integrity verified.
     Downloaded,
@@ -70,8 +68,8 @@ pub enum RemovalIntent {
 
 // NOTE: the staged-pipeline writers (`begin`, `progress`, `commit_version`,
 // `commit_lock`) were removed together with the NPM distribution pipeline.
-// `recover`, `write_journal`, and this enum stay because journals written by
-// older builds must still load, recover, and be cleaned up at startup.
+// Recovery and the wire schema stay because older builds can leave journals
+// after a crash. Only tests write new installation journals.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -132,7 +130,7 @@ fn removal_journal_path(state: &ExtensionState, transaction_id: &str) -> PathBuf
 /// Persist a journal atomically. Production code no longer creates new
 /// journals (the staged NPM pipeline was removed), but recovery tests use this
 /// to fabricate legacy journals and `recover` still consumes their format.
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn write_journal(
     state: &ExtensionState,
     journal: &InstallationJournal,
@@ -208,7 +206,7 @@ fn remove_journal(path: &Path) -> Result<(), String> {
 /// Callers must hold the extension mutation lock.
 pub(crate) fn recover_pending_removals(state: &ExtensionState) -> Result<(), String> {
     if journal_dir(state).is_dir() {
-        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
         if !recover_removal_journals(state, &mut lock)? {
             return Err("Extension removal recovery is pending; journal left for recovery".into());
         }
@@ -448,11 +446,12 @@ fn recover_removal_journals(
 /// still exists, the removal never committed, so drop the journal and restore
 /// staged paths; if the entry is gone, finish cleanup or restore an interrupted edit.
 pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
+    crate::extensions::repository::migrate_to_repository(&state.paths)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     // Staging cleanup is independent of whether any journal exists: a crash
     // before the first journal write still leaves an unpacked staging tree.
     remove_orphaned_staging(state)?;
     let directory = journal_dir(state);
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
 
     if directory.is_dir() {
         // Recover removal journals first: they must complete before install journals.
@@ -892,7 +891,7 @@ mod tests {
     fn recovery_writeback_through_repo_restores_install_entry() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+        ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let archive_bytes = std::fs::read(&archive).unwrap();
@@ -912,7 +911,7 @@ mod tests {
         assert_eq!(json["extensions"][&journal.extension_id], serde_json::to_value(journal.old_entry.as_ref().unwrap()).unwrap());
         assert!(!journal_path.exists());
         assert!(!journal.target_version.as_ref().unwrap().exists());
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
         assert_eq!(std::fs::read(&archive).unwrap(), archive_bytes);
         let pointer: serde_json::Value = serde_json::from_slice(
             &std::fs::read(state.paths.extensions.join(&journal.extension_id).join("current.json")).unwrap(),
@@ -920,7 +919,7 @@ mod tests {
         assert_eq!(pointer["version"], "1.0.0");
         recover(&state).unwrap();
         assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), after);
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
     }
 
     #[test]
@@ -938,7 +937,7 @@ mod tests {
         original.manifest_path = root.join("floter.extension.json").to_string_lossy().into_owned();
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(id.into(), original.clone());
-        lock.save_legacy(&state.paths.lock_file).unwrap();
+        lock.save_legacy(&state.paths.legacy_lock_file).unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let archive_bytes = std::fs::read(&archive).unwrap();
@@ -969,11 +968,11 @@ mod tests {
         assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), b"original");
         assert!(!backup.exists());
         assert!(!journal_path.exists());
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
         assert_eq!(std::fs::read(&archive).unwrap(), archive_bytes);
         recover(&state).unwrap();
         assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), after);
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
     }
 
     #[test]
@@ -1009,7 +1008,7 @@ mod tests {
         assert!(target.exists());
         assert!(!backup.exists());
         assert_eq!(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get("example.journal")
                 .unwrap()
@@ -1070,7 +1069,7 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         lock.extensions
             .insert(journal.new_entry.id.clone(), journal.new_entry.clone());
-        lock.save_legacy(&state.paths.lock_file).unwrap();
+        lock.save_legacy(&state.paths.legacy_lock_file).unwrap();
         let journal_path = write_journal(&state, &journal).unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
 
@@ -1080,7 +1079,7 @@ mod tests {
         assert!(!backup.exists());
         assert!(!journal_path.exists());
         assert_eq!(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get("example.migrated")
                 .unwrap()
@@ -1121,7 +1120,7 @@ mod tests {
         assert!(target.exists());
         assert!(!backup.exists());
         assert_eq!(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get("example.journal")
                 .unwrap()
@@ -1157,7 +1156,7 @@ mod tests {
 
         assert!(target.exists());
         assert_eq!(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get("example.fresh")
                 .unwrap()

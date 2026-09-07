@@ -1,6 +1,6 @@
 //! Legacy NPM asset-selection records. The NPM distribution path was
-//! physically removed; these types remain only so `extensions.lock.json`
-//! files written by older builds still deserialize (`assetSelection`).
+//! physically removed; these types preserve `assetSelection` in repository
+//! entries, migration inputs, and installation recovery journals.
 
 use serde::{Deserialize, Serialize};
 

@@ -476,7 +476,7 @@ pub async fn reprobe_tool_commands(
     id: &str,
 ) -> Result<ReprobeReport, String> {
     validate_id(id)?;
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(id)?
         .clone();
     if !is_generated_custom_integration(&entry) {
@@ -771,7 +771,7 @@ pub fn custom_integration_definition(
     state: &ExtensionState,
     extension_id: &str,
 ) -> Result<CustomIntegrationDefinition, String> {
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(extension_id)?
         .clone();
     if !is_generated_custom_integration(&entry) {
@@ -857,7 +857,7 @@ pub async fn update_custom_integration(
     }
     let _guard = state.mutation_lock.lock().await;
     crate::extensions::transaction::recover_pending_removals(state)?;
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let current = lock.get(extension_id)?.clone();
     if !is_generated_custom_integration(&current) {
         return Err(format!(
@@ -896,7 +896,7 @@ pub async fn update_custom_integration(
         .map_err(|error| format!("Cannot stage custom integration update: {error}"))?;
 
     // Now safe to remove the repository entry: recovery can restore it after a crash.
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     lock.extensions.remove(extension_id);
     crate::extensions::commit_point("edit-repository-remove");
     if let Err(error) = lock.save(&state.paths.repository_file) {
@@ -910,7 +910,7 @@ pub async fn update_custom_integration(
 
     let result = create_custom_integration_locked(state, request).await;
     if result.is_ok() {
-        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
         if let Some(updated) = lock.extensions.get_mut(extension_id) {
             updated.enabled = current.enabled;
             updated.state = if current.enabled {
@@ -1289,7 +1289,7 @@ pub async fn verify_installed(
     state: &ExtensionState,
     extension_id: &str,
 ) -> Result<ExtensionLockEntry, String> {
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(extension_id)?
         .clone();
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
@@ -1322,7 +1322,7 @@ pub async fn uninstall(
     validate_id(extension_id)?;
     state.provider.cancel_completions();
     crate::extensions::transaction::recover_pending_removals(state)?;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?.clone();
     let generated_local_root = state.paths.data.join(extension_id).join("integration");
     let generated_local = is_generated_custom_integration(&entry)
@@ -1592,7 +1592,7 @@ pub(crate) async fn install_linked(
     } else {
         response.description.provider.version.clone()
     };
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     if lock.extensions.contains_key(&manifest.id) {
         return Err(format!("Extension is already installed: {}", manifest.id));
     }
@@ -1947,7 +1947,7 @@ mod tests {
         assert!(target.exists());
         assert!(!backup.exists());
         assert_eq!(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get(&old.id)
                 .unwrap()
@@ -1995,7 +1995,7 @@ mod tests {
         crate::extensions::transaction::recover(&state).unwrap();
         assert!(!backup.exists());
         assert_eq!(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get("example.journal")
                 .unwrap()
@@ -2037,7 +2037,7 @@ mod tests {
     }
 
     async fn set_enabled_for_test(state: &ExtensionState, id: &str, enabled: bool) {
-        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         lock.set_enabled(id, enabled).unwrap();
         lock.save(&state.paths.repository_file).unwrap();
         state.invalidate_provider_commands().await;
@@ -2599,7 +2599,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let installed_at = ExtensionsLock::load(&state.paths.lock_file)
+        let installed_at = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get("local.reprober-test")
             .unwrap()
@@ -2742,7 +2742,7 @@ mod tests {
         )
         .unwrap();
         set_enabled_for_test(&state, "local.enabler-test", true).await;
-        let entry = ExtensionsLock::load(&state.paths.lock_file)
+        let entry = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get("local.enabler-test")
             .unwrap()
@@ -2881,20 +2881,20 @@ mod tests {
         for retained_legacy in [false, true] {
             let directory = tempfile::tempdir().unwrap();
             let state = test_state(directory.path());
-            ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+            ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
             crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
             let archive = state.paths.root.join("extensions.lock.json.migrated");
             let legacy_bytes = std::fs::read(&archive).unwrap();
             if retained_legacy {
                 // Model a legacy file left beside the repository after migration.
-                std::fs::copy(&archive, &state.paths.lock_file).unwrap();
+                std::fs::copy(&archive, &state.paths.legacy_lock_file).unwrap();
             }
             let snapshot = || -> serde_json::Value {
                 assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
                 if retained_legacy {
-                    assert_eq!(std::fs::read(&state.paths.lock_file).unwrap(), legacy_bytes);
+                    assert_eq!(std::fs::read(&state.paths.legacy_lock_file).unwrap(), legacy_bytes);
                 } else {
-                    assert!(!state.paths.lock_file.exists());
+                    assert!(!state.paths.legacy_lock_file.exists());
                 }
                 let json: serde_json::Value = serde_json::from_slice(
                     &std::fs::read(&state.paths.repository_file).unwrap(),
@@ -2959,7 +2959,7 @@ mod tests {
             assert_eq!(imported["extensions"][id]["currentVersion"], "2.0.0");
             assert_eq!(imported["extensions"][id]["enabled"], false);
             crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
-            assert_eq!(ExtensionsLock::load(&state.paths.lock_file).unwrap().get(id).unwrap().name, "Edited");
+            assert_eq!(ExtensionsLock::load(&state.paths.repository_file).unwrap().get(id).unwrap().name, "Edited");
             assert_eq!(snapshot(), imported);
         }
     }
@@ -3869,7 +3869,7 @@ mod tests {
             .join("local.restore-test")
             .join("integration");
         let original_lock = serde_json::to_value(
-            ExtensionsLock::load(&state.paths.lock_file)
+            ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()
                 .get("local.restore-test")
                 .unwrap(),
@@ -3888,7 +3888,7 @@ mod tests {
 
         let restored = custom_integration_definition(&state, "local.restore-test").unwrap();
         assert_eq!(restored.script_content.as_deref(), Some("printf safe"));
-        let restored_lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let restored_lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert_eq!(
             serde_json::to_value(restored_lock.get("local.restore-test").unwrap()).unwrap(),
             original_lock
@@ -3934,7 +3934,7 @@ mod tests {
         assert!(catalog_contains(&state, "lifecycle-edited").await);
 
         set_enabled_for_test(&state, "local.lifecycle-test", false).await;
-        let disabled = ExtensionsLock::load(&state.paths.lock_file)
+        let disabled = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get("local.lifecycle-test")
             .unwrap()
@@ -3944,7 +3944,7 @@ mod tests {
         assert!(!catalog_contains(&state, "lifecycle-edited").await);
 
         set_enabled_for_test(&state, "local.lifecycle-test", true).await;
-        let enabled = ExtensionsLock::load(&state.paths.lock_file)
+        let enabled = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get("local.lifecycle-test")
             .unwrap()
@@ -3989,7 +3989,7 @@ mod tests {
         assert!(report.failed.is_empty(), "{:?}", report.failed);
         assert_eq!(report.succeeded.len(), 1);
         state.invalidate_provider_commands().await;
-        let imported = ExtensionsLock::load(&state.paths.lock_file)
+        let imported = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get("local.lifecycle-test")
             .unwrap()
@@ -4008,7 +4008,7 @@ mod tests {
             .await
             .unwrap();
         state.invalidate_provider_commands().await;
-        assert!(!ExtensionsLock::load(&state.paths.lock_file)
+        assert!(!ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .contains_key("local.lifecycle-test"));
@@ -4042,7 +4042,7 @@ mod tests {
         // After probe execution was added, data_root now contains health.json,
         // so it is no longer removed when remove_data=false.
         // Use remove_data=true to verify full cleanup works.
-        assert!(!ExtensionsLock::load(&state.paths.lock_file)
+        assert!(!ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .contains_key("local.delete-test"));
@@ -4125,7 +4125,7 @@ mod tests {
 
         assert!(executable.is_file());
         assert!(external_package.is_dir());
-        assert!(!ExtensionsLock::load(&state.paths.lock_file)
+        assert!(!ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .contains_key("local.external-test"));
@@ -4215,7 +4215,7 @@ mod tests {
 
         assert!(result.is_err());
         assert!(installed_root.join("payload").is_file());
-        assert!(ExtensionsLock::load(&state.paths.lock_file)
+        assert!(ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .contains_key(extension_id));
@@ -4320,7 +4320,7 @@ mod tests {
 
         // If uninstall succeeded completely, journal should be gone.
         // If it failed during cleanup, lock is committed but journal remains.
-        let lock_after = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock_after = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         let journal_dir = state.paths.extensions.join(".transactions");
         let has_removal_journal = journal_dir.exists()
             && journal_dir
@@ -4463,7 +4463,7 @@ mod tests {
         // Recovery should complete the removal.
         crate::extensions::transaction::recover(&state).unwrap();
 
-        let lock_after = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock_after = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert!(!lock_after.extensions.contains_key(extension_id));
         assert!(!staged_path.exists());
         let journal_dir = state.paths.extensions.join(".transactions");
@@ -4522,7 +4522,7 @@ mod tests {
         // Recovery should restore backup to root using cleanup_paths[0] as target.
         crate::extensions::transaction::recover(&state).unwrap();
 
-        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         let restored = lock.get(id).unwrap();
         assert_eq!(restored.id, original.id);
         assert_eq!(restored.updated_at, original.updated_at);
@@ -4560,7 +4560,7 @@ mod tests {
 
         // Simulate crash after lock removal but before new content written:
         // lock has no entry, journal exists with intent=Edit + Staged kind.
-        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         lock.extensions.remove(id);
         lock.save(&state.paths.repository_file).unwrap();
 
@@ -4580,7 +4580,7 @@ mod tests {
         // Recovery should RESTORE: old content back, lock entry re-inserted.
         crate::extensions::transaction::recover(&state).unwrap();
 
-        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         let restored = lock.get(id).unwrap();
         assert_eq!(restored.id, original.id);
         assert_eq!(restored.updated_at, original_updated_at);
@@ -4616,7 +4616,7 @@ mod tests {
         assert!(result.is_err());
 
         // Original integration should be fully restored in-process.
-        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert!(lock.extensions.contains_key(id));
 
         let definition = custom_integration_definition(&state, id).unwrap();
@@ -4667,7 +4667,7 @@ mod tests {
         std::fs::rename(&root, &backup_path).unwrap();
 
         // 2. Lock entry removed (as update_custom_integration does)
-        let mut lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         lock.extensions.remove(id);
         lock.save(&state.paths.repository_file).unwrap();
 
@@ -4692,7 +4692,7 @@ mod tests {
         // Files alone do not commit an edit; restore the registered generation.
         crate::extensions::transaction::recover(&state).unwrap();
 
-        let lock = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert_eq!(
             serde_json::to_value(lock.get(id).unwrap()).unwrap(),
             serde_json::to_value(&original).unwrap()
@@ -4867,7 +4867,7 @@ mod tests {
         // Recovery should restore the staged directory and drop the journal.
         crate::extensions::transaction::recover(&state).unwrap();
 
-        let lock_after = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let lock_after = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert!(lock_after.extensions.contains_key(extension_id));
         assert!(installed_root.exists());
         assert!(installed_root.join("payload").is_file());

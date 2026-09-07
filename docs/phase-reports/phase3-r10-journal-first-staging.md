@@ -1,5 +1,10 @@
 # Phase 3 R10: Journal Before Destructive Staging
 
+> Slice 8 update: repository-only reads now match the repository-only writes
+> documented here. `write_journal` is compiled only for test fixtures; production
+> installation-journal replay remains for older-build crashes. R10 removal/edit
+> journal ordering and retry duties remain intact.
+
 ## Premise Check (Unmodified Source)
 
 Read `docs/phase-reports/phase3-slice7-advanced-fault-injection.md` first.

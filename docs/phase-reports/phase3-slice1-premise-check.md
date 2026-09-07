@@ -3,6 +3,12 @@
 Verification date: 2026-09-05  
 Baseline: commit 40fda3d (main)
 
+> Historical pre-repository evidence follows. Since Phase 3 slices 5-8,
+> `ExtensionsLock` persists only `extension-repository.json`; legacy files are
+> startup migration inputs. Repository plus journals is the single extension
+> state source. Current pointers/shims are rebuilt projections. R10 now writes
+> the removal journal before destructive staging.
+
 ## Audit Claim 1: Uninstall ordering bug (P1)
 **Audit reference**: Line 135 in `docs/plugin-system-audit.md`  
 **Claim**: `install.rs` uninstall (~1244-1317 pre-drift) renames extension dir to staged "removing" temp dir, commits lock FIRST, then deletes staged dir. If deletion fails, it returns error but lock entry is already gone → "extension listed as uninstalled but disk residue remains".

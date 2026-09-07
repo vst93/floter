@@ -73,7 +73,7 @@ Unix Host 在完整性验证后补充用户可执行位；Windows 不修改 ACL�
 外部工具版本单独记录，两者不得在管理页混为一个字段。
 
 Host 内置静态适配器也属于 system runtime 集成。Host 可以在管理页显示已检测到的
-适配器，但必须得到用户确认并写入 lock 后才能把命令加入目录。静态适配器的
+适配器，但必须得到用户确认并写入 `extension-repository.json` 后才能把命令加入目录。静态适配器的
 描述由 Host 提供，不要求外部工具实现 Provider `describe`。
 
 ### script runtime

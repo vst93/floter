@@ -10,8 +10,11 @@
 > - 架构审计与重构路线图：`docs/plugin-system-audit.md`（2026-08-22）
 > - 已知未完成项：`extensions_reprobe`/`extensions_launch` 未读取 manifest 声明、官方索引缺版本范围/撤销、SDK 仅为文档指南、V 动态 Provider 参考实现与三平台 E2E 测试未落地。远端同步传输层（Cloud/Git/WebDAV）明确不做承诺。
 
-> Manifest v2 已将分发来源、运行时所有权和 Provider 类型拆为独立字段；v1
-> manifest、lock 和同步导出在读取时自动迁移。
+> Phase 3 slices 1-8 + R10：`extension-repository.json` 加 journals 是唯一扩展
+> 状态源。正常读取不再回退 legacy lock；启动 recovery 统一迁移旧输入，先提交
+> repository 再恢复 journals 和投影。`.migrated` 保留升级恢复用途，`.corrupt`
+> 阻止损坏状态被静默清空。`ExtensionsLock` 是内存 API，`tool-lock.json` 是独立
+> 用户绑定状态。以下 NPM 安装步骤保留历史规划含义，当前已移除该分发 pipeline。
 
 ---
 
@@ -385,7 +388,7 @@ not-installed -> enabled <-> disabled
                        broken
 ```
 
-`enabled`、`disabled` 和 `broken` 写入 lock 文件。解析、下载、校验、安装、
+`enabled`、`disabled` 和 `broken` 写入 `extension-repository.json`。解析、下载、校验、安装、
 更新、回滚和删除是 Host 操作或事务阶段，不作为扩展持久状态。安装事务内部按
 `resolving -> downloading -> verifying -> installing -> complete` 推进；任一步失败
 都保留原来的可用版本和状态。不要让插件自己实现 `install`、`update`、
@@ -413,7 +416,7 @@ not-installed -> enabled <-> disabled
 5. 启动 Provider `describe`，校验 Provider ID 与扩展 ID 相同。
 6. 可选执行 `diagnose`。
 7. 原子移动到 `extensions/<id>/versions/<version>`。
-8. 原子写入 lock 文件并启用命令目录。
+8. 原子写入 repository 并重建命令目录和 current pointer 投影。
 
 任何一步失败都不得改变当前可用版本。
 
@@ -429,14 +432,14 @@ floter/
 │     └─ current.json
 ├─ extension-data/
 │  └─ io.github.vst93.v/
-└─ extensions.lock.json
+└─ extension-repository.json
 ```
 
 程序文件与用户数据必须分离。删除程序时，用户可以选择「保留配置」或「同时删除数据」。
 
 #### 更新与回滚
 
-- 新版本安装到并列目录，通过 lock 文件的 current version 原子切换。
+- 新版本安装到并列目录，通过 repository 的 current version 原子切换。
 - 至少保留一个 previous version，直到新版本成功运行。
 - 默认自动更新只允许 patch；major 更新需要用户确认。
 - 用户可以固定版本或选择 stable/beta dist-tag。
@@ -826,7 +829,8 @@ floter/
 │  │  ├─ provider.rs          # Provider 调用与缓存
 │  │  ├─ catalog.rs           # 统一命令目录
 │  │  ├─ install.rs           # 安装生命周期
-│  │  └─ lock.rs              # extensions.lock.json 管理
+│  │  ├─ lock.rs              # repository 条目、状态操作和 current pointer
+│  │  └─ repository.rs        # extension-repository.json 与启动迁移恢复
 │  └─ lib.rs                  # 注册新 commands
 ├─ src/
 │  ├─ App.tsx                 # 接入 catalog_search 和联想 UI
@@ -897,7 +901,7 @@ floter/
    - 安全解包（拒绝路径逃逸）
    - 分发来源、运行时所有权、Provider 类型三个正交维度
    - 原子安装/更新/回滚
-   - `extensions.lock.json` 管理
+   - `extension-repository.json` 管理，journals 恢复和投影重建
    - 状态机实现
 
 6. **声明式配置支持**

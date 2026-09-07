@@ -1,5 +1,11 @@
 # Phase 3 Slice 1 Implementation Report
 
+> Historical report: "lock" below describes the pre-repository implementation.
+> Current extension state uses only `extension-repository.json` plus journals;
+> `ExtensionsLock` is its in-memory API. Slice 8 retains explicit startup
+> migration/recovery of legacy inputs, and R10 writes the removal journal before
+> destructive staging. Current pointers and shims are rebuildable projections.
+
 ## Premise Check
 
 The audit document referenced in the task (`docs/plugin-system-audit.md`) does not exist in the current repository. However, I verified the claims against the actual current code:

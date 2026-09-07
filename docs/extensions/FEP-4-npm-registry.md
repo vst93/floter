@@ -82,7 +82,7 @@ resolved first. For a range, the Host selects the highest matching published
 version. Normal SemVer precedence applies: prereleases do not satisfy a range
 unless the range explicitly includes a prerelease identifier.
 
-Updates retain the selected channel and package lock information. A publisher
+Updates retain the selected channel and package version information in the extension repository. A publisher
 MUST NOT republish different bytes under the same version; the tarball digest is
 part of the installed identity.
 
@@ -199,7 +199,7 @@ A publisher MAY mark a version or package as deprecated with:
 
 `floter.deprecated: true` tells discovery and management UIs to warn before a
 new install. It does not silently remove an installed version. Deprecation is
-not the same as an NPM unpublish and does not alter lock-file rollback behavior.
+not the same as an NPM unpublish and does not alter repository-based rollback behavior.
 
 ## References
 

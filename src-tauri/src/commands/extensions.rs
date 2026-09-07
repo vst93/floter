@@ -31,7 +31,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[tauri::command]
 pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let candidates = state
         .tool_inventory
         .lock()
@@ -227,7 +227,7 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
 pub async fn extensions_refresh_official_status(
     state: State<'_, ExtensionState>,
 ) -> Result<BTreeMap<String, bool>, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let official_index = crate::extensions::official_index::fetch(&state).await.ok();
     Ok(lock
         .list()
@@ -779,7 +779,7 @@ pub async fn extensions_import(
     let document = sync::read_import(&path)?;
     let locale = locale.as_deref().unwrap_or("en");
     let is_zh = locale.to_ascii_lowercase().starts_with("zh");
-    let installed = ExtensionsLock::load(&state.paths.lock_file)?;
+    let installed = ExtensionsLock::load(&state.paths.repository_file)?;
     let mut approved_permissions = BTreeMap::new();
     let mut permission_lines = Vec::new();
     for entry in &document.extensions {
@@ -1053,7 +1053,7 @@ pub async fn extensions_pick_local_package(
         .clone()
         .resolve(PlatformTarget::current()?)
         .map_err(|error| format!("platform_incompatible: {error}"))?;
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     if lock.extensions.contains_key(&manifest.id) {
         return Err(format!("duplicate_id: {}", manifest.id));
     }
@@ -1070,7 +1070,7 @@ pub fn extensions_local_manifest_review(
     let manifest = ExtensionManifest::load(path)?;
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     manifest.clone().resolve(PlatformTarget::current()?)?;
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     if lock.extensions.contains_key(&manifest.id) {
         return Err(format!("Extension is already installed: {}", manifest.id));
     }
@@ -1250,7 +1250,7 @@ async fn reconnect_system(
     executable_path: Option<&str>,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let current = lock
         .extensions
         .get(id)
@@ -1417,7 +1417,7 @@ async fn set_enabled(
     if !enabled {
         state.provider.cancel_completions();
     }
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     lock.set_enabled(id, enabled)?;
     let entry = lock.get(id)?.clone();
     lock.save(&state.paths.repository_file)?;
@@ -1460,7 +1460,7 @@ pub async fn extensions_repair(
         Ok(entry) => {
             // Verification passing clears any stale operation-error record so
             // the health section reflects the current, verified state.
-            let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+            let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
             if lock.clear_broken(&id)? {
                 let cleared = lock.get(&id)?.clone();
                 lock.save(&state.paths.repository_file)?;
@@ -1481,21 +1481,21 @@ pub async fn extensions_repair(
             })
         }
         Err(problem) => {
-            let current = ExtensionsLock::load(&state.paths.lock_file)?
+            let current = ExtensionsLock::load(&state.paths.repository_file)?
                 .get(&id)?
                 .clone();
             // Persist the failure as the structured broken state before any
             // repair attempt, so a crash mid-repair still leaves the reason
             // visible after restart.
             let code = install::classify_verify_error(&problem);
-            let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+            let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
             lock.mark_broken(&id, &code, &problem)?;
             lock.save(&state.paths.repository_file)?;
             let action = if current.runtime_ownership == ExtensionRuntimeOwnership::System {
                 match reconnect_system(&state, &id, None).await {
                     Ok(_) => "reconnected-system-runtime",
                     Err(repair_error) => {
-                        let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+                        let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
                         lock.mark_broken(&id, &code, &repair_error)?;
                         lock.save(&state.paths.repository_file)?;
                         return Err(format!("Cannot repair {id}: {repair_error}"));
@@ -1506,7 +1506,7 @@ pub async fn extensions_repair(
             };
             // Repair succeeded: restore the pre-broken enabled/disabled state
             // and drop the recorded error.
-            let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+            let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
             lock.clear_broken(&id)?;
             lock.save(&state.paths.repository_file)?;
             let entry = lock.get(&id)?.clone();
@@ -1528,7 +1528,7 @@ pub async fn extensions_describe(
     id: String,
     force: Option<bool>,
 ) -> Result<ProviderResponse, String> {
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(&id)?
         .clone();
     let response = if matches!(
@@ -1557,7 +1557,7 @@ pub async fn extensions_describe(
 }
 
 async fn clear_broken_after_success(state: &ExtensionState, id: &str) -> Result<(), String> {
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     if lock.get(id)?.state != ExtensionStateKind::Broken {
         return Ok(());
     }
@@ -1572,7 +1572,7 @@ pub async fn extensions_diagnose(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<DiagnoseResponse, String> {
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(&id)?
         .clone();
     if matches!(
@@ -1610,7 +1610,7 @@ pub async fn extensions_health(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<HealthReport, String> {
-    let _entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let _entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(&id)?
         .clone();
     let health_dir = state.paths.data.join(&id);
@@ -1623,7 +1623,7 @@ pub async fn extensions_reprobe(
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<HealthReport, String> {
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(&id)?
         .clone();
 
@@ -1722,7 +1722,7 @@ pub async fn extensions_launch(
         ResolvedSession, RestorePolicy, SessionResolveRequest, SessionResolver,
     };
 
-    let entry = ExtensionsLock::load(&state.paths.lock_file)?
+    let entry = ExtensionsLock::load(&state.paths.repository_file)?
         .get(&id)?
         .clone();
 
@@ -1936,7 +1936,7 @@ pub async fn extensions_config_export(
 }
 
 fn reject_bundled_static_configuration(state: &ExtensionState, id: &str) -> Result<(), String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     if matches!(
         lock.get(id)?.provider_kind,
         ExtensionProviderKind::BundledStatic | ExtensionProviderKind::StaticDescriptor
@@ -1981,7 +1981,7 @@ mod tests {
         install::find_script_interpreter(ScriptLanguage::Shell).unwrap();
         let directory = tempfile::tempdir().unwrap();
         let state = ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf())).unwrap();
-        ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+        ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let legacy_bytes = std::fs::read(&archive).unwrap();
@@ -2010,7 +2010,7 @@ mod tests {
             assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
             assert_eq!(json["extensions"][&entry.id]["enabled"], enabled);
             assert_eq!(json["extensions"][&entry.id]["state"], if enabled { "enabled" } else { "disabled" });
-            assert!(!state.paths.lock_file.exists());
+            assert!(!state.paths.legacy_lock_file.exists());
             assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
         }
     }

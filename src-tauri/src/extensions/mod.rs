@@ -298,7 +298,8 @@ pub struct ExtensionPaths {
     pub extensions: PathBuf,
     pub data: PathBuf,
     pub cache: PathBuf,
-    pub lock_file: PathBuf,
+    /// Read-only input for startup migration; never an active state source.
+    pub legacy_lock_file: PathBuf,
     pub repository_file: PathBuf,
     pub tool_lock_file: PathBuf,
     pub official_index_state_file: PathBuf,
@@ -317,7 +318,7 @@ impl ExtensionPaths {
             extensions: root.join("extensions"),
             data: root.join("extension-data"),
             cache: root.join("extension-cache"),
-            lock_file: root.join("extensions.lock.json"),
+            legacy_lock_file: root.join("extensions.lock.json"),
             repository_file: root.join("extension-repository.json"),
             tool_lock_file: root.join("tool-lock.json"),
             official_index_state_file: root.join("official-index-state.json"),
@@ -368,13 +369,6 @@ impl ExtensionState {
         official_index: official_index::OfficialIndexConfig,
     ) -> Result<Self, String> {
         paths.ensure()?;
-        match repository::migrate_to_repository(&paths) {
-            Ok(repository::MigrationOutcome::Migrated) => {
-                tracing::info!("Migrated extensions.lock.json to extension-repository.json")
-            }
-            Ok(repository::MigrationOutcome::Noop) => {}
-            Err(error) => tracing::warn!("Extension repository migration skipped: {error}"),
-        }
         let tool_lock = ToolLock::load(&paths.tool_lock_file)?;
         let accepted_official_index_version =
             official_index::load_accepted_version(&paths.official_index_state_file)?;

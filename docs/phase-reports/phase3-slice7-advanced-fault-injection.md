@@ -1,5 +1,13 @@
 # Phase 3 Slice 7: Advanced Fault Injection
 
+> Slice 8 supersedes the read-time fallback described in this historical report.
+> Normal load/save use only `extension-repository.json`. Explicit recovery can
+> import a valid old lock or `.migrated` archive, but must durably commit the
+> repository before replay or cleanup. This preserves pre-slice-7 recovery trees
+> with only `.migrated` and `.corrupt`. The archive stays unchanged; corrupt-state
+> markers and invalid/empty-input errors still survive repeated startup.
+> Installation replay is production recovery; its fixture writer is test-only.
+
 ## Step 0: Premise Check (Before Test Changes)
 
 Inspected the clean `main` worktree on 2026-09-07. The references in this
@@ -146,7 +154,7 @@ replace the file with non-JSON garbage; each mutation is verified invalid.
 | `readonly_corrupt_repository_archive_aborts_and_retries_cleanly` | `repository.rs:716` | Denied archive rename cannot permit empty fallback; corrupted bytes remain intact, later archive succeeds, and subsequent recovery still errors instead of creating empty state. |
 | `readonly_journal_quarantine_aborts_and_retries_on_next_startup` | `transaction.rs:1689` | Both journal formats abort when quarantine rename is denied; original bytes and repository survive; restart quarantines exact bytes. |
 | `corrupt_repository_aborts_repeated_recovery_without_erasing_extensions` | `repository.rs:578` | All three mutations abort loader/recovery/startup, preserve owned data and exact corrupt archive bytes, and never create an authoritative empty file even with `.transactions` present. |
-| `corrupt_repository_recovers_each_valid_legacy_fallback` | `repository.rs:610` | Three mutations times live/migrated fallback preserve full nonempty entries and exact archive bytes; live legacy migrates, migrated fallback remains read-only. |
+| `corrupt_repository_recovery_commits_each_valid_migration_input` (renamed in slice 8) | historical `repository.rs:610` | Three mutations times live/migrated input preserve full nonempty entries and exact archive bytes. Both inputs now produce a durable repository through explicit recovery; normal reads never return legacy state. |
 | `corrupt_repository_rejects_empty_legacy_fallbacks` | `repository.rs:651` | Empty live/migrated fallback cannot replace corrupted state, even through repeated startup migration; fallback and corrupt archive bytes are preserved. |
 | `invalid_repository_schema_cannot_default_to_authoritative_empty_state` | `repository.rs:681` | Empty object, either missing required field, future schema, and mismatched entry ID all archive and error on repeated loads. |
 | `corrupt_current_pointer_is_rebuilt_from_the_repository` | `transaction.rs:1548` | All three mutations are replaced with exact expected pointer bytes on fresh startup; repository and executable bytes remain intact. |

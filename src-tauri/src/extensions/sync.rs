@@ -123,7 +123,7 @@ pub fn build_export(
     state: &ExtensionState,
     now: DateTime<Utc>,
 ) -> Result<ExtensionsSyncDocument, String> {
-    let entries = ExtensionsLock::load(&state.paths.lock_file)?.list();
+    let entries = ExtensionsLock::load(&state.paths.repository_file)?.list();
     let extensions = entries
         .into_iter()
         .map(|entry| export_entry(state, entry))
@@ -321,7 +321,7 @@ pub async fn import_document(
         skipped: Vec::new(),
     };
     let _guard = state.mutation_lock.lock().await;
-    let installed = match ExtensionsLock::load(&state.paths.lock_file) {
+    let installed = match ExtensionsLock::load(&state.paths.repository_file) {
         Ok(lock) => lock,
         Err(message) => {
             report.failed.push(ExtensionsImportItem {
@@ -707,7 +707,7 @@ fn restore_enabled_locked(
     extension_id: &str,
     enabled: bool,
 ) -> Result<bool, String> {
-    let mut lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     if lock.get(extension_id)?.enabled == enabled {
         return Ok(false);
     }
@@ -738,7 +738,7 @@ impl ImportSnapshot {
     ) -> Result<Self, String> {
         let root = tempfile::tempdir_in(&state.paths.cache)
             .map_err(|error| format!("Cannot create import rollback snapshot: {error}"))?;
-        let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+        let lock = ExtensionsLock::load(&state.paths.repository_file)?;
         let mut items = Vec::new();
         for id in ids {
             let item_root = root.path().join(id);
@@ -1100,7 +1100,7 @@ mod tests {
         .await;
 
         assert_eq!(report.failed.len(), 1);
-        assert!(ExtensionsLock::load(&state.paths.lock_file)
+        assert!(ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .is_empty());
@@ -1117,7 +1117,7 @@ mod tests {
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
                 .unwrap();
-        ExtensionsLock::default().save_legacy(&state.paths.lock_file).unwrap();
+        ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let before = std::fs::read(&state.paths.repository_file).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
@@ -1140,9 +1140,9 @@ mod tests {
         assert_eq!(report.failed.len(), 1);
         assert!(report.succeeded.is_empty());
         assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
         assert_eq!(std::fs::read(archive).unwrap(), archive_bytes);
-        assert!(ExtensionsLock::load(&state.paths.lock_file)
+        assert!(ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .is_empty());
@@ -1172,7 +1172,7 @@ mod tests {
         .await;
 
         assert_eq!(report.failed.len(), 1);
-        assert!(ExtensionsLock::load(&state.paths.lock_file)
+        assert!(ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .extensions
             .is_empty());
@@ -1204,7 +1204,7 @@ mod tests {
         original_entry.executable_path = version_root.join("tool").to_string_lossy().into_owned();
         let mut original_lock = ExtensionsLock::default();
         original_lock.extensions.insert(id.into(), original_entry);
-        original_lock.save_legacy(&state.paths.lock_file).unwrap();
+        original_lock.save_legacy(&state.paths.legacy_lock_file).unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let before = std::fs::read(&state.paths.repository_file).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
@@ -1223,9 +1223,9 @@ mod tests {
         snapshot.restore(&state).unwrap();
 
         assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), before);
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
         assert_eq!(std::fs::read(archive).unwrap(), archive_bytes);
-        let restored = ExtensionsLock::load(&state.paths.lock_file).unwrap();
+        let restored = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert_eq!(restored.get(id).unwrap().current_version, "1.0.0");
         assert!(version_root.join("old-file").exists());
         assert!(!new_version.exists());
@@ -1266,7 +1266,7 @@ mod tests {
         assert_eq!(first.succeeded.len(), 1);
         assert_eq!(second.skipped.len(), 1);
         assert!(second.failed.is_empty());
-        assert!(!state.paths.lock_file.exists());
+        assert!(!state.paths.legacy_lock_file.exists());
         assert_eq!(
             std::fs::read(&state.paths.repository_file).unwrap(),
             lock_after_first

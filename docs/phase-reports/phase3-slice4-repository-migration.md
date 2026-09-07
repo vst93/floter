@@ -1,5 +1,12 @@
 # Phase 3 Slice 4 — Single ExtensionRepository Schema + Migration
 
+> Current contract after slice 8: only `extension-repository.json` plus journals
+> holds extension state. The adapter/fallback behavior below describes slice 4
+> historically. Normal load/save now reject legacy paths; startup recovery owns
+> one migration entry and persists imported state before cleanup. `.migrated`
+> remains an upgrade/crash recovery input, never a normal read source, and
+> `.corrupt` prevents empty-state resets. `ExtensionsLock` remains a live API.
+
 Round: R5 of 2026-09-05 session, dispatched to Codex (gpt-6-astra, reasoning
 effort max) after the user switched the dev tool from Claude Code (relay 403:
 key group no longer permitted). Codex died at the verification/report stage on
@@ -9,8 +16,8 @@ written by the coordinator (agent died before writing it).
 
 ## Premise-check-against-code (coordinator verified post-hoc)
 
-- ExtensionsLock defined in `src-tauri/src/extensions/lock.rs`; live lock file
-  `extensions.lock.json` (schema v2).
+- `ExtensionsLock` is defined in `src-tauri/src/extensions/lock.rs`; the
+  former `extensions.lock.json` (schema v2) is now only a migration input.
 - Startup init: `ExtensionPaths` now carries `repository_file`
   (`extension-repository.json`); migration is wired into the extensions
   subsystem init with `tracing` outcome logs (Migrated / Noop / skipped+warn).
@@ -59,6 +66,6 @@ adapted where it constructed locks directly.
 
 ## Next slices (design report §Slice 5-8)
 
-Slice 5: swap install/uninstall/edit writers to the repository; slice 6:
-fault-injection harness; slice 7: advanced fault injection; slice 8: delete
-legacy lock.
+Slices 5-8 are complete: repository writers, scoped fault injection, advanced
+crash/corruption coverage, and removal of implicit legacy load/save adapters.
+Explicit migration and installation-journal recovery remain for crash safety.

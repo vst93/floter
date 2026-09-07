@@ -60,7 +60,8 @@ The canonical enum and parsing behavior are defined in
 The Host launches each Provider in an independent operating-system process and
 communicates through the Provider protocol over stdin/stdout. An extension:
 
-- MUST NOT read or modify Floter internal state, lock files, provider caches, or
+- MUST NOT read or modify Floter internal state (`extension-repository.json`,
+  transaction journals, runtime binding files), provider caches, or
   another extension's program/data directories;
 - MUST NOT modify another extension's data, even when the process has filesystem
   access;
@@ -114,7 +115,7 @@ never executed.
 The permission set is part of the install/update review. A package that changes
 permissions without a new version is invalid in practice because its published
 tarball digest must remain stable. Hosts SHOULD show the old and new sets side by
-side and retain the user's decision in the extension lock/audit record.
+side and retain the user's decision in the extension repository/audit record.
 File imports MUST perform the same review against the resolved package manifest;
 permissions embedded in an import document are not user approval.
 

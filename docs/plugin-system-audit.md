@@ -2,6 +2,16 @@
 
 审计基线：`main` 分支当前工作树，代码证据截至 2026-08-22。本文以 Rust/React 实现为准，FEP 和开发计划只用于核对“声明与实现是否漂移”。本次只读审计未修改任何源代码。
 
+> Phase 3 slice 8 update (2026-09-07): extension state now lives only in
+> `extension-repository.json` plus transaction journals. `ExtensionsLock` is
+> the in-memory API; it is not a second state file. Normal reads/writes reject
+> `extensions.lock.json`. One explicit startup recovery entry imports old
+> lock/archive inputs durably before cleanup, including `.migrated` left by
+> pre-slice-7 recovery. `.corrupt` prevents an empty-state reset on retry.
+> Current pointers and shims are projections; `tool-lock.json` independently
+> stores user runtime bindings. Earlier audit findings below are historical
+> unless explicitly updated here.
+
 ## 一、现状架构盘点
 
 ### 1.1 总体模块关系
@@ -19,7 +29,7 @@ React ExtensionsPanel
 
 Rust 侧 `extensions/mod.rs:74-178` 创建单例 `ExtensionState`。它持有：
 
-- `ExtensionPaths`：配置根、程序版本、用户数据、下载缓存、扩展 lock、工具绑定 lock、官方索引版本状态；
+- `ExtensionPaths`：配置根、程序版本、用户数据、下载缓存、扩展 repository、只读迁移输入、工具绑定 lock、官方索引版本状态；
 - `ProviderManager`：provider `describe/complete/diagnose/config` 子进程调用、超时、输出限制、缓存；
 - `static_adapters`：编译/仓库内置的静态适配器；
 - `mutation_lock`：进程内串行化安装、更新、配置和导入；
@@ -69,7 +79,7 @@ resolved -> downloading -> downloaded -> verified -> staged
 4. **reinstall**：读取当前 package/version/SRI，直接调用 `install_managed` 重新下载并以同版本进入 staging，未调用 uninstall（`install.rs:1062-1091`）。
 5. **repair**：先做落盘 tree integrity、manifest identity、provider/runtime 检查；NPM 用锁定版本/SRI 重装，system runtime 重新发现并 describe（`commands/extensions.rs:1221-1261`、`install.rs:1136-1213`）。
 6. **rollback**：要求 `previous_version` 目录存在并通过 previous content integrity，交换 current/previous 元数据后走 lock transaction（`install.rs:1319-1459`）。当前只保留一个 previous 版本。
-7. **卸载**：NPM 扩展目录先 rename 到临时 removing 目录，再提交 lock，最后删除程序；system runtime 不删除外部程序；可选删除 data（`install.rs:1244-1317`）。
+7. **卸载（Phase 3 当前实现）**：先持久化 removal journal，再暂存目录、提交 repository、清理文件；失败后保留 journal 供重启重试。system runtime 不删除外部程序；可选删除 data（`install.rs::uninstall`、`transaction.rs::recover_removal_journals`）。
 
 ### 1.4 目录布局与数据归属
 
@@ -77,13 +87,13 @@ resolved -> downloading -> downloaded -> verified -> staged
 
 ```text
 <config>/floter/
-├─ extensions.lock.json          # 宿主安装事实、版本、状态、信任摘要
+├─ extension-repository.json     # 唯一扩展状态：安装事实、版本、状态、信任摘要
 ├─ tool-lock.json                # system runtime 的用户选择/指纹
 ├─ official-index-state.json     # 官方索引最高接受版本
 ├─ extensions/
 │  ├─ <id>/
 │  │  ├─ versions/<version>/     # NPM 解包版本树
-│  │  ├─ current.json            # lock 的 runtime-facing projection
+│  │  ├─ current.json            # repository 的 runtime-facing projection
 │  │  ├─ shims/                  # public artifact 稳定入口
 │  │  └─ .transactions/*.json
 │  ├─ .staging/
@@ -142,7 +152,7 @@ Provider 通过独立进程 stdin/stdout JSON 协议暴露：`describe`、`compl
 
 | 历史问题 | 判定 | 代码证据与结论 |
 |---|---|---|
-| current.json 指针 + lock 两次落盘 | 🟡 半成品 | 有 journal、fsync、启动 recovery（`transaction.rs:253-373`），但 commit 仍在 `lock.save` 后另写 pointer（`transaction.rs:483-503`）；不是单一提交真源。 |
+| repository 与 current.json 投影落盘 | Phase 3 已完成 | `repository.rs` 是唯一扩展状态读写入口；`transaction.rs::recover` 先恢复迁移和 journals，再从 repository 重建 pointer/shims。投影失败阻止启动，旧 installation journal replay 保留用于升级后的崩溃恢复。 |
 | 删除再重装 | ✅ 已解决（实现层） | `reinstall` 直接复用锁定版本的 staging/install（`install.rs:1062-1091`），未调用 uninstall；同版本故障恢复测试基础已存在，但应补 API 级故障注入。 |
 | env_clear、非 self 程序限制 | ✅ 已解决（声明范围内） | `provider.rs:408-430` 清环境；`provider.rs:526-587,696-728` 强制 process-spawn 与 bundled runtime root。filesystem/network/clipboard 仍明确不是沙箱。 |
 | 包自带 key+sig 无官方可信源 | ✅ 已解决（当前实现） | pinned development root、signed index、publisher key allow-list、过期和 anti-rollback 在 `official_index.rs:13-63,245-314`；在线索引不可用时不会伪造 official。 |
@@ -170,7 +180,7 @@ Provider 通过独立进程 stdin/stdout JSON 协议暴露：`describe`、`compl
 ### 3.1 设计自洽性结论
 
 - **自洽的部分**：manifest -> provider descriptor -> structured execution plan 这条链边界清楚；NPM 版本树、SRI、tar 安全解包、provider 超时和 config secret generation 也形成了可验证闭环。
-- **职责重叠**：`ExtensionsLock` 同时保存安装事实、版本策略、信任摘要、运行时路径和 UI 状态；`tool-lock` 又保存 runtime 绑定；`current.json` 再投影 current version。三个对象共同描述一个 extension，却没有单一聚合根。
+- **Phase 3 状态归属**：`ExtensionsLock` 是 repository 的内存 API，安装事实、版本策略、信任摘要和运行时路径统一写入 `extension-repository.json`。`current.json` 和 shims 可重建；`tool-lock.json` 保存独立的用户 runtime 绑定，不是扩展状态的第二来源。
 - **过度设计**：platform/artifacts/static adapter/inventory/resolver/source bundle/health/session/lifecycle 全部进入同一扩展域，但没有清晰的 capability 分层；对当前 NPM+CLI 主路径而言，source inference、多个 locator 类型和 `Target` 抽象尚未形成统一可用产品。
 - **欠设计**：权限审计记录、撤销/升级策略、broken 状态写入、操作进度/取消、跨平台 E2E、SDK contract tests、配置与安装联合提交。
 - **信任边界矛盾**：文档正确地说权限不是 sandbox，但 UI 把权限统一呈现为同一种 checkbox；`environment/process-spawn` 是执行控制，其他五类只是告知，用户很难区分其实际约束强度。
@@ -225,7 +235,7 @@ Host Services          # command catalog、config store、health、UI/IPC
 
 #### Phase 3：单一 ExtensionRepository 与投影重建
 
-- **改动**：以 repository/state 文件或 SQLite 取代 lock + current pointer 多真源；current pointer、shims、tool-lock projection 可从 state 重建；统一 install/update/reinstall/rollback/uninstall 的 transaction engine 和故障注入。
+- **已落地（slices 1-8 + R10）**：`extension-repository.json` 加 journals 是唯一扩展状态源；current pointer、shims 从 repository 重建；卸载/编辑使用 journal-first 暂存和故障注入。正常读取无 legacy fallback；升级迁移只通过 recovery 入口。`tool-lock.json` 是独立的用户绑定状态，不从扩展 repository 推导。
 - **涉及文件**：`extensions/lock.rs`、`transaction.rs`、`install.rs`、`artifacts.rs`、`tool_lock.rs`、`mod.rs`。
 - **工作量**：L。
 - **风险**：高；升级迁移、跨平台 rename/fsync 语义、旧残留目录。
@@ -314,4 +324,3 @@ Host Services          # command catalog、config store、health、UI/IPC
 
 > 维护规则：本矩阵是「声明 vs 实现」的唯一对照表。后续 phase 改动能力状态时同步更新此表；
 > DEVELOPMENT_PLAN.md 的阶段勾选仅作历史记录，不再作为完成度依据。
-

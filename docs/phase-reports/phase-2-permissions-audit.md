@@ -4,6 +4,12 @@
 **分支**: main  
 **审计文档**: docs/plugin-system-audit.md §4.2 Phase 2
 
+> Phase 3 slice 8 update: the lock-file descriptions in this Phase 2 report are
+> historical. Approval/error fields now persist in `extension-repository.json`
+> through `ExtensionsLock`; repository plus journals is the only extension state
+> source. Legacy lock files and `.migrated` archives are startup recovery inputs,
+> not ordinary loader sources. Existing serde defaults still preserve old entries.
+
 ---
 
 ## 一、实施摘要

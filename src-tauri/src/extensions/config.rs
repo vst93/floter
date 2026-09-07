@@ -127,7 +127,7 @@ pub async fn get(
     extension_id: &str,
 ) -> Result<ExtensionConfiguration, String> {
     let _guard = state.mutation_lock.lock().await;
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?;
     let (descriptor, invocation) = descriptor(state, entry).await?;
     validate_descriptor(&descriptor)?;
@@ -167,7 +167,7 @@ async fn set_locked(
     extension_id: &str,
     values: BTreeMap<String, Value>,
 ) -> Result<ExtensionConfiguration, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?;
     let (descriptor, _) = descriptor(state, entry).await?;
     validate_descriptor(&descriptor)?;
@@ -196,7 +196,7 @@ pub async fn export_json(
     extension_id: &str,
     values: BTreeMap<String, Value>,
 ) -> Result<String, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?;
     let (descriptor, _) = descriptor(state, entry).await?;
     validate_descriptor(&descriptor)?;
@@ -238,7 +238,7 @@ pub(crate) async fn preflight_import_values(
     if imported.is_empty() {
         return Ok(());
     }
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?;
     let (descriptor, _) = descriptor(state, entry).await?;
     validate_descriptor(&descriptor)?;
@@ -258,7 +258,7 @@ pub(crate) async fn import_values_locked(
     extension_id: &str,
     imported: &BTreeMap<String, Value>,
 ) -> Result<bool, String> {
-    let lock = ExtensionsLock::load(&state.paths.lock_file)?;
+    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?;
     let (descriptor, _) = descriptor(state, entry).await?;
     validate_descriptor(&descriptor)?;
