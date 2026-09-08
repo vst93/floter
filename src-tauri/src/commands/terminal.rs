@@ -23,6 +23,49 @@ pub struct TerminalExecutionPlan {
     argument_override: Option<Vec<String>>,
 }
 
+impl TerminalExecutionPlan {
+    pub(crate) fn resolve(
+        self,
+        state: &ExtensionState,
+    ) -> Result<(Option<std::path::PathBuf>, SpawnCommand), String> {
+        let (program, args, cwd, environment, inherit_environment) =
+            if let Some(token) = self.plan_token.as_deref() {
+                let mut protected = state.take_execution_plan(token)?;
+                if let Some(argument_override) = self.argument_override {
+                    let start = protected.user_args_start.ok_or_else(|| {
+                        "Extension execution plan does not accept argument overrides".to_string()
+                    })?;
+                    protected.args.truncate(start);
+                    protected.args.extend(argument_override);
+                }
+                (
+                    protected.program,
+                    protected.args,
+                    protected.cwd,
+                    protected.environment,
+                    protected.inherit_environment,
+                )
+            } else {
+                (
+                    self.program,
+                    self.args,
+                    self.cwd,
+                    self.environment,
+                    self.inherit_environment,
+                )
+            };
+        Ok((
+            cwd.map(std::path::PathBuf::from),
+            SpawnCommand {
+                program,
+                args,
+                environment,
+                inherit_environment,
+            },
+        ))
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AttachExistingRequest {
@@ -58,42 +101,8 @@ pub fn term_spawn(
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     let (cwd, command) = match execution {
         Some(plan) => {
-            let (program, args, cwd, environment, inherit_environment) = if let Some(token) =
-                plan.plan_token.as_deref()
-            {
-                let mut protected = extension_state.take_execution_plan(token)?;
-                if let Some(argument_override) = plan.argument_override {
-                    let start = protected.user_args_start.ok_or_else(|| {
-                        "Extension execution plan does not accept argument overrides".to_string()
-                    })?;
-                    protected.args.truncate(start);
-                    protected.args.extend(argument_override);
-                }
-                (
-                    protected.program,
-                    protected.args,
-                    protected.cwd,
-                    protected.environment,
-                    protected.inherit_environment,
-                )
-            } else {
-                (
-                    plan.program,
-                    plan.args,
-                    plan.cwd,
-                    plan.environment,
-                    plan.inherit_environment,
-                )
-            };
-            (
-                cwd.map(std::path::PathBuf::from),
-                Some(SpawnCommand {
-                    program,
-                    args,
-                    environment,
-                    inherit_environment,
-                }),
-            )
+            let (cwd, command) = plan.resolve(&extension_state)?;
+            (cwd, Some(command))
         }
         None => (None, None),
     };

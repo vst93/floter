@@ -404,6 +404,24 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "command": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "program": {
+                  "type": "string",
+                  "minLength": 1,
+                  "default": "self",
+                  "description": "self uses the registry runtime, including script interpreter prefixes. Other programs are relative to the bundled runtime root and require process-spawn permission."
+                },
+                "args": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "default": [],
+                  "description": "Literal arguments before caller argv. Provider protocol argsPrefix is not used."
+                }
+              }
+            },
             "cwdPolicy": {
               "oneOf": [
                 {

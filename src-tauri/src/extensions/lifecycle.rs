@@ -130,7 +130,9 @@ fn default_false() -> bool {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LaunchConfig {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<LaunchCommand>,
+    #[serde(default = "default_cwd_policy")]
     pub cwd_policy: serde_json::Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal: Option<TerminalRequirement>,
@@ -140,26 +142,53 @@ pub struct LaunchConfig {
 
 impl LaunchConfig {
     pub fn validate(&self) -> Result<(), String> {
-        match self.cwd_policy.as_str() {
-            Some("inheritActiveSession" | "toolData" | "home") => {}
-            _ => {
-                // Could be a ProjectRoot or Fixed object, validate as JSON
-                if !self.cwd_policy.is_object() && !self.cwd_policy.is_string() {
-                    return Err("cwd_policy must be a string or object".to_string());
-                }
-            }
+        crate::extensions::cwd_policy::CwdPolicy::from_manifest(&self.cwd_policy)?;
+        if let Some(command) = &self.command {
+            command.validate()?;
         }
         if self.restore_policy != "reattach"
             && self.restore_policy != "restart"
             && self.restore_policy != "none"
         {
             return Err(format!(
-                "restore_policy must be 'reattach', 'restart', or 'none', got '{}'",
+                "lifecycle.launch.restorePolicy must be 'reattach', 'restart', or 'none', got '{}'",
                 self.restore_policy
             ));
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LaunchCommand {
+    #[serde(default = "default_launch_program")]
+    pub program: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+impl LaunchCommand {
+    fn validate(&self) -> Result<(), String> {
+        if self.program != "self" {
+            validate_relative_path(&self.program, "lifecycle.launch.command.program")?;
+        }
+        if self.program.contains('\0') || self.program.trim().is_empty() {
+            return Err("Invalid lifecycle.launch.command.program".into());
+        }
+        if self.args.iter().any(|arg| arg.contains('\0')) {
+            return Err("lifecycle.launch.command.args must not contain NUL".into());
+        }
+        Ok(())
+    }
+}
+
+fn default_launch_program() -> String {
+    "self".into()
+}
+
+fn default_cwd_policy() -> serde_json::Value {
+    serde_json::Value::String("inheritActiveSession".into())
 }
 
 fn default_restore_policy() -> String {
@@ -197,7 +226,8 @@ fn default_color() -> String {
 impl Default for LaunchConfig {
     fn default() -> Self {
         Self {
-            cwd_policy: serde_json::Value::String("inheritActiveSession".to_string()),
+            command: None,
+            cwd_policy: default_cwd_policy(),
             terminal: None,
             restore_policy: default_restore_policy(),
         }
@@ -868,6 +898,7 @@ mod tests {
     #[test]
     fn launch_config_validate_valid() {
         let launch = LaunchConfig {
+            command: None,
             cwd_policy: serde_json::json!("inheritActiveSession"),
             terminal: Some(TerminalRequirement {
                 required: true,

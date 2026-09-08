@@ -493,7 +493,7 @@ fn validate_schema(instance: &Value) -> Result<(), String> {
         .map_err(|error| format!("Cannot compile manifest schema: {error}"))?;
     let errors = validator
         .iter_errors(instance)
-        .map(|error| error.to_string())
+        .map(|error| format!("{}: {error}", error.instance_path))
         .collect::<Vec<_>>();
     if errors.is_empty() {
         Ok(())

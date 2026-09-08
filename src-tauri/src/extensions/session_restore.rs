@@ -191,7 +191,17 @@ impl SessionResolver {
             return Ok(ResolvedSession::New(session));
         }
 
-        if let Some(existing) = self.find_session(&tool_id)? {
+        let existing = match self.find_session(&tool_id) {
+            Ok(existing) => existing,
+            Err(error) => {
+                tracing::warn!(
+                    extension_id = %tool_id, error = %error,
+                    "Session load failed during launch; creating a new session"
+                );
+                None
+            }
+        };
+        if let Some(existing) = existing {
             // Check if the existing session is still alive (simplified).
             // In production, this would query the qscreen broker.
             match restore_policy {

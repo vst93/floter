@@ -9,6 +9,7 @@ pub mod health;
 pub mod help_args;
 pub mod install;
 pub mod inventory;
+pub mod launch;
 pub mod lifecycle;
 pub mod lock;
 pub mod manifest;

@@ -41,7 +41,11 @@ pub enum CwdPolicy {
         #[serde(default = "default_project_markers")]
         markers: Vec<String>,
         /// Maximum directory levels to walk up.
-        #[serde(default = "default_max_depth")]
+        #[serde(
+            default = "default_max_depth",
+            rename = "maxDepth",
+            alias = "max_depth"
+        )]
         max_depth: u32,
     },
     /// Use the tool's data directory.
@@ -68,6 +72,28 @@ fn default_max_depth() -> u32 {
 }
 
 impl CwdPolicy {
+    pub fn from_manifest(value: &serde_json::Value) -> Result<Self, String> {
+        let policy = match value.as_str() {
+            Some("inheritActiveSession") => Self::InheritActiveSession,
+            Some("toolData") => Self::ToolData,
+            Some("home") => Self::Home,
+            _ if value["policy"] == "fixed" => {
+                let path = value["path"]
+                    .as_str()
+                    .ok_or("lifecycle.launch.cwdPolicy.path must be an absolute directory")?;
+                if path.contains('\0') || !Path::new(path).is_absolute() {
+                    return Err(
+                        "lifecycle.launch.cwdPolicy.path must be an absolute directory".into(),
+                    );
+                }
+                Self::Fixed(PathBuf::from(path))
+            }
+            _ => serde_json::from_value(value.clone())
+                .map_err(|error| format!("Invalid lifecycle.launch.cwdPolicy: {error}"))?,
+        };
+        Ok(policy)
+    }
+
     /// Resolve the effective working directory based on the policy.
     pub fn resolve(&self, context: &CwdContext<'_>) -> Result<PathBuf, String> {
         let active_session_cwd = context.active_session_cwd;
