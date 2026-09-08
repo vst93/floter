@@ -14,7 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
-[target.'cfg(unix)'.dev-dependencies]
+[target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [dependencies]
@@ -78,7 +78,6 @@ pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "a3122e894383aa068ec5365a42994e3ac94ba1b6" }
 plist = "1"
-libc = "0.2"
 
 # DWM corner-radius control on Windows 11. `DwmSetWindowAttribute` with
 # `DWM_WINDOW_CORNER_PREFERENCE` lets us turn off the system's rounded

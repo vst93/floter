@@ -1,5 +1,6 @@
 use crate::extensions::lock::{sync_directory, ExtensionDistributionSource, ExtensionLockEntry};
 use crate::extensions::manifest::{Artifacts, BinaryRole, ExtensionManifest, Permission};
+use crate::extensions::process_cleanup::{command_output, CommandOutputError};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -73,15 +74,17 @@ async fn verify_binaries_with_timeout(
             if !permissions.contains(&Permission::Environment) {
                 command.env_clear();
             }
-            let status = tokio::time::timeout(probe_timeout, command.status())
-                .await
-                .map_err(|_| format!("Artifact binary {} version probe timed out", binary.name))?
-                .map_err(|error| {
+            let output = command_output(command, probe_timeout).await.map_err(|error| {
+                if matches!(error, CommandOutputError::TimedOut(_)) {
+                    format!("Artifact binary {} version probe timed out", binary.name)
+                } else {
                     format!(
                         "Cannot run artifact binary {} version probe: {error}",
                         binary.name
                     )
-                })?;
+                }
+            })?;
+            let status = output.status;
             if !status.success() {
                 return Err(format!(
                     "Artifact binary {} version probe failed with status {}",

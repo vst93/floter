@@ -7,6 +7,7 @@
 //! of supported features and detected limitations.
 
 use serde::{Deserialize, Serialize};
+use crate::extensions::process_cleanup::{command_output, CommandOutputError};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -96,6 +97,14 @@ impl CapabilityProbe {
     /// binary, timeout, ...); a tool that runs but does not satisfy the
     /// expectations yields an `Ok` result with `passed == false`.
     pub async fn probe(&self, executable: &Path) -> Result<ProbeResult, String> {
+        self.probe_with_timeout(executable, PROBE_TIMEOUT).await
+    }
+
+    async fn probe_with_timeout(
+        &self,
+        executable: &Path,
+        timeout: Duration,
+    ) -> Result<ProbeResult, String> {
         let mut command = tokio::process::Command::new(executable);
         command
             .args(&self.args)
@@ -103,16 +112,17 @@ impl CapabilityProbe {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
-        let output = tokio::time::timeout(PROBE_TIMEOUT, command.output())
-            .await
-            .map_err(|_| {
+        let output = command_output(command, timeout).await.map_err(|error| {
+            if matches!(error, CommandOutputError::TimedOut(_)) {
                 format!(
                     "probe '{}' timed out after {} seconds",
                     self.id,
-                    PROBE_TIMEOUT.as_secs()
+                    timeout.as_secs()
                 )
-            })?
-            .map_err(|error| format!("cannot run '{}': {error}", executable.display()))?;
+            } else {
+                format!("cannot run '{}': {error}", executable.display())
+            }
+        })?;
 
         let mut stdout = String::from_utf8_lossy(&output.stdout).into_owned();
         stdout.truncate(MAX_PROBE_OUTPUT_BYTES);
@@ -259,7 +269,7 @@ impl CapabilityScanner {
 
     /// Probe the standard `--version` and `--help` capabilities.
     pub async fn scan(&self) -> Result<CapabilityReport, String> {
-        self.scan_with(&[CapabilityProbe::version(), CapabilityProbe::help()])
+        self.scan_with_timeout(&[CapabilityProbe::version(), CapabilityProbe::help()], PROBE_TIMEOUT)
             .await
     }
 
@@ -267,9 +277,17 @@ impl CapabilityScanner {
     ///
     /// Fails if any probe cannot be executed at all.
     pub async fn scan_with(&self, probes: &[CapabilityProbe]) -> Result<CapabilityReport, String> {
+        self.scan_with_timeout(probes, PROBE_TIMEOUT).await
+    }
+
+    pub(crate) async fn scan_with_timeout(
+        &self,
+        probes: &[CapabilityProbe],
+        timeout: Duration,
+    ) -> Result<CapabilityReport, String> {
         let mut results = Vec::with_capacity(probes.len());
         for probe in probes {
-            results.push(probe.probe(&self.executable).await?);
+            results.push(probe.probe_with_timeout(&self.executable, timeout).await?);
         }
         Ok(CapabilityReport::from_probes(&results))
     }
@@ -421,6 +439,53 @@ exit /b 1
         let missing =
             std::env::temp_dir().join(format!("floter-no-such-tool-{}", std::process::id()));
         assert!(CapabilityProbe::version().probe(&missing).await.is_err());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn scan_timeout_kills_the_real_probe_process() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("capability-timeout.sh");
+        let pid_file = directory.path().join("probe.pid");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s\\n' \"$$\" > \"$1\"\ntrap '' TERM\nwhile :; do sleep 1; done\n",
+        )
+        .unwrap();
+        let mut permissions = fs::metadata(&executable).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&executable, permissions).unwrap();
+
+        let scanner = CapabilityScanner::new(&executable);
+        let result = scanner
+            .scan_with_timeout(
+                &[CapabilityProbe::custom(
+                    "timeout",
+                    [pid_file.to_string_lossy().into_owned()],
+                )],
+                Duration::from_millis(100),
+            )
+            .await;
+        let pid = 'pid: {
+            for _ in 0..100 {
+                if let Ok(value) = fs::read_to_string(&pid_file) {
+                    if let Ok(pid) = value.trim().parse::<u32>() {
+                        break 'pid pid;
+                    }
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("capability probe did not write PID file {}", pid_file.display());
+        };
+        assert!(result.unwrap_err().contains("timed out"));
+        for _ in 0..100 {
+            if !Path::new(&format!("/proc/{pid}")).exists() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!("capability probe process {pid} survived timeout");
     }
 
     #[tokio::test]

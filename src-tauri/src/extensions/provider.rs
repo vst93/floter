@@ -1,4 +1,5 @@
 use crate::extensions::manifest::{Permission, ProviderConfig};
+use crate::extensions::process_cleanup::{configure_command, ChildCleanup};
 use crate::extensions::proxy;
 use crate::extensions::{config, ConfigurationDescriptor};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -434,34 +435,56 @@ impl ProviderManager {
                 invocation.executable.display()
             )
         })?;
+        let mut cleanup = ChildCleanup::new(&child);
         if let Some(input) = input {
-            let bytes = serde_json::to_vec(input)
-                .map_err(|error| format!("Cannot serialize provider request: {error}"))?;
+            let bytes = match serde_json::to_vec(input) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    cleanup.kill_and_reap(&mut child).await;
+                    return Err(format!("Cannot serialize provider request: {error}"));
+                }
+            };
             if let Some(mut stdin) = child.stdin.take() {
-                stdin
-                    .write_all(&bytes)
-                    .await
-                    .map_err(|error| format!("Cannot write provider stdin: {error}"))?;
+                if let Err(error) = stdin.write_all(&bytes).await {
+                    cleanup.kill_and_reap(&mut child).await;
+                    return Err(format!("Cannot write provider stdin: {error}"));
+                }
             }
         } else {
             drop(child.stdin.take());
         }
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or("Provider stdout is unavailable")?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or("Provider stderr is unavailable")?;
+        let stdout = match child.stdout.take() {
+            Some(stdout) => stdout,
+            None => {
+                cleanup.kill_and_reap(&mut child).await;
+                return Err("Provider stdout is unavailable".to_string());
+            }
+        };
+        let stderr = match child.stderr.take() {
+            Some(stderr) => stderr,
+            None => {
+                cleanup.kill_and_reap(&mut child).await;
+                return Err("Provider stderr is unavailable".to_string());
+            }
+        };
         let stdout_task = tokio::spawn(read_limited(stdout, MAX_STDOUT_BYTES, "stdout"));
         let stderr_task = tokio::spawn(read_limited(stderr, MAX_STDERR_BYTES, "stderr"));
 
         let status = match tokio::time::timeout(timeout, child.wait()).await {
-            Ok(result) => result.map_err(|error| format!("Cannot wait for provider: {error}"))?,
+            Ok(Ok(status)) => {
+                cleanup.finish_after_wait();
+                status
+            }
+            Ok(Err(error)) => {
+                cleanup.kill_and_reap(&mut child).await;
+                stdout_task.abort();
+                stderr_task.abort();
+                return Err(format!("Cannot wait for provider: {error}"));
+            }
             Err(_) => {
-                let _ = child.kill().await;
-                let _ = child.wait().await;
+                cleanup.kill_and_reap(&mut child).await;
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
                 return Err(format!(
                     "Provider {operation} timed out after {} ms",
                     timeout.as_millis()
@@ -619,10 +642,13 @@ pub(crate) fn provider_command(executable: &Path) -> tokio::process::Command {
         if extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat") {
             let mut command = tokio::process::Command::new("cmd.exe");
             command.args(["/D", "/S", "/C"]).arg(executable);
+            configure_command(&mut command);
             return command;
         }
     }
-    tokio::process::Command::new(executable)
+    let mut command = tokio::process::Command::new(executable);
+    configure_command(&mut command);
+    command
 }
 
 async fn provider_version(invocation: &ProviderInvocation) -> Option<String> {
@@ -640,9 +666,8 @@ async fn provider_version(invocation: &ProviderInvocation) -> Option<String> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .kill_on_drop(true);
-    let output = tokio::time::timeout(Duration::from_secs(2), command.output())
+    let output = crate::extensions::process_cleanup::command_output(command, Duration::from_secs(2))
         .await
-        .ok()?
         .ok()?;
     if !output.status.success() || output.stdout.len() > 16 * 1024 {
         return None;

@@ -1,5 +1,6 @@
 use crate::extensions::capability_probe::{CapabilityProbe, CapabilityReport, ProbeResult};
 use crate::extensions::health::HealthReport;
+use crate::extensions::process_cleanup::{configure_command, ChildCleanup};
 use crate::extensions::ExtensionState;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -96,6 +97,7 @@ async fn run_probe_command(
     args: &[String],
     timeout: Duration,
 ) -> Result<ProbeResult, String> {
+    configure_command(&mut command);
     command
         .args(args)
         .stdin(std::process::Stdio::null())
@@ -106,17 +108,41 @@ async fn run_probe_command(
     let mut child = command
         .spawn()
         .map_err(|error| format!("Cannot start probe for {}: {error}", executable.display()))?;
+    let mut cleanup = ChildCleanup::new(&child);
 
-    let stdout = child.stdout.take().ok_or("Probe stdout is unavailable")?;
-    let stderr = child.stderr.take().ok_or("Probe stderr is unavailable")?;
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            cleanup.kill_and_reap(&mut child).await;
+            return Err("Probe stdout is unavailable".to_string());
+        }
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            cleanup.kill_and_reap(&mut child).await;
+            return Err("Probe stderr is unavailable".to_string());
+        }
+    };
 
     let stdout_task = tokio::spawn(read_output(stdout, MAX_OUTPUT_BYTES));
     let stderr_task = tokio::spawn(read_output(stderr, MAX_OUTPUT_BYTES));
 
     let status = match tokio::time::timeout(timeout, child.wait()).await {
-        Ok(result) => result.map_err(|error| format!("Cannot wait for probe: {error}"))?,
+        Ok(Ok(status)) => {
+            cleanup.finish_after_wait();
+            status
+        }
+        Ok(Err(error)) => {
+            cleanup.kill_and_reap(&mut child).await;
+            stdout_task.abort();
+            stderr_task.abort();
+            return Err(format!("Cannot wait for probe: {error}"));
+        }
         Err(_) => {
-            let _ = child.kill().await;
+            cleanup.kill_and_reap(&mut child).await;
+            let _ = stdout_task.await;
+            let _ = stderr_task.await;
             return Err(format!("Probe timed out after {} ms", timeout.as_millis()));
         }
     };
@@ -171,6 +197,156 @@ async fn read_output(
         buffer.extend_from_slice(&chunk[..n]);
     }
     Ok(buffer)
+}
+
+#[cfg(all(test, unix))]
+mod cleanup_tests {
+    use super::*;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
+
+    struct CleanupFixture {
+        _directory: tempfile::TempDir,
+        executable: PathBuf,
+        parent_pid: PathBuf,
+        child_pid: PathBuf,
+    }
+
+    impl CleanupFixture {
+        fn new() -> Self {
+            let directory = tempfile::tempdir().unwrap();
+            let executable = directory.path().join("provider-cleanup.sh");
+            let parent_pid = directory.path().join("parent.pid");
+            let child_pid = directory.path().join("child.pid");
+            fs::write(
+                &executable,
+                "#!/bin/sh\n\nif [ \"$1\" = immediate ]; then exit 0; fi\nprintf '%s\\n' \"$$\" > \"$1\"\n(sleep 30) &\nprintf '%s\\n' \"$!\" > \"$2\"\ntrap '' TERM INT\nwhile :; do sleep 1; done\n",
+            )
+            .unwrap();
+            let mut permissions = fs::metadata(&executable).unwrap().permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&executable, permissions).unwrap();
+            Self {
+                _directory: directory,
+                executable,
+                parent_pid,
+                child_pid,
+            }
+        }
+
+        async fn wait_for_pid(path: &Path) -> u32 {
+            for _ in 0..100 {
+                if let Ok(value) = fs::read_to_string(path) {
+                    if let Ok(pid) = value.trim().parse() {
+                        return pid;
+                    }
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("fixture did not write PID file {}", path.display());
+        }
+    }
+
+    async fn assert_gone(pid: u32) {
+        for _ in 0..150 {
+            if !Path::new(&format!("/proc/{pid}")).exists() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!("process {pid} survived cleanup");
+    }
+
+    #[tokio::test]
+    async fn timeout_kills_parent_and_grandchild_process_group() {
+        let fixture = CleanupFixture::new();
+        let result = run_single_probe(
+            &fixture.executable,
+            &[
+                fixture.parent_pid.to_string_lossy().into_owned(),
+                fixture.child_pid.to_string_lossy().into_owned(),
+            ],
+            Duration::from_millis(100),
+        )
+        .await;
+        let parent = CleanupFixture::wait_for_pid(&fixture.parent_pid).await;
+        let child = CleanupFixture::wait_for_pid(&fixture.child_pid).await;
+        let error = result.unwrap_err();
+        assert!(error.contains("timed out"), "{error}");
+        assert_gone(parent).await;
+        assert_gone(child).await;
+    }
+
+    #[tokio::test]
+    async fn aborting_probe_future_kills_the_process_group() {
+        let fixture = CleanupFixture::new();
+        let executable = fixture.executable.clone();
+        let args = vec![
+            fixture.parent_pid.to_string_lossy().into_owned(),
+            fixture.child_pid.to_string_lossy().into_owned(),
+        ];
+        let handle = tokio::spawn(async move {
+            run_single_probe(&executable, &args, Duration::from_secs(30)).await
+        });
+        let parent = CleanupFixture::wait_for_pid(&fixture.parent_pid).await;
+        let child = CleanupFixture::wait_for_pid(&fixture.child_pid).await;
+        handle.abort();
+        assert!(handle.await.unwrap_err().is_cancelled());
+        assert_gone(parent).await;
+        assert_gone(child).await;
+    }
+
+    #[tokio::test]
+    async fn already_exited_probe_does_not_report_cleanup_error() {
+        let fixture = CleanupFixture::new();
+        let result = run_single_probe(
+            &fixture.executable,
+            &["immediate".to_string()],
+            Duration::from_secs(1),
+        )
+        .await
+        .unwrap();
+        assert!(result.passed, "{result:?}");
+        assert_eq!(result.exit_code, Some(0));
+    }
+
+    #[tokio::test]
+    async fn repeated_timeouts_leave_no_fixture_children_or_zombies() {
+        let fixture = CleanupFixture::new();
+        for attempt in 0..5 {
+            let parent_path = fixture
+                ._directory
+                .path()
+                .join(format!("parent-{attempt}.pid"));
+            let child_path = fixture
+                ._directory
+                .path()
+                .join(format!("child-{attempt}.pid"));
+            let result = run_single_probe(
+                &fixture.executable,
+                &[
+                    parent_path.to_string_lossy().into_owned(),
+                    child_path.to_string_lossy().into_owned(),
+                ],
+                Duration::from_millis(80),
+            )
+            .await;
+            assert!(result.unwrap_err().contains("timed out"));
+            let parent = CleanupFixture::wait_for_pid(&parent_path).await;
+            let child = CleanupFixture::wait_for_pid(&child_path).await;
+            assert_gone(parent).await;
+            assert_gone(child).await;
+        }
+        let children = fs::read_to_string(format!(
+            "/proc/{}/task/{}/children",
+            std::process::id(),
+            std::process::id()
+        ))
+        .unwrap_or_default();
+        assert!(children.trim().is_empty(), "fixture child remains: {children}");
+    }
 }
 
 #[cfg(test)]

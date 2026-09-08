@@ -1,5 +1,6 @@
 use crate::extensions::lock::{sync_directory, validate_id, ExtensionLockEntry};
 use crate::extensions::manifest::{validate_relative_path, ExtensionManifest, Permission};
+use crate::extensions::process_cleanup::{configure_command, ChildCleanup};
 use crate::extensions::provider::ProviderInvocation;
 use crate::extensions::{proxy, ExtensionPaths};
 use serde::{Deserialize, Serialize};
@@ -558,24 +559,39 @@ async fn generate_completion(
             completion.shell.as_str()
         )
     })?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or("Completion stdout is unavailable")?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or("Completion stderr is unavailable")?;
+    let mut cleanup = ChildCleanup::new(&child);
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            cleanup.kill_and_reap(&mut child).await;
+            return Err("Completion stdout is unavailable".to_string());
+        }
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            cleanup.kill_and_reap(&mut child).await;
+            return Err("Completion stderr is unavailable".to_string());
+        }
+    };
     let stdout_task = tokio::spawn(read_limited(stdout, MAX_COMPLETION_BYTES));
     let stderr_task = tokio::spawn(read_limited(stderr, 64 * 1024));
     let timeout = Duration::from_millis(completion.timeout_ms);
     let status = match tokio::time::timeout(timeout, child.wait()).await {
-        Ok(result) => {
-            result.map_err(|error| format!("Cannot wait for completion generator: {error}"))?
+        Ok(Ok(status)) => {
+            cleanup.finish_after_wait();
+            status
+        }
+        Ok(Err(error)) => {
+            cleanup.kill_and_reap(&mut child).await;
+            stdout_task.abort();
+            stderr_task.abort();
+            return Err(format!("Cannot wait for completion generator: {error}"));
         }
         Err(_) => {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
+            cleanup.kill_and_reap(&mut child).await;
+            let _ = stdout_task.await;
+            let _ = stderr_task.await;
             return Err(format!(
                 "{} completion generation timed out after {} ms",
                 completion.shell.as_str(),
@@ -627,14 +643,19 @@ fn provider_command(executable: &Path) -> tokio::process::Command {
     if extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat") {
         let mut command = tokio::process::Command::new("cmd.exe");
         command.args(["/D", "/S", "/C"]).arg(executable);
+        configure_command(&mut command);
         return command;
     }
-    tokio::process::Command::new(executable)
+    let mut command = tokio::process::Command::new(executable);
+    configure_command(&mut command);
+    command
 }
 
 #[cfg(not(target_os = "windows"))]
 fn provider_command(executable: &Path) -> tokio::process::Command {
-    tokio::process::Command::new(executable)
+    let mut command = tokio::process::Command::new(executable);
+    configure_command(&mut command);
+    command
 }
 
 fn default_completion_timeout() -> u64 {

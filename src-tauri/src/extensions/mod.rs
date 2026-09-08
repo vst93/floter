@@ -15,6 +15,7 @@ pub mod lock;
 pub mod manifest;
 pub mod official_index;
 pub mod platform;
+pub(crate) mod process_cleanup;
 pub mod probe;
 pub mod probe_executor;
 pub mod probe_runner;

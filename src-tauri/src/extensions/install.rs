@@ -1773,9 +1773,8 @@ pub(crate) async fn linked_tool_version(
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .kill_on_drop(true);
-    let output = tokio::time::timeout(Duration::from_secs(2), command.output())
+    let output = crate::extensions::process_cleanup::command_output(command, Duration::from_secs(2))
         .await
-        .ok()?
         .ok()?;
     output
         .status
