@@ -185,17 +185,19 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
-          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
-          sed -i "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
-          sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          rm -f src-tauri/tauri.conf.json.bak
+          sed -i.bak "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+          sed -i.bak "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
+          sed -i.bak "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
+          sed -i.bak "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
           LOCK_LINE=$(grep -n '^name = "floter"$' src-tauri/Cargo.lock | head -1 | cut -d: -f1)
           if [ -n "$LOCK_LINE" ]; then
             NEXT=$((LOCK_LINE + 1))
-            sed -i "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+            sed -i.bak "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
           fi
-          sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
+          sed -i.bak "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
+          rm -f src-tauri/tauri.conf.json.bak package.json.bak package-lock.json.bak src-tauri/Cargo.toml.bak src-tauri/Cargo.lock.bak packaging/arch/PKGBUILD.bak
 
       # Build only — no tagName so tauri-action does NOT auto-upload.
       # We rename and upload ourselves in the next step to control file names.
@@ -421,17 +423,18 @@ jobs:
             exit 1
           fi
 
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
-          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
-          sed -i "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
-          sed -i "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          sed -i.bak "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+          sed -i.bak "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package-lock.json
+          sed -i.bak "0,/      \"version\": \".*\"/s/      \"version\": \".*\"/      \"version\": \"$VERSION\"/" package-lock.json
+          sed -i.bak "0,/^version = \".*\"/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
           LOCK_LINE=$(grep -n '^name = "floter"$' src-tauri/Cargo.lock | head -1 | cut -d: -f1)
           if [ -n "$LOCK_LINE" ]; then
             NEXT=$((LOCK_LINE + 1))
-            sed -i "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+            sed -i.bak "${NEXT}s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
           fi
-          sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
+          sed -i.bak "s/^pkgver=.*/pkgver=$VERSION/" packaging/arch/PKGBUILD
+          rm -f src-tauri/tauri.conf.json.bak package.json.bak package-lock.json.bak src-tauri/Cargo.toml.bak src-tauri/Cargo.lock.bak packaging/arch/PKGBUILD.bak
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
