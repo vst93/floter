@@ -1379,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "floter"
-version = "0.3.3-preview"
+version = "0.3.4-preview"
 dependencies = [
  "alacritty_terminal",
  "anyhow",

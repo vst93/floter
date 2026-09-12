@@ -1,6 +1,6 @@
 [package]
 name = "floter"
-version = "0.3.3-preview"
+version = "0.3.4-preview"
 description = "A floating terminal application"
 license = "GPL-3.0"
 authors = ["you"]
