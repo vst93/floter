@@ -387,6 +387,19 @@ const en = {
   "settings.extensions.permission.clipboard-read": "Read clipboard",
   "settings.extensions.permission.clipboard-write": "Write clipboard",
   "settings.extensions.permission.environment": "Read environment",
+  "settings.extensions.errorCode.protocol-unsupported": "Protocol version not supported",
+  "settings.extensions.errorCode.describe-parse-failed": "Provider output parsing failed",
+  "settings.extensions.errorCode.stdout-contaminated": "Provider output contaminated",
+  "settings.extensions.errorCode.protocol-error": "Protocol error",
+  "settings.extensions.errorCode.tool-error": "Tool execution error",
+  "settings.extensions.errorCode.timeout": "Operation timed out",
+  "settings.extensions.errorCode.cancelled": "Operation cancelled",
+  "settings.extensions.errorCode.binding-missing": "Executable not found",
+  "settings.extensions.errorCode.binding-changed": "Executable changed",
+  "settings.extensions.errorCode.binding-check-failed": "Binding check failed",
+  "settings.extensions.errorCode.identity-mismatch": "Provider identity mismatch",
+  "settings.extensions.errorCode.manifest-missing": "Manifest missing or invalid",
+  "settings.extensions.errorCode.invalid-descriptor": "Invalid provider descriptor",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -775,6 +788,19 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.permission.clipboard-read": "读取剪贴板",
   "settings.extensions.permission.clipboard-write": "写入剪贴板",
   "settings.extensions.permission.environment": "读取环境变量",
+  "settings.extensions.errorCode.protocol-unsupported": "协议版本不支持",
+  "settings.extensions.errorCode.describe-parse-failed": "Provider 输出解析失败",
+  "settings.extensions.errorCode.stdout-contaminated": "Provider 输出被污染",
+  "settings.extensions.errorCode.protocol-error": "协议错误",
+  "settings.extensions.errorCode.tool-error": "工具执行错误",
+  "settings.extensions.errorCode.timeout": "操作超时",
+  "settings.extensions.errorCode.cancelled": "操作已取消",
+  "settings.extensions.errorCode.binding-missing": "可执行文件未找到",
+  "settings.extensions.errorCode.binding-changed": "可执行文件已变更",
+  "settings.extensions.errorCode.binding-check-failed": "绑定检查失败",
+  "settings.extensions.errorCode.identity-mismatch": "Provider 身份不匹配",
+  "settings.extensions.errorCode.manifest-missing": "清单缺失或无效",
+  "settings.extensions.errorCode.invalid-descriptor": "Provider 描述符无效",
 };
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, zh };

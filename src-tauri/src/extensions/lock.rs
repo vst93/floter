@@ -137,7 +137,7 @@ pub struct ExtensionLockEntry {
     #[serde(default)]
     pub approved_manifest_digest: Option<String>,
     /// Structured error code of the last failed verify/describe/probe
-    /// operation (for example `integrity-mismatch`). Cleared on success.
+    /// operation (uses ProviderErrorCode::as_str() values). Cleared on success.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_error_code: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

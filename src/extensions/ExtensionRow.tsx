@@ -125,7 +125,7 @@ export function ExtensionRow({
           <span
             className={`extension-status extension-status--${extension.state}`}
             title={extension.state === "broken"
-              ? extension.brokenReason || extension.lastErrorCode || undefined
+              ? extension.brokenReason || (extension.lastErrorCode && t(`settings.extensions.errorCode.${extension.lastErrorCode}` as any)) || undefined
               : undefined}
           >
             {status}

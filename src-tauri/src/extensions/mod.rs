@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod config;
 pub mod conformance;
 pub mod cwd_policy;
+pub mod error_codes;
 pub mod health;
 pub mod help_args;
 pub mod install;
@@ -445,7 +446,10 @@ impl ExtensionState {
         let guard = self.active_cancel.lock().map_err(|_| "Cancel lock poisoned")?;
         if let Some(token) = guard.as_ref() {
             if token.is_cancelled() {
-                return Err("Operation cancelled".to_string());
+                return Err(format!(
+                    "[{}] Operation cancelled",
+                    crate::extensions::error_codes::ProviderErrorCode::Cancelled.as_str()
+                ));
             }
         }
         Ok(())

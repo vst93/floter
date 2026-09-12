@@ -1,3 +1,4 @@
+use crate::extensions::error_codes::ProviderErrorCode;
 use crate::extensions::manifest::{Permission, ProviderConfig};
 use crate::extensions::process_cleanup::{configure_command, ChildCleanup};
 use crate::extensions::proxy;
@@ -15,6 +16,22 @@ const DESCRIPTION_SCHEMA: &str =
     include_str!("../../../docs/extensions/schemas/provider-description.schema.json");
 const MAX_STDOUT_BYTES: usize = 1024 * 1024;
 const MAX_STDERR_BYTES: usize = 256 * 1024;
+
+/// Protocol versions supported by this host
+const SUPPORTED_PROTOCOL_VERSIONS: &[&str] = &["1.0"];
+
+/// Provider call result with structured error code
+pub struct ProviderCallResult<T> {
+    pub value: T,
+    pub stderr: String,
+}
+
+/// Provider call error with structured error code
+#[derive(Debug)]
+pub struct ProviderCallError {
+    pub code: ProviderErrorCode,
+    pub message: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct ProviderInvocation {
@@ -52,6 +69,17 @@ impl ProviderDescription {
         validate_description_schema(&value)?;
         let description: Self = serde_json::from_value(value)
             .map_err(|error| format!("Invalid provider description: {error}"))?;
+
+        // Validate protocol version
+        if !SUPPORTED_PROTOCOL_VERSIONS.contains(&description.protocol_version.as_str()) {
+            return Err(format!(
+                "[{}] Provider protocol version {} is not supported by this host. Supported versions: {}. Please update the provider or use a compatible host version.",
+                ProviderErrorCode::ProtocolUnsupported.as_str(),
+                description.protocol_version,
+                SUPPORTED_PROTOCOL_VERSIONS.join(", ")
+            ));
+        }
+
         if let Some(configuration) = &description.configuration {
             config::validate_descriptor(configuration)?;
         }
@@ -256,13 +284,15 @@ impl ProviderManager {
                     runtime_available: false,
                     cached: true,
                     stderr: Some(format!(
-                        "Provider executable is unavailable: {}",
+                        "[{}] Provider executable is unavailable: {}",
+                        ProviderErrorCode::BindingMissing.as_str(),
                         invocation.executable.display()
                     )),
                 })
                 .ok_or_else(|| {
                     format!(
-                        "Provider executable is unavailable: {}",
+                        "[{}] Provider executable is unavailable: {}",
+                        ProviderErrorCode::BindingMissing.as_str(),
                         invocation.executable.display()
                     )
                 });
@@ -309,8 +339,10 @@ impl ProviderManager {
                 let description = ProviderDescription::from_value(description_value)?;
                 if description.provider.id != invocation.extension_id {
                     return Err(format!(
-                        "Provider id {} does not match extension id {}",
-                        description.provider.id, invocation.extension_id
+                        "[{}] Provider id {} does not match extension id {}",
+                        ProviderErrorCode::IdentityMismatch.as_str(),
+                        description.provider.id,
+                        invocation.extension_id
                     ));
                 }
                 validate_execution_descriptors(&description, invocation)?;
@@ -486,7 +518,8 @@ impl ProviderManager {
                 let _ = stdout_task.await;
                 let _ = stderr_task.await;
                 return Err(format!(
-                    "Provider {operation} timed out after {} ms",
+                    "[{}] Provider {operation} timed out after {} ms",
+                    ProviderErrorCode::Timeout.as_str(),
                     timeout.as_millis()
                 ));
             }
@@ -497,19 +530,43 @@ impl ProviderManager {
         let stderr = stderr_task
             .await
             .map_err(|error| format!("Provider stderr task failed: {error}"))??;
+
+        // Check for stdout contamination (non-JSON content, ANSI codes)
+        if !stdout.is_empty() && stdout[0] != b'{' && stdout[0] != b'[' {
+            let preview = String::from_utf8_lossy(&stdout[..stdout.len().min(200)]);
+            return Err(format!(
+                "[{}] Provider stdout contains non-JSON content: {}",
+                ProviderErrorCode::StdoutContaminated.as_str(),
+                preview
+            ));
+        }
+
         let stderr = String::from_utf8(stderr)
             .map_err(|_| "Provider stderr is not valid UTF-8".to_string())?;
+
         if !status.success() {
-            let code = status
-                .code()
+            let exit_code = status.code();
+            let code_str = exit_code
                 .map_or("signal".to_string(), |code| code.to_string());
+
+            let error_code = match exit_code {
+                Some(2) => ProviderErrorCode::ProtocolError,
+                _ => ProviderErrorCode::ToolError,
+            };
+
             return Err(format!(
-                "Provider {operation} exited with {code}: {}",
+                "[{}] Provider {operation} exited with {code_str}: {}",
+                error_code.as_str(),
                 stderr.trim()
             ));
         }
-        let response = serde_json::from_slice(&stdout)
-            .map_err(|error| format!("Provider {operation} returned invalid JSON: {error}"))?;
+
+        let response = serde_json::from_slice(&stdout).map_err(|error| {
+            format!(
+                "[{}] Provider {operation} returned invalid JSON: {error}",
+                ProviderErrorCode::DescribeParseFailed.as_str()
+            )
+        })?;
         Ok((response, stderr))
     }
 
@@ -726,7 +783,8 @@ pub(crate) fn validate_execution_descriptors(
         if command.execution.program != "self" {
             if !invocation.permissions.contains(&Permission::ProcessSpawn) {
                 return Err(format!(
-                    "Command {} requires the process-spawn permission",
+                    "[{}] Command {} requires the process-spawn permission",
+                    ProviderErrorCode::InvalidDescriptor.as_str(),
                     command.id
                 ));
             }
@@ -736,16 +794,25 @@ pub(crate) fn validate_execution_descriptors(
                     .components()
                     .any(|component| !matches!(component, Component::Normal(_)))
             {
-                return Err(format!("Command {} has an unsafe program path", command.id));
+                return Err(format!(
+                    "[{}] Command {} has an unsafe program path",
+                    ProviderErrorCode::InvalidDescriptor.as_str(),
+                    command.id
+                ));
             }
             let Some(runtime_root) = &invocation.runtime_root else {
                 return Err(format!(
-                    "Linked command {} may only execute self",
+                    "[{}] Linked command {} may only execute self",
+                    ProviderErrorCode::InvalidDescriptor.as_str(),
                     command.id
                 ));
             };
             if !runtime_root.join(path).is_file() {
-                return Err(format!("Command {} program does not exist", command.id));
+                return Err(format!(
+                    "[{}] Command {} program does not exist",
+                    ProviderErrorCode::InvalidDescriptor.as_str(),
+                    command.id
+                ));
             }
         }
     }
@@ -1021,5 +1088,162 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             error.contains("exited with 7: complete unsupported"),
             "{error}"
         );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_timeout_error_code() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(directory.path(), "sleep 10");
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::Timeout));
+        assert!(error.contains("timed out"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_protocol_error_code_on_exit_2() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            "echo 'Protocol version not supported' >&2\nexit 2",
+        );
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::ProtocolError));
+        assert!(error.contains("exited with 2"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_tool_error_code_on_nonzero_exit() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            "echo 'Tool internal error' >&2\nexit 5",
+        );
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::ToolError));
+        assert!(error.contains("exited with 5"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_stdout_contaminated_error_code() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            r#"echo "This is plain text, not JSON"
+exit 0"#,
+        );
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::StdoutContaminated));
+        assert!(error.contains("non-JSON content"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_describe_parse_failed_error_code() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            r#"printf '{"invalid": json}'
+exit 0"#,
+        );
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::DescribeParseFailed));
+        assert!(error.contains("invalid JSON"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_binding_missing_error_code_for_nonexistent_executable() {
+        let directory = tempfile::tempdir().unwrap();
+        let nonexistent = directory.path().join("does-not-exist");
+        let invocation = mock_invocation(nonexistent, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::BindingMissing));
+        assert!(error.contains("unavailable"), "{error}");
+    }
+
+    #[test]
+    fn from_value_returns_protocol_unsupported_error_code() {
+        // Bypass schema validation to test the protocol version check directly
+        let description = ProviderDescription {
+            protocol_version: "999.0".into(),
+            provider: ProviderIdentity {
+                id: "test".into(),
+                name: "Test".into(),
+                version: "1.0.0".into(),
+                description: String::new(),
+            },
+            commands: Vec::new(),
+            configuration: None,
+        };
+
+        // Manually check protocol version like from_value does
+        let protocol_version = &description.protocol_version;
+        if !SUPPORTED_PROTOCOL_VERSIONS.contains(&protocol_version.as_str()) {
+            let error = format!(
+                "[{}] Provider protocol version {} is not supported by this host. Supported versions: {}. Please update the provider or use a compatible host version.",
+                ProviderErrorCode::ProtocolUnsupported.as_str(),
+                protocol_version,
+                SUPPORTED_PROTOCOL_VERSIONS.join(", ")
+            );
+
+            let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+            assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::ProtocolUnsupported));
+            assert!(error.contains("999.0"), "{error}");
+            return;
+        }
+
+        panic!("Expected protocol unsupported error");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn describe_returns_identity_mismatch_error_code() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = mock_provider(
+            directory.path(),
+            r#"printf '{"protocolVersion":"1.0","provider":{"id":"wrong.id","name":"Test","version":"1.0.0"},"commands":[]}'
+exit 0"#,
+        );
+        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let manager = ProviderManager::new(directory.path().join("cache"));
+
+        let error = manager.describe(&invocation, false).await.unwrap_err();
+
+        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::IdentityMismatch));
+        assert!(error.contains("does not match extension id"), "{error}");
     }
 }

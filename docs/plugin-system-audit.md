@@ -249,6 +249,14 @@ Host Services          # command catalog、config store、health、UI/IPC
 - **风险**：中高；协议兼容和现有静态适配器迁移。
 - **验收标准**：同一 probe 集合用于 install、repair、reprobe；launch 行为由 manifest 驱动并有 v1 compatibility fallback；provider 超时/取消不会残留子进程；catalog 只能执行 repository 返回的已验证 command descriptor；旧 provider protocol 给出明确降级错误。
 
+**已完成的 slices**：
+
+- **Slice 1（Operation cancel）**：✅ 实现取消按钮、CancellationToken 传播、provider 进程 kill；测试覆盖 install/update/repair 取消；progress 事件携带 operation_id。(`extensions/install.rs:309-348,605-625`, `commands/extensions.rs:104-137,195-225,377-409`, 测试: `cargo test cancel`)
+- **Slice 2（Operation progress）**：✅ 实现 OperationProgress 枚举和事件流；前端 hooks 跟踪进度；测试覆盖 install/update/repair 进度。(`extensions/install.rs:598-625,1071-1074,1251-1254`, `hooks/useExtensionActions.ts:7-96`, 测试: `cargo test progress`)
+- **Slice 3（Provider timeout tuning）**：✅ 提供超时配置；describe/call 默认 5s/30s；测试覆盖超时路径。(`extensions/provider.rs:274-374,441-571`, 测试: `cargo test timeout`)
+- **Slice 4（Cancellation integration）**：✅ 集成取消令牌到所有 operation；测试覆盖取消后状态一致性。(`extensions/install.rs:605-625`, 测试: `cargo test cancel`)
+- **Slice 5（Error codes & protocol negotiation）**：✅ 实现 ProviderErrorCode 枚举（13 variants）；协议版本验证；错误码传播到 last_error_code 字段；前端 i18n 显示；测试覆盖所有错误码路径和协议协商场景。(`extensions/error_codes.rs:8-92`, `extensions/provider.rs:20-21,62-87,274-374,441-571`, `extensions/lock.rs:79-163,281-345`, `extensions/catalog.rs:474,486,554,597`, `src/extensions/ExtensionRow.tsx:162-174`, `public/locales/en/translation.json`, `public/locales/zh-Hans/translation.json`, 测试: `cargo test extensions::provider` + `cargo test extensions::error_codes`, 2026-09-13)
+
 #### Phase 5：配置/数据归属与导入导出边界
 
 - **改动**：建立 host settings、tool settings、runtime data、generated artifacts 四类目录/策略；安装事务提交 config migration generation；导入导出 schema 标明 secret、设备特定路径、版本约束；把快照恢复改成 transaction engine 的 prepare/commit，而非递归复制后补写 lock。

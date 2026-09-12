@@ -446,36 +446,44 @@ pub(crate) async fn load_provider_commands_uncached(
                     }
                 }
                 Ok(binding_state) => {
-                    let (code, detail) = match binding_state {
-                        crate::extensions::tool_lock::LockState::ReconnectRequired => (
-                            "binding-missing",
+                    let code = match binding_state {
+                        crate::extensions::tool_lock::LockState::ReconnectRequired => {
+                            crate::extensions::error_codes::ProviderErrorCode::BindingMissing
+                        }
+                        crate::extensions::tool_lock::LockState::ReverifyRequired => {
+                            crate::extensions::error_codes::ProviderErrorCode::BindingChanged
+                        }
+                        crate::extensions::tool_lock::LockState::Connected => unreachable!(),
+                    };
+                    let detail = match binding_state {
+                        crate::extensions::tool_lock::LockState::ReconnectRequired => {
                             format!(
                                 "Executable is no longer available at {}",
                                 entry.executable_path
-                            ),
-                        ),
-                        crate::extensions::tool_lock::LockState::ReverifyRequired => (
-                            "binding-changed",
+                            )
+                        }
+                        crate::extensions::tool_lock::LockState::ReverifyRequired => {
                             format!(
                                 "Executable fingerprint changed at {}",
                                 entry.executable_path
-                            ),
-                        ),
+                            )
+                        }
                         crate::extensions::tool_lock::LockState::Connected => unreachable!(),
                     };
-                    if !already_recorded_broken(lock.get(&entry.id)?, code, &detail)
-                        && lock.mark_broken(&entry.id, code, &detail)?
+                    if !already_recorded_broken(lock.get(&entry.id)?, code.as_str(), &detail)
+                        && lock.mark_broken(&entry.id, code.as_str(), &detail)?
                     {
                         lock_changed = true;
                     }
                     continue;
                 }
                 Err(error) => {
+                    let code = crate::extensions::error_codes::ProviderErrorCode::BindingCheckFailed;
                     if !already_recorded_broken(
                         lock.get(&entry.id)?,
-                        "binding-check-failed",
+                        code.as_str(),
                         &error,
-                    ) && lock.mark_broken(&entry.id, "binding-check-failed", &error)?
+                    ) && lock.mark_broken(&entry.id, code.as_str(), &error)?
                     {
                         lock_changed = true;
                     }
@@ -543,6 +551,13 @@ pub(crate) async fn load_provider_commands_uncached(
         let response = match state.provider.describe(&invocation, false).await {
             Ok(response) => response,
             Err(error) => {
+                let (error_code, _) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+                let code_str = error_code.map(|c| c.as_str()).unwrap_or("describe-failed");
+                if !already_recorded_broken(lock.get(&entry.id)?, code_str, &error)
+                    && lock.mark_broken(&entry.id, code_str, &error)?
+                {
+                    lock_changed = true;
+                }
                 eprintln!(
                     "floter: cannot describe extension {} for command catalog: {error}",
                     entry.id
