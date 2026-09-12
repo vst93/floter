@@ -242,10 +242,7 @@ fn filter_export_config(
 
     for (key, value) in raw_config {
         let category = classify_field(&key, &value);
-        let excluded = matches!(
-            category,
-            FieldCategory::Secret | FieldCategory::DevicePath
-        );
+        let excluded = matches!(category, FieldCategory::Secret | FieldCategory::DevicePath);
 
         metadata.push(FieldMetadata {
             key: key.clone(),
@@ -1200,7 +1197,9 @@ mod tests {
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
                 .unwrap();
-        ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
+        ExtensionsLock::default()
+            .save_legacy(&state.paths.legacy_lock_file)
+            .unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let before = std::fs::read(&state.paths.repository_file).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
@@ -1287,7 +1286,9 @@ mod tests {
         original_entry.executable_path = version_root.join("tool").to_string_lossy().into_owned();
         let mut original_lock = ExtensionsLock::default();
         original_lock.extensions.insert(id.into(), original_entry);
-        original_lock.save_legacy(&state.paths.legacy_lock_file).unwrap();
+        original_lock
+            .save_legacy(&state.paths.legacy_lock_file)
+            .unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let before = std::fs::read(&state.paths.repository_file).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
@@ -1398,7 +1399,10 @@ mod tests {
             .into_iter()
             .flatten()
             .filter_map(|item| item.ok())
-            .any(|item| item.file_name().to_string_lossy().starts_with(".sync-import-")));
+            .any(|item| item
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".sync-import-")));
     }
 
     #[test]

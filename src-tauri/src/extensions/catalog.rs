@@ -478,12 +478,10 @@ pub(crate) async fn load_provider_commands_uncached(
                     continue;
                 }
                 Err(error) => {
-                    let code = crate::extensions::error_codes::ProviderErrorCode::BindingCheckFailed;
-                    if !already_recorded_broken(
-                        lock.get(&entry.id)?,
-                        code.as_str(),
-                        &error,
-                    ) && lock.mark_broken(&entry.id, code.as_str(), &error)?
+                    let code =
+                        crate::extensions::error_codes::ProviderErrorCode::BindingCheckFailed;
+                    if !already_recorded_broken(lock.get(&entry.id)?, code.as_str(), &error)
+                        && lock.mark_broken(&entry.id, code.as_str(), &error)?
                     {
                         lock_changed = true;
                     }
@@ -551,7 +549,8 @@ pub(crate) async fn load_provider_commands_uncached(
         let response = match state.provider.describe(&invocation, false).await {
             Ok(response) => response,
             Err(error) => {
-                let (error_code, _) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+                let (error_code, _) =
+                    crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
                 let code_str = error_code.map(|c| c.as_str()).unwrap_or("describe-failed");
                 if !already_recorded_broken(lock.get(&entry.id)?, code_str, &error)
                     && lock.mark_broken(&entry.id, code_str, &error)?

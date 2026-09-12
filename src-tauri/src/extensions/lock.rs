@@ -618,7 +618,9 @@ mod tests {
         .unwrap();
 
         let paths = crate::extensions::ExtensionPaths::from_root(directory.path().to_path_buf());
-        assert!(ExtensionsLock::load(&path).unwrap_err().contains("extensions.lock.json"));
+        assert!(ExtensionsLock::load(&path)
+            .unwrap_err()
+            .contains("extensions.lock.json"));
         crate::extensions::repository::migrate_to_repository(&paths).unwrap();
         let lock = ExtensionsLock::load(&paths.repository_file).unwrap();
         let entry = lock.extensions.get("legacy.npm.tool").unwrap();

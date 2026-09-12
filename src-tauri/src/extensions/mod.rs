@@ -11,24 +11,24 @@ pub mod export_schema;
 pub mod health;
 pub mod help_args;
 pub mod install;
-pub(crate) mod operation;
 pub mod inventory;
 pub mod launch;
 pub mod lifecycle;
 pub mod lock;
 pub mod manifest;
 pub mod official_index;
+pub(crate) mod operation;
 pub mod platform;
-pub(crate) mod process_cleanup;
 pub mod probe;
 pub mod probe_executor;
 pub mod probe_runner;
+pub(crate) mod process_cleanup;
 pub mod profile;
 pub mod provider;
-pub mod repository;
 mod proxy;
 pub mod recommendations;
 pub mod registry;
+pub mod repository;
 pub mod resolver;
 pub mod session_restore;
 pub mod sync;
@@ -361,7 +361,8 @@ pub struct ExtensionState {
     /// Cancel token for the currently running long operation, if any.
     pub(crate) active_cancel: std::sync::Mutex<Option<operation::CancelToken>>,
     /// In-process progress listener used by unit tests (no AppHandle there).
-    progress_listener: std::sync::Mutex<Option<Box<dyn Fn(operation::OperationProgress) + Send + 'static>>>,
+    progress_listener:
+        std::sync::Mutex<Option<Box<dyn Fn(operation::OperationProgress) + Send + 'static>>>,
 }
 
 #[derive(Default)]
@@ -441,14 +442,22 @@ impl ExtensionState {
         if let Some(app) = self.app_handle.get() {
             let _ = app.emit("extension-op-progress", &progress);
         }
-        if let Some(listener) = self.progress_listener.lock().expect("Progress lock poisoned").as_ref() {
+        if let Some(listener) = self
+            .progress_listener
+            .lock()
+            .expect("Progress lock poisoned")
+            .as_ref()
+        {
             listener(progress);
         }
     }
 
     /// Check if the current operation was cancelled; returns Err if so.
     pub(crate) fn check_cancelled(&self) -> Result<(), String> {
-        let guard = self.active_cancel.lock().map_err(|_| "Cancel lock poisoned")?;
+        let guard = self
+            .active_cancel
+            .lock()
+            .map_err(|_| "Cancel lock poisoned")?;
         if let Some(token) = guard.as_ref() {
             if token.is_cancelled() {
                 return Err(format!(
@@ -467,7 +476,8 @@ impl ExtensionState {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(1);
         let id = format!("op-{}", COUNTER.fetch_add(1, Ordering::Relaxed));
-        *self.active_cancel.lock().expect("Cancel lock poisoned") = Some(operation::CancelToken::new());
+        *self.active_cancel.lock().expect("Cancel lock poisoned") =
+            Some(operation::CancelToken::new());
         id
     }
 
@@ -480,7 +490,12 @@ impl ExtensionState {
     /// Flip the active cancel token (if any) so the running operation stops
     /// at its next cancellation checkpoint.
     pub(crate) fn cancel_operation(&self, _operation_id: &str) {
-        if let Some(token) = self.active_cancel.lock().expect("Cancel lock poisoned").as_ref() {
+        if let Some(token) = self
+            .active_cancel
+            .lock()
+            .expect("Cancel lock poisoned")
+            .as_ref()
+        {
             token.cancel();
         }
     }
@@ -492,7 +507,10 @@ impl ExtensionState {
         &self,
         listener: Box<dyn Fn(operation::OperationProgress) + Send + 'static>,
     ) {
-        *self.progress_listener.lock().expect("Progress lock poisoned") = Some(listener);
+        *self
+            .progress_listener
+            .lock()
+            .expect("Progress lock poisoned") = Some(listener);
     }
 
     pub fn check_executable_binding(
@@ -757,7 +775,10 @@ mod tests {
         let error = task.await.unwrap_err();
         assert!(error.is_panic());
         assert_eq!(
-            error.into_panic().downcast_ref::<String>().map(String::as_str),
+            error
+                .into_panic()
+                .downcast_ref::<String>()
+                .map(String::as_str),
             Some("injected crash at commit point scope-test")
         );
         commit_point("scope-test");

@@ -126,14 +126,11 @@ mod tests {
         assert_eq!(code, Some(ProviderErrorCode::Timeout));
         assert_eq!(msg, "Provider describe timed out after 5000 ms");
 
-        let (code, msg) =
-            ProviderErrorCode::extract_from_message("Plain error without code");
+        let (code, msg) = ProviderErrorCode::extract_from_message("Plain error without code");
         assert_eq!(code, None);
         assert_eq!(msg, "Plain error without code");
 
-        let (code, msg) = ProviderErrorCode::extract_from_message(
-            "[unknown-code] Some error",
-        );
+        let (code, msg) = ProviderErrorCode::extract_from_message("[unknown-code] Some error");
         assert_eq!(code, None);
         assert_eq!(msg, "[unknown-code] Some error");
     }

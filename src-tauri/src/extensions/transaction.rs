@@ -231,8 +231,8 @@ fn recover_removal_journals(
     for item in std::fs::read_dir(&directory)
         .map_err(|error| format!("Cannot scan removal transaction journals: {error}"))?
     {
-        let item = item
-            .map_err(|error| format!("Cannot read removal transaction journal: {error}"))?;
+        let item =
+            item.map_err(|error| format!("Cannot read removal transaction journal: {error}"))?;
         let path = item.path();
         if !path
             .file_name()
@@ -247,8 +247,9 @@ fn recover_removal_journals(
             Ok(journal) => journal,
             Err(_) => {
                 crate::extensions::commit_point("removal-journal-quarantine");
-                std::fs::rename(&path, path.with_extension("json.corrupt"))
-                    .map_err(|error| format!("Cannot quarantine removal transaction journal: {error}"))?;
+                std::fs::rename(&path, path.with_extension("json.corrupt")).map_err(|error| {
+                    format!("Cannot quarantine removal transaction journal: {error}")
+                })?;
                 continue;
             }
         };
@@ -329,7 +330,9 @@ fn recover_removal_journals(
                                     })?;
                                 }
                                 sync_directory(new_root.parent().ok_or("Invalid edit root")?)
-                                    .map_err(|error| format!("Cannot sync edited integration directory: {error}"))?;
+                                    .map_err(|error| {
+                                        format!("Cannot sync edited integration directory: {error}")
+                                    })?;
                                 remove_journal(&path)?;
                             } else if staged.exists() {
                                 // The repository still contains the old entry (or is missing it),
@@ -337,7 +340,9 @@ fn recover_removal_journals(
                                 // tree, restore the backup, and restore the old repository entry.
                                 if new_root.exists() {
                                     std::fs::remove_dir_all(new_root).map_err(|error| {
-                                        format!("Cannot remove incomplete edited integration: {error}")
+                                        format!(
+                                            "Cannot remove incomplete edited integration: {error}"
+                                        )
                                     })?;
                                 }
                                 // Persist the old entry before consuming its only backup.
@@ -363,7 +368,11 @@ fn recover_removal_journals(
                                     continue; // Keep journal
                                 }
                                 sync_directory(new_root.parent().ok_or("Invalid edit root")?)
-                                    .map_err(|error| format!("Cannot sync restored integration directory: {error}"))?;
+                                    .map_err(|error| {
+                                        format!(
+                                            "Cannot sync restored integration directory: {error}"
+                                        )
+                                    })?;
                                 remove_journal(&path)?;
                             } else if new_root.exists() {
                                 // New files without a matching repository entry are an orphaned
@@ -465,7 +474,10 @@ pub(crate) fn recover(state: &ExtensionState) -> Result<(), String> {
     Ok(())
 }
 
-fn recover_install_journals(state: &ExtensionState, lock: &mut ExtensionsLock) -> Result<(), String> {
+fn recover_install_journals(
+    state: &ExtensionState,
+    lock: &mut ExtensionsLock,
+) -> Result<(), String> {
     let directory = journal_dir(state);
     let mut entries: Vec<(PathBuf, InstallationJournal)> = Vec::new();
     for item in std::fs::read_dir(&directory)
@@ -478,7 +490,8 @@ fn recover_install_journals(state: &ExtensionState, lock: &mut ExtensionsLock) -
             continue;
         }
         // Removal journals have already been processed.
-        if path.file_name()
+        if path
+            .file_name()
             .and_then(|name| name.to_str())
             .is_some_and(|name| name.starts_with("removal-"))
         {
@@ -490,8 +503,9 @@ fn recover_install_journals(state: &ExtensionState, lock: &mut ExtensionsLock) -
             Ok(journal) => journal,
             Err(_) => {
                 crate::extensions::commit_point("install-journal-quarantine");
-                std::fs::rename(&path, path.with_extension("json.corrupt"))
-                    .map_err(|error| format!("Cannot quarantine extension transaction journal: {error}"))?;
+                std::fs::rename(&path, path.with_extension("json.corrupt")).map_err(|error| {
+                    format!("Cannot quarantine extension transaction journal: {error}")
+                })?;
                 continue;
             }
         };
@@ -619,8 +633,8 @@ fn remove_orphaned_generated_data(
     for item in std::fs::read_dir(&state.paths.data)
         .map_err(|error| format!("Cannot scan extension data projections: {error}"))?
     {
-        let item = item
-            .map_err(|error| format!("Cannot read extension data projection: {error}"))?;
+        let item =
+            item.map_err(|error| format!("Cannot read extension data projection: {error}"))?;
         let Some(id) = item.file_name().to_str().map(str::to_string) else {
             continue;
         };
@@ -631,9 +645,8 @@ fn remove_orphaned_generated_data(
         for generated in [root.join("integration"), root.join("sync")] {
             if generated.is_dir() {
                 crate::extensions::commit_point("projection-remove-orphan-data");
-                std::fs::remove_dir_all(&generated).map_err(|error| {
-                    format!("Cannot remove orphaned extension data: {error}")
-                })?;
+                std::fs::remove_dir_all(&generated)
+                    .map_err(|error| format!("Cannot remove orphaned extension data: {error}"))?;
             }
         }
         if root.is_dir()
@@ -673,7 +686,8 @@ fn recover_sync_import_staging(
         for child in std::fs::read_dir(&root)
             .map_err(|error| format!("Cannot scan sync import staging: {error}"))?
         {
-            let child = child.map_err(|error| format!("Cannot read sync import staging: {error}"))?;
+            let child =
+                child.map_err(|error| format!("Cannot read sync import staging: {error}"))?;
             let name = child.file_name();
             let Some(name) = name.to_str() else { continue };
             if name.starts_with(".sync-import-backup-") {
@@ -689,11 +703,14 @@ fn recover_sync_import_staging(
             let manifest_path = target.join("floter.extension.json");
             let repository_committed = lock.extensions.get(&id).is_some_and(|entry| {
                 entry.manifest_path == manifest_path.to_string_lossy()
-                    && entry.approved_manifest_digest.as_deref().is_some_and(|digest| {
-                        ExtensionManifest::load_with_digest(&manifest_path)
-                            .ok()
-                            .is_some_and(|(_, current)| current == digest)
-                    })
+                    && entry
+                        .approved_manifest_digest
+                        .as_deref()
+                        .is_some_and(|digest| {
+                            ExtensionManifest::load_with_digest(&manifest_path)
+                                .ok()
+                                .is_some_and(|(_, current)| current == digest)
+                        })
             });
             if repository_committed {
                 crate::extensions::commit_point("sync-import-backup-remove");
@@ -708,9 +725,8 @@ fn recover_sync_import_staging(
                     })?;
                 }
                 crate::extensions::commit_point("sync-import-backup-restore");
-                std::fs::rename(&backup, &target).map_err(|error| {
-                    format!("Cannot restore interrupted sync import: {error}")
-                })?;
+                std::fs::rename(&backup, &target)
+                    .map_err(|error| format!("Cannot restore interrupted sync import: {error}"))?;
             }
         }
     }
@@ -725,8 +741,8 @@ fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Re
         for item in std::fs::read_dir(&state.paths.extensions)
             .map_err(|error| format!("Cannot scan extension projections: {error}"))?
         {
-            let item = item
-                .map_err(|error| format!("Cannot read extension projection: {error}"))?;
+            let item =
+                item.map_err(|error| format!("Cannot read extension projection: {error}"))?;
             let name = item.file_name();
             let Some(id) = name.to_str() else { continue };
             if id.starts_with('.') || lock.extensions.contains_key(id) {
@@ -749,7 +765,10 @@ fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Re
         if entry.distribution_source != crate::extensions::lock::ExtensionDistributionSource::Npm {
             // Local integrations do not use NPM projections. Remove stale
             // pointer/shim directories left by an older installation.
-            for projection in [extension_root.join("current.json"), extension_root.join("shims")] {
+            for projection in [
+                extension_root.join("current.json"),
+                extension_root.join("shims"),
+            ] {
                 if projection.is_dir() {
                     crate::extensions::commit_point("projection-remove-stale");
                     std::fs::remove_dir_all(&projection).map_err(|error| {
@@ -894,13 +913,20 @@ mod tests {
     fn recovery_writeback_through_repo_restores_install_entry() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
+        ExtensionsLock::default()
+            .save_legacy(&state.paths.legacy_lock_file)
+            .unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let archive_bytes = std::fs::read(&archive).unwrap();
         let before = std::fs::read(&state.paths.repository_file).unwrap();
         let journal = staged_journal(
-            &state, "example.repo-recovery", Some("1.0.0"), "2.0.0", false, TransactionState::Staged,
+            &state,
+            "example.repo-recovery",
+            Some("1.0.0"),
+            "2.0.0",
+            false,
+            TransactionState::Staged,
         );
         std::fs::create_dir_all(journal.target_version.as_ref().unwrap()).unwrap();
         let journal_path = write_journal(&state, &journal).unwrap();
@@ -910,15 +936,29 @@ mod tests {
         let after = std::fs::read(&state.paths.repository_file).unwrap();
         assert_ne!(after, before);
         let json: serde_json::Value = serde_json::from_slice(&after).unwrap();
-        assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
-        assert_eq!(json["extensions"][&journal.extension_id], serde_json::to_value(journal.old_entry.as_ref().unwrap()).unwrap());
+        assert_eq!(
+            json["schemaVersion"],
+            crate::extensions::repository::REPOSITORY_SCHEMA_VERSION
+        );
+        assert_eq!(
+            json["extensions"][&journal.extension_id],
+            serde_json::to_value(journal.old_entry.as_ref().unwrap()).unwrap()
+        );
         assert!(!journal_path.exists());
         assert!(!journal.target_version.as_ref().unwrap().exists());
         assert!(!state.paths.legacy_lock_file.exists());
         assert_eq!(std::fs::read(&archive).unwrap(), archive_bytes);
         let pointer: serde_json::Value = serde_json::from_slice(
-            &std::fs::read(state.paths.extensions.join(&journal.extension_id).join("current.json")).unwrap(),
-        ).unwrap();
+            &std::fs::read(
+                state
+                    .paths
+                    .extensions
+                    .join(&journal.extension_id)
+                    .join("current.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(pointer["version"], "1.0.0");
         recover(&state).unwrap();
         assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), after);
@@ -937,7 +977,10 @@ mod tests {
         let mut original = journal_entry(directory.path(), "1.0.0", id);
         original.distribution_source = ExtensionDistributionSource::Local;
         original.runtime_ownership = ExtensionRuntimeOwnership::System;
-        original.manifest_path = root.join("floter.extension.json").to_string_lossy().into_owned();
+        original.manifest_path = root
+            .join("floter.extension.json")
+            .to_string_lossy()
+            .into_owned();
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(id.into(), original.clone());
         lock.save_legacy(&state.paths.legacy_lock_file).unwrap();
@@ -945,17 +988,21 @@ mod tests {
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let archive_bytes = std::fs::read(&archive).unwrap();
         std::fs::rename(&root, &backup).unwrap();
-        let journal_path = write_removal_journal(&state, &RemovalJournal {
-            schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
-            transaction_id: "edit-repo-recovery".into(),
-            extension_id: id.into(),
-            removed_entry: original.clone(),
-            staged_path: Some(backup.clone()),
-            cleanup_paths: vec![root.clone()],
-            removal_kind: Some(RemovalKind::Staged),
-            remove_data: false,
-            intent: RemovalIntent::Edit,
-        }).unwrap();
+        let journal_path = write_removal_journal(
+            &state,
+            &RemovalJournal {
+                schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                transaction_id: "edit-repo-recovery".into(),
+                extension_id: id.into(),
+                removed_entry: original.clone(),
+                staged_path: Some(backup.clone()),
+                cleanup_paths: vec![root.clone()],
+                removal_kind: Some(RemovalKind::Staged),
+                remove_data: false,
+                intent: RemovalIntent::Edit,
+            },
+        )
+        .unwrap();
         // Crash after entry removal, before the replacement integration is written.
         lock.extensions.remove(id);
         lock.save(&state.paths.repository_file).unwrap();
@@ -966,9 +1013,18 @@ mod tests {
         let after = std::fs::read(&state.paths.repository_file).unwrap();
         assert_ne!(after, before);
         let json: serde_json::Value = serde_json::from_slice(&after).unwrap();
-        assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
-        assert_eq!(json["extensions"][id], serde_json::to_value(original).unwrap());
-        assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), b"original");
+        assert_eq!(
+            json["schemaVersion"],
+            crate::extensions::repository::REPOSITORY_SCHEMA_VERSION
+        );
+        assert_eq!(
+            json["extensions"][id],
+            serde_json::to_value(original).unwrap()
+        );
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            b"original"
+        );
         assert!(!backup.exists());
         assert!(!journal_path.exists());
         assert!(!state.paths.legacy_lock_file.exists());
@@ -1270,7 +1326,11 @@ mod tests {
         // Cleanup path deletion failure: journal survives for retry.
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let entry = journal_entry(state.paths.root.as_path(), "1.0.0", "example.cleanup-path-fail");
+        let entry = journal_entry(
+            state.paths.root.as_path(),
+            "1.0.0",
+            "example.cleanup-path-fail",
+        );
         let cleanup_path = state.paths.data.join("example.cleanup-path-fail");
         std::fs::create_dir_all(&cleanup_path).unwrap();
         std::fs::write(cleanup_path.join("data"), b"user data").unwrap();
@@ -1311,13 +1371,21 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let mut lock = ExtensionsLock::default();
-        let old = journal_entry(state.paths.root.as_path(), "1.0.0", "example.fault-repository");
+        let old = journal_entry(
+            state.paths.root.as_path(),
+            "1.0.0",
+            "example.fault-repository",
+        );
         lock.extensions.insert(old.id.clone(), old.clone());
         lock.save(&state.paths.repository_file).unwrap();
         let before = std::fs::read(&state.paths.repository_file).unwrap();
         lock.extensions.insert(
             "example.fault-repository".into(),
-            journal_entry(state.paths.root.as_path(), "2.0.0", "example.fault-repository"),
+            journal_entry(
+                state.paths.root.as_path(),
+                "2.0.0",
+                "example.fault-repository",
+            ),
         );
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             crate::extensions::with_commit_point("repository-persist", || {
@@ -1366,11 +1434,7 @@ mod tests {
     fn fault_at_current_pointer_persist_rebuilds_the_projection() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let entry = journal_entry(
-            state.paths.root.as_path(),
-            "2.0.0",
-            "example.fault-pointer",
-        );
+        let entry = journal_entry(state.paths.root.as_path(), "2.0.0", "example.fault-pointer");
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(entry.id.clone(), entry.clone());
         lock.save(&state.paths.repository_file).unwrap();
@@ -1382,14 +1446,7 @@ mod tests {
         assert!(result.is_err());
         recover(&state).unwrap();
         let pointer: serde_json::Value = serde_json::from_slice(
-            &std::fs::read(
-                state
-                    .paths
-                    .extensions
-                    .join(&entry.id)
-                    .join("current.json"),
-            )
-            .unwrap(),
+            &std::fs::read(state.paths.extensions.join(&entry.id).join("current.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(pointer["version"], "2.0.0");
@@ -1582,22 +1639,33 @@ mod tests {
                     let id = "example.unstaged";
                     let expected = installed_fixture(&state, id);
                     let entry = expected.get(id).unwrap();
-                    let tree = Path::new(&entry.manifest_path).parent().unwrap().to_path_buf();
+                    let tree = Path::new(&entry.manifest_path)
+                        .parent()
+                        .unwrap()
+                        .to_path_buf();
                     let backup = state.paths.extensions.join(".removing-unstaged");
                     let data = state.paths.data.join(id);
                     std::fs::create_dir_all(&data).unwrap();
                     std::fs::write(data.join("keep"), b"user data").unwrap();
-                    let path = write_removal_journal(&state, &RemovalJournal {
-                        schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
-                        transaction_id: "unstaged".into(),
-                        extension_id: id.into(),
-                        removed_entry: entry.clone(),
-                        staged_path: absent_path.then(|| backup.clone()),
-                        cleanup_paths: if intent == RemovalIntent::Edit { vec![tree.clone()] } else { vec![data.clone()] },
-                        removal_kind: Some(kind),
-                        remove_data: true,
-                        intent,
-                    }).unwrap();
+                    let path = write_removal_journal(
+                        &state,
+                        &RemovalJournal {
+                            schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                            transaction_id: "unstaged".into(),
+                            extension_id: id.into(),
+                            removed_entry: entry.clone(),
+                            staged_path: absent_path.then(|| backup.clone()),
+                            cleanup_paths: if intent == RemovalIntent::Edit {
+                                vec![tree.clone()]
+                            } else {
+                                vec![data.clone()]
+                            },
+                            removal_kind: Some(kind),
+                            remove_data: true,
+                            intent,
+                        },
+                    )
+                    .unwrap();
                     let repository = std::fs::read(&state.paths.repository_file).unwrap();
                     assert!(!backup.exists());
                     for _ in 0..3 {
@@ -1605,7 +1673,10 @@ mod tests {
                         recover(&fresh).unwrap();
                         recover(&fresh).unwrap();
                         assert_repository_unchanged(&fresh, &expected);
-                        assert_eq!(std::fs::read(&fresh.paths.repository_file).unwrap(), repository);
+                        assert_eq!(
+                            std::fs::read(&fresh.paths.repository_file).unwrap(),
+                            repository
+                        );
                         assert!(tree.is_dir());
                         assert_eq!(std::fs::read(data.join("keep")).unwrap(), b"user data");
                         assert!(!path.exists());
@@ -1637,30 +1708,45 @@ mod tests {
             let entry = expected.get(id).unwrap();
             let tree = Path::new(&entry.manifest_path).parent().unwrap();
             let backup = state.paths.extensions.join(".editing-restore-write");
-            let path = write_removal_journal(&state, &RemovalJournal {
-                schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
-                transaction_id: "restore-write".into(),
-                extension_id: id.into(),
-                removed_entry: entry.clone(),
-                staged_path: Some(backup.clone()),
-                cleanup_paths: vec![tree.into()],
-                removal_kind: Some(RemovalKind::Staged),
-                remove_data: false,
-                intent: RemovalIntent::Edit,
-            }).unwrap();
+            let path = write_removal_journal(
+                &state,
+                &RemovalJournal {
+                    schema_version: TRANSACTION_JOURNAL_SCHEMA_VERSION,
+                    transaction_id: "restore-write".into(),
+                    extension_id: id.into(),
+                    removed_entry: entry.clone(),
+                    staged_path: Some(backup.clone()),
+                    cleanup_paths: vec![tree.into()],
+                    removal_kind: Some(RemovalKind::Staged),
+                    remove_data: false,
+                    intent: RemovalIntent::Edit,
+                },
+            )
+            .unwrap();
             std::fs::rename(tree, &backup).unwrap();
-            ExtensionsLock::default().save(&state.paths.repository_file).unwrap();
+            ExtensionsLock::default()
+                .save(&state.paths.repository_file)
+                .unwrap();
             let journal_bytes = std::fs::read(&path).unwrap();
             let repository = std::fs::read(&state.paths.repository_file).unwrap();
             let readonly = ReadonlyDirectory::new(&state.paths.root);
-            let error = with_commit_point_action("repository-persist", readonly.arm(), || {
-                recover(&state)
-            }).unwrap_err();
-            assert!(error.contains("Cannot persist extension repository"), "{error}");
-            assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), repository);
+            let error =
+                with_commit_point_action("repository-persist", readonly.arm(), || recover(&state))
+                    .unwrap_err();
+            assert!(
+                error.contains("Cannot persist extension repository"),
+                "{error}"
+            );
+            assert_eq!(
+                std::fs::read(&state.paths.repository_file).unwrap(),
+                repository
+            );
             assert_eq!(std::fs::read(&path).unwrap(), journal_bytes);
             assert!(!tree.exists());
-            assert_eq!(std::fs::read(backup.join("runtime/tool")).unwrap(), b"installed executable");
+            assert_eq!(
+                std::fs::read(backup.join("runtime/tool")).unwrap(),
+                b"installed executable"
+            );
             drop(readonly);
             for _ in 0..3 {
                 let fresh = test_state(directory.path());
@@ -2057,18 +2143,15 @@ mod tests {
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(entry.id.clone(), entry.clone());
         lock.save(&state.paths.repository_file).unwrap();
-        let pointer = state
-            .paths
-            .extensions
-            .join(&entry.id)
-            .join("current.json");
+        let pointer = state.paths.extensions.join(&entry.id).join("current.json");
         if let Some(parent) = pointer.parent() {
             std::fs::create_dir_all(parent).unwrap();
         }
         std::fs::write(&pointer, br#"{"version":"stale"}"#).unwrap();
         std::fs::remove_dir_all(state.paths.extensions.join(".transactions")).ok();
         recover(&state).unwrap();
-        let pointer: serde_json::Value = serde_json::from_slice(&std::fs::read(pointer).unwrap()).unwrap();
+        let pointer: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(pointer).unwrap()).unwrap();
         assert_eq!(pointer["version"], "3.0.0");
     }
 }

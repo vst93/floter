@@ -6,8 +6,8 @@
 //! aggregates the results of several probes into a version string plus the set
 //! of supported features and detected limitations.
 
-use serde::{Deserialize, Serialize};
 use crate::extensions::process_cleanup::{command_output, CommandOutputError};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -269,8 +269,11 @@ impl CapabilityScanner {
 
     /// Probe the standard `--version` and `--help` capabilities.
     pub async fn scan(&self) -> Result<CapabilityReport, String> {
-        self.scan_with_timeout(&[CapabilityProbe::version(), CapabilityProbe::help()], PROBE_TIMEOUT)
-            .await
+        self.scan_with_timeout(
+            &[CapabilityProbe::version(), CapabilityProbe::help()],
+            PROBE_TIMEOUT,
+        )
+        .await
     }
 
     /// Run `probes` against the executable and aggregate the results.
@@ -476,7 +479,10 @@ exit /b 1
                 }
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
-            panic!("capability probe did not write PID file {}", pid_file.display());
+            panic!(
+                "capability probe did not write PID file {}",
+                pid_file.display()
+            );
         };
         assert!(result.unwrap_err().contains("timed out"));
         for _ in 0..100 {

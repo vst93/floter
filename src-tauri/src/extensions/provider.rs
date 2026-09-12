@@ -546,8 +546,7 @@ impl ProviderManager {
 
         if !status.success() {
             let exit_code = status.code();
-            let code_str = exit_code
-                .map_or("signal".to_string(), |code| code.to_string());
+            let code_str = exit_code.map_or("signal".to_string(), |code| code.to_string());
 
             let error_code = match exit_code {
                 Some(2) => ProviderErrorCode::ProtocolError,
@@ -723,9 +722,10 @@ async fn provider_version(invocation: &ProviderInvocation) -> Option<String> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .kill_on_drop(true);
-    let output = crate::extensions::process_cleanup::command_output(command, Duration::from_secs(2))
-        .await
-        .ok()?;
+    let output =
+        crate::extensions::process_cleanup::command_output(command, Duration::from_secs(2))
+            .await
+            .ok()?;
     if !output.status.success() || output.stdout.len() > 16 * 1024 {
         return None;
     }
@@ -1100,8 +1100,12 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::Timeout));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::Timeout)
+        );
         assert!(error.contains("timed out"), "{error}");
     }
 
@@ -1118,8 +1122,12 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::ProtocolError));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::ProtocolError)
+        );
         assert!(error.contains("exited with 2"), "{error}");
     }
 
@@ -1127,17 +1135,18 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn describe_returns_tool_error_code_on_nonzero_exit() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
-            directory.path(),
-            "echo 'Tool internal error' >&2\nexit 5",
-        );
+        let executable = mock_provider(directory.path(), "echo 'Tool internal error' >&2\nexit 5");
         let invocation = mock_invocation(executable, 800, BTreeMap::new());
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::ToolError));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::ToolError)
+        );
         assert!(error.contains("exited with 5"), "{error}");
     }
 
@@ -1155,8 +1164,12 @@ exit 0"#,
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::StdoutContaminated));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::StdoutContaminated)
+        );
         assert!(error.contains("non-JSON content"), "{error}");
     }
 
@@ -1174,8 +1187,12 @@ exit 0"#,
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::DescribeParseFailed));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::DescribeParseFailed)
+        );
         assert!(error.contains("invalid JSON"), "{error}");
     }
 
@@ -1189,8 +1206,12 @@ exit 0"#,
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::BindingMissing));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::BindingMissing)
+        );
         assert!(error.contains("unavailable"), "{error}");
     }
 
@@ -1219,8 +1240,12 @@ exit 0"#,
                 SUPPORTED_PROTOCOL_VERSIONS.join(", ")
             );
 
-            let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-            assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::ProtocolUnsupported));
+            let (code, _msg) =
+                crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+            assert_eq!(
+                code,
+                Some(crate::extensions::error_codes::ProviderErrorCode::ProtocolUnsupported)
+            );
             assert!(error.contains("999.0"), "{error}");
             return;
         }
@@ -1242,8 +1267,12 @@ exit 0"#,
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
 
-        let (code, _msg) = crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-        assert_eq!(code, Some(crate::extensions::error_codes::ProviderErrorCode::IdentityMismatch));
+        let (code, _msg) =
+            crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
+        assert_eq!(
+            code,
+            Some(crate::extensions::error_codes::ProviderErrorCode::IdentityMismatch)
+        );
         assert!(error.contains("does not match extension id"), "{error}");
     }
 }

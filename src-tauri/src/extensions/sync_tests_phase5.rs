@@ -72,8 +72,8 @@ mod tests {
 
         // Create mock extension with config containing secrets
         let entry = mock_extension_entry("example.api", "1.0.0");
-        let mut lock = ExtensionsLock::load(&state.paths.repository_file)
-            .unwrap_or_else(|_| ExtensionsLock {
+        let mut lock =
+            ExtensionsLock::load(&state.paths.repository_file).unwrap_or_else(|_| ExtensionsLock {
                 schema_version: 1,
                 extensions: Default::default(),
             });
@@ -108,7 +108,10 @@ mod tests {
             exported_entry.config.get("endpoint").unwrap(),
             &json!("https://api.example.com")
         );
-        assert_eq!(exported_entry.config.get("timeout_ms").unwrap(), &json!(5000));
+        assert_eq!(
+            exported_entry.config.get("timeout_ms").unwrap(),
+            &json!(5000)
+        );
 
         // Field metadata should document what was excluded
         let metadata = exported_entry.field_metadata.as_ref().unwrap();
@@ -129,8 +132,8 @@ mod tests {
         let state = test_state(&temp);
 
         let entry = mock_extension_entry("example.paths", "1.0.0");
-        let mut lock = ExtensionsLock::load(&state.paths.repository_file)
-            .unwrap_or_else(|_| ExtensionsLock {
+        let mut lock =
+            ExtensionsLock::load(&state.paths.repository_file).unwrap_or_else(|_| ExtensionsLock {
                 schema_version: 1,
                 extensions: Default::default(),
             });
@@ -145,11 +148,7 @@ mod tests {
             "relative_path": "./data",
             "enabled": true
         });
-        std::fs::write(
-            config_dir.join("config.json"),
-            config.to_string(),
-        )
-        .unwrap();
+        std::fs::write(config_dir.join("config.json"), config.to_string()).unwrap();
 
         let export = build_export(&state, Utc::now()).unwrap();
         let exported_entry = export
@@ -198,8 +197,8 @@ mod tests {
         let state = test_state(&temp);
 
         let entry = mock_extension_entry("example.test", "1.0.0");
-        let mut lock = ExtensionsLock::load(&state.paths.repository_file)
-            .unwrap_or_else(|_| ExtensionsLock {
+        let mut lock =
+            ExtensionsLock::load(&state.paths.repository_file).unwrap_or_else(|_| ExtensionsLock {
                 schema_version: 1,
                 extensions: Default::default(),
             });
@@ -212,11 +211,7 @@ mod tests {
             "token": "secret",
             "url": "https://example.com"
         });
-        std::fs::write(
-            config_dir.join("config.json"),
-            config.to_string(),
-        )
-        .unwrap();
+        std::fs::write(config_dir.join("config.json"), config.to_string()).unwrap();
 
         let export = build_export(&state, Utc::now()).unwrap();
         let export_path = temp.path().join("export.json");

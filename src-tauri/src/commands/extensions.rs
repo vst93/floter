@@ -1870,36 +1870,51 @@ mod tests {
 
         install::find_script_interpreter(ScriptLanguage::Shell).unwrap();
         let directory = tempfile::tempdir().unwrap();
-        let state = ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf())).unwrap();
-        ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
+                .unwrap();
+        ExtensionsLock::default()
+            .save_legacy(&state.paths.legacy_lock_file)
+            .unwrap();
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let legacy_bytes = std::fs::read(&archive).unwrap();
-        let entry = install::create_custom_integration(&state, install::CustomIntegrationRequest {
-            id: "local.enable-writer".into(),
-            name: "Enable writer".into(),
-            command: "enable-writer".into(),
-            version: "1.0.0".into(),
-            executable_path: String::new(),
-            mode: "script".into(),
-            script_language: Some(ScriptLanguage::Shell),
-            script_content: Some("printf test".into()),
-            args_prefix: Vec::new(),
-            version_args: Vec::new(),
-            permissions: Vec::new(),
-            platforms: vec![crate::extensions::PlatformTarget::current().unwrap().os],
-        }).await.unwrap();
+        let entry = install::create_custom_integration(
+            &state,
+            install::CustomIntegrationRequest {
+                id: "local.enable-writer".into(),
+                name: "Enable writer".into(),
+                command: "enable-writer".into(),
+                version: "1.0.0".into(),
+                executable_path: String::new(),
+                mode: "script".into(),
+                script_language: Some(ScriptLanguage::Shell),
+                script_content: Some("printf test".into()),
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                permissions: Vec::new(),
+                platforms: vec![crate::extensions::PlatformTarget::current().unwrap().os],
+            },
+        )
+        .await
+        .unwrap();
 
         for enabled in [false, true] {
             // Exercise the exact handler shared by the enable/disable IPC commands.
             let updated = set_enabled(&state, &entry.id, enabled).await.unwrap();
             assert_eq!(updated.enabled, enabled);
-            let json: serde_json::Value = serde_json::from_slice(
-                &std::fs::read(&state.paths.repository_file).unwrap(),
-            ).unwrap();
-            assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
+            let json: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&state.paths.repository_file).unwrap())
+                    .unwrap();
+            assert_eq!(
+                json["schemaVersion"],
+                crate::extensions::repository::REPOSITORY_SCHEMA_VERSION
+            );
             assert_eq!(json["extensions"][&entry.id]["enabled"], enabled);
-            assert_eq!(json["extensions"][&entry.id]["state"], if enabled { "enabled" } else { "disabled" });
+            assert_eq!(
+                json["extensions"][&entry.id]["state"],
+                if enabled { "enabled" } else { "disabled" }
+            );
             assert!(!state.paths.legacy_lock_file.exists());
             assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
         }

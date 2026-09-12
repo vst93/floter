@@ -345,7 +345,10 @@ mod cleanup_tests {
             std::process::id()
         ))
         .unwrap_or_default();
-        assert!(children.trim().is_empty(), "fixture child remains: {children}");
+        assert!(
+            children.trim().is_empty(),
+            "fixture child remains: {children}"
+        );
     }
 }
 

@@ -316,8 +316,8 @@ pub async fn uninstall_componentized(
 mod tests {
     use super::*;
     use crate::extensions::lock::{
-        ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind, ExtensionRuntimeOwnership,
-        ExtensionStateKind,
+        ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
+        ExtensionRuntimeOwnership, ExtensionStateKind,
     };
     use crate::extensions::ExtensionPaths;
 

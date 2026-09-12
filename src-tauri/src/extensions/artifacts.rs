@@ -74,16 +74,18 @@ async fn verify_binaries_with_timeout(
             if !permissions.contains(&Permission::Environment) {
                 command.env_clear();
             }
-            let output = command_output(command, probe_timeout).await.map_err(|error| {
-                if matches!(error, CommandOutputError::TimedOut(_)) {
-                    format!("Artifact binary {} version probe timed out", binary.name)
-                } else {
-                    format!(
-                        "Cannot run artifact binary {} version probe: {error}",
-                        binary.name
-                    )
-                }
-            })?;
+            let output = command_output(command, probe_timeout)
+                .await
+                .map_err(|error| {
+                    if matches!(error, CommandOutputError::TimedOut(_)) {
+                        format!("Artifact binary {} version probe timed out", binary.name)
+                    } else {
+                        format!(
+                            "Cannot run artifact binary {} version probe: {error}",
+                            binary.name
+                        )
+                    }
+                })?;
             let status = output.status;
             if !status.success() {
                 return Err(format!(

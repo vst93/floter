@@ -1854,9 +1854,10 @@ pub(crate) async fn linked_tool_version(
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .kill_on_drop(true);
-    let output = crate::extensions::process_cleanup::command_output(command, Duration::from_secs(2))
-        .await
-        .ok()?;
+    let output =
+        crate::extensions::process_cleanup::command_output(command, Duration::from_secs(2))
+            .await
+            .ok()?;
     output
         .status
         .success()
@@ -2956,7 +2957,9 @@ mod tests {
         for retained_legacy in [false, true] {
             let directory = tempfile::tempdir().unwrap();
             let state = test_state(directory.path());
-            ExtensionsLock::default().save_legacy(&state.paths.legacy_lock_file).unwrap();
+            ExtensionsLock::default()
+                .save_legacy(&state.paths.legacy_lock_file)
+                .unwrap();
             crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
             let archive = state.paths.root.join("extensions.lock.json.migrated");
             let legacy_bytes = std::fs::read(&archive).unwrap();
@@ -2967,53 +2970,81 @@ mod tests {
             let snapshot = || -> serde_json::Value {
                 assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
                 if retained_legacy {
-                    assert_eq!(std::fs::read(&state.paths.legacy_lock_file).unwrap(), legacy_bytes);
+                    assert_eq!(
+                        std::fs::read(&state.paths.legacy_lock_file).unwrap(),
+                        legacy_bytes
+                    );
                 } else {
                     assert!(!state.paths.legacy_lock_file.exists());
                 }
-                let json: serde_json::Value = serde_json::from_slice(
-                    &std::fs::read(&state.paths.repository_file).unwrap(),
-                ).unwrap();
-                assert_eq!(json["schemaVersion"], crate::extensions::repository::REPOSITORY_SCHEMA_VERSION);
+                let json: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&state.paths.repository_file).unwrap())
+                        .unwrap();
+                assert_eq!(
+                    json["schemaVersion"],
+                    crate::extensions::repository::REPOSITORY_SCHEMA_VERSION
+                );
                 json
             };
 
             let source = test_state(&directory.path().join("source"));
             let linked = create_custom_integration(
-                &source, script_request("local.linked-writer", "Linked", "linked"),
-            ).await.unwrap();
-            install(&state, ExtensionInstallRequest {
-                source: InstallSource::Linked,
-                package: None,
-                version: None,
-                manifest_path: Some(linked.manifest_path),
-                executable_path: None,
-                approved_permissions: Some(linked.approved_permissions),
-            }).await.unwrap();
-            assert_eq!(snapshot()["extensions"]["local.linked-writer"]["name"], "Linked");
-            uninstall(&state, "local.linked-writer", true).await.unwrap();
+                &source,
+                script_request("local.linked-writer", "Linked", "linked"),
+            )
+            .await
+            .unwrap();
+            install(
+                &state,
+                ExtensionInstallRequest {
+                    source: InstallSource::Linked,
+                    package: None,
+                    version: None,
+                    manifest_path: Some(linked.manifest_path),
+                    executable_path: None,
+                    approved_permissions: Some(linked.approved_permissions),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                snapshot()["extensions"]["local.linked-writer"]["name"],
+                "Linked"
+            );
+            uninstall(&state, "local.linked-writer", true)
+                .await
+                .unwrap();
             assert!(snapshot()["extensions"].as_object().unwrap().is_empty());
 
             let id = "local.writer-swap";
             let mut request = script_request(id, "Original", "original");
-            create_custom_integration(&state, request.clone()).await.unwrap();
+            create_custom_integration(&state, request.clone())
+                .await
+                .unwrap();
             assert_eq!(snapshot()["extensions"][id]["name"], "Original");
             set_enabled_for_test(&state, id, false).await;
             let before_edit = snapshot();
             let mut invalid = request.clone();
             invalid.script_content = Some(String::new());
-            assert!(update_custom_integration(&state, id, invalid).await.is_err());
+            assert!(update_custom_integration(&state, id, invalid)
+                .await
+                .is_err());
             assert_eq!(snapshot(), before_edit);
 
             request.name = "Edited".into();
             request.version = "2.0.0".into();
             request.script_content = Some("printf edited".into());
-            update_custom_integration(&state, id, request.clone()).await.unwrap();
+            update_custom_integration(&state, id, request.clone())
+                .await
+                .unwrap();
             let edited = snapshot();
             assert_eq!(edited["extensions"][id]["name"], "Edited");
             assert_eq!(edited["extensions"][id]["currentVersion"], "2.0.0");
             assert_eq!(edited["extensions"][id]["enabled"], false);
-            assert_eq!(edited["extensions"][id]["installedAt"], before_edit["extensions"][id]["installedAt"]);
+            assert_eq!(
+                edited["extensions"][id]["installedAt"],
+                before_edit["extensions"][id]["installedAt"]
+            );
 
             let export = sync::build_export(&state, Utc::now()).unwrap();
             assert_eq!(export.extensions.len(), 1);
@@ -3027,14 +3058,22 @@ mod tests {
                 Path::new("writer-swap.json"),
                 export,
                 &BTreeMap::from([(id.to_string(), request.permissions)]),
-            ).await;
+            )
+            .await;
             assert!(report.failed.is_empty(), "{:?}", report.failed);
             assert_eq!(report.succeeded.len(), 1);
             let imported = snapshot();
             assert_eq!(imported["extensions"][id]["currentVersion"], "2.0.0");
             assert_eq!(imported["extensions"][id]["enabled"], false);
             crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
-            assert_eq!(ExtensionsLock::load(&state.paths.repository_file).unwrap().get(id).unwrap().name, "Edited");
+            assert_eq!(
+                ExtensionsLock::load(&state.paths.repository_file)
+                    .unwrap()
+                    .get(id)
+                    .unwrap()
+                    .name,
+                "Edited"
+            );
             assert_eq!(snapshot(), imported);
         }
     }
@@ -3043,8 +3082,8 @@ mod tests {
     mod unix_faults {
         use super::*;
         use crate::extensions::fault_test_support::{
-            crash_child_boundary, crash_child_root, kill_at_commit_point, run_crash_child, skip_readonly_as_root,
-            ReadonlyDirectory,
+            crash_child_boundary, crash_child_root, kill_at_commit_point, run_crash_child,
+            skip_readonly_as_root, ReadonlyDirectory,
         };
         use crate::extensions::transaction::{recover, RemovalJournal, RemovalKind};
         use crate::extensions::with_async_commit_point_action;
@@ -3124,7 +3163,10 @@ mod tests {
                 let data = state.paths.data.join(WINDOW_ID);
                 std::fs::create_dir_all(&data).unwrap();
                 std::fs::write(data.join("user-data"), b"preserved user data").unwrap();
-                let tree = Path::new(&entry.manifest_path).parent().unwrap().to_path_buf();
+                let tree = Path::new(&entry.manifest_path)
+                    .parent()
+                    .unwrap()
+                    .to_path_buf();
                 let files = std::fs::read_dir(&tree)
                     .unwrap()
                     .map(|item| {
@@ -3136,13 +3178,25 @@ mod tests {
                     .collect();
                 let executable = std::fs::read(&entry.executable_path).unwrap();
                 let repository = std::fs::read(&state.paths.repository_file).unwrap();
-                Self { state, entry, tree, repository, files, executable }
+                Self {
+                    state,
+                    entry,
+                    tree,
+                    repository,
+                    files,
+                    executable,
+                }
             }
 
             fn journal_path(&self, operation: &str) -> PathBuf {
-                self.state.paths.extensions.join(".transactions").join(format!(
-                    "removal-{operation}-{WINDOW_ID}-{}.json", self.entry.updated_at
-                ))
+                self.state
+                    .paths
+                    .extensions
+                    .join(".transactions")
+                    .join(format!(
+                        "removal-{operation}-{WINDOW_ID}-{}.json",
+                        self.entry.updated_at
+                    ))
             }
 
             fn assert_tree(&self, tree: &Path) {
@@ -3165,20 +3219,30 @@ mod tests {
                             let name = item.file_name();
                             let name = name.to_string_lossy();
                             assert!(!name.starts_with(".removing-"), "{name}");
-                            assert!(!name.starts_with(&format!(".{WINDOW_ID}-editing-")), "{name}");
+                            assert!(
+                                !name.starts_with(&format!(".{WINDOW_ID}-editing-")),
+                                "{name}"
+                            );
                         }
                     }
                 }
             }
 
             async fn assert_pristine(&self, state: &ExtensionState) {
-                assert_eq!(std::fs::read(&state.paths.repository_file).unwrap(), self.repository);
                 assert_eq!(
-                    serde_json::to_value(verify_installed(state, WINDOW_ID).await.unwrap()).unwrap(),
+                    std::fs::read(&state.paths.repository_file).unwrap(),
+                    self.repository
+                );
+                assert_eq!(
+                    serde_json::to_value(verify_installed(state, WINDOW_ID).await.unwrap())
+                        .unwrap(),
                     serde_json::to_value(&self.entry).unwrap()
                 );
                 self.assert_tree(&self.tree);
-                assert_eq!(std::fs::read(&self.entry.executable_path).unwrap(), self.executable);
+                assert_eq!(
+                    std::fs::read(&self.entry.executable_path).unwrap(),
+                    self.executable
+                );
                 let output = std::process::Command::new(&self.entry.executable_path)
                     .arg(self.tree.join("provider.sh"))
                     .output()
@@ -3216,14 +3280,26 @@ mod tests {
                         assert!(!fresh.paths.data.join(WINDOW_ID).exists());
                     } else {
                         assert_eq!(lock.extensions.len(), 2);
-                        assert_eq!(verify_installed(&fresh, WINDOW_ID).await.unwrap().name, "Changed");
-                        assert_eq!(std::fs::read(self.tree.join("provider.sh")).unwrap(), b"printf changed");
+                        assert_eq!(
+                            verify_installed(&fresh, WINDOW_ID).await.unwrap().name,
+                            "Changed"
+                        );
+                        assert_eq!(
+                            std::fs::read(self.tree.join("provider.sh")).unwrap(),
+                            b"printf changed"
+                        );
                     }
                     self.assert_no_staging();
                     assert!(!self.journal_path(operation).exists());
-                    assert!(std::fs::read_dir(fresh.paths.extensions.join(".transactions"))
-                        .unwrap()
-                        .all(|item| item.unwrap().path().extension().is_none_or(|ext| ext != "json")));
+                    assert!(
+                        std::fs::read_dir(fresh.paths.extensions.join(".transactions"))
+                            .unwrap()
+                            .all(|item| item
+                                .unwrap()
+                                .path()
+                                .extension()
+                                .is_none_or(|ext| ext != "json"))
+                    );
                 }
             }
         }
@@ -3244,34 +3320,52 @@ mod tests {
             let (label, action): (_, Box<dyn FnOnce() + Send>) = match boundary {
                 "first-write" => {
                     let deny = journal_guard.arm();
-                    ("removal-journal-persist", Box::new(move || {
-                        // This assertion reproduces the old destructive staging window.
-                        assert!(tree.is_dir(), "first journal write must precede live-tree staging");
-                        deny();
-                    }))
+                    (
+                        "removal-journal-persist",
+                        Box::new(move || {
+                            // This assertion reproduces the old destructive staging window.
+                            assert!(
+                                tree.is_dir(),
+                                "first journal write must precede live-tree staging"
+                            );
+                            deny();
+                        }),
+                    )
                 }
                 "stage" => {
                     let deny = tree_guard.arm();
                     let path = journal_path.clone();
-                    let label = if operation == "edit" { "edit-stage-rename" } else { "uninstall-stage-rename" };
-                    (label, Box::new(move || {
-                        let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-                        assert!(!journal.staged_path.unwrap().exists());
-                        assert!(tree.is_dir());
-                        deny();
-                    }))
+                    let label = if operation == "edit" {
+                        "edit-stage-rename"
+                    } else {
+                        "uninstall-stage-rename"
+                    };
+                    (
+                        label,
+                        Box::new(move || {
+                            let journal: RemovalJournal =
+                                serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+                            assert!(!journal.staged_path.unwrap().exists());
+                            assert!(tree.is_dir());
+                            deny();
+                        }),
+                    )
                 }
                 "repository" => {
                     let deny_tree = tree_guard.arm();
                     let deny_repository = repository_guard.arm();
                     let path = journal_path.clone();
-                    ("repository-persist", Box::new(move || {
-                        let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-                        assert!(journal.staged_path.unwrap().is_dir());
-                        assert!(!tree.exists());
-                        deny_tree();
-                        deny_repository();
-                    }))
+                    (
+                        "repository-persist",
+                        Box::new(move || {
+                            let journal: RemovalJournal =
+                                serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+                            assert!(journal.staged_path.unwrap().is_dir());
+                            assert!(!tree.exists());
+                            deny_tree();
+                            deny_repository();
+                        }),
+                    )
                 }
                 _ => unreachable!(),
             };
@@ -3279,7 +3373,9 @@ mod tests {
                 label,
                 action,
                 window_operation(&fixture.state, operation),
-            ).await.unwrap_err();
+            )
+            .await
+            .unwrap_err();
             let expected = match boundary {
                 "first-write" => "Cannot persist removal transaction journal",
                 "stage" => "Cannot stage",
@@ -3287,7 +3383,10 @@ mod tests {
                 _ => unreachable!(),
             };
             assert!(error.contains(expected), "{error}");
-            assert_eq!(std::fs::read(&fixture.state.paths.repository_file).unwrap(), fixture.repository);
+            assert_eq!(
+                std::fs::read(&fixture.state.paths.repository_file).unwrap(),
+                fixture.repository
+            );
             if boundary == "first-write" {
                 assert!(!journal_path.exists());
                 fixture.assert_pristine(&fixture.state).await;
@@ -3295,7 +3394,10 @@ mod tests {
                 let bytes = std::fs::read(&journal_path).unwrap();
                 let journal: RemovalJournal = serde_json::from_slice(&bytes).unwrap();
                 assert_eq!(journal.removal_kind, Some(RemovalKind::Staged));
-                assert_eq!(serde_json::to_value(&journal.removed_entry).unwrap(), serde_json::to_value(&fixture.entry).unwrap());
+                assert_eq!(
+                    serde_json::to_value(&journal.removed_entry).unwrap(),
+                    serde_json::to_value(&fixture.entry).unwrap()
+                );
                 if boundary == "repository" {
                     fixture.assert_tree(journal.staged_path.as_ref().unwrap());
                     assert!(!fixture.tree.exists());
@@ -3454,18 +3556,31 @@ mod tests {
                 "edit-repository-finalize",
                 readonly.arm(),
                 window_operation(&fixture.state, "edit"),
-            ).await.unwrap_err();
-            assert!(error.contains("Cannot finalize custom integration update"), "{error}");
+            )
+            .await
+            .unwrap_err();
+            assert!(
+                error.contains("Cannot finalize custom integration update"),
+                "{error}"
+            );
             let repository = std::fs::read(&fixture.state.paths.repository_file).unwrap();
             assert_ne!(repository, fixture.repository);
             drop(readonly);
             for _ in 0..3 {
                 let fresh = test_state(directory.path());
                 recover(&fresh).unwrap();
-                assert_eq!(std::fs::read(&fresh.paths.repository_file).unwrap(), repository);
-                assert_eq!(verify_installed(&fresh, WINDOW_ID).await.unwrap().name, "Changed");
+                assert_eq!(
+                    std::fs::read(&fresh.paths.repository_file).unwrap(),
+                    repository
+                );
+                assert_eq!(
+                    verify_installed(&fresh, WINDOW_ID).await.unwrap().name,
+                    "Changed"
+                );
                 let output = std::process::Command::new(&fixture.entry.executable_path)
-                    .arg(fixture.tree.join("provider.sh")).output().unwrap();
+                    .arg(fixture.tree.join("provider.sh"))
+                    .output()
+                    .unwrap();
                 assert!(output.status.success());
                 assert_eq!(output.stdout, b"changed");
                 fixture.assert_no_staging();
@@ -3485,21 +3600,39 @@ mod tests {
                 "edit-repository-finalize",
                 readonly.arm(),
                 window_operation(&fixture.state, "edit"),
-            ).await.unwrap_err();
-            assert!(error.contains("Cannot remove completed edit backup"), "{error}");
+            )
+            .await
+            .unwrap_err();
+            assert!(
+                error.contains("Cannot remove completed edit backup"),
+                "{error}"
+            );
             let repository = std::fs::read(&fixture.state.paths.repository_file).unwrap();
             let path = fixture.journal_path("edit");
-            let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            let journal: RemovalJournal =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
             let backup = journal.staged_path.unwrap();
             assert!(backup.is_dir());
-            assert_eq!(std::fs::read(fixture.tree.join("provider.sh")).unwrap(), b"printf changed");
+            assert_eq!(
+                std::fs::read(fixture.tree.join("provider.sh")).unwrap(),
+                b"printf changed"
+            );
             drop(readonly);
             for _ in 0..3 {
                 let fresh = test_state(directory.path());
                 recover(&fresh).unwrap();
-                assert_eq!(std::fs::read(&fresh.paths.repository_file).unwrap(), repository);
-                assert_eq!(verify_installed(&fresh, WINDOW_ID).await.unwrap().name, "Changed");
-                assert_eq!(std::fs::read(fixture.tree.join("provider.sh")).unwrap(), b"printf changed");
+                assert_eq!(
+                    std::fs::read(&fresh.paths.repository_file).unwrap(),
+                    repository
+                );
+                assert_eq!(
+                    verify_installed(&fresh, WINDOW_ID).await.unwrap().name,
+                    "Changed"
+                );
+                assert_eq!(
+                    std::fs::read(fixture.tree.join("provider.sh")).unwrap(),
+                    b"printf changed"
+                );
                 assert!(!backup.exists());
                 assert!(!path.exists());
                 fixture.assert_no_staging();
@@ -3511,8 +3644,16 @@ mod tests {
                 "removal-journal-persist",
                 "removal-journal-directory-sync",
                 "removal-journal-parent-directory-sync",
-                if operation == "edit" { "edit-stage-rename" } else { "uninstall-stage-rename" },
-                if operation == "edit" { "edit-repository-remove" } else { "uninstall-repository-remove" },
+                if operation == "edit" {
+                    "edit-stage-rename"
+                } else {
+                    "uninstall-stage-rename"
+                },
+                if operation == "edit" {
+                    "edit-repository-remove"
+                } else {
+                    "uninstall-repository-remove"
+                },
             ]
         }
 
@@ -3525,10 +3666,16 @@ mod tests {
                     crate::extensions::with_async_commit_point(
                         label,
                         window_operation(&state, operation),
-                    ).await
-                }).await.unwrap_err();
+                    )
+                    .await
+                })
+                .await
+                .unwrap_err();
                 assert!(failure.is_panic());
-                assert_eq!(std::fs::read(&fixture.state.paths.repository_file).unwrap(), fixture.repository);
+                assert_eq!(
+                    std::fs::read(&fixture.state.paths.repository_file).unwrap(),
+                    fixture.repository
+                );
                 // No fresh state construction or explicit recover before retrying.
                 fixture.assert_retry(operation).await;
             }
@@ -3556,22 +3703,31 @@ mod tests {
                     label,
                     kill_at_commit_point(label),
                     window_operation(&state, operation),
-                ).await.unwrap();
+                )
+                .await
+                .unwrap();
                 panic!("crash boundary was not reached");
             }
             for label in window_boundaries(operation) {
                 let directory = tempfile::tempdir().unwrap();
                 let fixture = WindowFixture::new(directory.path(), operation).await;
                 run_crash_child(name, directory.path(), label);
-                assert_eq!(std::fs::read(&fixture.state.paths.repository_file).unwrap(), fixture.repository);
+                assert_eq!(
+                    std::fs::read(&fixture.state.paths.repository_file).unwrap(),
+                    fixture.repository
+                );
                 let path = fixture.journal_path(operation);
                 if label == "removal-journal-persist" {
                     assert!(!path.exists());
                     fixture.assert_pristine(&fixture.state).await;
                 } else {
-                    let journal: RemovalJournal = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                    let journal: RemovalJournal =
+                        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
                     assert_eq!(journal.removal_kind, Some(RemovalKind::Staged));
-                    assert_eq!(serde_json::to_value(&journal.removed_entry).unwrap(), serde_json::to_value(&fixture.entry).unwrap());
+                    assert_eq!(
+                        serde_json::to_value(&journal.removed_entry).unwrap(),
+                        serde_json::to_value(&fixture.entry).unwrap()
+                    );
                     let staged = journal.staged_path.as_ref().unwrap();
                     if label.ends_with("repository-remove") {
                         assert!(!fixture.tree.exists());
@@ -3589,13 +3745,27 @@ mod tests {
         #[tokio::test]
         #[ignore = "manual Unix process-crash simulation"]
         async fn crash_simulation_uninstall_across_first_journal_and_stage_boundaries() {
-            crash_window(concat!(module_path!(), "::crash_simulation_uninstall_across_first_journal_and_stage_boundaries"), "uninstall").await;
+            crash_window(
+                concat!(
+                    module_path!(),
+                    "::crash_simulation_uninstall_across_first_journal_and_stage_boundaries"
+                ),
+                "uninstall",
+            )
+            .await;
         }
 
         #[tokio::test]
         #[ignore = "manual Unix process-crash simulation"]
         async fn crash_simulation_edit_across_first_journal_and_stage_boundaries() {
-            crash_window(concat!(module_path!(), "::crash_simulation_edit_across_first_journal_and_stage_boundaries"), "edit").await;
+            crash_window(
+                concat!(
+                    module_path!(),
+                    "::crash_simulation_edit_across_first_journal_and_stage_boundaries"
+                ),
+                "edit",
+            )
+            .await;
         }
 
         #[tokio::test]
@@ -3821,7 +3991,9 @@ mod tests {
         let state = std::sync::Arc::new(test_state(directory.path()));
         let id = "local.fault-edit-commit";
         let request = script_request(id, "Original", "fault-edit");
-        create_custom_integration(&state, request.clone()).await.unwrap();
+        create_custom_integration(&state, request.clone())
+            .await
+            .unwrap();
         let mut changed = request;
         changed.name = "Changed".into();
         changed.version = "2.0.0".into();
@@ -3853,7 +4025,10 @@ mod tests {
             .into_iter()
             .flatten()
             .flatten()
-            .any(|item| item.file_name().to_string_lossy().contains("fault-edit-commit")));
+            .any(|item| item
+                .file_name()
+                .to_string_lossy()
+                .contains("fault-edit-commit")));
     }
 
     #[tokio::test]
@@ -4400,15 +4575,11 @@ mod tests {
         let lock_after = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         let journal_dir = state.paths.extensions.join(".transactions");
         let has_removal_journal = journal_dir.exists()
-            && journal_dir
-                .read_dir()
-                .unwrap()
-                .flatten()
-                .any(|e| {
-                    e.file_name()
-                        .to_string_lossy()
-                        .starts_with(&format!("removal-uninstall-{}", extension_id))
-                });
+            && journal_dir.read_dir().unwrap().flatten().any(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with(&format!("removal-uninstall-{}", extension_id))
+            });
 
         if result.is_ok() {
             // Success: lock entry gone, no journal, no residue.
@@ -4548,14 +4719,10 @@ mod tests {
         let journal_dir = state.paths.extensions.join(".transactions");
         assert!(
             !journal_dir.exists()
-                || !journal_dir
-                    .read_dir()
-                    .unwrap()
-                    .flatten()
-                    .any(|e| e
-                        .file_name()
-                        .to_string_lossy()
-                        .starts_with(&format!("removal-uninstall-{}", extension_id)))
+                || !journal_dir.read_dir().unwrap().flatten().any(|e| e
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(&format!("removal-uninstall-{}", extension_id)))
         );
     }
 
@@ -4569,9 +4736,10 @@ mod tests {
         let id = "local.edit-crash-test";
 
         // Create original integration.
-        let original = create_custom_integration(&state, script_request(id, "Original", "original"))
-            .await
-            .unwrap();
+        let original =
+            create_custom_integration(&state, script_request(id, "Original", "original"))
+                .await
+                .unwrap();
 
         let root = state.paths.data.join(id).join("integration");
         let original_script = std::fs::read(root.join("provider.sh")).unwrap();
@@ -4607,10 +4775,16 @@ mod tests {
         assert_eq!(restored.updated_at, original.updated_at);
         assert!(root.exists(), "Integration root should be restored");
         assert!(!backup_path.exists(), "Backup should be removed");
-        assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), original_script);
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            original_script
+        );
 
         let definition = custom_integration_definition(&state, id).unwrap();
-        assert_eq!(definition.script_content.as_deref(), Some("printf original"));
+        assert_eq!(
+            definition.script_content.as_deref(),
+            Some("printf original")
+        );
     }
 
     #[tokio::test]
@@ -4623,9 +4797,10 @@ mod tests {
         let id = "local.edit-commit-test";
 
         // Create original integration.
-        let original = create_custom_integration(&state, script_request(id, "Original", "original"))
-            .await
-            .unwrap();
+        let original =
+            create_custom_integration(&state, script_request(id, "Original", "original"))
+                .await
+                .unwrap();
         let original_updated_at = original.updated_at;
 
         let root = state.paths.data.join(id).join("integration");
@@ -4664,7 +4839,10 @@ mod tests {
         assert_eq!(restored.id, original.id);
         assert_eq!(restored.updated_at, original_updated_at);
         assert!(root.exists(), "Integration root should be restored");
-        assert!(!backup_path.exists(), "Backup should be removed after restore");
+        assert!(
+            !backup_path.exists(),
+            "Backup should be removed after restore"
+        );
         assert_eq!(
             std::fs::read(root.join("provider.sh")).unwrap(),
             original_script,
@@ -4700,21 +4878,23 @@ mod tests {
 
         let definition = custom_integration_definition(&state, id).unwrap();
         assert_eq!(definition.name, "Original");
-        assert_eq!(definition.script_content.as_deref(), Some("printf original"));
-        assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), original_script);
+        assert_eq!(
+            definition.script_content.as_deref(),
+            Some("printf original")
+        );
+        assert_eq!(
+            std::fs::read(root.join("provider.sh")).unwrap(),
+            original_script
+        );
 
         // Journal should be removed (in-process rollback succeeded).
         let journal_dir = state.paths.extensions.join(".transactions");
         assert!(
             !journal_dir.exists()
-                || !journal_dir
-                    .read_dir()
-                    .unwrap()
-                    .flatten()
-                    .any(|e| e
-                        .file_name()
-                        .to_string_lossy()
-                        .starts_with(&format!("removal-edit-{}", id)))
+                || !journal_dir.read_dir().unwrap().flatten().any(|e| e
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(&format!("removal-edit-{}", id)))
         );
     }
 
@@ -4728,9 +4908,10 @@ mod tests {
         let id = "local.edit-completed-test";
 
         // Create original integration.
-        let original = create_custom_integration(&state, script_request(id, "Original", "original"))
-            .await
-            .unwrap();
+        let original =
+            create_custom_integration(&state, script_request(id, "Original", "original"))
+                .await
+                .unwrap();
         let original_updated_at = original.updated_at;
 
         let root = state.paths.data.join(id).join("integration");
@@ -4783,7 +4964,10 @@ mod tests {
             original_script,
             "Uncommitted content must not replace the original generation"
         );
-        let journal_path = state.paths.extensions.join(".transactions")
+        let journal_path = state
+            .paths
+            .extensions
+            .join(".transactions")
             .join(format!("removal-{}.json", journal.transaction_id));
         assert!(!journal_path.exists());
         crate::extensions::transaction::recover(&state).unwrap();
@@ -4806,9 +4990,10 @@ mod tests {
             let directory = tempfile::tempdir().unwrap();
             let state = test_state(directory.path());
             let id = "local.edit-committed-generation";
-            let original = create_custom_integration(&state, script_request(id, "Original", "original"))
-                .await
-                .unwrap();
+            let original =
+                create_custom_integration(&state, script_request(id, "Original", "original"))
+                    .await
+                    .unwrap();
             let root = state.paths.data.join(id).join("integration");
             let backup = state.paths.data.join(id).join(".editing-backup");
             std::fs::rename(&root, &backup).unwrap();
@@ -4840,7 +5025,10 @@ mod tests {
             updated.updated_at = original.updated_at;
             updated.approved_at = original.approved_at;
             let updated_json = serde_json::to_value(&updated).unwrap();
-            assert_eq!(updated_json == serde_json::to_value(original).unwrap(), unchanged_metadata);
+            assert_eq!(
+                updated_json == serde_json::to_value(original).unwrap(),
+                unchanged_metadata
+            );
             let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
             lock.extensions.insert(id.into(), updated);
             lock.save(&state.paths.repository_file).unwrap();
@@ -4857,8 +5045,14 @@ mod tests {
             for _ in 0..2 {
                 crate::extensions::transaction::recover(&state).unwrap();
                 let recovered = ExtensionsLock::load(&state.paths.repository_file).unwrap();
-                assert_eq!(serde_json::to_value(recovered.get(id).unwrap()).unwrap(), updated_json);
-                assert_eq!(std::fs::read(root.join("provider.sh")).unwrap(), b"printf changed");
+                assert_eq!(
+                    serde_json::to_value(recovered.get(id).unwrap()).unwrap(),
+                    updated_json
+                );
+                assert_eq!(
+                    std::fs::read(root.join("provider.sh")).unwrap(),
+                    b"printf changed"
+                );
                 assert!(!backup.exists());
                 assert!(!journal_path.exists());
             }
@@ -4956,14 +5150,10 @@ mod tests {
         let journal_dir = state.paths.extensions.join(".transactions");
         assert!(
             !journal_dir.exists()
-                || !journal_dir
-                    .read_dir()
-                    .unwrap()
-                    .flatten()
-                    .any(|e| e
-                        .file_name()
-                        .to_string_lossy()
-                        .starts_with(&format!("removal-uninstall-{}", extension_id)))
+                || !journal_dir.read_dir().unwrap().flatten().any(|e| e
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(&format!("removal-uninstall-{}", extension_id)))
         );
     }
 
@@ -4971,7 +5161,9 @@ mod tests {
     async fn install_emits_progress_events() {
         let temp = tempfile::tempdir().unwrap();
         let state = test_state(temp.path());
-        let received_events: std::sync::Arc<std::sync::Mutex<Vec<crate::extensions::operation::OperationProgress>>> = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let received_events: std::sync::Arc<
+            std::sync::Mutex<Vec<crate::extensions::operation::OperationProgress>>,
+        > = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let receiver = received_events.clone();
         state.set_progress_listener(Box::new(move |event| {
             receiver.lock().unwrap().push(event.clone());
@@ -5014,7 +5206,10 @@ mod tests {
         let _ = result;
         let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         if let Some(entry) = lock.extensions.get(extension_id) {
-            assert!(entry.broken_reason.is_none(), "cancelled install must not persist a broken entry");
+            assert!(
+                entry.broken_reason.is_none(),
+                "cancelled install must not persist a broken entry"
+            );
         }
     }
 
@@ -5025,7 +5220,11 @@ mod tests {
         let extension_id = "test.uninstall-cancel";
         let installed = create_custom_integration(
             &state,
-            script_request(extension_id, "Uninstall Cancel Test", "uninstall-cancel-test"),
+            script_request(
+                extension_id,
+                "Uninstall Cancel Test",
+                "uninstall-cancel-test",
+            ),
         )
         .await
         .unwrap();

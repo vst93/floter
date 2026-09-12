@@ -29,7 +29,11 @@ pub(crate) enum CommandOutputError {
 impl std::fmt::Display for CommandOutputError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TimedOut(timeout) => write!(formatter, "Command timed out after {} ms", timeout.as_millis()),
+            Self::TimedOut(timeout) => write!(
+                formatter,
+                "Command timed out after {} ms",
+                timeout.as_millis()
+            ),
             Self::Failed(error) => formatter.write_str(error),
         }
     }
@@ -75,7 +79,9 @@ pub(crate) async fn command_output(
             cleanup.kill_and_reap(&mut child).await;
             stdout_task.abort();
             stderr_task.abort();
-            return Err(CommandOutputError::Failed(format!("Cannot wait for command: {error}")));
+            return Err(CommandOutputError::Failed(format!(
+                "Cannot wait for command: {error}"
+            )));
         }
         Err(_) => {
             cleanup.kill_and_reap(&mut child).await;
@@ -86,12 +92,20 @@ pub(crate) async fn command_output(
     };
     let stdout = stdout_task
         .await
-        .map_err(|error| CommandOutputError::Failed(format!("Command stdout task failed: {error}")))?
-        .map_err(|error| CommandOutputError::Failed(format!("Cannot read command stdout: {error}")))?;
+        .map_err(|error| {
+            CommandOutputError::Failed(format!("Command stdout task failed: {error}"))
+        })?
+        .map_err(|error| {
+            CommandOutputError::Failed(format!("Cannot read command stdout: {error}"))
+        })?;
     let stderr = stderr_task
         .await
-        .map_err(|error| CommandOutputError::Failed(format!("Command stderr task failed: {error}")))?
-        .map_err(|error| CommandOutputError::Failed(format!("Cannot read command stderr: {error}")))?;
+        .map_err(|error| {
+            CommandOutputError::Failed(format!("Command stderr task failed: {error}"))
+        })?
+        .map_err(|error| {
+            CommandOutputError::Failed(format!("Cannot read command stderr: {error}"))
+        })?;
     Ok(Output {
         status,
         stdout,
