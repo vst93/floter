@@ -1,4 +1,5 @@
 use crate::extensions::config;
+use crate::extensions::export_schema::{classify_field, FieldCategory, FieldMetadata};
 use crate::extensions::install::{self, ExtensionInstallRequest, InstallSource};
 use crate::extensions::lock::{
     validate_id, ExtensionDistributionSource, ExtensionLockEntry, ExtensionRuntimeOwnership,
@@ -84,6 +85,10 @@ pub struct ExtensionsSyncEntry {
     pub script_content: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_descriptor: Option<Value>,
+    /// Field metadata for Phase 5 secret detection. Only present in exports
+    /// with EXPORT_SCHEMA_VERSION or higher.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field_metadata: Option<Vec<FieldMetadata>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -180,17 +185,23 @@ fn export_entry(
         }
         None => None,
     };
+
+    // Phase 5: Classify config fields and filter out secrets/device paths.
+    let raw_config = config::export_values(&state.paths.data, &entry.id)?;
+    let (filtered_config, field_metadata) = filter_export_config(raw_config);
+
     Ok(ExtensionsSyncEntry {
         id: entry.id.clone(),
         version: installed_version(&entry).to_string(),
         enabled: entry.enabled,
-        config: config::export_values(&state.paths.data, &entry.id)?,
+        config: filtered_config,
         distribution_source: entry.distribution_source,
         runtime_ownership: entry.runtime_ownership,
         package: entry.package_name,
         manifest,
         script_content,
         provider_descriptor,
+        field_metadata: Some(field_metadata),
     })
 }
 
@@ -211,6 +222,35 @@ fn linked_manifest(
                 )
             })
     })
+}
+
+/// Phase 5 validation standard 3: Filter config for export, excluding secrets and device paths.
+/// Returns (filtered_config, field_metadata).
+fn filter_export_config(
+    raw_config: BTreeMap<String, Value>,
+) -> (BTreeMap<String, Value>, Vec<FieldMetadata>) {
+    let mut filtered = BTreeMap::new();
+    let mut metadata = Vec::new();
+
+    for (key, value) in raw_config {
+        let category = classify_field(&key, &value);
+        let excluded = matches!(
+            category,
+            FieldCategory::Secret | FieldCategory::DevicePath
+        );
+
+        metadata.push(FieldMetadata {
+            key: key.clone(),
+            category,
+            excluded,
+        });
+
+        if !excluded {
+            filtered.insert(key, value);
+        }
+    }
+
+    (filtered, metadata)
 }
 
 pub fn write_export(path: &Path, document: &ExtensionsSyncDocument) -> Result<(), String> {
@@ -909,6 +949,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         }
     }
 
@@ -929,6 +970,7 @@ mod tests {
             manifest: None,
             script_content: None,
             provider_descriptor: None,
+            field_metadata: None,
         }
     }
 
@@ -1016,6 +1058,7 @@ mod tests {
             }),
             script_content: Some(script),
             provider_descriptor: Some(description),
+            field_metadata: None,
         }
     }
 
@@ -1373,6 +1416,7 @@ mod tests {
                     manifest: None,
                     script_content: None,
                     provider_descriptor: None,
+                    field_metadata: None,
                 })
                 .collect(),
         };

@@ -263,7 +263,12 @@ Host Services          # command catalog、config store、health、UI/IPC
 - **涉及文件**：`config.rs`、`sync.rs`、`install.rs`、`commands/extensions.rs`、`ExtensionsPanel.tsx`、schema/docs。
 - **工作量**：L。
 - **风险**：高；密码迁移、用户脚本和现有 local integration 数据兼容。
-- **验收标准**：更新失败不会出现新 manifest + 旧 config 混合；导入崩溃恢复后不产生部分成功；导出明确“本地移植包”，secret 永不明文导出；卸载可分别选择程序、host config、tool data、generated artifacts。
+- **验收标准**：更新失败不会出现新 manifest + 旧 config 混合；导入崩溃恢复后不产生部分成功；导出明确”本地移植包”，secret 永不明文导出；卸载可分别选择程序、host config、tool data、generated artifacts。
+
+**已完成的 slices（截至 2026-09-13）**：
+
+- **Validation 1（Config generation tracking）**：✅ 实现 config_generation 字段跟踪配置迁移世代；更新事务中递增并持久化到 removal journal；rollback 恢复 config_generation 保持原子性。(`extensions/lock.rs:168`, `extensions/install.rs:927`, `extensions/transaction.rs:343`, 测试: `cargo test --lib` 482 passed)
+- **Validation 3（Export secret filtering）**：✅ 实现 export_schema 模块分类 secret/device path/version constraint 字段；sync.rs::filter_export_config 过滤导出配置；field_metadata 记录排除原因；测试覆盖 API key/password/token 检测和绝对路径排除。(`extensions/export_schema.rs:1-129`, `extensions/sync.rs:2,189-254`, `extensions/sync_tests_phase5.rs:1-220`, 测试: `cargo test sync_tests_phase5` 4 passed)
 
 ### 4.4 长期演进（6-8 个 phase，建立生态能力）
 

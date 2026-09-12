@@ -5,7 +5,9 @@ pub mod catalog;
 pub mod config;
 pub mod conformance;
 pub mod cwd_policy;
+pub mod data_ownership;
 pub mod error_codes;
+pub mod export_schema;
 pub mod health;
 pub mod help_args;
 pub mod install;
@@ -30,6 +32,8 @@ pub mod registry;
 pub mod resolver;
 pub mod session_restore;
 pub mod sync;
+#[cfg(test)]
+mod sync_tests_phase5;
 pub mod terminal_capability;
 pub mod tool_lock;
 pub mod tool_manifests;

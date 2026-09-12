@@ -375,6 +375,7 @@ impl ExtensionListItem {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
@@ -442,6 +443,7 @@ impl ExtensionListItem {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
         Self {
             runtime_available: candidate.available,
@@ -526,6 +528,7 @@ impl ExtensionListItem {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),

@@ -160,6 +160,12 @@ pub struct ExtensionLockEntry {
     /// Last executed lifecycle probe set, committed with its broken-state transition.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub probe_report: Option<crate::extensions::health::HealthReport>,
+    /// Config generation committed alongside this install/update transaction.
+    /// When an update changes the config schema, the new manifest and matching
+    /// config generation are written atomically. Rollback restores the previous
+    /// generation. Zero when no host config exists.
+    #[serde(default)]
+    pub config_generation: u64,
 }
 
 fn default_channel() -> String {

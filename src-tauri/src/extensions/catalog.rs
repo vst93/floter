@@ -970,6 +970,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         }
     }
 
@@ -1066,6 +1067,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
 
         let (description, invocation) =

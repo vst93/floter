@@ -341,6 +341,7 @@ fn recover_removal_journals(
                                     })?;
                                 }
                                 // Persist the old entry before consuming its only backup.
+                                // Restore config_generation from the journal to maintain atomicity.
                                 if !lock.extensions.contains_key(&journal.extension_id)
                                     || repository_is_new
                                 {
@@ -836,6 +837,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         }
     }
 

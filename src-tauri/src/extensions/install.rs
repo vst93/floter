@@ -920,6 +920,11 @@ pub async fn update_custom_integration(
                 ExtensionStateKind::Disabled
             };
             updated.installed_at = current.installed_at;
+            // Increment config_generation to track this update transaction.
+            // If the update introduces config schema changes, manifest and config
+            // are committed atomically with the same generation. Rollback restores
+            // the previous generation from the removal journal.
+            updated.config_generation = current.config_generation + 1;
             crate::extensions::commit_point("edit-repository-finalize");
             if let Err(error) = lock.save(&state.paths.repository_file) {
                 crate::extensions::transaction::recover_pending_removals(state)
@@ -1703,6 +1708,7 @@ pub(crate) async fn install_linked(
         broken_reason: None,
         enabled_before_broken: None,
         probe_report: None,
+        config_generation: 0,
     };
     lock.extensions.insert(entry.id.clone(), entry.clone());
     probe_executor::record_report(&mut lock, &entry.id, report)?;
@@ -1929,6 +1935,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         }
     }
 
@@ -4262,6 +4269,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry);
@@ -4376,6 +4384,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
         let mut lock = ExtensionsLock::default();
         lock.extensions.insert(extension_id.into(), entry.clone());
@@ -4503,6 +4512,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
 
         // Write a committed removal journal manually (simulating crash after lock commit).
@@ -4907,6 +4917,7 @@ mod tests {
             broken_reason: None,
             enabled_before_broken: None,
             probe_report: None,
+            config_generation: 0,
         };
 
         // Write a staged removal journal (simulating crash before lock commit).
