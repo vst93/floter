@@ -992,6 +992,7 @@
 .update-banner__button:disabled {
   opacity: 0.6;
   cursor: default;
+  pointer-events: none;
 }
 
 @media (hover: hover) {

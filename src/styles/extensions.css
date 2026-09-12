@@ -97,9 +97,10 @@
 .extensions-icon-button--disabled {
   opacity: 0.42;
   cursor: default;
+  pointer-events: none;
 }
 
-.extensions-icon-button:active:not(:disabled) {
+.extensions-icon-button:active:not(:disabled):not(.extensions-icon-button--disabled) {
   transform: scale(0.92);
   color: var(--accent);
   background: var(--accent-tint);
@@ -597,6 +598,13 @@
 .extensions-action-button:disabled {
   opacity: 0.4;
   cursor: default;
+  pointer-events: none;
+}
+
+.extensions-action-button:disabled:hover {
+  border-color: var(--stroke-control);
+  background: var(--surface-control);
+  color: var(--text-strong);
 }
 
 .extension-menu {

@@ -114,14 +114,20 @@
 
 @media (hover: hover) {
 
-.collapsed-card__settings:hover {
+.collapsed-card__settings:hover:not(:disabled) {
   background: var(--surface-control-hover);
   color: var(--text-strong);
 }
 }
 
-.collapsed-card__settings:active {
+.collapsed-card__settings:active:not(:disabled) {
   transform: scale(0.92);
+}
+
+.collapsed-card__settings:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
 }
 
 .collapsed-card__settings:focus-visible {

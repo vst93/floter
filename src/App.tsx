@@ -917,7 +917,7 @@ export default function App() {
         const height = Math.min(SETTINGS_WINDOW_HEIGHT, Math.max(240, window.screen.availHeight - 24));
         void getCurrentWindow().setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height)).catch(() => undefined);
         const dialog = document.querySelector<HTMLElement>('[aria-modal="true"]:not([inert])');
-        if (dialog && !dialog.contains(document.activeElement)) dialog.focus();
+        if (dialog && !dialog.contains(document.activeElement)) dialog.focus({ preventScroll: true });
         return;
       }
       if (modeRef.current === "plugin") {

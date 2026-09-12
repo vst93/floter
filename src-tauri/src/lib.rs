@@ -31,6 +31,7 @@ use commands::extensions::{
     extensions_recommended_permissions, extensions_reconnect_system,
     extensions_refresh_official_status, extensions_repair, extensions_reprobe,
     extensions_reprobe_commands, extensions_search_tools, extensions_uninstall,
+    extensions_uninstall_componentized,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1396,6 +1397,7 @@ pub fn run() {
             extensions_custom_export_script,
             extensions_local_manifest_review,
             extensions_uninstall,
+            extensions_uninstall_componentized,
             extensions_enable,
             extensions_disable,
             extensions_repair,

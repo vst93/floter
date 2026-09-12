@@ -1390,43 +1390,80 @@ pub async fn extensions_uninstall(
     remove_data: Option<bool>,
 ) -> Result<(), String> {
     let operation_id = state.start_operation();
-    // Commit the binding removal before touching the extension repository. If the
-    // uninstall itself fails, restore the binding so the two state files do
-    // not describe different installations.
-    let previous_tool_lock = {
+
+    // Phase 5 Validation 4: Use componentized uninstall when remove_data is Some,
+    // otherwise maintain backward compatibility with boolean flag.
+    let result = if let Some(remove_all) = remove_data {
+        // Legacy boolean API: all-or-nothing data removal
+        let request = crate::extensions::uninstall::UninstallRequest {
+            extension_id: id.clone(),
+            remove_program: true,
+            remove_host_config: remove_all,
+            remove_tool_data: remove_all,
+            remove_artifacts: remove_all,
+        };
+        crate::extensions::uninstall::uninstall_componentized(&state, request)
+            .await
+            .map(|_| ())
+    } else {
+        // Default: remove program and all data
+        let request = crate::extensions::uninstall::UninstallRequest {
+            extension_id: id.clone(),
+            remove_program: true,
+            remove_host_config: true,
+            remove_tool_data: true,
+            remove_artifacts: true,
+        };
+        crate::extensions::uninstall::uninstall_componentized(&state, request)
+            .await
+            .map(|_| ())
+    };
+
+    // Commit the binding removal after successful uninstall
+    if result.is_ok() {
         let mut tool_lock = state
             .tool_lock
             .lock()
             .map_err(|_| "Tool lock is unavailable".to_string())?;
-        let previous = tool_lock.clone();
         if tool_lock.remove(&id).is_some() {
-            if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
-                *tool_lock = previous;
-                state.end_operation(&operation_id);
-                return Err(error);
-            }
+            tool_lock.save(&state.paths.tool_lock_file)?;
         }
-        previous
-    };
-    let result = install::uninstall(&state, &id, remove_data.unwrap_or(false)).await;
-    state.end_operation(&operation_id);
-    if let Err(error) = result {
-        let rollback = state
-            .tool_lock
-            .lock()
-            .map_err(|_| "Tool lock is unavailable during rollback".to_string())
-            .and_then(|mut tool_lock| {
-                *tool_lock = previous_tool_lock;
-                tool_lock.save(&state.paths.tool_lock_file)
-            });
-        return Err(format!(
-            "Cannot uninstall integration: {error}; tool binding rollback={:?}",
-            rollback.err()
-        ));
     }
+
+    state.end_operation(&operation_id);
+    result?;
     state.invalidate_provider_commands().await;
     app.emit("extensions-changed", ()).ok();
     Ok(())
+}
+
+#[tauri::command]
+pub async fn extensions_uninstall_componentized(
+    app: AppHandle,
+    state: State<'_, ExtensionState>,
+    request: crate::extensions::uninstall::UninstallRequest,
+) -> Result<crate::extensions::uninstall::UninstallResult, String> {
+    let operation_id = state.start_operation();
+    let id = request.extension_id.clone();
+
+    let result = crate::extensions::uninstall::uninstall_componentized(&state, request).await;
+
+    // Commit the binding removal after successful uninstall
+    if result.is_ok() {
+        let mut tool_lock = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        if tool_lock.remove(&id).is_some() {
+            tool_lock.save(&state.paths.tool_lock_file)?;
+        }
+    }
+
+    state.end_operation(&operation_id);
+    let uninstall_result = result?;
+    state.invalidate_provider_commands().await;
+    app.emit("extensions-changed", ()).ok();
+    Ok(uninstall_result)
 }
 
 #[tauri::command]

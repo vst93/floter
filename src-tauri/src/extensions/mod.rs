@@ -38,6 +38,7 @@ pub mod terminal_capability;
 pub mod tool_lock;
 pub mod tool_manifests;
 pub(crate) mod transaction;
+pub mod uninstall;
 
 /// Test-only crash injection hook used at durable state commit boundaries.
 ///

@@ -18,8 +18,8 @@ export function RemovalConfirmation({ extension, busy, t, onCancel, onConfirm, t
   onCancelRef.current = onCancel;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
+    // Focus without scroll to prevent layout jump when confirmation appears
     cancelRef.current?.focus({ preventScroll: true });
-    cancelRef.current?.scrollIntoView({ block: "nearest" });
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.isComposing || event.keyCode === 229) return;
       event.preventDefault();
@@ -29,7 +29,10 @@ export function RemovalConfirmation({ extension, busy, t, onCancel, onConfirm, t
     document.addEventListener("keydown", escape, true);
     return () => {
       document.removeEventListener("keydown", escape, true);
-      if (previous?.isConnected && previous.getClientRects().length) previous.focus({ preventScroll: true });
+      // Restore focus without scroll to prevent jump when confirmation dismisses
+      if (previous?.isConnected && previous.getClientRects().length) {
+        previous.focus({ preventScroll: true });
+      }
     };
   }, []);
   const system = extension.distributionSource === "built-in" && extension.runtimeOwnership === "system";

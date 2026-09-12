@@ -267,8 +267,17 @@ Host Services          # command catalog、config store、health、UI/IPC
 
 **已完成的 slices（截至 2026-09-13）**：
 
-- **Validation 1（Config generation tracking）**：✅ 实现 config_generation 字段跟踪配置迁移世代；更新事务中递增并持久化到 removal journal；rollback 恢复 config_generation 保持原子性。(`extensions/lock.rs:168`, `extensions/install.rs:927`, `extensions/transaction.rs:343`, 测试: `cargo test --lib` 482 passed)
+- **Validation 1（Config generation tracking）**：✅ 实现 config_generation 字段跟踪配置迁移世代；更新事务中递增并持久化到 removal journal；rollback 恢复 config_generation 保持原子性。(`extensions/lock.rs:168`, `extensions/install.rs:927`, `extensions/transaction.rs:343`, 测试: `cargo test --lib` 483 passed)
+- **Validation 2（Transactionalized import）**：✅ import_document 已使用事务引擎 prepare/commit 模式；所有 entries 先完成 preflight staging，仅当全部成功才原子提交到 repository；已添加 Phase 5 Validation 2 文档注释说明 4 阶段流程；ImportSnapshot::restore 实现 crash-consistent rollback。(`extensions/sync.rs:313-428,734-810`, 测试: `tests/import_transaction_test.rs` 覆盖 mid-failure rollback 和 preflight validation)
 - **Validation 3（Export secret filtering）**：✅ 实现 export_schema 模块分类 secret/device path/version constraint 字段；sync.rs::filter_export_config 过滤导出配置；field_metadata 记录排除原因；测试覆盖 API key/password/token 检测和绝对路径排除。(`extensions/export_schema.rs:1-129`, `extensions/sync.rs:2,189-254`, `extensions/sync_tests_phase5.rs:1-220`, 测试: `cargo test sync_tests_phase5` 4 passed)
+- **Validation 4（Componentized uninstall）**：✅ 新增 uninstall.rs 模块实现组件化卸载；UninstallRequest 支持独立选择 remove_program/remove_host_config/remove_tool_data/remove_artifacts；使用 DataPaths 4-category 分类；集成 RemovalJournal 事务系统；按组件发送 OperationProgress 事件；commands/extensions.rs 新增 extensions_uninstall_componentized 命令，extensions_uninstall 保持向后兼容。(`extensions/uninstall.rs:1-416`, `commands/extensions.rs:1115-1174`, 测试: `cargo test --lib` 483 passed including selective uninstall test)
+- **UI hints**：✅ ExtensionsPanel.tsx 已实现导出提示 "本地移植包 · secrets 已排除"（行 1415）和导入 field_metadata 警告（行 1420-1426）；translation keys 已存在于 i18n.ts。前端构建通过验证。
+
+**Phase 5 验收标准完成情况**：
+- ✅ 更新失败不会出现新 manifest + 旧 config 混合（config_generation tracking）
+- ✅ 导入崩溃恢复后不产生部分成功（transactionalized import with atomic commit）
+- ✅ 导出明确"本地移植包"，secret 永不明文导出（export schema filtering + UI hint）
+- ✅ 卸载可分别选择程序、host config、tool data、generated artifacts（componentized uninstall）
 
 ### 4.4 长期演进（6-8 个 phase，建立生态能力）
 

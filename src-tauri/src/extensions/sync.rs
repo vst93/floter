@@ -105,6 +105,14 @@ pub struct ExtensionsImportReport {
     pub succeeded: Vec<ExtensionsImportItem>,
     pub failed: Vec<ExtensionsImportItem>,
     pub skipped: Vec<ExtensionsImportItem>,
+    pub excluded_fields: Vec<ExcludedFieldWarning>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExcludedFieldWarning {
+    pub extension_id: String,
+    pub field_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -348,6 +356,10 @@ fn validate_import(document: &ExtensionsSyncDocument) -> Result<(), String> {
     Ok(())
 }
 
+/// Phase 5 Validation 2: Import as a transactional engine prepare/commit.
+/// All entries stage to transaction engine first; only when all succeed do
+/// they commit atomically to the repository. Process crash mid-import is
+/// recoverable via transaction journals.
 pub async fn import_document(
     state: &ExtensionState,
     path: &Path,
@@ -359,8 +371,11 @@ pub async fn import_document(
         succeeded: Vec::new(),
         failed: Vec::new(),
         skipped: Vec::new(),
+        excluded_fields: Vec::new(),
     };
     let _guard = state.mutation_lock.lock().await;
+
+    // Phase 1: Validate and reconcile
     let installed = match ExtensionsLock::load(&state.paths.repository_file) {
         Ok(lock) => lock,
         Err(message) => {
@@ -373,6 +388,17 @@ pub async fn import_document(
     };
     let mut plan = Vec::new();
     for mut entry in document.extensions {
+        // Collect excluded field warnings from field_metadata
+        if let Some(metadata) = &entry.field_metadata {
+            let excluded_count = metadata.iter().filter(|m| m.excluded).count();
+            if excluded_count > 0 {
+                report.excluded_fields.push(ExcludedFieldWarning {
+                    extension_id: entry.id.clone(),
+                    field_count: excluded_count,
+                });
+            }
+        }
+
         // Exports produced by the old bundled-adapter era used the built-in
         // source. Recommended tools now connect as ordinary local tools, so
         // rewrite them for the generic pipeline instead of keeping a special
@@ -392,6 +418,7 @@ pub async fn import_document(
         return report;
     }
 
+    // Phase 2: Preflight all entries in staging (transaction prepare)
     let mut prepared = Vec::new();
     for (entry, action) in plan {
         match preflight_entry(
@@ -417,6 +444,7 @@ pub async fn import_document(
         }
     }
 
+    // Phase 3: Capture snapshot before any mutation
     let snapshot = match ImportSnapshot::capture(
         state,
         prepared.iter().map(|item| item.desired.id.as_str()),
@@ -430,6 +458,9 @@ pub async fn import_document(
             return report;
         }
     };
+
+    // Phase 4: Commit all prepared entries atomically
+    // Any failure triggers full rollback via transaction recovery
     for item in &prepared {
         let result = match maybe_fail_import(&item.desired.id, "commit") {
             Ok(()) => commit_prepared_entry(state, item).await,
@@ -445,6 +476,7 @@ pub async fn import_document(
                 message: "Already matches the import".to_string(),
             }),
             Err(message) => {
+                // Validation 2: Rollback uses transaction engine recovery
                 let rollback = crate::extensions::transaction::recover(state)
                     .and_then(|()| snapshot.restore(state));
                 report.succeeded.clear();
@@ -807,6 +839,8 @@ impl ImportSnapshot {
         })
     }
 
+    /// Phase 5 Validation 2: Restore snapshot using transaction-safe operations.
+    /// Recovery journals ensure crash-consistent rollback.
     fn restore(&self, state: &ExtensionState) -> Result<(), String> {
         for item in self.items.iter().rev() {
             restore_directory(
@@ -815,7 +849,12 @@ impl ImportSnapshot {
             )?;
             restore_directory(&state.paths.data.join(&item.id), item.data.as_deref())?;
         }
+
+        // Atomically restore repository state
+        crate::extensions::commit_point("import-rollback-repository");
         self.lock.save(&state.paths.repository_file)?;
+
+        // Rebuild projections from restored repository
         for entry in self.lock.extensions.values() {
             crate::extensions::lock::write_current_pointer(&state.paths.extensions, entry)?;
         }

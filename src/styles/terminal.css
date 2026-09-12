@@ -232,15 +232,21 @@
 
 @media (hover: hover) {
 
-.toolbar-button:hover {
+.toolbar-button:hover:not(:disabled) {
   background: var(--surface-control-hover);
   color: var(--text-strong);
 }
 }
 
-.toolbar-button:active {
+.toolbar-button:active:not(:disabled) {
   transform: scale(0.94);
   background: var(--surface-control-active);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
 }
 
 .toolbar-button:focus-visible {

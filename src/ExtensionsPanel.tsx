@@ -295,7 +295,7 @@ function useDialogFocus(
     const focusInitial = window.setTimeout(() => {
       const dialog = dialogRef.current;
       const initial = dialog?.querySelector<HTMLElement>("[data-dialog-initial]");
-      (initial ?? dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialog)?.focus();
+      (initial ?? dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialog)?.focus({ preventScroll: true });
     }, 0);
     const inertElements = new Map<HTMLElement, boolean>();
     let branch: HTMLElement | null = dialogRef.current?.parentElement ?? null;
@@ -337,17 +337,17 @@ function useDialogFocus(
         .filter((element) => element.getClientRects().length > 0 && !element.closest("[inert]"));
       if (!focusable.length) {
         event.preventDefault();
-        dialog.focus();
+        dialog.focus({ preventScroll: true });
         return;
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
         event.preventDefault();
-        last.focus();
+        last.focus({ preventScroll: true });
       } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
         event.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
       }
     };
     document.addEventListener("keydown", handleKeyDown, true);
@@ -396,11 +396,17 @@ type ExtensionsImportItem = {
   message: string;
 };
 
+type ExcludedFieldWarning = {
+  extensionId: string;
+  fieldCount: number;
+};
+
 type ExtensionsImportReport = {
   path: string;
   succeeded: ExtensionsImportItem[];
   failed: ExtensionsImportItem[];
   skipped: ExtensionsImportItem[];
+  excludedFields: ExcludedFieldWarning[];
 };
 
 type ExtensionsPanelProps = {
@@ -831,7 +837,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
   useEffect(() => {
     if (!showCustomIntegration || customIntegrationLoading) return;
-    customDialogRef.current?.querySelector<HTMLElement>("[data-dialog-initial]")?.focus();
+    customDialogRef.current?.querySelector<HTMLElement>("[data-dialog-initial]")?.focus({ preventScroll: true });
   }, [showCustomIntegration, customIntegrationLoading]);
 
   const runMutation = async (id: string, kind: MutationKind, action: () => Promise<unknown>): Promise<boolean> => {
@@ -1406,24 +1412,35 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
           <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
             <Check size={15} strokeWidth={2} aria-hidden="true" />
             <span>{t("settings.extensions.exportComplete", { count: exportResult.extensionCount })}</span>
+            <span style={{ marginLeft: "0.5em", opacity: 0.7 }}>· {t("settings.extensions.exportSecretsExcluded")}</span>
           </div>
         )}
         {importReport && (
-          <div
-            className={`extensions-notice${importReport.failed.length ? " extensions-notice--error" : " extensions-notice--success"}`}
-            role="status"
-            title={importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") || importReport.path}
-          >
-            {importReport.failed.length
-              ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
-              : <Check size={15} strokeWidth={2} aria-hidden="true" />}
-            <span>{importReport.failed.length
-              ? t("settings.extensions.importRolledBack")
-              : t("settings.extensions.importSummary", {
-                  succeeded: importReport.succeeded.length,
-                  skipped: importReport.skipped.length,
+          <>
+            {importReport.excludedFields.length > 0 && (
+              <div className="extensions-notice extensions-notice--warning" role="status">
+                <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+                <span>{t("settings.extensions.importExcludedFields", {
+                  extensions: importReport.excludedFields.map(w => w.extensionId).join(", ")
                 })}</span>
-          </div>
+              </div>
+            )}
+            <div
+              className={`extensions-notice${importReport.failed.length ? " extensions-notice--error" : " extensions-notice--success"}`}
+              role="status"
+              title={importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") || importReport.path}
+            >
+              {importReport.failed.length
+                ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+                : <Check size={15} strokeWidth={2} aria-hidden="true" />}
+              <span>{importReport.failed.length
+                ? t("settings.extensions.importRolledBack")
+                : t("settings.extensions.importSummary", {
+                    succeeded: importReport.succeeded.length,
+                    skipped: importReport.skipped.length,
+                  })}</span>
+            </div>
+          </>
         )}
 
         <section className="extensions-section extensions-section--base">
