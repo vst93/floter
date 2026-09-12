@@ -464,6 +464,17 @@ export function useLauncherCatalog(options: {
             completion: true,
           };
         }
+        // When the user types parameters after the command name, update the
+        // execution plan to include them. Without this, "git status" would match
+        // the "git" catalog entry but execute with no arguments.
+        const hasUserArgs = parsedQuery.commandIndex !== null &&
+          parsedQuery.tokens.length > parsedQuery.commandIndex + 1;
+        const execution = hasUserArgs && entry.execution
+          ? {
+              ...entry.execution,
+              argumentOverride: parsedQuery.tokens.slice(parsedQuery.commandIndex! + 1),
+            }
+          : entry.execution;
         return {
           type: "command",
           id: entry.id,
@@ -471,11 +482,8 @@ export function useLauncherCatalog(options: {
           subtitle: entry.description,
           warnings,
           sourceName: entry.sourceName,
-          commandLine: parsedQuery.commandIndex !== null && (
-            parsedQuery.commandIndex > 0 ||
-            parsedQuery.tokens.length > parsedQuery.commandIndex + 1
-          ) ? query : `${entry.command} `,
-          execution: entry.execution,
+          commandLine: hasUserArgs ? query : `${entry.command} `,
+          execution,
           completion: false,
         };
       });

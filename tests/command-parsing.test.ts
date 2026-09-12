@@ -43,4 +43,20 @@ describe("Command line parsing with arguments", () => {
     assert.deepStrictEqual(result.tokens, ["DEBUG=true", "npm", "start"]);
     assert.deepStrictEqual(result.environment, { DEBUG: "true" });
   });
+
+  it("should handle command with single argument (regression test)", () => {
+    const result = parseCommandLine("git status", false, "posix");
+    assert.strictEqual(result.shellSyntax, false);
+    assert.strictEqual(result.commandIndex, 0);
+    assert.deepStrictEqual(result.tokens, ["git", "status"]);
+    assert.strictEqual(result.tokens.length, 2, "Command with parameter must parse as separate tokens");
+  });
+
+  it("should handle command with multiple arguments (regression test)", () => {
+    const result = parseCommandLine("docker run --rm -it alpine", false, "posix");
+    assert.strictEqual(result.shellSyntax, false);
+    assert.strictEqual(result.commandIndex, 0);
+    assert.deepStrictEqual(result.tokens, ["docker", "run", "--rm", "-it", "alpine"]);
+    assert.strictEqual(result.tokens.length, 5, "Command with multiple parameters must parse all tokens");
+  });
 });
