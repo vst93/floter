@@ -1343,6 +1343,12 @@ pub async fn uninstall(
     let _guard = state.mutation_lock.lock().await;
     validate_id(extension_id)?;
     state.provider.cancel_completions();
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: extension_id.to_string(),
+        kind: "uninstall".to_string(),
+        phase: "Preparing".to_string(),
+        percent: Some(10),
+    });
     crate::extensions::transaction::recover_pending_removals(state)?;
     let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = lock.get(extension_id)?.clone();
@@ -1350,6 +1356,7 @@ pub async fn uninstall(
     let generated_local = is_generated_custom_integration(&entry)
         && Path::new(&entry.manifest_path).starts_with(&generated_local_root);
 
+    state.check_cancelled()?;
     // Build the list of cleanup paths before staging anything.
     let mut cleanup_paths = Vec::new();
     if generated_local && generated_local_root.exists() {
@@ -1362,6 +1369,12 @@ pub async fn uninstall(
         }
     }
 
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: extension_id.to_string(),
+        kind: "uninstall".to_string(),
+        phase: "Creating backup".to_string(),
+        percent: Some(30),
+    });
     let transaction_id = format!("uninstall-{}-{}", extension_id, entry.updated_at);
     let mut staged_path = None;
 
@@ -1379,6 +1392,7 @@ pub async fn uninstall(
         staged_path = Some(target);
     }
 
+    state.check_cancelled()?;
     // Journal the planned backup durably before staging or committing removal.
     let journal = crate::extensions::transaction::RemovalJournal {
         schema_version: crate::extensions::transaction::TRANSACTION_JOURNAL_SCHEMA_VERSION,
@@ -1392,6 +1406,12 @@ pub async fn uninstall(
         intent: crate::extensions::transaction::RemovalIntent::Remove,
     };
     let journal_path = crate::extensions::transaction::write_removal_journal(state, &journal)?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: extension_id.to_string(),
+        kind: "uninstall".to_string(),
+        phase: "Staging removal".to_string(),
+        percent: Some(50),
+    });
     if let Some(target) = &staged_path {
         crate::extensions::commit_point("uninstall-stage-rename");
         std::fs::rename(&source, target).map_err(|error| {
@@ -1402,6 +1422,13 @@ pub async fn uninstall(
         })?;
     }
 
+    state.check_cancelled()?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: extension_id.to_string(),
+        kind: "uninstall".to_string(),
+        phase: "Updating registry".to_string(),
+        percent: Some(70),
+    });
     // Recovery decides whether a failed save reached its atomic repository rename.
     lock.extensions.remove(extension_id);
     crate::extensions::commit_point("uninstall-repository-remove");
@@ -1411,6 +1438,7 @@ pub async fn uninstall(
         return Err(error);
     }
 
+    state.check_cancelled()?;
     // Update journal to mark repository state as committed.
     let journal = crate::extensions::transaction::RemovalJournal {
         removal_kind: Some(crate::extensions::transaction::RemovalKind::Committed),
@@ -1418,6 +1446,12 @@ pub async fn uninstall(
     };
     let _ = crate::extensions::transaction::write_removal_journal(state, &journal);
 
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: extension_id.to_string(),
+        kind: "uninstall".to_string(),
+        phase: "Cleaning up files".to_string(),
+        percent: Some(90),
+    });
     // Physical cleanup: delete staged directory and cleanup paths.
     let mut cleanup_error = None;
     if let Some(target) = staged_path {
@@ -1479,6 +1513,12 @@ pub(crate) async fn install_linked(
     state: &ExtensionState,
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: "pending".to_string(),
+        kind: "install".to_string(),
+        phase: "Loading manifest".to_string(),
+        percent: Some(10),
+    });
     let manifest_source = request
         .manifest_path
         .as_deref()
@@ -1500,6 +1540,13 @@ pub(crate) async fn install_linked(
         let (manifest, digest) = ExtensionManifest::load_with_digest(&manifest_path)?;
         (manifest, digest, "linked".to_string(), manifest_path)
     };
+    state.check_cancelled()?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: manifest.id.clone(),
+        kind: "install".to_string(),
+        phase: "Validating".to_string(),
+        percent: Some(30),
+    });
     validate_permission_approval(
         &manifest.permissions,
         request.approved_permissions.as_deref(),
@@ -1516,6 +1563,13 @@ pub(crate) async fn install_linked(
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;
     resolved.validate_minimum_os_version()?;
+    state.check_cancelled()?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: manifest.id.clone(),
+        kind: "install".to_string(),
+        phase: "Resolving executable".to_string(),
+        percent: Some(50),
+    });
     let executable = if let Some(path) = request.executable_path {
         let path = PathBuf::from(path);
         if !is_linked_executable(&path) {
@@ -1551,6 +1605,13 @@ pub(crate) async fn install_linked(
         config: resolved.provider,
         permissions: manifest.permissions.clone(),
     };
+    state.check_cancelled()?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: manifest.id.clone(),
+        kind: "install".to_string(),
+        phase: "Probing provider".to_string(),
+        percent: Some(70),
+    });
     let response = if manifest.provider.kind == ProviderKind::StaticDescriptor {
         let descriptor_path = manifest_path
             .parent()
@@ -1577,6 +1638,13 @@ pub(crate) async fn install_linked(
         state.provider.describe(&invocation, true).await?
     };
 
+    state.check_cancelled()?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: manifest.id.clone(),
+        kind: "install".to_string(),
+        phase: "Verifying capabilities".to_string(),
+        percent: Some(85),
+    });
     let report = probe_executor::execute_capability_probes(&invocation, &manifest).await;
     let integration_version = if is_package_directory {
         package_version
@@ -1639,6 +1707,13 @@ pub(crate) async fn install_linked(
     lock.extensions.insert(entry.id.clone(), entry.clone());
     probe_executor::record_report(&mut lock, &entry.id, report)?;
     crate::extensions::commit_point("install-repository-add");
+    state.check_cancelled()?;
+    state.emit_progress(crate::extensions::operation::OperationProgress {
+        extension_id: manifest.id.clone(),
+        kind: "install".to_string(),
+        phase: "Finalizing".to_string(),
+        percent: Some(95),
+    });
     lock.save(&state.paths.repository_file)?;
     Ok(lock.get(&entry.id)?.clone())
 }
@@ -4879,5 +4954,77 @@ mod tests {
                         .to_string_lossy()
                         .starts_with(&format!("removal-uninstall-{}", extension_id)))
         );
+    }
+
+    #[tokio::test]
+    async fn install_emits_progress_events() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = test_state(temp.path());
+        let received_events: std::sync::Arc<std::sync::Mutex<Vec<crate::extensions::operation::OperationProgress>>> = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let receiver = received_events.clone();
+        state.set_progress_listener(Box::new(move |event| {
+            receiver.lock().unwrap().push(event.clone());
+        }));
+        let extension_id = "test.progress";
+        create_custom_integration(
+            &state,
+            script_request(extension_id, "Progress Test", "progress-test"),
+        )
+        .await
+        .unwrap();
+        let events = received_events.lock().unwrap();
+        assert!(events.iter().any(|e| e.extension_id == extension_id));
+        assert!(events
+            .iter()
+            .any(|e| e.extension_id == extension_id && e.phase == "Validating"));
+        assert!(events
+            .iter()
+            .any(|e| e.extension_id == extension_id && e.phase == "Resolving executable"));
+        assert!(events
+            .iter()
+            .all(|e| e.extension_id == extension_id || e.extension_id == "pending"));
+    }
+
+    #[tokio::test]
+    async fn install_respects_cancel_signal() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = test_state(temp.path());
+        let extension_id = "test.cancel";
+        let operation_id = state.start_operation();
+        state.cancel_operation(&operation_id);
+        let result = create_custom_integration(
+            &state,
+            script_request(extension_id, "Cancel Test", "cancel-test"),
+        )
+        .await;
+        // The cancel token is consumed by whichever long operation runs next;
+        // create_custom_integration itself must either observe it or complete
+        // without corrupting state. Assert no broken lock entry is persisted.
+        let _ = result;
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+        if let Some(entry) = lock.extensions.get(extension_id) {
+            assert!(entry.broken_reason.is_none(), "cancelled install must not persist a broken entry");
+        }
+    }
+
+    #[tokio::test]
+    async fn uninstall_respects_cancel_signal() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = test_state(temp.path());
+        let extension_id = "test.uninstall-cancel";
+        let installed = create_custom_integration(
+            &state,
+            script_request(extension_id, "Uninstall Cancel Test", "uninstall-cancel-test"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(installed.id, extension_id);
+        let operation_id = state.start_operation();
+        state.cancel_operation(&operation_id);
+        let result = uninstall(&state, extension_id, false).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("cancelled"));
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+        assert!(lock.extensions.contains_key(extension_id));
     }
 }

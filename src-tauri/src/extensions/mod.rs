@@ -8,6 +8,7 @@ pub mod cwd_policy;
 pub mod health;
 pub mod help_args;
 pub mod install;
+pub(crate) mod operation;
 pub mod inventory;
 pub mod launch;
 pub mod lifecycle;
@@ -349,6 +350,12 @@ pub struct ExtensionState {
     pub tool_lock: std::sync::Mutex<ToolLock>,
     pub(crate) accepted_official_index_version: std::sync::Mutex<u64>,
     execution_plans: ExecutionPlanCache,
+    /// AppHandle used to emit operation progress events; absent in unit tests.
+    pub(crate) app_handle: std::sync::OnceLock<tauri::AppHandle>,
+    /// Cancel token for the currently running long operation, if any.
+    pub(crate) active_cancel: std::sync::Mutex<Option<operation::CancelToken>>,
+    /// In-process progress listener used by unit tests (no AppHandle there).
+    progress_listener: std::sync::Mutex<Option<Box<dyn Fn(operation::OperationProgress) + Send + 'static>>>,
 }
 
 #[derive(Default)]
@@ -398,6 +405,9 @@ impl ExtensionState {
             tool_lock: std::sync::Mutex::new(tool_lock),
             accepted_official_index_version: std::sync::Mutex::new(accepted_official_index_version),
             execution_plans: ExecutionPlanCache::default(),
+            app_handle: std::sync::OnceLock::new(),
+            active_cancel: std::sync::Mutex::new(None),
+            progress_listener: std::sync::Mutex::new(None),
         };
         transaction::recover(&state)?;
         config::recover_configurations(&state.paths.data)?;
@@ -417,6 +427,63 @@ impl ExtensionState {
 
     pub async fn invalidate_provider_commands(&self) {
         self.provider_commands.invalidate().await;
+    }
+
+    /// Emit an operation progress event if an AppHandle is registered.
+    pub(crate) fn emit_progress(&self, progress: operation::OperationProgress) {
+        use tauri::Emitter;
+        if let Some(app) = self.app_handle.get() {
+            let _ = app.emit("extension-op-progress", &progress);
+        }
+        if let Some(listener) = self.progress_listener.lock().expect("Progress lock poisoned").as_ref() {
+            listener(progress);
+        }
+    }
+
+    /// Check if the current operation was cancelled; returns Err if so.
+    pub(crate) fn check_cancelled(&self) -> Result<(), String> {
+        let guard = self.active_cancel.lock().map_err(|_| "Cancel lock poisoned")?;
+        if let Some(token) = guard.as_ref() {
+            if token.is_cancelled() {
+                return Err("Operation cancelled".to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Mint an operation id and register a fresh cancel token for the
+    /// duration of a long operation. The id is only informational (progress
+    /// events carry the extension id); uniqueness comes from the counter.
+    pub(crate) fn start_operation(&self) -> String {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(1);
+        let id = format!("op-{}", COUNTER.fetch_add(1, Ordering::Relaxed));
+        *self.active_cancel.lock().expect("Cancel lock poisoned") = Some(operation::CancelToken::new());
+        id
+    }
+
+    /// Clear the active cancel token when an operation finishes (success,
+    /// error, or cancellation).
+    pub(crate) fn end_operation(&self, _operation_id: &str) {
+        *self.active_cancel.lock().expect("Cancel lock poisoned") = None;
+    }
+
+    /// Flip the active cancel token (if any) so the running operation stops
+    /// at its next cancellation checkpoint.
+    pub(crate) fn cancel_operation(&self, _operation_id: &str) {
+        if let Some(token) = self.active_cancel.lock().expect("Cancel lock poisoned").as_ref() {
+            token.cancel();
+        }
+    }
+
+    /// Register an in-process progress listener (unit tests use this because
+    /// they have no AppHandle). Replaces any previous listener.
+    #[cfg(test)]
+    pub(crate) fn set_progress_listener(
+        &self,
+        listener: Box<dyn Fn(operation::OperationProgress) + Send + 'static>,
+    ) {
+        *self.progress_listener.lock().expect("Progress lock poisoned") = Some(listener);
     }
 
     pub fn check_executable_binding(

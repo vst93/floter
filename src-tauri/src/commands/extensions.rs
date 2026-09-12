@@ -26,7 +26,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[tauri::command]
@@ -894,11 +894,16 @@ pub async fn extensions_import(
 
 #[tauri::command]
 pub async fn extensions_install(
+    app: AppHandle,
     state: State<'_, ExtensionState>,
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {
-    let entry = install::install(&state, request).await?;
+    let operation_id = state.start_operation();
+    let result = install::install(&state, request).await;
+    state.end_operation(&operation_id);
+    let entry = result?;
     state.invalidate_provider_commands().await;
+    app.emit("extensions-changed", ()).ok();
     Ok(entry)
 }
 
@@ -1376,10 +1381,12 @@ async fn reconnect_system_locked(
 
 #[tauri::command]
 pub async fn extensions_uninstall(
+    app: AppHandle,
     state: State<'_, ExtensionState>,
     id: String,
     remove_data: Option<bool>,
 ) -> Result<(), String> {
+    let operation_id = state.start_operation();
     // Commit the binding removal before touching the extension repository. If the
     // uninstall itself fails, restore the binding so the two state files do
     // not describe different installations.
@@ -1392,12 +1399,15 @@ pub async fn extensions_uninstall(
         if tool_lock.remove(&id).is_some() {
             if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
                 *tool_lock = previous;
+                state.end_operation(&operation_id);
                 return Err(error);
             }
         }
         previous
     };
-    if let Err(error) = install::uninstall(&state, &id, remove_data.unwrap_or(false)).await {
+    let result = install::uninstall(&state, &id, remove_data.unwrap_or(false)).await;
+    state.end_operation(&operation_id);
+    if let Err(error) = result {
         let rollback = state
             .tool_lock
             .lock()
@@ -1412,6 +1422,7 @@ pub async fn extensions_uninstall(
         ));
     }
     state.invalidate_provider_commands().await;
+    app.emit("extensions-changed", ()).ok();
     Ok(())
 }
 
@@ -1796,6 +1807,15 @@ pub async fn catalog_complete(
     request: CompletionRequest,
 ) -> Result<CatalogCompletionResponse, String> {
     catalog::complete(&state, &request).await
+}
+
+#[tauri::command]
+pub fn extensions_cancel_operation(
+    state: State<'_, ExtensionState>,
+    operation_id: String,
+) -> Result<(), String> {
+    state.cancel_operation(&operation_id);
+    Ok(())
 }
 
 #[cfg(test)]

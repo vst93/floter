@@ -1,77 +1,93 @@
-# Phase 4 Slice 3: No Orphan Children on Provider Timeout/Cancel
+# Phase 4 Slice 4: Operation Progress + Cancel
 
-Baseline: main HEAD d01bf91, clean. Implementation by dispatched Codex
-(session hit a relay 429 after implementation+tests were complete but before
-its report was written — 309k tokens consumed; tree audited and pipeline
-verified independently by the coordinator; this report was written by the
-coordinator from that audit).
+Baseline: main HEAD 8164917, clean. Implementation started by dispatched
+Claude (session hung on the relay after ~50% completion and was terminated;
+the coordinator completed, fixed and verified the remaining work directly).
 
-## Premise Check (spawn-site inventory at baseline)
+## Premise Check (audit drift)
 
-| Spawn site | Baseline state |
-| --- | --- |
-| `probe_executor.rs` (lifecycle probes, slice 1) | tokio::process + tokio::time::timeout around wait; timeout branch only STOPPED WAITING — child kept running. |
-| `capability_probe.rs` (capability scan) | Same pattern: `.ok()?` on a 2s timeout — child leaked on timeout. |
-| `provider.rs` (protocol I/O) | `tokio::time::timeout(2s, command.output())` with `.ok()?` — no kill on timeout, no kill_on_drop. |
-| `install.rs` verification | Routed through probe_executor (slice 1), inherited its leak. |
-| Broker/PTY terminal spawns | Intentionally untouched (user-facing terminal sessions, out of scope per spec). |
-
-Gap: on any probe/scan/protocol timeout, the direct child (and any
-grandchildren — provider entry points are scripts that spawn children)
-survived the operation. kill_on_drop was absent, so cancellation/drop of the
-awaiting future also leaked the child.
+- The audit's slice-4 sketch assumed a package (tar) install path with a
+  `paths.staging` directory. Neither exists on main: `InstallSource` has only
+  `Linked` and `ExtensionPaths` has no staging field. Tests therefore exercise
+  progress/cancel through the real `create_custom_integration` path.
+- `install`/`uninstall` were synchronous-through commands holding the mutation
+  lock; progress events are emitted from inside those flows at phase
+  boundaries, cancel is checked at each async yield point.
 
 ## Implementation
 
-New module `src-tauri/src/extensions/process_cleanup.rs`:
+New module `src-tauri/src/extensions/operation.rs`:
 
-- `configure_command(&mut Command)`: puts the child in its own process group
-  (`process_group(0)`, unix-only; documented no-op equivalent on Windows where
-  kill_on_drop + direct kill cover the direct child) so script-interpreter
-  entry points can be cleaned up as a group.
-- `command_output(command, timeout)`: kill_on_drop(true) + explicit timeout
-  branch that calls `kill_and_reap` before returning the timeout error; waits
-  for stdout/stderr reader tasks after cleanup; distinguishes
-  `TimedOut`/`Failed` in `CommandOutputError`.
-- `ChildCleanup::kill_and_reap`: kill_group → kill child → wait (reap, no
-  zombie) → kill_group again to close the spawn race; all kill errors ignored
-  (already-exited is an expected race, never surfaces to the operation).
+- `CancelToken` (Arc<AtomicBool>): minted by `start_operation`, flipped by
+  `cancel_operation`, cleared by `end_operation`.
+- `OperationProgress { extensionId, kind, phase, percent? }` payload.
 
-All five provider/extension spawn sites now route through these helpers
-(probe_executor, capability_probe, provider describe/protocol, install
-verification paths). Timeout VALUES and probe semantics unchanged from
-slice 1/2. No new IPC/API surface, no new state files, broker/qscreen
-untouched. Unix-gated bits are cfg(unix); no windows/macos-specific code
-was edited.
+`ExtensionState` (mod.rs):
 
-## Behavioral Tests (cargo 461 passed / 0 failed / 7 ignored)
+- `app_handle: OnceLock<AppHandle>` — registered at setup in lib.rs; when
+  present, `emit_progress` emits `extension-op-progress` on the Tauri event
+  bus.
+- `progress_listener: Mutex<Option<Box<dyn Fn>>>` — in-process listener for
+  unit tests (no AppHandle in tests).
+- `active_cancel` + `start_operation`/`end_operation`/`cancel_operation` —
+  single-slot cancel registry; `check_cancelled` is called at every major
+  await point in install (Loading manifest → Validating → Resolving
+  executable → ...) and uninstall (Preparing → Creating backup → Staging
+  removal → Updating registry → ...), returning `Err("Operation cancelled")`.
+  The mutation lock + journal-first transaction guarantee that a cancelled
+  operation leaves either rolled-back state or a journal recoverable at
+  startup — no torn state.
 
-New tests spawn REAL processes and assert actual process death:
+Commands (commands/extensions.rs):
 
-- `scan_timeout_kills_the_real_probe_process` — trap-ignoring fixture + tiny
-  injected timeout: operation errors AND the child pid is gone (pid-file
-  handshake + /proc polling with generous bounds).
-- `timeout_kills_parent_and_grandchild_process_group` — fixture spawns a
-  background sleep grandchild then ignores signals: after cleanup BOTH are
-  gone (validates process_group(0) + killpg).
-- `aborting_probe_future_kills_the_process_group` — tokio task abort
-  mid-probe: child killed via kill_on_drop (group gone).
-- `already_exited_probe_does_not_report_cleanup_error` — immediate-exit
-  fixture: kill path produces no error/panic.
-- Zombie/reap discipline asserted by the polling helpers (no fixture-named
-  processes survive, no zombies accumulate).
+- `extensions_install` / `extensions_uninstall` now bracket the operation
+  with `start_operation`/`end_operation`.
+- New `extensions_cancel_operation(operationId)` command, registered in
+  lib.rs invoke_handler.
 
-## Verification (coordinator, out-of-sandbox)
+Frontend:
 
-| Command | Result |
-| --- | --- |
-| `cargo check` | PASS |
-| `cargo test` | PASS: **461 passed / 0 failed / 7 ignored** (all 5 known sandbox socket EPERM failures PASS outside the sandbox) |
-| `cargo test -- --ignored crash_simulation` | PASS: 6/6 |
-| `npx --legacy-peer-deps tsc --noEmit` | PASS |
-| `node --experimental-strip-types --test tests/*.test.ts` | PASS: 85/85 |
-| `npm run build` | PASS |
+- `ExtensionsPanel.tsx` subscribes to `extension-op-progress`, keeps a
+  per-extension progress map, passes `progress` + `onCancelOperation` down to
+  `ExtensionRow`; cancel invokes `extensions_cancel_operation` with the
+  operation id and clears the row's progress state.
+- `ExtensionRow.tsx` renders an inline progress label + cancel button while
+  an operation is in flight (existing UI style, no new deps, no dialogs).
+- i18n: new strings for progress/cancel.
 
-Phase 4 acceptance criterion 3 (provider timeout/cancel leaves no orphan
-children): met — cleanup is structural (process group + kill_on_drop +
-explicit kill-and-reap), not best-effort.
+## Not done (explicit)
+
+- repair/reprobe cancellation: both are naturally idempotent and complete in
+  seconds under the probe timeout budget; adding cancel would be ceremony.
+  Progress events for them can be added later on the same mechanism.
+
+## Tests
+
+- `install_emits_progress_events`: listener records the install progress
+  stream (Validating, Resolving executable, ...), ids correct.
+- `install_respects_cancel_signal`: a pre-cancelled token never persists a
+  broken lock entry.
+- `uninstall_respects_cancel_signal`: cancel mid-uninstall returns
+  `Err("Operation cancelled")` and the entry remains in the lock (recoverable,
+  not torn).
+
+## Verification pipeline
+
+```
+cd src-tauri && cargo check --tests   → 0 errors
+cd src-tauri && cargo test            → 464 passed; 0 failed; 7 ignored
+npx --legacy-peer-deps tsc --noEmit   → clean
+npm run build                         → success
+node --experimental-strip-types --test tests/*.test.ts → 85 pass / 0 fail
+```
+
+Coordinator fixes on top of the agent's partial work: command-layer missing
+method impls (start/end/cancel_operation), Emitter trait import, AppHandle
+injection at setup, tests rewritten off the non-existent tar/staging API,
+tsc `require` → static import + event payload typing, cancel invoke key
+mismatch (`extensionId` → `operationId`).
+
+## Known limitation
+
+Progress percent is an estimate at phase boundaries (no granular byte
+progress); good enough for the row-level busy/cancel UX this slice ships.

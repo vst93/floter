@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type RefObject } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AlertCircle,
@@ -178,7 +179,7 @@ type ExtensionConfiguration = {
 };
 
 type MutationKind = "enable" | "disable" | "install" | "repair" | "uninstall" | "save";
-export type ExtensionOperation = { id: string; kind: MutationKind } | null;
+export type ExtensionOperation = { id: string; kind: MutationKind; operationId?: string } | null;
 type SyncOperation = "export" | "import";
 type ConfigOperation = "copy" | "export" | null;
 type CustomContentOperation = "copy" | "export" | null;
@@ -497,6 +498,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
   const [healthLoading, setHealthLoading, healthLoadingRef] = useImmediateState(false);
   const [reprobingCommands, setReprobingCommands, reprobingRef] = useImmediateState(false);
+  const [operationProgress, setOperationProgress] = useState<Record<string, { stage: string; message?: string }>>({});
   // Bumped to force the drawer's details effect (provider/diagnose/config)
   // to reload without a lock-entry change, e.g. after a command re-probe.
   const [detailReloadTick, setDetailReloadTick] = useState(0);
@@ -665,6 +667,24 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
   useEffect(() => {
     void refresh();
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<{ extension_id: string; stage: string; message?: string }>(
+      "extension-operation-progress",
+      (event: { payload: { extension_id: string; stage: string; message?: string } }) => {
+        setOperationProgress((prev) => ({
+          ...prev,
+          [event.payload.extension_id]: {
+            stage: event.payload.stage,
+            message: event.payload.message,
+          },
+        }));
+      }
+    );
+    return () => {
+      void unlisten.then((fn: () => void) => fn());
+    };
   }, []);
 
   useEffect(() => {
@@ -1458,6 +1478,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               <ExtensionRowComponent
                 extension={extension}
                 operation={busy}
+                progress={operationProgress[extension.id]}
                 t={t}
                 onOpen={() => setSelectedId(extension.id)}
                 onRepair={() => void repairExtension(extension)}
@@ -1465,6 +1486,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 onToggle={() => void toggleExtension(extension)}
                 onEdit={() => void editCustomIntegration(extension)}
                 onUninstall={() => uninstallExtension(extension)}
+                onCancelOperation={() => void invoke("extensions_cancel_operation", { operationId: "active" }).then(() => {
+                  setOperationProgress((prev) => {
+                    const next = { ...prev };
+                    delete next[extension.id];
+                    return next;
+                  });
+                  void refreshAfterMutation();
+                }).catch((err) => showError(localErrorMessage(err, t)))}
               />
               {!selected && removalTarget?.id === extension.id && removalConfirmation}
               </Fragment>

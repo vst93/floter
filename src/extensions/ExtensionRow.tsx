@@ -8,6 +8,7 @@ import {
   Trash2,
   Unplug,
   Wrench,
+  X,
 } from "lucide-react";
 import type { Translate } from "../i18n";
 import { useEffect, useRef } from "react";
@@ -16,6 +17,7 @@ import type { Extension, ExtensionOperation } from "../ExtensionsPanel";
 type Props = {
   extension: Extension;
   operation: ExtensionOperation;
+  progress?: { stage: string; message?: string };
   t: Translate;
   onOpen: () => void;
   onConnect?: () => void;
@@ -24,6 +26,7 @@ type Props = {
   onToggle: () => void;
   onEdit: () => void;
   onUninstall: () => void;
+  onCancelOperation?: () => void;
 };
 
 const integrationKindKey = (extension: Extension): Parameters<Translate>[0] => {
@@ -54,6 +57,7 @@ const removalKind = (extension: Extension) => {
 export function ExtensionRow({
   extension,
   operation,
+  progress,
   t,
   onOpen,
   onConnect,
@@ -62,6 +66,7 @@ export function ExtensionRow({
   onToggle,
   onEdit,
   onUninstall,
+  onCancelOperation,
 }: Props) {
   const busy = Boolean(operation);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -143,6 +148,22 @@ export function ExtensionRow({
         </button>
       ) : (
         <div className="extension-row__open">{rowContent}</div>
+      )}
+
+      {progress && (
+        <div className="extension-row__progress" title={progress.message || progress.stage}>
+          <span className="extension-row__progress-text">{progress.stage}</span>
+          {onCancelOperation && (
+            <button
+              type="button"
+              className="extensions-icon-button extensions-icon-button--row"
+              aria-label={t("settings.extensions.cancelOperation")}
+              onClick={onCancelOperation}
+            >
+              <X size={14} strokeWidth={2} aria-hidden="true" />
+            </button>
+          )}
+        </div>
       )}
 
       <div className="extension-row__actions" onClick={(event) => event.stopPropagation()}>
