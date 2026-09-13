@@ -1,3 +1,4 @@
+#[cfg(feature = "clipboard-history")]
 mod clipboard_history;
 mod commands;
 pub mod extensions;
@@ -1142,7 +1143,7 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
-    builder
+    let mut builder = builder
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -1158,9 +1159,12 @@ pub fn run() {
             clipboard_shortcut: Mutex::new(String::new()),
             pending_plugin_open: Mutex::new(None),
             last_monitor: Mutex::new(None),
-        })
-        .manage(clipboard_history::ClipboardState::default())
-        .setup(|app| {
+        });
+    #[cfg(feature = "clipboard-history")]
+    {
+        builder = builder.manage(clipboard_history::ClipboardState::default());
+    }
+    builder.setup(|app| {
             // `floter clip` as the very first launch must land on the clipboard
             // page instead of the plain launcher. Stored for the frontend to
             // pick up — its event listeners may not exist yet this early.
@@ -1326,6 +1330,7 @@ pub fn run() {
 
             // Clipboard history monitor + panel hotkey, only when enabled
             // (the default). Failures inside are logged, never fatal.
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::initialize(
                 app.handle(),
                 settings.clipboard_history_enabled,
@@ -1414,13 +1419,21 @@ pub fn run() {
             catalog_complete,
             extensions_cancel_operation,
             commands::config::update_clipboard_hotkey,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_get_entries,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_set_favorite,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_delete,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_copy_entry,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_clear_history,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_read_image,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_entry_statuses,
+            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_read_file_preview,
         ])
         .build(tauri::generate_context!())

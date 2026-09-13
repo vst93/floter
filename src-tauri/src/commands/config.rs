@@ -462,6 +462,7 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
     crate::apply_tray_language(&app, &settings.language);
     // Keep the monitor and its global hotkey in step with the switch. Both
     // branches are idempotent, so this is safe on every settings save.
+    #[cfg(feature = "clipboard-history")]
     crate::clipboard_history::sync_runtime(
         &app,
         settings.clipboard_history_enabled,
@@ -567,14 +568,20 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
         if previous.is_empty() {
             return Ok(());
         }
+        #[cfg(feature = "clipboard-history")]
         if enabled {
             crate::clipboard_history::unregister_panel_shortcut(&app);
         }
         settings.clipboard_history_hotkey = String::new();
+        #[cfg(feature = "clipboard-history")]
         if let Err(error) = write_settings(&normalize_settings(settings)) {
             if enabled {
                 let _ = crate::clipboard_history::rebind_panel_shortcut(&app, &previous);
             }
+            return Err(error);
+        }
+        #[cfg(not(feature = "clipboard-history"))]
+        if let Err(error) = write_settings(&normalize_settings(settings)) {
             return Err(error);
         }
         return Ok(());
@@ -594,14 +601,20 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
     }
 
     let previous = settings.clipboard_history_hotkey.clone();
+    #[cfg(feature = "clipboard-history")]
     if enabled {
         crate::clipboard_history::rebind_panel_shortcut(&app, &normalized)?;
     }
     settings.clipboard_history_hotkey = normalized;
+    #[cfg(feature = "clipboard-history")]
     if let Err(error) = write_settings(&normalize_settings(settings)) {
         if enabled {
             let _ = crate::clipboard_history::rebind_panel_shortcut(&app, &previous);
         }
+        return Err(error);
+    }
+    #[cfg(not(feature = "clipboard-history"))]
+    if let Err(error) = write_settings(&normalize_settings(settings)) {
         return Err(error);
     }
     Ok(())
@@ -656,6 +669,7 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
     }
     // Recording suspends every global shortcut; put the clipboard panel's back
     // exactly as the toggle's is above.
+    #[cfg(feature = "clipboard-history")]
     crate::clipboard_history::sync_runtime(
         &app,
         settings.clipboard_history_enabled,

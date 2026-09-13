@@ -301,7 +301,7 @@
        mechanism every terminal-backed surface uses (.pinned-card included).
        No hardcoded level lives here; only this variable decides how opaque
        the panel is. */
-    rgba(18, 19, 22, 0.92);
+    rgb(18 19 22 / var(--terminal-opacity));
   -webkit-backdrop-filter: blur(26px) saturate(160%);
   backdrop-filter: blur(26px) saturate(160%);
   overflow: hidden;

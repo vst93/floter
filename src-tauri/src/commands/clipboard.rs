@@ -12,14 +12,24 @@
 //! terminal Ctrl+Shift+C lands in the history too — one code path, no
 //! double-recording logic.
 
+#[cfg(feature = "clipboard-history")]
+use arboard;
+
 /// Put text on the system clipboard.
 ///
 /// Clipboard access can fail because another application holds it open; that
 /// surfaces to the caller as an error string, never a panic.
 #[tauri::command]
+#[cfg(feature = "clipboard-history")]
 pub fn clipboard_write_text(text: String) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|error| error.to_string())?;
     clipboard.set_text(text).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[cfg(not(feature = "clipboard-history"))]
+pub fn clipboard_write_text(_text: String) -> Result<(), String> {
+    Err("Clipboard history feature is disabled".to_string())
 }
 
 /// Read text back off the system clipboard.
@@ -28,7 +38,14 @@ pub fn clipboard_write_text(text: String) -> Result<(), String> {
 /// another application keeps the platform API busy; the caller treats both as
 /// "nothing to paste".
 #[tauri::command]
+#[cfg(feature = "clipboard-history")]
 pub fn clipboard_read_text() -> Result<String, String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|error| error.to_string())?;
     clipboard.get_text().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[cfg(not(feature = "clipboard-history"))]
+pub fn clipboard_read_text() -> Result<String, String> {
+    Err("Clipboard history feature is disabled".to_string())
 }
