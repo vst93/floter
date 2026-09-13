@@ -25,6 +25,7 @@ import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
 import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
 import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
+import { ComponentizedUninstallDialog } from "./extensions/ComponentizedUninstallDialog";
 import { useImmediateState } from "./hooks/useImmediateState";
 import { useTimedReset } from "./hooks/useTimedReset";
 
@@ -542,6 +543,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const toolSearchNeedsRefresh = useRef(true);
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
+  const [uninstallDialogTarget, setUninstallDialogTarget] = useState<Extension | null>(null);
   const [toasts, setToasts] = useState<PanelToast[]>([]);
   const toastIdRef = useRef(0);
   const detailGeneration = useRef(0);
@@ -576,6 +578,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const setBusy = extensionActions.setBusy;
   const busyRef = extensionActions.busyRef;
   useTimedReset(removalTarget, () => setRemovalTarget(null));
+  useTimedReset(uninstallDialogTarget, () => setUninstallDialogTarget(null));
   useTimedReset(detailsDiscardArmed, () => setDetailsDiscardArmed(false));
   useTimedReset(customDiscardArmed, () => setCustomDiscardArmed(false));
 
@@ -676,14 +679,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   }, []);
 
   useEffect(() => {
-    const unlisten = listen<{ extension_id: string; stage: string; message?: string }>(
-      "extension-operation-progress",
-      (event: { payload: { extension_id: string; stage: string; message?: string } }) => {
+    const unlisten = listen<{ extensionId: string; kind: string; phase: string; percent?: number }>(
+      "extension-op-progress",
+      (event: { payload: { extensionId: string; kind: string; phase: string; percent?: number } }) => {
         setOperationProgress((prev) => ({
           ...prev,
-          [event.payload.extension_id]: {
-            stage: event.payload.stage,
-            message: event.payload.message,
+          [event.payload.extensionId]: {
+            stage: event.payload.phase,
+            message: event.payload.kind,
           },
         }));
       }
@@ -906,6 +909,16 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const confirmRemoval = async () => {
     if (!removalTarget || busyRef.current) return;
     const extension = removalTarget;
+    const kind = removalKind(extension);
+
+    // For npm/custom/system/package, show componentized uninstall dialog
+    if (kind === "npm" || kind === "custom") {
+      setUninstallDialogTarget(extension);
+      setRemovalTarget(null);
+      return;
+    }
+
+    // System/package integrations: simple disconnect (no data removal)
     const removed = await runMutation(
       extension.id,
       "uninstall",
@@ -914,13 +927,39 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     if (removed) {
       setRemovalTarget(null);
       showSuccess(t(
-        removalKind(extension) === "custom"
+        kind === "system"
+          ? "settings.extensions.disconnectedNotice"
+          : "settings.extensions.packageRemovedNotice",
+        { name: extension.name },
+      ));
+    }
+  };
+
+  const confirmComponentizedUninstall = async (
+    extension: Extension,
+    components: { removeProgram: boolean; removeHostConfig: boolean; removeToolData: boolean; removeArtifacts: boolean }
+  ) => {
+    if (busyRef.current) return;
+    const removed = await runMutation(
+      extension.id,
+      "uninstall",
+      () => invoke("extensions_uninstall_componentized", {
+        request: {
+          extensionId: extension.id,
+          removeProgram: components.removeProgram,
+          removeHostConfig: components.removeHostConfig,
+          removeToolData: components.removeToolData,
+          removeArtifacts: components.removeArtifacts,
+        },
+      }),
+    );
+    if (removed) {
+      setUninstallDialogTarget(null);
+      const kind = removalKind(extension);
+      showSuccess(t(
+        kind === "custom"
           ? "settings.extensions.customDeleted"
-          : removalKind(extension) === "npm"
-            ? "settings.extensions.uninstalledNotice"
-            : removalKind(extension) === "system"
-              ? "settings.extensions.disconnectedNotice"
-              : "settings.extensions.packageRemovedNotice",
+          : "settings.extensions.uninstalledNotice",
         { name: extension.name },
       ));
     }
@@ -1276,6 +1315,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
   const closeDetails = () => {
     if (removalTarget) { setRemovalTarget(null); return; }
+    if (uninstallDialogTarget) { setUninstallDialogTarget(null); return; }
     if (detailsDiscardArmed) { setDetailsDiscardArmed(false); return; }
     if (configDirty) {
       setDetailsDiscardArmed(true);
@@ -1303,6 +1343,15 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
   const stopRowClick = (event: MouseEvent) => event.stopPropagation();
   const removalConfirmation = removalTarget && <RemovalConfirmation extension={removalTarget} busy={Boolean(busy)} t={t} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />;
+  const uninstallDialog = uninstallDialogTarget && (
+    <ComponentizedUninstallDialog
+      extension={uninstallDialogTarget}
+      busy={Boolean(busy)}
+      t={t}
+      onCancel={() => setUninstallDialogTarget(null)}
+      onConfirm={(components) => void confirmComponentizedUninstall(uninstallDialogTarget, components)}
+    />
+  );
 
   return (
     <section className="settings-section extensions-panel" data-no-drag>
@@ -1428,17 +1477,30 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
             <div
               className={`extensions-notice${importReport.failed.length ? " extensions-notice--error" : " extensions-notice--success"}`}
               role="status"
-              title={importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") || importReport.path}
+              title={importReport.failed.length > 3 ? importReport.failed.map((item) => `${item.id}: ${item.message}`).join("\n") : importReport.path}
             >
               {importReport.failed.length
                 ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
                 : <Check size={15} strokeWidth={2} aria-hidden="true" />}
-              <span>{importReport.failed.length
-                ? t("settings.extensions.importRolledBack")
-                : t("settings.extensions.importSummary", {
-                    succeeded: importReport.succeeded.length,
-                    skipped: importReport.skipped.length,
-                  })}</span>
+              <span>
+                {importReport.failed.length
+                  ? (
+                    <>
+                      {t("settings.extensions.importRolledBack")}
+                      <span style={{ display: "block", marginTop: "0.5em", fontSize: "0.95em", opacity: 0.85 }}>
+                        {t("settings.extensions.importFailedDetail", {
+                          failures: importReport.failed.slice(0, 3).map(item => `${item.id}: ${item.message}`).join("; ")
+                        })}
+                        {importReport.failed.length > 3 && ` (${t("settings.extensions.importFailedMore", { count: importReport.failed.length - 3 })})`}
+                      </span>
+                    </>
+                  )
+                  : t("settings.extensions.importSummary", {
+                      succeeded: importReport.succeeded.length,
+                      skipped: importReport.skipped.length,
+                    })
+                }
+              </span>
             </div>
           </>
         )}
@@ -1831,6 +1893,8 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
           {toasts.map((toast) => <ExtensionsToast key={toast.id} toast={toast} t={t} onDismiss={dismissToast} />)}
         </div>
       )}
+
+      {uninstallDialog}
     </section>
   );
 }
