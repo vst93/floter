@@ -1,7 +1,7 @@
 # 迭代计划：插件页保活 / 焦点恢复 / 剪贴板卡顿 / 通用 Toast
 
 日期：2026-09-14
-状态：任务 A、B 已完成（2026-09-14；任务 A = ed0b494，任务 B = 增量渲染/懒加载，各经 pi 实现→审查→修复→终审 APPROVE 循环，node 115/115、tsc/build 全绿）；任务 C 待做
+状态：任务 A、B、C 全部完成（2026-09-14；A = ed0b494，B = 09c1a07，C = 仅 C2 实改；各经 pi 实现→审查→修复→终审 APPROVE 循环，node 118/118、tsc/build/cargo 全绿）
 验证管线：`npx tsc --noEmit` · `npm run build` · `npm test`（node --test）· `cargo fmt --check` · `cargo test --lib`
 
 ---
@@ -132,6 +132,8 @@
 ---
 
 ### C · 其它待清理项（低优先级，来自 `.pi-task-floter-audit.md`）
+
+**状态：已结（2026-09-14）。仅 C2 实改**（侧边栏 ↑/↓ 收窄到 `.settings-sidebar` 导致 body 焦点下失效，新增 src/settings-nav.ts 纯逻辑 + 测试）；**C1/C3/C4 前提不成立跳过**——C1 托盘语言刷新已在 8325bb2 接线、quit 加速键已在 c30d900；C3 当前根本无退出确认框（原生 confirm 已在 75fff0b/550dac7/412a205 清完，quit 直退）；C4 settingsSaveFailed banner 已在 4915d55 接线。三者均为过期审计快照残留。备注：quit 现无任何二次确认，若产品上想要需另立需求。
 - 托盘菜单语言切换即时刷新、加速键提示。
 - 设置侧边栏在 body 焦点下 ↑/↓ 切换页面。
 - 退出确认框替换 `window.confirm`。

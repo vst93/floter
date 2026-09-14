@@ -20,7 +20,8 @@ import {
   matchesShortcut,
   type ShortcutMap,
 } from "../shortcuts";
-import { SETTINGS_PAGES, type SettingsPage } from "../settings-persistence";
+import { type SettingsPage } from "../settings-persistence";
+import { isArrowKeyEditableTarget, nextSettingsPage } from "../settings-nav";
 import type { ViewMode } from "../App";
 import type { LauncherItem } from "../launcher/LauncherResults";
 import type { MessageKey } from "../i18n";
@@ -253,12 +254,19 @@ export function useAppKeyboard(options: {
           closeSettings();
           return;
         }
-        // Sidebar arrows leave editing and native select/range controls alone.
-        if ((event.key === "ArrowDown" || event.key === "ArrowUp") && target?.closest(".settings-sidebar")) {
+        // ↑/↓ cycle sidebar pages from anywhere in the settings panel — a
+        // sidebar button, a plain button, or `<body>` when no control holds
+        // focus. Editing and native select/range controls keep their arrows,
+        // as does any open modal (handled above).
+        if (
+          (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+          !isArrowKeyEditableTarget(target)
+        ) {
           event.preventDefault();
-          const delta = event.key === "ArrowDown" ? 1 : SETTINGS_PAGES.length - 1;
-          const next =
-            SETTINGS_PAGES[(SETTINGS_PAGES.indexOf(settingsPage) + delta) % SETTINGS_PAGES.length];
+          const next = nextSettingsPage(
+            settingsPage,
+            event.key === "ArrowDown" ? "down" : "up",
+          );
           settingsSidebarButtons.current.get(next)?.focus();
           changeSettingsPage(next);
           if (next === "sessions") void refreshTerminalSessions();
