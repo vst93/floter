@@ -516,14 +516,27 @@ impl ExtensionState {
     /// Resolve (and persist) an executable binding, refreshing a same-path
     /// fingerprint change.
     ///
-    /// This method currently has **no production call site**: every production
-    /// path resolves bindings through
+    /// This method currently has **no production call site**. Production
+    /// resolves bindings through
     /// [`tool_lock::resolve_executable_binding`](crate::extensions::tool_lock::resolve_executable_binding)
-    /// directly (the catalog load loop, the list path and the explicit connect
-    /// flow), each supplying its own `validate` closure. It is retained only
-    /// because tests reference it. The `|| Ok(())` validator below is therefore
-    /// not a test-only bypass of validation: it simply accepts any refreshed
-    /// executable for this legacy/test entry point.
+    /// directly from exactly two places, each supplying its own `validate`
+    /// closure:
+    ///
+    /// * the list path — `commands::extensions::resolve_system_binding`
+    ///   (`commands/extensions.rs:44`);
+    /// * the catalog load loop — `catalog.rs:452`.
+    ///
+    /// The explicit connect/reconnect flow does **not** go through
+    /// `resolve_executable_binding`: it calls
+    /// [`tool_lock::ToolLock::reconnect`](crate::extensions::tool_lock::ToolLock::reconnect)
+    /// (or [`bind`](crate::extensions::tool_lock::ToolLock::bind) for a first
+    /// binding) via `persist_tool_binding` (`commands/extensions.rs:725`, `:737`)
+    /// and `reconnect_system_locked` (`commands/extensions.rs:1374`).
+    ///
+    /// This method is retained only because tests reference it. The `|| Ok(())`
+    /// validator below is therefore not a test-only bypass of validation: it
+    /// simply accepts any refreshed executable for this legacy/test entry
+    /// point.
     pub fn check_executable_binding(
         &self,
         binding: &str,

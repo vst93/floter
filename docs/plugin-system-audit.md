@@ -2,6 +2,22 @@
 
 审计基线：`main` 分支当前工作树，代码证据截至 2026-08-22。本文以 Rust/React 实现为准，FEP 和开发计划只用于核对“声明与实现是否漂移”。本次只读审计未修改任何源代码。
 
+> ## ⚠️ 状态声明（2026-09-15，本轮对齐）
+>
+> **本文档 §4「重新规划方案」中的 Phase 3-8 规划基于已移除的 NPM 分发方向，仅作历史参考，不再是排期依据。**
+> NPM 分发链路已在 `350e2d6`（后端）与 `96870c4`（前端）物理移除；Phase 3-8 中大量
+> 描述（NPM 安装/更新/reinstall/rollback/repair、官方索引治理、商店式 Discover）今天
+> 没有对应实现，照此排期会规划不存在的能力。
+>
+> **当前唯一方向来源**：`docs/tool-binding-design.md`（2026-08-23，取代本文 Phase 3-8）
+> 与 `docs/AGENT-NOTES.md`。冲突时以这两份为准。
+>
+> 阅读本文时请配合以下本轮新增/校准的章节：
+> - §五「能力矩阵」已按真实状态（实现 = file:line 证据，NPM 相关标「已移除（commit）」）重写；
+> - §六「冻结区/待删区」汇总 `tool-binding-design.md` 明列、但物理仍在的代码，逐条给出
+>   `git grep` 实测的引用状态；
+> - §七「已知缺口索引」内联 G1-G7 研究结论摘要（原报告在 `/tmp`，会消失，故落到本文）。
+
 > Phase 3 slice 8 update (2026-09-07): extension state now lives only in
 > `extension-repository.json` plus transaction journals. `ExtensionsLock` is
 > the in-memory API; it is not a second state file. Normal reads/writes reject
@@ -25,6 +41,7 @@ React ExtensionsPanel
   -> commands/extensions.rs（参数校验、用户确认、状态编排）
   -> extensions/{install,lock,transaction,config,sync,catalog,provider,...}
   -> 文件系统 / NPM Registry / 外部 runtime / provider 子进程
+  （注：NPM Registry 分支已于 `350e2d6` 移除；今日调用链为 文件系统 / 外部 runtime / provider 子进程）
 ```
 
 Rust 侧 `extensions/mod.rs:74-178` 创建单例 `ExtensionState`。它持有：
@@ -73,12 +90,14 @@ resolved -> downloading -> downloaded -> verified -> staged
 
 实际操作路径：
 
-1. **安装 NPM**：解析 registry 精确版本，下载基础包，安全解包，读取 manifest，校验签名/官方索引、兼容性、权限、平台和 provider；bundled runtime 再下载同版本平台包；执行 `describe` 和声明的 required probes；写入版本目录并通过 `transaction::commit_version` 提交（`install.rs:1548-1934`）。
+> ⚠️ 下列 **1-4、6 项描述的 NPM 路径已于 `350e2d6`（2026-08-24）移除**，为历史描述；今日实际存在的只有「连接 local/built-in」「repair（system runtime 重连）」「卸载」三条。
+
+1. **安装 NPM（已移除 `350e2d6`）**：解析 registry 精确版本，下载基础包，安全解包，读取 manifest，校验签名/官方索引、兼容性、权限、平台和 provider；bundled runtime 再下载同版本平台包；执行 `describe` 和声明的 required probes；写入版本目录并通过 `transaction::commit_version` 提交（`install.rs:1548-1934`）。
 2. **连接 local/built-in**：把 manifest/descriptor/script 放入 `extension-data/<id>/integration`，system runtime 只记录外部路径；不复制外部可执行文件（`install.rs:762-869,1943-2140`）。
-3. **更新**：仅 NPM；无显式版本时只接受 patch，pinned 拒绝自动更新，minor/major 需显式版本（`install.rs:1015-1059`）。
-4. **reinstall**：读取当前 package/version/SRI，直接调用 `install_managed` 重新下载并以同版本进入 staging，未调用 uninstall（`install.rs:1062-1091`）。
-5. **repair**：先做落盘 tree integrity、manifest identity、provider/runtime 检查；NPM 用锁定版本/SRI 重装，system runtime 重新发现并 describe（`commands/extensions.rs:1221-1261`、`install.rs:1136-1213`）。
-6. **rollback**：要求 `previous_version` 目录存在并通过 previous content integrity，交换 current/previous 元数据后走 lock transaction（`install.rs:1319-1459`）。当前只保留一个 previous 版本。
+3. **更新（已移除 `350e2d6`）**：仅 NPM；无显式版本时只接受 patch，pinned 拒绝自动更新，minor/major 需显式版本（`install.rs:1015-1059`）。
+4. **reinstall（已移除 `350e2d6`）**：读取当前 package/version/SRI，直接调用 `install_managed` 重新下载并以同版本进入 staging，未调用 uninstall（`install.rs:1062-1091`）。
+5. **repair（已修 `f5976c9`）**：先做落盘 tree integrity、manifest identity、provider/runtime 检查；system runtime 重新发现并 describe（`commands/extensions.rs:1526-`）。**旧描述中「NPM 用锁定版本/SRI 重装」部分已随 NPM 移除；旧 audit 判定的 `extensions_reprobe` 硬编码 `--version/--help` 问题已由 Phase 4 slice 1（`f5976c9`）改为读 manifest lifecycle probes**（`commands/extensions.rs:1718-1739`）。
+6. **rollback（已移除 `350e2d6`）**：要求 `previous_version` 目录存在并通过 previous content integrity，交换 current/previous 元数据后走 lock transaction（`install.rs:1319-1459`）。当前只保留一个 previous 版本。
 7. **卸载（Phase 3 当前实现）**：先持久化 removal journal，再暂存目录、提交 repository、清理文件；失败后保留 journal 供重启重试。system runtime 不删除外部程序；可选删除 data（`install.rs::uninstall`、`transaction.rs::recover_removal_journals`）。
 
 ### 1.4 目录布局与数据归属
@@ -122,6 +141,8 @@ Provider 通过独立进程 stdin/stdout JSON 协议暴露：`describe`、`compl
 
 `ExtensionsPanel.tsx` 把体验分为 Installed/Discover/Updates 三个 tab，首次加载调用 `extensions_list`，详情并行调用 describe/diagnose/config/health（`ExtensionsPanel.tsx:613-737`）。安装/更新/reinstall 在调用命令前先获取权限摘要并用确认对话框；repair、rollback、pin/channel、启停、卸载由 `useExtensionActions` 串行化并刷新列表（`ExtensionsPanel.tsx:802-975`）。Discover 目前固定显示 NPM 来源（`ExtensionsPanel.tsx:1634-1641`），没有真正的 source/provider 选择器。面板还提供本地 manifest/package 连接、自定义 integration 编辑、配置复制/导出、扩展集合导入/导出。
 
+> ⚠️ **已漂移（`96870c4`，2026-08-24）**：面板已坍缩为单页（Connected + Detected），三 tab、Discover/Updates、安装/更新/reinstall、pin/channel 控件均删除，NPM 来源选择器不再存在。今日真实 UI = 已连接工具 + 本机检测建议 + 详情抽屉（开/关、卸载、配置复制/导出）。
+
 ## 二、问题清单
 
 严重度定义：P0 = 可导致数据/代码执行边界失控或不可恢复；P1 = 用户可见错误状态、事务/信任/兼容性高风险；P2 = 功能缺口、维护性或文档漂移。
@@ -136,9 +157,9 @@ Provider 通过独立进程 stdin/stdout JSON 协议暴露：`describe`、`compl
 | `src-tauri/src/extensions/manifest.rs:193-203`、`provider.rs:408-490` | P1 | 只有 `environment` 和 descriptor-driven `process-spawn` 在 Host 执行层强制； filesystem/network/clipboard 仅披露，native provider 可直接绕过。FEP 已承认这是 disclosure 而非 sandbox，但产品面板容易被理解为“权限控制”。 | 恶意/被攻破的原生插件仍拥有宿主用户权限；权限复选框不能降低实际破坏半径。 |
 | `src-tauri/src/extensions/install.rs:1558-1613`、`official_index.rs:130-176` | P2 | 官方签名索引、pinned root、过期和 anti-rollback 已实现；但每次安装都在线 fetch，网络不可用不使用编译内置 payload，`official_verified` 会变成 false。 | 离线环境看不到官方身份；用户可能把“签名通过”与“官方发布”混为一谈。 |
 | `src-tauri/src/extensions/official_index.rs:108-127` | P2 | index 只绑定 extension id/package/publisher/signing key，不声明版本范围、撤销状态、发布渠道或包 tarball digest。 | 官方信任不能表达撤销/恶意版本/渠道策略，仍要依赖 NPM SRI 与 publisher key。 |
-| `src-tauri/src/extensions/lock.rs:52-69`、全仓库 `rg ExtensionStateKind::Broken` 只有枚举/转移测试 | P1 | `broken` 是持久状态但没有实际写入路径；repair/diagnose 失败只返回错误，列表无法稳定显示“已损坏”。 | 用户看到的是“操作失败”而不是可恢复的 broken 状态，启动后也没有明确恢复入口。 |
-| `src-tauri/src/commands/extensions.rs:1405-1474` | P1 | `extensions_reprobe` 硬编码 `--version`/`--help`，不执行 manifest 中声明的 lifecycle probes；安装时却执行声明 probes（`install.rs:1752-1803`）。 | 安装健康检查与手动重探针结果不一致，required capability 可能被误判。 |
-| `src-tauri/src/extensions/lifecycle.rs:17-28`、`commands/extensions.rs:1478-1559` | P1 | manifest 有 launch/cwd/terminal/restore policy，但 `extensions_launch` 使用硬编码 `InheritActiveSession`、reattach 和终端 profile，未读取扩展 lifecycle 配置。 | 扩展声明的启动策略不生效；协议字段和产品行为漂移。 |
+| `src-tauri/src/extensions/lock.rs:52-69`、全仓库 `rg ExtensionStateKind::Broken` 只有枚举/转移测试 | P1 | `broken` 是持久状态但没有实际写入路径；repair/diagnose 失败只返回错误，列表无法稳定显示“已损坏”。 | 用户看到的是“操作失败”而不是可恢复的 broken 状态，启动后也没有明确恢复入口。**← 已修 `a9250c7`/`44452b9`：broken 已带 error-code 落盘（`catalog.rs:474/488`、`commands/extensions.rs:1568`），且同路径指纹变更自动重绑不再误报** |
+| `src-tauri/src/commands/extensions.rs:1405-1474` | P1 | `extensions_reprobe` 硬编码 `--version`/`--help`，不执行 manifest 中声明的 lifecycle probes；安装时却执行声明 probes（`install.rs:1752-1803`）。 | 安装健康检查与手动重探针结果不一致，required capability 可能被误判。**← 已修 `f5976c9`（Phase 4 slice 1，2026-09-08）：改读 `manifest.lifecycle.probes`（`commands/extensions.rs:1718`）** |
+| `src-tauri/src/extensions/lifecycle.rs:17-28`、`commands/extensions.rs:1478-1559` | P1 | manifest 有 launch/cwd/terminal/restore policy，但 `extensions_launch` 使用硬编码 `InheritActiveSession`、reattach 和终端 profile，未读取扩展 lifecycle 配置。 | 扩展声明的启动策略不生效；协议字段和产品行为漂移。**← 已修 `d01bf91`（Phase 4 slice 2，2026-09-08）：`extensions_launch` 走 `launch::resolve`（`commands/extensions.rs:1746-1752`）；v1 fallback 保留** |
 | `src-tauri/src/extensions/config.rs:125-191,820-892` | P2 | host config 的 secret generation + `config.json` 指针已解决双 JSON 原子性；但配置提交与扩展安装/lock 提交不在同一事务。 | 更新 manifest/schema 与配置迁移跨步骤失败时，版本和配置可能分属不同代。 |
 | `src-tauri/src/extensions/sync.rs:313-428,734-810` | P1 | 本地导入具备 preflight、快照和全量回滚；快照是递归复制，restore 再分别写目录、lock、current pointer，仍非 crash-consistent 单事务。 | 进程在导入恢复中崩溃可能留下部分目录；大扩展导入也会显著放大 I/O。 |
 | `src-tauri/src/extensions/sync.rs:65-218`、`ExtensionsPanel.tsx:812-840` | P2 | “sync” 实际是 JSON 文件导入/导出，没有远端 transport、冲突解决、加密或设备身份。代码和面板目前已按本地文件表达，但历史计划仍使用跨设备同步措辞。 | 用户预期跨设备自动同步却只能手工传文件；密码被脱敏后不能自动恢复。 |
@@ -320,29 +341,91 @@ Host Services          # command catalog、config store、health、UI/IPC
 
 优先级建议：先执行 Phase 1-3，消除“声明完成但不可证明”和多真源事务风险；再执行 Phase 4-5，稳定协议与数据归属；只有在这两层稳定后，才投入 Phase 6 的 OS sandbox 和 Phase 7-8 的生态扩张。
 
-## 五、能力矩阵（Phase 1 交付）
+## 五、能力矩阵（2026-09-15 校准）
 
-三列口径：**实现** = 代码入口（file:line）；**测试** = 覆盖该能力的测试命令与位置；**文档** = 声明该能力的规范及其状态。判定基线 2026-08-22 `main`。
+口径：**状态** = 今日真实状态；**实现** = 代码入口或证据（file:line/commit）；**测试** = 覆盖位置。
+真实状态以 `git grep` / `git log -S` 实测为准；下表替代旧「已实现/部分实现」描述。
 
-| 能力 | 实现 | 测试 | 文档 |
+| 能力 | 状态 | 实现/证据 | 测试 |
 |---|---|---|---|
-| Manifest v2 解析/校验/平台覆写 | `manifest.rs:15-45,237-251,304-463` | `cargo test`（manifest 模块） | FEP-1 · 已实现 |
-| Provider describe/diagnose/超时/缓存 | `provider.rs:245-405,408-490` | `cargo test`（provider 模块） | FEP-2 · 已实现 |
-| 动态 complete 全链路 | `provider.rs` + `catalog.rs:189-232` + `App.tsx:863-938` | `cargo test`（complete 合并/超时/取消）；无前端测试 | FEP-2 · 已实现 |
-| 结构化执行计划 → PTY | `provider.rs:526-587`、`ExecutionPlanCache`（`mod.rs:181-274`）、`commands/terminal.rs` | `cargo test`；手动验证 | FEP-2/5 · 已实现 |
-| NPM 下载/SRI/安全解包 | `install.rs:1548-1934` | `cargo test`（下载/解包逃逸用例） | FEP-3/4 · 已实现 |
-| Ed25519 tarball 验签 + 官方签名索引 | `install.rs:1756-1867`、`official_index.rs:13-63,108-176,245-314` | `cargo test`（篡改/过期/key rotation） | FEP-4 · 已实现（索引治理遗留 Phase 7） |
-| 安装/更新/reinstall/rollback/repair/uninstall | `install.rs:1015-1459,1548-1934`、`commands/extensions.rs:1221-1261` | `cargo test`（274+ 用例含失败路径）；无故障注入覆盖每个提交点 | FEP-3 · 部分实现 |
-| 事务 journal 与启动恢复 | `transaction.rs:24-65,253-373,469-547` | `cargo test`（枚举顺序/恢复推断）；缺 kill/断电故障注入 | FEP-3 · 半成品（Phase 3 目标） |
-| 权限审批与执行层强制 | `lock.rs:121-134,360-375`、`install.rs:1610-1612`、`provider.rs:408-430,526-587,696-728` | `cargo test`（env 隔离/spawn 限制/digest 绑定/空权限集绑定：549d233, e174e51） | FEP-5 · 部分实现（审计记录已落盘；OS sandbox 待 Phase 6） |
-| 声明式配置 + secret generation | `config.rs:125-191,820-892,906-960` | `cargo test`（两阶段失败/并发/启动修复） | FEP-6 · 已实现 |
-| 本地导入/导出事务 | `sync.rs:65-218,313-428,734-810` | `cargo test`（preflight/回滚/幂等） | 计划 §5.3 · 已实现（明确为本地文件移植） |
-| Catalog 搜索/命名空间/冲突 | `catalog.rs:115-187,329-662` | `cargo test`（排序/启停/冲突） | FEP-2 · 已实现 |
-| 管理面板（Installed/Discover/Updates） | `ExtensionsPanel.tsx`、`hooks/useExtensionActions.ts` | 仅构建级验证；无浏览器交互测试 | 计划阶段 4 · 已实现 |
-| V Tools 静态适配器 | `static_adapter.rs:10-229`、`src-tauri/extensions/v-tools/*` | `cargo test`（探测/argv 计划） | 计划阶段 5 · 已实现 |
-| V 动态 Provider 参考实现 | — 无代码产物 | — | 计划阶段 5 第二步 · ❌ 未落地 |
-| 三平台 E2E 验证 | `.github/workflows/release.yml`（仅构建矩阵） | — 无 | 计划阶段 6 · ❌ 未解决 |
-| SDK 可构建模板 | — 仅文档指南 `docs/extensions/sdk/*.md` | — | 计划阶段 7 · ⚠️ 指南非模板 |
+| Manifest v2 解析/校验/平台覆写 | 已实现 | `manifest.rs:18`（结构）、`:358-381`（组合校验）、`:304-333`（兼容） | `cargo test`（manifest 模块） |
+| Provider describe/diagnose/超时/缓存 | 已实现 | `provider.rs:274`（describe）、`:423`（diagnose）、`:376`（complete） | `cargo test`（provider 模块） |
+| 结构化执行计划 → PTY | 已实现 | `provider.rs:605`、`ExecutionPlanCache`（`mod.rs:369`） | `cargo test` |
+| **NPM 下载 / SRI / 安全解包** | **已移除**（`350e2d6`，2026-08-24） | `download.rs` 及其 SRI/`gitlab_source`/`source_bundle`/`source_inference`/`source_resolver`/`target` 模块已删；`InstallSource` 现仅 `Linked`（`install.rs:34-37`）；`install_managed`/update/reinstall/rollback 函数已不存在（`git grep` 零命中） | — |
+| **NPM 搜索 / Discover / 更新 / pin-channel 命令链** | **已移除**（`350e2d6` 后端 / `96870c4` 前端） | 后端命令与前端 `SearchCard`/`UpdateRow`/`useSearchState`/`useTabState` 删除；`tests/frozen-npm-ui.test.ts` 反向锁定 | 前端回归测试 `frozen-npm-ui.test.ts` |
+| **Ed25519 验签 + 官方签名索引** | **半冻结**：`official_index.rs` 仍在且被引用 | `official_index.rs:516` 行；唯一生产消费方 `extensions_refresh_official_status`（`commands/extensions.rs:244-248`，前端 `ExtensionsPanel.tsx:625` 调用）；`sync.rs:520-522` 经 `from_paths_with_official_index` 传递配置。验签函数 `verify_ed25519` 位于 `official_index.rs:285`，随索引一并半冻结。`tool-binding-design.md`「冻结区」明列为待删 | `cargo test`（index 模块） |
+| 本地连接 → linked 安装 | 已实现 | `install.rs:1517 install_linked`（仅 `distribution==local`，`:1559`）；`create_custom_integration_locked`（`install.rs:137`） | `cargo test` |
+| 通用工具一键接入 | 已实现 | `install.rs:739 connect_tool`；命令 `commands/extensions.rs:991 extensions_connect_tool` | `cargo test`（connect 系列） |
+| 推荐 / 约定 manifest 接入（v-tools 平权） | 已实现（`fc96f29`） | `recommendations.rs:1-16`（数据化）、`install.rs:1076 connect_recommended_tool`/`:1105 connect_manifest_tool`；旧 `static_adapter.rs` 特例已删（`git log -- '*static_adapter.rs'`） | `cargo test`（`install.rs:2217`） |
+| 事务 journal 与启动恢复 | 已实现 | `transaction.rs:458 recover`、`:207 recover_pending_removals` | `cargo test`（recovery 系列） |
+| 组件化卸载 | 已实现（`50dc632`，Phase 5 slice 2） | `uninstall.rs:68 uninstall_componentized`；命令 `commands/extensions.rs:1438 extensions_uninstall_componentized`（`lib.rs:1404` 注册） | `cargo test`（选择性卸载） |
+| reprobe 读 manifest lifecycle probes | 已实现（`f5976c9`，Phase 4 slice 1） | `commands/extensions.rs:1702 extensions_reprobe` → `manifest.lifecycle.probes`（`:1718`）→ `probe_executor::execute_capability_probes`（`probe_executor.rs:13`）；旧硬编码 `--version/--help` 已删 | `cargo test`（install/reprobe 网关） |
+| launch 走 lifecycle resolve | 已实现（`d01bf91`，Phase 4 slice 2） | `commands/extensions.rs:1746 extensions_launch` → `launch::resolve`（`launch.rs:22`） | `cargo test`（`launch/tests.rs`） |
+| 操作取消 / 进度事件 | 已实现（`d9cb312`，Phase 4 slice 4） | `commands/extensions.rs:1850 extensions_cancel_operation`；`OperationProgress` 事件 | `cargo test`（`install.rs:5161/5192/5217`） |
+| Provider 错误码 + 协议协商 | 已实现（`94b4747`，Phase 4 slice 5） | `error_codes.rs:9`（13 variants） | `cargo test`（error_codes/provider） |
+| 声明式配置 + secret generation | 已实现 | `config.rs:820-892,906-960` | `cargo test` |
+| 本地导入/导出事务 + secret 过滤 | 已实现（`1234c38`/`50dc632`，Phase 5） | `sync.rs:313-428,734-810`；`export_schema.rs:54 classify_field` | `cargo test` |
+| Catalog 搜索/命名空间/冲突 | 已实现 | `catalog.rs:132 search`、`:356 provider_entries`、`:426 load_provider_commands_uncached` | `cargo test` |
+| 工具指纹同路径变更自动重绑 | 已实现（`44452b9`） | `tool_lock.rs:210 resolve_executable_binding`；仅两处生产调用：`commands/extensions.rs:44`、`catalog.rs:452` | `cargo test`（`mod.rs:837+`、`catalog.rs:1323+`、`tool_lock.rs:340+`） |
+| 管理面板（Connected / Detected，单页） | 已实现（`96870c4`） | `ExtensionsPanel.tsx`；旧 Installed/Discover/Updates 三 tab 已删 | 仅构建级验证；`frozen-npm-ui.test.ts` |
+| V Tools 静态适配器（旧 `static_adapter.rs` 特例） | **已移除**（`fc96f29`） | 文件已不存在（`find -name static_adapter.rs` 零命中）；v-tools 改走推荐数据通路 `recommendations.rs` | — |
+| V 动态 Provider 参考实现 | ❌ 未落地 | — 无代码产物 | — |
+| 三平台 E2E 验证 | ❌ 未解决 | `.github/workflows/release.yml` 仅构建矩阵 | — |
+| SDK 可构建模板 | ⚠️ 指南非模板 | `docs/extensions/sdk/*.md` | — |
 
-> 维护规则：本矩阵是「声明 vs 实现」的唯一对照表。后续 phase 改动能力状态时同步更新此表；
-> DEVELOPMENT_PLAN.md 的阶段勾选仅作历史记录，不再作为完成度依据。
+> 维护规则：本矩阵是「声明 vs 实现」的唯一对照表。后续改动能力状态时同步更新此表；
+> `DEVELOPMENT_PLAN.md` 的阶段勾选仅作历史记录，不再作为完成度依据。
+> NPM 相关行以「已移除（commit）」标注，不再作为可排期能力。
+
+---
+
+## 六、冻结区/待删区（2026-09-15，`tool-binding-design.md`「冻结区」落地现状）
+
+`tool-binding-design.md` 声明以下代码「不再维护、新功能不得依赖（Phase C 完成后评估物理删除）」。
+下表为 `git grep` 实测的**当前引用状态**（判定：活代码引用点 / 仅测试或仅写入 / 完全孤立）：
+
+| 对象 | 声明 | 实测引用状态（`git grep`，2026-09-15 `44452b9`） |
+|---|---|---|
+| `manifest.rs::Distribution::Npm`（`:52`） | 待删枚举分支 | **孤立枚举**：除枚举定义与 `:362` 组合校验外，无任何生产构造点；仅测试断言（`:578`）。所有 installation 均写 `Distribution::Local`（`install.rs:230`/`:1559`、`recommendations.rs:45`、`tool_manifests.rs:90`） |
+| `manifest.rs` 校验允许 `Npm + Bundled/System/Script`（`:362`） | 待收紧 | **活校验分支**，但组合无现实来源（无安装路径产出 `Npm`），允许了无法安装的组合 |
+| `official_index.rs`（516 行） | 待删（SRI/签名索引） | **活代码但仅剩一条消费链**：`extensions_refresh_official_status`（`commands/extensions.rs:244-248`）→ 前端 `ExtensionsPanel.tsx:625`；配置线 `mod.rs:350-413`、`sync.rs:520-522`。与 `tool-binding-design.md`「官方签名索引优先级下降」一致 |
+| `artifacts.rs`（401 行） | v-tools 平权后待删 | **活代码但自守为 NPM-only**：`activate_entry_shims` 首行即 `if entry.distribution_source != Npm { return Ok(()) }`（`artifacts.rs:137`）；两个生产调用点 `transaction.rs:551`、`:786` 因此对 local 集成恒无操作；`prepare_shim_metadata`（`:106`）仅其自身测试调用（`:377`） |
+| `asset_matcher.rs`（36 行） | NPM 平台包匹配 | **半孤立**：`AssetSelection` 仅作为 `lock.rs:105` 字段 `asset_selection: Option<AssetSelection>` 的类型存在；**全部 18 处赋值均为 `None`**（`git grep 'asset_selection: \(Some\|asset\)'` 零命中）。模块无其它引用 |
+| `resolver.rs`（315 行） | 待删候选解析 | **半孤立**：候选排序辅助 `resolve_manifest_candidate`（`commands/extensions.rs:574`）在 `:591` 调 `resolve_executable_names`；另 `mod.rs:297` 重导出。可被 `inventory` 的候选机制替代 |
+| `profile.rs`（81 行） | 待删（resolver 上下文） | **完全孤立**：仅 `resolver.rs:4` 引用；`mod.rs:295` 重导出 `Profile/ProfileKind/ProfileStack` 无外部使用者（`git grep` 除定义/重导出外零命中） |
+| `tool_manifests.rs`（302 行） | 约定位置 manifest（远期） | **活代码但早期**：`commands/extensions.rs:176/626/1182`、`install.rs:1107/1138/1164`；属 `tool-binding-design.md` Phase D 的「约定位置 manifest」，当前未在 `AGENT-NOTES.md` 优先级内 |
+| `registry.rs::*` | 「NPM 解析」列在冻结区 | **无 NPM 解析可删**：实测 `registry.rs` 从未含 NPM/npmjs/SRI 代码（`git log -p -- registry.rs` 零命中）；现仅提供 `provider_invocation`/`static_description`/`runtime_available` 等**活**工具（22 处调用）。此冻结项在物理上早已不成立 |
+| `download.rs` SRI | 待删 | **已删**（`350e2d6`）；模块不存在 |
+| `ExtensionDistributionSource::Npm`（`lock.rs:36`，注意非 `Distribution`） | 未单列 | **活枚举变体但无生产写入**：非测试处仅测试构造（`sync.rs:1456` 属 `mod tests`、`transaction.rs:819` 属 `mod tests`、`sync_tests_phase5.rs:27`、`launch/tests.rs:352`）；生产侧只有读取分支，其中 `sync.rs:525/615` 对 Npm 返回「NPM 已移除」错误。导入前置校验仍**拒绝** `ExtensionDistributionSource::Npm`（`sync.rs:317`） |
+| `tool-lock.json` 绑定 | 保留 | **活**（`tool_lock.rs`），非冻结区 |
+
+**结论**：冻结区清单中，真正可直接物理删除或收口的是 `Distribution::Npm` 枚举分支、`asset_selection` 字段（恒 `None`）、`profile.rs`（完全孤立）；
+`official_index.rs`/`artifacts.rs` 仍有一条活投影链，需先收口 bundled/NPM 投影再删；
+`registry.rs` 的「NPM 解析」冻结项**实测不存在**，应从清单移除或改述。
+
+---
+
+## 七、已知缺口索引（G1-G7 研究结论摘要，2026-09-15）
+
+> 来源：插件发现/加载/自动探索链路地图研究轮（研究结论已内联于本节；原始研究产出为临时会话文件，未入库）。
+> 基线 `main @ e66cb75`；本索引只做「结论 + 状态」，每条要点的 file:line 证据已内联在表中。
+
+| 缺口 | 严重度 | 摘要 | 状态 |
+|---|---|---|---|
+| **G1** · 工具指纹漂移被当硬错误 + 双真源 | P1 | `catalog.rs:440-487` 把 `ReverifyRequired` 记 `binding-changed` → `mark_broken` 落 repository（强制 `enabled=false`）；同时 `commands/extensions.rs:313-314` 令 `runtime_available=false`。指纹含 `mtime`（`inventory.rs:876`），重编译即触发；`clear_broken_after_success`（`commands/extensions.rs:1635`）又能清，形成振荡 | **已修** `44452b9`：同路径新指纹静默自动重绑（`tool_lock.rs:210`），仅 `ReconnectRequired`/校验失败才判 broken |
+| **G2** · 上游命令漂移不可感知 | P1 | v-tools 命令来自发布方自带 `provider-description.json`（`catalog.rs:546 static_description`、`registry.rs:80`）；`reprobe_tool_commands` 拒绝对非 `local-user` 集成操作（`install.rs:483-486`、`is_generated_custom_integration` `:589`）；`tool_version` 变化不触发任何重探；update/reinstall 命令已删（`350e2d6`） | **待办**（第 4 轮方向）。目标：发布内容为准 + UI 说明；生成型集成在 `tool_version` 变化时触发重探（复用 `reprobe_after_enable` `install.rs:579`） |
+| **G3** · 列表副作用 + 缓存失联 | P1 | `extensions_list` 在缺绑定时写 `tool-lock.json`（`commands/extensions.rs:60`（写盘在 `:134`）），读路径有持久副作用；`extensions_list` 不调 `invalidate_provider_commands`（仅在 install/connect/enable/reprobe/repair 调用，如 `commands/extensions.rs:911`）；catalog 缓存 TTL 60s（`catalog.rs:20`），工具变化后最长 60s 返回旧描述 | **待办**（第 3 轮方向）。目标：列表只读、绑定对账集中到 reconnect/启动 reconcile、缓存与绑定状态联动失效 |
+| **G4** · audit 文档 Phase 3-8 与代码严重漂移 | P2 | 本文以 NPM 为中心描述 Phase 3-8，把 NPM install/update/reinstall/rollback/repair 当「已实现」；NPM 后端已在 `350e2d6` 删除；`official_index`/`artifacts`/`asset_matcher`/`resolver`/`profile`/`tool_manifests` 多为冻结/半死代码 | **本轮已处理**（§五矩阵校准 + §六冻结区 + §七索引） |
+| **G5** · 双轨/多真源残留 | P2 | catalog 加载期绑定/describe 失败只 `eprintln!`（`catalog.rs:564-605`），不进 UI；`extensions_list` 又用 `tool_lock` 状态决定 `runtime_available`（`commands/extensions.rs:313-314`）。「是否可用」由 repository 状态机与 tool_lock 状态机分别回答 | **待办**：单一 `RuntimeBinding` 真源 + 统一可用性投影；按 ToolBinding 新方向重述（原属 audit Phase 3） |
+| **G6** · reprobe/launch 用例与实现漂移 | P2 | 旧 audit 判定的「硬编码」问题已修：`extensions_reprobe` 现读 `manifest.lifecycle.probes`（`commands/extensions.rs:1718-1739`，`f5976c9`）；`extensions_launch` 已走 `launch::resolve`（`commands/extensions.rs:1746-1752`，`d01bf91`） | **文档部分本轮已处理**（§五标注 commit）；**测试待办**：补 launch v1 fallback 与 reprobe 契约回归证据 |
+| **G7** · `Distribution::Npm` 与冻结模块未清理 | P2 | `manifest.rs:52/362` 保留 `Npm` 并接受 `Npm + Bundled + Executable` 组合；`official_index.rs` 仅剩 refresh 命令在用；`tool-binding-design.md` 冻结区列 `official_index.rs`、`download.rs` SRI、`registry.rs` NPM 解析为待删，但物理未删 | **待办**（第 5 轮方向）。本轮已在 §六 给出实测收口清单：可直接删 `Distribution::Npm` 分支 / `asset_selection`（恒 None）/ `profile.rs`；`registry.rs` 的 NPM 解析冻结项实测不存在 |
+
+**分轮执行顺序（研究建议，本文不改）**：
+1. 文档对齐（G4/G6 文档部分）— **本轮已做**；
+2. tool-lock 误报与双真源（G1）— **已由 `44452b9` 修复**；
+3. 收敛绑定对账入口、去列表副作用（G3/G5）；
+4. 上游漂移感知策略（G2）；
+5. 冻结区清理（G7）。
+
+> G1/G2/G3 为研究轮**新发现**（旧 audit Phase 6-8 未覆盖）；G4/G5/G6/G7 属旧 audit Phase 1-3 的历史遗留，
+> 需按「ToolBinding」新方向重述后方可执行。
