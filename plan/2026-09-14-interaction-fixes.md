@@ -1,7 +1,7 @@
 # 迭代计划：插件页保活 / 焦点恢复 / 剪贴板卡顿 / 通用 Toast
 
 日期：2026-09-14
-状态：任务 A 已完成（2026-09-14，经 pi 实现→审查→修复→nit 清理→终审 APPROVE 共 5 轮，node 111/111、tsc/build 全绿）；任务 B、C 待做
+状态：任务 A、B 已完成（2026-09-14；任务 A = ed0b494，任务 B = 增量渲染/懒加载，各经 pi 实现→审查→修复→终审 APPROVE 循环，node 115/115、tsc/build 全绿）；任务 C 待做
 验证管线：`npx tsc --noEmit` · `npm run build` · `npm test`（node --test）· `cargo fmt --check` · `cargo test --lib`
 
 ---
@@ -119,7 +119,7 @@
 
 ### B · 剪贴板面板滚动/交互顺滑度
 
-**优先级：中**
+**优先级：中** · **状态：已完成**（render 全量重建改为 reconcileList 按 data-row-id 增量对齐 + rowPaintKey 含 age 结果值；缩略图 IntersectionObserver 懒加载（rootMargin 240px，并发上限 4 保留）；snapshot 比较确认稳定并补测试；tests/clipboard-render.test.ts 锁定增量契约）
 
 **候选根因（待实测确认）**
 1. `render()` 每次都 `content.replaceChildren()` 全量重建所有行（`src/plugins/clipboard/main.ts` ~L526 起）。237+ 条记录时每次按键/选择变化都整表重排。方案：给行加 `data-id`，只 diff 变更行；或对长列表做窗口化。

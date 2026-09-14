@@ -358,118 +358,335 @@ const syncRowSelection = (index: number) => {
   saveSession();
 };
 
-/** Build one list item with a separate favorite control. */
-const renderRow = (
+/** Identity of everything a row paints. A row whose key is unchanged is left
+ * alone by [`reconcileList`] — its DOM node is reused verbatim — which is what
+ * keeps a 200+ row list from being torn down and rebuilt on every keystroke,
+ * selection move or favorite toggle. Selection and list position are in the
+ * key, so the two rows whose highlight moves repaint while the rest sit still.
+ *
+ * The rendered age string — not merely `created_at` — is in the key, so a row
+ * whose visible "x m" ticked over repaints on the next 2s poll instead of
+ * freezing at its first-painted value. `now` is the same value
+ * [`applyRowState`] paints from, so the key and the paint can never disagree
+ * within one pass; rows whose age has not changed keep a zero-DOM-write pass. */
+const rowPaintKey = (
+  entry: ClipboardEntry,
+  index: number,
+  selected: number,
+  missing: boolean,
+  hasThumbnail: boolean,
+  now: number,
+): string =>
+  [
+    entry.id,
+    entry.kind,
+    entry.hash,
+    entry.created_at,
+    entry.favorite ? 1 : 0,
+    missing ? 1 : 0,
+    hasThumbnail ? 1 : 0,
+    index,
+    index === selected ? 1 : 0,
+    missing ? t("clipboard.missing") : formatClipboardAge(entry.created_at, now),
+  ].join("\u0001");
+
+/** Per-row record of the inputs each node was last painted from, so an
+ * unchanged row can skip all DOM work. Weak so discarded rows collect. */
+const rowPaintKeys = new WeakMap<HTMLLIElement, string>();
+/** The `busy` value the stars were last synced to. A busy flip only toggles
+ * `disabled` on every star, so it is kept out of the row paint key and synced
+ * with one cheap pass instead of repainting 200+ rows of content. */
+let renderedBusy: boolean | null = null;
+
+/** Repaint a row's data-driven bits (icon, preview, meta, selection, favorite,
+ * index) in place from its entry, without creating or replacing the row or its
+ * button node. Used both when a row is created and when an existing one is
+ * patched. */
+const applyRowState = (
+  row: HTMLLIElement,
   entry: ClipboardEntry,
   index: number,
   selected: number,
   now: number,
-): HTMLLIElement => {
+) => {
   const missing = statuses[entry.id] === false;
-  const filesPreview =
-    entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
   const hasThumbnail = thumbnails.has(entry.id) && !missing;
-
-  const row = document.createElement("li");
-  const button = document.createElement("div");
-  button.setAttribute("role", "option");
-  button.setAttribute("aria-selected", String(index === selected));
-  button.tabIndex = 0;
-  button.dataset.rowIndex = String(index);
-  button.dataset.rowId = entry.id;
-  button.className =
-    `clipboard-row${index === selected ? " clipboard-row--selected" : ""}` +
+  const button = row.firstElementChild as HTMLElement;
+  const isSelected = index === selected;
+  const classes =
+    `clipboard-row${isSelected ? " clipboard-row--selected" : ""}` +
     `${missing ? " clipboard-row--missing" : ""}`;
-  if (entry.kind === "files") button.title = (entry.paths ?? []).slice(0, 20).join("\n");
+  // Guard every write: a row reindexed by an insert/removal above it has the
+  // same class/attrs as before, and re-writing identical values would still
+  // dirty the node and force layout for no visible change.
+  if (button.dataset.rowIndex !== String(index)) button.dataset.rowIndex = String(index);
+  if (button.getAttribute("aria-selected") !== String(isSelected)) button.setAttribute("aria-selected", String(isSelected));
+  if (button.className !== classes) button.className = classes;
+  if (entry.kind === "files") {
+    const title = (entry.paths ?? []).slice(0, 20).join("\n");
+    if (button.title !== title) button.title = title;
+  } else if (button.hasAttribute("title")) {
+    button.removeAttribute("title");
+  }
 
-  const marker = document.createElement("span");
-  marker.className = [
+  const marker = button.children.item(0) as HTMLElement;
+  const markerClasses = [
     "clipboard-row__marker",
     entry.kind === "image" ? "clipboard-row__marker--image" : "",
     entry.kind === "files" ? "clipboard-row__marker--files" : "",
   ]
     .filter(Boolean)
     .join(" ");
-  marker.setAttribute("aria-hidden", "true");
-  if (entry.kind === "image") {
-    renderImageEntry(marker, entry, hasThumbnail);
-  } else if (entry.kind === "files") {
-    renderFilesEntry(marker, entry, hasThumbnail);
-  } else {
+  if (marker.className !== markerClasses) marker.className = markerClasses;
+  const thumbnailUrl = thumbnails.get(entry.id);
+  const markerImage = marker.querySelector("img");
+  if (entry.kind === "image" || entry.kind === "files") {
+    // Rebuild the marker only when it is not already showing exactly the right
+    // pixels; a plain `[?]` glyph and a stale/duplicate img both get replaced.
+    if (!hasThumbnail || !markerImage || markerImage.getAttribute("src") !== thumbnailUrl) {
+      marker.replaceChildren();
+      if (entry.kind === "image") renderImageEntry(marker, entry, hasThumbnail);
+      else renderFilesEntry(marker, entry, hasThumbnail);
+    }
+  } else if (markerImage || marker.textContent !== "›") {
     renderHistoryEntry(marker);
   }
 
-  const preview = document.createElement("span");
-  preview.className = "clipboard-row__preview";
+  const filesPreview =
+    entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
+  const preview = button.children.item(1) as HTMLElement;
   if (filesPreview) {
-    if (filesPreview.dirname) {
-      const dir = document.createElement("span");
-      dir.className = "clipboard-row__preview-dir";
-      dir.textContent = filesPreview.dirname;
-      preview.append(dir);
-    }
-    const base = document.createElement("span");
-    base.textContent = filesPreview.basename;
-    preview.append(base);
-    if (filesPreview.extra > 0) {
-      const extra = document.createElement("span");
-      extra.className = "clipboard-row__preview-extra";
-      extra.textContent = ` +${filesPreview.extra}`;
-      preview.append(extra);
+    const signature = `${filesPreview.dirname}\u0001${filesPreview.basename}\u0001${filesPreview.extra}`;
+    if (preview.dataset.previewSig !== signature) {
+      preview.replaceChildren();
+      if (filesPreview.dirname) {
+        const dir = document.createElement("span");
+        dir.className = "clipboard-row__preview-dir";
+        dir.textContent = filesPreview.dirname;
+        preview.append(dir);
+      }
+      const base = document.createElement("span");
+      base.textContent = filesPreview.basename;
+      preview.append(base);
+      if (filesPreview.extra > 0) {
+        const extra = document.createElement("span");
+        extra.className = "clipboard-row__preview-extra";
+        extra.textContent = ` +${filesPreview.extra}`;
+        preview.append(extra);
+      }
+      preview.dataset.previewSig = signature;
     }
   } else {
-    preview.textContent = clipboardPreview(entry);
+    delete preview.dataset.previewSig;
+    const text = clipboardPreview(entry);
+    if (preview.textContent !== text) preview.textContent = text;
   }
+
+  const meta = button.children.item(2) as HTMLElement;
+  const chars = meta.querySelector<HTMLElement>(".clipboard-row__chars");
+  if (entry.kind === "text" && entry.text) {
+    const label = t("clipboard.chars", { n: entry.text.length });
+    if (chars) {
+      if (chars.textContent !== label) chars.textContent = label;
+    } else {
+      const next = document.createElement("span");
+      next.className = "clipboard-row__chars";
+      next.textContent = label;
+      meta.prepend(next);
+    }
+  } else if (chars) {
+    chars.remove();
+  }
+  const age = meta.querySelector<HTMLElement>(".clipboard-row__age")!;
+  const ageClasses = `clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`;
+  if (age.className !== ageClasses) age.className = ageClasses;
+  const ageText = missing ? t("clipboard.missing") : formatClipboardAge(entry.created_at, now);
+  if (age.textContent !== ageText) age.textContent = ageText;
+
+  const star = button.children.item(3) as HTMLButtonElement;
+  const starClasses = `clipboard-row__star${entry.favorite ? " clipboard-row__star--on" : ""}`;
+  if (star.className !== starClasses) star.className = starClasses;
+  const pressed = String(entry.favorite);
+  if (star.getAttribute("aria-pressed") !== pressed) star.setAttribute("aria-pressed", pressed);
+  if (star.disabled !== busy) star.disabled = busy;
+  const starText = entry.favorite ? "★" : "☆";
+  if (star.textContent !== starText) star.textContent = starText;
+  if (star.title !== t("clipboard.favorite")) star.title = t("clipboard.favorite");
+
+  rowPaintKeys.set(row, rowPaintKey(entry, index, selected, missing, hasThumbnail, now));
+};
+
+/** Build one list item with a separate favorite control. The skeleton is made
+ * once here; [`applyRowState`] fills it, so the create and patch paths stay
+ * identical. Click/star handlers resolve the live entry by `data-row-id` at
+ * event time, so a reused node never acts on a stale object after a reload. */
+const renderRow = (
+  entry: ClipboardEntry,
+  index: number,
+  selected: number,
+  now: number,
+): HTMLLIElement => {
+  const row = document.createElement("li");
+  const button = document.createElement("div");
+  button.setAttribute("role", "option");
+  button.tabIndex = 0;
+  button.dataset.rowId = entry.id;
+  button.className = "clipboard-row";
+
+  const marker = document.createElement("span");
+  marker.className = "clipboard-row__marker";
+  marker.setAttribute("aria-hidden", "true");
+
+  const preview = document.createElement("span");
+  preview.className = "clipboard-row__preview";
 
   const meta = document.createElement("span");
   meta.className = "clipboard-row__meta";
-  if (entry.kind === "text" && entry.text) {
-    const chars = document.createElement("span");
-    chars.className = "clipboard-row__chars";
-    chars.textContent = t("clipboard.chars", { n: entry.text.length });
-    meta.append(chars);
-  }
   const age = document.createElement("span");
-  age.className = `clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`;
-  age.textContent = missing
-    ? t("clipboard.missing")
-    : formatClipboardAge(entry.created_at, now);
+  age.className = "clipboard-row__age";
   meta.append(age);
 
   const star = document.createElement("button");
   star.type = "button";
   star.tabIndex = -1;
-  star.className = `clipboard-row__star${entry.favorite ? " clipboard-row__star--on" : ""}`;
+  star.className = "clipboard-row__star";
   star.setAttribute("aria-label", t("clipboard.favorite"));
-  star.setAttribute("aria-pressed", String(entry.favorite));
-  star.disabled = busy;
-  star.title = t("clipboard.favorite");
-  star.textContent = entry.favorite ? "★" : "☆";
 
   button.append(marker, preview, meta, star);
   button.addEventListener("pointerdown", () => {
     // Clicking selects the row before the action runs; hovering alone never
     // changes the keyboard selection.
     setInputMode("pointer");
-    syncRowSelection(index);
+    syncRowSelection(Number(button.dataset.rowIndex ?? "0"));
     button.focus();
   });
   // The CSS :hover state is intentionally visual-only. Keeping pointer
   // movement out of `selected` prevents the mouse from hijacking arrow-key
   // navigation while the user scans the list.
-  button.addEventListener("click", () => void activate(entry));
+  button.addEventListener("click", () => {
+    const live = entries.find((current) => current.id === button.dataset.rowId);
+    void activate(live);
+  });
   star.addEventListener("click", (event) => {
     event.stopPropagation();
-    void toggleFavorite(entry);
+    const live = entries.find((current) => current.id === button.dataset.rowId);
+    void toggleFavorite(live);
   });
 
   row.append(button);
+  applyRowState(row, entry, index, selected, now);
   return row;
+};
+
+/** The list element exists only while there is at least one row to show; the
+ * empty / loading / failure states fill `content` instead. */
+const currentList = (): HTMLElement | null =>
+  content.querySelector<HTMLElement>(".clipboard-panel__list");
+
+/** Reconcile `content` with `filtered`, reusing the DOM of every row whose
+ * paint key is unchanged. Rows are keyed on `data-id`: existing nodes are
+ * patched and glued back into order, new ones are built once, and anything the
+ * filter dropped is removed. No `replaceChildren()` on the list means the
+ * browser keeps the layout of the hundreds of rows that did not change. */
+const reconcileList = (filtered: ClipboardEntry[], now: number) => {
+  if (loadFailed && entries.length === 0) {
+    const failure = document.createElement("div");
+    failure.className = "clipboard-panel__empty";
+    failure.setAttribute("role", "alert");
+    const label = document.createElement("span");
+    label.textContent = t(backendUnavailable ? "clipboard.pageUnavailable" : "clipboard.loadFailed");
+    failure.append(label);
+    if (backendUnavailable) {
+      // Retrying cannot help when the backend is off/unmanaged; say how to
+      // turn it on instead of offering a dead-end button.
+      const hint = document.createElement("span");
+      hint.className = "clipboard-panel__empty-hint";
+      hint.textContent = t("clipboard.pageUnavailableHint");
+      failure.append(hint);
+    } else {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "clipboard-panel__clear";
+      retry.textContent = t("settings.retry");
+      retry.addEventListener("mousedown", (event) => event.preventDefault());
+      retry.addEventListener("click", () => {
+        retry.disabled = true;
+        void reload().then(() => {
+          render();
+          searchInput.focus();
+        });
+      });
+      failure.append(retry);
+    }
+    content.replaceChildren(failure);
+    return;
+  }
+
+  if (filtered.length === 0) {
+    content.replaceChildren(renderEmpty());
+    return;
+  }
+
+  let list = currentList();
+  if (!list) {
+    list = document.createElement("ul");
+    list.className = "clipboard-panel__list";
+    list.setAttribute("role", "listbox");
+    list.setAttribute("aria-label", t("clipboard.title"));
+    content.replaceChildren(list);
+  }
+
+  const byId = new Map<string, HTMLLIElement>();
+  for (const child of list.children) {
+    const element = child as HTMLLIElement;
+    const id = element.firstElementChild instanceof HTMLElement
+      ? element.firstElementChild.dataset.rowId
+      : undefined;
+    if (id) byId.set(id, element);
+  }
+
+  const seen = new Set<string>();
+  const desired: HTMLLIElement[] = [];
+  filtered.forEach((entry, index) => {
+    if (seen.has(entry.id)) return;
+    seen.add(entry.id);
+    const missing = statuses[entry.id] === false;
+    const hasThumbnail = thumbnails.has(entry.id) && !missing;
+    let row = byId.get(entry.id);
+    if (!row) {
+      row = renderRow(entry, index, selected, now);
+      byId.set(entry.id, row);
+    } else if (
+      rowPaintKeys.get(row)
+      !== rowPaintKey(entry, index, selected, missing, hasThumbnail, now)
+    ) {
+      applyRowState(row, entry, index, selected, now);
+    }
+    desired.push(row);
+  });
+
+  // Place only the nodes that are out of position: a leading run already in
+  // order is left untouched, and each later row is inserted before the next
+  // in-order node. Rows already in order keep their DOM slots even when a new
+  // entry shifted their index on paper, so a reload that prepends one capture
+  // touches one node instead of the whole list.
+  let cursor: ChildNode | null = list.firstChild;
+  for (const row of desired) {
+    if (row === cursor) {
+      cursor = cursor.nextSibling;
+      continue;
+    }
+    list.insertBefore(row, cursor);
+  }
+  for (const [id, row] of byId) {
+    if (!seen.has(id)) row.remove();
+  }
 };
 
 /** Rebuild the whole page's dynamic bits. The filter input is never rebuilt,
  * so its focus and caret survive every render — focus stays pinned there by
- * construction. */
+ * construction. The list is reconciled in place (see [`reconcileList`]), so
+ * unchanged rows keep their DOM nodes. */
 const render = () => {
   const focused = document.activeElement;
   const rowFocused = focused instanceof HTMLElement && Boolean(focused.closest(".clipboard-row"));
@@ -522,56 +739,21 @@ const render = () => {
   const filtered = filteredEntries();
   selected = filtered.length ? Math.min(selected, filtered.length - 1) : 0;
 
-  content.replaceChildren();
-  if (loadFailed && entries.length === 0) {
-    const failure = document.createElement("div");
-    failure.className = "clipboard-panel__empty";
-    failure.setAttribute("role", "alert");
-    const label = document.createElement("span");
-    label.textContent = t(backendUnavailable ? "clipboard.pageUnavailable" : "clipboard.loadFailed");
-    failure.append(label);
-    if (backendUnavailable) {
-      // Retrying cannot help when the backend is off/unmanaged; say how to
-      // turn it on instead of offering a dead-end button.
-      const hint = document.createElement("span");
-      hint.className = "clipboard-panel__empty-hint";
-      hint.textContent = t("clipboard.pageUnavailableHint");
-      failure.append(hint);
-    } else {
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.className = "clipboard-panel__clear";
-      retry.textContent = t("settings.retry");
-      retry.addEventListener("mousedown", (event) => event.preventDefault());
-      retry.addEventListener("click", () => {
-        retry.disabled = true;
-        void reload().then(() => {
-          render();
-          searchInput.focus();
-        });
-      });
-      failure.append(retry);
-    }
-    content.append(failure);
-    finish();
-    return;
-  }
-  if (filtered.length === 0) {
-    content.append(renderEmpty());
-    finish();
-    return;
-  }
-
-  const list = document.createElement("ul");
-  list.className = "clipboard-panel__list";
-  list.setAttribute("role", "listbox");
-  list.setAttribute("aria-label", t("clipboard.title"));
-
+  // One `now` for the whole pass: the paint key's age comparison and every
+  // row's age text read the same clock, so they cannot disagree.
   const now = Date.now();
-  filtered.forEach((entry, index) => {
-    list.append(renderRow(entry, index, selected, now));
-  });
-  content.append(list);
+  reconcileList(filtered, now);
+  // `busy` only disables the per-row star buttons; sync them in one pass when
+  // it flips rather than folding it into every row's paint key.
+  if (renderedBusy !== busy) {
+    renderedBusy = busy;
+    for (const star of content.querySelectorAll<HTMLButtonElement>(".clipboard-row__star")) {
+      star.disabled = busy;
+    }
+  }
+  // Arm the viewport watcher for any candidate row this pass introduced; the
+  // observer queues a reload the moment one scrolls into range.
+  observeThumbnailCandidates();
   finish();
 };
 
@@ -585,14 +767,13 @@ const setThumbnail = (id: string, bytes: number[], mime: string) => {
   if (previous) URL.revokeObjectURL(previous);
   const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
   thumbnails.set(id, url);
-  const marker = content.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"] .clipboard-row__marker`);
-  if (marker) {
-    const img = document.createElement("img");
-    img.src = url;
-    img.alt = "";
-    img.draggable = false;
-    marker.replaceChildren(img);
-  }
+  // Repaint only this row's marker through the shared row patcher, so the
+  // node and the paint-key cache stay truthful as the bytes arrive.
+  const row = content.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"]`)?.parentElement as HTMLLIElement | null;
+  const entry = entries.find((current) => current.id === id);
+  if (!row || !entry) return;
+  const index = filteredEntries().findIndex((current) => current.id === id);
+  if (index >= 0) applyRowState(row, entry, index, selected, Date.now());
 };
 
 window.addEventListener("pagehide", () => {
@@ -610,6 +791,11 @@ window.addEventListener("pagehide", () => {
   pending.clear();
   for (const url of thumbnails.values()) URL.revokeObjectURL(url);
   thumbnails.clear();
+  // Forget the busy-sync state: a hidden-then-reopened page (the iframe is
+  // kept alive, so this page is not torn down) must re-sync every star from
+  // scratch rather than rely on the fallback pass below.
+  renderedBusy = null;
+  thumbnailObserver.disconnect();
 });
 
 /** Bumped on every reload so a slower earlier pass cannot overwrite the newer
@@ -617,6 +803,47 @@ window.addEventListener("pagehide", () => {
 let reloadGen = 0;
 let reloadPending: Promise<void> | null = null;
 const thumbnailPending = new Set<string>();
+/** Entry ids whose candidate rows have actually been scrolled into view. Only
+ * these (plus their warmed neighbors below) request bytes, so a long history
+ * of images doesn't batch-decode its whole first screen. */
+const thumbnailVisible = new Set<string>();
+
+/** Whether an entry can render pixels in its marker at all. */
+const isThumbnailCandidate = (entry: ClipboardEntry): boolean =>
+  entry.kind === "image" || isFilesPreviewCandidate(entry.paths);
+
+/** A row is measured against the scroll container once it has a node, and
+ * queued the moment it intersects. There is one observer for the whole list;
+ * re-observing an already-observed node is a no-op, so this stays cheap on
+ * every reconcile. */
+const thumbnailObserver = new IntersectionObserver(
+  (records) => {
+    let queued = false;
+    for (const record of records) {
+      if (!record.isIntersecting) continue;
+      const id = (record.target as HTMLElement).dataset.rowId;
+      if (id) {
+        thumbnailVisible.add(id);
+        queued = true;
+      }
+    }
+    if (queued) void reload();
+  },
+  { root: content, rootMargin: "240px" },
+);
+
+/** Watch the marker of every candidate row currently in the list; rows created
+ * once are observed once. */
+const observeThumbnailCandidates = () => {
+  const candidates = new Set(
+    entries.filter(isThumbnailCandidate).map((entry) => entry.id),
+  );
+  for (const row of content.querySelectorAll<HTMLElement>(".clipboard-row")) {
+    const id = row.dataset.rowId;
+    if (!id || !candidates.has(id) || thumbnailVisible.has(id)) continue;
+    thumbnailObserver.observe(row);
+  }
+};
 
 /**
  * Whether a failed bridge call means the clipboard backend itself is
@@ -696,19 +923,31 @@ const reloadData = async () => {
       .catch(() => undefined);
   }
 
-  // Bound parallel binary transfers. Failed optional previews retry next poll,
-  // including when the entry metadata has not changed.
-  const queue = entries.filter((entry) => (entry.kind === "image" || isFilesPreviewCandidate(entry.paths))
-    && !thumbnails.has(entry.id) && !thumbnailPending.has(entry.id));
+  // Bound parallel binary transfers, and only fetch what can be seen. Failed
+  // optional previews retry next poll until they either succeed or change.
+  const wanted: ClipboardEntry[] = [];
+  const visibleRows = filteredEntries();
+  visibleRows.forEach((entry, index) => {
+    if (!isThumbnailCandidate(entry) || thumbnails.has(entry.id) || thumbnailPending.has(entry.id)) return;
+    // Load rows that scrolled into view, plus the next couple below them, so
+    // scrolling on stays seamless without decoding images the user never sees.
+    if (thumbnailVisible.has(entry.id)) wanted.push(entry);
+    else if (thumbnailVisible.has(visibleRows[index + 1]?.id) || thumbnailVisible.has(visibleRows[index + 2]?.id)) wanted.push(entry);
+  });
   const worker = async () => {
-    for (let entry = queue.shift(); entry && gen === reloadGen; entry = queue.shift()) {
+    for (let entry = wanted.shift(); entry && gen === reloadGen; entry = wanted.shift()) {
       thumbnailPending.add(entry.id);
       try {
-        const bytes = await invokeCommand<number[]>(entry.kind === "image" ? "clipboard_read_image" : "clipboard_read_file_preview", { id: entry.id });
+        const bytes = await invokeCommand<number[]>(
+          entry.kind === "image" ? "clipboard_read_image" : "clipboard_read_file_preview",
+          { id: entry.id },
+        );
         if (gen === reloadGen && entries.some((current) => current.id === entry.id)) {
           setThumbnail(entry.id, bytes, entry.kind === "image" ? "image/png" : imageFileMime(entry.paths![0]));
         }
-      } catch { /* Optional preview; the next refresh retries it. */ }
+      } catch {
+        // Optional preview; the next poll retries it.
+      }
       finally { thumbnailPending.delete(entry.id); }
     }
   };

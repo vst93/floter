@@ -191,10 +191,12 @@
    band does reach the input row's lower edge, but that is harmless: the input
    text is centred near y=28 and ends before x≈612, while the strip stops at
    x≤306 — horizontally it is entirely left of the buttons at x≥628, so the
-   buttons' hit area is never covered. (Anchoring to the bottom-RIGHT — the
-   old `bottom:6px; right:6px` — puts the strip at x∈[H..], directly over the
-   buttons, which is the bug this replaces.) A full-height toast would rise
-   through y∈[20,52] and cover them; the 20px strip height plus the left
+   buttons' hit area is never covered. (The pre-fix state was not a bottom-right
+   anchor: `.extensions-toasts` carried one shared `top: 64px; right: 16px` for
+   every surface, and in the ~58px launcher that 64px top put the strip below
+   the window's bottom edge — off-screen. Anchoring to the bottom-left and
+   keeping the strip inside the window is the fix.) A full-height toast would
+   rise through y∈[20,52] and cover them; the 20px strip height plus the left
    anchor is what removes the occlusion. */
 #floter-app-toasts[data-surface="collapsed"] {
   top: auto;

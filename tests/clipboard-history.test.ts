@@ -43,6 +43,28 @@ test("clipboard snapshots detect order, favorite, kind and capture changes witho
   assert.equal(sameClipboardSnapshot([original], []), false);
 });
 
+// The 2s poll re-renders only when the snapshot changed, so the comparison has
+// to cover every field a row paints. Payload fields (`text`, `paths`, `width`,
+// `image_file`) are immutable for an id/hash and are read through the key, but
+// any new rendered field must be added here or the page silently goes stale.
+test("clipboard snapshots ignore fields a row does not paint and cover the ones it does", () => {
+  const original = entry({});
+  // Payload details are deliberately outside the comparison: they ride on the
+  // immutable id/hash, so differing captions or dimensions are the same row.
+  assert.equal(sameClipboardSnapshot([original], [{ ...original, text: "different caption" }]), true);
+  assert.equal(sameClipboardSnapshot([original], [{ ...original, width: 99, height: 99 }]), true);
+  assert.equal(sameClipboardSnapshot([original], [{ ...original, paths: ["/tmp/a.png"] }]), true);
+  // Order matters and is part of the snapshot.
+  const a = entry({ id: "a", hash: "ha" });
+  const b = entry({ id: "b", hash: "hb" });
+  assert.equal(sameClipboardSnapshot([a, b], [b, a]), false);
+  assert.equal(sameClipboardSnapshot([a, b], [a, b]), true);
+  // Every rendered facet flips the comparison.
+  for (const change of [{ id: "other" }, { kind: "image" }, { hash: "new" }, { created_at: 2 }, { favorite: true }]) {
+    assert.equal(sameClipboardSnapshot([a], [{ ...a, ...change }]), false, JSON.stringify(change));
+  }
+});
+
 test("clipboard session retains tab, query, selection and scroll across a page remount", () => {
   const session = { filterText: "report", view: "favorites", selectedId: "saved", scrollTop: 384 };
   assert.deepEqual(normalizeClipboardSession(JSON.parse(JSON.stringify(session))), session);
