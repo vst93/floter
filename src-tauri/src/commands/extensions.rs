@@ -29,8 +29,35 @@ use std::path::Path;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
+/// Resolve a system entry's executable binding for the list view, silently
+/// refreshing a same-path fingerprint change once the refreshed provider
+/// validates. Shares the catalog load path's validation so both read paths
+/// agree on "the refreshed tool is fine".
+///
+/// The caller's already-parsed `manifest` (when available) is reused for the
+/// validation instead of being read from disk a second time.
+fn resolve_system_binding(
+    entry: &ExtensionLockEntry,
+    manifest: Option<&ExtensionManifest>,
+    tool_lock: &mut crate::extensions::ToolLock,
+) -> Result<(LockState, bool), String> {
+    crate::extensions::tool_lock::resolve_executable_binding(
+        tool_lock,
+        &entry.id,
+        &entry.executable_path,
+        || match manifest {
+            Some(manifest) => catalog::validate_refreshed_binding_with_manifest(entry, manifest),
+            None => catalog::validate_refreshed_binding(entry),
+        },
+    )
+}
+
 #[tauri::command]
 pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
+    list_extensions(&state)
+}
+
+fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem>, String> {
     let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let candidates = state
         .tool_inventory
@@ -58,24 +85,14 @@ pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<Extension
                 )
             });
         let lock_state = if entry.runtime_ownership == ExtensionRuntimeOwnership::System {
-            if !tool_lock.tools.contains_key(&entry.id) {
-                tool_lock.bind_locator(
-                    &entry.id,
-                    ToolLocator::Executable {
-                        path: entry.executable_path.clone(),
-                    },
-                    current_candidate
-                        .as_ref()
-                        .and_then(|candidate| candidate.fingerprint.clone()),
-                );
-                tool_lock_changed = true;
-            }
-            let previous = tool_lock.tools.get(&entry.id).map(|binding| binding.state);
-            let current = tool_lock
-                .check(&entry.id, current_candidate.as_ref())?
-                .state;
-            tool_lock_changed |= previous != Some(current);
-            Some(current)
+            // Same-path fingerprint changes (an upstream rebuild) are silently
+            // re-bound once the refreshed provider validates, so a version
+            // upgrade no longer flips `runtime_available` to false. Reuse the
+            // manifest already parsed above rather than reading it again.
+            let (state, changed) =
+                resolve_system_binding(&entry, manifest.as_ref(), &mut tool_lock)?;
+            tool_lock_changed |= changed;
+            Some(state)
         } else {
             None
         };
@@ -2011,6 +2028,260 @@ mod tests {
             .into_owned();
         lock.extensions.insert("other.tool".into(), entry);
         assert!(manifest_suggestions(&lock, &[], &candidates, &tools).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_path_rebinds_changed_fingerprint_and_reports_runtime_available() {
+        use crate::extensions::ExtensionPaths;
+        use crate::extensions::ToolLock;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let executable_path = executable.to_string_lossy().into_owned();
+
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let tool = &tools[0];
+        let root = directory.path().join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("floter.extension.json"), tool.manifest_bytes).unwrap();
+        std::fs::write(
+            root.join("provider-description.json"),
+            tool.descriptor_bytes,
+        )
+        .unwrap();
+        let entry = ExtensionLockEntry {
+            id: tool.manifest.id.clone(),
+            name: tool.manifest.name.clone(),
+            publisher_id: tool.manifest.publisher.id.clone(),
+            publisher_name: tool.manifest.publisher.name.clone(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: tool.description.provider.version.clone(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: tool.description.provider.version.clone(),
+            previous_version: None,
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable_path.clone(),
+            runtime_root: None,
+            installed_at: 1,
+            updated_at: 1,
+            pinned: false,
+            channel: "external".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+            probe_report: None,
+            config_generation: 0,
+        };
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+
+        // Seed the binding with a manual connect-style bind, then rebuild the
+        // executable in place: the fingerprint now differs from the lock.
+        {
+            let mut tool_lock = state.tool_lock.lock().unwrap();
+            let candidate = inventory::executable_candidate(Path::new(&executable_path), "v");
+            tool_lock.bind(&entry.id, &candidate);
+            tool_lock.save(&state.paths.tool_lock_file).unwrap();
+        }
+        std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let items = list_extensions(&state).unwrap();
+        let listed = items
+            .iter()
+            .find(|item| item.entry.id == entry.id)
+            .expect("rebound entry still listed");
+        assert!(listed.runtime_available);
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+        assert!(!listed.reconnect_available);
+
+        // Repository and tool-lock agree after the silent rebind.
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(stored.state, ExtensionStateKind::Enabled);
+        assert!(stored.enabled);
+        assert_eq!(stored.last_error_code, None);
+        let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_eq!(binding.tools[&entry.id].state, LockState::Connected);
+        assert_eq!(
+            binding.tools[&entry.id].fingerprint,
+            inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint
+        );
+
+        // Re-listing is stable (no oscillation): still Connected, still available.
+        let items = list_extensions(&state).unwrap();
+        let listed = items.iter().find(|item| item.entry.id == entry.id).unwrap();
+        assert!(listed.runtime_available);
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+
+        // Removing the executable is still a hard failure: broken + unavailable.
+        std::fs::remove_file(&executable).unwrap();
+        let items = list_extensions(&state).unwrap();
+        let listed = items.iter().find(|item| item.entry.id == entry.id).unwrap();
+        assert!(!listed.runtime_available);
+        assert_eq!(listed.tool_lock_state, Some(LockState::ReconnectRequired));
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(stored.state, ExtensionStateKind::Enabled);
+        assert!(stored.enabled);
+    }
+
+    #[cfg(unix)]
+    const EXECUTABLE_MANIFEST_JSON: &str = r#"{
+        "schemaVersion": "2.0",
+        "id": "local.example.dynamic",
+        "name": "Dynamic Tool",
+        "publisher": { "id": "example", "name": "Example" },
+        "compatibility": { "floter": ">=0.1.0", "providerProtocol": "^1.0" },
+        "distribution": { "type": "local" },
+        "runtime": {
+            "type": "system",
+            "executableNames": ["v"],
+            "versionArgs": ["--version"]
+        },
+        "provider": { "type": "executable", "argsPrefix": ["--floter"] },
+        "permissions": ["environment"]
+    }"#;
+
+    /// A dynamic (`Executable`) provider is validated only *structurally* on the
+    /// list path (manifest identity + platform resolution, no `describe`). This
+    /// pins that a same-path rebuild still silently re-binds and reports
+    /// `runtime_available`, with the new fingerprint persisted.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_path_rebinds_an_executable_provider_on_fingerprint_change() {
+        use crate::extensions::ExtensionPaths;
+        use crate::extensions::ToolLock;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let executable_path = executable.to_string_lossy().into_owned();
+
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        let root = directory.path().join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("floter.extension.json"), EXECUTABLE_MANIFEST_JSON).unwrap();
+        let entry = ExtensionLockEntry {
+            id: "local.example.dynamic".into(),
+            name: "Dynamic Tool".into(),
+            publisher_id: "example".into(),
+            publisher_name: "Example".into(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::Executable,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: "1.0.0".into(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: "1.0.0".into(),
+            previous_version: None,
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable_path.clone(),
+            runtime_root: None,
+            installed_at: 1,
+            updated_at: 1,
+            pinned: false,
+            channel: "external".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+            probe_report: None,
+            config_generation: 0,
+        };
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+
+        // Seed the binding with a manual connect-style bind, then rebuild the
+        // executable in place: the fingerprint now differs from the lock.
+        {
+            let mut tool_lock = state.tool_lock.lock().unwrap();
+            let candidate = inventory::executable_candidate(Path::new(&executable_path), "v");
+            tool_lock.bind(&entry.id, &candidate);
+            tool_lock.save(&state.paths.tool_lock_file).unwrap();
+        }
+        std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let items = list_extensions(&state).unwrap();
+        let listed = items
+            .iter()
+            .find(|item| item.entry.id == entry.id)
+            .expect("rebound entry still listed");
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+        assert!(listed.runtime_available);
+        assert!(!listed.reconnect_available);
+
+        // The new fingerprint was persisted, not the one the user approved.
+        let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_eq!(binding.tools[&entry.id].state, LockState::Connected);
+        assert_eq!(
+            binding.tools[&entry.id].fingerprint,
+            inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint
+        );
     }
 
     #[cfg(unix)]

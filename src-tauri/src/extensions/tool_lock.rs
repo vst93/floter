@@ -1,5 +1,11 @@
 //! User selections. A lock is a binding, not a hint: a missing executable
 //! enters reconnect state and is never silently replaced by another candidate.
+//!
+//! A *fingerprint* change at the same path (the upstream binary was rebuilt or
+//! reinstalled) is a recoverable condition, not a failure: once the caller has
+//! validated the refreshed provider the binding is silently re-pointed at the
+//! new fingerprint via [`resolve_executable_binding`]. Switching to a
+//! different executable still requires an explicit reconnect.
 
 use super::inventory::{ToolCandidate, ToolLocator};
 use serde::{Deserialize, Serialize};
@@ -146,9 +152,94 @@ impl ToolLock {
         Ok(())
     }
 
+    /// Refresh the stored fingerprint after the executable at the *same path*
+    /// was rebuilt or reinstalled (a version upgrade). The locator is never
+    /// changed, so this cannot silently switch to a different tool.
+    ///
+    /// NOTE: "same path" is a purely *lexical* comparison of
+    /// [`ToolLocator::normalized`] values (absolute-ize relative paths and
+    /// lowercase on Windows) -- it never calls `canonicalize`. Consequences:
+    ///
+    /// * A symlink whose link path is unchanged but whose *target* is swapped
+    ///   still counts as the same path, so the binding is silently re-pointed
+    ///   at whatever the new target provides. This is an accepted residual,
+    ///   consistent with the pre-existing `check()` decision model.
+    /// * On non-Windows a pure case difference is treated as a *different*
+    ///   path (conservative: demands a manual reconnect).
+    ///
+    /// Returns `Ok(true)` when the binding was refreshed, `Ok(false)` when
+    /// nothing changed (a different executable, or an already-connected
+    /// candidate), and `Err` when the tool has no binding at all.
+    pub fn reconnect_changed_candidate(
+        &mut self,
+        tool: &str,
+        candidate: &ToolCandidate,
+    ) -> Result<bool, String> {
+        let entry = self
+            .tools
+            .get_mut(tool)
+            .ok_or_else(|| format!("Tool is not locked: {tool}"))?;
+        if candidate.locator.normalized() != entry.locator.normalized() {
+            return Ok(false);
+        }
+        if candidate.fingerprint == entry.fingerprint && entry.state == LockState::Connected {
+            return Ok(false);
+        }
+        entry.fingerprint = candidate.fingerprint.clone();
+        entry.locked_at = unix_now();
+        entry.state = LockState::Connected;
+        Ok(true)
+    }
+
     pub fn remove(&mut self, tool: &str) -> Option<ToolLockEntry> {
         self.tools.remove(tool)
     }
+}
+
+/// Resolve `binding` against the executable currently at `executable_path`.
+///
+/// [`LockState::ReverifyRequired`] (same path, changed fingerprint) is the
+/// recoverable outcome of an upstream rebuild: when `validate` accepts the
+/// refreshed provider the binding is silently re-pointed at the new
+/// fingerprint and reported as [`LockState::Connected`]. Every other outcome
+/// leaves the persisted binding untouched so callers can fall back to their
+/// broken handling.
+///
+/// Returns the effective state plus whether the in-memory lock changed and
+/// should therefore be persisted by the caller.
+pub(crate) fn resolve_executable_binding(
+    lock: &mut ToolLock,
+    binding: &str,
+    executable_path: &str,
+    validate: impl FnOnce() -> Result<(), String>,
+) -> Result<(LockState, bool), String> {
+    let candidate = crate::extensions::inventory::executable_candidate(
+        Path::new(executable_path),
+        Path::new(executable_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(executable_path),
+    );
+    let inserted = !lock.tools.contains_key(binding);
+    if inserted {
+        lock.bind_locator(
+            binding,
+            ToolLocator::Executable {
+                path: executable_path.to_string(),
+            },
+            candidate.fingerprint.clone(),
+        );
+    }
+    let previous = lock.tools[binding].state;
+    let state = lock.check(binding, Some(&candidate))?.state;
+    if state == LockState::ReverifyRequired
+        && validate().is_ok()
+        && lock.reconnect_changed_candidate(binding, &candidate)?
+    {
+        return Ok((LockState::Connected, true));
+    }
+    let changed = inserted || previous != state;
+    Ok((state, changed))
 }
 
 fn unix_now() -> u64 {
@@ -231,5 +322,114 @@ mod tests {
         assert_eq!(lock.tools["tool"].locator, replacement.locator);
         assert!(lock.remove("tool").is_some());
         assert!(!lock.tools.contains_key("tool"));
+    }
+
+    fn executable_candidate(path: &std::path::Path) -> ToolCandidate {
+        crate::extensions::inventory::executable_candidate(path, "tool")
+    }
+
+    #[cfg(unix)]
+    fn write_executable(path: &std::path::Path, contents: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::write(path, contents).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn changed_fingerprint_at_the_same_path_is_rebound_to_connected() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+        let mut lock = ToolLock::default();
+        lock.bind("tool", &executable_candidate(&executable));
+
+        // Upstream rebuild: same path, new bytes/mtime.
+        write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
+        let (state, changed) =
+            resolve_executable_binding(&mut lock, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+
+        assert_eq!(state, LockState::Connected);
+        assert!(changed);
+        assert_eq!(lock.tools["tool"].state, LockState::Connected);
+        assert_eq!(
+            lock.tools["tool"].fingerprint,
+            executable_candidate(&executable).fingerprint
+        );
+        assert_eq!(
+            lock.tools["tool"].locator,
+            executable_candidate(&executable).locator
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_different_locator_is_never_silently_rebound() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = temporary.path().join("original");
+        let replacement = temporary.path().join("replacement");
+        write_executable(&original, "origin");
+        write_executable(&replacement, "replacement");
+        let mut lock = ToolLock::default();
+        lock.bind("tool", &executable_candidate(&original));
+
+        let (state, _) = resolve_executable_binding(
+            &mut lock,
+            "tool",
+            &replacement.to_string_lossy(),
+            || Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(state, LockState::ReverifyRequired);
+        assert_eq!(
+            lock.tools["tool"].locator,
+            ToolLocator::Executable {
+                path: original.to_string_lossy().into_owned()
+            }
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_validation_keeps_the_changed_binding_in_reverify() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+        let mut lock = ToolLock::default();
+        lock.bind("tool", &executable_candidate(&executable));
+        let stored = lock.tools["tool"].fingerprint.clone();
+
+        write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
+        let (state, changed) =
+            resolve_executable_binding(&mut lock, "tool", &executable.to_string_lossy(), || {
+                Err("invalid descriptor".into())
+            })
+            .unwrap();
+
+        assert_eq!(state, LockState::ReverifyRequired);
+        // The binding fingerprint is not refreshed: the stored value still
+        // points at the tool the user approved, so the caller falls back to
+        // its broken handling. The state transition itself is persisted.
+        assert!(changed);
+        assert_eq!(lock.tools["tool"].fingerprint, stored);
+        assert_eq!(lock.tools["tool"].state, LockState::ReverifyRequired);
+    }
+
+    #[test]
+    fn a_missing_executable_still_requires_reconnect() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        let mut lock = ToolLock::default();
+        lock.bind("tool", &executable_candidate(&executable));
+
+        std::fs::remove_file(&executable).unwrap();
+        let (state, _) =
+            resolve_executable_binding(&mut lock, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+
+        assert_eq!(state, LockState::ReconnectRequired);
     }
 }

@@ -439,13 +439,68 @@ pub(crate) async fn load_provider_commands_uncached(
             continue;
         }
         if entry.runtime_ownership == crate::extensions::lock::ExtensionRuntimeOwnership::System {
-            match state.check_executable_binding(&entry.id, &entry.executable_path) {
-                Ok(crate::extensions::tool_lock::LockState::Connected) => {
+            // Resolve the binding in one place: a changed fingerprint at the
+            // same path is silently re-bound (after the refreshed provider is
+            // validated), while a missing executable or a validation failure
+            // stays on the broken path below.
+            let binding_state = {
+                let mut tool_lock = state
+                    .tool_lock
+                    .lock()
+                    .map_err(|_| "Tool lock is unavailable".to_string())?;
+                let snapshot = tool_lock.clone();
+                match crate::extensions::tool_lock::resolve_executable_binding(
+                    &mut tool_lock,
+                    &entry.id,
+                    &entry.executable_path,
+                    || validate_refreshed_binding(&entry),
+                ) {
+                    Ok((binding_state, changed)) => {
+                        if changed {
+                            if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
+                                // Persisting the silent rebind failed: roll the
+                                // in-memory lock back to the snapshot and fall
+                                // back to the same per-entry degradation the
+                                // old HEAD behavior used (mark broken and keep
+                                // loading the rest of the catalog) instead of
+                                // aborting the whole directory load.
+                                *tool_lock = snapshot;
+                                drop(tool_lock);
+                                let code = crate::extensions::error_codes::ProviderErrorCode::BindingCheckFailed;
+                                if !already_recorded_broken(
+                                    lock.get(&entry.id)?,
+                                    code.as_str(),
+                                    &error,
+                                ) && lock.mark_broken(&entry.id, code.as_str(), &error)?
+                                {
+                                    lock_changed = true;
+                                }
+                                continue;
+                            }
+                        }
+                        binding_state
+                    }
+                    Err(error) => {
+                        drop(tool_lock);
+                        let code =
+                            crate::extensions::error_codes::ProviderErrorCode::BindingCheckFailed;
+                        if !already_recorded_broken(lock.get(&entry.id)?, code.as_str(), &error)
+                            && lock.mark_broken(&entry.id, code.as_str(), &error)?
+                        {
+                            lock_changed = true;
+                        }
+                        continue;
+                    }
+                }
+            };
+            match binding_state {
+                crate::extensions::tool_lock::LockState::Connected => {
                     if already_broken && lock.clear_broken(&entry.id)? {
                         lock_changed = true;
                     }
                 }
-                Ok(binding_state) => {
+                crate::extensions::tool_lock::LockState::ReconnectRequired
+                | crate::extensions::tool_lock::LockState::ReverifyRequired => {
                     let code = match binding_state {
                         crate::extensions::tool_lock::LockState::ReconnectRequired => {
                             crate::extensions::error_codes::ProviderErrorCode::BindingMissing
@@ -472,16 +527,6 @@ pub(crate) async fn load_provider_commands_uncached(
                     };
                     if !already_recorded_broken(lock.get(&entry.id)?, code.as_str(), &detail)
                         && lock.mark_broken(&entry.id, code.as_str(), &detail)?
-                    {
-                        lock_changed = true;
-                    }
-                    continue;
-                }
-                Err(error) => {
-                    let code =
-                        crate::extensions::error_codes::ProviderErrorCode::BindingCheckFailed;
-                    if !already_recorded_broken(lock.get(&entry.id)?, code.as_str(), &error)
-                        && lock.mark_broken(&entry.id, code.as_str(), &error)?
                     {
                         lock_changed = true;
                     }
@@ -585,6 +630,52 @@ pub(crate) async fn load_provider_commands_uncached(
         }
     }
     Ok(result)
+}
+
+/// Rebuild the provider description for an entry whose executable fingerprint
+/// changed at the same path, purely to prove the refreshed tool is still a
+/// valid provider before the binding is silently re-pointed at it.
+///
+/// The coverage is deliberately asymmetric:
+///
+/// * A `StaticDescriptor`/`BundledStatic` entry is fully re-validated here
+///   (`static_description` re-parses the descriptor, checks the provider id and
+///   runs `validate_execution_descriptors`).
+/// * An `Executable` entry is only checked *structurally* via
+///   `provider_invocation` (manifest identity + platform resolution). This
+///   function never launches or `describe`s the refreshed binary.
+///
+/// For executable providers the real check therefore happens later in the
+/// catalog load loop, where a failed `describe` marks the entry broken. The
+/// list path (`commands::extensions`) reuses this validator but has no
+/// `describe` fallback, so a dynamic binding can read as `Connected` there
+/// without the new binary ever having been described. This is not a bypass on
+/// the catalog path, but callers on the list path must not assume more than
+/// the structural guarantee above.
+pub(crate) fn validate_refreshed_binding(
+    entry: &crate::extensions::lock::ExtensionLockEntry,
+) -> Result<(), String> {
+    let manifest = crate::extensions::manifest::ExtensionManifest::load(std::path::Path::new(
+        &entry.manifest_path,
+    ))?;
+    validate_refreshed_binding_with_manifest(entry, &manifest)
+}
+
+/// [`validate_refreshed_binding`] reusing an already-parsed manifest, so the
+/// list path can validate and then keep using the same parse instead of reading
+/// the manifest a second time.
+pub(crate) fn validate_refreshed_binding_with_manifest(
+    entry: &crate::extensions::lock::ExtensionLockEntry,
+    manifest: &crate::extensions::manifest::ExtensionManifest,
+) -> Result<(), String> {
+    if matches!(
+        entry.provider_kind,
+        ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
+    ) {
+        crate::extensions::registry::static_description_with_manifest(entry, manifest).map(|_| ())
+    } else {
+        crate::extensions::registry::provider_invocation_with_manifest(entry, manifest).map(|_| ())
+    }
 }
 
 fn already_recorded_broken(
@@ -1218,6 +1309,151 @@ mod tests {
         assert!(!restored.enabled);
         assert_eq!(restored.enabled_before_broken, None);
         assert_eq!(restored.broken_reason, None);
+    }
+
+    #[cfg(unix)]
+    fn write_executable(path: &std::path::Path, contents: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::write(path, contents).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn fingerprint_change_at_the_same_path_is_rebound_and_stays_connected() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+
+        let root = directory.path().join("integration");
+        let entry = recommended_local_entry(&root, &executable);
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+
+        // First load binds the executable and exposes the provider commands.
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert_eq!(commands.len(), 5);
+
+        // The provider is rebuilt in place (a version upgrade): same path, new
+        // bytes and mtime. The binding is silently refreshed instead of the
+        // entry being marked broken, and the commands keep loading.
+        write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert_eq!(commands.len(), 5);
+
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            stored.state,
+            crate::extensions::lock::ExtensionStateKind::Enabled
+        );
+        assert!(stored.enabled);
+        assert_eq!(stored.last_error_code, None);
+        assert_eq!(stored.broken_reason, None);
+
+        // Both sources of truth agree: the persisted binding points at the new
+        // fingerprint and reads back Connected.
+        assert_eq!(
+            state
+                .check_executable_binding(&entry.id, &entry.executable_path)
+                .unwrap(),
+            crate::extensions::tool_lock::LockState::Connected
+        );
+        let binding = state.tool_lock.lock().unwrap();
+        assert_eq!(
+            binding.tools[&entry.id].state,
+            crate::extensions::tool_lock::LockState::Connected
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn fingerprint_change_with_an_invalid_descriptor_falls_back_to_broken() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+
+        let root = directory.path().join("integration");
+        let entry = recommended_local_entry(&root, &executable);
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+        let _ = load_provider_commands_uncached(&state).await.unwrap();
+
+        // The refreshed executable is paired with a descriptor that no longer
+        // validates: the binding must NOT be silently refreshed, and the entry
+        // falls back to the original broken behavior.
+        std::fs::write(root.join("provider-description.json"), b"{ not json").unwrap();
+        write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert!(commands.is_empty());
+
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            stored.state,
+            crate::extensions::lock::ExtensionStateKind::Broken
+        );
+        assert!(!stored.enabled);
+        assert_eq!(stored.last_error_code.as_deref(), Some("binding-changed"));
+
+        // The rejected fingerprint was not persisted: the binding still points
+        // at the tool the user originally approved.
+        let binding = state.tool_lock.lock().unwrap();
+        assert_eq!(
+            binding.tools[&entry.id].state,
+            crate::extensions::tool_lock::LockState::ReverifyRequired
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_missing_executable_keeps_the_broken_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+
+        let root = directory.path().join("integration");
+        let entry = recommended_local_entry(&root, &executable);
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+        let _ = load_provider_commands_uncached(&state).await.unwrap();
+
+        // Removing the executable is not a fingerprint change: it still
+        // demands a reconnect and stays broken.
+        std::fs::remove_file(&executable).unwrap();
+        let commands = load_provider_commands_uncached(&state).await.unwrap();
+        assert!(commands.is_empty());
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            stored.state,
+            crate::extensions::lock::ExtensionStateKind::Broken
+        );
+        assert_eq!(stored.last_error_code.as_deref(), Some("binding-missing"));
     }
 
     #[test]

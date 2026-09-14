@@ -513,42 +513,40 @@ impl ExtensionState {
             .expect("Progress lock poisoned") = Some(listener);
     }
 
+    /// Resolve (and persist) an executable binding, refreshing a same-path
+    /// fingerprint change.
+    ///
+    /// This method currently has **no production call site**: every production
+    /// path resolves bindings through
+    /// [`tool_lock::resolve_executable_binding`](crate::extensions::tool_lock::resolve_executable_binding)
+    /// directly (the catalog load loop, the list path and the explicit connect
+    /// flow), each supplying its own `validate` closure. It is retained only
+    /// because tests reference it. The `|| Ok(())` validator below is therefore
+    /// not a test-only bypass of validation: it simply accepts any refreshed
+    /// executable for this legacy/test entry point.
     pub fn check_executable_binding(
         &self,
         binding: &str,
         executable_path: &str,
     ) -> Result<LockState, String> {
-        let candidate = inventory::executable_candidate(
-            std::path::Path::new(executable_path),
-            std::path::Path::new(executable_path)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or(executable_path),
-        );
         let mut lock = self
             .tool_lock
             .lock()
             .map_err(|_| "Tool lock is unavailable".to_string())?;
         let snapshot = lock.clone();
-        let inserted = !lock.tools.contains_key(binding);
-        if inserted {
-            lock.bind_locator(
-                binding,
-                ToolLocator::Executable {
-                    path: executable_path.to_string(),
-                },
-                candidate.fingerprint.clone(),
-            );
-        }
-        let previous = lock.tools[binding].state;
-        let current = lock.check(binding, Some(&candidate))?.state;
-        if inserted || previous != current || !self.paths.tool_lock_file.exists() {
+        let (state, changed) = crate::extensions::tool_lock::resolve_executable_binding(
+            &mut lock,
+            binding,
+            executable_path,
+            || Ok(()),
+        )?;
+        if changed || !self.paths.tool_lock_file.exists() {
             if let Err(error) = lock.save(&self.paths.tool_lock_file) {
                 *lock = snapshot;
                 return Err(error);
             }
         }
-        Ok(current)
+        Ok(state)
     }
 }
 
@@ -823,7 +821,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn executable_bindings_detect_replacement_and_removal() {
+    fn executable_bindings_auto_rebind_on_fingerprint_change_and_detect_removal() {
         use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
@@ -841,14 +839,22 @@ mod tests {
             LockState::Connected
         );
 
+        // Same path, new bytes and mtime: an upstream rebuild. The binding is
+        // silently refreshed instead of demanding a manual reconnect.
         std::fs::write(&executable, "#!/bin/sh\nprintf replacement\n").unwrap();
         assert_eq!(
             state
                 .check_executable_binding("example.tool", &executable.to_string_lossy())
                 .unwrap(),
-            LockState::ReverifyRequired
+            LockState::Connected
+        );
+        let rebound = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_eq!(
+            rebound.tools["example.tool"].fingerprint,
+            crate::extensions::inventory::executable_candidate(&executable, "tool").fingerprint
         );
 
+        // A missing executable is still a hard reconnect requirement.
         std::fs::remove_file(&executable).unwrap();
         assert_eq!(
             state

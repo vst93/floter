@@ -81,6 +81,15 @@ pub fn static_description(
     entry: &ExtensionLockEntry,
 ) -> Result<(ProviderDescription, ProviderInvocation), String> {
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
+    static_description_with_manifest(entry, &manifest)
+}
+
+/// Same as [`static_description`] but reuses an already-parsed manifest so
+/// read paths that need the manifest for other purposes do not parse it twice.
+pub(crate) fn static_description_with_manifest(
+    entry: &ExtensionLockEntry,
+    manifest: &ExtensionManifest,
+) -> Result<(ProviderDescription, ProviderInvocation), String> {
     let descriptor = manifest
         .provider
         .descriptor
@@ -102,7 +111,7 @@ pub fn static_description(
             description.provider.id, entry.id
         ));
     }
-    let invocation = provider_invocation(entry)?;
+    let invocation = provider_invocation_with_manifest(entry, manifest)?;
     validate_execution_descriptors(&description, &invocation)?;
     Ok((description, invocation))
 }
