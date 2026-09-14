@@ -514,7 +514,10 @@ impl ExtensionState {
     }
 
     /// Resolve (and persist) an executable binding, refreshing a same-path
-    /// fingerprint change.
+    /// fingerprint change. An entry with *no* persisted binding is reported as
+    /// [`LockState::ReconnectRequired`] without creating a first binding, so a
+    /// caller can never turn this read helper into a durable write of a
+    /// previously-unbound tool.
     ///
     /// This method currently has **no production call site**. Production
     /// resolves bindings through
@@ -547,13 +550,13 @@ impl ExtensionState {
             .lock()
             .map_err(|_| "Tool lock is unavailable".to_string())?;
         let snapshot = lock.clone();
-        let (state, changed) = crate::extensions::tool_lock::resolve_executable_binding(
+        let (state, changed) = crate::extensions::tool_lock::resolve_existing_binding(
             &mut lock,
             binding,
             executable_path,
             || Ok(()),
         )?;
-        if changed || !self.paths.tool_lock_file.exists() {
+        if changed {
             if let Err(error) = lock.save(&self.paths.tool_lock_file) {
                 *lock = snapshot;
                 return Err(error);
@@ -845,6 +848,23 @@ mod tests {
         std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
+        // An unbound tool is a read-only "unbound" result: the helper reports
+        // ReconnectRequired and never creates a first binding on disk.
+        assert_eq!(
+            state
+                .check_executable_binding("example.tool", &executable.to_string_lossy())
+                .unwrap(),
+            LockState::ReconnectRequired
+        );
+        assert!(!state.paths.tool_lock_file.exists());
+
+        // The explicit connect path owns the first binding.
+        {
+            let mut tool_lock = state.tool_lock.lock().unwrap();
+            let candidate = crate::extensions::inventory::executable_candidate(&executable, "tool");
+            tool_lock.bind("example.tool", &candidate);
+            tool_lock.save(&state.paths.tool_lock_file).unwrap();
+        }
         assert_eq!(
             state
                 .check_executable_binding("example.tool", &executable.to_string_lossy())

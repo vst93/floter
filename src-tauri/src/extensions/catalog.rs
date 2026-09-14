@@ -25,11 +25,30 @@ pub(crate) struct ProviderCommandCache {
     cached: tokio::sync::Mutex<Option<(Instant, Arc<Vec<LoadedProviderCommand>>)>>,
     /// Serializes reloads so concurrent misses share ONE disk reload.
     reload: tokio::sync::Mutex<()>,
+    /// Test-only: counts explicit invalidations so tests can prove a binding
+    /// change did (or did not) drop the cache.
+    #[cfg(test)]
+    invalidations: std::sync::atomic::AtomicU64,
 }
 
 impl ProviderCommandCache {
     pub async fn invalidate(&self) {
+        #[cfg(test)]
+        self.invalidations
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         *self.cached.lock().await = None;
+    }
+
+    /// Test-only: how many explicit invalidations have been observed.
+    #[cfg(test)]
+    pub(crate) fn invalidation_count(&self) -> u64 {
+        self.invalidations.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Test-only: whether a live (unexpired-check-agnostic) entry is cached.
+    #[cfg(test)]
+    pub(crate) async fn has_cached_entry(&self) -> bool {
+        self.cached.lock().await.is_some()
     }
 
     /// Test-only: push the stored creation time backwards to simulate expiry.
@@ -421,6 +440,16 @@ async fn loaded_provider_commands(
     let commands = Arc::new(load_provider_commands_uncached(state).await?);
     *cache = Some((Instant::now(), Arc::clone(&commands)));
     Ok(commands)
+}
+
+/// Test-only: drive the real cached load path so a test can warm the cache and
+/// then assert that a binding change invalidated it. Returns the number of
+/// loaded provider commands.
+#[cfg(test)]
+pub(crate) async fn load_cached_provider_commands_for_test(
+    state: &ExtensionState,
+) -> Result<usize, String> {
+    Ok(loaded_provider_commands(state).await?.len())
 }
 
 pub(crate) async fn load_provider_commands_uncached(

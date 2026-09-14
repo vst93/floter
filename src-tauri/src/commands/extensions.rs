@@ -34,6 +34,12 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 /// validates. Shares the catalog load path's validation so both read paths
 /// agree on "the refreshed tool is fine".
 ///
+/// This is deliberately *not* a first-binding path: an entry with no persisted
+/// binding is reported as [`LockState::ReconnectRequired`] ("unbound") and the
+/// lock is not written. Only a same-path fingerprint rebind (`changed == true`)
+/// is persisted by the caller. First bindings belong to the explicit
+/// connect/reconnect commands.
+///
 /// The caller's already-parsed `manifest` (when available) is reused for the
 /// validation instead of being read from disk a second time.
 fn resolve_system_binding(
@@ -41,7 +47,7 @@ fn resolve_system_binding(
     manifest: Option<&ExtensionManifest>,
     tool_lock: &mut crate::extensions::ToolLock,
 ) -> Result<(LockState, bool), String> {
-    crate::extensions::tool_lock::resolve_executable_binding(
+    crate::extensions::tool_lock::resolve_existing_binding(
         tool_lock,
         &entry.id,
         &entry.executable_path,
@@ -53,88 +59,102 @@ fn resolve_system_binding(
 }
 
 #[tauri::command]
-pub fn extensions_list(state: State<'_, ExtensionState>) -> Result<Vec<ExtensionListItem>, String> {
-    list_extensions(&state)
+pub async fn extensions_list(
+    state: State<'_, ExtensionState>,
+) -> Result<Vec<ExtensionListItem>, String> {
+    list_extensions(&state).await
 }
 
-fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem>, String> {
+async fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem>, String> {
     let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let candidates = state
         .tool_inventory
         .lock()
         .map_err(|_| "Tool inventory is unavailable".to_string())?
         .candidates();
-    let mut tool_lock = state
-        .tool_lock
-        .lock()
-        .map_err(|_| "Tool lock is unavailable".to_string())?;
-    let tool_lock_snapshot = tool_lock.clone();
-    let mut tool_lock_changed = false;
     let mut items = Vec::new();
-    for mut entry in lock.list() {
-        // Installation persists this result only after both package and
-        // official-index signatures pass. Never present an official badge
-        // if the package signature is no longer trusted.
-        entry.official_verified &= entry.signature_verified;
-        let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
-        let current_candidate = (entry.runtime_ownership == ExtensionRuntimeOwnership::System)
-            .then(|| {
-                inventory::executable_candidate(
-                    Path::new(&entry.executable_path),
-                    executable_display_name(&entry.executable_path),
-                )
-            });
-        let lock_state = if entry.runtime_ownership == ExtensionRuntimeOwnership::System {
-            // Same-path fingerprint changes (an upstream rebuild) are silently
-            // re-bound once the refreshed provider validates, so a version
-            // upgrade no longer flips `runtime_available` to false. Reuse the
-            // manifest already parsed above rather than reading it again.
-            let (state, changed) =
-                resolve_system_binding(&entry, manifest.as_ref(), &mut tool_lock)?;
-            tool_lock_changed |= changed;
-            Some(state)
-        } else {
-            None
-        };
-        let tool_candidates = if lock_state.is_some_and(|state| state != LockState::Connected) {
-            let mut resolution_pool = candidates.clone();
-            if let Some(candidate) = current_candidate.filter(|candidate| candidate.available) {
-                if !resolution_pool
-                    .iter()
-                    .any(|existing| existing.locator.normalized() == candidate.locator.normalized())
-                {
-                    resolution_pool.push(candidate);
+    // The tool-lock guard is confined to this block so it is released before
+    // the cache invalidation await below (a `std::sync::MutexGuard` is not
+    // `Send` and must not be held across an await point).
+    let mut tool_lock_changed = false;
+    {
+        let mut tool_lock = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        let tool_lock_snapshot = tool_lock.clone();
+        for mut entry in lock.list() {
+            // Installation persists this result only after both package and
+            // official-index signatures pass. Never present an official badge
+            // if the package signature is no longer trusted.
+            entry.official_verified &= entry.signature_verified;
+            let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
+            let current_candidate = (entry.runtime_ownership == ExtensionRuntimeOwnership::System)
+                .then(|| {
+                    inventory::executable_candidate(
+                        Path::new(&entry.executable_path),
+                        executable_display_name(&entry.executable_path),
+                    )
+                });
+            let lock_state = if entry.runtime_ownership == ExtensionRuntimeOwnership::System {
+                // Same-path fingerprint changes (an upstream rebuild) are silently
+                // re-bound once the refreshed provider validates, so a version
+                // upgrade no longer flips `runtime_available` to false. Reuse the
+                // manifest already parsed above rather than reading it again.
+                let (state, changed) =
+                    resolve_system_binding(&entry, manifest.as_ref(), &mut tool_lock)?;
+                tool_lock_changed |= changed;
+                Some(state)
+            } else {
+                None
+            };
+            let tool_candidates = if lock_state.is_some_and(|state| state != LockState::Connected) {
+                let mut resolution_pool = candidates.clone();
+                if let Some(candidate) = current_candidate.filter(|candidate| candidate.available) {
+                    if !resolution_pool.iter().any(|existing| {
+                        existing.locator.normalized() == candidate.locator.normalized()
+                    }) {
+                        resolution_pool.push(candidate);
+                    }
                 }
-            }
-            manifest
-                .as_ref()
-                .map(|manifest| {
-                    resolution_candidates(resolve_manifest_candidate(
-                        manifest,
-                        &resolution_pool,
-                        tool_lock
-                            .tools
-                            .get(&entry.id)
-                            .map(|binding| binding.locator.normalized()),
-                    ))
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        let reconnect_available = !tool_candidates.is_empty();
-        items.push(ExtensionListItem::installed(
-            entry,
-            lock_state,
-            reconnect_available,
-            tool_candidates,
-        ));
-    }
-    if tool_lock_changed {
-        if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
-            *tool_lock = tool_lock_snapshot;
-            return Err(error);
+                manifest
+                    .as_ref()
+                    .map(|manifest| {
+                        resolution_candidates(resolve_manifest_candidate(
+                            manifest,
+                            &resolution_pool,
+                            tool_lock
+                                .tools
+                                .get(&entry.id)
+                                .map(|binding| binding.locator.normalized()),
+                        ))
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            let reconnect_available = !tool_candidates.is_empty();
+            items.push(ExtensionListItem::installed(
+                entry,
+                lock_state,
+                reconnect_available,
+                tool_candidates,
+            ));
         }
+        if tool_lock_changed {
+            if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
+                *tool_lock = tool_lock_snapshot;
+                return Err(error);
+            }
+        }
+    }
+    // A persisted same-path rebind changed the effective binding, so the
+    // provider command cache no longer describes the current state. Drop it
+    // now so the next `catalog_search` re-reads the tool instead of serving a
+    // stale table for up to the 60s TTL. Idempotent listings (no durable
+    // change) never reach the invalidation below, so they do not invalidate.
+    if tool_lock_changed {
+        state.invalidate_provider_commands().await;
     }
     // Recommended tools ship as ordinary manifest/descriptor data. They
     // surface in the same suggestion area as PATH discoveries and connect
@@ -2118,7 +2138,7 @@ mod tests {
         std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
-        let items = list_extensions(&state).unwrap();
+        let items = list_extensions(&state).await.unwrap();
         let listed = items
             .iter()
             .find(|item| item.entry.id == entry.id)
@@ -2144,14 +2164,14 @@ mod tests {
         );
 
         // Re-listing is stable (no oscillation): still Connected, still available.
-        let items = list_extensions(&state).unwrap();
+        let items = list_extensions(&state).await.unwrap();
         let listed = items.iter().find(|item| item.entry.id == entry.id).unwrap();
         assert!(listed.runtime_available);
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
 
         // Removing the executable is still a hard failure: broken + unavailable.
         std::fs::remove_file(&executable).unwrap();
-        let items = list_extensions(&state).unwrap();
+        let items = list_extensions(&state).await.unwrap();
         let listed = items.iter().find(|item| item.entry.id == entry.id).unwrap();
         assert!(!listed.runtime_available);
         assert_eq!(listed.tool_lock_state, Some(LockState::ReconnectRequired));
@@ -2266,7 +2286,7 @@ mod tests {
         std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
-        let items = list_extensions(&state).unwrap();
+        let items = list_extensions(&state).await.unwrap();
         let listed = items
             .iter()
             .find(|item| item.entry.id == entry.id)
@@ -2282,6 +2302,269 @@ mod tests {
             binding.tools[&entry.id].fingerprint,
             inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint
         );
+    }
+
+    /// Shared fixture for the list read-only / cache-invalidation tests: a
+    /// system `StaticDescriptor` integration whose executable exists on disk
+    /// and which has repository state, but (initially) *no* persisted
+    /// `tool-lock.json` entry.
+    #[cfg(unix)]
+    struct ListBindingFixture {
+        #[allow(dead_code)]
+        directory: tempfile::TempDir,
+        state: ExtensionState,
+        entry: ExtensionLockEntry,
+        executable: std::path::PathBuf,
+    }
+
+    #[cfg(unix)]
+    fn list_binding_fixture() -> ListBindingFixture {
+        use crate::extensions::ExtensionPaths;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let tool = &tools[0];
+        let root = directory.path().join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("floter.extension.json"), tool.manifest_bytes).unwrap();
+        std::fs::write(
+            root.join("provider-description.json"),
+            tool.descriptor_bytes,
+        )
+        .unwrap();
+        let entry = ExtensionLockEntry {
+            id: tool.manifest.id.clone(),
+            name: tool.manifest.name.clone(),
+            publisher_id: tool.manifest.publisher.id.clone(),
+            publisher_name: tool.manifest.publisher.name.clone(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: tool.description.provider.version.clone(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: tool.description.provider.version.clone(),
+            previous_version: None,
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable.to_string_lossy().into_owned(),
+            runtime_root: None,
+            installed_at: 1,
+            updated_at: 1,
+            pinned: false,
+            channel: "external".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+            probe_report: None,
+            config_generation: 0,
+        };
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+        ListBindingFixture {
+            directory,
+            state,
+            entry,
+            executable,
+        }
+    }
+
+    #[cfg(unix)]
+    async fn list_item(state: &ExtensionState, id: &str) -> ExtensionListItem {
+        list_extensions(state)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|item| item.entry.id == id)
+            .expect("entry is listed")
+    }
+
+    /// Read-only contract: listing a system entry that has **no** persisted
+    /// binding must not write `tool-lock.json`. The entry is surfaced as
+    /// "unbound" using the existing fields (non-connected lock state, runtime
+    /// unavailable, reconnect offered) so the UI needs no new plumbing.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_is_read_only_for_an_unbound_system_entry() {
+        let fixture = list_binding_fixture();
+        assert!(
+            !fixture.state.paths.tool_lock_file.exists(),
+            "fixture must start unbound"
+        );
+
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::ReconnectRequired));
+        assert!(!listed.runtime_available);
+        assert!(listed.reconnect_available);
+
+        // No file was created and no binding was stamped in memory.
+        assert!(!fixture.state.paths.tool_lock_file.exists());
+        assert!(!fixture
+            .state
+            .tool_lock
+            .lock()
+            .unwrap()
+            .tools
+            .contains_key(&fixture.entry.id));
+
+        // A second list is equally inert and stable.
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::ReconnectRequired));
+        assert!(listed.reconnect_available);
+        assert!(!fixture.state.paths.tool_lock_file.exists());
+    }
+
+    /// Read-only contract for an already-bound, unchanged entry: neither the
+    /// bytes nor the mtime of `tool-lock.json` may move across a list call.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_leaves_an_unchanged_bound_tool_lock_byte_identical() {
+        use crate::extensions::ToolLock;
+
+        let fixture = list_binding_fixture();
+        {
+            let mut tool_lock = fixture.state.tool_lock.lock().unwrap();
+            let candidate = inventory::executable_candidate(&fixture.executable, "v");
+            tool_lock.bind(&fixture.entry.id, &candidate);
+            tool_lock.save(&fixture.state.paths.tool_lock_file).unwrap();
+        }
+        let before = std::fs::read(&fixture.state.paths.tool_lock_file).unwrap();
+        let before_modified = std::fs::metadata(&fixture.state.paths.tool_lock_file)
+            .unwrap()
+            .modified()
+            .unwrap();
+
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+        assert!(listed.runtime_available);
+
+        assert_eq!(
+            std::fs::read(&fixture.state.paths.tool_lock_file).unwrap(),
+            before
+        );
+        assert_eq!(
+            std::fs::metadata(&fixture.state.paths.tool_lock_file)
+                .unwrap()
+                .modified()
+                .unwrap(),
+            before_modified
+        );
+        assert_eq!(
+            ToolLock::load(&fixture.state.paths.tool_lock_file)
+                .unwrap()
+                .tools[&fixture.entry.id]
+                .state,
+            LockState::Connected
+        );
+    }
+
+    /// Cache linkage: a same-path fingerprint change is silently rebound and
+    /// persisted by the list, which must invalidate the provider-command cache
+    /// immediately (not wait out the 60s TTL). An idempotent re-list after the
+    /// rebind must not invalidate again.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_rebind_invalidates_the_catalog_command_cache_exactly_once() {
+        let fixture = list_binding_fixture();
+        {
+            let mut tool_lock = fixture.state.tool_lock.lock().unwrap();
+            let candidate = inventory::executable_candidate(&fixture.executable, "v");
+            tool_lock.bind(&fixture.entry.id, &candidate);
+            tool_lock.save(&fixture.state.paths.tool_lock_file).unwrap();
+        }
+
+        // Warm the cache through the real cached path.
+        let loaded = catalog::load_cached_provider_commands_for_test(&fixture.state)
+            .await
+            .unwrap();
+        assert!(loaded > 0);
+        assert!(fixture.state.provider_commands.has_cached_entry().await);
+        let invalidations = fixture.state.provider_commands.invalidation_count();
+
+        // Upstream rebuild in place: the list silently rebinds and writes.
+        std::fs::write(&fixture.executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+
+        assert_eq!(
+            fixture.state.provider_commands.invalidation_count(),
+            invalidations + 1
+        );
+        assert!(!fixture.state.provider_commands.has_cached_entry().await);
+
+        // Idempotent re-listing (no durable change) does not invalidate again.
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+        assert_eq!(
+            fixture.state.provider_commands.invalidation_count(),
+            invalidations + 1
+        );
+    }
+
+    /// Legacy-data boundary: a repository that already contains a system
+    /// integration but whose `tool-lock.json` is missing/empty. The list must
+    /// present it as unbound (never back-fill a first binding) while the
+    /// reconnect entrance remains fully usable.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn legacy_repository_without_tool_lock_lists_unbound_and_reconnects() {
+        use crate::extensions::ToolLock;
+
+        let fixture = list_binding_fixture();
+        assert!(!fixture.state.paths.tool_lock_file.exists());
+
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::ReconnectRequired));
+        assert!(!listed.runtime_available);
+        assert!(listed.reconnect_available);
+        assert!(!listed.tool_candidates.is_empty());
+        assert!(!fixture.state.paths.tool_lock_file.exists());
+
+        // The reconnect entrance still creates the first binding explicitly.
+        let reconnected = reconnect_system(
+            &fixture.state,
+            &fixture.entry.id,
+            Some(fixture.executable.to_string_lossy().as_ref()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(reconnected.state, ExtensionStateKind::Enabled);
+        let binding = ToolLock::load(&fixture.state.paths.tool_lock_file).unwrap();
+        assert_eq!(binding.tools[&fixture.entry.id].state, LockState::Connected);
+
+        // With a binding present the list now reports it as connected.
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+        assert!(listed.runtime_available);
     }
 
     #[cfg(unix)]

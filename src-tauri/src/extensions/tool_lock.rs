@@ -205,14 +205,52 @@ impl ToolLock {
 /// leaves the persisted binding untouched so callers can fall back to their
 /// broken handling.
 ///
-/// Returns the effective state plus whether the in-memory lock changed and
-/// should therefore be persisted by the caller.
+/// This variant may create a *first* binding when the tool has none (a
+/// `bind_locator` write). The catalog load path uses it because a connected
+/// integration has no other durable place to record its binding. Read paths
+/// must use [`resolve_existing_binding`] instead.
+///
+/// Returns the effective state plus whether the persisted lock changed and
+/// should therefore be saved by the caller.
 pub(crate) fn resolve_executable_binding(
     lock: &mut ToolLock,
     binding: &str,
     executable_path: &str,
     validate: impl FnOnce() -> Result<(), String>,
 ) -> Result<(LockState, bool), String> {
+    resolve_executable_binding_impl(lock, binding, executable_path, true, validate)
+}
+
+/// Read-only variant of [`resolve_executable_binding`]: a tool with no
+/// persisted binding is reported as [`LockState::ReconnectRequired`] and the
+/// lock is left completely untouched. Used by the list view (and the legacy
+/// `check_executable_binding` helper) so a read operation can neither create a
+/// first binding nor otherwise mutate `tool-lock.json`.
+///
+/// The missing entry is *not* stamped into memory either: the catalog load
+/// path still owns the lazy first binding, and stamping a bindingless entry
+/// here would make a later catalog load see a bogus binding and mark the tool
+/// broken. The returned "changed" flag is therefore always `false` for a
+/// missing binding.
+pub(crate) fn resolve_existing_binding(
+    lock: &mut ToolLock,
+    binding: &str,
+    executable_path: &str,
+    validate: impl FnOnce() -> Result<(), String>,
+) -> Result<(LockState, bool), String> {
+    resolve_executable_binding_impl(lock, binding, executable_path, false, validate)
+}
+
+fn resolve_executable_binding_impl(
+    lock: &mut ToolLock,
+    binding: &str,
+    executable_path: &str,
+    allow_first_binding: bool,
+    validate: impl FnOnce() -> Result<(), String>,
+) -> Result<(LockState, bool), String> {
+    if !lock.tools.contains_key(binding) && !allow_first_binding {
+        return Ok((LockState::ReconnectRequired, false));
+    }
     let candidate = crate::extensions::inventory::executable_candidate(
         Path::new(executable_path),
         Path::new(executable_path)
@@ -431,5 +469,47 @@ mod tests {
                 .unwrap();
 
         assert_eq!(state, LockState::ReconnectRequired);
+    }
+
+    #[test]
+    fn an_unbound_tool_is_marked_reconnect_required_without_a_durable_binding() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+        let mut lock = ToolLock::default();
+
+        let (state, changed) =
+            resolve_existing_binding(&mut lock, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+
+        assert_eq!(state, LockState::ReconnectRequired);
+        // No durable change and no in-memory stamp: the read path is inert.
+        assert!(!changed);
+        assert!(!lock.tools.contains_key("tool"));
+
+        // A second resolution is stable and still reports no durable change.
+        let (state, changed) =
+            resolve_existing_binding(&mut lock, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+        assert_eq!(state, LockState::ReconnectRequired);
+        assert!(!changed);
+        assert!(!lock.tools.contains_key("tool"));
+    }
+
+    #[test]
+    fn a_first_binding_is_created_only_when_allow_first_binding_is_true() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+        let mut lock = ToolLock::default();
+
+        let (state, changed) =
+            resolve_executable_binding(&mut lock, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+
+        assert_eq!(state, LockState::Connected);
+        assert!(changed);
+        assert_eq!(lock.tools["tool"].state, LockState::Connected);
+        assert!(lock.tools["tool"].fingerprint.is_some());
     }
 }
