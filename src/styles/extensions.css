@@ -154,21 +154,87 @@
   border-color: color-mix(in srgb, var(--text-warning) 36%, var(--stroke-control));
 }
 
-/* App-level toast stack (see components/ToastStack.tsx). The host is a child
-   of the surface card, OUTSIDE the scrollable page content, so toasts stay
-   pinned to the card's top-right regardless of scroll position — rendering
-   them inside the scroller made them drift off-screen as the user scrolled.
-   `contain: none` is deliberate: a fixed descendant must resolve against the
-   card, not be clipped into a scroll container. */
+/* App-level toast stack (see components/ToastStack.tsx). The host is a stable
+   sibling of the mode shell, so it sits outside any scroll container and stays
+   pinned while the page content scrolls. Neither `#root` (base.css) nor the
+   shell carries a transform — `will-change: opacity, transform` sits on the
+   shell, not on `#root`, and `will-change` alone creates no containing block
+   anyway — so the fixed stack resolves against the viewport, whose height is
+   exactly the problem: the collapsed launcher window is only ~58px tall, so a
+   64px top offset would land outside it. In settings the card happens to start
+   at the window's top edge, so `top: 64px` still clears its 56px header (the
+   original design); the other surfaces key off the host's `data-surface`
+   instead. */
 #floter-app-toasts {
   position: fixed;
-  top: 64px; /* card header height (56px) + breathing room */
+  top: 64px; /* settings: card header (56px) + breathing room */
   right: 16px;
   z-index: 60;
   width: min(360px, calc(100% - 32px));
   display: grid;
   gap: 8px;
   pointer-events: none;
+}
+
+/* Terminal and plugin pages are full-height windows like settings — the panel
+   fills the window and the 28px terminal bar (or 56px plugin page header) sits
+   at the top — so the same card offset clears their chrome and stays put. */
+
+/* The launcher window is a thin ~58px strip: the input row fills y=0..56 and
+   the two 28x28 icon buttons sit at the right end (x∈[628,712], y∈[14,42] in
+   the reviewed window), so no toast placement is overlap-free. This surface
+   therefore shows only its newest toast (App appends newest last; the rule
+   below drops every earlier entry from layout, so the 58px window never
+   overflows even though MAX_TOASTS=3 still queues in state) and pins that one
+   to a 20px strip on the bottom-LEFT edge. Geometry: the strip spans
+   y∈[H-26,H-6] (H≈58 → y∈[32,52]) and x∈[6, min(306, 100%-6)]. Its vertical
+   band does reach the input row's lower edge, but that is harmless: the input
+   text is centred near y=28 and ends before x≈612, while the strip stops at
+   x≤306 — horizontally it is entirely left of the buttons at x≥628, so the
+   buttons' hit area is never covered. (Anchoring to the bottom-RIGHT — the
+   old `bottom:6px; right:6px` — puts the strip at x∈[H..], directly over the
+   buttons, which is the bug this replaces.) A full-height toast would rise
+   through y∈[20,52] and cover them; the 20px strip height plus the left
+   anchor is what removes the occlusion. */
+#floter-app-toasts[data-surface="collapsed"] {
+  top: auto;
+  bottom: 6px;
+  left: 6px;
+  right: auto;
+  width: min(300px, calc(100% - 12px));
+}
+
+/* Collapsed holds a single toast: every earlier entry is removed from layout
+   so the host grid never reserves a second row that the 58px window cannot
+   fit. `display: none` (not visibility) is required — visibility would keep
+   the box and still overflow. */
+#floter-app-toasts[data-surface="collapsed"] > .app-toast:not(:last-child) {
+  display: none;
+}
+
+/* The surviving toast becomes the bottom strip: a forced single-line height
+   (ellipsis instead of wrapping) and a slimmer dismiss chip so the 20px band
+   still leaves a hit target. */
+#floter-app-toasts[data-surface="collapsed"] > .app-toast {
+  height: 20px;
+  padding: 0 8px;
+  font-size: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+#floter-app-toasts[data-surface="collapsed"] > .app-toast > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#floter-app-toasts[data-surface="collapsed"] > .app-toast .app-toast__dismiss {
+  width: auto;
+  min-width: 0;
+  height: 18px;
+  min-height: 18px;
+  padding: 0 2px;
 }
 
 .app-toast {

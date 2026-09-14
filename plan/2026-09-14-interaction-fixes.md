@@ -1,7 +1,7 @@
 # 迭代计划：插件页保活 / 焦点恢复 / 剪贴板卡顿 / 通用 Toast
 
 日期：2026-09-14
-状态：部分完成（见「已完成」），核心的插件页保活与焦点恢复待做
+状态：任务 A 已完成（2026-09-14，经 pi 实现→审查→修复→nit 清理→终审 APPROVE 共 5 轮，node 111/111、tsc/build 全绿）；任务 B、C 待做
 验证管线：`npx tsc --noEmit` · `npm run build` · `npm test`（node --test）· `cargo fmt --check` · `cargo test --lib`
 
 ---
@@ -53,7 +53,7 @@
 
 ### A · 插件页保活 + 关闭后焦点恢复（同时解决「卡顿」与「焦点丢失」）
 
-**优先级：高**
+**优先级：高** · **状态：已完成**（单实例 pluginLayer 跨四 mode 保活；ToastHost 按 data-surface 分表面定位；关闭后 focusCollapsedInput/focusTerminalView 抢回焦点 + iframe blur；plugin-layer 按 --window-radius 裁切、Windows inset:10px；测试 tests/plugin-page-persistence.test.ts 8 例。遗留备注：extensions.css 一处注释把假设前态写成了实际前态，纯注释问题）
 
 **根因（已定位，未修）**
 `src/App.tsx` 的四个 mode 分支各自 `return` 不同的根元素：

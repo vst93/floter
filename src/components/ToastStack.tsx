@@ -4,38 +4,44 @@ import { AlertCircle, Check, X } from "lucide-react";
 import type { Translate } from "../i18n";
 import { TOAST_DISMISS_MS, type AppToast } from "../toast-state";
 
-/** Container the toast stack renders into. App.tsx mounts it as a direct
- * child of whichever surface card is showing (`settings-card`: the floater
- * body), OUTSIDE the scrollable content area. */
+/** Container the toast stack renders into. App.tsx mounts it as a stable
+ * sibling of the mode shell (and of the plugin layer), so it survives mode
+ * switches without unmounting. The element carries the current surface in
+ * `data-surface`, which `#floter-app-toasts` uses to position the stack for
+ * each window geometry (see extensions.css). */
 export const TOAST_PORTAL_ID = "floter-app-toasts";
 
 /**
  * The app's shared toast stack.
  *
  * Feedback about an action must be visible wherever the user happens to be.
- * Rendering the stack inside `position: fixed` while the nearest scroll
- * container is the page body makes the toasts scroll away with the content —
- * hence the portal: the host element lives on the card, whose only scrollable
- * descendant is the page content, so the stack stays pinned to the card's
- * top-right corner no matter how far down the list the user is.
+ * The host is a sibling of the mode shell, so it never lands inside a scroll
+ * container and stays put while the settings page content scrolls. Its
+ * `position: fixed` resolves against the viewport: `#root` (base.css) carries
+ * no `will-change` and no transform, and the shells' `will-change` alone does
+ * not make its descendants' containing block either — so nothing between the
+ * host and the viewport qualifies as a containing block. The viewport's height
+ * differs per surface — hence the `data-surface` attribute, which the
+ * stylesheet keys off to keep the stack inside the window on every mode.
  */
 /**
- * Mount the toast portal target plus the stack. Place this as a direct child
- * of the surface card (the element that is the containing block for fixed
- * descendants), never inside a scroll container.
+ * Mount the toast portal target plus the stack. Place this as a stable sibling
+ * of the surface shell so it is never caught inside a scroll container.
  */
 export function ToastHost({
   toasts,
   t,
+  dataSurface,
   onDismiss,
 }: {
   toasts: AppToast[];
   t: Translate;
+  dataSurface: string;
   onDismiss: (id: number) => void;
 }) {
   return (
     <>
-      <div id={TOAST_PORTAL_ID} />
+      <div id={TOAST_PORTAL_ID} data-surface={dataSurface} />
       <ToastStack toasts={toasts} t={t} onDismiss={onDismiss} />
     </>
   );

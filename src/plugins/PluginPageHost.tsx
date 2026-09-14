@@ -236,6 +236,19 @@ export function PluginPageHost({
   }, [src]);
 
   useEffect(() => {
+    if (!pluginId) {
+      // The page was closed while the iframe stays mounted (its home is now the
+      // persistent plugin layer above the shells). A hidden document that still
+      // owns the keyboard would swallow the first keystroke meant for the
+      // surface underneath, so relinquish focus explicitly; the host re-focuses
+      // the launcher/terminal it returned to.
+      iframeRef.current?.blur();
+      iframeRef.current?.contentWindow?.blur();
+      return;
+    }
+  }, [pluginId]);
+
+  useEffect(() => {
     if (!frameLoaded) return;
     const frame = iframeRef.current?.contentWindow;
     const message: BridgeVisibility = { [BRIDGE_TAG]: "visibility", visible: Boolean(pluginId) };

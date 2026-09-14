@@ -339,15 +339,10 @@ export default function App() {
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => removeToast(current, id));
   }, []);
-  // Toasts host on the settings and terminal cards. When the panel moves to a
-  // surface with no host (collapsed launcher, plugin page) the rendered nodes
-  // unmount and their dismiss timers go with them — clear the queue so a toast
-  // cannot reappear, already stale, the next time a host mounts.
-  const toastHostMounted = mode === "settings" || mode === "terminal";
-  useEffect(() => {
-    if (toastHostMounted) return;
-    setToasts((current) => (current.length ? [] : current));
-  }, [toastHostMounted]);
+  // The toast host is mounted on every mode's shell (see the branches below),
+  // so the stack survives mode switches with the rest of the surface. Its
+  // dismiss timers therefore never unmount mid-flight; the queue empties on its
+  // own as each toast times out or is dismissed.
 
   const {
     sessions: terminalSessions,
@@ -443,6 +438,20 @@ export default function App() {
     suppressBlurUntil.current = Date.now() + 400;
     setPluginPageId(null);
     setMode(pluginReturnMode.current);
+    // The iframe is kept alive across mode switches (see `pluginLayer`), so it
+    // is no longer torn down — and therefore no longer blurs itself — when the
+    // page closes. It stays hidden but can still hold the keyboard while the
+    // plugin id is null, which would swallow the first keystroke aimed at the
+    // surface underneath. Chase the focus back onto the surface we return to,
+    // several times to clear the layout/autoFocus race the old teardown hid.
+    if (pluginReturnMode.current === "terminal") {
+      focusTerminalView(0);
+      focusTerminalView(80);
+    } else {
+      focusCollapsedInput(0);
+      focusCollapsedInput(90);
+      focusCollapsedInput(140);
+    }
   };
 
   /** Open a plugin page over whatever surface is showing, remembering it for
@@ -1219,211 +1228,245 @@ export default function App() {
     />
   ) : null;
 
+  // The plugin page host lives OUTSIDE the four mode branches, rendered as the
+  // first child of every branch's tree. Because React reconciles siblings by
+  // position and type, this is the *same* element instance in all four modes —
+  // switching modes never unmounts it, so the sandboxed iframe is created once
+  // and reused. That is what makes opening the page instant (no re-fetch of the
+  // descriptor, page scripts or clipboard entries) and preserves its filter
+  // text, selection and scroll position across toggles. The layer is only
+  // painted in plugin mode (`data-active`); in the other modes it stays mounted
+  // but `display: none`.
+  const pluginLayer = (
+    <div
+      className="plugin-layer"
+      data-active={mode === "plugin" && pluginPageId ? "true" : undefined}
+    >
+      <PluginPageHost
+        pluginId={pluginPageId}
+        language={language}
+        theme={resolvedTheme}
+        mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
+        terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
+        onClose={closePluginPage}
+      />
+    </div>
+  );
+
+  // The toast host is rendered once, as a stable sibling of the mode shell (and
+  // of `pluginLayer`), so the stack survives mode switches without unmounting:
+  // a toast raised in the integrations panel stays visible when the window
+  // flips to the launcher or a plugin page, and its dismiss timer is never cut
+  // short. Its positioning is surface-specific, so the host carries the current
+  // `data-surface` for `#floter-app-toasts` to key off (see extensions.css) —
+  // the containing block is the viewport, whose height varies per surface.
+  const toastHost = (
+    <ToastHost
+      toasts={toasts}
+      t={t}
+      dataSurface={mode}
+      onDismiss={dismissToast}
+    />
+  );
+
   if (mode === "settings") {
     return (
-      <div className="settings-shell">
-        {pinnedCardElement}
-        <div className="settings-card" onMouseDown={startDrag}>
-          <header className="settings-card__header">
-            <span className="settings-card__title">
-              {t("settings.title")}
-              <span className="settings-card__version">v{appVersion}</span>
-            </span>
-            <div className="settings-card__actions">
-              <button
-                type="button"
-                className="toolbar-button toolbar-button--quit"
-                aria-label={t("settings.quit")}
-                title={t("settings.quitHint")}
-                onClick={() => void quitApp()}
-              >
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="toolbar-button toolbar-button--close"
-                aria-label={t("settings.close")}
-                title={t("settings.closeHint")}
-                onClick={closeSettings}
-              >
-                ×
-              </button>
+      <>
+        {pluginLayer}
+        {toastHost}
+        <div className="settings-shell">
+          {pinnedCardElement}
+          <div className="settings-card" onMouseDown={startDrag}>
+            <header className="settings-card__header">
+              <span className="settings-card__title">
+                {t("settings.title")}
+                <span className="settings-card__version">v{appVersion}</span>
+              </span>
+              <div className="settings-card__actions">
+                <button
+                  type="button"
+                  className="toolbar-button toolbar-button--quit"
+                  aria-label={t("settings.quit")}
+                  title={t("settings.quitHint")}
+                  onClick={() => void quitApp()}
+                >
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-button toolbar-button--close"
+                  aria-label={t("settings.close")}
+                  title={t("settings.closeHint")}
+                  onClick={closeSettings}
+                >
+                  ×
+                </button>
+              </div>
+            </header>
+
+            <div className="settings-card__body">
+              <nav className="settings-sidebar" aria-label={t("settings.title")} data-no-drag>
+                {([
+                  ["general", SlidersHorizontal],
+                  ["sessions", SquareTerminal],
+                  ["shortcuts", Keyboard],
+                  ["integrations", Blocks],
+                  ["about", Info],
+                ] as const).map(([page, Icon]) => (
+                  <button
+                    key={page}
+                    type="button"
+                    ref={(node) => {
+                      if (node) settingsSidebarButtons.current.set(page, node);
+                      else settingsSidebarButtons.current.delete(page);
+                    }}
+                    className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"}
+                    aria-current={settingsPage === page ? "page" : undefined}
+                    onClick={() => {
+                      changeSettingsPage(page);
+                      if (page === "sessions") scheduleSessionRefresh();
+                    }}
+                  >
+                    <Icon size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>{t(`settings.menu.${page}`)}</span>
+                  </button>
+                ))}
+              </nav>
+              <main className="settings-content" data-no-drag key={settingsPage}>
+              {settingsLoadFailed && (
+                <div className="settings-save-alert" role="alert">
+                  <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
+                  <span>{t("settings.loadFailed")}</span>
+                  <button type="button" disabled={settingsLoading} onClick={() => void loadSettings()}>{t("settings.retry")}</button>
+                </div>
+              )}
+              {settingsSaveFailed && (
+                <div className="settings-save-alert settings-save-alert--toast" role="alert">
+                  <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
+                  <span>{t("settings.saveFailed")}</span>
+                  <button
+                    type="button"
+                    aria-label={t("settings.extensions.dismissNotice")}
+                    onClick={dismissSaveError}
+                  >
+                    <X size={14} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                </div>
+              )}
+              {settingsPage === "general" && (
+              <GeneralPage
+                busy={settingsSaving || settingsLoading}
+                t={t}
+                settings={settings}
+                language={language}
+                autostartUpdating={autostartUpdating}
+                onChangeTheme={changeTheme}
+                onChangeLanguage={changeLanguage}
+                onChangeGeneralSetting={changeGeneralSetting}
+                onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
+                onChangeFontSize={changeFontSize}
+                onChangeOpacity={changeOpacity}
+              />
+              )}
+
+              {settingsPage === "shortcuts" && (
+              <ShortcutsPage
+                busy={shortcutsSaving || settingsLoading}
+                t={t}
+                shortcuts={shortcuts}
+                clipboardHotkey={settings.clipboard_history_hotkey}
+                rejectedAction={rejectedAction}
+                recordingAction={recordingAction}
+                onToggleRecording={toggleRecording}
+                onCaptureShortcut={captureShortcut}
+                onCancelRecording={cancelRecording}
+                onRestoreDefaults={() => void restoreDefaultShortcuts()}
+                onClearClipboardHotkey={clearClipboardHotkey}
+              />
+              )}
+
+              {settingsPage === "sessions" && (
+              <SessionsPage
+                t={t}
+                sessions={terminalSessions}
+                loading={sessionsLoading}
+                error={sessionsError}
+                actionId={sessionActionId}
+                dateFormatter={sessionDateFormatter}
+                onResume={(session) => void resumeTerminalSession(session)}
+                onKill={(session) => void killTerminalSession(session)}
+                onRefresh={() => void refreshTerminalSessions()}
+              />
+              )}
+
+              {settingsPage === "integrations" && (
+              <ExtensionsPanel
+                settingsBusy={settingsSaving || settingsLoading || autostartUpdating}
+                t={t}
+                locale={language}
+                onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
+                showCommandsInSearch={settings.show_commands_in_search}
+                onToggleCommandsInSearch={toggleCommandsInSearch}
+                basePlugins={[
+                  {
+                    id: CLIPBOARD_PLUGIN_ID,
+                    titleKey: "settings.clipboardHistory",
+                    descriptionKey: "settings.clipboardHistoryHint",
+                    enabled: settings.clipboard_history_enabled,
+                  },
+                ]}
+                onToggleBasePlugin={(id, enabled) => {
+                  if (id !== CLIPBOARD_PLUGIN_ID) return;
+                  changeGeneralSetting("clipboard_history_enabled", enabled);
+                }}
+                onNotify={notify}
+              />
+              )}
+
+              {settingsPage === "about" && (
+              <AboutPage
+                t={t}
+                appVersion={appVersion}
+                updateInfo={updateInfo}
+                updateDownloading={updateDownloading}
+                updateProgress={updateProgress}
+                updateFailed={updateFailed}
+                onDownloadUpdate={downloadAndInstallUpdate}
+              />
+              )}
+              </main>
             </div>
-          </header>
-
-          <div className="settings-card__body">
-            <nav className="settings-sidebar" aria-label={t("settings.title")} data-no-drag>
-              {([
-                ["general", SlidersHorizontal],
-                ["sessions", SquareTerminal],
-                ["shortcuts", Keyboard],
-                ["integrations", Blocks],
-                ["about", Info],
-              ] as const).map(([page, Icon]) => (
-                <button
-                  key={page}
-                  type="button"
-                  ref={(node) => {
-                    if (node) settingsSidebarButtons.current.set(page, node);
-                    else settingsSidebarButtons.current.delete(page);
-                  }}
-                  className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"}
-                  aria-current={settingsPage === page ? "page" : undefined}
-                  onClick={() => {
-                    changeSettingsPage(page);
-                    if (page === "sessions") scheduleSessionRefresh();
-                  }}
-                >
-                  <Icon size={15} strokeWidth={2} aria-hidden="true" />
-                  <span>{t(`settings.menu.${page}`)}</span>
-                </button>
-              ))}
-            </nav>
-            <main className="settings-content" data-no-drag key={settingsPage}>
-            {settingsLoadFailed && (
-              <div className="settings-save-alert" role="alert">
-                <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
-                <span>{t("settings.loadFailed")}</span>
-                <button type="button" disabled={settingsLoading} onClick={() => void loadSettings()}>{t("settings.retry")}</button>
-              </div>
-            )}
-            {settingsSaveFailed && (
-              <div className="settings-save-alert settings-save-alert--toast" role="alert">
-                <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
-                <span>{t("settings.saveFailed")}</span>
-                <button
-                  type="button"
-                  aria-label={t("settings.extensions.dismissNotice")}
-                  onClick={dismissSaveError}
-                >
-                  <X size={14} strokeWidth={2} aria-hidden="true" />
-                </button>
-              </div>
-            )}
-            {settingsPage === "general" && (
-            <GeneralPage
-              busy={settingsSaving || settingsLoading}
-              t={t}
-              settings={settings}
-              language={language}
-              autostartUpdating={autostartUpdating}
-              onChangeTheme={changeTheme}
-              onChangeLanguage={changeLanguage}
-              onChangeGeneralSetting={changeGeneralSetting}
-              onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
-              onChangeFontSize={changeFontSize}
-              onChangeOpacity={changeOpacity}
-            />
-            )}
-
-            {settingsPage === "shortcuts" && (
-            <ShortcutsPage
-              busy={shortcutsSaving || settingsLoading}
-              t={t}
-              shortcuts={shortcuts}
-              clipboardHotkey={settings.clipboard_history_hotkey}
-              rejectedAction={rejectedAction}
-              recordingAction={recordingAction}
-              onToggleRecording={toggleRecording}
-              onCaptureShortcut={captureShortcut}
-              onCancelRecording={cancelRecording}
-              onRestoreDefaults={() => void restoreDefaultShortcuts()}
-              onClearClipboardHotkey={clearClipboardHotkey}
-            />
-            )}
-
-            {settingsPage === "sessions" && (
-            <SessionsPage
-              t={t}
-              sessions={terminalSessions}
-              loading={sessionsLoading}
-              error={sessionsError}
-              actionId={sessionActionId}
-              dateFormatter={sessionDateFormatter}
-              onResume={(session) => void resumeTerminalSession(session)}
-              onKill={(session) => void killTerminalSession(session)}
-              onRefresh={() => void refreshTerminalSessions()}
-            />
-            )}
-
-            {settingsPage === "integrations" && (
-            <ExtensionsPanel
-              settingsBusy={settingsSaving || settingsLoading || autostartUpdating}
-              t={t}
-              locale={language}
-              onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
-              showCommandsInSearch={settings.show_commands_in_search}
-              onToggleCommandsInSearch={toggleCommandsInSearch}
-              basePlugins={[
-                {
-                  id: CLIPBOARD_PLUGIN_ID,
-                  titleKey: "settings.clipboardHistory",
-                  descriptionKey: "settings.clipboardHistoryHint",
-                  enabled: settings.clipboard_history_enabled,
-                },
-              ]}
-              onToggleBasePlugin={(id, enabled) => {
-                if (id !== CLIPBOARD_PLUGIN_ID) return;
-                changeGeneralSetting("clipboard_history_enabled", enabled);
-              }}
-              onNotify={notify}
-            />
-            )}
-
-            {settingsPage === "about" && (
-            <AboutPage
-              t={t}
-              appVersion={appVersion}
-              updateInfo={updateInfo}
-              updateDownloading={updateDownloading}
-              updateProgress={updateProgress}
-              updateFailed={updateFailed}
-              onDownloadUpdate={downloadAndInstallUpdate}
-            />
-            )}
-            </main>
           </div>
-          <ToastHost toasts={toasts} t={t} onDismiss={dismissToast} />
         </div>
-      </div>
+      </>
     );
   }
 
   if (mode === "plugin" && pluginPageId) {
     // A plugin page IS a terminal page: it renders in the very shell the
     // terminal mode uses — same `.terminal-shell` window padding, same
-    // `.terminal-panel` card material, radius and platform shadows — shown in
-    // place of the terminal canvas while active. The window geometry comes
+    // `.terminal-panel` card material, radius and platform shadows — shown
+    // underneath the plugin layer while active. The window geometry comes
     // from the backend's `show_plugin_page` (same saved size as terminal
     // mode); the embedded PTY keeps running underneath, untouched. The page
     // itself is whatever HTML the plugin declared, hosted through the generic
-    // sandboxed-iframe + bridge pipeline.
-    //
-    // The host is rendered persistently (even when mode !== "plugin") to keep
-    // the iframe alive across toggles — tearing it down and recreating it on
-    // every open caused visible jank. When pluginPageId is null, the host hides
-    // its iframe but keeps it mounted, so reopening is instant and preserves
-    // the page's filter text, selection and scroll position.
+    // sandboxed-iframe + bridge pipeline, in the persistent `pluginLayer`
+    // above.
     return (
-      <div className="terminal-shell">
-        {pinnedCardElement}
-        <section className="terminal-panel terminal-panel--entered terminal-panel--plugin">
-          <div className="terminal-panel__body">
-            <PluginPageHost
-              pluginId={pluginPageId}
-              language={language}
-              theme={resolvedTheme}
-              mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
-              terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
-              onClose={closePluginPage}
-            />
-          </div>
-        </section>
-      </div>
+      <>
+        {pluginLayer}
+        {toastHost}
+        <div className="terminal-shell">
+          {pinnedCardElement}
+          {/* The panel renders only as the rounded backdrop under the plugin
+              layer; its body would be entirely covered and stay empty. */}
+          <section className="terminal-panel terminal-panel--entered" />
+        </div>
+      </>
     );
   }
 
@@ -1438,240 +1481,232 @@ export default function App() {
         : t("input.placeholder");
 
     return (
-      <div className="collapsed-shell">
-        {pinnedCardElement}
-        <div
-          ref={collapsedCardRef}
-          className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
-          style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - 220)}px` } as React.CSSProperties}
-          onMouseDown={startDrag}
-          onClick={(event) => {
-            if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
-          }}
-        >
-          <div className="collapsed-card__input-row">
-            <div className="collapsed-card__aura" aria-hidden="true" />
-            <input
-              ref={inputRef}
-              className="collapsed-card__input"
-              role="combobox"
-              aria-label={t("input.placeholder")}
-              aria-autocomplete="list"
-              aria-expanded={launcherResults.length > 0}
-              aria-controls={launcherResults.length > 0 ? "launcher-options" : undefined}
-              aria-activedescendant={
-                selectedActionBar && visibleActionBar
-                  ? "launcher-option-action"
-                  : launcherResults[selectedResultIndex]
-                    ? `launcher-option-${selectedResultIndex}`
-                    : undefined
-              }
-              value={query}
-              onChange={(event) => {
-                setLauncherFeedback(null);
-                setQuery(event.target.value);
-                setHistoryIndex(-1);
-              }}
-              onKeyDown={onInputKeyDown}
-              onCompositionStart={() => { isComposing.current = true; }}
-              onCompositionEnd={() => {
-                isComposing.current = false;
-              }}
-              onKeyUp={(event) => {
-                if (
-                  ["Meta", "Control", "Alt", "Shift"].includes(event.key) &&
-                  actionBar &&
-                  selectedActionBar &&
-                  !matchesShortcutModifiers(event.nativeEvent, shortcuts.select_result)
-                ) {
-                  setSelectedActionBar(false);
+      <>
+        {pluginLayer}
+        {toastHost}
+        <div className="collapsed-shell">
+          {pinnedCardElement}
+          <div
+            ref={collapsedCardRef}
+            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
+            style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - 220)}px` } as React.CSSProperties}
+            onMouseDown={startDrag}
+            onClick={(event) => {
+              if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
+            }}
+          >
+            <div className="collapsed-card__input-row">
+              <div className="collapsed-card__aura" aria-hidden="true" />
+              <input
+                ref={inputRef}
+                className="collapsed-card__input"
+                role="combobox"
+                aria-label={t("input.placeholder")}
+                aria-autocomplete="list"
+                aria-expanded={launcherResults.length > 0}
+                aria-controls={launcherResults.length > 0 ? "launcher-options" : undefined}
+                aria-activedescendant={
+                  selectedActionBar && visibleActionBar
+                    ? "launcher-option-action"
+                    : launcherResults[selectedResultIndex]
+                      ? `launcher-option-${selectedResultIndex}`
+                      : undefined
                 }
-              }}
-              placeholder={placeholder}
-              autoFocus
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-            />
-            <button
-              type="button"
-              className="collapsed-card__settings"
-              aria-label={t("terminal.sessions")}
-              title={t("terminal.sessionsOpen")}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-                openSettings("sessions");
-              }}
-            >
-              <SquareTerminal size={16} strokeWidth={1.8} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="collapsed-card__settings"
-              aria-label={t("settings.open")}
-              title={t("settings.openHint", { shortcut: formatShortcut(shortcuts.open_settings) })}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-                openSettings();
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="15"
-                height="15"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-          </div>
-          {/* First-run onboarding tip: a small dismissible banner shown above
-              the result area the first time the user opens the launcher. */}
-          {showOnboardingTip && (
-            <div className="launcher-tip" role="status">
-              <div className="launcher-tip__body">
-                <span className="launcher-tip__icon" aria-hidden="true">
-                  <Info size={14} strokeWidth={1.8} />
-                </span>
-                <div className="launcher-tip__text">
-                  <div className="launcher-tip__title">{t("launcher.tipTitle")}</div>
-                  <div className="launcher-tip__message">{t("launcher.tipMessage")}</div>
-                </div>
-              </div>
+                value={query}
+                onChange={(event) => {
+                  setLauncherFeedback(null);
+                  setQuery(event.target.value);
+                  setHistoryIndex(-1);
+                }}
+                onKeyDown={onInputKeyDown}
+                onCompositionStart={() => { isComposing.current = true; }}
+                onCompositionEnd={() => {
+                  isComposing.current = false;
+                }}
+                onKeyUp={(event) => {
+                  if (
+                    ["Meta", "Control", "Alt", "Shift"].includes(event.key) &&
+                    actionBar &&
+                    selectedActionBar &&
+                    !matchesShortcutModifiers(event.nativeEvent, shortcuts.select_result)
+                  ) {
+                    setSelectedActionBar(false);
+                  }
+                }}
+                placeholder={placeholder}
+                autoFocus
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+              />
               <button
                 type="button"
-                className="launcher-tip__dismiss"
+                className="collapsed-card__settings"
+                aria-label={t("terminal.sessions")}
+                title={t("terminal.sessionsOpen")}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
                 onClick={(event) => {
                   event.stopPropagation();
-                  dismissOnboardingTip();
+                  openSettings("sessions");
                 }}
               >
-                {t("launcher.tipDismiss")}
+                <SquareTerminal size={16} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="collapsed-card__settings"
+                aria-label={t("settings.open")}
+                title={t("settings.openHint", { shortcut: formatShortcut(shortcuts.open_settings) })}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openSettings();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="15"
+                  height="15"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
               </button>
             </div>
-          )}
-          {/* The clip controls visibility while the native window height follows
-              the measured content. Its contents fade in and out without a
-              competing CSS height animation. */}
-          <div
-            className={
-              launcherResults.length > 0 || launcherFeedback || appsError
-                ? "launcher-bottom-clip launcher-bottom-clip--open"
-                : "launcher-bottom-clip"
-            }
-          >
-            <div className="launcher-bottom">
-              {appsError && (
-                <div className="launcher-feedback" role="alert">
-                  <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
-                  <span>{t("input.scanFailed")}</span>
-                  <button
-                    type="button"
-                    className="launcher-feedback__retry"
-                    aria-label={t("input.retryScan")}
-                    title={t("input.retryScan")}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      scanApplications(true);
-                    }}
-                  >
-                    <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
-                  </button>
-                </div>
-              )}
-              {launcherFeedback && (
-                <div className="launcher-feedback launcher-feedback--warning" role="alert" aria-live="assertive">
-                  <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
-                  <span>{t(launcherFeedback)}</span>
-                </div>
-              )}
-              {pendingSystemAction && (
-                <div className="launcher-system-confirm" role="alert">
-                  <AlertCircle className="launcher-system-confirm__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
-                  <span className="launcher-system-confirm__message">
-                    {t(pendingSystemAction.action === "restart"
-                      ? "system.restartConfirm"
-                      : "system.shutdownConfirm")}
+            {/* First-run onboarding tip: a small dismissible banner shown above
+                the result area the first time the user opens the launcher. */}
+            {showOnboardingTip && (
+              <div className="launcher-tip" role="status">
+                <div className="launcher-tip__body">
+                  <span className="launcher-tip__icon" aria-hidden="true">
+                    <Info size={14} strokeWidth={1.8} />
                   </span>
-                  <button
-                    type="button"
-                    className="launcher-system-confirm__execute"
-                    data-destructive-confirm
-                    onClick={() => void executeSystemAction()}
-                  >
-                    {t(pendingSystemAction.action === "restart"
-                      ? "system.restart"
-                      : "system.shutdown")}
-                  </button>
-                  <button
-                    type="button"
-                    className="launcher-system-confirm__cancel"
-                    onClick={() => cancelSystemAction()}
-                  >
-                    {t("settings.extensions.cancel")}
-                  </button>
+                  <div className="launcher-tip__text">
+                    <div className="launcher-tip__title">{t("launcher.tipTitle")}</div>
+                    <div className="launcher-tip__message">{t("launcher.tipMessage")}</div>
+                  </div>
                 </div>
-              )}
-              <LauncherResults
-                t={t}
-                results={launcherResults}
-                actionBar={visibleActionBar}
-                appIconUrls={appIconUrls}
-                selectedResultIndex={selectedResultIndex}
-                selectedActionBar={selectedActionBar}
-                resultShortcutSlots={resultShortcutSlots}
-                actionBarShortcut={actionBarShortcut}
-                selectResultShortcut={shortcuts.select_result}
-                showRecentTitle={!query.trim()}
-                onSelectResult={(index) => {
-                  setSelectedActionBar(false);
-                  setSelectedResultIndex(index);
-                }}
-                onSelectActionBar={() => setSelectedActionBar(true)}
-                onRunResult={runLauncherItem}
-                onRunActionBar={() => {
-                  if (visibleActionBar) executeActionBar(visibleActionBar);
-                }}
-              />
-              {launcherResults.length === 0 &&
-                !actionBar &&
-                !query.trim() &&
-                !settings.show_commands_in_search && (
-                  <div className="launcher-hint" role="status">
-                    {t("launcher.enableIntegrationsHint")}
+                <button
+                  type="button"
+                  className="launcher-tip__dismiss"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    dismissOnboardingTip();
+                  }}
+                >
+                  {t("launcher.tipDismiss")}
+                </button>
+              </div>
+            )}
+            {/* The clip controls visibility while the native window height follows
+                the measured content. Its contents fade in and out without a
+                competing CSS height animation. */}
+            <div
+              className={
+                launcherResults.length > 0 || launcherFeedback || appsError
+                  ? "launcher-bottom-clip launcher-bottom-clip--open"
+                  : "launcher-bottom-clip"
+              }
+            >
+              <div className="launcher-bottom">
+                {appsError && (
+                  <div className="launcher-feedback" role="alert">
+                    <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                    <span>{t("input.scanFailed")}</span>
+                    <button
+                      type="button"
+                      className="launcher-feedback__retry"
+                      aria-label={t("input.retryScan")}
+                      title={t("input.retryScan")}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        scanApplications(true);
+                      }}
+                    >
+                      <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
+                    </button>
                   </div>
                 )}
+                {launcherFeedback && (
+                  <div className="launcher-feedback launcher-feedback--warning" role="alert" aria-live="assertive">
+                    <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                    <span>{t(launcherFeedback)}</span>
+                  </div>
+                )}
+                {pendingSystemAction && (
+                  <div className="launcher-system-confirm" role="alert">
+                    <AlertCircle className="launcher-system-confirm__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                    <span className="launcher-system-confirm__message">
+                      {t(pendingSystemAction.action === "restart"
+                        ? "system.restartConfirm"
+                        : "system.shutdownConfirm")}
+                    </span>
+                    <button
+                      type="button"
+                      className="launcher-system-confirm__execute"
+                      data-destructive-confirm
+                      onClick={() => void executeSystemAction()}
+                    >
+                      {t(pendingSystemAction.action === "restart"
+                        ? "system.restart"
+                        : "system.shutdown")}
+                    </button>
+                    <button
+                      type="button"
+                      className="launcher-system-confirm__cancel"
+                      onClick={() => cancelSystemAction()}
+                    >
+                      {t("settings.extensions.cancel")}
+                    </button>
+                  </div>
+                )}
+                <LauncherResults
+                  t={t}
+                  results={launcherResults}
+                  actionBar={visibleActionBar}
+                  appIconUrls={appIconUrls}
+                  selectedResultIndex={selectedResultIndex}
+                  selectedActionBar={selectedActionBar}
+                  resultShortcutSlots={resultShortcutSlots}
+                  actionBarShortcut={actionBarShortcut}
+                  selectResultShortcut={shortcuts.select_result}
+                  showRecentTitle={!query.trim()}
+                  onSelectResult={(index) => {
+                    setSelectedActionBar(false);
+                    setSelectedResultIndex(index);
+                  }}
+                  onSelectActionBar={() => setSelectedActionBar(true)}
+                  onRunResult={runLauncherItem}
+                  onRunActionBar={() => {
+                    if (visibleActionBar) executeActionBar(visibleActionBar);
+                  }}
+                />
+                {launcherResults.length === 0 &&
+                  !actionBar &&
+                  !query.trim() &&
+                  !settings.show_commands_in_search && (
+                    <div className="launcher-hint" role="status">
+                      {t("launcher.enableIntegrationsHint")}
+                    </div>
+                  )}
+              </div>
             </div>
           </div>
-          {/* Keep the plugin page iframe alive (hidden) even in collapsed mode so
-              reopening the clipboard page is instant and preserves its state. */}
-          <div style={{ display: "none" }}>
-            <PluginPageHost
-              pluginId={null}
-              language={language}
-              theme={resolvedTheme}
-              mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
-              terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
-              onClose={closePluginPage}
-            />
-          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -1684,105 +1719,96 @@ export default function App() {
     : null;
 
   return (
-    <div className="terminal-shell">
-      {pinnedCardElement}
-      <section className="terminal-panel terminal-panel--entered">
-        <header className="terminal-bar" onMouseDown={startDrag}>
-          <div className="terminal-bar__frost" />
-          {mainSessionIdentity && (
-            <div className="terminal-bar__identity" title={identityTitle ?? undefined}>
-              <span
-                className={`terminal-bar__dot${mainSessionIdentity.exited ? " terminal-bar__dot--exited" : ""}`}
-                aria-hidden="true"
-              />
-              <span className="terminal-bar__title">{identityTitle}</span>
-            </div>
-          )}
-          <div className="terminal-panel__actions">
-            <button
-              className="toolbar-button toolbar-button--popout"
-              aria-label={t("terminal.openInTerminal")}
-              title={t("terminal.openInTerminalHint", {
-                shortcut: formatShortcut(shortcuts.open_external_terminal),
-              })}
-              onClick={() => void openInTerminal()}
-            >
-              ↗
-            </button>
-            <button
-              className="toolbar-button toolbar-button--close"
-              aria-label={t("terminal.newCommand")}
-              title={t("terminal.newCommandHint", {
-                shortcut: formatShortcut(shortcuts.new_command),
-              })}
-              onClick={returnToInputMode}
-            >
-              ×
-            </button>
-          </div>
-        </header>
-
-        <div className="terminal-panel__body">
-          <div
-            ref={mountRef}
-            className="terminal-panel__mount"
-            onMouseDown={onCanvasMouseDown}
-            onMouseMove={onCanvasMouseMove}
-            onContextMenu={(event) => event.preventDefault()}
-          >
-            <canvas ref={canvasRef} className="terminal-canvas" />
-            <textarea
-              ref={terminalTextInputRef}
-              className="terminal-text-input"
-              aria-label={t("terminal.input")}
-              rows={1}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              onInput={onTerminalTextInput}
-              onCompositionStart={() => {
-                terminalComposing.current = true;
-              }}
-              onCompositionEnd={() => {
-                terminalComposing.current = false;
-                // Some WebKit builds emit the final input event before
-                // compositionend. The microtask covers both event orders and
-                // sees an empty value when onInput already flushed it.
-                queueMicrotask(() => flushTerminalTextInput());
-              }}
-            />
-          </div>
-          {/* Keep the plugin page iframe alive (hidden) even in terminal mode so
-              reopening the clipboard page is instant and preserves its state. */}
-          <div style={{ display: "none" }}>
-            <PluginPageHost
-              pluginId={null}
-              language={language}
-              theme={resolvedTheme}
-              mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
-              terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
-              onClose={closePluginPage}
-            />
-          </div>
-          <ToastHost toasts={toasts} t={t} onDismiss={dismissToast} />
-          {mainPinnedAway && (
-            <div className="terminal-pinned-note" role="status">
-              <span className="terminal-pinned-note__title">{t("terminal.pinnedOverlay")}</span>
-              <span>
-                {t("terminal.pinnedOverlayHint", {
-                  shortcut: formatShortcut(shortcuts.pin_terminal),
+    <>
+      {pluginLayer}
+      {toastHost}
+      <div className="terminal-shell">
+        {pinnedCardElement}
+        <section className="terminal-panel terminal-panel--entered">
+          <header className="terminal-bar" onMouseDown={startDrag}>
+            <div className="terminal-bar__frost" />
+            {mainSessionIdentity && (
+              <div className="terminal-bar__identity" title={identityTitle ?? undefined}>
+                <span
+                  className={`terminal-bar__dot${mainSessionIdentity.exited ? " terminal-bar__dot--exited" : ""}`}
+                  aria-hidden="true"
+                />
+                <span className="terminal-bar__title">{identityTitle}</span>
+              </div>
+            )}
+            <div className="terminal-panel__actions">
+              <button
+                className="toolbar-button toolbar-button--popout"
+                aria-label={t("terminal.openInTerminal")}
+                title={t("terminal.openInTerminalHint", {
+                  shortcut: formatShortcut(shortcuts.open_external_terminal),
                 })}
-              </span>
+                onClick={() => void openInTerminal()}
+              >
+                ↗
+              </button>
+              <button
+                className="toolbar-button toolbar-button--close"
+                aria-label={t("terminal.newCommand")}
+                title={t("terminal.newCommandHint", {
+                  shortcut: formatShortcut(shortcuts.new_command),
+                })}
+                onClick={returnToInputMode}
+              >
+                ×
+              </button>
             </div>
-          )}
-          {terminalFeedback && (
-            <div className="terminal-feedback" role="status" aria-live="polite">
-              <AlertCircle className="terminal-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
-              <span>{t(terminalFeedback)}</span>
+          </header>
+
+          <div className="terminal-panel__body">
+            <div
+              ref={mountRef}
+              className="terminal-panel__mount"
+              onMouseDown={onCanvasMouseDown}
+              onMouseMove={onCanvasMouseMove}
+              onContextMenu={(event) => event.preventDefault()}
+            >
+              <canvas ref={canvasRef} className="terminal-canvas" />
+              <textarea
+                ref={terminalTextInputRef}
+                className="terminal-text-input"
+                aria-label={t("terminal.input")}
+                rows={1}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                onInput={onTerminalTextInput}
+                onCompositionStart={() => {
+                  terminalComposing.current = true;
+                }}
+                onCompositionEnd={() => {
+                  terminalComposing.current = false;
+                  // Some WebKit builds emit the final input event before
+                  // compositionend. The microtask covers both event orders and
+                  // sees an empty value when onInput already flushed it.
+                  queueMicrotask(() => flushTerminalTextInput());
+                }}
+              />
             </div>
-          )}
-        </div>
-      </section>
-    </div>
+            {mainPinnedAway && (
+              <div className="terminal-pinned-note" role="status">
+                <span className="terminal-pinned-note__title">{t("terminal.pinnedOverlay")}</span>
+                <span>
+                  {t("terminal.pinnedOverlayHint", {
+                    shortcut: formatShortcut(shortcuts.pin_terminal),
+                  })}
+                </span>
+              </div>
+            )}
+            {terminalFeedback && (
+              <div className="terminal-feedback" role="status" aria-live="polite">
+                <AlertCircle className="terminal-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
+                <span>{t(terminalFeedback)}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </>
   );
 }

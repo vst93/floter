@@ -673,10 +673,35 @@
 
 /* ── Generic plugin pages ───────────────────────────────────────────────── */
 
-/* The plugin page has no terminal title bar of its own, so its body starts at
-   the top edge of the panel rather than inheriting the terminal offset. */
-.terminal-panel--plugin .terminal-panel__body {
-  top: 0;
+/* The plugin-page layer sits over whichever shell is showing. It is rendered
+   once, as the first child of every mode's tree, so React reuses the same
+   host/iframe instance across mode switches (see `pluginLayer` in App.tsx).
+   It stays mounted in every mode and is only painted while a plugin page is
+   open; `position: fixed` takes it out of the shells' flex flow so it does not
+   disturb their layout. z-index 30 keeps it above the panels but below the
+   toast stack (60). */
+.plugin-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  /* Clip the page to the same rounded rectangle as the panel underneath: the
+     opaque page background would otherwise paint square corners over the
+     window's CSS-only radius (macOS/Linux) and spill into the shell padding
+     Windows reserves for the panel's drop shadow. */
+  border-radius: var(--window-radius);
+  overflow: hidden;
+}
+
+/* On Windows the shell pads the panel inward so its box-shadow has room to
+   land. `inset: 0` would stretch the layer — and the page inside it — back out
+   over that padding; match the panel's geometry instead. */
+.platform-windows .plugin-layer {
+  inset: 10px;
+}
+
+.plugin-layer[data-active="true"] {
+  display: block;
 }
 
 .plugin-page-host {
