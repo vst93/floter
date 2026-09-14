@@ -302,7 +302,7 @@ function useDialogFocus(
     let branch: HTMLElement | null = dialogRef.current?.parentElement ?? null;
     while (branch?.parentElement) {
       for (const sibling of Array.from(branch.parentElement.children)) {
-        if (sibling !== branch && sibling instanceof HTMLElement && !sibling.classList.contains("extensions-toasts")) {
+        if (sibling !== branch && sibling instanceof HTMLElement) {
           inertElements.set(sibling, sibling.inert);
           sibling.inert = true;
         }
@@ -424,6 +424,9 @@ type ExtensionsPanelProps = {
   basePlugins: BasePluginRow[];
   /** Enable/disable a base plugin; tears its runtime down when disabled. */
   onToggleBasePlugin: (id: string, enabled: boolean) => void;
+  /** Push a toast onto the app-level stack (rendered by App outside any scroll
+   * container, so feedback stays visible wherever the user scrolled to). */
+  onNotify: (kind: "error" | "success", text: string) => void;
 };
 
 export type BasePluginRow = {
@@ -478,25 +481,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-type PanelToast = { id: number; kind: "error" | "success"; text: string };
-
-function ExtensionsToast({ toast, t, onDismiss }: { toast: PanelToast; t: Translate; onDismiss: (id: number) => void }) {
-  useEffect(() => {
-    const timer = window.setTimeout(() => onDismiss(toast.id), toast.kind === "error" ? 8000 : 4000);
-    return () => window.clearTimeout(timer);
-  }, [toast.id, toast.kind, onDismiss]);
-  return (
-    <div className={`extensions-toast extensions-toast--${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}>
-      {toast.kind === "error"
-        ? <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
-        : <Check size={15} strokeWidth={2} aria-hidden="true" />}
-      <span>{toast.text}</span>
-      <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.dismissNotice")} onClick={() => onDismiss(toast.id)}><X size={13} strokeWidth={2} /></button>
-    </div>
-  );
-}
-
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin, onNotify }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -544,8 +529,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
   const [uninstallDialogTarget, setUninstallDialogTarget] = useState<Extension | null>(null);
-  const [toasts, setToasts] = useState<PanelToast[]>([]);
-  const toastIdRef = useRef(0);
   const detailGeneration = useRef(0);
   const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const localDialogRef = useRef<HTMLElement | null>(null);
@@ -557,15 +540,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const refreshGeneration = useRef(0);
   const refreshPending = useRef<Promise<void> | null>(null);
   const refreshRef = useRef<() => Promise<void>>(async () => {});
-  const dismissToast = useCallback((id: number) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }, []);
-  const pushToast = useCallback((kind: PanelToast["kind"], text: string) => {
-    const id = ++toastIdRef.current;
-    setToasts((current) => [...current, { id, kind, text }].slice(-3));
-  }, []);
-  const showError = useCallback((text: string) => pushToast("error", text), [pushToast]);
-  const showSuccess = useCallback((text: string) => pushToast("success", text), [pushToast]);
+  // All panel feedback goes onto the app-level toast stack rather than a local
+  // one: a local stack rendered inside the page scroller drifted off-screen
+  // when the integrations list was long and the user had scrolled down.
+  const showError = useCallback((text: string) => onNotify("error", text), [onNotify]);
+  const showSuccess = useCallback((text: string) => onNotify("success", text), [onNotify]);
   const refreshAfterMutation = async () => {
     await refreshPending.current;
     await refreshRef.current();
@@ -578,7 +557,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const setBusy = extensionActions.setBusy;
   const busyRef = extensionActions.busyRef;
   useTimedReset(removalTarget, () => setRemovalTarget(null));
-  useTimedReset(uninstallDialogTarget, () => setUninstallDialogTarget(null));
   useTimedReset(detailsDiscardArmed, () => setDetailsDiscardArmed(false));
   useTimedReset(customDiscardArmed, () => setCustomDiscardArmed(false));
 
@@ -844,9 +822,20 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   }, [showCustomIntegration, customIntegrationLoading]);
 
   const runMutation = async (id: string, kind: MutationKind, action: () => Promise<unknown>): Promise<boolean> => {
-    const result = await extensionActions.runMutation(id, kind, action);
-    if (result && kind === "uninstall") setSelectedId(null);
-    return result;
+    try {
+      const result = await extensionActions.runMutation(id, kind, action);
+      if (result && kind === "uninstall") setSelectedId(null);
+      return result;
+    } finally {
+      // The progress strips are keyed per extension id and would otherwise keep
+      // the last phase ("Complete") pinned to the row forever.
+      setOperationProgress((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   const exportExtensions = async () => {
@@ -1885,12 +1874,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               </button>
             </footer>
           </aside>
-        </div>
-      )}
-
-      {toasts.length > 0 && (
-        <div className={`extensions-toasts${selected || showCustomIntegration ? " extensions-toasts--offset" : ""}`}>
-          {toasts.map((toast) => <ExtensionsToast key={toast.id} toast={toast} t={t} onDismiss={dismissToast} />)}
         </div>
       )}
 

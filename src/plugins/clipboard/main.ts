@@ -175,6 +175,13 @@ let statuses: Record<string, boolean> = {};
  * means "we could not ask", not "nothing copied yet", so the page offers a
  * retry instead of a misleading empty state. */
 let loadFailed = false;
+/** True when the fetch failed because the clipboard backend refused the call
+ * (feature off, unmanaged state, command unavailable) rather than a transient
+ * network/bridge hiccup. A retry cannot fix that, so the page explains how to
+ * turn the feature on instead of offering a useless "Retry". Kept monotonic:
+ * once the backend is known to be unavailable, only a successful fetch clears
+ * it again. */
+let backendUnavailable = false;
 /** Interval ID for periodic refresh while visible. */
 let refreshInterval: number | null = null;
 
@@ -521,20 +528,30 @@ const render = () => {
     failure.className = "clipboard-panel__empty";
     failure.setAttribute("role", "alert");
     const label = document.createElement("span");
-    label.textContent = t("plugin.pageError");
-    const retry = document.createElement("button");
-    retry.type = "button";
-    retry.className = "clipboard-panel__clear";
-    retry.textContent = t("settings.retry");
-    retry.addEventListener("mousedown", (event) => event.preventDefault());
-    retry.addEventListener("click", () => {
-      retry.disabled = true;
-      void reload().then(() => {
-        render();
-        searchInput.focus();
+    label.textContent = t(backendUnavailable ? "clipboard.pageUnavailable" : "clipboard.loadFailed");
+    failure.append(label);
+    if (backendUnavailable) {
+      // Retrying cannot help when the backend is off/unmanaged; say how to
+      // turn it on instead of offering a dead-end button.
+      const hint = document.createElement("span");
+      hint.className = "clipboard-panel__empty-hint";
+      hint.textContent = t("clipboard.pageUnavailableHint");
+      failure.append(hint);
+    } else {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "clipboard-panel__clear";
+      retry.textContent = t("settings.retry");
+      retry.addEventListener("mousedown", (event) => event.preventDefault());
+      retry.addEventListener("click", () => {
+        retry.disabled = true;
+        void reload().then(() => {
+          render();
+          searchInput.focus();
+        });
       });
-    });
-    failure.append(label, retry);
+      failure.append(retry);
+    }
     content.append(failure);
     finish();
     return;
@@ -602,6 +619,18 @@ let reloadPending: Promise<void> | null = null;
 const thumbnailPending = new Set<string>();
 
 /**
+ * Whether a failed bridge call means the clipboard backend itself is
+ * unavailable (the `clipboard-history` feature is off / the command is not
+ * registered / the state is unmanaged) rather than a transient hiccup. Those
+ * are the errors the host returns for an unknown command, and retrying cannot
+ * fix them — the page points at the Settings switch instead.
+ */
+const isBackendUnavailable = (error: unknown): boolean => {
+  const message = typeof error === "string" ? error : String(error ?? "");
+  return /not allowed for this plugin page|feature is disabled|unknown command|not found/i.test(message);
+};
+
+/**
  * Reload entries, statuses, and thumbnails. Preserves user state: filter text,
  * current tab, scroll position, and selected row (by anchoring to the entry id;
  * if that entry vanished, reset to row 0).
@@ -616,6 +645,7 @@ const reloadData = async () => {
     const entriesChanged = !sameClipboardSnapshot(nextEntries, entries);
     const wasFailed = loadFailed;
     loadFailed = false;
+    backendUnavailable = false;
     // Read the selection at completion: the user can move it during a fetch.
     const anchorId = hydrated ? filteredEntries()[selected]?.id : savedSession.selectedId;
     if (entriesChanged) entries = nextEntries;
@@ -639,9 +669,10 @@ const reloadData = async () => {
     if (entriesChanged || wasFailed || !hydrated) render();
     hydrated = true;
     saveSession();
-  } catch {
+  } catch (error) {
     if (gen !== reloadGen) return;
     loadFailed = true;
+    if (isBackendUnavailable(error)) backendUnavailable = true;
     if (entries.length) showError();
     else render();
     return;
@@ -1063,10 +1094,11 @@ void reload().then(() => {
   render();
   // Start periodic refresh after initial load.
   startPeriodicRefresh();
-}).catch(() => {
+}).catch((error) => {
   // Only mark failed on a real bridge error, not on empty results.
   if (entries.length === 0) {
     loadFailed = true;
+    if (isBackendUnavailable(error)) backendUnavailable = true;
     render();
   }
 });

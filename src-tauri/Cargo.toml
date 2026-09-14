@@ -12,7 +12,12 @@ name = "floter_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-default = []
+# The clipboard history is a shipped, user-facing surface (the Settings toggle
+# defaults to on, the panel is reachable from launcher search and `floter clip`,
+# and terminal copy/paste rides on the same arboard commands). It must therefore
+# be part of the default build; the feature stays declared so a slim build can
+# opt out explicitly with --no-default-features.
+default = ["clipboard-history"]
 clipboard-history = ["dep:arboard", "dep:png"]
 
 [build-dependencies]

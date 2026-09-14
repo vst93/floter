@@ -146,73 +146,95 @@
   background: color-mix(in srgb, var(--accent) 7%, var(--surface-control));
 }
 
-/* Panel-level feedback surfaces, anchored to the floater body, not the OS
-   screen: `position: fixed` resolves against the settings card (see the
-   containment note on `.settings-card`), so the stack hugs the card's
-   top-right corner just below the 56px window header instead of drifting
-   toward a far screen edge or covering the window controls. Layered above
-   every extension overlay (drawer backdrop z-20, dialogs z-40). */
-.extensions-toasts {
+/* Non-fatal advisory: export dropped fields the import could not carry over.
+   Amber like the permission warning, quieter than the error band. */
+.extensions-notice--warning {
+  color: var(--text-warning);
+  background: color-mix(in srgb, var(--text-warning) 7%, var(--surface-control));
+  border-color: color-mix(in srgb, var(--text-warning) 36%, var(--stroke-control));
+}
+
+/* App-level toast stack (see components/ToastStack.tsx). The host is a child
+   of the surface card, OUTSIDE the scrollable page content, so toasts stay
+   pinned to the card's top-right regardless of scroll position — rendering
+   them inside the scroller made them drift off-screen as the user scrolled.
+   `contain: none` is deliberate: a fixed descendant must resolve against the
+   card, not be clipped into a scroll container. */
+#floter-app-toasts {
   position: fixed;
-  top: 64px; /* settings-card header height (56px) + breathing room */
+  top: 64px; /* card header height (56px) + breathing room */
   right: 16px;
-  z-index: 50;
-  /* Container-relative, not `100vw`: the reference here is the floater body. */
+  z-index: 60;
   width: min(360px, calc(100% - 32px));
   display: grid;
   gap: 8px;
+  pointer-events: none;
 }
 
-/* Keep notices within narrow windows and clear of overlay header controls. */
-.extensions-toasts--offset {
-  right: 16px;
-  top: auto;
-  bottom: 16px;
-  max-height: calc(100% - 80px);
-  overflow-y: auto;
-}
-
-.extensions-toast {
+.app-toast {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 9px 10px;
-  border: var(--ext-border);
-  border-radius: var(--ext-radius);
+  border: 1px solid var(--stroke-control);
+  border-radius: 6px;
   background: var(--surface-opaque);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, .28);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
   color: var(--text-secondary);
   font-size: 11px;
-  animation: extensions-toast-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  line-height: 1.4;
+  pointer-events: auto;
+  animation: app-toast-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.extensions-toast svg {
+.app-toast svg {
   flex: 0 0 auto;
 }
 
-.extensions-toast span {
+.app-toast span {
   min-width: 0;
   flex: 1;
   overflow-wrap: anywhere;
 }
 
-.extensions-toast .extensions-icon-button {
+.app-toast--error {
+  color: var(--text-warning);
+}
+
+.app-toast--success {
+  color: var(--accent);
+}
+
+.app-toast__dismiss {
   width: 24px;
   height: 24px;
   min-width: 24px;
   min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
 }
 
-.extensions-toast--error {
-  color: var(--text-warning);
+.app-toast__dismiss:hover {
+  color: var(--text-strong);
+  background: var(--surface-control-hover);
 }
 
-.extensions-toast--success {
-  color: var(--accent);
+.app-toast__dismiss:focus-visible {
+  outline: 1px solid var(--accent-ring);
+  outline-offset: 2px;
 }
 
-@keyframes extensions-toast-in {
+@keyframes app-toast-in {
   from {
     opacity: 0;
     transform: translateY(-6px);
@@ -537,6 +559,34 @@
   height: var(--extensions-control-height);
   display: inline-flex;
   align-items: center;
+}
+
+/* In-flight operation strip: explicitly pinned to the row's second line,
+   first column. The auto-placement cursor stays on line 1, so the open
+   button, actions and toggle keep their original columns while the strip
+   grows the row downward. */
+.extension-row__progress {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 5px 8px;
+  border-radius: var(--ext-radius);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: 10.5px;
+  cursor: default;
+}
+
+.extension-row__progress-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .extension-row__toggle-slot .settings-switch {

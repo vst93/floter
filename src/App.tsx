@@ -21,6 +21,8 @@ import { useTerminalView, terminalFontFamily } from "./hooks/useTerminalView";
 import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
 import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
+import { ToastHost } from "./components/ToastStack";
+import { appendToast, removeToast, type AppToast, type ToastKind } from "./toast-state";
 import { useLauncherActions } from "./hooks/useLauncherActions";
 import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import { useSettings } from "./hooks/useSettings";
@@ -324,6 +326,28 @@ export default function App() {
     showLauncherFeedback,
     showTerminalFeedback,
   } = useTimedFeedback();
+
+  // App-level toast stack. Every surface (currently the integrations panel,
+  // later others) pushes feedback here so it renders once, pinned to the card
+  // and never inside a scroll container.
+  const [toasts, setToasts] = useState<AppToast[]>([]);
+  const toastIdRef = useRef(0);
+  const notify = useCallback((kind: ToastKind, text: string) => {
+    const id = ++toastIdRef.current;
+    setToasts((current) => appendToast(current, { id, kind, text }));
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((current) => removeToast(current, id));
+  }, []);
+  // Toasts host on the settings and terminal cards. When the panel moves to a
+  // surface with no host (collapsed launcher, plugin page) the rendered nodes
+  // unmount and their dismiss timers go with them — clear the queue so a toast
+  // cannot reappear, already stale, the next time a host mounts.
+  const toastHostMounted = mode === "settings" || mode === "terminal";
+  useEffect(() => {
+    if (toastHostMounted) return;
+    setToasts((current) => (current.length ? [] : current));
+  }, [toastHostMounted]);
 
   const {
     sessions: terminalSessions,
@@ -1346,6 +1370,7 @@ export default function App() {
                 if (id !== CLIPBOARD_PLUGIN_ID) return;
                 changeGeneralSetting("clipboard_history_enabled", enabled);
               }}
+              onNotify={notify}
             />
             )}
 
@@ -1362,6 +1387,7 @@ export default function App() {
             )}
             </main>
           </div>
+          <ToastHost toasts={toasts} t={t} onDismiss={dismissToast} />
         </div>
       </div>
     );
@@ -1738,6 +1764,7 @@ export default function App() {
               onClose={closePluginPage}
             />
           </div>
+          <ToastHost toasts={toasts} t={t} onDismiss={dismissToast} />
           {mainPinnedAway && (
             <div className="terminal-pinned-note" role="status">
               <span className="terminal-pinned-note__title">{t("terminal.pinnedOverlay")}</span>

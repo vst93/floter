@@ -1391,33 +1391,13 @@ pub async fn extensions_uninstall(
 ) -> Result<(), String> {
     let operation_id = state.start_operation();
 
-    // Phase 5 Validation 4: Use componentized uninstall when remove_data is Some,
-    // otherwise maintain backward compatibility with boolean flag.
-    let result = if let Some(remove_all) = remove_data {
-        // Legacy boolean API: all-or-nothing data removal
-        let request = crate::extensions::uninstall::UninstallRequest {
-            extension_id: id.clone(),
-            remove_program: true,
-            remove_host_config: remove_all,
-            remove_tool_data: remove_all,
-            remove_artifacts: remove_all,
-        };
-        crate::extensions::uninstall::uninstall_componentized(&state, request)
-            .await
-            .map(|_| ())
-    } else {
-        // Default: remove program and all data
-        let request = crate::extensions::uninstall::UninstallRequest {
-            extension_id: id.clone(),
-            remove_program: true,
-            remove_host_config: true,
-            remove_tool_data: true,
-            remove_artifacts: true,
-        };
-        crate::extensions::uninstall::uninstall_componentized(&state, request)
-            .await
-            .map(|_| ())
-    };
+    // Phase 5 Validation 4: route through the componentized uninstall via the
+    // legacy mapping (program always; data only when the caller opted in).
+    let request =
+        crate::extensions::uninstall::UninstallRequest::from_legacy(id.clone(), remove_data);
+    let result = crate::extensions::uninstall::uninstall_componentized(&state, request)
+        .await
+        .map(|_| ());
 
     // Commit the binding removal after successful uninstall
     if result.is_ok() {

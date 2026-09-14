@@ -4,7 +4,7 @@
 //! config, tool data, and generated artifacts. Progress events track each
 //! component phase.
 
-use crate::extensions::data_ownership::{DataCategory, DataPaths};
+use crate::extensions::data_ownership::DataPaths;
 use crate::extensions::lock::{validate_id, ExtensionsLock};
 use crate::extensions::operation::OperationProgress;
 use crate::extensions::transaction::{RemovalIntent, RemovalJournal, RemovalKind};
@@ -33,6 +33,25 @@ pub struct UninstallRequest {
 
 fn default_true() -> bool {
     true
+}
+
+impl UninstallRequest {
+    /// Map the legacy `remove_data` boolean API onto component flags.
+    ///
+    /// The program is always removed. An omitted flag (`None`) means
+    /// "program only" — the historical `remove_data.unwrap_or(false)`
+    /// contract — so a caller that never opted into data removal cannot
+    /// silently lose host config, tool data and artifacts.
+    pub fn from_legacy(extension_id: impl Into<String>, remove_data: Option<bool>) -> Self {
+        let remove_all = remove_data.unwrap_or(false);
+        Self {
+            extension_id: extension_id.into(),
+            remove_program: true,
+            remove_host_config: remove_all,
+            remove_tool_data: remove_all,
+            remove_artifacts: remove_all,
+        }
+    }
 }
 
 /// Uninstall result with component-level status.
@@ -370,6 +389,30 @@ mod tests {
             probe_report: None,
             config_generation: 0,
         }
+    }
+
+    #[test]
+    fn legacy_remove_data_maps_to_component_flags_without_surprising_data_loss() {
+        // Program files are always removed.
+        for remove_data in [None, Some(false), Some(true)] {
+            assert!(UninstallRequest::from_legacy("id", remove_data).remove_program);
+        }
+        // An omitted flag means "program only" — the historical
+        // `remove_data.unwrap_or(false)` contract.
+        let omitted = UninstallRequest::from_legacy("id", None);
+        assert!(!omitted.remove_host_config);
+        assert!(!omitted.remove_tool_data);
+        assert!(!omitted.remove_artifacts);
+        // `false` behaves identically to an omitted flag.
+        let explicit_no = UninstallRequest::from_legacy("id", Some(false));
+        assert!(!explicit_no.remove_host_config);
+        assert!(!explicit_no.remove_tool_data);
+        assert!(!explicit_no.remove_artifacts);
+        // `true` removes every data category.
+        let all = UninstallRequest::from_legacy("id", Some(true));
+        assert!(all.remove_host_config);
+        assert!(all.remove_tool_data);
+        assert!(all.remove_artifacts);
     }
 
     #[tokio::test]

@@ -432,12 +432,22 @@ button {
 .clipboard-panel__empty {
   display: flex;
   min-height: 180px;
+  flex-direction: column;
+  gap: 10px;
   align-items: center;
   justify-content: center;
   padding: 44px 24px;
   color: var(--text-muted);
   font-size: 12px;
   text-align: center;
+}
+
+/* Second line of the failure state: how to turn the feature back on. */
+.clipboard-panel__empty-hint {
+  max-width: 320px;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  line-height: 1.5;
 }
 
 .clipboard-panel__empty-privacy {
