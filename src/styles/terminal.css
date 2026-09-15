@@ -36,6 +36,16 @@
   }
 }
 
+/* Terminal header: a transparent overlay bar, not a row of its own height.
+   It floats over the top of the PTY canvas (which now fills the whole panel —
+   see `.terminal-panel__body`) and reserves no layout space, so 28px more of
+   terminal content is visible. It stays the drag handle and keeps its action
+   buttons clickable; hovering it fades in a light shadow as the "you can
+   drag this" affordance, and it goes fully transparent again on mouse-out.
+   Its contents (status dot, session title, toolbar buttons) stay hidden until
+   hover or keyboard focus, so they never permanently occlude the first line
+   of output under them. Background/shadow are plain values — the card's
+   `--terminal-opacity` / `--main-opacity` material chain is untouched. */
 .terminal-bar {
   position: absolute;
   top: 0;
@@ -49,24 +59,30 @@
   padding: 0 7px;
   cursor: grab;
   user-select: none;
+  background: transparent;
+  box-shadow: none;
+  transition: box-shadow 140ms ease;
 }
 
+/* Light shadow on hover only — flat and compact, not a big drop shadow. */
+@media (hover: hover) {
+  .terminal-bar:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  }
+}
+
+/* The frosted band is retired: the header is transparent now, so it renders
+   no material. The node is kept purely as a minimal-diff / semantic placeholder
+   — `display: none` already wins over any `prefers-reduced-transparency`
+   override, so those overrides no longer take effect on it. */
 .terminal-bar__frost {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, var(--terminal-bar-top), var(--terminal-bar-bottom)),
-    var(--terminal-bar);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-  border-bottom: 1px solid var(--hairline);
-  opacity: 1;
-  pointer-events: none;
+  display: none;
 }
 
 /* Identity zone: status dot + session title, left of the action buttons.
-   Always visible; pointer-events stay off so the whole bar keeps working
-   as the drag handle. */
+   pointer-events stay off so the whole bar keeps working as the drag handle.
+   Hidden until the bar is hovered or something on it takes keyboard focus, so
+   the title never sits on top of the first lines of terminal output. */
 .terminal-bar__identity {
   position: relative;
   z-index: 1;
@@ -76,10 +92,16 @@
   flex: 1;
   min-width: 0;
   margin-right: 8px;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.terminal-bar:hover .terminal-bar__identity,
+.terminal-bar:focus-within .terminal-bar__identity {
   opacity: 1;
   transform: translateY(0);
-  pointer-events: none;
-  transition: opacity 200ms ease;
 }
 
 .terminal-bar__dot {
@@ -123,9 +145,12 @@
   }
 }
 
+/* The PTY canvas fills the whole panel; the header floats above it, so no
+   layout height is reserved for the bar and the content is never pushed down
+   (the first output line sits at the very top edge). */
 .terminal-panel__body {
   position: absolute;
-  top: 28px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -209,8 +234,21 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.terminal-bar:hover .terminal-panel__actions,
+.terminal-bar:focus-within .terminal-panel__actions {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* While hidden the buttons must not catch clicks meant for the terminal
+   underneath; keyboard focus on the bar still reveals and activates them. */
+.terminal-bar:not(:hover):not(:focus-within) .terminal-panel__actions {
+  pointer-events: none;
 }
 
 .toolbar-button {

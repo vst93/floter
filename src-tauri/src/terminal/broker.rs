@@ -389,8 +389,7 @@ async fn session_worker(
 
     let mut message_id = 2_u64;
     if let Some(command) = initial_command.filter(|command| !command.is_empty()) {
-        let mut payload = command.into_bytes();
-        payload.push(b'\r');
+        let payload = initial_command_payload(&command);
         if send_input(&mut writer, &session_id, &mut message_id, payload)
             .await
             .is_err()
@@ -459,6 +458,21 @@ async fn session_worker(
             }
         }
     }
+}
+
+/// Build the exact bytes for the broker's `initial_command` injection.
+///
+/// The initial command is typed verbatim into the interactive shell's PTY, so
+/// the payload is the command's own bytes plus a single carriage return — with
+/// NO shell quoting, escaping, or bracketed-paste wrapping. A multi-word line
+/// like `go version` therefore arrives as the separate bytes it was typed as,
+/// never as one fused/quoted token. The construction is split out from the
+/// write so the "verbatim, +`\r`" contract is unit-testable without a live
+/// daemon.
+fn initial_command_payload(command: &str) -> Vec<u8> {
+    let mut payload = command.as_bytes().to_vec();
+    payload.push(b'\r');
+    payload
 }
 
 async fn send_input<W: AsyncWrite + Unpin>(
@@ -954,6 +968,35 @@ mod tests {
         assert_ne!(DAEMON_ARGUMENT, ATTACH_ARGUMENT);
         assert!(DAEMON_ARGUMENT.starts_with("--terminal-"));
         assert!(ATTACH_ARGUMENT.starts_with("--terminal-"));
+    }
+
+    #[test]
+    fn initial_command_payload_is_verbatim_bytes_plus_carriage_return() {
+        // The interactive-shell path types the raw line into the PTY: the
+        // payload must be the command's own bytes, byte-for-byte, followed by
+        // exactly one `\r`. No quote, backslash escape, or bracketed-paste
+        // (`\x1b[200~`) wrapper may be added.
+        assert_eq!(
+            initial_command_payload("go version"),
+            b"go version\r".to_vec(),
+            "spaces stay spaces; the two words are not fused or quoted"
+        );
+        // Quotes and other shell-special characters survive untouched: the
+        // shell must see exactly what the user typed.
+        assert_eq!(
+            initial_command_payload("echo 'a b' \"c d\" $HOME \\n"),
+            b"echo 'a b' \"c d\" $HOME \\n\r".to_vec(),
+            "quotes/backslashes/dollars are preserved verbatim"
+        );
+        // A non-ASCII token travels as its raw UTF-8 bytes, never escaped.
+        assert_eq!(
+            initial_command_payload("echo \u{7a7a}\u{683c}"),
+            "echo \u{7a7a}\u{683c}\r".as_bytes()
+        );
+        // Exactly one terminator, and never a bracketed-paste wrapper.
+        let payload = initial_command_payload("go version");
+        assert_eq!(payload.iter().filter(|&&byte| byte == b'\r').count(), 1);
+        assert!(!payload.contains(&0x1b));
     }
 
     #[cfg(unix)]

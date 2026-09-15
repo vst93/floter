@@ -2018,6 +2018,14 @@ pub fn extensions_cancel_operation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Serializes every test that touches the process-global
+    /// [`DRIFT_REPROBE_ACTIVE`] gate. `cargo test` runs tests in parallel by
+    /// default, so a future second test exercising the gate would race this one
+    /// on the shared static (mirrors `broker.rs`'s `DAEMON_TEST`). The fix is
+    /// this guard, never a `--test-threads=1` run parameter.
+    static DRIFT_GATE_TEST: Mutex<()> = Mutex::new(());
 
     #[cfg(unix)]
     #[tokio::test]
@@ -2841,6 +2849,113 @@ mod tests {
                 .as_deref(),
             Some("lister 2.0.0")
         );
+    }
+
+    /// The drift re-probe single-flight gate that `dispatch_drift_reprobe`
+    /// guards its background loop with. Driven explicitly (no sleeps, fully
+    /// deterministic): the test plays the background task itself — it claims
+    /// the gate, runs the real `run_drift_reprobe` body, then releases it —
+    /// since `dispatch_drift_reprobe` needs an `AppHandle` that a unit test
+    /// does not have. Asserts all three contract points: the first entry sets
+    /// `DRIFT_REPROBE_ACTIVE`, a second listing while the loop is in flight is
+    /// refused (so it returns the previous inventory instead of fanning out),
+    /// and the flag resets when the loop ends.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn drift_reprobe_gate_serializes_loops_and_resets() {
+        use crate::extensions::ExtensionPaths;
+        use std::os::unix::fs::PermissionsExt;
+        use std::sync::atomic::Ordering;
+
+        // Hold the per-test serial guard for the whole test so a future
+        // sibling test that also drives the process-global gate cannot race it
+        // under the default parallel `cargo test`.
+        let _serial = DRIFT_GATE_TEST.lock().unwrap();
+
+        let directory = tempfile::tempdir().unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        let executable = scripts.path().join("lister.sh");
+        std::fs::write(&executable, LIST_DRIFTER_V1).unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        install::create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.gate-test".into(),
+                name: "Gate Test".into(),
+                command: "gate-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: vec!["--version".into()],
+                permissions: vec![Permission::Environment],
+                platforms: vec![PlatformTarget::current().unwrap().os],
+            },
+        )
+        .await
+        .unwrap();
+        let id = "local.gate-test";
+        {
+            let mut tool_lock = state.tool_lock.lock().unwrap();
+            let candidate = inventory::executable_candidate(&executable, "lister");
+            tool_lock.bind(id, &candidate);
+            tool_lock.save(&state.paths.tool_lock_file).unwrap();
+        }
+        // Upstream upgrade in place, so the next listing finds drift.
+        std::fs::write(&executable, LIST_DRIFTER_V2).unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        // The gate starts clear.
+        assert!(!super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire));
+
+        // First entry (what `dispatch_drift_reprobe` does) claims the loop and
+        // sets the in-flight flag.
+        let guard = super::try_start_drift_reprobe().expect("first loop claims the gate");
+        assert!(
+            super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire),
+            "starting the loop sets the in-flight flag"
+        );
+
+        // While the loop is in flight, a second listing is refused: it gets
+        // `None`, so it must NOT start a competing loop — it simply returns
+        // the PREVIOUS inventory (recorded 1.0.0) and drops its candidates.
+        assert!(
+            super::try_start_drift_reprobe().is_none(),
+            "a concurrent loop must not fan out"
+        );
+        let (items, candidates) = list_extensions(&state).await.unwrap();
+        assert_eq!(candidates.len(), 1, "the drift is still collectible");
+        assert_eq!(
+            items
+                .iter()
+                .find(|item| item.entry.id == id)
+                .unwrap()
+                .entry
+                .tool_version
+                .as_deref(),
+            Some("lister 1.0.0"),
+            "the refused second listing still reports the old inventory"
+        );
+
+        // Run the loop body explicitly, exactly as the spawned task would, then
+        // release the guard on the way out (mirrors the `drop(guard)` in
+        // `dispatch_drift_reprobe`) — the flag must reset.
+        super::run_drift_reprobe(&state, candidates).await;
+        drop(guard);
+        assert!(
+            !super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire),
+            "the flag resets once the loop ends"
+        );
+
+        // The gate is reusable: a later listing can start a fresh loop.
+        let again = super::try_start_drift_reprobe().expect("gate is reusable");
+        drop(again);
+        assert!(!super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire));
     }
 
     /// A publisher-shipped static descriptor (`publisher_id != "local-user"`)

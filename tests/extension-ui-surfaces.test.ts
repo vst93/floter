@@ -61,6 +61,37 @@ test("toast stack is a fixed, card-level surface", async () => {
   }
 });
 
+// The integrations panel must never move the page scroll position when a
+// notification fires. The old bug: `scrollIntoView` on the highlighted tool
+// suggestion walked up to `.settings-content` and snapped it to the top, so
+// any toast (success/error) raised while scrolled down yanked the list back.
+// The panel must confine suggestion scrolling to its own list, and it must
+// route every outcome through the app-level toast stack.
+test("integrations panel does not scroll the page on feedback", async () => {
+  const panel = await read("src/ExtensionsPanel.tsx");
+  assert.ok(
+    !panel.includes(".scrollIntoView("),
+    "scrollIntoView walks up to the page scroller and resets the scroll position",
+  );
+  // Feedback still runs through the app-level toast stack, not a local surface.
+  assert.match(
+    panel,
+    /const showError = useCallback\(\(text: string\) => onNotify\("error", text\)/,
+    "errors must go to the app-level toast stack",
+  );
+  assert.match(
+    panel,
+    /const showSuccess = useCallback\(\(text: string\) => onNotify\("success", text\)/,
+    "successes must go to the app-level toast stack",
+  );
+  // The suggestion highlight is kept visible by scrolling only its own list.
+  assert.match(
+    panel,
+    /list\.scrollTop (?:\+=|-=)/,
+    "suggestion highlight must scroll its own list, not the page",
+  );
+});
+
 // The clipboard page's empty/failure state must not reuse the generic
 // "Plugin failed to load" copy: when the backend is unavailable (feature off)
 // the page has to say so and how to turn it back on, rather than implying the
@@ -78,5 +109,20 @@ test("clipboard page reports an unavailable backend distinctly", async () => {
   assert.ok(
     !page.includes('t("plugin.pageError")'),
     "clipboard page must not claim the whole plugin failed to load",
+  );
+});
+
+// The integrations list must stay mounted across a background refresh. Every
+// mutation calls `refresh()`, which flips `loading`; rendering the one-line
+// spinner on EVERY load (not just the first) replaced the whole list, collapsed
+// `.settings-content`, and clamped its `scrollTop` back to 0 — the reported
+// top-jump on every notification. The full-screen spinner must therefore be
+// gated on the list being empty.
+test("the integrations list stays mounted across refreshes", async () => {
+  const panel = await read("src/ExtensionsPanel.tsx");
+  assert.match(
+    panel,
+    /loading && extensions\.length === 0 \?/,
+    "the full-screen loading state must only replace an empty list, never a populated one",
   );
 });

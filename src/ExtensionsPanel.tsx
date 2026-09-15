@@ -501,14 +501,12 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [configValues, setConfigValues] = useState<Record<string, JsonValue>>({});
   const [savedConfigValues, setSavedConfigValues] = useState<Record<string, JsonValue>>({});
   const [configOperation, setConfigOperation, configOperationRef] = useImmediateState<ConfigOperation>(null);
-  const [configNotice, setConfigNotice] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [pendingLocal, setPendingLocal] = useState<{ review: PermissionReview; request: InstallRequest; name: string; runtime: string; platforms: string[]; source: string } | null>(null);
   const [pendingToolSelection, setPendingToolSelection, toolSelectionRef] = useImmediateState<PendingToolSelection>(null);
   const [pendingPermissionReview, setPendingPermissionReview] = useState<PendingPermissionReview>(null);
   const [syncOperation, setSyncOperation, syncOperationRef] = useImmediateState<SyncOperation | null>(null);
-  const [exportResult, setExportResult] = useState<ExtensionsExportResult | null>(null);
   const [importReport, setImportReport] = useState<ExtensionsImportReport | null>(null);
   const [showCustomIntegration, setShowCustomIntegration] = useState(false);
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
@@ -715,9 +713,21 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   }, [showCustomIntegration, customIntegration.mode, customIntegration.executablePath, connectedPaths]);
 
   useEffect(() => {
-    toolResultsRef.current
-      ?.querySelector<HTMLElement>("[aria-selected='true']")
-      ?.scrollIntoView({ block: "nearest" });
+    // Keep the highlighted suggestion in view WITHOUT moving the page. A plain
+    // `scrollIntoView` walks up every scrollable ancestor, so it also scrolled
+    // `.settings-content` back to the top whenever the integration list was
+    // long and the user had scrolled down — the reported jump-to-top on every
+    // notification. Confine the scroll to the suggestions list itself.
+    const list = toolResultsRef.current;
+    const active = list?.querySelector<HTMLElement>("[aria-selected='true']");
+    if (!list || !active) return;
+    const listRect = list.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    if (activeRect.top < listRect.top) {
+      list.scrollTop -= listRect.top - activeRect.top;
+    } else if (activeRect.bottom > listRect.bottom) {
+      list.scrollTop += activeRect.bottom - listRect.bottom;
+    }
   }, [toolHighlight]);
 
   useEffect(() => {
@@ -730,7 +740,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       setConfiguration(null);
       setConfigValues({});
       setSavedConfigValues({});
-      setConfigNotice(null);
       setDetailError(null);
       return;
     }
@@ -844,11 +853,12 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const exportExtensions = async () => {
     if (syncOperationRef.current) return;
     setSyncOperation("export");
-    setExportResult(null);
     setImportReport(null);
     try {
       const result = await invoke<ExtensionsExportResult | null>("extensions_export");
-      if (result) setExportResult(result);
+      if (result) {
+        showSuccess(t("settings.extensions.exportedNotice", { count: result.extensionCount }));
+      }
     } catch (nextError) {
       showError(errorMessage(nextError));
     } finally {
@@ -859,7 +869,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const importExtensions = async () => {
     if (syncOperationRef.current) return;
     setSyncOperation("import");
-    setExportResult(null);
     setImportReport(null);
     try {
       const report = await invoke<ExtensionsImportReport | null>("extensions_import", { locale });
@@ -1249,7 +1258,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       setConfiguration(saved);
       setConfigValues(saved.values);
       setSavedConfigValues(saved.values);
-      setConfigNotice(t("settings.extensions.configSaved"));
       showSuccess(t("settings.extensions.configSaved"));
     } catch (nextError) {
       const message = errorMessage(nextError);
@@ -1270,11 +1278,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     if (!selected || !configuration || configuration.descriptor.owner !== "host" || configOperationRef.current) return;
     setConfigOperation("copy");
     setDetailError(null);
-    setConfigNotice(null);
     try {
       const json = await invoke<string>("extensions_config_copy", { id: selected.id, values: configValues });
       await navigator.clipboard.writeText(json);
-      setConfigNotice(t("settings.extensions.configCopied"));
       showSuccess(t("settings.extensions.configCopied"));
     } catch (nextError) {
       const message = errorMessage(nextError);
@@ -1289,11 +1295,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     if (!selected || !configuration || configuration.descriptor.owner !== "host" || configOperationRef.current) return;
     setConfigOperation("export");
     setDetailError(null);
-    setConfigNotice(null);
     try {
       const path = await invoke<string | null>("extensions_config_export", { id: selected.id, values: configValues });
       if (path) {
-        setConfigNotice(t("settings.extensions.configExported"));
         showSuccess(t("settings.extensions.configExported"));
       }
     } catch (nextError) {
@@ -1449,13 +1453,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
             </div>
           </div>
         </div>
-        {exportResult && (
-          <div className="extensions-notice extensions-notice--success" role="status" title={exportResult.path}>
-            <Check size={15} strokeWidth={2} aria-hidden="true" />
-            <span>{t("settings.extensions.exportComplete", { count: exportResult.extensionCount })}</span>
-            <span style={{ marginLeft: "0.5em", opacity: 0.7 }}>· {t("settings.extensions.exportSecretsExcluded")}</span>
-          </div>
-        )}
         {importReport && (
           <>
             {importReport.excludedFields.length > 0 && (
@@ -1540,7 +1537,13 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
             </span>
           </h3>
           <div className="extensions-list extensions-list--installed">
-            {loading ? (
+            {loading && extensions.length === 0 ? (
+              // A full-screen spinner is only honest for the FIRST load. On a
+              // refresh (every mutation calls `refresh()`), swapping the whole
+              // list for this one-line placeholder collapsed `.settings-content`
+              // and clamped its `scrollTop` back to 0 — the reported jump to
+              // the top on every notification. Once rows exist they stay
+              // mounted; the header chip's spinner covers the in-flight state.
               <EmptyState icon={<LoaderCircle className="extensions-spinner" size={20} strokeWidth={2} />} text={t("settings.extensions.loading")} />
             ) : connectedExtensions.length === 0 ? (
               <EmptyState icon={<Package size={20} strokeWidth={2} />} text={t("settings.extensions.emptyInstalled")} />
@@ -1815,7 +1818,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                           </button>
                         </div>
                       </div>
-                      {configNotice && <div className="extensions-notice extensions-notice--success" role="status"><Check size={14} strokeWidth={2} aria-hidden="true" /><span>{configNotice}</span></div>}
                       {configuration.descriptor.schema.map((field) => (
                         <ConfigFieldControl
                           key={field.key}
@@ -1824,14 +1826,13 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                           value={configValues[field.key] ?? field.default}
                           t={t}
                           onChange={(value) => {
-                            setConfigNotice(null);
                             setDetailsDiscardArmed(false);
                             setConfigValues((current) => ({ ...current, [field.key]: value }));
                           }}
                         />
                       ))}
                       <div className="extension-config-form__actions">
-                        <button type="button" className="extensions-action-button" disabled={Boolean(busy) || Boolean(configOperation)} onClick={() => { setConfigNotice(null); setConfigValues(configurationDefaults()); }}>
+                        <button type="button" className="extensions-action-button" disabled={Boolean(busy) || Boolean(configOperation)} onClick={() => { setConfigValues(configurationDefaults()); }}>
                           <RotateCcw size={14} strokeWidth={2} aria-hidden="true" />
                           {t("settings.extensions.configDefaults")}
                         </button>
