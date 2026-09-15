@@ -28,6 +28,12 @@ import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
+import {
+  createCollapsedFocusController,
+  COLLAPSED_FOCUS_BEATS_MS,
+  setCollapsedFocusReassert,
+  type CollapsedFocusController,
+} from "./collapsed-focus";
 import { useSessionManagement } from "./hooks/useSessionManagement";
 import { useTimedReset } from "./hooks/useTimedReset";
 import {
@@ -378,18 +384,39 @@ export default function App() {
   const resolvedTheme: "dark" | "light" =
     settings.theme === "auto" ? systemTheme : settings.theme === "light" ? "light" : "dark";
 
-  // Hoisted above the hook calls so the option objects below can reference
-  // them; the bodies are unchanged.
+  // The launcher's input is the keyboard's home on the collapsed surface.
+  // One collector owns that guarantee (see `collapsed-focus.ts`); its `focus`
+  // schedules the multi-beat pattern and `reassert` is chained off every
+  // native resize, while `attach` installs the focusout / window-focus
+  // watchers. `focusCollapsedInput` stays as the scheduling entry point every
+  // existing call site already uses.
+  const collapsedFocusRef = useRef<CollapsedFocusController | null>(null);
+  if (!collapsedFocusRef.current) {
+    collapsedFocusRef.current = createCollapsedFocusController({
+      refs: { modeRef, inputRef, cardRef: collapsedCardRef },
+    });
+  }
+  const collapsedFocus = collapsedFocusRef.current;
   const focusCollapsedInput = (delay = 0) => {
-    window.setTimeout(() => {
-      if (modeRef.current !== "collapsed") return;
-      const input = inputRef.current;
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      const length = input.value.length;
-      input.setSelectionRange(length, length);
-    }, delay);
+    collapsedFocus.focus(delay);
   };
+  // The standard beat pattern for a commit that lands on the collapsed
+  // surface: the commit instant plus two later attempts that ride out the
+  // platform's reveal/autoFocus races (and a Windows retry, where the window
+  // is still being shown when the first attempt fires). Every path back to
+  // the launcher schedules through here — plus the resize-settled reassert in
+  // `syncLauncherHeight` — so no path can forget a beat.
+  const scheduleCollapsedFocusBeats = () => {
+    for (const beat of COLLAPSED_FOCUS_BEATS_MS) focusCollapsedInput(beat);
+    if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
+  };
+  // Let the leaf `syncLauncherHeight` helper re-run the collector when a
+  // native launcher resize settles; the controller is stable for the app's
+  // lifetime, so this is registered once below (not on every render).
+  useEffect(() => {
+    setCollapsedFocusReassert(() => collapsedFocus.reassert());
+    return () => setCollapsedFocusReassert(null);
+  }, [collapsedFocus]);
 
   const returnToInputMode = async () => {
     // Resizing a native window can temporarily move keyboard focus back to the
@@ -411,9 +438,7 @@ export default function App() {
       // The DOM still transitions back to a usable launcher even if the native
       // resize failed; keep the keyboard recovery below independent of IPC.
     }
-    focusCollapsedInput();
-    focusCollapsedInput(80);
-    if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
+    scheduleCollapsedFocusBeats();
   };
 
   const openSettings = (page?: SettingsPage) => {
@@ -441,16 +466,18 @@ export default function App() {
     // The iframe is kept alive across mode switches (see `pluginLayer`), so it
     // is no longer torn down — and therefore no longer blurs itself — when the
     // page closes. It stays hidden but can still hold the keyboard while the
-    // plugin id is null, which would swallow the first keystroke aimed at the
-    // surface underneath. Chase the focus back onto the surface we return to,
-    // several times to clear the layout/autoFocus race the old teardown hid.
+    // plugin id is null (a hidden iframe document is still focusable on
+    // WebKit), which would swallow the first keystroke aimed at the surface
+    // underneath. `scheduleCollapsedFocusBeats` runs the standard commit-instant
+    // + later-beat pattern, the resize-settled reassert chains off
+    // `syncLauncherHeight`, and the collector's focusout/window-focus watchers
+    // reclaim the input if the iframe (or anything else) takes the keyboard
+    // back later still.
     if (pluginReturnMode.current === "terminal") {
       focusTerminalView(0);
       focusTerminalView(80);
     } else {
-      focusCollapsedInput(0);
-      focusCollapsedInput(90);
-      focusCollapsedInput(140);
+      scheduleCollapsedFocusBeats();
     }
   };
 
@@ -521,7 +548,7 @@ export default function App() {
     setTerminalFeedback,
     setQuery,
     setMode,
-    focusCollapsedInput,
+    scheduleCollapsedFocusBeats,
     showTerminalFeedback,
     t,
   });
@@ -622,6 +649,7 @@ export default function App() {
     openInTerminal,
     focusTerminalView,
     focusCollapsedInput,
+    scheduleCollapsedFocusBeats,
     rememberCommand,
     recordLaunch,
     refreshTerminalSessions,
@@ -878,14 +906,14 @@ export default function App() {
             // shrink the window back to launcher height. Only the surface that
             // is actually showing may size itself.
             if (modeRef.current !== "collapsed") return;
+            // `syncLauncherHeight` re-runs the focus collector once its native
+            // resize settles (see `collapsed-focus.ts`); the beats below cover
+            // the commit instant and the reveal race in front of it.
             syncLauncherHeight(collapsedCardRef);
-            focusCollapsedInput();
-            if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
           })
           .catch(() => undefined);
       }
-      focusCollapsedInput(90);
-      focusCollapsedInput(140);
+      scheduleCollapsedFocusBeats();
       const timer = window.setTimeout(() => {
         if (restoringMode.current === "collapsed") {
           restoringMode.current = null;
@@ -911,27 +939,15 @@ export default function App() {
   }, [mode]);
 
   // Search results keep the keyboard on the combobox, while Tab may move into
-  // the session and settings controls. Focus is only reclaimed when it leaves
-  // the card entirely, which covers a click on the window chrome or an element
-  // unmounting under the caret without trapping keyboard users in the input.
-  //
-  // Deferred by a tick because at `focusout` time the incoming element has not
-  // been focused yet, and the check has to see where the keyboard ended up.
-  useEffect(() => {
-    if (mode !== "collapsed") return;
-    const onFocusOut = () => {
-      window.setTimeout(() => {
-        const activeElement = document.activeElement;
-        if (
-          activeElement === inputRef.current ||
-          (activeElement && collapsedCardRef.current?.contains(activeElement))
-        ) return;
-        focusCollapsedInput();
-      }, 0);
-    };
-    document.addEventListener("focusout", onFocusOut);
-    return () => document.removeEventListener("focusout", onFocusOut);
-  }, [mode]);
+  // the session and settings controls. The collector reclaims focus only when
+  // it leaves the card entirely, which covers a click on the window chrome, a
+  // kept-alive plugin iframe taking the keyboard, or an element unmounting
+  // under the caret — without trapping keyboard users in the input. It also
+  // reclaims when the window itself regains OS focus (a native reveal or a WM
+  // re-activation), the moment a WebView is most likely to have dropped the
+  // input. The controller gates every reclaim on `modeRef`, so the watchers
+  // are installed once for the app's lifetime.
+  useEffect(() => collapsedFocus.attach(), [collapsedFocus]);
 
   useEffect(() => {
     const unlistenModePromise = listen<string>("floter://mode", (event) => {
@@ -980,8 +996,7 @@ export default function App() {
       setQuery("");
       setTerminalMounted(false);
       setMode("collapsed");
-      focusCollapsedInput(90);
-      focusCollapsedInput(140);
+      scheduleCollapsedFocusBeats();
       // A hidden launcher can retain the height of its previous result list;
       // when it is revealed the mode may already be "collapsed", so the
       // mode effect will not run again. Measure after the state commit to
@@ -1076,8 +1091,7 @@ export default function App() {
       if (focused) {
         windowFocusedRef.current = true;
         if (mode === "collapsed") {
-          focusCollapsedInput(20);
-          focusCollapsedInput(80);
+          scheduleCollapsedFocusBeats();
         } else if (mode === "terminal") {
           focusTerminalView(40);
           if ((rendererRef.current?.mode ?? 0) & FOCUS_IN_OUT) {
@@ -1534,7 +1548,6 @@ export default function App() {
                   }
                 }}
                 placeholder={placeholder}
-                autoFocus
                 spellCheck={false}
                 autoCapitalize="off"
                 autoCorrect="off"

@@ -97,7 +97,8 @@ export function useTerminalView(options: {
   setTerminalFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   setQuery: Dispatch<SetStateAction<string>>;
   setMode: (mode: ViewMode) => void;
-  focusCollapsedInput: (delay?: number) => void;
+  /** The shared collapsed-focus beat pattern (see `collapsed-focus.ts`). */
+  scheduleCollapsedFocusBeats: () => void;
   showTerminalFeedback: (key: MessageKey) => void;
   t: Translate;
 }) {
@@ -125,7 +126,7 @@ export function useTerminalView(options: {
     setTerminalFeedback,
     setQuery,
     setMode,
-    focusCollapsedInput,
+    scheduleCollapsedFocusBeats,
     showTerminalFeedback,
     t,
   } = options;
@@ -268,8 +269,7 @@ export function useTerminalView(options: {
     setQuery("");
     setTerminalMounted(false);
     setMode("collapsed");
-    focusCollapsedInput(90);
-    focusCollapsedInput(140);
+    scheduleCollapsedFocusBeats();
   };
 
   /** Fill the terminal bar's identity zone for `brokerSessionId`: the command

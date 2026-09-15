@@ -1,5 +1,6 @@
 import { useLayoutEffect } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { reassertCollapsedFocus } from "../collapsed-focus";
 
 const INPUT_WINDOW_WIDTH = 720;
 
@@ -66,5 +67,11 @@ export function syncLauncherHeight(
 
   getCurrentWindow()
     .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+    // A native resize can move WebView keyboard focus to the document body as
+    // it settles. The resize is the last thing to land when returning to the
+    // launcher, so the focus collector is re-run the instant it completes —
+    // this is what closes the "focused, then dropped by the layout that was
+    // still in flight" hole (see `collapsed-focus.ts`).
+    .then(() => reassertCollapsedFocus())
     .catch(() => undefined);
 }

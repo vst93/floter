@@ -236,15 +236,30 @@ export function PluginPageHost({
   }, [src]);
 
   useEffect(() => {
-    if (!pluginId) {
-      // The page was closed while the iframe stays mounted (its home is now the
-      // persistent plugin layer above the shells). A hidden document that still
-      // owns the keyboard would swallow the first keystroke meant for the
-      // surface underneath, so relinquish focus explicitly; the host re-focuses
-      // the launcher/terminal it returned to.
-      iframeRef.current?.blur();
-      iframeRef.current?.contentWindow?.blur();
-      return;
+    if (pluginId) return;
+    // The page was closed while the iframe stays mounted (its home is now the
+    // persistent plugin layer above the shells). "display:none" on the layer
+    // hides the iframe element but does not blur the document inside it — a
+    // hidden iframe document can still hold the keyboard and swallow the first
+    // keystroke meant for the surface underneath, and it can re-claim focus
+    // later still (a kept-alive page schedules its own `focus()`s on reveal).
+    // Relinquish explicitly: blur the frame, then clear whatever the inner
+    // document had focused (the same-origin built-in page; a cross-origin page
+    // exposes no contentDocument and is left to the host's focus collector in
+    // App.tsx, which reclaims on the resulting focusout).
+    const frame = iframeRef.current;
+    if (!frame) return;
+    frame.blur();
+    try {
+      frame.contentWindow?.blur();
+    } catch {
+      // Some engines reject blur() on a hidden/removed window; the host
+      // collector below is the guarantee, this is only belt-and-braces.
+    }
+    try {
+      (frame.contentDocument?.activeElement as HTMLElement | null)?.blur();
+    } catch {
+      // Cross-origin (opaque) sandbox: no document access by design.
     }
   }, [pluginId]);
 

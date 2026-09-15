@@ -135,8 +135,15 @@ test("closing the page hands focus back to the surface it returns to", async () 
   const app = await read("src/App.tsx");
   const start = app.indexOf("const closePluginPage");
   assert.ok(start > -1, "closePluginPage must exist");
-  const body = app.slice(start, app.indexOf("};", start));
-  assert.match(body, /focusCollapsedInput\(140\)/, "collapsed return must re-focus the input");
+  const body = app.slice(start, app.indexOf("\n  };", start));
+  // The collapsed return goes through the single collector's shared beat
+  // pattern (0/90/140 + Windows retry), whose last beat is 140ms; the beats
+  // themselves live in `collapsed-focus.ts`.
+  assert.match(
+    body,
+    /scheduleCollapsedFocusBeats\(\)/,
+    "collapsed return must re-focus through the shared collector",
+  );
   assert.match(body, /focusTerminalView\(80\)/, "terminal return must re-focus the canvas");
 });
 
@@ -144,7 +151,15 @@ test("the kept-alive iframe relinquishes focus when the page closes", async () =
   const host = await read("src/plugins/PluginPageHost.tsx");
   assert.match(
     host,
-    /contentWindow\?\.blur\(\)/,
+    /frame\.contentWindow\?\.blur\(\)/,
     "a hidden iframe must not keep the keyboard",
+  );
+  // And it must also clear whatever the (same-origin) inner document focused:
+  // a hidden iframe document stays focusable on WebKit and would otherwise
+  // re-claim the keyboard after the host already re-homed it.
+  assert.match(
+    host,
+    /contentDocument\?\.activeElement[\s\S]*?\.blur\(\)/,
+    "the inner document's focused element must be blurred too",
   );
 });

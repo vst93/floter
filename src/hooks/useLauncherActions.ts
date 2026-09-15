@@ -57,6 +57,8 @@ export function useLauncherActions(options: {
   openInTerminal: () => Promise<unknown>;
   focusTerminalView: (delay?: number) => void;
   focusCollapsedInput: (delay?: number) => void;
+  /** The shared collapsed-focus beat pattern (see `collapsed-focus.ts`). */
+  scheduleCollapsedFocusBeats: () => void;
   rememberCommand: (command: string) => void;
   recordLaunch: (path: string) => void;
   refreshTerminalSessions: () => Promise<void>;
@@ -105,6 +107,7 @@ export function useLauncherActions(options: {
     openInTerminal,
     focusTerminalView,
     focusCollapsedInput,
+    scheduleCollapsedFocusBeats,
     rememberCommand,
     recordLaunch,
     refreshTerminalSessions,
@@ -150,7 +153,7 @@ export function useLauncherActions(options: {
       showLauncherFeedback("launcher.error.command");
       setTerminalMounted(false);
       setMode("collapsed");
-      focusCollapsedInput(50);
+      scheduleCollapsedFocusBeats();
     } finally {
       terminalOpening.current = false;
     }
@@ -204,7 +207,7 @@ export function useLauncherActions(options: {
       setTerminalMounted(false);
       setMode("collapsed");
       refreshTerminalSessions();
-      focusCollapsedInput(50);
+      scheduleCollapsedFocusBeats();
     } finally {
       terminalOpening.current = false;
     }
@@ -344,7 +347,7 @@ export function useLauncherActions(options: {
           ? "launcher.error.restart"
           : "launcher.error.shutdown",
       );
-      focusCollapsedInput(50);
+      scheduleCollapsedFocusBeats();
     } finally {
       systemPowerOpening.current = false;
     }
