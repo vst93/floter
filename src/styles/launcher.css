@@ -32,7 +32,7 @@
   user-select: none;
   cursor: grab;
   overflow: hidden;
-  transition: transform 120ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  transition: transform var(--dur-2) ease, border-color var(--dur-3) ease, background var(--dur-3) ease, box-shadow var(--dur-3) ease;
 }
 
 .collapsed-card:focus-within {
@@ -67,7 +67,7 @@
   background: linear-gradient(90deg, var(--accent-wash), transparent 42%);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 140ms ease;
+  transition: opacity var(--dur-3) ease;
 }
 
 .collapsed-card--filled .collapsed-card__aura,
@@ -109,7 +109,7 @@
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, transform 80ms ease;
+  transition: color var(--dur-2) ease, background var(--dur-2) ease, transform var(--dur-1) ease;
 }
 
 @media (hover: hover) {
@@ -167,7 +167,7 @@
   pointer-events: none;
   overflow: hidden;
   transition:
-    opacity 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity var(--dur-3) var(--ease-out),
     visibility 0s;
 }
 
@@ -178,7 +178,7 @@
   visibility: visible;
   pointer-events: auto;
   transition:
-    opacity 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity var(--dur-3) var(--ease-out),
     visibility 0s;
 }
 
@@ -330,7 +330,7 @@
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition: color var(--dur-2) ease, background var(--dur-2) ease, border-color var(--dur-2) ease;
 }
 
 @media (hover: hover) {

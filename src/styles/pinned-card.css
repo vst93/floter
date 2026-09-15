@@ -24,7 +24,7 @@
   box-shadow:
     0 12px 34px var(--window-shadow-ambient),
     0 2px 8px var(--window-shadow-contact);
-  animation: feedback-enter 150ms ease-out;
+  animation: feedback-enter var(--dur-3) ease-out;
 }
 
 .pinned-card--focused {
@@ -91,7 +91,7 @@
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
-  transition: background 110ms ease, color 110ms ease;
+  transition: background var(--dur-2) ease, color var(--dur-2) ease;
 }
 
 @media (hover: hover) {

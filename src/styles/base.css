@@ -33,6 +33,19 @@
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* The house curve: a fast start that settles without overshoot. It was the
+     most-used literal in the stylesheet (5 call sites) before it had a name,
+     and it is the default for anything that simply has to arrive. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Durations. Four steps, and every transition/animation in `src/styles`
+     resolves to one of them: `--dur-1` for a pointer's micro-feedback
+     (hover/press), `--dur-2` for a control changing state, `--dur-3` for
+     content entering or leaving, `--dur-4` for a surface shell arriving. */
+  --dur-1: 80ms;
+  --dur-2: 120ms;
+  --dur-3: 160ms;
+  --dur-4: 220ms;
 
   /* Card surfaces. The values are supplied by the settings panel and clamped
      before persistence; alpha applies to materials only, never text. */
@@ -263,7 +276,7 @@ input:focus {
   background: transparent;
   transform-origin: center top;
   will-change: opacity, transform;
-  animation: shell-enter 200ms var(--spring);
+  animation: shell-enter var(--dur-4) var(--spring);
 }
 
 @keyframes shell-enter {
@@ -320,11 +333,23 @@ canvas {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Every enter/loop animation in the stylesheet is neutralized here. The
+     selectors are grouped by what they carry: shells + page content (an
+     arrival), transient notices (a toast or inline feedback), and the two
+     ambient loops (the spinner and the terminal status dot). `shell-enter`,
+     `terminal-enter` and `settings-page-enter` are already named by the
+     shell/content selectors below; the rest were the G-12 gaps. */
   .collapsed-shell,
   .terminal-shell,
   .settings-shell,
   .settings-content,
-  .terminal-panel--entered {
+  .terminal-panel--entered,
+  .app-toast,
+  .terminal-feedback,
+  .pinned-card,
+  .update-banner,
+  .settings-save-alert__spinner,
+  .terminal-bar__dot {
     animation: none;
   }
 
