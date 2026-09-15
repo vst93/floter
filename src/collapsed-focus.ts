@@ -23,6 +23,13 @@
 //   * the completion of every launcher resize (see `reassertCollapsedFocus`,
 //     called by `syncLauncherHeight` once its `setSize` settles).
 //
+// On macOS DOM focus is only half of it: the caret is drawn by AppKit and
+// needs the `WKWebView` to be the window's first responder, which DOM
+// `focus()` cannot set. The controller therefore calls a `nativeRefocus` seam
+// (wired to the `refocus_webview` command on that platform only) every time a
+// DOM focus lands on the collapsed input. On WebKitGTK/WebView2 the seam is
+// absent, so those platforms keep exactly the DOM-only behaviour they had.
+//
 // The policy predicates are pure and the controller accepts its DOM seams, so
 // the whole thing is testable without a browser (tests/collapsed-focus.test.ts).
 
@@ -85,6 +92,15 @@ export type CollapsedFocusController = {
  * Build the controller. The DOM seams (`schedule`, `activeElement`,
  * `addEventListener`/`removeEventListener`) are injectable so the behaviour can
  * be driven by a test without a browser.
+ *
+ * `nativeRefocus` is the platform seam for the second half of the invariant.
+ * On macOS a DOM `focus()` is not enough to put the caret on the screen: the
+ * `WKWebView` must also be the window's AppKit first responder, and only the
+ * native side can make that true. The App wires this to the `refocus_webview`
+ * command there; everywhere else it is left undefined, so the collector's
+ * behaviour is byte-for-byte the pre-existing one (Linux/Windows unchanged).
+ * It is consulted only after a DOM focus actually landed on the collapsed
+ * surface, so it can never pull the keyboard away from another surface.
  */
 export function createCollapsedFocusController(deps: {
   refs: CollapsedFocusRefs;
@@ -94,6 +110,7 @@ export function createCollapsedFocusController(deps: {
     onFocusOut: (handler: () => void) => () => void;
     onWindowFocus: (handler: () => void) => () => void;
   };
+  nativeRefocus?: () => void;
 }): CollapsedFocusController {
   const {
     refs,
@@ -101,16 +118,22 @@ export function createCollapsedFocusController(deps: {
       window.setTimeout(fn, delay);
     },
     activeElement = () => document.activeElement,
+    nativeRefocus,
   } = deps;
 
+  // DOM focus first, native first-responder second: once both agree the caret
+  // blinks. Gated on the DOM focus landing, so a stale beat or a reclaim that
+  // fired after the surface changed never touches the native responder.
+  const landFocus = (): void => {
+    if (focusCollapsedInputNow(refs)) nativeRefocus?.();
+  };
+
   const focus = (delay = 0) => {
-    schedule(() => {
-      focusCollapsedInputNow(refs);
-    }, delay);
+    schedule(landFocus, delay);
   };
 
   const reassert = () => {
-    focusCollapsedInputNow(refs);
+    landFocus();
   };
 
   const reclaim = () => {
@@ -122,7 +145,7 @@ export function createCollapsedFocusController(deps: {
         refs.cardRef.current,
       )
     ) {
-      focusCollapsedInputNow(refs);
+      landFocus();
     }
   };
 

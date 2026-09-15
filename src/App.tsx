@@ -394,6 +394,15 @@ export default function App() {
   if (!collapsedFocusRef.current) {
     collapsedFocusRef.current = createCollapsedFocusController({
       refs: { modeRef, inputRef, cardRef: collapsedCardRef },
+      // macOS only: a DOM focus() alone leaves the caret invisible until the
+      // `WKWebView` is the window's AppKit first responder. An iframe that held
+      // the keyboard leaves the responder on a view inside it, so ask the
+      // native side to re-arm the web view every time focus lands here. The
+      // command is a no-op-shaped `set_focus` on the other engines, but it is
+      // not sent there — Linux (WebKitGTK) and Windows (WebView2) draw the
+      // caret from DOM focus already, and skipping the IPC keeps their tested
+      // behaviour byte-for-byte. See `refocus_webview` in lib.rs.
+      nativeRefocus: IS_MAC ? () => { void invoke("refocus_webview").catch(() => undefined); } : undefined,
     });
   }
   const collapsedFocus = collapsedFocusRef.current;

@@ -1,6 +1,6 @@
 import { useLayoutEffect } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { reassertCollapsedFocus } from "../collapsed-focus";
+import { reassertCollapsedFocus } from "../collapsed-focus.ts";
 
 const INPUT_WINDOW_WIDTH = 720;
 

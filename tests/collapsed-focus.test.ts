@@ -31,6 +31,14 @@ import {
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
+// Source-shape assertions below must look at *code*, not prose: the very
+// comment explaining a seam often quotes the identifier being asserted (e.g.
+// "See `refocus_webview` in lib.rs"), which would satisfy a naive regex even
+// if the code were removed. Strip comments first.
+const readCode = async (path: string) =>
+  (await read(path))
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
 
 type FakeInput = {
   value: string;
@@ -183,6 +191,61 @@ test("the collector's attach() reclaims on focusout and on window focus", () => 
   controller.attach(); // idempotent re-attach is allowed
 });
 
+test("the collector re-arms the native first responder only after a DOM focus lands", () => {
+  const input = fakeInput("");
+  const outside = { tagName: "DIV" } as unknown as Element;
+  let active: Element | null = { tagName: "IFRAME" } as unknown as Element;
+  let nativeRefocuses = 0;
+  const microtasks: Array<() => void> = [];
+  const modeRef = { current: "collapsed" };
+
+  const controller = createCollapsedFocusController({
+    refs: { modeRef, inputRef: { current: input }, cardRef: { current: null } },
+    schedule: (fn) => microtasks.push(fn),
+    activeElement: () => active,
+    nativeRefocus: () => {
+      nativeRefocuses += 1;
+    },
+  });
+
+  // A scheduled beat re-arms the native responder once it lands the DOM focus.
+  controller.focus(0);
+  for (const task of microtasks.splice(0)) task();
+  assert.equal(input.focusCalls, 1, "the DOM focus landed");
+  assert.equal(nativeRefocuses, 1, "the native responder is re-armed alongside it");
+
+  // A reclaim from outside the card goes through the same seam…
+  input.focused = false;
+  active = outside;
+  controller.reclaim();
+  assert.equal(nativeRefocuses, 2, "reclaim also re-arms the native responder");
+
+  // …but yields (native untouched) when a card control holds the keyboard.
+  const cardButton = { tagName: "BUTTON" } as unknown as Element;
+  const card = {
+    contains: (n: Element | null) => n === cardButton,
+  } as unknown as HTMLElement;
+  const yielding = createCollapsedFocusController({
+    refs: { modeRef, inputRef: { current: input }, cardRef: { current: card } },
+    schedule: () => undefined,
+    activeElement: () => cardButton,
+    nativeRefocus: () => {
+      nativeRefocuses += 1;
+    },
+  });
+  const before = nativeRefocuses;
+  yielding.reclaim();
+  assert.equal(nativeRefocuses, before, "a card control keeps both DOM and native focus");
+
+  // On another surface nothing is touched at all.
+  modeRef.current = "terminal";
+  const focusCallsBefore = input.focusCalls;
+  const nativeBefore = nativeRefocuses;
+  controller.reassert();
+  assert.equal(input.focusCalls, focusCallsBefore, "reassert stays inert off the collapsed surface");
+  assert.equal(nativeRefocuses, nativeBefore, "and never pulls the native responder there");
+});
+
 test("reassertCollapsedFocus routes through the process-wide hook", () => {
   const input = fakeInput("");
   const controller = createCollapsedFocusController({
@@ -220,6 +283,107 @@ test("syncLauncherHeight re-asserts focus once its native resize settles", async
     (app.match(/COLLAPSED_FOCUS_BEATS_MS/g) ?? []).length >= 1,
     true,
     "the shared beat list is used",
+  );
+});
+
+test("syncLauncherHeight actually re-asserts focus once setSize resolves (runtime)", async () => {
+  // The assertion above is a regex over the source; this one drives the real
+  // helper with a stubbed Tauri IPC bridge and a resolved `setSize`, so a
+  // refactor that keeps the `.then(...)` text but stops calling the hook (or
+  // reorders the chain) still fails.
+  const globalWindow = globalThis as unknown as {
+    window: unknown;
+    getComputedStyle: (el: unknown) => Record<string, string>;
+  };
+  const previousWindow = globalWindow.window;
+  const previousGetComputedStyle = globalWindow.getComputedStyle;
+  const calls: Array<{ cmd: string; args: unknown }> = [];
+  globalWindow.window = {
+    __TAURI_INTERNALS__: {
+      metadata: { currentWindow: { label: "main" } },
+      invoke: async (cmd: string, args: unknown) => {
+        calls.push({ cmd, args });
+        return undefined;
+      },
+      transformCallback: () => 1,
+      unregisterCallback: () => undefined,
+    },
+  };
+  // Only the boxes `syncLauncherHeight` measures; the values are irrelevant to
+  // the contract under test (a non-zero height must be produced).
+  globalWindow.getComputedStyle = () => ({
+    display: "block",
+    borderTopWidth: "1px",
+    borderBottomWidth: "1px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
+  });
+
+  try {
+    const { syncLauncherHeight } = await import("../src/hooks/useLauncherHeight.ts");
+    const { setCollapsedFocusReassert: setHook } = await import("../src/collapsed-focus.ts");
+
+    let reasserted = 0;
+    setHook(() => {
+      reasserted += 1;
+    });
+    const card = {
+      children: [{ offsetTop: 8, offsetHeight: 50 }],
+      parentElement: null,
+    };
+    syncLauncherHeight({ current: card } as unknown as {
+      current: HTMLDivElement | null;
+    });
+    // `setSize` returns a resolved promise; give the `.then` a microtask turn.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    assert.equal(
+      calls.filter((call) => call.cmd === "plugin:window|set_size").length,
+      1,
+      "the launcher resize goes through setSize",
+    );
+    assert.equal(reasserted, 1, "a resolved setSize must run the focus reassert");
+    setHook(null);
+  } finally {
+    globalWindow.window = previousWindow;
+    globalWindow.getComputedStyle = previousGetComputedStyle;
+  }
+});
+
+test("the macOS native first-responder re-arm is gated, wired and registered", async () => {
+  // The DOM-only collector cannot draw a caret on WKWebView; the fix is a
+  // native seam that must stay macOS-gated (Linux/Windows keep DOM-only
+  // behaviour) and must actually exist on the Rust side.
+  const app = await readCode("src/App.tsx");
+  assert.match(
+    app,
+    /nativeRefocus:\s*IS_MAC\s*\?/,
+    "the native refocus seam must be compiled in on macOS only",
+  );
+  assert.match(app, /invoke\("refocus_webview"\)/, "App must request the native refocus");
+
+  const lib = await readCode("src-tauri/src/lib.rs");
+  assert.match(lib, /fn refocus_webview\(/, "backend must define the command");
+  assert.match(lib, /refocus_webview,/, "backend must register it in generate_handler!");
+  assert.ok(
+    lib.includes("webview.set_focus()"),
+    "the command must drive Webview::set_focus (wry's makeFirstResponder on macOS)",
+  );
+
+  // Source-level hardening of the panel-reveal path: `show_and_make_key`
+  // installs the *content view* as first responder, and its deferred retry can
+  // land after the frontend has re-armed — so the native reveal path must
+  // re-point at the web view both immediately and after the retry.
+  assert.match(lib, /fn arm_macos_webview_responder\(/, "a reveal-path re-arm helper must exist");
+  assert.match(
+    lib,
+    /arm_macos_webview_responder\(window\)/,
+    "the reveal path re-arms right after show_and_make_key",
+  );
+  assert.match(
+    lib,
+    /arm_macos_webview_responder\(&retry_window\)/,
+    "the deferred key retry re-arms after its own show_and_make_key",
   );
 });
 

@@ -561,6 +561,23 @@ fn configure_macos_panel(window: &WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
+/// Put the `WKWebView` — not the parent content view that tauri-nspanel's
+/// `show_and_make_key` installs — at the head of the panel's responder chain,
+/// which is what WebKit needs before it will draw a caret or route keys into
+/// the focused editable element. Reuses wry's own `makeFirstResponder` path
+/// through `Webview::set_focus`; no direct objc2 dependency, so it cannot drift
+/// from whatever handle wry actually installed the web view with. Safe to call
+/// on every reveal: if the web view is already responder this is a no-op, and
+/// the dispatch is synchronous because the caller runs on the main thread.
+#[cfg(target_os = "macos")]
+fn arm_macos_webview_responder(window: &WebviewWindow) -> Result<(), String> {
+    // Fully qualified on purpose: `Webview` is deliberately not in the shared
+    // import block, because importing it there would be an unused-import
+    // warning on every non-macOS build (and this fn is the only macOS user).
+    let webview: &tauri::Webview<Wry> = window.as_ref();
+    webview.set_focus().map_err(|error| error.to_string())
+}
+
 #[cfg(target_os = "macos")]
 fn show_macos_panel(window: &WebviewWindow) -> Result<(), String> {
     if !is_main_thread() {
@@ -580,16 +597,22 @@ fn show_macos_panel(window: &WebviewWindow) -> Result<(), String> {
         .map_err(|_| "macOS panel is not initialized".to_string())?;
     panel.show_and_make_key();
     panel.order_front_regardless();
+    // `show_and_make_key` (just above) leaves the CONTENT VIEW as first
+    // responder; the caret needs the web view itself, so hand the web view the
+    // keyboard before returning.
+    let _ = arm_macos_webview_responder(window);
 
     // A panel summoned before the accessory app has ever activated can lose the
     // first key request. Tinycast reasserts it on the next main-loop turn too.
     let label = window.label().to_string();
     let handle = window.app_handle().clone();
     let retry_handle = handle.clone();
+    let retry_window = window.clone();
     let _ = handle.run_on_main_thread(move || {
         if let Ok(panel) = retry_handle.get_webview_panel(&label) {
             if panel.is_visible() && !panel.as_panel().isKeyWindow() {
                 panel.show_and_make_key();
+                let _ = arm_macos_webview_responder(&retry_window);
             }
         }
     });
@@ -996,6 +1019,36 @@ fn start_drag(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     Ok(())
 }
 
+/// Re-arm the web view as the window's native first responder.
+///
+/// Caret rendering is a native-responder property, not a DOM one. WebKit only
+/// blinks the caret (and routes key events into the focused editable element)
+/// when the `WKWebView` is the `NSWindow`'s first responder. The macOS panel is
+/// a non-activating `NSPanel` re-fronted by tauri-nspanel's `show_and_make_key`,
+/// which calls `makeFirstResponder:` on the *content view* (the container wry
+/// installs above the web view) and then `makeKeyWindow` — so the window is key
+/// while the web view itself may not be the first responder. Once a sandboxed
+/// plugin iframe has held the keyboard, the first responder sits on a view
+/// *inside* that iframe, and a DOM `focus()` on the launcher input moves
+/// `document.activeElement` without moving the native responder back: the input
+/// accepts no keystrokes and shows no caret until a mouse click makes the web
+/// view responder again. The frontend calls this on every return to the
+/// collapsed surface, after its DOM focus, so the two views of focus agree.
+///
+/// `Webview::set_focus` is wry's `WKWebView` `makeFirstResponder:`
+/// (`wry/src/wkwebview/mod.rs`), dispatched to the main thread by the runtime's
+/// user-message machinery. On WebKitGTK and WebView2 the same method is
+/// `grab_focus` / `MoveFocus` — harmless there, and unnecessary, because those
+/// engines paint the caret straight from DOM focus. That is the whole platform
+/// difference: on Linux focus() alone is enough, on macOS it is not.
+#[tauri::command]
+fn refocus_webview(window: WebviewWindow) -> Result<(), String> {
+    // Bind the view before calling: `WebviewWindow` derefs to `Webview`, but the
+    // explicit binding keeps the `AsRef` conversion (and its lifetime) obvious.
+    let webview: &tauri::Webview<Wry> = window.as_ref();
+    webview.set_focus().map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
@@ -1381,6 +1434,7 @@ pub fn run() {
             hide_window,
             quit_app,
             show_input,
+            refocus_webview,
             start_drag,
             system_power,
             extensions_list,
