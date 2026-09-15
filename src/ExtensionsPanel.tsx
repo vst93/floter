@@ -1530,8 +1530,15 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         <section className="extensions-section">
           <h3 className="extensions-section-title">
             <span>{t("settings.extensions.section.connected")}</span>
+            {/* The chip is derived synchronously from `extensions` — the same
+                state the list below renders from — so the number and the rows
+                always land in one commit. While a REFRESH is in flight the old
+                count stays on screen (the rows do too); only the very first
+                load (no data at all yet) shows the spinner. Swapping the
+                number for a spinner on every mutation was the visible
+                "middle state" that made the heading flicker. */}
             <span className="extension-status">
-              {loading
+              {loading && extensions.length === 0
                 ? <LoaderCircle className="extensions-spinner" size={11} strokeWidth={2} aria-hidden="true" />
                 : connectedExtensions.length}
             </span>

@@ -205,22 +205,40 @@ export function ExtensionRow({
           </button>
         )}
 
+        {/* Runtime unavailable. Reconnect whenever a candidate is known, and
+            also when none is — but ONLY for a system-runtime row: an "unbound"
+            system tool (no persisted binding) with zero PATH matches and no
+            homepage previously rendered no action at all, leaving the row with
+            a "Tool unavailable" status and no way to recover after the user
+            installs the tool. Reconnect re-scans PATH, so it is the right entry
+            there too. The `runtimeSource === "system"` guard keeps that
+            fallback scoped to rows whose backend reconnect can actually run
+            (`reconnect_system_locked` rejects non-system ownership); managed /
+            bundled rows without a homepage keep the old behavior of rendering
+            no action here, while a row that still advertises a homepage falls
+            back to the repair/install action. */}
         {extension.connected
           && extension.state !== "broken"
           && !extension.runtimeAvailable
-          && (extension.reconnectAvailable || extension.homepage) && (
+          && (extension.reconnectAvailable || extension.homepage || extension.runtimeSource === "system") && (
           <button
             type="button"
             className="extensions-icon-button extensions-icon-button--row"
-            aria-label={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
-            title={t(extension.reconnectAvailable ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
+            aria-label={t(extension.reconnectAvailable || !extension.homepage ? "settings.extensions.reconnect" : "settings.extensions.installTool")}
+            title={t(
+              extension.reconnectAvailable
+                ? "settings.extensions.reconnect"
+                : extension.homepage
+                  ? "settings.extensions.installTool"
+                  : "settings.extensions.reconnectUnboundHint",
+            )}
             aria-busy={rowRepairBusy}
             disabled={busy}
-            onClick={extension.reconnectAvailable ? onReconnect : onRepair}
+            onClick={extension.reconnectAvailable || !extension.homepage ? onReconnect : onRepair}
           >
             {rowRepairBusy ? (
               <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
-            ) : extension.reconnectAvailable ? (
+            ) : extension.reconnectAvailable || !extension.homepage ? (
               <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
             ) : (
               <Wrench size={14} strokeWidth={2} aria-hidden="true" />
