@@ -23,12 +23,12 @@
   border-radius: var(--window-radius);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
-    var(--input-bg);
+    var(--glass-tint);
   box-shadow:
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 var(--edge-shadow);
-  -webkit-backdrop-filter: blur(26px) saturate(160%);
-  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   user-select: none;
   cursor: grab;
   overflow: hidden;
@@ -125,7 +125,10 @@
   position: fixed;
   inset: auto 16px 16px;
   z-index: 50;
-  background: var(--surface-opaque);
+  /* Floats over the settings body, which is the one scrolling region in the
+     app: a plain tint would let the rows slide through it. */
+  background: var(--glass-float);
+  box-shadow: var(--glass-float-shadow);
 }
 
 .settings-content {

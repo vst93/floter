@@ -39,10 +39,25 @@ const REDUCED_MOTION_ANIMATIONS = [
   "terminal-bar-dot",
 ];
 
-// `visibility 0s` is an immediate, non-animated swap of a discrete property —
-// the one legitimate zero. Infinite loops are periodic, not entrances, and
-// their periods (0.8s / 1.4s / 2.4s) are deliberately not on the token scale.
-const isImmediate = (value: string) => /(?:^|[\s,])0s(?:$|[\s,])/.test(value);
+// A `transition` value is a comma-separated list, and each item is judged on
+// its own. `visibility 0s` is an immediate, non-animated swap of a discrete
+// property — the one legitimate zero — but a finite duration sitting next to it
+// in the same declaration is still a raw value that has to be tokenized.
+// Matching the whole value for `0s` would skip exactly that mix, which is why
+// the split happens before the test, not after it. Infinite loops are periodic,
+// not entrances, and their periods (0.8s / 1.4s / 2.4s) are deliberately not on
+// the token scale.
+const motionItems = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+
+const itemIsImmediate = (item: string) =>
+  /\binfinite\b/.test(item) || timeLiterals(item).every((literal) => literal === "0s");
+
+// Every bare finite duration in a declaration, item by item. Exported to the
+// test below that pins the mixed-declaration case.
+const rawFiniteDurations = (value: string) =>
+  motionItems(value)
+    .filter((item) => !itemIsImmediate(item))
+    .flatMap((item) => timeLiterals(item));
 
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
@@ -122,8 +137,7 @@ test("the motion token scale is defined exactly once, in base.css", async () => 
 test("every finite transition/animation duration resolves to a --dur-* token", async () => {
   for (const { name, css } of await styleFiles()) {
     for (const { property, value } of motionDeclarations(name, css)) {
-      if (isImmediate(value) || /\binfinite\b/.test(value)) continue;
-      const literals = timeLiterals(value);
+      const literals = rawFiniteDurations(value);
       assert.deepEqual(
         literals,
         [],
@@ -132,6 +146,22 @@ test("every finite transition/animation duration resolves to a --dur-* token", a
       );
     }
   }
+});
+
+// The mutation this pins: reverting the item-level judgement to a whole-value
+// `0s` match makes the second assertion pass instead of fail, because the raw
+// `120ms` in the first item would never be looked at.
+test("a declaration mixing a token duration with a 0s item still reports the raw one", () => {
+  assert.deepEqual(
+    rawFiniteDurations("transform var(--dur-2) var(--ease-out), visibility 0s"),
+    [],
+    "a fully tokenized declaration reports nothing",
+  );
+  assert.deepEqual(
+    rawFiniteDurations("transform 120ms var(--ease-out), visibility 0s"),
+    ["120ms"],
+    "the finite item must be judged even though a 0s item shares the declaration",
+  );
 });
 
 test("cubic-bezier literals exist only as base.css token definitions", async () => {

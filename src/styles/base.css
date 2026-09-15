@@ -53,11 +53,52 @@
   --terminal-opacity: 0.92;
   --input-bg: rgba(18, 19, 22, var(--main-opacity));
   --input-bg-active: rgba(19, 20, 23, var(--main-opacity));
+
+  /* Glass. The two sliders are glass *strength*, not raw alpha: neither end
+     is a plain rectangle of colour and neither is a hole. `--glass-tint-alpha`
+     is the shell's fill, derived from the very `--main-opacity` the settings
+     panel already writes — the variable chain is untouched, only the formula
+     that consumes it changed — and `--glass-blur` moves the other way so a
+     thinner tint keeps its readability. Both are plain calc + rgba (no
+     color-mix) and both land inside the 28px / 160% budget. The affine map
+     puts the default 94 at 0.93, a hair under the 0.94 it replaced, so
+     existing users see the same dark panel while the bottom of the range
+     reaches a genuinely frosted 0.32 instead of the old near-invisible 0.10.
+
+     `round()` quantizes the blur to 2px steps so dragging the slider
+     re-rasterizes the backdrop a handful of times instead of continuously;
+     the `@supports` block below swaps it in where the engine has it and
+     leaves the smooth calc as the fallback. No transition ever names
+     `filter`/`backdrop-filter`, so a strength change is a discrete repaint,
+     never an animation. */
+  --glass-tint-alpha: calc(0.25 + 0.72 * var(--main-opacity));
+  --glass-tint: rgba(18, 19, 22, var(--glass-tint-alpha));
+  --glass-tint-alpha-terminal: calc(0.25 + 0.72 * var(--terminal-opacity));
+  --glass-tint-terminal: rgba(18, 19, 22, var(--glass-tint-alpha-terminal));
+  --glass-saturate: 155%;
+  --glass-blur: calc(22px + 6px * (1 - var(--main-opacity)));
+  --glass-blur-terminal: calc(22px + 6px * (1 - var(--terminal-opacity)));
+
+  /* Content that floats on the glass: drawers, dialogs, menus and toasts. One
+     step more opaque than the shell so text stays readable, sharing the same
+     top rim and a small fixed shadow instead of a blur of their own — this is
+     what keeps the count of backdrop-filter elements at one per surface. */
+  --glass-float-alpha: calc(0.82 + 0.16 * var(--main-opacity));
+  --glass-float: rgba(24, 25, 29, var(--glass-float-alpha));
+  --glass-float-shadow:
+    0 8px 22px var(--window-shadow-ambient),
+    inset 0 1px 0 var(--edge-highlight);
+
   --input-stroke: rgba(255, 255, 255, 0.08);
   --input-stroke-active: rgba(143, 183, 255, 0.24);
-  /* Recessed areas inside a card: the result strip and the settings body. */
-  --surface-sunken: rgba(17, 18, 20, 0.72);
-  --surface-sunken-soft: rgba(17, 18, 20, 0.52);
+  /* Recessed areas inside a card: the result strip and the settings body. They
+     are tint over the shell, never a second material — a fixed fraction of the
+     shell's own alpha, so the recess reads as depth at every strength and can
+     never punch through to the desktop. The fractions are the old fixed alphas
+     expressed against the old fixed 0.94, which is what keeps the default
+     strength looking exactly like it did. */
+  --surface-sunken: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.82));
+  --surface-sunken-soft: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.58));
   /* Stand-in for the whole stack where transparency is turned off. */
   --surface-opaque: rgba(28, 29, 32, 0.98);
 
@@ -136,15 +177,30 @@
   --text-placeholder-contrast: rgba(242, 243, 245, 0.58);
 }
 
+/* Quantized glass strength, where the engine has `round()`. The declaration
+   is a whole-value replacement, so an engine without the function keeps the
+   smooth `calc()` fallback from `:root` and still gets a working slider. */
+@supports (width: round(nearest, 1px, 1px)) {
+  :root {
+    --glass-blur: round(nearest, calc(22px + 6px * (1 - var(--main-opacity))), 2px);
+    --glass-blur-terminal: round(nearest, calc(22px + 6px * (1 - var(--terminal-opacity))), 2px);
+  }
+}
+
 [data-theme="light"] {
   color-scheme: light;
 
   --input-bg: rgba(250, 250, 252, var(--main-opacity));
   --input-bg-active: rgba(253, 253, 255, var(--main-opacity));
+  /* Only the colour of the glass changes with the palette; the alpha and the
+     blur come from the shared `--glass-*` definitions above. */
+  --glass-tint: rgba(250, 250, 252, var(--glass-tint-alpha));
+  --glass-tint-terminal: rgba(250, 250, 252, var(--glass-tint-alpha-terminal));
+  --glass-float: rgba(252, 252, 254, var(--glass-float-alpha));
   --input-stroke: rgba(0, 0, 0, 0.1);
   --input-stroke-active: rgba(10, 108, 255, 0.28);
-  --surface-sunken: rgba(243, 244, 247, 0.82);
-  --surface-sunken-soft: rgba(243, 244, 247, 0.58);
+  --surface-sunken: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.94));
+  --surface-sunken-soft: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.665));
   --surface-opaque: rgba(250, 250, 252, 0.99);
 
   --surface-control: rgba(0, 0, 0, 0.04);
@@ -382,9 +438,25 @@ canvas {
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  /* The shells are the only elements in the app that carry a backdrop-filter,
+     so switching transparency off is one declaration each: the blur goes and
+     the glass tint is replaced by the near-solid stand-in. `.terminal-panel`
+     keeps its canvas on top, and the canvas is what makes the terminal read
+     as an opaque panel rather than a hole. `.clipboard-panel` is the
+     host-side material for the plugin page's surface (the page itself owns
+     its sheet); it gets the same fallback so the host half of that glass
+     never disagrees with the rest.
+
+     `.collapsed-card:focus-within` is listed because its own rule is more
+     specific than the plain selector and would otherwise win the cascade: the
+     card the user is typing into would keep its translucent fill — the one
+     state where a see-through surface is most distracting — while every other
+     shell went opaque. */
   .collapsed-card,
+  .collapsed-card:focus-within,
   .settings-card,
-  .terminal-bar__frost {
+  .terminal-panel,
+  .clipboard-panel {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: var(--surface-opaque);

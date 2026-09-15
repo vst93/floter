@@ -134,8 +134,9 @@ const en = {
   "settings.theme.lightDescription": "Always light, whatever the system does",
   "settings.theme.auto": "Auto",
   "settings.theme.autoDescription": "Follow the system appearance",
-  "settings.opacity": "Window Material",
-  "settings.opacityHint": "Suggested levels snap into place. The surface never becomes fully transparent.",
+  "settings.opacity": "Glass strength",
+  "settings.opacityHint":
+    "A frosted surface, not raw transparency: every level keeps a tinted backdrop and the blur strengthens as the tint thins, so the surface never becomes a hole.",
   "settings.opacity.main": "Launcher & settings",
   "settings.opacity.terminal": "Terminal",
   "settings.terminalAppearance": "Terminal appearance",
@@ -556,8 +557,9 @@ const zh: Record<MessageKey, string> = {
   "settings.theme.lightDescription": "始终使用浅色，不随系统变化",
   "settings.theme.auto": "自动",
   "settings.theme.autoDescription": "跟随系统外观",
-  "settings.opacity": "窗口材质",
-  "settings.opacityHint": "接近推荐档位时会自动吸附，窗口表面不会变为完全透明。",
+  "settings.opacity": "玻璃效果强度",
+  "settings.opacityHint":
+    "这是磨砂玻璃的强度，而非裸透明度：任何档位都保留着色底与模糊，底色越薄模糊越强，表面不会变成完全透明。",
   "settings.opacity.main": "主体与设置",
   "settings.opacity.terminal": "终端",
   "settings.terminalAppearance": "终端外观",

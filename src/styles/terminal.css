@@ -10,7 +10,14 @@
   width: 100%;
   height: 100%;
   border-radius: var(--window-radius);
+  /* The glass sits on the shell, under the canvas and under the plugin page.
+     It carries no tint of its own: in terminal mode the xterm canvas paints
+     the panel's colour at `--terminal-opacity` on top of it, and in plugin
+     mode the page's own sheet does — adding a fill here would darken both.
+     One blur, one surface, and the canvas itself stays filter-free. */
   background: transparent;
+  -webkit-backdrop-filter: blur(var(--glass-blur-terminal)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-terminal)) saturate(var(--glass-saturate));
   border: 1px solid var(--input-stroke);
   box-shadow:
     inset 0 1px 0 var(--keycap-highlight),
@@ -320,10 +327,9 @@
    (see App.tsx's clipboard branch), whose background in terminal mode is
    painted by the xterm canvas — and is transparent otherwise. So the panel
    carries its OWN complete surface here, exactly the material a standalone
-   card would have: the input gradient over `--input-bg`, the sheen on top and
-   a backdrop blur behind. Both theme variable sets resolve these to readable
-   surfaces; `.terminal-panel`'s border, radius and overflow clipping keep the
-   window shape and shadow intact around it.
+   card would have: the tint over `--terminal-opacity`, the sheen on top — and
+   no blur of its own, because the blur now belongs to the `.terminal-panel`
+   shell this sits inside (one backdrop-filter per surface).
    Layout is three fixed-or-flex bands — topbar / list / footer — where the
    list is the only shrinking child and its `min-height: 0` is what lets
    scrolling work at any window height. */
@@ -340,11 +346,9 @@
     /* Transparency follows the terminal page's configured opacity — the same
        `--terminal-opacity` custom property the host window sets and the same
        mechanism every terminal-backed surface uses (.pinned-card included).
-       No hardcoded level lives here; only this variable decides how opaque
-       the panel is. */
-    rgb(18 19 22 / var(--terminal-opacity));
-  -webkit-backdrop-filter: blur(26px) saturate(160%);
-  backdrop-filter: blur(26px) saturate(160%);
+       No hardcoded level lives here; only this variable decides how strong
+       the glass is. */
+    var(--glass-tint-terminal);
   overflow: hidden;
 }
 
