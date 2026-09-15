@@ -1302,6 +1302,19 @@
   line-height: 1.4;
 }
 
+/* Publisher-descriptor note: a quiet, indented aside explaining that the
+   command list tracks the release payload rather than the local binary. */
+.extension-detail-note {
+  margin: 0;
+  padding: 7px 9px;
+  border-left: 2px solid var(--stroke-control);
+  background: var(--surface-control);
+  border-radius: var(--ext-radius);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .extension-health { display: flex; flex-direction: column; gap: 6px; }
 .extension-health__header { display: flex; align-items: center; gap: 8px; }
 .extension-health__status { padding: 2px 8px; border-radius: var(--ext-radius); font-weight: 600; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0; }

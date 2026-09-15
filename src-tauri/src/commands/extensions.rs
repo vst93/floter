@@ -26,6 +26,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
@@ -58,14 +59,105 @@ fn resolve_system_binding(
     )
 }
 
-#[tauri::command]
-pub async fn extensions_list(
-    state: State<'_, ExtensionState>,
-) -> Result<Vec<ExtensionListItem>, String> {
-    list_extensions(&state).await
+/// In-process serialization gate for the background drift re-probe loop.
+///
+/// `mutation_lock.try_lock()` serializes a single re-probe, but it cannot
+/// express "one re-probe *loop* at a time": a second listing could otherwise
+/// start a fresh loop while the first is still between candidates. The gate
+/// closes that gap so a high-frequency listing poll never fans out into
+/// competing loops.
+static DRIFT_REPROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Releases [`DRIFT_REPROBE_ACTIVE`] when the background loop ends — including
+/// if the task is cancelled or panics while unwinding.
+struct DriftReprobeGuard;
+
+impl Drop for DriftReprobeGuard {
+    fn drop(&mut self) {
+        DRIFT_REPROBE_ACTIVE.store(false, Ordering::Release);
+    }
 }
 
-async fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem>, String> {
+/// Enter the drift re-probe loop, or `None` when one is already running.
+fn try_start_drift_reprobe() -> Option<DriftReprobeGuard> {
+    DRIFT_REPROBE_ACTIVE
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .ok()
+        .map(|_| DriftReprobeGuard)
+}
+
+/// Re-probe every drift candidate in turn and then drop the provider-command
+/// cache so the next catalog load observes the refreshed descriptors. Runs off
+/// the list request path; best-effort and idempotent —
+/// [`install::reprobe_on_tool_version_change`] re-checks the version under
+/// `mutation_lock`, swallows every failure, and keeps the previous descriptor,
+/// so a later listing simply retries any drift that could not be committed.
+/// Remaining panic-free by contract (the helper logs instead of unwrapping).
+async fn run_drift_reprobe(
+    state: &ExtensionState,
+    candidates: Vec<(ExtensionLockEntry, ExtensionManifest)>,
+) {
+    for (entry, manifest) in candidates {
+        install::reprobe_on_tool_version_change(state, &entry, &manifest).await;
+    }
+    // Guarantee the next catalog load rebuilds from the fresh descriptors even
+    // if no candidate actually drifted once the lock was taken.
+    state.invalidate_provider_commands().await;
+}
+
+/// Hand the collected drift candidates to a background task so the list can
+/// return the previous descriptor/state immediately.
+///
+/// The candidates are gathered inline (cheap: the tool-lock guard is already
+/// held and the manifest was already parsed), while the re-probe itself —
+/// several process spawns per integration under multi-second timeouts — runs
+/// on the Tauri async runtime after `extensions_list` has replied. Because the
+/// loop is skipped entirely while another is in flight, rapid polling cannot
+/// stack loops; and even without that gate the per-reprobe `try_lock` + version
+/// re-check keeps a single drift from being probed twice.
+fn dispatch_drift_reprobe(
+    app: &AppHandle,
+    candidates: Vec<(ExtensionLockEntry, ExtensionManifest)>,
+) {
+    if candidates.is_empty() {
+        return;
+    }
+    let Some(guard) = try_start_drift_reprobe() else {
+        // A background loop is already re-probing this drift; this listing
+        // still returns the previous inventory and a later one retries.
+        return;
+    };
+    let app = app.clone();
+    // Fire-and-forget: the `JoinHandle` is dropped immediately (detaching the
+    // task), so the loop keeps running after `extensions_list` returns.
+    let _task = tauri::async_runtime::spawn(async move {
+        let state = app.state::<ExtensionState>();
+        run_drift_reprobe(&state, candidates).await;
+        drop(guard);
+    });
+}
+
+#[tauri::command]
+pub async fn extensions_list(
+    app: AppHandle,
+    state: State<'_, ExtensionState>,
+) -> Result<Vec<ExtensionListItem>, String> {
+    // The response is assembled from the *previous* descriptor/state; drift
+    // re-probing happens in the background after it is sent.
+    let (items, drift_candidates) = list_extensions(&state).await?;
+    dispatch_drift_reprobe(&app, drift_candidates);
+    Ok(items)
+}
+
+async fn list_extensions(
+    state: &ExtensionState,
+) -> Result<
+    (
+        Vec<ExtensionListItem>,
+        Vec<(ExtensionLockEntry, ExtensionManifest)>,
+    ),
+    String,
+> {
     let lock = ExtensionsLock::load(&state.paths.repository_file)?;
     let candidates = state
         .tool_inventory
@@ -73,6 +165,11 @@ async fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem
         .map_err(|_| "Tool inventory is unavailable".to_string())?
         .candidates();
     let mut items = Vec::new();
+    // Generated custom integrations whose upstream tool version may have
+    // drifted are collected here (entry + parsed manifest) and handed to a
+    // background task once the list is assembled, so neither the tool-lock
+    // guard nor the response is held across the probe awaits.
+    let mut drift_candidates: Vec<(ExtensionLockEntry, ExtensionManifest)> = Vec::new();
     // The tool-lock guard is confined to this block so it is released before
     // the cache invalidation await below (a `std::sync::MutexGuard` is not
     // `Send` and must not be held across an await point).
@@ -134,6 +231,18 @@ async fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem
                 Vec::new()
             };
             let reconnect_available = !tool_candidates.is_empty();
+            // Only generated custom integrations (publisher `local-user`, static
+            // descriptor, system runtime) can have a derived command list that
+            // should track the local binary. Publisher-shipped descriptors are
+            // excluded by `is_generated_custom_integration`, so v-tools is never
+            // re-probed.
+            if entry.runtime_ownership == ExtensionRuntimeOwnership::System {
+                if let Some(manifest) = manifest.as_ref() {
+                    if install::is_generated_custom_integration(&entry) {
+                        drift_candidates.push((entry.clone(), manifest.clone()));
+                    }
+                }
+            }
             items.push(ExtensionListItem::installed(
                 entry,
                 lock_state,
@@ -156,6 +265,16 @@ async fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem
     if tool_lock_changed {
         state.invalidate_provider_commands().await;
     }
+    // Upstream command drift for generated custom integrations: when the
+    // executable's version no longer matches the version recorded at
+    // connect/reconnect time, re-derive the descriptor (atomic replace + help
+    // sidecar) and refresh the recorded version. Best-effort and idempotent —
+    // the helper logs and swallows every failure, keeps the previous descriptor
+    // on error, and never marks the entry broken (see
+    // `install::reprobe_on_tool_version_change`). The list returns the previous
+    // descriptor/state immediately; these candidates are re-probed in the
+    // background by [`dispatch_drift_reprobe`] so a slow or hung tool can never
+    // block the response.
     // Recommended tools ship as ordinary manifest/descriptor data. They
     // surface in the same suggestion area as PATH discoveries and connect
     // through the same generic linked-install pipeline.
@@ -257,7 +376,7 @@ async fn list_extensions(state: &ExtensionState) -> Result<Vec<ExtensionListItem
     for candidate in &suggestions {
         items.push(ExtensionListItem::suggested_discovered(candidate));
     }
-    Ok(items)
+    Ok((items, drift_candidates))
 }
 
 #[tauri::command]
@@ -301,6 +420,11 @@ pub struct ExtensionListItem {
     pub reconnect_available: bool,
     pub homepage: Option<String>,
     pub generated_custom: bool,
+    /// The command list comes from a descriptor shipped with the publisher's
+    /// release (`static-descriptor`/`bundled-static`, not generated by
+    /// Floter), so it tracks the release payload, not the local binary. The
+    /// details drawer explains this; such rows are never re-probed.
+    pub publisher_descriptor: bool,
     pub recommended: bool,
     /// Suggested from a convention-location manifest
     /// (`<config>/floter/tools/*.json`) rather than a PATH scan.
@@ -330,6 +454,7 @@ impl ExtensionListItem {
     ) -> Self {
         let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
         let generated_custom = install::is_generated_custom_integration(&entry);
+        let publisher_descriptor = install::is_publisher_descriptor(&entry);
         let stored_runtime_available = crate::extensions::registry::runtime_available(&entry);
         let runtime_available = stored_runtime_available
             && tool_lock_state.is_none_or(|state| state == LockState::Connected);
@@ -351,6 +476,7 @@ impl ExtensionListItem {
             reconnect_available,
             homepage,
             generated_custom,
+            publisher_descriptor,
             recommended: false,
             manifest_suggestion: false,
             tool_lock_state,
@@ -422,7 +548,12 @@ impl ExtensionListItem {
             manifest_suggestion: false,
             reconnect_available: false,
             homepage: recommendation.manifest.homepage.clone(),
+            // Recommended tools (v-tools) ship a static descriptor in the
+            // release payload; their command list does not track the local
+            // binary. `generated_custom` stays false so the frontend never
+            // offers a re-scan for them.
             generated_custom: false,
+            publisher_descriptor: true,
             tool_lock_state: None,
             tool_candidates,
             entry,
@@ -491,6 +622,10 @@ impl ExtensionListItem {
             reconnect_available: false,
             homepage: None,
             generated_custom: false,
+            // A PATH discovery has no descriptor yet — it is offered as a
+            // generated custom integration, so its future list comes from this
+            // device, not a publisher.
+            publisher_descriptor: false,
             tool_lock_state: None,
             tool_candidates: Vec::new(),
             entry,
@@ -575,7 +710,12 @@ impl ExtensionListItem {
             manifest_suggestion: true,
             reconnect_available: false,
             homepage: tool.manifest.homepage.clone(),
+            // An authored convention-location manifest is not generated by
+            // Floter. When it ships its own static descriptor the command list
+            // comes from the author, so it is flagged as a publisher descriptor.
             generated_custom: false,
+            publisher_descriptor: tool.manifest.provider.kind
+                == crate::extensions::manifest::ProviderKind::StaticDescriptor,
             tool_lock_state: None,
             tool_candidates,
             entry,
@@ -2138,7 +2278,7 @@ mod tests {
         std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
-        let items = list_extensions(&state).await.unwrap();
+        let items = list_extensions(&state).await.unwrap().0;
         let listed = items
             .iter()
             .find(|item| item.entry.id == entry.id)
@@ -2164,14 +2304,14 @@ mod tests {
         );
 
         // Re-listing is stable (no oscillation): still Connected, still available.
-        let items = list_extensions(&state).await.unwrap();
+        let items = list_extensions(&state).await.unwrap().0;
         let listed = items.iter().find(|item| item.entry.id == entry.id).unwrap();
         assert!(listed.runtime_available);
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
 
         // Removing the executable is still a hard failure: broken + unavailable.
         std::fs::remove_file(&executable).unwrap();
-        let items = list_extensions(&state).await.unwrap();
+        let items = list_extensions(&state).await.unwrap().0;
         let listed = items.iter().find(|item| item.entry.id == entry.id).unwrap();
         assert!(!listed.runtime_available);
         assert_eq!(listed.tool_lock_state, Some(LockState::ReconnectRequired));
@@ -2286,7 +2426,7 @@ mod tests {
         std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
-        let items = list_extensions(&state).await.unwrap();
+        let items = list_extensions(&state).await.unwrap().0;
         let listed = items
             .iter()
             .find(|item| item.entry.id == entry.id)
@@ -2403,6 +2543,7 @@ mod tests {
         list_extensions(state)
             .await
             .unwrap()
+            .0
             .into_iter()
             .find(|item| item.entry.id == id)
             .expect("entry is listed")
@@ -2565,6 +2706,253 @@ mod tests {
         let listed = list_item(&fixture.state, &fixture.entry.id).await;
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
         assert!(listed.runtime_available);
+    }
+
+    #[cfg(unix)]
+    const LIST_DRIFTER_V1: &str = concat!(
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"--version\" ]; then echo 'lister 1.0.0'; exit 0; fi\n",
+        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n'; exit 0; fi\n",
+        "echo done\n",
+    );
+
+    #[cfg(unix)]
+    const LIST_DRIFTER_V2: &str = concat!(
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"--version\" ]; then echo 'lister 2.0.0'; exit 0; fi\n",
+        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
+        "echo done\n",
+    );
+
+    /// `extensions_list` is the drift collection point: a generated custom
+    /// integration whose executable version moved past the recorded
+    /// `tool_version` is *collected* by the read path (which returns the
+    /// previous descriptor/state immediately) and re-probed off the request
+    /// path. The row is labelled `generatedCustom`, not `publisherDescriptor`.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_reprobes_a_generated_integration_on_tool_version_change() {
+        use crate::extensions::ExtensionPaths;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        let executable = scripts.path().join("lister.sh");
+        std::fs::write(&executable, LIST_DRIFTER_V1).unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        install::create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.lister-test".into(),
+                name: "Lister Test".into(),
+                command: "lister-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: vec!["--version".into()],
+                permissions: vec![Permission::Environment],
+                platforms: vec![PlatformTarget::current().unwrap().os],
+            },
+        )
+        .await
+        .unwrap();
+        let id = "local.lister-test";
+        let descriptor_path = state
+            .paths
+            .data
+            .join(id)
+            .join("integration")
+            .join("provider-description.json");
+        assert!(!serde_json::to_string(
+            &serde_json::from_slice::<serde_json::Value>(&std::fs::read(&descriptor_path).unwrap())
+                .unwrap()
+        )
+        .unwrap()
+        .contains("-new"));
+        {
+            let mut tool_lock = state.tool_lock.lock().unwrap();
+            let candidate = inventory::executable_candidate(&executable, "lister");
+            tool_lock.bind(id, &candidate);
+            tool_lock.save(&state.paths.tool_lock_file).unwrap();
+        }
+
+        // Upstream upgrade in place.
+        std::fs::write(&executable, LIST_DRIFTER_V2).unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        // The listing returns the *previous* inventory without awaiting the
+        // re-probe, and hands the drifted integration to the caller as a
+        // candidate for the background pass.
+        let (items, candidates) = list_extensions(&state).await.unwrap();
+        let listed = items.iter().find(|item| item.entry.id == id).unwrap();
+        assert!(listed.generated_custom);
+        assert!(!listed.publisher_descriptor);
+        assert!(listed.runtime_available);
+        assert_eq!(candidates.len(), 1, "the drifted integration is collected");
+        // Non-blocking: the response still carries the recorded (old) version
+        // and the descriptor has not been rewritten yet.
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.repository_file)
+                .unwrap()
+                .get(id)
+                .unwrap()
+                .tool_version
+                .as_deref(),
+            Some("lister 1.0.0")
+        );
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        assert!(!serde_json::to_string(&descriptor).unwrap().contains("-new"));
+
+        // The background pass (the same routine the spawned task runs) re-probes
+        // the collected candidate, records the new version, and refreshes the
+        // descriptor.
+        super::run_drift_reprobe(&state, candidates).await;
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .clone();
+        assert_eq!(stored.tool_version.as_deref(), Some("lister 2.0.0"));
+        assert_eq!(stored.state, ExtensionStateKind::Enabled);
+        assert!(stored.enabled);
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        assert!(serde_json::to_string(&descriptor).unwrap().contains("-new"));
+
+        // Idempotent: a second list collects nothing (the recorded version is
+        // already current) and the re-probe is a no-op.
+        let (relisted, relisted_candidates) = list_extensions(&state).await.unwrap();
+        let relisted = relisted.iter().find(|item| item.entry.id == id).unwrap();
+        assert!(relisted.generated_custom);
+        super::run_drift_reprobe(&state, relisted_candidates).await;
+        assert_eq!(
+            ExtensionsLock::load(&state.paths.repository_file)
+                .unwrap()
+                .get(id)
+                .unwrap()
+                .tool_version
+                .as_deref(),
+            Some("lister 2.0.0")
+        );
+    }
+
+    /// A publisher-shipped static descriptor (`publisher_id != "local-user"`)
+    /// is listed with `publisherDescriptor: true` and is never re-probed, even
+    /// when its executable reports a version different from the recorded one.
+    /// Its command list is release content, not a local derivation.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_flags_a_publisher_descriptor_and_never_reprobes_it() {
+        use crate::extensions::ExtensionPaths;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        let root = directory.path().join("vendor").join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        let executable = directory.path().join("vendor-tool");
+        std::fs::write(
+            &executable,
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'vendor 9.9.9'; exit 0; fi\nif [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -shouldNotBeDerived   Nope\\n'; exit 0; fi\nexit 0\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let manifest = r#"{
+            "schemaVersion": "2.0",
+            "id": "com.vendor.tool",
+            "name": "Vendor Tool",
+            "publisher": { "id": "vendor", "name": "Vendor" },
+            "compatibility": { "floter": ">=0.1.0", "providerProtocol": "^1.0" },
+            "distribution": { "type": "local" },
+            "runtime": { "type": "system", "executableNames": ["vendor-tool"], "versionArgs": ["--version"] },
+            "provider": { "type": "static-descriptor", "descriptor": "provider-description.json", "argsPrefix": [] },
+            "permissions": ["environment"]
+        }"#;
+        std::fs::write(root.join("floter.extension.json"), manifest).unwrap();
+        std::fs::write(
+            root.join("provider-description.json"),
+            r#"{
+                "protocolVersion": "1.0",
+                "provider": { "id": "com.vendor.tool", "name": "Vendor Tool", "version": "1.0.0", "description": "Vendor shipped" },
+                "commands": [{ "id": "vendor-tool", "name": "Vendor Tool", "description": "shipped", "aliases": [], "execution": { "program": "self", "argsPrefix": [], "mode": "pty", "workingDirectory": "current" }, "arguments": [] }]
+            }"#,
+        )
+        .unwrap();
+        let descriptor_path = root.join("provider-description.json");
+        let before = std::fs::read(&descriptor_path).unwrap();
+        let entry = ExtensionLockEntry {
+            id: "com.vendor.tool".into(),
+            name: "Vendor Tool".into(),
+            publisher_id: "vendor".into(),
+            publisher_name: "Vendor".into(),
+            distribution_source: ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: "1.0.0".into(),
+            tool_version: Some("vendor 1.0.0".into()),
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            asset_selection: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: "1.0.0".into(),
+            previous_version: None,
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable.to_string_lossy().into_owned(),
+            runtime_root: None,
+            installed_at: 1,
+            updated_at: 1,
+            pinned: false,
+            channel: "external".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+            probe_report: None,
+            config_generation: 0,
+        };
+        let mut lock = ExtensionsLock::default();
+        lock.extensions.insert(entry.id.clone(), entry.clone());
+        lock.save(&state.paths.repository_file).unwrap();
+
+        let listed = list_item(&state, "com.vendor.tool").await;
+        assert!(listed.publisher_descriptor);
+        assert!(!listed.generated_custom);
+        // Nothing was re-probed: the release descriptor is byte-identical and
+        // the recorded version is untouched despite the version mismatch.
+        assert_eq!(std::fs::read(&descriptor_path).unwrap(), before);
+        let stored = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get("com.vendor.tool")
+            .unwrap()
+            .clone();
+        assert_eq!(stored.tool_version.as_deref(), Some("vendor 1.0.0"));
+        assert_eq!(stored.state, ExtensionStateKind::Enabled);
     }
 
     #[cfg(unix)]

@@ -413,7 +413,7 @@ Host Services          # command catalog、config store、health、UI/IPC
 | 缺口 | 严重度 | 摘要 | 状态 |
 |---|---|---|---|
 | **G1** · 工具指纹漂移被当硬错误 + 双真源 | P1 | `catalog.rs:440-487` 把 `ReverifyRequired` 记 `binding-changed` → `mark_broken` 落 repository（强制 `enabled=false`）；同时 `commands/extensions.rs:313-314` 令 `runtime_available=false`。指纹含 `mtime`（`inventory.rs:876`），重编译即触发；`clear_broken_after_success`（`commands/extensions.rs:1635`）又能清，形成振荡 | **已修** `44452b9`：同路径新指纹静默自动重绑（`tool_lock.rs:210`），仅 `ReconnectRequired`/校验失败才判 broken |
-| **G2** · 上游命令漂移不可感知 | P1 | v-tools 命令来自发布方自带 `provider-description.json`（`catalog.rs:546 static_description`、`registry.rs:80`）；`reprobe_tool_commands` 拒绝对非 `local-user` 集成操作（`install.rs:483-486`、`is_generated_custom_integration` `:589`）；`tool_version` 变化不触发任何重探；update/reinstall 命令已删（`350e2d6`） | **待办**（第 4 轮方向）。目标：发布内容为准 + UI 说明；生成型集成在 `tool_version` 变化时触发重探（复用 `reprobe_after_enable` `install.rs:579`） |
+| **G2** · 上游命令漂移不可感知 | P1 | v-tools 命令来自发布方自带 `provider-description.json`（`catalog.rs:546 static_description`、`registry.rs:80`）；`reprobe_tool_commands` 拒绝对非 `local-user` 集成操作（`install.rs:483-486`、`is_generated_custom_integration` `:589`）；`tool_version` 变化不触发任何重探；update/reinstall 命令已删（`350e2d6`） | **已做**（第 4 轮，`04774a8` 之后）：①发布方自带描述符明确「以发布内容为准」——`install.rs` `is_publisher_descriptor` + list item 新字段 `publisherDescriptor`，抽屉显示 i18n 说明（`ExtensionsPanel.tsx`、`i18n.ts`）；②生成型自定义集成在 `extensions_list` 检测 `tool_version` 漂移并触发 `install::reprobe_on_tool_version_change`（复用原子替换 + help 旁车 + `MAX_SUBCOMMAND_PROBES=12`/4s 预算），best-effort、幂等、失败不 broken；③确认前端无「重装刷新清单」残留文案 |
 | **G3** · 列表副作用 + 缓存失联 | P1 | `extensions_list` 在缺绑定时写 `tool-lock.json`（`commands/extensions.rs:60`（写盘在 `:134`）），读路径有持久副作用；`extensions_list` 不调 `invalidate_provider_commands`（仅在 install/connect/enable/reprobe/repair 调用，如 `commands/extensions.rs:911`）；catalog 缓存 TTL 60s（`catalog.rs:20`），工具变化后最长 60s 返回旧描述 | **待办**（第 3 轮方向）。目标：列表只读、绑定对账集中到 reconnect/启动 reconcile、缓存与绑定状态联动失效 |
 | **G4** · audit 文档 Phase 3-8 与代码严重漂移 | P2 | 本文以 NPM 为中心描述 Phase 3-8，把 NPM install/update/reinstall/rollback/repair 当「已实现」；NPM 后端已在 `350e2d6` 删除；`official_index`/`artifacts`/`asset_matcher`/`resolver`/`profile`/`tool_manifests` 多为冻结/半死代码 | **本轮已处理**（§五矩阵校准 + §六冻结区 + §七索引） |
 | **G5** · 双轨/多真源残留 | P2 | catalog 加载期绑定/describe 失败只 `eprintln!`（`catalog.rs:564-605`），不进 UI；`extensions_list` 又用 `tool_lock` 状态决定 `runtime_available`（`commands/extensions.rs:313-314`）。「是否可用」由 repository 状态机与 tool_lock 状态机分别回答 | **待办**：单一 `RuntimeBinding` 真源 + 统一可用性投影；按 ToolBinding 新方向重述（原属 audit Phase 3） |
@@ -424,7 +424,7 @@ Host Services          # command catalog、config store、health、UI/IPC
 1. 文档对齐（G4/G6 文档部分）— **本轮已做**；
 2. tool-lock 误报与双真源（G1）— **已由 `44452b9` 修复**；
 3. 收敛绑定对账入口、去列表副作用（G3/G5）；
-4. 上游漂移感知策略（G2）；
+4. 上游漂移感知策略（G2）— **本轮已做**；
 5. 冻结区清理（G7）。
 
 > G1/G2/G3 为研究轮**新发现**（旧 audit Phase 6-8 未覆盖）；G4/G5/G6/G7 属旧 audit Phase 1-3 的历史遗留，

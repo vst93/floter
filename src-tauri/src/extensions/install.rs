@@ -462,13 +462,39 @@ pub struct ReprobeReport {
     pub subcommands: usize,
 }
 
+/// Derive a tool's command hints for the *re-probe* path, treating unusable
+/// help output as a hard failure.
+///
+/// [`help_args::probe_derive`] is deliberately best-effort at connect time — a
+/// tool that answers nothing usable still connects with an empty hint set —
+/// but the drift re-probe uses a non-empty derivation as its signal that the
+/// tool is still probeable. A completely empty result therefore means the
+/// tool is not answering `--help` the way it did at connect time, and the old
+/// descriptor must be kept rather than replaced by an empty one. Only reached
+/// after [`is_linked_executable`] confirmed the file carries its execute bit;
+/// a race that removes the tool between that check and this probe is reported
+/// as an execution failure by [`help_args::probe_derive`].
+async fn probe_derive_or_error(executable: &Path) -> Result<help_args::HelpDerivation, String> {
+    let derivation = help_args::probe_derive(executable).await;
+    if derivation.root_arguments.is_empty() && derivation.subcommands.is_empty() {
+        return Err(format!(
+            "Tool did not produce usable help output: {}",
+            executable.display()
+        ));
+    }
+    Ok(derivation)
+}
+
 /// Re-run the connect-time help derivation for a generated custom
 /// integration and regenerate its static descriptor in place. The current
 /// descriptor is authoritative for everything user-visible (root command
 /// id/name/description, provider block, configured `argsPrefix`); only the
 /// derived `arguments` arrays and the subcommand command list are rebuilt.
 /// The refreshed descriptor replaces the old one atomically (temp + rename)
-/// and the `help-probe.json` sidecar is refreshed best-effort.
+/// and the `help-probe.json` sidecar is refreshed best-effort. Unlike the
+/// connect-time derivation, a tool that no longer produces any usable help
+/// output is reported as an error so the previous descriptor is kept (see
+/// [`probe_derive_or_error`]).
 ///
 /// Callers must already hold the extension mutation lock; this routine does
 /// not take it so it can run inline from other locked mutations.
@@ -543,7 +569,7 @@ pub async fn reprobe_tool_commands(
         })
         .unwrap_or_default();
 
-    let derivation = help_args::probe_derive(&executable).await;
+    let derivation = probe_derive_or_error(&executable).await?;
     *commands = derived_descriptor_commands(
         &command_id,
         &name,
@@ -586,6 +612,158 @@ pub async fn reprobe_after_enable(state: &ExtensionState, entry: &ExtensionLockE
     let _ = reprobe_tool_commands(state, &entry.id).await;
 }
 
+/// Version-drift trigger for generated custom integrations.
+///
+/// A generated integration's command list is derived once (at connect time)
+/// from the executable's own `--help`; when the upstream tool ships a new
+/// version its subcommand/flags may have changed and Floter has no way to
+/// notice. This routine closes that gap: when the executable bound to a
+/// generated custom integration is a *system* runtime and its recorded
+/// `tool_version` differs from the version reported by the executable right
+/// now, it re-runs [`reprobe_tool_commands`] (the same atomic replace +
+/// help-probe sidecar used by the manual/enable paths) and refreshes the
+/// recorded version. The reprobe itself invalidates the provider command
+/// cache on success.
+///
+/// Best-effort by contract, mirroring [`reprobe_after_enable`]: a missing
+/// executable or a failed probe is logged, the previous descriptor stays
+/// valid, the entry is never marked broken, and listing never fails because
+/// of it. Publisher-shipped static descriptors (v-tools) are excluded by
+/// construction — [`is_generated_custom_integration`] requires
+/// `publisher_id == "local-user"` — so upstream release content is never
+/// overwritten.
+///
+/// Idempotent: an unchanged version (or an already-current recorded version)
+/// returns `false` without probing. Once a successful reprobe commits the new
+/// version, later listings see no drift and stay no-ops. The reprobe takes the
+/// extension mutation lock (non-blocking: a mutation already in flight skips
+/// this round) and re-checks the freshly loaded entry under it, so two
+/// concurrent listings cannot probe the same drift twice.
+pub async fn reprobe_on_tool_version_change(
+    state: &ExtensionState,
+    entry: &ExtensionLockEntry,
+    manifest: &ExtensionManifest,
+) -> bool {
+    if !drift_reprobe_eligible(entry, manifest) {
+        return false;
+    }
+    let executable = PathBuf::from(&entry.executable_path);
+    if !is_linked_executable(&executable) {
+        // The tool is gone; the binding/reconnect path owns that state. A
+        // missing executable is not a command drift and must not break the
+        // list.
+        return false;
+    }
+    let current = linked_tool_version(manifest, &manifest.provider, &executable).await;
+    let Some(current) = current else {
+        // No version output (or no `versionArgs`): there is nothing to compare
+        // against, so never probe on this basis.
+        return false;
+    };
+    if entry.tool_version.as_deref() == Some(current.as_str()) {
+        return false;
+    }
+    // Serialize with every other repository mutation so the reprobe's
+    // read-modify-write of `provider-description.json` stays atomic and two
+    // concurrent listings cannot both probe the same drift. This is a
+    // best-effort, list-driven trigger: if another mutation already holds the
+    // lock (an install/connect/enable in flight) skip this round rather than
+    // stall the list — a later listing retries.
+    let _guard = match state.mutation_lock.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return false,
+    };
+    // Re-check against the freshest repository state under the lock: another
+    // task may have completed the reprobe (and recorded the version) since we
+    // last read the entry.
+    let latest = match ExtensionsLock::load(&state.paths.repository_file) {
+        Ok(lock) => lock.get(&entry.id).ok().cloned(),
+        Err(error) => {
+            eprintln!(
+                "extensions: cannot re-read {} for a drift re-probe: {error}",
+                entry.id
+            );
+            return false;
+        }
+    };
+    let Some(latest) = latest else {
+        return false;
+    };
+    let latest_manifest = match ExtensionManifest::load(Path::new(&latest.manifest_path)) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            eprintln!(
+                "extensions: cannot re-read the {} manifest for a drift re-probe: {error}",
+                latest.id
+            );
+            return false;
+        }
+    };
+    if !drift_reprobe_eligible(&latest, &latest_manifest)
+        || latest.tool_version.as_deref() == Some(current.as_str())
+    {
+        return false;
+    }
+    match reprobe_tool_commands(state, &latest.id).await {
+        Ok(report) => {
+            if let Err(error) = record_reprobed_tool_version(state, &latest.id, &current) {
+                eprintln!(
+                    "extensions: reprobed {id} on version drift but could not record {current}: {error}",
+                    id = latest.id
+                );
+            }
+            eprintln!(
+                "extensions: {id} version drift {previous:?} -> {current}; re-probed commands (subcommands={subcommands}, arguments={arguments})",
+                id = latest.id,
+                previous = latest.tool_version,
+                subcommands = report.subcommands,
+                arguments = report.root_arguments,
+            );
+            true
+        }
+        Err(error) => {
+            // Fail soft: keep the old descriptor, never break the entry, never
+            // block the list. A later listing retries once the tool is probed.
+            eprintln!(
+                "extensions: {id} version drift {previous:?} -> {current} but re-probe failed: {error}",
+                id = latest.id,
+                previous = latest.tool_version,
+            );
+            false
+        }
+    }
+}
+
+/// What [`reprobe_on_tool_version_change`] is allowed to touch: an enabled,
+/// Floter-generated custom integration on a system runtime whose command list
+/// comes from a static descriptor (never a script). Publisher descriptors and
+/// anything not generated here are excluded.
+fn drift_reprobe_eligible(entry: &ExtensionLockEntry, manifest: &ExtensionManifest) -> bool {
+    entry.enabled
+        && entry.runtime_ownership == ExtensionRuntimeOwnership::System
+        && is_generated_custom_integration(entry)
+        && entry.provider_kind == ExtensionProviderKind::StaticDescriptor
+        && !matches!(manifest.runtime, Runtime::Script { .. })
+}
+
+/// Record the freshly probed tool version after a drift-triggered reprobe, so
+/// the next listing sees no drift until the executable changes again. Writes
+/// only `tool_version`/`updated_at`, preserving every other repository field.
+fn record_reprobed_tool_version(
+    state: &ExtensionState,
+    id: &str,
+    tool_version: &str,
+) -> Result<(), String> {
+    let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
+    let entry = lock
+        .extensions
+        .get_mut(id)
+        .ok_or_else(|| format!("Integration is not connected: {id}"))?;
+    entry.tool_version = Some(tool_version.to_string());
+    entry.updated_at = unix_now();
+    lock.save(&state.paths.repository_file)
+}
+
 pub fn is_generated_custom_integration(entry: &ExtensionLockEntry) -> bool {
     if entry.distribution_source != ExtensionDistributionSource::Local
         || entry.publisher_id != "local-user"
@@ -602,6 +780,22 @@ pub fn is_generated_custom_integration(entry: &ExtensionLockEntry) -> bool {
             .and_then(Path::file_name)
             .and_then(|name| name.to_str())
             == Some(entry.id.as_str())
+}
+
+/// Whether a list entry is backed by a descriptor that ships with the
+/// publisher's release rather than being derived from the local executable.
+///
+/// True for `static-descriptor`/`bundled-static` providers that were *not*
+/// generated by Floter (see [`is_generated_custom_integration`]): the v-tools
+/// recommendation and any convention-location manifest using a packaged
+/// descriptor. Their command list is fixed by the release payload and never
+/// tracks the local binary — the integration drawer says so explicitly, and
+/// the version-drift reprobe is never attempted for them.
+pub fn is_publisher_descriptor(entry: &ExtensionLockEntry) -> bool {
+    matches!(
+        entry.provider_kind,
+        ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
+    ) && !is_generated_custom_integration(entry)
 }
 
 /// Default disclosure set for one-click tool connections. Terminal tools
@@ -2858,6 +3052,319 @@ mod tests {
         assert!(
             error.contains("Script integrations have no executable"),
             "{error}"
+        );
+    }
+
+    /// A connected generated custom integration whose executable reports a
+    /// version that differs from the recorded `tool_version`.
+    #[cfg(unix)]
+    struct DriftFixture {
+        #[allow(dead_code)]
+        directory: tempfile::TempDir,
+        #[allow(dead_code)]
+        script_directory: tempfile::TempDir,
+        state: ExtensionState,
+        id: String,
+        executable: PathBuf,
+        descriptor_path: PathBuf,
+    }
+
+    #[cfg(unix)]
+    impl DriftFixture {
+        /// Connect with a v1 binary (so the connect-time descriptor only knows
+        /// `-old`), then record `recorded_version` in the repository. Tests that
+        /// need an upstream upgrade call [`DriftFixture::upgrade_to_v2`].
+        async fn new(recorded_version: Option<&str>) -> Self {
+            use std::os::unix::fs::PermissionsExt;
+
+            let directory = tempfile::tempdir().unwrap();
+            let state = test_state(directory.path());
+            let script_directory = tempfile::tempdir().unwrap();
+            let executable = script_directory.path().join("drifter.sh");
+            std::fs::write(&executable, DRIFTER_V1).unwrap();
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+            create_custom_integration(
+                &state,
+                CustomIntegrationRequest {
+                    id: "local.drifter-test".into(),
+                    name: "Drifter Test".into(),
+                    command: "drifter-test".into(),
+                    version: "1.0.0".into(),
+                    executable_path: executable.to_string_lossy().into_owned(),
+                    mode: "executable".into(),
+                    script_language: None,
+                    script_content: None,
+                    args_prefix: Vec::new(),
+                    version_args: vec!["--version".into()],
+                    permissions: vec![Permission::Environment],
+                    platforms: current_platforms(),
+                },
+            )
+            .await
+            .unwrap();
+            if let Some(version) = recorded_version {
+                let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+                lock.extensions
+                    .get_mut("local.drifter-test")
+                    .unwrap()
+                    .tool_version = Some(version.to_string());
+                lock.save(&state.paths.repository_file).unwrap();
+            }
+            let descriptor_path = state
+                .paths
+                .data
+                .join("local.drifter-test")
+                .join("integration")
+                .join("provider-description.json");
+            DriftFixture {
+                directory,
+                script_directory,
+                state,
+                id: "local.drifter-test".into(),
+                executable,
+                descriptor_path,
+            }
+        }
+
+        /// Overwrite the bound executable with the v2 payload (version 2.0.0,
+        /// extra `-new` flag) — the upstream upgrade the list must notice.
+        fn upgrade_to_v2(&self) {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::write(&self.executable, DRIFTER_V2).unwrap();
+            std::fs::set_permissions(&self.executable, std::fs::Permissions::from_mode(0o755))
+                .unwrap();
+        }
+
+        fn entry(&self) -> ExtensionLockEntry {
+            ExtensionsLock::load(&self.state.paths.repository_file)
+                .unwrap()
+                .get(&self.id)
+                .unwrap()
+                .clone()
+        }
+
+        fn manifest(&self) -> ExtensionManifest {
+            ExtensionManifest::load(Path::new(&self.entry().manifest_path)).unwrap()
+        }
+
+        fn descriptor(&self) -> serde_json::Value {
+            serde_json::from_slice(&std::fs::read(&self.descriptor_path).unwrap()).unwrap()
+        }
+
+        async fn warm_command_cache(&self) {
+            use crate::extensions::catalog;
+            catalog::load_cached_provider_commands_for_test(&self.state)
+                .await
+                .unwrap();
+            assert!(self.state.provider_commands.has_cached_entry().await);
+        }
+    }
+
+    #[cfg(unix)]
+    const DRIFTER_V1: &str = concat!(
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"--version\" ]; then echo 'drifter 1.0.0'; exit 0; fi\n",
+        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n'; exit 0; fi\n",
+        "echo done\n",
+    );
+
+    #[cfg(unix)]
+    const DRIFTER_V2: &str = concat!(
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"--version\" ]; then echo 'drifter 2.0.0'; exit 0; fi\n",
+        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
+        "echo done\n",
+    );
+
+    /// The core G2 rule: a generated custom integration whose `tool_version`
+    /// disagrees with the executable's current version is re-probed (descriptor
+    /// regenerated + version recorded + command cache invalidated); a matching
+    /// version is left untouched.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn tool_version_change_triggers_a_reprobe_and_records_the_new_version() {
+        // Recorded 1.0.0, but the binary was upgraded to report 2.0.0.
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        assert_eq!(
+            fixture.entry().tool_version.as_deref(),
+            Some("drifter 1.0.0")
+        );
+        assert!(!serde_json::to_string(&fixture.descriptor())
+            .unwrap()
+            .contains("-new"));
+        fixture.upgrade_to_v2();
+        fixture.warm_command_cache().await;
+        let invalidations = fixture.state.provider_commands.invalidation_count();
+
+        let changed = super::reprobe_on_tool_version_change(
+            &fixture.state,
+            &fixture.entry(),
+            &fixture.manifest(),
+        )
+        .await;
+        assert!(changed, "a version drift must trigger a reprobe");
+
+        // Descriptor regenerated from the new binary's help and persisted.
+        assert!(serde_json::to_string(&fixture.descriptor())
+            .unwrap()
+            .contains("-new"));
+        // Recorded version advanced so the next listing sees no drift.
+        assert_eq!(
+            fixture.entry().tool_version.as_deref(),
+            Some("drifter 2.0.0")
+        );
+        // Cache invalidated exactly once by the successful reprobe.
+        assert_eq!(
+            fixture.state.provider_commands.invalidation_count(),
+            invalidations + 1
+        );
+        // The entry is healthy — never broken by a drift reprobe.
+        assert_eq!(fixture.entry().state, ExtensionStateKind::Enabled);
+        assert!(fixture.entry().enabled);
+
+        // Idempotent: an immediate re-list sees the recorded version already at
+        // 2.0.0, so it does not probe or invalidate again.
+        let changed = super::reprobe_on_tool_version_change(
+            &fixture.state,
+            &fixture.entry(),
+            &fixture.manifest(),
+        )
+        .await;
+        assert!(!changed);
+        assert_eq!(
+            fixture.state.provider_commands.invalidation_count(),
+            invalidations + 1
+        );
+    }
+
+    /// An unchanged version must not probe at all, even with a warm cache.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn unchanged_tool_version_is_a_no_op() {
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        fixture.warm_command_cache().await;
+        let invalidations = fixture.state.provider_commands.invalidation_count();
+
+        let changed = super::reprobe_on_tool_version_change(
+            &fixture.state,
+            &fixture.entry(),
+            &fixture.manifest(),
+        )
+        .await;
+        assert!(!changed);
+        assert_eq!(
+            fixture.state.provider_commands.invalidation_count(),
+            invalidations
+        );
+        assert!(fixture.state.provider_commands.has_cached_entry().await);
+    }
+
+    /// A drifted integration whose re-probe genuinely fails must degrade
+    /// silently: the previous descriptor is preserved byte-for-byte, the entry
+    /// is never marked broken, and the stale recorded version is kept so a
+    /// later listing can retry.
+    ///
+    /// The failure is a *tool* failure, not a vanished file: the executable
+    /// keeps its execute bit (so `is_linked_executable` passes and
+    /// `linked_tool_version` still reports the new version) while its `--help`
+    /// no longer yields any derivable content — `reprobe_tool_commands` then
+    /// returns `Err` and the old descriptor must survive.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn failed_drift_reprobe_keeps_the_old_descriptor_and_never_breaks() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        let before = std::fs::read(&fixture.descriptor_path).unwrap();
+        // Upstream now reports 2.0.0 but its `--help` fails (non-zero, no
+        // output): the file stays executable, so the version is still read and
+        // the drift is detected — the re-probe itself is what fails.
+        std::fs::write(
+            &fixture.executable,
+            concat!(
+                "#!/bin/sh\n",
+                "if [ \"$1\" = \"--version\" ]; then echo 'drifter 2.0.0'; exit 0; fi\n",
+                "exit 2\n",
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&fixture.executable, std::fs::Permissions::from_mode(0o755))
+            .unwrap();
+
+        // The executable is still considered available, so the failure really
+        // comes from the re-probe and not from an early `is_linked_executable`
+        // return.
+        let manual = super::reprobe_tool_commands(&fixture.state, &fixture.id).await;
+        let error = manual.expect_err("a failing --help must fail the re-probe");
+        assert!(
+            error.contains("usable help output"),
+            "failure must come from the help probe, not the executable check: {error}"
+        );
+
+        let changed = super::reprobe_on_tool_version_change(
+            &fixture.state,
+            &fixture.entry(),
+            &fixture.manifest(),
+        )
+        .await;
+        assert!(!changed);
+        assert_eq!(std::fs::read(&fixture.descriptor_path).unwrap(), before);
+        let entry = fixture.entry();
+        assert_eq!(entry.state, ExtensionStateKind::Enabled);
+        assert_eq!(entry.tool_version.as_deref(), Some("drifter 1.0.0"));
+        assert_eq!(entry.last_error_code, None);
+        assert_eq!(entry.broken_reason, None);
+    }
+
+    /// A version change that cannot be re-probed because the executable is
+    /// gone: `linked_tool_version` yields None, so no probe is attempted and the
+    /// recorded version stays put.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn missing_executable_version_is_never_treated_as_drift() {
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        fixture.upgrade_to_v2();
+        std::fs::remove_file(&fixture.executable).unwrap();
+
+        let changed = super::reprobe_on_tool_version_change(
+            &fixture.state,
+            &fixture.entry(),
+            &fixture.manifest(),
+        )
+        .await;
+        assert!(!changed);
+        assert_eq!(
+            fixture.entry().tool_version.as_deref(),
+            Some("drifter 1.0.0")
+        );
+    }
+
+    /// Publisher-shipped static descriptors (v-tools) are never eligible for a
+    /// drift re-probe — their command list is release content, not derived from
+    /// the local binary.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn publisher_descriptor_is_never_reprobed_on_version_change() {
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        fixture.upgrade_to_v2();
+        // Forge a publisher-style entry: same id/shape but a non-`local-user`
+        // publisher and no generated-integration directory signature.
+        let mut lock = ExtensionsLock::load(&fixture.state.paths.repository_file).unwrap();
+        let entry = lock.extensions.get_mut(&fixture.id).unwrap();
+        entry.publisher_id = "vst93".into();
+        entry.publisher_name = "vst".into();
+        lock.save(&fixture.state.paths.repository_file).unwrap();
+        let entry = fixture.entry();
+        assert!(!super::is_generated_custom_integration(&entry));
+        assert!(super::is_publisher_descriptor(&entry));
+
+        let changed =
+            super::reprobe_on_tool_version_change(&fixture.state, &entry, &fixture.manifest())
+                .await;
+        assert!(!changed);
+        assert_eq!(
+            fixture.entry().tool_version.as_deref(),
+            Some("drifter 1.0.0")
         );
     }
 

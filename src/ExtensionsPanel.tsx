@@ -67,6 +67,9 @@ export type Extension = {
   pinned: boolean;
   channel: string;
   generatedCustom: boolean;
+  /** Command list comes from a descriptor shipped with the publisher's
+   *  release, so it tracks the release payload, not the local binary. */
+  publisherDescriptor: boolean;
   recommended: boolean;
   /** Suggested from a convention-location manifest (~/.config/floter/tools). */
   manifestSuggestion?: boolean;
@@ -1672,6 +1675,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                   <div><dt>{t("settings.extensions.homepage")}</dt><dd className="extension-metadata__dd--wrap" title={selected.homepage ?? t("settings.extensions.unavailable")}>{selected.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || t("settings.extensions.noDescription")}</p>
+                {selected.publisherDescriptor && (
+                  <p className="extension-detail-note">{t("settings.extensions.publisherDescriptorNote")}</p>
+                )}
               </section>
 
               <section className="extension-detail-block">
