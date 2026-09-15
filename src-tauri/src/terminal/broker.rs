@@ -594,10 +594,66 @@ async fn connect() -> Result<BrokerStream> {
         .with_context(|| format!("connect to terminal daemon pipe {path}"))
 }
 
+/// Conventional macOS tool directories a Finder/Dock launch never inherits.
+///
+/// These are the standard Homebrew prefixes (Apple Silicon and Intel) plus the
+/// `path_helper` command baseline. They are only ever *appended* to the daemon's
+/// inherited `PATH`, so they can never shadow a directory the user already had.
+#[cfg(target_os = "macos")]
+const MACOS_BASELINE_PATH_DIRS: &[&str] = &[
+    "/usr/local/bin",
+    "/usr/local/sbin",
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+];
+
+/// Append `entries` to `current`, dropping empty values and duplicates.
+///
+/// Existing entries keep their position (and therefore their priority); the new
+/// entries are appended after them. The result is joined with the POSIX `:`
+/// separator, which is what a macOS `PATH` is — deliberately not
+/// `std::env::join_paths`, whose rejection of an embedded `:` is irrelevant here.
+#[cfg(any(target_os = "macos", test))]
+fn merge_path_entries(current: Option<&std::ffi::OsStr>, entries: &[&str]) -> std::ffi::OsString {
+    use std::ffi::OsString;
+    let mut merged: Vec<String> = Vec::new();
+    if let Some(current) = current {
+        for entry in current.to_string_lossy().split(':') {
+            if !entry.is_empty() && !merged.iter().any(|existing| existing == entry) {
+                merged.push(entry.to_string());
+            }
+        }
+    }
+    for entry in entries {
+        if !entry.is_empty() && !merged.iter().any(|existing| existing == entry) {
+            merged.push((*entry).to_string());
+        }
+    }
+    OsString::from(merged.join(":"))
+}
+
 fn spawn_daemon_process() -> Result<()> {
     let executable = std::env::current_exe().context("resolve Floter executable")?;
     let mut command = ProcessCommand::new(executable);
     command.arg(DAEMON_ARGUMENT).env(NAMESPACE_ENV, NAMESPACE);
+    #[cfg(target_os = "macos")]
+    {
+        // The daemon outlives the app and every login shell it spawns inherits
+        // the daemon's environment. A Finder/Dock launch hands this process the
+        // bare launchd baseline (`/usr/bin:/bin:/usr/sbin:/sbin`); a launch from
+        // a user shell hands it that shell's PATH. `path_helper` runs inside the
+        // *login shell* and restores the conventional tool directories, but the
+        // shell's PATH starts from whatever it inherited, and that login chain is
+        // the exact place a Finder launch's minimal environment never reached.
+        // Give the daemon the same baseline a terminal-launched shell would have
+        // so `go`-style commands resolve the same way from either launch method.
+        // The entries are appended, so anything already present keeps priority.
+        let merged = merge_path_entries(
+            std::env::var_os("PATH").as_deref(),
+            MACOS_BASELINE_PATH_DIRS,
+        );
+        command.env("PATH", merged);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -1003,6 +1059,39 @@ mod tests {
     #[test]
     fn shell_quote_handles_single_quotes() {
         assert_eq!(shell_quote("a'b"), "'a'\\''b'");
+    }
+
+    #[test]
+    fn merge_path_entries_appends_baseline_without_shadowing() {
+        use std::ffi::OsStr;
+        // Existing entries keep their position and priority; the baseline is
+        // appended behind them, so a user-installed shell/cmd in an already
+        // present directory can never be shadowed by the fallback list.
+        let merged = merge_path_entries(Some(OsStr::new("/usr/bin:/bin")), &["/opt/homebrew/bin"]);
+        assert_eq!(merged, "/usr/bin:/bin:/opt/homebrew/bin");
+    }
+
+    #[test]
+    fn merge_path_entries_drops_duplicates_and_empty_entries() {
+        use std::ffi::OsStr;
+        // A Finder launch's baseline already has /usr/bin, and a corrupted PATH
+        // can carry an empty leading entry (`:foo`). Neither may be duplicated
+        // or preserved as a bare separator.
+        let merged = merge_path_entries(
+            Some(OsStr::new(":/usr/bin:/usr/bin")),
+            &["/usr/bin", "/opt/homebrew/bin", ""],
+        );
+        assert_eq!(merged, "/usr/bin:/opt/homebrew/bin");
+    }
+
+    #[test]
+    fn merge_path_entries_survives_a_missing_path() {
+        use std::ffi::OsStr;
+        // A process launched without any PATH at all still gets a usable one.
+        let merged = merge_path_entries(None, &["/opt/homebrew/bin"]);
+        assert_eq!(merged, "/opt/homebrew/bin");
+        // And there is no stray separator when the baseline itself is empty.
+        assert_eq!(merge_path_entries(Some(OsStr::new("/bin")), &[]), "/bin");
     }
 
     #[test]

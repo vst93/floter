@@ -1077,6 +1077,22 @@ fn resolve_windows_shell_preference(preference: Option<&str>) -> anyhow::Result<
     Ok(value.to_string())
 }
 
+/// Resolve the interactive shell program for a Unix session.
+///
+/// Precedence is the per-session `shell` request field, then `$SHELL`, then
+/// `/bin/sh`. A blank value at either level is treated as absent: an empty
+/// `$SHELL` must not become an empty program name (which `portable-pty` would
+/// then try to resolve through `PATH` and fail on `<empty>: command not found`).
+#[cfg(any(unix, test))]
+fn resolve_unix_shell(shell: Option<&str>, env_shell: Option<&str>) -> String {
+    shell
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| env_shell.map(str::trim).filter(|value| !value.is_empty()))
+        .unwrap_or("/bin/sh")
+        .to_string()
+}
+
 fn default_shell_command(shell: Option<&str>) -> anyhow::Result<CommandBuilder> {
     #[cfg(windows)]
     {
@@ -1093,15 +1109,15 @@ fn default_shell_command(shell: Option<&str>) -> anyhow::Result<CommandBuilder> 
     }
     #[cfg(unix)]
     {
-        let shell_path = shell
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-            .or_else(|| std::env::var("SHELL").ok())
-            .unwrap_or_else(|| "/bin/sh".to_string());
-        let mut cmd = CommandBuilder::new(shell_path);
+        let env_shell = std::env::var("SHELL").ok();
+        let shell_path = resolve_unix_shell(shell, env_shell.as_deref());
+        let mut cmd = CommandBuilder::new(&shell_path);
         cmd.env("TERM", TERM_XTERM_256COLOR);
         cmd.env("COLORTERM", COLOR_TERM_TRUECOLOR);
+        // Login shell so the OS startup chain runs: on macOS that is
+        // `/etc/zprofile` -> `path_helper`, which assembles the Homebrew
+        // prefixes and `/etc/paths.d`; on Linux it pulls in `/etc/profile`.
+        // The interactive shell then also reads the user's rc for the theme.
         cmd.arg("-l");
         Ok(cmd)
     }
@@ -1305,6 +1321,38 @@ mod tests {
             cmd.get_env("COLORTERM"),
             Some(OsStr::new(COLOR_TERM_TRUECOLOR))
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn default_unix_shell_is_spawned_as_a_login_shell() {
+        // The login flag is what runs `/etc/zprofile` -> `path_helper` on macOS
+        // and `/etc/profile` on Linux. Without it a GUI-launched shell never
+        // gets the Homebrew/site directories and `go` is not found, so lock the
+        // argv shape here.
+        let cmd = default_shell_command(None).expect("default shell command should build");
+        let argv = cmd.get_argv();
+        assert_eq!(argv.len(), 2, "shell program plus exactly the -l flag");
+        assert_eq!(argv[1], OsStr::new("-l"));
+    }
+
+    #[test]
+    fn resolve_unix_shell_prefers_request_then_environment_then_sh() {
+        // Explicit per-session shell wins.
+        assert_eq!(
+            resolve_unix_shell(Some("/bin/zsh"), Some("/bin/bash")),
+            "/bin/zsh"
+        );
+        // Otherwise `$SHELL`.
+        assert_eq!(resolve_unix_shell(None, Some("/bin/bash")), "/bin/bash");
+        // A blank value at either level is absent, never an empty program name
+        // (which portable-pty would resolve via PATH and reject).
+        assert_eq!(
+            resolve_unix_shell(Some("   "), Some("/bin/zsh")),
+            "/bin/zsh"
+        );
+        assert_eq!(resolve_unix_shell(None, Some("")), "/bin/sh");
+        assert_eq!(resolve_unix_shell(None, None), "/bin/sh");
     }
 
     #[test]
