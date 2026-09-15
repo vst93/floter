@@ -390,6 +390,9 @@ async fn session_worker(
     let mut message_id = 2_u64;
     if let Some(command) = initial_command.filter(|command| !command.is_empty()) {
         let payload = initial_command_payload(&command);
+        // Diagnostic only: the probe observes the bytes the verbatim contract
+        // is about to send, never mutates them (see `input_probe`).
+        crate::terminal::input_probe::log_input_bytes("initial_command", &payload);
         if send_input(&mut writer, &session_id, &mut message_id, payload)
             .await
             .is_err()

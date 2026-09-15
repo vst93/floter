@@ -26,6 +26,7 @@ import {
   type Selection,
 } from "../terminal/render";
 import { MOUSE_MOTION, usesMouseReporting } from "../terminal/keys";
+import { normalizeTerminalInputSpaces } from "../terminal/inputNormalize";
 import { PINNED_SESSION_ID } from "../terminal/pinState";
 import { normalizeFontSize } from "../settings/GeneralPage";
 import { IS_MAC } from "../shortcuts";
@@ -703,7 +704,13 @@ export function useTerminalView(options: {
     // below: typed text, IME commits and pastes all go to the card while it owns
     // the keyboard, and the main slot is empty precisely then.
     if (!text || !surfaceReady()) return;
-    const payload = bracketed ? `\x1b[200~${text}\x1b[201~` : text;
+    // Injection boundary: whatever produced this string (hidden-textarea
+    // commit on macOS WebKit, an IME composition, the system clipboard), a
+    // Unicode space separator here would fuse two shell words into one —
+    // `go\u3000version` reads to zsh as a single token named "go version".
+    // Every Unicode Zs except the ASCII space becomes U+0020 before encode.
+    const normalized = normalizeTerminalInputSpaces(text);
+    const payload = bracketed ? `\x1b[200~${normalized}\x1b[201~` : normalized;
     void invoke("term_input", {
       id: terminalInputTarget(),
       data: Array.from(new TextEncoder().encode(payload)),

@@ -14,6 +14,7 @@ import type {
   SetStateAction,
 } from "react";
 import { nextLauncherSelection, type ExecutionPlan } from "../launcher";
+import { normalizeTerminalInputSpaces } from "../terminal/inputNormalize";
 import {
   matchesResultShortcut,
   matchesShortcut,
@@ -132,7 +133,15 @@ export function useLauncherActions(options: {
     execution: ExecutionPlan | null = null,
     commandLine = query.trim(),
   ) => {
-    const command = commandLine.trim();
+    // Injection boundary for the interactive-shell path: `command` is what
+    // gets typed verbatim into the fresh PTY (`initial_command_payload` in the
+    // broker appends `\r` and nothing else). If the raw line — or the
+    // display/`commandLine` string a catalog row carried in — holds a Unicode
+    // space separator between two words, zsh would read them as ONE fused
+    // token (`command not found: go version`). Normalize to U+0020 here,
+    // upstream of the verbatim contract, so the broker test keeps asserting
+    // byte-exactness on bytes that are already clean.
+    const command = normalizeTerminalInputSpaces(commandLine.trim());
     if (!command || terminalOpening.current) return;
 
     terminalOpening.current = true;

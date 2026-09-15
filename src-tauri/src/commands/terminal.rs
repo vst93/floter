@@ -164,6 +164,7 @@ pub fn term_input(
     id: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
+    crate::terminal::input_probe::log_input_bytes("term_input", &data);
     let manager = state.0.lock().map_err(|e| e.to_string())?;
     manager.input(&id, &data)
 }
