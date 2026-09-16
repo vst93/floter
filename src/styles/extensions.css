@@ -440,6 +440,22 @@
   border-bottom: 1px solid var(--hairline);
 }
 
+/* Detected group (unconnected tools on this device). It reuses the Connected
+   row language — same separators, same row height — and sits one step quieter
+   underneath it. No card chrome and no extra section gap: the detected list is
+   the same kind of list as Connected, only filtered the other way. */
+.extensions-section--detected {
+  gap: 8px;
+}
+
+/* A detected row IS the connect call to action: unlike a connected row, whose
+   actions only appear on hover/focus, the connect button stays visible so the
+   section never reads as an inert inventory dump. */
+.extension-row--detected .extension-row__actions {
+  opacity: 1;
+  visibility: visible;
+}
+
 .extension-row {
   position: relative;
   min-width: 0;

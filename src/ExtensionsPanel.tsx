@@ -1106,6 +1106,36 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     setToolResults([]);
   };
 
+  // Connect entry for a Detected row. This is deliberately the SAME connect
+  // flow as before and NEVER reconnect: reconnect re-scans the tool inventory
+  // and writes a tool binding — an explicit, system-only action (R3/G3) that a
+  // detection row must not trigger implicitly. Nothing here writes to disk.
+  //   - recommended / convention-location manifest: an authored manifest
+  //     exists, so `connectRecommended` runs the shared pipeline (permission
+  //     review, multi-candidate chooser).
+  //   - bare PATH discovery: the old one-click `extensions_connect_tool` entry
+  //     was retired from the panel, so the discovery is connected by opening
+  //     the create-custom drawer with the executable prefilled.
+  const connectDetected = (extension: Extension) => {
+    if (busyRef.current) return;
+    if (extension.recommended || extension.manifestSuggestion) {
+      connectRecommended(extension);
+      return;
+    }
+    openCreateCustomIntegration();
+    if (!extension.executablePath) return;
+    chooseToolCandidate({
+      id: extension.id,
+      name: extension.name,
+      locator: { kind: "executable", path: extension.executablePath },
+      version: extension.toolVersion,
+      sources: ["path"],
+      quality: "auto-detected",
+      available: extension.runtimeAvailable,
+      fingerprint: null,
+    });
+  };
+
   // Suggestions for the drawer's executable picker. While the executable path
   // is empty (idle state) authored recommendations come first, followed by a
   // device-wide PATH scan minus anything already connected; once the user
@@ -1579,6 +1609,35 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
             ))}
           </div>
         </section>
+        {/* Detected: tools this device has but that are not connected yet.
+            This is NOT a storefront — it is the local inventory the backend
+            already returns as `connected === false` rows. The section renders
+            nothing at all when there is nothing detected (flat, no empty-state
+            placeholder), and each row connects through the existing connect
+            flow, never reconnect. */}
+        {suggestedExtensions.length > 0 && (
+          <section className="extensions-section extensions-section--detected">
+            <h3 className="extensions-section-title">
+              <span>{t("settings.extensions.section.detected")}</span>
+              <span className="extension-status">{suggestedExtensions.length}</span>
+            </h3>
+            <div className="extensions-list extensions-list--installed">
+              {suggestedExtensions.map((extension) => (
+                <ExtensionRowComponent
+                  key={extension.id}
+                  extension={extension}
+                  operation={busy}
+                  progress={operationProgress[extension.id]}
+                  t={t}
+                  onConnect={() => connectDetected(extension)}
+                  onRepair={() => extension.homepage ? void invoke("open_url", { url: extension.homepage }).catch((error) => {
+                    onNotify("error", String(error));
+                  }) : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
       {pendingLocal && <LocalInstallDialog pending={pendingLocal} busy={Boolean(busy)} t={t} dialogRef={localDialogRef} stopPropagation={stopRowClick} onCancel={() => setPendingLocal(null)} onConfirm={() => void confirmLocal()} />}
       {pendingPermissionReview && (

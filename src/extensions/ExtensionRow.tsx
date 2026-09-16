@@ -19,13 +19,20 @@ type Props = {
   operation: ExtensionOperation;
   progress?: { stage: string; message?: string };
   t: Translate;
-  onOpen: () => void;
+  /** Connected-only: opens the detail drawer. A detected row renders a <div>,
+   *  never a button, so it has no open affordance. */
+  onOpen?: () => void;
+  /** The connect entry (detected rows only). Never reconnect. */
   onConnect?: () => void;
-  onRepair: () => void;
-  onReconnect: () => void;
-  onToggle: () => void;
-  onEdit: () => void;
-  onUninstall: () => void;
+  /** Connected-only recheck; for a detected row this is the "install tool
+   *  first" guidance (opens the publisher homepage), not a disk write. */
+  onRepair?: () => void;
+  /** Connected-only: inventory re-discovery + tool-lock write (R3/G3).
+   *  Detected rows must not wire this. */
+  onReconnect?: () => void;
+  onToggle?: () => void;
+  onEdit?: () => void;
+  onUninstall?: () => void;
   onCancelOperation?: () => void;
 };
 
@@ -269,11 +276,11 @@ export function ExtensionRow({
             </summary>
             <div className="extension-menu__items">
               {extension.generatedCustom && (
-                <button type="button" disabled={busy} onClick={() => { closeMenu(); onEdit(); }}>
+                <button type="button" disabled={busy} onClick={() => { closeMenu(); onEdit?.(); }}>
                   {t("settings.extensions.editCustom")}
                 </button>
               )}
-              <button type="button" className="extension-menu__danger" disabled={busy} onClick={() => { closeMenu(); onUninstall(); }}>
+              <button type="button" className="extension-menu__danger" disabled={busy} onClick={() => { closeMenu(); onUninstall?.(); }}>
                 {kind === "system" ? <Unplug size={14} strokeWidth={2} /> : <Trash2 size={14} strokeWidth={2} />}
                 {t(kind === "custom" ? "settings.extensions.deleteCustom" : kind === "npm" ? "settings.extensions.uninstall" : kind === "system" ? "settings.extensions.disconnect" : "settings.extensions.removePackage")}
               </button>
