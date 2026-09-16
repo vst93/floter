@@ -10,7 +10,10 @@
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.34);
+  /* R7-3b: this was the panel family's only hand-written scrim (the permission
+     and drawer backdrops have always used the token). Same value, one source of
+     truth — a floating-layer file must not carry a literal fill. */
+  background: var(--surface-scrim);
 }
 
 .extensions-dialog {

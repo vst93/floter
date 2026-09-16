@@ -19,6 +19,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { OverflowMenu } from "./components/OverflowMenu";
 import type { Translate } from "./i18n";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
@@ -231,14 +232,6 @@ type ToolCandidate = {
 };
 
 export type ExecutableToolCandidate = ToolCandidate & { locator: Extract<ToolLocator, { kind: "executable" }> };
-
-// Suggestion rows for the create-custom-integration drawer's executable
-// picker: authored recommendations (shipped v-tools and convention-location
-// manifests) and raw PATH discoveries. Both kinds end up as identical
-// ToolBindings, but each keeps its own connect flow.
-export type ToolSuggestion =
-  | { kind: "recommendation"; extension: Extension }
-  | { kind: "candidate"; candidate: ExecutableToolCandidate };
 
 export type CustomIntegrationForm = {
   mode: "executable" | "script";
@@ -516,20 +509,17 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [toolSearching, setToolSearching] = useState(false);
   const [toolSearchFailed, setToolSearchFailed] = useState(false);
   const [toolHighlight, setToolHighlight] = useState(0);
-  const [customDirty, setCustomDirty] = useState(false);
-  // Inline discard confirmations (replacing window.confirm): armed while the
+  const [customDirty, setCustomDirty] = useState(false);  // Inline discard confirmations (replacing window.confirm): armed while the
   // bar above a drawer footer asks "discard unsaved changes?". Cleared as
   // soon as the user edits again, saves, or dismisses the bar.
   const [detailsDiscardArmed, setDetailsDiscardArmed] = useState(false);
   const [customDiscardArmed, setCustomDiscardArmed] = useState(false);
   const customSavedRef = useRef<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
   const customGeneration = useRef(0);
-  const toolSearchNeedsRefresh = useRef(true);
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
   const [uninstallDialogTarget, setUninstallDialogTarget] = useState<Extension | null>(null);
   const detailGeneration = useRef(0);
-  const customCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const localDialogRef = useRef<HTMLElement | null>(null);
   const toolSelectionDialogRef = useRef<HTMLElement | null>(null);
   const permissionReviewDialogRef = useRef<HTMLElement | null>(null);
@@ -579,7 +569,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     setToolResults([]);
     setToolSearchFailed(false);
     setToolHighlight(0);
-    toolSearchNeedsRefresh.current = true;
     setCustomDirty(false);
     setCustomDiscardArmed(false);
     customSavedRef.current = fresh;
@@ -674,8 +663,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   }, []);
 
   useEffect(() => {
+    // F1: the drawer is edit-only, so its executable field is search-driven on
+    // every open — there is no "empty and idle" create state that would fall
+    // back to a suggestion list (that fallback was the duplicate rendering of
+    // the Detected section, and it is gone).
     if (!showCustomIntegration || customIntegration.mode !== "executable") return;
     if (suppressToolSearch.current) {
+      // A candidate was just chosen (a Detected row's prefill, or a click in the
+      // results list). Do not immediately re-open the list under the field.
       suppressToolSearch.current = false;
       setToolSearching(false);
       setToolSearchFailed(false);
@@ -685,11 +680,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     const query = customIntegration.executablePath.trim();
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      const forceRefresh = toolSearchNeedsRefresh.current;
-      toolSearchNeedsRefresh.current = false;
       setToolSearching(true);
       setToolSearchFailed(false);
-      void invoke<ToolCandidate[]>("extensions_search_tools", { query, limit: 12, forceRefresh, executableOnly: true })
+      void invoke<ToolCandidate[]>("extensions_search_tools", { query, limit: 12, forceRefresh: false, executableOnly: true })
         .then((results) => {
           if (cancelled) return;
           setToolResults(results.filter((candidate): candidate is ExecutableToolCandidate =>
@@ -701,7 +694,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         })
         .catch(() => {
           if (cancelled) return;
-          toolSearchNeedsRefresh.current = true;
           setToolResults([]);
           setToolSearchFailed(true);
         })
@@ -1058,8 +1050,25 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   };
 
   const openCreateCustomIntegration = () => {
-    if (busyRef.current || showCustomIntegration) return;
-    resetCustomIntegration();
+    if (busyRef.current || customLoadingRef.current) return;
+    const draft: CustomIntegrationForm = {
+      ...DEFAULT_CUSTOM_INTEGRATION,
+      argsPrefix: [],
+      versionArgs: [],
+      permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions],
+      platforms: [CURRENT_PLATFORM],
+    };
+    customGeneration.current += 1;
+    customSavedRef.current = draft;
+    setEditingCustomId(null);
+    setCustomIntegration(draft);
+    setCustomIntegrationError(null);
+    setCustomDirty(false);
+    setCustomDiscardArmed(false);
+    setToolResults([]);
+    setToolSearchFailed(false);
+    setToolHighlight(0);
+    suppressToolSearch.current = false;
     setShowCustomIntegration(true);
   };
 
@@ -1096,13 +1105,19 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     const command = candidate.name.replace(/\.(exe|cmd|bat)$/i, "");
     const slug = command.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "custom-tool";
     suppressToolSearch.current = true;
-    updateCustomIntegration((current) => ({
-      ...current,
-      executablePath: candidate.locator.path,
-      name: current.name === DEFAULT_CUSTOM_INTEGRATION.name ? command : current.name,
-      command: current.command === DEFAULT_CUSTOM_INTEGRATION.command ? slug : current.command,
-      id: current.id === DEFAULT_CUSTOM_INTEGRATION.id ? `local.${slug}` : current.id,
-    }));
+    setCustomIntegration((current) => {
+      const next = {
+        ...current,
+        executablePath: candidate.locator.path,
+        name: current.name === DEFAULT_CUSTOM_INTEGRATION.name ? command : current.name,
+        command: current.command === DEFAULT_CUSTOM_INTEGRATION.command ? slug : current.command,
+        id: current.id === DEFAULT_CUSTOM_INTEGRATION.id ? `local.${slug}` : current.id,
+      };
+      setCustomDirty(JSON.stringify(next) !== JSON.stringify(customSavedRef.current));
+      return next;
+    });
+    setCustomIntegrationError(null);
+    setCustomDiscardArmed(false);
     setToolResults([]);
   };
 
@@ -1113,9 +1128,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   //   - recommended / convention-location manifest: an authored manifest
   //     exists, so `connectRecommended` runs the shared pipeline (permission
   //     review, multi-candidate chooser).
-  //   - bare PATH discovery: the old one-click `extensions_connect_tool` entry
-  //     was retired from the panel, so the discovery is connected by opening
-  //     the create-custom drawer with the executable prefilled.
+  //   - bare PATH discovery: the drawer opens in create mode with the
+  //     executable prefilled (R7-3a). This is now the ONLY create entry —
+  //     R7-3b took the blank "Create custom" button off the toolbar, so an
+  //     integration is always authored from something the device actually has
+  //     rather than from an empty form.
   const connectDetected = (extension: Extension) => {
     if (busyRef.current) return;
     if (extension.recommended || extension.manifestSuggestion) {
@@ -1136,45 +1153,19 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     });
   };
 
-  // Suggestions for the drawer's executable picker. While the executable path
-  // is empty (idle state) authored recommendations come first, followed by a
-  // device-wide PATH scan minus anything already connected; once the user
-  // types, normal search results take over through the same list.
-  const toolSuggestions = useMemo<ToolSuggestion[]>(() => {
-    const candidates = toolResults.map((candidate): ToolSuggestion => ({ kind: "candidate", candidate }));
-    if (customIntegration.executablePath.trim() || customDirty || editingCustomId) return candidates;
-    return [
-      ...suggestedExtensions.map((extension): ToolSuggestion => ({ kind: "recommendation", extension })),
-      ...candidates,
-    ];
-  }, [toolResults, suggestedExtensions, customIntegration.executablePath, customDirty, editingCustomId]);
-
-  const chooseToolSuggestion = (item: ToolSuggestion) => {
-    if (item.kind === "candidate") {
-      chooseToolCandidate(item.candidate);
-      return;
-    }
-    // Recommendations carry an authored manifest, so they connect through the
-    // recommendation pipeline (permission review, confirm text, multi-candidate
-    // chooser) instead of the generic custom-integration form. Close the drawer
-    // without a discard prompt — nothing was edited.
-    setShowCustomIntegration(false);
-    resetCustomIntegration();
-    void connectRecommended(item.extension);
-  };
-
   const handleToolSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-    if (!toolSuggestions.length) return;
+    if (!toolResults.length) return;
+    const suggestions = toolResults;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setToolHighlight((index) => Math.min(index + 1, toolSuggestions.length - 1));
+      setToolHighlight((index) => Math.min(index + 1, suggestions.length - 1));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setToolHighlight((index) => Math.max(index - 1, 0));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      chooseToolSuggestion(toolSuggestions[toolHighlight]);
+      chooseToolCandidate(suggestions[toolHighlight]);
     }
   };
 
@@ -1377,6 +1368,52 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     />
   );
 
+  // R7-3b: the toolbar's frequency split (G-24).
+  //
+  // Before: four buttons and two always-on caption lines sat between the
+  // heading and the list, so the action a user repeats — connecting a local
+  // package — was one of four equal-weight buttons, and the explanations for
+  // the rare half were permanently on screen.
+  //
+  // The judgement per action, from the surface's own text:
+  //   * Connect extension package — works on a manifest that already exists,
+  //     i.e. the whole job with no authoring. It is the row's primary action.
+  //   * Create custom — a blank authoring form. Every real custom integration
+  //     starts from something on PATH, and the Detected section (R7-3a) now
+  //     opens this same form prefilled from a detection, so the blank toolbar
+  //     entry is the low-frequency duplicate. Kept, in the menu.
+  //   * Export / Import — whole-collection file transfer, deliberately the
+  //     rarest pair on the page ("Import and export a local JSON file"), and
+  //     the only two whose captions were pure explanation. Kept, in the menu,
+  //     with that one sentence as the menu's note instead of two standing
+  //     caption lines.
+  //
+  // Nothing is deleted: all four actions are still one click (or one
+  // keystroke) away, and the row itself drops to two controls.
+  const overflowItems = [
+    {
+      id: "create",
+      label: t("settings.extensions.createCustom"),
+      icon: <Plus size={14} strokeWidth={2} aria-hidden="true" />,
+      disabled: Boolean(syncOperation) || Boolean(busy) || loading,
+      onSelect: openCreateCustomIntegration,
+    },
+    {
+      id: "export",
+      label: t("settings.extensions.export"),
+      icon: <FileDown size={14} strokeWidth={2} aria-hidden="true" />,
+      disabled: Boolean(syncOperation) || Boolean(busy) || loading,
+      onSelect: () => void exportExtensions(),
+    },
+    {
+      id: "import",
+      label: t("settings.extensions.import"),
+      icon: <FileUp size={14} strokeWidth={2} aria-hidden="true" />,
+      disabled: Boolean(syncOperation) || Boolean(busy) || loading,
+      onSelect: () => void importExtensions(),
+    },
+  ];
+
   return (
     <section className="settings-section extensions-panel" data-no-drag>
       <div className="settings-section__heading extensions-panel__heading">
@@ -1424,21 +1461,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
       <div className="extensions-installed">
         <div className="extensions-sync-cluster">
+          {/* The visible row is one connect action plus the overflow trigger —
+              two controls, no captions. The remaining three actions, the busy
+              spinners and the explanation all live inside the menu. */}
           <div className="extensions-sync-toolbar">
             <div className="extensions-sync-toolbar__group">
               <button
                 type="button"
                 className="extensions-action-button extensions-action-button--primary"
-                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                ref={customCreateButtonRef}
-                onClick={openCreateCustomIntegration}
-              >
-                <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                {t("settings.extensions.createCustom")}
-              </button>
-              <button
-                type="button"
-                className="extensions-action-button"
                 disabled={Boolean(syncOperation) || Boolean(busy) || loading}
                 title={t("settings.extensions.chooseManifestHint")}
                 onClick={() => void connectLocal()}
@@ -1447,38 +1477,20 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 {t("settings.extensions.chooseManifest")}
               </button>
             </div>
-            <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--transfer">
-              <button
-                type="button"
-                className="extensions-action-button"
-                aria-busy={syncOperation === "export"}
+            <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--overflow">
+              {syncOperation && (
+                <span className="extensions-sync-status" role="status">
+                  <LoaderCircle className="extensions-spinner" size={13} strokeWidth={2} aria-hidden="true" />
+                  {t(syncOperation === "export" ? "settings.extensions.exporting" : "settings.extensions.importing")}
+                </span>
+              )}
+              <OverflowMenu
+                label={t("settings.extensions.moreActions")}
+                note={t("settings.extensions.fileTransferHint")}
+                items={overflowItems}
                 disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                onClick={() => void exportExtensions()}
-              >
-                {syncOperation === "export" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileDown size={14} strokeWidth={2} aria-hidden="true" />}
-                {syncOperation === "export" ? t("settings.extensions.exporting") : t("settings.extensions.export")}
-              </button>
-              <button
-                type="button"
-                className="extensions-action-button"
-                aria-busy={syncOperation === "import"}
-                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
-                onClick={() => void importExtensions()}
-              >
-                {syncOperation === "import" ? <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" /> : <FileUp size={14} strokeWidth={2} aria-hidden="true" />}
-                {syncOperation === "import" ? t("settings.extensions.importing") : t("settings.extensions.import")}
-              </button>
-            </div>
-          </div>
-          <div className="extensions-package-hints">
-            <div className="extensions-package-hint" role="note">
-              <FileDown size={13} strokeWidth={2} aria-hidden="true" />
-              <span>{t("settings.extensions.fileTransferHint")}</span>
-            </div>
-            <div className="extensions-package-hint" role="note">
-              <Link2 size={13} strokeWidth={2} aria-hidden="true" />
-              <span>{t("settings.extensions.chooseManifestHint")}</span>
-            </div>
+              />
+                        </div>
           </div>
         </div>
         {importReport && (
@@ -1692,7 +1704,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         </div>
       )}
 
-      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} discardArmed={customDiscardArmed} onDismissDiscard={() => setCustomDiscardArmed(false)} onDiscard={discardCustomIntegration} toolSuggestions={toolSuggestions} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolSuggestion} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
+      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} discardArmed={customDiscardArmed} onDismissDiscard={() => setCustomDiscardArmed(false)} onDiscard={discardCustomIntegration} toolResults={toolResults} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolCandidate} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
 
       {selected && (
         <div className="extension-drawer-backdrop" role="presentation" style={showCustomIntegration || pendingLocal || pendingToolSelection || pendingPermissionReview ? { display: "none" } : undefined} onMouseDown={closeDetails}>

@@ -742,7 +742,8 @@ canvas {
   .pinned-card,
   .update-banner,
   .settings-save-alert__spinner,
-  .terminal-bar__dot {
+  .terminal-bar__dot,
+  .extensions-overflow__items {
     animation: none;
   }
 
@@ -758,6 +759,7 @@ canvas {
   .extensions-action-button,
   .extension-row,
   .extension-tool-results button,
+  .extensions-overflow__item,
   .extension-drawer-backdrop,
   .extension-drawer,
   .collapsed-card__aura,

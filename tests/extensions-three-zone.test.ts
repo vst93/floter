@@ -29,6 +29,26 @@ const cssRule = (css: string, selector: string) => {
   return css.slice(open + 1, close);
 };
 
+/** The body of a `const name = (...) => { … }` declaration, taken by brace
+ *  matching so the slice ends at the function's own closing brace. An anchor
+ *  of "the next declaration we happen to know the name of" silently changes
+ *  meaning when that neighbour is renamed or deleted. */
+const functionBody = (source: string, signature: string) => {
+  const at = source.indexOf(signature);
+  assert.notEqual(at, -1, `missing declaration: ${signature}`);
+  const open = source.indexOf("{", at);
+  assert.notEqual(open, -1, `declaration without a body: ${signature}`);
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    if (source[i] === "{") depth += 1;
+    else if (source[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(open + 1, i);
+    }
+  }
+  assert.fail(`unterminated declaration: ${signature}`);
+};
+
 // ── R7-3a: Base plugins / Connected / Detected three-zone layout ─────────
 
 // The page had a single `Connected` section whose heading lied: the backend
@@ -151,17 +171,87 @@ test("detected rows connect through the connect flow, never reconnect", async ()
   );
 
   // The connect entry itself must route recommended/manifest rows through the
-  // shared connect pipeline and must not touch reconnect.
-  const entryAt = panel.indexOf("const connectDetected = (extension: Extension)");
-  assert.notEqual(entryAt, -1, "connectDetected must exist");
-  const entryEnd = panel.indexOf("const toolSuggestions = useMemo", entryAt);
-  assert.notEqual(entryEnd, -1, "connectDetected must be followed by the drawer suggestions block");
-  const entry = panel.slice(entryAt, entryEnd);
+  // shared connect pipeline and must not touch reconnect. The body is taken by
+  // brace matching rather than by "the next declaration with a known name",
+  // because R7-3b deleted the `toolSuggestions` block that used to be this
+  // test's end anchor — an anchor a later round deletes silently shortens the
+  // slice (or fails) instead of failing on the thing under test.
+  const entry = functionBody(panel, "const connectDetected = (extension: Extension)");
   assert.match(entry, /connectRecommended\(extension\)/, "authored manifests must use the connect pipeline");
   assert.ok(
     !/reconnectSystem/.test(entry),
     "connectDetected must not reach for reconnectSystem",
   );
+});
+
+// R7-3b (F1) closed the R7-3a finding that the detected list was rendered in
+// two places: the Detected section AND the create-custom drawer's executable
+// picker, under a second label ("Detected on this device"). Connecting a bare
+// PATH discovery opens that drawer with the executable prefilled, which is the
+// ONLY create entry now — the blank "Create custom" toolbar button moved into
+// the overflow menu and is asserted separately.
+//
+// The invariant: the drawer's suggestion list is search results only, and the
+// drawer no longer consumes `suggestedExtensions` at all. Restoring the gated
+// fallback re-renders the same list in two places and fails here.
+//
+// Mutation: put `...suggestedExtensions.map(...)` back into `toolSuggestions`
+// (or re-add the `drawerSuggestions` header line) and this fails.
+test("the edit drawer no longer re-renders the detected list", async () => {
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
+
+  // No suggestion-list construction anywhere in the panel: the drawer receives
+  // search hits (`toolResults`) and nothing else.
+  assert.ok(
+    !/toolSuggestions/.test(panel),
+    "the panel must not build a suggestion list for the drawer (the Detected section is that list)",
+  );
+  assert.ok(
+    /<CustomIntegrationDrawer[\s\S]*?toolResults=\{toolResults\}/.test(panel),
+    "the drawer must receive the executable search results",
+  );
+  // The drawer itself names neither the removed type nor the removed header.
+  assert.ok(!/ToolSuggestion/.test(drawer), "the drawer must not reference ToolSuggestion");
+  assert.ok(
+    !/drawerSuggestions/.test(drawer),
+    "the drawer must not render the \"Detected on this device\" list header",
+  );
+  assert.ok(
+    !/suggestedExtensions/.test(drawer),
+    "the drawer must not read the detected inventory",
+  );
+
+  // …and the dead i18n string is gone from both dictionaries, so the two-place
+  // rendering cannot come back through a translation key either.
+  const i18n = await read("src/i18n.ts");
+  assert.equal(
+    i18n.split('"settings.extensions.drawerSuggestions"').length - 1,
+    0,
+    "settings.extensions.drawerSuggestions belongs to the removed fallback and must be deleted",
+  );
+  // The executable field keeps its own, edit-flavoured guidance instead.
+  assert.equal(
+    i18n.split('"settings.extensions.changeExecutableHint"').length - 1,
+    2,
+    "the edit drawer's caption must exist once per language",
+  );
+});
+
+// The connect entry's prefill path (a bare PATH discovery) has to survive the
+// narrowing: the discovery's own path is what the user is choosing between, so
+// the row must still be able to hand it to the (prefilled) create form.
+test("a bare PATH discovery still prefills the create form", async () => {
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  const entry = functionBody(panel, "const connectDetected = (extension: Extension)");
+  assert.match(entry, /openCreateCustomIntegration\(\)/, "a discovery must reach the create form");
+  assert.match(entry, /chooseToolCandidate\(\{/, "the discovery must prefill the executable");
+  assert.match(entry, /path: extension\.executablePath/, "the prefill is the discovered path");
+  // The form it opens must accept the prefill — a create-mode drawer, not an
+  // edit-mode one (the constructor is the only place `editingCustomId` is set).
+  const open = functionBody(panel, "const openCreateCustomIntegration =");
+  assert.match(open, /setEditingCustomId\(null\)/, "the prefill form is create mode, not edit mode");
+  assert.match(open, /setShowCustomIntegration\(true\)/, "the create form must actually open");
 });
 
 // The Detected section reuses the R6-stabilized heading + chip system, so the
