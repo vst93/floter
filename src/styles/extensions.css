@@ -36,7 +36,7 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
 }
 
 @media (hover: hover) {
@@ -71,7 +71,7 @@
 .extensions-icon-button:hover:not(:disabled):not(.extensions-icon-button--disabled) {
   border-color: var(--glass-control-edge);
   background: var(--ext-bg-hover);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-primary);
 }
 }
@@ -88,7 +88,7 @@
 .extensions-icon-button--primary:hover:not(:disabled):not(.extensions-icon-button--disabled) {
   border-color: var(--accent-edge-strong);
   background: var(--accent);
-  box-shadow: inset 0 1px 0 var(--glass-raised-rim), 0 2px 6px var(--window-shadow-contact);
+  box-shadow: var(--elev-hover);
   color: var(--accent-contrast);
 }
 }
@@ -128,7 +128,7 @@
   border: var(--ext-border);
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
   font-size: var(--text-body);
   line-height: 1.45;
@@ -156,8 +156,11 @@
 
 .extensions-notice--success {
   color: var(--accent);
-  background: var(--glass-raised);
-  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
+  /* An outcome notice, not an action: neutral raised pane with the accent
+     keyline. HIG-2 takes it off the accent budget so the integrations page's
+     one accent fill is the sync toolbar's primary button. */
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
 }
 
 /* Non-fatal advisory: export dropped fields the import could not carry over.
@@ -243,7 +246,7 @@
   padding: 0 8px;
   font-size: var(--text-caption);
   overflow: hidden;
-  box-shadow: 0 6px 18px var(--window-shadow-ambient);
+  box-shadow: var(--elev-3-compact);
 }
 
 #floter-app-toasts[data-surface="collapsed"] > .app-toast > span {
@@ -327,7 +330,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: var(--glass-control);
-  box-shadow: inset 0 0 0 1px var(--glass-control-edge), inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-strong);
   font-size: var(--text-caption);
   font-weight: 580;
@@ -443,7 +446,7 @@
   border: var(--ext-border);
   border-radius: var(--radius-md);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
 }
 
 .extensions-sync-toolbar__group {
@@ -501,7 +504,7 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--ext-radius);
   background: var(--glass-float);
-  box-shadow: var(--elev-3), inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-3);
   transform-origin: top right;
   animation: extensions-overflow-in var(--dur-3) var(--spring);
 }
@@ -688,7 +691,7 @@
 
 .extension-row:hover:not(.extension-row--detected) {
   background: var(--ext-bg-hover);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
 }
 }
 
@@ -700,8 +703,11 @@
 }
 
 .extension-row--selected {
-  background: var(--ext-bg-selected);
-  box-shadow: var(--glass-raised-shadow);
+  /* A selection state, not a primary action: the neutral raised pane plus the
+     accent bar `::before` below, which is what says "you are here". The accent
+     tint would be a tinted face per row the user arrow-keys through. */
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--elev-0);
 }
 
 .extension-row--selected::before {
@@ -754,7 +760,7 @@
   border: 1px solid var(--icon-edge);
   border-radius: var(--ext-radius);
   background: var(--icon-surface);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
 }
 
@@ -829,7 +835,7 @@
   padding: 2px 7px;
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
   line-height: 1.45;
 }
@@ -844,9 +850,13 @@
   box-shadow: var(--glass-raised-shadow);
 }
 
+/* A "recommended" badge is a status mark, not an action: neutral raised pane
+   with the accent keyline and label. HIG-2 takes it off the accent budget so
+   the row's connect button (not every badge beside it) is what reads as the
+   action. */
 .extension-status--recommended {
-  background: var(--glass-raised);
-  box-shadow: var(--glass-raised-shadow);
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
   color: var(--accent);
   font-weight: 600;
 }
@@ -896,8 +906,13 @@
   margin-top: 2px;
   padding: 5px 8px;
   border-radius: var(--ext-radius);
-  background: var(--glass-raised);
-  box-shadow: var(--glass-raised-shadow);
+  /* An in-flight status strip, not an action: the same neutral raised pane as
+     the recommended/healthy badges, with the accent keyline and label kept so
+     "installing" stays legible. HIG-2 takes it off the accent budget — when a
+     row is installing, the toolbar's primary button and the row's primary
+     icon button can already be on screen, which is the budget. */
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
   color: var(--accent);
   font-size: var(--text-body);
   cursor: default;
@@ -927,7 +942,7 @@
   border: var(--ext-border);
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-strong);
   font-size: var(--text-body);
   font-weight: 600;
@@ -959,7 +974,7 @@
 .extensions-action-button--primary:hover:not(:disabled) {
   border-color: var(--accent-edge-strong);
   background: var(--accent);
-  box-shadow: inset 0 1px 0 var(--glass-raised-rim), 0 2px 6px var(--window-shadow-contact);
+  box-shadow: var(--elev-hover);
   color: var(--accent-contrast);
 }
 }
@@ -1127,7 +1142,7 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--radius-sm);
   background: var(--icon-surface);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
 }
 
 .extension-permission-item strong {
@@ -1244,7 +1259,7 @@
   border: var(--ext-border);
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-strong);
   text-align: left;
   cursor: pointer;
@@ -1294,7 +1309,7 @@
   border: var(--ext-border);
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-muted);
   font-size: var(--text-caption);
   line-height: 1.4;
@@ -1348,14 +1363,14 @@
 .extension-custom-form { min-height: 0; padding: 12px 14px 0; display: grid; gap: 12px; overflow-y: auto; }
 .extension-custom-form__fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
 .extension-custom-form__error { margin: 10px 14px 0; overflow-wrap: anywhere; }
-.extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: var(--ext-radius); background: var(--glass-track); box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge); }
+.extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: var(--ext-radius); background: var(--glass-track); box-shadow: var(--elev-track); }
 .extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: var(--ext-radius); background: transparent; color: var(--text-strong); cursor: pointer; font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
 /* R8 readability: a raised selection pane carries the frame's primary text.
    The accent still marks the state through the edge and the rim, but its own
    contrast on the tint it produces is the weakest text on the page at the
    Clear end of the transparency slider — the accent is the *indicator*, not
    the label. */
-.extension-custom-mode__item--active { background: var(--glass-raised); box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge); color: var(--text-primary); }
+.extension-custom-mode__item--active { background: var(--glass-raised-quiet); box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge); color: var(--text-primary); }
 .extension-custom-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; }
 .extension-custom-form label { min-width: 0; display: grid; gap: 4px; color: var(--text-muted); font-size: var(--text-caption); font-weight: 600; }
 .extension-custom-form__wide { grid-column: 1 / -1; }
@@ -1375,8 +1390,8 @@
 .extension-tool-results > span { padding: 8px 10px; color: var(--text-tertiary); font-size: var(--text-body); }
 .extension-tool-results button.extension-tool-result { width: 100%; min-width: 0; padding: 6px 8px; display: flex; align-items: center; gap: 8px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color var(--dur-2) ease; }
 .extension-tool-results button.extension-tool-result:last-child { border-bottom: none; }
-@media (hover: hover) and (pointer: fine) { .extension-tool-results button.extension-tool-result:hover { background: var(--glass-control-hover); box-shadow: inset 0 1px 0 var(--glass-control-rim); } }
-.extension-tool-results button.extension-tool-result--active { background: var(--glass-raised); box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge); color: var(--text-primary); }
+@media (hover: hover) and (pointer: fine) { .extension-tool-results button.extension-tool-result:hover { background: var(--glass-control-hover); box-shadow: var(--elev-0); } }
+.extension-tool-results button.extension-tool-result--active { background: var(--glass-raised-quiet); box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge); color: var(--text-primary); }
 /* Tool-result rows are search hits only. The "Detected on this device" list
    that used to be slotted in above them was a second rendering of the Detected
    section, and the drawer is now the edit entry (F1) — so the empty-idle state
@@ -1392,7 +1407,7 @@
 .extension-custom-permissions__hint { width: 100%; margin: -2px 0 2px; color: var(--text-tertiary); font-size: var(--text-caption); line-height: 1.35; }
 .extension-custom-permissions label { display: flex; grid-auto-flow: column; align-items: center; gap: 5px; color: var(--text-secondary); font-size: var(--text-caption); font-weight: 500; }
 .extension-custom-permissions input { width: 14px; min-height: 14px; accent-color: var(--accent); }
-.extension-custom-permission-boundary { padding: 8px 9px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-control); box-shadow: inset 0 1px 0 var(--glass-control-rim); color: var(--text-muted); font-size: var(--text-caption); line-height: 1.4; }
+.extension-custom-permission-boundary { padding: 8px 9px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-control); box-shadow: var(--elev-0); color: var(--text-muted); font-size: var(--text-caption); line-height: 1.4; }
 .extension-custom-permission-boundary svg { margin-top: 1px; color: var(--text-tertiary); }
 .extension-removal-dialog { width: min(440px, 100%); max-height: calc(100% - 32px); padding: 17px; display: grid; gap: 14px; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-float); box-shadow: var(--elev-3); }
 .extension-removal-dialog > header { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text-primary); }
@@ -1439,8 +1454,7 @@
      already throws downward and outward; the -8px x-offset here only aims it
      toward the edge the drawer slides in from. */
   box-shadow:
-    -8px 0 24px var(--window-shadow-ambient),
-    var(--elev-3);
+    var(--elev-3-edge);
   cursor: default;
   transform: translateX(0);
   /* A drawer appears over content, which is what the spring is reserved for
@@ -1600,14 +1614,14 @@
 .extension-health { display: flex; flex-direction: column; gap: 6px; }
 .extension-health__header { display: flex; align-items: center; gap: 8px; }
 .extension-health__status { padding: 2px 8px; border-radius: var(--ext-radius); font-weight: 600; font-size: var(--text-caption); text-transform: uppercase; letter-spacing: 0; }
-.extension-health__status--healthy { background: var(--glass-raised); box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge); color: var(--text-strong); }
+.extension-health__status--healthy { background: var(--glass-raised-quiet); box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge); color: var(--text-strong); }
 .extension-health__status--degraded { background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-warning); }
 .extension-health__status--unhealthy { background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-warning); }
-.extension-health__status--unknown { background: var(--glass-control); box-shadow: inset 0 1px 0 var(--glass-control-rim); color: var(--text-muted); }
+.extension-health__status--unknown { background: var(--glass-control); box-shadow: var(--elev-0); color: var(--text-muted); }
 .extension-health__version { font-size: var(--text-caption); color: var(--text-muted); }
 .extension-health__label { font-weight: 600; font-size: var(--text-caption); color: var(--text-tertiary); text-transform: uppercase; margin-right: 4px; }
 .extension-health__features, .extension-health__limitations, .extension-health__probes { display: flex; flex-direction: column; gap: 3px; }
-.extension-health__tag { display: inline-block; padding: 1px 5px; background: var(--glass-raised); box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge); color: var(--text-strong); border-radius: var(--ext-radius); font-size: var(--text-caption); margin-right: 3px; }
+.extension-health__tag { display: inline-block; padding: 1px 5px; background: var(--glass-raised-quiet); box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge); color: var(--text-strong); border-radius: var(--ext-radius); font-size: var(--text-caption); margin-right: 3px; }
 .extension-health__probe { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--hairline); font-size: var(--text-caption); }
 .extension-health__probe-status { width: 11px; height: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
 .extension-health__probe-status--passed { color: var(--text-strong); }
@@ -1659,7 +1673,7 @@
   padding: 2px 6px;
   border-radius: var(--ext-radius);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
   font-size: var(--text-caption);
   text-transform: capitalize;
@@ -1873,7 +1887,7 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--radius-md);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
 }
 
 .extensions-base-plugin__main {

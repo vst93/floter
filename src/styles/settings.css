@@ -136,7 +136,7 @@
 .settings-sidebar__item:hover {
   background: var(--glass-control-hover);
   color: var(--text-primary);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
 }
 }
 /* The current page is raised glass with the accent marker on its leading
@@ -241,7 +241,7 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--radius-md);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-warning);
   font-size: var(--text-emphasis);
   line-height: 1.4;
@@ -270,7 +270,7 @@
   cursor: pointer;
   font: inherit;
   font-weight: 600;
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   transition: transform var(--dur-2) ease, box-shadow var(--dur-2) ease, background-color var(--dur-2) ease;
 }
 
@@ -279,7 +279,7 @@
 .settings-save-alert button:not(:disabled):hover {
   border-color: var(--accent-edge);
   background: var(--glass-control-hover);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), 0 2px 4px var(--window-shadow-contact);
+  box-shadow: var(--elev-hover-soft);
   transform: translateY(-1px);
 }
 }
@@ -519,19 +519,20 @@
   border-color: var(--glass-control-edge);
   background: var(--glass-control-hover);
   color: var(--text-secondary);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
 }
 }
 
-/* A live preset is a state, not an action: neutral fill plus the accent
-   keyline, the same treatment the switch's on-state uses. This keeps the
-   settings page's tinted faces at two (the current sidebar page and the
-   selected segment) instead of five. */
+/* A live preset is a state, not an action: the neutral raised pane plus the
+   accent keyline, the same treatment the switch's on-state and the chosen
+   segment use. R8 had already taken it off the accent tint; HIG-2 routes it
+   through the named `--glass-raised-quiet` so "a chosen state is a lit pane,
+   not an accent fill" is one token instead of a per-rule decision. */
 .opacity-control__preset--active {
   border-color: var(--accent-edge);
-  background: var(--glass-control-hover);
+  background: var(--glass-raised-quiet);
   color: var(--text-strong);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--accent-edge);
+  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
 }
 
 .opacity-control__preset:focus-visible,
@@ -619,7 +620,7 @@
   padding: 3px;
   border-radius: var(--radius-md);
   background: var(--glass-track);
-  box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
+  box-shadow: var(--elev-track);
 }
 
 .settings-option {
@@ -645,7 +646,7 @@
 
 .settings-option:hover {
   background: var(--glass-control-hover);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
 }
 }
 
@@ -655,17 +656,18 @@
   box-shadow: none;
 }
 
-/* The chosen option is a raised pane inside the track: accent tint, the same
-   top rim every other raised surface carries, and an accent edge to keep the
-   state legible where the tint is faint. This is one of the settings page's
-   two tinted primary faces — the other is the sidebar's current page; the
-   switch and the numeric readouts below were taken off the accent budget in
-   R8 (`liquid-glass.md › Color on glass`: "Reserve it for elements that truly
-   benefit from emphasis … Refrain from adding color to the background of
-   multiple controls."). */
+/* The chosen option is a raised pane inside the track: the shared top rim plus
+   an accent keyline that says "chosen". It is deliberately **not** an accent
+   tint, because HIG-2 puts it on the accent budget: a chosen segment is a
+   *state of a control*, not a primary action, and one page can show four
+   chosen segments at once (General has theme, language, cursor and glass
+   step). Tinting all of them is exactly the "row of tinted controls"
+   `liquid-glass.md › Color on glass` warns against. The accent survives as the
+   1px edge — emphasis, not a filled face — and the sidebar's current page is
+   the page's actual accent fill. */
 .settings-option--active {
-  background: var(--glass-raised);
-  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
 }
 
 .settings-option:focus-visible {
@@ -724,7 +726,7 @@
    it is the same one-rung raise the rest of the app uses. */
 .settings-option--static:hover {
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
 }
 }
 
@@ -747,7 +749,7 @@
   padding: 0;
   border-radius: var(--radius-lg);
   background: var(--glass-track);
-  box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
+  box-shadow: var(--elev-track);
   cursor: pointer;
   transition: background-color var(--dur-3) ease-out, box-shadow var(--dur-3) ease-out;
 }
@@ -762,7 +764,7 @@
   background: var(--text-secondary);
   /* A thumb is a small glass bead: its own top highlight is what stops it
      reading as a flat dot at 14px. */
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), 0 1px 2px var(--keycap-shadow);
+  box-shadow: var(--elev-keycap);
   transition: transform var(--dur-4) var(--ease-out-back), background-color var(--dur-3) ease-out;
 }
 
@@ -774,7 +776,7 @@
 .settings-switch--active {
   background: var(--glass-control-hover);
   box-shadow:
-    inset 0 1px 0 var(--glass-control-rim),
+    var(--elev-0),
     inset 0 0 0 1px var(--accent-edge-strong);
 }
 
@@ -856,7 +858,7 @@
   border-radius: var(--radius-sm);
   background: var(--icon-surface);
   color: var(--text-secondary);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
+  box-shadow: var(--elev-0);
 }
 
 .session-manager__main {
@@ -1038,7 +1040,7 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--radius-sm);
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
   cursor: pointer;
   font-size: var(--text-body);
@@ -1077,7 +1079,7 @@
   border-radius: var(--radius-sm);
   background: var(--glass-control);
   border: 1px solid var(--glass-control-edge);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
   font-size: var(--text-body);
   font-weight: 600;
@@ -1106,9 +1108,12 @@
 }
 
 .shortcut-recorder--recording {
-  background: var(--glass-raised);
+  /* An armed *state* of the field being recorded into, not a primary action:
+     neutral raised pane plus the accent edge and text. The pulse (border
+     colour) still says "armed". */
+  background: var(--glass-raised-quiet);
   border-color: var(--accent-edge);
-  box-shadow: var(--glass-raised-shadow);
+  box-shadow: var(--elev-0);
   color: var(--accent);
   animation: shortcut-recording 1.4s ease-in-out infinite;
 }
@@ -1154,9 +1159,13 @@
   gap: 12px;
   padding: 10px 12px;
   border-radius: var(--radius-md);
-  background: var(--glass-raised);
+  /* An update *notice*, not an update action: the accent tint here would be a
+     second tinted face competing with the banner's own button. HIG-2 moved the
+     banner onto the neutral raised pane and left the accent to the button,
+     which is the one thing on it the user presses. */
+  background: var(--glass-raised-quiet);
   border: 1px solid var(--glass-control-edge);
-  box-shadow: var(--glass-raised-shadow);
+  box-shadow: var(--elev-0);
   animation: feedback-enter var(--dur-3) var(--ease-out);
 }
 

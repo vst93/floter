@@ -25,23 +25,34 @@ const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-// The host sheets this round owns. The uninstall dialog's own sheet and the
-// clipboard plugin page are deliberately outside it (R7-4's page boundary) and
-// are listed here so the exception is visible rather than a silent gap.
+// The host sheets this round owns. `src/extensions/ComponentizedUninstallDialog.css`
+// is a page-boundary file (R7-4): it predates the radius/type ladders and still
+// carries their literals, so the *drift* scans (radius, type, focus) skip it.
+// It is NOT skipped by the structural scans that matter here — the elevation
+// wiring and the reduce-motion scan both read `HOST_DIRS` directly, which is
+// what the reviewer's "scans every host sheet" finding was about. The clipboard
+// plugin page is outside all of them (R7-4's page boundary).
 const OUT_OF_SCOPE = new Set([
   "src/extensions/ComponentizedUninstallDialog.css",
   "src/plugins/clipboard/page.css",
 ]);
 
+// Both directories that hold host CSS. `src/styles/` is the shared sheets;
+// `src/extensions/` holds a component-private sheet that still consumes the
+// host tokens (it was wired to `--elev-0` this round) and must obey the same
+// structural rules.
+const HOST_DIRS = ["src/styles/", "src/extensions/"];
+
 const hostSheets = async () => {
-  const dir = new URL("src/styles/", root);
-  const names = (await readdir(dir)).filter((n) => n.endsWith(".css"));
-  return Promise.all(
-    names.map(async (name) => ({
-      name: `src/styles/${name}`,
-      css: stripComments(await read(`src/styles/${name}`)),
-    })),
-  );
+  const out: { name: string; css: string }[] = [];
+  for (const dir of HOST_DIRS) {
+    const names = (await readdir(new URL(dir, root))).filter((n) => n.endsWith(".css"));
+    for (const name of names) {
+      const path = `${dir}${name}`;
+      out.push({ name: path, css: stripComments(await read(path)) });
+    }
+  }
+  return out;
 };
 
 const rules = (css: string) => {
@@ -54,6 +65,25 @@ const rules = (css: string) => {
 
 const declarations = (body: string, property: string) =>
   [...body.matchAll(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"))].map((m) => m[1].trim());
+
+// Split on commas at paren depth 0, so a gradient's own arguments are not torn
+// into separate layers (`linear-gradient(to bottom, a, b)` is one layer).
+const splitTopLevel = (value: string) => {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    const c = value[i];
+    if (c === "(") depth += 1;
+    else if (c === ")") depth -= 1;
+    else if (c === "," && depth === 0) {
+      parts.push(value.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts.map((part) => part.trim()).filter(Boolean);
+};
 
 // The `:root` token block of base.css, up to the light-theme override.
 const rootTokens = async () => {
@@ -421,13 +451,18 @@ test("page content arrives on the house ease-out, not the spring", async () => {
 // assertions below check both halves — the rungs are a ladder, and the two
 // consumers that make the ladder *mean* something draw from a rung rather than
 // from a literal.
-test("the elevation ladder names three depths and stays a ladder", async () => {
+test("the elevation ladder names four depths and stays a ladder", async () => {
   const rootBlock = await rootTokens();
+  // Rung 0 is the control on the plane: the inset ring/rim pair, no cast.
+  assert.equal(
+    token(rootBlock, "elev-0").replace(/\s+/g, " "),
+    "inset 0 0 0 1px var(--glass-control-edge), inset 0 1px 0 var(--glass-control-rim)",
+  );
   assert.equal(token(rootBlock, "elev-1"), "none");
   assert.match(token(rootBlock, "elev-2"), /0 1px 2px/);
   assert.match(token(rootBlock, "elev-3"), /0 10px 26px/);
-  // Both rungs scale with the frame's fill, so depth is not a constant painted
-  // under a panel that may be nearly invisible or nearly solid.
+  // Both cast rungs scale with the frame's fill, so depth is not a constant
+  // painted under a panel that may be nearly invisible or nearly solid.
   assert.match(token(rootBlock, "elev-2"), /var\(--elev-shadow-scale\)/);
   assert.match(token(rootBlock, "elev-3"), /var\(--elev-shadow-scale\)/);
   const scale = token(rootBlock, "elev-shadow-scale");
@@ -436,11 +471,20 @@ test("the elevation ladder names three depths and stays a ladder", async () => {
   // and a longer throw, at the same tint.
   const blurOf = (value: string) => Number(value.match(/0 (\d+)px/)?.[1] ?? 0);
   assert.ok(blurOf(token(rootBlock, "elev-3")) > blurOf(token(rootBlock, "elev-2")), "rung 3 must throw further than rung 2");
-  // The alias keeps the pre-R8 call sites working without being a second
+  // The aliases keep the pre-R8 call sites working without being a second
   // definition of the same shadow.
   assert.equal(token(rootBlock, "glass-float-shadow"), "var(--elev-3)");
   // Raised selection panes are rung 2 plus the lit rim.
   assert.match(token(rootBlock, "glass-raised-shadow"), /^var\(--elev-2\), inset 0 1px 0 var\(--glass-raised-rim\)$/);
+
+  // The derivations the top of the ladder needs. Each must be written *in
+  // terms of* a rung, or it is a fourth shadow wearing a token's name.
+  assert.match(token(rootBlock, "elev-3-edge"), /var\(--elev-3\)/);
+  assert.match(token(rootBlock, "elev-3-compact"), /var\(--window-shadow-ambient\)/);
+  assert.match(token(rootBlock, "elev-4"), /var\(--window-shadow-ambient\)/);
+  assert.match(token(rootBlock, "elev-bar"), /var\(--elev-shadow-scale\)/);
+  assert.match(token(rootBlock, "elev-track"), /var\(--window-shadow-contact\)/);
+  assert.match(token(rootBlock, "elev-hover"), /var\(--window-shadow-contact\)/);
 
   // Floaters draw from the top rung; the drawer, the toast and every dialog
   // are the surfaces that use it.
@@ -456,17 +500,53 @@ test("the elevation ladder names three depths and stays a ladder", async () => {
     assert.ok(rule, `${file}: ${selector} must exist`);
     assert.match(rule!.body, /box-shadow:\s*var\(--elev-3\)/, `${file}: ${selector} must use the floater rung`);
   }
-  // …and no sheet may go back to a hand-rolled floater shadow, or the ladder
-  // would be a naming convention again.
+
+  // ── Wiring (HIG-2) ──────────────────────────────────────────────────────
+  // R7-HIG named the ladder and consumed only four rungs. HIG-2 wires the
+  // rest. Two clauses, both about the *call site* in a host sheet:
+  //
+  //   1. no raw colour in a shadow — tints are tokens, full stop;
+  //   2. any *cast* layer (a comma-part that is not `inset`) must name a rung.
+  //      A hand-rolled floater shadow can no longer be slipped in, which is
+  //      the mutation lock: revert one floater to a literal cast and this goes
+  //      red.
+  //
+  // Inset strokes are allowed to keep their 1-2px width: a width is geometry,
+  // not a palette, and tokenizing every `inset 0 0 0 1px` would be a token per
+  // stroke rather than a ladder. What matters is that the stroke resolves to a
+  // material token (`--glass-control-edge`, `--stroke-contrast`, …).
+  //
+  // The deliberate carve-out: the `.platform-*` window-server frame shadows,
+  // which belong to the OS chrome (a different shadow authority) and are
+  // already tokenized (`--window-shadow-*`).
+  const CAST_RUNG = /var\(--elev-[0-9a-z-]+\)|var\(--glass-raised-shadow\)|var\(--glass-rim-shadow/;
+  // A value that is nothing but token references is an *alias* to a material
+  // token (`var(--glass-field-shadow)`, `var(--glass-raised-shadow)`); its
+  // internals are audited at the definition in base.css, not here.
+  const allTokens = (flat: string) =>
+    /^(?:var\(--[a-z0-9-]+\))(?:\s*,\s*var\(--[a-z0-9-]+\))*$/.test(flat);
   for (const { name, css } of await hostSheets()) {
-    if (OUT_OF_SCOPE.has(name) && !name.endsWith("ComponentizedUninstallDialog.css")) continue;
     for (const { selector, body } of rules(css)) {
-      const shadows = declarations(body, "box-shadow");
-      for (const value of shadows) {
+      if (/\.platform-(windows|linux|macos)/.test(selector)) continue;
+      for (const value of declarations(body, "box-shadow")) {
+        const flat = value.replace(/\s+/g, " ").trim();
+        if (flat === "none") continue;
         assert.ok(
-          !/0 10px 26px var\(--window-shadow-ambient\)/.test(value),
-          `${name}: ${selector} restates the floater shadow — use var(--elev-3)`,
+          !/(?:^|[^\w-])(?:rgba?|hsla?)\(|#[0-9a-fA-F]{3,8}\b/.test(flat),
+          `${name}: ${selector} box-shadow: ${flat} — a shadow tint must be a token, never a literal`,
         );
+        if (allTokens(flat)) continue;
+        const cast = flat
+          .split(/,(?![^(]*\))/)
+          .map((part) => part.trim())
+          .filter((part) => part && !part.startsWith("inset"));
+        if (cast.length > 0) {
+          assert.match(
+            flat,
+            CAST_RUNG,
+            `${name}: ${selector} casts a shadow (${flat}) without a rung — use var(--elev-*)`,
+          );
+        }
       }
     }
   }
@@ -480,32 +560,158 @@ test("the elevation ladder names three depths and stays a ladder", async () => {
 // launcher's query field, the settings header/sidebar), and the result list /
 // settings body are content. Both are asserted so a later round cannot move
 // the blur into the content layer.
+//
+// HIG-2 made this a *real* assertion. The R7-HIG version only checked that a
+// content selector's rule body does not contain the string `backdrop-filter`
+// — which is true of almost every rule in the sheet, content or not, so the
+// test could not fail for the reason it claimed (the reviewer's tautology
+// finding). The version below asserts the positive fact the rule is really
+// about: a content surface is a *standard material*, so its rule body must
+// paint itself with a `--surface-*` / `--glass-control*` / `--glass-raised*`
+// token (or be told to inherit the shell's tint by painting nothing), and it
+// must not carry a filter, a `--glass-tint*` / `--glass-float` (the frame and
+// floater tints) or a raw colour. Injecting a `backdrop-filter` *or* moving a
+// content background onto the shell tint now trips it.
 test("the material stays on the functional layer", async () => {
+  // The content layer, per file. Each entry is a selector that owns body
+  // content — rows, a scrolling list, a recess — not a shell.
+  const CONTENT: [string, string][] = [
+    ["launcher.css", ".launcher-bottom"],
+    ["launcher.css", ".launcher-results"],
+    ["launcher.css", ".launcher-result"],
+    ["launcher.css", ".launcher-action-bar"],
+    ["settings.css", ".settings-content"],
+    ["settings.css", ".settings-card__body"],
+    ["extensions.css", ".extension-tool-results"],
+  ];
+  // The two materials a *standard* content surface may paint:
+  //   * the content recess (`--surface-sunken*`) — the result field, the
+  //     settings body, the tool-result scroll;
+  //   * the control/raised ladder or `transparent` — a row or a pane that
+  //     reads as glass *over* the recess rather than as a second recess.
+  // A shell/floater tint (`--glass-tint*`, `--glass-float`) is deliberately
+  // not on the list: those are the functional layer's own fills.
+  const STANDARD_MATERIAL =
+    /var\(--(surface-(sunken|sunken-soft|opaque|control|control-hover|control-press)|glass-(control|control-hover|control-press|raised|raised-hover|raised-quiet|raised-warm|raised-warm-hover)|icon-surface)\)|^(transparent|none|inherit)$/;
+  // The one tokenized image a content surface may paint: the scroll edge band.
+  // It is a gradient *by design* — the whole point is that it is not a second
+  // filter — so it is allowed by name rather than as a raw `linear-gradient`.
+  const CONTENT_IMAGE = /^var\(--scroll-edge-band(?:-soft)?\)$/;
+  for (const [file, selector] of CONTENT) {
+    const css = stripComments(await read(`src/styles/${file}`));
+    // Every rule that *is* this content face, not just the first one: a later
+    // duplicate rule must not be able to repaint the face behind the test's
+    // back (the reviewer's appended-selector mutation).
+    const matching = rules(css).filter(({ selector: s }) => s === selector);
+    assert.ok(matching.length > 0, `${file}: ${selector} must exist`);
+    for (const { body } of matching) {
+      // 1. Functional-layer material must not appear in a content rule.
+      assert.ok(
+        !/backdrop-filter/.test(body),
+        `${selector} is content and must not filter the backdrop (the one-sheet rule)`,
+      );
+      assert.ok(
+        !/var\(--glass-(tint|float|saturate|blur)/.test(body),
+        `${selector} is content — it must use a standard material, not the frame/floater tint`,
+      );
+      // 2. Whatever it *does* paint has to be a named standard material (or an
+      //    explicit transparent/inherit), never a raw colour and never a shell
+      //    tint handed in through a raw value.
+      const backgrounds = [
+        ...declarations(body, "background"),
+        ...declarations(body, "background-color"),
+      ];
+      // A multi-layer background (`linear-gradient(...), var(--token)`) is judged
+      // by its token layer only; a rule that paints nothing is skipped.
+      for (const value of backgrounds) {
+        const tokenLayers = value
+          .split(/,(?![^(]*\))/)
+          .map((part) => part.trim())
+          .filter((part) => !/^(linear-gradient|radial-gradient|none)/.test(part));
+        if (tokenLayers.length === 0) continue;
+        for (const layer of tokenLayers) {
+          assert.ok(
+            STANDARD_MATERIAL.test(layer),
+            `${file}: ${selector} background: ${layer} — a content surface paints a standard ` +
+              "material (--surface-* / the control ladder), never the frame's tint or a raw colour",
+          );
+        }
+      }
+      // 3. `background-image` is the hole the reviewer found: a content face
+      //    could paint raw gradient stops (or any raw colour) through it while
+      //    the `background`/`background-color` scan stayed green. The band is
+      //    the only image a content face may paint, and it must be the token,
+      //    not an inlined `linear-gradient(#hex, …)` that merely looks the same.
+      for (const value of declarations(body, "background-image")) {
+        for (const layer of splitTopLevel(value)) {
+          assert.ok(
+            CONTENT_IMAGE.test(layer),
+            `${file}: ${selector} background-image: ${layer} — a content surface paints the ` +
+              "tokenized band (var(--scroll-edge-band*)), never a raw colour or an inline gradient",
+          );
+        }
+      }
+    }
+  }
+
+  // Functional: the shell that floats over the desktop is the only filter.
   const launcher = stripComments(await read("src/styles/launcher.css"));
-  // Functional: the shell that floats over the desktop.
   const shell = rules(launcher).find(({ selector }) => selector === ".collapsed-card");
   assert.ok(shell, "launcher.css must define .collapsed-card");
   assert.match(shell!.body, /backdrop-filter/);
-  // Content: the result field is a standard material (a tint over the shell),
-  // never a second filter.
-  for (const selector of [".launcher-bottom", ".launcher-results", ".launcher-result", ".launcher-action-bar"]) {
-    const rule = rules(launcher).find(({ selector: s }) => s === selector);
-    assert.ok(rule, `launcher.css must define ${selector}`);
-    assert.ok(!/backdrop-filter/.test(rule!.body), `${selector} is content and must not filter the backdrop`);
-  }
-  // Functional: the settings header and sidebar sit in the floating layer.
-  // Content: the body scrolls, so it takes a standard material.
+  // Functional: the settings sidebar sits in the floating layer and is a
+  // standard material — the shell's own tint, not a second recess that would
+  // push its text down another contrast step. "Paints nothing" is the positive
+  // assertion here, so a later `background:` on it is caught.
   const settings = stripComments(await read("src/styles/settings.css"));
-  for (const selector of [".settings-content", ".settings-sidebar", ".settings-card__body"]) {
-    const rule = rules(settings).find(({ selector: s }) => s === selector);
-    assert.ok(rule, `settings.css must define ${selector}`);
-    assert.ok(!/backdrop-filter/.test(rule!.body), `${selector} is content and must not filter the backdrop`);
-  }
   const sidebar = rules(settings).find(({ selector }) => selector === ".settings-sidebar");
-  // The sidebar is a standard material: the shell's own tint, not a second
-  // recess that would push its text down another contrast step.
+  assert.ok(sidebar, "settings.css must define .settings-sidebar");
   assert.ok(
     !/background:/.test(sidebar!.body),
     "the sidebar must sit on the shell's tint, not paint a second material",
   );
+});
+
+// Minor 2 / the reviewer's finding: clause 3 used to read `background` and
+// `background-color` only, so a content face could paint `#ff00ff` (or the
+// shell's tint) through `background-image` and stay green. This is the
+// dedicated lock for that clause: the band is the only image a content face may
+// paint, and the check is proved to fire on an injected raw gradient.
+test("the content layer's background-image is tokenized, not a raw gradient", async () => {
+  const CONTENT_IMAGE = /^var\(--scroll-edge-band(?:-soft)?\)$/;
+  const imageViolations = (body: string) =>
+    declarations(body, "background-image").flatMap((value) =>
+      splitTopLevel(value).filter((layer) => !CONTENT_IMAGE.test(layer)),
+    );
+
+  // The three scrollers that legitimately paint the band must do so by token.
+  const banded: [string, string][] = [
+    ["src/styles/launcher.css", ".launcher-results"],
+    ["src/styles/settings.css", ".settings-content"],
+    ["src/styles/terminal.css", ".clipboard-panel__list"],
+  ];
+  for (const [file, selector] of banded) {
+    const css = stripComments(await read(file));
+    const rule = rules(css).find(({ selector: s }) => s === selector);
+    assert.ok(rule, `${file}: ${selector} must exist`);
+    assert.match(rule!.body, /background-image:\s*var\(--scroll-edge-band\)/);
+    assert.deepEqual(imageViolations(rule!.body), [], `${file}: ${selector}'s band must be the token`);
+  }
+
+  // The guard really fires: an inline raw gradient, a raw hex stop, and a shell
+  // tint are all rejected (the reviewer's `#ff00ff` injection is case one).
+  for (const bad of [
+    "linear-gradient(180deg, #ff00ff, #00ff00)",
+    "url(#ff00ff)",
+    "var(--glass-float)",
+  ]) {
+    assert.ok(
+      imageViolations(`background-image: ${bad};`).length > 0,
+      `the content-image guard must reject "${bad}"`,
+    );
+  }
+  // …while the tokenized band (and its soft sibling) pass.
+  for (const good of ["var(--scroll-edge-band)", "var(--scroll-edge-band-soft)"]) {
+    assert.deepEqual(imageViolations(`background-image: ${good};`), [], `the guard must accept ${good}`);
+  }
 });

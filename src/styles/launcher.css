@@ -120,7 +120,7 @@
 .collapsed-card__settings:hover:not(:disabled) {
   background: var(--glass-control-hover);
   color: var(--text-strong);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
 }
 }
 
@@ -292,9 +292,13 @@
   gap: 8px;
   padding: 4px 10px 4px 12px;
   border-radius: var(--radius-sm);
-  background: var(--glass-raised);
+  /* A first-run hint the user dismisses, not a primary action: the neutral
+     raised pane with the accent keyline. HIG-2 takes it off the accent
+     budget so the collapsed window's one accent fill is the focused result
+     row. */
+  background: var(--glass-raised-quiet);
   border: 1px solid var(--accent-edge);
-  box-shadow: var(--glass-raised-shadow);
+  box-shadow: var(--elev-0);
   color: var(--text-secondary);
   font-size: var(--text-body);
   font-weight: 500;
@@ -537,7 +541,7 @@
   color: var(--text-secondary);
   font-size: var(--text-emphasis);
   font-weight: 650;
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
+  box-shadow: var(--elev-0);
 }
 
 .launcher-result__icon img {
@@ -712,7 +716,7 @@
   color: var(--text-secondary);
   font-size: var(--text-emphasis);
   font-weight: 650;
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
+  box-shadow: var(--elev-0);
 }
 
 /* The `$` is a prompt, so it is set in the font a prompt is set in. */
@@ -775,7 +779,7 @@
 
 .launcher-result:not(.launcher-result--unavailable):not(.launcher-result--selected):hover {
   background: var(--glass-control);
-  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+  box-shadow: var(--elev-0);
 }
 
 .launcher-action-bar:not(.launcher-action-bar--selected):hover {

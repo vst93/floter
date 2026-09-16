@@ -93,15 +93,129 @@
      own fill — a thinner panel needs more cast shadow to read as floating,
      and a near-solid one needs almost none, or the edge turns into a smear.
      `--elev-shadow-scale` is that coupling: 1.35 at the thinnest frame down
-     to 0.45 at the near-solid end. */
+     to 0.45 at the near-solid end.
+
+     HIG-2 added the *plane* rung (rung 0) and finished the wiring. Every
+     shadow-carrying rule in the host sheets now resolves to one of the four
+     rungs, and the rung chosen is a statement about layer, not about taste:
+
+       --elev-0  a control on the plane: the inset ring/rim that makes a
+                 translucent pane readable. No cast shadow at all (a control
+                 flush with its surface is not floating). A press *removes*
+                 the ring (the pressed-material cue), so `none` is the other
+                 legitimate value.
+       --elev-1  a control pressed against the surface (no shadow)
+       --elev-2  a pane raised off it (selection, card), plus the raised
+                 branch (`--glass-raised-shadow`) for the accent selections
+       --elev-3  a floater over content (drawer, dialog, toast, menu)
+
+     Deliberately NOT elevation (and therefore left as tokens/literals):
+       * the hairline gradients (`--hairline-fade*`, `--scroll-edge-band`) —
+         separators and edge fades, not depth;
+       * the window-server frame shadows in the `.platform-*` blocks — they
+         hang off the OS chrome, which is a different shadow authority, and
+         they are already tokenized (`--window-shadow-*`);
+       * the accent halo around the live status dot (`0 0 0 2px
+         var(--accent-halo)`) — a status glow, not a rung. */
   --elev-shadow-scale: calc(0.45 + 0.9 * (1 - var(--main-opacity)));
+  /* Rung 0: the control on the plane. An inset ring plus the pane's top rim —
+     the exact two strokes the control ladder (`--glass-control-edge` /
+     `--glass-control-rim`) names, stacked in the order the sheets used. */
+  --elev-0:
+    inset 0 0 0 1px var(--glass-control-edge),
+    inset 0 1px 0 var(--glass-control-rim);
   --elev-1: none;
   --elev-2:
     0 1px 2px rgba(0, 0, 0, calc(0.2 * var(--elev-shadow-scale)));
+  /* The pointer lift on a primary button: one contact step more than the
+     resting rung, at the same cast tint. A cast shadow, so it is named here
+     rather than restated at the two call sites. */
+  --elev-hover:
+    0 2px 6px var(--window-shadow-contact);
+  /* The quieter half of the same lift: a small control's hover raises it by
+     less than a button's. */
+  --elev-hover-soft:
+    0 2px 4px var(--window-shadow-contact);
+  /* The live status dot's halo: a status glow, not a rung. Named here so a
+     call site never carries the ring width or the accent itself, and so the
+     one non-elevation shadow in the sheets is declared rather than exempted. */
+  --elev-halo:
+    0 0 0 2px var(--accent-halo);
   --elev-3:
     0 10px 26px rgba(0, 0, 0, calc(0.3 * var(--elev-shadow-scale))),
     0 1px 2px rgba(0, 0, 0, calc(0.2 * var(--elev-shadow-scale))),
     inset 0 1px 0 var(--edge-highlight);
+  /* The rungs the top of the ladder needs but the three flat numbers cannot
+     express. Each is a *derivation* of a rung, never a fourth palette: */
+  /* A floater that enters from a side edge aims the ambient throw inward
+     before joining the top rung (the drawer). */
+  --elev-3-edge:
+    -8px 0 24px var(--window-shadow-ambient),
+    var(--elev-3);
+  /* A floater inside a 58px collapsed window: rung 3's 26px throw has nowhere
+     to land there, so the compact floater keeps the ambient tint at the throw
+     the window can actually resolve (the collapsed toast strip). */
+  --elev-3-compact:
+    0 6px 18px var(--window-shadow-ambient);
+  /* A floater the user drags, which outranks every other float: a card in the
+     hand is not the same layer as a dialog that appears and is dismissed (the
+     pinned terminal card). It is rung 3's material carried one throw further,
+     plus the same lit-side ring the glass border uses. */
+  --elev-4:
+    0 12px 34px var(--window-shadow-ambient),
+    0 2px 8px var(--window-shadow-contact),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 1px 0 0 var(--edge-highlight-x),
+    inset -1px 0 0 var(--edge-highlight-x);
+  /* A bar recasting its depth onto the content that scrolls under it (the
+     terminal bar's hover), not a surface floating over the app. */
+  --elev-bar:
+    0 6px 16px rgba(0, 0, 0, calc(0.18 * var(--elev-shadow-scale)));
+  /* The material recess and the keycap: below the plane and on it, drawn with
+     the ladder's inset strokes rather than a cast shadow, so they are the
+     shallow end of the same ladder rather than a separate one. */
+  --elev-track:
+    inset 0 1px 2px var(--window-shadow-contact),
+    inset 0 0 0 1px var(--glass-track-edge);
+  --elev-keycap:
+    inset 0 1px 0 var(--glass-control-rim),
+    0 1px 2px var(--keycap-shadow);
+
+  /* ── Accent budget (HIG-2) ──────────────────────────────────────────────
+     HIG `liquid-glass.md › Review checklist`: "Color budget. One, at most
+     two, tinted primary actions per view … never a row of them." The rule was
+     verbal until this round; HIG-2 makes it a number a test can read.
+
+     `--accent-budget` is that number. It is `2`, and it counts *accent-tinted
+     fills* — a surface whose background is the accent tint or the solid accent
+     — not text, rings, edges or status dots. A tinted fill is the loudest
+     colour statement a control can make (it is the treatment HIG reserves for
+     a prominent button), so it is the unit the budget is denominated in.
+     Text/edge/ring uses of the accent are not fills and do not consume it: an
+     accent checkmark or a keyline is emphasis, not a primary action.
+
+     The test `accent-budget.test.ts` scans the host sheets and asserts each
+     mode's non-hover selector set resolves to at most this many accent fills.
+     It is declared here so the budget is a token like every other visual law
+     in this file, not a magic number inside the test. */
+  --accent-budget: 2;
+
+  /* ── Raised-pane fill (HIG-2) ───────────────────────────────────────────
+     The accent budget forced a distinction the ladder was missing: a *chosen*
+     segment (a radio/segmented control whose selected option is part of a
+     control the user is operating right now) is a state of the control, not a
+     primary action — the budget counts primary *actions*, and a segmented
+     control can legitimately show several chosen segments at once (a theme
+     picker, a language picker, a cursor picker). Tinting every one of them
+     would be `--accent-budget` blown on a single view.
+
+     `--glass-raised-quiet` is the same lit pane as `--glass-raised`, minus the
+     accent: a neutral control fill plus the same top rim, so the chosen
+     segment still reads as raised glass (the rim is the material cue), while
+     the accent is saved for the page's two real primary statements (the
+     current sidebar page and, when it appears, a primary action button). It
+     flips polarity with the palette exactly like `--glass-control*`. */
+  --glass-raised-quiet: var(--glass-control-hover);
 
   /* ── Hairline (R7-HIG) ──────────────────────────────────────────────────
      A 1px solid hairline is a hard cut where scrolling content meets a bar.
@@ -524,6 +638,7 @@
   --glass-control-press: rgba(0, 0, 0, 0.022);
   --glass-control-edge: rgba(0, 0, 0, 0.07);
   --glass-control-rim: rgba(255, 255, 255, 0.85);
+  --glass-raised-quiet: var(--glass-control-hover);
   --glass-track: rgba(0, 0, 0, 0.05);
   --glass-track-edge: rgba(0, 0, 0, 0.07);
   --glass-field: rgba(255, 255, 255, 0.5);
@@ -557,9 +672,12 @@
      thinnest Clear frame, under AA for 10-13px copy. The steps keep their
      order (secondary > muted > tertiary); only the alpha and the accent hue
      moved. `--accent` is #064aa6 rather than #075ed8 for the same reason: the
-     old blue reached only 3.6:1 on the Clear recesses. */
+     old blue reached only 3.6:1 on the Clear recesses. HIG-2 raised `muted`
+     once more (0.74 -> 0.78) so the description copy clears 4.5:1 on the
+     worst-case Clear recess *and* on the raised control fill it sits on, and
+     the round can state its red line as one number rather than an exception. */
   --text-secondary: rgba(60, 60, 67, 0.86);
-  --text-muted: rgba(60, 60, 67, 0.74);
+  --text-muted: rgba(60, 60, 67, 0.78);
   --text-tertiary: rgba(60, 60, 67, 0.72);
   --text-placeholder: rgba(60, 60, 67, 0.72);
   --text-warning: #9c1f18;
@@ -612,6 +730,116 @@
   --stroke-contrast: rgba(0, 0, 0, 0.5);
   --stroke-contrast-soft: rgba(0, 0, 0, 0.36);
   --text-placeholder-contrast: rgba(28, 28, 32, 0.68);
+}
+
+/* ── Light appearance before hydration (HIG-2) ──────────────────────────
+   `[data-theme="light"]` above is the real palette, and App.tsx writes it
+   synchronously once settings hydrate. This block is the *pre-hydration*
+   answer: `theme: "auto"` is the shipped default, so on a light desktop the
+   first frame must not paint dark glass and white text before the attribute
+   lands. CSS cannot call a function, so the media query is the only early
+   signal.
+
+   It is deliberately a *minimal* set — the tokens whose dark values would
+   crash legibility on a light backdrop, not a second full palette:
+
+     * text — the dark theme's near-white steps are invisible on white;
+     * the surfaces and the content recess — near-black tints on white read as
+       dirty grey, and the composited frame must not be dark;
+     * the hairline / rim / shadow tints — a white hairline is invisible and a
+       near-black one is a scratch on white;
+     * the accent — the dark theme's pastel blue is below AA on white;
+     * the terminal — the canvas paints `--terminal-*` directly, so it has to
+       be light from the first frame or the panel flashes dark.
+
+   Everything else (radius, type, motion, the elevation ladder, the material
+   *steps*) is palette-independent and needs no override — which is the point
+   of those ladders. `html:not([data-theme])` is the guard: once App.tsx has
+   written an explicit theme (dark or light), the attribute palette is
+   authoritative and this block stands down. The values are pinned to the
+   `[data-theme="light"]` block by `tests/light-theme.test.ts`, so the two
+   cannot drift. */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) {
+    color-scheme: light;
+
+    --glass-tint: rgba(250, 250, 252, var(--glass-tint-alpha));
+    --glass-tint-terminal: rgba(250, 250, 252, var(--glass-tint-alpha-terminal));
+    --glass-float: rgba(252, 252, 254, var(--glass-float-alpha));
+    --surface-sunken: rgba(243, 244, 247, var(--glass-content-alpha));
+    --surface-sunken-soft: rgba(243, 244, 247, calc(var(--glass-content-alpha) - 0.06));
+    --surface-opaque: rgba(250, 250, 252, 0.995);
+
+    --input-stroke: rgba(0, 0, 0, 0.1);
+    --input-stroke-active: rgba(10, 108, 255, 0.28);
+    --glass-control: rgba(0, 0, 0, 0.035);
+    --glass-control-hover: rgba(0, 0, 0, 0.06);
+    --glass-control-press: rgba(0, 0, 0, 0.022);
+    --glass-control-edge: rgba(0, 0, 0, 0.07);
+    --glass-control-rim: rgba(255, 255, 255, 0.85);
+    --glass-track: rgba(0, 0, 0, 0.05);
+    --glass-track-edge: rgba(0, 0, 0, 0.07);
+    --glass-field: rgba(255, 255, 255, 0.5);
+    --glass-field-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    --glass-raised-rim: rgba(255, 255, 255, 0.85);
+
+    --sheen-top: rgba(255, 255, 255, 0.66);
+    --sheen-bottom: rgba(255, 255, 255, 0.22);
+    --sheen-top-active: rgba(255, 255, 255, 0.78);
+    --sheen-bottom-active: rgba(255, 255, 255, 0.28);
+    --edge-highlight: rgba(255, 255, 255, 0.92);
+    --edge-highlight-active: rgba(255, 255, 255, 0.96);
+    --edge-highlight-x: rgba(255, 255, 255, 0.6);
+    --edge-shadow: rgba(0, 0, 0, 0.07);
+    --window-shadow-ambient: rgba(0, 0, 0, 0.18);
+    --window-shadow-contact: rgba(0, 0, 0, 0.12);
+    --hairline: rgba(0, 0, 0, 0.08);
+    --keycap-highlight: rgba(255, 255, 255, 0.9);
+    --keycap-shadow: rgba(0, 0, 0, 0.09);
+
+    --text-primary: #1d1d1f;
+    --text-strong: rgba(23, 23, 26, 0.96);
+    --text-secondary: rgba(60, 60, 67, 0.86);
+    --text-muted: rgba(60, 60, 67, 0.78);
+    --text-tertiary: rgba(60, 60, 67, 0.72);
+    --text-placeholder: rgba(60, 60, 67, 0.72);
+    --text-warning: #9c1f18;
+
+    --accent: #064aa6;
+    --accent-contrast: #f7f9ff;
+    --accent-tint: rgba(6, 74, 166, 0.1);
+    --accent-tint-hover: rgba(6, 74, 166, 0.16);
+    --accent-edge: rgba(6, 74, 166, 0.36);
+    --accent-edge-strong: rgba(6, 74, 166, 0.68);
+    --accent-glow: rgba(6, 74, 166, 0.2);
+    --accent-wash: rgba(6, 74, 166, 0.085);
+    --accent-ring: rgba(6, 74, 166, 0.82);
+    --accent-halo: rgba(6, 74, 166, 0.24);
+    --surface-scrim: rgba(0, 0, 0, 0.34);
+    --terminal-veil: rgba(250, 250, 252, 0.62);
+
+    --system-icon-surface: rgba(214, 118, 44, 0.13);
+    --system-icon-surface-hover: rgba(214, 118, 44, 0.21);
+    --system-icon-text: #a24d15;
+    --action-shell-tint: rgba(28, 138, 78, 0.12);
+
+    --terminal-bg: #f8f8fa;
+    --terminal-fg: #202124;
+    --terminal-cursor: #007c86;
+    --terminal-selection: rgba(10, 108, 255, 0.18);
+    --terminal-scrollbar: rgba(60, 60, 67, 0.34);
+    --terminal-bar: rgba(238, 239, 243, 0.78);
+    --terminal-bar-top: rgba(252, 252, 254, 0.86);
+    --terminal-bar-bottom: rgba(236, 237, 241, 0.6);
+
+    --scrollbar-thumb: rgba(60, 60, 67, 0.24);
+
+    --stroke-contrast: rgba(0, 0, 0, 0.5);
+    --stroke-contrast-soft: rgba(0, 0, 0, 0.36);
+    --text-placeholder-contrast: rgba(28, 28, 32, 0.68);
+  }
 }
 
 html,
@@ -739,8 +967,9 @@ canvas {
   .terminal-panel--entered,
   .app-toast,
   .terminal-feedback,
-  .pinned-card,
   .update-banner,
+  .settings-save-alert--toast,
+  .pinned-card,
   .settings-save-alert__spinner,
   .terminal-bar__dot,
   .extensions-overflow__items {
@@ -805,7 +1034,15 @@ canvas {
   .collapsed-card:focus-within,
   .settings-card,
   .terminal-panel,
-  .clipboard-panel {
+  .clipboard-panel,
+  /* HIG-2: the R7-4/R7-5 surfaces joined the material after R8's RT block was
+     written. The plugin page's host frame and loading state are opaque already
+     (`--surface-opaque`), so they need no blur drop — but the plugin page's
+     *tri-state surface* (the `.plugin-page-host__topbar` sits on the frame,
+     and the frame's own `backdrop-filter` is what blurs for it) is covered by
+     the `.plugin-page-host__frame` entry below. */
+  .plugin-page-host__frame,
+  .plugin-page-host__topbar {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: var(--surface-opaque);
@@ -815,11 +1052,23 @@ canvas {
      never its problem — but it still rides the frame's slide and at the low
      end of the slider it, too, sits over a see-through surface. A user who
      has turned transparency off wants one answer everywhere: the recess goes
-     near-solid with the frame, so the result list and the settings body stop
-     being windows onto the desktop as well. */
+     near-solid with the frame, so the result list, the settings body, the
+     tool-result scroll and the plugin page's list stop being windows onto the
+     desktop as well. */
   .launcher-bottom,
   .settings-content,
-  .extension-tool-results {
+  .extension-tool-results,
+  .plugin-page-host__loading,
+  .plugin-page-host__error {
+    background: var(--surface-opaque);
+  }
+
+  /* Floaters ride `--glass-float`, which is derived from the frame's tint, so
+     they too go near-solid rather than leaving a translucent toast over an
+     opaque app. This is the "one answer everywhere" rule applied to the two
+     floating surfaces HIG-2 touched: the host toast and the settings toast. */
+  .app-toast,
+  .settings-save-alert--toast {
     background: var(--surface-opaque);
   }
 }
@@ -861,6 +1110,47 @@ canvas {
 
   .shortcut-recorder {
     box-shadow: inset 0 0 0 1px var(--stroke-contrast);
+    color: var(--text-primary);
+  }
+
+  /* HIG-2: the chosen/live states and the new chrome. Increase Contrast must
+     reach every surface that now carries a state edge or a floating paint,
+     not just the two shells and the recorder. The edge colour is swapped for
+     the high-contrast stroke; the neutral raised pane keeps its rim so the
+     pane still reads as raised rather than as a flat rectangle. */
+  .settings-option--active,
+  .opacity-control__preset--active,
+  .clipboard-panel__tab--active,
+  .extension-custom-mode__item--active,
+  .extension-tool-results button.extension-tool-result--active,
+  .extension-health__tag,
+  .extension-row--selected {
+    box-shadow: inset 0 0 0 1px var(--stroke-contrast);
+  }
+
+  /* The new host chrome (the plugin-page topbar and the toast) and the
+     floating drawers/dialogs: a stronger edge is what makes them separable
+     from the content under them when contrast is the user's ask. */
+  .plugin-page-host__topbar,
+  .plugin-page-host__button,
+  .app-toast,
+  .settings-save-alert--toast,
+  .extension-drawer,
+  .extension-permission-dialog,
+  .extension-custom-dialog,
+  .extension-removal-dialog,
+  .extensions-overflow__items,
+  .extension-menu__items,
+  .app-toast__action {
+    border-color: var(--stroke-contrast);
+  }
+
+  /* The toast/notice/error copy that sits on the floater tint gets the
+     readable secondary rather than the muted step. */
+  .app-toast,
+  .settings-save-alert,
+  .extensions-notice,
+  .plugin-page-host__error-title {
     color: var(--text-primary);
   }
 }

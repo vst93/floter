@@ -68,7 +68,7 @@
   background: var(--glass-control);
   border: 1px solid var(--glass-control-edge);
   border-radius: 8px;
-  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  box-shadow: var(--elev-0);
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
 }
