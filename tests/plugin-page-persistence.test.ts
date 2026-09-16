@@ -85,11 +85,16 @@ test("the plugin mode's panel renders only the rounded backdrop, no covered body
   const nextBranch = branch.indexOf("if (mode ===");
   assert.ok(nextBranch > -1, "the plugin branch must be followed by another branch");
   const jsx = branch.slice(0, nextBranch);
-  // F5: the plugin branch renders the panel as a self-closing backdrop...
+  // F5: the plugin branch renders the panel as a backdrop carrying only the
+  // glass veil — the tint that gives the frame its body under the page — and
+  // nothing that could be covered. R7-GLASS-DEEP added the veil (the frame
+  // used to be transparent because the plugin page painted its own sheet; it
+  // still does, and the veil is what the page's translucency now reads
+  // against).
   assert.match(
     jsx,
-    /<section className="terminal-panel terminal-panel--entered"\s*\/>/,
-    "the plugin branch must render a self-closing terminal-panel backdrop",
+    /<section className="terminal-panel terminal-panel--entered">\s*<div className="terminal-panel__veil" aria-hidden="true" \/>\s*<\/section>/,
+    "the plugin branch must render the terminal-panel backdrop with only its glass veil",
   );
   assert.ok(
     !jsx.includes("terminal-panel__body"),

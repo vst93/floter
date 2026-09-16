@@ -24,9 +24,7 @@
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--glass-tint);
-  box-shadow:
-    inset 0 1px 0 var(--edge-highlight),
-    inset 0 -1px 0 var(--edge-shadow);
+  box-shadow: var(--glass-rim-shadow);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   user-select: none;
@@ -70,6 +68,11 @@
   background: var(--surface-sunken-soft);
 }
 
+/* The sidebar sits on the shell's own tint rather than on a second recess:
+   stacking a dark wash here too would push the sidebar text down another
+   contrast step for no visual gain, and the card's own glass is already the
+   backdrop the raised page item is supposed to read against. The column is
+   separated by its hairline, not by a different material. */
 .settings-sidebar {
   min-width: 0;
   padding: 12px 8px;
@@ -77,7 +80,6 @@
   align-content: start;
   gap: 3px;
   border-right: 1px solid var(--hairline);
-  background: var(--surface-control);
 }
 
 .settings-sidebar__item {
@@ -101,9 +103,20 @@
 .settings-sidebar__item svg { flex: 0 0 auto; }
 .settings-sidebar__item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (hover: hover) {
-.settings-sidebar__item:hover { background: var(--surface-control-hover); color: var(--text-primary); }
+.settings-sidebar__item:hover {
+  background: var(--glass-control-hover);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
 }
-.settings-sidebar__item--active { background: var(--accent-tint); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+}
+/* The current page is raised glass with the accent marker on its leading
+   edge — the accent tint alone read as a hover state, so the raised rim is
+   what actually distinguishes "you are here" from "the pointer is here". */
+.settings-sidebar__item--active {
+  background: var(--glass-raised);
+  color: var(--accent);
+  box-shadow: var(--glass-raised-shadow), inset 2px 0 0 var(--accent);
+}
 .settings-sidebar__item:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
 
 .settings-controls {
@@ -163,9 +176,10 @@
   align-items: center;
   gap: 9px;
   padding: 9px 10px;
-  border: 1px solid var(--stroke-control);
+  border: 1px solid var(--glass-control-edge);
   border-radius: 7px;
-  background: var(--surface-control);
+  background: var(--glass-control);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-warning);
   font-size: 11.5px;
   line-height: 1.4;
@@ -187,25 +201,31 @@
   justify-content: center;
   gap: 6px;
   padding: 4px 9px;
-  border: 1px solid var(--stroke-control);
+  border: 1px solid var(--glass-control-edge);
   border-radius: 5px;
-  background: var(--surface-control);
+  background: var(--glass-control);
   color: var(--text-primary);
   cursor: pointer;
   font: inherit;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: transform var(--dur-2) ease, box-shadow var(--dur-2) ease;
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
+  transition: transform var(--dur-2) ease, box-shadow var(--dur-2) ease, background-color var(--dur-2) ease;
 }
 
 @media (hover: hover) {
 
 .settings-save-alert button:not(:disabled):hover {
   border-color: var(--accent-edge);
-  background: var(--surface-control-hover);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  background: var(--glass-control-hover);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), 0 2px 4px var(--window-shadow-contact);
   transform: translateY(-1px);
 }
+}
+
+.settings-save-alert button:not(:disabled):active {
+  background: var(--glass-control-press);
+  box-shadow: none;
+  transform: none;
 }
 
 .settings-save-alert button:disabled {
@@ -290,14 +310,17 @@
 @media (hover: hover) {
 
 .settings-reset:hover {
-  border-color: var(--input-stroke);
-  background: var(--accent-tint);
+  border-color: var(--glass-control-edge);
+  background: var(--glass-raised);
   color: var(--accent);
+  box-shadow: var(--glass-raised-shadow);
 }
 }
 
 .settings-reset:active {
   transform: scale(0.96);
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 .settings-reset:focus-visible {
@@ -380,16 +403,18 @@
 @media (hover: hover) {
 
 .opacity-control__preset:hover {
-  border-color: var(--stroke-control);
-  background: var(--surface-control-hover);
+  border-color: var(--glass-control-edge);
+  background: var(--glass-control-hover);
   color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
 }
 }
 
 .opacity-control__preset--active {
   border-color: var(--accent-edge);
-  background: var(--accent-tint);
+  background: var(--glass-raised);
   color: var(--accent);
+  box-shadow: var(--glass-raised-shadow);
 }
 
 .opacity-control__preset:focus-visible,
@@ -448,12 +473,16 @@
   min-width: 0;
   height: 30px;
   padding: 0 26px 0 8px;
-  border: 1px solid var(--stroke-control);
+  border: 1px solid var(--glass-control-edge);
   border-radius: 5px;
-  background: var(--surface-control);
+  background: var(--glass-field);
   color: var(--text-primary);
   font: inherit;
   font-weight: 500;
+  /* A field is the one control that sits *below* the surface: the top inner
+     shadow is what makes it read as a slot the value lives in, and the rim
+     keeps it in the same material family as every other pane. */
+  box-shadow: var(--glass-field-shadow);
 }
 
 .terminal-setting-control--cursor {
@@ -472,8 +501,8 @@
   gap: 2px;
   padding: 3px;
   border-radius: 7px;
-  background: var(--surface-control);
-  box-shadow: inset 0 0 0 1px var(--stroke-control);
+  background: var(--glass-track);
+  box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
 }
 
 .settings-option {
@@ -495,17 +524,23 @@
 @media (hover: hover) {
 
 .settings-option:hover {
-  background: var(--surface-control-hover);
+  background: var(--glass-control-hover);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
 }
 }
 
 .settings-option:active {
   transform: scale(0.997);
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
+/* The chosen option is a raised pane inside the track: accent tint, the same
+   top rim every other raised surface carries, and an accent edge to keep the
+   state legible where the tint is faint. */
 .settings-option--active {
-  background: var(--accent-tint);
-  box-shadow: inset 0 0 0 1px var(--accent-edge);
+  background: var(--glass-raised);
+  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
 }
 
 .settings-option:focus-visible {
@@ -570,6 +605,9 @@
   color: var(--text-warning);
 }
 
+/* The switch track is a groove the user looks into: it takes the track
+   material (a touch more body than a resting pane) and an inner shadow, so an
+   "off" switch reads as a recess in the glass and an "on" one as a lit slot. */
 .settings-switch {
   position: relative;
   flex: 0 0 auto;
@@ -577,8 +615,8 @@
   height: 20px;
   padding: 0;
   border-radius: 10px;
-  background: var(--surface-control-active);
-  box-shadow: inset 0 0 0 1px var(--stroke-control);
+  background: var(--glass-track);
+  box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
   cursor: pointer;
   transition: background-color var(--dur-3) ease-out, box-shadow var(--dur-3) ease-out;
 }
@@ -591,13 +629,15 @@
   height: 14px;
   border-radius: 50%;
   background: var(--text-secondary);
-  box-shadow: 0 1px 2px var(--keycap-shadow);
+  /* A thumb is a small glass bead: its own top highlight is what stops it
+     reading as a flat dot at 14px. */
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), 0 1px 2px var(--keycap-shadow);
   transition: transform var(--dur-4) var(--ease-out-back), background-color var(--dur-3) ease-out;
 }
 
 .settings-switch--active {
   background: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent-edge-strong);
+  box-shadow: inset 0 1px 0 var(--glass-raised-rim), inset 0 0 0 1px var(--accent-edge-strong);
 }
 
 .settings-switch--active .settings-switch__thumb {
@@ -658,14 +698,14 @@
 @media (hover: hover) {
 
 .session-manager__row--resumable:hover {
-  background: var(--surface-control-hover);
+  background: var(--glass-control);
 }
 }
 
 /* Keyboard activation mirrors the click: hover wash plus an accent ring
    drawn inside the row so it doesn't clip against the list's hairlines. */
 .session-manager__row--resumable:focus-visible {
-  background: var(--surface-control-hover);
+  background: var(--glass-control);
   outline: none;
   box-shadow: inset 0 0 0 1px var(--accent);
 }
@@ -678,7 +718,7 @@
   border-radius: 6px;
   background: var(--icon-surface);
   color: var(--text-secondary);
-  box-shadow: inset 0 0 0 1px var(--icon-edge);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
 }
 
 .session-manager__main {
@@ -764,9 +804,10 @@
   display: inline-flex;
   align-items: center;
   padding: 0 9px;
-  border: 1px solid color-mix(in srgb, var(--text-warning) 55%, transparent);
+  border: 1px solid var(--text-warning);
   border-radius: 5px;
-  background: color-mix(in srgb, var(--text-warning) 10%, transparent);
+  background: var(--glass-raised-warm);
+  box-shadow: var(--glass-raised-shadow);
   color: var(--text-warning);
   font-size: 10.5px;
   font-weight: 620;
@@ -778,7 +819,7 @@
 
 .session-manager__kill-confirm:hover:not(:disabled) {
   border-color: var(--text-warning);
-  background: color-mix(in srgb, var(--text-warning) 18%, transparent);
+  background: var(--glass-raised-warm-hover);
 }
 }
 
@@ -795,8 +836,8 @@
 @media (hover: hover) {
 
 .session-manager__icon-button:hover:not(:disabled) {
-  border-color: var(--stroke-control);
-  background: var(--surface-control-hover);
+  border-color: var(--glass-control-edge);
+  background: var(--glass-control-hover);
   color: var(--text-primary);
 }
 }
@@ -847,9 +888,10 @@
   gap: 5px;
   min-height: 24px;
   padding: 0 8px;
-  border: 1px solid var(--stroke-control);
+  border: 1px solid var(--glass-control-edge);
   border-radius: 5px;
-  background: var(--surface-control);
+  background: var(--glass-control);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 10.5px;
@@ -861,7 +903,7 @@
 @media (hover: hover) {
 
 .session-manager__sort-toggle:hover {
-  background: var(--surface-control-hover);
+  background: var(--glass-control-hover);
   border-color: var(--accent-edge);
   color: var(--text-primary);
 }
@@ -869,6 +911,8 @@
 
 .session-manager__sort-toggle:active {
   transform: scale(0.96);
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 .session-manager__sort-toggle:focus-visible {
@@ -884,23 +928,29 @@
   justify-content: center;
   padding: 0 10px;
   border-radius: 5px;
-  background: var(--surface-control);
-  border: 1px solid var(--stroke-control);
+  background: var(--glass-control);
+  border: 1px solid var(--glass-control-edge);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease;
+  transition: background var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
 @media (hover: hover) {
 
 .shortcut-recorder:hover {
-  background: var(--surface-control-hover);
-  border-color: var(--accent-edge, var(--stroke-control));
+  background: var(--glass-control-hover);
+  border-color: var(--accent-edge, var(--glass-control-edge));
   color: var(--text-strong);
 }
+}
+
+.shortcut-recorder:active {
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 .shortcut-recorder:focus-visible {
@@ -909,8 +959,9 @@
 }
 
 .shortcut-recorder--recording {
-  background: var(--accent-tint);
+  background: var(--glass-raised);
   border-color: var(--accent-edge);
+  box-shadow: var(--glass-raised-shadow);
   color: var(--accent);
   animation: shortcut-recording 1.4s ease-in-out infinite;
 }
@@ -918,7 +969,7 @@
 @media (hover: hover) {
 
 .shortcut-recorder--recording:hover {
-  background: var(--accent-tint-hover);
+  background: var(--glass-raised-hover);
   color: var(--accent);
 }
 }
@@ -956,8 +1007,9 @@
   gap: 12px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--accent-tint);
-  border: 1px solid var(--icon-edge);
+  background: var(--glass-raised);
+  border: 1px solid var(--glass-control-edge);
+  box-shadow: var(--glass-raised-shadow);
   animation: feedback-enter var(--dur-3) ease-out;
 }
 
@@ -984,11 +1036,12 @@
   padding: 6px 14px;
   border: none;
   border-radius: 6px;
-  background: var(--accent, #5b7cfa);
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--glass-raised-rim);
   transition: opacity var(--dur-3);
 }
 
@@ -1015,7 +1068,8 @@
 .update-banner__progress-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--surface-control-active);
+  background: var(--glass-track);
+  box-shadow: inset 0 0 0 1px var(--glass-track-edge);
   overflow: hidden;
 }
 

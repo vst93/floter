@@ -19,9 +19,7 @@
   -webkit-backdrop-filter: blur(var(--glass-blur-terminal)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur-terminal)) saturate(var(--glass-saturate));
   border: 1px solid var(--input-stroke);
-  box-shadow:
-    inset 0 1px 0 var(--keycap-highlight),
-    inset 0 -1px 0 var(--keycap-shadow);
+  box-shadow: var(--glass-rim-shadow);
   overflow: hidden;
   transition: box-shadow var(--dur-3) ease, border-color var(--dur-3) ease;
 }
@@ -120,7 +118,7 @@
   flex: none;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 0 0 2px var(--accent-halo);
   animation: terminal-bar-dot 2.4s ease-in-out infinite;
 }
 
@@ -166,6 +164,7 @@
   bottom: 0;
   padding: 0;
   background: transparent;
+  z-index: 1;
 }
 
 .terminal-feedback {
@@ -181,14 +180,29 @@
   padding: 7px 10px;
   border: 1px solid var(--accent-edge);
   border-radius: 6px;
-  background: var(--input-bg-active);
+  /* The same floating material the toasts, dialogs and the drawer use, so an
+     in-panel notice and an app-level toast are visibly the same layer. */
+  background: var(--glass-float);
   color: var(--text-warning);
   font-size: 11px;
   font-weight: 560;
   line-height: 1.25;
-  box-shadow: 0 6px 20px var(--window-shadow-ambient);
+  box-shadow: var(--glass-float-shadow);
   pointer-events: none;
   animation: feedback-enter var(--dur-3) ease-out;
+}
+
+/* The canvas cannot carry a translucent background of its own — it is a
+   bitmap the renderer paints at `--terminal-opacity` — so the glass tint that
+   gives the terminal its body lives here, on the frame underneath it. It is
+   painted before the canvas and behind the floating header, and it is what
+   makes the terminal read as tinted glass rather than as a bare blur. */
+.terminal-panel__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--glass-tint-terminal);
+  pointer-events: none;
 }
 
 @keyframes feedback-enter {
@@ -198,6 +212,7 @@
 
 .terminal-panel__mount {
   position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   background: transparent;
@@ -281,14 +296,16 @@
 @media (hover: hover) {
 
 .toolbar-button:hover:not(:disabled) {
-  background: var(--surface-control-hover);
+  background: var(--glass-control-hover);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
   color: var(--text-strong);
 }
 }
 
 .toolbar-button:active:not(:disabled) {
   transform: scale(0.94);
-  background: var(--surface-control-active);
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 .toolbar-button:disabled {
@@ -415,6 +432,11 @@
 
 .clipboard-panel__filter-clear:hover {
   color: var(--text-secondary);
+  background: var(--glass-control-hover);
+}
+
+.clipboard-panel__filter-clear:active {
+  background: var(--glass-control-press);
 }
 
 /* 全部 / 收藏 segmented control: a quiet two-slot group; the active slot takes
@@ -429,7 +451,8 @@
   gap: 2px;
   padding: 2px;
   border-radius: 6px;
-  background: var(--icon-surface);
+  background: var(--glass-track);
+  box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
 }
 
 .clipboard-panel__tab {
@@ -449,6 +472,7 @@
 
 .clipboard-panel__tab:hover {
   color: var(--text-secondary);
+  background: var(--glass-control);
 }
 
 .clipboard-panel__tab:focus-visible {
@@ -457,8 +481,8 @@
 }
 
 .clipboard-panel__tab--active {
-  background: var(--accent-tint);
-  box-shadow: inset 0 0 0 1px var(--accent-edge);
+  background: var(--glass-raised);
+  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
   color: var(--accent);
 }
 
@@ -510,17 +534,19 @@
 }
 
 .clipboard-row:hover {
-  background: var(--surface-control);
+  background: var(--glass-control);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
   color: var(--text-primary);
 }
 
 .clipboard-row--selected,
 .clipboard-row--selected:hover {
-  background: var(--accent-tint);
+  background: var(--glass-raised);
   color: var(--text-primary);
   /* The inset edge keeps the selection unmistakable on both theme variable
-   * sets, where the tint alone can read faintly. */
-  box-shadow: inset 0 0 0 1px var(--accent-edge);
+   * sets, where the tint alone can read faintly; the raised rim is what makes
+   * it a lit pane rather than a flat block of accent. */
+  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
 }
 
 /* The type marker doubles as the image thumbnail slot: text entries get a
@@ -533,6 +559,7 @@
   justify-content: center;
   border-radius: 4px;
   background: var(--icon-surface);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
   color: var(--text-muted);
   font-size: 11px;
   overflow: hidden;
@@ -605,6 +632,7 @@
   width: 18px;
   padding: 0;
   border: none;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-tertiary);
   font-size: 13px;
@@ -615,6 +643,7 @@
 
 .clipboard-row__star:hover,
 .clipboard-row__star:focus-visible {
+  background: var(--glass-control-hover);
   color: var(--text-secondary);
 }
 
@@ -694,9 +723,9 @@
 .clipboard-panel__clear {
   flex: 0 0 auto;
   padding: 1px 8px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--glass-control-edge);
   border-radius: 4px;
-  background: transparent;
+  background: var(--glass-control);
   color: var(--text-tertiary);
   font: inherit;
   font-size: 11px;
@@ -706,6 +735,7 @@
 
 .clipboard-panel__clear:hover {
   border-color: var(--accent-edge);
+  background: var(--glass-control-hover);
   color: var(--text-warning);
 }
 

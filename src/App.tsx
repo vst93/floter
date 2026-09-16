@@ -1516,8 +1516,12 @@ export default function App() {
         <div className="terminal-shell">
           {pinnedCardElement}
           {/* The panel renders only as the rounded backdrop under the plugin
-              layer; its body would be entirely covered and stay empty. */}
-          <section className="terminal-panel terminal-panel--entered" />
+              layer; its body would be entirely covered and stay empty. The
+              veil is the tint that gives the frame its glass body while the
+              page's own sheet paints over it. */}
+          <section className="terminal-panel terminal-panel--entered">
+            <div className="terminal-panel__veil" aria-hidden="true" />
+          </section>
         </div>
       </>
     );
@@ -1777,6 +1781,10 @@ export default function App() {
       <div className="terminal-shell">
         {pinnedCardElement}
         <section className="terminal-panel terminal-panel--entered">
+          {/* The glass body sits under the canvas: the renderer paints its own
+              pixels at `--terminal-opacity`, and this is the tint that makes
+              the frame read as glass rather than as a bare blur. */}
+          <div className="terminal-panel__veil" aria-hidden="true" />
           <header className="terminal-bar" onMouseDown={startDrag}>
             <div className="terminal-bar__frost" />
             {mainSessionIdentity && (

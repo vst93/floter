@@ -30,7 +30,9 @@
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--glass-tint);
-  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
+  /* One token carries the whole border: lit top, dark bottom, faint sides.
+     See `--glass-rim-shadow` in base.css. */
+  box-shadow: var(--glass-rim-shadow);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   user-select: none;
@@ -46,10 +48,7 @@
     var(--glass-tint);
   /* Inward, like every other edge here: a ring drawn outside the card lands
      outside the window and is clipped away, corners first. */
-  box-shadow:
-    inset 0 0 0 1px var(--accent-glow),
-    inset 0 1px 0 var(--edge-highlight-active),
-    inset 0 -1px 0 var(--edge-shadow);
+  box-shadow: var(--glass-rim-shadow-active);
 }
 
 .collapsed-card:active {
@@ -119,13 +118,16 @@
 @media (hover: hover) {
 
 .collapsed-card__settings:hover:not(:disabled) {
-  background: var(--surface-control-hover);
+  background: var(--glass-control-hover);
   color: var(--text-strong);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
 }
 }
 
 .collapsed-card__settings:active:not(:disabled) {
   transform: scale(0.92);
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 .collapsed-card__settings:disabled {
@@ -209,8 +211,9 @@
 /* A runtime-unavailable or other warning feedback: a stronger border and
    opaque background so it reads as a blocking message, not a status hint. */
 .launcher-feedback--warning {
-  background: color-mix(in srgb, var(--text-warning) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-warning) 45%, transparent);
+  background: var(--glass-raised-warm);
+  border: 1px solid var(--text-warning);
+  box-shadow: var(--glass-raised-shadow);
   font-weight: 600;
 }
 
@@ -242,8 +245,8 @@
 @media (hover: hover) {
 
 .launcher-feedback__retry:hover {
-  border-color: var(--stroke-control);
-  background: var(--surface-control-hover);
+  border-color: var(--glass-control-edge);
+  background: var(--glass-control-hover);
   color: var(--text-primary);
 }
 }
@@ -260,7 +263,7 @@
   display: flex;
   align-items: center;
   padding: 0 10px;
-  color: var(--text-muted, color-mix(in srgb, var(--text-primary) 45%, transparent));
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
@@ -276,8 +279,9 @@
   gap: 8px;
   padding: 4px 10px 4px 12px;
   border-radius: 6px;
-  background: var(--accent-tint, color-mix(in srgb, var(--accent) 10%, transparent));
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--glass-raised);
+  border: 1px solid var(--accent-edge);
+  box-shadow: var(--glass-raised-shadow);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 500;
@@ -315,7 +319,7 @@
 }
 
 .launcher-tip__message {
-  color: var(--text-muted, color-mix(in srgb, var(--text-primary) 50%, transparent));
+  color: var(--text-muted);
   font-size: 10px;
   font-weight: 450;
 }
@@ -329,7 +333,7 @@
   padding: 0 10px;
   border: 1px solid var(--stroke-control, var(--hairline));
   border-radius: 5px;
-  background: var(--surface-control-hover, transparent);
+  background: var(--glass-control);
   color: var(--text-secondary);
   font-size: 10px;
   font-weight: 600;
@@ -340,10 +344,14 @@
 @media (hover: hover) {
 
 .launcher-tip__dismiss:hover {
-  background: var(--surface-control-hover);
+  background: var(--glass-control-hover);
   color: var(--text-primary);
-  border-color: var(--stroke-control);
+  border-color: var(--glass-control-edge);
 }
+}
+
+.launcher-tip__dismiss:active {
+  background: var(--glass-control-press);
 }
 
 .launcher-tip__dismiss:focus-visible {
@@ -395,14 +403,15 @@
 }
 
 .launcher-system-confirm__execute {
-  background: color-mix(in srgb, var(--text-warning) 18%, transparent);
-  border-color: var(--stroke-control);
+  background: var(--glass-raised-warm);
+  border-color: var(--glass-control-edge);
+  box-shadow: var(--glass-raised-shadow);
 }
 
 @media (hover: hover) {
 
 .launcher-system-confirm__execute:hover {
-  background: color-mix(in srgb, var(--text-warning) 28%, transparent);
+  background: var(--glass-raised-warm-hover);
 }
 }
 
@@ -415,8 +424,8 @@
 @media (hover: hover) {
 
 .launcher-system-confirm__cancel:hover {
-  border-color: var(--stroke-control);
-  background: var(--surface-control-hover);
+  border-color: var(--glass-control-edge);
+  background: var(--glass-control-hover);
   color: var(--text-primary);
 }
 }
@@ -462,7 +471,11 @@
 }
 
 .launcher-result--selected {
-  background: var(--accent-tint);
+  /* Selected rows are raised glass, not a flat accent block: the accent tint
+     supplies the colour and the top rim supplies the material. The inset edge
+     keeps the selection unmistakable where the tint alone reads faintly. */
+  background: var(--glass-raised);
+  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
 }
 
 .launcher-result--unavailable {
@@ -497,7 +510,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 650;
-  box-shadow: inset 0 0 0 1px var(--icon-edge);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
 }
 
 .launcher-result__icon img {
@@ -600,7 +613,11 @@
 
 .launcher-result:not(.launcher-result--unavailable):active {
   transform: scale(0.986);
-  background: var(--surface-control-hover);
+  /* Pressing sinks the row into the glass: the fill gets *thinner* than it is
+     at rest, which is the opposite of the old hover-brightening and the cue
+     that says the surface gave way under the pointer. */
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 /* The action bar: what the query does when it is not the name of anything
@@ -628,6 +645,7 @@
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
 /* Square top corners when a list actually sits above, so the action bar reads
@@ -639,7 +657,8 @@
 }
 
 .launcher-action-bar--selected {
-  background: var(--accent-tint);
+  background: var(--glass-raised);
+  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
 }
 
 .launcher-action-bar__icon {
@@ -652,7 +671,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 650;
-  box-shadow: inset 0 0 0 1px var(--icon-edge);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
 }
 
 /* The `$` is a prompt, so it is set in the font a prompt is set in. */
@@ -704,6 +723,23 @@
 
 .launcher-action-bar:active {
   transform: scale(0.986);
+  background: var(--glass-control-press);
+  box-shadow: none;
+}
+
+/* Result rows and the action bar answer the pointer with the same resting
+   pane a button does, so hovering a row and hovering a control read as the
+   same gesture on the same material. */
+@media (hover: hover) {
+
+.launcher-result:not(.launcher-result--unavailable):not(.launcher-result--selected):hover {
+  background: var(--glass-control);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
+}
+
+.launcher-action-bar:not(.launcher-action-bar--selected):hover {
+  background: var(--glass-control);
+}
 }
 
 /* ── Action bar shortcut hint ───────────────────────────────────────────── */

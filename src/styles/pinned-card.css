@@ -17,13 +17,19 @@
   flex-direction: column;
   overflow: hidden;
   border-radius: 10px;
-  border: 1px solid var(--edge-highlight);
+  border: 1px solid var(--input-stroke);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--glass-tint-terminal);
+  /* A draggable card floats higher than a dialog, so its shadow keeps the
+     two-step drop — but the glass border underneath is the same lit-top /
+     faint-side ring every other surface carries. */
   box-shadow:
     0 12px 34px var(--window-shadow-ambient),
-    0 2px 8px var(--window-shadow-contact);
+    0 2px 8px var(--window-shadow-contact),
+    inset 0 1px 0 var(--edge-highlight),
+    inset 1px 0 0 var(--edge-highlight-x),
+    inset -1px 0 0 var(--edge-highlight-x);
   animation: feedback-enter var(--dur-3) ease-out;
 }
 
@@ -50,6 +56,7 @@
     linear-gradient(180deg, var(--terminal-bar-top), var(--terminal-bar-bottom)),
     var(--terminal-bar);
   border-bottom: 1px solid var(--hairline);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim);
   touch-action: none;
 }
 
@@ -97,9 +104,15 @@
 @media (hover: hover) {
 
 .pinned-card__close:hover {
-  background: var(--surface-control-hover);
+  background: var(--glass-control-hover);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
   color: var(--text-primary);
 }
+}
+
+.pinned-card__close:active {
+  background: var(--glass-control-press);
+  box-shadow: none;
 }
 
 .pinned-card__close:focus-visible {
@@ -144,7 +157,7 @@
   gap: 5px;
   padding: 16px;
   text-align: center;
-  background: color-mix(in srgb, var(--surface-opaque) 55%, transparent);
+  background: var(--terminal-veil);
   pointer-events: none;
 }
 

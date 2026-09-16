@@ -51,8 +51,6 @@
      before persistence; alpha applies to materials only, never text. */
   --main-opacity: 0.94;
   --terminal-opacity: 0.92;
-  --input-bg: rgba(18, 19, 22, var(--main-opacity));
-  --input-bg-active: rgba(19, 20, 23, var(--main-opacity));
 
   /* Glass. The two sliders are glass *strength*, not raw alpha: neither end
      is a plain rectangle of colour and neither is a hole. `--glass-tint-alpha`
@@ -60,10 +58,16 @@
      panel already writes — the variable chain is untouched, only the formula
      that consumes it changed — and `--glass-blur` moves the other way so a
      thinner tint keeps its readability. Both are plain calc + rgba (no
-     color-mix) and both land inside the 28px / 160% budget. The affine map
-     puts the default 94 at 0.93, a hair under the 0.94 it replaced, so
-     existing users see the same dark panel while the bottom of the range
-     reaches a genuinely frosted 0.32 instead of the old near-invisible 0.10.
+     color-mix) and both land inside the 28px / 180% budget.
+
+     R7-GLASS-DEEP made the glass visible. The old map (0.25 + 0.72·op) put
+     the default 94 at 0.927 — a 93%-opaque dark panel that read as a solid
+     sheet, not as glass, and made every control on top of it look like paint
+     on wood. The new map (0.18 + 0.55·op) puts the default at 0.697: roughly
+     a third of the backdrop survives, which is what makes the blur, the
+     saturation and the rim highlight legible as *material*. The floor moved
+     up with it (0.10 strength → 0.235, not 0.32) so the thinnest setting is
+     still a surface and never a hole.
 
      `round()` quantizes the blur to 2px steps so dragging the slider
      re-rasterizes the backdrop a handful of times instead of continuously;
@@ -71,22 +75,28 @@
      leaves the smooth calc as the fallback. No transition ever names
      `filter`/`backdrop-filter`, so a strength change is a discrete repaint,
      never an animation. */
-  --glass-tint-alpha: calc(0.25 + 0.72 * var(--main-opacity));
+  --glass-tint-alpha: calc(0.18 + 0.55 * var(--main-opacity));
   --glass-tint: rgba(18, 19, 22, var(--glass-tint-alpha));
-  --glass-tint-alpha-terminal: calc(0.25 + 0.72 * var(--terminal-opacity));
+  /* The terminal keeps a little more body than the launcher: it is filled
+     edge to edge with a command's own colours, and those have to stay
+     readable over whatever the desktop is doing behind them. */
+  --glass-tint-alpha-terminal: calc(0.24 + 0.55 * var(--terminal-opacity));
   --glass-tint-terminal: rgba(18, 19, 22, var(--glass-tint-alpha-terminal));
-  --glass-saturate: 155%;
+  --glass-saturate: 175%;
   --glass-blur: calc(22px + 6px * (1 - var(--main-opacity)));
   --glass-blur-terminal: calc(22px + 6px * (1 - var(--terminal-opacity)));
 
   /* Content that floats on the glass: drawers, dialogs, menus and toasts. One
-     step more opaque than the shell so text stays readable, sharing the same
-     top rim and a small fixed shadow instead of a blur of their own — this is
-     what keeps the count of backdrop-filter elements at one per surface. */
-  --glass-float-alpha: calc(0.82 + 0.16 * var(--main-opacity));
+     step more opaque than the shell so text stays readable — the ladder is
+     kept as a *difference* (float − shell = 0.19 at every strength) rather
+     than as two independent formulas, so "float is more solid than the shell"
+     stays true across the whole slider. Sharing the same top rim and a small
+     fixed shadow instead of a blur of their own is what keeps the count of
+     backdrop-filter elements at one per surface. */
+  --glass-float-alpha: calc(var(--glass-tint-alpha) + 0.19);
   --glass-float: rgba(24, 25, 29, var(--glass-float-alpha));
   --glass-float-shadow:
-    0 8px 22px var(--window-shadow-ambient),
+    0 10px 26px var(--window-shadow-ambient),
     inset 0 1px 0 var(--edge-highlight);
 
   --input-stroke: rgba(255, 255, 255, 0.08);
@@ -94,43 +104,126 @@
   /* Recessed areas inside a card: the result strip and the settings body. They
      are tint over the shell, never a second material — a fixed fraction of the
      shell's own alpha, so the recess reads as depth at every strength and can
-     never punch through to the desktop. The fractions are the old fixed alphas
-     expressed against the old fixed 0.94, which is what keeps the default
-     strength looking exactly like it did. */
-  --surface-sunken: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.82));
-  --surface-sunken-soft: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.58));
-  /* Stand-in for the whole stack where transparency is turned off. */
-  --surface-opaque: rgba(28, 29, 32, 0.98);
+     never punch through to the desktop. The fractions sit below the shell on
+     purpose (0.78 and 0.50 against the shell's 1.0), which is what makes the
+     sunken field read as *behind* the glass rather than as another pane on
+     top of it. */
+  --surface-sunken: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.78));
+  --surface-sunken-soft: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.5));
+  /* Stand-in for the whole stack where transparency is turned off. Raised to
+     match the thinner tint: the point of the fallback is that the surface
+     stops being see-through, and a value that tracked the (now much lighter)
+     glass would leave a translucent panel with its blur switched off. */
+  --surface-opaque: rgba(26, 27, 30, 0.99);
 
-  /* Controls */
-  --surface-control: rgba(255, 255, 255, 0.055);
-  --surface-control-hover: rgba(255, 255, 255, 0.105);
-  --surface-control-active: rgba(255, 255, 255, 0.14);
-  --stroke-control: rgba(255, 255, 255, 0.075);
+  /* ── Control material ladder ────────────────────────────────────────────
+     Every control is a pane of the same glass, one step thinner than the
+     shell it sits on. All of it is plain rgba laid over the shell's tint plus
+     a 1px inner stroke: no control ever carries a backdrop-filter of its own,
+     because that would multiply the number of composited blur layers by the
+     number of widgets on screen. That constraint is the whole reason the
+     ladder exists as tokens instead of per-rule colours.
 
-  /* Glass: the top-down gradient and the 1px edges that give a card depth. */
+       --glass-control        resting pane (button, field, select, tab and
+                              switch tracks, icon chip, list-row hover)
+       --glass-control-hover  pointer over the pane
+       --glass-control-press  pointer down — *less* opaque than the rest
+                              state, so a pressed control sinks into the
+                              glass instead of popping out of it
+       --glass-control-edge   the 1px inner hairline that draws the pane's
+                              own edge
+       --glass-control-rim    the pane's top inner highlight
+       --glass-track          a groove the user looks *into* (switch and
+                              progress tracks): a touch more body than a
+                              resting pane, because it is a container
+       --glass-field          a text field: thinner than a resting pane plus
+                              a 1px inner shadow, so it reads as a slot cut
+                              *into* the glass rather than a button on it
+       --glass-raised*        a selected pane — accent fill plus the same
+                              top rim, so selection reads as raised glass
+                              and not as a flat block of accent colour */
+  --glass-control: rgba(255, 255, 255, 0.055);
+  --glass-control-hover: rgba(255, 255, 255, 0.085);
+  --glass-control-press: rgba(255, 255, 255, 0.038);
+  --glass-control-edge: rgba(255, 255, 255, 0.06);
+  --glass-control-rim: rgba(255, 255, 255, 0.1);
+  --glass-track: rgba(255, 255, 255, 0.07);
+  --glass-track-edge: rgba(255, 255, 255, 0.06);
+  --glass-field: rgba(255, 255, 255, 0.03);
+  --glass-field-shadow:
+    inset 0 1px 2px var(--window-shadow-contact),
+    inset 0 1px 0 var(--glass-control-rim);
+  --glass-raised: var(--accent-tint);
+  --glass-raised-hover: var(--accent-tint-hover);
+  --glass-raised-rim: rgba(255, 255, 255, 0.1);
+  --glass-raised-shadow: inset 0 1px 0 var(--glass-raised-rim);
+  /* The warm branch of the raised pane. A power action is the one launcher
+     entry that cannot be undone by closing a window, and the accent blue the
+     rest of the selection language uses would read as "this opens something".
+     It is the same two values `--system-icon-surface` already carries for that
+     semantic, promoted to a named hover step so the pair stays a family. */
+  --glass-raised-warm: var(--system-icon-surface);
+  --glass-raised-warm-hover: var(--system-icon-surface-hover);
+
+  /* The ladder is the source; these three names are the historical aliases
+     every existing rule already consumes, kept so the rest of the stylesheet
+     did not have to be rewritten to inherit the new material. */
+  --surface-control: var(--glass-control);
+  --surface-control-hover: var(--glass-control-hover);
+  --stroke-control: var(--glass-control-edge);
+  --icon-surface: var(--glass-control);
+  --icon-edge: var(--glass-control-edge);
+
+  /* Glass: the top-down gradient and the 1px edges that give a card depth.
+     The rim is the single loudest liquid-glass cue and the old 11% was too
+     shy to read as a lit edge; the side stroke (4%) closes the loop so the
+     pane has a full 1px glass border rather than a lit top and a dark
+     bottom. */
   --sheen-top: rgba(255, 255, 255, 0.046);
   --sheen-bottom: rgba(255, 255, 255, 0.01);
   --sheen-top-active: rgba(255, 255, 255, 0.056);
   --sheen-bottom-active: rgba(255, 255, 255, 0.012);
-  --edge-highlight: rgba(255, 255, 255, 0.11);
-  --edge-highlight-active: rgba(255, 255, 255, 0.13);
-  --edge-shadow: rgba(0, 0, 0, 0.22);
+  --edge-highlight: rgba(255, 255, 255, 0.15);
+  --edge-highlight-active: rgba(255, 255, 255, 0.18);
+  --edge-highlight-x: rgba(255, 255, 255, 0.04);
+  --edge-shadow: rgba(0, 0, 0, 0.28);
+  /* The whole glass border in one declaration: a lit top edge, a dark bottom
+     edge, and a whisper of a stroke on both sides. Shells use this instead of
+     repeating the three inset strokes, which is what keeps every surface's
+     edge identical and makes "the rim" a single thing to tune. */
+  --glass-rim-shadow:
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 var(--edge-shadow),
+    inset 1px 0 0 var(--edge-highlight-x),
+    inset -1px 0 0 var(--edge-highlight-x);
+  /* The focused variant: the same border with the accent ring swapped in for
+     the top stroke and the rim nudged brighter. */
+  --glass-rim-shadow-active:
+    inset 0 0 0 1px var(--accent-glow),
+    inset 0 1px 0 var(--edge-highlight-active),
+    inset 0 -1px 0 var(--edge-shadow),
+    inset 1px 0 0 var(--edge-highlight-x),
+    inset -1px 0 0 var(--edge-highlight-x);
   --window-shadow-ambient: rgba(0, 0, 0, 0.3);
   --window-shadow-contact: rgba(0, 0, 0, 0.2);
-  --hairline: rgba(255, 255, 255, 0.055);
+  --hairline: rgba(255, 255, 255, 0.07);
   /* A key cap reads as one because of these two, not because of its border. */
   --keycap-highlight: rgba(255, 255, 255, 0.07);
   --keycap-shadow: rgba(0, 0, 0, 0.28);
 
-  /* Text */
+  /* Text. R7-GLASS-DEEP re-tuned the three muted steps: the thinner shell
+     lets far more of the desktop through, and at the old alphas the secondary
+     and muted layers dropped below 3:1 over a bright backdrop. The steps keep
+     their *relative* order and their hue — only the opacity moved. Measured
+     worst case is the composited shell over a pure-white desktop; the numbers
+     live in the round's report. */
   --text-primary: #f2f3f5;
-  --text-strong: rgba(244, 245, 247, 0.94);
-  --text-secondary: rgba(238, 239, 242, 0.66);
-  --text-muted: rgba(238, 239, 242, 0.42);
-  --text-tertiary: rgba(238, 239, 242, 0.36);
-  --text-placeholder: rgba(238, 239, 242, 0.4);
-  --text-warning: rgba(255, 173, 158, 0.72);
+  --text-strong: rgba(244, 245, 247, 0.96);
+  --text-secondary: rgba(238, 239, 242, 0.74);
+  --text-muted: rgba(238, 239, 242, 0.55);
+  --text-tertiary: rgba(238, 239, 242, 0.48);
+  --text-placeholder: rgba(238, 239, 242, 0.5);
+  --text-warning: rgba(255, 178, 164, 0.82);
 
   /* Accent */
   --accent: #8fb7ff;
@@ -142,13 +235,19 @@
   --accent-glow: rgba(143, 183, 255, 0.08);
   --accent-wash: rgba(143, 183, 255, 0.055);
   --accent-ring: rgba(122, 167, 255, 0.78);
+  /* The soft halo around a live status dot. Named rather than mixed at the
+     call site: the whole stylesheet is color-mix-free so WebKitGTK versions
+     older than the feature cannot render a control as an empty box. */
+  --accent-halo: rgba(143, 183, 255, 0.18);
+  /* The scrim a fixed overlay lays over the floater body (drawer, dialogs). */
+  --surface-scrim: rgba(0, 0, 0, 0.34);
+  /* The terminal's "this session is pinned elsewhere" veil over the canvas. */
+  --terminal-veil: rgba(26, 27, 30, 0.55);
 
-  /* Result icons */
-  --icon-surface: rgba(255, 255, 255, 0.055);
-  --icon-edge: rgba(255, 255, 255, 0.055);
   /* Warm rather than the accent blue: a power action is the one launcher entry
      that cannot be undone by closing a window. */
   --system-icon-surface: rgba(255, 176, 132, 0.115);
+  --system-icon-surface-hover: rgba(255, 176, 132, 0.2);
   --system-icon-text: rgba(255, 209, 178, 0.82);
   /* The selected action bar, when it holds a shell command. Green rather than the
      accent blue the result rows are selected in: the two selections are moved
@@ -169,7 +268,10 @@
   --terminal-bar-top: rgba(41, 42, 46, 0.74);
   --terminal-bar-bottom: rgba(23, 24, 27, 0.52);
 
-  --scrollbar-thumb: rgba(238, 239, 242, 0.16);
+  /* The thumb only paints while the pointer is over the scrolling element
+     (see the overlay-scrollbar block below), so this is the hover value: a
+     translucent glass bar, never a solid one. */
+  --scrollbar-thumb: rgba(238, 239, 242, 0.15);
 
   /* Borders used only under `prefers-contrast: more`. */
   --stroke-contrast: rgba(255, 255, 255, 0.42);
@@ -190,8 +292,6 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --input-bg: rgba(250, 250, 252, var(--main-opacity));
-  --input-bg-active: rgba(253, 253, 255, var(--main-opacity));
   /* Only the colour of the glass changes with the palette; the alpha and the
      blur come from the shared `--glass-*` definitions above. */
   --glass-tint: rgba(250, 250, 252, var(--glass-tint-alpha));
@@ -199,14 +299,26 @@
   --glass-float: rgba(252, 252, 254, var(--glass-float-alpha));
   --input-stroke: rgba(0, 0, 0, 0.1);
   --input-stroke-active: rgba(10, 108, 255, 0.28);
-  --surface-sunken: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.94));
-  --surface-sunken-soft: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.665));
-  --surface-opaque: rgba(250, 250, 252, 0.99);
+  --surface-sunken: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.9));
+  --surface-sunken-soft: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.6));
+  --surface-opaque: rgba(250, 250, 252, 0.995);
 
-  --surface-control: rgba(0, 0, 0, 0.04);
-  --surface-control-hover: rgba(0, 0, 0, 0.075);
-  --surface-control-active: rgba(0, 0, 0, 0.11);
-  --stroke-control: rgba(0, 0, 0, 0.08);
+  /* The control ladder flips polarity: a white overlay on a #fafafc card is
+     invisible, so on light glass the pane *darkens* the surface instead. The
+     ladder's shape (rest > hover > press in opacity, one shared edge stroke,
+     one top rim) is identical in both palettes. */
+  --glass-control: rgba(0, 0, 0, 0.035);
+  --glass-control-hover: rgba(0, 0, 0, 0.06);
+  --glass-control-press: rgba(0, 0, 0, 0.022);
+  --glass-control-edge: rgba(0, 0, 0, 0.07);
+  --glass-control-rim: rgba(255, 255, 255, 0.85);
+  --glass-track: rgba(0, 0, 0, 0.05);
+  --glass-track-edge: rgba(0, 0, 0, 0.07);
+  --glass-field: rgba(255, 255, 255, 0.5);
+  --glass-field-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --glass-raised-rim: rgba(255, 255, 255, 0.85);
 
   /* The sheen inverts: on a light card the highlight is the opaque white and
      the shadow is what has to stay subtle, or every edge turns into a groove. */
@@ -216,20 +328,21 @@
   --sheen-bottom-active: rgba(255, 255, 255, 0.28);
   --edge-highlight: rgba(255, 255, 255, 0.92);
   --edge-highlight-active: rgba(255, 255, 255, 0.96);
-  --edge-shadow: rgba(0, 0, 0, 0.055);
+  --edge-highlight-x: rgba(255, 255, 255, 0.6);
+  --edge-shadow: rgba(0, 0, 0, 0.07);
   --window-shadow-ambient: rgba(0, 0, 0, 0.18);
   --window-shadow-contact: rgba(0, 0, 0, 0.12);
-  --hairline: rgba(0, 0, 0, 0.07);
+  --hairline: rgba(0, 0, 0, 0.08);
   --keycap-highlight: rgba(255, 255, 255, 0.9);
   --keycap-shadow: rgba(0, 0, 0, 0.09);
 
   --text-primary: #1d1d1f;
-  --text-strong: rgba(23, 23, 26, 0.94);
-  --text-secondary: rgba(60, 60, 67, 0.66);
-  --text-muted: rgba(60, 60, 67, 0.5);
-  --text-tertiary: rgba(60, 60, 67, 0.4);
-  --text-placeholder: rgba(60, 60, 67, 0.42);
-  --text-warning: #b3261e;
+  --text-strong: rgba(23, 23, 26, 0.96);
+  --text-secondary: rgba(60, 60, 67, 0.78);
+  --text-muted: rgba(60, 60, 67, 0.66);
+  --text-tertiary: rgba(60, 60, 67, 0.6);
+  --text-placeholder: rgba(60, 60, 67, 0.6);
+  --text-warning: #9c1f18;
 
   /* Darker than the dark theme's accent: the same pastel blue that reads as
      bright on near-black is barely there on white, and it has to carry the
@@ -249,10 +362,12 @@
   --accent-glow: rgba(7, 94, 216, 0.18);
   --accent-wash: rgba(7, 94, 216, 0.075);
   --accent-ring: rgba(7, 94, 216, 0.8);
+  --accent-halo: rgba(7, 94, 216, 0.22);
+  --surface-scrim: rgba(0, 0, 0, 0.34);
+  --terminal-veil: rgba(250, 250, 252, 0.62);
 
-  --icon-surface: rgba(0, 0, 0, 0.05);
-  --icon-edge: rgba(0, 0, 0, 0.06);
   --system-icon-surface: rgba(214, 118, 44, 0.13);
+  --system-icon-surface-hover: rgba(214, 118, 44, 0.21);
   --system-icon-text: #a24d15;
   /* Darker and a shade less saturated than the dark theme's: the same green over
      a light surface reads as a much stronger wash than it does over a dark one. */
@@ -272,7 +387,7 @@
   --terminal-bar-top: rgba(252, 252, 254, 0.86);
   --terminal-bar-bottom: rgba(236, 237, 241, 0.6);
 
-  --scrollbar-thumb: rgba(60, 60, 67, 0.26);
+  --scrollbar-thumb: rgba(60, 60, 67, 0.24);
 
   --stroke-contrast: rgba(0, 0, 0, 0.5);
   --stroke-contrast-soft: rgba(0, 0, 0, 0.36);
@@ -464,6 +579,17 @@ canvas {
 }
 
 @media (prefers-contrast: more) {
+  /* "Increase contrast" has to mean the material, not only the borders. At
+     the default strength the shell now lets a third of the desktop through —
+     that is the point of the glass — but a user who has asked the system for
+     contrast must not have to also go find the slider. The tint is raised to
+     near-solid and the blur is left alone, so the panel keeps its material
+     and loses its transparency. */
+  :root {
+    --glass-tint-alpha: calc(0.82 + 0.16 * var(--main-opacity));
+    --glass-tint-alpha-terminal: calc(0.84 + 0.15 * var(--terminal-opacity));
+  }
+
   .collapsed-card,
   .settings-card,
   .terminal-panel {
