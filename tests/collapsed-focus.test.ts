@@ -272,17 +272,21 @@ test("syncLauncherHeight re-asserts focus once its native resize settles", async
     "the resize completion must re-run the focus collector",
   );
   // And App wires the collector's reassert into that hook.
-  const app = await read("src/App.tsx");
+  const app = await readCode("src/App.tsx");
   assert.match(app, /setCollapsedFocusReassert\(/, "App must register the reassert hook");
+  // R7-2 moved the declaration of the beat rhythm into `surface-policy.ts`;
+  // App still schedules through it, and the policy row still references the
+  // collector's beat list (so the rhythm has exactly one definition).
   assert.match(
     app,
-    /COLLAPSED_FOCUS_BEATS_MS/,
-    "App must schedule through the shared beat list, not ad-hoc constants",
+    /surfaceFocusBeats\("collapsed"\)/,
+    "App must schedule the collapsed beats through the declared surface policy",
   );
-  assert.equal(
-    (app.match(/COLLAPSED_FOCUS_BEATS_MS/g) ?? []).length >= 1,
-    true,
-    "the shared beat list is used",
+  const policy = await readCode("src/surface-policy.ts");
+  assert.match(
+    policy,
+    /beats:\s*COLLAPSED_FOCUS_BEATS_MS/,
+    "the collapsed policy must reference the collector's beat list, not copy it",
   );
 });
 

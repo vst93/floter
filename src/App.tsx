@@ -25,12 +25,17 @@ import { ToastHost } from "./components/ToastStack";
 import { appendToast, removeToast, type AppToast, type ToastKind } from "./toast-state";
 import { useLauncherActions } from "./hooks/useLauncherActions";
 import { useAppKeyboard } from "./hooks/useAppKeyboard";
+import {
+  applySurfaceFocusOnEntry,
+  focusSettingsSidebar,
+  settingsSidebarTabIndex,
+  surfaceFocusBeats,
+} from "./surface-policy";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
 import {
   createCollapsedFocusController,
-  COLLAPSED_FOCUS_BEATS_MS,
   setCollapsedFocusReassert,
   type CollapsedFocusController,
 } from "./collapsed-focus";
@@ -150,9 +155,6 @@ const SETTINGS_MIN_HEIGHT = 420;
  *  still needed to keep the hide-on-blur listener from dismissing the panel
  *  out from under the drag. */
 const DRAG_BLUR_GRACE = 600;
-/** Second attempt at handing the terminal canvas the keyboard on Windows, where
- * the window is still being shown and focused when the first one lands. */
-const TERMINAL_FOCUS_RETRY = 180;
 /** Idle window before an icon is fetched, so the intermediate result lists that
  * flash past while a query is still being typed cost nothing. */
 
@@ -412,12 +414,14 @@ export default function App() {
   // The standard beat pattern for a commit that lands on the collapsed
   // surface: the commit instant plus two later attempts that ride out the
   // platform's reveal/autoFocus races (and a Windows retry, where the window
-  // is still being shown when the first attempt fires). Every path back to
-  // the launcher schedules through here — plus the resize-settled reassert in
-  // `syncLauncherHeight` — so no path can forget a beat.
+  // is still being shown when the first attempt fires). The rhythm itself is
+  // the collapsed row of `SURFACE_FOCUS_POLICY`, whose `beats` reference
+  // `COLLAPSED_FOCUS_BEATS_MS` in `collapsed-focus.ts` — the collector that
+  // enforces it. Every path back to the launcher schedules through here, plus
+  // the resize-settled reassert in `syncLauncherHeight`, so no path can forget
+  // a beat.
   const scheduleCollapsedFocusBeats = () => {
-    for (const beat of COLLAPSED_FOCUS_BEATS_MS) focusCollapsedInput(beat);
-    if (IS_WINDOWS) focusCollapsedInput(TERMINAL_FOCUS_RETRY);
+    for (const beat of surfaceFocusBeats("collapsed")) focusCollapsedInput(beat);
   };
   // Let the leaf `syncLauncherHeight` helper re-run the collector when a
   // native launcher resize settles; the controller is stable for the app's
@@ -681,6 +685,26 @@ export default function App() {
 
   /** Sidebar buttons by page, so ↑/↓ can move focus with the selection. */
   const settingsSidebarButtons = useRef(new Map<SettingsPage, HTMLButtonElement>());
+  /**
+   * The settings surface's keyboard home: the sidebar button for the page
+   * currently shown. Plain DOM focus — deliberately not a native
+   * make-key/reveal command, so the macOS first-responder chain is untouched
+   * (see the entry policy in `surface-policy.ts`).
+   */
+  const focusCurrentSettingsSidebar = () =>
+    focusSettingsSidebar(settingsSidebarButtons.current, settingsPage);
+
+  /**
+   * The app's focus entry points, handed to the surface policy. Every "this
+   * surface takes the keyboard on entry" path — the mode effect and the
+   * reveal listener — runs through these same three seams, so the policy is
+   * the only place that decides who owns the keyboard.
+   */
+  const focusSeams = {
+    focusCollapsedInput,
+    focusTerminalView,
+    focusSettingsSidebar: focusCurrentSettingsSidebar,
+  };
   /** Switch pages and remember the choice for the next launch. */
   const changeSettingsPage = (page: SettingsPage) => {
     setSettingsPage(page);
@@ -885,9 +909,15 @@ export default function App() {
     const isRestoring = restoringMode.current === mode;
     suppressBlurUntil.current = Date.now() + 400;
 
+    // The entry focus policy for every surface, declared once in
+    // `surface-policy.ts`. Each branch below asks the table who owns the
+    // keyboard instead of spelling out its own beat list.
     if (mode === "settings") {
       // Opened from the collapsed card: the window is already visible and keeps
-      // its top edge, so only the panel height changes.
+      // its top edge, so only the panel height changes. The keyboard lands on
+      // the sidebar item for the current page, which is what makes ↑/↓ and Tab
+      // work the moment the panel appears instead of starting on `<body>`.
+      applySurfaceFocusOnEntry("settings", focusSeams);
       return;
     }
 
@@ -934,11 +964,10 @@ export default function App() {
     if (!isRestoring) {
       invoke("show_terminal");
     }
-    focusTerminalView(80);
     // Windows shows and focuses the window around the time that first attempt
     // lands, and a canvas that missed the keyboard swallows the first key
-    // pressed into it. Chased a second time, exactly as the collapsed input is.
-    if (IS_WINDOWS) focusTerminalView(TERMINAL_FOCUS_RETRY);
+    // pressed into it. Chased a second time through the same table entry.
+    applySurfaceFocusOnEntry("terminal", focusSeams);
     const timer = window.setTimeout(() => {
       if (restoringMode.current === "terminal") {
         restoringMode.current = null;
@@ -986,10 +1015,10 @@ export default function App() {
         restoringMode.current = "terminal";
         setTerminalMounted(true);
         setMode("terminal");
-        focusTerminalView(80);
-        // The reveal that brought the window back is still settling on Windows;
-        // see the mode effect above for why the canvas is chased twice there.
-        if (IS_WINDOWS) focusTerminalView(TERMINAL_FOCUS_RETRY);
+        // The same declared policy the mode effect runs: focusTerminalView(80),
+        // chased once more on Windows because the reveal that brought the
+        // window back is still settling there.
+        applySurfaceFocusOnEntry("terminal", focusSeams);
         window.setTimeout(() => {
           if (restoringMode.current === "terminal") {
             restoringMode.current = null;
@@ -1349,6 +1378,7 @@ export default function App() {
                     }}
                     className={settingsPage === page ? "settings-sidebar__item settings-sidebar__item--active" : "settings-sidebar__item"}
                     aria-current={settingsPage === page ? "page" : undefined}
+                    tabIndex={settingsSidebarTabIndex(page, settingsPage)}
                     onClick={() => {
                       changeSettingsPage(page);
                       if (page === "sessions") scheduleSessionRefresh();

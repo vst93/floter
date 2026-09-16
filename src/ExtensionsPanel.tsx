@@ -28,6 +28,7 @@ import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
 import { ComponentizedUninstallDialog } from "./extensions/ComponentizedUninstallDialog";
 import { useImmediateState } from "./hooks/useImmediateState";
 import { useTimedReset } from "./hooks/useTimedReset";
+import { isDismissKey } from "./surface-policy";
 
 type ExtensionDistributionSource = "npm" | "local" | "built-in";
 type ExtensionRuntimeOwnership = "bundled" | "system";
@@ -324,13 +325,10 @@ function useDialogFocus(
       }
       // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the surface — a
       // convention every overlay in floter follows, alongside Escape below.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-        event.preventDefault();
-        event.stopPropagation();
-        escapeHandlerRef.current();
-        return;
-      }
-      if (event.key === "Escape") {
+      // The Esc-or-mod-W predicate is shared with the surface tables
+      // (`surface-policy.ts`), so the dialog and the window handler cannot
+      // disagree about which press dismisses.
+      if (isDismissKey(event)) {
         event.preventDefault();
         event.stopPropagation();
         escapeHandlerRef.current();

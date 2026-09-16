@@ -22,6 +22,11 @@ import {
 } from "../shortcuts";
 import { type SettingsPage } from "../settings-persistence";
 import { isArrowKeyEditableTarget, nextSettingsPage } from "../settings-nav";
+import {
+  resolveDismissRule,
+  surfaceYieldsToModal,
+  type DismissRule,
+} from "../surface-policy";
 import type { ViewMode } from "../App";
 import type { LauncherItem } from "../launcher/LauncherResults";
 import type { MessageKey } from "../i18n";
@@ -102,6 +107,44 @@ export function useAppKeyboard(options: {
   } = options;
 
   useEffect(() => {
+    /**
+     * Perform the action the dismiss table selected for this press. The
+     * preventDefault / stopPropagation / keyup-re-arm side effects live here
+     * once, instead of being re-typed per surface; the action itself still
+     * calls exactly the callback the hand-written branch called before R7-2.
+     */
+    const runDismissAction = (rule: DismissRule, event: KeyboardEvent) => {
+      event.preventDefault();
+      if (rule.stopPropagation) event.stopPropagation();
+      if (rule.reassertOnKeyUp) {
+        // On macOS the panel can update its first responder once more when Cmd
+        // is released. Reassert the input after the complete shortcut is up.
+        const onShortcutRelease = (release: KeyboardEvent) => {
+          if (release.metaKey || release.ctrlKey || release.altKey || release.shiftKey) return;
+          window.removeEventListener("keyup", onShortcutRelease);
+          focusCollapsedInput();
+        };
+        window.addEventListener("keyup", onShortcutRelease);
+        window.setTimeout(() => {
+          window.removeEventListener("keyup", onShortcutRelease);
+        }, 1500);
+      }
+      switch (rule.action) {
+        case "hide-window":
+          invoke("hide_window");
+          return;
+        case "close-settings":
+          closeSettings();
+          return;
+        case "close-plugin":
+          closePluginPage();
+          return;
+        case "return-to-input":
+          returnToInputMode();
+          return;
+      }
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || isTerminalCompositionKey(event)) return;
       const target = event.target instanceof HTMLElement ? event.target : null;
@@ -134,20 +177,13 @@ export function useAppKeyboard(options: {
         if (isTerminalCompositionKey(event)) return;
 
         // App shortcuts first, everything else is forwarded to the shell.
-        if (matchesShortcut(event, shortcuts.new_command)) {
-          event.preventDefault();
-          // On macOS the panel can update its first responder once more when Cmd
-          // is released. Reassert the input after the complete shortcut is up.
-          const onShortcutRelease = (release: KeyboardEvent) => {
-            if (release.metaKey || release.ctrlKey || release.altKey || release.shiftKey) return;
-            window.removeEventListener("keyup", onShortcutRelease);
-            focusCollapsedInput();
-          };
-          window.addEventListener("keyup", onShortcutRelease);
-          window.setTimeout(() => {
-            window.removeEventListener("keyup", onShortcutRelease);
-          }, 1500);
-          returnToInputMode();
+        // Escape and Cmd/Ctrl+W deliberately have no rule in the terminal row
+        // of the dismiss table: Escape belongs to the shell (or to the pinned
+        // card), and the Cmd chord is the configurable new-command binding
+        // handled right here.
+        const dismiss = resolveDismissRule("terminal", event, shortcuts);
+        if (dismiss) {
+          runDismissAction(dismiss, event);
           return;
         }
         if (matchesShortcut(event, shortcuts.open_external_terminal)) {
@@ -240,18 +276,14 @@ export function useAppKeyboard(options: {
       }
 
       if (mode === "settings") {
-        if (target?.closest('[aria-modal="true"]')) return;
-        // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the panel — a
-        // convention every overlay surface in floter follows.
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-          event.preventDefault();
-          event.stopPropagation();
-          closeSettings();
-          return;
-        }
-        if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
-          event.preventDefault();
-          closeSettings();
+        // A modal owns the keyboard while it is open: it closes itself on
+        // Esc/Cmd+W, and this handler must not run the surface rules (or the
+        // sidebar arrows) underneath it. The surface that behaves this way is
+        // declared in `surface-policy.ts`, not hard-coded here.
+        if (surfaceYieldsToModal(mode) && target?.closest('[aria-modal="true"]')) return;
+        const dismiss = resolveDismissRule(mode, event, shortcuts);
+        if (dismiss) {
+          runDismissAction(dismiss, event);
           return;
         }
         // ↑/↓ cycle sidebar pages from anywhere in the settings panel — a
@@ -280,15 +312,9 @@ export function useAppKeyboard(options: {
         // own keys; presses that reach here found the host still holding the
         // keyboard and must not fall through to launcher handling. Esc and
         // Cmd/Ctrl+W close, matching what the page itself does with them.
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-          event.preventDefault();
-          event.stopPropagation();
-          closePluginPage();
-          return;
-        }
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closePluginPage();
+        const dismiss = resolveDismissRule(mode, event, shortcuts);
+        if (dismiss) {
+          runDismissAction(dismiss, event);
         }
         return;
       }
@@ -315,9 +341,9 @@ export function useAppKeyboard(options: {
         return;
       }
 
-      if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
-        event.preventDefault();
-        invoke("hide_window");
+      const dismiss = resolveDismissRule("collapsed", event, shortcuts);
+      if (dismiss) {
+        runDismissAction(dismiss, event);
         return;
       }
 
