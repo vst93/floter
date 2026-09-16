@@ -33,7 +33,7 @@ import {
   shouldActivateClipboardEntry,
   type ClipboardEntry,
 } from "../../clipboard-history";
-import { BRIDGE_TAG, isBridgeGlass, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
+import { BRIDGE_TAG, createFailureDeduper, createRetryRegistry, isBridgeGlass, isBridgeNotifyRetry, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
 import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, normalizeGlassStep, type GlassStep } from "../../glass-material";
 
 // ---- bridge client -------------------------------------------------------
@@ -88,6 +88,16 @@ window.addEventListener("message", (event: MessageEvent) => {
     void handleReload();
     return;
   }
+  if (isBridgeNotifyRetry(data)) {
+    // The user pressed the retry action on a toast this page raised. Only the
+    // page knows what failed, so the host hands the intent back instead of
+    // trying to replay the command itself. The id the host echoes decides
+    // *which* failure re-runs; an id already run, or one evicted because
+    // newer failures pushed it out, is dropped rather than falling back to
+    // whatever action happens to be newest.
+    retryRegistry.run(data.id);
+    return;
+  }
   if (!isBridgeResultForSession(data, bridgeSession)) return;
   const call = pending.get(data.id);
   if (!call) return;
@@ -119,6 +129,49 @@ const invokeCommand = <T>(
 
 const requestClose = () => {
   window.parent.postMessage({ [BRIDGE_TAG]: "close" }, "*");
+};
+
+// ---- host feedback --------------------------------------------------------
+
+/**
+ * The retry the page promised for a toast it raised, keyed by that toast's id.
+ * Feedback is host-owned chrome, so the page never paints its own notice: it
+ * names a dictionary key, the host shows it on the app's one toast stack
+ * (same position, same lifetime, same visual as every other surface), and if
+ * the action can be retried the host sends `notify-retry` back with the id it
+ * was given. The page keeps the thunk because only the page can re-run its
+ * own action against its own state.
+ *
+ * Keyed, not a single slot: up to `MAX_TOASTS` toasts coexist and each carries
+ * its own Retry, so the oldest one must fire the action that raised *it*.
+ */
+const retryRegistry = createRetryRegistry();
+
+/** Id stamped on the next `host-notify` message; the host echoes it back. */
+let nextNotifyId = 1;
+
+/**
+ * One background-load failure per window: the 2s poll re-runs `reload()` while
+ * the backend is down, and each failure used to raise a fresh toast, so three
+ * toasts churned forever and none was readable. The window (30s) is long enough
+ * to be quiet and short enough that a failure that comes back later is
+ * announced again. Only the *poll* is coalesced — a failure caused by a user
+ * gesture (copy, delete, clear) still reports every time the user asks, or the
+ * second click would fail silently. A successful reload re-arms the key so
+ * failure → recovery → failure shows a fresh toast.
+ */
+const loadFailureDeduper = createFailureDeduper();
+
+/** Raise host feedback for a failed action. `onRetry` is omitted when retrying
+ * cannot help (backend off, page not loaded) — the toast then offers only a
+ * dismissal instead of a dead-end button. */
+const notifyFailure = (messageKey: string, onRetry?: () => void) => {
+  const id = nextNotifyId++;
+  if (onRetry) retryRegistry.add(id, onRetry);
+  window.parent.postMessage(
+    { [BRIDGE_TAG]: "host-notify", id, kind: "error", messageKey, retryable: Boolean(onRetry) },
+    "*",
+  );
 };
 
 // ---- bootstrap ------------------------------------------------------------
@@ -209,9 +262,12 @@ let hydrated = false;
 let busy = false;
 let clearArmed = false;
 let clearTimer: number | null = null;
-let noticeTimer: number | null = null;
 let pageVisible = true;
 let pageDisposed = false;
+/** Whether the first fetch has landed (successfully or not). Drives the
+ * loading state: only a page with nothing on screen yet shows the inline
+ * spinner, so a background poll never replaces a populated list. */
+let loaded = false;
 const thumbnails = new Map<string, string>();
 let statuses: Record<string, boolean> = {};
 /** True when the last entry fetch failed or timed out — an empty list then
@@ -249,7 +305,6 @@ root.innerHTML = `
       </div>
     </div>
     <div class="clipboard-panel__content"></div>
-    <div class="clipboard-panel__notice" role="alert" hidden></div>
     <div class="clipboard-panel__footer">
       <span class="clipboard-panel__hints"></span>
       <button type="button" class="clipboard-panel__clear"></button>
@@ -260,14 +315,6 @@ root.innerHTML = `
 const promptLabel = root.querySelector<HTMLElement>(".clipboard-panel__prompt")!;
 const searchInput = root.querySelector<HTMLInputElement>(".clipboard-panel__search")!;
 searchInput.value = filterText;
-const notice = root.querySelector<HTMLElement>(".clipboard-panel__notice")!;
-
-const showError = () => {
-  notice.textContent = t("clipboard.actionFailed");
-  notice.hidden = false;
-  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
-  noticeTimer = window.setTimeout(() => { notice.hidden = true; }, 5000);
-};
 
 const saveSession = () => {
   if (!hydrated) return;
@@ -343,27 +390,131 @@ const renderFilesEntry = (
   }
 };
 
-/** Empty-state markup: the localized "nothing here" message and the privacy
- * note underneath. The failure-with-retry case is a separate path in render()
- * because it carries a button and a reload promise. */
+/** Empty-state markup: title + one-line explanation + the privacy note, the
+ * shared shape of every empty state in the app (a title, a why, and — where
+ * one exists — the action that changes the situation). The failure case is a
+ * separate path in `render()` because it carries retry/dismiss controls. The
+ * empty state is not one of those: there is nothing to retry here — the user
+ * simply has not copied anything (or filtered it away) yet. */
 const renderEmpty = (): DocumentFragment => {
   const fragment = document.createDocumentFragment();
-  const empty = document.createElement("div");
-  empty.className = "clipboard-panel__empty";
-  empty.textContent = t(
-    scopedEntries().length
-      ? "clipboard.emptyFilter"
-      : view === "favorites"
-        ? "clipboard.emptyFavorites"
-        : "clipboard.empty",
-  );
-  fragment.append(empty);
+  const scoped = scopedEntries().length;
+  const title = scoped
+    ? t("clipboard.emptyFilter")
+    : view === "favorites"
+      ? t("clipboard.emptyFavorites")
+      : t("clipboard.empty");
+  const hint = scoped
+    ? t("clipboard.emptyFilterHint")
+    : view === "favorites"
+      ? t("clipboard.emptyFavoritesHint")
+      : t("clipboard.emptyHint");
+
+  const block = document.createElement("div");
+  block.className = "clipboard-panel__empty";
+  const heading = document.createElement("div");
+  heading.className = "clipboard-panel__empty-title";
+  heading.textContent = title;
+  const detail = document.createElement("div");
+  detail.className = "clipboard-panel__empty-hint";
+  detail.textContent = hint;
+  block.append(heading, detail);
+  fragment.append(block);
 
   const privacy = document.createElement("div");
   privacy.className = "clipboard-panel__empty-privacy";
   privacy.textContent = t("settings.clipboardPrivacy");
   fragment.append(privacy);
 
+  return fragment;
+};
+
+/**
+ * Loading state: one inline row (spinner + label), never a full-block
+ * replacement of the list. It is only reached while `loaded` is false — a
+ * refresh that runs on top of existing rows repaints them in place, so the
+ * layout never collapses and never flashes.
+ */
+const renderLoading = (): DocumentFragment => {
+  const fragment = document.createDocumentFragment();
+  const block = document.createElement("div");
+  block.className = "clipboard-panel__loading";
+  block.setAttribute("role", "status");
+  block.setAttribute("aria-busy", "true");
+  const spinner = document.createElement("span");
+  spinner.className = "clipboard-panel__spinner";
+  spinner.setAttribute("aria-hidden", "true");
+  const label = document.createElement("span");
+  label.textContent = t("settings.loading");
+  block.append(spinner, label);
+  fragment.append(block);
+  return fragment;
+};
+
+/**
+ * Failure state (the third of the three): a title, a why, and controls. The
+ * retry slot is filled only when retrying can help — with the backend off or
+ * unmanaged the button would be a dead end, so the state explains the switch
+ * instead and offers only a dismissal. Dismissal is always present, so the
+ * user is never trapped in the state, and it clears `loadFailed` exactly the
+ * way a successful load would.
+ */
+const renderLoadFailure = (): DocumentFragment => {
+  const fragment = document.createDocumentFragment();
+  const failure = document.createElement("div");
+  failure.className = "clipboard-panel__empty";
+  failure.setAttribute("role", "alert");
+  failure.dataset.failureState = String(backendUnavailable);
+
+  const heading = document.createElement("div");
+  heading.className = "clipboard-panel__empty-title";
+  heading.textContent = t(
+    backendUnavailable ? "clipboard.pageUnavailable" : "clipboard.loadFailed",
+  );
+  failure.append(heading);
+
+  if (backendUnavailable) {
+    const hint = document.createElement("div");
+    hint.className = "clipboard-panel__empty-hint";
+    hint.textContent = t("clipboard.pageUnavailableHint");
+    failure.append(hint);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "clipboard-panel__empty-actions";
+  if (!backendUnavailable) {
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "clipboard-panel__clear";
+    retry.textContent = t("clipboard.retry");
+    retry.addEventListener("mousedown", (event) => event.preventDefault());
+    retry.addEventListener("click", () => {
+      // Deliberately never `retry.disabled = true`: the failure node is reused
+      // across repaints ([`reconcileList`]), so a flag set here would outlive
+      // the click and lock the button out forever when the retry fails too.
+      // Re-entrancy is already handled by `reload()`'s in-flight dedupe.
+      void reload().then(() => {
+        render();
+        searchInput.focus();
+      });
+    });
+    actions.append(retry);
+  }
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "clipboard-panel__clear";
+  dismiss.textContent = t("clipboard.dismiss");
+  dismiss.addEventListener("mousedown", (event) => event.preventDefault());
+  dismiss.addEventListener("click", () => {
+    // The next successful reload clears the flag for real; dismissing only
+    // stops the state from being painted, it does not fake a successful load.
+    loadFailed = false;
+    render();
+    searchInput.focus();
+  });
+  actions.append(dismiss);
+  failure.append(actions);
+  fragment.append(failure);
   return fragment;
 };
 
@@ -633,35 +784,24 @@ const currentList = (): HTMLElement | null =>
  * browser keeps the layout of the hundreds of rows that did not change. */
 const reconcileList = (filtered: ClipboardEntry[], now: number) => {
   if (loadFailed && entries.length === 0) {
-    const failure = document.createElement("div");
-    failure.className = "clipboard-panel__empty";
-    failure.setAttribute("role", "alert");
-    const label = document.createElement("span");
-    label.textContent = t(backendUnavailable ? "clipboard.pageUnavailable" : "clipboard.loadFailed");
-    failure.append(label);
-    if (backendUnavailable) {
-      // Retrying cannot help when the backend is off/unmanaged; say how to
-      // turn it on instead of offering a dead-end button.
-      const hint = document.createElement("span");
-      hint.className = "clipboard-panel__empty-hint";
-      hint.textContent = t("clipboard.pageUnavailableHint");
-      failure.append(hint);
-    } else {
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.className = "clipboard-panel__clear";
-      retry.textContent = t("settings.retry");
-      retry.addEventListener("mousedown", (event) => event.preventDefault());
-      retry.addEventListener("click", () => {
-        retry.disabled = true;
-        void reload().then(() => {
-          render();
-          searchInput.focus();
-        });
-      });
-      failure.append(retry);
+    // Keep an already-painted failure state in place across repaints (a poll, a
+    // keypress): recreating it would drop focus and re-run the entry
+    // animation. Only a change of *which* failure (backend off vs transient)
+    // rebuilds it.
+    const painted = content.querySelector<HTMLElement>("[data-failure-state]");
+    if (painted?.dataset.failureState !== String(backendUnavailable)) {
+      content.replaceChildren(renderLoadFailure());
     }
-    content.replaceChildren(failure);
+    return;
+  }
+
+  if (!loaded) {
+    // First fetch still in flight: one inline spinner row instead of a blank
+    // canvas. Both outcomes below repaint this node, so it never survives past
+    // the first answer, and the guard keeps a repaint from restarting the spin.
+    if (!content.querySelector(".clipboard-panel__loading")) {
+      content.replaceChildren(renderLoading());
+    }
     return;
   }
 
@@ -825,7 +965,6 @@ window.addEventListener("pagehide", () => {
   saveSession();
   stopPeriodicRefresh();
   if (clearTimer !== null) window.clearTimeout(clearTimer);
-  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   reloadGen += 1;
   for (const call of pending.values()) {
     window.clearTimeout(call.timer);
@@ -916,6 +1055,9 @@ const reloadData = async () => {
     const wasFailed = loadFailed;
     loadFailed = false;
     backendUnavailable = false;
+    // Recovery re-arms the failure toast: a load failure that comes back
+    // after a good poll is news again, not a repeat of the one already shown.
+    loadFailureDeduper.clear("clipboard.loadFailed");
     // Read the selection at completion: the user can move it during a fetch.
     const anchorId = hydrated ? filteredEntries()[selected]?.id : savedSession.selectedId;
     if (entriesChanged) entries = nextEntries;
@@ -936,15 +1078,32 @@ const reloadData = async () => {
         thumbnails.delete(id);
       }
     }
-    if (entriesChanged || wasFailed || !hydrated) render();
+    if (entriesChanged || wasFailed || !hydrated || !loaded) render();
     hydrated = true;
+    loaded = true;
     saveSession();
   } catch (error) {
     if (gen !== reloadGen) return;
     loadFailed = true;
+    loaded = true;
     if (isBackendUnavailable(error)) backendUnavailable = true;
-    if (entries.length) showError();
-    else render();
+    if (entries.length) {
+      // The list already shows content; a background poll failing must not
+      // blank it. Feedback goes to the host's toast stack: a dismissed-page
+      // retry re-runs this reload. The deduper keeps a persistent outage to
+      // one toast per window instead of one per 2s poll.
+      if (loadFailureDeduper.allow("clipboard.loadFailed")) {
+        // The retry is a user gesture, so it re-arms the window: if the retry
+        // itself fails, that failure is an answer to the user's click and is
+        // reported, not swallowed by the toast they already dismissed.
+        notifyFailure("clipboard.loadFailed", () => {
+          loadFailureDeduper.clear("clipboard.loadFailed");
+          void reload();
+        });
+      }
+    } else {
+      render();
+    }
     return;
   }
 
@@ -1053,14 +1212,16 @@ const handleHidden = () => {
 
 const activate = async (entry: ClipboardEntry | undefined) => {
   if (!entry || busy || statuses[entry.id] === false) return;
+  const target = entry;
   busy = true;
   render();
   try {
-    await invokeCommand<void>("clipboard_copy_entry", { id: entry.id });
+    await invokeCommand<void>("clipboard_copy_entry", { id: target.id });
   } catch {
     // The clipboard may be held by another app; keep the page open so the
-    // user can retry instead of silently losing the action.
-    showError();
+    // user can retry instead of silently losing the action. The toast's retry
+    // action re-enters this same function with the same entry.
+    notifyFailure("clipboard.copyFailed", () => { void activate(target); });
     return;
   } finally {
     busy = false;
@@ -1071,19 +1232,20 @@ const activate = async (entry: ClipboardEntry | undefined) => {
 
 const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
   if (!entry || busy) return;
+  const target = entry;
   busy = true;
   reloadGen += 1;
-  const nextFavorite = !entry.favorite;
+  const nextFavorite = !target.favorite;
   render();
   searchInput.focus();
   try {
     await invokeCommand<void>("clipboard_set_favorite", {
-      id: entry.id,
+      id: target.id,
       favorite: nextFavorite,
     });
-    entries = entries.map((current) => current.id === entry.id ? { ...current, favorite: nextFavorite } : current);
+    entries = entries.map((current) => current.id === target.id ? { ...current, favorite: nextFavorite } : current);
   } catch {
-    showError();
+    notifyFailure("clipboard.favoriteFailed", () => { void toggleFavorite(target); });
   } finally {
     await reloadPending;
     await reload();
@@ -1094,15 +1256,16 @@ const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
 
 const removeEntry = async (entry: ClipboardEntry | undefined) => {
   if (!entry || busy) return;
+  const target = entry;
   busy = true;
   reloadGen += 1;
   render();
   searchInput.focus();
   try {
-    await invokeCommand<void>("clipboard_delete", { id: entry.id });
-    entries = entries.filter((candidate) => candidate.id !== entry.id);
+    await invokeCommand<void>("clipboard_delete", { id: target.id });
+    entries = entries.filter((candidate) => candidate.id !== target.id);
   } catch {
-    showError();
+    notifyFailure("clipboard.deleteFailed", () => { void removeEntry(target); });
   } finally {
     await reloadPending;
     await reload();
@@ -1127,7 +1290,9 @@ const clearHistory = async () => {
     await invokeCommand<void>("clipboard_clear_history");
     entries = entries.filter((entry) => entry.favorite);
   } catch {
-    showError();
+    // Retrying must re-arm the confirmation: the first click only arms, the
+    // second click is what actually clears.
+    notifyFailure("clipboard.clearFailed", () => { void clearHistory(); });
   } finally {
     selected = 0;
     await reloadPending;
@@ -1376,13 +1541,13 @@ void reload().then(() => {
   render();
   // Start periodic refresh after initial load.
   startPeriodicRefresh();
-}).catch((error) => {
-  // Only mark failed on a real bridge error, not on empty results.
-  if (entries.length === 0) {
-    loadFailed = true;
-    if (isBackendUnavailable(error)) backendUnavailable = true;
-    render();
-  }
+}).catch(() => {
+  // `reloadData` absorbs its own failures (it paints the failure state and
+  // raises the host toast), so this is the belt-and-braces path for a future
+  // implementation that rethrows instead.
+  loaded = true;
+  loadFailed = true;
+  render();
 });
 
 // Stop periodic refresh when the page is about to be hidden (not unloaded,

@@ -99,6 +99,22 @@ function Toast({
         <Check size={15} strokeWidth={2} aria-hidden="true" />
       )}
       <span>{toast.text}</span>
+      {/* The optional retry slot. One control, the same shape on every
+          surface that can offer it (currently a plugin page failure, which
+          arrives through the bridge). Pressing it runs the caller's action
+          and dismisses, so a retry never leaves a stale toast behind. */}
+      {toast.action ? (
+        <button
+          type="button"
+          className="app-toast__action"
+          onClick={() => {
+            toast.action?.run();
+            onDismiss(toast.id);
+          }}
+        >
+          {toast.action.label}
+        </button>
+      ) : null}
       <button
         type="button"
         className="app-toast__dismiss"

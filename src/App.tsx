@@ -22,7 +22,7 @@ import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
 import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
 import { ToastHost } from "./components/ToastStack";
-import { appendToast, removeToast, type AppToast, type ToastKind } from "./toast-state";
+import { appendToast, removeToast, type AppToast, type ToastAction, type ToastKind } from "./toast-state";
 import { useLauncherActions } from "./hooks/useLauncherActions";
 import { useAppKeyboard } from "./hooks/useAppKeyboard";
 import {
@@ -347,10 +347,13 @@ export default function App() {
   // and never inside a scroll container.
   const [toasts, setToasts] = useState<AppToast[]>([]);
   const toastIdRef = useRef(0);
-  const notify = useCallback((kind: ToastKind, text: string) => {
-    const id = ++toastIdRef.current;
-    setToasts((current) => appendToast(current, { id, kind, text }));
-  }, []);
+  const notify = useCallback(
+    (kind: ToastKind, text: string, action?: ToastAction) => {
+      const id = ++toastIdRef.current;
+      setToasts((current) => appendToast(current, { id, kind, text, action }));
+    },
+    [],
+  );
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => removeToast(current, id));
   }, []);
@@ -1324,6 +1327,7 @@ export default function App() {
         glassStep={settings.glass_step}
         onClose={closePluginPage}
         onDragStart={startDrag}
+        onNotify={notify}
       />
     </div>
   );

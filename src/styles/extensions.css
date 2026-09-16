@@ -191,8 +191,15 @@
 }
 
 /* Terminal and plugin pages are full-height windows like settings — the panel
-   fills the window and the 28px terminal bar (or 56px plugin page header) sits
-   at the top — so the same card offset clears their chrome and stays put. */
+   fills the window and the 28px terminal bar sits at the top — so the same
+   card offset clears their chrome and stays put. */
+
+/* Plugin pages are full-height windows like settings: the 28px host topbar
+   sits at the top and the page fills the rest, so `top: 64px; right: 16px`
+   already clears the chrome with 36px to spare and the same inset the other
+   full-height surfaces use. No override is needed — and deliberately none is
+   added: a plugin page is not a distinct feedback surface (there is exactly
+   one stack), only a distinct place for it to land. */
 
 /* The launcher window is a thin ~58px strip: the input row fills y=0..56 and
    the two 28x28 icon buttons sit at the right end (x∈[628,712], y∈[14,42] in
@@ -307,6 +314,34 @@
   color: var(--text-tertiary);
   cursor: pointer;
   transition: color var(--dur-2) ease, background var(--dur-2) ease;
+}
+
+/* The optional action (a page failure's retry). A single quiet chip the same
+   height as the dismissal, sat between the text and the × so it never pushes
+   the dismiss control out of its corner. Text-only, no fill of its own: the
+   toast is already the floating surface. */
+.app-toast__action {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--glass-control);
+  box-shadow: inset 0 0 0 1px var(--glass-control-edge), inset 0 1px 0 var(--glass-control-rim);
+  color: var(--text-strong);
+  font-size: var(--text-caption);
+  font-weight: 580;
+  cursor: pointer;
+  transition: background-color var(--dur-2) ease, color var(--dur-2) ease;
+}
+
+.app-toast__action:hover {
+  background: var(--glass-control-hover);
+}
+
+.app-toast__action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .app-toast__dismiss:hover {

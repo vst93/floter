@@ -30,6 +30,53 @@ export type BridgeRequest = {
 /** Page → host: dismiss the plugin page, returning to the remembered surface. */
 export type BridgeClose = { [BRIDGE_TAG]: "close" };
 
+/**
+ * Page → host: raise one feedback toast on the *app's* stack.
+ *
+ * Why a message type instead of a host command on the invoke allowlist: the
+ * toast stack is frontend-only state (`toast-state.ts` + `ToastStack.tsx`),
+ * not a Tauri command, so there is nothing for the backend to allowlist and
+ * nothing that could be answered with a `result`. A page that wants feedback
+ * is not asking the host to *do* something, it is asking the host to *show*
+ * something — same-shaped request, different pipeline. The existing bridge
+ * already carries that kind of one-way page → host traffic (`close`), so this
+ * rides the same path and the same source-of-frame check.
+ *
+ * The wire carries a dictionary KEY, never the user-visible string: the toast
+ * is host chrome (position, lifetime, visuals all live host-side), so the host
+ * translates and drops keys it does not know rather than painting text a
+ * sandbox chose. That is also what keeps the two documents' dictionaries from
+ * having to stay in sync — the page's own `t()` may not even have the key.
+ */
+export type BridgeNotify = {
+  [BRIDGE_TAG]: "host-notify";
+  /** Page-generated correlation id, echoed back verbatim on a
+   * [`BridgeNotifyRetry`]. It is what lets three coexisting toasts each keep
+   * their own retry action: without it the page can only remember the newest
+   * failure, and pressing an older toast's retry would silently re-run the
+   * wrong action. */
+  id: number;
+  kind: "error" | "success";
+  /** Dictionary key from the app's own `src/i18n.ts` tables. */
+  messageKey: string;
+  /** True when the page can re-run whatever failed; the toast then offers a
+   * retry that asks the page to try again (see [`BridgeNotifyRetry`]). */
+  retryable?: boolean;
+};
+
+/**
+ * Host → page: the user pressed the retry action on the toast raised by a
+ * previous [`BridgeNotify`]. The page re-runs the action that failed — it is
+ * the only side that knows what that action was and can keep its own state
+ * (entries, selection) consistent with the outcome.
+ *
+ * `id` is the notification's own id, not a fresh one: the host never mints
+ * ids, it only echoes. A reply whose id no longer maps to a live failure is
+ * dropped, so a toast the user dismissed long ago cannot fire the action that
+ * happens to be newest.
+ */
+export type BridgeNotifyRetry = { [BRIDGE_TAG]: "notify-retry"; id: number };
+
 /** Host → page: result of a bridge invocation, matched by correlation id. */
 export type BridgeResult =
   | { [BRIDGE_TAG]: "result"; id: number; session?: string; ok: true; value: unknown }
@@ -85,7 +132,111 @@ export type BridgeReload = {
   [BRIDGE_TAG]: "reload";
 };
 
-export type BridgeFromPage = BridgeRequest | BridgeClose;
+/**
+ * Dictionary keys a page may name on the wire. Deliberately narrow: dotted
+ * lower-camel keys from `src/i18n.ts` (`clipboard.actionFailed`), nothing that
+ * could smuggle markup, whitespace or a 10 MB string across the sandbox
+ * boundary. The host still has to find the key in its own dictionary — this
+ * only rules out shapes that cannot be keys at all.
+ */
+const MESSAGE_KEY_SHAPE = /^[A-Za-z][A-Za-z0-9.]{0,63}$/;
+
+export type BridgeFromPage = BridgeRequest | BridgeClose | BridgeNotify;
+
+/**
+ * How many failure retries a page remembers at once. The host keeps at most
+ * `MAX_TOASTS` (3) toasts on screen, so a retry older than the third-newest
+ * failure can no longer be pressed; keeping the registry the same size bounds
+ * it for a page that fails in a loop. The oldest entry is evicted first — the
+ * same end the toast stack drops from.
+ */
+export const RETRY_REGISTRY_CAPACITY = 3;
+
+export type RetryRegistry = {
+  /** Remember the action that belongs to notification `id`. */
+  add: (id: number, retry: () => void) => void;
+  /**
+   * Run and consume the retry for `id`. An id the page never issued, or one
+   * already run or evicted, is dropped without running anything — this is the
+   * stale drop that keeps an old toast from firing the newest action.
+   */
+  run: (id: number) => void;
+};
+
+/**
+ * Page-side map from a [`BridgeNotify`] id to the action that raised it.
+ *
+ * Pure and DOM-free so the node suite can drive the exact multi-toast case the
+ * single-slot version got wrong (see [`BridgeNotifyRetry`]). Insertion order
+ * is the eviction order because `Map` iterates in insertion order.
+ */
+export const createRetryRegistry = (
+  capacity: number = RETRY_REGISTRY_CAPACITY,
+): RetryRegistry => {
+  const retries = new Map<number, () => void>();
+  return {
+    add: (id, retry) => {
+      retries.delete(id);
+      retries.set(id, retry);
+      while (retries.size > capacity) {
+        const oldest = retries.keys().next().value;
+        if (oldest === undefined) break;
+        retries.delete(oldest);
+      }
+    },
+    run: (id) => {
+      const retry = retries.get(id);
+      if (!retry) return;
+      retries.delete(id);
+      retry();
+    },
+  };
+};
+
+/**
+ * How long a key stays quiet after it has been raised once. Long enough that a
+ * 2s background poll cannot fill the stack (fifteen failures per toast), short
+ * enough that the same failure coming back later is announced again. */
+export const FAILURE_NOTIFY_DEDUP_MS = 30_000;
+
+export type FailureDeduper = {
+  /**
+   * Whether `key` may be raised now, and if so, mark it as raised. The second
+   * and later calls inside the window return false; the first call after it
+   * elapses returns true again. `now` is injectable so the node suite can
+   * drive a 5-failure burst without waiting wall-clock time.
+   */
+  allow: (key: string, now?: number) => boolean;
+  /** Re-arm a key: the failure that comes after this is news again. */
+  clear: (key: string) => void;
+};
+
+/**
+ * Page-side deduper for failures raised by an automatic trigger.
+ *
+ * Why this exists: the clipboard page polls every 2s, so a backend that stays
+ * down would otherwise raise one toast per poll forever — three toasts
+ * churning on screen, none readable. Why it is scoped per key rather than
+ * wrapping every `notifyFailure`: a failure caused by a *user gesture* (a copy,
+ * a delete) must still report each time the user asks, or the second click
+ * fails silently. Only the poll needs coalescing, and it names one key.
+ */
+export const createFailureDeduper = (
+  windowMs: number = FAILURE_NOTIFY_DEDUP_MS,
+): FailureDeduper => {
+  const raisedAt = new Map<string, number>();
+  return {
+    allow: (key, now = Date.now()) => {
+      const last = raisedAt.get(key);
+      if (last !== undefined && now - last < windowMs) return false;
+      raisedAt.set(key, now);
+      return true;
+    },
+    clear: (key) => {
+      raisedAt.delete(key);
+    },
+  };
+};
 
 // Arrays are objects but never valid bridge payloads: `args` travels into a
 // named-args invoke call, so an array would silently become `{0: …}`.
@@ -106,6 +257,22 @@ export const isBridgeRequest = (data: unknown): data is BridgeRequest =>
 
 export const isBridgeClose = (data: unknown): data is BridgeClose =>
   isRecord(data) && data[BRIDGE_TAG] === "close";
+
+export const isBridgeNotify = (data: unknown): data is BridgeNotify =>
+  isRecord(data) &&
+  data[BRIDGE_TAG] === "host-notify" &&
+  typeof data.id === "number" &&
+  Number.isFinite(data.id) &&
+  (data.kind === "error" || data.kind === "success") &&
+  typeof data.messageKey === "string" &&
+  MESSAGE_KEY_SHAPE.test(data.messageKey) &&
+  (data.retryable === undefined || typeof data.retryable === "boolean");
+
+export const isBridgeNotifyRetry = (data: unknown): data is BridgeNotifyRetry =>
+  isRecord(data) &&
+  data[BRIDGE_TAG] === "notify-retry" &&
+  typeof data.id === "number" &&
+  Number.isFinite(data.id);
 
 export const isBridgeOpacity = (data: unknown): data is BridgeOpacity =>
   isRecord(data) &&

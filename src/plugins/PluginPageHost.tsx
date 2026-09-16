@@ -7,12 +7,14 @@ import {
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
+  isBridgeNotify,
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
-import type { BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass } from "../plugin-pages";
+import type { BridgeNotifyRetry, BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass } from "../plugin-pages";
 import { glassStepStyle, type GlassStep } from "../glass-material";
-import { createTranslator, type Language, type MessageKey } from "../i18n";
+import { createTranslator, isMessageKey, type Language, type MessageKey } from "../i18n";
+import type { ToastAction } from "../toast-state";
 
 /**
  * Host side of the generic plugin-page mechanism.
@@ -53,6 +55,19 @@ type PluginPageHostProps = {
   glassStep: GlassStep;
   onClose: () => void;
   /**
+   * Raise one feedback toast on the app's own stack (see App.tsx's `notify`).
+   * A plugin page cannot paint host chrome — its document is a sandboxed
+   * iframe — so its failures travel here and land on the same `toast-state`
+   * pipeline every other surface uses: one position, one lifetime, one
+   * visual.
+   *
+   * `action` is the optional retry slot. The page names a dictionary key over
+   * the bridge (never text), this host resolves it against the app's own
+   * dictionary and drops unknown keys, and the retry closure is built *here*,
+   * next to the iframe it has to message.
+   */
+  onNotify: (kind: "error" | "success", text: string, action?: ToastAction) => void;
+  /**
    * Host-owned window drag, wired to the *same* `startDrag` handler the three
    * shells use (see App.tsx). Reusing it — rather than a new
    * `data-tauri-drag-region` attribute — is deliberate: `startDrag` carries the
@@ -74,6 +89,7 @@ export function PluginPageHost({
   glassStep,
   onClose,
   onDragStart,
+  onNotify,
 }: PluginPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [descriptor, setDescriptor] = useState<PluginPageDescriptorInfo | null>(null);
@@ -87,6 +103,12 @@ export function PluginPageHost({
   const allowedRef = useRef<readonly string[]>([]);
   const activeRef = useRef(pluginId);
   activeRef.current = pluginId;
+  // Read at message time, never captured: the message listener registers once
+  // and the App callbacks behind these are stable (`useCallback`), but keeping
+  // them in a ref means a future non-stable callback cannot silently bind a
+  // stale closure to the bridge for the life of the page.
+  const notifyRef = useRef(onNotify);
+  notifyRef.current = onNotify;
   // Read (not depended on) when building the iframe src, so slider moves
   // reach a live page as a message instead of as a remount. The glass step is
   // read the same way for its message push, but its *container* style below
@@ -97,6 +119,12 @@ export function PluginPageHost({
   // it here so the iframe's accessible name reads as a label, never as a raw
   // dictionary key.
   const t = useMemo(() => createTranslator(language), [language]);
+  // The message listener below registers once (it must not be resubscribed on
+  // every render, or a message could be handled twice), so the translator it
+  // uses has to be read through a ref: a language change mid-session must not
+  // leave the bridge translating into the old dictionary.
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => {
     if (!pluginId) {
@@ -192,6 +220,37 @@ export function PluginPageHost({
 
       if (isBridgeClose(data)) {
         if (activeRef.current) onClose();
+        return;
+      }
+
+      if (isBridgeNotify(data)) {
+        // Host-owned feedback: the page names a dictionary key, the host shows
+        // it on the app's one toast stack. An unknown key is dropped rather
+        // than painted — the words belong to the host. A retryable toast gets
+        // an action that asks the page to run its own retry; when the page is
+        // gone by the time it is pressed there is nobody to ask, so nothing
+        // happens rather than a second toast about the first one.
+        if (!isMessageKey(data.messageKey)) return;
+        const frame = iframeRef.current?.contentWindow;
+        const translate = tRef.current;
+        // The page mints the id; the host only echoes it back. Whatever action
+        // the page registered under it is the one that re-runs, so two or
+        // three coexisting toasts each keep their own retry instead of the
+        // oldest one firing the newest failure.
+        const notifyId = data.id;
+        notifyRef.current(
+          data.kind,
+          translate(data.messageKey),
+          data.retryable === true && frame
+            ? {
+                label: translate("plugin.retry"),
+                run: () => {
+                  const retry: BridgeNotifyRetry = { [BRIDGE_TAG]: "notify-retry", id: notifyId };
+                  frame.postMessage(retry, "*");
+                },
+              }
+            : undefined,
+        );
         return;
       }
 

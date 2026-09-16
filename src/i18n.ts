@@ -105,8 +105,11 @@ const en = {
   "clipboard.filter": "Filter…",
   "clipboard.filterClear": "Clear filter",
   "clipboard.empty": "Nothing copied yet",
+  "clipboard.emptyHint": "Copy something and it will show up here.",
   "clipboard.emptyFilter": "No matches",
-  "clipboard.emptyFavorites": "No favorites yet — press F on a row to star it",
+  "clipboard.emptyFilterHint": "Try a shorter or different search term.",
+  "clipboard.emptyFavorites": "No favorites yet",
+  "clipboard.emptyFavoritesHint": "Press F on a row to star it — favorites never expire.",
   "clipboard.tabAll": "All",
   "clipboard.tabFavorites": "Favorites",
   "clipboard.favorite": "Toggle favorite (F)",
@@ -118,7 +121,12 @@ const en = {
   "clipboard.clear": "Clear",
   "clipboard.clearTitle": "Clear history except favorites",
   "clipboard.clearConfirm": "Clear history?",
-  "clipboard.actionFailed": "Clipboard action failed. Try again.",
+  "clipboard.copyFailed": "Could not copy that entry. Try again.",
+  "clipboard.deleteFailed": "Could not delete that entry. Try again.",
+  "clipboard.clearFailed": "Could not clear history. Try again.",
+  "clipboard.favoriteFailed": "Could not update that favorite. Try again.",
+  "clipboard.dismiss": "Dismiss",
+  "clipboard.retry": "Retry",
   "clipboard.loadFailed": "Clipboard history is unavailable. Make sure it is enabled.",
   "clipboard.pageUnavailable": "Clipboard history is off",
   "clipboard.pageUnavailableHint": "Enable it in Settings → Integrations to capture and reuse copies.",
@@ -201,6 +209,7 @@ const en = {
   "plugin.pageError": "Plugin failed to load",
   "plugin.close": "Close page",
   "plugin.closeHint": "Close page (Esc)",
+  "plugin.retry": "Retry",
   "settings.extensions.title": "Integrations",
   "settings.extensions.hint": "Manage commands provided by Floter and system tools.",
   "settings.extensions.showInSearch": "Discover system commands in search",
@@ -437,6 +446,18 @@ const en = {
 
 export type MessageKey = keyof typeof en;
 
+/**
+ * Whether a string names a real dictionary key. Keys can arrive from outside
+ * the app document — a sandboxed plugin page names a feedback key over the
+ * postMessage bridge — and the host is the side that owns the words, so an
+ * unknown key is dropped rather than painted raw.
+ */
+export const isMessageKey = (key: string): key is MessageKey =>
+  // `hasOwnProperty`, not `in`: `in` would accept `constructor`, `toString`
+  // and `__proto__` from the prototype chain, and those are not dictionary
+  // keys — a page could then have made the host translate a non-string.
+  Object.prototype.hasOwnProperty.call(en, key);
+
 const zh: Record<MessageKey, string> = {
   "input.placeholder": "输入命令或应用名称",
   "input.scanning": "正在扫描应用…",
@@ -540,8 +561,11 @@ const zh: Record<MessageKey, string> = {
   "clipboard.filter": "筛选…",
   "clipboard.filterClear": "清除筛选",
   "clipboard.empty": "暂无复制记录",
+  "clipboard.emptyHint": "复制任何内容后都会出现在这里。",
   "clipboard.emptyFilter": "没有匹配项",
-  "clipboard.emptyFavorites": "暂无收藏——按 F 收藏一条记录",
+  "clipboard.emptyFilterHint": "试试更短或不同的关键词。",
+  "clipboard.emptyFavorites": "暂无收藏",
+  "clipboard.emptyFavoritesHint": "在记录上按 F 即可收藏——收藏永不过期。",
   "clipboard.tabAll": "全部",
   "clipboard.tabFavorites": "收藏",
   "clipboard.favorite": "切换收藏（F）",
@@ -553,7 +577,12 @@ const zh: Record<MessageKey, string> = {
   "clipboard.clear": "清空",
   "clipboard.clearTitle": "清空历史，收藏保留",
   "clipboard.clearConfirm": "确认清空历史？",
-  "clipboard.actionFailed": "剪贴板操作失败，请重试。",
+  "clipboard.copyFailed": "复制该记录失败，请重试。",
+  "clipboard.deleteFailed": "删除该记录失败，请重试。",
+  "clipboard.clearFailed": "清空历史失败，请重试。",
+  "clipboard.favoriteFailed": "更新收藏失败，请重试。",
+  "clipboard.dismiss": "关闭",
+  "clipboard.retry": "重试",
   "clipboard.loadFailed": "剪贴板历史不可用，请确认已启用。",
   "clipboard.pageUnavailable": "剪贴板历史已关闭",
   "clipboard.pageUnavailableHint": "在「设置 → 集成」中启用以记录并复用复制内容。",
@@ -635,6 +664,7 @@ const zh: Record<MessageKey, string> = {
   "plugin.pageError": "插件加载失败",
   "plugin.close": "关闭页面",
   "plugin.closeHint": "关闭页面（Esc）",
+  "plugin.retry": "重试",
   "settings.extensions.title": "集成",
   "settings.extensions.hint": "统一管理 Floter 和系统工具提供的命令。",
   "settings.extensions.showInSearch": "发现系统命令",

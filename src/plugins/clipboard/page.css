@@ -442,6 +442,16 @@ button {
   opacity: 0.62;
 }
 
+/* The retry / dismiss slot of the failure state. Both controls reuse the
+   footer's clear-button shape, so the three-state language stays one
+   vocabulary instead of a second button style. */
+.clipboard-panel__empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .clipboard-panel__empty {
   display: flex;
   min-height: 180px;
@@ -453,6 +463,12 @@ button {
   color: var(--text-muted);
   font-size: 12px;
   text-align: center;
+}
+
+.clipboard-panel__empty-title {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 580;
 }
 
 /* Second line of the failure state: how to turn the feature back on. */
@@ -469,6 +485,35 @@ button {
   color: var(--text-tertiary);
   font-size: 10px;
   text-align: center;
+}
+
+/* Tri-state: loading. One inline row — spinner + label — rather than a
+   full-block replacement, so a refresh never flashes the layout. Rendered
+   only while the page has nothing on screen yet (see `renderLoading` in
+   main.ts); a poll that lands on a populated list repaints it in place. */
+.clipboard-panel__loading {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 24px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.clipboard-panel__spinner {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 2px solid var(--hairline-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: clipboard-spin 900ms linear infinite;
+}
+
+@keyframes clipboard-spin {
+  to { transform: rotate(360deg); }
 }
 
 .clipboard-panel__footer {
@@ -509,15 +554,6 @@ button {
   background: var(--surface-control);
   color: var(--text-primary);
 }
-}
-
-.clipboard-panel__notice {
-  flex: 0 0 auto;
-  padding: 8px 14px;
-  border-top: 1px solid var(--hairline);
-  color: var(--text-warning);
-  font-size: 12px;
-  overflow-wrap: anywhere;
 }
 
 .clipboard-panel__clear[data-destructive-confirm="true"] {
@@ -561,5 +597,9 @@ button {
   .clipboard-row__star,
   .clipboard-panel__clear {
     transition: none;
+  }
+
+  .clipboard-panel__spinner {
+    animation: none;
   }
 }

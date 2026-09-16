@@ -3,10 +3,28 @@
 
 export type ToastKind = "error" | "success";
 
+/**
+ * The optional action a toast can carry.
+ *
+ * It exists because a plugin page's failures arrive here as data, not as
+ * already-wired host code (see `BridgeNotify` in `plugin-pages.ts`): the host
+ * is what knows the iframe to message, so it builds the closure as it raises
+ * the toast. A toast without a `run` is a plain informational one and paints
+ * no action control.
+ */
+export type ToastAction = {
+  /** User-visible label. Already translated by the caller, which owns the
+   * language the toast is painted in. */
+  label: string;
+  run: () => void;
+};
+
 export type AppToast = {
   id: number;
   kind: ToastKind;
   text: string;
+  /** Rendered as one button beside the dismissal; absent on plain toasts. */
+  action?: ToastAction;
 };
 
 /** Newest toasts win; older ones fall off the front so the stack never grows
