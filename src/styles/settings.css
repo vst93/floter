@@ -33,6 +33,7 @@
 }
 
 .settings-card__header {
+  position: relative;
   flex: 0 0 auto;
   height: 56px;
   display: flex;
@@ -40,13 +41,25 @@
   justify-content: space-between;
   gap: 10px;
   padding: 0 10px 0 16px;
-  border-bottom: 1px solid var(--hairline);
   background: linear-gradient(180deg, var(--sheen-top), transparent);
+}
+
+/* The header/body separator is a gradient hairline band rather than a border:
+   it dissolves into the sidebar and the content pane instead of stopping at
+   the frame. Same 1px box as the border it replaces, so nothing moves. */
+.settings-card__header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
 }
 
 .settings-card__title {
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: var(--text-title);
   font-weight: 600;
   letter-spacing: 0.005em;
 }
@@ -54,7 +67,7 @@
 .settings-card__version {
   margin-left: 8px;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -72,14 +85,24 @@
    stacking a dark wash here too would push the sidebar text down another
    contrast step for no visual gain, and the card's own glass is already the
    backdrop the raised page item is supposed to read against. The column is
-   separated by its hairline, not by a different material. */
+   separated by a gradient hairline, not by a different material. */
 .settings-sidebar {
+  position: relative;
   min-width: 0;
   padding: 12px 8px;
   display: grid;
   align-content: start;
   gap: 3px;
-  border-right: 1px solid var(--hairline);
+}
+
+.settings-sidebar::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 1px;
+  background: var(--hairline-fade-vertical);
+  pointer-events: none;
 }
 
 .settings-sidebar__item {
@@ -90,11 +113,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 11.5px;
+  font-size: var(--text-emphasis);
   font-weight: 580;
   text-align: left;
   transition: background-color var(--dur-2) ease, color var(--dur-2) ease, box-shadow var(--dur-2) ease;
@@ -117,7 +140,7 @@
   color: var(--accent);
   box-shadow: var(--glass-raised-shadow), inset 2px 0 0 var(--accent);
 }
-.settings-sidebar__item:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.settings-sidebar__item:focus-visible { outline: var(--focus-ring-width) solid var(--accent-ring); outline-offset: var(--focus-ring-offset); }
 
 .settings-controls {
   min-width: 0;
@@ -153,9 +176,21 @@
   gap: 18px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Scroll edge effect (HIG `scroll-views.md › Scroll edge effects`): the
+     rows passing under the 56px header darken and dissolve instead of being
+     clipped on a hard line. The band is a background-image on the scroller,
+     so it stays pinned to the visible box while the content moves — no extra
+     node, and no second filter. 16px of top padding keeps the resting state
+     clear of the band. */
+  background-image: var(--scroll-edge-band);
+  background-repeat: no-repeat;
+  background-size: 100% var(--scroll-edge);
   /* Remounted (key={settingsPage}) on every page switch, so this replays as
-     an enter transition for each page. */
-  animation: settings-page-enter var(--dur-3) var(--ease-out-back);
+     an enter transition for each page. Page content is an arrival, not a
+     floater: it uses the house ease-out rather than the spring, which is
+     reserved for surfaces that appear over other content (`motion.md`:
+     brief and precise feedback). */
+  animation: settings-page-enter var(--dur-3) var(--ease-out);
 }
 
 @keyframes settings-page-enter {
@@ -177,11 +212,11 @@
   gap: 9px;
   padding: 9px 10px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-warning);
-  font-size: 11.5px;
+  font-size: var(--text-emphasis);
   line-height: 1.4;
 }
 
@@ -202,7 +237,7 @@
   gap: 6px;
   padding: 4px 9px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--glass-control);
   color: var(--text-primary);
   cursor: pointer;
@@ -244,7 +279,7 @@
 }
 
 .settings-content::-webkit-scrollbar-thumb {
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--scrollbar-thumb);
 }
 
@@ -274,7 +309,7 @@
 .settings-section__label {
   margin: 0;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 650;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -288,11 +323,11 @@
   min-height: 24px;
   padding: 0 7px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-weight: 600;
   line-height: 1.2;
   transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) ease;
@@ -301,7 +336,9 @@
 .settings-reset__icon {
   width: 12px;
   color: currentColor;
-  font-size: 15px;
+  /* A symbol, not copy: sized relative to the label it sits beside so it
+     follows the type scale instead of adding a 15px step to it. */
+  font-size: 1.36em;
   font-weight: 500;
   line-height: 1;
   text-align: center;
@@ -324,8 +361,8 @@
 }
 
 .settings-reset:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .settings-options {
@@ -358,7 +395,7 @@
 .opacity-control__label {
   min-width: 0;
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -367,7 +404,7 @@
   flex: 0 0 auto;
   color: var(--accent);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   font-weight: 650;
 }
@@ -390,12 +427,12 @@
   min-height: 21px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
   transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease;
 }
@@ -419,8 +456,8 @@
 
 .opacity-control__preset:focus-visible,
 .opacity-control__range:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .terminal-appearance-settings {
@@ -440,7 +477,7 @@
   align-content: start;
   gap: 7px;
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 600;
 }
 
@@ -456,7 +493,7 @@
   flex: 0 0 auto;
   color: var(--accent);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
 }
 
@@ -474,7 +511,7 @@
   height: 30px;
   padding: 0 26px 0 8px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--glass-field);
   color: var(--text-primary);
   font: inherit;
@@ -491,8 +528,8 @@
 
 .terminal-setting-control input[type="range"]:focus-visible,
 .terminal-setting-control select:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .settings-options--inline {
@@ -500,7 +537,7 @@
   grid-auto-flow: column;
   gap: 2px;
   padding: 3px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--glass-track);
   box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
 }
@@ -513,7 +550,10 @@
   align-items: center;
   gap: 10px;
   padding: 0 10px;
-  border-radius: 5px;
+  /* Concentric with the track it sits in: the track is --radius-md (8px) with
+     3px of padding, so the segment's own radius is 8 − 3 = 5px rather than
+     the same 8px rounded a second time. */
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
   text-align: left;
@@ -544,8 +584,8 @@
 }
 
 .settings-option:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .settings-option__main {
@@ -558,7 +598,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   font-weight: 580;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -567,7 +607,7 @@
 
 .settings-option__description {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 510;
   line-height: 1.15;
 }
@@ -614,7 +654,7 @@
   width: 34px;
   height: 20px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--glass-track);
   box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
   cursor: pointer;
@@ -646,8 +686,8 @@
 }
 
 .settings-switch:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .settings-switch:disabled {
@@ -658,7 +698,7 @@
 .settings-section__hint {
   margin: 0;
   color: var(--text-tertiary);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.35;
 }
@@ -715,7 +755,7 @@
   height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--icon-surface);
   color: var(--text-secondary);
   box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
@@ -736,14 +776,14 @@
 
 .session-manager__name {
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   font-weight: 620;
 }
 
 .session-manager__cwd {
   color: var(--text-muted);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .session-manager__meta {
@@ -752,7 +792,7 @@
   flex-wrap: wrap;
   gap: 4px 10px;
   color: var(--text-tertiary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -778,7 +818,7 @@
   justify-content: center;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -805,11 +845,11 @@
   align-items: center;
   padding: 0 9px;
   border: 1px solid var(--text-warning);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--glass-raised-warm);
   box-shadow: var(--glass-raised-shadow);
   color: var(--text-warning);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-weight: 620;
   white-space: nowrap;
   cursor: pointer;
@@ -824,8 +864,8 @@
 }
 
 .session-manager__kill-confirm:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .session-manager__kill-confirm:disabled {
@@ -850,8 +890,8 @@
 }
 
 .session-manager__icon-button:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .session-manager__icon-button:disabled {
@@ -866,12 +906,21 @@
   justify-items: center;
   gap: 8px;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
+}
+
+/* Empty-state icon: one quiet glyph at a size that reads as an illustration
+   of the state rather than as a control (HIG `feedback.md`). Muted one step
+   below the sentence it introduces, so the copy stays the loudest thing in
+   the empty region. */
+.session-manager__empty > svg {
+  color: var(--text-tertiary);
+  opacity: 0.72;
 }
 
 .session-manager__empty-hint {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
@@ -889,12 +938,12 @@
   min-height: 24px;
   padding: 0 8px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-weight: 600;
   line-height: 1.2;
   transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) ease;
@@ -916,8 +965,8 @@
 }
 
 .session-manager__sort-toggle:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .shortcut-recorder {
@@ -927,12 +976,12 @@
   align-items: center;
   justify-content: center;
   padding: 0 10px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--glass-control);
   border: 1px solid var(--glass-control-edge);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -954,8 +1003,8 @@
 }
 
 .shortcut-recorder:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .shortcut-recorder--recording {
@@ -1006,11 +1055,11 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--glass-raised);
   border: 1px solid var(--glass-control-edge);
   box-shadow: var(--glass-raised-shadow);
-  animation: feedback-enter var(--dur-3) ease-out;
+  animation: feedback-enter var(--dur-3) var(--ease-out);
 }
 
 .update-banner__info {
@@ -1022,23 +1071,23 @@
 
 .update-banner__title {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--text-title);
   font-weight: 600;
 }
 
 .update-banner__desc {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
 }
 
 .update-banner__button {
   flex: 0 0 auto;
   padding: 6px 14px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--accent-contrast);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   font-weight: 600;
   cursor: pointer;
   box-shadow: inset 0 1px 0 var(--glass-raised-rim);
@@ -1067,7 +1116,7 @@
 
 .update-banner__progress-track {
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--glass-track);
   box-shadow: inset 0 0 0 1px var(--glass-track-edge);
   overflow: hidden;
@@ -1075,14 +1124,14 @@
 
 .update-banner__progress-bar {
   height: 100%;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--accent);
   transition: width var(--dur-2) ease;
 }
 
 .update-banner__progress-label {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   text-align: right;

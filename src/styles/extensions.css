@@ -4,7 +4,10 @@
 /* Extension management is a dense settings surface: rows share separators and
    controls, while the drawer owns the only elevated layer in the section. */
 .extensions-panel {
-  --ext-radius: 6px;
+  /* The panel's private radius alias now points at the shared ladder's
+     control step, so its 30 call sites follow the system instead of a
+     literal 6px that happened to match it. */
+  --ext-radius: var(--radius-sm);
   --ext-bg-hover: var(--surface-control-hover);
   --ext-bg-selected: var(--accent-tint-hover);
   --ext-border: 1px solid var(--stroke-control);
@@ -94,8 +97,8 @@
 .extensions-action-button:focus-visible,
 .extension-config-field input:focus-visible,
 .extension-config-field select:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .extensions-icon-button:disabled,
@@ -127,7 +130,7 @@
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   line-height: 1.45;
 }
 
@@ -231,7 +234,7 @@
 #floter-app-toasts[data-surface="collapsed"] > .app-toast {
   height: 20px;
   padding: 0 8px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   overflow: hidden;
   box-shadow: 0 6px 18px var(--window-shadow-ambient);
 }
@@ -257,11 +260,11 @@
   gap: 8px;
   padding: 9px 10px;
   border: 1px solid var(--stroke-control);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--glass-float);
   box-shadow: var(--glass-float-shadow);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
   line-height: 1.4;
   pointer-events: auto;
   animation: app-toast-in var(--dur-3) var(--ease-out);
@@ -296,7 +299,7 @@
   flex: 0 0 auto;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -309,8 +312,8 @@
 }
 
 .app-toast__dismiss:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 @keyframes app-toast-in {
@@ -351,7 +354,7 @@
      alignment gives 18px of stable heading box. */
   min-height: 18px;
   color: var(--text-tertiary);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.5;
@@ -376,7 +379,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
@@ -397,7 +400,7 @@
   gap: 8px 14px;
   padding: 8px 10px;
   border: var(--ext-border);
-  border-radius: calc(var(--ext-radius) + 2px);
+  border-radius: var(--radius-md);
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
 }
@@ -431,7 +434,7 @@
   gap: 3px 18px;
   padding: 0 2px;
 }
-.extensions-package-hint { padding: 0; display: grid; grid-template-columns: 13px minmax(0, 1fr); gap: 6px; align-items: center; border: 0; border-radius: 0; background: transparent; color: var(--text-tertiary); font-size: 10px; line-height: 1.5; }.extensions-package-hint svg { margin-top: 0; flex: 0 0 auto; color: var(--text-tertiary); }
+.extensions-package-hint { padding: 0; display: grid; grid-template-columns: 13px minmax(0, 1fr); gap: 6px; align-items: center; border: 0; border-radius: 0; background: transparent; color: var(--text-tertiary); font-size: var(--text-caption); line-height: 1.5; }.extensions-package-hint svg { margin-top: 0; flex: 0 0 auto; color: var(--text-tertiary); }
 
 .extensions-list {
   min-width: 0;
@@ -439,7 +442,19 @@
 }
 
 .extensions-list--installed {
-  border-top: var(--ext-border);
+  /* A gradient hairline instead of a full-width 1px rule: the list's top edge
+     dissolves at both ends rather than being cut off by the panel frame. */
+  position: relative;
+}
+
+.extensions-list--installed::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
 }
 
 /* Base-plugin cards sit in their own column so they read as toggle cards,
@@ -449,7 +464,19 @@
 }
 
 .extensions-list--installed > .extension-row:not(:last-child) {
-  border-bottom: 1px solid var(--hairline);
+  /* A gradient hairline band drawn at the row's bottom edge; the row keeps its
+     own box so the list rhythm is unchanged. */
+  position: relative;
+}
+
+.extensions-list--installed > .extension-row:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
 }
 
 /* Detected group (unconnected tools on this device). It reuses the Connected
@@ -584,7 +611,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 12.5px;
+  font-size: var(--text-title);
   font-weight: 600;
   /* Explicit line box so the title row's height is font-independent: with no
      rule it inherited `normal` (~1.2), whose ascent/descent varies between
@@ -597,7 +624,7 @@
 .extension-row__title span {
   flex: 0 0 auto;
   color: var(--text-tertiary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
 }
@@ -611,7 +638,7 @@
   align-items: center;
   gap: 3px 8px;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.55;
   overflow: hidden;
 }
@@ -709,7 +736,7 @@
   background: var(--glass-raised);
   box-shadow: var(--glass-raised-shadow);
   color: var(--accent);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   cursor: default;
 }
 
@@ -739,7 +766,7 @@
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 600;
   white-space: nowrap;
   flex: 0 0 auto;
@@ -826,7 +853,7 @@
   border-radius: var(--ext-radius);
   background: transparent;
   color: var(--text-strong);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -853,7 +880,7 @@
   justify-content: center;
   gap: 7px;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
   /* Explicit line box: the loading placeholder and the empty placeholder share
      this rule, so pinning it keeps both states the same height across fonts. */
   line-height: 1.5;
@@ -901,13 +928,13 @@
 
 .extension-permission-dialog h3 {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--text-title);
 }
 
 .extension-permission-dialog p {
   margin-top: 3px;
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   line-height: 1.4;
 }
 
@@ -923,7 +950,7 @@
   display: block;
   margin-bottom: 6px;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -935,20 +962,20 @@
   gap: 3px;
   padding: 8px 10px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--icon-surface);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
 }
 
 .extension-permission-item strong {
   color: var(--text-primary);
-  font-size: 11.5px;
+  font-size: var(--text-emphasis);
   font-weight: 600;
 }
 
 .extension-permission-item span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
@@ -969,7 +996,7 @@
 .extension-permission-section h4 {
   margin: 0;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 650;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1020,12 +1047,12 @@
 
 .extension-permission-list strong {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
 }
 
 .extension-permission-list span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -1082,20 +1109,20 @@
 }
 
 .extension-tool-choice-list strong {
-  font-size: 11px;
+  font-size: var(--text-body);
 }
 
 .extension-tool-choice-list span {
   grid-column: 1 / -1;
   color: var(--text-strong);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .extension-tool-choice-list small {
   grid-column: 2;
   grid-row: 1;
   color: var(--text-strong);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .extension-permission-dialog__boundary {
@@ -1106,7 +1133,7 @@
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
@@ -1151,65 +1178,65 @@
 
 .extension-custom-dialog__header h3,
 .extension-custom-dialog__header p { margin: 0; }
-.extension-custom-dialog__header h3 { color: var(--text-strong); font-size: 13px; }
-.extension-custom-dialog__header p { margin-top: 3px; color: var(--text-muted); font-size: 10.5px; }
-.extension-custom-dialog__loading { min-height: 42px; padding: 12px 14px; display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: 10.5px; }
+.extension-custom-dialog__header h3 { color: var(--text-strong); font-size: var(--text-title); }
+.extension-custom-dialog__header p { margin-top: 3px; color: var(--text-muted); font-size: var(--text-body); }
+.extension-custom-dialog__loading { min-height: 42px; padding: 12px 14px; display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: var(--text-body); }
 
 .extension-custom-form { min-height: 0; padding: 12px 14px 0; display: grid; gap: 12px; overflow-y: auto; }
 .extension-custom-form__fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
 .extension-custom-form__error { margin: 10px 14px 0; overflow-wrap: anywhere; }
 .extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: var(--ext-radius); background: var(--glass-track); box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge); }
-.extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: var(--ext-radius); background: transparent; color: var(--text-strong); cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: var(--ext-radius); background: transparent; color: var(--text-strong); cursor: pointer; font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
 .extension-custom-mode__item--active { background: var(--glass-raised); box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge); color: var(--accent); }
 .extension-custom-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; }
-.extension-custom-form label { min-width: 0; display: grid; gap: 4px; color: var(--text-muted); font-size: 10px; font-weight: 600; }
+.extension-custom-form label { min-width: 0; display: grid; gap: 4px; color: var(--text-muted); font-size: var(--text-caption); font-weight: 600; }
 .extension-custom-form__wide { grid-column: 1 / -1; }
 .extension-custom-form input,
 .extension-custom-form select,
 .extension-custom-form textarea { width: 100%; min-width: 0; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-field); box-shadow: var(--glass-field-shadow); color: var(--text-primary); font: inherit; user-select: text; }
 .extension-custom-form input,
 .extension-custom-form select { min-height: var(--extensions-control-height); padding: 3px 7px; }
-.extension-custom-form textarea { min-height: 150px; padding: 8px; resize: vertical; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 10.5px; line-height: 1.45; }
+.extension-custom-form textarea { min-height: 150px; padding: 8px; resize: vertical; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: var(--text-body); line-height: 1.45; }
 .extension-custom-form input:focus-visible,
 .extension-custom-form select:focus-visible,
 .extension-custom-form textarea:focus-visible,
-.extension-custom-mode__item:focus-visible { outline: 1px solid var(--accent-ring); outline-offset: 1px; }
+.extension-custom-mode__item:focus-visible { outline: var(--focus-ring-width) solid var(--accent-ring); outline-offset: 1px; }
 .extension-tool-results-anchor { position: relative; }
-.extension-tool-results { display: flex; flex-direction: column; gap: 2px; min-height: 0; max-height: 160px; overflow-y: auto; margin-top: 8px; padding: 4px; border: 1px solid var(--glass-control-edge); border-radius: 6px; background: var(--surface-sunken); }
+.extension-tool-results { display: flex; flex-direction: column; gap: 2px; min-height: 0; max-height: 160px; overflow-y: auto; margin-top: 8px; padding: 4px; border: 1px solid var(--glass-control-edge); border-radius: var(--radius-md); background: var(--surface-sunken); }
 .extension-tool-results:empty { display: none; }
-.extension-tool-results > span { padding: 8px 10px; color: var(--text-tertiary); font-size: 11px; }
-.extension-tool-results button.extension-tool-result { width: 100%; min-width: 0; padding: 6px 8px; display: flex; align-items: center; gap: 8px; border: none; border-radius: 4px; background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color var(--dur-2) ease; }
+.extension-tool-results > span { padding: 8px 10px; color: var(--text-tertiary); font-size: var(--text-body); }
+.extension-tool-results button.extension-tool-result { width: 100%; min-width: 0; padding: 6px 8px; display: flex; align-items: center; gap: 8px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color var(--dur-2) ease; }
 .extension-tool-results button.extension-tool-result:last-child { border-bottom: none; }
 @media (hover: hover) and (pointer: fine) { .extension-tool-results button.extension-tool-result:hover { background: var(--glass-control-hover); box-shadow: inset 0 1px 0 var(--glass-control-rim); } }
 .extension-tool-results button.extension-tool-result--active { background: var(--glass-raised); box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge); color: var(--accent); }
-.extension-tool-results strong { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 500; }
-.extension-tool-results span { flex: 0 0 auto; max-width: 50%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--text-muted); font-family: "SF Mono", Menlo, Monaco, monospace; }
-.extension-tool-results strong small { overflow: hidden; color: var(--text-tertiary); font-size: 9px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-.extension-tool-results strong small.extension-tool-result__badge { display: inline-flex; align-items: center; gap: 3px; width: fit-content; padding: 1px 5px; border-radius: 3px; background: var(--accent-tint); color: var(--accent); }
-.extension-tool-results__header { padding: 6px 8px 3px; color: var(--text-tertiary); font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; }
+.extension-tool-results strong { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); font-weight: 500; }
+.extension-tool-results span { flex: 0 0 auto; max-width: 50%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-muted); font-family: "SF Mono", Menlo, Monaco, monospace; }
+.extension-tool-results strong small { overflow: hidden; color: var(--text-tertiary); font-size: var(--text-caption); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.extension-tool-results strong small.extension-tool-result__badge { display: inline-flex; align-items: center; gap: 3px; width: fit-content; padding: 1px 5px; border-radius: var(--radius-xs); background: var(--accent-tint); color: var(--accent); }
+.extension-tool-results__header { padding: 6px 8px 3px; color: var(--text-tertiary); font-size: var(--text-caption); font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; }
 .extension-custom-permissions { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; border: 0; }
-.extension-custom-permissions legend { width: 100%; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-weight: 650; text-transform: uppercase; }
-.extension-custom-permissions__hint { width: 100%; margin: -2px 0 2px; color: var(--text-tertiary); font-size: 9.5px; line-height: 1.35; }
-.extension-custom-permissions label { display: flex; grid-auto-flow: column; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 10px; font-weight: 500; }
+.extension-custom-permissions legend { width: 100%; margin-bottom: 6px; color: var(--text-muted); font-size: var(--text-caption); font-weight: 650; text-transform: uppercase; }
+.extension-custom-permissions__hint { width: 100%; margin: -2px 0 2px; color: var(--text-tertiary); font-size: var(--text-caption); line-height: 1.35; }
+.extension-custom-permissions label { display: flex; grid-auto-flow: column; align-items: center; gap: 5px; color: var(--text-secondary); font-size: var(--text-caption); font-weight: 500; }
 .extension-custom-permissions input { width: 14px; min-height: 14px; accent-color: var(--accent); }
-.extension-custom-permission-boundary { padding: 8px 9px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-control); box-shadow: inset 0 1px 0 var(--glass-control-rim); color: var(--text-muted); font-size: 9.5px; line-height: 1.4; }
+.extension-custom-permission-boundary { padding: 8px 9px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-control); box-shadow: inset 0 1px 0 var(--glass-control-rim); color: var(--text-muted); font-size: var(--text-caption); line-height: 1.4; }
 .extension-custom-permission-boundary svg { margin-top: 1px; color: var(--text-tertiary); }
 .extension-removal-dialog { width: min(440px, 100%); max-height: calc(100% - 32px); padding: 17px; display: grid; gap: 14px; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-float); box-shadow: var(--glass-float-shadow); }
 .extension-removal-dialog > header { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text-primary); }
 .extension-removal-dialog > header > svg { margin-top: 2px; color: var(--text-warning); }
 .extension-removal-dialog h3, .extension-removal-dialog p { margin: 0; }
-.extension-removal-dialog h3 { color: var(--text-strong); font-size: 13px; }
-.extension-removal-dialog p { margin-top: 5px; color: var(--text-muted); font-size: 10.5px; line-height: 1.45; }
-.extension-removal-dialog__warning { padding: 9px; border: 1px solid var(--text-warning); border-radius: var(--ext-radius); background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-secondary); font-size: 10px; line-height: 1.4; }
+.extension-removal-dialog h3 { color: var(--text-strong); font-size: var(--text-title); }
+.extension-removal-dialog p { margin-top: 5px; color: var(--text-muted); font-size: var(--text-body); line-height: 1.45; }
+.extension-removal-dialog__warning { padding: 9px; border: 1px solid var(--text-warning); border-radius: var(--ext-radius); background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-secondary); font-size: var(--text-caption); line-height: 1.4; }
 .extension-removal-dialog > footer { display: flex; justify-content: flex-end; gap: 7px; }
 .extension-custom-form > footer { position: sticky; bottom: 0; margin: 0 -14px; padding: 10px 14px; display: flex; justify-content: flex-end; gap: 7px; border-top: 1px solid var(--hairline); background: var(--surface-opaque); }
 .extension-argument-editor { min-width: 0; display: grid; gap: 5px; align-content: start; }
-.extension-argument-editor__heading { min-height: 20px; display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); font-size: 10px; font-weight: 600; }
+.extension-argument-editor__heading { min-height: 20px; display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); font-size: var(--text-caption); font-weight: 600; }
 .extension-argument-editor__add { width: 28px; height: 28px; min-height: 28px; }
 .extension-argument-editor__row { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: var(--extensions-inline-gap); align-items: center; }
 .extension-argument-editor__row input { min-width: 0; }
 .extension-argument-editor__row .extensions-icon-button { width: 28px; height: 28px; min-height: 28px; }
-.extension-argument-editor__empty { min-height: 29px; padding: 7px; border: 1px dashed var(--hairline); border-radius: var(--ext-radius); color: var(--text-tertiary); font-size: 10px; }
+.extension-argument-editor__empty { min-height: 29px; padding: 7px; border: 1px dashed var(--hairline); border-radius: var(--ext-radius); color: var(--text-tertiary); font-size: var(--text-caption); }
 
 /* Detail drawer: the backdrop is fixed-scoped to the floater body (see the
    containment note on `.settings-card`), so `inset: 56px 0 0` starts below
@@ -1269,7 +1296,7 @@
   margin: 0;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--text-title);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1277,7 +1304,7 @@
 
 .extension-drawer__header span {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1285,7 +1312,7 @@
   flex: 0 0 auto;
   padding: 1px 6px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-variant-numeric: normal;
   white-space: nowrap;
 }
@@ -1313,7 +1340,7 @@
   gap: 7px;
   padding: 10px 12px;
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: var(--text-body);
 }
 
 .extension-detail-block {
@@ -1326,7 +1353,7 @@
 .extension-detail-block h4 {
   margin: 0;
   color: var(--text-tertiary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   font-weight: 650;
   text-transform: uppercase;
 }
@@ -1351,14 +1378,14 @@
 
 .extension-metadata dt {
   color: var(--text-tertiary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .extension-metadata dd {
   margin: 2px 0 0;
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1373,7 +1400,7 @@
 .extension-detail-empty {
   margin: 0;
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: var(--text-body);
   line-height: 1.4;
 }
 
@@ -1386,33 +1413,33 @@
   background: var(--glass-control);
   border-radius: var(--ext-radius);
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
 .extension-health { display: flex; flex-direction: column; gap: 6px; }
 .extension-health__header { display: flex; align-items: center; gap: 8px; }
-.extension-health__status { padding: 2px 8px; border-radius: var(--ext-radius); font-weight: 600; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0; }
+.extension-health__status { padding: 2px 8px; border-radius: var(--ext-radius); font-weight: 600; font-size: var(--text-caption); text-transform: uppercase; letter-spacing: 0; }
 .extension-health__status--healthy { background: var(--glass-raised); box-shadow: var(--glass-raised-shadow); color: var(--accent); }
 .extension-health__status--degraded { background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-warning); }
 .extension-health__status--unhealthy { background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-warning); }
 .extension-health__status--unknown { background: var(--glass-control); box-shadow: inset 0 1px 0 var(--glass-control-rim); color: var(--text-muted); }
-.extension-health__version { font-size: 10px; color: var(--text-muted); }
-.extension-health__label { font-weight: 600; font-size: 9.5px; color: var(--text-tertiary); text-transform: uppercase; margin-right: 4px; }
+.extension-health__version { font-size: var(--text-caption); color: var(--text-muted); }
+.extension-health__label { font-weight: 600; font-size: var(--text-caption); color: var(--text-tertiary); text-transform: uppercase; margin-right: 4px; }
 .extension-health__features, .extension-health__limitations, .extension-health__probes { display: flex; flex-direction: column; gap: 3px; }
-.extension-health__tag { display: inline-block; padding: 1px 5px; background: var(--glass-raised); box-shadow: var(--glass-raised-shadow); color: var(--accent); border-radius: var(--ext-radius); font-size: 9px; margin-right: 3px; }
-.extension-health__probe { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--hairline); font-size: 10px; }
+.extension-health__tag { display: inline-block; padding: 1px 5px; background: var(--glass-raised); box-shadow: var(--glass-raised-shadow); color: var(--accent); border-radius: var(--ext-radius); font-size: var(--text-caption); margin-right: 3px; }
+.extension-health__probe { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--hairline); font-size: var(--text-caption); }
 .extension-health__probe-status { width: 11px; height: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
 .extension-health__probe-status--passed { color: var(--accent); }
 .extension-health__probe-status--failed { color: var(--text-warning); }
-.extension-health__probe-id { font-family: ui-monospace, monospace; font-size: 10px; }
-.extension-health__probe-duration { font-size: 9px; color: var(--text-muted); margin-left: auto; }
+.extension-health__probe-id { font-family: ui-monospace, monospace; font-size: var(--text-caption); }
+.extension-health__probe-duration { font-size: var(--text-caption); color: var(--text-muted); margin-left: auto; }
 .extension-health__failures { display: flex; flex-direction: column; gap: 4px; }
-.extension-health__failure { padding: 5px; background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); border-radius: var(--ext-radius); border-left: 2px solid var(--text-warning); font-size: 10px; }
-.extension-health__failure-code { font-size: 10px; color: var(--text-muted); margin-left: 4px; }
-.extension-health__failure-stderr { font-size: 9px; color: var(--text-secondary); margin-top: 3px; white-space: pre-wrap; word-break: break-all; }
-.extension-health__retryable { display: inline-block; margin-left: 6px; padding: 1px 4px; background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-warning); border-radius: var(--ext-radius); font-size: 9px; }
-.extension-health__timestamp { font-size: 9px; color: var(--text-muted); margin-top: 4px; }
+.extension-health__failure { padding: 5px; background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); border-radius: var(--ext-radius); border-left: 2px solid var(--text-warning); font-size: var(--text-caption); }
+.extension-health__failure-code { font-size: var(--text-caption); color: var(--text-muted); margin-left: 4px; }
+.extension-health__failure-stderr { font-size: var(--text-caption); color: var(--text-secondary); margin-top: 3px; white-space: pre-wrap; word-break: break-all; }
+.extension-health__retryable { display: inline-block; margin-left: 6px; padding: 1px 4px; background: var(--glass-raised-warm); box-shadow: var(--glass-raised-shadow); color: var(--text-warning); border-radius: var(--ext-radius); font-size: var(--text-caption); }
+.extension-health__timestamp { font-size: var(--text-caption); color: var(--text-muted); margin-top: 4px; }
 
 .extension-command-list,
 .extension-diagnostics {
@@ -1436,14 +1463,14 @@
 .extension-command-list code {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .extension-command-list span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.3;
 }
 
@@ -1454,7 +1481,7 @@
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   text-transform: capitalize;
 }
 
@@ -1482,14 +1509,14 @@
 
 .extension-check {
   color: var(--text-tertiary);
-  font-size: 9px;
+  font-size: var(--text-caption);
   text-transform: capitalize;
 }
 
 .extension-diagnostics p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.3;
 }
 
@@ -1501,7 +1528,7 @@
 .extension-config-toolbar,
 .extension-config-form__actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .extension-config-toolbar__actions { display: flex; align-items: center; gap: 2px; }
-.extension-config-status { color: var(--text-tertiary); font-size: 9.5px; }
+.extension-config-status { color: var(--text-tertiary); font-size: var(--text-caption); }
 .extension-config-status--dirty { color: var(--text-warning); }
 
 .extension-config-field {
@@ -1511,7 +1538,7 @@
   align-items: center;
   gap: 5px 9px;
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-body);
 }
 
 .extension-config-field > span {
@@ -1548,7 +1575,7 @@
 .extension-config-field small {
   grid-column: 2;
   color: var(--text-tertiary);
-  font-size: 9px;
+  font-size: var(--text-caption);
   line-height: 1.3;
 }
 
@@ -1584,7 +1611,7 @@
   height: 24px;
   min-height: 24px;
   padding: 0 9px;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -1668,7 +1695,7 @@
   gap: 16px;
   padding: 12px 14px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--glass-control);
   box-shadow: inset 0 1px 0 var(--glass-control-rim);
 }
@@ -1682,7 +1709,7 @@
 
 .extensions-base-plugin__name {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--text-title);
   /* Explicit line box: the card's min-height arithmetic above assumes this
      name line is 1.5 * 13px = 19.5px, but with no rule it inherited the
      browser's `normal` (~1.2 => 15.6px) and the card settled ~4px shorter
@@ -1692,7 +1719,7 @@
 
 .extensions-base-plugin__description {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   line-height: 1.5;
 }
 
@@ -1715,7 +1742,7 @@
 
 .extensions-base-plugin__hotkey-label {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
 }
 
 .extensions-base-plugin__rejected {
@@ -1725,5 +1752,5 @@
 .extensions-base-plugin__privacy {
   padding: 2px 2px 0;
   margin: 0;
-  font-size: 11px;
+  font-size: var(--text-body);
 }

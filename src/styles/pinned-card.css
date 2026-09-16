@@ -16,7 +16,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--input-stroke);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
@@ -30,7 +30,7 @@
     inset 0 1px 0 var(--edge-highlight),
     inset 1px 0 0 var(--edge-highlight-x),
     inset -1px 0 0 var(--edge-highlight-x);
-  animation: feedback-enter var(--dur-3) ease-out;
+  animation: feedback-enter var(--dur-3) var(--ease-out);
 }
 
 .pinned-card--focused {
@@ -80,7 +80,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 560;
   line-height: 1;
 }
@@ -92,11 +92,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-title);
   line-height: 1;
   transition: background var(--dur-2) ease, color var(--dur-2) ease;
 }
@@ -116,7 +116,7 @@
 }
 
 .pinned-card__close:focus-visible {
-  outline: 2px solid var(--accent-ring);
+  outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: -2px;
 }
 
@@ -163,11 +163,11 @@
 
 .terminal-pinned-note__title {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-title);
   font-weight: 600;
 }
 
 .terminal-pinned-note span:not(.terminal-pinned-note__title) {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
 }

@@ -87,7 +87,7 @@
   border: none;
   background: transparent;
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: var(--text-display);
   font-weight: 460;
   line-height: 1.3;
   letter-spacing: 0;
@@ -108,7 +108,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -137,8 +137,8 @@
 }
 
 .collapsed-card__settings:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* The whole area below the input: the result list, the action bar, or both. The
@@ -154,8 +154,21 @@
   display: grid;
   gap: 0;
   padding: 4px;
-  border-top: 1px solid var(--hairline);
   background: var(--surface-sunken);
+}
+
+/* The separator between the query field and the result field is a gradient
+   hairline drawn as a background band, not a border: a 1px solid line stops
+   dead at both frame edges, while the fade dissolves into the surface. The
+   band keeps its own box so the row metrics are unchanged. */
+.launcher-bottom::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
 }
 
 /* The native window owns the overall height. Keep the clip's final layout state
@@ -200,10 +213,10 @@
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--system-icon-surface);
   color: var(--text-warning);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 560;
   line-height: 1.2;
 }
@@ -236,7 +249,7 @@
   flex: 0 0 auto;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -252,7 +265,7 @@
 }
 
 .launcher-feedback__retry:focus-visible {
-  outline: 1px solid var(--accent-ring);
+  outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: 1px;
 }
 
@@ -264,7 +277,7 @@
   align-items: center;
   padding: 0 10px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.2;
 }
@@ -278,12 +291,12 @@
   justify-content: space-between;
   gap: 8px;
   padding: 4px 10px 4px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--glass-raised);
   border: 1px solid var(--accent-edge);
   box-shadow: var(--glass-raised-shadow);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.3;
 }
@@ -314,13 +327,13 @@
 
 .launcher-tip__title {
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 600;
 }
 
 .launcher-tip__message {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 450;
 }
 
@@ -332,10 +345,10 @@
   height: 22px;
   padding: 0 10px;
   border: 1px solid var(--stroke-control, var(--hairline));
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: var(--glass-control);
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 600;
   cursor: pointer;
   transition: color var(--dur-2) ease, background var(--dur-2) ease, border-color var(--dur-2) ease;
@@ -355,7 +368,7 @@
 }
 
 .launcher-tip__dismiss:focus-visible {
-  outline: 1px solid var(--accent-ring);
+  outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: 1px;
 }
 
@@ -365,10 +378,10 @@
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--system-icon-surface);
   color: var(--text-warning);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 560;
   line-height: 1.2;
 }
@@ -394,10 +407,10 @@
   flex: 0 0 auto;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: inherit;
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -417,7 +430,7 @@
 
 .launcher-system-confirm__execute:focus-visible,
 .launcher-system-confirm__cancel:focus-visible {
-  outline: 1px solid var(--accent-ring);
+  outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: 1px;
 }
 
@@ -438,11 +451,25 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: var(--scrollbar-thumb) transparent;
+  /* Scroll edge effect (HIG `scroll-views.md › Scroll edge effects`): rows
+     that scroll under the query field darken and dissolve instead of being
+     cut on a hard line. The band is a background-image on the scroller —
+     which stays pinned to the element's box while its content scrolls — so
+     it costs no extra node and never becomes a second filter.
+     The scroller reserves the band's own height as top padding: at rest the
+     first row starts below the fade, so nothing is dimmed until it actually
+     scrolls under the field. `padding-top` on a grid also moves the first
+     row rather than only the content box, which is what makes the reservation
+     exact. */
+  padding: var(--scroll-edge) 0 0;
+  background-image: var(--scroll-edge-band);
+  background-repeat: no-repeat;
+  background-size: 100% var(--scroll-edge);
 }
 
 .launcher-section-title {
   padding: 6px 11px 4px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 650;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -463,7 +490,7 @@
   align-items: center;
   gap: 10px;
   padding: 0 9px 0 11px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
   text-align: left;
@@ -505,10 +532,10 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--icon-surface);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   font-weight: 650;
   box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
 }
@@ -566,7 +593,7 @@
   white-space: normal;
   overflow-wrap: anywhere;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 510;
   text-align: right;
 }
@@ -587,14 +614,14 @@
 
 .launcher-result__title {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--text-title);
   font-weight: 580;
   line-height: 1.2;
 }
 
 .launcher-result__subtitle {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 510;
   line-height: 1.15;
 }
@@ -602,7 +629,7 @@
 .launcher-result__action {
   min-width: 30px;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 620;
   text-align: right;
 }
@@ -625,6 +652,7 @@
    the same keys and run with the same Enter, so it should read as one more row
    and not as a footer. */
 .launcher-action-bar {
+  position: relative;
   width: 100%;
   height: 42px;
   display: grid;
@@ -638,9 +666,8 @@
      there costs one hairline in the no-results case and buys a bottom edge
      that never jumps while typing. */
   margin-top: 3px;
-  border-top: 1px solid var(--hairline);
   padding: 0 9px 0 11px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
   text-align: left;
@@ -648,12 +675,26 @@
   transition: background-color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
+/* The separator is the same gradient hairline the bottom field uses, drawn as
+   a 1px band above the row so it never collides with the rounded corners. */
+.launcher-action-bar::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
+}
+
 /* Square top corners when a list actually sits above, so the action bar reads
    as the last row of that list rather than as a separate card. Paint only —
    the separator's metrics live on `.launcher-action-bar` unconditionally so
    that nothing here can move the panel's bottom edge as results come and go. */
+/* The band's containing block: the action bar is positioned so the gradient
+   hairline can sit exactly on its top edge. */
 .launcher-results + .launcher-action-bar {
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .launcher-action-bar--selected {
@@ -666,10 +707,10 @@
   height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--icon-surface);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   font-weight: 650;
   box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
 }
@@ -687,10 +728,10 @@
 
 .launcher-action-bar__hint {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 500;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--icon-surface);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
   letter-spacing: 0.02em;
@@ -709,14 +750,14 @@
 .launcher-action-bar__title {
   color: var(--text-strong);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: var(--text-title);
   font-weight: 520;
   line-height: 1.2;
 }
 
 .launcher-action-bar__subtitle {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 510;
   line-height: 1.15;
 }

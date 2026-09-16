@@ -25,6 +25,126 @@
      as a square outline around the rounded corners. */
   --window-radius: 10px;
 
+  /* ── Corner radius ladder (R7-HIG) ──────────────────────────────────────
+     Before this round the stylesheet carried nine unrelated literal radii
+     (2/3/4/5/6/7/8/10/999px) with no rule saying which belonged where. The
+     ladder names the four jobs a radius actually does, and every surface
+     picks the step that matches its nesting depth:
+
+       --radius-xs  4px   inside a small control (chip, badge, bar cap)
+       --radius-sm  6px   a control on a surface (button, input, row icon)
+       --radius-md  8px   a container holding controls (card, menu, dialog)
+       --radius-lg  10px the window / a full panel
+
+     A control nested in a container keeps the concentric relation
+     outer = inner + padding, which is why the window's 10px is not reused
+     on the 6px button inside it. The steps are 2px apart so a nested pair
+     always reads as concentric rather than as one radius rounded twice. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  /* ── Type scale (R7-HIG) ────────────────────────────────────────────────
+     Four steps plus the launcher's display size, and every text rule in the
+     stylesheet resolves to one of them. Before this round the sheets carried
+     13 distinct sizes, including 23 declarations below 10px — under the
+     platform minimum (macOS: default 13pt, minimum 10pt, `accessibility.md ›
+     Vision`). The sub-10 sizes were the round's one real accessibility
+     defect: they were legible on a 2x display and not on a 1x one.
+
+       --text-caption   10px   section labels, metadata, counts, hints
+       --text-body      11px   row subtitles, descriptions, control labels
+       --text-emphasis  12px   row titles, control values
+       --text-title     13px   card titles, dialog headings
+       --text-display   17px   the launcher's query field only
+
+     Line-height pairs are set per rule, not globally: a caption sits in a
+     fixed 18px box (R6), body copy runs 1.4-1.5, and the display line runs
+     1.3. Raising the sub-10 sizes is the point; the half-pixel steps
+     (9.5/10.5/11.5/12.5) are collapsed into the nearest step so the same
+     semantic role cannot render at two sizes on two screens. */
+  --text-caption: 10px;
+  --text-body: 11px;
+  --text-emphasis: 12px;
+  --text-title: 13px;
+  --text-display: 17px;
+
+  /* ── Elevation ladder (R7-HIG) ──────────────────────────────────────────
+     Three depths, and the shadow colour follows the material rather than
+     being a second palette: the contact step is the same near-black the
+     glass uses, and the ambient step is a wider, softer version of it. A
+     surface picks a rung by how far it floats, not by how important it
+     feels.
+
+       --elev-1  a control pressed against the surface (no shadow)
+       --elev-2  a pane raised off it (selection, card)
+       --elev-3  a floater over content (drawer, dialog, toast)
+
+     `--glass-float-shadow` and `--glass-rim-shadow` stay the shells' own
+     tokens; these name the rungs so a new floater does not invent a fourth
+     shadow. */
+  --elev-1: none;
+  --elev-2: 0 1px 2px var(--window-shadow-contact);
+  --elev-3: var(--glass-float-shadow);
+
+  /* ── Hairline (R7-HIG) ──────────────────────────────────────────────────
+     A 1px solid hairline is a hard cut where scrolling content meets a bar.
+     `--hairline-fade` is the same colour with both ends transparent, so the
+     separator reads as a lit groove that dissolves into the surface instead
+     of a drawn line that stops at the frame. Painted as a background on a
+     1px band rather than as a border, because a border cannot carry a
+     gradient; `--hairline-fade-vertical` is the same idea for a column
+     separator (sidebar). */
+  --hairline-fade: linear-gradient(
+    90deg,
+    transparent,
+    var(--hairline) 12%,
+    var(--hairline) 88%,
+    transparent
+  );
+  --hairline-fade-vertical: linear-gradient(
+    180deg,
+    transparent,
+    var(--hairline) 10%,
+    var(--hairline) 90%,
+    transparent
+  );
+
+  /* ── Scroll edge effect (R7-HIG) ────────────────────────────────────────
+     Apple's scroll edge effect, translated to CSS: content that slides under
+     a bar darkens and dissolves instead of being cut on a hard line
+     (`scroll-views.md › Scroll edge effects`: "a visual separation between
+     certain interface elements, such as toolbars, and the scrolling content
+     area behind them"). It is a plain gradient band, never a filter — the
+     blur already lives on the shell, and a second filter here would break
+     the one-filter-per-surface budget.
+
+     The band is `--scroll-edge` tall, painted as the scroller's own
+     background-image so it stays pinned to the visible box while the content
+     moves. It is a *darkening* gradient — the same near-black the app already
+     uses for a contact shadow — so it reads as the bar casting depth onto the
+     content rather than as a lighter panel colour painted over it, and it
+     works over any content (rows, headings, a recess) without a second
+     palette. Every scroller that uses it reserves at least `--scroll-edge` of
+     top padding, so the resting state sits below the band and only content
+     that actually scrolls under the bar passes through the fade. */
+  --scroll-edge: 14px;
+  --scroll-edge-soft: 8px;
+  --scroll-edge-shadow: var(--window-shadow-contact);
+  --scroll-edge-band: linear-gradient(to bottom, var(--scroll-edge-shadow), transparent);
+  --scroll-edge-band-soft: linear-gradient(to top, var(--scroll-edge-shadow), transparent);
+
+  /* ── Focus ring (R7-HIG) ────────────────────────────────────────────────
+     One ring for the whole app. The sheets had drifted between 1px and 2px
+     outlines at 1px and 2px offsets; the ring now has a single width and a
+     single offset, and `--focus-ring-inset` is the variant for controls that
+     would clip a ring drawn outside them (`focus-and-selection.md › Best
+     practices`: focus must be visible and consistent). */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-inset: inset 0 0 0 2px var(--accent-ring);
+
   /* Shared easings. `--spring` overshoots its end value slightly before
      settling, which is what separates a panel that appears from one that is
      placed; `--ease-in-out` is for anything that has to leave and return along
@@ -475,7 +595,9 @@ canvas {
 }
 
 ::-webkit-scrollbar-thumb {
-  border-radius: 3px;
+  /* A 6px track wants a pill; --radius-xs (4px) is the closest step and keeps
+     the ladder absolute rather than carving out a scrollbar exception. */
+  border-radius: var(--radius-xs);
   background: transparent;
 }
 
@@ -541,7 +663,17 @@ canvas {
   .collapsed-card__aura,
   .terminal-bar,
   .terminal-panel__actions,
-  .terminal-bar__frost {
+  .terminal-bar__frost,
+  .settings-reset,
+  .session-manager__icon-button,
+  .session-manager__sort-toggle,
+  .session-manager__kill-confirm,
+  .opacity-control__preset,
+  .clipboard-panel__tab,
+  .clipboard-panel__filter-clear,
+  .clipboard-row,
+  .launcher-action-bar,
+  .launcher-result {
     transition: none;
   }
 

@@ -135,7 +135,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 580;
   line-height: 1;
   letter-spacing: -0.01em;
@@ -179,12 +179,12 @@
   gap: 8px;
   padding: 7px 10px;
   border: 1px solid var(--accent-edge);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   /* The same floating material the toasts, dialogs and the drawer use, so an
      in-panel notice and an app-level toast are visibly the same layer. */
   background: var(--glass-float);
   color: var(--text-warning);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-weight: 560;
   line-height: 1.25;
   box-shadow: var(--glass-float-shadow);
@@ -277,18 +277,22 @@
 }
 
 .toolbar-button {
-  width: 24px;
-  min-width: 24px;
-  height: 22px;
+  /* 28x22 -> 28x28: the desktop default hit region is 28x28pt
+     (`accessibility.md › Mobility`), and the 28px bar has the height to give.
+     The icon inside stays 15-16px, so the button still reads as small while
+     the target stops being the smallest thing on screen. */
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   line-height: 1;
   transition: transform var(--dur-1) ease, background var(--dur-2) ease, color var(--dur-2) ease;
 }
@@ -315,8 +319,8 @@
 }
 
 .toolbar-button:focus-visible {
-  outline: 1px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: 1px;
 }
 
 .settings-card__actions {
@@ -325,7 +329,8 @@
 }
 
 .toolbar-button--close {
-  font-size: 16px;
+  /* The × is a symbol, sized from the title step rather than a 16px literal. */
+  font-size: var(--text-display);
 }
 
 .toolbar-button--quit {
@@ -335,7 +340,7 @@
 }
 
 .toolbar-button--popout {
-  font-size: 12px;
+  font-size: var(--text-emphasis);
 }
 
 /* ── Clipboard history page ─────────────────────────────────────────────── */
@@ -380,19 +385,32 @@
 }
 
 .clipboard-panel__topbar {
+  position: relative;
   flex: 0 0 auto;
   height: 44px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 12px 0 14px;
-  border-bottom: 1px solid var(--hairline);
+}
+
+/* The topbar/list separator is a gradient hairline band, matching the launcher
+   and settings surfaces: content dissolves into the bar rather than being cut
+   on a hard line. */
+.clipboard-panel__topbar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
 }
 
 .clipboard-panel__prompt {
   flex: 0 0 auto;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--text-title);
   user-select: none;
 }
 
@@ -405,7 +423,7 @@
   color: var(--text-primary);
   padding: 0;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-title);
   caret-color: var(--accent);
 }
 
@@ -425,7 +443,7 @@
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-title);
   line-height: 1;
   cursor: pointer;
 }
@@ -450,7 +468,7 @@
   display: flex;
   gap: 2px;
   padding: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--glass-track);
   box-shadow: inset 0 1px 2px var(--window-shadow-contact), inset 0 0 0 1px var(--glass-track-edge);
 }
@@ -461,11 +479,12 @@
   gap: 6px;
   padding: 3px 10px;
   border: none;
-  border-radius: 4px;
+  /* Concentric with the track: --radius-md (8px) minus its 2px padding. */
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   line-height: 1.3;
   cursor: pointer;
 }
@@ -476,7 +495,7 @@
 }
 
 .clipboard-panel__tab:focus-visible {
-  outline: 1px solid var(--accent-ring);
+  outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: -1px;
 }
 
@@ -492,7 +511,7 @@
 
 .clipboard-panel__tab-count {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -507,10 +526,16 @@
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 6px 8px 10px;
+  /* Top padding equals the scroll edge band, so the first row rests below the
+     fade and only content that scrolls under the topbar passes through it. */
+  padding: var(--scroll-edge) 8px 10px;
   list-style: none;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Scroll edge effect: rows sliding under the topbar dissolve into it. */
+  background-image: var(--scroll-edge-band);
+  background-repeat: no-repeat;
+  background-size: 100% var(--scroll-edge);
 }
 
 /* Rows are clean grid lines: `[marker] [preview] [meta] [star]`. The preview
@@ -524,7 +549,7 @@
   gap: 12px;
   padding: 6px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
@@ -557,11 +582,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--icon-surface);
   box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--icon-edge);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
   overflow: hidden;
 }
 
@@ -573,12 +598,12 @@
 }
 
 .clipboard-row__marker--image {
-  font-size: 9px;
+  font-size: var(--text-caption);
   letter-spacing: 0.04em;
 }
 
 .clipboard-row__marker--files {
-  font-size: 12px;
+  font-size: var(--text-emphasis);
 }
 
 .clipboard-row__preview {
@@ -586,7 +611,7 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 12px;
+  font-size: var(--text-emphasis);
 }
 
 .clipboard-row__preview-dir,
@@ -611,7 +636,7 @@
   min-width: 7ch;
   text-align: right;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -623,7 +648,7 @@
   box-sizing: border-box;
   text-align: right;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
 }
 
@@ -632,10 +657,10 @@
   width: 18px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: var(--text-title);
   line-height: 1;
   text-align: center;
   cursor: pointer;
@@ -663,7 +688,7 @@
   align-items: center;
   justify-content: flex-end;
   color: var(--text-warning);
-  font-size: 10px;
+  font-size: var(--text-caption);
   border: 1px solid var(--hairline);
   border-radius: 999px;
   padding: 1px 7px;
@@ -686,7 +711,7 @@
   padding: 64px 24px 18px;
   gap: 12px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
   line-height: 1.6;
   text-align: center;
   user-select: none;
@@ -694,7 +719,7 @@
 
 .clipboard-panel__empty-privacy {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.5;
   max-width: 320px;
 }
@@ -702,6 +727,7 @@
 /* Footer: key hints left, Clear right, fixed height, hairline top border —
    visually separated from the list above. */
 .clipboard-panel__footer {
+  position: relative;
   flex: 0 0 auto;
   height: 30px;
   display: flex;
@@ -709,9 +735,18 @@
   justify-content: space-between;
   gap: 12px;
   padding: 0 10px 0 14px;
-  border-top: 1px solid var(--hairline);
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--text-body);
+}
+
+.clipboard-panel__footer::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
 }
 
 .clipboard-panel__hints {
@@ -724,11 +759,11 @@
   flex: 0 0 auto;
   padding: 1px 8px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--glass-control);
   color: var(--text-tertiary);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-body);
   line-height: 1.4;
   cursor: pointer;
 }
@@ -818,5 +853,5 @@
 
 .plugin-page-host__error-title {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-emphasis);
 }

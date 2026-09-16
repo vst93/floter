@@ -429,11 +429,17 @@ test("surface-policy keeps the collapsed collector as the collapsed enforcer", a
 test("a focused sidebar item is visible (existing :focus-visible token rule)", async () => {
   // The new initial focus must never be invisible. The rule predates this
   // round; this assertion keeps the round from removing it while making the
-  // sidebar the surface's keyboard home.
+  // sidebar the surface's keyboard home. R7-HIG moved the ring's width and
+  // offset onto shared tokens so every control uses one focus language; the
+  // assertion follows the token and pins its value in base.css below.
   const css = await read("src/styles/settings.css");
   assert.match(
     css,
-    /\.settings-sidebar__item:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent-ring\)/,
+    /\.settings-sidebar__item:focus-visible\s*\{[^}]*outline:\s*var\(--focus-ring-width\)\s*solid\s*var\(--accent-ring\)/,
     "the sidebar item needs a token-based :focus-visible outline",
   );
+  // The token really is a 2px ring, so the sidebar's focus is as visible as
+  // it was before the convergence.
+  const base = await read("src/styles/base.css");
+  assert.match(base, /--focus-ring-width:\s*2px;/, "the shared focus ring must stay 2px");
 });
