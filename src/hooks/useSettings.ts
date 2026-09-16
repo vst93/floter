@@ -26,6 +26,7 @@ import {
 import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
 import { normalizeLanguage, type Language } from "../i18n";
 import type { AppSettings } from "../App";
+import { normalizeGlassStep, type GlassStep } from "../glass-material";
 
 /** Defaults applied before the first disk read returns. */
 const SETTINGS_DEFAULTS: AppSettings = {
@@ -37,8 +38,9 @@ const SETTINGS_DEFAULTS: AppSettings = {
   font_family: "monospace",
   cursor_shape: "beam",
   language: "en",
-  main_opacity: 94,
-  terminal_opacity: 92,
+  main_opacity: 47,
+  terminal_opacity: 46,
+  glass_step: "mid",
   shortcuts: DEFAULT_SHORTCUTS,
   show_commands_in_search: false,
   show_recent_in_launcher: true,
@@ -182,8 +184,9 @@ export function useSettings(options: {
           ...loaded,
           language: normalizeLanguage(loaded.language),
           launch_at_startup: loaded.launch_at_startup ?? false,
-          main_opacity: normalizeOpacity(loaded.main_opacity ?? 94),
-          terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 92),
+          main_opacity: normalizeOpacity(loaded.main_opacity ?? 47),
+          terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 46),
+          glass_step: normalizeGlassStep(loaded.glass_step),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
@@ -237,6 +240,24 @@ export function useSettings(options: {
       }, SETTINGS_DEBOUNCE_MS);
     },
     [settingsHydration, persistSettings],
+  );
+
+  /** Switch the material step. A step is a discrete choice, not a drag, so it
+   *  persists immediately like `changeGeneralSetting` rather than through the
+   *  slider debounce — and it does not touch `--main-opacity`, which is the
+   *  whole point of the R8 split. */
+  const changeGlassStep = useCallback(
+    (next: GlassStep) => {
+      const step = normalizeGlassStep(next);
+      if (step === settingsRef.current.glass_step) return;
+      const updated: AppSettings = { ...settingsRef.current, glass_step: step };
+      settingsHydration.markChanged("glass_step");
+      settingsRef.current = updated;
+      setSettings(updated);
+      suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
+      void persistSettings().catch(() => setSettingsSaveFailed(true));
+    },
+    [settingsHydration, persistSettings, suppressBlurUntil],
   );
 
   const changeFontSize = useCallback(
@@ -369,6 +390,7 @@ export function useSettings(options: {
     commitSettings,
     persistSettings,
     changeOpacity,
+    changeGlassStep,
     changeFontSize,
     changeGeneralSetting,
     changeTheme,

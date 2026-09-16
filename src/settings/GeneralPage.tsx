@@ -1,4 +1,5 @@
 import type { AppSettings, CursorShape } from "../App";
+import { GLASS_STEPS, GLASS_STEP_LABELS, type GlassStep } from "../glass-material";
 import {
   LANGUAGE_OPTIONS,
   type Language,
@@ -30,14 +31,25 @@ const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
   { value: "underline", labelKey: "settings.cursor.underline" },
 ];
 
+/** The three Liquid Glass steps (R8). The label names the *material*, not a
+ *  number: HIG's two variants plus the readability-max variant above them.
+ *  `settings.glassStep.*` carries the one-line description of each. */
+const GLASS_STEP_OPTIONS = GLASS_STEPS.map((value) => ({
+  value,
+  labelKey: GLASS_STEP_LABELS[value].label as MessageKey,
+  descriptionKey: GLASS_STEP_LABELS[value].description as MessageKey,
+}));
+
 export const normalizeFontSize = (value: number): number =>
   Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
 
 const MIN_OPACITY = 10;
 const MAX_OPACITY = 100;
 const OPACITY_PRESETS = [25, 50, 75, 100];
-const OPACITY_SNAP_DISTANCE = 2;
+const OPACITY_SNAP_DISTANCE = 1;
 
+/** `--main-opacity` is the **window transparency** control in R8: how solid the
+ *  frame is. It is orthogonal to the material, which is the glass step. */
 export const normalizeOpacity = (value: number): number => {
   const safeValue = Number.isFinite(value) ? value : MAX_OPACITY;
   const clamped = Math.round(Math.min(MAX_OPACITY, Math.max(MIN_OPACITY, safeValue)));
@@ -69,7 +81,7 @@ function OpacityControl({ label, value, onChange }: OpacityControlProps) {
         onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
       />
       <div className="opacity-control__presets" aria-label={label}>
-        {[25, 50, 75, 100].map((preset) => (
+        {OPACITY_PRESETS.map((preset) => (
           <button
             key={preset}
             type="button"
@@ -97,7 +109,61 @@ type GeneralPageProps = {
   onChangeLaunchAtStartup: (enabled: boolean) => void;
   onChangeFontSize: (size: number) => void;
   onChangeOpacity: (field: "main_opacity" | "terminal_opacity", value: number) => void;
+  onChangeGlassStep: (step: GlassStep) => void;
 };
+
+/** One step of the material segmented control. It reuses the existing
+ *  `settings-options`/`settings-option` radio system (the same one the theme
+ *  and cursor-shape pickers use), so the glass language of a selected segment
+ *  — accent tint, top rim, accent edge — is the app's existing selection
+ *  language rather than a new one-off. */
+function GlassStepControl({
+  t,
+  value,
+  onChange,
+}: {
+  t: Translate;
+  value: GlassStep;
+  onChange: (step: GlassStep) => void;
+}) {
+  return (
+    <div className="glass-step">
+      {/* TODO(F9): roving tab stop is in place, but ArrowLeft/ArrowRight/
+          Home/End are not handled. The other radiogroups in this file
+          (theme, cursor, font family) share the gap, so it is a pre-existing
+          pattern rather than an R8 regression; fix them together in an a11y
+          pass rather than one control at a time. */}
+      <div
+        className="settings-options settings-options--inline glass-step__segments"
+        role="radiogroup"
+        aria-label={t("settings.glassStep")}
+      >
+        {GLASS_STEP_OPTIONS.map((option) => {
+          const active = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={active ? 0 : -1}
+              data-glass-step={option.value}
+              className={`settings-option${active ? " settings-option--active" : ""}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onChange(option.value)}
+            >
+              <span className="settings-option__main">
+                <span className="settings-option__label">{t(option.labelKey)}</span>
+                <span className="settings-option__description">{t(option.descriptionKey)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="settings-section__hint">{t("settings.glassStepHint")}</p>
+    </div>
+  );
+}
 
 /** The general settings page: theme, language, window behaviour and terminal
  * appearance. All state lives in `App` and arrives through props. */
@@ -113,6 +179,7 @@ export function GeneralPage({
   onChangeLaunchAtStartup,
   onChangeFontSize,
   onChangeOpacity,
+  onChangeGlassStep,
 }: GeneralPageProps) {
   return (
     <fieldset className="settings-controls" disabled={busy || autostartUpdating} aria-busy={busy || autostartUpdating}>
@@ -309,20 +376,21 @@ export function GeneralPage({
     </section>
 
     <section className="settings-section settings-section--material">
-      <h2 className="settings-section__label">{t("settings.opacity")}</h2>
+      <h2 className="settings-section__label">{t("settings.material")}</h2>
+      <GlassStepControl t={t} value={settings.glass_step} onChange={onChangeGlassStep} />
       <div className="opacity-controls">
         <OpacityControl
-          label={t("settings.opacity.main")}
+          label={t("settings.transparency.main")}
           value={normalizeOpacity(settings.main_opacity)}
           onChange={(value) => onChangeOpacity("main_opacity", value)}
         />
         <OpacityControl
-          label={t("settings.opacity.terminal")}
+          label={t("settings.transparency.terminal")}
           value={normalizeOpacity(settings.terminal_opacity)}
           onChange={(value) => onChangeOpacity("terminal_opacity", value)}
         />
       </div>
-      <p className="settings-section__hint">{t("settings.opacityHint")}</p>
+      <p className="settings-section__hint">{t("settings.transparencyHint")}</p>
     </section>
     </fieldset>
   );

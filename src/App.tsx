@@ -90,6 +90,11 @@ if (IS_WINDOWS) {
  * returns to the remembered one when dismissed. */
 export type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
 export type CursorShape = "beam" | "block" | "underline";
+// The Liquid Glass vocabulary lives in its own React-free module so the node
+// test runner can import it directly; App re-exports it for the components.
+import type { GlassStep } from "./glass-material";
+export { GLASS_STEPS, normalizeGlassStep } from "./glass-material";
+export type { GlassStep } from "./glass-material";
 
 export type BrokerSessionInfo = {
   sessionId: string;
@@ -128,6 +133,7 @@ export type AppSettings = {
   language: Language;
   main_opacity: number;
   terminal_opacity: number;
+  glass_step: GlassStep;
   shortcuts: ShortcutMap;
   /** Whether extension/provider commands appear in launcher search results. */
   show_commands_in_search: boolean;
@@ -258,6 +264,7 @@ export default function App() {
     persistSettings,
     loadSettings,
     changeOpacity,
+    changeGlassStep,
     changeFontSize,
     changeGeneralSetting,
     changeTheme,
@@ -773,6 +780,20 @@ export default function App() {
       render();
     }
   }, [settings.main_opacity, settings.terminal_opacity]);
+
+  // The material step is an attribute rather than a custom property because it
+  // swaps a *set* of tokens (`[data-glass]` in base.css) and because the
+  // attribute is what the a11y override blocks key off. It is deliberately not
+  // part of the opacity effect above: the two controls are orthogonal, and one
+  // effect per axis keeps that visible in the code.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-glass", settings.glass_step);
+    const renderer = rendererRef.current;
+    if (renderer) {
+      renderer.updateTheme();
+      render();
+    }
+  }, [settings.glass_step]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", resolvedTheme);
@@ -1300,6 +1321,7 @@ export default function App() {
         theme={resolvedTheme}
         mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
         terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
+        glassStep={settings.glass_step}
         onClose={closePluginPage}
       />
     </div>
@@ -1423,6 +1445,7 @@ export default function App() {
                 onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
                 onChangeFontSize={changeFontSize}
                 onChangeOpacity={changeOpacity}
+                onChangeGlassStep={changeGlassStep}
               />
               )}
 

@@ -60,6 +60,23 @@ export type BridgeTheme = {
 };
 
 /**
+ * Host → page: live glass-step update. The step is also a bootstrap query
+ * param, but the settings panel can change it mid-session; pushing the new
+ * value as a message lets the page swap its material in place instead of
+ * forcing an iframe remount.
+ *
+ * The value is the step *id*, not a resolved alpha: the page owns the same
+ * `GLASS_STEP_TOKENS` table the host does, so the numbers have one source and
+ * travel once. A page built before this field existed simply never receives
+ * the message and keeps its own default (Regular) — see the `mid` fallback in
+ * the clipboard page's handler.
+ */
+export type BridgeGlass = {
+  [BRIDGE_TAG]: "glass";
+  glassStep: "low" | "mid" | "high";
+};
+
+/**
  * Host → page: the page was just revealed after being hidden. Sent when the
  * plugin toggles from hidden (pluginId null) to shown. The page should reload
  * its data to show fresh content.
@@ -102,6 +119,11 @@ export const isBridgeTheme = (data: unknown): data is BridgeTheme =>
   isRecord(data) &&
   data[BRIDGE_TAG] === "theme" &&
   (data.theme === "dark" || data.theme === "light");
+
+export const isBridgeGlass = (data: unknown): data is BridgeGlass =>
+  isRecord(data) &&
+  data[BRIDGE_TAG] === "glass" &&
+  (data.glassStep === "low" || data.glassStep === "mid" || data.glassStep === "high");
 
 export const isBridgeReload = (data: unknown): data is BridgeReload =>
   isRecord(data) && data[BRIDGE_TAG] === "reload";

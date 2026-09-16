@@ -33,7 +33,8 @@ import {
   shouldActivateClipboardEntry,
   type ClipboardEntry,
 } from "../../clipboard-history";
-import { BRIDGE_TAG, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
+import { BRIDGE_TAG, isBridgeGlass, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
+import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, normalizeGlassStep, type GlassStep } from "../../glass-material";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -66,13 +67,20 @@ window.addEventListener("message", (event: MessageEvent) => {
     applyOpacity(data.mainOpacity, data.terminalOpacity);
     return;
   }
+  if (isBridgeGlass(data)) {
+    // The material step changed host-side; swap the tokens this document's
+    // `--page-fill` derives from and repaint. An older host never sends this
+    // message — the page then keeps the `glass-step` bootstrap param (or mid).
+    applyGlassStep(data.glassStep);
+    return;
+  }
   if (isBridgeTheme(data)) {
     // Theme changed host-side; update the page's data-theme attribute and its
     // opaque page background without relying on rgba() variable alpha syntax.
     activeTheme = data.theme;
     document.documentElement.setAttribute("data-theme", data.theme);
     const rawOpacity = Number(rootStyle.getPropertyValue("--terminal-opacity"));
-    applyPageBackground(Number.isFinite(rawOpacity) ? rawOpacity : 0.92);
+    applyPageBackground(Number.isFinite(rawOpacity) ? rawOpacity : 0.46);
     return;
   }
   if (isBridgeReload(data)) {
@@ -125,10 +133,41 @@ const pageRgb = {
   light: "250, 250, 252",
 } as const;
 
-function applyPageBackground(terminal: number) {
+function applyPageBackground(transparency: number) {
   // WebKit rejects rgba() when its alpha argument is a CSS variable. Keep the
   // complete color as one custom property instead of composing it in CSS.
-  rootStyle.setProperty("--page-bg", `rgba(${pageRgb[activeTheme]}, ${terminal})`);
+  //
+  // The alpha is the *frame fill*, not the slider value: R8 split the old
+  // single glass-strength slider into window transparency (this number) and a
+  // discrete material step, and the fill is the step's floor sliding to
+  // near-solid. The step's floor comes from the token the host injected (see
+  // `applyGlassStep`); the arithmetic matches base.css's `--glass-frame-alpha`.
+  const fillOf = (name: string, fallback: number) => {
+    const value = Number.parseFloat(rootStyle.getPropertyValue(name));
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const fill = fillOf("--glass-step-fill", GLASS_STEP_TOKENS.mid.fill);
+  const solidTop = fillOf("--glass-solid-top", GLASS_SOLID_TOP);
+  const alpha = fill + (solidTop - fill) * transparency;
+  rootStyle.setProperty("--page-fill", String(alpha));
+  rootStyle.setProperty("--page-bg", `rgba(${pageRgb[activeTheme]}, ${alpha})`);
+}
+
+/**
+ * Adopt a material step. The values come from the shared `GLASS_STEP_TOKENS`
+ * table in `src/glass-material.ts`, not from literals here, so the host and
+ * the page can never disagree about what `low`/`mid`/`high` mean. Called once
+ * from the bootstrap param and again whenever the host pushes a new step.
+ */
+function applyGlassStep(step: GlassStep) {
+  const tokens = GLASS_STEP_TOKENS[step];
+  rootStyle.setProperty("--glass-step-fill", String(tokens.fill));
+  rootStyle.setProperty("--glass-step-dim", String(tokens.dim));
+  rootStyle.setProperty("--glass-solid-top", String(GLASS_SOLID_TOP));
+  // Re-derive the fill for the transparency already in force: a step change
+  // moves the material without touching the slider.
+  const rawTerminal = Number.parseFloat(rootStyle.getPropertyValue("--terminal-opacity"));
+  applyPageBackground(Number.isFinite(rawTerminal) ? rawTerminal : 0.46);
 }
 
 function applyOpacity(main: number, terminal: number) {
@@ -146,7 +185,11 @@ const opacityParam = (name: string, fallback: number): number => {
   return Number.isFinite(value) ? value : fallback;
 };
 
-applyOpacity(opacityParam("main-opacity", 0.94), opacityParam("terminal-opacity", 0.92));
+applyOpacity(opacityParam("main-opacity", 0.47), opacityParam("terminal-opacity", 0.46));
+// The step arrives as a bootstrap param too. An older host that does not send
+// it (or a hand-typed URL) falls back to Regular via `normalizeGlassStep`,
+// which is the same "unknown value rests on mid" rule the Rust loader uses.
+applyGlassStep(normalizeGlassStep(params.get("glass-step")));
 document.documentElement.setAttribute("data-theme", theme);
 
 // ---- state ----------------------------------------------------------------

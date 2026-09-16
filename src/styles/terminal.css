@@ -187,7 +187,7 @@
   font-size: var(--text-body);
   font-weight: 560;
   line-height: 1.25;
-  box-shadow: var(--glass-float-shadow);
+  box-shadow: var(--elev-3);
   pointer-events: none;
   animation: feedback-enter var(--dur-3) ease-out;
 }

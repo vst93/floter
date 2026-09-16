@@ -27,7 +27,7 @@
      permission, custom and removal dialogs, so every extension modal reads as
      the same floating pane. */
   background: var(--glass-float);
-  box-shadow: var(--glass-float-shadow);
+  box-shadow: var(--elev-3);
   color: var(--text-primary);
 }
 

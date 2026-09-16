@@ -2,10 +2,25 @@
    an iframe, so it owns its tokens and cannot borrow the host stylesheet. */
 :root {
   color-scheme: dark;
-  --main-opacity: 0.94;
-  --terminal-opacity: 0.92;
-  --page-bg: rgb(17 18 20 / var(--terminal-opacity));
-  --panel-bg: rgb(17 18 20 / var(--terminal-opacity));
+  /* R8: these are *window transparency* percentages now, not raw alphas, and
+     the defaults are the host's split of the old single 94/92 slider. The
+     page is a separate document and cannot read the host's tokens.
+
+     The material step's tokens (--glass-step-fill, --glass-step-dim,
+     --glass-solid-top) are deliberately NOT declared here. They used to be
+     hardcoded to the Regular step, which pinned this page to 0.68 fill no
+     matter what the host's glass step was. They are now injected at runtime:
+     the host passes the step id as a bootstrap query param and as a bridge
+     message, and main.ts writes the shared `GLASS_STEP_TOKENS` values from
+     `src/glass-material.ts` onto this document's root — one source of truth,
+     no literals copied. `--page-fill` below is only the pre-JS first-paint
+     fallback (Regular at the default transparency); main.ts overwrites it on
+     both root and the derived `--page-bg` before the first frame. */
+  --main-opacity: 0.47;
+  --terminal-opacity: 0.46;
+  --page-fill: 0.818;
+  --page-bg: rgb(17 18 20 / var(--page-fill));
+  --panel-bg: rgb(17 18 20 / var(--page-fill));
   --input-bg: rgba(255, 255, 255, 0.055);
   --input-bg-hover: rgba(255, 255, 255, 0.08);
   --input-bg-focus: rgba(255, 255, 255, 0.075);
@@ -29,8 +44,8 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  --page-bg: rgb(250 250 252 / var(--terminal-opacity));
-  --panel-bg: rgb(250 250 252 / var(--terminal-opacity));
+  --page-bg: rgb(250 250 252 / var(--page-fill));
+  --panel-bg: rgb(250 250 252 / var(--page-fill));
   --input-bg: rgba(0, 0, 0, 0.045);
   --input-bg-hover: rgba(0, 0, 0, 0.07);
   --input-bg-focus: rgba(255, 255, 255, 0.72);

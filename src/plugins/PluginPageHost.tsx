@@ -9,7 +9,8 @@ import {
   isBridgeRequest,
   isBridgeResult,
 } from "../plugin-pages";
-import type { BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility } from "../plugin-pages";
+import type { BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass } from "../plugin-pages";
+import { glassStepStyle, type GlassStep } from "../glass-material";
 import { createTranslator, type Language, type MessageKey } from "../i18n";
 
 /**
@@ -48,6 +49,7 @@ type PluginPageHostProps = {
   theme: "dark" | "light";
   mainOpacity: number;
   terminalOpacity: number;
+  glassStep: GlassStep;
   onClose: () => void;
 };
 
@@ -57,6 +59,7 @@ export function PluginPageHost({
   theme,
   mainOpacity,
   terminalOpacity,
+  glassStep,
   onClose,
 }: PluginPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -72,7 +75,9 @@ export function PluginPageHost({
   const activeRef = useRef(pluginId);
   activeRef.current = pluginId;
   // Read (not depended on) when building the iframe src, so slider moves
-  // reach a live page as a message instead of as a remount.
+  // reach a live page as a message instead of as a remount. The glass step is
+  // read the same way for its message push, but its *container* style below
+  // depends on it directly.
   const opacityRef = useRef({ mainOpacity, terminalOpacity });
   opacityRef.current = { mainOpacity, terminalOpacity };
   // The descriptor's human name arrives as an i18n KEY (`titleKey`); translate
@@ -200,11 +205,25 @@ export function PluginPageHost({
       };
       iframeRef.current.contentWindow.postMessage(opacityMessage, "*");
       iframeRef.current.contentWindow.postMessage(themeMessage, "*");
+      const glassMessage: BridgeGlass = {
+        [BRIDGE_TAG]: "glass",
+        glassStep,
+      };
+      iframeRef.current.contentWindow.postMessage(glassMessage, "*");
     }
     // Hand the keyboard to the page: its own Spotlight discipline (typing
     // routes to its filter input) takes over from here.
     if (activeRef.current) iframeRef.current?.focus();
   }, [theme]);
+
+  useEffect(() => {
+    if (!frameLoaded) return;
+    const glassMessage: BridgeGlass = {
+      [BRIDGE_TAG]: "glass",
+      glassStep,
+    };
+    iframeRef.current?.contentWindow?.postMessage(glassMessage, "*");
+  }, [frameLoaded, glassStep]);
 
   // Bootstrap params double as a cache-buster-free way to pass settings the
   // sandboxed page cannot read itself. Re-keying the iframe when they change
@@ -214,6 +233,8 @@ export function PluginPageHost({
   // Opacity is deliberately absent from the deps: it is read from the ref for
   // the initial bootstrap, then pushed as a message (below) so dragging a
   // slider restyles the live page instead of remounting it mid-interaction.
+  // The glass step is the same: it bootstraps here and then travels as a
+  // message, so changing the material never remounts the page either.
   const src = useMemo(() => {
     if (!descriptor) return null;
     try {
@@ -222,13 +243,14 @@ export function PluginPageHost({
         theme,
         "main-opacity": opacityRef.current.mainOpacity,
         "terminal-opacity": opacityRef.current.terminalOpacity,
+        "glass-step": glassStep,
       });
     } catch {
       // A page that resolves off-origin is a registry bug, not something to
       // load: fall through to the error state's retry.
       return null;
     }
-  }, [descriptor, language, theme]);
+  }, [descriptor, language, theme, glassStep]);
 
   // A fresh document (new descriptor, language or theme) has no listener yet.
   useEffect(() => {
@@ -292,7 +314,12 @@ export function PluginPageHost({
   }, [frameLoaded, theme]);
 
   return (
-    <div className="plugin-page-host" data-plugin-id={pluginId ?? ""} style={{ display: pluginId ? "block" : "none" }}>
+    <div
+      className="plugin-page-host"
+      data-plugin-id={pluginId ?? ""}
+      data-glass-step={glassStep}
+      style={{ display: pluginId ? "block" : "none", ...glassStepStyle(glassStep) }}
+    >
       {src ? (
         <iframe
           ref={iframeRef}

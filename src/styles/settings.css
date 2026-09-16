@@ -72,13 +72,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The content layer, per `liquid-glass.md › The two layers`: the settings body
+   holds rows, labels and body copy, so it is a *standard material* — a fixed
+   60-80% fill — not a second sheet of Liquid Glass. R8 moved it from the softer
+   recess onto the full content token: the body is where the descriptions live,
+   and the thin recess was leaving 10-11px copy one contrast step below the
+   result list for no visual gain. The sidebar column paints nothing of its
+   own, so it inherits the same material and the two read as one pane. */
 .settings-card__body {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--surface-sunken-soft);
+  background: var(--surface-sunken);
 }
 
 /* The sidebar sits on the shell's own tint rather than on a second recess:
@@ -137,7 +144,12 @@
    what actually distinguishes "you are here" from "the pointer is here". */
 .settings-sidebar__item--active {
   background: var(--glass-raised);
-  color: var(--accent);
+  /* The raised pane's label is the frame's strongest text, not a second dose
+     of accent: on the tinted selection pane the accent's own contrast is the
+     weakest on the page, and `liquid-glass.md › Color on glass` reserves the
+     colour for the *edge* that marks the state. The 2px leading bar and the
+     rim already say "you are here". */
+  color: var(--text-primary);
   box-shadow: var(--glass-raised-shadow), inset 2px 0 0 var(--accent);
 }
 .settings-sidebar__item:focus-visible { outline: var(--focus-ring-width) solid var(--accent-ring); outline-offset: var(--focus-ring-offset); }
@@ -164,7 +176,22 @@
   /* Floats over the settings body, which is the one scrolling region in the
      app: a plain tint would let the rows slide through it. */
   background: var(--glass-float);
-  box-shadow: var(--glass-float-shadow);
+  box-shadow: var(--elev-3);
+  /* A floater arriving over content: the spring, with the same small scale
+     the shells use, so every panel that appears over other content shares one
+     motion signature. */
+  animation: settings-toast-enter var(--dur-4) var(--spring);
+}
+
+@keyframes settings-toast-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .settings-content {
@@ -373,6 +400,51 @@
   padding: 10px 0;
 }
 
+/* ── Glass step picker (R8) ────────────────────────────────────────────────
+   Three segments inside the shared track. It is the same selection language
+   the theme/cursor pickers use — accent tint, lit top rim, accent edge — so a
+   chosen step reads as a raised pane in the track rather than a new control
+   dialect. The descriptions are two-line captions, so the track has to be a
+   touch taller than the plain one-line variant. */
+.glass-step {
+  display: grid;
+  gap: 6px;
+}
+
+.glass-step__segments {
+  align-items: stretch;
+}
+
+.glass-step__segments .settings-option {
+  min-height: 42px;
+  padding: 5px 8px;
+  text-align: center;
+  justify-items: center;
+}
+
+/* A step's label is the material's name and its caption is what the material
+   does; both centered because the segment is a choice, not a row. */
+.glass-step__segments .settings-option__main {
+  justify-items: center;
+  text-align: center;
+}
+
+.glass-step__segments .settings-option__label {
+  font-size: var(--text-emphasis);
+}
+
+.glass-step__segments .settings-option__description {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1.2;
+}
+
+/* The selected segment keeps the label at full strength and the caption
+   readable on the accent tint. */
+.glass-step__segments .settings-option--active .settings-option__description {
+  color: var(--text-secondary);
+}
+
 .opacity-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -402,7 +474,11 @@
 
 .opacity-control__value {
   flex: 0 0 auto;
-  color: var(--accent);
+  /* Off the accent budget: a live percentage is a readout, not a primary
+     action. It keeps the monospaced tabular figures that stop the number
+     jittering while the slider moves, and takes full-strength body text so
+     it stays the loudest thing in the row without spending colour. */
+  color: var(--text-strong);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
   font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
@@ -447,11 +523,15 @@
 }
 }
 
+/* A live preset is a state, not an action: neutral fill plus the accent
+   keyline, the same treatment the switch's on-state uses. This keeps the
+   settings page's tinted faces at two (the current sidebar page and the
+   selected segment) instead of five. */
 .opacity-control__preset--active {
   border-color: var(--accent-edge);
-  background: var(--glass-raised);
-  color: var(--accent);
-  box-shadow: var(--glass-raised-shadow);
+  background: var(--glass-control-hover);
+  color: var(--text-strong);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--accent-edge);
 }
 
 .opacity-control__preset:focus-visible,
@@ -577,7 +657,12 @@
 
 /* The chosen option is a raised pane inside the track: accent tint, the same
    top rim every other raised surface carries, and an accent edge to keep the
-   state legible where the tint is faint. */
+   state legible where the tint is faint. This is one of the settings page's
+   two tinted primary faces — the other is the sidebar's current page; the
+   switch and the numeric readouts below were taken off the accent budget in
+   R8 (`liquid-glass.md › Color on glass`: "Reserve it for elements that truly
+   benefit from emphasis … Refrain from adding color to the background of
+   multiple controls."). */
 .settings-option--active {
   background: var(--glass-raised);
   box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
@@ -632,8 +717,14 @@
 
 @media (hover: hover) {
 
+/* A settings row comes forward to the *resting pane* under the pointer — the
+   same rung a launcher result and a button sit on, not the louder hover step:
+   the row is a wide target and a full hover fill across it would read as a
+   selection. This is the "subtle material feedback" the round asked for, and
+   it is the same one-rung raise the rest of the app uses. */
 .settings-option--static:hover {
-  background: transparent;
+  background: var(--glass-control);
+  box-shadow: inset 0 1px 0 var(--glass-control-rim), inset 0 0 0 1px var(--glass-control-edge);
 }
 }
 
@@ -675,14 +766,21 @@
   transition: transform var(--dur-4) var(--ease-out-back), background-color var(--dur-3) ease-out;
 }
 
+/* The switch's "on" state is a neutral lit slot with an accent keyline, not a
+   solid accent slab. The fill was the third tinted primary face on this page;
+   the accent now survives as the 1px edge that says *on*, which is the
+   emphasis the HIG budget keeps room for, and the thumb keeps its white bead
+   so the state is still unmistakable at 20px tall. */
 .settings-switch--active {
-  background: var(--accent);
-  box-shadow: inset 0 1px 0 var(--glass-raised-rim), inset 0 0 0 1px var(--accent-edge-strong);
+  background: var(--glass-control-hover);
+  box-shadow:
+    inset 0 1px 0 var(--glass-control-rim),
+    inset 0 0 0 1px var(--accent-edge-strong);
 }
 
 .settings-switch--active .settings-switch__thumb {
   transform: translateX(14px);
-  background: var(--surface-opaque);
+  background: var(--accent);
 }
 
 .settings-switch:focus-visible {

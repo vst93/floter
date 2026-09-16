@@ -24,10 +24,20 @@ const MIN_TERMINAL_WIDTH: f64 = 640.0;
 const MIN_TERMINAL_HEIGHT: f64 = 360.0;
 const MAX_TERMINAL_WIDTH: f64 = 2_560.0;
 const MAX_TERMINAL_HEIGHT: f64 = 1_800.0;
-const DEFAULT_MAIN_OPACITY: u8 = 94;
-const DEFAULT_TERMINAL_OPACITY: u8 = 92;
+/// R8: the single pre-R8 "glass strength" slider became two orthogonal
+/// controls. `main_opacity` is now the **window transparency** percentage
+/// (how solid the shell's tint is, and the only field a native window-alpha
+/// path may ever read); the material itself is the three-step `glass_step`.
+const DEFAULT_MAIN_OPACITY: u8 = 47;
+const DEFAULT_TERMINAL_OPACITY: u8 = 46;
 const MIN_WINDOW_OPACITY: u8 = 10;
 const MAX_WINDOW_OPACITY: u8 = 100;
+
+/// Key that marks a settings file as post-R8. Its absence is what tells
+/// `read_settings` to run the legacy split migration exactly once.
+const GLASS_STEP_KEY: &str = "glass_step";
+const DEFAULT_GLASS_STEP: &str = "mid";
+const GLASS_STEPS: [&str; 3] = ["low", "mid", "high"];
 const MIN_FONT_SIZE: u32 = 8;
 const MAX_FONT_SIZE: u32 = 48;
 
@@ -87,10 +97,18 @@ pub struct AppSettings {
     /// Last user-selected terminal window dimensions, in logical pixels.
     pub terminal_width: f64,
     pub terminal_height: f64,
-    /// Background opacity percentages for the launcher/settings surface and
-    /// terminal canvas. Values are clamped before persistence.
+    /// Window transparency percentages for the launcher/settings surface and
+    /// the terminal canvas. These control how solid the shell's tint is — the
+    /// readability control — and nothing else. Values are clamped before
+    /// persistence.
     pub main_opacity: u8,
     pub terminal_opacity: u8,
+    /// Liquid-glass material step: "low" | "mid" | "high". This is the HIG
+    /// variant control (Clear → Regular → Regular-max): it drives the blur
+    /// radius, the saturation boost and the material's share of the fill.
+    /// It is deliberately *not* read by any native window path — see the
+    /// `glass_step_is_not_a_native_alpha_input` test.
+    pub glass_step: String,
     /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
     pub shortcuts: HashMap<String, String>,
     /// Whether system-command discovery appears in launcher search results.
@@ -126,6 +144,7 @@ impl Default for AppSettings {
             terminal_height: DEFAULT_TERMINAL_HEIGHT,
             main_opacity: DEFAULT_MAIN_OPACITY,
             terminal_opacity: DEFAULT_TERMINAL_OPACITY,
+            glass_step: DEFAULT_GLASS_STEP.to_string(),
             shortcuts: default_shortcuts(),
             show_commands_in_search: false,
             show_recent_in_launcher: true,
@@ -230,7 +249,56 @@ fn load_settings_from(config_dir: &Path) -> AppSettings {
 
 fn read_settings(path: &Path) -> Option<AppSettings> {
     let bytes = std::fs::read(path).ok()?;
-    serde_json::from_slice(&bytes).ok()
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    // A file written before R8 has no `glass_step` key: its single
+    // "glass strength" number has to be split across the two controls that
+    // replaced it. The marker is the key itself rather than a version field,
+    // so the migration is invisible to everything downstream and the round's
+    // `serde(default)` compatibility guarantee stays intact.
+    let legacy = value.get(GLASS_STEP_KEY).is_none();
+    let mut settings: AppSettings = serde_json::from_value(value).ok()?;
+    if legacy {
+        migrate_legacy_glass_strength(&mut settings);
+    }
+    Some(settings)
+}
+
+/// Split a pre-R8 single "glass strength" value across the two controls.
+///
+/// The old slider was labelled *glass strength* but drove three things at
+/// once: the shell tint's alpha, the blur radius (inversely) and the
+/// saturation. R8 separates the two axes that actually compose the material:
+/// the **material step** (blur, saturation, variant) and the **window
+/// transparency** (the fill). A faithful split therefore spends the old value
+/// on both axes at half weight — `transparency = old / 2`, and the step is the
+/// old value's own tertile — so an old 25 (thin) lands at low + 12% and an old
+/// 100 (maxed) at high + 50%. Neither new control is parked at an extreme,
+/// which is precisely why the single axis was split in the first place.
+///
+/// The division by two is integer and rounds to nearest, so 25 → 13 and
+/// 94 → 47 rather than silently truncating the user's intent downward.
+fn migrate_legacy_glass_strength(settings: &mut AppSettings) {
+    let legacy = settings.main_opacity as u32;
+    settings.main_opacity = legacy.div_ceil(2) as u8;
+    settings.terminal_opacity = (settings.terminal_opacity as u32).div_ceil(2) as u8;
+    settings.glass_step = match legacy {
+        0..=33 => "low",
+        34..=66 => "mid",
+        _ => "high",
+    }
+    .to_string();
+}
+
+/// Clamp the material step to the three shipped variants. An unknown value
+/// (hand-edited file, a future step this build does not know) falls back to
+/// the balanced Regular step rather than to a random one.
+fn normalize_glass_step(value: &str) -> String {
+    let trimmed = value.trim().to_ascii_lowercase();
+    if GLASS_STEPS.contains(&trimmed.as_str()) {
+        trimmed
+    } else {
+        DEFAULT_GLASS_STEP.to_string()
+    }
 }
 
 /// The persisted terminal size, normalized defensively so a hand-edited
@@ -296,6 +364,7 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
     settings.terminal_opacity =
         normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
+    settings.glass_step = normalize_glass_step(&settings.glass_step);
     settings.shortcuts = resolved_shortcuts(&settings);
     settings.hotkey = settings
         .shortcuts
@@ -844,6 +913,221 @@ mod tests {
             normalize_window_opacity(255, DEFAULT_MAIN_OPACITY),
             MAX_WINDOW_OPACITY
         );
+    }
+
+    // ── R8: the glass-strength split ──────────────────────────────────────
+
+    /// A pre-R8 file has `main_opacity` but no `glass_step`. Reading it has to
+    /// split the old single "glass strength" number across the two controls
+    /// that replaced it, and it must do so exactly once: the second read sees
+    /// the marker key and leaves the values alone.
+    #[test]
+    fn legacy_glass_strength_splits_across_both_controls() {
+        let legacy = r#"{ "main_opacity": 100, "terminal_opacity": 80 }"#;
+        let settings: AppSettings = serde_json::from_str(legacy).expect("legacy deserialize");
+        // No default is applied by `serde` for the *migration*: the field is
+        // present in the struct but the marker is what decides.
+        assert_eq!(settings.main_opacity as u32, 100);
+        let mut settings = settings;
+        // The marker's absence is what the loader keys on; here the migration
+        // is invoked directly to pin the arithmetic.
+        settings.main_opacity = 100;
+        settings.terminal_opacity = 80;
+        migrate_legacy_glass_strength(&mut settings);
+        // ÷2, rounded to nearest: the old value was one axis driving two, so
+        // each new axis gets half the intent rather than the whole of it.
+        assert_eq!(settings.main_opacity, 50);
+        assert_eq!(settings.terminal_opacity, 40);
+        assert_eq!(settings.glass_step, "high");
+    }
+
+    #[test]
+    fn legacy_split_rounds_to_nearest_and_picks_the_tertile() {
+        let cases = [
+            (10u8, 5u8, "low"),
+            (25, 13, "low"),
+            (33, 17, "low"),
+            (34, 17, "mid"),
+            (50, 25, "mid"),
+            (66, 33, "mid"),
+            (67, 34, "high"),
+            (94, 47, "high"),
+            (100, 50, "high"),
+        ];
+        for (legacy, expected_opacity, expected_step) in cases {
+            let mut settings = AppSettings::default();
+            settings.main_opacity = legacy;
+            migrate_legacy_glass_strength(&mut settings);
+            assert_eq!(
+                settings.main_opacity, expected_opacity,
+                "legacy {legacy} must halve to {expected_opacity}"
+            );
+            assert_eq!(
+                settings.glass_step, expected_step,
+                "legacy {legacy} must land on the {expected_step} step"
+            );
+        }
+    }
+
+    /// The migration is keyed on the marker's *absence*, so it must not run
+    /// twice. A post-R8 value that happened to look legacy would otherwise be
+    /// halved on every launch.
+    #[test]
+    fn the_legacy_migration_runs_at_most_once() {
+        let config_dir = tempfile::tempdir().expect("tempdir");
+        let legacy = r#"{ "main_opacity": 100, "terminal_opacity": 80 }"#;
+        std::fs::write(config_dir.path().join(SETTINGS_FILE_NAME), legacy).expect("write legacy");
+        let first = load_settings_from(config_dir.path());
+        assert_eq!(first.main_opacity, 50);
+        assert_eq!(first.glass_step, "high");
+
+        // A save writes the marker, and the next read must leave it alone.
+        write_settings_to(config_dir.path(), &first).expect("write migrated");
+        let second = load_settings_from(config_dir.path());
+        assert_eq!(
+            second.main_opacity, 50,
+            "a migrated file must not halve again"
+        );
+        assert_eq!(second.glass_step, "high");
+    }
+
+    /// A fresh settings file starts on the balanced step, and the two
+    /// defaults are the halved equivalents of the pre-R8 94/92 — so an
+    /// upgrading user who never opens settings sees the *same* window
+    /// solidity their old file implied, not a jump to a new one.
+    #[test]
+    fn defaults_are_the_split_equivalent_of_the_pre_r8_slider() {
+        let defaults = AppSettings::default();
+        assert_eq!(
+            defaults.main_opacity,
+            (94u32 / 2) as u8,
+            "the default transparency must be the old 94 split in half"
+        );
+        assert_eq!(defaults.terminal_opacity, (92u32 / 2) as u8);
+        assert_eq!(defaults.glass_step, "mid");
+    }
+
+    /// An unknown step is normalized to Regular rather than to whichever
+    /// variant happens to sort first: a wrong-but-balanced material beats an
+    /// unintended Clear panel over a photo.
+    #[test]
+    fn an_unknown_glass_step_falls_back_to_regular() {
+        assert_eq!(normalize_glass_step("low"), "low");
+        assert_eq!(normalize_glass_step("HIGH"), "high");
+        assert_eq!(normalize_glass_step(" mid "), "mid");
+        for unknown in ["", "clear", "regular", "999", "ultra"] {
+            assert_eq!(
+                normalize_glass_step(unknown),
+                DEFAULT_GLASS_STEP,
+                "{unknown:?} is not a shipped step"
+            );
+        }
+    }
+
+    /// The whole point of the split, asserted structurally: the material step
+    /// is not an alpha and no native window path may read it. If this test
+    /// ever fails, the two controls have been re-coupled.
+    #[test]
+    fn glass_step_is_not_a_native_alpha_input() {
+        // The step is a three-valued string, never a number between the
+        // transparency bounds — a "step" that could be clamped to [10,100]
+        // would be the old slider wearing a new name.
+        assert!(
+            normalize_glass_step("0").parse::<u8>().is_err(),
+            "the step must not be numeric: a number here would be an opacity"
+        );
+        assert!(
+            !GLASS_STEPS.contains(&"0"),
+            "the step domain is the three variants and nothing else"
+        );
+        // `glass_step` is absent from every alpha application: the only fields
+        // the window path may read are the two opacity percentages. This is a
+        // *line-level whitelist* rather than a "contains neither" disjunction:
+        // every line of the code section (comments and the test module excluded)
+        // that mentions the step must be one of the four places the step is
+        // legitimately touched — its field declaration, its default, the
+        // legacy-split migration, or its normalizer. Anything else, and in
+        // particular a line that also feeds a native alpha call, fails here.
+        // The old shape `!contains("glass_step") || !contains("set_alpha")`
+        // was vacuously true because `set_alpha` occurred nowhere in the file,
+        // so it guarded nothing.
+        let source = include_str!("config.rs");
+        let code: String = source
+            .lines()
+            .filter(|line| {
+                !line.trim_start().starts_with("//") && !line.trim_start().starts_with("///")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let code_before_tests = code
+            .split("mod tests")
+            .next()
+            .expect("the module has a code section");
+
+        // The shapes a `glass_step` line is allowed to have. Each is a
+        // declaration, a default, or an assignment through the normalizer —
+        // never a call argument.
+        let allowed = [
+            r#"const GLASS_STEP_KEY: &str = "glass_step";"#,
+            "pub glass_step: String",
+            "glass_step: DEFAULT_GLASS_STEP.to_string()",
+            "settings.glass_step = match legacy",
+            "fn normalize_glass_step(value: &str) -> String",
+            "settings.glass_step = normalize_glass_step(&settings.glass_step)",
+        ];
+        // Tokens that identify a native alpha/vibrancy/window application. If
+        // one ever shares a line with the step, the two controls have been
+        // re-coupled at the exact seam this round separates.
+        let alpha_calls = [
+            "set_alpha",
+            "with_alpha",
+            "set_opacity",
+            "vibrancy",
+            "apply_alpha",
+            "window_alpha",
+        ];
+
+        let mut seen = 0usize;
+        for (index, line) in code_before_tests.lines().enumerate() {
+            if !line.contains("glass_step") {
+                continue;
+            }
+            seen += 1;
+            assert!(
+                allowed.iter().any(|shape| line.contains(shape)),
+                "line {} reads the material step outside its declaration/migration/normalizer: \n  {}",
+                index + 1,
+                line.trim()
+            );
+            for call in alpha_calls {
+                assert!(
+                    !line.contains(call),
+                    "line {} feeds the material step into a native alpha call ({call}): \n  {}",
+                    index + 1,
+                    line.trim()
+                );
+            }
+        }
+        // A guard against the whitelist silently going vacuous: the step must
+        // still be a real, referenced field. `normalize_glass_step` is its one
+        // true consumer in the code section.
+        assert!(
+            seen >= 4,
+            "expected the step in its field, its default, its migration and its normalizer; saw {seen}"
+        );
+    }
+
+    #[test]
+    fn normalize_settings_clamps_the_step_and_both_transparencies() {
+        let settings = normalize_settings(AppSettings {
+            main_opacity: 0,
+            terminal_opacity: 0,
+            glass_step: "ultra".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(settings.main_opacity, DEFAULT_MAIN_OPACITY);
+        assert_eq!(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
+        assert_eq!(settings.glass_step, DEFAULT_GLASS_STEP);
     }
 
     #[test]

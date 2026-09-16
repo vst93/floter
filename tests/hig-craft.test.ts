@@ -415,11 +415,33 @@ test("page content arrives on the house ease-out, not the spring", async () => {
 
 // ── Elevation ─────────────────────────────────────────────────────────────
 
+// R7-HIG named the three rungs and consumed none of them: the floaters each
+// restated `--glass-float-shadow`, so "floater > card > base" was not readable
+// from the code. R8 wired the ladder up and made it tint-linked, and the
+// assertions below check both halves — the rungs are a ladder, and the two
+// consumers that make the ladder *mean* something draw from a rung rather than
+// from a literal.
 test("the elevation ladder names three depths and stays a ladder", async () => {
   const rootBlock = await rootTokens();
   assert.equal(token(rootBlock, "elev-1"), "none");
-  assert.match(token(rootBlock, "elev-2"), /var\(--window-shadow-contact\)/);
-  assert.match(token(rootBlock, "elev-3"), /var\(--glass-float-shadow\)/);
+  assert.match(token(rootBlock, "elev-2"), /0 1px 2px/);
+  assert.match(token(rootBlock, "elev-3"), /0 10px 26px/);
+  // Both rungs scale with the frame's fill, so depth is not a constant painted
+  // under a panel that may be nearly invisible or nearly solid.
+  assert.match(token(rootBlock, "elev-2"), /var\(--elev-shadow-scale\)/);
+  assert.match(token(rootBlock, "elev-3"), /var\(--elev-shadow-scale\)/);
+  const scale = token(rootBlock, "elev-shadow-scale");
+  assert.match(scale, /var\(--main-opacity\)/, "the shadow scale must track the transparency control");
+  // The floater rung is strictly the deeper of the two: a bigger blur radius
+  // and a longer throw, at the same tint.
+  const blurOf = (value: string) => Number(value.match(/0 (\d+)px/)?.[1] ?? 0);
+  assert.ok(blurOf(token(rootBlock, "elev-3")) > blurOf(token(rootBlock, "elev-2")), "rung 3 must throw further than rung 2");
+  // The alias keeps the pre-R8 call sites working without being a second
+  // definition of the same shadow.
+  assert.equal(token(rootBlock, "glass-float-shadow"), "var(--elev-3)");
+  // Raised selection panes are rung 2 plus the lit rim.
+  assert.match(token(rootBlock, "glass-raised-shadow"), /^var\(--elev-2\), inset 0 1px 0 var\(--glass-raised-rim\)$/);
+
   // Floaters draw from the top rung; the drawer, the toast and every dialog
   // are the surfaces that use it.
   const floaters: [string, string][] = [
@@ -432,7 +454,21 @@ test("the elevation ladder names three depths and stays a ladder", async () => {
     const css = stripComments(await read(file));
     const rule = rules(css).find(({ selector: s }) => s === selector);
     assert.ok(rule, `${file}: ${selector} must exist`);
-    assert.match(rule!.body, /box-shadow:\s*var\(--glass-float-shadow\)/, `${file}: ${selector} must use the floater rung`);
+    assert.match(rule!.body, /box-shadow:\s*var\(--elev-3\)/, `${file}: ${selector} must use the floater rung`);
+  }
+  // …and no sheet may go back to a hand-rolled floater shadow, or the ladder
+  // would be a naming convention again.
+  for (const { name, css } of await hostSheets()) {
+    if (OUT_OF_SCOPE.has(name) && !name.endsWith("ComponentizedUninstallDialog.css")) continue;
+    for (const { selector, body } of rules(css)) {
+      const shadows = declarations(body, "box-shadow");
+      for (const value of shadows) {
+        assert.ok(
+          !/0 10px 26px var\(--window-shadow-ambient\)/.test(value),
+          `${name}: ${selector} restates the floater shadow — use var(--elev-3)`,
+        );
+      }
+    }
   }
 });
 

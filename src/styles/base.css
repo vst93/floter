@@ -83,10 +83,25 @@
 
      `--glass-float-shadow` and `--glass-rim-shadow` stay the shells' own
      tokens; these name the rungs so a new floater does not invent a fourth
-     shadow. */
+     shadow.
+
+     R8 wired the ladder up and made it tint-linked. R7-HIG defined the three
+     names and consumed none of them: the floaters each restated
+     `--glass-float-shadow`, so "floater > card > base" was not readable from
+     the code. Every floater now draws `--elev-3`, every raised selection pane
+     draws the `--elev-2` contact step, and both are a function of the frame's
+     own fill — a thinner panel needs more cast shadow to read as floating,
+     and a near-solid one needs almost none, or the edge turns into a smear.
+     `--elev-shadow-scale` is that coupling: 1.35 at the thinnest frame down
+     to 0.45 at the near-solid end. */
+  --elev-shadow-scale: calc(0.45 + 0.9 * (1 - var(--main-opacity)));
   --elev-1: none;
-  --elev-2: 0 1px 2px var(--window-shadow-contact);
-  --elev-3: var(--glass-float-shadow);
+  --elev-2:
+    0 1px 2px rgba(0, 0, 0, calc(0.2 * var(--elev-shadow-scale)));
+  --elev-3:
+    0 10px 26px rgba(0, 0, 0, calc(0.3 * var(--elev-shadow-scale))),
+    0 1px 2px rgba(0, 0, 0, calc(0.2 * var(--elev-shadow-scale))),
+    inset 0 1px 0 var(--edge-highlight);
 
   /* ── Hairline (R7-HIG) ──────────────────────────────────────────────────
      A 1px solid hairline is a hard cut where scrolling content meets a bar.
@@ -167,69 +182,118 @@
   --dur-3: 160ms;
   --dur-4: 220ms;
 
-  /* Card surfaces. The values are supplied by the settings panel and clamped
-     before persistence; alpha applies to materials only, never text. */
-  --main-opacity: 0.94;
-  --terminal-opacity: 0.92;
+  /* ── Transparency (R8) ──────────────────────────────────────────────────
+     `--main-opacity` / `--terminal-opacity` are the **window transparency**
+     percentages (10-100, written by App.tsx). They answer one question only:
+     how solid is the frame? Before R8 a single slider called "glass strength"
+     drove the tint, the blur *and* the saturation at once, in opposite
+     directions, and its 0.18 + 0.55x map topped out at 0.73 — a maxed slider
+     still left a quarter of the desktop showing through the panel the user
+     reads. Splitting the axes is the point of this round:
 
-  /* Glass. The two sliders are glass *strength*, not raw alpha: neither end
-     is a plain rectangle of colour and neither is a hole. `--glass-tint-alpha`
-     is the shell's fill, derived from the very `--main-opacity` the settings
-     panel already writes — the variable chain is untouched, only the formula
-     that consumes it changed — and `--glass-blur` moves the other way so a
-     thinner tint keeps its readability. Both are plain calc + rgba (no
-     color-mix) and both land inside the 28px / 180% budget.
+       window transparency  |  READABILITY  |  the frame's fill, nothing else
+       glass step (3-way)   |  MATERIAL     |  blur, saturation, variant share
 
-     R7-GLASS-DEEP made the glass visible. The old map (0.25 + 0.72·op) put
-     the default 94 at 0.927 — a 93%-opaque dark panel that read as a solid
-     sheet, not as glass, and made every control on top of it look like paint
-     on wood. The new map (0.18 + 0.55·op) puts the default at 0.697: roughly
-     a third of the backdrop survives, which is what makes the blur, the
-     saturation and the rim highlight legible as *material*. The floor moved
-     up with it (0.10 strength → 0.235, not 0.32) so the thinnest setting is
-     still a surface and never a hole.
+     `--main-opacity` is the only input a native window-alpha path may read;
+     the glass step never reaches the window server.
 
-     `round()` quantizes the blur to 2px steps so dragging the slider
-     re-rasterizes the backdrop a handful of times instead of continuously;
-     the `@supports` block below swaps it in where the engine has it and
-     leaves the smooth calc as the fallback. No transition ever names
-     `filter`/`backdrop-filter`, so a strength change is a discrete repaint,
-     never an animation. */
-  --glass-tint-alpha: calc(0.18 + 0.55 * var(--main-opacity));
+     The slider maps linearly from the *step's own* fill floor to
+     `--glass-solid-top` (0.98), so 100% is a near-opaque panel on every step
+     — the user's headline requirement — and 10% is the thinnest surface in
+     that variant. The frame is the functional layer, so this is the one
+     surface whose opacity the user trades away on purpose. */
+  --main-opacity: 0.47;
+  --terminal-opacity: 0.46;
+  /* The maxed end of the transparency slider. 0.98, not 1: a fully opaque
+     frame would drop the material's own sheen and rim into invisibility and
+     read as paint, and HIG's regular variant never reaches an opaque fill
+     either. It still composites with the content layer below to ≥0.998. */
+  --glass-solid-top: 0.98;
+
+  /* ── Glass material steps (R8) ──────────────────────────────────────────
+     Three steps, and they are HIG's two Liquid Glass variants plus a
+     readability-max variant on top:
+
+       low   Clear        blur  8-16px, fill 20-40%, dimming layer 35%
+       mid   Regular      blur 20-40px, fill 60-80%
+       high  Regular-max  blur 28px (the budget), heaviest fill, max saturate
+
+     The values live in one place each and the step is selected by
+     `[data-glass]` on <html>, written from settings — so the material is a
+     token swap, never a per-rule branch. `liquid-glass.md › Which variant`
+     is the authority for the bands; `low`'s 0.35 dimming layer is Apple's one
+     published number for clear glass over bright content.
+
+     The blur is a literal now: R7 derived it from the slider inversely so a
+     thinner tint kept its readability, which is exactly the coupling this
+     round removes. It no longer needs quantizing either, and the `@supports
+     round()` block that did that is gone with it. */
+  --glass-step-blur: 24px;
+  --glass-step-saturate: 165%;
+  --glass-step-fill: 0.68;
+  --glass-step-dim: 0;
+
+  /* The frame's fill: the step's floor, sliding to near-solid with the
+     transparency control. */
+  --glass-frame-alpha: calc(
+    var(--glass-step-fill) + (var(--glass-solid-top) - var(--glass-step-fill)) * var(--main-opacity)
+  );
+  /* …then the variant's dimming layer underneath it, which fades out as the
+     frame itself solidifies (a 35% veil on top of a 98% panel is just mud). */
+  --glass-tint-alpha: calc(
+    1 - (1 - var(--glass-step-dim) * (1 - var(--main-opacity))) * (1 - var(--glass-frame-alpha))
+  );
   --glass-tint: rgba(18, 19, 22, var(--glass-tint-alpha));
-  /* The terminal keeps a little more body than the launcher: it is filled
-     edge to edge with a command's own colours, and those have to stay
-     readable over whatever the desktop is doing behind them. */
-  --glass-tint-alpha-terminal: calc(0.24 + 0.55 * var(--terminal-opacity));
-  --glass-tint-terminal: rgba(18, 19, 22, var(--glass-tint-alpha-terminal));
-  --glass-saturate: 175%;
-  --glass-blur: calc(22px + 6px * (1 - var(--main-opacity)));
-  --glass-blur-terminal: calc(22px + 6px * (1 - var(--terminal-opacity)));
+  --glass-saturate: var(--glass-step-saturate);
+  --glass-blur: var(--glass-step-blur);
 
-  /* Content that floats on the glass: drawers, dialogs, menus and toasts. One
-     step more opaque than the shell so text stays readable — the ladder is
-     kept as a *difference* (float − shell = 0.19 at every strength) rather
-     than as two independent formulas, so "float is more solid than the shell"
-     stays true across the whole slider. Sharing the same top rim and a small
-     fixed shadow instead of a blur of their own is what keeps the count of
-     backdrop-filter elements at one per surface. */
-  --glass-float-alpha: calc(var(--glass-tint-alpha) + 0.19);
+  /* The terminal is the same material with its own transparency control, so
+     it shares the step's blur and saturation and only re-derives the fill. */
+  --glass-frame-alpha-terminal: calc(
+    var(--glass-step-fill) + (var(--glass-solid-top) - var(--glass-step-fill)) * var(--terminal-opacity)
+  );
+  --glass-tint-alpha-terminal: calc(
+    1 - (1 - var(--glass-step-dim) * (1 - var(--terminal-opacity))) * (1 - var(--glass-frame-alpha-terminal))
+  );
+  --glass-tint-terminal: rgba(18, 19, 22, var(--glass-tint-alpha-terminal));
+  --glass-blur-terminal: var(--glass-step-blur);
+
+  /* ── Content-layer standard material (R8) ───────────────────────────────
+     `liquid-glass.md › The two layers`: Liquid Glass is the functional layer
+     and the content layer uses *standard materials*. R7-HIG declared that
+     split and did not wire it; this round does. Everything that holds body
+     copy — the result list, the settings body, the tool-result scroll — is a
+     standard material: a fixed 60-80% band that the transparency control
+     does **not** move, because content readability is not the user's
+     transparency tradeoff, the frame is. Only the functional layer (frame,
+     query field, toolbar, sidebar, drawer, dialog, toast) follows the slider
+     or carries the glass.
+
+     The band is Apple's own Regular fill range translated to the recess: a
+     `rgba` tint laid over the frame, so the composite the text actually sits
+     on is that much denser than either layer alone. Because the content layer
+     is a fixed band while the frame slides from a Clear floor to near-solid,
+     the two cross; what has to hold at every combination is not "recess alpha
+     > frame alpha" but "the recess is legible and composites denser than the
+     frame" — which is what the R8 sweep tests assert. */
+  --glass-content-alpha: calc(0.62 + 0.18 * var(--main-opacity));
+  --surface-sunken: rgba(17, 18, 20, var(--glass-content-alpha));
+  --surface-sunken-soft: rgba(17, 18, 20, calc(var(--glass-content-alpha) - 0.06));
+
+  /* Floaters ride `--glass-tint-alpha` plus the same fixed gap a raised pane
+     uses, so a drawer/dialog/toast is always denser than the frame it floats
+     over and than the content it holds. Alpha clamps at 1 in CSS, so the
+     near-solid end needs no guard. The ladder is defined here rather than as
+     two independent formulas so "float is more solid than the frame" stays
+     true across both controls. */
+  --glass-float-alpha: calc(var(--glass-tint-alpha) + 0.1);
   --glass-float: rgba(24, 25, 29, var(--glass-float-alpha));
-  --glass-float-shadow:
-    0 10px 26px var(--window-shadow-ambient),
-    inset 0 1px 0 var(--edge-highlight);
+  /* Kept as an alias of the floater rung so the pre-R8 call sites that name
+     it keep working; it is no longer a second definition of the same shadow. */
+  --glass-float-shadow: var(--elev-3);
 
   --input-stroke: rgba(255, 255, 255, 0.08);
   --input-stroke-active: rgba(143, 183, 255, 0.24);
-  /* Recessed areas inside a card: the result strip and the settings body. They
-     are tint over the shell, never a second material — a fixed fraction of the
-     shell's own alpha, so the recess reads as depth at every strength and can
-     never punch through to the desktop. The fractions sit below the shell on
-     purpose (0.78 and 0.50 against the shell's 1.0), which is what makes the
-     sunken field read as *behind* the glass rather than as another pane on
-     top of it. */
-  --surface-sunken: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.78));
-  --surface-sunken-soft: rgba(17, 18, 20, calc(var(--glass-tint-alpha) * 0.5));
   /* Stand-in for the whole stack where transparency is turned off. Raised to
      match the thinner tint: the point of the fallback is that the surface
      stops being see-through, and a value that tracked the (now much lighter)
@@ -276,7 +340,13 @@
   --glass-raised: var(--accent-tint);
   --glass-raised-hover: var(--accent-tint-hover);
   --glass-raised-rim: rgba(255, 255, 255, 0.1);
-  --glass-raised-shadow: inset 0 1px 0 var(--glass-raised-rim);
+  /* A raised pane is the ladder's second rung: it floats a contact shadow off
+     the surface it sits on *and* keeps the lit rim that makes it read as
+     glass. Consuming `--elev-2` here (rather than restating a 1px inset) is
+     what makes "raised > resting" a fact about the elevation ladder instead
+     of a coincidence of two unrelated declarations, and the rung is
+     tint-linked so a thinner frame casts a firmer contact shadow. */
+  --glass-raised-shadow: var(--elev-2), inset 0 1px 0 var(--glass-raised-rim);
   /* The warm branch of the raised pane. A power action is the one launcher
      entry that cannot be undone by closing a window, and the accent blue the
      rest of the selection language uses would read as "this opens something".
@@ -399,28 +469,50 @@
   --text-placeholder-contrast: rgba(242, 243, 245, 0.58);
 }
 
-/* Quantized glass strength, where the engine has `round()`. The declaration
-   is a whole-value replacement, so an engine without the function keeps the
-   smooth `calc()` fallback from `:root` and still gets a working slider. */
-@supports (width: round(nearest, 1px, 1px)) {
-  :root {
-    --glass-blur: round(nearest, calc(22px + 6px * (1 - var(--main-opacity))), 2px);
-    --glass-blur-terminal: round(nearest, calc(22px + 6px * (1 - var(--terminal-opacity))), 2px);
-  }
+/* ── Glass material steps (R8) ────────────────────────────────────────────
+   The three variants, as three token overrides selected by one attribute on
+   <html>. `low` is HIG's Clear variant, which is "highly translucent" by
+   definition, so its floor is deliberately below the 60-80% regular band and
+   it carries the published 35% dimming layer; `mid` is Regular; `high` is
+   Regular pushed to the round's budget ceiling (blur 28px, saturate 180%).
+
+   Every other material token derives from these — see the `:root` block — so
+   a step switch is a token swap and nothing in any surface file mentions a
+   step by name. */
+[data-glass="low"] {
+  --glass-step-blur: 10px;
+  --glass-step-saturate: 135%;
+  --glass-step-fill: 0.3;
+  --glass-step-dim: 0.35;
+}
+
+[data-glass="mid"] {
+  --glass-step-blur: 24px;
+  --glass-step-saturate: 165%;
+  --glass-step-fill: 0.68;
+  --glass-step-dim: 0;
+}
+
+[data-glass="high"] {
+  --glass-step-blur: 28px;
+  --glass-step-saturate: 180%;
+  --glass-step-fill: 0.8;
+  --glass-step-dim: 0;
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  /* Only the colour of the glass changes with the palette; the alpha and the
-     blur come from the shared `--glass-*` definitions above. */
+  /* Only the colour of the glass changes with the palette; the alpha, the
+     step values and the blur come from the shared `--glass-*` definitions
+     above. */
   --glass-tint: rgba(250, 250, 252, var(--glass-tint-alpha));
   --glass-tint-terminal: rgba(250, 250, 252, var(--glass-tint-alpha-terminal));
   --glass-float: rgba(252, 252, 254, var(--glass-float-alpha));
   --input-stroke: rgba(0, 0, 0, 0.1);
   --input-stroke-active: rgba(10, 108, 255, 0.28);
-  --surface-sunken: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.9));
-  --surface-sunken-soft: rgba(243, 244, 247, calc(var(--glass-tint-alpha) * 0.6));
+  --surface-sunken: rgba(243, 244, 247, var(--glass-content-alpha));
+  --surface-sunken-soft: rgba(243, 244, 247, calc(var(--glass-content-alpha) - 0.06));
   --surface-opaque: rgba(250, 250, 252, 0.995);
 
   /* The control ladder flips polarity: a white overlay on a #fafafc card is
@@ -458,31 +550,39 @@
 
   --text-primary: #1d1d1f;
   --text-strong: rgba(23, 23, 26, 0.96);
-  --text-secondary: rgba(60, 60, 67, 0.78);
-  --text-muted: rgba(60, 60, 67, 0.66);
-  --text-tertiary: rgba(60, 60, 67, 0.6);
-  --text-placeholder: rgba(60, 60, 67, 0.6);
+  /* R8 raised the three muted steps and darkened the accent. The light theme's
+     glass now has a Clear step whose fill floor is under 0.4, and dark text on
+     light glass loses contrast exactly the way light text on dark glass does —
+     at the old alphas `muted` landed at 3.0 and `tertiary` at 2.9 over the
+     thinnest Clear frame, under AA for 10-13px copy. The steps keep their
+     order (secondary > muted > tertiary); only the alpha and the accent hue
+     moved. `--accent` is #064aa6 rather than #075ed8 for the same reason: the
+     old blue reached only 3.6:1 on the Clear recesses. */
+  --text-secondary: rgba(60, 60, 67, 0.86);
+  --text-muted: rgba(60, 60, 67, 0.74);
+  --text-tertiary: rgba(60, 60, 67, 0.72);
+  --text-placeholder: rgba(60, 60, 67, 0.72);
   --text-warning: #9c1f18;
 
   /* Darker than the dark theme's accent: the same pastel blue that reads as
      bright on near-black is barely there on white, and it has to carry the
      check mark and the recording pill's text. */
-  --accent: #075ed8;
+  --accent: #064aa6;
   --accent-contrast: #f7f9ff;
-  --accent-tint: rgba(7, 94, 216, 0.1);
-  --accent-tint-hover: rgba(7, 94, 216, 0.15);
-  --accent-edge: rgba(7, 94, 216, 0.34);
-  --accent-edge-strong: rgba(7, 94, 216, 0.66);
+  --accent-tint: rgba(6, 74, 166, 0.1);
+  --accent-tint-hover: rgba(6, 74, 166, 0.16);
+  --accent-edge: rgba(6, 74, 166, 0.36);
+  --accent-edge-strong: rgba(6, 74, 166, 0.68);
   /* Both of these carry more alpha than their dark counterparts, which is what
      it takes to be equally visible: a light colour laid over near-black gains
      contrast, while the same alpha of blue over near-white barely moves the
      pixel. `--accent-glow` is the focus ring around the collapsed card and
      `--accent-wash` the aura inside it — at the dark theme's values neither
      was there at all in light mode. */
-  --accent-glow: rgba(7, 94, 216, 0.18);
-  --accent-wash: rgba(7, 94, 216, 0.075);
-  --accent-ring: rgba(7, 94, 216, 0.8);
-  --accent-halo: rgba(7, 94, 216, 0.22);
+  --accent-glow: rgba(6, 74, 166, 0.2);
+  --accent-wash: rgba(6, 74, 166, 0.085);
+  --accent-ring: rgba(6, 74, 166, 0.82);
+  --accent-halo: rgba(6, 74, 166, 0.24);
   --surface-scrim: rgba(0, 0, 0, 0.34);
   --terminal-veil: rgba(250, 250, 252, 0.62);
 
@@ -708,18 +808,39 @@ canvas {
     backdrop-filter: none;
     background: var(--surface-opaque);
   }
+
+  /* The content layer is a standard material, not glass, so the blur was
+     never its problem — but it still rides the frame's slide and at the low
+     end of the slider it, too, sits over a see-through surface. A user who
+     has turned transparency off wants one answer everywhere: the recess goes
+     near-solid with the frame, so the result list and the settings body stop
+     being windows onto the desktop as well. */
+  .launcher-bottom,
+  .settings-content,
+  .extension-tool-results {
+    background: var(--surface-opaque);
+  }
 }
 
 @media (prefers-contrast: more) {
   /* "Increase contrast" has to mean the material, not only the borders. At
-     the default strength the shell now lets a third of the desktop through —
-     that is the point of the glass — but a user who has asked the system for
-     contrast must not have to also go find the slider. The tint is raised to
-     near-solid and the blur is left alone, so the panel keeps its material
-     and loses its transparency. */
+     the low end of the transparency slider the frame is genuinely
+     see-through — that is the point of the Clear step — but a user who has
+     asked the system for contrast must not have to also go find the slider.
+     The fill floor is raised to near-solid on *every* step and the blur is
+     left alone, so the panel keeps its material and loses its transparency.
+     It is expressed against the same two tokens the steps and the slider use,
+     which is what makes it testable rather than a parallel formula. */
   :root {
-    --glass-tint-alpha: calc(0.82 + 0.16 * var(--main-opacity));
-    --glass-tint-alpha-terminal: calc(0.84 + 0.15 * var(--terminal-opacity));
+    --glass-step-fill: 0.86;
+    --glass-step-dim: 0;
+  }
+
+  [data-glass="low"],
+  [data-glass="mid"],
+  [data-glass="high"] {
+    --glass-step-fill: 0.86;
+    --glass-step-dim: 0;
   }
 
   .collapsed-card,
@@ -740,6 +861,17 @@ canvas {
     box-shadow: inset 0 0 0 1px var(--stroke-contrast);
     color: var(--text-primary);
   }
+}
+
+/* The glass step is chosen in settings and written onto <html> by App.tsx.
+   `mid` is the resting default in markup before hydration; this attribute
+   selector is the whole switching mechanism, and it is why no surface file
+   ever mentions a step by name. */
+html:not([data-glass]) {
+  --glass-step-blur: 24px;
+  --glass-step-saturate: 165%;
+  --glass-step-fill: 0.68;
+  --glass-step-dim: 0;
 }
 
 /* An undecorated Windows window reaches exactly to these surfaces. Its edge is

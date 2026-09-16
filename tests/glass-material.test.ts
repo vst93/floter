@@ -99,17 +99,6 @@ const token = (block: string, name: string) => {
 // A `--x: calc(a + b * var(--y))` map, read as { a, b }. Both coefficients are
 // pinned by the tests below; the map is what the whole material system hangs
 // off, so "it is a calc that mentions the variable" is not enough.
-const affine = (value: string, variable: string) => {
-  const match = value.match(
-    new RegExp(`^calc\\(\\s*([\\d.]+)\\s*\\+\\s*([\\d.]+)\\s*\\*\\s*var\\(--${variable}\\)\\s*\\)$`),
-  );
-  assert.ok(match, `"${value}" must be calc(a + b * var(--${variable}))`);
-  return { a: Number(match![1]), b: Number(match![2]) };
-};
-
-// The alpha a `--x-alpha` token resolves to, evaluated with the affine map it
-// is written against.
-const alphaAt = (map: { a: number; b: number }, opacity: number) => map.a + map.b * opacity;
 
 // The selectors that actually declare a backdrop-filter (either spelling), from
 // every sheet in src/styles. `none` is an opt-out, not a material.
@@ -213,87 +202,217 @@ test("no control rule anywhere in the host sheets declares a filter", async () =
   }
 });
 
-test("the glass tint is derived from the untouched opacity chain", async () => {
+test("the window transparency chain drives the frame and nothing else", async () => {
   const rootBlock = await rootTokens();
+  baseCache ??= await read("src/styles/base.css");
   // The chain itself is unchanged: both variables are still declared here and
-  // still written by App.tsx.
-  assert.match(rootBlock, /--main-opacity:\s*0\.94;/);
-  assert.match(rootBlock, /--terminal-opacity:\s*0\.92;/);
+  // still written by App.tsx, and they are now the *transparency* control.
+  assert.match(rootBlock, /--main-opacity:\s*0\.47;/);
+  assert.match(rootBlock, /--terminal-opacity:\s*0\.46;/);
   assert.match(await read("src/App.tsx"), /setProperty\("--main-opacity"/);
   assert.match(await read("src/App.tsx"), /setProperty\("--terminal-opacity"/);
-  // The glass formula consumes them, and only with calc + rgba (no color-mix,
+  // The frame fill consumes them, and only with calc + rgba (no color-mix,
   // whose WebKitGTK support varies across the versions floter ships to).
-  const glassTokens = rootBlock.slice(rootBlock.indexOf("--glass-tint-alpha"));
-  assert.match(glassTokens, /--glass-tint-alpha:\s*calc\([^)]*var\(--main-opacity\)\)/);
-  assert.match(glassTokens, /--glass-tint-alpha-terminal:\s*calc\([^)]*var\(--terminal-opacity\)\)/);
-  assert.ok(
-    !/color-mix/.test(glassTokens.slice(0, glassTokens.indexOf("--input-stroke"))),
-    "the derived glass tint must not use color-mix",
+  const glassTokens = rootBlock.slice(rootBlock.indexOf("--glass-frame-alpha"), rootBlock.indexOf("--input-stroke"));
+  assert.match(glassTokens, /--glass-frame-alpha:\s*calc\(\s*[\s\S]*?var\(--main-opacity\)\s*\);/);
+  assert.match(glassTokens, /--glass-frame-alpha-terminal:\s*calc\(\s*[\s\S]*?var\(--terminal-opacity\)\s*\);/);
+  assert.ok(!/color-mix/.test(glassTokens), "the derived frame fill must not use color-mix");
+
+  // R8's headline: the transparency slider is the readability control, so its
+  // maxed end has to be a near-opaque frame — the R7 map topped out at 0.73
+  // and the user's complaint ("still see-through at 100%") is exactly that.
+  assert.match(token(rootBlock, "glass-solid-top"), /^0\.9[5-9]$/);
+  for (const step of ["low", "mid", "high"]) {
+    const floor = stepTokens(step).fill;
+    // frame(t=1) = floor + (solidTop - floor) * 1 = solidTop on every step.
+    assert.ok(
+      floor + (SOLID_TOP - floor) * 1 >= 0.95,
+      `${step}: the maxed transparency slider must reach ≥0.95, got ${floor + (SOLID_TOP - floor)}`,
+    );
+  }
+});
+
+// ── The glass step (R8) ────────────────────────────────────────────────────
+//
+// The material is three discrete variants, and they are HIG's own: `low` is
+// the Clear variant (thin blur, low fill, and Apple's published 35% dimming
+// layer for bright content), `mid` is Regular, and `high` is Regular pushed to
+// this round's budget ceiling. The numbers live in `[data-glass]` blocks in
+// base.css; these assertions keep them from drifting into each other, which is
+// the whole failure mode of a three-step control (low and mid converging until
+// the control does nothing).
+
+/** Parse one `[data-glass="x"]` block into its four step tokens. */
+const stepTokens = (step: string) => {
+  const base = stripComments(baseCache ?? "");
+  const start = base.indexOf(`[data-glass="${step}"]`);
+  assert.notEqual(start, -1, `base.css must define [data-glass="${step}"]`);
+  // A block's own braces, so the slice is structural rather than a fixed
+  // window around the match.
+  const open = base.indexOf("{", start);
+  let depth = 0;
+  let end = open;
+  for (let i = open; i < base.length; i += 1) {
+    if (base[i] === "{") depth += 1;
+    else if (base[i] === "}") {
+      depth -= 1;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  const body = base.slice(open + 1, end);
+  const read = (name: string) => {
+    const match = body.match(new RegExp(`--glass-step-${name}:\\s*([^;]+);`));
+    assert.ok(match, `[data-glass="${step}"] must define --glass-step-${name}`);
+    return match![1].trim();
+  };
+  return {
+    blur: Number(read("blur").replace("px", "")),
+    saturate: Number(read("saturate").replace("%", "")),
+    fill: Number(read("fill")),
+    dim: Number(read("dim")),
+  };
+};
+
+const SOLID_TOP = 0.98;
+
+// The three steps, read once so the band assertions below can share them.
+let baseCache: string | null = null;
+test("the glass step is three HIG variants, monotonic low < mid < high", async () => {
+  baseCache = await read("src/styles/base.css");
+  const steps = { low: stepTokens("low"), mid: stepTokens("mid"), high: stepTokens("high") };
+
+  // The variant bands from `liquid-glass.md › Cross-platform translation`:
+  // clear 8-16px / 20-40% fill / a 35% dimming layer, regular 20-40px /
+  // 60-80%. `high` sits at the round's 28px budget ceiling.
+  assert.ok(steps.low.blur >= 8 && steps.low.blur <= 16, `Clear blur must sit in 8-16px, got ${steps.low.blur}`);
+  assert.ok(steps.low.fill >= 0.2 && steps.low.fill <= 0.4, `Clear fill must sit in 20-40%, got ${steps.low.fill}`);
+  assert.equal(steps.low.dim, 0.35, "Clear glass over bright content carries the published 35% dimming layer");
+  assert.ok(steps.mid.blur >= 20 && steps.mid.blur <= 28, `Regular blur must sit in 20-28px, got ${steps.mid.blur}`);
+  assert.ok(steps.mid.fill >= 0.6 && steps.mid.fill <= 0.8, `Regular fill must sit in 60-80%, got ${steps.mid.fill}`);
+  assert.equal(steps.mid.dim, 0, "the Regular variant needs no dimming layer");
+  assert.equal(steps.high.blur, 28, "the High step sits at the 28px budget ceiling");
+  assert.equal(steps.high.saturate, 180, "the High step sits at the 180% saturation budget");
+  assert.equal(steps.high.dim, 0, "the High step needs no dimming layer");
+
+  // Direction monotonicity: a higher step is more material — more blur, more
+  // saturation, more fill. This is the "档位映射错位" mutation's target: swap
+  // any two steps' values and one of these fails.
+  assert.ok(steps.low.blur < steps.mid.blur && steps.mid.blur < steps.high.blur, "blur must ascend low < mid < high");
+  assert.ok(steps.low.saturate < steps.mid.saturate && steps.mid.saturate < steps.high.saturate, "saturation must ascend");
+  assert.ok(steps.low.fill < steps.mid.fill && steps.mid.fill < steps.high.fill, "fill must ascend");
+  assert.ok(steps.low.dim > steps.mid.dim && steps.mid.dim === steps.high.dim, "only Clear carries a dimming layer");
+  for (const [name, step] of Object.entries(steps)) {
+    assert.ok(step.blur <= 28, `${name}: blur exceeds the 28px budget`);
+    assert.ok(step.saturate <= 180, `${name}: saturate exceeds the 180% budget`);
+  }
+
+  // The frame at a given transparency must ascend with the step at *every*
+  // slider position — otherwise the control would invert mid-range. At the
+  // top the three converge (all near-solid), which is correct: the user asked
+  // for an opaque window.
+  for (let t = 0.1; t <= 0.9501; t += 0.05) {
+    const frame = (s: { fill: number; dim: number }) => {
+      const fill = s.fill + (SOLID_TOP - s.fill) * t;
+      const dim = s.dim * (1 - t);
+      return 1 - (1 - dim) * (1 - fill);
+    };
+    const [lo, mi, hi] = [frame(steps.low), frame(steps.mid), frame(steps.high)];
+    assert.ok(lo < mi && mi < hi, `frame must ascend at transparency ${t.toFixed(2)}: ${lo} / ${mi} / ${hi}`);
+  }
+  // …and at 100% every step is the near-solid frame the user asked for.
+  for (const [name, step] of Object.entries(steps)) {
+    const fill = step.fill + (SOLID_TOP - step.fill) * 1;
+    const dim = step.dim * (1 - 1);
+    const frame = 1 - (1 - dim) * (1 - fill);
+    assert.ok(frame >= 0.95, `${name}: at 100% transparency the frame must be near-solid, got ${frame.toFixed(3)}`);
+  }
+});
+
+// The step is selected by an attribute on <html> rather than by a class on
+// each surface, which is what makes it one mechanism instead of a branch per
+// file. A later round that switched it in JavaScript would silently lose the
+// a11y override keying, so the mechanism itself is pinned.
+test("the step is an html attribute, and no surface file names a step", async () => {
+  assert.match(
+    await read("src/App.tsx"),
+    /setAttribute\("data-glass",\s*settings\.glass_step\)/,
+    "App.tsx must write the step onto <html> as data-glass",
   );
+  // No surface sheet may branch on a step: the tokens are the only interface.
+  for (const { name, css } of await styleFiles()) {
+    if (name === "src/styles/base.css") continue; // the definition site
+    assert.ok(
+      !/data-glass/.test(css),
+      `${name}: a surface file must not branch on data-glass — it consumes --glass-step-* tokens`,
+    );
+  }
+  // base.css is the only file that defines the three blocks, and it defines
+  // exactly three: a fourth would be an undocumented step.
+  const base = stripComments(await read("src/styles/base.css"));
+  const blocks = [...base.matchAll(/\[data-glass="(\w+)"\]/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(blocks)].sort(), ["high", "low", "mid"]);
 });
 
-// The coefficients themselves. R7-GLASS shipped (0.25 + 0.72·op); R7-GLASS-DEEP
-// replaced it with (0.18 + 0.55·op) because the old map put the default at
-// 0.927 and the panel stopped reading as glass. A mutation that restores the
-// old slope has to fail here, which is the only place the number lives.
-test("the tint map is the R7-GLASS-DEEP curve, not the old one", async () => {
+
+// The material ladder. R7-HIG's version of this test asserted
+// `float > shell > sunken` — a frame-only ladder that R8 deliberately broke:
+// the frames now slide from a Clear floor to near-solid while the content
+// recess is a fixed standard-material band, so the two cross. What has to hold
+// at every combination is the *composite*: the recess must read as denser than
+// the frame it sits on, and a floater must read as denser than both.
+test("the material ladder holds as composites across both controls", async () => {
   const rootBlock = await rootTokens();
-  const main = affine(token(rootBlock, "glass-tint-alpha"), "main-opacity");
-  assert.deepEqual(main, { a: 0.18, b: 0.55 }, "the shell tint map must be 0.18 + 0.55·op");
+  baseCache ??= await read("src/styles/base.css");
 
-  const terminal = affine(token(rootBlock, "glass-tint-alpha-terminal"), "terminal-opacity");
-  assert.equal(terminal.b, 0.55, "the terminal shares the shell's slope");
-  assert.ok(terminal.a > main.a, "the terminal keeps a higher floor than the launcher");
-
-  // The two ends the user actually meets: the default 94 must let a third of
-  // the desktop through (it was 0.927), and the thinnest slider setting must
-  // still be a surface rather than a hole.
-  const atDefault = alphaAt(main, 0.94);
-  assert.ok(atDefault <= 0.72, `default strength must tint at most 0.72, got ${atDefault}`);
-  assert.ok(atDefault >= 0.6, `default strength must still tint at least 0.6, got ${atDefault}`);
-  const atFloor = alphaAt(main, 0.1);
-  assert.ok(atFloor >= 0.2, `the thinnest setting must stay opaque enough to read, got ${atFloor}`);
-
-  // blur still moves the other way, so a thinner tint keeps its readability.
-  const blur = token(rootBlock, "glass-blur");
-  assert.match(blur, /^calc\(22px \+ 6px \* \(1 - var\(--main-opacity\)\)\)$/);
-});
-
-// The material ladder. Every control token has to keep its place relative to
-// the shell at *every* slider position, not just at the default, which is why
-// the checks below sweep the range instead of spot-checking 0.94.
-test("float, shell and sunken keep their order across the whole slider", async () => {
-  const rootBlock = await rootTokens();
-  const shell = affine(token(rootBlock, "glass-tint-alpha"), "main-opacity");
-
-  // Float is written as shell + a constant, so the ordering is structural
-  // rather than two formulas that happen to agree at one value.
+  // Float is written as frame + a constant, so "float is denser than the
+  // frame" is structural rather than two formulas that agree by accident.
   const float = token(rootBlock, "glass-float-alpha");
   const delta = float.match(/^calc\(var\(--glass-tint-alpha\)\s*\+\s*([\d.]+)\)$/);
-  assert.ok(delta, `--glass-float-alpha must be shell + a constant, got "${float}"`);
-  assert.ok(Number(delta![1]) >= 0.15, `float must clear the shell by ≥0.15, got ${delta![1]}`);
+  assert.ok(delta, `--glass-float-alpha must be frame + a constant, got "${float}"`);
+  assert.ok(Number(delta![1]) >= 0.08, `float must clear the frame by ≥0.08, got ${delta![1]}`);
 
-  const sunken = token(rootBlock, "surface-sunken").match(/var\(--glass-tint-alpha\)\s*\*\s*([\d.]+)\)/);
-  const sunkenSoft = token(rootBlock, "surface-sunken-soft").match(/var\(--glass-tint-alpha\)\s*\*\s*([\d.]+)\)/);
-  assert.ok(sunken, "--surface-sunken must be a fraction of the shell tint");
-  assert.ok(sunkenSoft, "--surface-sunken-soft must be a fraction of the shell tint");
-  assert.ok(Number(sunken![1]) < 1, `sunken must be thinner than the shell, got ${sunken![1]}`);
-  assert.ok(
-    Number(sunkenSoft![1]) < Number(sunken![1]),
-    "the soft recess must be thinner than the hard one",
-  );
+  // The content layer is a fixed band of the *transparency* control, not a
+  // fraction of the frame — that is the layer-discipline change of this round.
+  const content = token(rootBlock, "glass-content-alpha");
+  const contentMap = content.match(/^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/);
+  assert.ok(contentMap, `--glass-content-alpha must be calc(a + b·transparency), got "${content}"`);
+  const [cA, cB] = [Number(contentMap![1]), Number(contentMap![2])];
+  // The HIG regular band (60-80%) over the whole slider. The bottom of the
+  // band is what keeps body copy legible at the thinnest frame; the top is
+  // what keeps the recess reading as a recess rather than as paint.
+  assert.ok(cA >= 0.6 && cA <= 0.7, `the content band must start in the regular range, got ${cA}`);
+  assert.ok(cA + cB <= 0.81, `the content band must stay within 80%, got ${cA + cB}`);
+  // The soft recess is the same band, one step thinner.
+  const soft = token(rootBlock, "surface-sunken-soft");
+  assert.match(soft, /calc\(var\(--glass-content-alpha\)\s*-\s*[\d.]+\)/);
 
-  // Sweep: for every strength the panel can be set to, the four layers stay
-  // distinct and correctly ordered.
-  for (let opacity = 0.1; opacity <= 1.0001; opacity += 0.05) {
-    const shellAlpha = alphaAt(shell, opacity);
-    const floatAlpha = shellAlpha + Number(delta![1]);
-    const sunkenAlpha = shellAlpha * Number(sunken![1]);
-    assert.ok(
-      floatAlpha > shellAlpha && shellAlpha > sunkenAlpha,
-      `ladder inverted at opacity ${opacity.toFixed(2)}: float ${floatAlpha} / shell ${shellAlpha} / sunken ${sunkenAlpha}`,
-    );
-    assert.ok(floatAlpha <= 1, `float must stay within [0,1] at opacity ${opacity.toFixed(2)}`);
+  // The frame maps each step's fill floor to the near-solid top.
+  const solidTop = Number(token(rootBlock, "glass-solid-top"));
+  assert.ok(solidTop >= 0.95, `--glass-solid-top must be near-opaque, got ${solidTop}`);
+
+  // Sweep every step × transparency and assert the composites stay ordered.
+  const steps = { low: stepTokens("low"), mid: stepTokens("mid"), high: stepTokens("high") };
+  for (const [name, step] of Object.entries(steps)) {
+    for (let t = 0.1; t <= 1.0001; t += 0.05) {
+      const fill = step.fill + (solidTop - step.fill) * t;
+      const dim = step.dim * (1 - t);
+      const frame = 1 - (1 - dim) * (1 - fill);
+      const floatAlpha = Math.min(1, frame + Number(delta![1]));
+      const contentAlpha = Math.min(1, cA + cB * t);
+      // Composite opacity of the recess over the frame vs the frame alone.
+      const recessComposite = 1 - (1 - frame) * (1 - contentAlpha);
+      assert.ok(
+        recessComposite >= frame,
+        `${name}@${t.toFixed(2)}: the content recess must composite at least as dense as the frame ` +
+          `(${recessComposite.toFixed(3)} vs ${frame.toFixed(3)})`,
+      );
+      assert.ok(
+        floatAlpha >= frame,
+        `${name}@${t.toFixed(2)}: a floater must never be thinner than the frame it floats over ` +
+          `(${floatAlpha.toFixed(3)} vs ${frame.toFixed(3)})`,
+      );
+      assert.ok(floatAlpha <= 1, `${name}@${t.toFixed(2)}: float must stay within [0,1]`);
+    }
   }
 });
 
@@ -329,9 +448,11 @@ test("the control material ladder keeps rest < hover and press < rest", async ()
   assert.equal(token(rootBlock, "icon-edge"), "var(--glass-control-edge)");
 
   // Raised panes are the accent branch of the same ladder, and they carry the
-  // same rim: selection is a lit pane, not a flat block of accent colour.
+  // same rim plus the elevation ladder's contact rung: selection is a lit pane
+  // floating off the surface, not a flat block of accent colour.
   assert.equal(token(rootBlock, "glass-raised"), "var(--accent-tint)");
-  assert.match(token(rootBlock, "glass-raised-shadow"), /^inset 0 1px 0 var\(--glass-raised-rim\)$/);
+  assert.match(token(rootBlock, "glass-raised-shadow"), /var\(--elev-2\)/);
+  assert.match(token(rootBlock, "glass-raised-shadow"), /inset 0 1px 0 var\(--glass-raised-rim\)/);
 });
 
 // The rim highlight is the single loudest liquid-glass cue. R7-GLASS shipped
@@ -375,25 +496,42 @@ test("the shell border is a lit top, a dark bottom and a full ring of glass", as
 
 test("glass values stay inside the performance budget", async () => {
   const rootBlock = await rootTokens();
-  const blurDefinitions = [...rootBlock.matchAll(/--glass-blur[\w-]*:\s*([^;]+);/g)].map((m) => m[1]);
-  assert.ok(blurDefinitions.length >= 2, "both the smooth and the quantized blur must be defined");
-  for (const definition of blurDefinitions) {
-    for (const literal of definition.matchAll(/([\d.]+)px/g)) {
-      assert.ok(
-        Number(literal[1]) <= 28,
-        `blur component ${literal[0]} exceeds the 28px budget in "${definition}"`,
-      );
+  baseCache ??= await read("src/styles/base.css");
+
+  // Every blur the material can render, wherever it is declared: the three
+  // step tokens, and the two aliases the frame consumes. R7 derived the blur
+  // from the slider and needed a `round()` quantizer; R8's blur is a literal
+  // per step, so there is no calc to quantize and no `@supports` block — the
+  // absence is asserted so a future round cannot quietly reintroduce a
+  // slider-driven blur.
+  const base = stripComments(baseCache!);
+  const blurDeclarations = [...base.matchAll(/--glass-(?:step-)?blur[\w-]*:\s*([^;]+);/g)].map((m) => m[1]);
+  assert.ok(blurDeclarations.length >= 4, "the three steps and the frame aliases must all declare a blur");
+  for (const declaration of blurDeclarations) {
+    for (const literal of declaration.matchAll(/([\d.]+)px/g)) {
+      assert.ok(Number(literal[1]) <= 28, `blur component ${literal[0]} exceeds the 28px budget in "${declaration}"`);
     }
   }
-  const saturate = rootBlock.match(/--glass-saturate:\s*([\d.]+)%/);
-  assert.ok(saturate, "--glass-saturate must be defined");
-  assert.ok(Number(saturate[1]) <= 180, `saturate ${saturate![1]}% exceeds the 180% budget`);
-  assert.ok(Number(saturate[1]) >= 160, "the round raised saturation on purpose; it must not drift back");
-  // The quantized variant is what keeps a slider drag from re-rasterizing on
-  // every pixel of travel; an engine without round() keeps the calc fallback.
-  const base = stripComments(await read("src/styles/base.css"));
-  assert.match(base, /@supports \(width: round\(nearest, 1px, 1px\)\)/);
-  assert.match(rootBlock, /--glass-blur:\s*calc\(/);
+  // The frame's blur is an alias of the step, not a formula over the slider.
+  assert.match(rootBlock, /--glass-blur:\s*var\(--glass-step-blur\)/);
+  assert.match(rootBlock, /--glass-blur-terminal:\s*var\(--glass-step-blur\)/);
+  assert.ok(
+    !/--glass-blur:\s*calc\(/.test(base),
+    "the blur must be a per-step literal again — a calc here means the slider is driving the material",
+  );
+  assert.ok(
+    !/@supports \(width: round\(/.test(base),
+    "the round() quantizer existed to smooth a slider-driven blur; with discrete steps it is gone",
+  );
+
+  // Saturation is a per-step literal too, inside the round's 180% ceiling.
+  const saturations = ["low", "mid", "high"].map((step) => stepTokens(step).saturate);
+  for (const value of saturations) {
+    assert.ok(value <= 180, `saturate ${value}% exceeds the 180% budget`);
+    assert.ok(value >= 130, `saturate ${value}% is below the material's floor`);
+  }
+  assert.equal(Math.max(...saturations), 180, "the High step must spend the full saturation budget");
+  assert.match(rootBlock, /--glass-saturate:\s*var\(--glass-step-saturate\)/);
 });
 
 test("no transition or animation ever names a filter", async () => {
@@ -527,93 +665,210 @@ const TEXT_RGB = {
 const BRIGHT_WALLPAPER = [230, 220, 200];
 const GRADIENT_MEAN = [128, 110, 140];
 
-test("the muted text steps clear 3:1 on the default glass", async () => {
+// ── The R8 readability contract ────────────────────────────────────────────
+//
+// The user's complaint that opened this round was a readability one: at 100%
+// the old single slider still left a quarter of the desktop showing through.
+// R8 answers it three ways — the transparency control now reaches a near-solid
+// frame, the material is a discrete HIG variant, and the content layer is a
+// fixed standard-material band — and this test is the contract that keeps all
+// three honest at *every* combination of the two controls, not just the
+// default. It is the round's headline assertion.
+//
+// The model it evaluates is the shipped one: it reads the three steps out of
+// base.css, the content band out of `--glass-content-alpha`, the near-solid
+// top out of `--glass-solid-top`, and every text alpha out of the palette,
+// then sweeps a 3 x 19 grid. Nothing here restates a number the stylesheet
+// owns, so a mutation to any of them fails here.
+
+/** The composited material stack, painted in order: backdrop → dimming layer →
+ *  frame → content-layer standard material → control pane. */
+const buildModel = (
+  steps: Record<string, { fill: number; dim: number; blur: number }>,
+  contentBand: { a: number; b: number },
+  solidTop: number,
+  paneAlpha: number,
+) => {
+  const frame = (step: { fill: number; dim: number }, t: number) => {
+    const fill = step.fill + (solidTop - step.fill) * t;
+    const dim = step.dim * (1 - t);
+    return 1 - (1 - dim) * (1 - fill);
+  };
+  const content = (t: number) => Math.min(1, contentBand.a + contentBand.b * t);
+  const over = (backdrop: number[], tint: number[], alpha: number) => flatten([...tint, alpha], backdrop);
+  // The backdrop a thin blur cannot average: the brightest realistic desktop
+  // for the dark theme, the darkest for the light one. A thicker blur pulls
+  // it toward the mean, which is why HIG says thicker materials read better.
+  const backdrop = (blur: number, extreme: number[]) => {
+    const mean = [128, 110, 140];
+    const f = Math.min(blur, 28) / 28;
+    return extreme.map((c, i) => c + (mean[i] - c) * f);
+  };
+  return { frame, content, over, backdrop };
+};
+
+test("every step x transparency keeps the body-text floor (the R8 contract)", async () => {
   const rootBlock = await rootTokens();
-  const shellMap = affine(token(rootBlock, "glass-tint-alpha"), "main-opacity");
-  const shellAlpha = alphaAt(shellMap, 0.94);
-  const sunkenFactor = Number(
-    token(rootBlock, "surface-sunken").match(/var\(--glass-tint-alpha\)\s*\*\s*([\d.]+)\)/)![1],
+  baseCache ??= await read("src/styles/base.css");
+  const stepValues = { low: stepTokens("low"), mid: stepTokens("mid"), high: stepTokens("high") };
+  const solidTop = Number(token(rootBlock, "glass-solid-top"));
+  const content = token(rootBlock, "glass-content-alpha").match(
+    /^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/,
   );
-  const softFactor = Number(
-    token(rootBlock, "surface-sunken-soft").match(/var\(--glass-tint-alpha\)\s*\*\s*([\d.]+)\)/)![1],
-  );
+  assert.ok(content, `--glass-content-alpha must be calc(a + b·transparency), got "${token(rootBlock, "glass-content-alpha")}"`);
+  const band = { a: Number(content![1]), b: Number(content![2]) };
+  const model = buildModel(stepValues, band, solidTop, 0.055);
 
-  // Paint order matters: each layer is a tint *over the one below it*, so the
-  // sunken field is flattened onto the shell, and the shell onto the desktop.
-  const shellOver = (backdrop: number[]) => flatten([18, 19, 22, shellAlpha], backdrop);
-  const sunkenOver = (backdrop: number[]) =>
-    flatten([17, 18, 20, shellAlpha * sunkenFactor], shellOver(backdrop));
-  const softOver = (backdrop: number[]) =>
-    flatten([17, 18, 20, shellAlpha * softFactor], shellOver(backdrop));
-  const controlOver = (backdrop: number[]) => flatten([255, 255, 255, 0.055], sunkenOver(backdrop));
-  const raisedOver = (backdrop: number[]) => flatten([143, 183, 255, 0.13], sunkenOver(backdrop));
-
-  // The alphas themselves, straight from the token block.
-  const alphaOf = (name: string) => {
-    const value = token(rootBlock, name);
-    const match = value.match(/rgba\([^)]*,\s*([\d.]+)\)/);
-    return match ? Number(match![1]) : 1;
+  // A step in the ladder may be an opaque hex (the light warning colour is),
+  // in which case its alpha is exactly 1.
+  const alphaOf = (palette: string, name: string) => {
+    const declaration = palette.match(new RegExp(`--${name}:\\s*([^;]+);`));
+    assert.ok(declaration, `--${name} must be declared in the palette`);
+    const rgba = declaration![1].match(/rgba\([^)]*,\s*([\d.]+)\)/);
+    return rgba ? Number(rgba[1]) : 1;
   };
-  const alphas: Record<string, number> = {
-    "text-strong": alphaOf("text-strong"),
-    "text-secondary": alphaOf("text-secondary"),
-    "text-muted": alphaOf("text-muted"),
-    "text-tertiary": alphaOf("text-tertiary"),
-    "text-warning": alphaOf("text-warning"),
-    "text-primary": 1,
-    accent: 1,
+  const base = stripComments(baseCache!);
+  const dark = base.slice(base.indexOf(":root {"), base.indexOf('[data-theme="light"]'));
+  const light = base.slice(base.indexOf('[data-theme="light"]'), base.indexOf("html,\nbody,"));
+
+  // Where each token is allowed to land. This is the honest map rather than
+  // "every token on every surface": the frame carries only the two leading
+  // steps (it is the functional layer, and its copy is titles and the query
+  // field), the selection pane carries no tertiary/warning text in this app,
+  // and everything else is a full body-copy surface.
+  const LANDINGS: Record<string, string[]> = {
+    frame: ["primary", "strong"],
+    recess: ["primary", "strong", "secondary", "accent", "muted", "tertiary", "warning"],
+    soft: ["primary", "strong", "secondary", "accent", "muted", "tertiary", "warning"],
+    pane: ["primary", "strong", "secondary", "accent", "muted", "tertiary", "warning"],
+    float: ["primary", "strong", "secondary", "accent", "muted", "tertiary", "warning"],
+    track: ["primary", "strong", "secondary", "accent", "muted", "tertiary", "warning"],
+    raised: ["primary", "strong", "secondary", "accent", "muted"],
+  };
+  const floors: Record<string, number> = {
+    primary: 4.5, strong: 4.5, secondary: 4.5, accent: 4.5, warning: 3, muted: 3, tertiary: 3,
   };
 
-  // The ladder of text weights has to stay a ladder: primary > strong >
-  // secondary > muted > tertiary, so nothing collapses two steps into one.
-  const ordered = ["text-strong", "text-secondary", "text-muted", "text-tertiary"];
-  for (let i = 1; i < ordered.length; i += 1) {
+  for (const [themeName, palette, extreme, frameTint, recessTint, paneTint, floatTint] of [
+    ["dark", dark, [230, 220, 200], [18, 19, 22], [17, 18, 20], [255, 255, 255], [24, 25, 29]],
+    ["light", light, [0, 0, 0], [250, 250, 252], [243, 244, 247], [0, 0, 0], [252, 252, 254]],
+  ] as [string, string, number[], number[], number[], number[], number[]][]) {
+    // The pane's polarity flips with the palette; read it from that palette's
+    // own token block rather than from the dark one.
+    const paneAlpha = themeName === "dark"
+      ? Number(token(rootBlock, "glass-control").match(/rgba\(255,\s*255,\s*255,\s*([\d.]+)\)/)![1])
+      : Number(palette.match(/--glass-control:\s*rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/)![1]);
+    const paneTintResolved = themeName === "dark" ? [255, 255, 255] : [0, 0, 0];
+    const textAlphas: Record<string, number> = {
+      primary: 1,
+      strong: alphaOf(palette, "text-strong"),
+      secondary: alphaOf(palette, "text-secondary"),
+      muted: alphaOf(palette, "text-muted"),
+      tertiary: alphaOf(palette, "text-tertiary"),
+      warning: alphaOf(palette, "text-warning"),
+      accent: 1,
+    };
+    const textRgb: Record<string, number[]> = {
+      primary: themeName === "dark" ? [242, 243, 245] : [29, 29, 31],
+      strong: themeName === "dark" ? [244, 245, 247] : [23, 23, 26],
+      secondary: themeName === "dark" ? [238, 239, 242] : [60, 60, 67],
+      muted: themeName === "dark" ? [238, 239, 242] : [60, 60, 67],
+      tertiary: themeName === "dark" ? [238, 239, 242] : [60, 60, 67],
+      warning: themeName === "dark" ? [255, 178, 164] : [156, 31, 24],
+      accent: themeName === "dark"
+        ? [143, 183, 255]
+        : (() => {
+            const hex = palette.match(/--accent:\s*#([0-9a-f]{6})/)![1];
+            return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+          })(),
+    };
+
+    // The text ladder still has to *be* a ladder in this palette.
     assert.ok(
-      alphas[ordered[i - 1]] > alphas[ordered[i]],
-      `${ordered[i - 1]} (${alphas[ordered[i - 1]]}) must stay above ${ordered[i]} (${alphas[ordered[i]]})`,
+      textAlphas.strong > textAlphas.secondary &&
+        textAlphas.secondary > textAlphas.muted &&
+        textAlphas.muted >= textAlphas.tertiary,
+      `${themeName}: the text ladder must stay ordered (strong > secondary > muted ≥ tertiary)`,
     );
-  }
 
-  const ratioOn = (name: string, surface: number[]) => {
-    const fg = flatten([...TEXT_RGB[name as keyof typeof TEXT_RGB], alphas[name]], surface);
-    return contrastRatio(fg, surface);
-  };
-
-  // Where body copy actually lives: the sunken result field and the settings
-  // body, both at the bright-wallpaper case. 4.5:1 for the two leading steps
-  // and the accent, 3:1 for the two trailing ones and the warning.
-  const bodyFloors: [string, number][] = [
-    ["text-primary", 4.5],
-    ["text-strong", 4.5],
-    ["text-secondary", 4.5],
-    ["accent", 4.5],
-    ["text-muted", 3],
-    ["text-tertiary", 3],
-    ["text-warning", 3],
-  ];
-  for (const [name, floor] of bodyFloors) {
-    for (const [surfaceName, surface] of [
-      ["sunken result field", sunkenOver(BRIGHT_WALLPAPER)],
-      ["settings body", softOver(BRIGHT_WALLPAPER)],
-      ["control pane", controlOver(BRIGHT_WALLPAPER)],
-      ["raised pane", raisedOver(BRIGHT_WALLPAPER)],
-    ] as [string, number[]][]) {
-      const ratio = ratioOn(name, surface);
-      assert.ok(
-        ratio >= floor,
-        `${name} only reaches ${ratio.toFixed(2)}:1 on the ${surfaceName} over a bright desktop ` +
-          `(floor ${floor}:1); raise its alpha in base.css rather than lowering the glass`,
-      );
+    let cells = 0;
+    for (const [stepName, step] of Object.entries(stepValues)) {
+      for (let t = 0.1; t <= 1.0001; t += 0.05) {
+        const frameAlpha = model.frame(step, t);
+        const base = model.backdrop(step.blur, extreme);
+        const frameSurface = model.over(base, frameTint, frameAlpha);
+        const contentAlpha = model.content(t);
+        const recessSurface = model.over(frameSurface, recessTint, contentAlpha);
+        const softSurface = model.over(frameSurface, recessTint, Math.max(0.3, contentAlpha - 0.06));
+        const paneSurface = model.over(recessSurface, paneTintResolved, paneAlpha);
+        const trackSurface = model.over(recessSurface, paneTintResolved, themeName === "dark" ? 0.07 : 0.05);
+        const floatSurface = model.over(frameSurface, floatTint, Math.min(1, contentAlpha + 0.06));
+        const raisedTint = themeName === "dark" ? [143, 183, 255] : textRgb.accent;
+        const raisedSurface = model.over(softSurface, raisedTint, themeName === "dark" ? 0.13 : 0.08);
+        const surfaces: Record<string, number[]> = {
+          frame: frameSurface, recess: recessSurface, soft: softSurface, pane: paneSurface,
+          track: trackSurface, float: floatSurface, raised: raisedSurface,
+        };
+        for (const [surfaceName, names] of Object.entries(LANDINGS)) {
+          for (const name of names) {
+            const fg = flatten([...textRgb[name], textAlphas[name]], surfaces[surfaceName]);
+            const ratio = contrastRatio(fg, surfaces[surfaceName]);
+            cells += 1;
+            assert.ok(
+              ratio >= floors[name],
+              `${themeName} ${stepName}@${t.toFixed(2)}: ${name} on the ${surfaceName} only reaches ` +
+                `${ratio.toFixed(2)}:1 (floor ${floors[name]}:1). Do not lower the frame's fill floor, the ` +
+                "content band or a text alpha without re-deriving this contract.",
+            );
+          }
+        }
+        // The recess must composite at least as densely as the frame it sits
+        // on, or body copy would be *less* protected than the frame around it.
+        const frameSolidity = 1 - (1 - frameAlpha) * (1 - contentAlpha);
+        assert.ok(
+          frameSolidity >= frameAlpha,
+          `${themeName} ${stepName}@${t.toFixed(2)}: the recess must composite denser than the frame` +
+            ` (${frameSolidity.toFixed(3)} vs ${frameAlpha.toFixed(3)})`,
+        );
+        // Layer discipline, stated as the thing it actually promises: the
+        // content layer is a *standard material*, so its own fill never drops
+        // into the Clear variant's band. A recess that tracked the frame down
+        // to a 0.30 fill would put 10px body copy on a sheet as thin as the
+        // Clear glass it is supposed to be structurally distinct from.
+        assert.ok(
+          contentAlpha >= 0.6,
+          `${themeName} ${stepName}@${t.toFixed(2)}: the content layer must stay in the regular band ` +
+            `(≥0.60), got ${contentAlpha.toFixed(3)} — content is standard material, not glass`,
+        );
+      }
     }
+    assert.ok(cells >= 3 * 19 * 7, `${themeName}: the sweep must cover the full 3x19 grid`);
   }
+});
 
-  // The header band is the one place secondary/tertiary text sits directly on
-  // the shell. It is asserted against the *mean* desktop, which is what the
-  // header is for; the pure-white extreme is reported, not asserted, because
-  // the user owns that tradeoff with the slider.
-  for (const [name, floor] of [["text-strong", 4.5], ["text-secondary", 3], ["text-tertiary", 3]] as [string, number][]) {
-    const ratio = ratioOn(name, shellOver(GRADIENT_MEAN));
-    assert.ok(ratio >= floor, `${name} only reaches ${ratio.toFixed(2)}:1 on the shell over a typical desktop (floor ${floor}:1)`);
+// The user's headline number, asserted as a number: at 100% transparency the
+// frame is near-opaque on every step, and the recess composites to essentially
+// opaque. R7's map topped out at 0.73 and this is the regression that would
+// reopen the complaint.
+test("the maxed transparency slider is a near-opaque surface", async () => {
+  const rootBlock = await rootTokens();
+  baseCache ??= await read("src/styles/base.css");
+  const solidTop = Number(token(rootBlock, "glass-solid-top"));
+  const content = token(rootBlock, "glass-content-alpha").match(
+    /^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/,
+  )!;
+  const contentAtTop = Math.min(1, Number(content[1]) + Number(content[2]) * 1);
+  for (const step of ["low", "mid", "high"]) {
+    const values = stepTokens(step);
+    const fill = values.fill + (solidTop - values.fill) * 1;
+    const dim = values.dim * (1 - 1);
+    const frame = 1 - (1 - dim) * (1 - fill);
+    assert.ok(frame >= 0.95, `${step}: at 100% the frame must be ≥0.95 opaque, got ${frame.toFixed(3)}`);
+    const composite = 1 - (1 - frame) * (1 - contentAtTop);
+    assert.ok(
+      composite >= 0.99,
+      `${step}: at 100% the frame + content recess must composite to ≥0.99, got ${composite.toFixed(4)}`,
+    );
   }
 });
 
@@ -621,16 +876,23 @@ test("prefers-contrast: more restores an opaque shell, not just a border", async
   const base = stripComments(await read("src/styles/base.css"));
   const block = mediaBlock(base, "(prefers-contrast: more)");
   // The system's "increase contrast" signal has to do more than darken a
-  // border: at the thinnest slider setting the shell is genuinely see-through,
-  // and a user who asked for contrast must not have to also find the slider.
-  assert.match(
-    block,
-    /--glass-tint-alpha:\s*calc\([^)]*\)|--glass-tint-alpha:\s*[\d.]+/,
-    "prefers-contrast: more must raise the shell tint",
-  );
-  const raised = block.match(/--glass-tint-alpha:\s*calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)/);
-  assert.ok(raised, "the contrast override must stay an affine map of the slider");
-  assert.ok(Number(raised![1]) >= 0.7, `the contrast floor must be high, got ${raised![1]}`);
+  // border: at the low end of the transparency slider the frame is genuinely
+  // see-through, and a user who asked for contrast must not have to also find
+  // the slider. R8 expresses it against the same two tokens the steps and the
+  // slider use — the step's fill floor and dimming layer — so it is testable
+  // rather than a parallel formula.
+  assert.match(block, /--glass-step-fill:\s*[\d.]+/, "prefers-contrast: more must raise the step's fill floor");
+  assert.match(block, /--glass-step-dim:\s*0\b/, "prefers-contrast: more must drop the Clear dimming layer");
+  const raised = [...block.matchAll(/--glass-step-fill:\s*([\d.]+)/g)].map((m) => Number(m[1]));
+  assert.ok(raised.length >= 2, "the override must cover both the :root default and the step attribute selectors");
+  for (const value of raised) {
+    assert.ok(value >= 0.8, `the contrast fill floor must be high, got ${value}`);
+  }
+  // …and it has to land on every step, or the Clear variant would stay thin
+  // under an accessibility setting that exists to stop exactly that.
+  for (const step of ["low", "mid", "high"]) {
+    assert.match(block, new RegExp(`\\[data-glass="${step}"\\]`), `the contrast override must cover the ${step} step`);
+  }
 });
 
 // The field is the one control that sits *below* the surface rather than on
@@ -734,9 +996,22 @@ test("the light palette's muted steps clear 3:1 over a dark desktop", async () =
     assert.ok(match, `--${name} must be a translucent rgba in the light palette`);
     return Number(match![1]);
   };
-  const shellAlpha = 0.18 + 0.55 * 0.94;
+  // The material stack under the light body copy, read from the shipped tokens
+  // rather than copied from the pre-R8 map: the frame is the mid step's floor
+  // sliding to `--glass-solid-top` on the default transparency, and the sunken
+  // field is the content band (`--glass-content-alpha`). The old
+  // `0.18 + 0.55·0.94` / `·0.9` pair no longer exists in base.css, so keeping
+  // it here would have tested a model the app no longer renders.
+  const tokens = await rootTokens();
+  const main = Number(token(tokens, "main-opacity"));
+  const shellAlpha = stepTokens("mid").fill + (SOLID_TOP - stepTokens("mid").fill) * main;
+  const contentMap = token(tokens, "glass-content-alpha").match(
+    /^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/,
+  );
+  assert.ok(contentMap, "--glass-content-alpha must be calc(a + b·transparency)");
+  const contentAlpha = Number(contentMap![1]) + Number(contentMap![2]) * main;
   const shell = flatten([250, 250, 252, shellAlpha], [0, 0, 0]);
-  const sunken = flatten([243, 244, 247, shellAlpha * 0.9], shell);
+  const sunken = flatten([243, 244, 247, contentAlpha], shell);
 
   const floors: [string, number][] = [
     ["text-secondary", 4.5],

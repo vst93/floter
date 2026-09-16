@@ -1,6 +1,7 @@
 // Canvas renderer for the alacritty-backed terminal.
 //
 import { ALT_SCREEN } from "./keys";
+import { canvasFill } from "./canvas-fill";
 
 // Consumes the binary frame produced by the Rust backend (see
 // `src-tauri/src/terminal/frame.rs` for the wire format) and paints it onto a
@@ -170,7 +171,20 @@ export class TerminalCanvas {
   updateTheme(): void {
     const style = getComputedStyle(document.documentElement);
     this.bg = packedColor(style, "--terminal-bg", FALLBACK_BG);
-    this.bgOpacity = cssNumber(style, "--terminal-opacity", 1);
+    // The canvas paints the terminal's background colour, so its alpha is the
+    // *frame fill* — the same readability control the launcher's frame uses,
+    // applied to the terminal's own transparency slider. The fill is derived
+    // here from the four plain numbers base.css owns (`--glass-step-fill`,
+    // `--glass-solid-top`, `--glass-step-dim` and `--terminal-opacity`) rather
+    // than by parsing the CSS `calc()`: an unregistered custom property comes
+    // back from `getComputedStyle` with its `calc()` un-evaluated, so reading
+    // the inputs and applying the documented formula is what keeps the numbers
+    // in CSS and the arithmetic in one place. The veil underneath carries the
+    // step's dimming layer, so this alpha deliberately excludes it.
+    const fill = cssNumber(style, "--glass-step-fill", 0.68);
+    const solidTop = cssNumber(style, "--glass-solid-top", 0.98);
+    const transparency = cssNumber(style, "--terminal-opacity", 0.46);
+    this.bgOpacity = canvasFill(fill, solidTop, transparency);
     this.fg = packedColor(style, "--terminal-fg", FALLBACK_FG);
     this.cursor = packedColor(style, "--terminal-cursor", FALLBACK_CURSOR);
     // Kept as CSS strings: both are deliberately translucent, and the packed

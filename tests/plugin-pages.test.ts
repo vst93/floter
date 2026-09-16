@@ -3,13 +3,17 @@
 // the sandbox boundary: the host only honors requests it can trust, the page
 // only accepts well-formed results.
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+
+const root = new URL("../", import.meta.url);
 
 import {
   BRIDGE_TAG,
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
+  isBridgeGlass,
   isBridgeOpacity,
   isBridgeReload,
   isBridgeRequest,
@@ -123,13 +127,13 @@ test("page URLs resolve against the app base and carry bootstrap params", () => 
   const packaged = buildPluginPageUrl("tauri://localhost/", "plugins/clipboard/index.html", {
     lang: "zh",
     theme: "dark",
-    "main-opacity": 0.94,
-    "terminal-opacity": 0.92,
+    "main-opacity": 0.47,
+    "terminal-opacity": 0.46,
   });
   assert.equal(packaged.startsWith("tauri://localhost/plugins/clipboard/index.html"), true);
   assert.ok(packaged.includes("lang=zh"));
   assert.ok(packaged.includes("theme=dark"));
-  assert.ok(packaged.includes("main-opacity=0.94"));
+  assert.ok(packaged.includes("main-opacity=0.47"));
 
   // Dev-server shape: absolute path under localhost.
   const dev = buildPluginPageUrl("http://localhost:1420/", "plugins/clipboard/index.html");
@@ -174,4 +178,60 @@ test("reload messages are recognized", () => {
   assert.equal(isBridgeReload({ [BRIDGE_TAG]: "invoke", id: 1, command: "c" }), false);
   assert.equal(isBridgeReload(null), false);
   assert.equal(isBridgeReload({}), false);
+});
+
+test("glass-step messages are recognized with the three shipped ids only", () => {
+  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "low" }));
+  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "mid" }));
+  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "high" }));
+  for (const bad of [
+    { [BRIDGE_TAG]: "glass", glassStep: "clear" },
+    { [BRIDGE_TAG]: "glass", glassStep: 0.68 },
+    { [BRIDGE_TAG]: "glass", glassStep: null },
+    { [BRIDGE_TAG]: "glass" },
+    { [BRIDGE_TAG]: "theme", glassStep: "mid" },
+    null,
+  ]) {
+    assert.equal(isBridgeGlass(bad), false, JSON.stringify(bad));
+  }
+});
+
+// F6 (R8 microfix): the glass step has to reach the plugin page. Before this
+// the page's own stylesheet hardcoded the Regular step's fill/top, so a user
+// on Clear or Regular-max still saw a Regular clipboard panel — the one
+// surface in the same shell that ignored the material control.
+test("the plugin host hands the glass step to the page, and the page stops hardcoding it", async () => {
+  const { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, glassStepStyle } = await import("../src/glass-material.ts");
+
+  // The bag the host injects is derived from the one token table — no literals
+  // at the call site, and it changes with the step.
+  const low = glassStepStyle("low");
+  const high = glassStepStyle("high");
+  assert.equal(low["--glass-step-fill"], String(GLASS_STEP_TOKENS.low.fill));
+  assert.equal(low["--glass-step-dim"], String(GLASS_STEP_TOKENS.low.dim));
+  assert.equal(low["--glass-solid-top"], String(GLASS_SOLID_TOP));
+  assert.notEqual(low["--glass-step-fill"], high["--glass-step-fill"], "the injected fill must track the step");
+
+  // The host spreads that bag onto its container and appends the step to the
+  // bootstrap URL, so the page sees it before its first paint even if the
+  // bridge message races the load.
+  const host = await readFile(new URL("src/plugins/PluginPageHost.tsx", root), "utf8");
+  assert.match(host, /glassStepStyle\(glassStep\)/, "the host must inject the step tokens");
+  assert.match(host, /data-glass-step=\{glassStep\}/, "the host must mark the step on the container");
+  assert.match(host, /"glass-step": glassStep/, "the host must pass the step as a bootstrap param");
+
+  // The page stylesheet mirrors the transparency control but must not restate
+  // the step's numbers: those now arrive at runtime.
+  const page = await readFile(new URL("src/plugins/clipboard/page.css", root), "utf8");
+  assert.ok(
+    !/--glass-step-fill\s*:/.test(page) && !/--glass-solid-top\s*:/.test(page),
+    "clipboard/page.css must not hardcode the glass step — the host injects it",
+  );
+
+  // …and the page consumes both channels, with a Regular fallback for an
+  // older host that sends neither param nor message.
+  const main = await readFile(new URL("src/plugins/clipboard/main.ts", root), "utf8");
+  assert.match(main, /isBridgeGlass\(data\)/, "the page must handle a live step change");
+  assert.match(main, /normalizeGlassStep\(params\.get\("glass-step"\)\)/, "the page must read the bootstrap param");
+  assert.match(main, /GLASS_STEP_TOKENS\[step\]/, "the page must resolve the step from the shared table");
 });
