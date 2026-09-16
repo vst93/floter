@@ -818,7 +818,73 @@
   width: 100%;
   height: 100%;
   min-height: 0;
+  /* A column: host-owned topbar chrome on top, the page canvas filling the
+     rest. `flex`, not `block`, so the body can take the remaining height
+     without a magic `calc(100% - 28px)`. */
+  display: flex;
+  flex-direction: column;
   background: var(--surface-opaque);
+}
+
+/* R7-4a · the host's 28px chrome for a plugin page.
+
+   It lives INSIDE `.plugin-page-host` (and therefore inside `pluginLayer`) so
+   the kept-alive iframe keeps its stable position — this is host chrome, not
+   a second layer. It is deliberately material-free: no `background`, no
+   `backdrop-filter`. The glass behind it is the `.terminal-panel` shell's
+   single blur plus the `terminal-panel__veil` tint (the same channel every
+   other surface uses), so the bar costs zero filters and consumes zero
+   literal blur/fill values. The only paint is the gradient hairline that
+   separates it from the page, matching the settings header and the clipboard
+   page's own bar.
+
+   It is the window's drag handle in plugin mode (see `onDragStart` in
+   PluginPageHost); `cursor: grab` is the same affordance `.terminal-bar`
+   uses. The title ignores pointer events so a drag anywhere on the blank bar
+   works; `startDrag` already refuses to start on the close button. */
+.plugin-page-host__topbar {
+  position: relative;
+  flex: 0 0 auto;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 7px 0 12px;
+  cursor: grab;
+  user-select: none;
+}
+
+.plugin-page-host__topbar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline-fade);
+  pointer-events: none;
+}
+
+.plugin-page-host__topbar-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* The type ramp's smallest legible step is 10px; the bar uses the body step
+     (11px) to sit level with `.terminal-bar__title` and the settings header,
+     which is the "same header language" the round asks for. */
+  color: var(--text-secondary);
+  font-size: var(--text-body);
+  font-weight: 580;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+
+.plugin-page-host__body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .plugin-page-host__frame {
@@ -854,4 +920,37 @@
 .plugin-page-host__error-title {
   color: var(--text-muted);
   font-size: var(--text-emphasis);
+}
+
+/* R7-4a · the error state's own button.
+
+   It used to borrow `.update-banner__button` from the settings sheet. That is
+   a cross-layer class reuse: the plugin page is its own surface, and a later
+   restyle of the update banner would silently restyle this error state. The
+   shape is intentionally a control pane (the same translucent glass every
+   other control in the app is), not the banner's solid accent fill — the
+   error state is not a call to action and should not shout. */
+.plugin-page-host__button {
+  padding: 5px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--glass-control);
+  box-shadow: inset 0 0 0 1px var(--glass-control-edge), inset 0 1px 0 var(--glass-control-rim);
+  color: var(--text-secondary);
+  font-size: var(--text-emphasis);
+  font-weight: 580;
+  cursor: pointer;
+  transition: background-color var(--dur-2) ease, color var(--dur-2) ease;
+}
+
+@media (hover: hover) {
+.plugin-page-host__button:hover {
+  background: var(--glass-control-hover);
+  color: var(--text-strong);
+}
+}
+
+.plugin-page-host__button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }

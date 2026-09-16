@@ -28,6 +28,29 @@ test("the plugin page host is mounted exactly once, outside the mode branches", 
   );
 });
 
+// R7-4a added host chrome to the plugin surface, which is exactly the change
+// that tempts a `key` onto the layer (to force a fresh bar per mode) — and a
+// key changes React's reconciliation identity, so the host and its iframe
+// would remount on every mode flip and keep-alive would be gone while the
+// structural test above stayed green. Pin the absence of any key/conditional
+// on the one layer element.
+test("the plugin layer element carries no key that could re-identify it per mode", async () => {
+  const app = await read("src/App.tsx");
+  const start = app.indexOf("const pluginLayer = (");
+  assert.ok(start > -1, "the plugin layer's JSX must exist");
+  const jsx = app.slice(start, app.indexOf("const toastHost = (", start));
+  assert.ok(
+    !/\bkey=/.test(jsx),
+    "the plugin layer must not be keyed — a mode-derived key remounts the iframe",
+  );
+  // Its one child is the host; the chrome lives inside the host's own tree.
+  assert.match(jsx, /<PluginPageHost\b/);
+  assert.ok(
+    !/plugin-page-host__topbar/.test(jsx),
+    "the topbar belongs inside PluginPageHost, not in App's JSX beside the layer",
+  );
+});
+
 test("pluginLayer and the toast host lead every mode tree, before its shell", async () => {
   const app = await read("src/App.tsx");
   const tails = app.split("{pluginLayer}").slice(1);

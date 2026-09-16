@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   BRIDGE_TAG,
@@ -51,6 +52,17 @@ type PluginPageHostProps = {
   terminalOpacity: number;
   glassStep: GlassStep;
   onClose: () => void;
+  /**
+   * Host-owned window drag, wired to the *same* `startDrag` handler the three
+   * shells use (see App.tsx). Reusing it — rather than a new
+   * `data-tauri-drag-region` attribute — is deliberate: `startDrag` carries the
+   * Windows blur-grace logic and the "never drag from a button/input" guard, so
+   * the plugin chrome and the terminal/settings chrome stay behaviourally
+   * identical. In plugin mode the terminal bar is not rendered (the branch
+   * paints only the rounded backdrop), so this is the sole drag region and the
+   * two can never fight over a mousedown.
+   */
+  onDragStart: (event: ReactMouseEvent) => void;
 };
 
 export function PluginPageHost({
@@ -61,6 +73,7 @@ export function PluginPageHost({
   terminalOpacity,
   glassStep,
   onClose,
+  onDragStart,
 }: PluginPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [descriptor, setDescriptor] = useState<PluginPageDescriptorInfo | null>(null);
@@ -318,39 +331,64 @@ export function PluginPageHost({
       className="plugin-page-host"
       data-plugin-id={pluginId ?? ""}
       data-glass-step={glassStep}
-      style={{ display: pluginId ? "block" : "none", ...glassStepStyle(glassStep) }}
+      style={{ display: pluginId ? "flex" : "none", ...glassStepStyle(glassStep) }}
     >
-      {src ? (
-        <iframe
-          ref={iframeRef}
-          className="plugin-page-host__frame"
-          src={src}
-          title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId ?? ""}
-          // WebKit needs same-origin for the built-in page to load its bundled
-          // stylesheet; external plugin pages retain the opaque-origin sandbox.
-          sandbox={descriptor?.id === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
-          onLoad={handleFrameLoad}
-        />
-      ) : loadFailed || descriptor ? (
-        // `descriptor && !src` means the page URL was rejected as off-origin.
-        <div className="plugin-page-host__error" role="alert">
-          <span className="plugin-page-host__error-title">
-            {t("plugin.pageError")}
+      {pluginId ? (
+        // Host-owned chrome, rendered *inside* this host so it is part of the
+        // plugin surface and therefore inside `pluginLayer` — never a sibling
+        // of it (the iframe's keep-alive depends on that stable position). It
+        // is not focusable itself; the only control is the close button, which
+        // keeps the existing Esc / Cmd+W meaning and returns to the remembered
+        // surface through `onClose`. It is also the window's drag handle in
+        // this mode; see `onDragStart`.
+        <header className="plugin-page-host__topbar" onMouseDown={onDragStart}>
+          <span className="plugin-page-host__topbar-title">
+            {descriptor ? t(descriptor.titleKey as MessageKey) : ""}
           </span>
           <button
             type="button"
-            className="update-banner__button"
-            onClick={() => { setDescriptor(null); setReloadNonce((nonce) => nonce + 1); }}
+            className="toolbar-button toolbar-button--close"
+            aria-label={t("plugin.close")}
+            title={t("plugin.closeHint")}
+            onClick={onClose}
           >
-            {t("settings.retry")}
+            ×
           </button>
-        </div>
-      ) : pluginId ? (
-        // Descriptor still in flight. Render an opaque placeholder rather than
-        // nothing: this host fills a transparent window, so an empty subtree
-        // shows the desktop through the panel for as long as the fetch takes.
-        <div className="plugin-page-host__loading" aria-busy="true" />
+        </header>
       ) : null}
+      <div className="plugin-page-host__body">
+        {src ? (
+          <iframe
+            ref={iframeRef}
+            className="plugin-page-host__frame"
+            src={src}
+            title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId ?? ""}
+            // WebKit needs same-origin for the built-in page to load its bundled
+            // stylesheet; external plugin pages retain the opaque-origin sandbox.
+            sandbox={descriptor?.id === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
+            onLoad={handleFrameLoad}
+          />
+        ) : loadFailed || descriptor ? (
+          // `descriptor && !src` means the page URL was rejected as off-origin.
+          <div className="plugin-page-host__error" role="alert">
+            <span className="plugin-page-host__error-title">
+              {t("plugin.pageError")}
+            </span>
+            <button
+              type="button"
+              className="plugin-page-host__button"
+              onClick={() => { setDescriptor(null); setReloadNonce((nonce) => nonce + 1); }}
+            >
+              {t("settings.retry")}
+            </button>
+          </div>
+        ) : pluginId ? (
+          // Descriptor still in flight. Render an opaque placeholder rather than
+          // nothing: this host fills a transparent window, so an empty subtree
+          // shows the desktop through the panel for as long as the fetch takes.
+          <div className="plugin-page-host__loading" aria-busy="true" />
+        ) : null}
+      </div>
     </div>
   );
 }

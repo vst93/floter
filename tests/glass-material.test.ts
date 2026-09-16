@@ -31,14 +31,15 @@ const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 // The one element per surface allowed to filter the backdrop. The clipboard
-// plugin page (its own document and sheet) is deliberately outside this round
-// and keeps its own single blur, listed here so the exception is visible.
+// plugin page declares no blur of its own since R7-4b: its in-page
+// backdrop-filter was dead code (a sandboxed iframe samples its own
+// document's backdrop, never the host's pixels) and was removed.
 const GLASS_SHELLS = [".collapsed-card", ".settings-card", ".terminal-panel"];
 
 // Host sheets. `src/plugins/clipboard/page.css` is the plugin page's own
-// document and belongs to R7-4/R7-6; it is the one sheet the control scan
-// below deliberately does not read (the per-surface test still counts its
-// single blur as the fourth surface's shell).
+// document; it is the one sheet the control scan below deliberately does not
+// read (its material comes from host-injected --page-fill/--panel-bg, not
+// from any in-page filter).
 const styleFiles = async () => {
   const dir = new URL("src/styles/", root);
   const names = (await readdir(dir)).filter((n) => n.endsWith(".css"));
@@ -598,21 +599,29 @@ test("reduced transparency turns the shells into near-solid panels", async () =>
   );
 });
 
-test("the plugin page keeps its own single blur, and the host does not double it", async () => {
+test("R7-4b: the plugin page declares no blur, and the host shell is the sole provider", async () => {
+  // The clipboard page runs in a sandboxed iframe. Its backdrop is its OWN
+  // document's background, not the host's desktop — WebKitGTK will not let a
+  // frame filter content across the frame boundary. That makes a
+  // `backdrop-filter` on `.clipboard-panel` inert: it spends a slot of the
+  // same-screen filter budget and blurs a flat fill. R7-4b removed it, so the
+  // page's sheet owns zero filters and the one real blur is the shell's.
   const page = stripComments(await read("src/plugins/clipboard/page.css"));
-  const carriers = rules(page).filter(({ body }) => /(?:^|;)\s*backdrop-filter\s*:/.test(body));
-  assert.equal(carriers.length, 1, "the plugin page's sheet owns exactly one blur");
-  assert.match(carriers[0].selector, /\.clipboard-panel/);
-  // The host-side material for the same surface is a tint only — the blur lives
-  // on the panel shell underneath, so the two never stack.
+  const carriers = rules(page).filter(({ body }) => /(?:^|;)\s*(?:-webkit-)?backdrop-filter\s*:/.test(body));
+  assert.deepEqual(carriers, [], "clipboard/page.css must not declare a backdrop-filter (R7-4b)");
+  // The material the page paints is still host-supplied: the page consumes the
+  // injected `--page-fill` / `--panel-bg`, which main.ts derives from the
+  // step tokens the host hands across the bridge. The subtraction must not
+  // turn the page into a flat hole, so the tint has to still be there.
+  const panel = rules(page).find(({ selector }) => selector === ".clipboard-panel");
+  assert.ok(panel, "clipboard/page.css must still define .clipboard-panel's material");
+  assert.match(panel!.body, /var\(--panel-bg\)/, "the page still paints the host-injected fill");
+  // The shell it sits in keeps exactly one blur — that is the filter the page
+  // consumes. If this ever disappears, the page has no glass at all.
   const host = stripComments(await read("src/styles/terminal.css"));
-  const hostPanel = rules(host).find(({ selector }) => selector === ".clipboard-panel");
-  assert.ok(hostPanel, "the host still defines .clipboard-panel's material");
-  assert.ok(
-    !/backdrop-filter/.test(hostPanel!.body),
-    "the host .clipboard-panel must not add a blur of its own",
-  );
-  assert.match(hostPanel!.body, /var\(--glass-tint-terminal\)/);
+  const shell = rules(host).find(({ selector }) => selector === ".terminal-panel");
+  assert.ok(shell, "terminal.css must define .terminal-panel");
+  assert.match(shell!.body, /backdrop-filter:\s*blur\(var\(--glass-blur-terminal\)\)/);
 });
 
 // ── Text legibility on the thinner glass ──────────────────────────────────
