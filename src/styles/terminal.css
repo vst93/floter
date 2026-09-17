@@ -379,7 +379,16 @@
 
 /* Topbar: one coherent row at a fixed height — prompt glyph, filter input,
    clear × (only when there is something to clear) and the 全部/收藏 tabs —
-   everything vertically centred on one hairline-bounded band. */
+   everything vertically centred on one hairline-bounded band.
+
+   DEAD MIRROR, kept in step by comment only. Nothing in the host document
+   renders `.clipboard-panel*` any more: the clipboard surface is the plugin
+   page in `src/plugins/clipboard/`, which ships its own `page.css` and never
+   loads this sheet. CLIP-DISSOLVE removed the band from the live sheet (the
+   topbar is now a plain layout row on the panel's one material, focus shown
+   by an accent aura instead of a bottom edge), so this mirror and the live
+   page deliberately differ; the block stays as the historical host-side
+   record, not as a second source of truth. */
 .clipboard-panel__content {
   flex: 1 1 auto;
   min-height: 0;
@@ -399,7 +408,9 @@
 
 /* The topbar/list separator is a gradient hairline band, matching the launcher
    and settings surfaces: content dissolves into the bar rather than being cut
-   on a hard line. */
+   on a hard line. DEAD MIRROR — the live clipboard page deleted this band in
+   CLIP-DISSOLVE (see the topbar comment above); only the host sheet's
+   historical record still carries it. */
 .clipboard-panel__topbar::after {
   content: "";
   position: absolute;

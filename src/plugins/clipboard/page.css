@@ -36,6 +36,10 @@
   --accent: #8fb7ff;
   --accent-tint: rgba(143, 183, 255, 0.13);
   --accent-edge: rgba(143, 183, 255, 0.3);
+  /* The launcher's aura wash, same value as base.css's dark palette. The
+     plugin page owns its tokens (it is a separate document), so the one
+     number the aura recipe needs is restated here rather than borrowed. */
+  --accent-wash: rgba(143, 183, 255, 0.055);
   --accent-ring: rgba(122, 167, 255, 0.78);
   --text-warning: rgba(255, 173, 158, 0.82);
   --scrollbar-thumb: rgba(255, 255, 255, 0.18);
@@ -61,6 +65,10 @@
   --accent: #075ed8;
   --accent-tint: rgba(7, 94, 216, 0.1);
   --accent-edge: rgba(7, 94, 216, 0.3);
+  /* Derived from this page's own light accent (#075ed8) at the launcher's
+     light-wash alpha: a light blue wash needs the extra alpha the dark
+     palette does not (see base.css's light block for that reasoning). */
+  --accent-wash: rgba(7, 94, 216, 0.085);
   --accent-ring: rgba(7, 94, 216, 0.72);
   --text-warning: #b3261e;
   --scrollbar-thumb: rgba(60, 60, 67, 0.28);
@@ -111,28 +119,44 @@ button {
     var(--panel-bg);
 }
 
+/* A layout row, not a bar. The prompt glyph, the filter field, the clear × and
+   the 全部/收藏 tabs sit directly on the panel's one sheet — no fill of their
+   own, no separator edge. This is the same relationship the launcher's
+   `.collapsed-card__input-row` has with its card, and it is what keeps the
+   floating window reading as one material instead of a window with a status
+   bar glued to its top. The 56px height is kept (it is the launcher row's own
+   rhythm) but it is now only layout, not a band. */
 .clipboard-panel__topbar {
-  z-index: 1;
+  position: relative;
   display: flex;
   height: 56px;
   flex: 0 0 56px;
   align-items: center;
   gap: 8px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--hairline);
-  background:
-    linear-gradient(90deg, rgba(143, 183, 255, 0.05), transparent 38%),
-    rgba(255, 255, 255, 0.018);
 }
 
-.clipboard-panel__topbar:focus-within {
-  border-bottom-color: var(--accent-edge);
-  background:
-    linear-gradient(90deg, rgba(143, 183, 255, 0.08), transparent 42%),
-    rgba(255, 255, 255, 0.028);
+/* Focus is shown the way the launcher shows it: the aura wash fades in from
+   the leading edge (`linear-gradient(90deg, var(--accent-wash), transparent
+   42%)`, the exact `.collapsed-card__aura` recipe), instead of an accent
+   border-bottom drawn under the row. Light on the material, never a new edge. */
+.clipboard-panel__topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--accent-wash), transparent 42%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.clipboard-panel__topbar:focus-within::before {
+  opacity: 1;
 }
 
 .clipboard-panel__prompt {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   width: 46px;
   flex: 0 0 46px;
@@ -144,7 +168,13 @@ button {
   user-select: none;
 }
 
+/* Borderless and transparent, exactly like `.collapsed-card__input`: there is
+   no box here, the panel's own radius and material are the only shapes. The
+   `z-index` lifts the text above the aura pseudo-element, the same layering
+   the launcher's field uses. */
 .clipboard-panel__search {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 36px;
   min-height: 36px;
@@ -177,6 +207,8 @@ button {
 }
 
 .clipboard-panel__filter-clear {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: 24px;
   height: 24px;
@@ -208,6 +240,8 @@ button {
 }
 
 .clipboard-panel__tabs {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 0 0 auto;
   gap: 2px;
@@ -590,6 +624,7 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .clipboard-panel__topbar::before,
   .clipboard-panel__search,
   .clipboard-panel__filter-clear,
   .clipboard-panel__tab,
