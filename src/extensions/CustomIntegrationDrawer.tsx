@@ -2,10 +2,16 @@ import { AlertCircle, Copy, Download, LoaderCircle, Plus, ShieldCheck, X } from 
 import type { FormEvent, KeyboardEvent, RefObject } from "react";
 import type { Translate } from "../i18n";
 import type { CustomIntegrationForm, ExecutableToolCandidate } from "../ExtensionsPanel";
+import { HOST_ENFORCED_PERMISSIONS, permissionTier } from "./permission-tiers";
 
 const PLATFORMS = ["darwin", "linux", "windows"] as const;
-const ENFORCED = ["environment", "process-spawn"] as const;
-const DECLARED = ["filesystem-read", "filesystem-write", "network-fetch", "clipboard-read", "clipboard-write"] as const;
+// R7-8 · the two lists come from the shared tier vocabulary, so the editor can
+// never disagree with the review dialog about which permissions the host
+// actually refuses. The enforced list is its own ordering; the declared list is
+// every permission the tier map calls disclosure.
+const ALL_PERMISSIONS = ["environment", "process-spawn", "filesystem-read", "filesystem-write", "network-fetch", "clipboard-read", "clipboard-write"] as const;
+const ENFORCED = HOST_ENFORCED_PERMISSIONS;
+const DECLARED = ALL_PERMISSIONS.filter((permission) => permissionTier(permission) === "disclosure");
 
 type Props = {
   open: boolean; editingId: string | null; loading: boolean; error: string | null; integration: CustomIntegrationForm; busy: boolean; contentOperation: "copy" | "export" | null;

@@ -25,6 +25,9 @@ import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
 import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
+import { PermissionTierList } from "./extensions/PermissionTierList";
+import { permissionTier } from "./extensions/permission-tiers";
+import { approvalIsStale, shortDigest } from "./extensions/approval-record";
 import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
 import { ComponentizedUninstallDialog } from "./extensions/ComponentizedUninstallDialog";
 import { useImmediateState } from "./hooks/useImmediateState";
@@ -81,6 +84,10 @@ export type Extension = {
   approvedPermissions?: string[] | null;
   approvedAt?: number | null;
   approvedManifestDigest?: string | null;
+  /** Digest of the manifest currently on disk (`sha256-…`), compared against
+   *  `approvedManifestDigest` to report a post-approval change. Optional so a
+   *  build that predates the field still type-checks. */
+  currentManifestDigest?: string | null;
   lastErrorCode?: string | null;
   lastErrorDetail?: string | null;
   lastErrorAt?: number | null;
@@ -446,6 +453,23 @@ export type PermissionReview = {
   publisherSigned: boolean;
   officialVerified: boolean;
   deprecation: string | null;
+};
+
+/** The permission names the panel can label. An unknown name (a manifest from
+ *  a newer version) falls back to the raw identifier rather than a blank. */
+const PERMISSION_LABEL_KEYS: Record<string, Parameters<Translate>[0]> = {
+  "filesystem-read": "settings.extensions.permission.filesystem-read",
+  "filesystem-write": "settings.extensions.permission.filesystem-write",
+  "network-fetch": "settings.extensions.permission.network-fetch",
+  "process-spawn": "settings.extensions.permission.process-spawn",
+  "clipboard-read": "settings.extensions.permission.clipboard-read",
+  "clipboard-write": "settings.extensions.permission.clipboard-write",
+  environment: "settings.extensions.permission.environment",
+};
+
+const permissionLabel = (permission: string, t: Translate): string => {
+  const key = PERMISSION_LABEL_KEYS[permission];
+  return key ? t(key) : permission;
 };
 
 export type InstallRequest = {
@@ -1662,14 +1686,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 <p>{pendingPermissionReview.executablePath ?? pendingPermissionReview.extension.executablePath}</p>
               </div>
             </header>
-            <div className="extension-permission-list">
+            <div className="extension-permission-list extension-permission-list--tiered">
               <span className="extension-permission-list__label">{t("settings.extensions.permissionsRequired")}</span>
-              {pendingPermissionReview.review.permissions.map((perm) => (
-                <div key={perm.permission} className="extension-permission-item">
-                  <strong>{perm.title}</strong>
-                  <span>{perm.description}</span>
-                </div>
-              ))}
+              <PermissionTierList permissions={pendingPermissionReview.review.permissions} t={t} />
+              <p className="extension-permission-dialog__boundary">{t("settings.extensions.permissionReviewBoundary")}</p>
             </div>
             <footer>
               <button type="button" className="extensions-action-button" data-dialog-initial onClick={() => setPendingPermissionReview(null)}>{t("settings.extensions.cancel")}</button>
@@ -1746,16 +1766,63 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                   {selected.state === "broken" && (selected.lastErrorCode || selected.brokenReason) && (
                     <div><dt>{t("settings.extensions.brokenDetail")}</dt><dd className="extension-metadata__dd--wrap" title={[selected.lastErrorCode, selected.brokenReason].filter(Boolean).join(" · ")}>{selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` · ${selected.brokenReason}` : ""}</dd></div>
                   )}
-                  {selected.approvedAt ? (
-                    <div><dt>{t("settings.extensions.approvedAt")}</dt><dd title={new Date(selected.approvedAt * 1000).toLocaleString(locale)}>{new Date(selected.approvedAt * 1000).toLocaleString(locale)}</dd></div>
-                  ) : null}
                   <div><dt>{t("settings.extensions.signature")}</dt><dd title={t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
-                  <div><dt>{t("settings.extensions.trust")}</dt><dd title={t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}>{t(selected.officialVerified ? "settings.extensions.trustOfficial" : "settings.extensions.trustCommunity")}</dd></div>
                   <div><dt>{t("settings.extensions.homepage")}</dt><dd className="extension-metadata__dd--wrap" title={selected.homepage ?? t("settings.extensions.unavailable")}>{selected.homepage ?? t("settings.extensions.unavailable")}</dd></div>
                 </dl>
                 <p className="extension-detail-description">{provider?.description.provider.description || t("settings.extensions.noDescription")}</p>
                 {selected.publisherDescriptor && (
                   <p className="extension-detail-note">{t("settings.extensions.publisherDescriptorNote")}</p>
+                )}
+                {/* R7-8 · `officialVerified` is demoted, not deleted. The
+                    official signature index is half-frozen (`plugin-system-audit.md`
+                    §六) and the flag is false for every local/recommended tool,
+                    so as a peer row it read as a verdict nobody could earn.
+                    The publisher signature stays the primary, checkable fact;
+                    the index result becomes a secondary note shown only when
+                    it is actually true. */}
+                {selected.officialVerified && (
+                  <p className="extension-detail-note extension-detail-note--secondary">{t("settings.extensions.trustOfficial")}</p>
+                )}
+              </section>
+
+              <section className="extension-detail-block">
+                <h4>{t("settings.extensions.approvalRecord")}</h4>
+                {selected.approvedAt ? (
+                  <div className="extension-approval-record">
+                    <dl className="extension-metadata">
+                      <div><dt>{t("settings.extensions.approvalRecordApprovedAt")}</dt><dd title={new Date(selected.approvedAt * 1000).toLocaleString(locale)}>{new Date(selected.approvedAt * 1000).toLocaleString(locale)}</dd></div>
+                      <div>
+                        <dt>{t("settings.extensions.approvalRecordDigest")}</dt>
+                        <dd title={selected.approvedManifestDigest ?? t("settings.extensions.approvalRecordDigestUnknown")}>
+                          {shortDigest(selected.approvedManifestDigest)
+                            ? <code>{shortDigest(selected.approvedManifestDigest)}</code>
+                            : t("settings.extensions.approvalRecordDigestUnknown")}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="extension-approval-record__permissions">
+                      <span className="extension-approval-record__label">{t("settings.extensions.approvalRecordPermissions")}</span>
+                      {selected.approvedPermissions?.length ? (
+                        <ul>
+                          {selected.approvedPermissions.map((permission) => (
+                            <li
+                              key={permission}
+                              className={`extension-approval-record__permission extension-approval-record__permission--${permissionTier(permission)}`}
+                            >
+                              {permissionLabel(permission, t)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="extension-approval-record__empty">{t("settings.extensions.approvalRecordPermissionsNone")}</span>
+                      )}
+                    </div>
+                    {approvalIsStale(selected.approvedManifestDigest, selected.currentManifestDigest) && (
+                      <p className="extension-approval-record__stale">{t("settings.extensions.approvalRecordChanged")}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="extension-detail-empty">{t("settings.extensions.approvalRecordNone")}</p>
                 )}
               </section>
 

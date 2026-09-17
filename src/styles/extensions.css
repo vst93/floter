@@ -1157,6 +1157,65 @@
   line-height: 1.4;
 }
 
+/* R7-8 · permission tiers. The two groups differ by *shape*, not by colour
+   budget: the enforced group is a raised pane framed by the accent keyline
+   (a decision the host owns), the disclosure group is the plain neutral pane
+   (an FYI that promises nothing). Both reuse existing tokens; no new material,
+   no filter, no shadow beyond the tokenized resting rung. */
+.extension-permission-tier {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: var(--ext-border);
+  border-radius: var(--ext-radius);
+  background: var(--glass-control);
+  box-shadow: var(--elev-0);
+}
+
+.extension-permission-tier__label {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.extension-permission-tier__hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+}
+
+.extension-permission-tier__items {
+  display: grid;
+  gap: 6px;
+}
+
+/* The enforced group's pane: the neutral raised fill plus the accent keyline
+   that already means "the host decided this" elsewhere in the panel. */
+.extension-permission-tier--enforced .extension-permission-item {
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
+}
+
+/* The disclosure group stays a plain neutral pane — the absence of the
+   keyline is the point. */
+.extension-permission-tier--disclosure .extension-permission-item {
+  background: var(--icon-surface);
+}
+
+/* Inside a review dialog the list keeps its summary rows (source, runtime,
+   platforms) and then two tier panes; the tier pane owns the grouping, so the
+   list itself only spaces them. */
+.extension-permission-list--tiered {
+  gap: 10px;
+}
+
+.extension-permission-list--tiered > .extension-permission-tier > .extension-permission-tier__items > .extension-permission-item {
+  padding: 7px 9px;
+}
+
 .extension-permission-dialog__body {
   min-height: 0;
   display: grid;
@@ -1307,12 +1366,26 @@
   margin: 5px 0 8px;
   padding: 8px;
   border: var(--ext-border);
-  border-radius: var(--ext-radius);
+  /* Pinned to the shared ladder's control step instead of the panel-local
+     `--ext-radius` alias. The review dialog happens to sit inside
+     `.extensions-panel` today, so both resolve to 6px — but the note is a
+     review-surface primitive and must stay rounded even if it is ever mounted
+     outside the panel (a portal, a second host), so it names the ladder
+     directly. */
+  border-radius: var(--radius-sm);
   background: var(--glass-control);
   box-shadow: var(--elev-0);
   color: var(--text-muted);
   font-size: var(--text-caption);
   line-height: 1.4;
+}
+
+/* `.extension-permission-dialog p` sets `margin-top: 3px` at specificity
+   (0,1,1), which outranks the boundary rule's (0,1,0) and collapsed the note
+   onto the tier list. Re-assert the full margin at a higher specificity so the
+   note keeps its own spacing without touching the shared paragraph rule. */
+.extension-permission-dialog p.extension-permission-dialog__boundary {
+  margin: 5px 0 8px;
 }
 
 .extension-permission-dialog__body > .extension-permission-dialog__boundary {
@@ -1607,6 +1680,78 @@
   background: var(--glass-control);
   border-radius: var(--ext-radius);
   color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+}
+
+/* R7-8 · the demoted official-index note: no pane of its own, just one muted
+   line under the signature it qualifies. */
+.extension-detail-note--secondary {
+  padding: 0;
+  border-left: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* R7-8 · approval record. A read-only audit block: the same metadata grid as
+   Information, plus the approved permission list rendered as plain labels —
+   no checkboxes, because nothing here is actionable. */
+.extension-approval-record {
+  display: grid;
+  gap: 10px;
+}
+
+.extension-approval-record__permissions {
+  display: grid;
+  gap: 6px;
+}
+
+.extension-approval-record__label {
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.extension-approval-record__permissions ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.extension-approval-record__permission {
+  padding: 3px 7px;
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-xs);
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+/* The same shape difference as the review list, so "what Floter refused"
+   stays recognisable in the record. */
+.extension-approval-record__permission--enforced {
+  background: var(--glass-raised-quiet);
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
+  color: var(--text-primary);
+}
+
+.extension-approval-record__empty {
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+}
+
+.extension-approval-record__stale {
+  margin: 0;
+  padding: 7px 9px;
+  border-left: 2px solid var(--text-warning);
+  border-radius: var(--ext-radius);
+  background: var(--glass-raised-warm);
+  color: var(--text-secondary);
   font-size: var(--text-caption);
   line-height: 1.4;
 }

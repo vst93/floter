@@ -185,7 +185,14 @@ async fn list_extensions(
             // official-index signatures pass. Never present an official badge
             // if the package signature is no longer trusted.
             entry.official_verified &= entry.signature_verified;
-            let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
+            // One read serves both the parsed manifest and the on-disk
+            // digest. A digest is only reported when the file is readable, so
+            // "unknown" stays distinguishable from "changed".
+            let loaded_manifest =
+                ExtensionManifest::load_with_digest(Path::new(&entry.manifest_path)).ok();
+            let current_manifest_digest =
+                loaded_manifest.as_ref().map(|(_, digest)| digest.clone());
+            let manifest = loaded_manifest.map(|(manifest, _)| manifest);
             let current_candidate = (entry.runtime_ownership == ExtensionRuntimeOwnership::System)
                 .then(|| {
                     inventory::executable_candidate(
@@ -248,6 +255,7 @@ async fn list_extensions(
                 lock_state,
                 reconnect_available,
                 tool_candidates,
+                current_manifest_digest,
             ));
         }
         if tool_lock_changed {
@@ -431,6 +439,12 @@ pub struct ExtensionListItem {
     pub manifest_suggestion: bool,
     pub tool_lock_state: Option<LockState>,
     pub tool_candidates: Vec<ToolCandidate>,
+    /// Digest of the manifest bytes **currently on disk**, in the same
+    /// `sha256-…` form as `approvedManifestDigest`. `None` when the manifest
+    /// could not be read. The drawer compares the two to say "the manifest
+    /// changed since you approved it"; it never rolls anything back, because
+    /// the update chain that could do that was removed (`350e2d6`).
+    pub current_manifest_digest: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -451,6 +465,7 @@ impl ExtensionListItem {
         tool_lock_state: Option<LockState>,
         reconnect_available: bool,
         tool_candidates: Vec<ToolCandidate>,
+        current_manifest_digest: Option<String>,
     ) -> Self {
         let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
         let generated_custom = install::is_generated_custom_integration(&entry);
@@ -481,6 +496,7 @@ impl ExtensionListItem {
             manifest_suggestion: false,
             tool_lock_state,
             tool_candidates,
+            current_manifest_digest,
         }
     }
 
@@ -556,6 +572,7 @@ impl ExtensionListItem {
             publisher_descriptor: true,
             tool_lock_state: None,
             tool_candidates,
+            current_manifest_digest: None,
             entry,
         }
     }
@@ -628,6 +645,7 @@ impl ExtensionListItem {
             publisher_descriptor: false,
             tool_lock_state: None,
             tool_candidates: Vec::new(),
+            current_manifest_digest: None,
             entry,
         }
     }
@@ -718,6 +736,7 @@ impl ExtensionListItem {
                 == crate::extensions::manifest::ProviderKind::StaticDescriptor,
             tool_lock_state: None,
             tool_candidates,
+            current_manifest_digest: None,
             entry,
         }
     }
@@ -2555,6 +2574,59 @@ mod tests {
             .into_iter()
             .find(|item| item.entry.id == id)
             .expect("entry is listed")
+    }
+
+    /// The list must expose the digest of the manifest bytes **currently on
+    /// disk**, in the same `sha256-…` form as `approvedManifestDigest` — the
+    /// drawer's "manifest changed since approval" note fires only when the two
+    /// differ. The expected value is computed here from the real file, so this
+    /// pins the *value*, not just a source token: threading `None` instead of
+    /// the loaded digest (a compiling but always-`None` field) fails this test.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_item_exposes_the_on_disk_manifest_digest() {
+        let fixture = list_binding_fixture();
+        let manifest_path = Path::new(&fixture.entry.manifest_path);
+
+        // The approval is recorded against the digest of the exact bytes on
+        // disk (`install_linked` writes the manifest, then digests it). That is
+        // the same basis as the current digest below — §2.4's invariant.
+        let on_disk = std::fs::read(manifest_path).unwrap();
+        let approved = ExtensionManifest::digest_of(&on_disk);
+        let mut lock = ExtensionsLock::load(&fixture.state.paths.repository_file).unwrap();
+        let stored = lock.extensions.get_mut(&fixture.entry.id).unwrap();
+        stored.approved_manifest_digest = Some(approved.clone());
+        stored.approved_at = 1;
+        lock.save(&fixture.state.paths.repository_file).unwrap();
+
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(
+            listed.current_manifest_digest.as_deref(),
+            Some(approved.as_str()),
+            "the listed digest must be the sha256 of the on-disk manifest bytes"
+        );
+        assert_eq!(
+            listed.entry.approved_manifest_digest.as_deref(),
+            listed.current_manifest_digest.as_deref(),
+            "an untouched manifest must not read as changed (one digest basis)"
+        );
+
+        // A byte-level edit that keeps the manifest valid moves the current
+        // digest only: the recorded approval no longer covers the file.
+        let mut edited = on_disk.clone();
+        edited.push(b'\n');
+        std::fs::write(manifest_path, &edited).unwrap();
+        let listed = list_item(&fixture.state, &fixture.entry.id).await;
+        assert_eq!(
+            listed.current_manifest_digest.as_deref(),
+            Some(ExtensionManifest::digest_of(&edited).as_str()),
+            "the digest must track the bytes on disk"
+        );
+        assert_ne!(
+            listed.current_manifest_digest.as_deref(),
+            listed.entry.approved_manifest_digest.as_deref(),
+            "an edited manifest must read as changed"
+        );
     }
 
     /// Read-only contract: listing a system entry that has **no** persisted
