@@ -28,6 +28,13 @@ import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
 import { PermissionTierList } from "./extensions/PermissionTierList";
 import { permissionTier } from "./extensions/permission-tiers";
 import { approvalIsStale, shortDigest } from "./extensions/approval-record";
+import {
+  createReprobeNoticeGate,
+  decideDriftNotice,
+  freshnessOf,
+  relativeTime,
+  type Freshness,
+} from "./extensions/freshness";
 import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
 import { ComponentizedUninstallDialog } from "./extensions/ComponentizedUninstallDialog";
 import { useImmediateState } from "./hooks/useImmediateState";
@@ -93,6 +100,14 @@ export type Extension = {
   lastErrorAt?: number | null;
   /** Why the extension is broken, persisted until repair succeeds. */
   brokenReason?: string | null;
+  /** Unix seconds of the last command probe (R7-7 freshness). Read from the
+   *  integration's `help-probe.json` sidecar; `null`/absent for publisher
+   *  descriptors and anything Floter did not generate. */
+  lastProbeAt?: number | null;
+  /** Commands in the descriptor as of that probe, and the probe before it.
+   *  `null`/absent means "unknown" — a first probe has nothing to compare to. */
+  commandCount?: number | null;
+  previousCommandCount?: number | null;
 };
 
 type CommandDescriptor = {
@@ -123,6 +138,31 @@ type ProviderResponse = {
 type DiagnoseResult = {
   status: string;
   checks: Array<{ id: string; status: string; message: string }>;
+};
+
+/** The last background drift re-probe observed in this session, as reported by
+ *  a notice frame on `extension-op-progress` (R7-7). Display-only: the durable
+ *  copy of these numbers is the `help-probe.json` sidecar the list reads. */
+type DriftProbe = {
+  extensionId: string;
+  toolVersion: string | null;
+  atSeconds: number;
+  commandCount: number | null;
+  previousCommandCount: number | null;
+};
+
+/** One `extension-op-progress` frame. `notice` is present only on the one-shot
+ *  frame a silent drift re-probe emits (R7-7) — see `operation.rs`. */
+type OperationProgressPayload = {
+  extensionId: string;
+  kind: string;
+  phase: string;
+  percent?: number;
+  notice?: {
+    toolVersion?: string | null;
+    previousCommandCount?: number | null;
+    commandCount?: number | null;
+  };
 };
 
 type HealthReport = {
@@ -426,8 +466,10 @@ type ExtensionsPanelProps = {
   /** Enable/disable a base plugin; tears its runtime down when disabled. */
   onToggleBasePlugin: (id: string, enabled: boolean) => void;
   /** Push a toast onto the app-level stack (rendered by App outside any scroll
-   * container, so feedback stays visible wherever the user scrolled to). */
-  onNotify: (kind: "error" | "success", text: string) => void;
+   * container, so feedback stays visible wherever the user scrolled to). The
+   * optional action rides the same stack — R7-7's drift notice uses it to open
+   * the integration it is talking about. */
+  onNotify: (kind: "error" | "success", text: string, action?: { label: string; run: () => void }) => void;
   /** A validated `floter://connect` request. The backend has already checked
    * the manifest's path and structure; the panel turns it into the *same*
    * review dialog the file picker opens, so a link can never install, approve
@@ -517,6 +559,17 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [healthLoading, setHealthLoading, healthLoadingRef] = useImmediateState(false);
   const [reprobingCommands, setReprobingCommands, reprobingRef] = useImmediateState(false);
   const [operationProgress, setOperationProgress] = useState<Record<string, { stage: string; message?: string }>>({});
+  // R7-7: the silent drift re-probe's one-shot notice. `driftProbe` records the
+  // *result* of the background re-probe for one integration so the drawer's
+  // freshness row can report it immediately (the next `extensions_list` carries
+  // the same numbers from disk). It deliberately does NOT go through
+  // `operationProgress`: that strip is per-row and cleared when a user-initiated
+  // mutation ends, so a background frame parked there would pin a stale
+  // "Complete" line to the row forever.
+  const [driftProbe, setDriftProbe] = useState<DriftProbe | null>(null);
+  const reprobeNoticeGate = useRef(createReprobeNoticeGate());
+  const extensionsRef = useRef<Extension[]>(extensions);
+  extensionsRef.current = extensions;
   // Bumped to force the drawer's details effect (provider/diagnose/config)
   // to reload without a lock-entry change, e.g. after a command re-probe.
   const [detailReloadTick, setDetailReloadTick] = useState(0);
@@ -677,9 +730,18 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   }, []);
 
   useEffect(() => {
-    const unlisten = listen<{ extensionId: string; kind: string; phase: string; percent?: number }>(
+    const unlisten = listen<OperationProgressPayload>(
       "extension-op-progress",
-      (event: { payload: { extensionId: string; kind: string; phase: string; percent?: number } }) => {
+      (event: { payload: OperationProgressPayload }) => {
+        // The drift-notice frame is not a progress phase: it is a completed
+        // background re-probe that no user action is waiting on. Routing it
+        // through the per-row progress strip would leave "Complete" pinned to
+        // the row (only `runMutation` clears it), so it is handled on its own
+        // and skipped here.
+        if (event.payload.notice) {
+          handleDriftNoticeRef.current(event.payload);
+          return;
+        }
         setOperationProgress((prev) => ({
           ...prev,
           [event.payload.extensionId]: {
@@ -1398,6 +1460,58 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     setSelectedId(null);
   };
 
+  // R7-7 · the silent drift re-probe, made visible exactly once.
+  //
+  // G2 re-probes a generated integration when the upstream tool's version moved
+  // and rewrites its command list in the background. Nothing used to say so. A
+  // frame with a `notice` block now arrives after such a re-probe, and this is
+  // the only consumer: it announces a *changed command count* once per
+  // (integration, version, delta) for the session, and stays silent for an
+  // unchanged count — there is nothing a user could do about "still the same".
+  //
+  // The frame also marks the row as freshly probed so the drawer's freshness
+  // section can report the new timestamp/count without a second list round
+  // trip; the next `extensions_list` carries the same numbers from disk.
+  const handleDriftNotice = (payload: OperationProgressPayload) => {
+    const notice = payload.notice;
+    if (!notice) return;
+    // The name is resolved before the decision because the decision's "can this
+    // be announced?" rule needs it — see `decideDriftNotice` for the ordering
+    // that keeps a no-op frame from consuming the once-only slot.
+    const extension = extensionsRef.current.find((entry) => entry.id === payload.extensionId);
+    const decision = decideDriftNotice(
+      {
+        extensionId: payload.extensionId,
+        toolVersion: notice.toolVersion,
+        previousCommandCount: notice.previousCommandCount,
+        commandCount: notice.commandCount,
+      },
+      extension?.name ?? null,
+      reprobeNoticeGate.current,
+    );
+    // The drawer's facts are updated for every completed re-probe, announced or
+    // not: the freshness row reports what happened, the toast only reports what
+    // is worth interrupting for.
+    setDriftProbe({ ...decision.display, atSeconds: Math.floor(Date.now() / 1000) });
+    if (!decision.announce || !extension) return;
+    const { delta } = decision.announce;
+    onNotify(
+      "success",
+      t("settings.extensions.reprobeNotice", {
+        name: extension.name,
+        delta: t(
+          delta.kind === "increase"
+            ? "settings.extensions.reprobeNoticeDeltaIncrease"
+            : "settings.extensions.reprobeNoticeDeltaDecrease",
+          { count: delta.count },
+        ),
+      }),
+      { label: t("settings.extensions.viewDetails"), run: () => setSelectedId(payload.extensionId) },
+    );
+  };
+  const handleDriftNoticeRef = useRef(handleDriftNotice);
+  handleDriftNoticeRef.current = handleDriftNotice;
+
   const discardDetailsChanges = () => {
     setDetailsDiscardArmed(false);
     setSelectedId(null);
@@ -1861,6 +1975,15 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 )}
               </section>
 
+              <FreshnessSection
+                t={t}
+                locale={locale}
+                selected={selected}
+                driftProbe={driftProbe}
+                healthReport={healthReport}
+                reprobing={reprobingCommands}
+              />
+
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.commands")}</h4>
                 {provider?.description.commands.length ? (
@@ -2063,6 +2186,101 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       )}
 
       {uninstallDialog}
+    </section>
+  );
+}
+
+/**
+ * R7-7 · the drawer's freshness block.
+ *
+ * Three facts, in this order: when the command list was last probed, what that
+ * probe did, and how the command count moved against the probe before it. All
+ * three come from storage that already existed (the probe sidecar, the
+ * persisted health report, the operation-progress event); this component only
+ * projects them.
+ *
+ * Deliberately NOT here: a version list, an "update" control, a "latest"
+ * badge. The section answers "how fresh is what I have", never "is there
+ * something newer to fetch" — the NPM update chain was removed (`350e2d6`) and
+ * nothing in this block may imply its return (AGENT-NOTES: no store-style
+ * update centre).
+ */
+function FreshnessSection({
+  t,
+  locale,
+  selected,
+  driftProbe,
+  healthReport,
+  reprobing,
+}: {
+  t: Translate;
+  locale: "en" | "zh";
+  selected: Extension;
+  driftProbe: DriftProbe | null;
+  healthReport: HealthReport | null;
+  reprobing: boolean;
+}) {
+  // A drift re-probe observed in this session is the freshest truth for this
+  // row; the list fields are what the sidecar said on the last listing.
+  const drift = driftProbe && driftProbe.extensionId === selected.id ? driftProbe : null;
+  const freshness: Freshness = freshnessOf({
+    lastProbeAt: drift ? drift.atSeconds : selected.lastProbeAt,
+    healthCheckedAt: healthReport?.checkedAt,
+    healthStatus: healthReport?.status ?? null,
+    errorCode: selected.lastErrorCode,
+    running: reprobing,
+    commandCount: drift ? drift.commandCount : selected.commandCount,
+    previousCommandCount: drift ? drift.previousCommandCount : selected.previousCommandCount,
+  });
+
+  const deltaKey = {
+    increase: "settings.extensions.freshnessDeltaIncrease",
+    decrease: "settings.extensions.freshnessDeltaDecrease",
+    unchanged: "settings.extensions.freshnessDeltaUnchanged",
+    unknown: "settings.extensions.freshnessDeltaUnknown",
+  }[freshness.delta.kind] as Parameters<Translate>[0];
+
+  return (
+    <section className="extension-detail-block">
+      <h4>{t("settings.extensions.freshness")}</h4>
+      <dl className="extension-metadata">
+        <div>
+          <dt>{t("settings.extensions.freshnessLastProbe")}</dt>
+          <dd
+            title={freshness.atSeconds
+              ? new Date(freshness.atSeconds * 1000).toLocaleString(locale)
+              : t("settings.extensions.freshnessNever")}
+          >
+            {freshness.atSeconds
+              ? relativeTime(freshness.atSeconds, Math.floor(Date.now() / 1000), locale, t("settings.extensions.freshnessJustNow"))
+              : t("settings.extensions.freshnessNever")}
+          </dd>
+        </div>
+        <div>
+          <dt>{t("settings.extensions.freshnessResult")}</dt>
+          <dd>{t(`settings.extensions.freshnessResult.${freshness.result}` as Parameters<Translate>[0])}</dd>
+        </div>
+      </dl>
+      <div className="extension-freshness__commands">
+        <span className="extension-freshness__label">{t("settings.extensions.freshnessCommands")}</span>
+        <span className="extension-freshness__count">
+          {freshness.commandCount !== null
+            ? t("settings.extensions.freshnessCommandsValue", { count: freshness.commandCount })
+            : t("settings.extensions.freshnessCommandsUnknown")}
+        </span>
+        <span
+          className={`extension-freshness__delta extension-freshness__delta--${freshness.delta.kind}`}
+          aria-hidden="true"
+        >
+          ·
+        </span>
+        <span className={`extension-freshness__delta-text extension-freshness__delta-text--${freshness.delta.kind}`}>
+          {t(deltaKey, { count: freshness.delta.count ?? 0 })}
+        </span>
+      </div>
+      {freshness.source === "health" && (
+        <p className="extension-detail-note extension-detail-note--secondary">{t("settings.extensions.freshnessHealthSource")}</p>
+      )}
     </section>
   );
 }

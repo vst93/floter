@@ -445,6 +445,17 @@ pub struct ExtensionListItem {
     /// changed since you approved it"; it never rolls anything back, because
     /// the update chain that could do that was removed (`350e2d6`).
     pub current_manifest_digest: Option<String>,
+    /// Unix seconds of the last *command* probe, read from the integration's
+    /// `help-probe.json` sidecar (written at connect and on every re-probe).
+    /// `None` when the integration was not generated here or has no sidecar;
+    /// the drawer then falls back to the health report's `checkedAt`. This is
+    /// freshness information only — it never implies an available upgrade.
+    pub last_probe_at: Option<u64>,
+    /// Commands in the descriptor as of the last probe, and how many the probe
+    /// before that produced. Both `None` when unknown: a first probe has no
+    /// previous count, and a publisher descriptor is never probed here.
+    pub command_count: Option<usize>,
+    pub previous_command_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -470,6 +481,18 @@ impl ExtensionListItem {
         let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok();
         let generated_custom = install::is_generated_custom_integration(&entry);
         let publisher_descriptor = install::is_publisher_descriptor(&entry);
+        // Freshness is read from the same sidecar the probe writes, beside the
+        // descriptor. Only a Floter-generated integration has one (a publisher
+        // descriptor's command list is release content and is never probed), so
+        // the read is gated on `generated_custom` and stays a pure read for
+        // every other row.
+        let probe = generated_custom
+            .then(|| {
+                Path::new(&entry.manifest_path)
+                    .parent()
+                    .and_then(install::read_help_probe_record)
+            })
+            .flatten();
         let stored_runtime_available = crate::extensions::registry::runtime_available(&entry);
         let runtime_available = stored_runtime_available
             && tool_lock_state.is_none_or(|state| state == LockState::Connected);
@@ -497,6 +520,9 @@ impl ExtensionListItem {
             tool_lock_state,
             tool_candidates,
             current_manifest_digest,
+            last_probe_at: probe.map(|probe| probe.probed_at),
+            command_count: probe.and_then(|probe| probe.command_count),
+            previous_command_count: probe.and_then(|probe| probe.previous_command_count),
         }
     }
 
@@ -573,6 +599,9 @@ impl ExtensionListItem {
             tool_lock_state: None,
             tool_candidates,
             current_manifest_digest: None,
+            last_probe_at: None,
+            command_count: None,
+            previous_command_count: None,
             entry,
         }
     }
@@ -646,6 +675,9 @@ impl ExtensionListItem {
             tool_lock_state: None,
             tool_candidates: Vec::new(),
             current_manifest_digest: None,
+            last_probe_at: None,
+            command_count: None,
+            previous_command_count: None,
             entry,
         }
     }
@@ -737,6 +769,9 @@ impl ExtensionListItem {
             tool_lock_state: None,
             tool_candidates,
             current_manifest_digest: None,
+            last_probe_at: None,
+            command_count: None,
+            previous_command_count: None,
             entry,
         }
     }
@@ -3609,5 +3644,81 @@ mod tests {
                 HealthStatus::Unhealthy
             );
         }
+    }
+
+    /// The freshness fields on a list item are the *only* Rust-side read of the
+    /// probe sidecar for display, so a regression here would silently blank the
+    /// drawer (every frontend fallback paints "unknown" and nothing fails).
+    /// A `generated_custom` row with a sidecar on disk must surface all three
+    /// facts; a publisher-descriptor row (commands are release content, never
+    /// probed) must surface none — not even a fabricated zero.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_item_surfaces_the_probe_sidecar_freshness_for_generated_rows_only() {
+        let fixture = list_binding_fixture();
+
+        // Turn the fixture's entry into a generated-custom one: the shape gate
+        // is Local + publisher "local-user" + StaticDescriptor + `<id>/integration/`
+        // as the manifest's home. The fixture's `integration/` sits directly in
+        // the tempdir, so build the nested home and copy the two files over.
+        let root = Path::new(&fixture.entry.manifest_path)
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        // A distinct id, so the publisher-descriptor row (the untouched
+        // fixture entry) and the generated row can coexist in one lock and
+        // the negative half of this test reads the *right* row.
+        let mut custom = fixture.entry.clone();
+        custom.id = format!("{}-custom", fixture.entry.id);
+        custom.name = format!("{} (custom)", fixture.entry.name);
+        custom.publisher_id = "local-user".into();
+        let nested_root = root.parent().unwrap().join(&custom.id).join("integration");
+        std::fs::create_dir_all(&nested_root).unwrap();
+        for file in ["floter.extension.json", "provider-description.json"] {
+            std::fs::copy(root.join(file), nested_root.join(file)).unwrap();
+        }
+        custom.manifest_path = nested_root
+            .join("floter.extension.json")
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            crate::extensions::install::is_generated_custom_integration(&custom),
+            "fixture must satisfy the generated-custom shape gate"
+        );
+        {
+            let mut lock = ExtensionsLock::default();
+            lock.extensions.insert(custom.id.clone(), custom.clone());
+            // The untouched fixture entry stays in the lock as the
+            // publisher-descriptor control row.
+            lock.extensions
+                .insert(fixture.entry.id.clone(), fixture.entry.clone());
+            lock.save(&fixture.state.paths.repository_file).unwrap();
+        }
+
+        // The sidecar shape `write_help_probe_sidecar` produces (camelCase).
+        let sidecar = serde_json::json!({
+            "probedAt": 1_724_000_000u64,
+            "rootArgumentCount": 0,
+            "subcommands": [{"name": "build", "aliases": [], "argumentCount": 1}],
+            "commandCount": 2,
+            "previousCommandCount": 1
+        });
+        std::fs::write(
+            nested_root.join("help-probe.json"),
+            serde_json::to_vec_pretty(&sidecar).unwrap(),
+        )
+        .unwrap();
+
+        let listed = list_item(&fixture.state, &custom.id).await;
+        assert_eq!(listed.last_probe_at, Some(1_724_000_000));
+        assert_eq!(listed.command_count, Some(2));
+        assert_eq!(listed.previous_command_count, Some(1));
+
+        // A publisher-descriptor row never carries freshness facts — the
+        // projection must stay `None`, never collapse to a fake zero.
+        let published = list_item(&fixture.state, &fixture.entry.id).await;
+        assert!(published.last_probe_at.is_none());
+        assert!(published.command_count.is_none());
+        assert!(published.previous_command_count.is_none());
     }
 }

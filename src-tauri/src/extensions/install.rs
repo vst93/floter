@@ -303,6 +303,7 @@ async fn create_custom_integration_locked(
             &request.args_prefix,
             &derivation,
         );
+        let command_count = commands.len();
         let mut descriptor_bytes = serde_json::to_vec_pretty(&serde_json::json!({
             "protocolVersion": "1.0",
             "provider": {
@@ -320,7 +321,7 @@ async fn create_custom_integration_locked(
         if !script_mode {
             // Probe record sidecar: best-effort by contract — a failure here
             // must never fail the connection.
-            let _ = write_help_probe_sidecar(&package_root, &derivation);
+            let _ = write_help_probe_sidecar(&package_root, &derivation, command_count);
         }
         if script_mode {
             std::fs::write(
@@ -418,21 +419,84 @@ struct HelpProbeSubcommand<'a> {
     argument_count: usize,
 }
 
-/// Sidecar probe record written next to `provider-description.json`. Purely
-/// informational (when the flags were derived and how much was found); never
-/// read back to make decisions.
+/// Sidecar probe record written next to `provider-description.json`. It records
+/// when the command list was last derived, how many commands that derivation
+/// produced, and (on a re-probe) how many it produced the time before — the
+/// three facts the integration drawer's freshness section reports. Read back by
+/// [`read_help_probe_record`] for display only; never used to make decisions.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HelpProbeRecord<'a> {
     probed_at: u64,
     root_argument_count: usize,
     subcommands: Vec<HelpProbeSubcommand<'a>>,
+    /// Total command count of this derivation (root + subcommands). `None` on
+    /// records written before the field existed.
+    command_count: Option<usize>,
+    /// Command count of the *previous* derivation, set only when a re-probe
+    /// replaced an existing sidecar. `None` means "first probe, nothing to
+    /// compare against".
+    previous_command_count: Option<usize>,
+}
+
+/// Owned read view of the same on-disk shape. Separate from the borrowed write
+/// struct because `&'a str`/`&'a [String]` borrow the derivation and therefore
+/// cannot be deserialized; every field is `#[serde(default)]` so a record
+/// written by an older build (or a partially hand-edited file) still parses and
+/// simply reports the fields it does have.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HelpProbeRecordView {
+    #[serde(default)]
+    probed_at: u64,
+    #[serde(default)]
+    subcommands: Vec<serde_json::Value>,
+    #[serde(default)]
+    command_count: Option<usize>,
+    #[serde(default)]
+    previous_command_count: Option<usize>,
+}
+
+/// Display projection of a `help-probe.json` sidecar: when the command list was
+/// last derived and how its size moved. `None` fields mean "unknown", never
+/// zero — the drawer paints an explicit unknown state instead of a fake 0.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct HelpProbeSummary {
+    pub probed_at: u64,
+    pub command_count: Option<usize>,
+    pub previous_command_count: Option<usize>,
+}
+
+/// Read the display projection of the probe sidecar beside `package_root`'s
+/// descriptor. Best-effort by contract: a missing or unparsable sidecar is
+/// `None`, and the drawer then falls back to the health report (or to its
+/// unknown state). Purely a read — nothing here writes or repairs the file.
+pub fn read_help_probe_record(package_root: &Path) -> Option<HelpProbeSummary> {
+    let bytes = std::fs::read(package_root.join("help-probe.json")).ok()?;
+    let record: HelpProbeRecordView = serde_json::from_slice(&bytes).ok()?;
+    Some(HelpProbeSummary {
+        probed_at: record.probed_at,
+        // Older records predate `commandCount`; their subcommand list still
+        // implies a total (root + subcommands), so the drawer can show a real
+        // number instead of "unknown" for an integration that was probed.
+        command_count: record
+            .command_count
+            .or_else(|| (!record.subcommands.is_empty()).then_some(record.subcommands.len() + 1)),
+        previous_command_count: record.previous_command_count,
+    })
 }
 
 fn write_help_probe_sidecar(
     package_root: &Path,
     derivation: &help_args::HelpDerivation,
+    command_count: usize,
 ) -> Result<(), String> {
+    // A re-probe compares against what the *previous* sidecar recorded: the
+    // count it was written with, or — for a record written before that field
+    // existed — its subcommand list. A first probe has nothing to compare to,
+    // so `previousCommandCount` stays absent and the drawer says "unknown"
+    // rather than inventing a delta against a number nobody ever saw.
+    let previous_command_count = read_help_probe_record(package_root).and_then(|p| p.command_count);
     let record = HelpProbeRecord {
         probed_at: unix_now(),
         root_argument_count: derivation.root_arguments.len(),
@@ -445,6 +509,8 @@ fn write_help_probe_sidecar(
                 argument_count: subcommand.arguments.len(),
             })
             .collect(),
+        command_count: Some(command_count),
+        previous_command_count,
     };
     let mut bytes = serde_json::to_vec_pretty(&record)
         .map_err(|error| format!("Cannot serialize help probe record: {error}"))?;
@@ -454,12 +520,18 @@ fn write_help_probe_sidecar(
 }
 
 /// Result of a successful [`reprobe_tool_commands`] run: how many argument
-/// hints the fresh derivation produced.
+/// hints the fresh derivation produced, and how the command list moved.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReprobeReport {
     pub root_arguments: usize,
     pub subcommands: usize,
+    /// Total commands in the refreshed descriptor (root + subcommands).
+    pub command_count: usize,
+    /// Commands recorded by the previous probe, when one existed. `None` means
+    /// there is nothing to compare against (a first probe), which the UI shows
+    /// as "unknown" rather than a fabricated delta.
+    pub previous_command_count: Option<usize>,
 }
 
 /// Derive a tool's command hints for the *re-probe* path, treating unusable
@@ -577,6 +649,12 @@ pub async fn reprobe_tool_commands(
         &args_prefix,
         &derivation,
     );
+    // The freshness record compares this derivation's command count against the
+    // previous sidecar's, so the drawer can say "+N/-N/no change" — read before
+    // the sidecar is rewritten below.
+    let command_count = commands.len();
+    let previous_command_count =
+        read_help_probe_record(root).and_then(|record| record.command_count);
     let mut descriptor_bytes = serde_json::to_vec_pretty(&descriptor)
         .map_err(|error| format!("Cannot serialize custom provider description: {error}"))?;
     descriptor_bytes.push(b'\n');
@@ -590,11 +668,13 @@ pub async fn reprobe_tool_commands(
             "Cannot update custom provider description: {error}"
         ));
     }
-    let _ = write_help_probe_sidecar(root, &derivation);
+    let _ = write_help_probe_sidecar(root, &derivation, command_count);
     state.invalidate_provider_commands().await;
     Ok(ReprobeReport {
         root_arguments: derivation.root_arguments.len(),
         subcommands: derivation.subcommands.len(),
+        command_count,
+        previous_command_count,
     })
 }
 
@@ -719,6 +799,25 @@ pub async fn reprobe_on_tool_version_change(
                 subcommands = report.subcommands,
                 arguments = report.root_arguments,
             );
+            // R7-7: make the silent re-probe visible exactly once. This is the
+            // only frame the drift path emits, and it is emitted only when the
+            // command list actually moved — an unchanged count stays silent,
+            // because there is nothing a user could act on. The frontend
+            // dedupes per (id, toolVersion, delta) for the session; the backend
+            // deliberately keeps no "already notified" state.
+            if report.previous_command_count != Some(report.command_count) {
+                state.emit_progress(crate::extensions::operation::OperationProgress {
+                    extension_id: latest.id.clone(),
+                    kind: "reprobe".to_string(),
+                    phase: "Complete".to_string(),
+                    percent: Some(100),
+                    notice: Some(crate::extensions::operation::ReprobeNotice {
+                        tool_version: Some(current.clone()),
+                        previous_command_count: report.previous_command_count,
+                        command_count: Some(report.command_count),
+                    }),
+                });
+            }
             true
         }
         Err(error) => {
@@ -1547,6 +1646,7 @@ pub async fn uninstall(
         kind: "uninstall".to_string(),
         phase: "Preparing".to_string(),
         percent: Some(10),
+        notice: None,
     });
     crate::extensions::transaction::recover_pending_removals(state)?;
     let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
@@ -1573,6 +1673,7 @@ pub async fn uninstall(
         kind: "uninstall".to_string(),
         phase: "Creating backup".to_string(),
         percent: Some(30),
+        notice: None,
     });
     let transaction_id = format!("uninstall-{}-{}", extension_id, entry.updated_at);
     let mut staged_path = None;
@@ -1610,6 +1711,7 @@ pub async fn uninstall(
         kind: "uninstall".to_string(),
         phase: "Staging removal".to_string(),
         percent: Some(50),
+        notice: None,
     });
     if let Some(target) = &staged_path {
         crate::extensions::commit_point("uninstall-stage-rename");
@@ -1627,6 +1729,7 @@ pub async fn uninstall(
         kind: "uninstall".to_string(),
         phase: "Updating registry".to_string(),
         percent: Some(70),
+        notice: None,
     });
     // Recovery decides whether a failed save reached its atomic repository rename.
     lock.extensions.remove(extension_id);
@@ -1650,6 +1753,7 @@ pub async fn uninstall(
         kind: "uninstall".to_string(),
         phase: "Cleaning up files".to_string(),
         percent: Some(90),
+        notice: None,
     });
     // Physical cleanup: delete staged directory and cleanup paths.
     let mut cleanup_error = None;
@@ -1717,6 +1821,7 @@ pub(crate) async fn install_linked(
         kind: "install".to_string(),
         phase: "Loading manifest".to_string(),
         percent: Some(10),
+        notice: None,
     });
     let manifest_source = request
         .manifest_path
@@ -1745,6 +1850,7 @@ pub(crate) async fn install_linked(
         kind: "install".to_string(),
         phase: "Validating".to_string(),
         percent: Some(30),
+        notice: None,
     });
     validate_permission_approval(
         &manifest.permissions,
@@ -1768,6 +1874,7 @@ pub(crate) async fn install_linked(
         kind: "install".to_string(),
         phase: "Resolving executable".to_string(),
         percent: Some(50),
+        notice: None,
     });
     let executable = if let Some(path) = request.executable_path {
         let path = PathBuf::from(path);
@@ -1810,6 +1917,7 @@ pub(crate) async fn install_linked(
         kind: "install".to_string(),
         phase: "Probing provider".to_string(),
         percent: Some(70),
+        notice: None,
     });
     let response = if manifest.provider.kind == ProviderKind::StaticDescriptor {
         let descriptor_path = manifest_path
@@ -1843,6 +1951,7 @@ pub(crate) async fn install_linked(
         kind: "install".to_string(),
         phase: "Verifying capabilities".to_string(),
         percent: Some(85),
+        notice: None,
     });
     let report = probe_executor::execute_capability_probes(&invocation, &manifest).await;
     let integration_version = if is_package_directory {
@@ -1913,6 +2022,7 @@ pub(crate) async fn install_linked(
         kind: "install".to_string(),
         phase: "Finalizing".to_string(),
         percent: Some(95),
+        notice: None,
     });
     lock.save(&state.paths.repository_file)?;
     Ok(lock.get(&entry.id)?.clone())
@@ -3075,20 +3185,42 @@ mod tests {
         /// `-old`), then record `recorded_version` in the repository. Tests that
         /// need an upstream upgrade call [`DriftFixture::upgrade_to_v2`].
         async fn new(recorded_version: Option<&str>) -> Self {
+            Self::with_payload(
+                "local.drifter-test",
+                "Drifter Test",
+                "drifter-test",
+                "drifter.sh",
+                DRIFTER_V1,
+                recorded_version,
+            )
+            .await
+        }
+
+        /// Same fixture with a caller-chosen payload, for tests that need the
+        /// upstream help to change *shape* (not just flags) so the derived
+        /// command count moves.
+        async fn with_payload(
+            id: &str,
+            name: &str,
+            command: &str,
+            script: &str,
+            v1: &str,
+            recorded_version: Option<&str>,
+        ) -> Self {
             use std::os::unix::fs::PermissionsExt;
 
             let directory = tempfile::tempdir().unwrap();
             let state = test_state(directory.path());
             let script_directory = tempfile::tempdir().unwrap();
-            let executable = script_directory.path().join("drifter.sh");
-            std::fs::write(&executable, DRIFTER_V1).unwrap();
+            let executable = script_directory.path().join(script);
+            std::fs::write(&executable, v1).unwrap();
             std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
             create_custom_integration(
                 &state,
                 CustomIntegrationRequest {
-                    id: "local.drifter-test".into(),
-                    name: "Drifter Test".into(),
-                    command: "drifter-test".into(),
+                    id: id.into(),
+                    name: name.into(),
+                    command: command.into(),
                     version: "1.0.0".into(),
                     executable_path: executable.to_string_lossy().into_owned(),
                     mode: "executable".into(),
@@ -3104,35 +3236,38 @@ mod tests {
             .unwrap();
             if let Some(version) = recorded_version {
                 let mut lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
-                lock.extensions
-                    .get_mut("local.drifter-test")
-                    .unwrap()
-                    .tool_version = Some(version.to_string());
+                lock.extensions.get_mut(id).unwrap().tool_version = Some(version.to_string());
                 lock.save(&state.paths.repository_file).unwrap();
             }
             let descriptor_path = state
                 .paths
                 .data
-                .join("local.drifter-test")
+                .join(id)
                 .join("integration")
                 .join("provider-description.json");
             DriftFixture {
                 directory,
                 script_directory,
                 state,
-                id: "local.drifter-test".into(),
+                id: id.into(),
                 executable,
                 descriptor_path,
             }
         }
 
+        /// Overwrite the bound executable with an arbitrary payload — the
+        /// upstream upgrade the list must notice.
+        fn upgrade_to(&self, payload: &str) {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::write(&self.executable, payload).unwrap();
+            std::fs::set_permissions(&self.executable, std::fs::Permissions::from_mode(0o755))
+                .unwrap();
+        }
+
         /// Overwrite the bound executable with the v2 payload (version 2.0.0,
         /// extra `-new` flag) — the upstream upgrade the list must notice.
         fn upgrade_to_v2(&self) {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::write(&self.executable, DRIFTER_V2).unwrap();
-            std::fs::set_permissions(&self.executable, std::fs::Permissions::from_mode(0o755))
-                .unwrap();
+            self.upgrade_to(DRIFTER_V2);
         }
 
         fn entry(&self) -> ExtensionLockEntry {
@@ -3173,6 +3308,26 @@ mod tests {
         "#!/bin/sh\n",
         "if [ \"$1\" = \"--version\" ]; then echo 'drifter 2.0.0'; exit 0; fi\n",
         "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
+        "echo done\n",
+    );
+
+    /// v1 of a tool whose help lists *no* subcommands: one root command.
+    #[cfg(unix)]
+    const SUBCOMMAND_DRIFTER_V1: &str = concat!(
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"--version\" ]; then echo 'subber 1.0.0'; exit 0; fi\n",
+        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -v   Verbose\\n'; exit 0; fi\n",
+        "echo done\n",
+    );
+
+    /// v2 of the same tool: its help now advertises one subcommand, so the
+    /// regenerated descriptor grows from one command to two — the "+1" the
+    /// one-shot notice exists to announce.
+    #[cfg(unix)]
+    const SUBCOMMAND_DRIFTER_V2: &str = concat!(
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"--version\" ]; then echo 'subber 2.0.0'; exit 0; fi\n",
+        "if [ \"$1\" = \"--help\" ]; then printf 'Available Plugins\\n==================================================\\n📦 alpha 1.0.0 👤 vst\\n  Alpha thing\\n'; exit 0; fi\n",
         "echo done\n",
     );
 
@@ -5661,6 +5816,164 @@ mod tests {
                     .file_name()
                     .to_string_lossy()
                     .starts_with(&format!("removal-uninstall-{}", extension_id)))
+        );
+    }
+
+    /// R7-7: the freshness sidecar records when the command list was derived,
+    /// how many commands it holds, and — on a re-probe — how many the previous
+    /// derivation held. The first probe has nothing to compare against, so
+    /// `previousCommandCount` must stay absent rather than being backfilled with
+    /// the new count (which would render as a fake "no change").
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn the_probe_sidecar_records_the_command_count_and_the_previous_one() {
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        let package_root = fixture
+            .descriptor_path
+            .parent()
+            .expect("descriptor has a parent")
+            .to_path_buf();
+
+        let first = super::read_help_probe_record(&package_root).expect("sidecar exists");
+        assert!(first.probed_at > 0, "a probe records its timestamp");
+        // DRIFTER_V1's help yields no subcommands, so the descriptor holds the
+        // single root command.
+        assert_eq!(first.command_count, Some(1));
+        assert_eq!(
+            first.previous_command_count, None,
+            "a first probe has nothing to compare against"
+        );
+
+        // Re-probe through the real path (the drift routine is the background
+        // caller): the sidecar must now carry both counts.
+        fixture.upgrade_to_v2();
+        let changed = super::reprobe_on_tool_version_change(
+            &fixture.state,
+            &fixture.entry(),
+            &fixture.manifest(),
+        )
+        .await;
+        assert!(changed);
+        let second = super::read_help_probe_record(&package_root).expect("sidecar exists");
+        assert_eq!(second.command_count, Some(1));
+        assert_eq!(
+            second.previous_command_count,
+            Some(1),
+            "a re-probe compares against what the previous sidecar recorded"
+        );
+        assert!(second.probed_at >= first.probed_at);
+    }
+
+    /// R7-7: a sidecar written before `commandCount` existed still yields a
+    /// usable count (root + subcommands) so the drawer shows a number instead of
+    /// "unknown" for an integration that was genuinely probed.
+    #[test]
+    fn an_older_sidecar_without_a_command_count_still_reads() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            directory.path().join("help-probe.json"),
+            r#"{
+  "probedAt": 1700000000,
+  "rootArgumentCount": 3,
+  "subcommands": [
+    { "name": "alpha", "aliases": [], "argumentCount": 1 },
+    { "name": "beta", "aliases": [], "argumentCount": 0 }
+  ]
+}
+"#,
+        )
+        .unwrap();
+        let summary = super::read_help_probe_record(directory.path()).expect("reads");
+        assert_eq!(summary.probed_at, 1_700_000_000);
+        assert_eq!(summary.command_count, Some(3), "root plus two subcommands");
+        assert_eq!(summary.previous_command_count, None);
+
+        // A missing or corrupt sidecar is `None`, never a zeroed record: the
+        // drawer must be able to tell "never probed" from "probed, zero".
+        assert!(super::read_help_probe_record(&directory.path().join("nope")).is_none());
+        std::fs::write(directory.path().join("help-probe.json"), "not json").unwrap();
+        assert!(super::read_help_probe_record(directory.path()).is_none());
+    }
+
+    /// R7-7 · the one-shot notice: a drift re-probe that *changed* the command
+    /// count emits exactly one notice frame on the existing progress event, and
+    /// a re-probe that did not change it emits none. This is the whole backend
+    /// contract behind "make the silent re-probe visible once" — the frontend
+    /// owns the session-level dedupe.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_drift_reprobe_emits_one_notice_only_when_the_command_count_moved() {
+        use std::sync::{Arc, Mutex};
+
+        // Case 1: the count moved. This fixture's upstream help grows a
+        // subcommand between v1 and v2, so the regenerated descriptor goes from
+        // one command to two — a real, user-visible change.
+        let fixture = DriftFixture::with_payload(
+            "local.subber-test",
+            "Subber Test",
+            "subber-test",
+            "subber.sh",
+            SUBCOMMAND_DRIFTER_V1,
+            Some("subber 1.0.0"),
+        )
+        .await;
+        let notices: Arc<Mutex<Vec<crate::extensions::operation::OperationProgress>>> =
+            Arc::new(Mutex::new(Vec::new()));
+        let sink = notices.clone();
+        fixture.state.set_progress_listener(Box::new(move |event| {
+            if event.notice.is_some() {
+                sink.lock().unwrap().push(event.clone());
+            }
+        }));
+        fixture.upgrade_to(SUBCOMMAND_DRIFTER_V2);
+        assert!(
+            super::reprobe_on_tool_version_change(
+                &fixture.state,
+                &fixture.entry(),
+                &fixture.manifest(),
+            )
+            .await
+        );
+        {
+            let collected = notices.lock().unwrap();
+            assert_eq!(
+                collected.len(),
+                1,
+                "exactly one notice per changed re-probe"
+            );
+            let notice = collected[0].notice.as_ref().unwrap();
+            assert_eq!(notice.tool_version.as_deref(), Some("subber 2.0.0"));
+            assert_eq!(notice.previous_command_count, Some(1));
+            assert_eq!(notice.command_count, Some(2));
+            assert_eq!(collected[0].kind, "reprobe");
+            assert_eq!(collected[0].extension_id, "local.subber-test");
+        }
+
+        // Case 2: the count did not move. A tool whose flags changed but whose
+        // command list did not must stay completely silent — "still one
+        // command" is not news a user can act on.
+        let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
+        let quiet: Arc<Mutex<Vec<crate::extensions::operation::OperationProgress>>> =
+            Arc::new(Mutex::new(Vec::new()));
+        let sink = quiet.clone();
+        fixture.state.set_progress_listener(Box::new(move |event| {
+            if event.notice.is_some() {
+                sink.lock().unwrap().push(event.clone());
+            }
+        }));
+        // DRIFTER_V2 only adds a flag: one command before, one after.
+        fixture.upgrade_to_v2();
+        assert!(
+            super::reprobe_on_tool_version_change(
+                &fixture.state,
+                &fixture.entry(),
+                &fixture.manifest(),
+            )
+            .await
+        );
+        assert!(
+            quiet.lock().unwrap().is_empty(),
+            "an unchanged command count must announce nothing"
         );
     }
 

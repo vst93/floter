@@ -78,6 +78,7 @@ pub async fn uninstall_componentized(
         kind: "uninstall".to_string(),
         phase: "Preparing".to_string(),
         percent: Some(10),
+        notice: None,
     });
 
     crate::extensions::transaction::recover_pending_removals(state)?;
@@ -151,6 +152,7 @@ pub async fn uninstall_componentized(
         kind: "uninstall".to_string(),
         phase: "Creating backup".to_string(),
         percent: Some(30),
+        notice: None,
     });
 
     let transaction_id = format!("uninstall-{}-{}", request.extension_id, entry.updated_at);
@@ -190,6 +192,7 @@ pub async fn uninstall_componentized(
         kind: "uninstall".to_string(),
         phase: "Staging removal".to_string(),
         percent: Some(50),
+        notice: None,
     });
 
     if let Some(target) = &staged_path {
@@ -208,6 +211,7 @@ pub async fn uninstall_componentized(
         kind: "uninstall".to_string(),
         phase: "Updating registry".to_string(),
         percent: Some(70),
+        notice: None,
     });
 
     // Remove from repository
@@ -242,6 +246,7 @@ pub async fn uninstall_componentized(
             kind: "uninstall".to_string(),
             phase: "Removing program files".to_string(),
             percent: Some(75),
+            notice: None,
         });
 
         if let Some(target) = &staged_path {
@@ -262,6 +267,7 @@ pub async fn uninstall_componentized(
             kind: "uninstall".to_string(),
             phase: "Removing all data".to_string(),
             percent: Some(85),
+            notice: None,
         });
 
         if data_root.exists() {
@@ -295,6 +301,7 @@ pub async fn uninstall_componentized(
                     kind: "uninstall".to_string(),
                     phase: format!("Removing {}", category),
                     percent: Some(85),
+                    notice: None,
                 });
 
                 if cleanup_path.is_dir() {
@@ -324,6 +331,7 @@ pub async fn uninstall_componentized(
         kind: "uninstall".to_string(),
         phase: "Complete".to_string(),
         percent: Some(100),
+        notice: None,
     });
 
     // Remove journal on success

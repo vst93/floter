@@ -1693,6 +1693,44 @@
   line-height: 1.4;
 }
 
+/* R7-7 · freshness block. Three facts on a flat, quiet line: the command
+   count, a muted status dot (·), and the delta against the previous probe.
+   No colour blocks, no badges — a change is information, not an alert. */
+.extension-freshness__commands {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-body);
+  color: var(--text-secondary);
+}
+
+.extension-freshness__label {
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+}
+
+.extension-freshness__count {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.extension-freshness__delta {
+  color: var(--text-muted);
+}
+
+.extension-freshness__delta-text {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+/* A real movement is worth a touch more contrast than "no change"; neither is
+   painted as an accent surface (accent budget stays with the primary actions). */
+.extension-freshness__delta-text--increase,
+.extension-freshness__delta-text--decrease {
+  color: var(--text-secondary);
+}
+
 /* R7-8 · the demoted official-index note: no pane of its own, just one muted
    line under the signature it qualifies. */
 .extension-detail-note--secondary {
