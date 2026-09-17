@@ -1,4 +1,4 @@
-// R8-GLASS-UX: the readability-control split.
+// GLASS-REAXIS: the readability-control split.
 //
 // The user's complaint that opened this round was: "at maxed glass strength
 // there is still noticeable transparency, and it hurts readability." The root
@@ -15,7 +15,7 @@
 //     Regular-max (28px, 0.80, saturation at the budget ceiling).
 //
 // Everything below is asserted against the *shipped CSS tokens*, not against
-// this file's copy of them: the tests read the three `[data-glass]` blocks, the
+// this file's copy of them: the tests read the five `[data-glass]` blocks, the
 // `--glass-*` formulas and the palette out of base.css. What lives here is only
 // the sentence "the two controls are orthogonal, and neither end of either is
 // unreadable", and the arithmetic that says so.
@@ -172,33 +172,33 @@ test("the two controls are orthogonal: neither token is a function of the other"
   assert.equal(declaration(root, "glass-blur-terminal"), "var(--glass-step-blur)");
   assert.equal(declaration(root, "glass-saturate"), "var(--glass-step-saturate)");
 
-  // The frontend's mutator. R8 exposed two independent paths (`changeOpacity`
-  // and `changeGlassStep`); GLASS-UNIFY收回 UI 层双控制, so there is now one
-  // `changeGlassIntensity` that writes the step *and* both opacity fields
-  // together, and neither of the old separate mutators survives. The CSS model
-  // above is still orthogonal — the unification is a UI-layer decision, not a
-  // re-coupling of the material formulas.
+  // The frontend's mutators. GLASS-REAXIS restored the R8 split: a stop writes
+  // only the effect step (`changeGlassIntensity`), and the two transparency
+  // sliders write the opacity fields through one two-target mutator
+  // (`changeOpacity`). The CSS model above is orthogonal, and so is the write
+  // path — a stop never touches an opacity and a slider never touches the step.
   const hook = await read("src/hooks/useSettings.ts");
-  assert.match(hook, /const changeGlassIntensity = useCallback/, "the unified intensity mutator must exist");
+  assert.match(hook, /const changeGlassIntensity = useCallback/, "the effect mutator must exist");
   const intensityBody = hook.slice(hook.indexOf("const changeGlassIntensity = useCallback"));
-  const intensityFn = intensityBody.slice(0, intensityBody.indexOf("const changeFontSize"));
-  for (const field of ["glass_step", "main_opacity", "terminal_opacity"]) {
-    assert.match(
-      intensityFn,
-      new RegExp(field),
-      `the intensity mutator must write ${field} — a stop is one (step, tint) pair`,
-    );
-  }
-  // The R8 split mutators are gone: no separate opacity slider path and no
-  // step-only path may linger beside the unified control.
-  assert.ok(
-    !/const changeOpacity = useCallback/.test(hook),
-    "the R8 opacity mutator must be gone — GLASS-UNIFY removed the transparency slider",
+  const intensityFn = intensityBody.slice(0, intensityBody.indexOf("const changeOpacity"));
+  assert.match(
+    intensityFn,
+    /glass_step/,
+    "the effect mutator must write glass_step — a stop is the effect axis",
   );
   assert.ok(
-    !/const changeGlassStep = useCallback/.test(hook),
-    "the R8 step-only mutator must be gone — the step is now written through the intensity control",
+    !/main_opacity:|terminal_opacity:/.test(intensityFn),
+    "the effect mutator must not write an opacity — that was the GLASS-UNIFY mistake",
   );
+  // The two-target opacity mutator is back, and it does not read the step.
+  assert.match(hook, /const changeOpacity = useCallback/, "the opacity slider mutator must exist");
+  const opacityBody = hook.slice(hook.indexOf("const changeOpacity = useCallback"));
+  const opacityFn = opacityBody
+    .slice(0, opacityBody.indexOf("const changeGlassIntensity"))
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  assert.match(opacityFn, /target === "main"/, "the opacity mutator is two-target");
+  assert.ok(!/glass_step/.test(opacityFn), "the opacity mutator must not touch the step");
 });
 
 // F1 (R8 microfix): the shape of the two readability formulas, asserted
@@ -476,9 +476,9 @@ test("the content layer never collapses into the Clear band", async () => {
 // scan remains future work.
 test("the step reaches every surface but is never branched on in a surface file", async () => {
   const base = stripComments(await read("src/styles/base.css"));
-  // Exactly three blocks, one per step.
+  // Exactly five blocks, one per effect step.
   const declared = [...base.matchAll(/\[data-glass="(\w+)"\]/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(declared)].sort(), ["high", "low", "mid"]);
+  assert.deepEqual([...new Set(declared)].sort(), ["deep", "high", "jelly", "low", "mid"]);
 
   // The material aliases are what every surface consumes; none of them may be
   // a literal, or a step switch would silently miss that surface.
@@ -510,20 +510,18 @@ test("the two controls survive a round trip through the settings shape", async (
   // values are percentages, and neither is derived from the other. This is the
   // contract the Rust side and the frontend have to agree on.
   const { normalizeGlassStep, GLASS_STEPS } = await import("../src/glass-material.ts");
-  assert.deepEqual([...GLASS_STEPS], ["low", "mid", "high"]);
-  assert.equal(normalizeGlassStep("low"), "low");
-  assert.equal(normalizeGlassStep("high"), "high");
-  assert.equal(normalizeGlassStep("mid"), "mid");
+  assert.deepEqual([...GLASS_STEPS], ["low", "mid", "high", "deep", "jelly"]);
+  for (const step of GLASS_STEPS) assert.equal(normalizeGlassStep(step), step);
   // Unknown values rest on Regular rather than on a random variant.
   for (const unknown of [undefined, null, "", "Low", "clear", "solid", 0, {}, "999"]) {
     assert.equal(normalizeGlassStep(unknown), "mid", `${JSON.stringify(unknown)} must normalize to mid`);
   }
 
-  // The Rust struct declares the same three-valued domain, and the loader
+  // The Rust struct declares the same five-valued domain, and the loader
   // migrates a pre-R8 file by splitting its single slider in half.
   const rust = await read("src-tauri/src/commands/config.rs");
   assert.match(rust, /pub glass_step: String/, "the Rust settings struct must carry the step");
-  assert.match(rust, /const GLASS_STEPS: \[&str; 3\] = \["low", "mid", "high"\]/);
+  assert.match(rust, /const GLASS_STEPS: \[&str; 5\] = \["low", "mid", "high", "deep", "jelly"\]/);
   assert.match(rust, /fn migrate_legacy_glass_strength/, "the legacy split must exist");
   assert.match(
     rust,

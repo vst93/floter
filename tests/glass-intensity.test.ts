@@ -1,39 +1,37 @@
-// GLASS-UNIFY: one intensity control over the (glass_step, tint) pair.
+// GLASS-REAXIS: the five-stop **liquid-glass effect** control, plus the two
+// restored transparency sliders.
 //
-// R8 exposed the material (a 3-way step) and the window transparency (a
-// continuous slider) side by side. The user judged the two knobs to be one
-// perceived axis — "效果强度和透明度…感觉不出来它们的独立" — so this round
-// 收回 UI 层的双控制: the settings panel now offers a single five-stop glass
-// intensity control and the continuous slider is gone. Nothing below the UI
-// changed: a stop is a fixed `(glass_step, tint)` pair written into the same
-// two fields, and the reverse lookup turns any stored pair back into the stop
-// it is closest to.
+// GLASS-UNIFY (the previous round) collapsed R8's dual controls into a single
+// five-stop control, but spent the stops on the **tint** axis: each stop wrote
+// a `(glass_step, tint)` pair into both opacity fields. The user's verdict was
+// that the stop must control the *effect* — 扭曲程度、组件的透视效果、控件
+// 透镜质感 — while the app's background transparency is a separate pair of
+// sliders. This round re-axises the stops and restores the sliders.
 //
-// The tests here lock the four things that make the unification honest:
+// The tests here lock the five things that make the re-axis honest:
 //
-//   1. the five-stop table itself (move any pair and this fails);
-//   2. cross-stop monotonicity — blur never falls, effective tint never falls,
-//      so "higher stop = more glass" cannot invert mid-range;
-//   3. the reverse lookup over the whole `(step, tint)` space, boundaries
-//      included, so a stored pair always displays on exactly one stop;
-//   4. the wiring — the settings page renders five segments, the chosen one
-//      writes its pair, and *no* opacity slider exists anywhere in the UI.
+//   1. the five-stop effect table itself (step / blur / saturate / lens);
+//   2. the write path — a stop writes **only** `glass_step` and never an
+//      opacity field (the GLASS-UNIFY behaviour, made a red test);
+//   3. cross-stop monotonicity — blur and saturation never fall, so "higher
+//      stop = more liquid" cannot invert mid-range;
+//   4. the reverse lookup is opacity-independent: any `glass_step` lands on
+//      exactly one stop for *every* transparency value, and the sliders never
+//      move the highlighted stop;
+//   5. the wiring — five segments, two sliders, two independent mutators.
 //
-// The effective-tint arithmetic is read from the shipped step tokens in
-// base.css, not restated here, so the calibration cannot drift from the CSS.
+// The effect numbers are read from the shipped `[data-glass]` blocks in
+// base.css, not restated here, so the table cannot drift from the CSS.
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 import {
   GLASS_INTENSITIES,
   GLASS_INTENSITY,
-  GLASS_STEP_TOKENS,
-  GLASS_SOLID_TOP,
+  GLASS_STEPS,
   clampWindowOpacity,
-  glassEffectiveTint,
-  glassIntensityForTint,
   glassIntensityOf,
   glassIntensitySettings,
   type GlassIntensity,
@@ -66,41 +64,49 @@ const number = (block: string, name: string, unit = "") => {
   return Number(match![1]);
 };
 
-/** The shipped material per step, straight out of base.css. */
+/** The shipped effect per step, straight out of base.css. */
 const shippedSteps = async () => {
   const css = stripComments(await read("src/styles/base.css"));
-  const out = {} as Record<GlassStep, { blur: number; fill: number; dim: number }>;
-  for (const step of ["low", "mid", "high"] as GlassStep[]) {
+  const out = {} as Record<GlassStep, { blur: number; saturate: number; lensScale: number }>;
+  for (const step of GLASS_STEPS) {
     const block = stepBlock(css, step);
     out[step] = {
       blur: number(block, "glass-step-blur", "px"),
-      fill: number(block, "glass-step-fill"),
-      dim: number(block, "glass-step-dim"),
+      saturate: number(block, "glass-step-saturate", "%"),
+      lensScale: number(block, "glass-lens-scale"),
     };
   }
   return out;
 };
 
-// ── A. the five-stop table ─────────────────────────────────────────────────
+// ── A. the five-stop effect table ──────────────────────────────────────────
 
-test("the intensity table is five frozen (glass_step, tint) pairs", () => {
-  // Every pair, spelled out. This is the mutation lock: change a step or a
-  // tint anywhere in the table and this assertion fails, so a later round
-  // cannot quietly retune a stop without also updating its test.
-  const expected: Record<GlassIntensity, { step: GlassStep; tint: number }> = {
-    1: { step: "low", tint: 0.22 },
-    2: { step: "mid", tint: 0.4 },
-    3: { step: "high", tint: 0.58 },
-    4: { step: "high", tint: 0.78 },
-    5: { step: "high", tint: 0.98 },
+test("the effect table is five frozen (step, blur, saturate, lens) stops", () => {
+  // Every stop, spelled out. This is the mutation lock: change a step, a blur,
+  // a saturation or a lens level anywhere and this assertion fails, so a later
+  // round cannot quietly retune a stop without also updating its test.
+  const expected: Record<
+    GlassIntensity,
+    { step: GlassStep; blur: number; saturate: number; lens: number }
+  > = {
+    1: { step: "low", blur: 10, saturate: 135, lens: 1 },
+    2: { step: "mid", blur: 24, saturate: 165, lens: 2 },
+    3: { step: "high", blur: 28, saturate: 180, lens: 3 },
+    4: { step: "deep", blur: 28, saturate: 190, lens: 4 },
+    5: { step: "jelly", blur: 28, saturate: 200, lens: 5 },
   };
   assert.deepEqual([...GLASS_INTENSITIES], [1, 2, 3, 4, 5], "the control is five stops");
   for (const level of GLASS_INTENSITIES) {
-    assert.equal(GLASS_INTENSITY[level].step, expected[level].step, `stop ${level}'s step`);
-    assert.equal(GLASS_INTENSITY[level].tint, expected[level].tint, `stop ${level}'s tint`);
-    // Labels are i18n keys, never literals or parameter names — and they must
-    // exist in the dictionary: a key nobody resolves renders as blank.
-    assert.match(GLASS_INTENSITY[level].label, /^settings\.glassIntensity\.\d$/);
+    const stop = GLASS_INTENSITY[level];
+    assert.equal(stop.step, expected[level].step, `stop ${level}'s step`);
+    assert.equal(stop.blur, expected[level].blur, `stop ${level}'s blur`);
+    assert.equal(stop.saturate, expected[level].saturate, `stop ${level}'s saturate`);
+    assert.equal(stop.lens, expected[level].lens, `stop ${level}'s lens level`);
+    // The stop is the EFFECT axis: it must carry no tint/opacity field at all.
+    // A `tint` key here would be the GLASS-UNIFY regression this round undoes.
+    assert.ok(!("tint" in stop), `stop ${level} must not carry a tint — the stop is the effect axis`);
+    // Labels are i18n keys, never literals or parameter names.
+    assert.match(stop.label, /^settings\.glassIntensity\.\d$/);
   }
   // Every stop's label key is present in both dictionaries (i18n.ts is the
   // source of truth; the Record<MessageKey,string> types guarantee balance).
@@ -111,194 +117,211 @@ test("the intensity table is five frozen (glass_step, tint) pairs", () => {
       `stop ${level}'s label key exists in i18n.ts`,
     );
   }
-  // The top stop is the old slider's own maxed end, not 1.0: a fully opaque
-  // frame drops the material's sheen and rim (see `--glass-solid-top`).
-  assert.equal(GLASS_INTENSITY[5].tint, GLASS_SOLID_TOP, "stop 5 is the near-solid top, not 1.0");
-  // The tint anchors are inside the spec's ±0.05 calibration band.
-  const anchors: Record<GlassIntensity, number> = { 1: 0.22, 2: 0.4, 3: 0.58, 4: 0.78, 5: 0.98 };
+});
+
+test("a stop writes glass_step and nothing else", () => {
+  // The headline correction: GLASS-UNIFY's `glassIntensitySettings` returned a
+  // `(glass_step, main_opacity, terminal_opacity)` triple. GLASS-REAXIS returns
+  // exactly one field. This is the mutation lock for "档位写 opacity → 红".
   for (const level of GLASS_INTENSITIES) {
-    assert.ok(
-      Math.abs(GLASS_INTENSITY[level].tint - anchors[level]) <= 0.05,
-      `stop ${level} must sit within ±0.05 of its anchor ${anchors[level]}`,
+    const written = glassIntensitySettings(level);
+    assert.deepEqual(
+      Object.keys(written),
+      ["glass_step"],
+      `stop ${level} must write glass_step and only glass_step`,
     );
+    assert.equal(written.glass_step, GLASS_INTENSITY[level].step, `stop ${level} writes its step`);
+  }
+  // The write path round-trips through the reverse lookup: a step the UI just
+  // wrote displays on that same stop.
+  for (const level of GLASS_INTENSITIES) {
+    const { glass_step } = glassIntensitySettings(level);
+    assert.equal(glassIntensityOf(glass_step), level, `stop ${level} must round-trip`);
   }
 });
 
-test("a stop writes its pair into the settings fields, as integers", () => {
+test("the stop table and the shipped [data-glass] blocks agree", async () => {
+  const steps = await shippedSteps();
   for (const level of GLASS_INTENSITIES) {
-    const written = glassIntensitySettings(level);
-    assert.equal(written.glass_step, GLASS_INTENSITY[level].step, `stop ${level} writes its step`);
-    // Both opacity fields move together — the control is one axis.
-    assert.equal(written.main_opacity, written.terminal_opacity, `stop ${level} writes one tint to both frames`);
-    assert.equal(written.main_opacity, Math.round(GLASS_INTENSITY[level].tint * 100));
-    // The Rust fields are u8 percentages; the written values must be integers.
-    assert.equal(Number.isInteger(written.main_opacity), true);
-  }
-  // The write path round-trips through the reverse lookup: a stop the UI just
-  // wrote displays on that same stop.
-  for (const level of GLASS_INTENSITIES) {
-    const { glass_step, main_opacity } = glassIntensitySettings(level);
-    assert.equal(glassIntensityOf(glass_step, main_opacity / 100), level, `stop ${level} must round-trip`);
+    const stop = GLASS_INTENSITY[level];
+    const shipped = steps[stop.step];
+    assert.equal(shipped.blur, stop.blur, `[data-glass="${stop.step}"] blur must equal stop ${level}'s`);
+    assert.equal(
+      shipped.saturate,
+      stop.saturate,
+      `[data-glass="${stop.step}"] saturate must equal stop ${level}'s`,
+    );
   }
 });
 
 // ── B. cross-stop monotonicity ─────────────────────────────────────────────
 
-test("the stops are monotonic: blur never falls, effective tint never falls", async () => {
+test("the stops are monotonic: blur and saturation never fall", async () => {
   const steps = await shippedSteps();
-  const effective = GLASS_INTENSITIES.map((level) => {
-    const { step, tint } = GLASS_INTENSITY[level];
-    return { level, step, tint, blur: steps[step].blur, effective: glassEffectiveTint(step, tint) };
+  const effect = GLASS_INTENSITIES.map((level) => {
+    const { step, blur, saturate, lens } = GLASS_INTENSITY[level];
+    return { level, step, blur, saturate, lens, shipped: steps[step] };
   });
-  for (let i = 1; i < effective.length; i += 1) {
-    const prev = effective[i - 1];
-    const curr = effective[i];
-    // The material thickens: blur is non-decreasing …
+  for (let i = 1; i < effect.length; i += 1) {
+    const prev = effect[i - 1];
+    const curr = effect[i];
+    // The effect thickens: blur is non-decreasing (three stops share the 28px
+    // budget ceiling, so 3→4→5 hold rather than climb) …
     assert.ok(
       curr.blur >= prev.blur,
       `stop ${curr.level}'s blur (${curr.blur}) must not fall below stop ${prev.level}'s (${prev.blur})`,
     );
-    // … the effective tint is non-decreasing (less shows through) …
+    // … and saturation climbs at every step, which is what makes the three
+    // 28px stops distinct.
     assert.ok(
-      curr.effective >= prev.effective,
-      `stop ${curr.level}'s effective tint (${curr.effective.toFixed(4)}) must not fall below ` +
-        `stop ${prev.level}'s (${prev.effective.toFixed(4)})`,
+      curr.saturate > prev.saturate,
+      `stop ${curr.level}'s saturate (${curr.saturate}) must exceed stop ${prev.level}'s (${prev.saturate})`,
     );
-    // … and the raw transparency does not increase either.
+    // … and the control lens level climbs with them.
     assert.ok(
-      curr.tint >= prev.tint,
-      `stop ${curr.level}'s transparency (${curr.tint}) must not exceed stop ${prev.level}'s (${prev.tint})`,
+      curr.lens > prev.lens,
+      `stop ${curr.level}'s lens (${curr.lens}) must exceed stop ${prev.level}'s (${prev.lens})`,
+    );
+    // The shipped lens scale ascends in lock-step, or a stop would change the
+    // label without changing the controls.
+    assert.ok(
+      curr.shipped.lensScale > prev.shipped.lensScale,
+      `stop ${curr.level}'s shipped lens scale (${curr.shipped.lensScale}) must exceed stop ` +
+        `${prev.level}'s (${prev.shipped.lensScale})`,
     );
   }
-  // The ends really are the two ends of the perceived range: stop 1 is the
-  // thinnest material (Clear variant), stop 5 the near-solid panel.
-  assert.equal(effective[0].step, "low", "stop 1 is the Clear variant");
-  assert.equal(effective[4].step, "high", "stop 5 is the heaviest variant");
-  assert.ok(
-    effective[4].effective >= 0.95,
-    `stop 5 must be near-opaque, got ${effective[4].effective.toFixed(4)}`,
-  );
-  assert.ok(
-    effective[0].effective <= 0.75,
-    `stop 1 must read as thin glass, got ${effective[0].effective.toFixed(4)}`,
-  );
+  // The ends really are the two ends of the perceived range.
+  assert.equal(effect[0].step, "low", "stop 1 is the Clear variant");
+  assert.equal(effect[4].step, "jelly", "stop 5 is the heaviest variant");
+  assert.equal(effect[4].saturate, 200, "stop 5 spends the full saturation budget");
+  for (const entry of effect) {
+    assert.ok(entry.blur <= 28, `stop ${entry.level}: blur exceeds the 28px budget`);
+  }
 });
 
 // ── C. the reverse lookup over the whole space ─────────────────────────────
 
-test("every (step, transparency) pair lands on exactly one stop", () => {
-  // The full space: three steps × every integer percentage the Rust u8 fields
-  // can hold (0-100, though the UI clamps to 10-100). `glassIntensityOf` must
-  // return one of the five ids for all of them — no undefined, no throw.
-  const ids = new Set<number>(GLASS_INTENSITIES);
+test("every stored step lands on exactly one stop, whatever the transparency", () => {
+  // The reverse lookup is *opacity-independent*: the stop is the effect axis,
+  // so no transparency value can move it. Sweep every step × every integer
+  // percentage the Rust u8 fields can hold (0-100) and assert the answer is
+  // constant per step — this is the mutation lock for "滑杆改档位显示 → 红".
+  const expected: Record<GlassStep, GlassIntensity> = {
+    low: 1,
+    mid: 2,
+    high: 3,
+    deep: 4,
+    jelly: 5,
+  };
   let cells = 0;
-  for (const step of ["low", "mid", "high"] as GlassStep[]) {
+  for (const step of GLASS_STEPS) {
     for (let percent = 0; percent <= 100; percent += 1) {
       const level = glassIntensityOf(step, percent / 100);
-      assert.ok(ids.has(level), `${step}@${percent}% resolved to an unknown stop ${level}`);
+      assert.equal(
+        level,
+        expected[step],
+        `${step}@${percent}% resolved to stop ${level}, not ${expected[step]} — the lookup must ignore opacity`,
+      );
       cells += 1;
     }
   }
-  assert.equal(cells, 3 * 101, "the sweep must cover every step × percentage");
-  // Every stop is reachable from some stored pair, or a segment would be dead.
+  assert.equal(cells, 5 * 101, "the sweep must cover every step × percentage");
+  // Every stop is reachable from some stored step, or a segment would be dead.
   const reached = new Set<GlassIntensity>();
-  for (const step of ["low", "mid", "high"] as GlassStep[]) {
-    for (let percent = 0; percent <= 100; percent += 1) {
-      reached.add(glassIntensityOf(step, percent / 100));
-    }
-  }
+  for (const step of GLASS_STEPS) reached.add(glassIntensityOf(step, 0.5));
   assert.deepEqual([...reached].sort(), [1, 2, 3, 4, 5], "all five stops must be reachable");
+  // A garbage step rests on the balanced stop, the same rule the Rust loader
+  // uses; the lookup must not throw.
+  assert.equal(glassIntensityOf("ultra" as GlassStep), 2, "an unknown step rests on stop 2");
+  assert.equal(glassIntensityOf("" as GlassStep), 2, "an empty step rests on stop 2");
 });
 
-test("the reverse lookup's boundaries are the midpoints between adjacent stops", () => {
-  // The boundary between stop i and stop i+1 is the mean of their effective
-  // tints. Assert the boundary itself and both sides, so the rule is pinned
-  // rather than merely "it returns something".
-  for (let i = 0; i < GLASS_INTENSITIES.length - 1; i += 1) {
-    const lower = GLASS_INTENSITIES[i];
-    const upper = GLASS_INTENSITIES[i + 1];
-    const boundary =
-      (glassEffectiveTint(GLASS_INTENSITY[lower].step, GLASS_INTENSITY[lower].tint) +
-        glassEffectiveTint(GLASS_INTENSITY[upper].step, GLASS_INTENSITY[upper].tint)) /
-      2;
-    // A tie falls to the lower (thinner) stop, the conservative choice.
-    assert.equal(glassIntensityForTint(boundary), lower, `the boundary ${boundary.toFixed(4)} falls to stop ${lower}`);
-    assert.equal(glassIntensityForTint(boundary - 1e-9), lower, "just below the boundary is the lower stop");
-    assert.equal(glassIntensityForTint(boundary + 1e-9), upper, "just above the boundary is the upper stop");
-  }
-  // The extreme ends clamp without a gap.
-  assert.equal(glassIntensityForTint(0), 1, "0 tint is stop 1");
-  assert.equal(glassIntensityForTint(1), 5, "full tint is stop 5");
-  assert.equal(glassIntensityForTint(-1), 1, "below-range tint clamps to stop 1");
-  assert.equal(glassIntensityForTint(2), 5, "above-range tint clamps to stop 5");
-  // The two named extremes from the spec, asserted as stored pairs. The
-  // thinnest pair the model can express (the Clear step at zero tint) is
-  // stop 1; the slider's 0.98 top is stop 5 on every step. Note that a
-  // *higher* step's zero-tint floor is already denser than stop 1 — the
-  // Regular floor (0.68) is above stop 1's composite — so only the Clear
-  // floor lands on stop 1.
-  assert.equal(glassIntensityOf("low", 0), 1, "the thinnest possible pair (Clear@0) is stop 1");
-  assert.equal(glassIntensityOf("high", 0), 2, "the heaviest step's own floor is already stop 2");
-  for (const step of ["low", "mid", "high"] as GlassStep[]) {
-    assert.equal(glassIntensityOf(step, 0.98), 5, `${step}@0.98 must be stop 5`);
-  }
+test("the migrated pre-R8 file and the GLASS-UNIFY pairs display sensibly", () => {
+  // `migrate_legacy_glass_strength` halves the old slider and picks the step by
+  // its tertile; an old 94 becomes main_opacity 47 + glass_step "high". That
+  // pair displays on stop 3 (Strong) and the 47% stays in the slider untouched.
+  assert.equal(glassIntensityOf("high", 47 / 100), 3, "an upgraded 94 must display on stop 3");
+  // A GLASS-UNIFY file wrote (step, tint) pairs; the stop is read from the step
+  // and the tint is preserved as the slider value. The whole old table:
+  const unified: [GlassStep, number][] = [
+    ["low", 0.22],
+    ["mid", 0.4],
+    ["high", 0.58],
+    ["high", 0.78],
+    ["high", 0.98],
+  ];
+  assert.deepEqual(
+    unified.map(([step, tint]) => glassIntensityOf(step, tint)),
+    [1, 2, 3, 3, 3],
+    "a GLASS-UNIFY pair displays on its step's stop — the tint never moves it",
+  );
+  // The frontend default (mid + 47%) displays on stop 2.
+  assert.equal(glassIntensityOf("mid", 47 / 100), 2, "the frontend default displays on stop 2");
 });
 
-test("the migrated pre-R8 file (94 -> 47% + high) displays on stop 3", () => {
-  // `migrate_legacy_glass_strength` halves the old slider and picks the step
-  // by its tertile; an old 94 becomes main_opacity 47 + glass_step "high". That
-  // pair is not a stop the control wrote, so it must reverse-look-up cleanly.
-  // Its effective tint (0.8846) sits between stop 2 (0.800) and stop 3 (0.9044),
-  // above the 0.8522 boundary — so the settings panel shows "Strong" (stop 3).
-  const level = glassIntensityOf("high", 47 / 100);
-  assert.equal(level, 3, "an upgraded 94 must display on stop 3 (Strong)");
-  // The default the frontend ships (47% + mid) is a different stop, and both
-  // are reachable — the migration and the default do not collapse together.
-  assert.equal(glassIntensityOf("mid", 47 / 100), 2, "the frontend default (mid + 47%) is stop 2");
-});
+// ── D. the wiring: five segments, two independent sliders ──────────────────
 
-// ── D. the wiring: five segments, no slider ────────────────────────────────
-
-test("the settings page renders five intensity segments and no opacity slider", async () => {
+test("the settings page renders five effect segments and two opacity sliders", async () => {
   const page = await read("src/settings/GeneralPage.tsx");
-  // The control is built from the shared stop table, one segment per stop.
+  // The effect control is built from the shared stop table, one segment per stop.
   assert.match(page, /GLASS_INTENSITIES\.map/, "the segments must come from GLASS_INTENSITIES");
   assert.match(page, /data-glass-intensity=\{option\.value\}/, "each segment must carry its stop id");
   assert.match(page, /role="radiogroup"/, "the segments stay a radiogroup (keyboard contract)");
   assert.match(page, /role="radio"/, "each segment is a radio");
   assert.match(page, /glassIntensityOf\(settings\.glass_step/, "the chosen stop is derived by the reverse lookup");
-  // The wiring: choosing a segment calls the unified mutator with the stop id.
-  assert.match(page, /onChange=\{onChangeGlassIntensity\}/, "a segment click writes the stop's pair");
+  assert.match(page, /onChange=\{onChangeGlassIntensity\}/, "a segment click writes the stop's step");
+  // The two transparency sliders are back, each with its own target.
+  assert.match(page, /settings\.transparency\.main/, "the app transparency slider must exist");
+  assert.match(page, /settings\.transparency\.terminal/, "the terminal transparency slider must exist");
+  assert.match(page, /onChangeOpacity\("main"/, "the app slider writes the main target");
+  assert.match(page, /onChangeOpacity\("terminal"/, "the terminal slider writes the terminal target");
+  // The OpacityControl component carries one `type="range"` and the font-size
+  // slider is a second; the two transparency sliders are two instances of the
+  // shared component, so three ranges render from two declarations.
+  assert.equal(
+    (page.match(/type="range"/g) ?? []).length,
+    2,
+    "General declares the font-size range plus the shared opacity range",
+  );
+  assert.equal(
+    (page.match(/<OpacityControl/g) ?? []).length,
+    2,
+    "the two transparency sliders are two OpacityControl instances",
+  );
+  assert.match(page, /settings\.transparencyHint/, "the transparency hint is back");
+});
 
-  // The R8 controls are gone: no range input, no preset buttons, no
-  // percentage readout, no transparency labels. `type="range"` still appears
-  // for font size, so the absence is scoped to the removed control classes.
+test("the two mutators are independent: a stop never writes opacity, a slider never writes the step", async () => {
+  const hook = await read("src/hooks/useSettings.ts");
+  // The effect mutator exists and writes only the step.
+  assert.match(hook, /const changeGlassIntensity = useCallback/, "the effect mutator must exist");
+  const intensityBody = hook.slice(hook.indexOf("const changeGlassIntensity = useCallback"));
+  const intensityFn = intensityBody.slice(0, intensityBody.indexOf("const changeFontSize"));
+  assert.match(intensityFn, /glassIntensitySettings\(level\)/, "the mutator derives the step from the stop table");
+  assert.match(intensityFn, /glass_step:/, "the mutator must write glass_step");
   assert.ok(
-    !/opacity-control/.test(page),
-    "the opacity control markup must be deleted from GeneralPage",
+    !/main_opacity:|terminal_opacity:/.test(intensityFn),
+    "the effect mutator must not write either opacity — that was the GLASS-UNIFY mistake",
   );
+  // The opacity mutator is back, single-target, and never touches the step.
+  assert.match(hook, /const changeOpacity = useCallback/, "the opacity mutator must exist");
+  const opacityBody = hook.slice(hook.indexOf("const changeOpacity = useCallback"));
+  const opacityFn = opacityBody
+    .slice(0, opacityBody.indexOf("const changeGlassIntensity"))
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  assert.match(opacityFn, /target === "main" \? "main_opacity" : "terminal_opacity"/, "one mutator, two targets");
   assert.ok(
-    !/type="range"[^>]*className="opacity-control__range"|opacity-control__range/.test(page),
-    "no transparency range input may remain",
-  );
-  assert.ok(
-    !/settings\.transparency\.(main|terminal)|settings\.transparencyHint/.test(page),
-    "the transparency i18n keys must no longer be referenced",
-  );
-  assert.ok(
-    !/GlassStepControl|GLASS_STEP_LABELS|settings\.glassStep/.test(page),
-    "the R8 step control and its keys must be gone",
+    !/glass_step/.test(opacityFn),
+    "the opacity mutator must not touch the step — the axes are independent",
   );
 });
 
-test("no opacity slider survives anywhere in the host UI", async () => {
-  // A DOM/component-level scan: the class names the removed control owned, and
-  // the component itself, must not reappear in any TS/TSX file. The font-size
-  // slider legitimately remains, so this is scoped to the removed control.
-  // Scan every TS/TSX file under src/ (not a hand-picked list): a future
-  // file that resurrects the removed control must fail here too.
-  const files = [];
-  const collect = (dir) => {
+test("no opacity slider was left behind in a dead symbol, and the step is not a slider", async () => {
+  // A DOM/component-level scan: the old GLASS-UNIFY dead-symbol list must no
+  // longer be present, and the two sliders must use the restored class family.
+  const files: string[] = [];
+  const collect = (dir: string) => {
     for (const entry of readdirSync(new URL(dir, root), { withFileTypes: true })) {
       const rel = `${dir}${entry.name}`;
       if (entry.isDirectory()) collect(`${rel}/`);
@@ -306,56 +329,36 @@ test("no opacity slider survives anywhere in the host UI", async () => {
     }
   };
   collect("src/");
+  const dead = ["normalizeOpacity(", "OpacityControl"];
   for (const file of files) {
-    // Strip comments: the unified mutator's doc block explains what it
-    // replaced, and a code scan must not read prose as code.
-    const source = (await read(file))
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/[^\n]*/g, "");
-    for (const dead of [
-      "opacity-control__range",
-      "opacity-control__presets",
-      "opacity-control__preset",
-      "OpacityControl",
-      "normalizeOpacity",
-      "changeOpacity",
-    ]) {
-      assert.ok(!source.includes(dead), `${file} still references the removed opacity control (${dead})`);
+    const source = (await read(file)).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    for (const symbol of dead) {
+      // `normalizeOpacity` and `OpacityControl` are the restored names, so they
+      // are *expected* in GeneralPage; the assertion is scoped to the other
+      // files, which must not carry a second implementation.
+      if (file.endsWith("settings/GeneralPage.tsx")) continue;
+      assert.ok(!source.includes(symbol), `${file} must not carry a second ${symbol}`);
     }
   }
-  // The removed CSS classes must be gone from every sheet too — the TS scan
-  // above already covers .css files for the control name; class fragments
-  // share the same dead-symbol list.
-});
-
-test("the unified mutator writes the step and both opacity fields together", async () => {
-  const hook = await read("src/hooks/useSettings.ts");
-  assert.match(hook, /const changeGlassIntensity = useCallback/, "the unified mutator must exist");
-  const body = hook.slice(hook.indexOf("const changeGlassIntensity = useCallback"));
-  const fn = body.slice(0, body.indexOf("const changeFontSize"));
-  assert.match(fn, /glassIntensitySettings\(level\)/, "the mutator must derive the pair from the stop table");
-  for (const field of ["glass_step", "main_opacity", "terminal_opacity"]) {
-    assert.match(fn, new RegExp(`${field}:`), `the mutator must write ${field}`);
+  // The restored slider CSS family is present.
+  const settings = await read("src/styles/settings.css");
+  for (const cls of [".opacity-controls", ".opacity-control__range", ".opacity-control__value"]) {
+    assert.ok(settings.includes(cls), `settings.css must define ${cls}`);
   }
-  // The R8 split mutators are gone.
-  assert.ok(!/const changeOpacity = useCallback/.test(hook), "the opacity slider mutator must be gone");
-  assert.ok(!/const changeGlassStep = useCallback/.test(hook), "the step-only mutator must be gone");
 });
 
 test("the opacity clamp keeps the Rust window-opacity band", () => {
-  // The old `normalizeOpacity` snapped to presets; with a discrete control that
-  // snapping is gone, leaving the clamp the Rust side also enforces.
   assert.equal(clampWindowOpacity(47), 47);
   assert.equal(clampWindowOpacity(0), 10, "the floor is the Rust MIN_WINDOW_OPACITY");
   assert.equal(clampWindowOpacity(100), 100);
   assert.equal(clampWindowOpacity(150), 100);
   assert.equal(clampWindowOpacity(-5), 10);
   assert.equal(clampWindowOpacity(Number.NaN), 47, "a non-finite value falls back to the default");
-  // No preset snapping: 24 stays 24, unlike the old 25-preset snap.
+  // No preset snapping: 24 stays 24, unlike the pre-R8 25-preset snap.
   assert.equal(clampWindowOpacity(24), 24);
 });
 
-test("the i18n keys exist in both languages and the removed ones are gone", async () => {
+test("the i18n keys exist in both languages and are balanced", async () => {
   const i18n = await read("src/i18n.ts");
   for (const key of [
     "settings.glassIntensity",
@@ -365,11 +368,96 @@ test("the i18n keys exist in both languages and the removed ones are gone", asyn
     "settings.glassIntensity.4",
     "settings.glassIntensity.5",
     "settings.glassIntensityHint",
+    "settings.transparency.main",
+    "settings.transparency.terminal",
+    "settings.transparencyHint",
   ]) {
     const occurrences = i18n.match(new RegExp(`"${key.replace(/\./g, "\\.")}":`, "g")) ?? [];
     assert.equal(occurrences.length, 2, `${key} must be declared in both en and zh`);
   }
-  for (const dead of ["settings.glassStep", "settings.transparency"]) {
-    assert.ok(!i18n.includes(`"${dead}`), `the removed ${dead}* keys must be gone`);
+});
+
+// ── E. the lens family in base.css ─────────────────────────────────────────
+
+test("the lens family exists, is stop-driven, and ascends with the stop", async () => {
+  const css = stripComments(await read("src/styles/base.css"));
+  const rootBlock = css.slice(css.indexOf(":root {"), css.indexOf('[data-theme="light"]'));
+  // The four lens tokens, declared from a per-palette base times the stop's
+  // scale. The base alphas live in the palette blocks; the scale lives in the
+  // step blocks.
+  for (const token of ["glass-lens-rim", "glass-lens-sheen", "glass-lens-edge", "glass-lens-glow"]) {
+    const match = rootBlock.match(new RegExp(`--${token}:\\s*([^;]+);`));
+    assert.ok(match, `--${token} must be declared`);
+    assert.match(
+      match![1],
+      new RegExp(`var\\(--${token}-base\\)\\s*\\*\\s*var\\(--glass-lens-scale\\)`),
+      `--${token} must be base × scale`,
+    );
+  }
+  // The composed stack consumes all four (rim, sheen, edge) plus the shared
+  // pane edge; every layer is `inset`, so a control never casts or blurs.
+  const stack = rootBlock.match(/--glass-lens-stack:\s*([^;]+);/);
+  assert.ok(stack, "--glass-lens-stack must be declared");
+  for (const token of ["glass-lens-rim", "glass-lens-sheen", "glass-lens-edge", "glass-control-edge"]) {
+    assert.match(stack![1], new RegExp(`var\\(--${token}\\)`), `the stack must consume ${token}`);
+  }
+  const layers = stack![1].split(/,(?![^(]*\))/).map((part) => part.trim()).filter(Boolean);
+  assert.ok(layers.length >= 4, "the stack is four or more layers");
+  for (const layer of layers) {
+    assert.match(layer, /^inset/, `every lens layer must be inset, got "${layer}"`);
+  }
+  // No backdrop-filter or filter in the lens definition — the performance red
+  // line: the lens is drawn, never filtered.
+  const lensSlice = rootBlock.slice(rootBlock.indexOf("--glass-lens-rim-base"));
+  assert.ok(!/backdrop-filter|filter:/.test(lensSlice), "the lens family must carry no filter");
+
+  // The stop's scale ascends 1→5 in the shipped blocks, which is what makes the
+  // lens *look* heavier at a higher stop. A reverted scale is the mutation lock
+  // for "lens token 档间倒挂 → 红".
+  const scales = GLASS_STEPS.map((step) => number(stepBlock(css, step), "glass-lens-scale"));
+  for (let i = 1; i < scales.length; i += 1) {
+    assert.ok(scales[i] > scales[i - 1], `lens scale must ascend: ${scales[i - 1]} → ${scales[i]}`);
+  }
+  // The effective rim/sheen alpha at each stop (base × scale) must also ascend,
+  // so a stop cannot raise the scale while lowering the base.
+  const base = number(rootBlock, "glass-lens-rim-base");
+  const sheenBase = number(rootBlock, "glass-lens-sheen-base");
+  for (let i = 1; i < scales.length; i += 1) {
+    assert.ok(base * scales[i] > base * scales[i - 1], "the effective rim alpha must ascend");
+    assert.ok(sheenBase * scales[i] > sheenBase * scales[i - 1], "the effective sheen alpha must ascend");
+  }
+  // …and the light palette restates the four bases (its polarity inverts), so
+  // the lens is not dark-only.
+  const light = css.slice(css.indexOf('[data-theme="light"]'));
+  for (const token of ["glass-lens-rim-base", "glass-lens-sheen-base", "glass-lens-edge-base", "glass-lens-glow-base"]) {
+    assert.ok(light.includes(`--${token}:`), `the light palette must restate --${token}`);
+  }
+});
+
+test("the control ladder draws the lens stack, and the field keeps its slot", async () => {
+  const css = stripComments(await read("src/styles/base.css"));
+  const rootBlock = css.slice(css.indexOf(":root {"), css.indexOf('[data-theme="light"]'));
+  // Rung 0 is the lens stack now: every control that already drew `--elev-0`
+  // gains the lens with no per-rule edit. This is the mutation lock for
+  // "控件 lens stack 删除 → 红".
+  const elev0 = rootBlock.match(/--elev-0:\s*([^;]+);/);
+  assert.ok(elev0, "--elev-0 must be declared");
+  assert.match(elev0![1], /var\(--glass-lens-stack\)/, "rung 0 must be the lens stack");
+  // The field is the lens read backwards plus the slot shadow.
+  const field = rootBlock.match(/--glass-field-shadow:\s*([^;]+);/);
+  assert.ok(field, "--glass-field-shadow must be declared");
+  assert.match(field![1], /inset 0 1px 2px/, "a field keeps its 1px slot shadow");
+  assert.match(field![1], /var\(--glass-lens-rim\)/, "a field keeps the lens rim");
+  assert.match(field![1], /var\(--glass-lens-edge\)/, "a field keeps the lens bottom edge");
+});
+
+test("no lens token reaches a surface file as a literal", async () => {
+  // The lens is a token family; a surface that hardcodes an alpha would ignore
+  // the stop control. Scan the host sheets for a lens-shaped literal.
+  const names = (await readdir(new URL("src/styles/", root))).filter((n) => n.endsWith(".css"));
+  for (const name of names) {
+    if (name === "base.css") continue; // the definition site
+    const css = stripComments(await read(`src/styles/${name}`));
+    assert.ok(!/--glass-lens-[\w-]+:\s/.test(css), `${name} must not redefine a lens token`);
   }
 });

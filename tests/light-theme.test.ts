@@ -155,7 +155,7 @@ test("the light palette does not restate palette-independent tokens", async () =
     "elev-0", "elev-1", "elev-2", "elev-3", "elev-shadow-scale", "accent-budget",
     "focus-ring-width", "focus-ring-offset", "scroll-edge", "scroll-edge-soft",
     "glass-step-blur", "glass-step-saturate", "glass-step-fill", "glass-step-dim",
-    "glass-solid-top", "main-opacity", "terminal-opacity",
+    "glass-solid-top", "main-opacity", "terminal-opacity", "glass-lens-scale",
   ];
   const duplicated = PALETTE_INDEPENDENT.filter((token) => covered.has(token));
   assert.deepEqual(

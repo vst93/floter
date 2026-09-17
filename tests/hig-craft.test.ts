@@ -460,11 +460,17 @@ test("page content arrives on the house ease-out, not the spring", async () => {
 // from a literal.
 test("the elevation ladder names four depths and stays a ladder", async () => {
   const rootBlock = await rootTokens();
-  // Rung 0 is the control on the plane: the inset ring/rim pair, no cast.
-  assert.equal(
-    token(rootBlock, "elev-0").replace(/\s+/g, " "),
-    "inset 0 0 0 1px var(--glass-control-edge), inset 0 1px 0 var(--glass-control-rim)",
-  );
+  // Rung 0 is the control on the plane: GLASS-REAXIS upgraded it to the full
+  // lens stack (rim + sheen + bottom edge + pane ring), so every control that
+  // draws `var(--elev-0)` gains the liquid lens and `[data-glass]` grades it.
+  // The rung stays a token alias, so the ladder still names it and every cast
+  // layer still resolves to a rung.
+  assert.equal(token(rootBlock, "elev-0"), "var(--glass-lens-stack)");
+  // The lens stack itself is all-inset (a control on the plane casts nothing).
+  const lensStack = token(rootBlock, "glass-lens-stack");
+  for (const layer of lensStack.split(/,(?![^(]*\))/).map((part) => part.trim()).filter(Boolean)) {
+    assert.match(layer, /^inset/, `a lens layer must be inset, got "${layer}"`);
+  }
   assert.equal(token(rootBlock, "elev-1"), "none");
   assert.match(token(rootBlock, "elev-2"), /0 1px 2px/);
   assert.match(token(rootBlock, "elev-3"), /0 10px 26px/);
@@ -490,7 +496,7 @@ test("the elevation ladder names four depths and stays a ladder", async () => {
   assert.match(token(rootBlock, "elev-3-compact"), /var\(--window-shadow-ambient\)/);
   assert.match(token(rootBlock, "elev-4"), /var\(--window-shadow-ambient\)/);
   assert.match(token(rootBlock, "elev-bar"), /var\(--elev-shadow-scale\)/);
-  assert.match(token(rootBlock, "elev-track"), /var\(--window-shadow-contact\)/);
+  assert.match(token(rootBlock, "elev-track"), /var\(--glass-lens-stack-inset\)/);
   assert.match(token(rootBlock, "elev-hover"), /var\(--window-shadow-contact\)/);
 
   // Floaters draw from the top rung; the drawer, the toast and every dialog

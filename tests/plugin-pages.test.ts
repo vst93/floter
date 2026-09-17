@@ -180,7 +180,7 @@ test("reload messages are recognized", () => {
   assert.equal(isBridgeReload({}), false);
 });
 
-test("glass-step messages are recognized with the three shipped ids only", () => {
+test("glass-step messages are recognized with the shipped stop ids only", () => {
   assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "low" }));
   assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "mid" }));
   assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "high" }));

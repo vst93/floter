@@ -276,6 +276,7 @@ export default function App() {
     persistSettings,
     loadSettings,
     changeGlassIntensity,
+    changeOpacity,
     changeFontSize,
     changeGeneralSetting,
     changeTheme,
@@ -799,13 +800,13 @@ export default function App() {
     }
   }, [settings.main_opacity, settings.terminal_opacity]);
 
-  // The material step is an attribute rather than a custom property because it
-  // swaps a *set* of tokens (`[data-glass]` in base.css) and because the
-  // attribute is what the a11y override blocks key off. The settings UI now
-  // writes the step and the opacity together (one glass-intensity control,
-  // GLASS-UNIFY), but the two *effects* stay separate: one effect per axis
-  // keeps the material/readability split visible in the code even though the
-  // panel no longer exposes it as two knobs.
+  // The glass *effect* step is an attribute rather than a custom property
+  // because it swaps a *set* of tokens (`[data-glass]` in base.css: the blur,
+  // the saturation and the control lens scale) and because the attribute is
+  // what the a11y override blocks key off. GLASS-REAXIS restored the split the
+  // user asked for: this effect step and the two background-transparency
+  // sliders are independent axes, so this effect never writes an opacity and
+  // the opacity effect below never writes the step.
   useEffect(() => {
     document.documentElement.setAttribute("data-glass", settings.glass_step);
     const renderer = rendererRef.current;
@@ -1509,6 +1510,7 @@ export default function App() {
                 onChangeGeneralSetting={changeGeneralSetting}
                 onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
                 onChangeFontSize={changeFontSize}
+                onChangeOpacity={changeOpacity}
                 onChangeGlassIntensity={changeGlassIntensity}
               />
               )}

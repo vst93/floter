@@ -347,11 +347,11 @@ test("the step is an html attribute, and no surface file names a step", async ()
       `${name}: a surface file must not branch on data-glass — it consumes --glass-step-* tokens`,
     );
   }
-  // base.css is the only file that defines the three blocks, and it defines
-  // exactly three: a fourth would be an undocumented step.
+  // base.css is the only file that defines the blocks, and it defines exactly
+  // five: a sixth would be an undocumented effect step.
   const base = stripComments(await read("src/styles/base.css"));
   const blocks = [...base.matchAll(/\[data-glass="(\w+)"\]/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(blocks)].sort(), ["high", "low", "mid"]);
+  assert.deepEqual([...new Set(blocks)].sort(), ["deep", "high", "jelly", "low", "mid"]);
 });
 
 
@@ -916,7 +916,7 @@ test("text fields are recessed, not raised", async () => {
   assert.ok(field < pane, `a field must be thinner than a resting pane (${field} < ${pane})`);
   const shadow = token(rootBlock, "glass-field-shadow");
   assert.match(shadow, /inset 0 1px 2px/, "a field must carry a 1px inner shadow (the slot)");
-  assert.match(shadow, /inset 0 1px 0 var\(--glass-control-rim\)/, "a field keeps the shared rim");
+  assert.match(shadow, /inset 0 1px 0 var\(--glass-lens-rim\)/, "a field keeps the lens rim");
   for (const [file, selector] of [
     ["extensions.css", ".extension-config-field input"],
     ["extensions.css", ".extension-custom-form textarea"],

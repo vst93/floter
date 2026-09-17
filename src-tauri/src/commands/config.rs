@@ -27,7 +27,8 @@ const MAX_TERMINAL_HEIGHT: f64 = 1_800.0;
 /// R8: the single pre-R8 "glass strength" slider became two orthogonal
 /// controls. `main_opacity` is now the **window transparency** percentage
 /// (how solid the shell's tint is, and the only field a native window-alpha
-/// path may ever read); the material itself is the three-step `glass_step`.
+/// path may ever read); the material/effect itself is the five-step
+/// `glass_step`.
 const DEFAULT_MAIN_OPACITY: u8 = 47;
 const DEFAULT_TERMINAL_OPACITY: u8 = 46;
 const MIN_WINDOW_OPACITY: u8 = 10;
@@ -37,7 +38,11 @@ const MAX_WINDOW_OPACITY: u8 = 100;
 /// `read_settings` to run the legacy split migration exactly once.
 const GLASS_STEP_KEY: &str = "glass_step";
 const DEFAULT_GLASS_STEP: &str = "mid";
-const GLASS_STEPS: [&str; 3] = ["low", "mid", "high"];
+/// The effect-step domain. GLASS-REAXIS re-pointed the five UI stops at the
+/// *effect* axis (blur / saturation / control-lens quality) and restored the
+/// dual transparency sliders, so the step id itself now has five values — the
+/// struct field, its default and the pre-R8 migration are all unchanged.
+const GLASS_STEPS: [&str; 5] = ["low", "mid", "high", "deep", "jelly"];
 const MIN_FONT_SIZE: u32 = 8;
 const MAX_FONT_SIZE: u32 = 48;
 
@@ -103,10 +108,11 @@ pub struct AppSettings {
     /// persistence.
     pub main_opacity: u8,
     pub terminal_opacity: u8,
-    /// Liquid-glass material step: "low" | "mid" | "high". This is the HIG
-    /// variant control (Clear → Regular → Regular-max): it drives the blur
-    /// radius, the saturation boost and the material's share of the fill.
-    /// It is deliberately *not* read by any native window path — see the
+    /// Liquid-glass effect step: "low" | "mid" | "high" | "deep" |
+    /// "jelly". This is the effect control (Clear → Regular → Regular-max →
+    /// Deep → Jelly): it drives the blur radius, the saturation boost and the
+    /// control-lens quality — never the frame's tint. It is deliberately *not*
+    /// read by any native window path — see the
     /// `glass_step_is_not_a_native_alpha_input` test.
     pub glass_step: String,
     /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
@@ -289,7 +295,7 @@ fn migrate_legacy_glass_strength(settings: &mut AppSettings) {
     .to_string();
 }
 
-/// Clamp the material step to the three shipped variants. An unknown value
+/// Clamp the effect step to the shipped variants. An unknown value
 /// (hand-edited file, a future step this build does not know) falls back to
 /// the balanced Regular step rather than to a random one.
 fn normalize_glass_step(value: &str) -> String {
@@ -1029,7 +1035,7 @@ mod tests {
     /// ever fails, the two controls have been re-coupled.
     #[test]
     fn glass_step_is_not_a_native_alpha_input() {
-        // The step is a three-valued string, never a number between the
+        // The step is a string from the shipped stop list, never a number between the
         // transparency bounds — a "step" that could be clamped to [10,100]
         // would be the old slider wearing a new name.
         assert!(
@@ -1038,7 +1044,7 @@ mod tests {
         );
         assert!(
             !GLASS_STEPS.contains(&"0"),
-            "the step domain is the three variants and nothing else"
+            "the step domain is the five effect steps and nothing else"
         );
         // `glass_step` is absent from every alpha application: the only fields
         // the window path may read are the two opacity percentages. This is a

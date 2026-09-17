@@ -2,6 +2,7 @@ import type { AppSettings, CursorShape } from "../App";
 import {
   GLASS_INTENSITIES,
   GLASS_INTENSITY,
+  clampWindowOpacity,
   glassIntensityOf,
   type GlassIntensity,
 } from "../glass-material";
@@ -36,10 +37,11 @@ const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
   { value: "underline", labelKey: "settings.cursor.underline" },
 ];
 
-/** The five glass-intensity stops (GLASS-UNIFY). The label names the material,
- *  not a number: Clear → Balanced → Strong → Deep → Solid. One control replaces
- *  R8's separate step picker and transparency sliders, because the two read as
- *  one perceived axis. Each stop's `(glass_step, tint)` pair lives in
+/** The five glass-effect stops (GLASS-REAXIS). The label names the *effect*,
+ *  not a tint: Clear → Balanced → Strong → Deep → Jelly. One control drives
+ *  the liquid-glass effect (blur / saturation / control-lens quality); the two
+ *  transparency sliders below are the app's own background opacity and stay
+ *  independent of it. Each stop's `(blur, saturate, lens)` triple lives in
  *  `glass-material.ts`; `settings.glassIntensity.*` carries the labels. */
 const GLASS_INTENSITY_OPTIONS = GLASS_INTENSITIES.map((value) => ({
   value,
@@ -48,6 +50,46 @@ const GLASS_INTENSITY_OPTIONS = GLASS_INTENSITIES.map((value) => ({
 
 export const normalizeFontSize = (value: number): number =>
   Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
+
+const MIN_OPACITY = 10;
+const MAX_OPACITY = 100;
+
+/** `--main-opacity` / `--terminal-opacity` are the **window transparency**
+ *  controls: how solid each frame is. They are orthogonal to the glass effect
+ *  (the stop control above), and each is configured on its own. */
+export const normalizeOpacity = (value: number): number =>
+  clampWindowOpacity(Number.isFinite(value) ? value : 47);
+
+type OpacityControlProps = {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+};
+
+/** One transparency slider: a label, a live `%` readout and the range input.
+ *  The readout is a plain number, not a primary action, so it spends no accent
+ *  fill. Both sliders share this shape so "app" and "terminal" read as the
+ *  same kind of knob. */
+function OpacityControl({ label, value, onChange }: OpacityControlProps) {
+  return (
+    <div className="opacity-control">
+      <div className="opacity-control__header">
+        <label className="opacity-control__label">{label}</label>
+        <output className="opacity-control__value">{value}%</output>
+      </div>
+      <input
+        className="opacity-control__range"
+        type="range"
+        min={MIN_OPACITY}
+        max={MAX_OPACITY}
+        step="1"
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
+      />
+    </div>
+  );
+}
 
 type GeneralPageProps = {
   busy: boolean;
@@ -60,15 +102,15 @@ type GeneralPageProps = {
   onChangeGeneralSetting: <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => void;
   onChangeLaunchAtStartup: (enabled: boolean) => void;
   onChangeFontSize: (size: number) => void;
+  onChangeOpacity: (target: "main" | "terminal", value: number) => void;
   onChangeGlassIntensity: (level: GlassIntensity) => void;
 };
 
-/** The single glass-intensity control: five segments in the shared track, the
+/** The single glass-effect control: five segments in the shared track, the
  *  same selection language the theme/cursor pickers use (accent tint, lit top
- *  rim, accent edge). The chosen stop is derived from the stored
- *  `(glass_step, main_opacity)` pair by `glassIntensityOf`, so an upgraded or
- *  hand-edited file displays on the stop it is closest to instead of on a
- *  default. */
+ *  rim, accent edge). The chosen stop is derived from the stored `glass_step`
+ *  by `glassIntensityOf`, which ignores the transparency values — the two axes
+ *  are independent, so nudging a slider never moves the highlighted stop. */
 function GlassIntensityControl({
   t,
   value,
@@ -129,6 +171,7 @@ export function GeneralPage({
   onChangeGeneralSetting,
   onChangeLaunchAtStartup,
   onChangeFontSize,
+  onChangeOpacity,
   onChangeGlassIntensity,
 }: GeneralPageProps) {
   return (
@@ -332,6 +375,19 @@ export function GeneralPage({
         value={glassIntensityOf(settings.glass_step, settings.main_opacity / 100)}
         onChange={onChangeGlassIntensity}
       />
+      <div className="opacity-controls">
+        <OpacityControl
+          label={t("settings.transparency.main")}
+          value={normalizeOpacity(settings.main_opacity)}
+          onChange={(value) => onChangeOpacity("main", value)}
+        />
+        <OpacityControl
+          label={t("settings.transparency.terminal")}
+          value={normalizeOpacity(settings.terminal_opacity)}
+          onChange={(value) => onChangeOpacity("terminal", value)}
+        />
+      </div>
+      <p className="settings-section__hint">{t("settings.transparencyHint")}</p>
     </section>
     </fieldset>
   );

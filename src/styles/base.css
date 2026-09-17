@@ -128,24 +128,30 @@
        * the accent halo around the live status dot (`0 0 0 2px
          var(--accent-halo)`) — a status glow, not a rung. */
   --elev-shadow-scale: calc(0.45 + 0.9 * (1 - var(--main-opacity)));
-  /* Rung 0: the control on the plane. An inset ring plus the pane's top rim —
-     the exact two strokes the control ladder (`--glass-control-edge` /
-     `--glass-control-rim`) names, stacked in the order the sheets used. */
-  --elev-0:
-    inset 0 0 0 1px var(--glass-control-edge),
-    inset 0 1px 0 var(--glass-control-rim);
+  /* Rung 0: the control on the plane. GLASS-REAXIS upgraded this rung from a
+     bare ring to the full **lens stack** — the top rim, the broad sheen, the
+     bottom shade and the shared pane edge — so every control that already
+     draws `var(--elev-0)` gains the liquid-glass lens with no per-rule edit,
+     and `[data-glass]` grades it through `--glass-lens-scale`. It is aliased
+     rather than restated so the lens family has one definition
+     (`--glass-lens-stack`, above) and the elevation ladder keeps naming the
+     rung. The layers are all `inset`, so a control still casts nothing and
+     still owns no backdrop. */
+  --elev-0: var(--glass-lens-stack);
   --elev-1: none;
   --elev-2:
     0 1px 2px rgba(0, 0, 0, calc(0.2 * var(--elev-shadow-scale)));
-  /* The pointer lift on a primary button: one contact step more than the
-     resting rung, at the same cast tint. A cast shadow, so it is named here
-     rather than restated at the two call sites. */
+  /* Hover keeps its contact bump AND gains the lens glow rung — the two
+     shadows compose, so a pointed-at glass control lights its rim (the
+     lens stack's hover variant) before the click lifts it. */
   --elev-hover:
-    0 2px 6px var(--window-shadow-contact);
+    0 2px 6px var(--window-shadow-contact),
+    var(--glass-lens-stack-hover);
   /* The quieter half of the same lift: a small control's hover raises it by
-     less than a button's. */
+     less than a button's, but gains the same lens rim. */
   --elev-hover-soft:
-    0 2px 4px var(--window-shadow-contact);
+    0 2px 4px var(--window-shadow-contact),
+    var(--glass-lens-stack-hover);
   /* The live status dot's halo: a status glow, not a rung. Named here so a
      call site never carries the ring width or the accent itself, and so the
      one non-elevation shadow in the sheets is declared rather than exempted. */
@@ -184,9 +190,7 @@
   /* The material recess and the keycap: below the plane and on it, drawn with
      the ladder's inset strokes rather than a cast shadow, so they are the
      shallow end of the same ladder rather than a separate one. */
-  --elev-track:
-    inset 0 1px 2px var(--window-shadow-contact),
-    inset 0 0 0 1px var(--glass-track-edge);
+  --elev-track: var(--glass-lens-stack-inset);
   --elev-keycap:
     inset 0 1px 0 var(--glass-control-rim),
     0 1px 2px var(--keycap-shadow);
@@ -463,12 +467,86 @@
   --glass-track: rgba(255, 255, 255, 0.07);
   --glass-track-edge: rgba(255, 255, 255, 0.06);
   --glass-field: rgba(255, 255, 255, 0.03);
+  /* A field is the lens read *backwards*: the slot's inner shadow plus the
+     lens's own top rim and bottom shade, so a text input carries the same
+     liquid material as a button while still reading as a slot cut into the
+     glass. It consumes the lens family (so `[data-glass]` grades it) rather
+     than restating two alphas. */
   --glass-field-shadow:
     inset 0 1px 2px var(--window-shadow-contact),
-    inset 0 1px 0 var(--glass-control-rim);
+    inset 0 1px 0 var(--glass-lens-rim),
+    inset 0 -1px 0 var(--glass-lens-edge);
   --glass-raised: var(--accent-tint);
   --glass-raised-hover: var(--accent-tint-hover);
   --glass-raised-rim: rgba(255, 255, 255, 0.1);
+
+  /* ── Control lens family (GLASS-REAXIS) ────────────────────────────────
+     The liquid-glass *lens* quality of a control, without a second filter.
+     The user's complaint that opened this round was that the controls read as
+     "平 tint + 边框" rather than as glass, so the lens look is built entirely
+     from the three things a 1px composited pane can legally carry:
+
+       --glass-lens-rim     the top 1px inner highlight — the lens's upper
+                            edge catching the light
+       --glass-lens-sheen   a top→transparent inset highlight layer — the
+                            broad sheen across the lens face
+       --glass-lens-edge    the bottom inner shade — the lens's lower rim,
+                            where the material thickens
+       --glass-lens-glow    a hover-only edge glow, so a pointed-at control
+                            lights its rim before it moves
+
+     The family is split into **palette** and **level**:
+
+       --glass-lens-*-base  the palette's own strength (dark and light differ:
+                            a white highlight on dark glass is subtle, on light
+                            glass it is the dominant cue). Declared per palette
+                            and pinned by `light-theme.test.ts`.
+       --glass-lens-scale   the stop's multiplier, driven by `[data-glass]`, so
+                            a stop changes the control material the same way it
+                            changes the shell's blur — as a token swap, with no
+                            rule naming a step.
+
+     `--glass-lens-stack` composes the four into the one shadow a control
+     draws. A control that wants the lens writes
+     `box-shadow: var(--glass-lens-stack)`; a control that wants the plain ring
+     keeps `var(--elev-0)`. Every layer is `inset`, so a control carrying it
+     never casts onto the surface below and never needs a backdrop of its own,
+     and the elevation wiring test still sees a rung on every cast layer. The
+     accent census never counts a lens: it is a rim/edge, not a fill. */
+  --glass-lens-rim-base: 0.15;
+  --glass-lens-sheen-base: 0.06;
+  --glass-lens-edge-base: 0.15;
+  --glass-lens-glow-base: 0.1;
+  --glass-lens-rim: rgba(255, 255, 255, calc(var(--glass-lens-rim-base) * var(--glass-lens-scale)));
+  --glass-lens-sheen: rgba(255, 255, 255, calc(var(--glass-lens-sheen-base) * var(--glass-lens-scale)));
+  --glass-lens-edge: rgba(0, 0, 0, calc(var(--glass-lens-edge-base) * var(--glass-lens-scale)));
+  --glass-lens-glow: rgba(255, 255, 255, calc(var(--glass-lens-glow-base) * var(--glass-lens-scale)));
+  /* The composed lens: the rim, the sheen, the bottom edge, then the shared
+     pane edge so a lens control still has the full 1px ring the ladder draws.
+     Order matters — the rim is painted last so it stays a clean 1px line over
+     the sheen's fade. */
+  --glass-lens-stack:
+    inset 0 1px 0 var(--glass-lens-rim),
+    inset 0 6px 10px -6px var(--glass-lens-sheen),
+    inset 0 -1px 0 var(--glass-lens-edge),
+    inset 0 0 0 1px var(--glass-control-edge);
+  /* The hover variant: the same lens plus a soft inner edge glow, so a
+     pointed-at control lights its rim before it moves. A control that wants
+     the pointer cue writes `box-shadow: var(--glass-lens-stack-hover)`. */
+  --glass-lens-stack-hover:
+    var(--glass-lens-stack),
+    inset 0 0 8px -3px var(--glass-lens-glow);
+  /* The recessed variant: the lens read *backwards*, for a groove the user
+     looks into (a switch or segmented track). The light pools along the
+     bottom of the groove and the top edge is the dark one, which is the same
+     physics as the raised pane flipped — the two together are what make a
+     track and the pane inside it read as one piece of glass. */
+  --glass-lens-stack-inset:
+    inset 0 -1px 0 var(--glass-lens-rim),
+    inset 0 1px 2px var(--window-shadow-contact),
+    inset 0 1px 0 var(--glass-lens-edge),
+    inset 0 0 0 1px var(--glass-track-edge);
+
   /* A raised pane is the ladder's second rung: it floats a contact shadow off
      the surface it sits on *and* keeps the lit rim that makes it read as
      glass. Consuming `--elev-2` here (rather than restating a 1px inset) is
@@ -598,12 +676,19 @@
   --text-placeholder-contrast: rgba(242, 243, 245, 0.58);
 }
 
-/* ── Glass material steps (R8) ────────────────────────────────────────────
-   The three variants, as three token overrides selected by one attribute on
-   <html>. `low` is HIG's Clear variant, which is "highly translucent" by
-   definition, so its floor is deliberately below the 60-80% regular band and
-   it carries the published 35% dimming layer; `mid` is Regular; `high` is
-   Regular pushed to the round's budget ceiling (blur 28px, saturate 180%).
+/* ── Glass effect steps (R8; re-axised by GLASS-REAXIS) ────────────────────
+   Five effect stops, as token overrides selected by one attribute on <html>.
+   The stop is the *liquid-glass effect*: blur (how much the desktop behind is
+   refracted), saturation (how much the glass colour-grades it) and the control
+   lens level (how much lens quality the panes on top carry). The stop never
+   writes a tint — the frame's fill is the transparency sliders' job.
+
+   `low` is HIG's Clear variant, which is "highly translucent" by definition,
+   so its floor is deliberately below the 60-80% regular band and it carries
+   the published 35% dimming layer; `mid` is Regular; `high` is Regular pushed
+   to the round's budget ceiling (blur 28px, saturate 180%); `deep` and
+   `jelly` keep the 28px budget and push saturation to 190 / 200% with the
+   heaviest control lens.
 
    Every other material token derives from these — see the `:root` block — so
    a step switch is a token swap and nothing in any surface file mentions a
@@ -613,6 +698,7 @@
   --glass-step-saturate: 135%;
   --glass-step-fill: 0.3;
   --glass-step-dim: 0.35;
+  --glass-lens-scale: 0.5;
 }
 
 [data-glass="mid"] {
@@ -620,6 +706,7 @@
   --glass-step-saturate: 165%;
   --glass-step-fill: 0.68;
   --glass-step-dim: 0;
+  --glass-lens-scale: 0.75;
 }
 
 [data-glass="high"] {
@@ -627,6 +714,23 @@
   --glass-step-saturate: 180%;
   --glass-step-fill: 0.8;
   --glass-step-dim: 0;
+  --glass-lens-scale: 1;
+}
+
+[data-glass="deep"] {
+  --glass-step-blur: 28px;
+  --glass-step-saturate: 190%;
+  --glass-step-fill: 0.8;
+  --glass-step-dim: 0;
+  --glass-lens-scale: 1.3;
+}
+
+[data-glass="jelly"] {
+  --glass-step-blur: 28px;
+  --glass-step-saturate: 200%;
+  --glass-step-fill: 0.8;
+  --glass-step-dim: 0;
+  --glass-lens-scale: 1.6;
 }
 
 [data-theme="light"] {
@@ -661,6 +765,17 @@
     inset 0 1px 2px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
   --glass-raised-rim: rgba(255, 255, 255, 0.85);
+
+  /* The control lens inverts with the palette, exactly like the control
+     ladder: on dark glass a white highlight is the cue and the bottom shade is
+     what gives the lens thickness; on light glass the white is near-opaque
+     already, so the rim and sheen stay strong while the bottom edge lightens
+     to a soft grey. The four `*-base` numbers are the palette's own strength;
+     `[data-glass]` multiplies them by `--glass-lens-scale`. */
+  --glass-lens-rim-base: 0.9;
+  --glass-lens-sheen-base: 0.5;
+  --glass-lens-edge-base: 0.08;
+  --glass-lens-glow-base: 0.55;
 
   /* The sheen inverts: on a light card the highlight is the opaque white and
      the shadow is what has to stay subtle, or every edge turns into a groove. */
@@ -799,6 +914,10 @@
       inset 0 1px 2px rgba(0, 0, 0, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 0.85);
     --glass-raised-rim: rgba(255, 255, 255, 0.85);
+    --glass-lens-rim-base: 0.9;
+    --glass-lens-sheen-base: 0.5;
+    --glass-lens-edge-base: 0.08;
+    --glass-lens-glow-base: 0.55;
 
     --sheen-top: rgba(255, 255, 255, 0.66);
     --sheen-bottom: rgba(255, 255, 255, 0.22);
@@ -1101,13 +1220,21 @@ canvas {
   :root {
     --glass-step-fill: 0.86;
     --glass-step-dim: 0;
+    --glass-lens-scale: 0.6;
   }
 
   [data-glass="low"],
   [data-glass="mid"],
-  [data-glass="high"] {
+  [data-glass="high"],
+  [data-glass="deep"],
+  [data-glass="jelly"] {
     --glass-step-fill: 0.86;
     --glass-step-dim: 0;
+    /* A user who asked for contrast gets the *material* dialled back, not the
+       borders: the lens sheen is a decorative refraction cue, so it is damped
+       to a near-flat pane while the pane edge keeps the stronger stroke
+       below. */
+    --glass-lens-scale: 0.6;
   }
 
   .collapsed-card,
@@ -1179,6 +1306,7 @@ html:not([data-glass]) {
   --glass-step-saturate: 165%;
   --glass-step-fill: 0.68;
   --glass-step-dim: 0;
+  --glass-lens-scale: 0.75;
 }
 
 /* An undecorated Windows window reaches exactly to these surfaces. Its edge is

@@ -27,7 +27,6 @@ import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
 import { normalizeLanguage, type Language } from "../i18n";
 import type { AppSettings } from "../App";
 import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassIntensity } from "../glass-material";
-
 /** Defaults applied before the first disk read returns. */
 const SETTINGS_DEFAULTS: AppSettings = {
   hotkey: "Ctrl+Space",
@@ -53,8 +52,9 @@ const SETTINGS_DEFAULTS: AppSettings = {
   seen_tip: false,
 };
 
-/** Debounce window for the font-size slider's writes. The glass intensity is
- *  a discrete stop and persists immediately, so it no longer rides this. */
+/** Debounce window for the font-size and transparency sliders' writes. The
+ *  glass effect stop is a discrete choice and persists immediately, so it no
+ *  longer rides this. */
 const SETTINGS_DEBOUNCE_MS = 180;
 /** Blur suppress window after a non-slider settings edit. */
 const SETTINGS_BLUR_SUPPRESS_MS = 400;
@@ -225,33 +225,51 @@ export function useSettings(options: {
 
   // ---- Change mutators -----------------------------------------------------
   /**
-   * GLASS-UNIFY: the single glass-intensity control. A stop is one fixed
-   * `(glass_step, main_opacity, terminal_opacity)` triple, so this replaces
-   * R8's separate `changeOpacity` and `changeGlassStep` mutators — the two
-   * fields still exist and are still written independently, but the UI only
-   * ever moves them together. Discrete, so it persists immediately like
-   * `changeGeneralSetting` rather than through a slider debounce.
+   * GLASS-REAXIS: the two transparency sliders are back, each with its own
+   * target. One mutator moves one field — `main` is the launcher/settings
+   * frame, `terminal` is the terminal frame — so the two are independently
+   * configurable, exactly as the user asked. It never touches `glass_step`:
+   * the effect stop and the background opacity are separate axes.
+   */
+  const changeOpacity = useCallback(
+    (target: "main" | "terminal", next: number) => {
+      const field = target === "main" ? "main_opacity" : "terminal_opacity";
+      const value = clampWindowOpacity(next);
+      if (value === settingsRef.current[field]) return;
+      const updated: AppSettings = { ...settingsRef.current, [field]: value };
+      settingsHydration.markChanged(field);
+      settingsRef.current = updated;
+      setSettings(updated);
+      if (settingsSaveTimer.current !== null) {
+        window.clearTimeout(settingsSaveTimer.current);
+      }
+      settingsSaveTimer.current = window.setTimeout(() => {
+        settingsSaveTimer.current = null;
+        persistSettings().catch(() => setSettingsSaveFailed(true));
+      }, SETTINGS_DEBOUNCE_MS);
+    },
+    [settingsHydration, persistSettings],
+  );
+
+  /**
+   * GLASS-REAXIS: the single glass-**effect** control. A stop writes only
+   * `glass_step` — the blur, saturation and control-lens quality it selects —
+   * and deliberately does **not** move either opacity field. GLASS-UNIFY spent
+   * the stops on the tint axis (writing both opacities); the user rejected
+   * that, so the stop and the transparency sliders are decoupled again. A stop
+   * is a discrete choice, so it persists immediately like `changeGeneralSetting`
+   * rather than through the slider debounce.
    */
   const changeGlassIntensity = useCallback(
     (level: GlassIntensity) => {
       const next = glassIntensitySettings(level);
       const current = settingsRef.current;
-      if (
-        next.glass_step === current.glass_step &&
-        next.main_opacity === current.main_opacity &&
-        next.terminal_opacity === current.terminal_opacity
-      ) {
-        return;
-      }
+      if (next.glass_step === current.glass_step) return;
       const updated: AppSettings = {
         ...current,
         glass_step: normalizeGlassStep(next.glass_step),
-        main_opacity: clampWindowOpacity(next.main_opacity),
-        terminal_opacity: clampWindowOpacity(next.terminal_opacity),
       };
-      for (const field of ["glass_step", "main_opacity", "terminal_opacity"] as const) {
-        settingsHydration.markChanged(field);
-      }
+      settingsHydration.markChanged("glass_step");
       settingsRef.current = updated;
       setSettings(updated);
       suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
@@ -390,6 +408,7 @@ export function useSettings(options: {
     commitSettings,
     persistSettings,
     changeGlassIntensity,
+    changeOpacity,
     changeFontSize,
     changeGeneralSetting,
     changeTheme,

@@ -402,10 +402,9 @@
   padding: 10px 0;
 }
 
-/* ── Glass intensity picker (GLASS-UNIFY) ────────────────────────────────
-   Five segments inside the shared track, replacing R8's separate step picker
-   and transparency sliders. It is the same selection language the
-   theme/cursor pickers use — accent tint, lit top rim, accent edge — so the
+/* ── Glass effect picker (GLASS-REAXIS) ──────────────────────────────────
+   Five segments inside the shared track. It is the same selection language
+   the theme/cursor pickers use — accent tint, lit top rim, accent edge — so a
    chosen stop reads as a raised pane in the track rather than a new control
    dialect. Labels only (no captions): five segments have to fit on one row. */
 .glass-intensity {
@@ -424,7 +423,7 @@
   justify-items: center;
 }
 
-/* A stop's label is the material's name; centered because the segment is a
+/* A stop's label is the effect's name; centered because the segment is a
    choice, not a row. */
 .glass-intensity__segments .settings-option__main {
   justify-items: center;
@@ -433,6 +432,63 @@
 
 .glass-intensity__segments .settings-option__label {
   font-size: var(--text-emphasis);
+}
+
+/* ── Transparency sliders (restored by GLASS-REAXIS) ─────────────────────
+   The two independent background-opacity knobs: the app's own frame and the
+   terminal's. They are the only place the alpha axis lives — the effect stop
+   above writes none of it. Each is a label, a live `%` readout and a range. */
+.opacity-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.opacity-control {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.opacity-control__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.opacity-control__label {
+  min-width: 0;
+  color: var(--text-strong);
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.opacity-control__value {
+  flex: 0 0 auto;
+  /* Off the accent budget: a live percentage is a readout, not a primary
+     action. It keeps the monospaced tabular figures that stop the number
+     jittering while the slider moves, and takes full-strength body text so it
+     stays the loudest thing in the row without spending colour. */
+  color: var(--text-strong);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.opacity-control__range {
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.opacity-control__range:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .terminal-appearance-settings {
