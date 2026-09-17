@@ -121,7 +121,6 @@ test("IC: the material floor is raised and the new chrome gets the stroke", asyn
   for (const selector of [
     ".settings-option",
     ".settings-option--active",
-    ".opacity-control__preset--active",
     ".clipboard-panel__tab--active",
     ".extension-row--selected",
     ".extension-health__tag",

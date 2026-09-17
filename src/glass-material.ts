@@ -1,20 +1,30 @@
-// The Liquid Glass material model (R8).
+// The Liquid Glass material model (R8; unified into a single control by
+// GLASS-UNIFY).
 //
-// Two orthogonal controls, and the whole point of the round is that they never
-// touch each other:
+// The **material** is still two independent inputs, and they still never touch
+// each other inside the stylesheet:
 //
-//   * the **window transparency** slider (`main_opacity` / `terminal_opacity`,
+//   * the **window transparency** value (`main_opacity` / `terminal_opacity`,
 //     a 10-100 percentage) is READABILITY. It is the only input a native
 //     window-alpha path may read, and at 100% the frame is near-opaque;
 //   * the **glass step** (this file) is MATERIAL. It picks one of three
 //     variants and nothing else.
 //
+// GLASS-UNIFY collapses the R8 *UI-layer* split: the user judged the two knobs to
+// be one perceived axis ("玻璃有多重"), so the settings panel now exposes a
+// single five-stop **glass intensity** segmented control. Each stop writes one
+// fixed `(glass_step, tint)` pair into the two fields above — the Rust struct,
+// the migration and the CSS formulas are untouched. A stored pair that no stop
+// wrote (an upgraded 94→47% + high file, a hand-edited JSON) is read back by
+// `glassIntensityOf`, which lands it on the nearest stop by the composited
+// tint (midpoints as boundaries).
+//
 // The step is expressed in CSS as `[data-glass]` on <html>, because switching
 // it swaps a *set* of tokens (`--glass-step-*` in base.css) rather than a
 // single value, and because the accessibility override blocks key off the same
-// attribute. This module owns the vocabulary: the three ids, the human-facing
-// labels' i18n keys, and the one normalization rule the persistence layer and
-// the settings UI both need.
+// attribute. This module owns the vocabulary: the three step ids, the five
+// intensity stops, and the normalization/reverse-lookup rules the persistence
+// layer and the settings UI both need.
 //
 // The numeric truth lives in base.css, not here — the steps' blur, saturation,
 // fill and dimming values are token overrides so a WebKitGTK build can never
@@ -36,16 +46,6 @@ export const GLASS_STEPS: readonly GlassStep[] = ["low", "mid", "high"] as const
  */
 export const normalizeGlassStep = (value: unknown): GlassStep =>
   value === "low" || value === "high" ? value : "mid";
-
-/**
- * The i18n keys for the three steps, kept beside the ids so a new step cannot
- * be added in the UI without a label and a caption for it.
- */
-export const GLASS_STEP_LABELS: Record<GlassStep, { label: string; description: string }> = {
-  low: { label: "settings.glassStep.low", description: "settings.glassStep.lowHint" },
-  mid: { label: "settings.glassStep.mid", description: "settings.glassStep.midHint" },
-  high: { label: "settings.glassStep.high", description: "settings.glassStep.highHint" },
-};
 
 /**
  * The step's numeric material, mirrored here as the *only* place JavaScript is
@@ -88,3 +88,111 @@ export const glassStepStyle = (step: GlassStep): Record<string, string> => ({
   "--glass-step-dim": String(GLASS_STEP_TOKENS[step].dim),
   "--glass-solid-top": String(GLASS_SOLID_TOP),
 });
+
+// ── GLASS-UNIFY: one intensity control over the (step, tint) pair ──────────
+//
+// R8 exposed the material (a 3-way step) and the window transparency (a
+// continuous slider) side by side. The user's verdict was that the two read as
+// one axis — "效果强度和透明度…感觉不出来它们的独立" — so the settings panel now
+// offers a single five-stop intensity control and the continuous slider is
+// gone. Nothing below the UI changed: a stop is just a fixed `(glass_step,
+// tint)` pair written into the same two fields, and the reverse lookup turns
+// any stored pair back into the stop it is closest to.
+
+/**
+ * The window-transparency percentages are clamped to the same 10-100 band the
+ * Rust side enforces (`normalize_window_opacity`), so a hand-edited file can
+ * never render a 3%-opaque frame. The old `normalizeOpacity` also snapped to
+ * four presets; with a discrete stop control there is nothing to snap, so the
+ * clamp is all that is left of it.
+ */
+export const clampWindowOpacity = (value: number): number =>
+  Math.round(Math.min(100, Math.max(10, Number.isFinite(value) ? value : 47)));
+
+/**
+ * The frame's composited tint — the number a person actually perceives as
+ * "how much glass is there". It is the shipped CSS composition
+ * (`--glass-tint-alpha` in base.css) evaluated from the same step table the
+ * plugin page receives, so this is not a second model:
+ *
+ *   frame = fill + (solidTop - fill) · t
+ *   tint  = 1 - (1 - dim · (1 - t)) · (1 - frame)
+ *
+ * `t` is the transparency fraction (0-1), `dim` the variant's dimming veil.
+ */
+export const glassEffectiveTint = (step: GlassStep, transparency: number): number => {
+  const { fill, dim } = GLASS_STEP_TOKENS[step];
+  const t = Math.min(1, Math.max(0, transparency));
+  const frame = fill + (GLASS_SOLID_TOP - fill) * t;
+  const veil = dim * (1 - t);
+  return 1 - (1 - veil) * (1 - frame);
+};
+
+/** One of five stops, thinnest (1) to near-solid (5). */
+export type GlassIntensity = 1 | 2 | 3 | 4 | 5;
+
+/** In display order: thinnest material first. */
+export const GLASS_INTENSITIES: readonly GlassIntensity[] = [1, 2, 3, 4, 5] as const;
+
+/**
+ * A stop's frozen material. `tint` is the window-transparency fraction written
+ * to **both** opacity fields; `label` is the i18n key, kept beside the stop
+ * so a sixth stop cannot be added without a label.
+ *
+ * The anchors were calibrated from the shipped material formula: stop 1 sits at
+ * the thinnest end a person reads as "liquid glass" (the Clear variant with
+ * just enough tint to keep the rim), stop 5 is the old slider at its 0.98 top
+ * (a near-solid panel), and 2-4 are the intermediate composites. The pairs are
+ * asserted in `tests/glass-intensity.test.ts`, so moving one turns a test red.
+ */
+export const GLASS_INTENSITY: Record<
+  GlassIntensity,
+  { step: GlassStep; tint: number; label: string }
+> = {
+  1: { step: "low", tint: 0.22, label: "settings.glassIntensity.1" },
+  2: { step: "mid", tint: 0.4, label: "settings.glassIntensity.2" },
+  3: { step: "high", tint: 0.58, label: "settings.glassIntensity.3" },
+  4: { step: "high", tint: 0.78, label: "settings.glassIntensity.4" },
+  5: { step: "high", tint: 0.98, label: "settings.glassIntensity.5" },
+};
+
+/**
+ * The settings fields a stop writes. Both opacity values move together: the
+ * control is one axis, so the launcher/settings frame and the terminal frame
+ * stay in step. Percentages are rounded to the integers the Rust `u8` fields
+ * hold.
+ */
+export const glassIntensitySettings = (
+  level: GlassIntensity,
+): { glass_step: GlassStep; main_opacity: number; terminal_opacity: number } => {
+  const { step, tint } = GLASS_INTENSITY[level];
+  const percent = Math.round(tint * 100);
+  return { glass_step: step, main_opacity: percent, terminal_opacity: percent };
+};
+
+/**
+ * The stop a composited tint belongs to, by nearest effective tint with the
+ * midpoints between adjacent stops as boundaries. A tie (a stored value that
+ * sits exactly on a midpoint) falls to the **lower** stop, which is the
+ * conservative choice: a thinner panel keeps more of the material visible.
+ */
+export const glassIntensityForTint = (effective: number): GlassIntensity => {
+  for (let i = 0; i < GLASS_INTENSITIES.length - 1; i += 1) {
+    const current = GLASS_INTENSITY[GLASS_INTENSITIES[i]];
+    const next = GLASS_INTENSITY[GLASS_INTENSITIES[i + 1]];
+    const boundary =
+      (glassEffectiveTint(current.step, current.tint) +
+        glassEffectiveTint(next.step, next.tint)) /
+      2;
+    if (effective <= boundary) return GLASS_INTENSITIES[i];
+  }
+  return GLASS_INTENSITIES[GLASS_INTENSITIES.length - 1];
+};
+
+/**
+ * The reverse lookup the settings panel uses to display a stored pair: any
+ * `(step, transparency)` — including the 47%+high an upgraded pre-R8 file
+ * migrates to — lands on exactly one stop.
+ */
+export const glassIntensityOf = (step: GlassStep, transparency: number): GlassIntensity =>
+  glassIntensityForTint(glassEffectiveTint(step, transparency));

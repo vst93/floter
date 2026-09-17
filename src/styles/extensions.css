@@ -1967,7 +1967,6 @@
   .settings-sidebar__item span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .settings-content { padding-inline: 12px; }
   .settings-preferences,
-  .opacity-controls,
   .terminal-appearance-settings__grid,
   .extension-custom-form__grid { grid-template-columns: 1fr; }
   .extension-custom-form__wide { grid-column: 1; }

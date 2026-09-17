@@ -15,7 +15,7 @@ import {
   type SetStateAction,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { normalizeFontSize, normalizeOpacity } from "../settings/GeneralPage";
+import { normalizeFontSize } from "../settings/GeneralPage";
 import {
   createSerialSettingsWriter,
   createSettingsHydration,
@@ -26,7 +26,7 @@ import {
 import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
 import { normalizeLanguage, type Language } from "../i18n";
 import type { AppSettings } from "../App";
-import { normalizeGlassStep, type GlassStep } from "../glass-material";
+import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassIntensity } from "../glass-material";
 
 /** Defaults applied before the first disk read returns. */
 const SETTINGS_DEFAULTS: AppSettings = {
@@ -53,7 +53,8 @@ const SETTINGS_DEFAULTS: AppSettings = {
   seen_tip: false,
 };
 
-/** Debounce window for the slider-driven opacity and font-size writes. */
+/** Debounce window for the font-size slider's writes. The glass intensity is
+ *  a discrete stop and persists immediately, so it no longer rides this. */
 const SETTINGS_DEBOUNCE_MS = 180;
 /** Blur suppress window after a non-slider settings edit. */
 const SETTINGS_BLUR_SUPPRESS_MS = 400;
@@ -184,8 +185,8 @@ export function useSettings(options: {
           ...loaded,
           language: normalizeLanguage(loaded.language),
           launch_at_startup: loaded.launch_at_startup ?? false,
-          main_opacity: normalizeOpacity(loaded.main_opacity ?? 47),
-          terminal_opacity: normalizeOpacity(loaded.terminal_opacity ?? 46),
+          main_opacity: clampWindowOpacity(loaded.main_opacity ?? 47),
+          terminal_opacity: clampWindowOpacity(loaded.terminal_opacity ?? 46),
           glass_step: normalizeGlassStep(loaded.glass_step),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
@@ -223,35 +224,34 @@ export function useSettings(options: {
   }, [settingsHydration]);
 
   // ---- Change mutators -----------------------------------------------------
-  const changeOpacity = useCallback(
-    (field: "main_opacity" | "terminal_opacity", next: number) => {
-      const value = normalizeOpacity(next);
-      if (value === settingsRef.current[field]) return;
-      const updated: AppSettings = { ...settingsRef.current, [field]: value };
-      settingsHydration.markChanged(field);
-      settingsRef.current = updated;
-      setSettings(updated);
-      if (settingsSaveTimer.current !== null) {
-        window.clearTimeout(settingsSaveTimer.current);
+  /**
+   * GLASS-UNIFY: the single glass-intensity control. A stop is one fixed
+   * `(glass_step, main_opacity, terminal_opacity)` triple, so this replaces
+   * R8's separate `changeOpacity` and `changeGlassStep` mutators — the two
+   * fields still exist and are still written independently, but the UI only
+   * ever moves them together. Discrete, so it persists immediately like
+   * `changeGeneralSetting` rather than through a slider debounce.
+   */
+  const changeGlassIntensity = useCallback(
+    (level: GlassIntensity) => {
+      const next = glassIntensitySettings(level);
+      const current = settingsRef.current;
+      if (
+        next.glass_step === current.glass_step &&
+        next.main_opacity === current.main_opacity &&
+        next.terminal_opacity === current.terminal_opacity
+      ) {
+        return;
       }
-      settingsSaveTimer.current = window.setTimeout(() => {
-        settingsSaveTimer.current = null;
-        persistSettings().catch(() => setSettingsSaveFailed(true));
-      }, SETTINGS_DEBOUNCE_MS);
-    },
-    [settingsHydration, persistSettings],
-  );
-
-  /** Switch the material step. A step is a discrete choice, not a drag, so it
-   *  persists immediately like `changeGeneralSetting` rather than through the
-   *  slider debounce — and it does not touch `--main-opacity`, which is the
-   *  whole point of the R8 split. */
-  const changeGlassStep = useCallback(
-    (next: GlassStep) => {
-      const step = normalizeGlassStep(next);
-      if (step === settingsRef.current.glass_step) return;
-      const updated: AppSettings = { ...settingsRef.current, glass_step: step };
-      settingsHydration.markChanged("glass_step");
+      const updated: AppSettings = {
+        ...current,
+        glass_step: normalizeGlassStep(next.glass_step),
+        main_opacity: clampWindowOpacity(next.main_opacity),
+        terminal_opacity: clampWindowOpacity(next.terminal_opacity),
+      };
+      for (const field of ["glass_step", "main_opacity", "terminal_opacity"] as const) {
+        settingsHydration.markChanged(field);
+      }
       settingsRef.current = updated;
       setSettings(updated);
       suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
@@ -389,8 +389,7 @@ export function useSettings(options: {
     loadSettings,
     commitSettings,
     persistSettings,
-    changeOpacity,
-    changeGlassStep,
+    changeGlassIntensity,
     changeFontSize,
     changeGeneralSetting,
     changeTheme,

@@ -70,7 +70,8 @@ import {
   type ShortcutMap,
 } from "./shortcuts";
 import { type SettingsPage } from "./settings-persistence";
-import { GeneralPage, normalizeFontSize, normalizeOpacity } from "./settings/GeneralPage";
+import { GeneralPage, normalizeFontSize } from "./settings/GeneralPage";
+import { clampWindowOpacity } from "./glass-material";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
 import { AboutPage } from "./settings/AboutPage";
@@ -274,8 +275,7 @@ export default function App() {
     settingsHydration,
     persistSettings,
     loadSettings,
-    changeOpacity,
-    changeGlassStep,
+    changeGlassIntensity,
     changeFontSize,
     changeGeneralSetting,
     changeTheme,
@@ -790,8 +790,8 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement.style;
-    root.setProperty("--main-opacity", String(normalizeOpacity(settings.main_opacity) / 100));
-    root.setProperty("--terminal-opacity", String(normalizeOpacity(settings.terminal_opacity) / 100));
+    root.setProperty("--main-opacity", String(clampWindowOpacity(settings.main_opacity) / 100));
+    root.setProperty("--terminal-opacity", String(clampWindowOpacity(settings.terminal_opacity) / 100));
     const renderer = rendererRef.current;
     if (renderer) {
       renderer.updateTheme();
@@ -801,9 +801,11 @@ export default function App() {
 
   // The material step is an attribute rather than a custom property because it
   // swaps a *set* of tokens (`[data-glass]` in base.css) and because the
-  // attribute is what the a11y override blocks key off. It is deliberately not
-  // part of the opacity effect above: the two controls are orthogonal, and one
-  // effect per axis keeps that visible in the code.
+  // attribute is what the a11y override blocks key off. The settings UI now
+  // writes the step and the opacity together (one glass-intensity control,
+  // GLASS-UNIFY), but the two *effects* stay separate: one effect per axis
+  // keeps the material/readability split visible in the code even though the
+  // panel no longer exposes it as two knobs.
   useEffect(() => {
     document.documentElement.setAttribute("data-glass", settings.glass_step);
     const renderer = rendererRef.current;
@@ -1380,8 +1382,8 @@ export default function App() {
         pluginId={pluginPageId}
         language={language}
         theme={resolvedTheme}
-        mainOpacity={normalizeOpacity(settings.main_opacity) / 100}
-        terminalOpacity={normalizeOpacity(settings.terminal_opacity) / 100}
+        mainOpacity={clampWindowOpacity(settings.main_opacity) / 100}
+        terminalOpacity={clampWindowOpacity(settings.terminal_opacity) / 100}
         glassStep={settings.glass_step}
         onClose={closePluginPage}
         onDragStart={startDrag}
@@ -1507,8 +1509,7 @@ export default function App() {
                 onChangeGeneralSetting={changeGeneralSetting}
                 onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
                 onChangeFontSize={changeFontSize}
-                onChangeOpacity={changeOpacity}
-                onChangeGlassStep={changeGlassStep}
+                onChangeGlassIntensity={changeGlassIntensity}
               />
               )}
 

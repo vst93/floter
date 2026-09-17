@@ -406,7 +406,6 @@ test("the craft pass did not break reduce-motion coverage", async () => {
     ".session-manager__icon-button",
     ".session-manager__sort-toggle",
     ".session-manager__kill-confirm",
-    ".opacity-control__preset",
     ".clipboard-panel__tab",
     ".launcher-action-bar",
     ".launcher-result",

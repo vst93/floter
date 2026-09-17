@@ -400,145 +400,37 @@
   padding: 10px 0;
 }
 
-/* ── Glass step picker (R8) ────────────────────────────────────────────────
-   Three segments inside the shared track. It is the same selection language
-   the theme/cursor pickers use — accent tint, lit top rim, accent edge — so a
-   chosen step reads as a raised pane in the track rather than a new control
-   dialect. The descriptions are two-line captions, so the track has to be a
-   touch taller than the plain one-line variant. */
-.glass-step {
+/* ── Glass intensity picker (GLASS-UNIFY) ────────────────────────────────
+   Five segments inside the shared track, replacing R8's separate step picker
+   and transparency sliders. It is the same selection language the
+   theme/cursor pickers use — accent tint, lit top rim, accent edge — so the
+   chosen stop reads as a raised pane in the track rather than a new control
+   dialect. Labels only (no captions): five segments have to fit on one row. */
+.glass-intensity {
   display: grid;
   gap: 6px;
 }
 
-.glass-step__segments {
+.glass-intensity__segments {
   align-items: stretch;
 }
 
-.glass-step__segments .settings-option {
-  min-height: 42px;
-  padding: 5px 8px;
+.glass-intensity__segments .settings-option {
+  min-height: 34px;
+  padding: 0 6px;
   text-align: center;
   justify-items: center;
 }
 
-/* A step's label is the material's name and its caption is what the material
-   does; both centered because the segment is a choice, not a row. */
-.glass-step__segments .settings-option__main {
+/* A stop's label is the material's name; centered because the segment is a
+   choice, not a row. */
+.glass-intensity__segments .settings-option__main {
   justify-items: center;
   text-align: center;
 }
 
-.glass-step__segments .settings-option__label {
+.glass-intensity__segments .settings-option__label {
   font-size: var(--text-emphasis);
-}
-
-.glass-step__segments .settings-option__description {
-  color: var(--text-muted);
-  font-size: var(--text-caption);
-  line-height: 1.2;
-}
-
-/* The selected segment keeps the label at full strength and the caption
-   readable on the accent tint. */
-.glass-step__segments .settings-option--active .settings-option__description {
-  color: var(--text-secondary);
-}
-
-.opacity-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.opacity-control {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.opacity-control__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.opacity-control__label {
-  min-width: 0;
-  color: var(--text-strong);
-  font-size: var(--text-body);
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.opacity-control__value {
-  flex: 0 0 auto;
-  /* Off the accent budget: a live percentage is a readout, not a primary
-     action. It keeps the monospaced tabular figures that stop the number
-     jittering while the slider moves, and takes full-strength body text so
-     it stays the loudest thing in the row without spending colour. */
-  color: var(--text-strong);
-  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: var(--text-body);
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-}
-
-.opacity-control__range {
-  width: 100%;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.opacity-control__presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 3px;
-}
-
-.opacity-control__preset {
-  min-height: 21px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: var(--text-caption);
-  font-variant-numeric: tabular-nums;
-  transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease;
-}
-
-@media (hover: hover) {
-
-.opacity-control__preset:hover {
-  border-color: var(--glass-control-edge);
-  background: var(--glass-control-hover);
-  color: var(--text-secondary);
-  box-shadow: var(--elev-0);
-}
-}
-
-/* A live preset is a state, not an action: the neutral raised pane plus the
-   accent keyline, the same treatment the switch's on-state and the chosen
-   segment use. R8 had already taken it off the accent tint; HIG-2 routes it
-   through the named `--glass-raised-quiet` so "a chosen state is a lit pane,
-   not an accent fill" is one token instead of a per-rule decision. */
-.opacity-control__preset--active {
-  border-color: var(--accent-edge);
-  background: var(--glass-raised-quiet);
-  color: var(--text-strong);
-  box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge);
-}
-
-.opacity-control__preset:focus-visible,
-.opacity-control__range:focus-visible {
-  outline: var(--focus-ring-width) solid var(--accent-ring);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .terminal-appearance-settings {

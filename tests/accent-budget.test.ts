@@ -122,7 +122,7 @@ const VIEWS: { name: string; mode: string; selectors: string[] }[] = [
   { name: "collapsed · system confirm", mode: "collapsed", selectors: [".launcher-system-confirm", ".launcher-system-confirm__execute"] },
   { name: "terminal · clipboard list", mode: "terminal", selectors: [".clipboard-row--selected", ".clipboard-panel__tab--active"] },
   { name: "plugin · clipboard page", mode: "plugin", selectors: [".clipboard-row--selected", ".clipboard-panel__tab--active"] },
-  { name: "settings · page shell", mode: "settings", selectors: [".settings-sidebar__item--active", ".settings-option--active", ".opacity-control__preset--active", ".shortcut-recorder--recording", ".settings-switch--active .settings-switch__thumb"] },
+  { name: "settings · page shell", mode: "settings", selectors: [".settings-sidebar__item--active", ".settings-option--active", ".shortcut-recorder--recording", ".settings-switch--active .settings-switch__thumb"] },
   { name: "settings · integrations", mode: "settings", selectors: [".extensions-action-button--primary", ".extensions-icon-button--primary", ".extension-row--selected", ".extension-tool-results button.extension-tool-result--active", ".extension-custom-mode__item--active", ".extension-health__tag", ".extension-status--recommended", ".extension-row__progress"] },
   { name: "settings · about", mode: "settings", selectors: [".update-banner", ".update-banner__button"] },
 ];
@@ -247,7 +247,6 @@ test("a chosen state is a lit pane, never an accent fill", async () => {
   // accent keyline and label stay, the tinted fill does not.
   const cases: [string, string][] = [
     ["src/styles/settings.css", ".settings-option--active"],
-    ["src/styles/settings.css", ".opacity-control__preset--active"],
     ["src/styles/terminal.css", ".clipboard-panel__tab--active"],
     ["src/styles/extensions.css", ".extension-custom-mode__item--active"],
     ["src/styles/extensions.css", ".extension-tool-results button.extension-tool-result--active"],

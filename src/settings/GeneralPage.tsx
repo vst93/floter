@@ -1,5 +1,10 @@
 import type { AppSettings, CursorShape } from "../App";
-import { GLASS_STEPS, GLASS_STEP_LABELS, type GlassStep } from "../glass-material";
+import {
+  GLASS_INTENSITIES,
+  GLASS_INTENSITY,
+  glassIntensityOf,
+  type GlassIntensity,
+} from "../glass-material";
 import {
   LANGUAGE_OPTIONS,
   type Language,
@@ -31,71 +36,18 @@ const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
   { value: "underline", labelKey: "settings.cursor.underline" },
 ];
 
-/** The three Liquid Glass steps (R8). The label names the *material*, not a
- *  number: HIG's two variants plus the readability-max variant above them.
- *  `settings.glassStep.*` carries the one-line description of each. */
-const GLASS_STEP_OPTIONS = GLASS_STEPS.map((value) => ({
+/** The five glass-intensity stops (GLASS-UNIFY). The label names the material,
+ *  not a number: Clear → Balanced → Strong → Deep → Solid. One control replaces
+ *  R8's separate step picker and transparency sliders, because the two read as
+ *  one perceived axis. Each stop's `(glass_step, tint)` pair lives in
+ *  `glass-material.ts`; `settings.glassIntensity.*` carries the labels. */
+const GLASS_INTENSITY_OPTIONS = GLASS_INTENSITIES.map((value) => ({
   value,
-  labelKey: GLASS_STEP_LABELS[value].label as MessageKey,
-  descriptionKey: GLASS_STEP_LABELS[value].description as MessageKey,
+  labelKey: GLASS_INTENSITY[value].label as MessageKey,
 }));
 
 export const normalizeFontSize = (value: number): number =>
   Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
-
-const MIN_OPACITY = 10;
-const MAX_OPACITY = 100;
-const OPACITY_PRESETS = [25, 50, 75, 100];
-const OPACITY_SNAP_DISTANCE = 1;
-
-/** `--main-opacity` is the **window transparency** control in R8: how solid the
- *  frame is. It is orthogonal to the material, which is the glass step. */
-export const normalizeOpacity = (value: number): number => {
-  const safeValue = Number.isFinite(value) ? value : MAX_OPACITY;
-  const clamped = Math.round(Math.min(MAX_OPACITY, Math.max(MIN_OPACITY, safeValue)));
-  return OPACITY_PRESETS.find((preset) => Math.abs(preset - clamped) <= OPACITY_SNAP_DISTANCE)
-    ?? clamped;
-};
-
-type OpacityControlProps = {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-};
-
-function OpacityControl({ label, value, onChange }: OpacityControlProps) {
-  return (
-    <div className="opacity-control">
-      <div className="opacity-control__header">
-        <label className="opacity-control__label">{label}</label>
-        <output className="opacity-control__value">{value}%</output>
-      </div>
-      <input
-        className="opacity-control__range"
-        type="range"
-        min={MIN_OPACITY}
-        max={MAX_OPACITY}
-        step="1"
-        value={value}
-        aria-label={label}
-        onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
-      />
-      <div className="opacity-control__presets" aria-label={label}>
-        {OPACITY_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            className={`opacity-control__preset${value === preset ? " opacity-control__preset--active" : ""}`}
-            aria-pressed={value === preset}
-            onClick={() => onChange(preset)}
-          >
-            {preset}%
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 type GeneralPageProps = {
   busy: boolean;
@@ -108,37 +60,37 @@ type GeneralPageProps = {
   onChangeGeneralSetting: <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => void;
   onChangeLaunchAtStartup: (enabled: boolean) => void;
   onChangeFontSize: (size: number) => void;
-  onChangeOpacity: (field: "main_opacity" | "terminal_opacity", value: number) => void;
-  onChangeGlassStep: (step: GlassStep) => void;
+  onChangeGlassIntensity: (level: GlassIntensity) => void;
 };
 
-/** One step of the material segmented control. It reuses the existing
- *  `settings-options`/`settings-option` radio system (the same one the theme
- *  and cursor-shape pickers use), so the glass language of a selected segment
- *  — accent tint, top rim, accent edge — is the app's existing selection
- *  language rather than a new one-off. */
-function GlassStepControl({
+/** The single glass-intensity control: five segments in the shared track, the
+ *  same selection language the theme/cursor pickers use (accent tint, lit top
+ *  rim, accent edge). The chosen stop is derived from the stored
+ *  `(glass_step, main_opacity)` pair by `glassIntensityOf`, so an upgraded or
+ *  hand-edited file displays on the stop it is closest to instead of on a
+ *  default. */
+function GlassIntensityControl({
   t,
   value,
   onChange,
 }: {
   t: Translate;
-  value: GlassStep;
-  onChange: (step: GlassStep) => void;
+  value: GlassIntensity;
+  onChange: (level: GlassIntensity) => void;
 }) {
   return (
-    <div className="glass-step">
+    <div className="glass-intensity">
       {/* TODO(F9): roving tab stop is in place, but ArrowLeft/ArrowRight/
           Home/End are not handled. The other radiogroups in this file
           (theme, cursor, font family) share the gap, so it is a pre-existing
-          pattern rather than an R8 regression; fix them together in an a11y
+          pattern rather than a regression; fix them together in an a11y
           pass rather than one control at a time. */}
       <div
-        className="settings-options settings-options--inline glass-step__segments"
+        className="settings-options settings-options--inline glass-intensity__segments"
         role="radiogroup"
-        aria-label={t("settings.glassStep")}
+        aria-label={t("settings.glassIntensity")}
       >
-        {GLASS_STEP_OPTIONS.map((option) => {
+        {GLASS_INTENSITY_OPTIONS.map((option) => {
           const active = option.value === value;
           return (
             <button
@@ -147,20 +99,19 @@ function GlassStepControl({
               role="radio"
               aria-checked={active}
               tabIndex={active ? 0 : -1}
-              data-glass-step={option.value}
+              data-glass-intensity={option.value}
               className={`settings-option${active ? " settings-option--active" : ""}`}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onChange(option.value)}
             >
               <span className="settings-option__main">
                 <span className="settings-option__label">{t(option.labelKey)}</span>
-                <span className="settings-option__description">{t(option.descriptionKey)}</span>
               </span>
             </button>
           );
         })}
       </div>
-      <p className="settings-section__hint">{t("settings.glassStepHint")}</p>
+      <p className="settings-section__hint">{t("settings.glassIntensityHint")}</p>
     </div>
   );
 }
@@ -178,8 +129,7 @@ export function GeneralPage({
   onChangeGeneralSetting,
   onChangeLaunchAtStartup,
   onChangeFontSize,
-  onChangeOpacity,
-  onChangeGlassStep,
+  onChangeGlassIntensity,
 }: GeneralPageProps) {
   return (
     <fieldset className="settings-controls" disabled={busy || autostartUpdating} aria-busy={busy || autostartUpdating}>
@@ -377,20 +327,11 @@ export function GeneralPage({
 
     <section className="settings-section settings-section--material">
       <h2 className="settings-section__label">{t("settings.material")}</h2>
-      <GlassStepControl t={t} value={settings.glass_step} onChange={onChangeGlassStep} />
-      <div className="opacity-controls">
-        <OpacityControl
-          label={t("settings.transparency.main")}
-          value={normalizeOpacity(settings.main_opacity)}
-          onChange={(value) => onChangeOpacity("main_opacity", value)}
-        />
-        <OpacityControl
-          label={t("settings.transparency.terminal")}
-          value={normalizeOpacity(settings.terminal_opacity)}
-          onChange={(value) => onChangeOpacity("terminal_opacity", value)}
-        />
-      </div>
-      <p className="settings-section__hint">{t("settings.transparencyHint")}</p>
+      <GlassIntensityControl
+        t={t}
+        value={glassIntensityOf(settings.glass_step, settings.main_opacity / 100)}
+        onChange={onChangeGlassIntensity}
+      />
     </section>
     </fieldset>
   );

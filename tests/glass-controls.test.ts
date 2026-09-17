@@ -172,22 +172,32 @@ test("the two controls are orthogonal: neither token is a function of the other"
   assert.equal(declaration(root, "glass-blur-terminal"), "var(--glass-step-blur)");
   assert.equal(declaration(root, "glass-saturate"), "var(--glass-step-saturate)");
 
-  // The frontend's two mutators are separate code paths, and the opacity path
-  // must not write the attribute.
+  // The frontend's mutator. R8 exposed two independent paths (`changeOpacity`
+  // and `changeGlassStep`); GLASS-UNIFY收回 UI 层双控制, so there is now one
+  // `changeGlassIntensity` that writes the step *and* both opacity fields
+  // together, and neither of the old separate mutators survives. The CSS model
+  // above is still orthogonal — the unification is a UI-layer decision, not a
+  // re-coupling of the material formulas.
   const hook = await read("src/hooks/useSettings.ts");
-  assert.match(hook, /const changeOpacity = useCallback/, "the transparency mutator must exist");
-  assert.match(hook, /const changeGlassStep = useCallback/, "the step mutator must exist");
-  const opacityBody = hook.slice(hook.indexOf("const changeOpacity = useCallback"));
-  const opacityFn = opacityBody.slice(0, opacityBody.indexOf("const changeGlassStep"));
+  assert.match(hook, /const changeGlassIntensity = useCallback/, "the unified intensity mutator must exist");
+  const intensityBody = hook.slice(hook.indexOf("const changeGlassIntensity = useCallback"));
+  const intensityFn = intensityBody.slice(0, intensityBody.indexOf("const changeFontSize"));
+  for (const field of ["glass_step", "main_opacity", "terminal_opacity"]) {
+    assert.match(
+      intensityFn,
+      new RegExp(field),
+      `the intensity mutator must write ${field} — a stop is one (step, tint) pair`,
+    );
+  }
+  // The R8 split mutators are gone: no separate opacity slider path and no
+  // step-only path may linger beside the unified control.
   assert.ok(
-    !/glass_step/.test(opacityFn),
-    "the transparency mutator must not touch glass_step — the two controls are independent",
+    !/const changeOpacity = useCallback/.test(hook),
+    "the R8 opacity mutator must be gone — GLASS-UNIFY removed the transparency slider",
   );
-  const stepBody = hook.slice(hook.indexOf("const changeGlassStep = useCallback"));
-  const stepFn = stepBody.slice(0, stepBody.indexOf("const changeFontSize"));
   assert.ok(
-    !/main_opacity|terminal_opacity/.test(stepFn),
-    "the step mutator must not touch either transparency value",
+    !/const changeGlassStep = useCallback/.test(hook),
+    "the R8 step-only mutator must be gone — the step is now written through the intensity control",
   );
 });
 
