@@ -450,8 +450,6 @@ struct HelpProbeRecordView {
     #[serde(default)]
     probed_at: u64,
     #[serde(default)]
-    subcommands: Vec<serde_json::Value>,
-    #[serde(default)]
     command_count: Option<usize>,
     #[serde(default)]
     previous_command_count: Option<usize>,
@@ -476,12 +474,13 @@ pub fn read_help_probe_record(package_root: &Path) -> Option<HelpProbeSummary> {
     let record: HelpProbeRecordView = serde_json::from_slice(&bytes).ok()?;
     Some(HelpProbeSummary {
         probed_at: record.probed_at,
-        // Older records predate `commandCount`; their subcommand list still
-        // implies a total (root + subcommands), so the drawer can show a real
-        // number instead of "unknown" for an integration that was probed.
-        command_count: record
-            .command_count
-            .or_else(|| (!record.subcommands.is_empty()).then_some(record.subcommands.len() + 1)),
+        // Older records predate `commandCount`, and their subcommand list does
+        // *not* reconstruct the real total: same-named-as-root subcommands are
+        // skipped by `derived_descriptor_commands`, aliases are not commands,
+        // and the root itself may or may not be counted. Any number inferred
+        // here would be fabricated, so the field stays `None` and the drawer
+        // paints its unknown state — "Unknown stays unknown".
+        command_count: record.command_count,
         previous_command_count: record.previous_command_count,
     })
 }
@@ -492,10 +491,11 @@ fn write_help_probe_sidecar(
     command_count: usize,
 ) -> Result<(), String> {
     // A re-probe compares against what the *previous* sidecar recorded: the
-    // count it was written with, or — for a record written before that field
-    // existed — its subcommand list. A first probe has nothing to compare to,
-    // so `previousCommandCount` stays absent and the drawer says "unknown"
-    // rather than inventing a delta against a number nobody ever saw.
+    // count it was written with. A first probe — or a previous record written
+    // before that field existed, whose count cannot be recovered — has nothing
+    // to compare to, so `previousCommandCount` stays absent and the drawer
+    // says "unknown" rather than inventing a delta against a number nobody
+    // ever saw.
     let previous_command_count = read_help_probe_record(package_root).and_then(|p| p.command_count);
     let record = HelpProbeRecord {
         probed_at: unix_now(),
@@ -5864,11 +5864,13 @@ mod tests {
         assert!(second.probed_at >= first.probed_at);
     }
 
-    /// R7-7: a sidecar written before `commandCount` existed still yields a
-    /// usable count (root + subcommands) so the drawer shows a number instead of
-    /// "unknown" for an integration that was genuinely probed.
+    /// R7-7 · NIT-1: a sidecar written before `commandCount` existed reports an
+    /// unknown count, never an inferred one. The subcommand list cannot
+    /// reconstruct the real total (same-named-as-root entries are skipped,
+    /// aliases are not commands), so `commandCount` must stay `None` while the
+    /// genuinely-recorded timestamp is still read out.
     #[test]
-    fn an_older_sidecar_without_a_command_count_still_reads() {
+    fn an_older_sidecar_without_a_command_count_reports_unknown() {
         let directory = tempfile::tempdir().unwrap();
         std::fs::write(
             directory.path().join("help-probe.json"),
@@ -5884,8 +5886,11 @@ mod tests {
         )
         .unwrap();
         let summary = super::read_help_probe_record(directory.path()).expect("reads");
-        assert_eq!(summary.probed_at, 1_700_000_000);
-        assert_eq!(summary.command_count, Some(3), "root plus two subcommands");
+        assert_eq!(summary.probed_at, 1_700_000_000, "the timestamp is real");
+        assert_eq!(
+            summary.command_count, None,
+            "an old record's count is unknown, not inferred"
+        );
         assert_eq!(summary.previous_command_count, None);
 
         // A missing or corrupt sidecar is `None`, never a zeroed record: the
@@ -5893,6 +5898,35 @@ mod tests {
         assert!(super::read_help_probe_record(&directory.path().join("nope")).is_none());
         std::fs::write(directory.path().join("help-probe.json"), "not json").unwrap();
         assert!(super::read_help_probe_record(directory.path()).is_none());
+    }
+
+    /// R7-7 · NIT-1 regression: an old-format sidecar whose subcommand is named
+    /// exactly like the root command id used to be counted as two commands by
+    /// the removed `len() + 1` inference — but the real derivation skips such a
+    /// subcommand, so the true total is one. The count must be unknown rather
+    /// than fabricated.
+    #[test]
+    fn an_older_sidecar_with_a_root_named_subcommand_reports_unknown() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            directory.path().join("help-probe.json"),
+            r#"{
+  "probedAt": 1700000001,
+  "rootArgumentCount": 2,
+  "subcommands": [
+    { "name": "drifter", "aliases": [], "argumentCount": 0 }
+  ]
+}
+"#,
+        )
+        .unwrap();
+        let summary = super::read_help_probe_record(directory.path()).expect("reads");
+        assert_eq!(summary.probed_at, 1_700_000_001);
+        assert_eq!(
+            summary.command_count, None,
+            "a root-named subcommand makes the old inference wrong (2 vs 1), so it must be unknown"
+        );
+        assert_eq!(summary.previous_command_count, None);
     }
 
     /// R7-7 · the one-shot notice: a drift re-probe that *changed* the command
