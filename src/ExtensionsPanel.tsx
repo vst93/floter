@@ -428,6 +428,14 @@ type ExtensionsPanelProps = {
   /** Push a toast onto the app-level stack (rendered by App outside any scroll
    * container, so feedback stays visible wherever the user scrolled to). */
   onNotify: (kind: "error" | "success", text: string) => void;
+  /** A validated `floter://connect` request. The backend has already checked
+   * the manifest's path and structure; the panel turns it into the *same*
+   * review dialog the file picker opens, so a link can never install, approve
+   * or enable anything on its own. `null` once it has been consumed. */
+  pendingDeepLink: { manifestPath: string; extensionName: string; source: string } | null;
+  /** Report the hand-off as done so the request is not re-opened on a later
+   * render. */
+  onDeepLinkConsumed: () => void;
 };
 
 export type BasePluginRow = {
@@ -499,7 +507,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin, onNotify }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin, onNotify, pendingDeepLink, onDeepLinkConsumed }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1044,21 +1052,48 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     try {
       const manifestPath = await invoke<string | null>("extensions_pick_local_package");
       if (!manifestPath) return;
-      const request: InstallRequest = {
-        source: "linked",
-        package: null,
-        version: null,
-        manifestPath,
-        executablePath: null,
-      };
-      const details = await invoke<{ extensionName: string; runtime: string; platforms: string[]; source: string; permissions: PermissionReview }>("extensions_local_manifest_review", { manifestPath, locale });
-      setPendingLocal({ review: details.permissions, request, name: details.extensionName, runtime: details.runtime, platforms: details.platforms, source: details.source });
+      await reviewLocalManifest(manifestPath);
     } catch (nextError) {
       showError(errorMessage(nextError));
     } finally {
       setBusy(null);
     }
   };
+
+  /** Turn a manifest path into the review dialog. One function, two callers:
+   * the file picker above, and a validated `floter://connect` request. A deep
+   * link therefore reaches exactly the dialog a manual pick reaches — the
+   * permission tiers and the boundary note included — and never anything
+   * further. */
+  const reviewLocalManifest = async (manifestPath: string) => {
+    const request: InstallRequest = {
+      source: "linked",
+      package: null,
+      version: null,
+      manifestPath,
+      executablePath: null,
+    };
+    const details = await invoke<{ extensionName: string; runtime: string; platforms: string[]; source: string; permissions: PermissionReview }>("extensions_local_manifest_review", { manifestPath, locale });
+    setPendingLocal({ review: details.permissions, request, name: details.extensionName, runtime: details.runtime, platforms: details.platforms, source: details.source });
+  };
+
+  // A `floter://connect` request opens the review dialog. Deliberately *not* a
+  // silent install: the only button that can install is the dialog's own
+  // Connect, which runs `extensions_install` and therefore leaves the ordinary
+  // approval record (`approvedPermissions` / `approvedAt` /
+  // `approvedManifestDigest`).
+  useEffect(() => {
+    if (!pendingDeepLink || busyRef.current) return;
+    onDeepLinkConsumed();
+    setBusy({ id: "deep-link", kind: "install" });
+    void reviewLocalManifest(pendingDeepLink.manifestPath)
+      .catch((nextError) => showError(localErrorMessage(nextError, t)))
+      .finally(() => setBusy(null));
+    // The request is a one-shot hand-off; the callbacks are stable for the
+    // panel's lifetime and re-running on a language change would re-open a
+    // dialog the user may have just closed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDeepLink]);
 
   const confirmLocal = async () => {
     if (!pendingLocal || busyRef.current) return;

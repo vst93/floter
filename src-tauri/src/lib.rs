@@ -1,6 +1,7 @@
 #[cfg(feature = "clipboard-history")]
 mod clipboard_history;
 mod commands;
+pub mod deep_link;
 pub mod extensions;
 #[cfg(target_os = "linux")]
 pub mod ipc;
@@ -116,6 +117,11 @@ struct AppState {
     /// A plugin page requested by the launch arguments (`floter clip` on a
     /// cold start), consumed once by the frontend once its listeners are up.
     pending_plugin_open: Mutex<Option<String>>,
+    /// A manifest-connect request that arrived over the `floter://` scheme.
+    /// Stored as well as emitted: a cold start dispatches before the webview
+    /// has mounted its listeners, and the frontend consumes the slot once it
+    /// is ready (the same contract `pending_plugin_open` uses).
+    pending_deep_link: Mutex<Option<deep_link::ConnectRequest>>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
     /// no cursor position at all, so remembering where the panel was dismissed
@@ -1172,27 +1178,44 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     linux_render::prepare(std::env::args_os());
 
-    let builder = tauri::Builder::default().plugin(tauri_plugin_single_instance::init(
-        |app, arguments, _working_directory| {
-            if arguments.iter().any(|argument| argument == "--background") {
-                return;
-            }
-            // `floter clip` against a running instance opens the clipboard
-            // page in place of the plain reveal.
-            let wants_clip = arguments.iter().any(|argument| argument == "clip");
-            let handle = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if wants_clip {
-                    plugin_pages::open_plugin_page(&handle, plugin_pages::CLIPBOARD_PLUGIN_ID);
+    // The deep-link plugin must be registered before single-instance so that a
+    // forwarded second-instance argument can be routed through the same
+    // `floter://` parser the OS-delivered links use.
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_single_instance::init(
+            |app, arguments, _working_directory| {
+                if arguments.iter().any(|argument| argument == "--background") {
                     return;
                 }
-                if let Some(window) = handle.get_webview_window("main") {
-                    let state = handle.state::<AppState>();
-                    let _ = reveal_saved_mode(&window, &state);
-                }
-            });
-        },
-    ));
+                // `floter clip` against a running instance opens the clipboard
+                // page in place of the plain reveal.
+                let wants_clip = arguments.iter().any(|argument| argument == "clip");
+                // Any other external trigger is normalized to its `floter://`
+                // URL and routed by the one parser (see `deep_link`). The CLI
+                // spelling and the OS-delivered link therefore cannot diverge.
+                let link = if wants_clip {
+                    None
+                } else {
+                    deep_link::canonical_argument(&arguments)
+                };
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    if wants_clip {
+                        plugin_pages::open_plugin_page(&handle, plugin_pages::CLIPBOARD_PLUGIN_ID);
+                        return;
+                    }
+                    if let Some(url) = link {
+                        deep_link::dispatch_url(&handle, &url, deep_link::Delivery::Live);
+                        return;
+                    }
+                    if let Some(window) = handle.get_webview_window("main") {
+                        let state = handle.state::<AppState>();
+                        let _ = reveal_saved_mode(&window, &state);
+                    }
+                });
+            },
+        ));
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
@@ -1211,6 +1234,7 @@ pub fn run() {
             toggle_shortcut: Mutex::new(String::new()),
             clipboard_shortcut: Mutex::new(String::new()),
             pending_plugin_open: Mutex::new(None),
+            pending_deep_link: Mutex::new(None),
             last_monitor: Mutex::new(None),
         });
     #[cfg(feature = "clipboard-history")]
@@ -1226,9 +1250,24 @@ pub fn run() {
                     *slot = Some(plugin_pages::CLIPBOARD_PLUGIN_ID.to_string());
                 }
             }
+            // A cold start triggered by the scheme (or by its CLI spelling)
+            // runs the very same router a live link does; the resolved request
+            // is stored because the webview's listeners do not exist yet.
+            //
+            // Order matters: `connect` reads `ExtensionState` (to stage a
+            // remote manifest and to read the cache directory), so the state
+            // has to be managed before the router runs. `open` needs nothing
+            // but the window.
+            let cold_start =
+                deep_link::canonical_argument(&std::env::args().collect::<Vec<_>>());
             let extension_state = ExtensionState::new().map_err(std::io::Error::other)?;
             let _ = extension_state.app_handle.set(app.app_handle().clone());
             app.manage(extension_state);
+            if let Some(url) = cold_start {
+                deep_link::dispatch_url(app.handle(), &url, deep_link::Delivery::ColdStart);
+            }
+            deep_link::register_scheme(app.handle());
+            deep_link::listen_for_url_events(app.handle());
             // floter is tray-resident, and the non-activating NSPanel must not
             // promote the process or switch away from another app's fullscreen
             // Space when it takes key focus.
@@ -1431,6 +1470,7 @@ pub fn run() {
             plugin_pages::plugin_page_descriptor,
             plugin_pages::builtin_plugins_list,
             plugin_pages::take_pending_plugin_page,
+            deep_link::take_pending_deep_link,
             hide_window,
             quit_app,
             show_input,

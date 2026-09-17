@@ -1,4 +1,5 @@
 import type { Translate } from "../i18n";
+import { DeepLinkRow } from "./DeepLinkRow";
 
 const formatBytes = (bytes: number): string => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -16,6 +17,9 @@ type AboutPageProps = {
   updateProgress: { downloaded: number; total: number } | null;
   updateFailed: boolean;
   onDownloadUpdate: () => void;
+  /** Feedback for the deep-link row's copy button; the toast stack is owned by
+   *  `App`, so the page reports the event rather than painting its own. */
+  onCopiedLink: (message: string) => void;
 };
 
 /** The about settings page: current version plus the updater banner. All
@@ -28,6 +32,7 @@ export function AboutPage({
   updateProgress,
   updateFailed,
   onDownloadUpdate,
+  onCopiedLink,
 }: AboutPageProps) {
   const updatePercent =
     updateProgress && updateProgress.total > 0
@@ -84,6 +89,10 @@ export function AboutPage({
           </button>
         ) : null}
       </div>
+      {/* The scheme is the app's only externally reachable surface, and it is
+          silent by design — this row is where a user can find out it exists
+          and copy the one form worth copying. */}
+      <DeepLinkRow t={t} onCopied={onCopiedLink} />
     </section>
   );
 }

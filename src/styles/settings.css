@@ -1147,6 +1147,63 @@
   letter-spacing: 0.02em;
 }
 
+/* ── Deep link row (R7-9b) ───────────────────────────────────────────────
+   The About page's second section. It reuses the section primitive
+   (`.settings-section` + `__heading` + `__label` + `__hint`) and the control
+   ladder for its one button, so it adds no new material and no new accent
+   fill: the value line is a recess (`--surface-sunken`), the button is the
+   neutral raised control. */
+.settings-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-sm);
+  background: var(--glass-control);
+  color: var(--text-secondary);
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--elev-0);
+  transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) ease;
+}
+
+@media (hover: hover) {
+
+.settings-copy-button:hover {
+  background: var(--glass-control-hover);
+  color: var(--text-strong);
+}
+}
+
+.settings-copy-button:active {
+  transform: scale(0.96);
+  background: var(--glass-control-press);
+}
+
+.settings-copy-button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* The example is a value to read and copy, not prose: it sits in the content
+   recess the settings body already uses, and it wraps rather than scrolling
+   sideways, because a path is the part the reader has to substitute. */
+.settings-deep-link__value {
+  display: block;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  border: 1px solid var(--glass-control-edge);
+  color: var(--text-secondary);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: var(--text-caption);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 /* ── Update banner ─────────────────────────────────────────────────────── */
 
 /* In-flow banner inside the About section, the section's only child: when it

@@ -46,9 +46,16 @@ import {
 } from "./terminal/keys";
 import {
   createTranslator,
+  isMessageKey,
   normalizeLanguage,
   type Language,
 } from "./i18n";
+import {
+  DEEP_LINK_CONNECT_EVENT,
+  DEEP_LINK_REJECT_EVENT,
+  deepLinkRejectGate,
+  type DeepLinkConnectRequest,
+} from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
 import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
@@ -243,6 +250,10 @@ export default function App() {
   const updateBusy = useRef(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number } | null>(null);
   const [updateFailed, setUpdateFailed] = useState(false);
+  /** A validated `floter://connect` request, waiting for the integrations
+   *  panel to turn it into a review dialog. The backend already checked the
+   *  path and the manifest structure; this is only the hand-off. */
+  const [pendingDeepLink, setPendingDeepLink] = useState<DeepLinkConnectRequest | null>(null);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
 
@@ -290,6 +301,10 @@ export default function App() {
 
   const language = normalizeLanguage(settings.language);
   const t = useMemo(() => createTranslator(language), [language]);
+  /** Mirror of the translator for listeners registered once: they must see the
+   *  current language without re-subscribing (see the deep-link effect). */
+  const tRef = useRef(t);
+  tRef.current = t;
   const sessionDateFormatter = useMemo(
     () => new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", {
       dateStyle: "medium",
@@ -1129,6 +1144,49 @@ export default function App() {
     };
   }, []);
 
+  // The `floter://` scheme's two outcomes. The backend owns the allow-list and
+  // the validation; here a *validated* connect request becomes the review
+  // dialog, and a refusal becomes one toast. Neither path installs anything:
+  // the dialog's Connect button runs the ordinary `extensions_install`, so a
+  // link can never approve or enable on the user's behalf.
+  useEffect(() => {
+    const openReview = (request: DeepLinkConnectRequest) => {
+      setPendingDeepLink(request);
+      openSettings("integrations");
+    };
+    const unlistenConnectPromise = listen<DeepLinkConnectRequest>(
+      DEEP_LINK_CONNECT_EVENT,
+      (event) => openReview(event.payload),
+    );
+    // A refusal is externally triggered and may repeat (a page retrying a
+    // broken link, a shell loop), so it rides the app's existing 30s failure
+    // deduper — the same gate the clipboard page's background poll uses.
+    const unlistenRejectPromise = listen<string>(DEEP_LINK_REJECT_EVENT, (event) => {
+      const key = event.payload;
+      // The backend sends a dictionary key, never a sentence: unknown keys are
+      // dropped rather than painted, exactly like the plugin-page bridge.
+      if (!isMessageKey(key)) return;
+      if (!deepLinkRejectGate.allow(key)) return;
+      notify("error", tRef.current(key));
+    });
+    // A cold start (`floter connect …` with nothing listening) dispatches
+    // before this listener exists, so the backend stores the request and it is
+    // consumed once, here.
+    invoke<DeepLinkConnectRequest | null>("take_pending_deep_link")
+      .then((pending) => {
+        if (pending) openReview(pending);
+      })
+      .catch(() => undefined);
+    return () => {
+      unlistenConnectPromise.then((unlisten) => unlisten());
+      unlistenRejectPromise.then((unlisten) => unlisten());
+    };
+    // `openSettings` and `notify` are stable app-lifetime callbacks; the
+    // translator is read through a ref so a language change never has to
+    // re-subscribe the listeners (a re-subscription window is a dropped link).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // While the card owns the keyboard, any press outside it hands focus back
   // to the main surface (Escape is handled in the keydown path).
   useEffect(() => {
@@ -1505,6 +1563,8 @@ export default function App() {
                   changeGeneralSetting("clipboard_history_enabled", enabled);
                 }}
                 onNotify={notify}
+                pendingDeepLink={pendingDeepLink}
+                onDeepLinkConsumed={() => setPendingDeepLink(null)}
               />
               )}
 
@@ -1517,6 +1577,7 @@ export default function App() {
                 updateProgress={updateProgress}
                 updateFailed={updateFailed}
                 onDownloadUpdate={downloadAndInstallUpdate}
+                onCopiedLink={(message) => notify("success", message)}
               />
               )}
               </main>

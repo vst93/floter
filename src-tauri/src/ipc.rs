@@ -73,6 +73,59 @@ pub fn send_clip() -> Result<(), String> {
     send_command_to(&socket_path(), "clip")
 }
 
+/// Forward an external trigger (`floter://…`) to the running instance.
+///
+/// The URL is percent-encoded so the newline-delimited protocol stays one
+/// command per line: a raw URL may not contain a newline, but a hand-typed
+/// argument can, and the receiver must never see two commands where the sender
+/// wrote one.
+pub fn send_deep_link(url: &str) -> Result<(), String> {
+    send_command_to(&socket_path(), &format!("link {}", encode_link(url)))
+}
+
+/// Percent-encode everything outside the URL's own safe set, **including the
+/// percent sign itself**, so `decode_link` is the exact inverse. Encoding `%`
+/// is what keeps an already-percent-encoded query (`?manifest=%2Fhome%2F…`)
+/// from being decoded twice on the way through the socket.
+fn encode_link(url: &str) -> String {
+    let mut encoded = String::with_capacity(url.len());
+    for byte in url.bytes() {
+        if byte.is_ascii_alphanumeric()
+            || matches!(
+                byte,
+                b'-' | b'.' | b'_' | b'~' | b':' | b'/' | b'?' | b'=' | b'&'
+            )
+        {
+            encoded.push(byte as char);
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    encoded
+}
+
+/// The inverse of [`encode_link`]. An unknown escape is left verbatim rather
+/// than dropped, so a malformed line fails at the URL parser (one refusal
+/// path) instead of here.
+fn decode_link(encoded: &str) -> String {
+    let bytes = encoded.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[index + 1..index + 3]).unwrap_or("");
+            if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                decoded.push(byte);
+                index += 3;
+                continue;
+            }
+        }
+        decoded.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
+}
+
 fn send_command_to(path: &Path, command: &str) -> Result<(), String> {
     let mut stream = UnixStream::connect(path).map_err(|error| {
         format!(
@@ -154,6 +207,16 @@ fn serve_connection(app: &AppHandle, stream: UnixStream) {
     for line in reader.lines().map_while(Result::ok) {
         let command = line.trim();
         if command == "ping" {
+            continue;
+        }
+        // An external trigger arrives as one `link <url>` line and is routed
+        // by the same `deep_link` parser a live OS delivery uses.
+        if let Some(encoded) = command.strip_prefix("link ") {
+            let url = decode_link(encoded.trim());
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                crate::deep_link::dispatch_url(&handle, &url, crate::deep_link::Delivery::Live);
+            });
             continue;
         }
         if command != "toggle" && command != "show" && command != "clip" {
@@ -240,6 +303,47 @@ mod tests {
         assert!(!wants_clip(args(&["floter", "--toggle"])));
         // The program name is not a subcommand.
         assert!(!wants_clip(args(&["clip"])));
+    }
+
+    #[test]
+    fn link_lines_round_trip_through_the_socket_encoding() {
+        for url in [
+            "floter://open",
+            "floter://connect?manifest=/opt/tools/tool.json",
+            "floter://connect?manifest=https%3A%2F%2Fexample.com%2Ftool.json",
+            "floter://connect?manifest=/home/u/with space.json",
+        ] {
+            assert_eq!(decode_link(&encode_link(url)), url, "{url} must round-trip");
+        }
+        // The encoded form never contains a newline, so one trigger is always
+        // exactly one protocol line.
+        assert!(!encode_link("floter://connect?manifest=/a/\nb.json").contains('\n'));
+    }
+
+    #[test]
+    fn a_link_line_reaches_the_router() {
+        // The decoder is the only transform between the wire and the parser;
+        // an unknown escape survives it so the parser is what refuses.
+        assert_eq!(decode_link("floter://open"), "floter://open");
+        assert_eq!(decode_link("floter://open%zz"), "floter://open%zz");
+        assert!(crate::deep_link::parse_url(&decode_link(&encode_link("floter://open"))).is_ok());
+    }
+
+    #[test]
+    fn the_socket_encoding_does_not_double_decode_the_query() {
+        // `%2F` in the query must survive the socket hop as `%2F`: decoding it
+        // here would hand the parser a different URL than the sender wrote.
+        let url = "floter://connect?manifest=https%3A%2F%2Fexample.com%2Ftool.json";
+        let wire = encode_link(url);
+        assert!(
+            wire.contains("%253A"),
+            "the percent sign itself must be encoded"
+        );
+        assert_eq!(decode_link(&wire), url);
+        assert_eq!(
+            crate::deep_link::parse_url(&decode_link(&wire)),
+            crate::deep_link::parse_url(url)
+        );
     }
 
     #[test]

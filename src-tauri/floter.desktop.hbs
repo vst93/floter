@@ -1,0 +1,19 @@
+[Desktop Entry]
+Categories={{categories}}
+{{#if comment}}
+Comment={{comment}}
+{{/if}}
+# `%u` is what makes the `floter://` scheme usable from the installed package:
+# the desktop launcher hands the clicked URL to this process as its argument,
+# and without the field placeholder the URL is dropped before `argv` is built.
+# tauri-bundler's default template only appends it for a bare `Exec`, so the
+# deep-link `MimeType` below would be advertised while delivery silently failed.
+Exec={{exec}} %u
+StartupWMClass={{exec}}
+Icon={{icon}}
+Name={{name}}
+Terminal=false
+Type=Application
+{{#if mime_type}}
+MimeType={{mime_type}}
+{{/if}}

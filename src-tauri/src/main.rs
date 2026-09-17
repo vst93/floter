@@ -33,6 +33,20 @@ fn main() {
         return;
     }
 
+    // An external trigger (`floter open`, `floter connect …`, or the
+    // `floter://…` URL the desktop file hands over) is normalized to its URL
+    // and forwarded to the running instance over the control socket, exactly
+    // like `--toggle` and `clip`. No second parser: the normalization and the
+    // routing both live in `deep_link`.
+    #[cfg(target_os = "linux")]
+    if let Some(url) = floter_lib::deep_link::canonical_argument(&arguments) {
+        if floter_lib::ipc::send_deep_link(&url).is_ok() {
+            return;
+        }
+        // Nobody is listening: this process is the cold start and the setup
+        // hook below dispatches the same URL itself.
+    }
+
     // Avoid initializing GTK/WebKit in an ordinary second Linux process. The
     // single-instance plugin below remains the race-safe fallback while the
     // first process is still creating its socket.
