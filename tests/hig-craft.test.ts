@@ -28,9 +28,13 @@ const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 // The host sheets this round owns. `src/extensions/ComponentizedUninstallDialog.css`
 // is a page-boundary file (R7-4): it predates the radius/type ladders and still
 // carries their literals, so the *drift* scans (radius, type, focus) skip it.
-// It is NOT skipped by the structural scans that matter here — the elevation
-// wiring and the reduce-motion scan both read `HOST_DIRS` directly, which is
-// what the reviewer's "scans every host sheet" finding was about. The clipboard
+// Its radius exemption is the same one as its type-ramp exemption (re-confirmed
+// by the R7-8 review and again by ROUND-PASS): the file's 8px literal is a
+// component-private surface, and both a radius raise and a pill pass would be
+// a change to a boundary this round does not own. It is NOT skipped by the
+// structural scans that matter here — the elevation wiring and the
+// reduce-motion scan both read `HOST_DIRS` directly, which is what the
+// reviewer's "scans every host sheet" finding was about. The clipboard
 // plugin page is outside all of them (R7-4's page boundary).
 const OUT_OF_SCOPE = new Set([
   "src/extensions/ComponentizedUninstallDialog.css",
@@ -130,8 +134,12 @@ test("the radius ladder is four named steps, and the window is its top step", as
   for (let i = 1; i < px.length; i += 1) {
     assert.ok(px[i] > px[i - 1], `the radius ladder must ascend: ${px[i - 1]} -> ${px[i]}`);
   }
+  // ROUND-PASS raised the ladder by 2-4px per step (4/6/8/10 → 6/9/12/14). The
+  // assertion is on the *values*, not on a shape: a later round may retune
+  // them, but it has to say so here rather than drift one call site at a time.
+  assert.deepEqual(px, [6, 9, 12, 14], "the ladder is the ROUND-PASS ladder");
   // The window radius is the ladder's top step rather than a tenth literal.
-  assert.equal(token(rootBlock, "window-radius"), "10px");
+  assert.equal(token(rootBlock, "window-radius"), "14px");
   assert.equal(steps[3], token(rootBlock, "window-radius"), "--radius-lg must be the window radius");
   // The extensions panel's private alias points into the ladder rather than
   // carrying its own 6px, so its 30 call sites follow the system.

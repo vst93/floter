@@ -264,7 +264,9 @@
   gap: 6px;
   padding: 4px 9px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: var(--radius-sm);
+  /* ROUND-PASS: a standalone action button floats on the alert, so it is a
+     pill — the same shape language as the update banner's button. */
+  border-radius: 999px;
   background: var(--glass-control);
   color: var(--text-primary);
   cursor: pointer;
@@ -484,7 +486,10 @@
   height: 30px;
   padding: 0 26px 0 8px;
   border: 1px solid var(--glass-control-edge);
-  border-radius: var(--radius-sm);
+  /* ROUND-PASS: a standalone field is a pill. A single-line field has no
+     content that needs a straight edge, and the stadium is what makes it read
+     as the same family as the buttons beside it. */
+  border-radius: 999px;
   background: var(--glass-field);
   color: var(--text-primary);
   font: inherit;
@@ -510,7 +515,12 @@
   grid-auto-flow: column;
   gap: 2px;
   padding: 3px;
-  border-radius: var(--radius-md);
+  /* ROUND-PASS: a segmented control is a stadium, not a rounded box. Both the
+     track and the segment inside it take the pill, which is the one case
+     where the concentric rule survives without arithmetic — outer and inner
+     are the same shape, and the 3px padding reads as the inset that separates
+     them. This is the iOS segmented control, drawn with one radius. */
+  border-radius: 999px;
   background: var(--glass-track);
   box-shadow: var(--elev-track);
 }
@@ -523,9 +533,13 @@
   align-items: center;
   gap: 10px;
   padding: 0 10px;
-  /* Concentric with the track it sits in: the track is --radius-md (8px) with
-     3px of padding, so the segment's own radius is 8 − 3 = 5px rather than
-     the same 8px rounded a second time. */
+  /* ROUND-PASS: the default shape stays the ladder's control step. The pill
+     below is applied *by the track* (`.settings-options--inline
+     .settings-option`), because "is a pill" is a property of being a segment
+     in a segmented control, not of being an option: `.settings-option` is
+     also reused for a full-width switch row
+     (`.extensions-panel__search-toggle`) and for table rows
+     (`.settings-option--static`), and neither should inherit a stadium. */
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
@@ -546,6 +560,13 @@
   transform: scale(0.997);
   background: var(--glass-control-press);
   box-shadow: none;
+}
+
+/* ROUND-PASS: the segment inside the pill track is a pill too — one stadium
+   inside another. This is the iOS segmented control, and scoping it here is
+   what keeps the bare `.settings-option` reusable as a row. */
+.settings-options--inline .settings-option {
+  border-radius: 999px;
 }
 
 /* The chosen option is a raised pane inside the track: the shared top rim plus
@@ -591,7 +612,11 @@
   line-height: 1.15;
 }
 
-/* Shortcut rows form one dense table instead of a stack of cards. */
+/* Shortcut rows form one dense table instead of a stack of cards. The zero
+   radius is deliberate and stays: these are *table rows*, separated by a
+   hairline, and a corner on a row that touches its neighbours on both sides
+   would read as a floating card that forgot its shadow. (It is also one of
+   the three literals the radius scan allows: 0, 50% and 999px.) */
 .settings-option--static {
   min-height: 43px;
   padding: 5px 2px;
@@ -632,14 +657,17 @@
 
 /* The switch track is a groove the user looks into: it takes the track
    material (a touch more body than a resting pane) and an inner shadow, so an
-   "off" switch reads as a recess in the glass and an "on" one as a lit slot. */
+   "off" switch reads as a recess in the glass and an "on" one as a lit slot.
+   ROUND-PASS: the track is 20px tall, so the ladder's top step (14px) still
+   leaves visible shoulders — a switch is a pill, and the thumb is a circle
+   inside it. */
 .settings-switch {
   position: relative;
   flex: 0 0 auto;
   width: 34px;
   height: 20px;
   padding: 0;
-  border-radius: var(--radius-lg);
+  border-radius: 999px;
   background: var(--glass-track);
   box-shadow: var(--elev-track);
   cursor: pointer;
@@ -837,7 +865,9 @@
   align-items: center;
   padding: 0 9px;
   border: 1px solid var(--text-warning);
-  border-radius: var(--radius-sm);
+  /* ROUND-PASS: a 28px standalone text button, so it is a pill like every
+     other action button — the icon buttons beside it stay on the ladder. */
+  border-radius: 999px;
   background: var(--glass-raised-warm);
   box-shadow: var(--glass-raised-shadow);
   color: var(--text-warning);
@@ -1140,7 +1170,9 @@
   flex: 0 0 auto;
   padding: 6px 14px;
   border: none;
-  border-radius: var(--radius-sm);
+  /* ROUND-PASS: the banner's primary action — the one thing on it the user
+     presses — is a pill. */
+  border-radius: 999px;
   background: var(--accent);
   color: var(--accent-contrast);
   font-size: var(--text-emphasis);

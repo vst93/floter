@@ -280,7 +280,10 @@
   /* 28x22 -> 28x28: the desktop default hit region is 28x28pt
      (`accessibility.md › Mobility`), and the 28px bar has the height to give.
      The icon inside stays 15-16px, so the button still reads as small while
-     the target stops being the smallest thing on screen. */
+     the target stops being the smallest thing on screen.
+     ROUND-PASS exception: it clears the 28px pill threshold but is a
+     transparent icon-only button sitting inside the terminal bar, not a
+     floating control — pill-ing it would round nothing visible. */
   width: 28px;
   min-width: 28px;
   height: 28px;
@@ -462,13 +465,17 @@
    against both the dark and the light variable set. Counts sit beside each
    label in small tabular numerals. Tabs switch directly via Left/Right or
    1/2 anywhere in the panel — the buttons themselves are plain click targets,
-   no roving focus. */
+   no roving focus.
+   ROUND-PASS: this host-side mirror is pill-shaped so the host sheet stays in
+   step with the settings pickers. The live plugin page ships its own page.css
+   and does NOT load this sheet — its tabs still render at the page's own
+   radii; that gap is a known, recorded divergence, not a regression. */
 .clipboard-panel__tabs {
   flex: 0 0 auto;
   display: flex;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   background: var(--glass-track);
   box-shadow: var(--elev-track);
 }
@@ -479,8 +486,9 @@
   gap: 6px;
   padding: 3px 10px;
   border: none;
-  /* Concentric with the track: --radius-md (8px) minus its 2px padding. */
-  border-radius: var(--radius-sm);
+  /* ROUND-PASS: the slot is a pill inside the pill track (see the track rule
+     above) — a stadium in a stadium, not a concentric pair of corners. */
+  border-radius: 999px;
   background: transparent;
   color: var(--text-tertiary);
   font: inherit;
@@ -762,6 +770,8 @@
   flex: 0 0 auto;
   padding: 1px 8px;
   border: 1px solid var(--glass-control-edge);
+  /* ROUND-PASS exception: ~22px tall, an inline footer action in the list
+     chrome rather than a standalone button. */
   border-radius: var(--radius-sm);
   background: var(--glass-control);
   color: var(--text-tertiary);
@@ -936,6 +946,9 @@
 .plugin-page-host__button {
   padding: 5px 12px;
   border: none;
+  /* ROUND-PASS exception: the button is ~23px tall, under the pill threshold,
+     and it is a retry affordance inside an error panel rather than a floating
+     control — the ladder step keeps it reading as part of that panel. */
   border-radius: var(--radius-sm);
   background: var(--glass-control);
   box-shadow: var(--elev-0);

@@ -85,6 +85,11 @@
   min-width: 0;
   min-height: 22px;
   border: none;
+  /* ROUND-PASS exception: the launcher's field is not a boxed input at all —
+     it is borderless text inside the card, and the card's own
+     --window-radius is the only visible shape. Giving it a pill would draw a
+     second edge inside the window's edge. (The boxed fields elsewhere —
+     settings' select, the extension forms — do take the pill.) */
   background: transparent;
   color: var(--text-primary);
   font-size: var(--text-display);
@@ -291,6 +296,9 @@
   justify-content: space-between;
   gap: 8px;
   padding: 4px 10px 4px 12px;
+  /* ROUND-PASS exception: a dismissible first-run callout is a message
+     surface, not a control, and its height is content-driven. It keeps the
+     ladder's control step (raised to 9px this round). */
   border-radius: var(--radius-sm);
   /* A first-run hint the user dismisses, not a primary action: the neutral
      raised pane with the accent keyline. HIG-2 takes it off the accent
@@ -494,6 +502,9 @@
   align-items: center;
   gap: 10px;
   padding: 0 9px 0 11px;
+  /* ROUND-PASS exception: a result row is content, not a control. It scrolls
+     with the list it belongs to, so it keeps the ladder's container step
+     (--radius-md, raised to 12px this round) rather than the pill. */
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
@@ -654,7 +665,13 @@
 /* The action bar: what the query does when it is not the name of anything
    installed. Deliberately the same metrics as a result row — it is selected with
    the same keys and run with the same Enter, so it should read as one more row
-   and not as a footer. */
+   and not as a footer.
+   ROUND-PASS exception: it is on the list, not over it. The user's rule is
+   "a control that floats on its own takes the pill; anything nested in a
+   container follows the container", and this row is nested in the result
+   field — the rule below deliberately squares its top corners so it welds to
+   the list above it. Pill-ing it would turn the last row of a list into a
+   floating stadium, which is exactly the reading that rule prevents. */
 .launcher-action-bar {
   position: relative;
   width: 100%;

@@ -940,7 +940,11 @@
   gap: var(--extensions-inline-gap);
   padding: 0 10px;
   border: var(--ext-border);
-  border-radius: var(--ext-radius);
+  /* ROUND-PASS: the panel's action button is a standalone pill. It is the
+     shared primary/secondary/danger button of every extension dialog, so this
+     one declaration re-shapes all of them; the 24px inline variant in the
+     discard bar overrides below. */
+  border-radius: 999px;
   background: var(--glass-control);
   box-shadow: var(--elev-0);
   color: var(--text-strong);
@@ -1436,8 +1440,8 @@
 .extension-custom-form { min-height: 0; padding: 12px 14px 0; display: grid; gap: 12px; overflow-y: auto; }
 .extension-custom-form__fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
 .extension-custom-form__error { margin: 10px 14px 0; overflow-wrap: anywhere; }
-.extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: var(--ext-radius); background: var(--glass-track); box-shadow: var(--elev-track); }
-.extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: var(--ext-radius); background: transparent; color: var(--text-strong); cursor: pointer; font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
+.extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 999px; background: var(--glass-track); box-shadow: var(--elev-track); }
+.extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: 999px; background: transparent; color: var(--text-strong); cursor: pointer; font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
 /* R8 readability: a raised selection pane carries the frame's primary text.
    The accent still marks the state through the edge and the rim, but its own
    contrast on the tint it produces is the weakest text on the page at the
@@ -1449,7 +1453,12 @@
 .extension-custom-form__wide { grid-column: 1 / -1; }
 .extension-custom-form input,
 .extension-custom-form select,
-.extension-custom-form textarea { width: 100%; min-width: 0; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-field); box-shadow: var(--glass-field-shadow); color: var(--text-primary); font: inherit; user-select: text; }
+.extension-custom-form textarea { width: 100%; min-width: 0; border: var(--ext-border); background: var(--glass-field); box-shadow: var(--glass-field-shadow); color: var(--text-primary); font: inherit; user-select: text; }
+/* ROUND-PASS: a single-line field in a floating form is a pill; the textarea
+   below is a multi-line content box and keeps the ladder step. */
+.extension-custom-form input,
+.extension-custom-form select { border-radius: 999px; }
+.extension-custom-form textarea { border-radius: var(--ext-radius); }
 .extension-custom-form input,
 .extension-custom-form select { min-height: var(--extensions-control-height); padding: 3px 7px; }
 .extension-custom-form textarea { min-height: 150px; padding: 8px; resize: vertical; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: var(--text-body); line-height: 1.45; }
@@ -1899,7 +1908,10 @@
   min-height: 28px;
   padding: 3px 7px;
   border: var(--ext-border);
-  border-radius: var(--ext-radius);
+  /* ROUND-PASS: the config form's single-line fields are pills; the multi-line
+     select override below goes back to the ladder step because it is a list
+     box, not a field. */
+  border-radius: 999px;
   background: var(--glass-field);
   box-shadow: var(--glass-field-shadow);
   color: var(--text-primary);
@@ -1909,6 +1921,7 @@
 
 .extension-config-field select[multiple] {
   min-height: 66px;
+  border-radius: var(--radius-sm);
 }
 
 .extension-config-field small {
@@ -1951,6 +1964,10 @@
   min-height: 24px;
   padding: 0 9px;
   font-size: var(--text-caption);
+  /* ROUND-PASS exception: 24px is under the 28px pill threshold — this is the
+     inline keep/discard pair sitting inside a notice bar, not a floating
+     control — so it keeps the ladder step. */
+  border-radius: var(--radius-xs);
 }
 
 @media (hover: none), (pointer: coarse) {

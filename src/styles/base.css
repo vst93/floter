@@ -23,27 +23,37 @@
      surface below. A `box-shadow` cast by a card that fills its own window has
      nowhere to land: it is clipped at the window edge, and what survives reads
      as a square outline around the rounded corners. */
-  --window-radius: 10px;
+  --window-radius: 14px;
 
-  /* ── Corner radius ladder (R7-HIG) ──────────────────────────────────────
-     Before this round the stylesheet carried nine unrelated literal radii
+  /* ── Corner radius ladder (R7-HIG, raised by ROUND-PASS) ────────────────
+     Before R7-HIG the stylesheet carried nine unrelated literal radii
      (2/3/4/5/6/7/8/10/999px) with no rule saying which belonged where. The
      ladder names the four jobs a radius actually does, and every surface
      picks the step that matches its nesting depth:
 
-       --radius-xs  4px   inside a small control (chip, badge, bar cap)
-       --radius-sm  6px   a control on a surface (button, input, row icon)
-       --radius-md  8px   a container holding controls (card, menu, dialog)
-       --radius-lg  10px the window / a full panel
+       --radius-xs  6px   inside a small control (chip, badge, bar cap)
+       --radius-sm  9px   a control on a surface (button, input, row icon)
+       --radius-md 12px   a container holding controls (card, menu, dialog)
+       --radius-lg 14px   the window / a full panel
 
      A control nested in a container keeps the concentric relation
-     outer = inner + padding, which is why the window's 10px is not reused
-     on the 6px button inside it. The steps are 2px apart so a nested pair
-     always reads as concentric rather than as one radius rounded twice. */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
+     outer = inner + padding, which is why the window's 14px is not reused
+     on the 9px button inside it. The steps stay 2-3px apart so a nested pair
+     always reads as concentric rather than as one radius rounded twice.
+
+     ROUND-PASS moved every step up (4/6/8/10 → 6/9/12/14). The user's
+     verdict was 「按钮组件等可以更圆润，贴近苹果风格」, and the fix is not
+     "bigger numbers everywhere" but a *shape language*: the ladder keeps its
+     four jobs and its concentric arithmetic, while the independent controls
+     that sit on top of it take the pill (999px) — a step the ladder cannot
+     express because a pill is not a corner, it is a stadium. So the layers
+     read as: pill for a control that floats on its own, ladder step for
+     anything nested in a container. Because every consumer reads a token,
+     the raise reached all 55 call sites without touching one of them. */
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
 
   /* ── Type scale (R7-HIG) ────────────────────────────────────────────────
      Four steps plus the launcher's display size, and every text rule in the
@@ -928,8 +938,10 @@ canvas {
 }
 
 ::-webkit-scrollbar-thumb {
-  /* A 6px track wants a pill; --radius-xs (4px) is the closest step and keeps
-     the ladder absolute rather than carving out a scrollbar exception. */
+  /* A 6px track wants a pill, and after ROUND-PASS --radius-xs *is* one:
+     the step and the half-height coincide, so the bar caps round without a
+     literal. (The old 4px step left square shoulders on a 6px bar — that
+     mismatch was the "closest step" hack this comment used to excuse.) */
   border-radius: var(--radius-xs);
   background: transparent;
 }
