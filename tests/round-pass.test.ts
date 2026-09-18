@@ -170,8 +170,10 @@ test("nested and inline shapes keep the ladder instead of the pill", async () =>
     // Table rows: a corner on a row that touches its neighbours reads as a
     // floating card that forgot its shadow. SETTINGS-APPLE moved the shortcut
     // table onto the shared `.settings-row` primitive (whose rows are clipped
-    // by the card's own radius), so the session list is the row family that
-    // still carries its own square corner.
+    // by the card's own radius). PAGES-APPLY moved the session list onto the
+    // same primitive, so this row now *is* a `.settings-row` that keeps its own
+    // square corner — the class stays named because the row's geometry (three
+    // columns, a 56px floor) is still its own.
     ["src/styles/settings.css", ".session-manager__row", /^0$/, "table rows stay square"],
     // Content rows that scroll with their list.
     ["src/styles/launcher.css", ".launcher-result", /var\(--radius-md\)/, "result rows are content"],

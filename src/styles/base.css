@@ -1130,6 +1130,7 @@ canvas {
   .session-manager__icon-button,
   .session-manager__sort-toggle,
   .session-manager__kill-confirm,
+  .settings-row[role="button"],
   .clipboard-panel__tab,
   .clipboard-panel__filter-clear,
   .clipboard-row,

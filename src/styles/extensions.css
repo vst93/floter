@@ -17,14 +17,30 @@
   --extensions-inline-gap: 5px;
   --extensions-section-gap: 20px;
   position: relative;
+  min-width: 0;
   min-height: 280px;
   cursor: default;
+  /* PAGES-APPLY: the panel is the page's content now, not a card, so it paints
+     nothing of its own and takes the page grid's spacing — the same 8px step
+     `.settings-section` uses for a section's heading-to-content gap. */
+  display: grid;
+  gap: 8px;
 }
 
 .extensions-panel__heading > div {
   min-width: 0;
   display: grid;
   gap: 3px;
+}
+
+/* PAGES-APPLY: the heading's hint does the work the old group title did here.
+   The panel's own `extensions-section-title` rows are the groups, so the page
+   header above owns the title and this row is the toolbar: the explanation on
+   the left, the refresh action on the right. It sits on the first row's
+   baseline instead of stretching, which is what keeps a one-line hint from
+   floating in the middle of a 30px control. */
+.extensions-panel__heading {
+  align-items: center;
 }
 
 /* Launcher command-discovery opt-in: one bordered row between the panel
@@ -391,15 +407,25 @@
   gap: 8px;
   /* Fixed heading height: the label line and the count chip define it
      together, so a 1<->2 digit count (or a refresh swapping the chip) can
-     never reflow the rows below. 10.5px type at this line-height plus
+     never reflow the rows below. The body step at this line-height plus
      alignment gives 18px of stable heading box. */
   min-height: 18px;
-  color: var(--text-tertiary);
+  /* PAGES-APPLY · the group-title hierarchy, not the caption one.
+     SETTINGS-APPLE retired the settings pages' uppercase 10px group caption
+     ("a caption reads as metadata; the reference labels groups with a
+     title"); the two lists inside the settings window — the launcher's result
+     groups and this panel's Connected / Detected / Base-plugins headings —
+     were the last surfaces still labelling groups that way, so they take the
+     same treatment: sentence case, muted, no tracking trick.
+
+     Two levels, one language: a *page* group title (the settings cards) takes
+     the title step, and a *section* header inside a list takes the body step
+     it already had — the census's 18px heading box and the chip geometry
+     pinned to it are unchanged, which is what those two tests protect. */
+  color: var(--text-muted);
   font-size: var(--text-body);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 620;
   line-height: 1.5;
-  text-transform: uppercase;
 }
 
 /* The count chip inherits .extension-status (neutral) sizing. Tabular numerals
@@ -1054,18 +1080,15 @@
   cursor: default;
 }
 
-.extensions-empty {
-  min-height: 92px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  color: var(--text-tertiary);
-  font-size: var(--text-body);
-  /* Explicit line box: the loading placeholder and the empty placeholder share
-     this rule, so pinning it keeps both states the same height across fonts. */
-  line-height: 1.5;
+/* PAGES-APPLY · the integrations list's empty and first-load placeholders are
+   the shared `SettingsEmpty` primitive now (the clipboard page's empty language,
+   lifted into SettingsRows). The private `.extensions-empty` block that used to
+   paint them is retired, so there is no second empty-state dialect left.
+   The one thing the block carried that the primitive does not is the query
+   echo a filtered empty state shows; it rides the primitive's hint line and
+   only needs the tight line box a `<strong>` inside it wants. */
+.extensions-empty__query {
+  font-weight: 600;
 }
 
 /* Modal overlay scoped to the floater body: fixed positioning resolves

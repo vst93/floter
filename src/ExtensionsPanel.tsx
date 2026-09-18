@@ -37,6 +37,7 @@ import {
 } from "./extensions/freshness";
 import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
 import { ComponentizedUninstallDialog } from "./extensions/ComponentizedUninstallDialog";
+import { SettingsEmpty } from "./settings/SettingsRows";
 import { useImmediateState } from "./hooks/useImmediateState";
 import { useTimedReset } from "./hooks/useTimedReset";
 import { isDismissKey } from "./surface-policy";
@@ -1588,11 +1589,21 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   ];
 
   return (
-    <section className="settings-section extensions-panel" data-no-drag>
+    <div className="settings-page settings-page--wide">
+      <header className="settings-page__header">
+        <h1 className="settings-page__title">{t("settings.extensions.title")}</h1>
+        <p className="settings-page__subtitle">{t("settings.page.integrations")}</p>
+      </header>
+      <section className="settings-section extensions-panel">
+      {/* PAGES-APPLY: the group heading no longer repeats the page title. The
+          panel's own `extensions-section-title` rows (Base plugins / Connected
+          / Detected) are the groups; this row is the page's toolbar, so it
+          carries the group's one-line explanation on the left and the refresh
+          action on the right — the same "hint + trailing action" heading the
+          deep-link section uses. */}
       <div className="settings-section__heading extensions-panel__heading">
         <div>
-          <h2 className="settings-section__label">{t("settings.extensions.title")}</h2>
-          <p className="settings-section__hint">{t("settings.extensions.hint")}</p>
+          <p className="settings-section__hint settings-section__hint--inline">{t("settings.extensions.hint")}</p>
         </div>
         <button
           type="button"
@@ -2186,7 +2197,8 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       )}
 
       {uninstallDialog}
-    </section>
+      </section>
+    </div>
   );
 }
 
@@ -2286,7 +2298,17 @@ function FreshnessSection({
 }
 
 function EmptyState({ icon, text, query }: { icon: React.ReactNode; text: string; query?: string }) {
-  return <div className="extensions-empty">{icon}<span>{text}{query && <strong> "{query}"</strong>}</span></div>;
+  // PAGES-APPLY · the integrations list's empty and first-load placeholders go
+  // through the one empty region the app shares (the clipboard page's language,
+  // lifted into `SettingsEmpty`). `query` rides the hint line, so a filtered
+  // empty state still names the query it matched nothing against.
+  return (
+    <SettingsEmpty
+      icon={icon}
+      title={text}
+      hint={query ? <strong className="extensions-empty__query">"{query}"</strong> : undefined}
+    />
+  );
 }
 
 type ConfigFieldControlProps = {

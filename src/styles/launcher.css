@@ -481,13 +481,18 @@
 
 .launcher-section-title {
   padding: 6px 11px 4px;
-  font-size: var(--text-caption);
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  /* PAGES-APPLY · the app's group-title language. SETTINGS-APPLE retired the
+     uppercase 10px caption on the settings pages ("a caption reads as
+     metadata; the reference labels groups with a title"); the launcher was the
+     last surface still labelling groups that way, so it takes the same
+     hierarchy: sentence case at the body step, muted, no letter-spacing trick.
+     The heading is sized by its own line box and one padding pair, so a group
+     title still cannot reflow the list below it. */
+  font-size: var(--text-body);
+  font-weight: 620;
+  line-height: 1.4;
   color: var(--text-muted);
   user-select: none;
-  opacity: 0.85;
 }
 
 .launcher-options {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowUpDown, Play, RefreshCw, SquareTerminal, Trash2 } from "lucide-react";
 import type { Translate } from "../i18n";
 import type { BrokerSessionInfo } from "../App";
-import { SettingsCard } from "./SettingsRows";
+import { SettingsCard, SettingsEmpty, SettingsRow } from "./SettingsRows";
 
 /** How long the kill button stays in its armed confirm state before the
  * timeout reverts it to the plain icon. Same rhythm as the extensions panel's
@@ -136,26 +136,32 @@ export function SessionsPage({
       </div>
 
       {sessions.length === 0 ? (
-        <div className="session-manager__empty" role={error ? "alert" : undefined}>
-          {error ? (
-            <>
+        <SettingsEmpty
+          alert={error}
+          icon={
+            error ? (
               <AlertCircle size={22} strokeWidth={1.6} aria-hidden="true" />
-              <span>{t("terminal.sessionsError")}</span>
-              <span className="session-manager__empty-hint">{t("terminal.sessionsRefreshHint")}</span>
-            </>
-          ) : loading ? (
-            <>
+            ) : loading ? (
               <RefreshCw size={22} strokeWidth={1.6} aria-hidden="true" />
-              <span>{t("terminal.sessionsLoading")}</span>
-            </>
-          ) : (
-            <>
+            ) : (
               <SquareTerminal size={22} strokeWidth={1.6} aria-hidden="true" />
-              <span>{t("terminal.sessionsEmpty")}</span>
-              <span className="session-manager__empty-hint">{t("terminal.sessionsEmptyHint")}</span>
-            </>
-          )}
-        </div>
+            )
+          }
+          title={
+            error
+              ? t("terminal.sessionsError")
+              : loading
+                ? t("terminal.sessionsLoading")
+                : t("terminal.sessionsEmpty")
+          }
+          hint={
+            error
+              ? t("terminal.sessionsRefreshHint")
+              : loading
+                ? undefined
+                : t("terminal.sessionsEmptyHint")
+          }
+        />
       ) : (
         <SettingsCard label={t("settings.group.sessions")} className="session-manager__list">
           {sorted.map((session) => {
@@ -168,89 +174,76 @@ export function SessionsPage({
                 : t("terminal.sessionDetached");
             const created = new Date(session.createdAt);
             return (
-              <div
+              <SettingsRow
                 key={session.sessionId}
-                className={`session-manager__row${resumable ? " session-manager__row--resumable" : ""}`}
-                role={resumable ? "button" : undefined}
-                tabIndex={resumable && actionId === null ? 0 : undefined}
-                aria-disabled={resumable && actionId !== null ? true : undefined}
-                onClick={resumable && actionId === null ? () => onResume(session) : undefined}
-                onKeyDown={
-                  resumable && actionId === null
-                    ? (event) => {
-                        if (event.target !== event.currentTarget || event.repeat || event.nativeEvent.isComposing) return;
-                        if (event.key !== "Enter" && event.key !== " ") return;
-                        event.preventDefault();
-                        onResume(session);
-                      }
-                    : undefined
-                }
-              >
-                <span className="session-manager__marker" aria-hidden="true">
-                  <SquareTerminal size={16} strokeWidth={1.8} />
-                </span>
-                <span className="session-manager__main">
-                  <span className="session-manager__name">
-                    {session.name || t("terminal.sessionTitle", { id: session.sessionId.slice(0, 8) })}
-                  </span>
-                  <span className="session-manager__cwd">{session.cwd || "~"}</span>
-                  <span className="session-manager__meta">
-                    <span className={session.exited ? "session-state session-state--exited" : "session-state"}>
-                      {state}
+                className="session-manager__row"
+                icon={<SquareTerminal size={16} strokeWidth={1.8} />}
+                label={session.name || t("terminal.sessionTitle", { id: session.sessionId.slice(0, 8) })}
+                sublabel={
+                  <span className="session-manager__lines">
+                    <span className="session-manager__cwd">{session.cwd || "~"}</span>
+                    <span className="session-manager__meta">
+                      <span className={session.exited ? "session-state session-state--exited" : "session-state"}>
+                        {state}
+                      </span>
+                      <span>{session.size || `${session.width}x${session.height}`}</span>
+                      {!Number.isNaN(created.getTime()) && <span>{dateFormatter.format(created)}</span>}
                     </span>
-                    <span>{session.size || `${session.width}x${session.height}`}</span>
-                    {!Number.isNaN(created.getTime()) && <span>{dateFormatter.format(created)}</span>}
                   </span>
-                </span>
-                <span className="session-manager__actions">
-                  <button
-                    type="button"
-                    className={`session-manager__icon-button${resumable ? " session-manager__icon-button--resumable" : ""}`}
-                    aria-label={t("terminal.sessionResume")}
-                    title={t("terminal.sessionResume")}
-                    disabled={session.exited || busy || actionId !== null}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onResume(session);
-                    }}
-                  >
-                    <Play size={14} strokeWidth={1.9} aria-hidden="true" />
-                  </button>
-                  {killArmedId === session.sessionId ? (
+                }
+                onActivate={resumable ? () => onResume(session) : undefined}
+                activateDisabled={actionId !== null}
+                control={
+                  <span className="session-manager__actions">
                     <button
                       type="button"
-                      className="session-manager__kill-confirm"
-                      data-destructive-confirm
-                      aria-label={t("terminal.sessionKillArm")}
-                      disabled={actionId !== null}
-                      onMouseDown={(event) => event.preventDefault()}
+                      className={`session-manager__icon-button${resumable ? " session-manager__icon-button--resumable" : ""}`}
+                      aria-label={t("terminal.sessionResume")}
+                      title={t("terminal.sessionResume")}
+                      disabled={session.exited || busy || actionId !== null}
                       onClick={(event) => {
                         event.stopPropagation();
-                        disarmKill();
-                        onKill(session);
+                        onResume(session);
                       }}
                     >
-                      <Trash2 size={13} strokeWidth={1.9} aria-hidden="true" />
-                      {t("terminal.sessionKillArm")}
+                      <Play size={14} strokeWidth={1.9} aria-hidden="true" />
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="session-manager__icon-button session-manager__icon-button--danger"
-                      aria-label={t("terminal.sessionKill")}
-                      title={t("terminal.sessionKill")}
-                      disabled={busy || actionId !== null}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        armKill(session.sessionId);
-                      }}
-                    >
-                      <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
-                    </button>
-                  )}
-                </span>
-              </div>
+                    {killArmedId === session.sessionId ? (
+                      <button
+                        type="button"
+                        className="session-manager__kill-confirm"
+                        data-destructive-confirm
+                        aria-label={t("terminal.sessionKillArm")}
+                        disabled={actionId !== null}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          disarmKill();
+                          onKill(session);
+                        }}
+                      >
+                        <Trash2 size={13} strokeWidth={1.9} aria-hidden="true" />
+                        {t("terminal.sessionKillArm")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="session-manager__icon-button session-manager__icon-button--danger"
+                        aria-label={t("terminal.sessionKill")}
+                        title={t("terminal.sessionKill")}
+                        disabled={busy || actionId !== null}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          armKill(session.sessionId);
+                        }}
+                      >
+                        <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
+                      </button>
+                    )}
+                  </span>
+                }
+              />
             );
           })}
         </SettingsCard>

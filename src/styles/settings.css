@@ -412,6 +412,16 @@
 }
 
 /* ── The card ─────────────────────────────────────────────────────────── */
+/* PAGES-APPLY · a *wide* page. Four of the five settings pages are reading
+   pages and take the 640px measure; the integrations page is a three-zone
+   management surface whose rows (icon / text / actions, with a health chip)
+   would be crammed by it. It keeps a wider column, but it is the same column:
+   centred, on the same grid, under the same large-title header — the panel was
+   the one page still opening on its own group heading instead of a title. */
+.settings-page--wide {
+  max-width: 720px;
+}
+
 .settings-section__card {
   /* Where the rows' inset separator starts: the same offset the row's own
      label starts at, so the rule lines up with the text it separates. */
@@ -528,6 +538,80 @@
 
 .settings-row:last-child .settings-row__divider {
   display: none;
+}
+
+/* PAGES-APPLY · the tappable row.
+
+   The App Store's list rows are whole-row hit targets, not a label beside a
+   button, and the sessions list resumes on one. The row primitive carries the
+   affordance so the pages do not each restate it; `[role="button"]` is the
+   marker for "this row activates", so a plain row keeps the old geometry and
+   none of this applies.
+
+   The focus ring is an *inset* shadow, not an outline: the card clips its
+   rows (`overflow: hidden`), so an outer outline on the first or last row
+   would be cut off on the card's own edge. */
+.settings-row[role="button"] {
+  cursor: pointer;
+  transition: background-color var(--dur-2) ease;
+}
+
+@media (hover: hover) {
+
+.settings-row[role="button"]:hover {
+  background: var(--glass-control);
+}
+}
+
+.settings-row[role="button"]:focus-visible {
+  background: var(--glass-control);
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.settings-row[aria-disabled="true"] {
+  cursor: default;
+}
+
+/* ── The shared empty state (PAGES-APPLY) ─────────────────────────────── */
+/* One empty region for the app, taken from the clipboard page's empty language:
+   the state in one line, the why in grey underneath with the same 320px
+   measure, one quiet glyph on top. Nothing here is chrome — an empty region
+   is a sentence, not a card. */
+.settings-empty {
+  /* The list-placeholder floor: taller than a row, shorter than a page. A
+     page whose empty region *is* its whole body overrides it in its own scope
+     (see `.session-manager > .settings-empty`). */
+  min-height: 92px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* One quiet glyph at a size that reads as an illustration of the state rather
+   than as a control, muted below the sentence it introduces so the copy stays
+   the loudest thing in the region. */
+.settings-empty__icon {
+  display: inline-flex;
+  color: var(--text-tertiary);
+  opacity: 0.72;
+}
+
+.settings-empty__title {
+  color: var(--text-secondary);
+  font-size: var(--text-body);
+  font-weight: 580;
+  line-height: 1.4;
+}
+
+.settings-empty__hint {
+  max-width: 320px;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  line-height: 1.5;
 }
 
 /* ── The blue text action ─────────────────────────────────────────────── */
@@ -942,101 +1026,69 @@
   gap: 10px;
 }
 
-/* The session list *is* the card: the same grouped-card primitive the other
-   pages use, one row per session. Unlike `.settings-row` its rows carry three
-   columns (glyph, text, actions), so it keeps its own geometry. */
+/* PAGES-APPLY · the session list IS the shared grouped card, and each entry is
+   the shared list row — label, grey sublabel pair, trailing actions. The round
+   before this one had copied the row's *look* here (an inset `::before` rule,
+   a private marker chip, a private name line); this one makes it the actual
+   primitive: `SettingsRow` draws the inset separator as its own element, so
+   the rows cannot drift from the ones on the other pages.
+
+   What the row still owns is its own geometry: three columns (glyph, text,
+   actions) and a taller floor, because a session is two lines of text plus a
+   footer of metadata. Its containing block, its padding and its inset come
+   from the primitive (which is what makes the shared divider land in the same
+   place here as on the other pages). The zero radius is deliberate (and is one
+   of the three literals the radius scan allows: 0, 50%, 999px): a corner on a
+   row that touches its neighbours on both sides reads as a floating card that
+   forgot its shadow. The card clips the first and last row against its own
+   radius. */
 .session-manager__list {
   display: grid;
 }
 
-/* A session row is the App Store's list row: a leading glyph, a title with
-   its grey second and third lines, and the actions right-aligned. The inset
-   separator is the same rule the settings rows draw, so the two lists read as
-   one language. The zero radius is deliberate (and is one of the three
-   literals the radius scan allows: 0, 50%, 999px): a corner on a row that
-   touches its neighbours on both sides reads as a floating card that forgot
-   its shadow. */
 .session-manager__row {
-  position: relative;
-  min-width: 0;
   min-height: 56px;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
-  padding: 9px 14px;
   border-radius: 0;
 }
 
-.session-manager__row + .session-manager__row::before {
-  content: "";
-  position: absolute;
-  inset-inline: 14px;
-  inset-block-start: 0;
-  height: 1px;
-  background: var(--hairline);
-  pointer-events: none;
+/* The session row keeps the primitive's row and adds its own *text*
+   behaviour: a daemon-chosen session name and a long cwd both have to truncate
+   rather than wrap, or one row would grow and break the list's rhythm.
+   `.settings-row__main` is the primitive's grid, so capping it is what makes
+   the ellipsis land in the text column instead of stretching the row. */
+.session-manager__row .settings-row__main {
+  max-width: 100%;
 }
 
-/* Resumable rows are whole-row hit targets: any click outside the action
-   buttons resumes the session, so they get pointer affordance and a hover
-   wash like a list item. */
-.session-manager__row--resumable {
-  cursor: pointer;
-  transition: background-color var(--dur-2) ease;
-}
-
-@media (hover: hover) {
-
-.session-manager__row--resumable:hover {
-  background: var(--glass-control);
-}
-}
-
-/* Keyboard activation mirrors the click: hover wash plus an accent ring
-   drawn inside the row so it doesn't clip against the list's hairlines. */
-.session-manager__row--resumable:focus-visible {
-  background: var(--glass-control);
-  outline: none;
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.session-manager__marker {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--icon-surface);
-  color: var(--text-secondary);
-  box-shadow: var(--elev-0);
-}
-
-.session-manager__main {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.session-manager__name,
+.session-manager__row .settings-row__label,
 .session-manager__cwd {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.session-manager__name {
-  color: var(--text-strong);
-  font-size: var(--text-emphasis);
-  font-weight: 620;
+/* The cwd is the row's first grey line; it is monospaced because it is a path,
+   and it truncates from the tail the way a path should. The `lines` wrapper is
+   the sizer the ellipsis needs: inside the sublabel grid a bare span would be
+   stretched by the row's own min-content. */
+.session-manager__lines {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
 }
 
 .session-manager__cwd {
-  color: var(--text-muted);
+  min-width: 0;
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
   font-size: var(--text-caption);
 }
 
+/* The second grey line: state, size, created-at. A wrap-tolerant flex row so
+   a narrow window stacks the three facts instead of clipping them. */
 .session-manager__meta {
   min-width: 0;
   display: flex;
@@ -1152,29 +1204,14 @@
   cursor: default;
 }
 
-.session-manager__empty {
+/* The empty / loading / failure region is `SettingsEmpty` — the one empty-state
+   language the app shares with the clipboard page. The private
+   `.session-manager__empty*` region this page used to paint (its own centring,
+   its own glyph opacity, its own hint step) is retired with the round. The one
+   delta is the floor: here the empty region *is* the page body, so it takes the
+   taller stand-in the retired rule used rather than the list-placeholder one. */
+.session-manager > .settings-empty {
   min-height: 160px;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 8px;
-  color: var(--text-tertiary);
-  font-size: var(--text-body);
-}
-
-/* Empty-state icon: one quiet glyph at a size that reads as an illustration
-   of the state rather than as a control (HIG `feedback.md`). Muted one step
-   below the sentence it introduces, so the copy stays the loudest thing in
-   the empty region. */
-.session-manager__empty > svg {
-  color: var(--text-tertiary);
-  opacity: 0.72;
-}
-
-.session-manager__empty-hint {
-  color: var(--text-muted);
-  font-size: var(--text-caption);
-  line-height: 1.4;
 }
 
 /* The sort control sits in the group heading beside the refresh button, and
