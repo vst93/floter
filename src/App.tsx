@@ -162,6 +162,10 @@ export type AppSettings = {
   last_settings_page: SettingsPage;
   /** Whether the first-run onboarding tip has been dismissed. */
   seen_tip: boolean;
+  /** R7-10c: whether the macOS menu bar status item / Windows+Linux tray icon
+   * is shown (default on). Off hides the icon only — the global hotkey and the
+   * settings page stay reachable, so no summon path is lost. */
+  show_menubar_icon: boolean;
 }
 
 const INPUT_WINDOW_WIDTH = 720;

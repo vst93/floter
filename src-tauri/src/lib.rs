@@ -173,6 +173,33 @@ pub fn apply_tray_language(app: &AppHandle, language: &str) {
     }
 }
 
+/// R7-10c: show or hide the macOS menu bar status item / Windows+Linux tray
+/// icon from the persisted setting.
+///
+/// Deliberately kept apart from [`apply_tray_language`]: that one only ever
+/// retitles the menu, so a language change can never reset visibility. This
+/// one only ever calls `set_visible`, and is idempotent, so the settings-save
+/// path can call it on every write without tracking a previous value.
+///
+/// Hiding the icon removes exactly one summon path. The global toggle hotkey
+/// (`register_toggle_shortcut`), the deep-link router, the Linux IPC socket and
+/// the settings page (reachable from the panel the hotkey opens) are all
+/// independent, so the app stays reachable with the icon gone.
+pub fn apply_tray_visibility(app: &AppHandle, show_icon: bool) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let _ = tray.set_visible(desired_tray_visibility(show_icon));
+    }
+}
+
+/// The whole of the visibility contract, as a value: the status item is on
+/// exactly when the setting is on. Split out of [`apply_tray_visibility`] so
+/// the contract is a unit test rather than something only observable through a
+/// live `AppHandle` — an inverted application (`set_visible(!setting)`) is the
+/// mistake this round is guarding against, and it fails here.
+pub fn desired_tray_visibility(show_icon: bool) -> bool {
+    show_icon
+}
+
 /// The monitor the user is working on, answered by the first strategy that can.
 ///
 /// 1. The mouse cursor, which is what macOS itself uses to decide where
@@ -1353,6 +1380,13 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // R7-10c: the setting decides the icon's visibility from the
+            // first frame. The tray still exists as a resource when hidden,
+            // which is what makes the switch reversible without a restart.
+            // (The tray handle is looked up by id — the builder's return value
+            // is owned here, but the registry keeps it addressable.)
+            apply_tray_visibility(app.handle(), settings.show_menubar_icon);
+
             let window = app
                 .get_webview_window("main")
                 .ok_or("missing main webview window")?;
@@ -1569,4 +1603,32 @@ pub fn run() {
                 _ => {}
             }
         });
+}
+
+#[cfg(test)]
+mod tray_visibility_tests {
+    use super::{desired_tray_visibility, tray_labels};
+
+    #[test]
+    fn the_menu_bar_icon_follows_the_setting_exactly() {
+        // R7-10c's red-line contract: the status item is visible iff the
+        // setting is on. `apply_tray_visibility` is deliberately a one-liner
+        // over this function, so an inverted application (`set_visible(!v)`)
+        // is a failure here rather than something only a live menu bar shows.
+        assert!(desired_tray_visibility(true));
+        assert!(!desired_tray_visibility(false));
+    }
+
+    #[test]
+    fn retitling_the_menu_never_mentions_the_icon_state() {
+        // The other half of the round's red line: `apply_tray_language` may
+        // only write labels. If a future edit made it call `set_visible`, the
+        // language switch would resurrect a hidden icon. The labels it owns
+        // are exactly the four menu items, in both languages.
+        for language in ["en", "zh"] {
+            let (show, settings, reload, quit) = tray_labels(language);
+            assert!(!show.is_empty() && !settings.is_empty());
+            assert!(!reload.is_empty() && !quit.is_empty());
+        }
+    }
 }

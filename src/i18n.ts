@@ -106,6 +106,7 @@ const en = {
   "settings.page.about": "Version, updates and the link scheme.",
   "settings.group.appearance": "Appearance",
   "settings.group.startup": "Window behaviour",
+  "settings.group.menuBar": "Menu bar",
   "settings.group.transparency": "Transparency",
   "settings.group.shortcuts": "Keyboard shortcuts",
   "settings.group.sessions": "Running sessions",
@@ -181,6 +182,10 @@ const en = {
   "settings.hideOnBlurHint": "Dismiss the panel when you switch to another application.",
   "settings.showRecentInLauncher": "Show recently launched apps",
   "settings.showRecentInLauncherHint": "Your most-used apps appear when the launcher is empty",
+  // R7-10c · the menu bar / tray icon switch. No platform branch in the label:
+  // one string covers macOS's status item and the Windows/Linux tray icon.
+  "settings.showMenubarIcon": "Show menu bar icon",
+  "settings.showMenubarIconHint": "Show the menu bar / tray icon. The global shortcut keeps working when it is hidden.",
   "settings.theme": "Appearance",
   "settings.themeHint": "Auto follows your system appearance.",
   "settings.theme.dark": "Dark",
@@ -666,6 +671,7 @@ const zh: Record<MessageKey, string> = {
   "settings.page.about": "版本、更新与链接协议。",
   "settings.group.appearance": "外观",
   "settings.group.startup": "窗口行为",
+  "settings.group.menuBar": "菜单栏",
   "settings.group.transparency": "透明度",
   "settings.group.shortcuts": "键盘快捷键",
   "settings.group.sessions": "运行中的会话",
@@ -738,6 +744,9 @@ const zh: Record<MessageKey, string> = {
   "settings.hideOnBlurHint": "切换到其他应用时自动收起面板。",
   "settings.showRecentInLauncher": "显示最近启动的应用",
   "settings.showRecentInLauncherHint": "启动器为空时显示常用应用",
+  // R7-10c · 菜单栏 / 托盘图标开关（不按平台分支，一句覆盖两边）。
+  "settings.showMenubarIcon": "显示菜单栏图标",
+  "settings.showMenubarIconHint": "显示菜单栏 / 托盘图标；隐藏后全局快捷键仍然可用。",
   "settings.theme": "外观",
   "settings.themeHint": "自动模式跟随系统外观。",
   "settings.theme.dark": "深色",

@@ -17,6 +17,7 @@ import {
   SettingsRow,
   SettingsScale,
 } from "./SettingsRows";
+import { menubarIconSwitchState, toggleMenubarIcon } from "./menubar-icon";
 
 const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
   { value: "auto", labelKey: "settings.theme.auto" },
@@ -335,6 +336,38 @@ export function GeneralPage({
                 aria-label={t("settings.showRecentInLauncher")}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onChangeGeneralSetting("show_recent_in_launcher", !settings.show_recent_in_launcher)}
+              >
+                <span className="settings-switch__thumb" />
+              </button>
+            }
+          />
+        </SettingsCard>
+      </section>
+
+      {/* R7-10c: the menu bar / tray icon switch. It lives on its own card
+          because it is a *residency* choice, not a window-behaviour one: the
+          app keeps running and stays summonable either way. Hiding the icon
+          removes one entry point and nothing else — the global shortcut, the
+          deep link and the settings page all stay. */}
+      <section className="settings-section">
+        <div className="settings-section__heading">
+          <div className="settings-section__heading-main">
+            <h2 className="settings-section__label">{t("settings.group.menuBar")}</h2>
+          </div>
+        </div>
+        <SettingsCard label={t("settings.group.menuBar")}>
+          <SettingsRow
+            label={t("settings.showMenubarIcon")}
+            sublabel={t("settings.showMenubarIconHint")}
+            control={
+              <button
+                type="button"
+                className={`settings-switch${menubarIconSwitchState(settings.show_menubar_icon).active ? " settings-switch--active" : ""}`}
+                role="switch"
+                aria-checked={menubarIconSwitchState(settings.show_menubar_icon).ariaChecked}
+                aria-label={t("settings.showMenubarIcon")}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onChangeGeneralSetting("show_menubar_icon", toggleMenubarIcon(settings.show_menubar_icon))}
               >
                 <span className="settings-switch__thumb" />
               </button>

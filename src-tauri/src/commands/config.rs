@@ -60,6 +60,14 @@ const LEGACY_GLASS_STEPS: [(&str, &str); 5] = [
 const MIN_FONT_SIZE: u32 = 8;
 const MAX_FONT_SIZE: u32 = 48;
 
+/// Serde default for the switches that ship on. Named rather than a closure so
+/// the migration is a function the tests can call: a settings file written
+/// before the key existed has to come back as `true`, which is what keeps
+/// R7-10c from silently hiding every existing user's menu bar icon.
+pub fn default_true() -> bool {
+    true
+}
+
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 
 const SETTINGS_FILE_NAME: &str = "settings.json";
@@ -147,6 +155,16 @@ pub struct AppSettings {
     /// Settings page the user last had open, restored on the next launch.
     /// Owned by the frontend, which validates the value before saving.
     pub last_settings_page: String,
+    /// R7-10c: whether the macOS menu bar status item / Windows+Linux tray
+    /// icon is shown (default on). Off hides the icon and nothing else — the
+    /// global hotkey, the settings page and the deep-link router are all
+    /// independent summon paths and stay intact.
+    ///
+    /// The explicit `default_true` is what makes an older settings file (no
+    /// key at all) deserialize to the behaviour it shipped with, rather than
+    /// to `bool::default()`.
+    #[serde(default = "default_true")]
+    pub show_menubar_icon: bool,
 }
 
 impl Default for AppSettings {
@@ -172,6 +190,7 @@ impl Default for AppSettings {
             clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
             launch_counts: HashMap::new(),
             last_settings_page: "general".to_string(),
+            show_menubar_icon: default_true(),
         }
     }
 }
@@ -567,6 +586,10 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
     let settings = merge_frontend_settings(settings, &stored);
     write_settings(&settings)?;
     crate::apply_tray_language(&app, &settings.language);
+    // R7-10c: the icon switch is applied on every save. This is separate from
+    // the retitle above so a language change cannot resurrect a hidden icon —
+    // `apply_tray_language` only ever writes menu labels.
+    crate::apply_tray_visibility(&app, settings.show_menubar_icon);
     // Keep the monitor and its global hotkey in step with the switch. Both
     // branches are idempotent, so this is safe on every settings save.
     #[cfg(feature = "clipboard-history")]
@@ -788,6 +811,49 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn older_settings_keep_the_menu_bar_icon() {
+        // R7-10c migration: a file written before the switch existed has no
+        // `show_menubar_icon` key. `bool::default()` would be `false` and would
+        // hide the icon of every existing user on upgrade, so the field carries
+        // an explicit `default_true` — and this test is the lock on it.
+        let settings: AppSettings =
+            serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
+        assert!(settings.show_menubar_icon);
+        assert!(default_true());
+    }
+
+    #[test]
+    fn an_explicitly_hidden_menu_bar_icon_round_trips() {
+        // The other half of the migration: once the user turns the switch off,
+        // the value survives a write/read cycle as `false` rather than being
+        // re-defaulted back to `true`.
+        let directory = tempfile::tempdir().expect("settings directory");
+        let settings = AppSettings {
+            show_menubar_icon: false,
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &settings).expect("write settings");
+
+        let reloaded = load_settings_from(directory.path());
+        assert!(!reloaded.show_menubar_icon);
+    }
+
+    #[test]
+    fn the_frontend_snapshot_owns_the_menu_bar_icon_switch() {
+        // The switch is read and written by the settings page, so its value
+        // must come from the submitted snapshot rather than the stored one —
+        // `merge_frontend_settings` only overrides the fields a dedicated
+        // command owns.
+        let stored = AppSettings::default();
+        let submitted = AppSettings {
+            show_menubar_icon: false,
+            ..AppSettings::default()
+        };
+        let merged = merge_frontend_settings(submitted, &stored);
+        assert!(!merged.show_menubar_icon);
+    }
 
     #[test]
     fn older_settings_start_with_no_launch_counts() {

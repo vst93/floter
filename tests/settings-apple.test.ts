@@ -264,7 +264,7 @@ test("no stored settings key or semantics changed", async () => {
   for (const field of [
     "glass_step", "main_opacity", "terminal_opacity", "font_size", "font_family",
     "cursor_shape", "launch_at_startup", "hide_on_blur", "show_recent_in_launcher",
-    "theme", "language", "clipboard_history_hotkey",
+    "theme", "language", "clipboard_history_hotkey", "show_menubar_icon",
   ]) {
     assert.match(rust, new RegExp(`\\b${field}\\b`), `the Rust settings shape must keep ${field}`);
   }
@@ -272,7 +272,7 @@ test("no stored settings key or semantics changed", async () => {
   for (const field of [
     "glass_step", "main_opacity", "terminal_opacity", "font_size", "font_family",
     "cursor_shape", "launch_at_startup", "hide_on_blur", "show_recent_in_launcher",
-    "theme",
+    "theme", "show_menubar_icon",
   ]) {
     assert.match(page, new RegExp(`settings\\.${field}`), `GeneralPage must still read ${field}`);
   }

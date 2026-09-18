@@ -50,6 +50,10 @@ const SETTINGS_DEFAULTS: AppSettings = {
   launch_counts: {},
   last_settings_page: "general",
   seen_tip: false,
+  // R7-10c: the menu bar / tray icon ships visible, which is the behaviour
+  // every earlier build had. The frontend default must match the Rust
+  // `default_true` so a pre-hydration frame does not hide the icon.
+  show_menubar_icon: true,
 };
 
 /** Debounce window for the font-size and transparency sliders' writes. The
@@ -194,6 +198,7 @@ export function useSettings(options: {
           launch_counts: loaded.launch_counts ?? {},
           last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
           seen_tip: loaded.seen_tip ?? false,
+          show_menubar_icon: loaded.show_menubar_icon ?? true,
         };
         const hydrated = settingsHydration.mergeLoaded(
           settingsRef.current,
