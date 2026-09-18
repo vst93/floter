@@ -14,11 +14,20 @@ import type {
   SetStateAction,
 } from "react";
 import { nextLauncherSelection, type ExecutionPlan } from "../launcher";
+import {
+  fileActionKindForBar,
+  fileActionRequest,
+  isFileActionKind,
+  actionValue,
+  type DroppedFile,
+  type FileActionRequest,
+} from "../launcher/file-drops";
 import { normalizeTerminalInputSpaces } from "../terminal/inputNormalize";
 import {
   matchesResultShortcut,
   matchesShortcut,
   matchesShortcutModifiers,
+  IS_WINDOWS,
   type ShortcutMap,
 } from "../shortcuts";
 import { PINNED_SESSION_ID, type PinEvent, type PinState } from "../terminal/pinState";
@@ -76,6 +85,15 @@ export function useLauncherActions(options: {
   historyIndex: number;
   draftBeforeHistory: RefObject<string>;
   collapsedCardRef: RefObject<HTMLDivElement | null>;
+  /** The dropped file the selection is on, if any; the file action bar acts on
+   *  it rather than on the query. */
+  selectedDroppedFile: DroppedFile | null;
+  /** Run the "…and N more" row: reveal every dropped file. */
+  expandDroppedFiles: () => void;
+  /** Move the dropped file's action switcher (←/→ on the bar). */
+  cycleFileAction: (direction: -1 | 1) => void;
+  /** Drop the dropped rows — the launcher's existing clear path, reused. */
+  clearDrops: () => void;
   pendingSystemAction: Extract<LauncherItem, { type: "system" }> | null;
   setPendingSystemAction: Dispatch<SetStateAction<Extract<LauncherItem, { type: "system" }> | null>>;
 }) {
@@ -125,6 +143,10 @@ export function useLauncherActions(options: {
     historyIndex,
     draftBeforeHistory,
     collapsedCardRef,
+    selectedDroppedFile,
+    expandDroppedFiles,
+    cycleFileAction,
+    clearDrops,
     pendingSystemAction,
     setPendingSystemAction,
   } = options;
@@ -263,7 +285,70 @@ export function useLauncherActions(options: {
     invoke("hide_window");
   };
 
+  /**
+   * Run one of a dropped file's three actions.
+   *
+   * The whole point of R7-10a: these are the *only* three things a dropped file
+   * can be asked to do, and every one of them is reached from an explicit Enter
+   * or click on the action bar. Nothing on the drop path calls into here — see
+   * the mutation lock in `tests/file-drops.test.ts`, which fails if a dropped
+   * row's arrival starts running its default action.
+   */
+  const runFileAction = async (request: FileActionRequest) => {
+    if (request.kind === "open") {
+      // Hand the path to the system opener, the same command the path action bar
+      // uses: a dropped file opens in whatever owns it, a folder in the file
+      // manager. The file itself is never run.
+      try {
+        await invoke("open_path", { path: request.path });
+      } catch {
+        // The refusal keeps the rows up, exactly as the path action bar stays
+        // up: the drop is still there to try again or copy instead.
+        showLauncherFeedback("launcher.error.fileOpen");
+        return;
+      }
+      // Answered. The rows go with the summon that produced them, so the next
+      // reveal is a fresh launcher rather than a replay of this drop.
+      clearDrops();
+      invoke("hide_window");
+      return;
+    }
+    if (request.kind === "cd") {
+      // Reuse the existing terminal-session path verbatim: the `cd` is typed
+      // into a fresh interactive shell, so no spawn parameter was added and the
+      // session semantics are untouched.
+      await runCommand(null, request.commandLine);
+      clearDrops();
+      return;
+    }
+    try {
+      await invoke("clipboard_write_text", { text: request.path });
+    } catch {
+      showLauncherFeedback("launcher.error.fileCopy");
+      return;
+    }
+    clearDrops();
+    invoke("hide_window");
+  };
+
+  /** The action bar's Enter for a dropped file: run whatever the switcher is
+   *  showing, on the file the selection is actually on. */
+  const runFileActionBar = (action: ActionBar) => {
+    const file = selectedDroppedFile;
+    if (!file) return;
+    // The bar's own kind is what decides the action, not the index: the row the
+    // user sees and the thing that runs are then the same value.
+    const kind = fileActionKindForBar(action.type);
+    void runFileAction(fileActionRequest(kind, actionValue(file, kind), IS_WINDOWS));
+  };
+
   const executeActionBar = (action: ActionBar) => {
+    // A dropped file's bar is a different control wearing the same row shape:
+    // it acts on the file under the selection, not on the query text.
+    if (isFileActionKind(action.type)) {
+      runFileActionBar(action);
+      return;
+    }
     if (action.type === "url") {
       void openWithSystem("open_url", { url: action.value });
       return;
@@ -369,6 +454,18 @@ export function useLauncherActions(options: {
 
   const runLauncherItem = (item: LauncherItem | undefined) => {
     if (!item) return;
+    if (item.type === "file") {
+      // A dropped file's *row* is a preview: clicking it shows the three
+      // actions and puts the keyboard on the bar. It never runs the file, and
+      // it never runs the default action either — that is the red line, and the
+      // only way to run anything is the deliberate second gesture on the bar.
+      setSelectedActionBar(true);
+      return;
+    }
+    if (item.type === "file-more") {
+      expandDroppedFiles();
+      return;
+    }
     if (item.type === "app") {
       recordLaunch(item.id);
       void launchApplication(item.app);
@@ -456,8 +553,27 @@ export function useLauncherActions(options: {
       return;
     }
 
+    if (
+      actionBar &&
+      selectedActionBar &&
+      selectedDroppedFile &&
+      (event.key === "ArrowLeft" || event.key === "ArrowRight")
+    ) {
+      // The dropped file's three actions share the action bar's one row. ←/→
+      // switch which of them Enter would run — the same "one switcher, not a
+      // second control" rule the whole action bar follows. Arrow Up/Down keep
+      // their ordinary job of moving through the results and the bar.
+      event.preventDefault();
+      cycleFileAction(event.key === "ArrowRight" ? 1 : -1);
+      return;
+    }
+
     if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
       event.preventDefault();
+      // Esc is the launcher's dismissal for everything on it, and a dropped
+      // file is part of that: the rows are cleared through the same path, so
+      // the next reveal starts empty.
+      clearDrops();
       invoke("hide_window");
       return;
     }

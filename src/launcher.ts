@@ -23,7 +23,14 @@ export type ActionBarKind =
   | "path"
   | "restart"
   | "shutdown"
-  | "clipboard";
+  | "clipboard"
+  // R7-10a: a dropped file's three actions. Not produced by
+  // `classifyActionBar` — they are claimed by the file-drop layer — but they
+  // are `ActionBarKind`s so the switcher is the existing action bar rather than
+  // a second control with its own styling and keyboard rules.
+  | "file-open"
+  | "file-cd"
+  | "file-copy";
 export type CommandLineSyntax = "posix" | "windows";
 
 export type LauncherSelection = {

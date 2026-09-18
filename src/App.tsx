@@ -77,8 +77,12 @@ import { SessionsPage } from "./settings/SessionsPage";
 import { AboutPage } from "./settings/AboutPage";
 import {
   LauncherResults,
+  type ActionBar,
   type LauncherItem,
 } from "./launcher/LauncherResults";
+import { useFileDrops } from "./hooks/useFileDrops";
+import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
+import { launcherShortcutSlots } from "./launcher";
 import "./styles/launcher.css";
 import "./styles/terminal.css";
 import "./styles/settings.css";
@@ -599,8 +603,6 @@ export default function App() {
     appIconUrls,
     launcherResults,
     actionBar,
-    runnableResultFlags,
-    resultShortcutSlots,
     firstRunnableResultIndex,
     defaultsToActionBar,
     scanApplications,
@@ -623,6 +625,62 @@ export default function App() {
     setSettings,
     persistSettings,
   });
+
+  // R7-10a: the file drop listener. It owns the dropped-file state and the
+  // `tauri://drag-drop` subscription; the rows and their three actions are
+  // composed from that state further below. The drop itself runs nothing —
+  // see `useFileDrops`, and red line 1 in `file-drops.ts`.
+  const {
+    droppedFiles,
+    dropsExpanded,
+    fileActionIndex,
+    clearDrops,
+    expandDrops,
+    cycleFileAction,
+  } = useFileDrops({
+    modeRef,
+    setSelectedResultIndex,
+    setSelectedActionBar,
+  });
+
+  // R7-10a: the dropped files are prepended to the result list as a group of
+  // their own, with no query required — dropping a file on the launcher is
+  // itself the question. The rows are pure data (see `fileDropRows`); the three
+  // actions live on the action bar below.
+  const fileRows = useMemo(
+    () => fileDropRows(droppedFiles, dropsExpanded, t),
+    [droppedFiles, dropsExpanded, t],
+  );
+  const displayedResults = useMemo(
+    () => (fileRows.length ? [...fileRows, ...launcherResults] : launcherResults),
+    [fileRows, launcherResults],
+  );
+
+  // While the selection is on a file row the action bar describes that file's
+  // three actions rather than the generic shell fallback. A file row's bar is
+  // shown even with an empty query, because the drop is what put the row there.
+  const selectedDroppedFile = droppedFileAt(displayedResults, selectedResultIndex);
+
+  // The action bar is a secondary control for a visible result list. Do not
+  // expand the result area for an unmatched query just because the generic
+  // shell fallback exists; feedback rows remain independently visible below.
+  const visibleActionBar: ActionBar | null =
+    selectedDroppedFile
+      ? fileDropActionBar(selectedDroppedFile, fileActionIndex, t)
+      : displayedResults.length > 0
+        ? actionBar
+        : null;
+
+  // Numbered slots and the arrow-key loop follow the composed list, not the
+  // query list: a file row is a runnable result like any other.
+  const displayedRunnableFlags = useMemo(
+    () => displayedResults.map((item) => item.type !== "command" || Boolean(item.execution)),
+    [displayedResults],
+  );
+  const displayedShortcutSlots = useMemo(
+    () => launcherShortcutSlots(displayedRunnableFlags),
+    [displayedRunnableFlags],
+  );
 
   const {
     pinState,
@@ -696,15 +754,19 @@ export default function App() {
     isComposing,
     actionBar,
     shortcuts,
-    launcherResults,
-    resultShortcutSlots,
-    runnableResultFlags,
+    launcherResults: displayedResults,
+    resultShortcutSlots: displayedShortcutSlots,
+    runnableResultFlags: displayedRunnableFlags,
     selectedResultIndex,
     selectedActionBar,
     history,
     historyIndex,
     draftBeforeHistory,
     collapsedCardRef,
+    selectedDroppedFile,
+    expandDroppedFiles: expandDrops,
+    cycleFileAction,
+    clearDrops,
     pendingSystemAction,
     setPendingSystemAction,
   });
@@ -747,7 +809,7 @@ export default function App() {
     mode,
     shortcuts,
     recordingAction,
-    launcherResults,
+    launcherResults: displayedResults,
     query,
     inputRef,
     selectionRef,
@@ -773,7 +835,7 @@ export default function App() {
     closePluginPage,
     runLauncherItem,
     handleLauncherKey,
-    resultShortcutSlots,
+    resultShortcutSlots: displayedShortcutSlots,
     setQuery,
     setHistory,
     showLauncherFeedback,
@@ -836,29 +898,38 @@ export default function App() {
 
   // A new query starts from its own default: the first result for a name, the
   // action bar for a command line, a URL or a path. See `defaultsToActionBar`.
+  //
+  // Two rules keep a drop out of this effect's way:
+  //   * while the query is still the empty string the drop arrived on, the drop
+  //     owns the selection (it picks its first file row) and this effect leaves
+  //     it alone;
+  //   * `firstRunnableResultIndex` indexes the *query* list and the drop's rows
+  //     are prepended to the composed list, so the default is shifted past them:
+  //     typing after a drop lands on the matched result, exactly as it would
+  //     with no drop at all. With no drop the shift is zero, and this is the
+  //     expression it always was.
   useEffect(() => {
-    setSelectedResultIndex(firstRunnableResultIndex < 0 ? 0 : firstRunnableResultIndex);
+    const dropped = fileRows.length;
+    if (!query.trim() && dropped) return;
+    setSelectedResultIndex(
+      firstRunnableResultIndex < 0 ? 0 : dropped + firstRunnableResultIndex,
+    );
     setSelectedActionBar(defaultsToActionBar);
-  }, [defaultsToActionBar, firstRunnableResultIndex, query]);
+  }, [defaultsToActionBar, fileRows.length, firstRunnableResultIndex, query]);
 
   useEffect(() => {
     setSelectedResultIndex((index) => {
-      if (!launcherResults.length) return 0;
-      return Math.min(index, launcherResults.length - 1);
+      if (!displayedResults.length) return 0;
+      return Math.min(index, displayedResults.length - 1);
     });
-  }, [launcherResults.length]);
-
-  // The action bar is a secondary control for a visible result list. Do not
-  // expand the result area for an unmatched query just because the generic
-  // shell fallback exists; feedback rows remain independently visible below.
-  const visibleActionBar = launcherResults.length > 0 ? actionBar : null;
+  }, [displayedResults.length]);
 
   // The launcher window is exactly as tall as the rows inside it, measured
   // rather than predicted. Extracted into useLauncherHeight hook.
   useLauncherHeight(mode, collapsedCardRef, [
     visibleActionBar,
     launcherFeedback,
-    launcherResults.length,
+    displayedResults.length,
   ]);
 
   // The terminal canvas is the active element when collapsed mode is committed.
@@ -1034,6 +1105,7 @@ export default function App() {
       if (event.payload === "collapsed") {
         closeTerminalSession();
         setQuery("");
+        clearDrops();
         setTerminalMounted(false);
         setMode("collapsed");
       }
@@ -1074,6 +1146,10 @@ export default function App() {
       restoringMode.current = "collapsed";
       setLauncherFeedback(null);
       setQuery("");
+      // A summon is a fresh launcher. A drop belonged to the previous
+      // interaction, so its rows go with the reveal that starts the next one —
+      // the same place (and the same reason) the query is emptied.
+      clearDrops();
       setTerminalMounted(false);
       setMode("collapsed");
       scheduleCollapsedFocusBeats();
@@ -1652,12 +1728,12 @@ export default function App() {
                 role="combobox"
                 aria-label={t("input.placeholder")}
                 aria-autocomplete="list"
-                aria-expanded={launcherResults.length > 0}
-                aria-controls={launcherResults.length > 0 ? "launcher-options" : undefined}
+                aria-expanded={displayedResults.length > 0}
+                aria-controls={displayedResults.length > 0 ? "launcher-options" : undefined}
                 aria-activedescendant={
                   selectedActionBar && visibleActionBar
                     ? "launcher-option-action"
-                    : launcherResults[selectedResultIndex]
+                    : displayedResults[selectedResultIndex]
                       ? `launcher-option-${selectedResultIndex}`
                       : undefined
                 }
@@ -1763,7 +1839,7 @@ export default function App() {
                 competing CSS height animation. */}
             <div
               className={
-                launcherResults.length > 0 || launcherFeedback || appsError
+                displayedResults.length > 0 || launcherFeedback || appsError
                   ? "launcher-bottom-clip launcher-bottom-clip--open"
                   : "launcher-bottom-clip"
               }
@@ -1823,15 +1899,19 @@ export default function App() {
                 )}
                 <LauncherResults
                   t={t}
-                  results={launcherResults}
+                  results={displayedResults}
                   actionBar={visibleActionBar}
                   appIconUrls={appIconUrls}
                   selectedResultIndex={selectedResultIndex}
                   selectedActionBar={selectedActionBar}
-                  resultShortcutSlots={resultShortcutSlots}
+                  resultShortcutSlots={displayedShortcutSlots}
                   actionBarShortcut={actionBarShortcut}
                   selectResultShortcut={shortcuts.select_result}
-                  showRecentTitle={!query.trim()}
+                  // The drop group brings its own heading (emitted above the
+                  // first file row), and it sits *above* the recent apps. The
+                  // "Recently launched" heading renders before the whole list,
+                  // so leaving it on would put a label over the wrong rows.
+                  showRecentTitle={!query.trim() && !fileRows.length}
                   onSelectResult={(index) => {
                     setSelectedActionBar(false);
                     setSelectedResultIndex(index);
@@ -1842,7 +1922,7 @@ export default function App() {
                     if (visibleActionBar) executeActionBar(visibleActionBar);
                   }}
                 />
-                {launcherResults.length === 0 &&
+                {displayedResults.length === 0 &&
                   !actionBar &&
                   !query.trim() &&
                   !settings.show_commands_in_search && (

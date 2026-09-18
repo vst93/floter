@@ -21,6 +21,7 @@ use commands::config::{
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
+use commands::drops::resolve_dropped_files;
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_cancel_operation, extensions_config_copy,
     extensions_config_export, extensions_config_get, extensions_config_set,
@@ -1451,6 +1452,7 @@ pub fn run() {
             open_in_default_terminal,
             open_path,
             open_url,
+            resolve_dropped_files,
             term_close,
             term_detach_view,
             get_settings,

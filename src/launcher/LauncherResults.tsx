@@ -5,8 +5,10 @@ import { IS_MAC, formatResultShortcut } from "../shortcuts";
 import {
   Terminal as TerminalIcon,
   History as HistoryIcon,
-} from "lucide-react";
-import type { ActionBarKind, ExecutionPlan } from "../launcher";
+  File as FileIcon,
+  Folder as FolderIcon,
+} from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
+import type { DroppedFile } from "./file-drops";
 
 export type SystemAction = "restart" | "shutdown" | "clipboard";
 
@@ -35,7 +37,18 @@ export type LauncherItem =
    * not a catalog entry — it has no execution plan, only the text to put
    * back into the input.
    */
-  | { type: "history"; id: string; title: string; commandLine: string };
+  | { type: "history"; id: string; title: string; commandLine: string }
+  /**
+   * A file dropped onto the launcher (R7-10a). A *result*, not an execution:
+   * the row carries the normalized description and nothing runs until the user
+   * presses Enter on it or on the action bar beneath it.
+   */
+  | { type: "file"; id: string; title: string; subtitle: string; file: DroppedFile }
+  /**
+   * The "…and N more" row of a drop longer than the visible limit. Running it
+   * expands the file rows; it never touches a file.
+   */
+  | { type: "file-more"; id: string; hidden: number; title: string; subtitle: string };
 
 export type ActionBar = { type: ActionBarKind; label: string; value: string };
 
@@ -90,10 +103,16 @@ const SystemActionIcon = ({ action }: { action: SystemAction }) => (
 
 /**
  * The action bar's icon: Lucide `terminal` for a shell, `external-link` for a
- * URL, and `folder` for a path.
+ * URL, `folder` for a path, and for R7-10a's three file actions `file`/`folder`
+ * (open), `terminal` (cd) and `clipboard` (copy path).
  */
 const ActionBarIcon = ({ kind }: { kind: ActionBarKind }) => {
   if (kind === "shell") return <TerminalIcon size={16} />;
+  // A dropped file's actions reuse the same glyphs as the kinds they mean: an
+  // open is an open, a cd is a terminal, a copy is the clipboard.
+  if (kind === "file-cd") return <TerminalIcon size={16} />;
+  if (kind === "file-copy") return <SystemActionIcon action="clipboard" />;
+  if (kind === "file-open") return <FolderIcon size={16} />;
   return (
     <svg
       viewBox="0 0 24 24"
@@ -181,13 +200,19 @@ export function LauncherResults({
             const unavailable = item.type === "command" && !item.execution;
             const warnings = item.type === "command" ? item.warnings : [];
             const isHistory = item.type === "history";
+            // R7-10a: the dropped-file group. Both of its row kinds count, so
+            // the heading sits above the first file and the expander does not
+            // look like the start of a second group.
+            const isFileGroup = item.type === "file" || item.type === "file-more";
             const source = item.type === "command"
               ? item.sourceName
               : item.type === "app"
                 ? t(appSubtitleKey(item.app.path))
                 : isHistory
                   ? t("launcher.history")
-                  : t("extensions.builtIn");
+                  : isFileGroup
+                    ? t("launcher.files")
+                    : t("extensions.builtIn");
             const shortcutSlot = resultShortcutSlots[index];
             // The empty-query state stacks two sections inside a single result
             // list: recents first, then the last few typed commands. The first
@@ -195,6 +220,11 @@ export function LauncherResults({
             // without their own heading.
             const historySectionStartsHere =
               isHistory && (index === 0 || results[index - 1].type !== "history");
+            // A drop prepends one section of its own. Only when it is the first
+            // row, so a future composition that puts recents above the drop
+            // does not print two headings in a row.
+            const filesSectionStartsHere =
+              isFileGroup && (index === 0 || !["file", "file-more"].includes(results[index - 1].type));
             return (
               <Fragment key={item.id}>
                 {historySectionStartsHere && (
@@ -204,6 +234,15 @@ export function LauncherResults({
                     title={t("launcher.historyHint")}
                   >
                     {t("launcher.history")}
+                  </div>
+                )}
+                {filesSectionStartsHere && (
+                  <div
+                    className="launcher-section-title"
+                    role="presentation"
+                    title={t("launcher.filesHint")}
+                  >
+                    {t("launcher.files")}
                   </div>
                 )}
                 <button
@@ -230,6 +269,11 @@ export function LauncherResults({
                       <SystemActionIcon action={item.action} />
                     ) : isHistory ? (
                       <HistoryIcon />
+                    ) : item.type === "file" ? (
+                      // A folder is a file too, and only the glyph differs.
+                      item.file.isDirectory ? <FolderIcon /> : <FileIcon />
+                    ) : item.type === "file-more" ? (
+                      <FileIcon />
                     ) : (
                       <TerminalIcon />
                     )}
@@ -272,7 +316,10 @@ export function LauncherResults({
           }`}
           role="option"
           aria-selected={selectedActionBar}
-          aria-label={t("launcher.runInShell")}
+          // The label is the action's own words, not a fixed "run in shell": a
+          // dropped file's bar offers Open / cd / Copy path, and the assistive
+          // label has to be the action the bar is actually showing.
+          aria-label={actionBar.label}
           tabIndex={-1}
           onMouseMove={() => onSelectActionBar()}
           onMouseDown={(event) => event.preventDefault()}
