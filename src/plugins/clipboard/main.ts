@@ -19,6 +19,19 @@
 //     type bar, 1/2 set the scope, 3–7 jump to a type, and the filter field
 //     keeps its own typing. A printable key with the list focused is routed into
 //     the filter.
+//   · **Scope** — CLIP-NIT collapsed the top-right 全部/置顶 pair into ONE
+//     `置顶 N` toggle: the type bar already owns the 全部 slot, so the second
+//     全部 was a duplicate of it. The toggle is `aria-pressed`, and Tab / 1 / 2
+//     still drive the same `view` state through the same resolver.
+//   · **Floating, not barred** — CLIP-DRAG finished what CLIP-DISSOLVE started:
+//     the header rows are pure layout on the page's one sheet (no fill, no
+//     separator, no focus aura), and a press on blank chrome starts a native
+//     window drag. The page cannot call the host's `startDrag` from inside its
+//     sandboxed frame, so it reports the intent over the bridge (a
+//     payload-free `drag` message) after applying the same interactive-element
+//     guard the host would; the host then runs the one drag body every shell's
+//     chrome uses. The list scroller carries `data-no-drag` so its scrollbar
+//     scrolls.
 //   · **Rows** — one line at rest (icon / source / relative age / preview),
 //     expanding under hover or focus, with the copy·pin·delete trio revealed on
 //     hover/focus/selection. The list is still reconciled in place.
@@ -54,6 +67,7 @@ import {
   clipboardChipFace,
   clipboardTypeCounts,
   cycleClipboardTypeFilter,
+  isClipboardDragTarget,
   moveClipboardSelection,
   resolveClipboardKey,
   CLIPBOARD_TYPE_ICON,
@@ -75,6 +89,20 @@ type PendingCall = {
 const pending = new Map<number, PendingCall>();
 let nextCallId = 1;
 const bridgeSession = crypto.randomUUID();
+
+/**
+ * Ask the host to start a native window drag.
+ *
+ * The page is a sandboxed iframe, so a mousedown in here is invisible to the
+ * host and cannot reach the host's `startDrag`. The press is reported as a
+ * payload-free `drag` message instead, and the host runs the same move the
+ * terminal bar's `startDrag` does. CLIP-DRAG added the message type; it is the
+ * only page → host message that asks the host to move the OS window, and it
+ * carries nothing.
+ */
+const requestWindowDrag = () => {
+  window.parent.postMessage({ [BRIDGE_TAG]: "drag" }, "*");
+};
 
 /** How long to wait for the host's reply before giving up on a call. Without
  * this a dropped or ignored message leaves the promise pending forever, and
@@ -291,8 +319,9 @@ document.documentElement.setAttribute("data-theme", theme);
 
 // GLASS-CLIP-2 · the list's two filter axes are independent:
 //
-//   * `view`      — 全部 / 收藏, the scope the data comes from (favorites are
-//                   exempt from pruning, so this is a *retention* view);
+//   * `view`      — 全部 / 置顶 (all / favorites), the scope the data comes
+//                   from (favorites are exempt from pruning, so this is a
+//                   *retention* view);
 //   * `typeFilter`— 全部 / 文本 / 链接 / 颜色 / 文件, the *kind* of capture.
 //
 // They compose (收藏 + 链接 is a legal state) and each has its own control: a
@@ -377,9 +406,8 @@ root.innerHTML = `
       <span class="clipboard-panel__prompt" aria-hidden="true"></span>
       <input class="clipboard-panel__search" maxlength="512" spellcheck="false" autocapitalize="off" autocorrect="off" />
       <button type="button" class="clipboard-panel__filter-clear" hidden></button>
-      <div class="clipboard-panel__tabs" role="tablist" data-axis="view">
-        <button type="button" role="tab" class="clipboard-panel__type" data-view="all"></button>
-        <button type="button" role="tab" class="clipboard-panel__type" data-view="favorites"></button>
+      <div class="clipboard-panel__tabs clipboard-panel__scope" role="group" data-axis="scope">
+        <button type="button" class="clipboard-panel__type clipboard-panel__scope-toggle" data-view="favorites" aria-pressed="false"></button>
       </div>
     </div>
     <div class="clipboard-panel__filterbar">
@@ -393,7 +421,7 @@ root.innerHTML = `
       </div>
       <span class="clipboard-panel__tally" role="status" aria-live="polite"></span>
     </div>
-    <div class="clipboard-panel__content"></div>
+    <div class="clipboard-panel__content" data-no-drag></div>
     <div class="clipboard-panel__footer">
       <span class="clipboard-panel__hints"></span>
       <button type="button" class="clipboard-panel__clear"></button>
@@ -424,7 +452,7 @@ const hints = root.querySelector<HTMLElement>(".clipboard-panel__hints")!;
 const clearButton = root.querySelector<HTMLButtonElement>(".clipboard-panel__clear")!;
 const tally = root.querySelector<HTMLElement>(".clipboard-panel__tally")!;
 const panel = root.querySelector<HTMLElement>(".clipboard-panel")!;
-const viewTabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-axis="view"] .clipboard-panel__type'));
+const scopeToggle = root.querySelector<HTMLButtonElement>(".clipboard-panel__scope-toggle")!;
 const typeTabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-axis="type"] .clipboard-panel__type'));
 // ---- rendering ------------------------------------------------------------
 
@@ -1150,21 +1178,22 @@ const render = () => {
     t("clipboard.hintDelete"),
   ].join(" · ");
 
-  // ── The scope tabs (全部 / 收藏) ──────────────────────────────────────────
+  // ── The pinned-view toggle (置顶 N) ────────────────────────────────────────
+  // CLIP-NIT · the scope control is ONE toggle, not a 全部/置顶 pair. The bar
+  // below already owns the 全部 slot on the *type* axis, so a second 全部 here
+  // read as a duplicate of it; the only thing this control adds is the pinned
+  // view, so that is the only thing it now says. `aria-pressed` carries the
+  // on/off state; `Tab` (and `1`/`2`) still drive it through the unchanged
+  // keyboard resolver.
   const favoritesCount = entries.reduce((total, entry) => total + (entry.favorite ? 1 : 0), 0);
-  for (const [tab, scope, active, count] of [
-    [viewTabs[0], "all", view === "all", entries.length],
-    [viewTabs[1], "favorites", view === "favorites", favoritesCount],
-  ] as const) {
-    if (!tab) continue;
-    tab.replaceChildren(
-      document.createTextNode(t(scope === "all" ? "clipboard.tabAll" : "clipboard.tabFavorites")),
-      countBadge(count),
-    );
-    tab.classList.toggle("clipboard-panel__type--active", active);
-    tab.setAttribute("aria-selected", String(active));
-  }
-  viewTabs[0]?.parentElement?.setAttribute("aria-label", t("clipboard.title"));
+  const pinnedView = view === "favorites";
+  scopeToggle.replaceChildren(
+    document.createTextNode(t("clipboard.scopePinned")),
+    countBadge(favoritesCount),
+  );
+  scopeToggle.classList.toggle("clipboard-panel__type--active", pinnedView);
+  scopeToggle.setAttribute("aria-pressed", String(pinnedView));
+  scopeToggle.setAttribute("aria-label", t("clipboard.scopePinnedLabel"));
 
   // ── The type tabs ──────────────────────────────────────────────────────
   // Six tabs, each with its own glyph and count. The counts are of the scoped
@@ -1754,10 +1783,10 @@ filterClear.addEventListener("click", () => {
 });
 // ── The two tab groups ───────────────────────────────────────────────────
 //
-// Both are wired the same way and both keep focus on the filter field after a
-// change: the field is the page's keyboard home, and a click on a tab is a
-// *filter* action, not a focus destination. `mousedown` is prevented so the
-// click does not first blur the field and flash the caret away.
+// Keep focus on the filter field after a type change: the field is the page's
+// keyboard home, and a click on a tab is a *filter* action, not a focus
+// destination. `mousedown` is prevented so the click does not first blur the
+// field and flash the caret away.
 const wireTabs = <T,>(tabs: HTMLButtonElement[], read: (tab: HTMLButtonElement) => T, apply: (value: T) => void) => {
   for (const tab of tabs) {
     tab.addEventListener("mousedown", (event) => event.preventDefault());
@@ -1769,7 +1798,44 @@ const wireTabs = <T,>(tabs: HTMLButtonElement[], read: (tab: HTMLButtonElement) 
     });
   }
 };
-wireTabs(viewTabs, (tab) => tab.dataset.view === "favorites" ? "favorites" : "all", (next) => { view = next; });
+
+// ── The implicit drag handle (CLIP-DRAG) ────────────────────────────────
+//
+// There is no visible menu bar and no `data-tauri-drag-region`: a page in a
+// sandboxed iframe cannot reach the host's mousedown, and the attribute only
+// works inside the host's own document. Instead the page reports the *intent*
+// on blank chrome as a `drag` message and the host runs its one `startDrag`
+// path.
+//
+// The listener sits on the panel, exactly as the host's `startDrag` sits on
+// `.settings-card` / `.collapsed-card`: a press anywhere that is not an
+// interactive element moves the window, and the blank parts of the header,
+// the gaps between the tabs and the footer's empty space all count. The
+// interactive-element guard is `isClipboardDragTarget` (`clipboard-list.ts`),
+// the same `closest(...)` idea the host uses; the page applies it first
+// because the host never sees this mousedown.
+//
+// `preventDefault` matches the host handler's — it stops the press starting a
+// text selection in the chrome, which would otherwise fight the drag. The
+// list scroller opts out with `data-no-drag` so a press on its scrollbar
+// scrolls instead of moving the window.
+panel.addEventListener("mousedown", (event) => {
+  if (event.button !== 0) return;
+  if (!isClipboardDragTarget(event.target as Element | null)) return;
+  event.preventDefault();
+  requestWindowDrag();
+});
+// The pinned-view toggle is a single chip, not a tab strip: a click flips the
+// scope, exactly like `Tab`. Focus stays on the filter field (this is a filter
+// action, not a focus destination), and `mousedown` is prevented so the click
+// does not first blur the field and flash the caret away.
+scopeToggle.addEventListener("mousedown", (event) => event.preventDefault());
+scopeToggle.addEventListener("click", () => {
+  view = view === "all" ? "favorites" : "all";
+  selected = 0;
+  render();
+  searchInput.focus();
+});
 wireTabs(
   typeTabs,
   (tab) => normalizeClipboardTypeFilter(tab.dataset.type),

@@ -398,3 +398,47 @@ export const clipboardTypeCounts = (
   }
   return counts;
 };
+
+// ── The implicit drag handle ──────────────────────────────────────────────
+
+/**
+ * The selector for elements a press must NOT be turned into a window drag.
+ *
+ * The host's `startDrag` uses the same idea (`closest("button, input, …")`),
+ * but the page cannot call it: a press inside the sandboxed iframe never
+ * reaches the host's mousedown. So the page applies the guard first and only
+ * reports the *intent* over the bridge when the press landed on blank chrome.
+ * The list is a little wider than the host's because this workspace is a
+ * page, not a bar: a row is a press target of its own (`[role="option"]`), and
+ * a link or a text selection inside a row must stay selectable.
+ *
+ * Expressed as a selector string, not a DOM call, so the node suite can pin the
+ * exemption set without a DOM — the same split `resolveClipboardKey` uses. The
+ * page joins it into one `closest()` call.
+ */
+export const CLIPBOARD_DRAG_EXEMPT_SELECTOR = [
+  "button",
+  "input",
+  "textarea",
+  "select",
+  "a",
+  "summary",
+  "[role='option']",
+  "[role='dialog']",
+  "[data-no-drag]",
+].join(", ");
+
+/**
+ * Whether a press on `target` may start a window drag.
+ *
+ * `target` is the element under the pointer (`event.target`, not
+ * `currentTarget`), typed as a minimal `closest`-bearing shape so a node test
+ * can pass a stub instead of a real `Element`. `null` is a *no*: a synthetic
+ * press with no target cannot be trusted to be blank chrome.
+ */
+export const isClipboardDragTarget = (
+  target: { closest: (selector: string) => unknown } | null | undefined,
+): boolean => {
+  if (!target) return false;
+  return !target.closest(CLIPBOARD_DRAG_EXEMPT_SELECTOR);
+};

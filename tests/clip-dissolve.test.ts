@@ -85,78 +85,91 @@ test("the topbar is a layout row, not a band: no fill, no edge, no shadow", asyn
 
 test("the topbar carries no separator pseudo-element and never regains one", async () => {
   const css = await page();
-  // REVIEW-CORRECTED (r1): page.css NEVER had a `::after` — the separator band
-  // lived only in the dead host mirror (terminal.css). Asserting its absence in
-  // the page sheet was vacuous (true at HEAD too). The live band sources are the
-  // topbar's own fill/edge, asserted by the two tests above; this test now only
-  // pins the forward-looking fact: no topbar pseudo-element may appear later.
+  // CLIP-DRAG (r2): the row no longer has ANY pseudo-element. CLIP-DISSOLVE had
+  // already removed the separator; the aura was the last band-shaped thing on
+  // the row and the user's follow-up (「头部的这种显示的菜单栏不能要」) took it too.
+  // This pins the forward-looking fact: nothing above the list may paint a band.
   assert.ok(
-    !/clipboard-panel__topbar::(after|before(?!-))/.test(css.replace(/\.clipboard-panel__topbar::before/g, "")),
-    "no topbar ::after may appear; ::before is reserved for the aura",
+    !/clipboard-panel__topbar::/.test(css),
+    "the topbar must have no pseudo-element at all — no separator, no aura",
   );
 });
 
-test("focus is an aura, not an accent edge: no focus-within face on the row", async () => {
+test("focus is not repainted on the row: no focus-within face and no aura pseudo-element", async () => {
   const css = await page();
   const focus = rule(css, ".clipboard-panel__topbar:focus-within");
   assert.equal(
     focus,
     undefined,
-    "the topbar must not repaint itself on focus — the aura pseudo-element carries the state",
+    "the topbar must not repaint itself on focus — there is no band left to light",
   );
-});
-
-// ── B · the aura matches the launcher's recipe ────────────────────────────
-
-test("the focus aura is the launcher's exact gradient, faded in from the leading edge", async () => {
-  const css = await page();
-  const aura = rule(css, ".clipboard-panel__topbar::before");
-  assert.ok(aura, "the topbar must own an aura pseudo-element");
-  const gradient = decl(aura!.body, "background");
   assert.equal(
-    gradient,
-    "linear-gradient(90deg, var(--accent-wash), transparent 42%)",
-    "the aura must be the .collapsed-card__aura recipe verbatim",
-  );
-  assert.equal(decl(aura!.body, "opacity"), "0", "the aura rests invisible");
-  assert.equal(decl(aura!.body, "pointer-events"), "none", "the aura must not eat clicks or drags");
-  const lit = rule(css, ".clipboard-panel__topbar:focus-within::before");
-  assert.ok(lit, "the focus state must light the aura");
-  assert.equal(decl(lit!.body, "opacity"), "1", "focus fades the aura fully in");
-});
-
-test("the aura recipe is byte-identical to the launcher's", async () => {
-  const [pageCss, launcherCss] = await Promise.all([page(), launcher()]);
-  const recipe = (body: string) => decl(body, "background");
-  assert.equal(
-    recipe(rule(pageCss, ".clipboard-panel__topbar::before")!.body),
-    recipe(rule(launcherCss, ".collapsed-card__aura")!.body),
-    "the two aura gradients must not drift apart",
-  );
-  // REVIEW-NIT-2 (r1): the easing drifted too (page had ease-out, launcher ease).
-  // Pin the full transition curve so the motion matches, not just the duration.
-  const transition = (body: string) => decl(body, "transition");
-  assert.match(
-    transition(rule(pageCss, ".clipboard-panel__topbar::before")!.body)!,
-    /opacity\s+160ms\s+ease(?!-)/,
-    "aura easing must be the launcher's `ease`, not a different curve",
+    rule(css, ".clipboard-panel__topbar::before"),
+    undefined,
+    "the focus aura was retired in CLIP-DRAG: focus is the caret and the field now",
   );
 });
 
-test("the aura's wash token exists in both palettes and is visible on light", async () => {
+// ── B · the header is not a bar: no aura, an implicit drag handle ────────
+
+test("the header rows are the window's implicit drag handle, not a band", async () => {
   const css = await page();
-  const rootWash = css.match(/:root\s*\{[^}]*--accent-wash:\s*([^;]+);/)?.[1].trim();
-  const lightWash = css.match(/\[data-theme="light"\]\s*\{[^}]*--accent-wash:\s*([^;]+);/)?.[1].trim();
-  assert.ok(rootWash, "the dark palette must declare --accent-wash");
-  assert.ok(lightWash, "the light palette must declare --accent-wash");
-  // The light wash carries more alpha, exactly as base.css's light block does:
-  // a blue laid over near-white barely moves the pixel at the dark alpha.
-  const alpha = (value: string) => Number(value.match(/,\s*([\d.]+)\s*\)$/)?.[1] ?? NaN);
+  const topbar = rule(css, ".clipboard-panel__topbar");
+  assert.ok(topbar, "page.css must still define the topbar row");
+  // The terminal/launcher affordance for "you can drag this".
+  assert.equal(decl(topbar!.body, "cursor"), "grab", "the header must advertise the drag affordance");
+  // Nothing on the row paints material or a band. The panel's own material is
+  // the only surface and the rows sit directly on it.
+  assert.ok(!paintsFill(topbar!.body), "the topbar must not paint a fill");
+  assert.ok(!paintsEdge(topbar!.body), "the topbar must not draw an edge");
+  assert.ok(!paintsBoxShadow(topbar!.body), "the topbar must not float");
+  // The page's own aura token is gone with the aura, in BOTH palettes.
   assert.ok(
-    alpha(lightWash!) > alpha(rootWash!),
-    `the light wash must be stronger than the dark one (dark ${rootWash}, light ${lightWash})`,
+    !/--accent-wash\s*:/.test(css),
+    "--accent-wash must be retired with the aura it fed",
   );
-  assert.equal(lightWash, "rgba(7, 94, 216, 0.085)", "the light wash must derive from this page's own light accent (#075ed8) at the launcher's light alpha");
+});
+
+test("the drag handle is exempt from every interactive control on the page", async () => {
+  const list = stripComments(await read("src/clipboard-list.ts"));
+  const exempt = list.match(/CLIPBOARD_DRAG_EXEMPT_SELECTOR = \[([\s\S]*?)\]\.join/);
+  assert.ok(exempt, "clipboard-list.ts must declare the drag exemption set");
+  // The host's own `startDrag` guard, carried onto the page: a press on any of
+  // these must never move the window.
+  for (const needle of ["button", "input", "textarea", "select", "a", "summary", "[role='option']", "[data-no-drag]"]) {
+    assert.ok(exempt![1].includes(needle), `the drag guard must exempt \`${needle}\``);
+  }
+  // The list scroller opts out so its scrollbar press scrolls, not drags.
+  const pageTs = await read("src/plugins/clipboard/main.ts");
+  assert.match(pageTs, /clipboard-panel__content" data-no-drag/, "the scroller must opt out of the drag");
+});
+
+test("the page asks the host to drag over the bridge, and the host routes it to its own startDrag", async () => {
+  const pageTs = await read("src/plugins/clipboard/main.ts");
+  // Page side: a payload-free `drag` message, sent only for a non-interactive
+  // press (the guard runs first).
+  assert.match(pageTs, /requestWindowDrag/, "the page must own the drag request");
+  assert.match(
+    pageTs,
+    /window\.parent\.postMessage\(\{ \[BRIDGE_TAG\]: "drag" \}, "\*"\)/,
+    "the drag message must be payload-free",
+  );
+  assert.match(
+    pageTs,
+    /if \(!isClipboardDragTarget\(event\.target as Element \| null\)\) return;/,
+    "the interactive-element guard must run before the message is sent",
+  );
+  // Host side: the new type is recognized and routed to the same drag the
+  // shells use.
+  const host = await read("src/plugins/PluginPageHost.tsx");
+  assert.match(host, /isBridgeDrag\(data\)/, "the host must recognize the drag message");
+  assert.match(host, /windowDragRef\.current\(\)/, "the host must run its drag handler");
+  // The handler is App's own `beginDrag`, the body every shell's mousedown
+  // funnels through, so the Windows blur-grace is not duplicated.
+  const app = await read("src/App.tsx");
+  assert.match(app, /onWindowDrag=\{beginDrag\}/, "App must pass the shared drag body to the host");
+  assert.match(app, /const beginDrag = useCallback\(\(\) => \{/, "the drag body must be one shared callback");
+  assert.match(app, /invoke\("start_drag"\)/, "the body must still invoke the OS drag");
 });
 
 // ── C · the field is launcher-shaped ──────────────────────────────────────

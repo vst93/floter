@@ -31,6 +31,27 @@ export type BridgeRequest = {
 export type BridgeClose = { [BRIDGE_TAG]: "close" };
 
 /**
+ * Page → host: begin a native window drag, exactly as a mousedown on the
+ * terminal or launcher chrome would.
+ *
+ * Why a message type instead of `data-tauri-drag-region`: a plugin page runs
+ * in a sandboxed iframe, so a mousedown inside it is invisible to the host — it
+ * cannot reach the host's `startDrag`, and the attribute would only work for a
+ * host-document element. The page therefore reports the *intent* ("the user
+ * pressed on my blank header and wants to move the window") and the host
+ * executes it through the very same `startDrag` path the three shells use,
+ * keeping the Windows blur-grace and the interactive-element guard in one
+ * place. The page does its own interactive-element exemption before sending —
+ * a press on a button, field or row never reaches the wire — so the host has
+ * nothing to second-guess.
+ *
+ * This is the one message in the protocol that asks the host to move the OS
+ * window rather than touch app state; it is deliberately payload-free, so a
+ * page cannot smuggle coordinates, a target window or a size into it.
+ */
+export type BridgeDrag = { [BRIDGE_TAG]: "drag" };
+
+/**
  * Page → host: raise one feedback toast on the *app's* stack.
  *
  * Why a message type instead of a host command on the invoke allowlist: the
@@ -141,7 +162,7 @@ export type BridgeReload = {
  */
 const MESSAGE_KEY_SHAPE = /^[A-Za-z][A-Za-z0-9.]{0,63}$/;
 
-export type BridgeFromPage = BridgeRequest | BridgeClose | BridgeNotify;
+export type BridgeFromPage = BridgeRequest | BridgeClose | BridgeNotify | BridgeDrag;
 
 /**
  * How many failure retries a page remembers at once. The host keeps at most
@@ -267,6 +288,23 @@ export const isBridgeNotify = (data: unknown): data is BridgeNotify =>
   typeof data.messageKey === "string" &&
   MESSAGE_KEY_SHAPE.test(data.messageKey) &&
   (data.retryable === undefined || typeof data.retryable === "boolean");
+
+export const isBridgeDrag = (data: unknown): data is BridgeDrag =>
+  isRecord(data) && data[BRIDGE_TAG] === "drag";
+
+/**
+ * Whether a page message should start a native window drag right now.
+ *
+ * Two conditions, and the second is not decoration: a kept-alive page that is
+ * *hidden* behind another one must not move the window on a stale press, so the
+ * host only honours the request while that page is the active surface. The
+ * predicate lives here (not inline in the message listener) so the routing —
+ * `drag` from the live page → the host's one drag body — is a unit the node
+ * suite can drive, and a regression to a no-op is a red test rather than a
+ * silently dead header.
+ */
+export const shouldStartWindowDrag = (data: unknown, pageActive: boolean): boolean =>
+  isBridgeDrag(data) && pageActive;
 
 export const isBridgeNotifyRetry = (data: unknown): data is BridgeNotifyRetry =>
   isRecord(data) &&

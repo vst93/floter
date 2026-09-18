@@ -1342,13 +1342,17 @@ export default function App() {
     };
   }, [mode, settings.hide_on_blur]);
 
-  const startDrag = (event: React.MouseEvent) => {
-    if ((event.target as HTMLElement).closest("button, input, select, textarea, a, summary, [role='dialog'], [data-no-drag]")) {
-      return;
-    }
-    event.preventDefault();
+  /**
+   * The platform drag itself, with no opinion about *what* asked for it. Every
+   * entry point funnels here — a mousedown on a shell's chrome, and a drag
+   * message from a plugin page (whose iframe cannot start a native drag and
+   * reports the intent over the bridge instead). Keeping the body in one place
+   * is what keeps the Windows blur-grace applied to both: the modal move loop
+   * leaves the webview unfocused and would otherwise read as the user leaving.
+   */
+  const beginDrag = useCallback(() => {
     if (!IS_WINDOWS) {
-      invoke("start_drag");
+      void invoke("start_drag");
       return;
     }
     // `start_dragging()` on Windows opens a modal move loop the webview spends
@@ -1363,6 +1367,14 @@ export default function App() {
       .finally(() => {
         suppressBlurUntil.current = Date.now() + DRAG_BLUR_GRACE;
       });
+  }, []);
+
+  const startDrag = (event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest("button, input, select, textarea, a, summary, [role='dialog'], [data-no-drag]")) {
+      return;
+    }
+    event.preventDefault();
+    beginDrag();
   };
 
 
@@ -1483,6 +1495,7 @@ export default function App() {
         glassStep={settings.glass_step}
         onClose={closePluginPage}
         onDragStart={startDrag}
+        onWindowDrag={beginDrag}
         onNotify={notify}
       />
     </div>

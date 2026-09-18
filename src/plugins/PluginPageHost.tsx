@@ -7,9 +7,11 @@ import {
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
+  isBridgeDrag,
   isBridgeNotify,
   isBridgeRequest,
   isBridgeResult,
+  shouldStartWindowDrag,
 } from "../plugin-pages";
 import type { BridgeNotifyRetry, BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass } from "../plugin-pages";
 import { glassStepStyle, glassContentStyle, type GlassStep } from "../glass-material";
@@ -78,6 +80,16 @@ type PluginPageHostProps = {
    * two can never fight over a mousedown.
    */
   onDragStart: (event: ReactMouseEvent) => void;
+  /**
+   * The drag *action* on its own, with no event attached: what a plugin page
+   * asks for over the bridge when the user presses its blank header. A page
+   * runs in a sandboxed iframe and cannot start a native window drag, so the
+   * press is reported as a `drag` message and the host runs the same move the
+   * `onDragStart` handler would — same platform path, same Windows blur-grace.
+   * The page has already applied the interactive-element guard, so there is no
+   * event to inspect here.
+   */
+  onWindowDrag: () => void;
 };
 
 export function PluginPageHost({
@@ -89,6 +101,7 @@ export function PluginPageHost({
   glassStep,
   onClose,
   onDragStart,
+  onWindowDrag,
   onNotify,
 }: PluginPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -109,6 +122,10 @@ export function PluginPageHost({
   // stale closure to the bridge for the life of the page.
   const notifyRef = useRef(onNotify);
   notifyRef.current = onNotify;
+  // Same once-registered-listener reasoning as `notifyRef`: a future unstable
+  // App callback must not bind a stale drag handler for the life of the page.
+  const windowDragRef = useRef(onWindowDrag);
+  windowDragRef.current = onWindowDrag;
   // Read (not depended on) when building the iframe src, so slider moves
   // reach a live page as a message instead of as a remount. The glass step is
   // read the same way for its message push, but its *container* style below
@@ -220,6 +237,15 @@ export function PluginPageHost({
 
       if (isBridgeClose(data)) {
         if (activeRef.current) onClose();
+        return;
+      }
+
+      if (isBridgeDrag(data)) {
+        // The page asked for a native window drag (a press on its blank chrome).
+        // The routing predicate is pure and unit-tested: it gates on the page
+        // being the live surface, so a kept-alive page hidden behind another
+        // one cannot move the window on a stale press.
+        if (shouldStartWindowDrag(data, Boolean(activeRef.current))) windowDragRef.current();
         return;
       }
 

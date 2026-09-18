@@ -74,10 +74,6 @@
   --accent: #8fb7ff;
   --accent-tint: rgba(143, 183, 255, 0.13);
   --accent-edge: rgba(143, 183, 255, 0.3);
-  /* The launcher's aura wash, same value as base.css's dark palette. The
-     plugin page owns its tokens (it is a separate document), so the one
-     number the aura recipe needs is restated here rather than borrowed. */
-  --accent-wash: rgba(143, 183, 255, 0.055);
   --accent-ring: rgba(122, 167, 255, 0.78);
   --text-warning: rgba(255, 173, 158, 0.82);
   --scrollbar-thumb: rgba(255, 255, 255, 0.18);
@@ -106,10 +102,6 @@
   --accent: #075ed8;
   --accent-tint: rgba(7, 94, 216, 0.1);
   --accent-edge: rgba(7, 94, 216, 0.3);
-  /* Derived from this page's own light accent (#075ed8) at the launcher's
-     light-wash alpha: a light blue wash needs the extra alpha the dark
-     palette does not (see base.css's light block for that reasoning). */
-  --accent-wash: rgba(7, 94, 216, 0.085);
   --accent-ring: rgba(7, 94, 216, 0.72);
   --text-warning: #b3261e;
   --scrollbar-thumb: rgba(60, 60, 67, 0.28);
@@ -172,13 +164,18 @@ button {
 
 /* ── The search row ─────────────────────────────────────────────────────── */
 
-/* A layout row, not a bar. The prompt glyph, the filter field and the clear ×
-   sit directly on the panel's one sheet — no fill of their own, no separator
-   edge. This is the same relationship the launcher's
-   `.collapsed-card__input-row` has with its card, and it is what keeps the
-   floating window reading as one material instead of a window with a status
-   bar glued to its top. The 56px height is kept (it is the launcher row's own
-   rhythm) but it is now only layout, not a band. */
+/* CLIP-DRAG · a layout row, not a bar — and now not even an aura.
+   CLIP-DISSOLVE removed this row's fill and its separator edge; the user's
+   follow-up (「头部的这种显示的菜单栏不能要 … 整体的浮窗感」) removed the last
+   thing that still read as a band: the accent wash that lit on focus. What is
+   left is pure layout — the prompt, the field and the tabs sit directly on the
+   page's one glass sheet, exactly the way the launcher's input row sits on its
+   card. The 56px height is kept (it is the launcher row's own rhythm and the
+   tap target for the window drag below), but it is layout, not a band.
+
+   The row is also the page's implicit drag handle: a press on the blank part
+   of it becomes a window drag through the bridge (see `requestWindowDrag` in
+   main.ts). `cursor: grab` is the same affordance `.terminal-bar` uses. */
 .clipboard-panel__topbar {
   position: relative;
   display: flex;
@@ -187,33 +184,35 @@ button {
   align-items: center;
   gap: 8px;
   padding: 0 14px;
+  cursor: grab;
+  user-select: none;
 }
 
-/* Focus is shown the way the launcher shows it: the aura wash fades in from
-   the leading edge (`linear-gradient(90deg, var(--accent-wash), transparent
-   42%)`, the exact `.collapsed-card__aura` recipe), instead of an accent
-   border-bottom drawn under the row. Light on the material, never a new edge. */
-.clipboard-panel__topbar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, var(--accent-wash), transparent 42%);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 160ms ease;
-}
+/* CLIP-DRAG · the focus aura is retired. It was the launcher's recipe, but on
+   this row it was the last band-shaped thing on the header — a wash that
+   stretched the full width of a row that also carries a field and a tab strip.
+   The user's answer was 「头部的这种显示的菜单栏不能要」, so focus is now carried
+   by the caret and the field's own text, the way it is on the terminal. No
+   pseudo-element, no fill, no edge: nothing above the list is a band. */
 
-.clipboard-panel__topbar:focus-within::before {
-  opacity: 1;
-}
-
+/* The prompt is part of the drag handle, not a control: `pointer-events: none`
+   would keep it out of the event path, but it is left interactive-free simply
+   by carrying no listener — a press on it bubbles to the row and starts a
+   drag. It stays out of the way of the field's own hit area. */
+/* CLIP-NIT · the prompt is a *label*, and a label is one line. It used to be
+   pinned to an 18px basis, which was fine for the terminal-era `filter❯` but
+   turned 「筛选」 into a vertical column: CJK breaks between any two glyphs, so
+   the two characters stacked and the ❯ caret fell beside them (the mac
+   report). It sizes to its text now and refuses to wrap, so the English word
+   and the Chinese pair both stay horizontal. The ❯ stays — it is the page's
+   prompt caret, not a stray chevron. */
 .clipboard-panel__prompt {
   position: relative;
   z-index: 1;
   display: inline-flex;
-  width: 18px;
-  flex: 0 0 18px;
+  flex: 0 0 auto;
   align-items: center;
+  white-space: nowrap;
   color: var(--text-muted);
 }
 
@@ -315,6 +314,21 @@ button {
   border: 1px solid var(--hairline);
   border-radius: 7px;
   background: var(--surface-field);
+}
+
+/* CLIP-NIT · the pinned-view scope: one chip, not a 全部/置顶 pair. The bar
+   below owns 全部 on the type axis, so this control only adds the pinned view
+   and only names it. It is a toggle, so it is a single lit/unlit slot rather
+   than a tab strip, and it must never shrink — a squeezed label would wrap a
+   CJK pair onto two lines (the mac report's 「筛选」 bug, one control over). */
+.clipboard-panel__scope {
+  flex: 0 0 auto;
+}
+/* A compound selector, not a bare `.clipboard-panel__scope-toggle`: the shared
+   `.clipboard-panel__type` face declares `flex: 0 1 auto`, and a single-class
+   rule written here (before that face) would lose the tie on source order. */
+.clipboard-panel__type.clipboard-panel__scope-toggle {
+  flex: 0 0 auto;
 }
 
 .clipboard-panel__type {
@@ -840,7 +854,6 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .clipboard-panel__topbar::before,
   .clipboard-panel__search,
   .clipboard-panel__filter-clear,
   .clipboard-panel__type,

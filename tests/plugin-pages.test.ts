@@ -13,6 +13,7 @@ import {
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
+  isBridgeDrag,
   isBridgeGlass,
   isBridgeOpacity,
   isBridgeReload,
@@ -95,6 +96,21 @@ test("close messages are recognized and nothing else is", () => {
   assert.ok(isBridgeClose({ [BRIDGE_TAG]: "close" }));
   assert.equal(isBridgeClose({ [BRIDGE_TAG]: "invoke", id: 1, command: "c" }), false);
   assert.equal(isBridgeClose(null), false);
+});
+
+test("drag messages are recognized and nothing else is", () => {
+  // CLIP-DRAG · the payload-free window-drag request a sandboxed page sends
+  // when the user presses its blank header.
+  assert.ok(isBridgeDrag({ [BRIDGE_TAG]: "drag" }));
+  assert.equal(isBridgeDrag({ [BRIDGE_TAG]: "close" }), false, "close is its own message");
+  assert.equal(isBridgeDrag({ [BRIDGE_TAG]: "invoke" }), false);
+  assert.equal(isBridgeDrag(null), false);
+  assert.equal(isBridgeDrag({}), false);
+  // The request is payload-free: the recognizer keys only on the tag and the
+  // host reads no fields off it, so a page cannot smuggle a position, a window
+  // or a size across the sandbox — a message that carries them is still just
+  // "drag", and the host ignores the extras.
+  assert.ok(isBridgeDrag({ [BRIDGE_TAG]: "drag", x: 10, y: 20 }));
 });
 
 test("results must be ok-with-value or error-with-string", () => {
