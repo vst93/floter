@@ -16,25 +16,29 @@
 :root {
   color-scheme: dark;
 
-  /* ── Interface scale (R7-13b) ───────────────────────────────────────────
+  /* ── Interface scale (R7-13b, wired to settings by R7-13c) ──────────────
      The whole interface is drawn from one knob. `--ui-scale` is that knob:
-     it is `1` for now, and R7-13c is the round that lets the user pick a
-     step (0.9 / 1 / 1.15 …). Nothing here changes a pixel while it is 1 —
-     that is the invariant this round's tests pin.
+     R7-13b tokenized every dimension onto it at a fixed `1`, and R7-13c is
+     the round that lets the user move it (Default = 1, Large = 1.1,
+     Larger = 1.25 — see `src/ui-scale.ts`). At the Default step the two
+     rounds together change no pixel, which is what the R7-13b samples in
+     `tests/ui-scale.test.ts` still pin.
 
-       --ui-scale   the multiplier. The single truth; leg 3 writes it on
-                    <html> (or :root) from settings.
+       --ui-scale   the multiplier. The single truth; R7-13c writes it on
+                    <html> from `applyUiScale` in `src/ui-scale.ts`.
        --u          the scaled pixel unit. Every box dimension (height,
                     padding, gap, offset, icon size) is written as
                     `calc(var(--u) * N)`, so one value scales all of them
                     and an arbitrary N (37, 42, 180) needs no new token.
-       --font-base  the type basis for leg 3. The `--text-*` ladder stays
-                    literal px this round on purpose: terminal.css consumes
-                    the same ladder for its chrome, and the terminal's own
-                    text size is a *user* setting (`settings.font_size`,
-                    painted by the canvas renderer). Decoupling them is leg
-                    3's job (see the marker in terminal.css); until then a
-                    scaled `--text-*` would silently move terminal chrome.
+       --font-base  the type basis, kept as an alias of the ladder's own
+                    basis. The `--text-*` ladder below now scales with the
+                    knob too (R7-13c): the whole interface — type included —
+                    follows one step. terminal.css consumes the same ladder
+                    for its *chrome*, so terminal chrome scales while the
+                    terminal's *content* does not: the canvas paints cells at
+                    the user's `settings.font_size`, read straight from
+                    settings and never from a CSS token (see the decoupling
+                    marker in terminal.css).
 
      Why a `--u` unit rather than a fixed `--u-1 … --u-16` ladder: these
      sheets carry dozens of distinct box sizes (34 in the three files this
@@ -44,7 +48,7 @@
      this round forbids. `calc(var(--u) * N)` expresses every
      value exactly, at `--ui-scale: 1` and at any other step alike. Hairlines
      (`1px` borders, dividers, focus rings) are deliberately *not* scaled:
-     they are physical ink, not layout, and a 1.2px hairline blurs. */
+     they are physical ink, not layout, and a 1.25px hairline blurs. */
   --ui-scale: 1;
   --u: calc(1px * var(--ui-scale));
   --font-base: calc(13px * var(--ui-scale));
@@ -106,12 +110,20 @@
      fixed 18px box (R6), body copy runs 1.4-1.5, and the display line runs
      1.3. Raising the sub-10 sizes is the point; the half-pixel steps
      (9.5/10.5/11.5/12.5) are collapsed into the nearest step so the same
-     semantic role cannot render at two sizes on two screens. */
-  --text-caption: 10px;
-  --text-body: 11px;
-  --text-emphasis: 12px;
-  --text-title: 13px;
-  --text-display: 17px;
+     semantic role cannot render at two sizes on two screens.
+
+     R7-13c puts the ladder on the interface knob. Each step is
+     `calc(<base>px * var(--ui-scale))`, so at the shipped default step every
+     value still resolves to exactly the pixel above, and a user who picks
+     Large/Larger gets the whole UI — type included — one step larger. The
+     bases stay the numbers this ladder always carried; the knob is the only
+     thing that moves. See `terminal.css` for the one axis that is NOT on the
+     knob (the terminal canvas's own cell size). */
+  --text-caption: calc(10px * var(--ui-scale));
+  --text-body: calc(11px * var(--ui-scale));
+  --text-emphasis: calc(12px * var(--ui-scale));
+  --text-title: calc(13px * var(--ui-scale));
+  --text-display: calc(17px * var(--ui-scale));
 
   /* ── Elevation ladder (R7-HIG) ──────────────────────────────────────────
      Three depths, and the shadow colour follows the material rather than

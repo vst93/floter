@@ -5,17 +5,21 @@
    Every `font-size` in this file reads a `--text-*` step, and those steps are
    the *chrome* of the terminal (bar title, toolbar labels, the clipboard
    page's rows) — they are interface type and follow `--ui-scale` like every
-   other surface.
+   other surface. R7-13c put the whole `--text-*` ladder on the knob, so this
+   chrome now scales with the user's interface-size step (Default / Large /
+   Larger).
 
    The terminal's *content* text is a different axis: the canvas renderer
    paints cells at the user's `settings.font_size` (`useTerminalView.ts` ->
    `render.ts`), read straight from settings and never from a CSS token, so a
-   `--ui-scale` step must not reach it. When R7-13c scales `--text-*`, this
-   file is where the two axes meet: the chrome steps scale, the canvas does
-   not, and no rule here may hand the canvas a CSS font-size.
+   `--ui-scale` step must not reach it. This file is where the two axes meet:
+   the chrome steps scale, the canvas does not, and no rule here may hand the
+   canvas a CSS font-size. `tests/ui-scale-steps.test.ts` asserts the canvas's
+   font string is built from `opts.fontSize`, never a `getComputedStyle`
+   font-size read, so the decoupling is machine-checked rather than a comment.
 
-   Marker for leg 3: `R7-13b terminal type decoupling` — do not fold the
-   canvas's font size into `--ui-scale`; it is the user's, not the layout's. */
+   Marker: `R7-13b terminal type decoupling` — do not fold the canvas's font
+   size into `--ui-scale`; it is the user's, not the layout's. */
 .terminal-shell {
   display: flex;
 }

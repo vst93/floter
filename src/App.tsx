@@ -85,6 +85,7 @@ import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt }
 import { launcherShortcutSlots } from "./launcher";
 import type { CommandAliases } from "./command-aliases";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
+import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
 import "./styles/launcher.css";
 import "./styles/terminal.css";
 import "./styles/settings.css";
@@ -173,6 +174,11 @@ export type AppSettings = {
    * conflicts between two commands sharing one alias are resolved at search
    * time (see `resolveCommandAliases`). */
   command_aliases: CommandAliases;
+  /** R7-13c: the interface-size step (`"default"` / `"large"` / `"larger"`).
+   * The stored string is the vocabulary; the step's `--ui-scale` multiplier
+   * lives in `ui-scale.ts` and is written onto the document root by a layout
+   * effect in this file (before `useLauncherHeight` measures the card). */
+  ui_scale: UiScale;
 }
 
 const SETTINGS_WINDOW_HEIGHT = 580;
@@ -292,6 +298,7 @@ export default function App() {
     changeGlassIntensity,
     changeOpacity,
     changeFontSize,
+    changeUiScale,
     changeGeneralSetting,
     changeCommandAlias,
     changeTheme,
@@ -893,6 +900,25 @@ export default function App() {
   // already see a null renderer. The window-hidden paths (blur, document
   // hidden) flush through the same scheduler's listeners.
 
+  // R7-13c: the interface-size step, written as `--ui-scale` on the document
+  // root — the one knob every box dimension and type step is drawn from. It is
+  // a *custom property* rather than an attribute because it is a single scalar
+  // the stylesheet multiplies (`calc(var(--u) * N)`); there is nothing to key a
+  // rule set off, so no `[data-scale]` attribute is needed. The value comes from
+  // `uiScaleFactor` (see `ui-scale.ts`), so this effect never spells the step's
+  // number.
+  //
+  // A *layout* effect, declared before `useLauncherHeight` below, and that
+  // ordering is the contract: React runs layout effects in hook order, so this
+  // write lands before the measurement reads `offsetTop`/`offsetHeight`. With
+  // this as the passive `useEffect` it was, the measurement (also a layout
+  // effect) would run on a step change *before* the knob moved, measure the old
+  // step's pixels, and the window would sit at the previous height until some
+  // other dependency happened to change.
+  useLayoutEffect(() => {
+    applyUiScale(document.documentElement, settings.ui_scale);
+  }, [settings.ui_scale]);
+
   // The glass *effect* step is an attribute rather than a custom property
   // because it swaps a *set* of tokens (`[data-glass]` in base.css: the blur,
   // the saturation and the control lens scale) and because the attribute is
@@ -957,10 +983,17 @@ export default function App() {
 
   // The launcher window is exactly as tall as the rows inside it, measured
   // rather than predicted. Extracted into useLauncherHeight hook.
+  //
+  // R7-13c: `settings.ui_scale` is in the dependency list on purpose. The card
+  // is drawn from scaled CSS, so its `offsetTop`/`offsetHeight` already include
+  // the step; the hook must **re-measure** when the step changes (the old
+  // pixels are stale), never multiply a measurement by the factor — that would
+  // scale twice. The knob stays out of the hook itself; the trigger is here.
   useLauncherHeight(mode, collapsedCardRef, [
     visibleActionBar,
     launcherFeedback,
     displayedResults.length,
+    settings.ui_scale,
   ]);
 
   // The terminal canvas is the active element when collapsed mode is committed.
@@ -1026,18 +1059,23 @@ export default function App() {
 
   // Settings is a compact work panel, not a document. Its header stays fixed
   // while the body scrolls; smaller displays get a proportional cap.
+  //
+  // R7-13c: the panel's *base* height scales with the interface-size step, so
+  // the window grows with its type instead of showing the same column with more
+  // scrolling. The screen-derived caps do not scale — they are viewport limits,
+  // not layout. Re-runs when the step changes while the panel is open.
   useEffect(() => {
     if (mode !== "settings") return;
     const available = window.screen.availHeight;
     const height = Math.min(
-      SETTINGS_WINDOW_HEIGHT,
+      SETTINGS_WINDOW_HEIGHT * uiScaleFactor(settings.ui_scale),
       Math.max(SETTINGS_MIN_HEIGHT, Math.floor(available * 0.72)),
       Math.max(240, available - 24),
     );
     getCurrentWindow()
       .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
       .catch(() => undefined);
-  }, [mode]);
+  }, [mode, settings.ui_scale]);
 
   // An armed recorder unmounts with the panel, but the flag that hands it the
   // keyboard lives in `useShortcutCapture`. Leaving it set would mute every
@@ -1630,6 +1668,7 @@ export default function App() {
                 onChangeGeneralSetting={changeGeneralSetting}
                 onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
                 onChangeFontSize={changeFontSize}
+                onChangeUiScale={changeUiScale}
                 onChangeOpacity={changeOpacity}
                 onChangeGlassIntensity={changeGlassIntensity}
               />

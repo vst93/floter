@@ -1,5 +1,10 @@
 import type { AppSettings, CursorShape } from "../App";
 import {
+  UI_SCALE_STEPS,
+  normalizeUiScale,
+  type UiScale,
+} from "../ui-scale";
+import {
   GLASS_INTENSITIES,
   GLASS_INTENSITY,
   clampWindowOpacity,
@@ -24,6 +29,13 @@ const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
   { value: "dark", labelKey: "settings.theme.dark" },
   { value: "light", labelKey: "settings.theme.light" },
 ];
+
+/** R7-13c · the three interface-size steps, in the order the picker paints them
+ *  (smallest first). The label keys are the step names; the multiplier each one
+ *  writes lives in `ui-scale.ts`, so this list never spells a number. */
+const UI_SCALE_OPTIONS: { value: UiScale; labelKey: MessageKey }[] = UI_SCALE_STEPS.map(
+  (value) => ({ value, labelKey: `settings.uiScale.${value}` as MessageKey }),
+);
 
 const MIN_FONT_SIZE = 8;
 const MAX_FONT_SIZE = 48;
@@ -160,6 +172,7 @@ type GeneralPageProps = {
   onChangeGeneralSetting: <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => void;
   onChangeLaunchAtStartup: (enabled: boolean) => void;
   onChangeFontSize: (size: number) => void;
+  onChangeUiScale: (step: UiScale) => void;
   onChangeOpacity: (target: "main" | "terminal", value: number) => void;
   onChangeGlassIntensity: (level: GlassIntensity) => void;
 };
@@ -229,6 +242,7 @@ export function GeneralPage({
   onChangeGeneralSetting,
   onChangeLaunchAtStartup,
   onChangeFontSize,
+  onChangeUiScale,
   onChangeOpacity,
   onChangeGlassIntensity,
 }: GeneralPageProps) {
@@ -275,6 +289,30 @@ export function GeneralPage({
                 options={LANGUAGE_OPTIONS.map((option) => ({
                   value: option.value,
                   label: option.label,
+                }))}
+              />
+            }
+          />
+          {/* R7-13c · Interface size. Raycast parity: three steps that scale the
+              whole UI. It sits in Appearance next to theme/language because it
+              is the same kind of choice — how the interface looks — and it uses
+              the identical three-stop segmented language the glass and cursor
+              pickers already speak. The stored value is normalized on read, so
+              a settings file that predates the round (no key) or names a step
+              that no longer ships shows `default`, never an unhighlighted
+              track. */}
+          <SettingsRow
+            stacked
+            label={t("settings.uiScale")}
+            sublabel={t("settings.uiScaleHint")}
+            control={
+              <SegmentedChoice
+                label={t("settings.uiScale")}
+                value={normalizeUiScale(settings.ui_scale)}
+                onChange={onChangeUiScale}
+                options={UI_SCALE_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: t(option.labelKey),
                 }))}
               />
             }

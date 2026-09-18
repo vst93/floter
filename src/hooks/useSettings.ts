@@ -16,6 +16,7 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { normalizeFontSize } from "../settings/GeneralPage";
+import { normalizeUiScale, type UiScale } from "../ui-scale";
 import {
   createSerialSettingsWriter,
   createSettingsHydration,
@@ -57,6 +58,9 @@ const SETTINGS_DEFAULTS: AppSettings = {
   show_menubar_icon: true,
   // R7-11: no aliases until the user adds one.
   command_aliases: {},
+  // R7-13c: the shipped interface-size step is `default` (the scale every build
+  // before this round rendered), so a pre-hydration frame is pixel-identical.
+  ui_scale: "default",
 };
 
 /** Debounce window for the font-size and transparency sliders' writes. The
@@ -205,6 +209,10 @@ export function useSettings(options: {
           // R7-11: an older config has no alias map; an explicit `null` from a
           // hand-edited file must not leak into the search path either.
           command_aliases: loaded.command_aliases ?? {},
+          // R7-13c: a pre-round settings file has no `ui_scale` key, and a
+          // hand-edited one may carry a step that no longer ships; both land on
+          // `default` (the shipped step) rather than on an unscaled guess.
+          ui_scale: normalizeUiScale(loaded.ui_scale),
         };
         const hydrated = settingsHydration.mergeLoaded(
           settingsRef.current,
@@ -352,6 +360,31 @@ export function useSettings(options: {
     [settingsHydration, persistSettings],
   );
 
+  /**
+   * R7-13c · the interface-size step.
+   *
+   * A discrete choice (like `glass_step`), so it persists immediately rather
+   * than through the slider debounce. It writes **only** `ui_scale`: the step is
+   * the scale axis, and the terminal's own `font_size` is a separate, user-owned
+   * axis this mutator must never touch (a step must not move the canvas's cell
+   * size — see the decoupling marker in `terminal.css`). The `--ui-scale` knob
+   * itself is applied by the effect in `App.tsx`, so it lands on the same commit
+   * as the state change and before any measurement runs.
+   */
+  const changeUiScale = useCallback(
+    (next: UiScale) => {
+      const step = normalizeUiScale(next);
+      if (step === settingsRef.current.ui_scale) return;
+      const updated: AppSettings = { ...settingsRef.current, ui_scale: step };
+      settingsHydration.markChanged("ui_scale");
+      settingsRef.current = updated;
+      setSettings(updated);
+      suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
+      void persistSettings().catch(() => setSettingsSaveFailed(true));
+    },
+    [settingsHydration, persistSettings, suppressBlurUntil],
+  );
+
   const changeTheme = useCallback(
     (theme: string) => {
       if (theme === settings.theme) return;
@@ -450,6 +483,7 @@ export function useSettings(options: {
     changeGlassIntensity,
     changeOpacity,
     changeFontSize,
+    changeUiScale,
     changeGeneralSetting,
     changeCommandAlias,
     changeTheme,

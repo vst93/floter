@@ -117,25 +117,28 @@ const originalPx = (value: string) => splitTokens(value.trim()).map((t) => (t ==
 
 // ── 1 · the knob ──────────────────────────────────────────────────────────
 
-test("the interface scale is a `--ui-scale` knob that is 1 this round", async () => {
+test("the interface scale is a `--ui-scale` knob owned by the settings layer", async () => {
   const block = await rootBlock();
-  // The single truth. R7-13c is the round allowed to move it; this test is the
-  // guard that says leg 2 changed no pixel, and it is the mutation the round's
-  // brief names first.
-  assert.equal(token(block, "ui-scale"), "1", "R7-13b is a no-behaviour-change refactor: --ui-scale stays 1");
+  // The single truth. R7-13b pinned it at 1 as a no-behaviour-change refactor;
+  // R7-13c is the round that moves it, so the assertion is now that the knob is
+  // *derivable and live*: the `:root` fallback is the shipped default step (1),
+  // and the multiplier is written onto the document by `src/ui-scale.ts`.
+  assert.equal(token(block, "ui-scale"), "1", "the `:root` fallback is the default step, and its factor is 1");
   // `--u` is the scaled pixel unit, and it must derive from the knob rather
   // than be a second literal — that is what makes one token scale every box.
   assert.equal(token(block, "u"), "calc(1px * var(--ui-scale))", "--u must be calc(1px * var(--ui-scale))");
-  // The type basis for leg 3. Declared here so the knob is one place, even
-  // though this round keeps the `--text-*` ladder literal (see the test below).
+  // The type basis. R7-13c put the whole `--text-*` ladder on the knob (see
+  // the type-scale test below), so this stays an alias of the ladder's own
+  // basis rather than a second, unconsumed number.
   assert.equal(token(block, "font-base"), "calc(13px * var(--ui-scale))", "--font-base must be calc(13px * var(--ui-scale))");
 });
 
-test("`--ui-scale` is not read by any TypeScript module", async () => {
-  // The knob is CSS-only this round: leg 3 writes it onto the document from
-  // settings, but nothing in the app should compute with it (the height
-  // measurement deliberately does not, see the last test). A JS consumer would
-  // be a second scaling authority.
+test("`--ui-scale` is spelled by the scale module and nothing else", async () => {
+  // R7-13b asserted no TypeScript module read the knob, because there was no
+  // scale owner yet. R7-13c makes `src/ui-scale.ts` that owner: it is the one
+  // module allowed to spell `--ui-scale` (its `applyUiScale` writes the value),
+  // and it is where the step -> multiplier table lives. Every *consumer* stays
+  // CSS — no component may compute a second scaled copy of a measurement.
   const { readdir } = await import("node:fs/promises");
   const walk = async (dir: URL): Promise<URL[]> => {
     const out: URL[] = [];
@@ -146,13 +149,29 @@ test("`--ui-scale` is not read by any TypeScript module", async () => {
     }
     return out;
   };
+  const OWNER = "src/ui-scale.ts";
+  // Comments may *name* the knob (they explain the round); the sweep is about
+  // code, so prose is stripped first — the same "code, not prose" convention
+  // `collapsed-focus.test.ts` uses for its source-shape assertions. A module
+  // that only mentions `--ui-scale` in a comment is not a second owner.
+  const stripJsComments = (source: string) =>
+    source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
   const offenders: string[] = [];
   for (const file of await walk(new URL("src/", root))) {
-    if (/(?:--ui-scale|--u\b|--font-base)/.test(await readFile(file, "utf8"))) {
-      offenders.push(file.href.slice(root.href.length));
+    const relative = file.href.slice(root.href.length);
+    if (relative === OWNER) continue;
+    if (/(?:--ui-scale|--u\b|--font-base)/.test(stripJsComments(await readFile(file, "utf8")))) {
+      offenders.push(relative);
     }
   }
   assert.deepEqual(offenders, [], `these modules read the CSS scale knob directly:\n${offenders.join("\n")}`);
+  // And the owner really does carry it: a comment that merely mentions the
+  // name would satisfy the sweep above while leaving the knob unowned.
+  assert.match(
+    await read(OWNER),
+    /UI_SCALE_CSS_VAR\s*=\s*"--ui-scale"/,
+    "ui-scale.ts must declare the one constant that spells the knob",
+  );
 });
 
 // ── 2 · the converted declarations resolve to their originals ─────────────

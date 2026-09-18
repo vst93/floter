@@ -73,6 +73,33 @@ const INPUT_WINDOW_WIDTH: f64 = 720.0;
 const INPUT_WINDOW_HEIGHT: f64 = 58.0;
 #[cfg(target_os = "windows")]
 const INPUT_WINDOW_HEIGHT: f64 = 72.0;
+
+/// The launcher's fallback height for the current interface-size step.
+///
+/// `INPUT_WINDOW_HEIGHT` is a **scale-1** measurement, exactly like the CSS box
+/// values R7-13b tokenized: the collapsed card's input row, its border and the
+/// Windows shell padding are all written as `calc(var(--u) * N)` and therefore
+/// grow with `--ui-scale`. The frontend measures the real height on the first
+/// resize, but the native reset paths run *before* that measurement lands, so
+/// they must scale the baseline themselves or the window would open at the old
+/// step's height and be corrected a frame later (a visible jump, and the exact
+/// blank-space bug the reset exists to prevent).
+///
+/// The step is read from the settings file on demand rather than cached: a
+/// reset can happen at any time and the user changes the step in settings, so
+/// the file is the only current truth. The width is deliberately not scaled —
+/// the launcher's 720px column is the window contract (R7-13a), and the
+/// reference keeps its width fixed at every step too.
+fn input_window_height() -> f64 {
+    scaled_input_window_height(&load_settings().ui_scale)
+}
+
+/// The pure half of [`input_window_height`], split out so the arithmetic is a
+/// unit test's subject rather than something only a running window shows:
+/// `base × factor(step)`, with the width and every other dimension untouched.
+fn scaled_input_window_height(step: &str) -> f64 {
+    INPUT_WINDOW_HEIGHT * commands::config::ui_scale_factor(step)
+}
 const TERMINAL_WINDOW_HEIGHT: f64 = 600.0;
 
 /// Configure and, when requested, run the terminal broker's process-only
@@ -868,7 +895,7 @@ fn reveal_saved_mode(window: &WebviewWindow, state: &AppState) -> Result<(), Str
         // ever corrects it afterwards). Re-home the window onto the launcher's
         // own baseline now that it is mapped and the geometry will stick; the
         // frontend then grows it to the content it measures.
-        let _ = resize_window(window, INPUT_WINDOW_WIDTH, INPUT_WINDOW_HEIGHT, false);
+        let _ = resize_window(window, INPUT_WINDOW_WIDTH, input_window_height(), false);
     }
     let _ = move_to_default_position(window, width, state);
     state.window_visible.store(true, Ordering::SeqCst);
@@ -1098,7 +1125,7 @@ fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Resul
     resize_window(
         &window,
         INPUT_WINDOW_WIDTH,
-        INPUT_WINDOW_HEIGHT,
+        input_window_height(),
         preserve_anchor,
     )?;
     reveal_window(&window)?;
@@ -1608,7 +1635,6 @@ pub fn run() {
 #[cfg(test)]
 mod tray_visibility_tests {
     use super::{desired_tray_visibility, tray_labels};
-
     #[test]
     fn the_menu_bar_icon_follows_the_setting_exactly() {
         // R7-10c's red-line contract: the status item is visible iff the
@@ -1630,5 +1656,58 @@ mod tray_visibility_tests {
             assert!(!show.is_empty() && !settings.is_empty());
             assert!(!reload.is_empty() && !quit.is_empty());
         }
+    }
+}
+
+#[cfg(test)]
+mod interface_scale_height_tests {
+    use super::{scaled_input_window_height, INPUT_WINDOW_HEIGHT, INPUT_WINDOW_WIDTH};
+
+    /// R7-13c · the collapsed window's **fallback** height is a scale-1
+    /// measurement (`INPUT_WINDOW_HEIGHT` counts the CSS input row and frame at
+    /// `--ui-scale: 1`), and the native reset paths run before the frontend can
+    /// measure the real card. So they must multiply the base by the step's
+    /// factor or the window opens at the old step's height and is corrected a
+    /// frame later — the exact blank-space bug the reset exists to prevent.
+    ///
+    /// The frontend goes the *other* way and re-measures (never multiplies),
+    /// because the card it measures is already laid out at the step. These two
+    /// tests are the two halves of that split.
+    #[test]
+    fn the_fallback_height_scales_with_the_interface_step() {
+        assert_eq!(scaled_input_window_height("default"), INPUT_WINDOW_HEIGHT);
+        assert_eq!(
+            scaled_input_window_height("large"),
+            INPUT_WINDOW_HEIGHT * 1.1
+        );
+        assert_eq!(
+            scaled_input_window_height("larger"),
+            INPUT_WINDOW_HEIGHT * 1.25
+        );
+        // The step must only ever make the window taller, never shorter: a
+        // factor of 0 (or a negative) would collapse the launcher.
+        for step in ["default", "large", "larger", "unknown"] {
+            assert!(scaled_input_window_height(step) >= INPUT_WINDOW_HEIGHT);
+        }
+    }
+
+    /// The width is the window contract (R7-13a) and every interface step keeps
+    /// it: the reference refuses to narrow the column too. A future edit that
+    /// scaled the width would fail here.
+    #[test]
+    fn the_width_is_never_scaled_by_the_interface_step() {
+        assert_eq!(INPUT_WINDOW_WIDTH, 720.0);
+        // Guard against the shape rather than only the value: the width must
+        // not appear in the scaled-height function's inputs.
+        let source = include_str!("lib.rs");
+        let function = source
+            .split("fn scaled_input_window_height")
+            .nth(1)
+            .and_then(|rest| rest.split('}').next())
+            .expect("scaled_input_window_height must exist");
+        assert!(
+            !function.contains("INPUT_WINDOW_WIDTH"),
+            "the fallback *height* must not read the width constant"
+        );
     }
 }

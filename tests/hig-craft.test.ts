@@ -188,8 +188,18 @@ test("the type scale is five named steps, none below the platform minimum", asyn
   const names = ["text-caption", "text-body", "text-emphasis", "text-title", "text-display"];
   const px = names.map((name) => {
     const value = token(rootBlock, name);
-    assert.match(value, /^\d+px$/, `--${name} must be a literal px value, got "${value}"`);
-    return Number(value.replace("px", ""));
+    // R7-13c put the ladder on the interface-size knob: each step is
+    // `calc(<base>px * var(--ui-scale))`. What matters here is the *base*
+    // (the size at the shipped default step), so the expression is resolved at
+    // `--ui-scale: 1` rather than required to be a bare literal. A step that
+    // stopped deriving from the knob would still be a literal and pass the
+    // shape check below (see `ui-scale.test.ts` for the coupling guard).
+    assert.match(
+      value,
+      /^calc\(\d+px \* var\(--ui-scale\)\)$/,
+      `--${name} must be calc(<base>px * var(--ui-scale)), got "${value}"`,
+    );
+    return Number(value.match(/^(?:calc\()?(\d+)px/)?.[1]);
   });
   for (let i = 1; i < px.length; i += 1) {
     assert.ok(px[i] > px[i - 1], `the type scale must ascend: ${px[i - 1]} -> ${px[i]}`);
