@@ -1,6 +1,21 @@
 /* Terminal surface: the terminal panel shell and bar, canvas + proxy input,
    toolbar buttons, the clipboard history page (a plugin page rendered in the
    terminal shell) and the generic plugin-page host frame. */
+/* ── Terminal type size is NOT part of the interface scale (R7-13b) ────────
+   Every `font-size` in this file reads a `--text-*` step, and those steps are
+   the *chrome* of the terminal (bar title, toolbar labels, the clipboard
+   page's rows) — they are interface type and follow `--ui-scale` like every
+   other surface.
+
+   The terminal's *content* text is a different axis: the canvas renderer
+   paints cells at the user's `settings.font_size` (`useTerminalView.ts` ->
+   `render.ts`), read straight from settings and never from a CSS token, so a
+   `--ui-scale` step must not reach it. When R7-13c scales `--text-*`, this
+   file is where the two axes meet: the chrome steps scale, the canvas does
+   not, and no rule here may hand the canvas a CSS font-size.
+
+   Marker for leg 3: `R7-13b terminal type decoupling` — do not fold the
+   canvas's font size into `--ui-scale`; it is the user's, not the layout's. */
 .terminal-shell {
   display: flex;
 }

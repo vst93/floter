@@ -35,12 +35,12 @@
 .settings-card__header {
   position: relative;
   flex: 0 0 auto;
-  height: 56px;
+  height: calc(var(--u) * 56);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 0 10px 0 16px;
+  gap: calc(var(--u) * 10);
+  padding: 0 calc(var(--u) * 10) 0 calc(var(--u) * 16);
   background: linear-gradient(180deg, var(--sheen-top), transparent);
 }
 
@@ -65,7 +65,7 @@
 }
 
 .settings-card__version {
-  margin-left: 8px;
+  margin-left: calc(var(--u) * 8);
   color: var(--text-tertiary);
   font-size: var(--text-body);
   font-weight: 400;
@@ -96,10 +96,10 @@
 .settings-sidebar {
   position: relative;
   min-width: 0;
-  padding: 12px 8px;
+  padding: calc(var(--u) * 12) calc(var(--u) * 8);
   display: grid;
   align-content: start;
-  gap: 3px;
+  gap: calc(var(--u) * 3);
 }
 
 .settings-sidebar::after {
@@ -115,11 +115,11 @@
 .settings-sidebar__item {
   width: 100%;
   min-width: 0;
-  min-height: 34px;
-  padding: 0 9px;
+  min-height: calc(var(--u) * 34);
+  padding: 0 calc(var(--u) * 9);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: calc(var(--u) * 8);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
@@ -164,7 +164,7 @@
   padding: 0;
   border: 0;
   display: grid;
-  gap: 18px;
+  gap: calc(var(--u) * 18);
 }
 
 .settings-controls:disabled :is(button, input, select),
@@ -198,13 +198,17 @@
   }
 }
 
+/* The top padding is the scroll-edge reservation and is deliberately left a
+   literal (R7-13b): `--scroll-edge` is a hairline-adjacent fade and is not
+   scaled this round, so the resting state must stay paired with it. The other
+   two sides follow the interface scale like every other box. */
 .settings-content {
   min-width: 0;
   min-height: 0;
-  padding: 16px 18px 22px;
+  padding: 16px calc(var(--u) * 18) calc(var(--u) * 22);
   display: grid;
   align-content: start;
-  gap: 18px;
+  gap: calc(var(--u) * 18);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* Scroll edge effect (HIG `scroll-views.md › Scroll edge effects`): the
@@ -240,8 +244,8 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  padding: 9px 10px;
+  gap: calc(var(--u) * 9);
+  padding: calc(var(--u) * 9) calc(var(--u) * 10);
   border: 1px solid var(--glass-control-edge);
   border-radius: var(--radius-md);
   background: var(--glass-control);
@@ -261,12 +265,12 @@
 }
 
 .settings-save-alert button {
-  min-height: 28px;
+  min-height: calc(var(--u) * 28);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 4px 9px;
+  gap: calc(var(--u) * 6);
+  padding: calc(var(--u) * 4) calc(var(--u) * 9);
   border: 1px solid var(--glass-control-edge);
   /* ROUND-PASS: a standalone action button floats on the alert, so it is a
      pill — the same shape language as the update banner's button. */
@@ -308,7 +312,7 @@
 /* Narrower than the document default, which is sized for a page: this bar sits
    14px from the panel's own edge and reads as part of the card. */
 .settings-content::-webkit-scrollbar {
-  width: 6px;
+  width: calc(var(--u) * 6);
 }
 
 .settings-content::-webkit-scrollbar-thumb {
@@ -347,12 +351,12 @@
   margin-inline: auto;
   display: grid;
   align-content: start;
-  gap: 22px;
+  gap: calc(var(--u) * 22);
 }
 
 .settings-page__header {
   display: grid;
-  gap: 3px;
+  gap: calc(var(--u) * 3);
 }
 
 .settings-page__title {
@@ -375,7 +379,7 @@
 .settings-section {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: calc(var(--u) * 8);
 }
 
 /* The heading row carries the group title and, on the right, the App Store's
@@ -387,8 +391,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 2px;
+  gap: calc(var(--u) * 12);
+  padding: 0 calc(var(--u) * 2);
 }
 
 .settings-section__heading-main {
@@ -445,7 +449,7 @@
 .settings-cards {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: calc(var(--u) * 10);
 }
 
 /* ── The row ──────────────────────────────────────────────────────────── */
@@ -455,7 +459,7 @@
   min-height: 44px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: calc(var(--u) * 12);
   padding: 9px var(--settings-card-inset);
 }
 
@@ -464,8 +468,8 @@
    decoration. */
 .settings-row__icon {
   flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
+  width: calc(var(--u) * 26);
+  height: calc(var(--u) * 26);
   display: grid;
   place-items: center;
   border-radius: var(--radius-xs);
@@ -502,7 +506,7 @@
   margin-inline-start: auto;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: calc(var(--u) * 8);
 }
 
 /* A control wider than a trailing slot can hold — a range, a segmented
@@ -512,7 +516,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 8px;
+  gap: calc(var(--u) * 8);
 }
 
 .settings-row--stacked .settings-row__control {
@@ -520,7 +524,7 @@
   margin-inline-start: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
+  gap: calc(var(--u) * 4);
 }
 
 /* The row separator: its own element, absolutely positioned, inset to the
@@ -586,8 +590,8 @@
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 8px;
-  padding: 24px;
+  gap: calc(var(--u) * 8);
+  padding: calc(var(--u) * 24);
   text-align: center;
 }
 
@@ -622,9 +626,9 @@
 .settings-reset {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 24px;
-  padding: 0 2px;
+  gap: calc(var(--u) * 5);
+  min-height: calc(var(--u) * 24);
+  padding: 0 calc(var(--u) * 2);
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -639,7 +643,7 @@
 }
 
 .settings-reset__icon {
-  width: 12px;
+  width: calc(var(--u) * 12);
   color: currentColor;
   /* A symbol, not copy: sized relative to the label it sits beside so it
      follows the type scale instead of adding a 15px step to it. */
@@ -677,7 +681,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: calc(var(--u) * 8);
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   font-weight: 500;
@@ -698,7 +702,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: calc(var(--u) * 10);
 }
 
 .settings-options {
@@ -706,11 +710,11 @@
 }
 
 .settings-section--material {
-  padding: 10px 0;
+  padding: calc(var(--u) * 10) 0;
 }
 
 .settings-section--material {
-  gap: 10px;
+  gap: calc(var(--u) * 10);
 }
 
 /* ── Glass effect picker (GLASS-3STOP) ──────────────────────────────────
@@ -722,7 +726,7 @@
 .glass-intensity,
 .glass-intensity__segments {
   display: grid;
-  gap: 2px;
+  gap: calc(var(--u) * 2);
 }
 
 .glass-intensity__segments {
@@ -731,8 +735,8 @@
 }
 
 .glass-intensity__segments .settings-option {
-  min-height: 34px;
-  padding: 0 6px;
+  min-height: calc(var(--u) * 34);
+  padding: 0 calc(var(--u) * 6);
   text-align: center;
   justify-items: center;
 }
@@ -759,7 +763,7 @@
    the control slot stacks the track and its end words with a little more air
    than a switch row needs. */
 .opacity-controls .settings-row__control {
-  gap: 5px;
+  gap: calc(var(--u) * 5);
 }
 
 .opacity-control__value {
@@ -778,7 +782,7 @@
 .opacity-control__range,
 .settings-row input[type="range"] {
   width: 100%;
-  height: 16px;
+  height: calc(var(--u) * 16);
   margin: 0;
   accent-color: var(--accent);
   cursor: pointer;
@@ -810,8 +814,8 @@
 .settings-select {
   min-width: 0;
   max-width: 220px;
-  height: 28px;
-  padding: 0 26px 0 10px;
+  height: calc(var(--u) * 28);
+  padding: 0 calc(var(--u) * 26) 0 calc(var(--u) * 10);
   border: 1px solid var(--glass-control-edge);
   border-radius: 999px;
   background: var(--glass-field);
@@ -840,8 +844,8 @@
 .settings-options--inline {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   grid-auto-flow: column;
-  gap: 2px;
-  padding: 3px;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 3);
   /* ROUND-PASS: a segmented control is a stadium, not a rounded box. Both the
      track and the segment inside it take the pill, which is the one case
      where the concentric rule survives without arithmetic — outer and inner
@@ -854,12 +858,12 @@
 
 .settings-option {
   width: 100%;
-  min-height: 34px;
+  min-height: calc(var(--u) * 34);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 0 10px;
+  gap: calc(var(--u) * 10);
+  padding: 0 calc(var(--u) * 10);
   /* ROUND-PASS: the default shape stays the ladder's control step. The pill
      below is applied *by the track* (`.settings-options--inline
      .settings-option`), because "is a pill" is a property of being a segment
@@ -919,7 +923,7 @@
 .settings-option__main {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: calc(var(--u) * 2);
 }
 
 .settings-option__label {
@@ -953,8 +957,8 @@
 .settings-switch {
   position: relative;
   flex: 0 0 auto;
-  width: 34px;
-  height: 20px;
+  width: calc(var(--u) * 34);
+  height: calc(var(--u) * 20);
   padding: 0;
   border-radius: 999px;
   background: var(--glass-track);
@@ -965,10 +969,10 @@
 
 .settings-switch__thumb {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 14px;
-  height: 14px;
+  top: calc(var(--u) * 3);
+  left: calc(var(--u) * 3);
+  width: calc(var(--u) * 14);
+  height: calc(var(--u) * 14);
   border-radius: 50%;
   background: var(--text-secondary);
   /* A thumb is a small glass bead: its own top highlight is what stops it
@@ -1009,7 +1013,7 @@
    sublabels so it does not compete with them. */
 .settings-section__hint {
   margin: 0;
-  padding: 0 2px;
+  padding: 0 calc(var(--u) * 2);
   color: var(--text-tertiary);
   font-size: var(--text-body);
   font-weight: 500;
@@ -1023,7 +1027,7 @@
 }
 
 .session-manager {
-  gap: 10px;
+  gap: calc(var(--u) * 10);
 }
 
 /* PAGES-APPLY · the session list IS the shared grouped card, and each entry is
@@ -1051,7 +1055,7 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
+  gap: calc(var(--u) * 9);
   border-radius: 0;
 }
 
@@ -1078,7 +1082,7 @@
 .session-manager__lines {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: calc(var(--u) * 2);
 }
 
 .session-manager__cwd {
@@ -1093,7 +1097,7 @@
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
+  gap: calc(var(--u) * 4) calc(var(--u) * 10);
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
@@ -1109,13 +1113,13 @@
 
 .session-manager__actions {
   display: flex;
-  gap: 3px;
+  gap: calc(var(--u) * 3);
 }
 
 .session-manager__icon-button {
   position: relative;
-  width: 28px;
-  height: 28px;
+  width: calc(var(--u) * 28);
+  height: calc(var(--u) * 28);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1131,10 +1135,10 @@
    sessions as resumable, distinguishing them from exited ones. */
 .session-manager__resume-dot {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 5px;
-  height: 5px;
+  top: calc(var(--u) * 3);
+  right: calc(var(--u) * 3);
+  width: calc(var(--u) * 5);
+  height: calc(var(--u) * 5);
   border-radius: 50%;
   background: var(--accent);
 }
@@ -1143,10 +1147,10 @@
    short danger-tinted text pill asking "terminate?", auto-disarming after
    3s. Same rhythm as the extensions inline discard confirmation. */
 .session-manager__kill-confirm {
-  height: 28px;
+  height: calc(var(--u) * 28);
   display: inline-flex;
   align-items: center;
-  padding: 0 9px;
+  padding: 0 calc(var(--u) * 9);
   border: 1px solid var(--text-warning);
   /* ROUND-PASS: a 28px standalone text button, so it is a pill like every
      other action button — the icon buttons beside it stay on the ladder. */
@@ -1220,10 +1224,10 @@
 .session-manager__sort-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 24px;
+  gap: calc(var(--u) * 5);
+  min-height: calc(var(--u) * 24);
   margin-inline-start: auto;
-  padding: 0 2px;
+  padding: 0 calc(var(--u) * 2);
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -1254,12 +1258,12 @@
 }
 
 .shortcut-recorder {
-  min-width: 82px;
-  min-height: 27px;
+  min-width: calc(var(--u) * 82);
+  min-height: calc(var(--u) * 27);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 10px;
+  padding: 0 calc(var(--u) * 10);
   border-radius: var(--radius-sm);
   background: var(--glass-control);
   border: 1px solid var(--glass-control-edge);
@@ -1339,7 +1343,7 @@
    `floter://` line read as a value rather than as prose. */
 .settings-deep-link__value {
   display: block;
-  padding: 4px 8px;
+  padding: calc(var(--u) * 4) calc(var(--u) * 8);
   border-radius: var(--radius-xs);
   background: var(--surface-sunken);
   border: 1px solid var(--glass-control-edge);
@@ -1357,7 +1361,7 @@
 
 .update-banner__button {
   flex: 0 0 auto;
-  padding: 6px 14px;
+  padding: calc(var(--u) * 6) calc(var(--u) * 14);
   border: none;
   /* ROUND-PASS: the banner's primary action — the one thing on it the user
      presses — is a pill. */
@@ -1387,12 +1391,12 @@
 .update-banner__progress {
   flex: 0 0 auto;
   display: grid;
-  gap: 5px;
-  min-width: 180px;
+  gap: calc(var(--u) * 5);
+  min-width: calc(var(--u) * 180);
 }
 
 .update-banner__progress-track {
-  height: 4px;
+  height: calc(var(--u) * 4);
   border-radius: var(--radius-xs);
   background: var(--glass-track);
   box-shadow: inset 0 0 0 1px var(--glass-track-edge);

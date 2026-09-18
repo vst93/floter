@@ -16,6 +16,39 @@
 :root {
   color-scheme: dark;
 
+  /* ── Interface scale (R7-13b) ───────────────────────────────────────────
+     The whole interface is drawn from one knob. `--ui-scale` is that knob:
+     it is `1` for now, and R7-13c is the round that lets the user pick a
+     step (0.9 / 1 / 1.15 …). Nothing here changes a pixel while it is 1 —
+     that is the invariant this round's tests pin.
+
+       --ui-scale   the multiplier. The single truth; leg 3 writes it on
+                    <html> (or :root) from settings.
+       --u          the scaled pixel unit. Every box dimension (height,
+                    padding, gap, offset, icon size) is written as
+                    `calc(var(--u) * N)`, so one value scales all of them
+                    and an arbitrary N (37, 42, 180) needs no new token.
+       --font-base  the type basis for leg 3. The `--text-*` ladder stays
+                    literal px this round on purpose: terminal.css consumes
+                    the same ladder for its chrome, and the terminal's own
+                    text size is a *user* setting (`settings.font_size`,
+                    painted by the canvas renderer). Decoupling them is leg
+                    3's job (see the marker in terminal.css); until then a
+                    scaled `--text-*` would silently move terminal chrome.
+
+     Why a `--u` unit rather than a fixed `--u-1 … --u-16` ladder: these
+     sheets carry dozens of distinct box sizes (34 in the three files this
+     round converts, 57 across all six), most of them odd (27, 42, 82, 180).
+     A named step for each would be a second ladder to keep in sync, and
+     rounding an odd value to the nearest step would change the pixel — which
+     this round forbids. `calc(var(--u) * N)` expresses every
+     value exactly, at `--ui-scale: 1` and at any other step alike. Hairlines
+     (`1px` borders, dividers, focus rings) are deliberately *not* scaled:
+     they are physical ink, not layout, and a 1.2px hairline blurs. */
+  --ui-scale: 1;
+  --u: calc(1px * var(--ui-scale));
+  --font-base: calc(13px * var(--ui-scale));
+
   /* Window corner radius. DWM rounding is disabled on Windows (see
      `configure_windows_frame` in lib.rs) and macOS never rounds a borderless
      window, so CSS is the sole source of the corner shape on every platform —
@@ -1047,8 +1080,8 @@ canvas {
    content and not its chrome. The width is reserved either way — the thumb
    fading in must not reflow the row it sits beside. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: calc(var(--u) * 6);
+  height: calc(var(--u) * 6);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -1325,12 +1358,12 @@ html:not([data-glass]) {
    flush against need almost none.  The inward edge strokes that gave the card
    definition on every other platform are kept here too. */
 .platform-windows .collapsed-shell {
-  padding: 4px 10px 12px 4px;
+  padding: calc(var(--u) * 4) calc(var(--u) * 10) calc(var(--u) * 12) calc(var(--u) * 4);
 }
 
 .platform-windows .settings-shell,
 .platform-windows .terminal-shell {
-  padding: 10px;
+  padding: calc(var(--u) * 10);
 }
 
 .platform-windows .collapsed-card,
@@ -1380,7 +1413,7 @@ html:not([data-glass]) {
    compositor exposes a stable light direction to the application. */
 .platform-linux .settings-shell,
 .platform-linux .terminal-shell {
-  padding: 10px;
+  padding: calc(var(--u) * 10);
 }
 
 /* Not flush: the focused card draws its ring and shadow outward, and with no
@@ -1388,7 +1421,7 @@ html:not([data-glass]) {
    ring plus the contact shadow. `syncLauncherHeight` adds this padding back
    into the window height it requests, so the card keeps its full size. */
 .platform-linux .collapsed-shell {
-  padding: 4px;
+  padding: calc(var(--u) * 4);
 }
 
 .platform-linux .collapsed-card,

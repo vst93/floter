@@ -57,10 +57,10 @@
 
 .collapsed-card__input-row {
   position: relative;
-  min-height: 56px;
+  min-height: calc(var(--u) * 56);
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 calc(var(--u) * 16);
   overflow: hidden;
 }
 
@@ -83,7 +83,7 @@
   z-index: 1;
   width: 100%;
   min-width: 0;
-  min-height: 22px;
+  min-height: calc(var(--u) * 22);
   border: none;
   /* ROUND-PASS exception: the launcher's field is not a boxed input at all —
      it is borderless text inside the card, and the card's own
@@ -107,9 +107,9 @@
   position: relative;
   z-index: 1;
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  margin-left: 8px;
+  width: calc(var(--u) * 28);
+  height: calc(var(--u) * 28);
+  margin-left: calc(var(--u) * 8);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -158,7 +158,7 @@
   z-index: 1;
   display: grid;
   gap: 0;
-  padding: 4px;
+  padding: calc(var(--u) * 4);
   background: var(--surface-sunken);
 }
 
@@ -213,11 +213,11 @@
 }
 
 .launcher-feedback {
-  min-height: 30px;
+  min-height: calc(var(--u) * 30);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: calc(var(--u) * 8);
+  padding: 0 calc(var(--u) * 10);
   border-radius: var(--radius-sm);
   background: var(--system-icon-surface);
   color: var(--text-warning);
@@ -237,16 +237,16 @@
 
 .launcher-feedback__icon,
 .terminal-feedback__icon {
-  width: 16px;
-  height: 16px;
+  width: calc(var(--u) * 16);
+  height: calc(var(--u) * 16);
   flex: 0 0 auto;
   display: grid;
   place-items: center;
 }
 
 .launcher-feedback__retry {
-  width: 24px;
-  height: 24px;
+  width: calc(var(--u) * 24);
+  height: calc(var(--u) * 24);
   margin-left: auto;
   display: inline-flex;
   align-items: center;
@@ -277,10 +277,10 @@
 /* A one-line greyed suggestion shown when the launcher is empty because
    show_commands_in_search is off — points users toward integrations. */
 .launcher-hint {
-  min-height: 30px;
+  min-height: calc(var(--u) * 30);
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 calc(var(--u) * 10);
   color: var(--text-muted);
   font-size: var(--text-body);
   font-weight: 500;
@@ -290,12 +290,12 @@
 /* First-run onboarding tip: a small dismissible callout shown above the
    launcher's result area the first time the user opens the launcher. */
 .launcher-tip {
-  min-height: 34px;
+  min-height: calc(var(--u) * 34);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 10px 4px 12px;
+  gap: calc(var(--u) * 8);
+  padding: calc(var(--u) * 4) calc(var(--u) * 10) calc(var(--u) * 4) calc(var(--u) * 12);
   /* ROUND-PASS exception: a dismissible first-run callout is a message
      surface, not a control, and its height is content-driven. It keeps the
      ladder's control step (raised to 9px this round). */
@@ -316,15 +316,15 @@
 .launcher-tip__body {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: calc(var(--u) * 8);
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .launcher-tip__icon {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: calc(var(--u) * 18);
+  height: calc(var(--u) * 18);
   display: grid;
   place-items: center;
   color: var(--accent, var(--text-strong));
@@ -354,8 +354,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  padding: 0 10px;
+  height: calc(var(--u) * 22);
+  padding: 0 calc(var(--u) * 10);
   border: 1px solid var(--stroke-control, var(--hairline));
   border-radius: var(--radius-xs);
   background: var(--glass-control);
@@ -385,11 +385,11 @@
 }
 
 .launcher-system-confirm {
-  min-height: 30px;
+  min-height: calc(var(--u) * 30);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: calc(var(--u) * 8);
+  padding: 0 calc(var(--u) * 10);
   border-radius: var(--radius-sm);
   background: var(--system-icon-surface);
   color: var(--text-warning);
@@ -399,8 +399,8 @@
 }
 
 .launcher-system-confirm__icon {
-  width: 16px;
-  height: 16px;
+  width: calc(var(--u) * 16);
+  height: calc(var(--u) * 16);
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -412,12 +412,12 @@
 
 .launcher-system-confirm__execute,
 .launcher-system-confirm__cancel {
-  height: 24px;
+  height: calc(var(--u) * 24);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  padding: 0 8px;
+  padding: 0 calc(var(--u) * 8);
   border: 1px solid transparent;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -502,11 +502,11 @@
 
 .launcher-result {
   width: 100%;
-  height: 42px;
+  height: calc(var(--u) * 42);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 9px 0 11px;
+  gap: calc(var(--u) * 10);
+  padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
   /* ROUND-PASS exception: a result row is content, not a control. It scrolls
      with the list it belongs to, so it keeps the ladder's container step
      (--radius-md, raised to 12px this round) rather than the pill. */
@@ -547,8 +547,8 @@
 
 .launcher-result__icon {
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
+  width: calc(var(--u) * 28);
+  height: calc(var(--u) * 28);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -587,7 +587,7 @@
   flex: 1 1 0;
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: calc(var(--u) * 2);
 }
 
 .launcher-result__title,
@@ -626,8 +626,8 @@
    an 8px dot reads at any width, and the title attribute carries the words. */
 .launcher-result__warning {
   flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
+  width: calc(var(--u) * 8);
+  height: calc(var(--u) * 8);
   border-radius: 50%;
   background: var(--text-warning);
 }
@@ -647,7 +647,7 @@
 }
 
 .launcher-result__action {
-  min-width: 30px;
+  min-width: calc(var(--u) * 30);
   color: var(--text-tertiary);
   font-size: var(--text-body);
   font-weight: 620;
@@ -680,19 +680,19 @@
 .launcher-action-bar {
   position: relative;
   width: 100%;
-  height: 42px;
+  height: calc(var(--u) * 42);
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: calc(var(--u) * 10);
   /* Unconditional, and deliberately not toggled by whether a list sits above:
      these 4px used to appear and disappear as the result count crossed 0/1,
      which moved the action bar — and the window's height — by 4px on the
      keystroke that emptied or filled the list. A separator that is always
      there costs one hairline in the no-results case and buys a bottom edge
      that never jumps while typing. */
-  margin-top: 3px;
-  padding: 0 9px 0 11px;
+  margin-top: calc(var(--u) * 3);
+  padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
@@ -729,8 +729,8 @@
 }
 
 .launcher-action-bar__icon {
-  width: 28px;
-  height: 28px;
+  width: calc(var(--u) * 28);
+  height: calc(var(--u) * 28);
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
@@ -749,14 +749,14 @@
 .launcher-action-bar__main {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: calc(var(--u) * 2);
 }
 
 .launcher-action-bar__hint {
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   font-weight: 500;
-  padding: 2px 6px;
+  padding: calc(var(--u) * 2) calc(var(--u) * 6);
   border-radius: var(--radius-xs);
   background: var(--icon-surface);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
