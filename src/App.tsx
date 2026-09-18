@@ -84,6 +84,7 @@ import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import { launcherShortcutSlots } from "./launcher";
 import type { CommandAliases } from "./command-aliases";
+import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import "./styles/launcher.css";
 import "./styles/terminal.css";
 import "./styles/settings.css";
@@ -174,7 +175,6 @@ export type AppSettings = {
   command_aliases: CommandAliases;
 }
 
-const INPUT_WINDOW_WIDTH = 720;
 const SETTINGS_WINDOW_HEIGHT = 580;
 const SETTINGS_MIN_HEIGHT = 420;
 /** How long the panel ignores a blur after a Windows drag; see `startDrag`.

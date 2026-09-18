@@ -1,8 +1,7 @@
 import { useLayoutEffect } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { reassertCollapsedFocus } from "../collapsed-focus.ts";
-
-const INPUT_WINDOW_WIDTH = 720;
+import { INPUT_WINDOW_WIDTH } from "../window-contract.ts";
 
 /**
  * Sync the launcher window's height to the collapsed card's measured content.
