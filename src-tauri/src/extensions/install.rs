@@ -2182,7 +2182,7 @@ mod tests {
     use crate::extensions::sync;
     use crate::extensions::ExtensionPaths;
     use chrono::Utc;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap};
 
     fn test_state(root: &Path) -> ExtensionState {
         ExtensionState::from_paths(ExtensionPaths::from_root(root.to_path_buf())).unwrap()
@@ -2413,6 +2413,7 @@ mod tests {
             cwd: None,
             limit: 10,
             include_system_commands: false,
+            command_aliases: HashMap::new(),
         }
     }
 
@@ -2651,6 +2652,7 @@ mod tests {
                 cwd: None,
                 limit: 10,
                 include_system_commands: false,
+                command_aliases: HashMap::new(),
             },
             &[],
         )
@@ -2908,6 +2910,7 @@ mod tests {
                 cwd: None,
                 limit: 10,
                 include_system_commands: false,
+                command_aliases: HashMap::new(),
             },
             &[],
         )
@@ -3562,6 +3565,7 @@ mod tests {
                 cwd: None,
                 limit: 10,
                 include_system_commands: false,
+                command_aliases: HashMap::new(),
             },
             &[],
         )

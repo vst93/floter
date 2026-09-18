@@ -83,6 +83,7 @@ import {
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import { launcherShortcutSlots } from "./launcher";
+import type { CommandAliases } from "./command-aliases";
 import "./styles/launcher.css";
 import "./styles/terminal.css";
 import "./styles/settings.css";
@@ -166,6 +167,11 @@ export type AppSettings = {
    * is shown (default on). Off hides the icon only — the global hotkey and the
    * settings page stay reachable, so no summon path is lost. */
   show_menubar_icon: boolean;
+  /** R7-11: user-defined per-command aliases for launcher search, keyed by the
+   * catalog command name (`"git"` -> `"gfm"`). The raw map is kept as typed;
+   * conflicts between two commands sharing one alias are resolved at search
+   * time (see `resolveCommandAliases`). */
+  command_aliases: CommandAliases;
 }
 
 const INPUT_WINDOW_WIDTH = 720;
@@ -287,6 +293,7 @@ export default function App() {
     changeOpacity,
     changeFontSize,
     changeGeneralSetting,
+    changeCommandAlias,
     changeTheme,
     changeLanguage,
     changeLaunchAtStartup,
@@ -624,6 +631,7 @@ export default function App() {
     launchCounts: settings.launch_counts,
     showCommandsInSearch: settings.show_commands_in_search,
     showRecentInLauncher: settings.show_recent_in_launcher,
+    commandAliases: settings.command_aliases,
     t,
     settingsRef,
     settingsHydration,
@@ -1665,6 +1673,8 @@ export default function App() {
                 onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
                 showCommandsInSearch={settings.show_commands_in_search}
                 onToggleCommandsInSearch={toggleCommandsInSearch}
+                commandAliases={settings.command_aliases}
+                onChangeCommandAlias={changeCommandAlias}
                 basePlugins={[
                   {
                     id: CLIPBOARD_PLUGIN_ID,

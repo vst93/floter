@@ -27,6 +27,7 @@ import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
 import { normalizeLanguage, type Language } from "../i18n";
 import type { AppSettings } from "../App";
 import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassIntensity } from "../glass-material";
+import { withCommandAlias } from "../command-aliases";
 /** Defaults applied before the first disk read returns. */
 const SETTINGS_DEFAULTS: AppSettings = {
   hotkey: "Ctrl+Space",
@@ -54,6 +55,8 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // every earlier build had. The frontend default must match the Rust
   // `default_true` so a pre-hydration frame does not hide the icon.
   show_menubar_icon: true,
+  // R7-11: no aliases until the user adds one.
+  command_aliases: {},
 };
 
 /** Debounce window for the font-size and transparency sliders' writes. The
@@ -199,6 +202,9 @@ export function useSettings(options: {
           last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
           seen_tip: loaded.seen_tip ?? false,
           show_menubar_icon: loaded.show_menubar_icon ?? true,
+          // R7-11: an older config has no alias map; an explicit `null` from a
+          // hand-edited file must not leak into the search path either.
+          command_aliases: loaded.command_aliases ?? {},
         };
         const hydrated = settingsHydration.mergeLoaded(
           settingsRef.current,
@@ -317,6 +323,35 @@ export function useSettings(options: {
     [settingsHydration, persistSettings, suppressBlurUntil],
   );
 
+  /**
+   * R7-11: set one command's alias.
+   *
+   * Rides the same `SETTINGS_DEBOUNCE_MS` window as the sliders, because the
+   * field is a text input: one save per pause instead of one per keystroke. The
+   * generic `changeGeneralSetting` path would write on every character — it has
+   * no debounce — so this is a dedicated mutator rather than a re-use. Writing
+   * an empty alias removes the entry (`withCommandAlias`), which is what makes
+   * clearing the input a real removal and not an entry that matches everything.
+   */
+  const changeCommandAlias = useCallback(
+    (command: string, alias: string) => {
+      const next = withCommandAlias(settingsRef.current.command_aliases, command, alias);
+      if (next === settingsRef.current.command_aliases) return;
+      const updated: AppSettings = { ...settingsRef.current, command_aliases: next };
+      settingsHydration.markChanged("command_aliases");
+      settingsRef.current = updated;
+      setSettings(updated);
+      if (settingsSaveTimer.current !== null) {
+        window.clearTimeout(settingsSaveTimer.current);
+      }
+      settingsSaveTimer.current = window.setTimeout(() => {
+        settingsSaveTimer.current = null;
+        persistSettings().catch(() => setSettingsSaveFailed(true));
+      }, SETTINGS_DEBOUNCE_MS);
+    },
+    [settingsHydration, persistSettings],
+  );
+
   const changeTheme = useCallback(
     (theme: string) => {
       if (theme === settings.theme) return;
@@ -416,6 +451,7 @@ export function useSettings(options: {
     changeOpacity,
     changeFontSize,
     changeGeneralSetting,
+    changeCommandAlias,
     changeTheme,
     changeLanguage,
     changeLaunchAtStartup,

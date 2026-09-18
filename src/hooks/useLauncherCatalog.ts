@@ -28,6 +28,7 @@ import {
   type SystemAction,
 } from "../launcher/LauncherResults";
 import { createSettingsHydration } from "../settings-persistence";
+import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandAlias, rebaseAliasCommandLine, resolveCommandAliases, MATCH_EXACT, type CommandAliases } from "../command-aliases";
 import { IS_WINDOWS } from "../shortcuts";
 import type { AppSettings, LocalApplication } from "../App";
 import type { MessageKey, Translate } from "../i18n";
@@ -166,6 +167,9 @@ export function useLauncherCatalog(options: {
   /** `settings.show_recent_in_launcher` — whether the empty query offers the
    * most-launched applications at all. */
   showRecentInLauncher: boolean;
+  /** `settings.command_aliases` — the raw per-command alias map. Passed by
+   *  identity so an edit re-ranks the visible command rows immediately. */
+  commandAliases: CommandAliases;
   t: Translate;
   settingsRef: RefObject<AppSettings>;
   settingsHydration: ReturnType<typeof createSettingsHydration<AppSettings>>;
@@ -177,6 +181,7 @@ export function useLauncherCatalog(options: {
     launchCounts,
     showCommandsInSearch,
     showRecentInLauncher,
+    commandAliases,
     t,
     settingsRef,
     settingsHydration,
@@ -253,6 +258,9 @@ export function useLauncherCatalog(options: {
       return;
     }
     const includeSystemCommands = showCommandsInSearch;
+    // R7-11: the conflict policy is applied once per query, then handed to the
+    // backend so its ranking uses exactly the map the rows are ranked with.
+    const resolvedAliases = resolveCommandAliases(commandAliases);
 
     setCatalogSuggestions([]);
     const timer = window.setTimeout(() => {
@@ -268,6 +276,11 @@ export function useLauncherCatalog(options: {
         ? []
         : completionLine.tokens.slice(commandIndex);
       const wantsCompletion = structuredCommand && completionTokens.length > 1;
+      // R7-11: a user alias is a search surface only. Completion is asked of
+      // the provider by its *real* command id, so `gfm <Tab>` completes `git`'s
+      // arguments rather than offering nothing for a command the descriptor
+      // never heard of. The typed token itself is left in the row.
+      const completionCommand = aliasToCommand(resolvedAliases)[command.toLowerCase()] ?? command;
       const search = structuredCommand ? invoke<CatalogEntry[]>("catalog_search", {
         request: {
           query,
@@ -276,12 +289,13 @@ export function useLauncherCatalog(options: {
           cwd: null,
           limit: 20,
           includeSystemCommands,
+          commandAliases: resolvedAliases,
         },
       }) : Promise.resolve<CatalogEntry[]>([]);
       const complete = wantsCompletion
         ? invoke<CatalogCompletionResponse>("catalog_complete", {
             request: {
-              command,
+              command: completionCommand,
               tokens: completionTokens,
               cwd: null,
             },
@@ -302,7 +316,8 @@ export function useLauncherCatalog(options: {
           const exact = commands.find((entry) =>
             entry.command === command ||
             entry.qualifiedCommand === command ||
-            entry.aliases.includes(command),
+            entry.aliases.includes(command) ||
+            resolvedAliases[entry.command]?.toLowerCase() === command.toLowerCase(),
           );
           if (exact && completion?.items.length) {
             setCatalogSuggestions(completion.items.map((item) => ({
@@ -328,7 +343,7 @@ export function useLauncherCatalog(options: {
     }, CATALOG_SEARCH_DELAY);
 
     return () => window.clearTimeout(timer);
-  }, [query, showCommandsInSearch]);
+  }, [query, showCommandsInSearch, commandAliases]);
 
   /**
    * The numbered result list: applications and the built-in system actions.
@@ -438,9 +453,33 @@ export function useLauncherCatalog(options: {
       counts.set(command, (counts.get(command) ?? 0) + 1);
       return counts;
     }, new Map());
+    // R7-11: the alias is a candidate string at the same tiers as the command
+    // name, so the visible rows are ranked by that shared score rather than by
+    // the backend's command-only order. This is what makes an exact alias hit
+    // sit where an exact command-name hit would; `commandLimit` is applied
+    // after the sort so a command displaced by an alias match is the one that
+    // drops off, not an arbitrary neighbor.
+    const aliasByCommand = resolveCommandAliases(commandAliases);
+    const commandNeedle = normalizeSearch(command);
     const commandItems: LauncherItem[] = catalogSuggestions
+      .map((suggestion) => ({
+        suggestion,
+        score: suggestion.kind === "completion"
+          ? MATCH_EXACT + 1
+          : commandMatchScore(
+              commandNeedle,
+              suggestion.entry.command,
+              aliasByCommand[suggestion.entry.command],
+              suggestion.entry.name,
+              suggestion.entry.aliases,
+            ),
+      }))
+      .sort((left, right) =>
+        right.score - left.score ||
+        left.suggestion.entry.command.localeCompare(right.suggestion.entry.command)
+      )
       .slice(0, commandLimit)
-      .map((suggestion) => {
+      .map(({ suggestion }) => {
         const { entry } = suggestion;
         // Warnings stay out of the subtitle string: they render as an
         // always-visible dot beside the source label, so a narrow window can
@@ -475,14 +514,35 @@ export function useLauncherCatalog(options: {
               argumentOverride: parsedQuery.tokens.slice(parsedQuery.commandIndex! + 1),
             }
           : entry.execution;
+        // An exact alias is a search/typing surface only: the row still runs
+        // the real command. `gfm -m x` therefore executes `git -m x`, never a
+        // nonexistent shell command named `gfm`. A prefix/contains alias hit is
+        // left as typed, so the user sees what they typed until they commit it.
+        const typedAlias = matchedCommandAlias(commandAliases, entry.command, command);
+        const rowCommandLine = typedAlias
+          ? `${rebaseAliasCommandLine(query, typedAlias, entry.command)}${hasUserArgs ? "" : " "}`
+          : hasUserArgs
+            ? query
+            : `${entry.command} `;
+        // The alias that produced this row rides the subtitle, so a user who
+        // typed `gf` and got `git` can see *why*: the matching alias explains
+        // the row instead of leaving it looking like a stray fuzzy hit. It is
+        // shown only when the alias is what carried the match — a query that
+        // already names the command does not need the explanation.
+        const matchedAlias = aliasByCommand[entry.command];
+        const aliasHint = matchedAlias &&
+          candidateMatchScore(commandNeedle, matchedAlias.toLowerCase()) >
+            candidateMatchScore(commandNeedle, entry.command.toLowerCase())
+          ? t("launcher.aliasMatch", { alias: matchedAlias })
+          : "";
         return {
           type: "command",
           id: entry.id,
           title: entry.command,
-          subtitle: entry.description,
+          subtitle: aliasHint ? `${aliasHint} · ${entry.description}` : entry.description,
           warnings,
           sourceName: entry.sourceName,
-          commandLine: hasUserArgs ? query : `${entry.command} `,
+          commandLine: rowCommandLine,
           execution,
           completion: false,
         };
@@ -491,7 +551,7 @@ export function useLauncherCatalog(options: {
     // The action bar occupies the final row. Keep at least one local match when
     // applications or power actions matched alongside catalog commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, t]);
+  }, [catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     const value = query.trim();

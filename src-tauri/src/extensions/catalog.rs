@@ -100,6 +100,12 @@ pub struct CatalogSearchRequest {
     pub limit: usize,
     #[serde(default = "default_true")]
     pub include_system_commands: bool,
+    /// R7-11: resolved user aliases (`command name -> alias`). The frontend
+    /// already applied [`resolve_command_aliases`] to the raw settings map, so
+    /// the backend can score each alias directly. `#[serde(default)]` keeps
+    /// older callers that never send the key working.
+    #[serde(default)]
+    pub command_aliases: HashMap<String, String>,
 }
 
 fn default_limit() -> usize {
@@ -203,13 +209,19 @@ pub async fn search(
         .map(String::as_str)
         .unwrap_or_else(|| needle.split_whitespace().next().unwrap_or_default())
         .to_ascii_lowercase();
+    // R7-11: the conflict policy (a shared alias is locked by the first command
+    // in name order) is applied here, not trusted from the caller, so the
+    // backend ranks with exactly the map the settings loader would have stored.
+    // Calling it on an already-resolved map is idempotent.
+    let resolved_aliases =
+        crate::commands::config::resolve_command_aliases(&request.command_aliases);
     let mut scored = entries
         .into_iter()
         .filter_map(|entry| {
             if namespace.is_some_and(|namespace| namespace != entry.namespace) {
                 return None;
             }
-            score_entry(&entry, &needle).map(|score| (entry, score))
+            score_entry(&entry, &needle, &resolved_aliases).map(|score| (entry, score))
         })
         .collect::<Vec<_>>();
     scored.sort_by(|(left, left_score), (right, right_score)| {
@@ -916,23 +928,55 @@ fn path_completions(
     items
 }
 
-fn score_entry(entry: &CatalogEntry, needle: &str) -> Option<u32> {
+/// The three-tier score ladder shared with the frontend
+/// (`src/command-aliases.ts`): exact > prefix > contains, with the display name
+/// two tiers below. Kept as named constants so a tier cannot be nudged without
+/// the round's tests noticing.
+const SCORE_EXACT: u32 = 1_000;
+const SCORE_PREFIX: u32 = 800;
+const SCORE_CONTAINS: u32 = 600;
+const SCORE_NAME_PREFIX: u32 = 500;
+const SCORE_NAME_CONTAINS: u32 = 300;
+
+/// The tier of one already-lowercased candidate string against `needle`.
+fn candidate_score(needle: &str, candidate: &str) -> u32 {
+    if needle.is_empty() || candidate.is_empty() || candidate.len() < needle.len() {
+        return 0;
+    }
+    if candidate == needle {
+        return SCORE_EXACT;
+    }
+    if candidate.starts_with(needle) {
+        return SCORE_PREFIX - (candidate.len() - needle.len()).min(100) as u32;
+    }
+    if candidate.contains(needle) {
+        return SCORE_CONTAINS;
+    }
+    0
+}
+
+fn score_entry(
+    entry: &CatalogEntry,
+    needle: &str,
+    command_aliases: &HashMap<String, String>,
+) -> Option<u32> {
     if needle.is_empty() {
         return Some(1);
     }
     let command = entry.command.to_ascii_lowercase();
-    if command == needle {
-        return Some(1_000);
+    let mut best = candidate_score(needle, &command);
+    // R7-11: the user's alias for this command is a candidate string at the
+    // *same* tiers as the command name, so an alias exact hit scores exactly
+    // what a command-name exact hit scores. `max` is the contract.
+    if let Some(alias) = command_aliases.get(&entry.command) {
+        best = best.max(candidate_score(needle, &alias.to_ascii_lowercase()));
     }
-    if command.starts_with(needle) {
-        return Some(800 - (command.len() - needle.len()).min(100) as u32);
-    }
-    if command.contains(needle) {
-        return Some(600);
+    if best > 0 {
+        return Some(best);
     }
     let name = entry.name.to_ascii_lowercase();
     if name.starts_with(needle) {
-        return Some(500);
+        return Some(SCORE_NAME_PREFIX);
     }
     if name.contains(needle)
         || entry
@@ -940,7 +984,7 @@ fn score_entry(entry: &CatalogEntry, needle: &str) -> Option<u32> {
             .iter()
             .any(|alias| alias.to_ascii_lowercase().contains(needle))
     {
-        return Some(300);
+        return Some(SCORE_NAME_CONTAINS);
     }
     None
 }
@@ -1115,9 +1159,113 @@ mod tests {
             runtime_available: true,
             frequency: 0,
         };
-        assert_eq!(score_entry(&entry, "jv"), Some(1_000));
+        assert_eq!(score_entry(&entry, "jv", &HashMap::new()), Some(1_000));
         entry.command = "other".into();
-        assert_eq!(score_entry(&entry, "json"), Some(500));
+        assert_eq!(score_entry(&entry, "json", &HashMap::new()), Some(500));
+    }
+
+    /// R7-11: an alias exact hit scores exactly what a command-name exact hit
+    /// scores — the same tier, not a tier below it. Without the `max` in
+    /// `score_entry` the alias would fall through to the name branch and the
+    /// row would rank under an unrelated command-name exact match.
+    #[test]
+    fn alias_exact_shares_the_command_exact_tier() {
+        let entry = CatalogEntry {
+            id: "provider:x:git".into(),
+            command: "git".into(),
+            namespace: "x".into(),
+            qualified_command: "x:git".into(),
+            name: "Git".into(),
+            description: String::new(),
+            source_kind: CatalogSourceKind::Provider,
+            source_name: "x".into(),
+            aliases: Vec::new(),
+            arguments: Vec::new(),
+            execution: None,
+            runtime_available: true,
+            frequency: 0,
+        };
+        let aliases = HashMap::from([("git".to_string(), "gfm".to_string())]);
+        // Alias exact == command exact.
+        assert_eq!(score_entry(&entry, "gfm", &aliases), Some(SCORE_EXACT));
+        assert_eq!(score_entry(&entry, "git", &aliases), Some(SCORE_EXACT));
+        // Alias prefix sits in the prefix tier, above any name-only match.
+        assert_eq!(score_entry(&entry, "gf", &aliases), Some(SCORE_PREFIX - 1));
+        // A stale alias key does not score anything new.
+        assert_eq!(score_entry(&entry, "gfm", &HashMap::new()), None);
+    }
+
+    /// R7-11 end-to-end: the alias actually reaches a real `search` call and
+    /// comes back as a row. A local command is the cheapest fixture; the point
+    /// is that `search` filters entries *by* `score_entry`, so an alias that
+    /// only existed in the settings map would be dropped before ranking.
+    #[tokio::test]
+    async fn search_surfaces_a_local_command_through_its_alias() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        std::fs::write(
+            state.paths.root.join("local-commands.json"),
+            r#"[{
+                "id": "git-commit",
+                "command": "git",
+                "name": "Git",
+                "description": "Version control",
+                "program": "git",
+                "argsPrefix": ["commit", "-m"]
+            }]"#,
+        )
+        .unwrap();
+
+        let request = |needle: &str, aliases: HashMap<String, String>| CatalogSearchRequest {
+            query: needle.into(),
+            tokens: vec![needle.into()],
+            environment: BTreeMap::new(),
+            cwd: None,
+            limit: 10,
+            include_system_commands: false,
+            command_aliases: aliases,
+        };
+
+        // With the alias the user story describes, `gfm` finds `git`.
+        let by_alias = search(
+            &state,
+            &request("gfm", HashMap::from([("git".into(), "gfm".into())])),
+            &[],
+        )
+        .await
+        .unwrap();
+        assert_eq!(by_alias.len(), 1);
+        assert_eq!(by_alias[0].command, "git");
+
+        // Without it, the same query finds nothing: the match is the alias, not
+        // some incidental subsequence of the name.
+        let without = search(&state, &request("gfm", HashMap::new()), &[])
+            .await
+            .unwrap();
+        assert!(without.is_empty());
+
+        // An alias exact hit outranks another command's prefix hit.
+        std::fs::write(
+            state.paths.root.join("local-commands.json"),
+            r#"[
+                {"id":"git-commit","command":"git","name":"Git","program":"git"},
+                {"id":"gfm-tool","command":"gfm-tool","name":"GFM Tool","program":"gfm-tool"}
+            ]"#,
+        )
+        .unwrap();
+        let ranked = search(
+            &state,
+            &request("gfm", HashMap::from([("git".into(), "gfm".into())])),
+            &[],
+        )
+        .await
+        .unwrap();
+        assert_eq!(ranked.len(), 2);
+        assert_eq!(ranked[0].command, "git", "alias exact must rank first");
+        assert_eq!(ranked[1].command, "gfm-tool");
     }
 
     #[cfg(unix)]

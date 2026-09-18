@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { OverflowMenu } from "./components/OverflowMenu";
 import type { Translate } from "./i18n";
+import type { CommandAliases } from "./command-aliases";
+import { resolveCommandAliases } from "./command-aliases";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
@@ -461,6 +463,11 @@ type ExtensionsPanelProps = {
   showCommandsInSearch: boolean;
   /** Flip the launcher command-discovery setting and persist it. */
   onToggleCommandsInSearch: () => void;
+  /** R7-11: the raw `settings.command_aliases` map. The detail drawer edits one
+   * command's alias through `onChangeCommandAlias`, which debounces the write
+   * along the ordinary settings path. */
+  commandAliases: CommandAliases;
+  onChangeCommandAlias: (command: string, alias: string) => void;
   /** Registered base plugins — built-in functionality that ships with floter
    * and is switched on/off here (the ONE obvious place). */
   basePlugins: BasePluginRow[];
@@ -550,7 +557,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, basePlugins, onToggleBasePlugin, onNotify, pendingDeepLink, onDeepLinkConsumed }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onNotify, pendingDeepLink, onDeepLinkConsumed }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -570,6 +577,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [driftProbe, setDriftProbe] = useState<DriftProbe | null>(null);
   const reprobeNoticeGate = useRef(createReprobeNoticeGate());
   const extensionsRef = useRef<Extension[]>(extensions);
+  // R7-11: the alias map with the conflict policy applied, so the editor can
+  // flag a command whose alias another command claimed first. Computed once per
+  // settings change rather than per row.
+  const resolvedAliases = useMemo(() => resolveCommandAliases(commandAliases), [commandAliases]);
   extensionsRef.current = extensions;
   // Bumped to force the drawer's details effect (provider/diagnose/config)
   // to reload without a lock-entry change, e.g. after a command re-probe.
@@ -1999,9 +2010,48 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 <h4>{t("settings.extensions.commands")}</h4>
                 {provider?.description.commands.length ? (
                   <div className="extension-command-list">
-                    {provider.description.commands.map((command) => (
-                      <div key={command.id}><code>{command.name}</code><span>{command.description || t("settings.extensions.noDescription")}</span></div>
-                    ))}
+                    {provider.description.commands.map((command) => {
+                      // The alias the conflict policy actually honours for this
+                      // command. When the user typed one but another command
+                      // claimed it first, the field still holds their text (the
+                      // settings map is keyed by command name and never rewrites
+                      // it) — but the row says so rather than pretending the
+                      // alias is live. See `resolveCommandAliases`.
+                      const honored = Boolean(resolvedAliases[command.id]);
+                      const taken = Boolean((commandAliases[command.id] ?? "").trim()) && !honored;
+                      return (
+                        <div key={command.id} className="extension-command-list__row">
+                          <code>{command.name}</code>
+                          <span>{command.description || t("settings.extensions.noDescription")}</span>
+                          {/* R7-11: the alias editor rides the command list itself
+                              — one input per connected command — rather than a
+                              second settings surface, so "this command, this
+                              alias" is edited where the command is already named.
+                              The key is `command.id` (the catalog's searchable
+                              command), not the display name: that is the string
+                              the launcher matches and the backend scores. */}
+                          <label className="extension-command-alias">
+                            <span className="extension-command-alias__label">
+                              {t("settings.extensions.commandAlias")}
+                            </span>
+                            <input
+                              type="text"
+                              className="extension-command-alias__input"
+                              aria-label={t("settings.extensions.commandAliasFor", { command: command.id })}
+                              aria-invalid={taken || undefined}
+                              placeholder={t("settings.extensions.commandAliasPlaceholder")}
+                              value={commandAliases[command.id] ?? ""}
+                              onChange={(event) => onChangeCommandAlias(command.id, event.target.value)}
+                            />
+                            {taken && (
+                              <span className="extension-command-alias__taken" role="status">
+                                {t("settings.extensions.commandAliasTaken")}
+                              </span>
+                            )}
+                          </label>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : !detailLoading && <p className="extension-detail-empty">{t("settings.extensions.noCommands")}</p>}
                 {selected.generatedCustom && (

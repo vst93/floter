@@ -165,6 +165,16 @@ pub struct AppSettings {
     /// to `bool::default()`.
     #[serde(default = "default_true")]
     pub show_menubar_icon: bool,
+    /// R7-11: user-defined per-command aliases for launcher search, keyed by
+    /// the catalog command name (`"git"` -> `"gfm"`). The key is the command
+    /// name, so a second write for the same command overwrites the first while
+    /// two *commands* sharing one alias value are resolved by
+    /// [`resolve_command_aliases`] (first command in ascending name order locks
+    /// the alias, later duplicates are inert). `#[serde(default)]` keeps every
+    /// settings file written before this key existed deserializing to an empty
+    /// map.
+    #[serde(default)]
+    pub command_aliases: HashMap<String, String>,
 }
 
 impl Default for AppSettings {
@@ -191,8 +201,43 @@ impl Default for AppSettings {
             launch_counts: HashMap::new(),
             last_settings_page: "general".to_string(),
             show_menubar_icon: default_true(),
+            command_aliases: HashMap::new(),
         }
     }
+}
+
+/// Resolve the user's command aliases into the shape search consumes: one
+/// effective alias per command, with cross-command conflict resolution applied.
+///
+/// Two commands may be given the same alias (the settings map is keyed by
+/// command name, so nothing else prevents it). The policy is **first command
+/// locks the alias**: commands are visited in ascending name order and the
+/// first one to claim an alias keeps it; a later command whose alias collides is
+/// inert for that alias (its command name still matches normally). This is
+/// deterministic regardless of the `HashMap` iteration order, and — unlike
+/// silently dropping the alias in the settings file — it never rewrites what the
+/// user typed.
+///
+/// Empty (or whitespace-only) aliases are ignored, as is an alias that only
+/// differs in case from one already claimed.
+pub fn resolve_command_aliases(aliases: &HashMap<String, String>) -> HashMap<String, String> {
+    let mut commands: Vec<&String> = aliases
+        .keys()
+        .filter(|name| !name.trim().is_empty())
+        .collect();
+    commands.sort();
+    let mut claimed: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut resolved = HashMap::new();
+    for command in commands {
+        let alias = aliases[command].trim();
+        if alias.is_empty() {
+            continue;
+        }
+        if claimed.insert(alias.to_ascii_lowercase()) {
+            resolved.insert(command.clone(), alias.to_string());
+        }
+    }
+    resolved
 }
 
 /// Platform defaults for every configurable shortcut.
@@ -1322,6 +1367,105 @@ mod tests {
             NEW_COMMAND,
             "Ctrl+W"
         ));
+    }
+
+    // ── R7-11 · command aliases ────────────────────────────────────────────
+
+    #[test]
+    fn older_settings_start_with_no_command_aliases() {
+        // Migration lock: a settings file written before the key existed (no
+        // `command_aliases` at all) must deserialize to an empty map, not fail.
+        let settings: AppSettings =
+            serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
+        assert!(settings.command_aliases.is_empty());
+        let empty: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(empty.command_aliases.is_empty());
+    }
+
+    #[test]
+    fn command_aliases_round_trip_through_disk() {
+        let directory = tempfile::tempdir().expect("settings directory");
+        let settings = AppSettings {
+            command_aliases: HashMap::from([
+                ("git".to_string(), "gfm".to_string()),
+                ("kubectl".to_string(), "k".to_string()),
+            ]),
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &settings).expect("write settings");
+        let reloaded = load_settings_from(directory.path());
+        assert_eq!(
+            reloaded.command_aliases.get("git").map(String::as_str),
+            Some("gfm")
+        );
+        assert_eq!(
+            reloaded.command_aliases.get("kubectl").map(String::as_str),
+            Some("k")
+        );
+    }
+
+    #[test]
+    fn the_command_name_is_the_unique_key_of_the_alias_map() {
+        // Keyed by command name: a second write for the same command overwrites
+        // the first rather than accumulating a second alias for it.
+        let mut aliases = HashMap::new();
+        aliases.insert("git".to_string(), "g".to_string());
+        aliases.insert("git".to_string(), "gfm".to_string());
+        assert_eq!(aliases.len(), 1);
+        assert_eq!(aliases.get("git").map(String::as_str), Some("gfm"));
+
+        let settings = AppSettings {
+            command_aliases: aliases,
+            ..AppSettings::default()
+        };
+        assert_eq!(settings.command_aliases.len(), 1);
+    }
+
+    #[test]
+    fn a_shared_alias_is_locked_by_the_first_command_in_name_order() {
+        // Two commands may be given the same alias. The policy is first command
+        // (ascending name order) locks the alias; the later duplicate is inert,
+        // so the winner never depends on `HashMap` iteration order.
+        let raw = HashMap::from([
+            ("zeta".to_string(), "shared".to_string()),
+            ("alpha".to_string(), "shared".to_string()),
+        ]);
+        let resolved = resolve_command_aliases(&raw);
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved.get("alpha").map(String::as_str), Some("shared"));
+        assert!(!resolved.contains_key("zeta"));
+    }
+
+    #[test]
+    fn blank_aliases_are_dropped_and_casing_does_not_double_claim() {
+        let raw = HashMap::from([
+            ("git".to_string(), "  ".to_string()),
+            ("kubectl".to_string(), "K".to_string()),
+            ("kn".to_string(), "k".to_string()),
+        ]);
+        let resolved = resolve_command_aliases(&raw);
+        assert!(
+            !resolved.contains_key("git"),
+            "a blank alias is a removal, not an entry"
+        );
+        assert_eq!(resolved.get("kn").map(String::as_str), Some("k"));
+        assert!(!resolved.contains_key("kubectl"));
+    }
+
+    #[test]
+    fn the_frontend_snapshot_owns_the_command_aliases() {
+        // The alias editor writes through `save_settings`; a stale full snapshot
+        // must not resurrect an older map, and a fresh one must land.
+        let stored = AppSettings::default();
+        let submitted = AppSettings {
+            command_aliases: HashMap::from([("git".to_string(), "gfm".to_string())]),
+            ..AppSettings::default()
+        };
+        let merged = merge_frontend_settings(submitted, &stored);
+        assert_eq!(
+            merged.command_aliases.get("git").map(String::as_str),
+            Some("gfm")
+        );
     }
 
     #[test]
