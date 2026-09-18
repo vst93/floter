@@ -1,5 +1,25 @@
 /* Standalone styles for the clipboard plugin page. The document is loaded in
-   an iframe, so it owns its tokens and cannot borrow the host stylesheet. */
+   an iframe, so it owns its tokens and cannot borrow the host stylesheet.
+
+   GLASS-CLIP-2 rewrote this sheet around a rewritten list. The material model
+   is unchanged in *kind* and different in *degree*:
+
+     · the page sheet (`--page-fill`) is the frame it replaces, derived from the
+       injected step tokens and the terminal transparency — as before;
+     · the list field (`--surface-field`, alpha = `--glass-content-alpha`) is
+       the page's own content band, now the PAGE band from
+       `src/glass-material.ts` (`GLASS_PAGE_CONTENT_BAND`, 0.25 + 0.70·t), not
+       the host's recess band (0.62 + 0.18·t). The host band is a recess *inside*
+       a frame and barely moves on purpose; a plugin page *is* the frame's
+       content area, so its field has to travel the whole slider or the user
+       cannot see it follow (「剪切板还是没有跟随透明度调整」);
+     · each row is a card (`--surface-row`, alpha = `--glass-row-alpha`) one
+       rung denser than the field. The copy sits on the card, not the field, so
+       the field can be thin without costing legibility.
+
+   The three alphas are all injected from the one table in
+   `src/glass-material.ts` — this sheet declares only the pre-JS first-paint
+   fallbacks (documented as such below), never a second source of truth. */
 :root {
   color-scheme: dark;
   /* R8: these are *window transparency* percentages now, not raw alphas, and
@@ -22,38 +42,29 @@
   --page-fill: 0.606;
   --page-bg: rgb(17 18 20 / var(--page-fill));
   --panel-bg: rgb(17 18 20 / var(--page-fill));
-  /* GLASS-CLIP: the content recess this page's body sits on. It is the SAME
-     standard-material band the host uses (`base.css`'s `--glass-content-alpha:
-     calc(0.62 + 0.18 * var(--main-opacity))`), so the page's list field now
-     follows both configuration axes instead of sitting at a frozen 50% black
-     that ignored every slider (the user's 「剪切板也要液态玻璃化，也要受到配置
-     的影响」).
 
-     Like the step tokens above, the numbers are deliberately NOT declared
-     here: `main.ts` computes this from the shared `GLASS_CONTENT_BAND` table in
-     `src/glass-material.ts` — one source of truth — and writes it onto this
-     document's root on bootstrap and on every opacity bridge message. The
-     literal below is only the pre-JS first-paint fallback (the default 47%
-     transparency evaluated through that same formula), overwritten before the
-     first frame. */
-  --glass-content-alpha: 0.7028;
-  --input-bg: rgba(255, 255, 255, 0.055);
-  --input-bg-hover: rgba(255, 255, 255, 0.08);
-  --input-bg-focus: rgba(255, 255, 255, 0.075);
+  /* GLASS-CLIP-2 · the two content alphas, both injected by main.ts from
+     `glassPageContentAlpha` / `glassPageRowAlpha`. The literals below are only
+     the pre-JS first-paint fallback (the default 46% terminal transparency
+     evaluated through the same table: field 0.572, row 0.652), overwritten
+     before the first frame — exactly the same arrangement the `--page-fill`
+     fallback above uses. A hardcoded alpha that is NOT labelled a fallback is
+     the bug GLASS-CLIP fixed and `tests/glass-clip.test.ts` still fails on. */
+  --glass-content-alpha: 0.572;
+  --glass-row-alpha: 0.652;
+
+  /* The list field: the page band, as a colour. `rgba(<literal triple>,
+     var(--alpha))` is deliberate and is the form `base.css` uses for every
+     glass tint — literal colour channels, variable alpha. It is *not* the form
+     `applyPageBackground` in `main.ts` works around: that one put a var in the
+     colour channels too (`rgba(var(--page-bg-base), var(--opacity))`), which
+     WebKit refused. */
+  --surface-field: rgba(17, 18, 20, var(--glass-content-alpha));
+  /* A row card, one rung denser than the field it sits on. Body copy lives
+     here, so this is the legibility layer. */
+  --surface-row: rgba(17, 18, 20, var(--glass-row-alpha));
   --surface-control: rgba(255, 255, 255, 0.055);
   --surface-control-hover: rgba(255, 255, 255, 0.105);
-  /* The recess reads from the host-injected band, never from a literal: a
-     hardcoded alpha here is exactly the bug this round fixes, and
-     `tests/glass-clip.test.ts` fails if one comes back. The colour base stays
-     this page's own (it is a separate document with its own dark/light pair).
-
-     The `rgba(<literal triple>, var(--alpha))` form is deliberate and is the
-     one the host's own `base.css` uses for every glass tint — literal colour
-     channels, variable alpha. It is *not* the form `applyPageBackground` in
-     `main.ts` works around: that one put a var in the colour channels too
-     (`rgba(var(--page-bg-base), var(--opacity))`), which is what WebKit
-     refused. Keeping the channels literal is what makes this safe. */
-  --surface-sunken: rgba(17, 18, 20, var(--glass-content-alpha));
   --hairline: rgba(255, 255, 255, 0.075);
   --hairline-strong: rgba(255, 255, 255, 0.12);
   --text-primary: #f2f3f5;
@@ -70,6 +81,11 @@
   --accent-ring: rgba(122, 167, 255, 0.78);
   --text-warning: rgba(255, 173, 158, 0.82);
   --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  /* The recessed lens and raised lens of a control, read from the same
+     relationship base.css gives its own controls: a 1px inner stroke, light on
+     the top edge and dark on the bottom, so a pane reads as a pane and not as
+     a flat rectangle. */
+  --control-lens: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
   --window-radius: 10px;
 }
 
@@ -77,12 +93,10 @@
   color-scheme: light;
   --page-bg: rgb(250 250 252 / var(--page-fill));
   --panel-bg: rgb(250 250 252 / var(--page-fill));
-  --input-bg: rgba(0, 0, 0, 0.045);
-  --input-bg-hover: rgba(0, 0, 0, 0.07);
-  --input-bg-focus: rgba(255, 255, 255, 0.72);
+  --surface-field: rgba(243, 244, 247, var(--glass-content-alpha));
+  --surface-row: rgba(243, 244, 247, var(--glass-row-alpha));
   --surface-control: rgba(0, 0, 0, 0.045);
   --surface-control-hover: rgba(0, 0, 0, 0.08);
-  --surface-sunken: rgba(243, 244, 247, var(--glass-content-alpha));
   --hairline: rgba(0, 0, 0, 0.09);
   --hairline-strong: rgba(0, 0, 0, 0.14);
   --text-primary: #1d1d1f;
@@ -99,6 +113,7 @@
   --accent-ring: rgba(7, 94, 216, 0.72);
   --text-warning: #b3261e;
   --scrollbar-thumb: rgba(60, 60, 67, 0.28);
+  --control-lens: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
 }
 
 html,
@@ -133,6 +148,15 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Every icon is an inline Lucide glyph at the 24-grid, sized by the caller. It
+   inherits colour and never carries a fill of its own, so a glyph is furniture
+   and the accent budget stays with the controls. */
+.clipboard-icon {
+  display: block;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
 .clipboard-panel {
   position: relative;
   display: flex;
@@ -146,9 +170,11 @@ button {
     var(--panel-bg);
 }
 
-/* A layout row, not a bar. The prompt glyph, the filter field, the clear × and
-   the 全部/收藏 tabs sit directly on the panel's one sheet — no fill of their
-   own, no separator edge. This is the same relationship the launcher's
+/* ── The search row ─────────────────────────────────────────────────────── */
+
+/* A layout row, not a bar. The prompt glyph, the filter field and the clear ×
+   sit directly on the panel's one sheet — no fill of their own, no separator
+   edge. This is the same relationship the launcher's
    `.collapsed-card__input-row` has with its card, and it is what keeps the
    floating window reading as one material instead of a window with a status
    bar glued to its top. The 56px height is kept (it is the launcher row's own
@@ -185,14 +211,10 @@ button {
   position: relative;
   z-index: 1;
   display: inline-flex;
-  width: 46px;
-  flex: 0 0 46px;
+  width: 18px;
+  flex: 0 0 18px;
   align-items: center;
-  color: var(--accent);
-  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  font-weight: 600;
-  user-select: none;
+  color: var(--text-muted);
 }
 
 /* Borderless and transparent, exactly like `.collapsed-card__input`: there is
@@ -237,17 +259,16 @@ button {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--surface-control-hover);
+  box-shadow: var(--control-lens);
   color: var(--text-secondary);
-  font-size: 16px;
-  line-height: 1;
   cursor: pointer;
   transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
@@ -260,28 +281,47 @@ button {
 }
 
 .clipboard-panel__filter-clear:active,
-.clipboard-panel__tab:active,
+.clipboard-panel__type:active,
 .clipboard-panel__clear:active,
-.clipboard-row__star:active {
+.clipboard-row__action:active {
   transform: scale(0.96);
+}
+
+/* ── The type filter bar ────────────────────────────────────────────────── */
+
+/* The type tabs sit on the same sheet, one 34px row under the search field.
+   They are a recessed segmented track (the control ladder's `--surface-field`
+   plus the lens), which is the host's own shape for a segmented control and
+   the reason a chosen tab is a *lit* slot rather than a new edge. */
+.clipboard-panel__filterbar {
+  display: flex;
+  min-height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px 10px;
 }
 
 .clipboard-panel__tabs {
   position: relative;
   z-index: 1;
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   gap: 2px;
   padding: 2px;
+  overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 7px;
-  background: var(--surface-sunken);
+  background: var(--surface-field);
 }
 
-.clipboard-panel__tab {
+.clipboard-panel__type {
   display: inline-flex;
-  min-width: 54px;
-  height: 28px;
+  height: 26px;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 5px;
@@ -292,43 +332,62 @@ button {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
 
 @media (hover: hover) {
-.clipboard-panel__tab:hover {
+.clipboard-panel__type:hover {
   color: var(--text-primary);
 }
 }
 
-.clipboard-panel__tab:focus-visible,
-.clipboard-panel__clear:focus-visible,
-.clipboard-panel__filter-clear:focus-visible,
-.clipboard-row:focus-visible,
-.clipboard-row__star:focus-visible {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: 1px;
-}
-
-.clipboard-panel__tab--active {
-  background: var(--accent-tint);
-  box-shadow: inset 0 0 0 1px var(--accent-edge);
+/* A chosen tab is a lit pane, never an accent fill (HIG: one accent primary
+   per surface, and a segmented control can show several chosen segments at
+   once). The neutral raised pane plus the accent keyline says "chosen"
+   without spending the budget. */
+.clipboard-panel__type--active {
+  background: var(--surface-control-hover);
+  box-shadow: var(--control-lens), inset 0 0 0 1px var(--accent-edge);
   color: var(--accent);
 }
 
-.clipboard-panel__tab-count {
+.clipboard-panel__type-count {
   color: currentColor;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   opacity: 0.72;
 }
 
+.clipboard-panel__tally {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clipboard-panel__type:focus-visible,
+.clipboard-panel__clear:focus-visible,
+.clipboard-panel__filter-clear:focus-visible,
+.clipboard-row:focus-visible,
+.clipboard-row__action:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+/* ── The list ───────────────────────────────────────────────────────────── */
+
+/* The list field. A fixed-height scroller (the page's only shrinking child),
+   never an absolutely-positioned overlay: `min-height: 0` is what lets the
+   flex column give it the leftover height at any window size. */
 .clipboard-panel__content {
+  position: relative;
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
+  background: var(--surface-field);
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
@@ -350,22 +409,25 @@ button {
 
 .clipboard-panel__list {
   margin: 0;
-  padding: 6px 8px 10px;
+  padding: 8px;
   list-style: none;
 }
 
+/* One row: [type chip] [body] [inline actions]. The actions column is a fixed
+   3×28px so a row's text can never be pushed sideways by its own hover state
+   — the buttons are always laid out, only their visibility changes. */
 .clipboard-row {
   display: grid;
   width: 100%;
-  min-height: 44px;
-  grid-template-columns: 30px minmax(0, 1fr) auto 22px;
+  min-height: 48px;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   box-sizing: border-box;
-  padding: 5px 10px;
+  padding: 6px 8px 6px 10px;
   border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
+  border-radius: 8px;
+  background: var(--surface-row);
   color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
@@ -375,7 +437,6 @@ button {
 @media (hover: hover) {
 .clipboard-row:hover {
   border-color: var(--hairline);
-  background: var(--surface-control);
   color: var(--text-primary);
 }
 }
@@ -391,7 +452,6 @@ button {
    pointer move removes this mode before the next hover paint. */
 .clipboard-panel--keyboard-mode .clipboard-row:hover {
   border-color: transparent;
-  background: transparent;
   color: var(--text-secondary);
   cursor: default;
 }
@@ -403,43 +463,67 @@ button {
   color: var(--text-primary);
 }
 
-.clipboard-panel--keyboard-mode .clipboard-row__star:hover:not(.clipboard-row__star--on) {
-  color: var(--text-tertiary);
-}
-
-.clipboard-row__marker {
+/* The type chip: a recessed 32×32 pane holding the type glyph, a thumbnail, a
+   colour swatch or an extension badge. One slot, five faces. */
+.clipboard-row__type {
   display: inline-flex;
-  width: 30px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 5px;
+  border-radius: 7px;
   background: var(--surface-control);
+  box-shadow: var(--control-lens);
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   line-height: 1;
 }
 
-.clipboard-row__marker img {
+.clipboard-row__type img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   pointer-events: none;
 }
 
-.clipboard-row__marker--image,
-.clipboard-row__marker--files {
-  font-size: 10px;
+/* A colour entry paints the colour itself, as a chip-sized swatch with a
+   hairline so a near-black or near-white literal still has an edge. */
+.clipboard-row__swatch {
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 
+.clipboard-row__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* One line at rest, up to four under the pointer or the keyboard's focus. The
+   clamp is the whole "hover to read it all" affordance — no tooltip needed for
+   the common case, and the `title` attribute still carries the full string for
+   a screen reader and for the rare longer capture. */
 .clipboard-row__preview {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
   color: inherit;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 12.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.clipboard-row:hover .clipboard-row__preview,
+.clipboard-row:focus-visible .clipboard-row__preview,
+.clipboard-row--selected .clipboard-row__preview {
+  -webkit-line-clamp: 4;
 }
 
 .clipboard-row__preview-dir,
@@ -447,71 +531,134 @@ button {
   color: var(--text-muted);
 }
 
-.clipboard-row__meta {
-  display: inline-flex;
-  min-width: 100px;
+/* The secondary line: what the row is (a link's host, an image's dimensions, a
+   file's folder) and how old it is. */
+.clipboard-row__sub {
+  display: flex;
+  min-width: 0;
   align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.clipboard-row__source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.clipboard-row__chars {
-  min-width: 5ch;
-  color: var(--text-muted);
-  font-size: 10px;
+.clipboard-row__age {
+  flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  white-space: nowrap;
 }
 
-.clipboard-row__age {
-  min-width: 16ch;
-  width: 16ch;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+/* A dot between the two halves of the sub line, so the pair reads as one
+   sentence rather than two columns. */
+.clipboard-row__age::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.7;
+}
+
+.clipboard-row__age:only-child::before {
+  content: none;
 }
 
 .clipboard-row__age--missing {
-  width: auto;
   color: var(--text-warning);
 }
 
-.clipboard-row__star {
-  width: 22px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 17px;
-  line-height: 1;
-  cursor: pointer;
-  transition: color 110ms ease-out, transform 110ms ease-out;
-}
-
-.clipboard-row__star--on {
-  color: var(--accent);
-}
-
-@media (hover: hover) {
-  .clipboard-row__star:hover { color: var(--accent); }
+.clipboard-row--missing .clipboard-row__preview {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-tertiary);
 }
 
 .clipboard-row--missing {
-  opacity: 0.62;
+  opacity: 0.72;
 }
 
-/* The retry / dismiss slot of the failure state. Both controls reuse the
-   footer's clear-button shape, so the three-state language stays one
-   vocabulary instead of a second button style. */
-.clipboard-panel__empty-actions {
-  display: flex;
+/* ── Inline actions ─────────────────────────────────────────────────────── */
+
+/* Three 28×28 buttons, revealed on hover / focus / selection. They are laid
+   out at all times and only their opacity changes, so revealing them cannot
+   reflow the row (and so a keyboard user tabbing in never sees the layout
+   jump). `opacity: 0` alone would leave them clickable but invisible — which
+   is why the reveal is paired with the pointer-events flip below. */
+.clipboard-row__actions {
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
 }
+
+.clipboard-row:hover .clipboard-row__actions,
+.clipboard-row:focus-within .clipboard-row__actions,
+.clipboard-row--selected .clipboard-row__actions {
+  opacity: 1;
+}
+
+/* …and the resting state must not swallow a click meant for the row: the
+   buttons are non-interactive until they are actually visible. */
+.clipboard-row__actions {
+  pointer-events: none;
+}
+
+.clipboard-row:hover .clipboard-row__actions,
+.clipboard-row:focus-within .clipboard-row__actions,
+.clipboard-row--selected .clipboard-row__actions {
+  pointer-events: auto;
+}
+
+.clipboard-row__action {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 110ms ease-out, color 110ms ease-out, transform 110ms ease-out;
+}
+
+@media (hover: hover) {
+.clipboard-row__action:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+}
+
+/* A pinned row's pin action is lit for good — it is a state, not a hover. */
+.clipboard-row__action--on {
+  color: var(--accent);
+}
+
+.clipboard-row__action--on .clipboard-icon {
+  fill: var(--accent);
+  fill-opacity: 0.22;
+}
+
+/* The copy action confirms in place: the glyph swaps to a check for a beat, so
+   the row that was just copied says so without a toast for a one-key action.
+   The state is driven by a class the page sets, not by a timer in CSS. */
+.clipboard-row__action--done {
+  color: var(--accent);
+}
+
+.clipboard-row button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* ── Empty / loading / failure ──────────────────────────────────────────── */
 
 .clipboard-panel__empty {
   display: flex;
@@ -540,12 +687,48 @@ button {
   line-height: 1.5;
 }
 
+/* The empty state's guidance: the keys that produce a first capture, shown as
+   chips so an empty page teaches the model instead of just being blank. */
+.clipboard-panel__empty-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.clipboard-panel__key {
+  display: inline-flex;
+  height: 22px;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--surface-control);
+  box-shadow: var(--control-lens);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .clipboard-panel__empty-privacy {
   margin-top: -28px;
   padding: 0 24px 30px;
   color: var(--text-tertiary);
   font-size: 10px;
   text-align: center;
+}
+
+/* The retry / dismiss slot of the failure state. Both controls reuse the
+   footer's clear-button shape, so the three-state language stays one
+   vocabulary instead of a second button style. */
+.clipboard-panel__empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* Tri-state: loading. One inline row — spinner + label — rather than a
@@ -576,6 +759,8 @@ button {
 @keyframes clipboard-spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
 
 .clipboard-panel__footer {
   display: flex;
@@ -627,26 +812,30 @@ button {
   cursor: wait;
 }
 
-@media (max-width: 680px) {
-  .clipboard-panel__prompt {
-    width: 34px;
-    flex-basis: 34px;
-  }
+/* ── Narrow window ──────────────────────────────────────────────────────── */
 
+@media (max-width: 680px) {
   .clipboard-panel__search {
     font-size: 15px;
   }
 
+  /* The type tabs keep working, they just scroll horizontally rather than
+     wrapping the bar onto a second line. */
   .clipboard-panel__tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .clipboard-panel__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .clipboard-panel__tally {
     display: none;
   }
 
   .clipboard-row {
-    grid-template-columns: 30px minmax(0, 1fr) 22px;
-  }
-
-  .clipboard-row__meta {
-    display: none;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
   }
 }
 
@@ -654,9 +843,10 @@ button {
   .clipboard-panel__topbar::before,
   .clipboard-panel__search,
   .clipboard-panel__filter-clear,
-  .clipboard-panel__tab,
+  .clipboard-panel__type,
   .clipboard-row,
-  .clipboard-row__star,
+  .clipboard-row__actions,
+  .clipboard-row__action,
   .clipboard-panel__clear {
     transition: none;
   }

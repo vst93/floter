@@ -415,10 +415,14 @@ test("the page has no lifetime of its own: the stack's table is the only one", a
   const page = await read("src/plugins/clipboard/main.ts");
   const clean = code(page);
   // Any literal duration in the page that is not one of the page's own
-  // (unrelated) UI timers would be a second toast lifetime. The two survivors
-  // are the clear-confirmation arming window and the bridge timeout. Read the
-  // second argument of each `setTimeout(…, delay)` by brace/paren depth, since
-  // a callback argument contains parens of its own.
+  // (unrelated) UI timers would be a second toast lifetime. The three
+  // survivors are the clear-confirmation arming window, the bridge timeout,
+  // and the GLASS-CLIP-2 in-place "copied" confirmation. That last one is a
+  // *row glyph* swap (`copiedId`), not a notice: it owns no stack, publishes
+  // nothing to the host, and cannot queue — it is the deliberate-copy path's
+  // answer to "the fast path dismisses, this one stays put". Read the second
+  // argument of each `setTimeout(…, delay)` by brace/paren depth, since a
+  // callback argument contains parens of its own.
   const delays: string[] = [];
   for (let at = clean.indexOf("setTimeout("); at > -1; at = clean.indexOf("setTimeout(", at + 1)) {
     let depth = 0;
@@ -436,8 +440,21 @@ test("the page has no lifetime of its own: the stack's table is the only one", a
   }
   assert.deepEqual(
     [...new Set(delays)].sort(),
-    ["3000", "BRIDGE_TIMEOUT_MS"],
-    "the page's only timers are the clear-confirm arming and the bridge timeout — no toast lifetime",
+    ["3000", "BRIDGE_TIMEOUT_MS", "COPIED_CONFIRM_MS"],
+    "the page's only timers are the clear-confirm arming, the bridge timeout, and the row's in-place copied confirmation — no toast lifetime",
+  );
+  // The third timer must stay a *row paint* timer, never a notice: it flips a
+  // glyph on one row (`copiedId`) and is the deliberate-copy path's answer to
+  // the fast path dismissing. If it ever grew a message key or a stack, the
+  // "no lifetime of its own" rule below would be the thing it broke.
+  assert.match(
+    page,
+    /const COPIED_CONFIRM_MS = \d+;/,
+    "the in-place confirmation stays a named page-local paint window",
+  );
+  assert.ok(
+    !/host-notify[\s\S]{0,400}COPIED_CONFIRM_MS/.test(page),
+    "the in-place confirmation must not publish a notice to the host stack",
   );
   assert.equal(TOAST_DISMISS_MS.error, 8000);
   assert.equal(TOAST_DISMISS_MS.success, 4000);

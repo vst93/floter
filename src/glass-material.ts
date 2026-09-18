@@ -173,6 +173,80 @@ export const glassContentAlpha = (transparency: number): number => {
 };
 
 /**
+ * GLASS-CLIP-2 · the **plugin page's** content band, deliberately *not* the
+ * host's one.
+ *
+ * The host's band ([`GLASS_CONTENT_BAND`]) is a *recess*: a 60-80% standard
+ * material the body copy sits on, tuned to stay legible across the whole
+ * slider. Its slope is small on purpose (0.18) — a recess that swung from 64%
+ * to 79% already reads as one material, and the user is not supposed to watch
+ * it move.
+ *
+ * A built-in plugin page is the opposite kind of surface. It is not a floating
+ * recess *inside* the frame; it **replaces** the frame's whole content area, so
+ * its field is the page body, not a card. When the clipboard page reused the
+ * host's recess band the user reported 「剪切板还是没有跟随透明度调整」: the
+ * recess *was* tracking the slider, but across the whole travel it moved by
+ * 0.15 while the sheet above it moved by ~0.9, so the change was mathematically
+ * present and visually absent.
+ *
+ * So the page gets its own band, with a slope steep enough that the travel is
+ * legible at a glance: 0.25 → 0.95, a 0.70 swing, and a 0.10-vs-0.95 gap of
+ * 0.595. The base sits *below* the host's recess floor, and it can afford to
+ * because a plugin page's field is not the only layer under the copy: the page
+ * *sheet* (`--page-fill`, derived from the step's haze and the same slider) is
+ * beneath it, and the row cards ([`GLASS_PAGE_ROW_LIFT`]) are above it. The
+ * three-layer stack is what keeps body copy legible at the thinnest slider
+ * position while the field itself follows the slider all the way down — the
+ * `tests/glass-clip.test.ts` sweep asserts the composite over a pure-white (and
+ * pure-black) desktop at every step and every slider position.
+ *
+ * `base.css` is untouched by this: the host's `--glass-content-alpha` keeps
+ * its 0.62 + 0.18 formula and its recess semantics, and `tests/glass-clip.test.ts`
+ * still asserts that. This table is the *page's* band only.
+ */
+export const GLASS_PAGE_CONTENT_BAND = { base: 0.25, slope: 0.7 } as const;
+
+/**
+ * Evaluate the page band at one window transparency (0-1), clamped the same way
+ * CSS clamps an alpha slot. The fallback is the shipped default terminal
+ * transparency evaluated through this band, so a page bootstrapped without a
+ * param still paints the material the host would have handed it.
+ */
+export const glassPageContentAlpha = (transparency: number): number => {
+  const t = Number.isFinite(transparency)
+    ? Math.min(1, Math.max(0, transparency))
+    : 0.46;
+  return Math.min(1, GLASS_PAGE_CONTENT_BAND.base + GLASS_PAGE_CONTENT_BAND.slope * t);
+};
+
+/**
+ * The ladder rung between the page's field and a row card on it: the card is
+ * always this much denser than the field it sits on.
+ *
+ * This is the same relationship `base.css` gives every other content surface
+ * (a raised pane is a fixed gap above the recess it sits on), restated for the
+ * page because the page owns its own tokens. It is what lets the field follow
+ * the slider *and* keeps the copy legible: at the thinnest position the field is
+ * ~0.32 and the card ~0.40, so the composite under the glyphs is dense even
+ * though neither layer is.
+ *
+ * It is a gap, not a floor, on purpose — a floor would flatten the row's own
+ * travel at the low end, which is exactly the "the change is there but you
+ * cannot see it" bug this round fixes.
+ */
+export const GLASS_PAGE_ROW_LIFT = 0.08;
+
+/**
+ * Evaluate the page's **row-card** alpha at one window transparency: the field's
+ * band plus the ladder rung, clamped at 1. Exported (rather than left as a CSS
+ * `calc()` only) so the legibility sweep can compute the exact composite the
+ * page paints.
+ */
+export const glassPageRowAlpha = (transparency: number): number =>
+  Math.min(1, glassPageContentAlpha(transparency) + GLASS_PAGE_ROW_LIFT);
+
+/**
  * The step tokens as a plain style bag, for injecting into the plugin page's
  * container.
  *
@@ -201,6 +275,22 @@ export const glassStepStyle = (step: GlassStep): Record<string, string> => ({
  */
 export const glassContentStyle = (transparency: number): Record<string, string> => ({
   "--glass-content-alpha": String(glassContentAlpha(transparency)),
+});
+
+/**
+ * The plugin page's band as a style bag, the page-side twin of
+ * [`glassContentStyle`].
+ *
+ * Same token name (`--glass-content-alpha`) because it is the same *slot* in
+ * the page's sheet — the alpha of the page's content recess — but evaluated
+ * through [`glassPageContentAlpha`], whose slope is the page's, not the host
+ * recess's. The host keeps injecting its own bag for its own surfaces; this one
+ * is what a plugin page writes onto its own root (a sandboxed frame cannot
+ * inherit the host's).
+ */
+export const glassPageContentStyle = (transparency: number): Record<string, string> => ({
+  "--glass-content-alpha": String(glassPageContentAlpha(transparency)),
+  "--glass-row-alpha": String(glassPageRowAlpha(transparency)),
 });
 
 // ── GLASS-REAXIS: one effect control over blur/saturation/lens ─────────────

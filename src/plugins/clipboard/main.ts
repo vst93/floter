@@ -1,40 +1,68 @@
 // The clipboard history page, as a plugin-page citizen.
 //
-// This is the extracted, framework-free successor of the old in-app React
-// panel: same markup classes (the shared stylesheet is imported below), same
-// history/favorites/tabs/files/images behavior, and floter's Spotlight
-// keyboard discipline — typing anywhere routes to the filter field, Backspace
-// from the list routes a character deletion into the filter (never a row),
-// Tab toggles the all/favorites view, single-key row commands (F/* favorite,
-// D/Del delete) only fire once the user deliberately clicked into the list,
-// and Cmd/Ctrl+Backspace deletes the selected row from any focus.
+// GLASS-CLIP-2 rewrote this page's list around two user reports — 「剪切板还是
+// 没有跟随透明度调整」 and 「剪贴板的 ui 和 ux 也要重写」 — and the rewrite
+// changed *how the page behaves*, so the summary below is the current truth:
 //
-// The surface's transparency level follows the terminal page's configured
-// opacity: `page.css` colors the panel with the same `--terminal-opacity`
-// custom property the host window sets, so moving one slider moves both.
+//   · **Material** — the page *sheet* (`--page-fill`) is the frame it replaces
+//     and follows the terminal transparency, as before. The *list field* and
+//     each *row card* now follow the same slider through the page's own, steeper
+//     band (`GLASS_PAGE_CONTENT_BAND` in `src/glass-material.ts`), which is what
+//     makes the follow legible: the host recess band the page used to borrow
+//     moved by 0.15 across the whole slider and was invisible at page scale.
+//     Body copy sits on the row card (one ladder rung above the field), so the
+//     field can travel all the way down without costing legibility.
+//   · **Keyboard** — the model is [`resolveClipboardKey`] in
+//     `src/clipboard-list.ts`, a pure function this file only executes: ↑/↓
+//     move, Enter copies (and dismisses), ⌫/Delete delete, P pins (F/* kept as
+//     the pre-rewrite spellings), Tab toggles the pinned scope, ←/→ walk the
+//     type bar, 1/2 set the scope, 3–7 jump to a type, and the filter field
+//     keeps its own typing. A printable key with the list focused is routed into
+//     the filter.
+//   · **Rows** — one line at rest (icon / source / relative age / preview),
+//     expanding under hover or focus, with the copy·pin·delete trio revealed on
+//     hover/focus/selection. The list is still reconciled in place.
 //
-// It runs inside a sandboxed iframe served by the generic plugin-page
-// pipeline and reaches the host ONLY through the postMessage bridge — every
-// command here goes over that bridge, dogfooding the mechanism end to end.
+// It runs inside a sandboxed iframe served by the generic plugin-page pipeline
+// and reaches the host ONLY through the postMessage bridge — every command here
+// goes over that bridge, dogfooding the mechanism end to end. The bridge
+// protocol and the command allowlist are unchanged by the rewrite.
 
 import "./page.css";
 import { createTranslator, normalizeLanguage, type Translate } from "../../i18n";
 import {
+  clipboardAge,
+  clipboardEntryType,
   clipboardPreview,
   filterClipboardEntries,
-  formatClipboardAge,
+  formatClipboardDateTime,
   formatFilesPreview,
   imageFileMime,
   isFilesPreviewCandidate,
-  looksLikeDirectoryPath,
+  normalizeClipboardTypeFilter,
   normalizeEntries,
   normalizeClipboardSession,
   sameClipboardSnapshot,
-  shouldActivateClipboardEntry,
+  splitFilePath,
+  urlHost,
   type ClipboardEntry,
+  type ClipboardEntryType,
 } from "../../clipboard-history";
+import { clipboardIcon, type ClipboardIconName } from "../../clipboard-icons";
+import {
+  applyClipboardFilters,
+  clipboardChipFace,
+  clipboardTypeCounts,
+  cycleClipboardTypeFilter,
+  moveClipboardSelection,
+  resolveClipboardKey,
+  CLIPBOARD_TYPE_ICON,
+  CLIPBOARD_TYPE_LABEL,
+  type ClipboardChipFace,
+  type ClipboardView,
+} from "../../clipboard-list";
 import { BRIDGE_TAG, createFailureDeduper, createRetryRegistry, isBridgeGlass, isBridgeNotifyRetry, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
-import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, GLASS_FRAME_FLOOR, glassContentAlpha, normalizeGlassStep, type GlassStep } from "../../glass-material";
+import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, GLASS_FRAME_FLOOR, glassPageContentAlpha, glassPageRowAlpha, normalizeGlassStep, type GlassStep } from "../../glass-material";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -230,14 +258,16 @@ function applyGlassStep(step: GlassStep) {
 function applyOpacity(main: number, terminal: number) {
   rootStyle.setProperty("--main-opacity", String(main));
   rootStyle.setProperty("--terminal-opacity", String(terminal));
-  // GLASS-CLIP: the page's content recess (`--surface-sunken`) is the host's
-  // standard-material band, evaluated from the shared `GLASS_CONTENT_BAND`
-  // table rather than restated as a literal in page.css. It is evaluated at
-  // the *terminal* transparency, which is the frame this page replaces — the
-  // same value `--page-fill` below is built from — so the recess and the sheet
-  // it sits on stay one material at every slider position. A slider move
-  // therefore reaches the page's list field as well as its sheet.
-  rootStyle.setProperty("--glass-content-alpha", String(glassContentAlpha(terminal)));
+  // GLASS-CLIP-2: the page's field and row cards follow the transparency
+  // slider through the page's OWN band (steeper than the host recess band — see
+  // `GLASS_PAGE_CONTENT_BAND`), evaluated at the *terminal* transparency, which
+  // is the frame this page replaces. `--glass-content-alpha` is the field the
+  // list sits on and `--glass-row-alpha` the card each row is; the rung between
+  // them is what keeps the copy legible at the thin end while the field still
+  // travels the whole way. Both are re-derived here so a slider move repaints
+  // the list material, not just the sheet.
+  rootStyle.setProperty("--glass-content-alpha", String(glassPageContentAlpha(terminal)));
+  rootStyle.setProperty("--glass-row-alpha", String(glassPageRowAlpha(terminal)));
   applyPageBackground(terminal);
 }
 
@@ -259,16 +289,36 @@ document.documentElement.setAttribute("data-theme", theme);
 
 // ---- state ----------------------------------------------------------------
 
-type ClipboardView = "all" | "favorites";
+// GLASS-CLIP-2 · the list's two filter axes are independent:
+//
+//   * `view`      — 全部 / 收藏, the scope the data comes from (favorites are
+//                   exempt from pruning, so this is a *retention* view);
+//   * `typeFilter`— 全部 / 文本 / 链接 / 颜色 / 文件, the *kind* of capture.
+//
+// They compose (收藏 + 链接 is a legal state) and each has its own control: a
+// Tab / ←→ / 1-2 toggle for the scope, a click / 3-7 for the type. Keeping them
+// as two variables rather than one five-way enum is what makes that
+// composition free. [`ClipboardView`] and the filter machinery live in
+// `clipboard-list.ts`.
 const SESSION_KEY = "floter.clipboard.session";
 const savedSession = (() => {
   try { return normalizeClipboardSession(JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? "null")); }
   catch { return normalizeClipboardSession(null); }
 })();
+/** The saved type filter, read through its own normalizer so the stored
+ * session's shape stays exactly what it always was (see
+ * `normalizeClipboardTypeFilter`). */
+const savedTypeFilter = (() => {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? "null") as { typeFilter?: unknown } | null;
+    return normalizeClipboardTypeFilter(raw?.typeFilter);
+  } catch { return null; }
+})();
 
 let entries: ClipboardEntry[] = [];
 let filterText = savedSession.filterText;
 let view: ClipboardView = savedSession.view;
+let typeFilter: ClipboardEntryType | null = savedTypeFilter;
 let selected = 0;
 let hydrated = false;
 let busy = false;
@@ -276,6 +326,12 @@ let clearArmed = false;
 let clearTimer: number | null = null;
 let pageVisible = true;
 let pageDisposed = false;
+/** The entry id whose copy action is showing its "copied" confirmation, and
+ * the timer that clears it. Kept as state (not a CSS animation) so the tick is
+ * driven by the same render pass as everything else and cannot outlive the row
+ * it belongs to. */
+let copiedId: string | null = null;
+let copiedTimer: number | null = null;
 /** Whether the first fetch has landed (successfully or not). Drives the
  * loading state: only a page with nothing on screen yet shows the inline
  * spinner, so a background poll never replaces a populated list. */
@@ -298,8 +354,18 @@ let refreshInterval: number | null = null;
 
 const scopedEntries = (): ClipboardEntry[] =>
   view === "favorites" ? entries.filter((entry) => entry.favorite) : entries;
+/** The list, after both filters: scope first (it is the cheaper cut and the one
+ * the counts are reported against), then the type, then the text query. The
+ * cuts and their order live in `clipboard-list.ts` so the node suite pins what
+ * each tab's count means; this is only the page's binding of its own state.
+ */
 const filteredEntries = (): ClipboardEntry[] =>
-  filterClipboardEntries(scopedEntries(), filterText);
+  applyClipboardFilters(entries, view, typeFilter, filterText, filterClipboardEntries);
+
+/** How many entries each type tab should show, computed from the *scoped* set
+ * (so the counts agree with what the tab would actually reveal, not with the
+ * whole history while a favorites view is active). */
+const typeCounts = (): Record<ClipboardEntryType, number> => clipboardTypeCounts(entries, view);
 
 // ---- DOM scaffold ---------------------------------------------------------
 
@@ -310,11 +376,22 @@ root.innerHTML = `
     <div class="clipboard-panel__topbar">
       <span class="clipboard-panel__prompt" aria-hidden="true"></span>
       <input class="clipboard-panel__search" maxlength="512" spellcheck="false" autocapitalize="off" autocorrect="off" />
-      <button type="button" class="clipboard-panel__filter-clear" hidden>×</button>
-      <div class="clipboard-panel__tabs" role="tablist">
-        <button type="button" role="tab" class="clipboard-panel__tab" data-view="all"></button>
-        <button type="button" role="tab" class="clipboard-panel__tab" data-view="favorites"></button>
+      <button type="button" class="clipboard-panel__filter-clear" hidden></button>
+      <div class="clipboard-panel__tabs" role="tablist" data-axis="view">
+        <button type="button" role="tab" class="clipboard-panel__type" data-view="all"></button>
+        <button type="button" role="tab" class="clipboard-panel__type" data-view="favorites"></button>
       </div>
+    </div>
+    <div class="clipboard-panel__filterbar">
+      <div class="clipboard-panel__tabs" role="tablist" data-axis="type">
+        <button type="button" role="tab" class="clipboard-panel__type" data-type=""></button>
+        <button type="button" role="tab" class="clipboard-panel__type" data-type="text"></button>
+        <button type="button" role="tab" class="clipboard-panel__type" data-type="link"></button>
+        <button type="button" role="tab" class="clipboard-panel__type" data-type="color"></button>
+        <button type="button" role="tab" class="clipboard-panel__type" data-type="image"></button>
+        <button type="button" role="tab" class="clipboard-panel__type" data-type="files"></button>
+      </div>
+      <span class="clipboard-panel__tally" role="status" aria-live="polite"></span>
     </div>
     <div class="clipboard-panel__content"></div>
     <div class="clipboard-panel__footer">
@@ -333,72 +410,134 @@ const saveSession = () => {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       filterText, view, selectedId: filteredEntries()[selected]?.id ?? null, scrollTop: content.scrollTop,
+      // GLASS-CLIP-2 · the type filter rides the same session record. It is an
+      // *extra* field, not a change to `ClipboardSession`: an older build reads
+      // the record it always did and ignores this, and this build reads the
+      // four it always did plus the one it added.
+      typeFilter,
     }));
   } catch { /* Session storage may be unavailable in a sandbox. */ }
 };
 const filterClear = root.querySelector<HTMLButtonElement>(".clipboard-panel__filter-clear")!;
-const tabAll = root.querySelector<HTMLButtonElement>('[data-view="all"]')!;
-const tabFavorites = root.querySelector<HTMLButtonElement>('[data-view="favorites"]')!;
 const content = root.querySelector<HTMLElement>(".clipboard-panel__content")!;
 const hints = root.querySelector<HTMLElement>(".clipboard-panel__hints")!;
 const clearButton = root.querySelector<HTMLButtonElement>(".clipboard-panel__clear")!;
+const tally = root.querySelector<HTMLElement>(".clipboard-panel__tally")!;
 const panel = root.querySelector<HTMLElement>(".clipboard-panel")!;
-
+const viewTabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-axis="view"] .clipboard-panel__type'));
+const typeTabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-axis="type"] .clipboard-panel__type'));
 // ---- rendering ------------------------------------------------------------
 
 const countBadge = (count: number) => {
   const badge = document.createElement("span");
-  badge.className = "clipboard-panel__tab-count";
+  badge.className = "clipboard-panel__type-count";
   badge.textContent = String(count);
   return badge;
 };
 
-/** Text-entry marker: a plain chevron prefix, the same glyph the list has
- * used since the in-app React panel. */
-const renderHistoryEntry = (marker: HTMLElement) => {
-  marker.textContent = "›";
-};
-
-/** Image-entry marker: the thumbnail when the bytes have arrived, a "[?]"
- * placeholder while they are still in flight or have failed. */
-const renderImageEntry = (
-  marker: HTMLElement,
+/**
+ * The type chip: one 32×32 slot with five faces.
+ *
+ *   · image / image-previewable files → the real thumbnail once its bytes have
+ *     arrived, the type glyph until then;
+ *   · a colour entry → the colour itself, painted as a swatch (the point of the
+ *     row is the value, and a swatch reads it faster than any glyph);
+ *   · a directory → the folder glyph;
+ *   · a file → its uppercase extension badge (`PNG`), or the file glyph when the
+ *     name has no extension;
+ *   · text / link → the Lucide type / link glyph.
+ *
+ * The *which face* decision lives in `clipboard-list.ts` ([`clipboardChipFace`])
+ * so the node suite can exercise the precedence without a DOM; this function is
+ * only the paint. The thumbnail path is the one face that changes after creation
+ * (bytes arrive asynchronously), so the chip is rebuilt only when the pixels it
+ * should be showing actually differ — the same "do not churn the DOM" rule the
+ * list reconcile follows, driven by the face's own signature.
+ */
+const renderTypeChip = (
+  chip: HTMLElement,
   entry: ClipboardEntry,
   hasThumbnail: boolean,
 ) => {
-  if (hasThumbnail) {
-    const img = document.createElement("img");
-    img.src = thumbnails.get(entry.id)!;
-    img.alt = "";
-    img.draggable = false;
-    marker.append(img);
-  } else {
-    marker.textContent = "[?]";
+  const face: ClipboardChipFace = clipboardChipFace(entry, hasThumbnail);
+  const thumbnailUrl = thumbnails.get(entry.id);
+  // The model decides the *kind* of face; the page owns the blob handle, so it
+  // folds the URL into the comparison key. A face that is a thumbnail only wins
+  // if the handle has actually arrived (`hasThumbnail` is the map's membership,
+  // so the URL is present whenever the face says `thumbnail`).
+  const signature = face.kind === "thumbnail" ? `thumb:${thumbnailUrl}` : face.signature;
+  if (chip.dataset.faceSig === signature) return;
+  chip.dataset.faceSig = signature;
+  chip.replaceChildren();
+
+  switch (face.kind) {
+    case "thumbnail": {
+      const img = document.createElement("img");
+      img.src = thumbnailUrl!;
+      img.alt = "";
+      img.draggable = false;
+      chip.append(img);
+      return;
+    }
+    case "swatch": {
+      const swatch = document.createElement("span");
+      swatch.className = "clipboard-row__swatch";
+      // The literal is painted straight from the entry's own text — it is
+      // validated as a colour by `clipboardEntryType` before this path is
+      // reached, so nothing untrusted is interpolated into the style. A value
+      // the engine refuses (an exotic-but-valid literal) simply leaves the
+      // swatch transparent with its hairline, which still reads as "a colour".
+      swatch.style.background = (entry.text ?? "").trim();
+      chip.append(swatch);
+      return;
+    }
+    case "badge":
+      chip.textContent = face.text;
+      return;
+    default:
+      chip.append(clipboardIcon(document, face.icon, 16));
   }
 };
 
-/** Files-entry marker: thumbnail if the first path is an image file, a
- * triangle for directory paths, a square for individual files. */
-const renderFilesEntry = (
-  marker: HTMLElement,
-  entry: ClipboardEntry,
-  hasThumbnail: boolean,
-) => {
-  if (isFilesPreviewCandidate(entry.paths)) {
-    if (hasThumbnail) {
-      const img = document.createElement("img");
-      img.src = thumbnails.get(entry.id)!;
-      img.alt = "";
-      img.draggable = false;
-      marker.append(img);
-    } else {
-      marker.textContent = "[?]";
-    }
-  } else {
-    marker.textContent =
-      (entry.paths?.length ?? 0) > 0 && looksLikeDirectoryPath(entry.paths![0])
-        ? "▸"
-        : "▪";
+/**
+ * The row's secondary line: the one concrete fact about the entry that its
+ * preview does not already say.
+ *
+ *   · a link → the host it points at (`example.com`);
+ *   · an image → its pixel dimensions, or its caption's source when it has one;
+ *   · a file → the directory the first path lives in;
+ *   · text / colour → nothing (the preview is the whole fact).
+ */
+const rowSource = (entry: ClipboardEntry): string => {
+  const type = clipboardEntryType(entry);
+  if (type === "link") return urlHost(entry.text);
+  if (entry.kind === "image") {
+    return Number.isFinite(entry.width) && Number.isFinite(entry.height)
+      ? `${entry.width} × ${entry.height}`
+      : "";
+  }
+  if (entry.kind === "files") {
+    const first = entry.paths?.[0];
+    if (!first) return "";
+    const { dirname } = splitFilePath(first);
+    const extra = Math.max(0, (entry.paths?.length ?? 1) - 1);
+    const suffix = extra > 0 ? ` +${extra}` : "";
+    return `${dirname || "/"}${suffix}`;
+  }
+  return "";
+};
+
+/** The human age sentence: the structured [`clipboardAge`] fact rendered
+ * through the dictionary, so the wording (and its pluralization) lives in
+ * `i18n.ts` rather than in a string builder here. */
+const formatAgeSentence = (entry: ClipboardEntry, now: number): string => {
+  const age = clipboardAge(entry.created_at, now);
+  switch (age.unit) {
+    case "now": return t("clipboard.ageNow");
+    case "minute": return t("clipboard.ageMinute", { n: age.value });
+    case "hour": return t("clipboard.ageHour", { n: age.value });
+    case "day": return t("clipboard.ageDay", { n: age.value });
+    default: return formatClipboardDateTime(entry.created_at);
   }
 };
 
@@ -411,16 +550,29 @@ const renderFilesEntry = (
 const renderEmpty = (): DocumentFragment => {
   const fragment = document.createDocumentFragment();
   const scoped = scopedEntries().length;
-  const title = scoped
-    ? t("clipboard.emptyFilter")
-    : view === "favorites"
+  // Four empty situations, most specific first: a type tab that matched
+  // nothing, a query that matched nothing, an empty favorites view, and the
+  // first-run state. The order matters — "no links" is a different sentence
+  // from "no matches", and telling a user to shorten their search when the
+  // problem is the type tab they are standing on would be a lie.
+  const title = scoped === 0
+    ? view === "favorites"
       ? t("clipboard.emptyFavorites")
-      : t("clipboard.empty");
-  const hint = scoped
-    ? t("clipboard.emptyFilterHint")
-    : view === "favorites"
+      : t("clipboard.empty")
+    : filterText.trim()
+      ? t("clipboard.emptyFilter")
+      : typeFilter
+        ? t("clipboard.emptyType")
+        : t("clipboard.emptyFilter");
+  const hint = scoped === 0
+    ? view === "favorites"
       ? t("clipboard.emptyFavoritesHint")
-      : t("clipboard.emptyHint");
+      : t("clipboard.emptyHint")
+    : filterText.trim()
+      ? t("clipboard.emptyFilterHint")
+      : typeFilter
+        ? t("clipboard.emptyTypeHint")
+        : t("clipboard.emptyFilterHint");
 
   const block = document.createElement("div");
   block.className = "clipboard-panel__empty";
@@ -431,6 +583,26 @@ const renderEmpty = (): DocumentFragment => {
   detail.className = "clipboard-panel__empty-hint";
   detail.textContent = hint;
   block.append(heading, detail);
+
+  // GLASS-CLIP-2 · a first-run empty state teaches instead of being blank: the
+  // three keys that produce a capture and the one that dismisses the page. It
+  // is only shown when there is genuinely nothing to filter (a type/query empty
+  // state is a *search* result, not an onboarding moment).
+  if (scoped === 0 && view === "all") {
+    const keys = document.createElement("div");
+    keys.className = "clipboard-panel__empty-keys";
+    for (const [combo, label] of [
+      ["⌘C", t("clipboard.emptyHint")],
+      ["⌘⇧V", t("system.clipboardHistorySubtitle")],
+    ] as const) {
+      const chip = document.createElement("span");
+      chip.className = "clipboard-panel__key";
+      chip.textContent = combo;
+      chip.title = label;
+      keys.append(chip);
+    }
+    block.append(keys);
+  }
   fragment.append(block);
 
   const privacy = document.createElement("div");
@@ -574,7 +746,14 @@ const syncRowSelection = (index: number) => {
  * whose visible "x m" ticked over repaints on the next 2s poll instead of
  * freezing at its first-painted value. `now` is the same value
  * [`applyRowState`] paints from, so the key and the paint can never disagree
- * within one pass; rows whose age has not changed keep a zero-DOM-write pass. */
+ * within one pass; rows whose age has not changed keep a zero-DOM-write pass.
+ *
+ * GLASS-CLIP-2 adds the two states the rewritten row paints that the old one
+ * did not: `copied` (the in-place copy confirmation, which swaps one glyph) and
+ * the derived *type* (a colour row's swatch and a link row's host are functions
+ * of the entry's text, so a caption edit on an immutable id/hash is impossible
+ * — but the type is cheap to include and keeps the key honest about what the
+ * row shows). */
 const rowPaintKey = (
   entry: ClipboardEntry,
   index: number,
@@ -593,15 +772,17 @@ const rowPaintKey = (
     hasThumbnail ? 1 : 0,
     index,
     index === selected ? 1 : 0,
-    missing ? t("clipboard.missing") : formatClipboardAge(entry.created_at, now),
+    clipboardEntryType(entry),
+    copiedId === entry.id ? 1 : 0,
+    missing ? t("clipboard.missing") : formatAgeSentence(entry, now),
   ].join("\u0001");
 
 /** Per-row record of the inputs each node was last painted from, so an
  * unchanged row can skip all DOM work. Weak so discarded rows collect. */
 const rowPaintKeys = new WeakMap<HTMLLIElement, string>();
-/** The `busy` value the stars were last synced to. A busy flip only toggles
- * `disabled` on every star, so it is kept out of the row paint key and synced
- * with one cheap pass instead of repainting 200+ rows of content. */
+/** The `busy` value the actions were last synced to. A busy flip only toggles
+ * `disabled` on every action button, so it is kept out of the row paint key and
+ * synced with one cheap pass instead of repainting 200+ rows of content. */
 let renderedBusy: boolean | null = null;
 
 /** Repaint a row's data-driven bits (icon, preview, meta, selection, favorite,
@@ -635,32 +816,15 @@ const applyRowState = (
     button.removeAttribute("title");
   }
 
-  const marker = button.children.item(0) as HTMLElement;
-  const markerClasses = [
-    "clipboard-row__marker",
-    entry.kind === "image" ? "clipboard-row__marker--image" : "",
-    entry.kind === "files" ? "clipboard-row__marker--files" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  if (marker.className !== markerClasses) marker.className = markerClasses;
-  const thumbnailUrl = thumbnails.get(entry.id);
-  const markerImage = marker.querySelector("img");
-  if (entry.kind === "image" || entry.kind === "files") {
-    // Rebuild the marker only when it is not already showing exactly the right
-    // pixels; a plain `[?]` glyph and a stale/duplicate img both get replaced.
-    if (!hasThumbnail || !markerImage || markerImage.getAttribute("src") !== thumbnailUrl) {
-      marker.replaceChildren();
-      if (entry.kind === "image") renderImageEntry(marker, entry, hasThumbnail);
-      else renderFilesEntry(marker, entry, hasThumbnail);
-    }
-  } else if (markerImage || marker.textContent !== "›") {
-    renderHistoryEntry(marker);
-  }
+  const chip = button.children.item(0) as HTMLElement;
+  renderTypeChip(chip, entry, hasThumbnail);
 
+  // The body: a preview line and the sub line (source · age). Both are direct
+  // children of `.clipboard-row__body`, which is the grid's middle column.
+  const body = button.children.item(1) as HTMLElement;
+  const preview = body.children.item(0) as HTMLElement;
   const filesPreview =
     entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
-  const preview = button.children.item(1) as HTMLElement;
   if (filesPreview) {
     const signature = `${filesPreview.dirname}\u0001${filesPreview.basename}\u0001${filesPreview.extra}`;
     if (preview.dataset.previewSig !== signature) {
@@ -687,45 +851,78 @@ const applyRowState = (
     const text = clipboardPreview(entry);
     if (preview.textContent !== text) preview.textContent = text;
   }
+  // The full value on the node, so a screen reader and the rare over-long
+  // capture still get everything the clamp hides.
+  const fullText = entry.kind === "files"
+    ? (entry.paths ?? []).join("\n")
+    : clipboardPreview(entry, 400);
+  if (preview.title !== fullText) preview.title = fullText;
 
-  const meta = button.children.item(2) as HTMLElement;
-  const chars = meta.querySelector<HTMLElement>(".clipboard-row__chars");
-  if (entry.kind === "text" && entry.text) {
-    const label = t("clipboard.chars", { n: entry.text.length });
-    if (chars) {
-      if (chars.textContent !== label) chars.textContent = label;
+  const sub = body.children.item(1) as HTMLElement;
+  const source = sub.querySelector<HTMLElement>(".clipboard-row__source");
+  const sourceText = rowSource(entry);
+  if (sourceText) {
+    if (source) {
+      if (source.textContent !== sourceText) source.textContent = sourceText;
     } else {
       const next = document.createElement("span");
-      next.className = "clipboard-row__chars";
-      next.textContent = label;
-      meta.prepend(next);
+      next.className = "clipboard-row__source";
+      next.textContent = sourceText;
+      sub.prepend(next);
     }
-  } else if (chars) {
-    chars.remove();
+  } else if (source) {
+    source.remove();
   }
-  const age = meta.querySelector<HTMLElement>(".clipboard-row__age")!;
+  const age = sub.querySelector<HTMLElement>(".clipboard-row__age")!;
   const ageClasses = `clipboard-row__age${missing ? " clipboard-row__age--missing" : ""}`;
   if (age.className !== ageClasses) age.className = ageClasses;
-  const ageText = missing ? t("clipboard.missing") : formatClipboardAge(entry.created_at, now);
+  const ageText = missing ? t("clipboard.missing") : formatAgeSentence(entry, now);
   if (age.textContent !== ageText) age.textContent = ageText;
 
-  const star = button.children.item(3) as HTMLButtonElement;
-  const starClasses = `clipboard-row__star${entry.favorite ? " clipboard-row__star--on" : ""}`;
-  if (star.className !== starClasses) star.className = starClasses;
-  const pressed = String(entry.favorite);
-  if (star.getAttribute("aria-pressed") !== pressed) star.setAttribute("aria-pressed", pressed);
-  if (star.disabled !== busy) star.disabled = busy;
-  const starText = entry.favorite ? "★" : "☆";
-  if (star.textContent !== starText) star.textContent = starText;
-  if (star.title !== t("clipboard.favorite")) star.title = t("clipboard.favorite");
+  // The inline actions. The copy action swaps its glyph for a check while its
+  // confirmation is showing; the pin action is lit for good when the entry is a
+  // favorite. Both are read from state, never from a transition.
+  const actions = button.children.item(2) as HTMLElement;
+  const copyAction = actions.querySelector<HTMLButtonElement>('[data-action="copy"]')!;
+  const pinAction = actions.querySelector<HTMLButtonElement>('[data-action="pin"]')!;
+  const deleteAction = actions.querySelector<HTMLButtonElement>('[data-action="delete"]')!;
+  const copied = copiedId === entry.id;
+  if (copyAction.classList.contains("clipboard-row__action--done") !== copied) {
+    copyAction.classList.toggle("clipboard-row__action--done", copied);
+  }
+  const copyLabel = t(copied ? "clipboard.copied" : "clipboard.actionCopy");
+  if (copyAction.getAttribute("aria-label") !== copyLabel) copyAction.setAttribute("aria-label", copyLabel);
+  if (copyAction.title !== copyLabel) copyAction.title = copyLabel;
+  // The confirmation glyph is a different icon, so the swap is a rebuild — but
+  // only on the one row that flipped, which is why it is safe to do here.
+  if (copyAction.dataset.icon !== (copied ? "check" : "copy")) {
+    copyAction.dataset.icon = copied ? "check" : "copy";
+    copyAction.replaceChildren(clipboardIcon(document, copied ? "check" : "copy", 15));
+  }
+  const pinLabel = t(entry.favorite ? "clipboard.pinOn" : "clipboard.pin");
+  const pinClasses = `clipboard-row__action${entry.favorite ? " clipboard-row__action--on" : ""}`;
+  if (pinAction.className !== pinClasses) pinAction.className = pinClasses;
+  if (pinAction.getAttribute("aria-pressed") !== String(entry.favorite)) {
+    pinAction.setAttribute("aria-pressed", String(entry.favorite));
+  }
+  if (pinAction.getAttribute("aria-label") !== pinLabel) pinAction.setAttribute("aria-label", pinLabel);
+  if (pinAction.title !== pinLabel) pinAction.title = pinLabel;
+  if (deleteAction.getAttribute("aria-label") !== t("clipboard.actionDelete")) {
+    deleteAction.setAttribute("aria-label", t("clipboard.actionDelete"));
+  }
+  if (deleteAction.title !== t("clipboard.actionDelete")) deleteAction.title = t("clipboard.actionDelete");
+  for (const action of [copyAction, pinAction, deleteAction]) {
+    if (action.disabled !== busy) action.disabled = busy;
+  }
 
   rowPaintKeys.set(row, rowPaintKey(entry, index, selected, missing, hasThumbnail, now));
 };
 
-/** Build one list item with a separate favorite control. The skeleton is made
- * once here; [`applyRowState`] fills it, so the create and patch paths stay
- * identical. Click/star handlers resolve the live entry by `data-row-id` at
- * event time, so a reused node never acts on a stale object after a reload. */
+/** Build one list item with its type chip, body and inline actions. The
+ * skeleton is made once here; [`applyRowState`] fills it, so the create and
+ * patch paths stay identical. Click/action handlers resolve the live entry by
+ * `data-row-id` at event time, so a reused node never acts on a stale object
+ * after a reload. */
 const renderRow = (
   entry: ClipboardEntry,
   index: number,
@@ -739,26 +936,46 @@ const renderRow = (
   button.dataset.rowId = entry.id;
   button.className = "clipboard-row";
 
-  const marker = document.createElement("span");
-  marker.className = "clipboard-row__marker";
-  marker.setAttribute("aria-hidden", "true");
+  const chip = document.createElement("span");
+  chip.className = "clipboard-row__type";
+  chip.setAttribute("aria-hidden", "true");
 
+  const body = document.createElement("span");
+  body.className = "clipboard-row__body";
   const preview = document.createElement("span");
   preview.className = "clipboard-row__preview";
-
-  const meta = document.createElement("span");
-  meta.className = "clipboard-row__meta";
+  const sub = document.createElement("span");
+  sub.className = "clipboard-row__sub";
   const age = document.createElement("span");
   age.className = "clipboard-row__age";
-  meta.append(age);
+  sub.append(age);
+  body.append(preview, sub);
 
-  const star = document.createElement("button");
-  star.type = "button";
-  star.tabIndex = -1;
-  star.className = "clipboard-row__star";
-  star.setAttribute("aria-label", t("clipboard.favorite"));
+  // The inline action trio. `tabIndex = -1` keeps the row's own Tab behaviour
+  // (Tab toggles the favorites view) intact — the actions are reached with the
+  // pointer or with the row's own single-key commands, never by tabbing
+  // through 200 rows of buttons. They are `aria-hidden` at rest and revealed on
+  // hover/focus/selection, so a screen reader never sees a hidden button.
+  const actions = document.createElement("span");
+  actions.className = "clipboard-row__actions";
+  const actionButton = (action: "copy" | "pin" | "delete", icon: ClipboardIconName, label: string) => {
+    const control = document.createElement("button");
+    control.type = "button";
+    control.tabIndex = -1;
+    control.dataset.action = action;
+    control.dataset.icon = icon;
+    control.className = "clipboard-row__action";
+    control.setAttribute("aria-label", label);
+    control.title = label;
+    control.append(clipboardIcon(document, icon, 15));
+    return control;
+  };
+  const copyAction = actionButton("copy", "copy", t("clipboard.actionCopy"));
+  const pinAction = actionButton("pin", "pin", t("clipboard.pin"));
+  const deleteAction = actionButton("delete", "trash", t("clipboard.actionDelete"));
+  actions.append(copyAction, pinAction, deleteAction);
 
-  button.append(marker, preview, meta, star);
+  button.append(chip, body, actions);
   button.addEventListener("pointerdown", () => {
     // Clicking selects the row before the action runs; hovering alone never
     // changes the keyboard selection.
@@ -773,10 +990,22 @@ const renderRow = (
     const live = entries.find((current) => current.id === button.dataset.rowId);
     void activate(live);
   });
-  star.addEventListener("click", (event) => {
+  copyAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const live = entries.find((current) => current.id === button.dataset.rowId);
+    // The inline button is the *stay-open* copy: the row beside it is the
+    // act-and-dismiss one, and two affordances for one outcome would be noise.
+    void copyEntry(live, false);
+  });
+  pinAction.addEventListener("click", (event) => {
     event.stopPropagation();
     const live = entries.find((current) => current.id === button.dataset.rowId);
     void toggleFavorite(live);
+  });
+  deleteAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const live = entries.find((current) => current.id === button.dataset.rowId);
+    void removeEntry(live);
   });
 
   row.append(button);
@@ -885,12 +1114,18 @@ const reconcileList = (filtered: ClipboardEntry[], now: number) => {
 const render = () => {
   const focused = document.activeElement;
   const rowFocused = focused instanceof HTMLElement && Boolean(focused.closest(".clipboard-row"));
-  const starFocused = focused instanceof HTMLElement && focused.classList.contains("clipboard-row__star");
+  const actionFocused = focused instanceof HTMLElement && Boolean(focused.closest(".clipboard-row__actions"));
   const scrollTop = hydrated ? content.scrollTop : savedSession.scrollTop;
   const finish = () => {
     if (rowFocused) {
       const row = content.querySelector<HTMLElement>(`[data-row-index="${selected}"]`);
-      const target = starFocused ? row?.querySelector<HTMLElement>(".clipboard-row__star") : row;
+      // Focus returns to the same *kind* of control it was on: an inline action
+      // keeps the keyboard on the action, a bare row keeps it on the row. A
+      // blanket focus() on the row would move a keyboard user off the button
+      // they were about to press.
+      const target = actionFocused
+        ? row?.querySelector<HTMLElement>(`.clipboard-row__action[data-action="${focused instanceof HTMLElement ? focused.dataset.action ?? "copy" : "copy"}"]`)
+        : row;
       (target ?? searchInput).focus({ preventScroll: true });
     }
     content.scrollTop = scrollTop;
@@ -901,6 +1136,7 @@ const render = () => {
   searchInput.setAttribute("aria-label", t("clipboard.title"));
   filterClear.setAttribute("aria-label", t("clipboard.filterClear"));
   filterClear.title = t("clipboard.filterClear");
+  filterClear.replaceChildren(clipboardIcon(document, "close", 14));
   clearButton.textContent = t(clearArmed ? "clipboard.clearConfirm" : "clipboard.clear");
   clearButton.dataset.destructiveConfirm = String(clearArmed);
   clearButton.disabled = busy || !entries.some((entry) => !entry.favorite);
@@ -908,26 +1144,47 @@ const render = () => {
   clearButton.title = t("clipboard.clearTitle");
   clearButton.setAttribute("aria-label", t("clipboard.clearTitle"));
   hints.textContent = [
-    t("clipboard.hintPaste"),
-    t("clipboard.hintStar"),
+    t("clipboard.hintNavigate"),
+    t("clipboard.hintCopy"),
+    t("clipboard.hintPin"),
     t("clipboard.hintDelete"),
   ].join(" · ");
 
+  // ── The scope tabs (全部 / 收藏) ──────────────────────────────────────────
   const favoritesCount = entries.reduce((total, entry) => total + (entry.favorite ? 1 : 0), 0);
-  tabAll.replaceChildren(document.createTextNode(t("clipboard.tabAll")), countBadge(entries.length));
-  tabFavorites.replaceChildren(
-    document.createTextNode(t("clipboard.tabFavorites")),
-    countBadge(favoritesCount),
-  );
-  const tabsGroup = root.querySelector<HTMLElement>(".clipboard-panel__tabs")!;
-  tabsGroup.setAttribute("aria-label", t("clipboard.title"));
-  for (const [tab, active] of [
-    [tabAll, view === "all"],
-    [tabFavorites, view === "favorites"],
+  for (const [tab, scope, active, count] of [
+    [viewTabs[0], "all", view === "all", entries.length],
+    [viewTabs[1], "favorites", view === "favorites", favoritesCount],
   ] as const) {
-    tab.classList.toggle("clipboard-panel__tab--active", active);
+    if (!tab) continue;
+    tab.replaceChildren(
+      document.createTextNode(t(scope === "all" ? "clipboard.tabAll" : "clipboard.tabFavorites")),
+      countBadge(count),
+    );
+    tab.classList.toggle("clipboard-panel__type--active", active);
     tab.setAttribute("aria-selected", String(active));
   }
+  viewTabs[0]?.parentElement?.setAttribute("aria-label", t("clipboard.title"));
+
+  // ── The type tabs ──────────────────────────────────────────────────────
+  // Six tabs, each with its own glyph and count. The counts are of the scoped
+  // set, so switching scope re-labels them instead of leaving a count that
+  // describes a list the tab would not show.
+  const counts = typeCounts();
+  const scopedTotal = scopedEntries().length;
+  for (const tab of typeTabs) {
+    const raw = tab.dataset.type ?? "";
+    const type = raw === "" ? null : (raw as ClipboardEntryType);
+    const active = typeFilter === type;
+    tab.replaceChildren(
+      ...(type ? [clipboardIcon(document, CLIPBOARD_TYPE_ICON[type], 13)] : []),
+      document.createTextNode(t(CLIPBOARD_TYPE_LABEL[type ?? "all"] as "clipboard.typeAll")),
+      countBadge(type ? counts[type] : scopedTotal),
+    );
+    tab.classList.toggle("clipboard-panel__type--active", active);
+    tab.setAttribute("aria-selected", String(active));
+  }
+  typeTabs[0]?.parentElement?.setAttribute("aria-label", t("clipboard.typeLabel"));
 
   filterClear.hidden = !filterText;
 
@@ -938,12 +1195,16 @@ const render = () => {
   // row's age text read the same clock, so they cannot disagree.
   const now = Date.now();
   reconcileList(filtered, now);
-  // `busy` only disables the per-row star buttons; sync them in one pass when
+  // The tally is the only text that needs to know the filtered count, and it
+  // is a live region so a keyboard filter change is announced. It stays empty
+  // when nothing is being filtered away — a "200/200" would be noise.
+  tally.textContent = filtered.length === entries.length ? "" : `${filtered.length}/${entries.length}`;
+  // `busy` only disables the per-row action buttons; sync them in one pass when
   // it flips rather than folding it into every row's paint key.
   if (renderedBusy !== busy) {
     renderedBusy = busy;
-    for (const star of content.querySelectorAll<HTMLButtonElement>(".clipboard-row__star")) {
-      star.disabled = busy;
+    for (const action of content.querySelectorAll<HTMLButtonElement>(".clipboard-row__action")) {
+      action.disabled = busy;
     }
   }
   // Arm the viewport watcher for any candidate row this pass introduced; the
@@ -962,7 +1223,7 @@ const setThumbnail = (id: string, bytes: number[], mime: string) => {
   if (previous) URL.revokeObjectURL(previous);
   const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
   thumbnails.set(id, url);
-  // Repaint only this row's marker through the shared row patcher, so the
+  // Repaint only this row's chip through the shared row patcher, so the
   // node and the paint-key cache stay truthful as the bytes arrive.
   const row = content.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"]`)?.parentElement as HTMLLIElement | null;
   const entry = entries.find((current) => current.id === id);
@@ -977,6 +1238,7 @@ window.addEventListener("pagehide", () => {
   saveSession();
   stopPeriodicRefresh();
   if (clearTimer !== null) window.clearTimeout(clearTimer);
+  if (copiedTimer !== null) window.clearTimeout(copiedTimer);
   reloadGen += 1;
   for (const call of pending.values()) {
     window.clearTimeout(call.timer);
@@ -986,7 +1248,7 @@ window.addEventListener("pagehide", () => {
   for (const url of thumbnails.values()) URL.revokeObjectURL(url);
   thumbnails.clear();
   // Forget the busy-sync state: a hidden-then-reopened page (the iframe is
-  // kept alive, so this page is not torn down) must re-sync every star from
+  // kept alive, so this page is not torn down) must re-sync every action from
   // scratch rather than rely on the fallback pass below.
   renderedBusy = null;
   thumbnailObserver.disconnect();
@@ -1002,7 +1264,7 @@ const thumbnailPending = new Set<string>();
  * of images doesn't batch-decode its whole first screen. */
 const thumbnailVisible = new Set<string>();
 
-/** Whether an entry can render pixels in its marker at all. */
+/** Whether an entry can render pixels in its type chip at all. */
 const isThumbnailCandidate = (entry: ClipboardEntry): boolean =>
   entry.kind === "image" || isFilesPreviewCandidate(entry.paths);
 
@@ -1026,7 +1288,7 @@ const thumbnailObserver = new IntersectionObserver(
   { root: content, rootMargin: "240px" },
 );
 
-/** Watch the marker of every candidate row currently in the list; rows created
+/** Watch the type chip of every candidate row currently in the list; rows created
  * once are observed once. */
 const observeThumbnailCandidates = () => {
   const candidates = new Set(
@@ -1222,7 +1484,38 @@ const handleHidden = () => {
   stopPeriodicRefresh();
 };
 
-const activate = async (entry: ClipboardEntry | undefined) => {
+// ── The copy action ──────────────────────────────────────────────────────
+//
+// Two entry points, one implementation, and they differ in exactly one thing:
+// whether the page closes afterwards.
+//
+//   · **row click / Enter** — the fast path. Copy and get out of the way, the
+//     same "act and dismiss" the launcher's results use. This is what the
+//     page has always done and what `activate` below still does.
+//   · **the row's inline copy button** — the deliberate path. Copy and stay, so
+//     the user can copy two things in a row, or check the row they picked. A
+//     button that did the same thing as clicking the row beside it would be a
+//     second affordance for one action; this is a second *outcome* for it.
+//
+// The deliberate path confirms in place: the copy glyph swaps to a check for a
+// beat (`copiedId`). No toast for a one-key action that already happened.
+
+/** How long the in-place "copied" confirmation stays up before the row's copy
+ * glyph returns. Long enough to register, short enough not to linger. */
+const COPIED_CONFIRM_MS = 1200;
+
+const markCopied = (id: string) => {
+  if (copiedTimer !== null) window.clearTimeout(copiedTimer);
+  copiedId = id;
+  render();
+  copiedTimer = window.setTimeout(() => {
+    copiedTimer = null;
+    copiedId = null;
+    render();
+  }, COPIED_CONFIRM_MS);
+};
+
+const copyEntry = async (entry: ClipboardEntry | undefined, closeAfter: boolean) => {
   if (!entry || busy || statuses[entry.id] === false) return;
   const target = entry;
   busy = true;
@@ -1233,14 +1526,21 @@ const activate = async (entry: ClipboardEntry | undefined) => {
     // The clipboard may be held by another app; keep the page open so the
     // user can retry instead of silently losing the action. The toast's retry
     // action re-enters this same function with the same entry.
-    notifyFailure("clipboard.copyFailed", () => { void activate(target); });
+    notifyFailure("clipboard.copyFailed", () => { void copyEntry(target, closeAfter); });
     return;
   } finally {
     busy = false;
     render();
   }
-  if (pageVisible && !pageDisposed) requestClose();
+  if (closeAfter) {
+    if (pageVisible && !pageDisposed) requestClose();
+    return;
+  }
+  markCopied(target.id);
 };
+
+/** The row-click / Enter path: copy and dismiss. */
+const activate = (entry: ClipboardEntry | undefined) => copyEntry(entry, true);
 
 const toggleFavorite = async (entry: ClipboardEntry | undefined) => {
   if (!entry || busy) return;
@@ -1333,166 +1633,103 @@ const sendCharToFilter = (char: string) => {
   searchInput.focus();
 };
 
-/** Delete the filter's last character and take focus — what Backspace means
- * whenever the input itself is not focused, so an edit key can never reach a
- * row through accident. */
-const backspaceIntoFilter = () => {
-  filterText = filterText.slice(0, -1);
-  searchInput.value = filterText;
+/** Apply a type filter from a keypress, keeping the keyboard where it was. The
+ * five-way order itself lives in `clipboard-list.ts`
+ * ([`CLIPBOARD_TYPE_FILTER_ORDER`]) so the ←/→ walk and the 3–7 keys share
+ * one table with the painted bar. */
+const setTypeFilter = (next: ClipboardEntryType | null) => {
+  typeFilter = next;
   selected = 0;
   render();
-  searchInput.focus();
+  focusSelectedRow();
 };
 
 window.addEventListener("keydown", (event) => {
-  if (event.isComposing || event.keyCode === 229 || composing) return;
-  const focusedControl = document.activeElement instanceof HTMLButtonElement;
-  if (event.key === "Escape" && clearArmed) {
-    event.preventDefault();
-    event.stopPropagation();
-    disarmClear();
-    searchInput.focus();
-    return;
-  }
-  if (event.repeat && ["Enter", "Delete", "Backspace", "d", "D", "f", "F", "*"].includes(event.key) && (document.activeElement !== searchInput || event.ctrlKey || event.metaKey || event.key === "Enter")) {
-    event.preventDefault();
-    return;
-  }
-  if (focusedControl && (event.key === "Enter" || event.key === " ")) {
-    if (event.key === "Enter" && document.activeElement === clearButton) event.preventDefault();
-    return;
-  }
-  // Capture phase: this handler decides before anything (default traversal
-  // included) can act on the press.
+  // The whole decision is a pure function (see `resolveClipboardKey` in
+  // `clipboard-list.ts`); this handler is only the *executor*. Keeping the
+  // policy out of the DOM is what lets the node suite drive the rewritten
+  // keyboard surface — every branch below has a matching test that calls the
+  // resolver directly.
+  const action = resolveClipboardKey({
+    key: event.key,
+    metaKey: event.metaKey,
+    ctrlKey: event.ctrlKey,
+    altKey: event.altKey,
+    repeat: event.repeat,
+    isComposing: event.isComposing || composing,
+    keyCode: event.keyCode,
+    // The page's three focus worlds. `search` and `row` are the two the
+    // keyboard model distinguishes; any *other* focused `<button>` (a tab, the
+    // clear button) is a control, whose own Enter/Space activation the page
+    // must leave alone.
+    focus: document.activeElement === searchInput
+      ? "search"
+      : document.activeElement instanceof HTMLButtonElement
+        ? "control"
+        : "row",
+    clearArmed,
+    clearFocused: document.activeElement === clearButton,
+  });
 
-  // Cmd+W (macOS) / Ctrl+W (other platforms) dismisses the page — the same
-  // convention every overlay surface in floter follows.
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+  // The catch-all claim: any key the resolver answered with an action (or an
+  // explicit `preventDefault`) is stopped in the capture phase, before default
+  // focus traversal or caret movement can act on it. A key the resolver let
+  // through (`ignore` with no preventDefault) reaches the filter untouched.
+  const claimed = action.kind !== "ignore" || action.preventDefault;
+  if (claimed) {
     event.preventDefault();
     event.stopPropagation();
-    requestClose();
-    return;
-  }
-  // Cmd/Ctrl+Backspace deletes the selected row from ANY focus — the explicit,
-  // collision-free escape hatch that survives even while the filter is held.
-  if ((event.metaKey || event.ctrlKey) && event.key === "Backspace") {
-    event.preventDefault();
-    event.stopPropagation();
-    void removeEntry(filteredEntries()[selected]);
-    searchInput.focus();
-    return;
-  }
-  if (event.key === "Escape") {
-    event.preventDefault();
-    event.stopPropagation();
-    requestClose();
-    return;
-  }
-  if (event.key === "Tab") {
-    // Tab TOGGLES the view rather than walking focus away from the input —
-    // intercepted before default focus traversal from any focus, filter
-    // included.
-    event.preventDefault();
-    event.stopPropagation();
-    view = view === "all" ? "favorites" : "all";
-    selected = 0;
-    render();
-    searchInput.focus();
-    return;
-  }
-  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-    // Tabs also switch directly — but only while the list owns attention; the
-    // same keys are ordinary caret moves inside the filter.
-    if (document.activeElement === searchInput) return;
-    event.preventDefault();
-    event.stopPropagation();
-    view = view === "all" ? "favorites" : "all";
-    selected = 0;
-    render();
-    focusSelectedRow();
-    return;
-  }
-  if (event.key === "ArrowDown") {
-    event.preventDefault();
-    event.stopPropagation();
-    const length = filteredEntries().length;
-    selected = length ? (selected + 1) % length : 0;
-    render();
-    focusSelectedRow();
-    return;
-  }
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    event.stopPropagation();
-    const length = filteredEntries().length;
-    selected = length ? (selected - 1 + length) % length : 0;
-    render();
-    focusSelectedRow();
-    return;
-  }
-  if (shouldActivateClipboardEntry(event, document.activeElement === searchInput ? "search" : "row")) {
-    event.preventDefault();
-    event.stopPropagation();
-    void activate(filteredEntries()[selected]);
-    return;
   }
 
-  if (document.activeElement === searchInput) {
-    // While the filter holds focus every remaining key — characters,
-    // Backspace, Delete — is ordinary text editing inside it. Row commands
-    // are unreachable here; press-wise the two worlds cannot collide.
-    return;
-  }
-  if (event.metaKey || event.ctrlKey) {
-    // Platform copy/paste/cut shortcuts keep working.
-    return;
-  }
-  if (event.altKey && event.key.length === 1) {
-    // Alt+letter combinations belong to global shortcuts; ignore.
-    return;
-  }
-
-  // List-focus territory: the user deliberately stepped off the filter
-  // (clicked into the list). Single-key row commands live here, and focus
-  // returns to the filter after each one.
-  if (event.key === "f" || event.key === "F" || event.key === "*") {
-    event.preventDefault();
-    event.stopPropagation();
-    void toggleFavorite(filteredEntries()[selected]);
-    searchInput.focus();
-    return;
-  }
-  if (event.key === "d" || event.key === "D" || event.key === "Delete") {
-    event.preventDefault();
-    event.stopPropagation();
-    void removeEntry(filteredEntries()[selected]);
-    searchInput.focus();
-    return;
-  }
-  if (event.key === "1" || event.key === "2") {
-    event.preventDefault();
-    event.stopPropagation();
-    view = event.key === "1" ? "all" : "favorites";
-    selected = 0;
-    render();
-    focusSelectedRow();
-    return;
-  }
-  if (event.key === "Backspace") {
-    // Editing keys route into the filter, never to a row: Backspace erases
-    // the filter's last character and takes focus back.
-    event.preventDefault();
-    event.stopPropagation();
-    backspaceIntoFilter();
-    return;
-  }
-  // Any other printable character typed anywhere lands in the filter —
-  // inserted by hand because the field was not focused when the press
-  // happened, and nothing else would insert it.
-  if (event.key.length === 1) {
-    event.preventDefault();
-    event.stopPropagation();
-    sendCharToFilter(event.key);
+  switch (action.kind) {
+    case "ignore":
+      return;
+    case "close":
+      requestClose();
+      return;
+    case "disarm-clear":
+      disarmClear();
+      searchInput.focus();
+      return;
+    case "toggle-view":
+      view = view === "all" ? "favorites" : "all";
+      selected = 0;
+      render();
+      searchInput.focus();
+      return;
+    case "cycle-type":
+      setTypeFilter(cycleClipboardTypeFilter(typeFilter, action.step));
+      return;
+    case "set-type":
+      setTypeFilter(action.type);
+      return;
+    case "set-view":
+      view = action.view;
+      selected = 0;
+      render();
+      focusSelectedRow();
+      return;
+    case "move": {
+      const length = filteredEntries().length;
+      selected = moveClipboardSelection(selected, action.delta, length);
+      render();
+      focusSelectedRow();
+      return;
+    }
+    case "activate":
+      void activate(filteredEntries()[selected]);
+      return;
+    case "toggle-pin":
+      void toggleFavorite(filteredEntries()[selected]);
+      searchInput.focus();
+      return;
+    case "delete":
+      void removeEntry(filteredEntries()[selected]);
+      searchInput.focus();
+      return;
+    case "append-char":
+      sendCharToFilter(action.char);
+      return;
   }
 }, { capture: true });
 
@@ -1515,18 +1752,30 @@ filterClear.addEventListener("click", () => {
   searchInput.focus();
   render();
 });
-for (const [tab, next] of [
-  [tabAll, "all"],
-  [tabFavorites, "favorites"],
-] as const) {
-  tab.addEventListener("mousedown", (event) => event.preventDefault());
-  tab.addEventListener("click", () => {
-    view = next;
-    selected = 0;
-    render();
-    searchInput.focus();
-  });
-}
+// ── The two tab groups ───────────────────────────────────────────────────
+//
+// Both are wired the same way and both keep focus on the filter field after a
+// change: the field is the page's keyboard home, and a click on a tab is a
+// *filter* action, not a focus destination. `mousedown` is prevented so the
+// click does not first blur the field and flash the caret away.
+const wireTabs = <T,>(tabs: HTMLButtonElement[], read: (tab: HTMLButtonElement) => T, apply: (value: T) => void) => {
+  for (const tab of tabs) {
+    tab.addEventListener("mousedown", (event) => event.preventDefault());
+    tab.addEventListener("click", () => {
+      apply(read(tab));
+      selected = 0;
+      render();
+      searchInput.focus();
+    });
+  }
+};
+wireTabs(viewTabs, (tab) => tab.dataset.view === "favorites" ? "favorites" : "all", (next) => { view = next; });
+wireTabs(
+  typeTabs,
+  (tab) => normalizeClipboardTypeFilter(tab.dataset.type),
+  (next) => { typeFilter = next; },
+);
+
 clearButton.addEventListener("mousedown", (event) => event.preventDefault());
 clearButton.addEventListener("click", () => void clearHistory());
 content.addEventListener("scroll", saveSession, { passive: true });

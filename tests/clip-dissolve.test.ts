@@ -246,7 +246,11 @@ test("the empty/failure states and the tab badge are untouched by the dissolve",
   for (const selector of [
     ".clipboard-panel__empty-title",
     ".clipboard-panel__empty-actions",
-    ".clipboard-panel__tab-count",
+    // GLASS-CLIP-2 renamed the tab badge (`.clipboard-panel__tab-count` →
+    // `__type-count`) when the single 全部/收藏 strip became a type bar with
+    // its own count slot. Same role, new name — the dissolve is still not what
+    // touched it, which is what this assertion pins.
+    ".clipboard-panel__type-count",
     ".clipboard-panel__hints",
   ]) {
     assert.ok(rule(css, selector), `page.css must still define ${selector}`);
