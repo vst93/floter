@@ -33,6 +33,10 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
+# R7-10b: background-completion notifications only (see src/notifications.rs).
+# Pinned to the 2.4 line on purpose: this is the release that matches the
+# `tauri` 2.11 in Cargo.lock, and 3.x is an alpha for the next major.
+tauri-plugin-notification = "2.4.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"

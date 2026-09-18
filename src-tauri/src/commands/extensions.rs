@@ -21,6 +21,7 @@ use crate::extensions::tool_manifests;
 use crate::extensions::{
     resolver, ExtensionState, LockState, ResolveRequest, ResolveResult, ToolLockEntry,
 };
+use crate::notifications;
 use chrono::{Local, Utc};
 use serde::Serialize;
 use serde_json::Value;
@@ -93,16 +94,23 @@ fn try_start_drift_reprobe() -> Option<DriftReprobeGuard> {
 /// `mutation_lock`, swallows every failure, and keeps the previous descriptor,
 /// so a later listing simply retries any drift that could not be committed.
 /// Remaining panic-free by contract (the helper logs instead of unwrapping).
+///
+/// Returns whether any candidate was actually re-probed. That answer is the
+/// notification's licence to speak (R7-10b): a loop that raced another task and
+/// found no drift left to commit must not tell the user their command lists
+/// changed.
 async fn run_drift_reprobe(
     state: &ExtensionState,
     candidates: Vec<(ExtensionLockEntry, ExtensionManifest)>,
-) {
+) -> bool {
+    let mut changed = false;
     for (entry, manifest) in candidates {
-        install::reprobe_on_tool_version_change(state, &entry, &manifest).await;
+        changed |= install::reprobe_on_tool_version_change(state, &entry, &manifest).await;
     }
     // Guarantee the next catalog load rebuilds from the fresh descriptors even
     // if no candidate actually drifted once the lock was taken.
     state.invalidate_provider_commands().await;
+    changed
 }
 
 /// Hand the collected drift candidates to a background task so the list can
@@ -132,7 +140,23 @@ fn dispatch_drift_reprobe(
     // task), so the loop keeps running after `extensions_list` returns.
     let _task = tauri::async_runtime::spawn(async move {
         let state = app.state::<ExtensionState>();
-        run_drift_reprobe(&state, candidates).await;
+        let changed = run_drift_reprobe(&state, candidates).await;
+        // R7-10b: this is the one trigger point with no user action in front of
+        // it at all — the list request has already been answered and the panel
+        // may be long gone by the time the probes finish. One notification for
+        // the *loop*, not per integration: a listing that noticed three drifts
+        // must not produce three banners, which is why the subject is the
+        // plural kind rather than any single integration's name. And only when
+        // something really moved: a loop that raced another task reports
+        // nothing.
+        if changed {
+            notifications::notify_completion(
+                &app,
+                &notifications::Subject::Integrations,
+                notifications::CompletionAction::Reprobe,
+                notifications::Outcome::Success,
+            );
+        }
         drop(guard);
     });
 }
@@ -1133,12 +1157,47 @@ pub async fn extensions_install(
     request: ExtensionInstallRequest,
 ) -> Result<ExtensionLockEntry, String> {
     let operation_id = state.start_operation();
+    // R7-10b: the name is captured *before* the install so a failure (where
+    // there is no lock entry yet) can still say which integration it was about.
+    // `manifest_path` is the only subject hint an install request carries.
+    let subject_hint = install_subject_hint(&request);
     let result = install::install(&state, request).await;
     state.end_operation(&operation_id);
+    // The notification is raised before the `?`: a failure is exactly the
+    // outcome the user most needs told about while the panel is away. On
+    // success the fresh entry names itself; on failure the pre-read manifest
+    // name is all there is.
+    let subject = match &result {
+        Ok(entry) => notifications::Subject::Integration(entry.name.clone()),
+        Err(_) => notifications::Subject::Integration(
+            subject_hint
+                .clone()
+                .unwrap_or_else(|| "Integration".to_string()),
+        ),
+    };
+    notifications::notify_completion(
+        &app,
+        &subject,
+        notifications::CompletionAction::Install,
+        notifications::outcome_of(&result),
+    );
     let entry = result?;
     state.invalidate_provider_commands().await;
     app.emit("extensions-changed", ()).ok();
     Ok(entry)
+}
+
+/// The integration name an install request already carries, if any.
+///
+/// A linked install stages a manifest the caller chose, and that manifest's
+/// `name` is the same string the resulting lock entry will have. Reading it
+/// here costs one file read on a path that is already doing far more I/O, and
+/// it is the only name available when the install *fails*.
+fn install_subject_hint(request: &ExtensionInstallRequest) -> Option<String> {
+    let path = request.manifest_path.as_deref()?;
+    ExtensionManifest::load(Path::new(path))
+        .ok()
+        .map(|manifest| manifest.name)
 }
 
 #[tauri::command]
@@ -1622,6 +1681,12 @@ pub async fn extensions_uninstall(
 ) -> Result<(), String> {
     let operation_id = state.start_operation();
 
+    // R7-10b: resolve the display name *before* the uninstall — the operation
+    // removes the lock entry, so afterwards there is nothing left to ask.
+    let subject = notifications::Subject::Integration(notifications::integration_display_name(
+        &state, &id, None,
+    ));
+
     // Phase 5 Validation 4: route through the componentized uninstall via the
     // legacy mapping (program always; data only when the caller opted in).
     let request =
@@ -1642,6 +1707,12 @@ pub async fn extensions_uninstall(
     }
 
     state.end_operation(&operation_id);
+    notifications::notify_completion(
+        &app,
+        &subject,
+        notifications::CompletionAction::Uninstall,
+        notifications::outcome_of(&result),
+    );
     result?;
     state.invalidate_provider_commands().await;
     app.emit("extensions-changed", ()).ok();
@@ -1657,6 +1728,12 @@ pub async fn extensions_uninstall_componentized(
     let operation_id = state.start_operation();
     let id = request.extension_id.clone();
 
+    // R7-10b: same reason as the legacy spelling above — the name has to be
+    // read while the entry still exists.
+    let subject = notifications::Subject::Integration(notifications::integration_display_name(
+        &state, &id, None,
+    ));
+
     let result = crate::extensions::uninstall::uninstall_componentized(&state, request).await;
 
     // Commit the binding removal after successful uninstall
@@ -1671,6 +1748,12 @@ pub async fn extensions_uninstall_componentized(
     }
 
     state.end_operation(&operation_id);
+    notifications::notify_completion(
+        &app,
+        &subject,
+        notifications::CompletionAction::Uninstall,
+        notifications::outcome_of(&result),
+    );
     let uninstall_result = result?;
     state.invalidate_provider_commands().await;
     app.emit("extensions-changed", ()).ok();
@@ -1719,11 +1802,24 @@ async fn set_enabled(
 
 #[tauri::command]
 pub async fn extensions_reprobe_commands(
+    app: AppHandle,
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<install::ReprobeReport, String> {
     let _guard = state.mutation_lock.lock().await;
-    install::reprobe_tool_commands(&state, &id).await
+    // R7-10b: the manual re-scan is a long action the user can start from the
+    // drawer and then dismiss the panel over.
+    let subject = notifications::Subject::Integration(notifications::integration_display_name(
+        &state, &id, None,
+    ));
+    let result = install::reprobe_tool_commands(&state, &id).await;
+    notifications::notify_completion(
+        &app,
+        &subject,
+        notifications::CompletionAction::Reprobe,
+        notifications::outcome_of(&result),
+    );
+    result
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1738,10 +1834,25 @@ pub struct ExtensionRepairReport {
 
 #[tauri::command]
 pub async fn extensions_repair(
+    app: AppHandle,
     state: State<'_, ExtensionState>,
     id: String,
 ) -> Result<ExtensionRepairReport, String> {
-    repair(&state, id).await
+    // R7-10b: repair is the drawer action that runs longest and is most likely
+    // to outlive the panel's on-screen life, so its completion is announced
+    // when the window is gone. The name is resolved up front: a failed repair
+    // returns no report to read one from.
+    let subject = notifications::Subject::Integration(notifications::integration_display_name(
+        &state, &id, None,
+    ));
+    let result = repair(&state, id).await;
+    notifications::notify_completion(
+        &app,
+        &subject,
+        notifications::CompletionAction::Repair,
+        notifications::outcome_of(&result),
+    );
+    result
 }
 
 async fn repair(state: &ExtensionState, id: String) -> Result<ExtensionRepairReport, String> {
@@ -2927,8 +3038,12 @@ mod tests {
 
         // The background pass (the same routine the spawned task runs) re-probes
         // the collected candidate, records the new version, and refreshes the
-        // descriptor.
-        super::run_drift_reprobe(&state, candidates).await;
+        // descriptor. It reports that something moved — which is what licenses
+        // the R7-10b background notification.
+        assert!(
+            super::run_drift_reprobe(&state, candidates).await,
+            "a re-probe that committed a new version reports a change"
+        );
         let stored = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
             .get(id)
@@ -2946,7 +3061,10 @@ mod tests {
         let (relisted, relisted_candidates) = list_extensions(&state).await.unwrap();
         let relisted = relisted.iter().find(|item| item.entry.id == id).unwrap();
         assert!(relisted.generated_custom);
-        super::run_drift_reprobe(&state, relisted_candidates).await;
+        assert!(
+            !super::run_drift_reprobe(&state, relisted_candidates).await,
+            "a no-op loop reports no change, so no notification is raised"
+        );
         assert_eq!(
             ExtensionsLock::load(&state.paths.repository_file)
                 .unwrap()

@@ -75,6 +75,14 @@ fn all_descriptors() -> &'static [PluginPageDescriptor] {
     DESCRIPTORS
 }
 
+/// Every registered page, for callers that have to cover the whole registry
+/// rather than resolve one id — the notification copy table is checked against
+/// it so a plugin page cannot exist without a bilingual name.
+#[cfg(test)]
+pub(crate) fn descriptors() -> &'static [PluginPageDescriptor] {
+    DESCRIPTORS
+}
+
 /// Wire shape returned to the frontend.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

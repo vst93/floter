@@ -204,7 +204,7 @@ pub fn clipboard_delete(app: AppHandle, id: String) -> Result<(), String> {
 #[tauri::command]
 pub fn clipboard_clear_history(app: AppHandle) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
-    mutate_history(&app, |entries| {
+    let result = mutate_history(&app, |entries| {
         let removed = store::take_non_favorites(entries);
         store::save_index(&paths, entries)?;
         for entry in &removed {
@@ -213,7 +213,19 @@ pub fn clipboard_clear_history(app: AppHandle) -> Result<(), String> {
             }
         }
         Ok(())
-    })
+    });
+    // R7-10b: clearing history is the clipboard plugin page's one long action,
+    // and a plugin page is the surface a user is most likely to close the panel
+    // over (Esc returns to the launcher, the toggle hides the panel). The
+    // frontend keeps its own toast for the on-screen case; the notification
+    // rule in `notifications` decides whether this one is raised at all.
+    crate::notifications::notify_completion(
+        &app,
+        &crate::notifications::Subject::Plugin(crate::plugin_pages::CLIPBOARD_PLUGIN_ID),
+        crate::notifications::CompletionAction::ClearHistory,
+        crate::notifications::outcome_of(&result),
+    );
+    result
 }
 
 /// Restore one entry onto the system clipboard.

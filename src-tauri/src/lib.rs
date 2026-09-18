@@ -7,6 +7,7 @@ pub mod extensions;
 pub mod ipc;
 #[cfg(target_os = "linux")]
 mod linux_render;
+mod notifications;
 pub mod plugin_pages;
 mod terminal;
 
@@ -1225,6 +1226,10 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
+        // R7-10b: system notifications for background completions only. The
+        // plugin is registered for its Rust API (`NotificationExt`); the
+        // frontend never calls it, so the JS guest package is not a dependency.
+        .plugin(tauri_plugin_notification::init())
         .manage(ApplicationState::new())
         .manage(TerminalState(Arc::new(Mutex::new(TerminalManager::new()))))
         .manage(AppState {
@@ -1535,17 +1540,33 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| {
-            // Shut down sessions still owned by Floter. A broker session handed
-            // to a system terminal has already left the manager and stays alive.
-            if let tauri::RunEvent::Exit = event {
-                if let Ok(manager) = app.state::<TerminalState>().0.lock() {
-                    manager.shutdown_all();
+            match event {
+                // Shut down sessions still owned by Floter. A broker session
+                // handed to a system terminal has already left the manager and
+                // stays alive.
+                tauri::RunEvent::Exit => {
+                    if let Ok(manager) = app.state::<TerminalState>().0.lock() {
+                        manager.shutdown_all();
+                    }
+                    terminal::broker::shutdown_if_idle();
+                    // The socket node outlives the process that made it, so the
+                    // next start would have to reclaim it as stale.
+                    #[cfg(target_os = "linux")]
+                    ipc::cleanup();
                 }
-                terminal::broker::shutdown_if_idle();
-                // The socket node outlives the process that made it, so the next
-                // start would have to reclaim it as stale.
-                #[cfg(target_os = "linux")]
-                ipc::cleanup();
+                // R7-10b: the notification-click callback.
+                //
+                // A click on one of the background-completion notifications
+                // activates floter; for an Accessory app with no visible window
+                // that is exactly `applicationShouldHandleReopen`, which Tauri
+                // surfaces as `Reopen` (macOS only — see the module docs for why
+                // the plugin's own `onAction` channel cannot be used on
+                // desktop). The handler does one thing: run the app's existing
+                // reveal path, the same one the tray, the global shortcut, the
+                // deep-link router and the IPC socket use.
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen { .. } => notifications::reveal_after_activation(app),
+                _ => {}
             }
         });
 }

@@ -488,6 +488,29 @@ const en = {
   "settings.extensions.errorCode.identity-mismatch": "Provider identity mismatch",
   "settings.extensions.errorCode.manifest-missing": "Manifest missing or invalid",
   "settings.extensions.errorCode.invalid-descriptor": "Invalid provider descriptor",
+  // R7-10b · the system-notification copy. A notification is OS chrome, so it
+  // is not part of any in-app surface — but its words are still the app's
+  // words, and they live here so both languages sit side by side and a key
+  // cannot exist in one table and not the other. The body always names the
+  // subject (`{name}`) plus the action and the outcome.
+  "notification.title": "floter",
+  "notification.install.success": "{name} installed",
+  "notification.install.failure": "{name} could not be installed",
+  "notification.uninstall.success": "{name} uninstalled",
+  "notification.uninstall.failure": "{name} could not be uninstalled",
+  "notification.repair.success": "{name} repaired",
+  "notification.repair.failure": "{name} could not be repaired",
+  "notification.reprobe.success": "{name} command list updated",
+  "notification.reprobe.failure": "{name} re-scan failed",
+  "notification.clearHistory.success": "{name} cleared",
+  "notification.clearHistory.failure": "{name} could not be cleared",
+  // The subject when there is no single integration to name: the drift
+  // re-probe loop covers whichever integrations moved, and an unnamed
+  // integration still has to be described as one.
+  "notification.subject.integrations": "Integrations",
+  // Fallback for a plugin page whose id has no bilingual name registered.
+  "notification.subject.plugin": "Plugin",
+  "notification.plugin.builtin.clipboard": "Clipboard History",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -988,6 +1011,20 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.errorCode.identity-mismatch": "Provider 身份不匹配",
   "settings.extensions.errorCode.manifest-missing": "清单缺失或无效",
   "settings.extensions.errorCode.invalid-descriptor": "Provider 描述符无效",
+  "notification.title": "floter",
+  "notification.install.success": "{name} 已安装",
+  "notification.install.failure": "{name} 安装失败",
+  "notification.uninstall.success": "{name} 已卸载",
+  "notification.uninstall.failure": "{name} 卸载失败",
+  "notification.repair.success": "{name} 已修复",
+  "notification.repair.failure": "{name} 修复失败",
+  "notification.reprobe.success": "{name} 命令列表已更新",
+  "notification.reprobe.failure": "{name} 重新扫描失败",
+  "notification.clearHistory.success": "{name} 已清空",
+  "notification.clearHistory.failure": "{name} 清空失败",
+  "notification.subject.integrations": "集成",
+  "notification.subject.plugin": "插件",
+  "notification.plugin.builtin.clipboard": "剪贴板历史",
 };
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, zh };

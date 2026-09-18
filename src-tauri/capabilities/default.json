@@ -8,6 +8,7 @@
     "global-shortcut:default",
     "updater:default",
     "process:allow-restart",
+    "notification:allow-notify",
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-minimize",
