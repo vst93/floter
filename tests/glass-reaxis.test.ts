@@ -169,12 +169,12 @@ test("a pre-R8 file still splits, and the split's opacity lands in the sliders",
   // The Rust migration is untouched by this round; the assertion is that the
   // *frontend* now reads the migrated pair as (step → stop, opacity → slider).
   const { glassIntensityOf } = await import("../src/glass-material.ts");
-  // 94 → 47% + high (the shipped migration).
-  assert.equal(glassIntensityOf("high", 47 / 100), 3, "the migrated 94 shows stop 3");
-  // 25 → 13% + low.
-  assert.equal(glassIntensityOf("low", 13 / 100), 1, "the migrated 25 shows stop 1");
-  // 50 → 25% + mid.
-  assert.equal(glassIntensityOf("mid", 25 / 100), 2, "the migrated 50 shows stop 2");
+  // 94 → 47% + liquid (the shipped migration).
+  assert.equal(glassIntensityOf("liquid", 47 / 100), 3, "the migrated 94 shows stop 3");
+  // 25 → 13% + frosted.
+  assert.equal(glassIntensityOf("frosted", 13 / 100), 1, "the migrated 25 shows stop 1");
+  // 50 → 25% + regular.
+  assert.equal(glassIntensityOf("regular", 25 / 100), 2, "the migrated 50 shows stop 2");
   // The Rust side still declares the same split and defaults.
   const rust = await read("src-tauri/src/commands/config.rs");
   assert.match(rust, /settings\.main_opacity = legacy\.div_ceil\(2\) as u8/);
@@ -184,8 +184,9 @@ test("a pre-R8 file still splits, and the split's opacity lands in the sliders",
 
 test("a GLASS-UNIFY (step, tint) pair loses no information", async () => {
   // GLASS-UNIFY wrote a (step, tint) pair into (glass_step, main_opacity). The
-  // stop is recovered from the step; the tint is *kept* as the opacity, so an
-  // upgrading user sees the same window solidity and can nudge it.
+  // stop is recovered from the step (the old id migrates); the tint is *kept*
+  // as the opacity, so an upgrading user sees the same window solidity and can
+  // nudge it.
   const { glassIntensityOf, GLASS_INTENSITY } = await import("../src/glass-material.ts");
   const unified: [string, number, number][] = [
     // [step written by GLASS-UNIFY, tint it wrote, stop it displays on]
@@ -202,25 +203,21 @@ test("a GLASS-UNIFY (step, tint) pair loses no information", async () => {
       `GLASS-UNIFY (${step}, ${tint}) must display on stop ${stop}`,
     );
   }
-  // The new stops are reachable only through the new ids — a GLASS-UNIFY file
-  // can never have written them, which is what makes the migration lossless.
-  for (const level of [4, 5] as const) {
-    assert.ok(
-      GLASS_INTENSITY[level].step === "deep" || GLASS_INTENSITY[level].step === "jelly",
-      `stop ${level} must use a new step id`,
-    );
-  }
+  // The new top stop is reachable only through its own id (or a migrated old
+  // heavy id) — a GLASS-UNIFY file can never have written it, which is what
+  // makes the migration lossless.
+  assert.equal(GLASS_INTENSITY[3].step, "liquid", "the top stop is the liquid material");
 });
 
-test("the stop value domain is five ids on both sides of the bridge", async () => {
+test("the stop value domain is three ids on both sides of the bridge", async () => {
   const { GLASS_STEPS } = await import("../src/glass-material.ts");
-  assert.deepEqual([...GLASS_STEPS], ["low", "mid", "high", "deep", "jelly"]);
-  // The Rust loader accepts all five.
+  assert.deepEqual([...GLASS_STEPS], ["frosted", "regular", "liquid"]);
+  // The Rust loader accepts all three (and migrates the old five).
   const rust = await read("src-tauri/src/commands/config.rs");
   for (const step of GLASS_STEPS) {
     assert.ok(rust.includes(`"${step}"`), `Rust must know the ${step} step`);
   }
-  // The plugin bridge accepts all five, so a page on stop 4/5 gets its step.
+  // The plugin bridge accepts all three, so a page on any stop gets its step.
   const bridge = await read("src/plugin-pages.ts");
   for (const step of GLASS_STEPS) {
     assert.ok(bridge.includes(`"${step}"`), `the bridge must accept the ${step} step`);
@@ -241,25 +238,25 @@ test("the settings shape keeps the three fields separate", async () => {
   assert.match(app, /setAttribute\("data-glass", settings\.glass_step\)/);
 });
 
-test("the effect stop does not change the shipped frame fill", async () => {
-  // The stop is the effect axis, so the three heaviest stops share one fill
-  // floor: changing stop 3 → 5 must not make the window more opaque. This is
-  // the numerical form of "档位不是 tint".
+test("the effect stop does not change the shipped frame alpha", async () => {
+  // The stop is the effect axis, so it contributes no frame alpha at all:
+  // the transparency slider is the only alpha truth. This is the numerical
+  // form of “档位不是 tint” and the mutation lock for “把 frame_alpha 改回
+  // step_fill 抬底 → 红”.
   const css = stripComments(await read("src/styles/base.css"));
-  const fill = (step: string) => {
-    const start = css.indexOf(`[data-glass="${step}"]`);
-    const open = css.indexOf("{", start);
-    const close = css.indexOf("}", open);
-    return Number(css.slice(open, close).match(/--glass-step-fill:\s*([\d.]+)/)![1]);
-  };
-  assert.equal(fill("high"), fill("deep"), "stop 3 and 4 share a fill floor");
-  assert.equal(fill("deep"), fill("jelly"), "stop 4 and 5 share a fill floor");
-  // …while the saturation — the effect — does climb.
+  const root = css.slice(css.indexOf(":root {"), css.indexOf('[data-theme="light"]'));
+  const frame = root.match(/--glass-frame-alpha:\s*([^;]+);/)![1];
+  assert.ok(!/--glass-step-/.test(frame), "the frame alpha must not read a glass step");
+  assert.ok(!/--glass-step-fill/.test(css), "no step declares a fill floor any more");
+  // …while the saturation — the effect — does climb across the three stops.
   const sat = (step: string) => {
     const start = css.indexOf(`[data-glass="${step}"]`);
     const open = css.indexOf("{", start);
     const close = css.indexOf("}", open);
     return Number(css.slice(open, close).match(/--glass-step-saturate:\s*([\d.]+)/)![1]);
   };
-  assert.ok(sat("jelly") > sat("deep") && sat("deep") > sat("high"), "saturation must climb");
+  assert.ok(
+    sat("liquid") > sat("regular") && sat("regular") > sat("frosted"),
+    "saturation must climb",
+  );
 });

@@ -39,7 +39,7 @@ const SETTINGS_DEFAULTS: AppSettings = {
   language: "en",
   main_opacity: 47,
   terminal_opacity: 46,
-  glass_step: "mid",
+  glass_step: "regular",
   shortcuts: DEFAULT_SHORTCUTS,
   show_commands_in_search: false,
   show_recent_in_launcher: true,

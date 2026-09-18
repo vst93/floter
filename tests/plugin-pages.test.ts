@@ -181,15 +181,20 @@ test("reload messages are recognized", () => {
 });
 
 test("glass-step messages are recognized with the shipped stop ids only", () => {
-  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "low" }));
-  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "mid" }));
-  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "high" }));
+  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "frosted" }));
+  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "regular" }));
+  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "liquid" }));
   for (const bad of [
     { [BRIDGE_TAG]: "glass", glassStep: "clear" },
+    // A pre-GLASS-3STOP id is not a *live* step: the bridge speaks the current
+    // vocabulary, and the page migrates an old bootstrap param via
+    // `normalizeGlassStep` rather than accepting the dead id here.
+    { [BRIDGE_TAG]: "glass", glassStep: "low" },
+    { [BRIDGE_TAG]: "glass", glassStep: "jelly" },
     { [BRIDGE_TAG]: "glass", glassStep: 0.68 },
     { [BRIDGE_TAG]: "glass", glassStep: null },
     { [BRIDGE_TAG]: "glass" },
-    { [BRIDGE_TAG]: "theme", glassStep: "mid" },
+    { [BRIDGE_TAG]: "theme", glassStep: "regular" },
     null,
   ]) {
     assert.equal(isBridgeGlass(bad), false, JSON.stringify(bad));
@@ -205,12 +210,11 @@ test("the plugin host hands the glass step to the page, and the page stops hardc
 
   // The bag the host injects is derived from the one token table — no literals
   // at the call site, and it changes with the step.
-  const low = glassStepStyle("low");
-  const high = glassStepStyle("high");
-  assert.equal(low["--glass-step-fill"], String(GLASS_STEP_TOKENS.low.fill));
-  assert.equal(low["--glass-step-dim"], String(GLASS_STEP_TOKENS.low.dim));
-  assert.equal(low["--glass-solid-top"], String(GLASS_SOLID_TOP));
-  assert.notEqual(low["--glass-step-fill"], high["--glass-step-fill"], "the injected fill must track the step");
+  const frosted = glassStepStyle("frosted");
+  const liquid = glassStepStyle("liquid");
+  assert.equal(frosted["--glass-step-dim"], String(GLASS_STEP_TOKENS.frosted.dim));
+  assert.equal(frosted["--glass-solid-top"], String(GLASS_SOLID_TOP));
+  assert.notEqual(frosted["--glass-step-dim"], liquid["--glass-step-dim"], "the injected haze must track the step");
 
   // The host spreads that bag onto its container and appends the step to the
   // bootstrap URL, so the page sees it before its first paint even if the
@@ -224,7 +228,7 @@ test("the plugin host hands the glass step to the page, and the page stops hardc
   // the step's numbers: those now arrive at runtime.
   const page = await readFile(new URL("src/plugins/clipboard/page.css", root), "utf8");
   assert.ok(
-    !/--glass-step-fill\s*:/.test(page) && !/--glass-solid-top\s*:/.test(page),
+    !/--glass-step-dim\s*:/.test(page) && !/--glass-solid-top\s*:/.test(page) && !/--glass-frame-floor\s*:/.test(page),
     "clipboard/page.css must not hardcode the glass step — the host injects it",
   );
 

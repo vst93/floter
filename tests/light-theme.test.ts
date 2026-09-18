@@ -246,12 +246,16 @@ test("the light text and accent clear the readability line", async () => {
     void value;
     return Number(light.match(new RegExp(`--${name}:\\s*rgba\\([^)]*,\\s*([\\d.]+)\\)`))?.[1] ?? 1);
   };
-  // Recess composite: content band over the frame over black.
+  // Recess composite: the frame alpha (the transparency slider clamped to the
+  // near-solid top and lifted only by the accessibility floor) plus the
+  // regular step's haze, then the content band over it, over black.
   const content = Number(css.match(/--glass-content-alpha:\s*calc\(\s*([\d.]+)/)![1]);
   const main = Number(css.match(/--main-opacity:\s*([\d.]+);/)![1]);
-  const stepFill = Number(css.match(/--glass-step-fill:\s*([\d.]+);/)![1]);
   const solidTop = Number(css.match(/--glass-solid-top:\s*([\d.]+);/)![1]);
-  const frame = stepFill + (solidTop - stepFill) * main;
+  const frameFloor = Number(css.match(/--glass-frame-floor:\s*([\d.]+);/)![1]);
+  const haze = Number(css.match(/--glass-step-dim:\s*([\d.]+);/)![1]);
+  const frameAlpha = Math.min(solidTop, Math.max(frameFloor, main));
+  const frame = 1 - (1 - haze * (1 - main)) * (1 - frameAlpha);
   const recessAlpha = Math.min(1, content + 0.18 * main);
   void alpha;
   const flatten = (fg: readonly number[], bg: readonly number[]) => {

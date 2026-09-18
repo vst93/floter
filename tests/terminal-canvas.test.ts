@@ -33,46 +33,43 @@ const number = (block: string, name: string) => {
   return Number(match![1]);
 };
 
-test("the terminal canvas alpha is the frame fill, not the bare transparency slider", async () => {
+test("the terminal canvas alpha is the frame alpha, not the bare transparency slider", async () => {
   const root = await rootBlock();
-  const midFill = number(root, "glass-step-fill");
+  const frameFloor = number(root, "glass-frame-floor");
   const solidTop = number(root, "glass-solid-top");
   const terminalTransparency = number(root, "terminal-opacity");
 
-  // The composition itself: fill + (solidTop − fill) × transparency.
-  assert.equal(canvasFill(midFill, solidTop, 1), solidTop, "100% must reach the near-solid top");
-  assert.equal(canvasFill(midFill, solidTop, 0), midFill, "0% must sit on the step's own floor");
+  // GLASS-3STOP: the canvas alpha is the transparency slider, clamped to the
+  // near-solid top and lifted only by the accessibility floor. The material
+  // step contributes no floor — it changes the material, not the thickness.
+  assert.equal(canvasFill(frameFloor, solidTop, 1), solidTop, "100% must reach the near-solid top");
+  assert.equal(canvasFill(frameFloor, solidTop, 0.1), 0.1, "10% must paint a 0.10 canvas — the slider is the truth");
   assert.equal(
-    canvasFill(midFill, solidTop, 0.5),
-    midFill + (solidTop - midFill) * 0.5,
-    "the slider must interpolate linearly between floor and top",
+    canvasFill(frameFloor, solidTop, 0.5),
+    0.5,
+    "the canvas must track the slider across its whole range",
   );
+  // The accessibility floor lifts the bottom end; the top still clamps.
+  assert.equal(canvasFill(0.86, solidTop, 0.1), 0.86, "the contrast floor lifts the bottom end");
+  assert.equal(canvasFill(0.86, solidTop, 1), solidTop, "the top still clamps at the near-solid top");
 
-  // The shipped mid step (fill 0.68, top 0.98) makes the two ends concrete.
-  assert.equal(canvasFill(0.68, 0.98, 1), 0.98);
-  assert.equal(canvasFill(0.68, 0.98, 0), 0.68);
+  // The shipped numbers make the two ends concrete: 10% is genuinely 0.10.
+  assert.equal(canvasFill(0, 0.98, 0.1), 0.1);
+  assert.equal(canvasFill(0, 0.98, 1), 0.98);
 
-  // Decoupling, measured: the canvas alpha is not the slider value. Before R8
-  // the renderer read `--terminal-opacity` straight into the pixel; that is
-  // the mutation this assertion kills. At the default 0.46 the frame fill is
-  // 0.818, which is nowhere near 0.46.
-  const painted = canvasFill(midFill, solidTop, terminalTransparency);
-  assert.notEqual(
+  // Decoupling, measured: the canvas alpha is *the slider itself* now — the
+  // material step no longer props it up. At the default 0.46 the canvas paints
+  // 0.46, not the old 0.818 floor-coupled value.
+  const painted = canvasFill(frameFloor, solidTop, terminalTransparency);
+  assert.equal(
     painted,
     terminalTransparency,
-    "the canvas must paint the frame fill, not the raw transparency slider",
+    "the canvas must paint the slider value, with no step-supplied floor",
   );
-  assert.ok(
-    painted > terminalTransparency,
-    `the frame fill (${painted.toFixed(3)}) must be more solid than the slider (${terminalTransparency}) — ` +
-      "the step supplies the material, the slider only moves within it",
-  );
-
-  // The step moves the floor: Clear and Regular paint different alphas at the
-  // same slider position. A canvas that read only the slider could not.
-  const lowFill = canvasFill(0.3, solidTop, terminalTransparency);
-  assert.notEqual(lowFill, painted, "the material step must reach the canvas's fill");
-  assert.ok(lowFill < painted, "the Clear step's canvas must be thinner than Regular's");
+  // …and the step cannot move it: the same slider position paints the same
+  // alpha on every step (the step is absent from the formula).
+  const frames = ["frosted", "regular", "liquid"].map(() => canvasFill(frameFloor, solidTop, 0.5));
+  assert.equal(new Set(frames).size, 1, "the material step must not move the canvas alpha");
 });
 
 // The pure function above only proves the arithmetic is right *if* the
@@ -82,11 +79,11 @@ test("the terminal canvas alpha is the frame fill, not the bare transparency sli
 // the renderer no longer had to use. This pins the wiring: the renderer reads
 // the three tokens and composes them through `canvasFill`.
 test("the renderer composes the canvas fill from the three shipped tokens", async () => {
-  // Comments and the doc block name both `--terminal-opacity` and the step
+  // Comments and the doc block name both `--terminal-opacity` and the frame
   // tokens for explanation; strip them so the assertion is about the code.
   const render = (await read("src/terminal/render.ts")).replace(/\/\/[^\n]*/g, "");
   assert.match(render, /import \{ canvasFill \} from "\.\/canvas-fill"/, "render.ts must import the shared composition");
-  for (const name of ["--glass-step-fill", "--glass-solid-top", "--terminal-opacity"]) {
+  for (const name of ["--glass-frame-floor", "--glass-solid-top", "--terminal-opacity"]) {
     assert.ok(
       render.includes(`cssNumber(style, "${name}"`),
       `render.ts must read ${name} when resolving the canvas fill`,
@@ -95,10 +92,15 @@ test("the renderer composes the canvas fill from the three shipped tokens", asyn
   assert.match(
     render,
     /this\.bgOpacity = canvasFill\(/,
-    "bgOpacity must be the composed frame fill, not a bare slider read",
+    "bgOpacity must be the composed frame alpha, not a bare slider read",
   );
   assert.ok(
     !/bgOpacity = cssNumber\(style, "--terminal-opacity"/.test(render),
-    "the canvas must not paint the raw transparency slider — that is the pre-R8 behaviour",
+    "the canvas must not paint the raw transparency slider without the clamps — that is the pre-R8 behaviour",
+  );
+  // The step must not reach the canvas fill: it is the material axis.
+  assert.ok(
+    !/--glass-step-fill/.test(render),
+    "render.ts must not read a step fill — the slider is the alpha truth",
   );
 });

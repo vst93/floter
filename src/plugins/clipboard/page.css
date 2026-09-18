@@ -6,19 +6,20 @@
      the defaults are the host's split of the old single 94/92 slider. The
      page is a separate document and cannot read the host's tokens.
 
-     The material step's tokens (--glass-step-fill, --glass-step-dim,
-     --glass-solid-top) are deliberately NOT declared here. They used to be
+     The material step's tokens (--glass-step-dim, --glass-solid-top,
+     --glass-frame-floor) are deliberately NOT declared here. They used to be
      hardcoded to the Regular step, which pinned this page to 0.68 fill no
      matter what the host's glass step was. They are now injected at runtime:
      the host passes the step id as a bootstrap query param and as a bridge
      message, and main.ts writes the shared `GLASS_STEP_TOKENS` values from
      `src/glass-material.ts` onto this document's root — one source of truth,
      no literals copied. `--page-fill` below is only the pre-JS first-paint
-     fallback (Regular at the default transparency); main.ts overwrites it on
-     both root and the derived `--page-bg` before the first frame. */
+     fallback (the default terminal transparency plus the Regular step's
+     haze); main.ts overwrites it on both root and the derived `--page-bg`
+     before the first frame. */
   --main-opacity: 0.47;
   --terminal-opacity: 0.46;
-  --page-fill: 0.818;
+  --page-fill: 0.606;
   --page-bg: rgb(17 18 20 / var(--page-fill));
   --panel-bg: rgb(17 18 20 / var(--page-fill));
   --input-bg: rgba(255, 255, 255, 0.055);

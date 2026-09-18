@@ -322,19 +322,20 @@
        window transparency  |  READABILITY  |  the frame's fill, nothing else
        glass step (3-way)   |  MATERIAL     |  blur, saturation, variant share
 
-     GLASS-UNIFY then collapsed the R8 UI-layer split: the settings panel
-     exposes one five-stop intensity control and writes a fixed (step, tint)
-     pair into these two fields. The *model* below is unchanged — the two
-     inputs still compose exactly as R8 defined them; only the number of knobs
-     the user sees changed. `--main-opacity` is still the only input a native
-     window-alpha path may read; the glass step never reaches the window
-     server.
+     GLASS-3STOP is the user's follow-up on both counts. The five stops were
+     too close together (「玻璃效果每档差异有点小」) and the step's fill floor
+     made the transparency slider almost inert (「除了 10%，其他档位都基本看
+     不到透明」). So the stop's `fill` no longer participates in the frame at
+     all: the transparency slider is the frame's **only** alpha truth.
 
-     The tint maps linearly from the *step's own* fill floor to
-     `--glass-solid-top` (0.98), so the top stop is a near-opaque panel on
-     every step — the user's headline requirement — and the bottom is the
-     thinnest surface in that variant. The frame is the functional layer, so
-     this is the one surface whose opacity the user trades away on purpose. */
+       --glass-frame-alpha = min(solid_top, max(frame_floor, opacity))
+
+     `--glass-frame-floor` is 0 in normal use — 10% really is 10% — and only
+     the `prefers-contrast: more` override raises it. A step now changes the
+     material (blur, saturation, lens quality) and the **haze** layer
+     (`--glass-step-dim`), never the frame's thickness. The frame is the
+     functional layer, so this is the one surface whose opacity the user
+     trades away on purpose — and now the slider alone decides it. */
   --main-opacity: 0.47;
   --terminal-opacity: 0.46;
   /* The maxed end of the transparency slider. 0.98, not 1: a fully opaque
@@ -342,37 +343,45 @@
      read as paint, and HIG's regular variant never reaches an opaque fill
      either. It still composites with the content layer below to ≥0.998. */
   --glass-solid-top: 0.98;
+  /* The frame alpha's floor. 0 by default: the slider is the only alpha
+     truth, so its bottom end is genuinely as thin as it says. The
+     `prefers-contrast: more` block raises this to 0.86 so a user who asked
+     the system for contrast never has to also go find the slider. */
+  --glass-frame-floor: 0;
 
-  /* ── Glass material steps (R8) ──────────────────────────────────────────
-     Three steps, and they are HIG's two Liquid Glass variants plus a
-     readability-max variant on top:
+  /* ── Glass material steps (GLASS-3STOP) ─────────────────────────────────
+     Three steps, deliberately far apart, walking from traditional frosted
+     glass to Apple's liquid glass at full strength:
 
-       low   Clear        blur  8-16px, fill 20-40%, dimming layer 35%
-       mid   Regular      blur 20-40px, fill 60-80%
-       high  Regular-max  blur 28px (the budget), heaviest fill, max saturate
+       frosted  blur 10px, saturate 130%, lens 0.5, haze 50%
+       regular  blur 22px, saturate 170%, lens 1.0, haze 40%
+       liquid   blur 28px, saturate 200%, lens 1.6, haze 20%
 
      The values live in one place each and the step is selected by
      `[data-glass]` on <html>, written from settings — so the material is a
      token swap, never a per-rule branch. `liquid-glass.md › Which variant`
-     is the authority for the bands; `low`'s 0.35 dimming layer is Apple's one
-     published number for clear glass over bright content.
+     is the authority for the bands; `frosted`'s haze is Apple's published
+     idea of a dimming layer for clear glass over bright content, and it is
+     what keeps thin, lightly-blurred glass readable now that the step no
+     longer props the frame's alpha up.
 
      The blur is a literal now: R7 derived it from the slider inversely so a
      thinner tint kept its readability, which is exactly the coupling this
      round removes. It no longer needs quantizing either, and the `@supports
      round()` block that did that is gone with it. */
-  --glass-step-blur: 24px;
-  --glass-step-saturate: 165%;
-  --glass-step-fill: 0.68;
-  --glass-step-dim: 0;
+  --glass-step-blur: 22px;
+  --glass-step-saturate: 170%;
+  --glass-step-dim: 0.5;
 
-  /* The frame's fill: the step's floor, sliding to near-solid with the
-     transparency control. */
-  --glass-frame-alpha: calc(
-    var(--glass-step-fill) + (var(--glass-solid-top) - var(--glass-step-fill)) * var(--main-opacity)
+  /* The frame's fill: the transparency slider, clamped to the near-solid top
+     and lifted only by the accessibility floor. The step is deliberately
+     absent — this is the line that makes the slider the alpha truth. */
+  --glass-frame-alpha: min(
+    var(--glass-solid-top),
+    max(var(--glass-frame-floor), var(--main-opacity))
   );
-  /* …then the variant's dimming layer underneath it, which fades out as the
-     frame itself solidifies (a 35% veil on top of a 98% panel is just mud). */
+  /* …then the variant's haze layer underneath it, which fades out as the
+     frame itself solidifies (a 50% veil on top of a 98% panel is just mud). */
   --glass-tint-alpha: calc(
     1 - (1 - var(--glass-step-dim) * (1 - var(--main-opacity))) * (1 - var(--glass-frame-alpha))
   );
@@ -381,9 +390,11 @@
   --glass-blur: var(--glass-step-blur);
 
   /* The terminal is the same material with its own transparency control, so
-     it shares the step's blur and saturation and only re-derives the fill. */
-  --glass-frame-alpha-terminal: calc(
-    var(--glass-step-fill) + (var(--glass-solid-top) - var(--glass-step-fill)) * var(--terminal-opacity)
+     it shares the step's blur, saturation and haze and only re-derives the
+     fill from its own slider. */
+  --glass-frame-alpha-terminal: min(
+    var(--glass-solid-top),
+    max(var(--glass-frame-floor), var(--terminal-opacity))
   );
   --glass-tint-alpha-terminal: calc(
     1 - (1 - var(--glass-step-dim) * (1 - var(--terminal-opacity))) * (1 - var(--glass-frame-alpha-terminal))
@@ -676,60 +687,44 @@
   --text-placeholder-contrast: rgba(242, 243, 245, 0.58);
 }
 
-/* ── Glass effect steps (R8; re-axised by GLASS-REAXIS) ────────────────────
-   Five effect stops, as token overrides selected by one attribute on <html>.
+/* ── Glass effect steps (R8; re-axised by GLASS-REAXIS; three-stop by
+   GLASS-3STOP) ────────────────────────────────────────────────────────────
+   Three effect stops, as token overrides selected by one attribute on <html>.
    The stop is the *liquid-glass effect*: blur (how much the desktop behind is
-   refracted), saturation (how much the glass colour-grades it) and the control
-   lens level (how much lens quality the panes on top carry). The stop never
-   writes a tint — the frame's fill is the transparency sliders' job.
+   refracted), saturation (how much the glass colour-grades it), the control
+   lens level (how much lens quality the panes on top carry) and the haze
+   layer (a dimming veil for the thin frosted end). The stop never writes a
+   fill — the frame's alpha is the transparency sliders' job alone.
 
-   `low` is HIG's Clear variant, which is "highly translucent" by definition,
-   so its floor is deliberately below the 60-80% regular band and it carries
-   the published 35% dimming layer; `mid` is Regular; `high` is Regular pushed
-   to the round's budget ceiling (blur 28px, saturate 180%); `deep` and
-   `jelly` keep the 28px budget and push saturation to 190 / 200% with the
-   heaviest control lens.
+   `frosted` is the traditional frosted-glass end: a small 10px blur, a low
+   130% saturation and the thinnest lens, with a 50% haze layer standing in
+   for the readability the frame no longer props up. `regular` is Apple's
+   Liquid Glass resting balance (22px, 170%). `liquid` is the heaviest
+   refraction this app draws: the 28px blur budget, the full 200% saturation
+   and the strongest control lens — the old `jelly` material, promoted to the
+   top stop.
 
    Every other material token derives from these — see the `:root` block — so
    a step switch is a token swap and nothing in any surface file mentions a
    step by name. */
-[data-glass="low"] {
+[data-glass="frosted"] {
   --glass-step-blur: 10px;
-  --glass-step-saturate: 135%;
-  --glass-step-fill: 0.3;
-  --glass-step-dim: 0.35;
+  --glass-step-saturate: 130%;
+  --glass-step-dim: 0.6;
   --glass-lens-scale: 0.5;
 }
 
-[data-glass="mid"] {
-  --glass-step-blur: 24px;
-  --glass-step-saturate: 165%;
-  --glass-step-fill: 0.68;
-  --glass-step-dim: 0;
-  --glass-lens-scale: 0.75;
-}
-
-[data-glass="high"] {
-  --glass-step-blur: 28px;
-  --glass-step-saturate: 180%;
-  --glass-step-fill: 0.8;
-  --glass-step-dim: 0;
+[data-glass="regular"] {
+  --glass-step-blur: 22px;
+  --glass-step-saturate: 170%;
+  --glass-step-dim: 0.5;
   --glass-lens-scale: 1;
 }
 
-[data-glass="deep"] {
-  --glass-step-blur: 28px;
-  --glass-step-saturate: 190%;
-  --glass-step-fill: 0.8;
-  --glass-step-dim: 0;
-  --glass-lens-scale: 1.3;
-}
-
-[data-glass="jelly"] {
+[data-glass="liquid"] {
   --glass-step-blur: 28px;
   --glass-step-saturate: 200%;
-  --glass-step-fill: 0.8;
-  --glass-step-dim: 0;
+  --glass-step-dim: 0.2;
   --glass-lens-scale: 1.6;
 }
 
@@ -1211,24 +1206,23 @@ canvas {
 @media (prefers-contrast: more) {
   /* "Increase contrast" has to mean the material, not only the borders. At
      the low end of the transparency slider the frame is genuinely
-     see-through — that is the point of the Clear step — but a user who has
+     see-through — that is the point of a thin material — but a user who has
      asked the system for contrast must not have to also go find the slider.
-     The fill floor is raised to near-solid on *every* step and the blur is
-     left alone, so the panel keeps its material and loses its transparency.
-     It is expressed against the same two tokens the steps and the slider use,
-     which is what makes it testable rather than a parallel formula. */
+     The frame's floor is raised to near-solid on *every* step and the haze is
+     dropped, so the panel keeps its material and loses its transparency. It
+     is expressed against the same token the slider uses (`--glass-frame-floor`
+     feeds `--glass-frame-alpha`'s `max`), which is what makes it testable
+     rather than a parallel formula. The blur is left alone. */
   :root {
-    --glass-step-fill: 0.86;
+    --glass-frame-floor: 0.86;
     --glass-step-dim: 0;
     --glass-lens-scale: 0.6;
   }
 
-  [data-glass="low"],
-  [data-glass="mid"],
-  [data-glass="high"],
-  [data-glass="deep"],
-  [data-glass="jelly"] {
-    --glass-step-fill: 0.86;
+  [data-glass="frosted"],
+  [data-glass="regular"],
+  [data-glass="liquid"] {
+    --glass-frame-floor: 0.86;
     --glass-step-dim: 0;
     /* A user who asked for contrast gets the *material* dialled back, not the
        borders: the lens sheen is a decorative refraction cue, so it is damped
@@ -1298,15 +1292,14 @@ canvas {
 }
 
 /* The glass step is chosen in settings and written onto <html> by App.tsx.
-   `mid` is the resting default in markup before hydration; this attribute
+   `regular` is the resting default in markup before hydration; this attribute
    selector is the whole switching mechanism, and it is why no surface file
    ever mentions a step by name. */
 html:not([data-glass]) {
-  --glass-step-blur: 24px;
-  --glass-step-saturate: 165%;
-  --glass-step-fill: 0.68;
-  --glass-step-dim: 0;
-  --glass-lens-scale: 0.75;
+  --glass-step-blur: 22px;
+  --glass-step-saturate: 170%;
+  --glass-step-dim: 0.5;
+  --glass-lens-scale: 1;
 }
 
 /* An undecorated Windows window reaches exactly to these surfaces. Its edge is

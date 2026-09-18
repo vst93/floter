@@ -111,9 +111,9 @@ test("RT: every surface shell goes near-solid and drops its blur", async () => {
 test("IC: the material floor is raised and the new chrome gets the stroke", async () => {
   const css = await base();
   const block = mediaBlock(css, "(prefers-contrast: more)");
-  // The material: the fill floor is raised on every step and dimming dropped.
+  // The material: the frame's floor is raised on every step and haze dropped.
   assert.match(css, /--stroke-contrast:\s*rgba\(255,\s*255,\s*255,\s*0\.42\)/, "the dark contrast stroke");
-  assert.match(block, /--glass-step-fill:\s*0\.86/);
+  assert.match(block, /--glass-frame-floor:\s*0\.86/);
   assert.match(block, /--glass-step-dim:\s*0/);
   // The stronger strokes reach the states and the new chrome, not just the
   // shells.

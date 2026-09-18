@@ -212,25 +212,32 @@ test("the window transparency chain drives the frame and nothing else", async ()
   assert.match(rootBlock, /--terminal-opacity:\s*0\.46;/);
   assert.match(await read("src/App.tsx"), /setProperty\("--main-opacity"/);
   assert.match(await read("src/App.tsx"), /setProperty\("--terminal-opacity"/);
-  // The frame fill consumes them, and only with calc + rgba (no color-mix,
-  // whose WebKitGTK support varies across the versions floter ships to).
+  // GLASS-3STOP made the slider the *only* alpha truth: the frame alpha is the
+  // slider clamped to the near-solid top and lifted only by the accessibility
+  // floor, and it never reads a glass step. It still uses min/max + rgba (no
+  // color-mix, whose WebKitGTK support varies across the versions floter ships
+  // to).
   const glassTokens = rootBlock.slice(rootBlock.indexOf("--glass-frame-alpha"), rootBlock.indexOf("--input-stroke"));
-  assert.match(glassTokens, /--glass-frame-alpha:\s*calc\(\s*[\s\S]*?var\(--main-opacity\)\s*\);/);
-  assert.match(glassTokens, /--glass-frame-alpha-terminal:\s*calc\(\s*[\s\S]*?var\(--terminal-opacity\)\s*\);/);
+  assert.match(glassTokens, /--glass-frame-alpha:\s*min\([\s\S]*?var\(--main-opacity\)/);
+  assert.match(glassTokens, /--glass-frame-alpha-terminal:\s*min\([\s\S]*?var\(--terminal-opacity\)/);
+  // The *frame* declarations themselves must not read a step; the haze lives
+  // in `--glass-tint-alpha`, which is a separate declaration and is allowed to.
+  for (const name of ["glass-frame-alpha", "glass-frame-alpha-terminal"]) {
+    const declaration = rootBlock.match(new RegExp(`--${name}:\\s*(min\\([\\s\\S]*?\\)\\s*);`));
+    assert.ok(declaration, `--${name} must be a min() over the slider`);
+    assert.ok(
+      !/--glass-step-/.test(declaration![1]),
+      `--${name} must not read a glass step; got "${declaration![1]}"`,
+    );
+  }
   assert.ok(!/color-mix/.test(glassTokens), "the derived frame fill must not use color-mix");
 
   // R8's headline: the transparency slider is the readability control, so its
   // maxed end has to be a near-opaque frame — the R7 map topped out at 0.73
   // and the user's complaint ("still see-through at 100%") is exactly that.
   assert.match(token(rootBlock, "glass-solid-top"), /^0\.9[5-9]$/);
-  for (const step of ["low", "mid", "high"]) {
-    const floor = stepTokens(step).fill;
-    // frame(t=1) = floor + (solidTop - floor) * 1 = solidTop on every step.
-    assert.ok(
-      floor + (SOLID_TOP - floor) * 1 >= 0.95,
-      `${step}: the maxed transparency slider must reach ≥0.95, got ${floor + (SOLID_TOP - floor)}`,
-    );
-  }
+  // …and now the floor is 0, so the slider's whole 0.10→0.98 range is real.
+  assert.equal(token(rootBlock, "glass-frame-floor"), "0", "the normal frame floor is 0");
 });
 
 // ── The glass step (R8) ────────────────────────────────────────────────────
@@ -243,7 +250,7 @@ test("the window transparency chain drives the frame and nothing else", async ()
 // the whole failure mode of a three-step control (low and mid converging until
 // the control does nothing).
 
-/** Parse one `[data-glass="x"]` block into its four step tokens. */
+/** Parse one `[data-glass="x"]` block into its three step tokens. */
 const stepTokens = (step: string) => {
   const base = stripComments(baseCache ?? "");
   const start = base.indexOf(`[data-glass="${step}"]`);
@@ -269,7 +276,6 @@ const stepTokens = (step: string) => {
   return {
     blur: Number(read("blur").replace("px", "")),
     saturate: Number(read("saturate").replace("%", "")),
-    fill: Number(read("fill")),
     dim: Number(read("dim")),
   };
 };
@@ -278,55 +284,44 @@ const SOLID_TOP = 0.98;
 
 // The three steps, read once so the band assertions below can share them.
 let baseCache: string | null = null;
-test("the glass step is three HIG variants, monotonic low < mid < high", async () => {
+test("the glass step is three variants, monotonic frosted < regular < liquid", async () => {
   baseCache = await read("src/styles/base.css");
-  const steps = { low: stepTokens("low"), mid: stepTokens("mid"), high: stepTokens("high") };
+  const steps = { frosted: stepTokens("frosted"), regular: stepTokens("regular"), liquid: stepTokens("liquid") };
 
-  // The variant bands from `liquid-glass.md › Cross-platform translation`:
-  // clear 8-16px / 20-40% fill / a 35% dimming layer, regular 20-40px /
-  // 60-80%. `high` sits at the round's 28px budget ceiling.
-  assert.ok(steps.low.blur >= 8 && steps.low.blur <= 16, `Clear blur must sit in 8-16px, got ${steps.low.blur}`);
-  assert.ok(steps.low.fill >= 0.2 && steps.low.fill <= 0.4, `Clear fill must sit in 20-40%, got ${steps.low.fill}`);
-  assert.equal(steps.low.dim, 0.35, "Clear glass over bright content carries the published 35% dimming layer");
-  assert.ok(steps.mid.blur >= 20 && steps.mid.blur <= 28, `Regular blur must sit in 20-28px, got ${steps.mid.blur}`);
-  assert.ok(steps.mid.fill >= 0.6 && steps.mid.fill <= 0.8, `Regular fill must sit in 60-80%, got ${steps.mid.fill}`);
-  assert.equal(steps.mid.dim, 0, "the Regular variant needs no dimming layer");
-  assert.equal(steps.high.blur, 28, "the High step sits at the 28px budget ceiling");
-  assert.equal(steps.high.saturate, 180, "the High step sits at the 180% saturation budget");
-  assert.equal(steps.high.dim, 0, "the High step needs no dimming layer");
+  // The three stops walk the user's arc: 磨砂玻璃 → 苹果液态玻璃 → 液态拉满.
+  // The frosted end is a small, lightly-saturating blur with a strong haze
+  // layer (it no longer gets a fill floor, so the haze is what keeps it
+  // readable over bright content). The liquid end spends the full blur and
+  // saturation budgets and needs no haze.
+  assert.ok(steps.frosted.blur >= 8 && steps.frosted.blur <= 16, `frosted blur must sit in 8-16px, got ${steps.frosted.blur}`);
+  assert.ok(steps.frosted.saturate <= 140, `frosted saturate must stay low, got ${steps.frosted.saturate}`);
+  assert.ok(steps.frosted.dim >= 0.4, `frosted must carry a strong haze layer, got ${steps.frosted.dim}`);
+  assert.ok(steps.regular.blur >= 20 && steps.regular.blur <= 28, `regular blur must sit in 20-28px, got ${steps.regular.blur}`);
+  assert.ok(steps.regular.saturate >= 160 && steps.regular.saturate <= 180, `regular saturate must sit mid-range, got ${steps.regular.saturate}`);
+  assert.equal(steps.liquid.blur, 28, "the liquid step sits at the 28px budget ceiling");
+  assert.equal(steps.liquid.saturate, 200, "the liquid step sits at the 200% saturation budget");
+  assert.equal(steps.liquid.dim, 0.2, "the liquid step's blur does most of the work, so its haze is light");
 
   // Direction monotonicity: a higher step is more material — more blur, more
-  // saturation, more fill. This is the "档位映射错位" mutation's target: swap
+  // saturation, less haze. This is the "档位映射错位" mutation's target: swap
   // any two steps' values and one of these fails.
-  assert.ok(steps.low.blur < steps.mid.blur && steps.mid.blur < steps.high.blur, "blur must ascend low < mid < high");
-  assert.ok(steps.low.saturate < steps.mid.saturate && steps.mid.saturate < steps.high.saturate, "saturation must ascend");
-  assert.ok(steps.low.fill < steps.mid.fill && steps.mid.fill < steps.high.fill, "fill must ascend");
-  assert.ok(steps.low.dim > steps.mid.dim && steps.mid.dim === steps.high.dim, "only Clear carries a dimming layer");
+  assert.ok(steps.frosted.blur < steps.regular.blur && steps.regular.blur < steps.liquid.blur, "blur must ascend frosted < regular < liquid");
+  assert.ok(steps.frosted.saturate < steps.regular.saturate && steps.regular.saturate < steps.liquid.saturate, "saturation must ascend");
+  assert.ok(steps.frosted.dim > steps.regular.dim && steps.regular.dim > steps.liquid.dim, "haze must fall as the material thickens");
   for (const [name, step] of Object.entries(steps)) {
     assert.ok(step.blur <= 28, `${name}: blur exceeds the 28px budget`);
-    assert.ok(step.saturate <= 180, `${name}: saturate exceeds the 180% budget`);
+    assert.ok(step.saturate <= 200, `${name}: saturate exceeds the 200% budget`);
   }
 
-  // The frame at a given transparency must ascend with the step at *every*
-  // slider position — otherwise the control would invert mid-range. At the
-  // top the three converge (all near-solid), which is correct: the user asked
-  // for an opaque window.
-  for (let t = 0.1; t <= 0.9501; t += 0.05) {
-    const frame = (s: { fill: number; dim: number }) => {
-      const fill = s.fill + (SOLID_TOP - s.fill) * t;
-      const dim = s.dim * (1 - t);
-      return 1 - (1 - dim) * (1 - fill);
-    };
-    const [lo, mi, hi] = [frame(steps.low), frame(steps.mid), frame(steps.high)];
-    assert.ok(lo < mi && mi < hi, `frame must ascend at transparency ${t.toFixed(2)}: ${lo} / ${mi} / ${hi}`);
+  // The frame at a given transparency is *identical* on every step — the step
+  // no longer supplies a floor — and reaches the near-solid top at 100%.
+  const frameAlpha = (t: number) => Math.min(SOLID_TOP, Math.max(0, t));
+  for (const t of [0.1, 0.25, 0.5, 0.75, 1]) {
+    const frames = Object.values(steps).map(() => frameAlpha(t));
+    assert.equal(new Set(frames).size, 1, `the step must not change the frame alpha at transparency ${t}`);
   }
-  // …and at 100% every step is the near-solid frame the user asked for.
-  for (const [name, step] of Object.entries(steps)) {
-    const fill = step.fill + (SOLID_TOP - step.fill) * 1;
-    const dim = step.dim * (1 - 1);
-    const frame = 1 - (1 - dim) * (1 - fill);
-    assert.ok(frame >= 0.95, `${name}: at 100% transparency the frame must be near-solid, got ${frame.toFixed(3)}`);
-  }
+  assert.equal(frameAlpha(1), SOLID_TOP, "100% must reach the near-solid top on every step");
+  assert.ok(frameAlpha(0.1) <= 0.1, "10% must paint a thin frame — the user's headline ask");
 });
 
 // The step is selected by an attribute on <html> rather than by a class on
@@ -348,10 +343,10 @@ test("the step is an html attribute, and no surface file names a step", async ()
     );
   }
   // base.css is the only file that defines the blocks, and it defines exactly
-  // five: a sixth would be an undocumented effect step.
+  // three: a fourth would be an undocumented effect step.
   const base = stripComments(await read("src/styles/base.css"));
   const blocks = [...base.matchAll(/\[data-glass="(\w+)"\]/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(blocks)].sort(), ["deep", "high", "jelly", "low", "mid"]);
+  assert.deepEqual([...new Set(blocks)].sort(), ["frosted", "liquid", "regular"]);
 });
 
 
@@ -387,18 +382,19 @@ test("the material ladder holds as composites across both controls", async () =>
   const soft = token(rootBlock, "surface-sunken-soft");
   assert.match(soft, /calc\(var\(--glass-content-alpha\)\s*-\s*[\d.]+\)/);
 
-  // The frame maps each step's fill floor to the near-solid top.
+  // The frame maps each step's floor to the near-solid top.
   const solidTop = Number(token(rootBlock, "glass-solid-top"));
   assert.ok(solidTop >= 0.95, `--glass-solid-top must be near-opaque, got ${solidTop}`);
 
   // Sweep every step × transparency and assert the composites stay ordered.
-  const steps = { low: stepTokens("low"), mid: stepTokens("mid"), high: stepTokens("high") };
+  const steps = { frosted: stepTokens("frosted"), regular: stepTokens("regular"), liquid: stepTokens("liquid") };
+  const floor = Number(token(rootBlock, "glass-frame-floor"));
   for (const [name, step] of Object.entries(steps)) {
     for (let t = 0.1; t <= 1.0001; t += 0.05) {
-      const fill = step.fill + (solidTop - step.fill) * t;
+      const frame = Math.min(solidTop, Math.max(floor, t));
       const dim = step.dim * (1 - t);
-      const frame = 1 - (1 - dim) * (1 - fill);
-      const floatAlpha = Math.min(1, frame + Number(delta![1]));
+      const tintAlpha = 1 - (1 - dim) * (1 - frame);
+      const floatAlpha = Math.min(1, tintAlpha + Number(delta![1]));
       const contentAlpha = Math.min(1, cA + cB * t);
       // Composite opacity of the recess over the frame vs the frame alone.
       const recessComposite = 1 - (1 - frame) * (1 - contentAlpha);
@@ -525,13 +521,13 @@ test("glass values stay inside the performance budget", async () => {
     "the round() quantizer existed to smooth a slider-driven blur; with discrete steps it is gone",
   );
 
-  // Saturation is a per-step literal too, inside the round's 180% ceiling.
-  const saturations = ["low", "mid", "high"].map((step) => stepTokens(step).saturate);
+  // Saturation is a per-step literal too, inside the round's 200% ceiling.
+  const saturations = ["frosted", "regular", "liquid"].map((step) => stepTokens(step).saturate);
   for (const value of saturations) {
-    assert.ok(value <= 180, `saturate ${value}% exceeds the 180% budget`);
-    assert.ok(value >= 130, `saturate ${value}% is below the material's floor`);
+    assert.ok(value <= 200, `saturate ${value}% exceeds the 200% budget`);
+    assert.ok(value >= 120, `saturate ${value}% is below the material's floor`);
   }
-  assert.equal(Math.max(...saturations), 180, "the High step must spend the full saturation budget");
+  assert.equal(Math.max(...saturations), 200, "the liquid step must spend the full saturation budget");
   assert.match(rootBlock, /--glass-saturate:\s*var\(--glass-step-saturate\)/);
 });
 
@@ -690,18 +686,23 @@ const GRADIENT_MEAN = [128, 110, 140];
 // then sweeps a 3 x 19 grid. Nothing here restates a number the stylesheet
 // owns, so a mutation to any of them fails here.
 
-/** The composited material stack, painted in order: backdrop → dimming layer →
- *  frame → content-layer standard material → control pane. */
+/** The composited material stack, painted in order: backdrop → frame tint
+ *  (frame alpha + the step's haze) → content-layer standard material → control
+ *  pane. */
 const buildModel = (
-  steps: Record<string, { fill: number; dim: number; blur: number }>,
+  steps: Record<string, { dim: number; blur: number }>,
   contentBand: { a: number; b: number },
   solidTop: number,
+  frameFloor: number,
   paneAlpha: number,
 ) => {
-  const frame = (step: { fill: number; dim: number }, t: number) => {
-    const fill = step.fill + (solidTop - step.fill) * t;
+  // GLASS-3STOP: the frame alpha is the transparency slider alone, clamped to
+  // the near-solid top and lifted only by the accessibility floor. The step
+  // contributes no floor; its haze is composited into the tint underneath.
+  const frame = (step: { dim: number }, t: number) => {
+    const frameAlpha = Math.min(solidTop, Math.max(frameFloor, t));
     const dim = step.dim * (1 - t);
-    return 1 - (1 - dim) * (1 - fill);
+    return 1 - (1 - dim) * (1 - frameAlpha);
   };
   const content = (t: number) => Math.min(1, contentBand.a + contentBand.b * t);
   const over = (backdrop: number[], tint: number[], alpha: number) => flatten([...tint, alpha], backdrop);
@@ -719,14 +720,15 @@ const buildModel = (
 test("every step x transparency keeps the body-text floor (the R8 contract)", async () => {
   const rootBlock = await rootTokens();
   baseCache ??= await read("src/styles/base.css");
-  const stepValues = { low: stepTokens("low"), mid: stepTokens("mid"), high: stepTokens("high") };
+  const stepValues = { frosted: stepTokens("frosted"), regular: stepTokens("regular"), liquid: stepTokens("liquid") };
   const solidTop = Number(token(rootBlock, "glass-solid-top"));
+  const frameFloor = Number(token(rootBlock, "glass-frame-floor"));
   const content = token(rootBlock, "glass-content-alpha").match(
     /^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/,
   );
   assert.ok(content, `--glass-content-alpha must be calc(a + b·transparency), got "${token(rootBlock, "glass-content-alpha")}"`);
   const band = { a: Number(content![1]), b: Number(content![2]) };
-  const model = buildModel(stepValues, band, solidTop, 0.055);
+  const model = buildModel(stepValues, band, solidTop, frameFloor, 0.055);
 
   // A step in the ladder may be an opaque hex (the light warning colour is),
   // in which case its alpha is exactly 1.
@@ -841,9 +843,9 @@ test("every step x transparency keeps the body-text floor (the R8 contract)", as
         );
         // Layer discipline, stated as the thing it actually promises: the
         // content layer is a *standard material*, so its own fill never drops
-        // into the Clear variant's band. A recess that tracked the frame down
-        // to a 0.30 fill would put 10px body copy on a sheet as thin as the
-        // Clear glass it is supposed to be structurally distinct from.
+        // into a Clear variant's band. A recess that tracked the frame down to
+        // a 0.10 fill would put 10px body copy on a sheet as thin as the
+        // glass it is supposed to be structurally distinct from.
         assert.ok(
           contentAlpha >= 0.6,
           `${themeName} ${stepName}@${t.toFixed(2)}: the content layer must stay in the regular band ` +
@@ -867,17 +869,20 @@ test("the maxed transparency slider is a near-opaque surface", async () => {
     /^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/,
   )!;
   const contentAtTop = Math.min(1, Number(content[1]) + Number(content[2]) * 1);
-  for (const step of ["low", "mid", "high"]) {
+  for (const step of ["frosted", "regular", "liquid"]) {
     const values = stepTokens(step);
-    const fill = values.fill + (solidTop - values.fill) * 1;
-    const dim = values.dim * (1 - 1);
-    const frame = 1 - (1 - dim) * (1 - fill);
+    // GLASS-3STOP: the frame alpha is the slider, clamped to the top; the step
+    // adds no floor. At 100% every step reaches the same near-solid frame.
+    const frame = Math.min(solidTop, 1);
     assert.ok(frame >= 0.95, `${step}: at 100% the frame must be ≥0.95 opaque, got ${frame.toFixed(3)}`);
     const composite = 1 - (1 - frame) * (1 - contentAtTop);
     assert.ok(
       composite >= 0.99,
       `${step}: at 100% the frame + content recess must composite to ≥0.99, got ${composite.toFixed(4)}`,
     );
+    // The haze is irrelevant at the top (it fades out as the frame solidifies),
+    // which is what keeps the near-solid panel free of mud.
+    assert.equal(1 - values.dim * (1 - 1), 1, `${step}: the haze must vanish at 100%`);
   }
 });
 
@@ -887,19 +892,19 @@ test("prefers-contrast: more restores an opaque shell, not just a border", async
   // The system's "increase contrast" signal has to do more than darken a
   // border: at the low end of the transparency slider the frame is genuinely
   // see-through, and a user who asked for contrast must not have to also find
-  // the slider. R8 expresses it against the same two tokens the steps and the
-  // slider use — the step's fill floor and dimming layer — so it is testable
-  // rather than a parallel formula.
-  assert.match(block, /--glass-step-fill:\s*[\d.]+/, "prefers-contrast: more must raise the step's fill floor");
-  assert.match(block, /--glass-step-dim:\s*0\b/, "prefers-contrast: more must drop the Clear dimming layer");
-  const raised = [...block.matchAll(/--glass-step-fill:\s*([\d.]+)/g)].map((m) => Number(m[1]));
+  // the slider. GLASS-3STOP expresses it against the same token the slider
+  // uses — `--glass-frame-floor`, which `--glass-frame-alpha` takes a `max`
+  // of — so it is testable rather than a parallel formula.
+  assert.match(block, /--glass-frame-floor:\s*[\d.]+/, "prefers-contrast: more must raise the frame's floor");
+  assert.match(block, /--glass-step-dim:\s*0\b/, "prefers-contrast: more must drop the haze layer");
+  const raised = [...block.matchAll(/--glass-frame-floor:\s*([\d.]+)/g)].map((m) => Number(m[1]));
   assert.ok(raised.length >= 2, "the override must cover both the :root default and the step attribute selectors");
   for (const value of raised) {
-    assert.ok(value >= 0.8, `the contrast fill floor must be high, got ${value}`);
+    assert.ok(value >= 0.8, `the contrast frame floor must be high, got ${value}`);
   }
-  // …and it has to land on every step, or the Clear variant would stay thin
+  // …and it has to land on every step, or the frosted variant would stay thin
   // under an accessibility setting that exists to stop exactly that.
-  for (const step of ["low", "mid", "high"]) {
+  for (const step of ["frosted", "regular", "liquid"]) {
     assert.match(block, new RegExp(`\\[data-glass="${step}"\\]`), `the contrast override must cover the ${step} step`);
   }
 });
@@ -1006,14 +1011,19 @@ test("the light palette's muted steps clear 3:1 over a dark desktop", async () =
     return Number(match![1]);
   };
   // The material stack under the light body copy, read from the shipped tokens
-  // rather than copied from the pre-R8 map: the frame is the mid step's floor
-  // sliding to `--glass-solid-top` on the default transparency, and the sunken
-  // field is the content band (`--glass-content-alpha`). The old
-  // `0.18 + 0.55·0.94` / `·0.9` pair no longer exists in base.css, so keeping
-  // it here would have tested a model the app no longer renders.
+  // rather than copied from the pre-R8 map: GLASS-3STOP made the frame alpha
+  // the default transparency clamped to `--glass-solid-top` and lifted only by
+  // `--glass-frame-floor`, with the regular step's haze composited under it,
+  // and the sunken field is the content band (`--glass-content-alpha`). The
+  // old `0.18 + 0.55·0.94` / `·0.9` pair no longer exists in base.css, so
+  // keeping it here would have tested a model the app no longer renders.
   const tokens = await rootTokens();
   const main = Number(token(tokens, "main-opacity"));
-  const shellAlpha = stepTokens("mid").fill + (SOLID_TOP - stepTokens("mid").fill) * main;
+  const frameFloor = Number(token(tokens, "glass-frame-floor"));
+  const solidTop = Number(token(tokens, "glass-solid-top"));
+  const haze = stepTokens("regular").dim;
+  const frameAlpha = Math.min(solidTop, Math.max(frameFloor, main));
+  const shellAlpha = 1 - (1 - haze * (1 - main)) * (1 - frameAlpha);
   const contentMap = token(tokens, "glass-content-alpha").match(
     /^calc\(\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*\)$/,
   );

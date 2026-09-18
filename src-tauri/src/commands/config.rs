@@ -37,12 +37,26 @@ const MAX_WINDOW_OPACITY: u8 = 100;
 /// Key that marks a settings file as post-R8. Its absence is what tells
 /// `read_settings` to run the legacy split migration exactly once.
 const GLASS_STEP_KEY: &str = "glass_step";
-const DEFAULT_GLASS_STEP: &str = "mid";
-/// The effect-step domain. GLASS-REAXIS re-pointed the five UI stops at the
-/// *effect* axis (blur / saturation / control-lens quality) and restored the
-/// dual transparency sliders, so the step id itself now has five values — the
-/// struct field, its default and the pre-R8 migration are all unchanged.
-const GLASS_STEPS: [&str; 5] = ["low", "mid", "high", "deep", "jelly"];
+const DEFAULT_GLASS_STEP: &str = "regular";
+/// The effect-step domain. GLASS-REAXIS pointed the UI stops at the *effect*
+/// axis (blur / saturation / control-lens quality) and restored the dual
+/// transparency sliders; GLASS-3STOP then collapsed the five stops to three
+/// and decoupled the frame's alpha from the step entirely. The struct field,
+/// its default and the pre-R8 migration are all unchanged — only the set of
+/// accepted step ids changed, from five (`low`/`mid`/`high`/`deep`/`jelly`)
+/// to three (`frosted`/`regular`/`liquid`).
+const GLASS_STEPS: [&str; 3] = ["frosted", "regular", "liquid"];
+/// The pre-GLASS-3STOP five-stop vocabulary, and the three-stop step each id
+/// becomes on read. The two thin stops collapse onto `frosted`/`regular`; every
+/// heavy stop (`high`/`deep`/`jelly`) collapses onto `liquid`, so an upgrading
+/// user who was on the heaviest material is not demoted to the balanced one.
+const LEGACY_GLASS_STEPS: [(&str, &str); 5] = [
+    ("low", "frosted"),
+    ("mid", "regular"),
+    ("high", "liquid"),
+    ("deep", "liquid"),
+    ("jelly", "liquid"),
+];
 const MIN_FONT_SIZE: u32 = 8;
 const MAX_FONT_SIZE: u32 = 48;
 
@@ -108,12 +122,12 @@ pub struct AppSettings {
     /// persistence.
     pub main_opacity: u8,
     pub terminal_opacity: u8,
-    /// Liquid-glass effect step: "low" | "mid" | "high" | "deep" |
-    /// "jelly". This is the effect control (Clear → Regular → Regular-max →
-    /// Deep → Jelly): it drives the blur radius, the saturation boost and the
-    /// control-lens quality — never the frame's tint. It is deliberately *not*
-    /// read by any native window path — see the
-    /// `glass_step_is_not_a_native_alpha_input` test.
+    /// Liquid-glass effect step: "frosted" | "regular" | "liquid".
+    /// This is the effect control (frosted glass → Apple's liquid glass →
+    /// liquid at full strength): it drives the blur radius, the saturation
+    /// boost, the haze layer and the control-lens quality — never the frame's
+    /// alpha. It is deliberately *not* read by any native window path — see
+    /// the `glass_step_is_not_a_native_alpha_input` test.
     pub glass_step: String,
     /// Action id -> shortcut string ("Cmd+W", "Ctrl+Shift+Space").
     pub shortcuts: HashMap<String, String>,
@@ -266,6 +280,11 @@ fn read_settings(path: &Path) -> Option<AppSettings> {
     if legacy {
         migrate_legacy_glass_strength(&mut settings);
     }
+    // GLASS-3STOP renamed the step vocabulary (five ids → three); a file
+    // written by a build that shipped the old ids still has to open on the
+    // material it implied. This is idempotent, so re-running it through
+    // `normalize_settings` on the command path is harmless.
+    settings.glass_step = normalize_glass_step(&settings.glass_step);
     Some(settings)
 }
 
@@ -277,34 +296,47 @@ fn read_settings(path: &Path) -> Option<AppSettings> {
 /// the **material step** (blur, saturation, variant) and the **window
 /// transparency** (the fill). A faithful split therefore spends the old value
 /// on both axes at half weight — `transparency = old / 2`, and the step is the
-/// old value's own tertile — so an old 25 (thin) lands at low + 12% and an old
-/// 100 (maxed) at high + 50%. Neither new control is parked at an extreme,
-/// which is precisely why the single axis was split in the first place.
+/// old value's own tertile — so an old 25 (thin) lands at frosted + 13% and an
+/// old 100 (maxed) at liquid + 50%. Neither new control is parked at an
+/// extreme, which is precisely why the single axis was split in the first
+/// place.
 ///
 /// The division by two is integer and rounds to nearest, so 25 → 13 and
-/// 94 → 47 rather than silently truncating the user's intent downward.
+/// 94 → 47 rather than silently truncating the user's intent downward. The
+/// tertile now names the three-stop vocabulary GLASS-3STOP shipped.
 fn migrate_legacy_glass_strength(settings: &mut AppSettings) {
     let legacy = settings.main_opacity as u32;
     settings.main_opacity = legacy.div_ceil(2) as u8;
     settings.terminal_opacity = (settings.terminal_opacity as u32).div_ceil(2) as u8;
     settings.glass_step = match legacy {
-        0..=33 => "low",
-        34..=66 => "mid",
-        _ => "high",
+        0..=33 => "frosted",
+        34..=66 => "regular",
+        _ => "liquid",
     }
     .to_string();
 }
 
-/// Clamp the effect step to the shipped variants. An unknown value
-/// (hand-edited file, a future step this build does not know) falls back to
-/// the balanced Regular step rather than to a random one.
+/// Clamp the effect step to the shipped variants, migrating a pre-GLASS-3STOP
+/// id on the way.
+///
+/// GLASS-3STOP renamed the step vocabulary from five ids to three. A file
+/// written by a build that shipped the old ids still has to open on the
+/// material it implied, so the old values are mapped rather than rejected:
+/// `low → frosted`, `mid → regular`, and every heavy stop (`high` / `deep` /
+/// `jelly`) → `liquid`, so an upgrading user who was on the heaviest material
+/// is not demoted. An unknown value (hand-edited file, a future step this
+/// build does not know) falls back to the balanced Regular step rather than to
+/// a random one, and a warning is logged so the fallback is not silent.
 fn normalize_glass_step(value: &str) -> String {
     let trimmed = value.trim().to_ascii_lowercase();
     if GLASS_STEPS.contains(&trimmed.as_str()) {
-        trimmed
-    } else {
-        DEFAULT_GLASS_STEP.to_string()
+        return trimmed;
     }
+    if let Some((_, mapped)) = LEGACY_GLASS_STEPS.iter().find(|(old, _)| *old == trimmed) {
+        return (*mapped).to_string();
+    }
+    eprintln!("floter: unknown glass_step {value:?}; falling back to {DEFAULT_GLASS_STEP:?}");
+    DEFAULT_GLASS_STEP.to_string()
 }
 
 /// The persisted terminal size, normalized defensively so a hand-edited
@@ -944,21 +976,21 @@ mod tests {
         // each new axis gets half the intent rather than the whole of it.
         assert_eq!(settings.main_opacity, 50);
         assert_eq!(settings.terminal_opacity, 40);
-        assert_eq!(settings.glass_step, "high");
+        assert_eq!(settings.glass_step, "liquid");
     }
 
     #[test]
     fn legacy_split_rounds_to_nearest_and_picks_the_tertile() {
         let cases = [
-            (10u8, 5u8, "low"),
-            (25, 13, "low"),
-            (33, 17, "low"),
-            (34, 17, "mid"),
-            (50, 25, "mid"),
-            (66, 33, "mid"),
-            (67, 34, "high"),
-            (94, 47, "high"),
-            (100, 50, "high"),
+            (10u8, 5u8, "frosted"),
+            (25, 13, "frosted"),
+            (33, 17, "frosted"),
+            (34, 17, "regular"),
+            (50, 25, "regular"),
+            (66, 33, "regular"),
+            (67, 34, "liquid"),
+            (94, 47, "liquid"),
+            (100, 50, "liquid"),
         ];
         for (legacy, expected_opacity, expected_step) in cases {
             let mut settings = AppSettings::default();
@@ -985,7 +1017,7 @@ mod tests {
         std::fs::write(config_dir.path().join(SETTINGS_FILE_NAME), legacy).expect("write legacy");
         let first = load_settings_from(config_dir.path());
         assert_eq!(first.main_opacity, 50);
-        assert_eq!(first.glass_step, "high");
+        assert_eq!(first.glass_step, "liquid");
 
         // A save writes the marker, and the next read must leave it alone.
         write_settings_to(config_dir.path(), &first).expect("write migrated");
@@ -994,7 +1026,7 @@ mod tests {
             second.main_opacity, 50,
             "a migrated file must not halve again"
         );
-        assert_eq!(second.glass_step, "high");
+        assert_eq!(second.glass_step, "liquid");
     }
 
     /// A fresh settings file starts on the balanced step, and the two
@@ -1010,18 +1042,70 @@ mod tests {
             "the default transparency must be the old 94 split in half"
         );
         assert_eq!(defaults.terminal_opacity, (92u32 / 2) as u8);
-        assert_eq!(defaults.glass_step, "mid");
+        assert_eq!(defaults.glass_step, "regular");
+    }
+
+    /// A pre-GLASS-3STOP file carries one of the old five ids. Reading it has
+    /// to migrate the id onto the three-stop vocabulary: the two thin stops
+    /// land on `frosted`/`regular`, and *every* heavy stop lands on `liquid`
+    /// so an upgrading user on the heaviest material is not demoted.
+    #[test]
+    fn the_old_five_stop_ids_migrate_onto_three() {
+        for (old, expected) in [
+            ("low", "frosted"),
+            ("mid", "regular"),
+            ("high", "liquid"),
+            ("deep", "liquid"),
+            ("jelly", "liquid"),
+        ] {
+            assert_eq!(
+                normalize_glass_step(old),
+                expected,
+                "the pre-GLASS-3STOP id {old:?} must migrate to {expected:?}"
+            );
+            // The migration is case- and whitespace-insensitive, like the
+            // normalizer it lives in.
+            assert_eq!(
+                normalize_glass_step(&format!("  {}  ", old.to_uppercase())),
+                expected
+            );
+        }
+    }
+
+    /// The migration runs at *read* time, not only when the command layer
+    /// normalizes: a settings file that still holds an old id must come back
+    /// from `load_settings_from` already migrated, or the first render would
+    /// write the dead id onto <html>.
+    #[test]
+    fn reading_a_file_with_an_old_step_migrates_it() {
+        let config_dir = tempfile::tempdir().expect("tempdir");
+        for (old, expected) in [
+            ("low", "frosted"),
+            ("mid", "regular"),
+            ("high", "liquid"),
+            ("deep", "liquid"),
+            ("jelly", "liquid"),
+        ] {
+            let file = format!(r#"{{ "glass_step": "{old}" }}"#);
+            std::fs::write(config_dir.path().join(SETTINGS_FILE_NAME), file).expect("write");
+            let settings = load_settings_from(config_dir.path());
+            assert_eq!(
+                settings.glass_step, expected,
+                "a stored {old:?} must read back as {expected:?}"
+            );
+        }
     }
 
     /// An unknown step is normalized to Regular rather than to whichever
     /// variant happens to sort first: a wrong-but-balanced material beats an
-    /// unintended Clear panel over a photo.
+    /// unintended frosted panel over a photo. The old ids are *not* unknown —
+    /// they migrate — so they are checked in their own test above.
     #[test]
     fn an_unknown_glass_step_falls_back_to_regular() {
-        assert_eq!(normalize_glass_step("low"), "low");
-        assert_eq!(normalize_glass_step("HIGH"), "high");
-        assert_eq!(normalize_glass_step(" mid "), "mid");
-        for unknown in ["", "clear", "regular", "999", "ultra"] {
+        assert_eq!(normalize_glass_step("frosted"), "frosted");
+        assert_eq!(normalize_glass_step("REGULAR"), "regular");
+        assert_eq!(normalize_glass_step(" liquid "), "liquid");
+        for unknown in ["", "clear", "balanced", "strong", "999", "ultra"] {
             assert_eq!(
                 normalize_glass_step(unknown),
                 DEFAULT_GLASS_STEP,
@@ -1044,7 +1128,7 @@ mod tests {
         );
         assert!(
             !GLASS_STEPS.contains(&"0"),
-            "the step domain is the five effect steps and nothing else"
+            "the step domain is the three effect steps and nothing else"
         );
         // `glass_step` is absent from every alpha application: the only fields
         // the window path may read are the two opacity percentages. This is a
@@ -1080,6 +1164,9 @@ mod tests {
             "settings.glass_step = match legacy",
             "fn normalize_glass_step(value: &str) -> String",
             "settings.glass_step = normalize_glass_step(&settings.glass_step)",
+            // The unknown-value warning names the field it could not read; it
+            // is a log line, not an alpha application.
+            "floter: unknown glass_step",
         ];
         // Tokens that identify a native alpha/vibrancy/window application. If
         // one ever shares a line with the step, the two controls have been

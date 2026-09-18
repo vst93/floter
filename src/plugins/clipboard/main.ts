@@ -34,7 +34,7 @@ import {
   type ClipboardEntry,
 } from "../../clipboard-history";
 import { BRIDGE_TAG, createFailureDeduper, createRetryRegistry, isBridgeGlass, isBridgeNotifyRetry, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
-import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, normalizeGlassStep, type GlassStep } from "../../glass-material";
+import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, GLASS_FRAME_FLOOR, normalizeGlassStep, type GlassStep } from "../../glass-material";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -190,18 +190,21 @@ function applyPageBackground(transparency: number) {
   // WebKit rejects rgba() when its alpha argument is a CSS variable. Keep the
   // complete color as one custom property instead of composing it in CSS.
   //
-  // The alpha is the *frame fill*, not the slider value: R8 split the old
-  // single glass-strength slider into window transparency (this number) and a
-  // discrete material step, and the fill is the step's floor sliding to
-  // near-solid. The step's floor comes from the token the host injected (see
-  // `applyGlassStep`); the arithmetic matches base.css's `--glass-frame-alpha`.
-  const fillOf = (name: string, fallback: number) => {
+  // The alpha is the *frame alpha plus the step's haze*: GLASS-3STOP made the
+  // transparency slider the only frame-alpha truth, clamped to the near-solid
+  // top and lifted only by the accessibility floor, with the material step's
+  // haze composited underneath (a 50% veil on the thin frosted end keeps it
+  // readable over bright content). The arithmetic mirrors base.css's
+  // `--glass-frame-alpha` and `--glass-tint-alpha`.
+  const number = (name: string, fallback: number) => {
     const value = Number.parseFloat(rootStyle.getPropertyValue(name));
     return Number.isFinite(value) ? value : fallback;
   };
-  const fill = fillOf("--glass-step-fill", GLASS_STEP_TOKENS.mid.fill);
-  const solidTop = fillOf("--glass-solid-top", GLASS_SOLID_TOP);
-  const alpha = fill + (solidTop - fill) * transparency;
+  const floor = number("--glass-frame-floor", GLASS_FRAME_FLOOR);
+  const solidTop = number("--glass-solid-top", GLASS_SOLID_TOP);
+  const haze = number("--glass-step-dim", 0);
+  const frame = Math.min(solidTop, Math.max(floor, transparency));
+  const alpha = 1 - (1 - haze * (1 - transparency)) * (1 - frame);
   rootStyle.setProperty("--page-fill", String(alpha));
   rootStyle.setProperty("--page-bg", `rgba(${pageRgb[activeTheme]}, ${alpha})`);
 }
@@ -209,14 +212,15 @@ function applyPageBackground(transparency: number) {
 /**
  * Adopt a material step. The values come from the shared `GLASS_STEP_TOKENS`
  * table in `src/glass-material.ts`, not from literals here, so the host and
- * the page can never disagree about what `low`/`mid`/`high` mean. Called once
- * from the bootstrap param and again whenever the host pushes a new step.
+ * the page can never disagree about what `frosted`/`regular`/`liquid` mean.
+ * Called once from the bootstrap param and again whenever the host pushes a
+ * new step.
  */
 function applyGlassStep(step: GlassStep) {
   const tokens = GLASS_STEP_TOKENS[step];
-  rootStyle.setProperty("--glass-step-fill", String(tokens.fill));
   rootStyle.setProperty("--glass-step-dim", String(tokens.dim));
   rootStyle.setProperty("--glass-solid-top", String(GLASS_SOLID_TOP));
+  rootStyle.setProperty("--glass-frame-floor", String(GLASS_FRAME_FLOOR));
   // Re-derive the fill for the transparency already in force: a step change
   // moves the material without touching the slider.
   const rawTerminal = Number.parseFloat(rootStyle.getPropertyValue("--terminal-opacity"));

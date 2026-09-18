@@ -120,7 +120,7 @@ export type BridgeTheme = {
  */
 export type BridgeGlass = {
   [BRIDGE_TAG]: "glass";
-  glassStep: "low" | "mid" | "high" | "deep" | "jelly";
+  glassStep: "frosted" | "regular" | "liquid";
 };
 
 /**
@@ -290,11 +290,9 @@ export const isBridgeTheme = (data: unknown): data is BridgeTheme =>
 export const isBridgeGlass = (data: unknown): data is BridgeGlass =>
   isRecord(data) &&
   data[BRIDGE_TAG] === "glass" &&
-  (data.glassStep === "low" ||
-    data.glassStep === "mid" ||
-    data.glassStep === "high" ||
-    data.glassStep === "deep" ||
-    data.glassStep === "jelly");
+  (data.glassStep === "frosted" ||
+    data.glassStep === "regular" ||
+    data.glassStep === "liquid");
 
 export const isBridgeReload = (data: unknown): data is BridgeReload =>
   isRecord(data) && data[BRIDGE_TAG] === "reload";
