@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import type { Translate } from "../i18n";
 import { DEEP_LINK_EXAMPLE } from "../deep-link";
+import { SettingsAction, SettingsCard, SettingsRow } from "./SettingsRows";
 
 type DeepLinkRowProps = {
   t: Translate;
@@ -44,21 +45,27 @@ export function DeepLinkRow({ t, onCopied }: DeepLinkRowProps) {
   return (
     <section className="settings-section">
       <div className="settings-section__heading">
-        <h3 className="settings-section__label">{t("settings.deepLinkTitle")}</h3>
-        <button
-          type="button"
-          className="settings-copy-button"
-          onClick={() => void copy()}
-          aria-label={t("settings.deepLinkCopy")}
-          title={t("settings.deepLinkCopy")}
-        >
-          {copied
-            ? <Check size={13} strokeWidth={2} aria-hidden="true" />
-            : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
-        </button>
+        <div className="settings-section__heading-main">
+          <h2 className="settings-section__label">{t("settings.deepLinkTitle")}</h2>
+          <p className="settings-section__hint settings-section__hint--inline">{t("settings.deepLinkHint")}</p>
+        </div>
       </div>
-      <p className="settings-section__hint">{t("settings.deepLinkHint")}</p>
-      <code className="settings-deep-link__value">{DEEP_LINK_EXAMPLE}</code>
+      <SettingsCard label={t("settings.deepLinkTitle")}>
+        <SettingsRow
+          label={<code className="settings-deep-link__value">{DEEP_LINK_EXAMPLE}</code>}
+          control={
+            <SettingsAction
+              onClick={() => void copy()}
+              title={t("settings.deepLinkCopy")}
+            >
+              {copied
+                ? <Check size={13} strokeWidth={2} aria-hidden="true" />
+                : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
+              <span>{copied ? t("settings.deepLinkCopied") : t("settings.deepLinkCopy")}</span>
+            </SettingsAction>
+          }
+        />
+      </SettingsCard>
     </section>
   );
 }

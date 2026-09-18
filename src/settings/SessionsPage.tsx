@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowUpDown, Play, RefreshCw, SquareTerminal, Trash2 } from "lucide-react";
 import type { Translate } from "../i18n";
 import type { BrokerSessionInfo } from "../App";
+import { SettingsCard } from "./SettingsRows";
 
 /** How long the kill button stays in its armed confirm state before the
  * timeout reverts it to the plain icon. Same rhythm as the extensions panel's
@@ -103,10 +104,25 @@ export function SessionsPage({
   }, [killArmedId]);
 
   return (
-    <section className="settings-section session-manager">
+    <div className="settings-page">
+      <header className="settings-page__header">
+        <h1 className="settings-page__title">{t("settings.menu.sessions")}</h1>
+        <p className="settings-page__subtitle">{t("settings.page.sessions")}</p>
+      </header>
+      <section className="settings-section session-manager">
       {error && sessions.length > 0 && <div className="settings-save-alert" role="alert">{t("terminal.sessionsError")}</div>}
       <div className="settings-section__heading">
-        <h2 className="settings-section__label">{t("terminal.sessions")}</h2>
+        <div className="settings-section__heading-main">
+          <h2 className="settings-section__label">{t("settings.group.sessions")}</h2>
+        </div>
+        <button
+          type="button"
+          className="session-manager__sort-toggle"
+          onClick={() => setSortBy((s) => (s === "newest" ? "oldest" : "newest"))}
+        >
+          <ArrowUpDown size={13} strokeWidth={1.8} aria-hidden="true" />
+          <span>{sortBy === "newest" ? t("terminal.sortNewest") : t("terminal.sortOldest")}</span>
+        </button>
         <button
           type="button"
           className="session-manager__icon-button"
@@ -141,19 +157,8 @@ export function SessionsPage({
           )}
         </div>
       ) : (
-        <>
-          <div className="session-manager__sort">
-            <button
-              type="button"
-              className="session-manager__sort-toggle"
-              onClick={() => setSortBy((s) => (s === "newest" ? "oldest" : "newest"))}
-            >
-              <ArrowUpDown size={13} strokeWidth={1.8} aria-hidden="true" />
-              <span>{sortBy === "newest" ? t("terminal.sortNewest") : t("terminal.sortOldest")}</span>
-            </button>
-          </div>
-          <div className="session-manager__list">
-            {sorted.map((session) => {
+        <SettingsCard label={t("settings.group.sessions")} className="session-manager__list">
+          {sorted.map((session) => {
             const busy = actionId === session.sessionId;
             const resumable = !session.exited && !session.attached;
             const state = session.exited
@@ -248,9 +253,9 @@ export function SessionsPage({
               </div>
             );
           })}
-          </div>
-        </>
+        </SettingsCard>
       )}
-    </section>
+      </section>
+    </div>
   );
 }

@@ -1241,7 +1241,10 @@ canvas {
     color: var(--text-placeholder-contrast);
   }
 
-  .settings-option {
+  .settings-option,
+  /* SETTINGS-APPLE: the grouped card is the plane the rows sit on, so
+     Increase Contrast has to reach its edge as well as the segments'. */
+  .settings-section__card {
     box-shadow: inset 0 0 0 1px var(--stroke-contrast-soft);
   }
 

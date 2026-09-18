@@ -12,6 +12,11 @@ import {
   type MessageKey,
   type Translate,
 } from "../i18n";
+import {
+  SettingsCard,
+  SettingsRow,
+  SettingsScale,
+} from "./SettingsRows";
 
 const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
   { value: "auto", labelKey: "settings.theme.auto" },
@@ -37,9 +42,9 @@ const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
   { value: "underline", labelKey: "settings.cursor.underline" },
 ];
 
-/** The five glass-effect stops (GLASS-REAXIS). The label names the *effect*,
- *  not a tint: Clear → Balanced → Strong → Deep → Jelly. One control drives
- *  the liquid-glass effect (blur / saturation / control-lens quality); the two
+/** The three glass-effect stops (GLASS-3STOP). The label names the *effect*,
+ *  not a tint: Frosted → Liquid → Liquid Max. One control drives the
+ *  liquid-glass effect (blur / saturation / control-lens quality); the two
  *  transparency sliders below are the app's own background opacity and stay
  *  independent of it. Each stop's `(blur, saturate, lens)` triple lives in
  *  `glass-material.ts`; `settings.glassIntensity.*` carries the labels. */
@@ -60,34 +65,86 @@ const MAX_OPACITY = 100;
 export const normalizeOpacity = (value: number): number =>
   clampWindowOpacity(Number.isFinite(value) ? value : 47);
 
+/** One segmented picker inside a row's control slot — the trailing
+ *  three-way choice the reference pane uses for Appearance. The keyboard
+ *  contract is the same radiogroup the page has always shipped: one tab stop
+ *  (the chosen segment) and `role="radio"` on each segment. */
+function SegmentedChoice<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div
+      className="settings-options settings-options--inline settings-options--trailing"
+      role="radiogroup"
+      aria-label={label}
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            className={`settings-option${active ? " settings-option--active" : ""}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onChange(option.value)}
+          >
+            <span className="settings-option__label">{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 type OpacityControlProps = {
   label: string;
+  low: string;
+  high: string;
   value: number;
   onChange: (value: number) => void;
 };
 
-/** One transparency slider: a label, a live `%` readout and the range input.
- *  The readout is a plain number, not a primary action, so it spends no accent
- *  fill. Both sliders share this shape so "app" and "terminal" read as the
- *  same kind of knob. */
-function OpacityControl({ label, value, onChange }: OpacityControlProps) {
+/** One transparency slider — the macOS range row: label and live `%` readout
+ *  on the title line, one word at each end of the track underneath. The
+ *  readout is a plain number, not a primary action, so it spends no accent
+ *  fill; the end words name the axis without a caption. */
+function OpacityControl({ label, low, high, value, onChange }: OpacityControlProps) {
   return (
-    <div className="opacity-control">
-      <div className="opacity-control__header">
-        <label className="opacity-control__label">{label}</label>
-        <output className="opacity-control__value">{value}%</output>
-      </div>
-      <input
-        className="opacity-control__range"
-        type="range"
-        min={MIN_OPACITY}
-        max={MAX_OPACITY}
-        step="1"
-        value={value}
-        aria-label={label}
-        onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
-      />
-    </div>
+    <SettingsRow
+      stacked
+      label={
+        <span className="settings-slider__head">
+          <span>{label}</span>
+          <output className="opacity-control__value">{value}%</output>
+        </span>
+      }
+      control={
+        <>
+          <input
+            className="opacity-control__range"
+            type="range"
+            min={MIN_OPACITY}
+            max={MAX_OPACITY}
+            step="1"
+            value={value}
+            aria-label={label}
+            onChange={(event) => onChange(normalizeOpacity(Number(event.currentTarget.value)))}
+          />
+          <SettingsScale low={low} high={high} />
+        </>
+      }
+    />
   );
 }
 
@@ -106,7 +163,7 @@ type GeneralPageProps = {
   onChangeGlassIntensity: (level: GlassIntensity) => void;
 };
 
-/** The single glass-effect control: five segments in the shared track, the
+/** The single glass-effect control: three segments in the shared track, the
  *  same selection language the theme/cursor pickers use (accent tint, lit top
  *  rim, accent edge). The chosen stop is derived from the stored `glass_step`
  *  by `glassIntensityOf`, which ignores the transparency values — the two axes
@@ -153,13 +210,13 @@ function GlassIntensityControl({
           );
         })}
       </div>
-      <p className="settings-section__hint">{t("settings.glassIntensityHint")}</p>
     </div>
   );
 }
 
-/** The general settings page: theme, language, window behaviour and terminal
- * appearance. All state lives in `App` and arrives through props. */
+/** The general settings page: theme, language, window behaviour, terminal
+ *  appearance and the material axes. All state lives in `App` and arrives
+ *  through props. */
 export function GeneralPage({
   busy,
   t,
@@ -176,219 +233,231 @@ export function GeneralPage({
 }: GeneralPageProps) {
   return (
     <fieldset className="settings-controls" disabled={busy || autostartUpdating} aria-busy={busy || autostartUpdating}>
-    <div className="settings-preferences">
+    <div className="settings-page">
+      <header className="settings-page__header">
+        <h1 className="settings-page__title">{t("settings.menu.general")}</h1>
+        <p className="settings-page__subtitle">{t("settings.page.general")}</p>
+      </header>
+
       <section className="settings-section">
-        <h2 className="settings-section__label">{t("settings.theme")}</h2>
-        <div
-          className="settings-options settings-options--inline"
-          role="radiogroup"
-          aria-label={t("settings.theme")}
-        >
-          {THEME_OPTIONS.map((option) => {
-            const active = option.value === settings.theme;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                tabIndex={active ? 0 : -1}
-                className={`settings-option${active ? " settings-option--active" : ""}`}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => onChangeTheme(option.value)}
-              >
-                <span className="settings-option__label">{t(option.labelKey)}</span>
-              </button>
-            );
-          })}
+        <div className="settings-section__heading">
+          <div className="settings-section__heading-main">
+            <h2 className="settings-section__label">{t("settings.group.appearance")}</h2>
+          </div>
         </div>
-        <p className="settings-section__hint">{t("settings.themeHint")}</p>
+        <SettingsCard label={t("settings.group.appearance")}>
+          <SettingsRow
+            stacked
+            label={t("settings.theme")}
+            sublabel={t("settings.themeHint")}
+            control={
+              <SegmentedChoice
+                label={t("settings.theme")}
+                value={settings.theme}
+                onChange={onChangeTheme}
+                options={THEME_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: t(option.labelKey),
+                }))}
+              />
+            }
+          />
+          <SettingsRow
+            stacked
+            label={t("settings.language")}
+            sublabel={t("settings.languageHint")}
+            control={
+              <SegmentedChoice
+                label={t("settings.language")}
+                value={language}
+                onChange={onChangeLanguage}
+                options={LANGUAGE_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+              />
+            }
+          />
+        </SettingsCard>
       </section>
 
       <section className="settings-section">
-        <h2 className="settings-section__label">{t("settings.language")}</h2>
-        <div
-          className="settings-options settings-options--inline"
-          role="radiogroup"
-          aria-label={t("settings.language")}
-        >
-          {LANGUAGE_OPTIONS.map((option) => {
-            const active = option.value === language;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                tabIndex={active ? 0 : -1}
-                className={`settings-option${active ? " settings-option--active" : ""}`}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => onChangeLanguage(option.value)}
-              >
-                <span className="settings-option__label">{option.label}</span>
-              </button>
-            );
-          })}
+        <div className="settings-section__heading">
+          <div className="settings-section__heading-main">
+            <h2 className="settings-section__label">{t("settings.group.startup")}</h2>
+          </div>
         </div>
-        <p className="settings-section__hint">{t("settings.languageHint")}</p>
+        <SettingsCard label={t("settings.group.startup")}>
+          <SettingsRow
+            label={t("settings.launchAtStartup")}
+            sublabel={t("settings.launchAtStartupHint")}
+            control={
+              <button
+                type="button"
+                className={`settings-switch${settings.launch_at_startup ? " settings-switch--active" : ""}`}
+                role="switch"
+                aria-checked={settings.launch_at_startup}
+                aria-label={t("settings.launchAtStartup")}
+                disabled={autostartUpdating}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => void onChangeLaunchAtStartup(!settings.launch_at_startup)}
+              >
+                <span className="settings-switch__thumb" />
+              </button>
+            }
+          />
+          <SettingsRow
+            label={t("settings.hideOnBlur")}
+            sublabel={t("settings.hideOnBlurHint")}
+            control={
+              <button
+                type="button"
+                className={`settings-switch${settings.hide_on_blur ? " settings-switch--active" : ""}`}
+                role="switch"
+                aria-checked={settings.hide_on_blur}
+                aria-label={t("settings.hideOnBlur")}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onChangeGeneralSetting("hide_on_blur", !settings.hide_on_blur)}
+              >
+                <span className="settings-switch__thumb" />
+              </button>
+            }
+          />
+          <SettingsRow
+            label={t("settings.showRecentInLauncher")}
+            sublabel={t("settings.showRecentInLauncherHint")}
+            control={
+              <button
+                type="button"
+                className={`settings-switch${settings.show_recent_in_launcher ? " settings-switch--active" : ""}`}
+                role="switch"
+                aria-checked={settings.show_recent_in_launcher}
+                aria-label={t("settings.showRecentInLauncher")}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onChangeGeneralSetting("show_recent_in_launcher", !settings.show_recent_in_launcher)}
+              >
+                <span className="settings-switch__thumb" />
+              </button>
+            }
+          />
+        </SettingsCard>
+      </section>
+
+      <section className="settings-section terminal-appearance-settings">
+        <div className="settings-section__heading">
+          <div className="settings-section__heading-main">
+            <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
+          </div>
+        </div>
+        <SettingsCard label={t("settings.terminalAppearance")}>
+          <SettingsRow
+            stacked
+            label={
+              <span className="settings-slider__head">
+                <span>{t("settings.fontSize")}</span>
+                <output className="terminal-setting-control__value">
+                  {normalizeFontSize(settings.font_size)} px
+                </output>
+              </span>
+            }
+            sublabel={t("settings.terminalAppearanceHint")}
+            control={
+              <>
+                <input
+                  type="range"
+                  min={MIN_FONT_SIZE}
+                  max={MAX_FONT_SIZE}
+                  step="1"
+                  value={normalizeFontSize(settings.font_size)}
+                  aria-label={t("settings.fontSize")}
+                  onChange={(event) => onChangeFontSize(Number(event.currentTarget.value))}
+                />
+                <SettingsScale low={t("settings.scale.small")} high={t("settings.scale.large")} />
+              </>
+            }
+          />
+          <SettingsRow
+            label={t("settings.fontFamily")}
+            control={
+              <select
+                className="settings-select"
+                value={settings.font_family}
+                aria-label={t("settings.fontFamily")}
+                onChange={(event) => onChangeGeneralSetting("font_family", event.currentTarget.value)}
+              >
+                {!FONT_FAMILY_OPTIONS.some((option) => option.value === settings.font_family) && (
+                  <option value={settings.font_family}>{settings.font_family}</option>
+                )}
+                {FONT_FAMILY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            }
+          />
+          <SettingsRow
+            stacked
+            label={t("settings.cursorShape")}
+            control={
+              <SegmentedChoice
+                label={t("settings.cursorShape")}
+                value={settings.cursor_shape}
+                onChange={(value) => onChangeGeneralSetting("cursor_shape", value)}
+                options={CURSOR_SHAPE_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: t(option.labelKey),
+                }))}
+              />
+            }
+          />
+        </SettingsCard>
+      </section>
+
+      {/* The material group: the *effect* stop on one card and the two
+          transparency sliders on a second. They answer different questions
+          (how much liquid glass vs. how solid the frame is), so they are two
+          cards under one title; the group's two explanations sit below the
+          cards, where the reference puts a group's footnote. */}
+      <section className="settings-section settings-section--material">
+        <div className="settings-section__heading">
+          <div className="settings-section__heading-main">
+            <h2 className="settings-section__label">{t("settings.material")}</h2>
+          </div>
+        </div>
+        <div className="settings-cards">
+          <SettingsCard label={t("settings.glassIntensity")}>
+            <SettingsRow
+              stacked
+              label={t("settings.glassIntensity")}
+              control={
+                <GlassIntensityControl
+                  t={t}
+                  value={glassIntensityOf(settings.glass_step, settings.main_opacity / 100)}
+                  onChange={onChangeGlassIntensity}
+                />
+              }
+            />
+          </SettingsCard>
+          <SettingsCard label={t("settings.group.transparency")} className="opacity-controls">
+            <OpacityControl
+              label={t("settings.transparency.main")}
+              low={t("settings.transparency.scaleLow")}
+              high={t("settings.transparency.scaleHigh")}
+              value={normalizeOpacity(settings.main_opacity)}
+              onChange={(value) => onChangeOpacity("main", value)}
+            />
+            <OpacityControl
+              label={t("settings.transparency.terminal")}
+              low={t("settings.transparency.scaleLow")}
+              high={t("settings.transparency.scaleHigh")}
+              value={normalizeOpacity(settings.terminal_opacity)}
+              onChange={(value) => onChangeOpacity("terminal", value)}
+            />
+          </SettingsCard>
+        </div>
+        <p className="settings-section__hint">{t("settings.glassIntensityHint")}</p>
+        <p className="settings-section__hint">{t("settings.transparencyHint")}</p>
       </section>
     </div>
-
-    <section className="settings-section">
-      <div className="settings-option settings-option--static">
-        <span className="settings-option__main">
-          <span className="settings-option__label">
-            {t("settings.launchAtStartup")}
-          </span>
-          <span className="settings-option__description">
-            {t("settings.launchAtStartupHint")}
-          </span>
-        </span>
-        <button
-          type="button"
-          className={`settings-switch${settings.launch_at_startup ? " settings-switch--active" : ""}`}
-          role="switch"
-          aria-checked={settings.launch_at_startup}
-          aria-label={t("settings.launchAtStartup")}
-          disabled={autostartUpdating}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => void onChangeLaunchAtStartup(!settings.launch_at_startup)}
-        >
-          <span className="settings-switch__thumb" />
-        </button>
-      </div>
-      <div className="settings-option settings-option--static">
-        <span className="settings-option__main">
-          <span className="settings-option__label">
-            {t("settings.hideOnBlur")}
-          </span>
-          <span className="settings-option__description">
-            {t("settings.hideOnBlurHint")}
-          </span>
-        </span>
-        <button
-          type="button"
-          className={`settings-switch${settings.hide_on_blur ? " settings-switch--active" : ""}`}
-          role="switch"
-          aria-checked={settings.hide_on_blur}
-          aria-label={t("settings.hideOnBlur")}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onChangeGeneralSetting("hide_on_blur", !settings.hide_on_blur)}
-        >
-          <span className="settings-switch__thumb" />
-        </button>
-      </div>
-      <div className="settings-option settings-option--static">
-        <span className="settings-option__main">
-          <span className="settings-option__label">
-            {t("settings.showRecentInLauncher")}
-          </span>
-          <span className="settings-option__description">
-            {t("settings.showRecentInLauncherHint")}
-          </span>
-        </span>
-        <button
-          type="button"
-          className={`settings-switch${settings.show_recent_in_launcher ? " settings-switch--active" : ""}`}
-          role="switch"
-          aria-checked={settings.show_recent_in_launcher}
-          aria-label={t("settings.showRecentInLauncher")}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onChangeGeneralSetting("show_recent_in_launcher", !settings.show_recent_in_launcher)}
-        >
-          <span className="settings-switch__thumb" />
-        </button>
-      </div>
-    </section>
-
-    <section className="settings-section terminal-appearance-settings">
-      <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
-      <div className="terminal-appearance-settings__grid">
-        <label className="terminal-setting-control">
-          <span className="terminal-setting-control__header">
-            <span>{t("settings.fontSize")}</span>
-            <output>{normalizeFontSize(settings.font_size)} px</output>
-          </span>
-          <input
-            type="range"
-            min={MIN_FONT_SIZE}
-            max={MAX_FONT_SIZE}
-            step="1"
-            value={normalizeFontSize(settings.font_size)}
-            aria-label={t("settings.fontSize")}
-            onChange={(event) => onChangeFontSize(Number(event.currentTarget.value))}
-          />
-        </label>
-        <label className="terminal-setting-control">
-          <span className="terminal-setting-control__header">
-            <span>{t("settings.fontFamily")}</span>
-          </span>
-          <select
-            value={settings.font_family}
-            aria-label={t("settings.fontFamily")}
-            onChange={(event) => onChangeGeneralSetting("font_family", event.currentTarget.value)}
-          >
-            {!FONT_FAMILY_OPTIONS.some((option) => option.value === settings.font_family) && (
-              <option value={settings.font_family}>{settings.font_family}</option>
-            )}
-            {FONT_FAMILY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="terminal-setting-control terminal-setting-control--cursor">
-        <span className="terminal-setting-control__header">
-          <span>{t("settings.cursorShape")}</span>
-        </span>
-        <div
-          className="settings-options settings-options--inline"
-          role="radiogroup"
-          aria-label={t("settings.cursorShape")}
-        >
-          {CURSOR_SHAPE_OPTIONS.map((option) => {
-            const active = option.value === settings.cursor_shape;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                tabIndex={active ? 0 : -1}
-                className={`settings-option${active ? " settings-option--active" : ""}`}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => onChangeGeneralSetting("cursor_shape", option.value)}
-              >
-                <span className="settings-option__label">{t(option.labelKey)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <p className="settings-section__hint">{t("settings.terminalAppearanceHint")}</p>
-    </section>
-
-    <section className="settings-section settings-section--material">
-      <h2 className="settings-section__label">{t("settings.material")}</h2>
-      <GlassIntensityControl
-        t={t}
-        value={glassIntensityOf(settings.glass_step, settings.main_opacity / 100)}
-        onChange={onChangeGlassIntensity}
-      />
-      <div className="opacity-controls">
-        <OpacityControl
-          label={t("settings.transparency.main")}
-          value={normalizeOpacity(settings.main_opacity)}
-          onChange={(value) => onChangeOpacity("main", value)}
-        />
-        <OpacityControl
-          label={t("settings.transparency.terminal")}
-          value={normalizeOpacity(settings.terminal_opacity)}
-          onChange={(value) => onChangeOpacity("terminal", value)}
-        />
-      </div>
-      <p className="settings-section__hint">{t("settings.transparencyHint")}</p>
-    </section>
     </fieldset>
   );
 }

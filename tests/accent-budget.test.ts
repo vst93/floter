@@ -124,7 +124,10 @@ const VIEWS: { name: string; mode: string; selectors: string[] }[] = [
   { name: "plugin · clipboard page", mode: "plugin", selectors: [".clipboard-row--selected", ".clipboard-panel__tab--active"] },
   { name: "settings · page shell", mode: "settings", selectors: [".settings-sidebar__item--active", ".settings-option--active", ".shortcut-recorder--recording", ".settings-switch--active .settings-switch__thumb"] },
   { name: "settings · integrations", mode: "settings", selectors: [".extensions-action-button--primary", ".extensions-icon-button--primary", ".extension-row--selected", ".extension-tool-results button.extension-tool-result--active", ".extension-custom-mode__item--active", ".extension-health__tag", ".extension-status--recommended", ".extension-row__progress"] },
-  { name: "settings · about", mode: "settings", selectors: [".update-banner", ".update-banner__button"] },
+  // SETTINGS-APPLE: the update banner became a row of the shared grouped card
+  // (its version row), so it no longer paints the neutral raised pane — the
+  // button is the only accent face left in this view, exactly as before.
+  { name: "settings · about", mode: "settings", selectors: [".update-banner__button"] },
 ];
 
 const FILE_FOR: Record<string, string> = {

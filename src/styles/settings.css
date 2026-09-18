@@ -139,18 +139,22 @@
   box-shadow: var(--elev-0);
 }
 }
-/* The current page is raised glass with the accent marker on its leading
-   edge — the accent tint alone read as a hover state, so the raised rim is
-   what actually distinguishes "you are here" from "the pointer is here". */
+/* SETTINGS-APPLE: the current page is the App Store sidebar's selection —
+   a quiet grey pill with the *icon* taking the accent. That is a change of
+   model, not of taste: the old treatment was an accent-tinted pane with a
+   tinted leading bar, and on a sidebar that also carries the icon the tint
+   read as a hover state rather than as "you are here". The neutral pill is
+   the raised rung the rest of the app uses for a chosen segment, and the
+   accent survives as the one mark a single glyph can carry — the same
+   colour-as-emphasis rule the segmented controls follow. */
 .settings-sidebar__item--active {
-  background: var(--glass-raised);
-  /* The raised pane's label is the frame's strongest text, not a second dose
-     of accent: on the tinted selection pane the accent's own contrast is the
-     weakest on the page, and `liquid-glass.md › Color on glass` reserves the
-     colour for the *edge* that marks the state. The 2px leading bar and the
-     rim already say "you are here". */
+  background: var(--glass-raised-quiet);
   color: var(--text-primary);
-  box-shadow: var(--glass-raised-shadow), inset 2px 0 0 var(--accent);
+  box-shadow: var(--elev-0);
+}
+
+.settings-sidebar__item--active svg {
+  color: var(--accent);
 }
 .settings-sidebar__item:focus-visible { outline: var(--focus-ring-width) solid var(--accent-ring); outline-offset: var(--focus-ring-offset); }
 
@@ -197,7 +201,7 @@
 .settings-content {
   min-width: 0;
   min-height: 0;
-  padding: 16px 18px 18px;
+  padding: 16px 18px 22px;
   display: grid;
   align-content: start;
   gap: 18px;
@@ -316,50 +320,238 @@
   background: transparent;
 }
 
-.settings-preferences {
+/* ── SETTINGS-APPLE · the grouped-card language ─────────────────────────
+   The reference is macOS System Settings (a Keyboard pane) and the Mac App
+   Store's list rows. One structure, used by every page here:
+
+     group title (outside the card) + grey one-line explanation
+     ┌──────────── card: flat plane, radius 12, no blur ─────────────┐
+     │ label                                    control             │
+     │ ────────────── 1px rule, inset to the text ────────────────── │
+     └──────────────────────────────────────────────────────────────┘
+
+   The card is a *plane*, never glass. HIG puts Liquid Glass on the
+   functional layer (the shell); a card that blurred would be the second
+   material inside the one sheet the app allows, and the reference is
+   explicitly not a nested floating layer. So the card is the control
+   ladder's resting pane enlarged — fill plus edge, no filter. */
+
+/* The page frame: the App Store's title hierarchy — a large title with one
+   line of grey explanation under it, then the groups. Width is capped and
+   the column is centred, which is what makes the card stack read as a
+   settings page rather than as a stretched list on a wide window. */
+.settings-page {
+  min-width: 0;
+  width: 100%;
+  max-width: 640px;
+  margin-inline: auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
+  align-content: start;
+  gap: 22px;
+}
+
+.settings-page__header {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-page__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-display);
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+}
+
+.settings-page__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .settings-section {
   min-width: 0;
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
+/* The heading row carries the group title and, on the right, the App Store's
+   blue text action ("Restore defaults"). The action is baseline-aligned with
+   the title, not centred on the block, because that is where the reference
+   puts it. */
 .settings-section__heading {
+  min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+  padding: 0 2px;
 }
 
+.settings-section__heading-main {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+/* The group title is now the App Store's mid-step: sentence case, strong,
+   one step above body. It replaces the uppercase 10px caption the page used
+   to label groups with — a caption reads as metadata, and the reference
+   labels groups with a title. */
 .settings-section__label {
   margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-caption);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  text-transform: uppercase;
+  color: var(--text-strong);
+  font-size: var(--text-title);
+  font-weight: 620;
+  letter-spacing: -0.004em;
+  line-height: 1.25;
+  text-transform: none;
 }
 
+/* ── The card ─────────────────────────────────────────────────────────── */
+.settings-section__card {
+  /* Where the rows' inset separator starts: the same offset the row's own
+     label starts at, so the rule lines up with the text it separates. */
+  --settings-card-inset: 14px;
+  position: relative;
+  min-width: 0;
+  display: grid;
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-md);
+  /* The plane: the resting control pane, enlarged. No backdrop-filter — the
+     one-filter-per-surface rule and the HIG two-layer rule both forbid it. */
+  background: var(--glass-control);
+  box-shadow: var(--elev-0);
+  /* Clips the first/last row against the card's radius. Every focusable
+     thing inside sits at least 14px in, so no focus ring is cut. */
+  overflow: hidden;
+}
+
+/* A section may hold more than one card (the two transparency groups). They
+   are siblings under one title, spaced like cards rather than like rows. */
+.settings-cards {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+/* ── The row ──────────────────────────────────────────────────────────── */
+.settings-row {
+  position: relative;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px var(--settings-card-inset);
+}
+
+/* The leading glyph — the App Store row's app icon slot. A quiet chip, not a
+   tinted tile: the accent budget belongs to actions, and an icon is
+   decoration. */
+.settings-row__icon {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--icon-surface);
+  color: var(--text-secondary);
+}
+
+.settings-row__main {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.settings-row__label {
+  min-width: 0;
+  color: var(--text-strong);
+  font-size: var(--text-emphasis);
+  font-weight: 580;
+  line-height: 1.25;
+}
+
+/* The reference's grey second line, and the home of every "…Hint" string
+   that used to float under a group as page furniture. */
+.settings-row__sublabel {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.settings-row__control {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A control wider than a trailing slot can hold — a range, a segmented
+   picker — takes the row's full width under its label. This is the macOS
+   slider row: the label above, the words at the ends. */
+.settings-row--stacked {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.settings-row--stacked .settings-row__control {
+  width: 100%;
+  margin-inline-start: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+/* The row separator: its own element, absolutely positioned, inset to the
+   label's own start and stopping short of the right edge — the reference's
+   rule is inset on both sides and never runs to the card's frame. `:last-
+   child` drops it so a card never ends on a rule. */
+.settings-row__divider {
+  position: absolute;
+  inset-inline: var(--settings-card-inset);
+  inset-block-end: 0;
+  height: 1px;
+  background: var(--hairline);
+  pointer-events: none;
+}
+
+.settings-row:last-child .settings-row__divider {
+  display: none;
+}
+
+/* ── The blue text action ─────────────────────────────────────────────── */
+/* The App Store's "See All" idiom: right-aligned, baseline-aligned with the
+   title it sits beside, accent-coloured *text* with no fill. It is a mark,
+   not a filled control, so it does not consume the accent budget. The class
+   keeps the name the rest of the app and the tests know it by. */
 .settings-reset {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   min-height: 24px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--accent);
   cursor: pointer;
+  font: inherit;
   font-size: var(--text-body);
-  font-weight: 600;
+  font-weight: 620;
   line-height: 1.2;
-  transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) ease;
+  white-space: nowrap;
+  transition: opacity var(--dur-2) ease, color var(--dur-2) ease;
 }
 
 .settings-reset__icon {
@@ -375,23 +567,54 @@
 
 @media (hover: hover) {
 
-.settings-reset:hover {
-  border-color: var(--glass-control-edge);
-  background: var(--glass-raised);
-  color: var(--accent);
-  box-shadow: var(--glass-raised-shadow);
+.settings-reset:not(:disabled):hover {
+  opacity: 0.78;
 }
 }
 
 .settings-reset:active {
-  transform: scale(0.96);
-  background: var(--glass-control-press);
-  box-shadow: none;
+  opacity: 0.6;
 }
 
 .settings-reset:focus-visible {
   outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+.settings-reset:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
+/* ── The range row's end words ────────────────────────────────────────── */
+/* macOS puts a word at each end of a slider ("Off — Fast") so the axis is
+   named without a caption. Both ends are the same quiet step. */
+.settings-slider__scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.settings-slider__scale-end {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The title line of a slider row: the label, then the live readout pushed to
+   the far end of the line — the macOS range row's own layout. */
+.settings-slider__head {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .settings-options {
@@ -402,18 +625,25 @@
   padding: 10px 0;
 }
 
-/* ── Glass effect picker (GLASS-REAXIS) ──────────────────────────────────
-   Five segments inside the shared track. It is the same selection language
-   the theme/cursor pickers use — accent tint, lit top rim, accent edge — so a
-   chosen stop reads as a raised pane in the track rather than a new control
-   dialect. Labels only (no captions): five segments have to fit on one row. */
-.glass-intensity {
+.settings-section--material {
+  gap: 10px;
+}
+
+/* ── Glass effect picker (GLASS-3STOP) ──────────────────────────────────
+   Three segments inside the shared track. It is the same selection language
+   the theme/cursor pickers use — neutral raised pane, lit top rim, accent
+   edge — so a chosen stop reads as a raised pane in the track rather than a
+   new control dialect. Labels only (no captions): the stops have to fit on
+   one row, and the group's explanation is the footnote below the cards. */
+.glass-intensity,
+.glass-intensity__segments {
   display: grid;
-  gap: 6px;
+  gap: 2px;
 }
 
 .glass-intensity__segments {
-  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
 }
 
 .glass-intensity__segments .settings-option {
@@ -434,35 +664,18 @@
   font-size: var(--text-emphasis);
 }
 
-/* ── Transparency sliders (restored by GLASS-REAXIS) ─────────────────────
+/* ── Transparency sliders ───────────────────────────────────────────────
    The two independent background-opacity knobs: the app's own frame and the
    terminal's. They are the only place the alpha axis lives — the effect stop
-   above writes none of it. Each is a label, a live `%` readout and a range. */
-.opacity-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.opacity-control {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.opacity-control__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.opacity-control__label {
-  min-width: 0;
-  color: var(--text-strong);
-  font-size: var(--text-body);
-  font-weight: 600;
-  line-height: 1.2;
+   above writes none of it. Each is a range row inside its own card: the label
+   and the live `%` readout on the title line, a word at each end of the
+   track underneath (the macOS range row), so the axis is named without a
+   caption and neither slider needs a heading of its own. */
+/* The card that carries the two transparency sliders. They are range rows, so
+   the control slot stacks the track and its end words with a little more air
+   than a switch row needs. */
+.opacity-controls .settings-row__control {
+  gap: 5px;
 }
 
 .opacity-control__value {
@@ -478,7 +691,8 @@
   font-weight: 650;
 }
 
-.opacity-control__range {
+.opacity-control__range,
+.settings-row input[type="range"] {
   width: 100%;
   height: 16px;
   margin: 0;
@@ -486,84 +700,57 @@
   cursor: pointer;
 }
 
-.opacity-control__range:focus-visible {
+.opacity-control__range:focus-visible,
+.settings-row input[type="range"]:focus-visible {
   outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: var(--focus-ring-offset);
 }
 
-.terminal-appearance-settings {
-  padding: 10px 0;
-  gap: 9px;
-}
-
-.terminal-appearance-settings__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-}
-
-.terminal-setting-control {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 7px;
-  color: var(--text-strong);
-  font-size: var(--text-body);
-  font-weight: 600;
-}
-
-.terminal-setting-control__header {
-  min-height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.terminal-setting-control__header output {
+/* The font-size readout, at the far end of its slider's title line. Unlike
+   the transparency percentage it is a value the user is choosing, so it keeps
+   the accent the old terminal appearance block gave it. */
+.terminal-setting-control__value {
   flex: 0 0 auto;
   color: var(--accent);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
   font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
-.terminal-setting-control input[type="range"] {
-  width: 100%;
-  height: 30px;
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.terminal-setting-control select {
-  width: 100%;
+/* ── The row's boxed controls ─────────────────────────────────────────── */
+/* A select and the segmented track are the two controls the reference pane
+   puts in a row's trailing slot. Both are pills (ROUND-PASS): a standalone
+   control floats, and a stadium is what makes them read as the same family
+   as the switches and buttons beside them. */
+.settings-select {
   min-width: 0;
-  height: 30px;
-  padding: 0 26px 0 8px;
+  max-width: 220px;
+  height: 28px;
+  padding: 0 26px 0 10px;
   border: 1px solid var(--glass-control-edge);
-  /* ROUND-PASS: a standalone field is a pill. A single-line field has no
-     content that needs a straight edge, and the stadium is what makes it read
-     as the same family as the buttons beside it. */
   border-radius: 999px;
   background: var(--glass-field);
   color: var(--text-primary);
   font: inherit;
+  font-size: var(--text-body);
   font-weight: 500;
   /* A field is the one control that sits *below* the surface: the top inner
-     shadow is what makes it read as a slot the value lives in, and the rim
-     keeps it in the same material family as every other pane. */
+     shadow is what makes it read as a slot the value lives in. */
   box-shadow: var(--glass-field-shadow);
 }
 
-.terminal-setting-control--cursor {
-  gap: 6px;
-}
-
-.terminal-setting-control input[type="range"]:focus-visible,
-.terminal-setting-control select:focus-visible {
+.settings-select:focus-visible {
   outline: var(--focus-ring-width) solid var(--accent-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* The segmented track in a row's trailing slot: it sizes to its segments
+   rather than stretching across the card, because it is a control, not a
+   container. The full-width variant below is the one the theme/cursor rows
+   use, where the labels need the room. */
+.settings-options--trailing {
+  width: auto;
 }
 
 .settings-options--inline {
@@ -593,9 +780,10 @@
      below is applied *by the track* (`.settings-options--inline
      .settings-option`), because "is a pill" is a property of being a segment
      in a segmented control, not of being an option: `.settings-option` is
-     also reused for a full-width switch row
-     (`.extensions-panel__search-toggle`) and for table rows
-     (`.settings-option--static`), and neither should inherit a stadium. */
+     also reused for the integrations panel's full-width switch row
+     (`.extensions-panel__search-toggle`), and that row must not inherit a
+     stadium. A settings *row* is now the separate `.settings-row` primitive,
+     not a modifier here. */
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
@@ -668,45 +856,6 @@
   line-height: 1.15;
 }
 
-/* Shortcut rows form one dense table instead of a stack of cards. The zero
-   radius is deliberate and stays: these are *table rows*, separated by a
-   hairline, and a corner on a row that touches its neighbours on both sides
-   would read as a floating card that forgot its shadow. (It is also one of
-   the three literals the radius scan allows: 0, 50% and 999px.) */
-.settings-option--static {
-  min-height: 43px;
-  padding: 5px 2px;
-  border-radius: 0;
-  border-bottom: 1px solid var(--hairline);
-  cursor: default;
-}
-
-/* Recorder plus its clear (×) affordance for shortcuts that can be disabled,
-   e.g. the clipboard panel entry — recorder and button on one line. */
-.settings-option__hotkey-controls {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-@media (hover: hover) {
-
-/* A settings row comes forward to the *resting pane* under the pointer — the
-   same rung a launcher result and a button sit on, not the louder hover step:
-   the row is a wide target and a full hover fill across it would read as a
-   selection. This is the "subtle material feedback" the round asked for, and
-   it is the same one-rung raise the rest of the app uses. */
-.settings-option--static:hover {
-  background: var(--glass-control);
-  box-shadow: var(--elev-0);
-}
-}
-
-.settings-option--static:active {
-  transform: none;
-}
-
 .settings-option__description--warning {
   color: var(--text-warning);
 }
@@ -771,36 +920,62 @@
   opacity: 0.6;
 }
 
+/* A group footnote: the reference puts the explanation of a group below its
+   card, aligned with the card's own edge and one step quieter than the rows'
+   sublabels so it does not compete with them. */
 .settings-section__hint {
   margin: 0;
+  padding: 0 2px;
   color: var(--text-tertiary);
   font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.35;
 }
 
+/* The one hint that belongs to a heading rather than to a card (the deep-link
+   title's own explanation) rides directly under its title. */
+.settings-section__hint--inline {
+  padding: 0;
+}
+
 .session-manager {
   gap: 10px;
 }
 
+/* The session list *is* the card: the same grouped-card primitive the other
+   pages use, one row per session. Unlike `.settings-row` its rows carry three
+   columns (glyph, text, actions), so it keeps its own geometry. */
 .session-manager__list {
   display: grid;
-  border-top: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
 }
 
+/* A session row is the App Store's list row: a leading glyph, a title with
+   its grey second and third lines, and the actions right-aligned. The inset
+   separator is the same rule the settings rows draw, so the two lists read as
+   one language. The zero radius is deliberate (and is one of the three
+   literals the radius scan allows: 0, 50%, 999px): a corner on a row that
+   touches its neighbours on both sides reads as a floating card that forgot
+   its shadow. */
 .session-manager__row {
+  position: relative;
   min-width: 0;
-  min-height: 66px;
+  min-height: 56px;
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
-  padding: 8px 4px;
+  padding: 9px 14px;
+  border-radius: 0;
 }
 
-.session-manager__row + .session-manager__row {
-  border-top: 1px solid var(--hairline);
+.session-manager__row + .session-manager__row::before {
+  content: "";
+  position: absolute;
+  inset-inline: 14px;
+  inset-block-start: 0;
+  height: 1px;
+  background: var(--hairline);
+  pointer-events: none;
 }
 
 /* Resumable rows are whole-row hit targets: any click outside the action
@@ -1002,44 +1177,38 @@
   line-height: 1.4;
 }
 
-.session-manager__sort {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 4px;
-}
-
+/* The sort control sits in the group heading beside the refresh button, and
+   it is the App Store's blue text action rather than a boxed chip — the two
+   controls on that line are both *about the list*, not entries in it. */
 .session-manager__sort-toggle {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--glass-control-edge);
-  border-radius: var(--radius-sm);
-  background: var(--glass-control);
-  box-shadow: var(--elev-0);
-  color: var(--text-secondary);
+  margin-inline-start: auto;
+  padding: 0 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--accent);
   cursor: pointer;
+  font: inherit;
   font-size: var(--text-body);
-  font-weight: 600;
+  font-weight: 620;
   line-height: 1.2;
-  transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) ease;
+  white-space: nowrap;
+  transition: opacity var(--dur-2) ease, color var(--dur-2) ease;
 }
 
 @media (hover: hover) {
 
 .session-manager__sort-toggle:hover {
-  background: var(--glass-control-hover);
-  border-color: var(--accent-edge);
-  color: var(--text-primary);
+  opacity: 0.78;
 }
 }
 
 .session-manager__sort-toggle:active {
-  transform: scale(0.96);
-  background: var(--glass-control-press);
-  box-shadow: none;
+  opacity: 0.6;
 }
 
 .session-manager__sort-toggle:focus-visible {
@@ -1125,54 +1294,16 @@
   letter-spacing: 0.02em;
 }
 
-/* ── Deep link row (R7-9b) ───────────────────────────────────────────────
-   The About page's second section. It reuses the section primitive
-   (`.settings-section` + `__heading` + `__label` + `__hint`) and the control
-   ladder for its one button, so it adds no new material and no new accent
-   fill: the value line is a recess (`--surface-sunken`), the button is the
-   neutral raised control. */
-.settings-copy-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--glass-control-edge);
-  border-radius: var(--radius-sm);
-  background: var(--glass-control);
-  color: var(--text-secondary);
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: var(--elev-0);
-  transition: background-color var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, transform var(--dur-1) ease;
-}
-
-@media (hover: hover) {
-
-.settings-copy-button:hover {
-  background: var(--glass-control-hover);
-  color: var(--text-strong);
-}
-}
-
-.settings-copy-button:active {
-  transform: scale(0.96);
-  background: var(--glass-control-press);
-}
-
-.settings-copy-button:focus-visible {
-  outline: var(--focus-ring-width) solid var(--accent-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-/* The example is a value to read and copy, not prose: it sits in the content
-   recess the settings body already uses, and it wraps rather than scrolling
-   sideways, because a path is the part the reader has to substitute. */
+/* ── Deep link row (R7-9b · SETTINGS-APPLE) ─────────────────────────────
+   The About page's second group. The copy affordance is now the shared blue
+   text action, so the row is the App Store's list row like every other one in
+   this pane: the value on the left, the action on the right, one inset rule
+   between. The value keeps the content recess, which is what makes a
+   `floter://` line read as a value rather than as prose. */
 .settings-deep-link__value {
   display: block;
-  padding: 7px 9px;
-  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
   background: var(--surface-sunken);
   border: 1px solid var(--glass-control-edge);
   color: var(--text-secondary);
@@ -1182,45 +1313,10 @@
   overflow-wrap: anywhere;
 }
 
-/* ── Update banner ─────────────────────────────────────────────────────── */
-
-/* In-flow banner inside the About section, the section's only child: when it
-   appears or is replaced the settings window keeps its fixed height and the
-   scrollable content simply grows/shrinks — no sibling content jumps. */
-.update-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  /* An update *notice*, not an update action: the accent tint here would be a
-     second tinted face competing with the banner's own button. HIG-2 moved the
-     banner onto the neutral raised pane and left the accent to the button,
-     which is the one thing on it the user presses. */
-  background: var(--glass-raised-quiet);
-  border: 1px solid var(--glass-control-edge);
-  box-shadow: var(--elev-0);
-  animation: feedback-enter var(--dur-3) var(--ease-out);
-}
-
-.update-banner__info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.update-banner__title {
-  color: var(--text-strong);
-  font-size: var(--text-title);
-  font-weight: 600;
-}
-
-.update-banner__desc {
-  color: var(--text-secondary);
-  font-size: var(--text-body);
-}
+/* ── Update group ──────────────────────────────────────────────────────── */
+/* The update state is a row of the same card as the version, so the only
+   pieces left here are the row's own trailing control: the pill button and
+   the progress readout it swaps for while downloading. */
 
 .update-banner__button {
   flex: 0 0 auto;

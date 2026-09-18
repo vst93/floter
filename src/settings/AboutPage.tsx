@@ -1,5 +1,6 @@
 import type { Translate } from "../i18n";
 import { DeepLinkRow } from "./DeepLinkRow";
+import { SettingsCard, SettingsRow } from "./SettingsRows";
 
 const formatBytes = (bytes: number): string => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -22,8 +23,14 @@ type AboutPageProps = {
   onCopiedLink: (message: string) => void;
 };
 
-/** The about settings page: current version plus the updater banner. All
- * state lives in `App` and arrives through props. */
+/** The about settings page: the version row (with the updater's action on its
+ *  trailing edge) and the deep-link row.
+ *
+ *  This is the App Store row at its purest — an icon, a title, a grey second
+ *  line and one right-aligned action — so the updater that used to be a
+ *  self-contained tinted banner is now just that row. The accent survives on
+ *  the one button, which is still the single thing on the page the user
+ *  presses. */
 export function AboutPage({
   t,
   appVersion,
@@ -38,61 +45,71 @@ export function AboutPage({
     updateProgress && updateProgress.total > 0
       ? Math.min(100, (updateProgress.downloaded / updateProgress.total) * 100)
       : 0;
+  const updateState = updateFailed
+    ? t("settings.updateFailed")
+    : updateInfo
+      ? `${t("settings.latestVersion")}: v${updateInfo.version}`
+      : t("settings.upToDate");
   return (
-    <section className="settings-section">
-      <div className="update-banner">
-        <div className="update-banner__info">
-          <span className="update-banner__title">
-            {t("settings.currentVersion")}: v{appVersion}
-          </span>
-          <span className="update-banner__desc">
-            {updateFailed
-              ? t("settings.updateFailed")
-              : updateInfo
-                ? `${t("settings.latestVersion")}: v${updateInfo.version}`
-                : t("settings.upToDate")}
-          </span>
-        </div>
-        {updateProgress ? (
-          <div className="update-banner__progress">
-            <div className="update-banner__progress-track">
-              <div
-                className="update-banner__progress-bar"
-                style={{ width: `${updatePercent}%` }}
-              />
-            </div>
-            <span className="update-banner__progress-label">
-              {updateProgress.total > 0
-                ? `${Math.round(updatePercent)}% · ${formatBytes(updateProgress.downloaded)} / ${formatBytes(updateProgress.total)}`
-                : formatBytes(updateProgress.downloaded)}
-            </span>
+    <div className="settings-page">
+      <header className="settings-page__header">
+        <h1 className="settings-page__title">{t("settings.menu.about")}</h1>
+        <p className="settings-page__subtitle">{t("settings.page.about")}</p>
+      </header>
+      <section className="settings-section">
+        <div className="settings-section__heading">
+          <div className="settings-section__heading-main">
+            <h2 className="settings-section__label">{t("settings.group.update")}</h2>
           </div>
-        ) : updateDownloading ? (
-          <button type="button" className="update-banner__button" disabled>
-            {t("settings.installing")}
-          </button>
-        ) : updateFailed ? (
-          <button
-            type="button"
-            className="update-banner__button"
-            onClick={onDownloadUpdate}
-          >
-            {t("settings.retry")}
-          </button>
-        ) : updateInfo ? (
-          <button
-            type="button"
-            className="update-banner__button"
-            onClick={onDownloadUpdate}
-          >
-            {t("settings.downloadUpdate")}
-          </button>
-        ) : null}
-      </div>
+        </div>
+        <SettingsCard label={t("settings.group.update")}>
+          <SettingsRow
+            label={`${t("settings.currentVersion")}: v${appVersion}`}
+            sublabel={updateState}
+            control={
+              updateProgress ? (
+                <div className="update-banner__progress">
+                  <div className="update-banner__progress-track">
+                    <div
+                      className="update-banner__progress-bar"
+                      style={{ width: `${updatePercent}%` }}
+                    />
+                  </div>
+                  <span className="update-banner__progress-label">
+                    {updateProgress.total > 0
+                      ? `${Math.round(updatePercent)}% · ${formatBytes(updateProgress.downloaded)} / ${formatBytes(updateProgress.total)}`
+                      : formatBytes(updateProgress.downloaded)}
+                  </span>
+                </div>
+              ) : updateDownloading ? (
+                <button type="button" className="update-banner__button" disabled>
+                  {t("settings.installing")}
+                </button>
+              ) : updateFailed ? (
+                <button
+                  type="button"
+                  className="update-banner__button"
+                  onClick={onDownloadUpdate}
+                >
+                  {t("settings.retry")}
+                </button>
+              ) : updateInfo ? (
+                <button
+                  type="button"
+                  className="update-banner__button"
+                  onClick={onDownloadUpdate}
+                >
+                  {t("settings.downloadUpdate")}
+                </button>
+              ) : undefined
+            }
+          />
+        </SettingsCard>
+      </section>
       {/* The scheme is the app's only externally reachable surface, and it is
           silent by design — this row is where a user can find out it exists
           and copy the one form worth copying. */}
       <DeepLinkRow t={t} onCopied={onCopiedLink} />
-    </section>
+    </div>
   );
 }

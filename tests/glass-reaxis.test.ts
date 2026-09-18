@@ -62,11 +62,12 @@ test("every named control draws a lens rung, not a bare ring", async () => {
     ["src/styles/extensions.css", ".app-toast__action"],
     ["src/styles/terminal.css", ".plugin-page-host__button"],
     ["src/styles/settings.css", ".settings-save-alert button"],
-    ["src/styles/settings.css", ".settings-copy-button"],
-    ["src/styles/settings.css", ".session-manager__sort-toggle"],
     ["src/styles/settings.css", ".settings-option--active"],
-    ["src/styles/settings.css", ".settings-option--static:hover"],
     ["src/styles/settings.css", ".settings-sidebar__item:hover"],
+    // SETTINGS-APPLE: the grouped card. It is the raised pane the old
+    // `.settings-option--static` was, enlarged to hold rows — a stop grades
+    // the whole card language at once.
+    ["src/styles/settings.css", ".settings-section__card"],
     ["src/styles/launcher.css", ".launcher-result__icon"],
     ["src/styles/launcher.css", ".launcher-action-bar__icon"],
     // Segmented controls (recessed track + raised chosen slot).

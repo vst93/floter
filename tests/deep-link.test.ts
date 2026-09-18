@@ -386,11 +386,22 @@ test("the deep-link row adds no material and no filter", async () => {
     const close = css.indexOf("}", open);
     return css.slice(open + 1, close);
   };
-  const button = rule(".settings-copy-button");
-  assert.match(button, /background:\s*var\(--glass-control\)/, "the button is the neutral control");
-  assert.match(button, /box-shadow:\s*var\(--elev-0\)/, "on the resting rung");
-  assert.ok(!/accent[^-]/.test(button.replace(/--accent-ring/g, "")), "the button paints no accent fill");
-  assert.ok(!/filter/.test(button), "no filter on the button");
+  // SETTINGS-APPLE: the copy affordance is the shared blue text action, which
+  // spends the accent on *text* and never on a fill — so the row still adds no
+  // material and no accent face, and the one button it paints is the group's
+  // rather than its own.
+  const button = rule(".settings-reset");
+  assert.match(button, /background:\s*transparent/, "the action is a text button, not a filled control");
+  assert.ok(!/box-shadow/.test(button), "a text action casts nothing");
+  // The accent is allowed on the *text* — that is the idiom. What must not
+  // happen is an accent *fill*, which is what the budget census counts.
+  assert.ok(
+    !/(?:^|;)\s*background(?:-color)?\s*:[^;]*var\(--accent/.
+      test(button),
+    "the action paints no accent fill",
+  );
+  assert.match(button, /color:\s*var\(--accent\)/, "the accent survives as text");
+  assert.ok(!/filter/.test(button), "no filter on the action");
   const value = rule(".settings-deep-link__value");
   assert.match(value, /background:\s*var\(--surface-sunken\)/, "the value line is the content recess");
   assert.ok(!/filter/.test(value), "no filter on the value line");
@@ -402,4 +413,9 @@ test("the deep-link row adds no material and no filter", async () => {
       "the row must not add an accent face",
     );
   }
+  // The About row is now a card row, so its group really is the shared card
+  // primitive — asserted here so a later round cannot give it a private one.
+  const about = await read("src/settings/AboutPage.tsx");
+  assert.match(about, /<SettingsCard/, "the update state uses the shared grouped card");
+  assert.match(about, /<SettingsRow/, "the version and its update action are one row");
 });

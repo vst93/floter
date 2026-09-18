@@ -121,7 +121,7 @@ test("every floating control takes the pill", async () => {
     ["src/styles/settings.css", ".session-manager__kill-confirm"],
     ["src/styles/extensions.css", ".extensions-action-button"],
     // Boxed single-line fields.
-    ["src/styles/settings.css", ".terminal-setting-control select"],
+    ["src/styles/settings.css", ".settings-select"],
     ["src/styles/extensions.css", ".extension-custom-form input, .extension-custom-form select"],
     ["src/styles/extensions.css", ".extension-config-field input, .extension-config-field select"],
     // The switch track: a 20px groove with a circular thumb. The old
@@ -168,8 +168,11 @@ test("nested and inline shapes keep the ladder instead of the pill", async () =>
   // them and calling it consistency.
   const LADDER: [string, string, RegExp, string][] = [
     // Table rows: a corner on a row that touches its neighbours reads as a
-    // floating card that forgot its shadow.
-    ["src/styles/settings.css", ".settings-option--static", /^0$/, "table rows stay square"],
+    // floating card that forgot its shadow. SETTINGS-APPLE moved the shortcut
+    // table onto the shared `.settings-row` primitive (whose rows are clipped
+    // by the card's own radius), so the session list is the row family that
+    // still carries its own square corner.
+    ["src/styles/settings.css", ".session-manager__row", /^0$/, "table rows stay square"],
     // Content rows that scroll with their list.
     ["src/styles/launcher.css", ".launcher-result", /var\(--radius-md\)/, "result rows are content"],
     ["src/styles/launcher.css", ".launcher-action-bar", /var\(--radius-md\)/, "the action bar welds to the list above it"],
@@ -178,7 +181,7 @@ test("nested and inline shapes keep the ladder instead of the pill", async () =>
     // Under the 28px pill threshold.
     ["src/styles/extensions.css", ".extension-discard-bar .extensions-action-button", /var\(--radius-xs\)/, "24px inline pair inside a notice bar"],
     ["src/styles/settings.css", ".shortcut-recorder", /var\(--radius-sm\)/, "27px recorder key sitting in a table row"],
-    ["src/styles/settings.css", ".settings-copy-button", /var\(--radius-sm\)/, "22px icon button"],
+
     ["src/styles/terminal.css", ".plugin-page-host__button", /var\(--radius-sm\)/, "~23px retry affordance inside a panel"],
     ["src/styles/terminal.css", ".clipboard-panel__clear", /var\(--radius-sm\)/, "~22px inline footer action"],
     // Transparent icon button inside a bar: a pill would round nothing visible.
@@ -199,14 +202,14 @@ test("nested and inline shapes keep the ladder instead of the pill", async () =>
 
 test("the zero radius in settings.css is deliberate, not leftover drift", async () => {
   const raw = await read("src/styles/settings.css");
-  // `.settings-option--static` is the shortcut table's row. Its `0` is one of
-  // the three literals the radius scan allows (0, 50%, 999px) and it is
+  // `.session-manager__row` is the session list's row. Its `0` is one of the
+  // three literals the radius scan allows (0, 50%, 999px) and it is
   // documented at the rule, so it reads as a decision rather than as the
   // residue of an unfinished pass.
-  const index = raw.indexOf(".settings-option--static {");
-  assert.notEqual(index, -1, "settings.css must define .settings-option--static");
+  const index = raw.indexOf(".session-manager__row {");
+  assert.notEqual(index, -1, "settings.css must define .session-manager__row");
   const before = raw.slice(Math.max(0, index - 600), index);
-  assert.match(before, /table rows/, "the zero must be explained at the rule");
+  assert.match(before, /radius scan allows/, "the zero must be explained at the rule");
   const body = raw.slice(index, raw.indexOf("}", index));
   assert.match(body, /border-radius:\s*0;/);
 });
