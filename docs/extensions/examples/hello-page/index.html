@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  hello-page — the smallest complete plugin page.
+
+  See README.md in this directory. It is deliberately one HTML file, one ES
+  module for the protocol vocabulary (protocol.js) and one for the page
+  (main.js): no bundler, no dependencies, open it directly.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hello Plugin Page</title>
+    <link rel="stylesheet" href="./page.css" />
+  </head>
+  <body>
+    <!--
+      `data-no-drag` on the scroller: a press on its scrollbar must scroll,
+      not move the window. This is the same opt-out the built-in clipboard
+      page's list uses (`isClipboardDragTarget` / `DRAG_EXEMPT`).
+    -->
+    <main class="hello">
+      <header class="hello__bar">
+        <span class="hello__title">Hello Plugin Page</span>
+        <button id="close" class="hello__button hello__button--quiet" type="button">Close</button>
+      </header>
+
+      <section class="hello__body" data-no-drag>
+        <p class="hello__lead">
+          A minimal plugin page. The values below arrive from the host: first as
+          bootstrap query params, then as bridge messages.
+        </p>
+        <!--
+          The one toast: a page names a dictionary key, the host shows it on
+          its own stack. The key below must exist in the host's i18n table
+          (src/i18n.ts → "plugin.exampleNotify").
+        -->
+        <button id="notify" class="hello__button" type="button">Send a message</button>
+        <pre id="state" class="hello__state" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

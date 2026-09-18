@@ -75,7 +75,7 @@ import {
   type ClipboardChipFace,
   type ClipboardView,
 } from "../../clipboard-list";
-import { BRIDGE_TAG, createFailureDeduper, createRetryRegistry, isBridgeGlass, isBridgeNotifyRetry, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
+import { BRIDGE_TAG, PLUGIN_PAGE_PROTOCOL, createFailureDeduper, createRetryRegistry, isBridgeGlass, isBridgeNotifyRetry, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
 import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, GLASS_FRAME_FLOOR, glassPageContentAlpha, glassPageRowAlpha, normalizeGlassStep, type GlassStep } from "../../glass-material";
 
 // ---- bridge client -------------------------------------------------------
@@ -162,6 +162,17 @@ window.addEventListener("message", (event: MessageEvent) => {
   if (data.ok) call.resolve(data.value);
   else call.reject(data.error);
 });
+
+// The handshake: tell the host which plugin-page protocol this document was
+// written against. It is the first thing the page says — before any `invoke`,
+// before it listens for settings — so the host can refuse a version mismatch
+// with a readable error instead of answering half a conversation. Both sides
+// read the same `PLUGIN_PAGE_PROTOCOL` constant, so this page cannot drift
+// from the host it ships with.
+window.parent.postMessage(
+  { [BRIDGE_TAG]: "frame-ready", protocol: PLUGIN_PAGE_PROTOCOL },
+  "*",
+);
 
 /** Run one allowlisted host command through the postMessage bridge. */
 const invokeCommand = <T>(

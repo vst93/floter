@@ -4,16 +4,20 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   BRIDGE_TAG,
   CLIPBOARD_PLUGIN_ID,
+  PLUGIN_PAGE_PROTOCOL,
   buildPluginPageUrl,
   commandAllowed,
+  handshakeErrorDetail,
   isBridgeClose,
   isBridgeDrag,
+  isBridgeFrameReady,
   isBridgeNotify,
   isBridgeRequest,
   isBridgeResult,
+  pluginPageHandshake,
   shouldStartWindowDrag,
 } from "../plugin-pages";
-import type { BridgeNotifyRetry, BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass } from "../plugin-pages";
+import type { BridgeNotifyRetry, BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass, HandshakeVerdict } from "../plugin-pages";
 import { glassStepStyle, glassContentStyle, type GlassStep } from "../glass-material";
 import { createTranslator, isMessageKey, type Language, type MessageKey } from "../i18n";
 import type { ToastAction } from "../toast-state";
@@ -39,6 +43,16 @@ import type { ToastAction } from "../toast-state";
  * state. Mirrors the page-side bridge timeout in `clipboard/main.ts` so both
  * ends of the pipeline give up on a silent host after the same delay. */
 const DESCRIPTOR_TIMEOUT_MS = 10_000;
+
+/**
+ * How long a loaded document has to announce its protocol version before the
+ * host gives up on it. A page that fires `load` and then says nothing is not a
+ * page this host can talk to; showing the refused-handshake error names the
+ * version the host speaks instead of leaving the opaque loading placeholder up
+ * forever. The same 10s window as the descriptor fetch, so the two stages of a
+ * load fail on the same clock.
+ */
+const HANDSHAKE_TIMEOUT_MS = 10_000;
 
 export type PluginPageDescriptorInfo = {
   id: string;
@@ -105,12 +119,31 @@ export function PluginPageHost({
   onNotify,
 }: PluginPageHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  /** The pending handshake deadline for the current document (see
+   * [`HANDSHAKE_TIMEOUT_MS`]); cleared the moment the page announces itself. */
+  const handshakeTimerRef = useRef<number | undefined>(undefined);
   const [descriptor, setDescriptor] = useState<PluginPageDescriptorInfo | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   /** Bumped by the error state's retry button to re-run the descriptor fetch. */
   const [reloadNonce, setReloadNonce] = useState(0);
-  /** True once the current document has loaded and can receive messages. */
-  const [frameLoaded, setFrameLoaded] = useState(false);
+  // Handshake state: the protocol verdict for the current document. `null`
+  // means the document has loaded but has not announced a version yet (or no
+  // document is loaded). Only `{ status: "accepted" }` opens the bridge and
+  // lets the host push settings; `missing` / `mismatch` paint the error state
+  // with the version numbers that explain themselves.
+  const [handshake, setHandshake] = useState<HandshakeVerdict | null>(null);
+  /** The `src` the current verdict belongs to. A new document invalidates it. */
+  const [handshakeSrc, setHandshakeSrc] = useState<string | null>(null);
+  /** True once the page has passed the protocol handshake and can be spoken to. */
+  const ready = handshake?.status === "accepted";
+  /** The handshake came back with a version the host does not speak (or none at
+   * all): the page is refused and shown the error state instead of its frame. */
+  const refused = handshake !== null && handshake.status !== "accepted";
+  // Ref mirror of `handshake` for the once-registered message listener (same
+  // reasoning as `allowedRef`): the listener must gate on the *current* verdict
+  // without resubscribing on every handshake transition.
+  const handshakeRef = useRef<HandshakeVerdict | null>(null);
+  handshakeRef.current = handshake;
   // Ref mirror so the once-registered message listener always sees the current
   // allowlist without resubscribing on re-render.
   const allowedRef = useRef<readonly string[]>([]);
@@ -156,7 +189,7 @@ export function PluginPageHost({
     // a different plugin (switching pages, not toggling the same one).
     if (descriptor && descriptor.id === pluginId) {
       // Same page as before: already loaded, just show it and tell it to reload.
-      if (frameLoaded && iframeRef.current?.contentWindow) {
+      if (ready && iframeRef.current?.contentWindow) {
         const reloadMessage: BridgeReload = { [BRIDGE_TAG]: "reload" };
         iframeRef.current.contentWindow.postMessage(reloadMessage, "*");
       }
@@ -188,7 +221,7 @@ export function PluginPageHost({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [pluginId, reloadNonce, descriptor, frameLoaded]);
+  }, [pluginId, reloadNonce, descriptor, ready]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -198,6 +231,24 @@ export function PluginPageHost({
       const frame = iframeRef.current;
       if (!frame || event.source !== frame.contentWindow) return;
       const data: unknown = event.data;
+
+      if (isBridgeFrameReady(data)) {
+        // The handshake. A page only gets to speak the protocol once it has
+        // said which version it speaks; a missing or unknown version is
+        // refused here, and the error state below names the number the host
+        // supports. Ignore a second handshake from an already-decided
+        // document (a page that re-announces cannot re-open a refused bridge).
+        window.clearTimeout(handshakeTimerRef.current);
+        setHandshake((current) => current ?? pluginPageHandshake(data, PLUGIN_PAGE_PROTOCOL));
+        return;
+      }
+
+      // Everything below is interactive traffic. A document that has not been
+      // accepted on the protocol handshake is not part of the conversation:
+      // its invoke, notify and drag messages are dropped rather than answered,
+      // so a stale page cannot half-use a bridge whose version it does not
+      // share.
+      if (handshakeRef.current?.status !== "accepted") return;
 
       if (isBridgeRequest(data)) {
         if (!commandAllowed(allowedRef.current, data.command)) {
@@ -289,8 +340,26 @@ export function PluginPageHost({
   }, [onClose]);
 
   const handleFrameLoad = useCallback(() => {
-    setFrameLoaded(true);
-    // Bootstrap the newly loaded page with current settings.
+    // Do NOT clear the verdict here. A page's own script runs before the
+    // iframe's `load` event, so its `frame-ready` is often *already processed*
+    // by the time this fires — resetting here would wipe an accepted handshake
+    // and then time out to a false `missing`. The fresh-document reset belongs
+    // to the `[src]` effect above, which runs before the new document even
+    // starts loading. This handler only arms (or re-arms) the deadline; the
+    // timer callback can never overwrite a verdict that already exists.
+    window.clearTimeout(handshakeTimerRef.current);
+    handshakeTimerRef.current = window.setTimeout(() => {
+      setHandshake((current) => current ?? { status: "missing" });
+    }, HANDSHAKE_TIMEOUT_MS);
+  }, []);
+
+  // The bootstrap messages below all wait for the accepted handshake: pushing
+  // settings into a page that has not agreed on the protocol would be exactly
+  // the silent mismatch this round removes. This effect is the handshake's
+  // success path — the page gets its initial settings the moment it is accepted.
+  useEffect(() => {
+    if (!ready) return;
+    window.clearTimeout(handshakeTimerRef.current);
     if (iframeRef.current?.contentWindow) {
       const opacityMessage: BridgeOpacity = {
         [BRIDGE_TAG]: "opacity",
@@ -312,16 +381,16 @@ export function PluginPageHost({
     // Hand the keyboard to the page: its own Spotlight discipline (typing
     // routes to its filter input) takes over from here.
     if (activeRef.current) iframeRef.current?.focus();
-  }, [theme]);
+  }, [ready, theme]);
 
   useEffect(() => {
-    if (!frameLoaded) return;
+    if (!ready) return;
     const glassMessage: BridgeGlass = {
       [BRIDGE_TAG]: "glass",
       glassStep,
     };
     iframeRef.current?.contentWindow?.postMessage(glassMessage, "*");
-  }, [frameLoaded, glassStep]);
+  }, [ready, glassStep]);
 
   // Bootstrap params double as a cache-buster-free way to pass settings the
   // sandboxed page cannot read itself. Re-keying the iframe when they change
@@ -350,10 +419,18 @@ export function PluginPageHost({
     }
   }, [descriptor, language, theme, glassStep]);
 
-  // A fresh document (new descriptor, language or theme) has no listener yet.
-  useEffect(() => {
-    setFrameLoaded(false);
-  }, [src]);
+  // A fresh document (new descriptor, language or theme) has no listener yet
+  // and its predecessor's verdict does not transfer: reset during the *render*
+  // that produces the new src, not in an effect. `useEffect` runs after paint
+  // and a cached same-origin page can have run its own script — and sent its
+  // `frame-ready` — before that, which would then be wiped by the reset; two
+  // rounds of this bug look exactly like “the page times out”. Deriving the
+  // reset in render means it lands in the same commit that changes the iframe's
+  // `src`, i.e. strictly before the new document exists.
+  if (handshakeSrc !== src) {
+    setHandshakeSrc(src);
+    setHandshake(null);
+  }
 
   useEffect(() => {
     if (pluginId) return;
@@ -384,32 +461,32 @@ export function PluginPageHost({
   }, [pluginId]);
 
   useEffect(() => {
-    if (!frameLoaded) return;
+    if (!ready) return;
     const frame = iframeRef.current?.contentWindow;
     const message: BridgeVisibility = { [BRIDGE_TAG]: "visibility", visible: Boolean(pluginId) };
     frame?.postMessage(message, "*");
     if (pluginId) iframeRef.current?.focus();
     return () => frame?.postMessage({ [BRIDGE_TAG]: "visibility", visible: false }, "*");
-  }, [frameLoaded, pluginId]);
+  }, [ready, pluginId]);
 
   useEffect(() => {
-    if (!frameLoaded) return;
+    if (!ready) return;
     const opacityMessage: BridgeOpacity = {
       [BRIDGE_TAG]: "opacity",
       mainOpacity,
       terminalOpacity,
     };
     iframeRef.current?.contentWindow?.postMessage(opacityMessage, "*");
-  }, [frameLoaded, mainOpacity, terminalOpacity]);
+  }, [ready, mainOpacity, terminalOpacity]);
 
   useEffect(() => {
-    if (!frameLoaded) return;
+    if (!ready) return;
     const themeMessage: BridgeTheme = {
       [BRIDGE_TAG]: "theme",
       theme,
     };
     iframeRef.current?.contentWindow?.postMessage(themeMessage, "*");
-  }, [frameLoaded, theme]);
+  }, [ready, theme]);
 
   // GLASS-CLIP: the content recess the page's own sheet composes is injected
   // through the same two channels the step tokens use (this container style,
@@ -459,8 +536,39 @@ export function PluginPageHost({
             // stylesheet; external plugin pages retain the opaque-origin sandbox.
             sandbox={descriptor?.id === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
             onLoad={handleFrameLoad}
+            // A refused handshake hides the frame but keeps it mounted: the
+            // error state below is what the user must see, and unmounting on a
+            // verdict would churn the frame for no gain (the retry button
+            // replaces the descriptor and thus the `src` anyway).
+            style={refused ? { display: "none" } : undefined}
           />
-        ) : loadFailed || descriptor ? (
+        ) : null}
+        {refused && src ? (
+          // The page loaded but refused the protocol handshake: it announced a
+          // version this build does not speak, or announced none at all. Show
+          // which version — the page's and the host's — instead of a white
+          // iframe. `handshakeErrorDetail` picks the variant; the dictionary
+          // owns the words.
+          <div className="plugin-page-host__error" role="alert">
+            <span className="plugin-page-host__error-title">
+              {t("plugin.pageError")}
+            </span>
+            <span className="plugin-page-host__error-detail">
+              {(() => {
+                const detail = handshakeErrorDetail(handshake!, PLUGIN_PAGE_PROTOCOL);
+                return t(detail.key, detail.params);
+              })()}
+            </span>
+            <button
+              type="button"
+              className="plugin-page-host__button"
+              onClick={() => { setDescriptor(null); setReloadNonce((nonce) => nonce + 1); }}
+            >
+              {t("settings.retry")}
+            </button>
+          </div>
+        ) : null}
+        {!src && (loadFailed || descriptor) ? (
           // `descriptor && !src` means the page URL was rejected as off-origin.
           <div className="plugin-page-host__error" role="alert">
             <span className="plugin-page-host__error-title">
@@ -474,7 +582,8 @@ export function PluginPageHost({
               {t("settings.retry")}
             </button>
           </div>
-        ) : pluginId ? (
+        ) : null}
+        {!src && !loadFailed && !descriptor && pluginId ? (
           // Descriptor still in flight. Render an opaque placeholder rather than
           // nothing: this host fills a transparent window, so an empty subtree
           // shows the desktop through the panel for as long as the fetch takes.

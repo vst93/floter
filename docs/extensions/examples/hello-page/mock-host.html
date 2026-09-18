@@ -1,0 +1,160 @@
+<!doctype html>
+<!--
+  A throwaway host for hello-page, so the example can be run in any browser
+  without building Floter.
+
+      python3 -m http.server 8080        # from this directory
+      open http://localhost:8080/mock-host.html
+
+  It implements just enough of the host side of the protocol to be useful:
+  the frame-ready handshake, the bootstrap query params, and the opacity /
+  theme / glass / visibility pushes. It is NOT a replacement for the real
+  host — it has no command allowlist, so `invoke` is answered with a canned
+  echo — but it is the fastest way to see the protocol work end to end.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>hello-page · mock host</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        background: #0d0e11;
+        color: #f2f3f5;
+        font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      aside { padding: 12px; border-right: 1px solid rgba(255,255,255,.08); }
+      aside h1 { margin: 0 0 4px; font-size: 13px; letter-spacing: .01em; }
+      aside p { margin: 0 0 16px; color: rgba(238,239,242,.55); font-size: 12px; }
+      label { display: block; margin: 12px 0 4px; color: rgba(238,239,242,.68); }
+      input[type="range"] { width: 100%; }
+      select, button { width: 100%; padding: 5px 8px; border: none; border-radius: 8px;
+        background: rgba(255,255,255,.09); color: inherit; font: inherit; }
+      button { margin-top: 8px; cursor: pointer; }
+      #verdict { margin-top: 16px; padding: 8px; border-radius: 8px; font-size: 12px;
+        background: rgba(255,255,255,.06); color: rgba(238,239,242,.68); }
+      #verdict[data-state="accepted"] { color: #9fe0b0; }
+      #verdict[data-state="refused"] { color: #ffad9e; }
+      main { position: relative; }
+      iframe { width: 100%; height: 100%; border: none; display: block; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <h1>Mock host</h1>
+      <p>Host side of plugin-page protocol 1, for the hello-page example.</p>
+
+      <label for="opacity">terminal-opacity <output id="opacityOut">0.46</output></label>
+      <input id="opacity" type="range" min="0" max="1" step="0.01" value="0.46" />
+
+      <label for="theme">theme</label>
+      <select id="theme"><option>dark</option><option>light</option></select>
+
+      <label for="glass">glass-step</label>
+      <select id="glass">
+        <option>frosted</option><option selected>regular</option><option>liquid</option>
+      </select>
+
+      <button id="visibility" type="button">Toggle visible</button>
+      <button id="reload" type="button">Send reload</button>
+
+      <div id="verdict" data-state="waiting">waiting for frame-ready…</div>
+    </aside>
+    <main><iframe id="page" title="hello-page" sandbox="allow-scripts"></iframe></main>
+
+    <script type="module">
+      const PROTOCOL = 1;
+      const TAG = "floter";
+
+      const frame = document.getElementById("page");
+      const verdict = document.getElementById("verdict");
+      const controls = ["opacity", "theme", "glass"].map((id) => document.getElementById(id));
+      const opacityOut = document.getElementById("opacityOut");
+
+      // Bootstrap params, exactly as the real host builds them
+      // (`buildPluginPageUrl` in src/plugin-pages.ts).
+      const params = new URLSearchParams({
+        lang: "en",
+        theme: "dark",
+        "main-opacity": "0.47",
+        "terminal-opacity": "0.46",
+        "glass-step": "regular",
+      });
+      frame.src = `./index.html?${params.toString()}`;
+
+      const post = (message) => frame.contentWindow.postMessage(message, "*");
+      const opacity = () => ({
+        [TAG]: "opacity",
+        mainOpacity: 0.47,
+        terminalOpacity: Number(document.getElementById("opacity").value),
+      });
+
+      // Only the frame may talk to us, and only tagged objects are ours.
+      window.addEventListener("message", (event) => {
+        if (event.source !== frame.contentWindow) return;
+        const data = event.data;
+        if (!data || typeof data !== "object" || data[TAG] === undefined) return;
+
+        if (data[TAG] === "frame-ready") {
+          // The handshake. Compare, then either open the bridge or refuse —
+          // and a refusal names both numbers, like the real host's error state.
+          if (data.protocol === PROTOCOL) {
+            verdict.dataset.state = "accepted";
+            verdict.textContent = `accepted · page=${data.protocol} host=${PROTOCOL}`;
+            post(opacity());
+            post({ [TAG]: "theme", theme: document.getElementById("theme").value });
+            post({ [TAG]: "glass", glassStep: document.getElementById("glass").value });
+            post({ [TAG]: "visibility", visible: true });
+            frame.contentWindow.focus();
+          } else {
+            verdict.dataset.state = "refused";
+            verdict.textContent = `refused · page=${data.protocol} host=${PROTOCOL}`;
+          }
+          return;
+        }
+
+        if (data[TAG] === "invoke") {
+          // A real host would check its allowlist first; the mock echoes.
+          post({ [TAG]: "result", id: data.id, session: data.session, ok: true,
+                 value: { echoed: data.command, args: data.args ?? {} } });
+          return;
+        }
+        if (data[TAG] === "host-notify") {
+          console.log("host-notify:", data.messageKey, "retryable:", data.retryable === true);
+          verdict.textContent = `toast: ${data.messageKey} (${data.kind})`;
+          return;
+        }
+        if (data[TAG] === "close") {
+          verdict.textContent = "close requested";
+          return;
+        }
+        if (data[TAG] === "drag") {
+          verdict.textContent = "drag requested (no-op in a browser)";
+          return;
+        }
+      });
+
+      // Live control pushes, the same messages the real host sends.
+      document.getElementById("opacity").addEventListener("input", (event) => {
+        opacityOut.value = event.target.value;
+        post(opacity());
+      });
+      document.getElementById("theme").addEventListener("change", (event) =>
+        post({ [TAG]: "theme", theme: event.target.value }));
+      document.getElementById("glass").addEventListener("change", (event) =>
+        post({ [TAG]: "glass", glassStep: event.target.value }));
+
+      let visible = true;
+      document.getElementById("visibility").addEventListener("click", () => {
+        visible = !visible;
+        post({ [TAG]: "visibility", visible });
+      });
+      document.getElementById("reload").addEventListener("click", () =>
+        post({ [TAG]: "reload" }));
+    </script>
+  </body>
+</html>

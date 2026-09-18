@@ -17,6 +17,34 @@ export const CLIPBOARD_PLUGIN_ID = "builtin.clipboard";
 /** Marker property every bridge message carries. */
 export const BRIDGE_TAG = "floter" as const;
 
+/**
+ * The plugin-page bridge protocol version this host speaks.
+ *
+ * A plugin page announces the version it was written against in its
+ * `frame-ready` handshake (see [`BridgeFrameReady`]). The host compares that
+ * number with this constant *before* it enters interactive mode: a page that
+ * announces nothing — or a version this build does not know — gets a visible
+ * error state that names the version the host supports, instead of a silent
+ * white iframe that looks like a crash. Bump this constant whenever a message
+ * shape changes in a way an older peer cannot simply ignore.
+ */
+export const PLUGIN_PAGE_PROTOCOL = 1;
+
+/**
+ * Page → host: the page's document is loaded and its message listener is
+ * attached. This is the handshake, and it is the first message a page sends —
+ * before any `invoke`, before the host pushes any settings.
+ *
+ * `protocol` is the [`PLUGIN_PAGE_PROTOCOL`] the page was written against. A
+ * page that omits it is treated as incompatible rather than as an old page:
+ * guessing compatibility is how a version negotiation silently rots.
+ */
+export type BridgeFrameReady = {
+  [BRIDGE_TAG]: "frame-ready";
+  /** The [`PLUGIN_PAGE_PROTOCOL`] the page was written against. */
+  protocol: number;
+};
+
 /** Page → host: run one command through the host's `invoke()`. */
 export type BridgeRequest = {
   [BRIDGE_TAG]: "invoke";
@@ -162,7 +190,7 @@ export type BridgeReload = {
  */
 const MESSAGE_KEY_SHAPE = /^[A-Za-z][A-Za-z0-9.]{0,63}$/;
 
-export type BridgeFromPage = BridgeRequest | BridgeClose | BridgeNotify | BridgeDrag;
+export type BridgeFromPage = BridgeRequest | BridgeClose | BridgeNotify | BridgeDrag | BridgeFrameReady;
 
 /**
  * How many failure retries a page remembers at once. The host keeps at most
@@ -291,6 +319,72 @@ export const isBridgeNotify = (data: unknown): data is BridgeNotify =>
 
 export const isBridgeDrag = (data: unknown): data is BridgeDrag =>
   isRecord(data) && data[BRIDGE_TAG] === "drag";
+
+export const isBridgeFrameReady = (data: unknown): data is BridgeFrameReady =>
+  isRecord(data) &&
+  data[BRIDGE_TAG] === "frame-ready" &&
+  typeof data.protocol === "number" &&
+  Number.isFinite(data.protocol);
+
+/**
+ * The outcome of the protocol handshake, decided once per loaded document.
+ *
+ * - `accepted` — the page announced this host's protocol; the bridge opens.
+ * - `missing` — the page never announced a version (a stale page, or a page
+ *   that is not a plugin page at all).
+ * - `mismatch` — the page announced a version this build does not speak.
+ *
+ * `missing` and `mismatch` are kept apart on purpose: one is a page that
+ * should be updated, the other is a page built for a *different* protocol,
+ * and a page author debugging a load needs to tell those two apart from the
+ * error text alone. Both are refused the same way.
+ */
+export type HandshakeVerdict =
+  | { status: "accepted" }
+  | { status: "missing" }
+  | { status: "mismatch"; protocol: number };
+
+/**
+ * Decide whether a page may enter interactive mode, from the message the page
+ * sent in its handshake.
+ *
+ * This is pure and DOM-free so the node suite can drive all three states
+ * (`match` / `missing` / `mismatch`) without a browser. `expected` defaults to
+ * this build's [`PLUGIN_PAGE_PROTOCOL`], and is a parameter only so a test can
+ * play the part of a future host and prove the verdict tracks the host's own
+ * number rather than a hardcoded 1.
+ */
+export const pluginPageHandshake = (
+  data: unknown,
+  expected: number = PLUGIN_PAGE_PROTOCOL,
+): HandshakeVerdict => {
+  if (!isBridgeFrameReady(data)) return { status: "missing" };
+  if (data.protocol !== expected) return { status: "mismatch", protocol: data.protocol };
+  return { status: "accepted" };
+};
+
+/**
+ * The one-line reason a refused handshake shows above its retry button.
+ *
+ * The host owns the words, but the *facts* — which version the page asked for,
+ * which version this build speaks — are what a page author needs to fix the
+ * page, so both numbers are in the text rather than only in the console. The
+ * strings themselves live in the i18n dictionary; this builder only picks the
+ * variant and resolves the two numbers, so `mismatch` and `missing` cannot
+ * silently collapse into the same sentence.
+ */
+export const handshakeErrorDetail = (
+  verdict: HandshakeVerdict,
+  expected: number = PLUGIN_PAGE_PROTOCOL,
+): { key: "plugin.protocolMissing" | "plugin.protocolMismatch"; params: Record<string, number> } => {
+  if (verdict.status === "mismatch") {
+    return {
+      key: "plugin.protocolMismatch",
+      params: { page: verdict.protocol, host: expected },
+    };
+  }
+  return { key: "plugin.protocolMissing", params: { host: expected } };
+};
 
 /**
  * Whether a page message should start a native window drag right now.

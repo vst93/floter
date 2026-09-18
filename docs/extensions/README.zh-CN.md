@@ -17,12 +17,14 @@ Floter 扩展不是网页插件。扩展提供者（Provider）是独立的 CLI/
 - [FEP-2：Provider 运行协议](FEP-2-provider.md)
 - [FEP-3：安装生命周期与安全](FEP-3-lifecycle.md)
 - [FEP-4：NPM Registry Convention](FEP-4-npm-registry.md)
+- [插件页通信协议（Plugin Page Protocol v1）](plugin-page-protocol.md)
 - [使用 Agent 打包 Floter 工具插件](agent-packaging.zh-CN.md)
 - [第三方 SDK / Wrapper 指南](sdk/README.md)
 - [扩展包 JSON Schema](schemas/floter-extension.schema.json)
 - [Provider 描述 JSON Schema](schemas/provider-description.schema.json)
 - [V Tools 扩展包示例](examples/v/floter.extension.json)
 - [V Tools Provider 输出示例](examples/v/provider-description.json)
+- [hello-page 最小插件页示例](examples/hello-page/README.md)
 
 ## 平台目标
 

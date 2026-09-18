@@ -965,6 +965,19 @@
   font-size: var(--text-emphasis);
 }
 
+/* R7-12 · the refused-handshake explanation. The error state above is a single
+   sentence; this one names the two protocol numbers a page author needs, so it
+   is body copy rather than a second title — muted, centred, and width-capped so
+   a long sentence wraps instead of running edge to edge on a wide panel. */
+.plugin-page-host__error-detail {
+  max-width: 42ch;
+  padding: 0 16px;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  text-align: center;
+}
+
 /* R7-4a · the error state's own button.
 
    It used to borrow `.update-banner__button` from the settings sheet. That is
