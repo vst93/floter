@@ -552,6 +552,7 @@ export default function App() {
     dimsRef,
     selectionRef,
     render,
+    repaintTerminalSoon,
     terminalInputTarget,
     activeRenderer,
     surfaceReady,
@@ -855,12 +856,30 @@ export default function App() {
     const root = document.documentElement.style;
     root.setProperty("--main-opacity", String(clampWindowOpacity(settings.main_opacity) / 100));
     root.setProperty("--terminal-opacity", String(clampWindowOpacity(settings.terminal_opacity) / 100));
-    const renderer = rendererRef.current;
-    if (renderer) {
-      renderer.updateTheme();
-      render();
-    }
+    // GLASS-CLIP: the CSS variables above are the slider's visual feedback and
+    // stay on the per-tick path — they are what makes the glass follow the
+    // thumb. The canvas repaint is deliberately NOT here. It used to be, and a
+    // drag fired `updateTheme()` (a `getComputedStyle` over the whole root)
+    // plus a full terminal redraw on every +1 tick, which starved the range
+    // input's event handling and made the drag stutter and drop
+    // (「透明度的滑杆拖动会中断」). The repaint does not depend on the slider
+    // anyway: the canvas paints its background at the frame alpha and the
+    // window alpha is the compositor's job, so a 47%→48% nudge changes no
+    // canvas pixel. It is coalesced to one trailing call instead (see
+    // `repaintTerminalSoon`), and landed immediately whenever the surface is
+    // about to go away.
+    repaintTerminalSoon();
   }, [settings.main_opacity, settings.terminal_opacity]);
+
+  // GLASS-CLIP: the *flush* half of the split — landing a pending repaint
+  // before the terminal surface stops being painted — deliberately lives in
+  // `useTerminalView`, not here. It is the hook's renderer-lifecycle effect
+  // cleanup that funnels every exit from the terminal surface (settings
+  // unmounts the canvas, the launcher and plugin pages hide it, the window
+  // closes), and it is the only place that can still run while `rendererRef`
+  // is live: a flush scheduled from this component's `mode` effect would
+  // already see a null renderer. The window-hidden paths (blur, document
+  // hidden) flush through the same scheduler's listeners.
 
   // The glass *effect* step is an attribute rather than a custom property
   // because it swaps a *set* of tokens (`[data-glass]` in base.css: the blur,

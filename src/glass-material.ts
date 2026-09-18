@@ -134,6 +134,45 @@ export const GLASS_SOLID_TOP = 0.98;
 export const GLASS_FRAME_FLOOR = 0;
 
 /**
+ * The content layer's **standard-material band**, mirrored for the same
+ * hand-off as the step tokens above.
+ *
+ * `base.css` owns the formula — `--glass-content-alpha: calc(0.62 + 0.18 *
+ * var(--main-opacity))` — and the recess every body-copy surface sits on
+ * (`--surface-sunken`). The clipboard page is a separate document and cannot
+ * read the host's `:root`, so it used to declare `--surface-sunken` as a
+ * static 50% black: the one surface in the shell whose recess ignored both
+ * sliders (the user's 「剪切板也要液态玻璃化，也要受到配置的影响」). The host
+ * now hands the same band across (see [`glassContentAlpha`] and
+ * [`glassContentStyle`]), and `tests/glass-clip.test.ts` asserts this table
+ * equals base.css's declaration so the two can never drift.
+ *
+ * `base` and `slope` are the two coefficients of that `calc()`, not a
+ * resolved alpha: the page has to keep tracking the slider, so it receives the
+ * *function* (evaluated by [`glassContentAlpha`]) rather than a frozen number.
+ */
+export const GLASS_CONTENT_BAND = { base: 0.62, slope: 0.18 } as const;
+
+/**
+ * Evaluate the content band at one window transparency (0-1). The clamp is the
+ * same one CSS's alpha slot applies; the fallback is the shipped 47% default,
+ * so a page bootstrapped without the param still paints the material the host
+ * would have.
+ *
+ * The parameter is axis-neutral on purpose. In the host document the band is
+ * evaluated at `--main-opacity` (the app frame the launcher/settings content
+ * sits on); the clipboard page replaces the *terminal* pane, so it evaluates
+ * the same formula at its own frame's transparency. One formula, one table,
+ * two frames.
+ */
+export const glassContentAlpha = (transparency: number): number => {
+  const t = Number.isFinite(transparency)
+    ? Math.min(1, Math.max(0, transparency))
+    : 0.47;
+  return Math.min(1, GLASS_CONTENT_BAND.base + GLASS_CONTENT_BAND.slope * t);
+};
+
+/**
  * The step tokens as a plain style bag, for injecting into the plugin page's
  * container.
  *
@@ -148,6 +187,20 @@ export const glassStepStyle = (step: GlassStep): Record<string, string> => ({
   "--glass-step-dim": String(GLASS_STEP_TOKENS[step].dim),
   "--glass-solid-top": String(GLASS_SOLID_TOP),
   "--glass-frame-floor": String(GLASS_FRAME_FLOOR),
+});
+
+/**
+ * The content band as a style bag, the second half of the same hand-off.
+ *
+ * The step bag above carries the *effect* tokens; this one carries the
+ * *content recess* the page's own sheet composes from. Kept separate rather
+ * than folded into [`glassStepStyle`] because the band does not depend on the
+ * step at all — it tracks a transparency, so a slider move must be able to
+ * refresh it without re-injecting the step, and a step change must not have to
+ * pretend the band moved.
+ */
+export const glassContentStyle = (transparency: number): Record<string, string> => ({
+  "--glass-content-alpha": String(glassContentAlpha(transparency)),
 });
 
 // ── GLASS-REAXIS: one effect control over blur/saturation/lens ─────────────

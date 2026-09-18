@@ -12,7 +12,7 @@ import {
   isBridgeResult,
 } from "../plugin-pages";
 import type { BridgeNotifyRetry, BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass } from "../plugin-pages";
-import { glassStepStyle, type GlassStep } from "../glass-material";
+import { glassStepStyle, glassContentStyle, type GlassStep } from "../glass-material";
 import { createTranslator, isMessageKey, type Language, type MessageKey } from "../i18n";
 import type { ToastAction } from "../toast-state";
 
@@ -385,12 +385,19 @@ export function PluginPageHost({
     iframeRef.current?.contentWindow?.postMessage(themeMessage, "*");
   }, [frameLoaded, theme]);
 
+  // GLASS-CLIP: the content recess the page's own sheet composes is injected
+  // through the same two channels the step tokens use (this container style,
+  // and the page's bootstrap + bridge messages). The container injection is the
+  // host-side record of the hand-off; the page reads the value from its own
+  // root because a sandboxed cross-document frame cannot inherit it.
+  const glassTokens = { ...glassStepStyle(glassStep), ...glassContentStyle(terminalOpacity) };
+
   return (
     <div
       className="plugin-page-host"
       data-plugin-id={pluginId ?? ""}
       data-glass-step={glassStep}
-      style={{ display: pluginId ? "flex" : "none", ...glassStepStyle(glassStep) }}
+      style={{ display: pluginId ? "flex" : "none", ...glassTokens }}
     >
       {pluginId ? (
         // Host-owned chrome, rendered *inside* this host so it is part of the

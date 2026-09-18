@@ -29,6 +29,7 @@ import { MOUSE_MOTION, usesMouseReporting } from "../terminal/keys";
 import { normalizeTerminalInputSpaces } from "../terminal/inputNormalize";
 import { PINNED_SESSION_ID } from "../terminal/pinState";
 import { normalizeFontSize } from "../settings/GeneralPage";
+import { createDeferredRepaint, type DeferredRepaint } from "../deferred-repaint";
 import { IS_MAC } from "../shortcuts";
 import type { ExecutionPlan } from "../launcher";
 import type { BrokerSessionInfo, MainSessionIdentity, ViewMode } from "../App";
@@ -165,6 +166,71 @@ export function useTerminalView(options: {
       positionTerminalTextInput();
     }
   };
+
+  /**
+   * Re-read the palette and repaint, on the spot. This is the coalesced unit
+   * the transparency sliders schedule (see `repaintTerminalSoon`); every other
+   * caller of `render()` — a frame arriving, a selection change, a resize —
+   * stays synchronous, because those *do* change canvas pixels and are not
+   * per-tick event storms.
+   *
+   * `updateTheme` before `draw`, never after: the renderer resolves the
+   * terminal's own `--terminal-*` colours at `updateTheme` time, so a draw
+   * first would paint the previous palette once.
+   */
+  const repaintTerminal = () => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.updateTheme();
+    render();
+  };
+
+  /**
+   * GLASS-CLIP: coalesce the palette repaint that a *continuous* control (the
+   * window-transparency sliders) would otherwise run once per tick. A drag
+   * used to call `updateTheme()` + `render()` on every +1, and the resulting
+   * `getComputedStyle` + full canvas redraw starved the range input's own
+   * event handling — the drag stuttered and dropped
+   * (「透明度的滑杆拖动会中断」). The scheduler is trailing-edge and shared by
+   * every slider move, so N ticks inside one window paint once.
+   */
+  const repaintScheduler = useRef<DeferredRepaint | null>(null);
+  const repaintTerminalSoon = () => {
+    repaintScheduler.current ??= createDeferredRepaint(repaintTerminal);
+    repaintScheduler.current.schedule();
+  };
+
+  // `repaintTerminal` closes over `render`, which closes over `frameRef`,
+  // `blinkRef` and `selectionRef` — all refs, so the closure is effectively
+  // stable — but it is re-created on every render, so a consumer that depends
+  // on it would re-run every render. This ref is the stable handle for the
+  // *flush* consumers below, which must fire on a surface change and on
+  // nothing else. (A flush on every render would not be wrong, only wasteful:
+  // it would defeat the coalescing the scheduler exists for.)
+  const repaintFlushRef = useRef<() => void>(() => {});
+  repaintFlushRef.current = () => repaintScheduler.current?.flush();
+
+  // A pending coalesced repaint is a *deferred* one, so it has to be landed
+  // before the surface stops being painted. Three ways that can happen:
+  //   * the window is hidden (blur → `hide_window`) — flush, so the reveal
+  //     never shows the previous palette's frame for a beat;
+  //   * the document is hidden — same;
+  //   * the renderer is torn down (the effect below's cleanup, which every
+  //     exit from the terminal surface funnels through) — flush *before*
+  //     `rendererRef` is nulled, then cancel the timer so a later mode flip
+  //     cannot run a stale repaint against a different renderer.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) repaintFlushRef.current();
+    };
+    const onBlur = () => repaintFlushRef.current();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
 
   /** The frontend id keystrokes must reach right now: the main view, or the
    * pinned card after its body was clicked. */
@@ -424,6 +490,17 @@ export function useTerminalView(options: {
       window.clearInterval(blink);
       resizeObserver.disconnect();
       canvasRef.current?.removeEventListener("wheel", onWheelNative);
+      // GLASS-CLIP: land a coalesced palette repaint before the renderer is
+      // dropped. This cleanup is the single funnel every exit from the terminal
+      // surface goes through — the settings panel unmounts the canvas, the
+      // launcher and plugin pages hide it, the window closes — so the pending
+      // repaint is landed here while `rendererRef` is still live, rather than
+      // after it has been nulled (when it would be a no-op) or never (when the
+      // timer would fire against a dead renderer). The cancel afterwards drops
+      // the now-meaningless timer so a later mode flip cannot run a stale
+      // repaint against whatever renderer exists then.
+      repaintFlushRef.current();
+      repaintScheduler.current?.cancel();
       termOpened.current = false;
       rendererRef.current = null;
     };
@@ -754,6 +831,9 @@ export function useTerminalView(options: {
     dimsRef,
     selectionRef,
     render,
+    repaintTerminal,
+    repaintTerminalSoon,
+    repaintFlushRef,
     terminalInputTarget,
     activeRenderer,
     surfaceReady,

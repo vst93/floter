@@ -22,12 +22,38 @@
   --page-fill: 0.606;
   --page-bg: rgb(17 18 20 / var(--page-fill));
   --panel-bg: rgb(17 18 20 / var(--page-fill));
+  /* GLASS-CLIP: the content recess this page's body sits on. It is the SAME
+     standard-material band the host uses (`base.css`'s `--glass-content-alpha:
+     calc(0.62 + 0.18 * var(--main-opacity))`), so the page's list field now
+     follows both configuration axes instead of sitting at a frozen 50% black
+     that ignored every slider (the user's 「剪切板也要液态玻璃化，也要受到配置
+     的影响」).
+
+     Like the step tokens above, the numbers are deliberately NOT declared
+     here: `main.ts` computes this from the shared `GLASS_CONTENT_BAND` table in
+     `src/glass-material.ts` — one source of truth — and writes it onto this
+     document's root on bootstrap and on every opacity bridge message. The
+     literal below is only the pre-JS first-paint fallback (the default 47%
+     transparency evaluated through that same formula), overwritten before the
+     first frame. */
+  --glass-content-alpha: 0.7028;
   --input-bg: rgba(255, 255, 255, 0.055);
   --input-bg-hover: rgba(255, 255, 255, 0.08);
   --input-bg-focus: rgba(255, 255, 255, 0.075);
   --surface-control: rgba(255, 255, 255, 0.055);
   --surface-control-hover: rgba(255, 255, 255, 0.105);
-  --surface-sunken: rgba(17, 18, 20, 0.5);
+  /* The recess reads from the host-injected band, never from a literal: a
+     hardcoded alpha here is exactly the bug this round fixes, and
+     `tests/glass-clip.test.ts` fails if one comes back. The colour base stays
+     this page's own (it is a separate document with its own dark/light pair).
+
+     The `rgba(<literal triple>, var(--alpha))` form is deliberate and is the
+     one the host's own `base.css` uses for every glass tint — literal colour
+     channels, variable alpha. It is *not* the form `applyPageBackground` in
+     `main.ts` works around: that one put a var in the colour channels too
+     (`rgba(var(--page-bg-base), var(--opacity))`), which is what WebKit
+     refused. Keeping the channels literal is what makes this safe. */
+  --surface-sunken: rgba(17, 18, 20, var(--glass-content-alpha));
   --hairline: rgba(255, 255, 255, 0.075);
   --hairline-strong: rgba(255, 255, 255, 0.12);
   --text-primary: #f2f3f5;
@@ -56,7 +82,7 @@
   --input-bg-focus: rgba(255, 255, 255, 0.72);
   --surface-control: rgba(0, 0, 0, 0.045);
   --surface-control-hover: rgba(0, 0, 0, 0.08);
-  --surface-sunken: rgba(243, 244, 247, 0.58);
+  --surface-sunken: rgba(243, 244, 247, var(--glass-content-alpha));
   --hairline: rgba(0, 0, 0, 0.09);
   --hairline-strong: rgba(0, 0, 0, 0.14);
   --text-primary: #1d1d1f;

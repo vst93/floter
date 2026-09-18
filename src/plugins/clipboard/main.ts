@@ -34,7 +34,7 @@ import {
   type ClipboardEntry,
 } from "../../clipboard-history";
 import { BRIDGE_TAG, createFailureDeduper, createRetryRegistry, isBridgeGlass, isBridgeNotifyRetry, isBridgeOpacity, isBridgeTheme, isBridgeResultForSession, isBridgeReload, isBridgeVisibility } from "../../plugin-pages";
-import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, GLASS_FRAME_FLOOR, normalizeGlassStep, type GlassStep } from "../../glass-material";
+import { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, GLASS_FRAME_FLOOR, glassContentAlpha, normalizeGlassStep, type GlassStep } from "../../glass-material";
 
 // ---- bridge client -------------------------------------------------------
 
@@ -230,6 +230,14 @@ function applyGlassStep(step: GlassStep) {
 function applyOpacity(main: number, terminal: number) {
   rootStyle.setProperty("--main-opacity", String(main));
   rootStyle.setProperty("--terminal-opacity", String(terminal));
+  // GLASS-CLIP: the page's content recess (`--surface-sunken`) is the host's
+  // standard-material band, evaluated from the shared `GLASS_CONTENT_BAND`
+  // table rather than restated as a literal in page.css. It is evaluated at
+  // the *terminal* transparency, which is the frame this page replaces — the
+  // same value `--page-fill` below is built from — so the recess and the sheet
+  // it sits on stay one material at every slider position. A slider move
+  // therefore reaches the page's list field as well as its sheet.
+  rootStyle.setProperty("--glass-content-alpha", String(glassContentAlpha(terminal)));
   applyPageBackground(terminal);
 }
 
