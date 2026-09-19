@@ -1974,6 +1974,18 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                             : t("settings.extensions.approvalRecordDigestUnknown")}
                         </dd>
                       </div>
+                      {/* R7-8b · the on-disk digest, side by side with the
+                          recorded one, so "what I approved" and "what is
+                          here now" are two readable rows rather than only a
+                          boolean. Unknown stays a label, not a false match. */}
+                      <div>
+                        <dt>{t("settings.extensions.approvalRecordDigestCurrent")}</dt>
+                        <dd title={selected.currentManifestDigest ?? t("settings.extensions.approvalRecordDigestUnknown")}>
+                          {shortDigest(selected.currentManifestDigest)
+                            ? <code>{shortDigest(selected.currentManifestDigest)}</code>
+                            : t("settings.extensions.approvalRecordDigestUnknown")}
+                        </dd>
+                      </div>
                     </dl>
                     <div className="extension-approval-record__permissions">
                       <span className="extension-approval-record__label">{t("settings.extensions.approvalRecordPermissions")}</span>

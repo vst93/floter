@@ -28,7 +28,7 @@ import {
   permissionTier,
   wireTier,
 } from "../src/extensions/permission-tiers.ts";
-import { approvalIsStale, shortDigest } from "../src/extensions/approval-record.ts";
+import { APPROVAL_DIGEST_PREFIX, approvalIsStale, shortDigest } from "../src/extensions/approval-record.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -273,11 +273,13 @@ test("every permission name has an en and zh label", () => {
 // ── B · the approval record ───────────────────────────────────────────────
 
 test("the digest is shown short, and an absent digest stays absent", () => {
-  assert.equal(shortDigest("sha256-0123456789abcdef"), "sha256-01234567");
-  assert.equal(shortDigest("sha256-0123456789abcdef")!.length, 15);
-  // 8 hex characters after the `sha256-` prefix: two digests that differ in
-  // the 8th hex position must not truncate to the same string.
-  assert.notEqual(shortDigest("sha256-aaaaaaa1ffff"), shortDigest("sha256-aaaaaaa9ffff"));
+  // 12 hex characters after the `sha256-` prefix (git's short-hash width).
+  assert.equal(shortDigest("sha256-0123456789abcdef"), "sha256-0123456789ab");
+  assert.equal(shortDigest("sha256-0123456789abcdef")!.length, 19);
+  assert.equal(shortDigest("sha256-0123456789abcdef")!.length, APPROVAL_DIGEST_PREFIX);
+  // Two digests that differ in the 12th hex position must not truncate to the
+  // same string (the review's Minor 3 regressed at 8 hex).
+  assert.notEqual(shortDigest("sha256-aaaaaaaaaaa1ffff"), shortDigest("sha256-aaaaaaaaaaa9ffff"));
   assert.equal(shortDigest("abc"), "abc", "a digest shorter than the prefix renders whole");
   assert.equal(shortDigest(null), null);
   assert.equal(shortDigest("   "), null);
@@ -308,6 +310,15 @@ test("the drawer renders the approval record with graceful degradation", async (
   assert.match(block, /approvalRecordPermissionsNone/, "a missing permission list degrades to a label");
   assert.match(block, /shortDigest\(selected\.approvedManifestDigest\)/, "the digest is rendered short");
   assert.match(block, /approvalRecordDigestUnknown/, "a missing digest degrades to a label");
+  // R7-8b · the record shows the on-disk digest next to the recorded one, not
+  // just a boolean, so "what I approved" and "what is here now" are both
+  // readable. It degrades to the same unknown label, never a false match.
+  assert.match(block, /approvalRecordDigestCurrent/, "the on-disk (current) digest row is rendered");
+  assert.match(block, /shortDigest\(selected\.currentManifestDigest\)/, "the on-disk digest is rendered short");
+  // The short hash is a display truncation; the full value rides in `title` so
+  // a user can verify it against the lock entry without a wider row.
+  assert.match(block, /title=\{selected\.approvedManifestDigest/, "the recorded digest title carries the full value");
+  assert.match(block, /title=\{selected\.currentManifestDigest/, "the on-disk digest title carries the full value");
   assert.match(
     block,
     /approvalIsStale\(selected\.approvedManifestDigest, selected\.currentManifestDigest\)/,
@@ -322,6 +333,30 @@ test("the drawer renders the approval record with graceful degradation", async (
   );
   const changed = createTranslator("en")("settings.extensions.approvalRecordChanged");
   assert.ok(!/rollback|downgrade|revert/i.test(changed), "the changed note must not promise a rollback");
+});
+
+// R7-8b · the comparison row and the changed-manifest note are only useful if
+// both languages name them. The `zh: Record<MessageKey, string>` type catches
+// a *missing* key at compile time; this pins that neither side is empty and
+// that the copy actually tells the user what to do next (re-approve), rather
+// than only reporting a diff.
+test("the current-digest row and the changed note are bilingual and act on the change", () => {
+  for (const language of ["en", "zh"] as const) {
+    const t = createTranslator(language);
+    assert.ok(t("settings.extensions.approvalRecordDigestCurrent").trim(), `${language}: current digest label`);
+    assert.ok(t("settings.extensions.approvalRecordDigest").trim(), `${language}: recorded digest label`);
+    // The two rows must be named differently, or the comparison reads as one
+    // value printed twice.
+    assert.notEqual(
+      t("settings.extensions.approvalRecordDigest"),
+      t("settings.extensions.approvalRecordDigestCurrent"),
+      `${language}: the recorded and current digests need distinct labels`,
+    );
+    assert.ok(t("settings.extensions.approvalRecordChanged").trim(), `${language}: changed note`);
+  }
+  // "建议重新审批" / "re-approve" is the action the note promises.
+  assert.match(createTranslator("zh")("settings.extensions.approvalRecordChanged"), /重新审批/);
+  assert.match(createTranslator("en")("settings.extensions.approvalRecordChanged"), /re-approve/i);
 });
 
 // The backend has to hand the panel the on-disk digest, or the "changed" note

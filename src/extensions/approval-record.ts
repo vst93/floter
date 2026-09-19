@@ -12,15 +12,23 @@
 // a version state to restore.
 
 /**
- * How many characters of a digest the record shows: the 7-character `sha256-`
- * prefix plus 8 hex characters (32 bits of the digest). The previous value of
- * 8 sliced the whole string, so it displayed only a single hex digit — two
- * digests differing in their 8th hex character were indistinguishable.
+ * How many hex characters the record shows after the `sha256-` prefix: git's
+ * short-hash width. 12 hex is 48 bits, so two manifests that differ anywhere
+ * in the first dozen hex characters get distinct display strings.
+ *
+ * R7-8b · The previous value (8 hex / 28 bits) was the review's Minor 3: two
+ * digests that differed in their 8th hex character truncated to the same
+ * string. The stored digest is a full SHA-256 (`sha256-` + 64 hex,
+ * `manifest.rs::digest_of`), so 12 is a *display* truncation, never a value
+ * the comparison uses — `approvalIsStale` always sees the full strings.
  */
-export const APPROVAL_DIGEST_PREFIX = 15;
+export const APPROVAL_DIGEST_HEX_CHARS = 12;
+
+/** Total characters shown: the 7-character `sha256-` prefix plus 12 hex. */
+export const APPROVAL_DIGEST_PREFIX = "sha256-".length + APPROVAL_DIGEST_HEX_CHARS;
 
 /**
- * The short form of a recorded digest. `sha256-abcdef…` → `sha256-abcdef01`;
+ * The short form of a digest. `sha256-abcdef…` → `sha256-abcdef012345`;
  * an unknown/empty digest returns null so the caller omits the row instead of
  * printing a placeholder.
  */
