@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { OverflowMenu } from "./components/OverflowMenu";
+import type { DeepLinkRegisterRequest } from "./deep-link";
 import type { Translate } from "./i18n";
 import type { CommandAliases } from "./command-aliases";
 import { resolveCommandAliases } from "./command-aliases";
@@ -491,6 +492,14 @@ type ExtensionsPanelProps = {
   /** Report the hand-off as done so the request is not re-opened on a later
    * render. */
   onDeepLinkConsumed: () => void;
+  /** A validated `floter://register` request (R8-3). The backend resolved the
+   * `cmd` name against the discovery inventory and stopped; the panel only
+   * *highlights* the matching Detected row (or explains why there is none), so
+   * the user's own Connect press remains the one action that binds it. `null`
+   * once consumed. */
+  pendingDeepLinkRegister: DeepLinkRegisterRequest | null;
+  /** Report the register hand-off as done, for the same one-shot reason. */
+  onDeepLinkRegisterConsumed: () => void;
 };
 
 export type BasePluginRow = {
@@ -565,7 +574,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onNotify, pendingDeepLink, onDeepLinkConsumed }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -619,6 +628,16 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
    *  would leave the click with no visible result. Cleared on the next
    *  attempt, and never a substitute for the toast (both are shown). */
   const [detectedError, setDetectedError] = useState<{ id: string; message: string } | null>(null);
+  /** R8-3: the row a `floter://register` link asked us to highlight, and the
+   *  inline reason when the name was not found. Purely presentational — a
+   *  highlight is not a connect, and the row's own button stays the only way
+   *  forward. It clears after a moment so the surface returns to its resting
+   *  state on its own. */
+  const [registerTarget, setRegisterTarget] = useState<{ id: string; args: string[] | null } | null>(null);
+  const [registerMiss, setRegisterMiss] = useState<{ command: string; alreadyConnected: boolean } | null>(null);
+  /** The Detected list, so a register highlight scrolls *it* and never the
+   *  settings page (the same rule the suggestions list follows). */
+  const detectedListRef = useRef<HTMLDivElement | null>(null);
   const [customDirty, setCustomDirty] = useState(false);  // Inline discard confirmations (replacing window.confirm): armed while the
   // bar above a drawer footer asks "discard unsaved changes?". Cleared as
   // soon as the user edits again, saves, or dismisses the bar.
@@ -1171,6 +1190,74 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     // dialog the user may have just closed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDeepLink]);
+
+  // A `floter://register` request highlights the Detected row the backend
+  // resolved the command to. Deliberately *only* a highlight: there is no
+  // `extensions_connect_tool` call here, no permission review, and no state
+  // mutation beyond the visual target — the row's own Connect button is still
+  // the one action that binds the tool. When the backend found no executable
+  // by that name the section shows an inline reason instead of failing
+  // silently.
+  const [registerPending, setRegisterPending] = useState<DeepLinkRegisterRequest | null>(null);
+  useEffect(() => {
+    if (!pendingDeepLinkRegister) return;
+    onDeepLinkRegisterConsumed();
+    setRegisterPending(pendingDeepLinkRegister);
+    // Same one-shot reasoning as the connect effect above: the app hands the
+    // request over exactly once, and the callbacks are stable for the panel's
+    // lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDeepLinkRegister]);
+
+  // Resolve the parked request against the list, and wait for the list. A cold
+  // start delivers the link *before* the first `extensions_list` reply, so
+  // deciding immediately would report "not found" for a tool that is right
+  // there. This is also why the request is parked in local state rather than
+  // resolved inside the effect above.
+  useEffect(() => {
+    if (!registerPending || loading) return;
+    const request = registerPending;
+    setRegisterPending(null);
+    const path = request.candidate?.locator.kind === "executable"
+      ? request.candidate.locator.path
+      : undefined;
+    const match = path
+      ? suggestedExtensions.find((extension) => extension.executablePath === path)
+      : undefined;
+    if (match) {
+      setRegisterMiss(null);
+      setRegisterTarget({ id: match.id, args: request.args ?? null });
+      // The Detected section may be below the fold. Confine the scroll to the
+      // Detected list itself — a plain `scrollIntoView` walks up every
+      // scrollable ancestor and would reset `.settings-content` to the top
+      // (the reported jump-to-top the suggestions list already avoids).
+      window.requestAnimationFrame(() => {
+        const list = detectedListRef.current;
+        const active = list?.querySelector<HTMLElement>(".extension-row--register");
+        if (!list || !active) return;
+        const listRect = list.getBoundingClientRect();
+        const activeRect = active.getBoundingClientRect();
+        if (activeRect.top < listRect.top) list.scrollTop -= listRect.top - activeRect.top;
+        else if (activeRect.bottom > listRect.bottom) list.scrollTop += activeRect.bottom - listRect.bottom;
+      });
+      return;
+    }
+    // A tool the backend resolved but that is already connected has no
+    // Detected row to highlight. Saying "not found on this device" would be
+    // false, so the two outcomes get two sentences.
+    const alreadyConnected = path
+      ? connectedExtensions.some((extension) => extension.executablePath === path)
+      : false;
+    setRegisterTarget(null);
+    setRegisterMiss({ command: request.command, alreadyConnected });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerPending, loading]);
+
+  // The highlight is a moment, not a mode: it fades on its own so the surface
+  // returns to rest. The miss notice stays longer — it carries a reason the
+  // user may need to read.
+  useTimedReset(registerTarget, () => setRegisterTarget(null));
+  useTimedReset(registerMiss, () => setRegisterMiss(null), 6000);
 
   const confirmLocal = async () => {
     if (!pendingLocal || busyRef.current) return;
@@ -1853,6 +1940,25 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
             nothing at all when there is nothing detected (flat, no empty-state
             placeholder), and each row connects through the existing connect
             flow, never reconnect. */}
+        {/* R8-3 · the `floter://register` outcome, rendered *outside* the
+            Detected section so it survives the section's "nothing detected →
+            render nothing" contract: when the link names a tool this device
+            does not have, there may be no Detected section at all, and the
+            click must still not look like it did nothing. The technical reason
+            stays a log line; the user is told what to do next. */}
+        {registerMiss && (
+          <div className="extensions-notice extensions-notice--error" role="alert">
+            <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+            <span>
+              {t(
+                registerMiss.alreadyConnected
+                  ? "settings.extensions.registerAlreadyConnected"
+                  : "settings.extensions.registerNotFound",
+                { name: registerMiss.command },
+              )}
+            </span>
+          </div>
+        )}
         {suggestedExtensions.length > 0 && (
           <section className="extensions-section extensions-section--detected">
             <h3 className="extensions-section-title">
@@ -1875,19 +1981,31 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 <span>{t("settings.extensions.detectedConnectFailed", { name: suggestedExtensions.find((extension) => extension.id === detectedError.id)?.name ?? "" })}: {detectedError.message}</span>
               </div>
             )}
-            <div className="extensions-list extensions-list--installed">
+            <div className="extensions-list extensions-list--installed" ref={detectedListRef}>
               {suggestedExtensions.map((extension) => (
+                <Fragment key={extension.id}>
                 <ExtensionRowComponent
-                  key={extension.id}
                   extension={extension}
                   operation={busy}
                   progress={operationProgress[extension.id]}
                   t={t}
+                  highlighted={registerTarget?.id === extension.id}
                   onConnect={() => connectDetected(extension)}
                   onRepair={() => extension.homepage ? void invoke("open_url", { url: extension.homepage }).catch((error) => {
                     onNotify("error", String(error));
                   }) : undefined}
                 />
+                {/* The link's argument hint, shown as context only. The
+                    backend never runs it; it is here so the user can see what
+                    the link was about before deciding to connect. Rendered as
+                    a sibling (not inside the row) so the list's row rhythm and
+                    its hairline rule are untouched. */}
+                {registerTarget?.id === extension.id && registerTarget.args && (
+                  <p className="extensions-detected-slot__hint">
+                    {t("settings.extensions.registerArgsHint", { args: registerTarget.args.join(" ") })}
+                  </p>
+                )}
+                </Fragment>
               ))}
             </div>
           </section>

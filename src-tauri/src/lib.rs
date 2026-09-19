@@ -150,6 +150,10 @@ struct AppState {
     /// has mounted its listeners, and the frontend consumes the slot once it
     /// is ready (the same contract `pending_plugin_open` uses).
     pending_deep_link: Mutex<Option<deep_link::ConnectRequest>>,
+    /// A `floter://register` request that arrived over the scheme. Same
+    /// cold-start contract as `pending_deep_link`, with its own cell because
+    /// the payload shape differs (a resolved candidate, not a manifest path).
+    pending_deep_link_register: Mutex<Option<deep_link::RegisterRequest>>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
     /// no cursor position at all, so remembering where the panel was dismissed
@@ -1294,6 +1298,7 @@ pub fn run() {
             clipboard_shortcut: Mutex::new(String::new()),
             pending_plugin_open: Mutex::new(None),
             pending_deep_link: Mutex::new(None),
+            pending_deep_link_register: Mutex::new(None),
             last_monitor: Mutex::new(None),
         });
     #[cfg(feature = "clipboard-history")]
@@ -1547,6 +1552,7 @@ pub fn run() {
             plugin_pages::builtin_plugins_list,
             plugin_pages::take_pending_plugin_page,
             deep_link::take_pending_deep_link,
+            deep_link::take_pending_deep_link_register,
             hide_window,
             quit_app,
             show_input,

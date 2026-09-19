@@ -4,7 +4,7 @@
 //! A URL scheme is an *untrusted input channel*: any web page, any shell
 //! script, any other application on the machine can make the operating system
 //! hand this process a string. So the surface here is deliberately tiny —
-//! exactly two actions exist — and every one of them is decided by a pure
+//! exactly three actions exist — and every one of them is decided by a pure
 //! function that the tests drive directly:
 //!
 //! ```text
@@ -14,6 +14,13 @@
 //!   floter://connect?manifest=<url-encoded value>
 //!       Open the manifest-connect *review* dialog for a local absolute
 //!       `.json` manifest path or an `https://` manifest URL.
+//!
+//!   floter://register?cmd=<basename>[&args=<inert tokens>]
+//!       Resolve a CLI *name* against the live discovery inventory and hand
+//!       the candidate to the integrations review surface. `cmd` is a bare
+//!       basename, never a path and never a shell string; `args` is an
+//!       optional, strictly shell-inert argument hint carried to the review
+//!       surface for display only. Nothing is bound, installed or executed.
 //! ```
 //!
 //! Everything else is refused. An unknown action is dropped with one log line
@@ -22,7 +29,7 @@
 //! manifest fails validation, is worth telling the user about: the window
 //! comes forward and one toast rides the app's existing stack.
 //!
-//! Two invariants the tests pin:
+//! Three invariants the tests pin:
 //!
 //! * **One allow-list.** [`ACTIONS`] is the crate's only list of external
 //!   action names, and both the URL router and the CLI normalizer consult
@@ -34,14 +41,20 @@
 //!   which runs the ordinary `extensions_install` pipeline and therefore
 //!   leaves the ordinary approval record (`approvedPermissions` /
 //!   `approvedAt` / `approvedManifestDigest`).
+//! * **A deep link never binds either.** [`register`] resolves a command to a
+//!   [`ToolCandidate`] and stops at the same review surface; the tool lock is
+//!   written only by the user's explicit Connect (`extensions_connect_tool`),
+//!   never by this module. `deep_link.rs` does not name `ToolLock`,
+//!   `bind_locator`, `lock.save` or `connect_tool` at all.
 
 use std::path::{Component, Path, PathBuf};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Url};
 
+use crate::extensions::inventory::ToolCandidate;
 use crate::extensions::manifest::ExtensionManifest;
-use crate::extensions::ExtensionState;
+use crate::extensions::{resolver, ExtensionState, ResolveRequest, ResolveResult};
 
 /// The registered URL scheme, without `://`.
 pub const SCHEME: &str = "floter";
@@ -74,10 +87,28 @@ pub enum Delivery {
 /// This is the only place the set is written down. The URL router
 /// ([`parse_url`]) and the CLI normalizer ([`canonical_argument`]) both call
 /// [`is_action`]; nothing else may spell the names out.
-pub const ACTIONS: &[&str] = &["open", "connect"];
+pub const ACTIONS: &[&str] = &["open", "connect", "register"];
 
 /// Event asking the frontend to open the manifest-connect review dialog.
 pub const CONNECT_EVENT: &str = "floter://deep-link-connect";
+
+/// Event asking the frontend to highlight a discovered tool on the review
+/// surface. Deliberately distinct from [`CONNECT_EVENT`]: the payload is a
+/// resolved [`RegisterRequest`], not a manifest path.
+pub const REGISTER_EVENT: &str = "floter://deep-link-register";
+
+/// Ceiling on the `cmd` basename, matching the custom-integration command
+/// pattern (`[a-z0-9][a-z0-9_-]{0,63}`) rather than inventing a second bound.
+pub const MAX_COMMAND_CHARS: usize = 64;
+
+/// Ceiling on one `args` token.
+pub const MAX_ARGUMENT_CHARS: usize = 64;
+
+/// Ceiling on how many `args` tokens a link may carry.
+pub const MAX_ARGUMENT_COUNT: usize = 16;
+
+/// Ceiling on the whole `args` value.
+pub const MAX_ARGUMENTS_TOTAL_CHARS: usize = 256;
 
 /// Event carrying the dictionary key of a refusal the user should see.
 pub const REJECT_EVENT: &str = "floter://deep-link-rejected";
@@ -101,11 +132,26 @@ pub enum ManifestSource {
     Remote(String),
 }
 
+/// A `register` payload: the bare name of a CLI tool and an optional,
+/// strictly shell-inert argument hint.
+///
+/// `args` is carried to the review surface as *context only*. It is never
+/// executed by the backend, never passed to a shell, and never reaches a
+/// binding without the user pressing Connect on the ordinary zero-form path —
+/// which is why the validation below refuses every character a shell would
+/// interpret. See [`validate_arguments`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandRequest {
+    pub command: String,
+    pub args: Option<Vec<String>>,
+}
+
 /// One accepted external trigger. Reaching this type means every check passed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Trigger {
     Open,
     Connect(ManifestSource),
+    Register(CommandRequest),
 }
 
 /// Why a trigger was refused. Every variant carries the offending value so the
@@ -121,6 +167,11 @@ pub enum Reject {
     ManifestTraversal(String),
     ManifestNotJson(String),
     ManifestInsecure(String),
+    MissingCommand,
+    CommandNotBasename(String),
+    CommandInsecure(String),
+    CommandTooLong(String),
+    InvalidArguments(String),
 }
 
 impl Reject {
@@ -146,6 +197,17 @@ impl Reject {
             Self::ManifestNotJson(value) => format!("manifest is not a .json file: {value}"),
             Self::ManifestInsecure(value) => {
                 format!("manifest must be a local path or an https URL: {value}")
+            }
+            Self::MissingCommand => "register is missing its cmd parameter".to_string(),
+            Self::CommandNotBasename(value) => {
+                format!("register cmd is not a bare command name: {value}")
+            }
+            Self::CommandInsecure(value) => {
+                format!("register cmd contains characters that are not allowed: {value}")
+            }
+            Self::CommandTooLong(value) => format!("register cmd is too long: {value}"),
+            Self::InvalidArguments(value) => {
+                format!("register args are not a plain argument list: {value}")
             }
         }
     }
@@ -232,6 +294,112 @@ pub fn validate_manifest_source(raw: &str) -> Result<ManifestSource, Reject> {
     Ok(ManifestSource::Local(path.to_path_buf()))
 }
 
+/// Validate a `register` `cmd` parameter.
+///
+/// The value is a **name**, not a command line and not a path. Everything a
+/// shell, a path resolver or a launcher could read as "do something else" is
+/// refused here, on the pure-function side, so the refusal matrix is a unit
+/// test:
+///
+/// | input           | verdict |
+/// |-----------------|---------|
+/// | `rg`            | accept  |
+/// | `rg.exe`        | accept  |
+/// | `python3.11`    | accept  |
+/// | `/usr/bin/rg`   | refuse  |
+/// | `..\rg`         | refuse  |
+/// | `rg;rm -rf /`   | refuse  |
+/// | `rg --exec=ls`  | refuse  |
+/// | `rg\n`          | refuse  |
+/// | ``              | refuse  |
+/// | 65 characters   | refuse  |
+///
+/// The rule is structural: no `/` and no `\` (so it is one path component), no
+/// `..` (so it is not a traversal), no control character, no whitespace, at
+/// most [`MAX_COMMAND_CHARS`] characters, and only `[A-Za-z0-9._+-]`. A `-` is
+/// allowed inside a name (`my-tool`) but a leading `-` is refused, because a
+/// leading dash is an option to whatever consumes the value, not a name.
+pub fn validate_command(raw: &str) -> Result<String, Reject> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return Err(Reject::MissingCommand);
+    }
+    if value.chars().count() > MAX_COMMAND_CHARS {
+        return Err(Reject::CommandTooLong(value.to_string()));
+    }
+    if value.contains('/') || value.contains('\\') {
+        return Err(Reject::CommandNotBasename(value.to_string()));
+    }
+    if value.split('.').any(|segment| segment == "..") || value == ".." {
+        return Err(Reject::CommandNotBasename(value.to_string()));
+    }
+    if value.starts_with('-') {
+        return Err(Reject::CommandInsecure(value.to_string()));
+    }
+    if !value.chars().all(|character| {
+        character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '+' | '-')
+    }) {
+        return Err(Reject::CommandInsecure(value.to_string()));
+    }
+    Ok(value.to_string())
+}
+
+/// Validate an optional `register` `args` parameter.
+///
+/// The value is split on ASCII spaces into tokens; each token must be
+/// shell-inert. Refused per token: empty tokens, control characters, any of
+/// the shell metacharacters `; | & $ ` < > ( ) { } [ ] * ? ! ~ \\ " '`, a
+/// leading `-`, and anything over [`MAX_ARGUMENT_CHARS`]. The whole list is
+/// bounded by [`MAX_ARGUMENT_COUNT`] tokens and
+/// [`MAX_ARGUMENTS_TOTAL_CHARS`] characters.
+///
+/// These arguments are a *hint shown on the review surface*. The backend never
+/// runs them and never joins them into a command line, so the refusal is about
+/// keeping a hostile link from smuggling something a later reader might execute
+/// — not about escaping.
+pub fn validate_arguments(raw: &str) -> Result<Option<Vec<String>>, Reject> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if value.chars().count() > MAX_ARGUMENTS_TOTAL_CHARS {
+        return Err(Reject::InvalidArguments(value.to_string()));
+    }
+    let mut tokens = Vec::new();
+    for token in value.split(' ') {
+        let token = token.trim();
+        if token.is_empty() {
+            continue;
+        }
+        if token.chars().count() > MAX_ARGUMENT_CHARS {
+            return Err(Reject::InvalidArguments(value.to_string()));
+        }
+        if token.starts_with('-') {
+            return Err(Reject::InvalidArguments(value.to_string()));
+        }
+        if !token.chars().all(is_inert_argument_char) {
+            return Err(Reject::InvalidArguments(value.to_string()));
+        }
+        tokens.push(token.to_string());
+    }
+    if tokens.len() > MAX_ARGUMENT_COUNT {
+        return Err(Reject::InvalidArguments(value.to_string()));
+    }
+    if tokens.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(tokens))
+}
+
+/// The one character class an `args` token may use: letters, digits and the
+/// punctuation that means nothing to a shell or to a path resolver. Everything
+/// else (`;`, `|`, `$`, a backtick, a quote, a glob, a tilde, a slash) is a
+/// refusal.
+fn is_inert_argument_char(character: char) -> bool {
+    character.is_ascii_alphanumeric()
+        || matches!(character, '.' | '_' | '+' | '=' | ':' | ',' | '@' | '%')
+}
+
 /// Route one `floter://` URL. This is the single authority on which external
 /// actions exist and what each one may carry.
 pub fn parse_url(raw: &str) -> Result<Trigger, Reject> {
@@ -251,9 +419,19 @@ pub fn parse_url(raw: &str) -> Result<Trigger, Reject> {
     }
 
     let mut manifest = None;
+    let mut command = None;
+    let mut arguments = None;
     for (key, value) in url.query_pairs() {
         if action == "connect" && key == "manifest" && manifest.is_none() {
             manifest = Some(value.into_owned());
+            continue;
+        }
+        if action == "register" && key == "cmd" && command.is_none() {
+            command = Some(value.into_owned());
+            continue;
+        }
+        if action == "register" && key == "args" && arguments.is_none() {
+            arguments = Some(value.into_owned());
             continue;
         }
         return Err(Reject::UnknownParameter(key.into_owned()));
@@ -261,6 +439,14 @@ pub fn parse_url(raw: &str) -> Result<Trigger, Reject> {
 
     match action {
         "open" => Ok(Trigger::Open),
+        "register" => Ok(Trigger::Register(CommandRequest {
+            command: validate_command(&command.ok_or(Reject::MissingCommand)?)?,
+            args: arguments
+                .as_deref()
+                .map(validate_arguments)
+                .transpose()?
+                .flatten(),
+        })),
         _ => Ok(Trigger::Connect(validate_manifest_source(
             &manifest.ok_or(Reject::MissingManifest)?,
         )?)),
@@ -308,6 +494,27 @@ pub fn canonical_argument(args: &[String]) -> Option<String> {
         // A value on `open` is carried along and refused by the router, which
         // is the point: there is one place that decides what each action may
         // carry.
+        //
+        // `register` names its first value `cmd` and folds every remaining
+        // word into `args` (space-joined, exactly the shape the URL carries),
+        // because `floter register rg --hidden src` is the natural spelling of
+        // `floter://register?cmd=rg&args=--hidden+src`. The validation still
+        // lives in the router: this function only builds the URL.
+        if action == "register" {
+            url.query_pairs_mut().append_pair("cmd", value);
+            let rest: Vec<&String> = words.collect();
+            if !rest.is_empty() {
+                url.query_pairs_mut().append_pair(
+                    "args",
+                    &rest
+                        .iter()
+                        .map(|word| word.as_str())
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                );
+            }
+            return Some(url.into());
+        }
         url.query_pairs_mut().append_pair("manifest", value);
     }
     // A third word is a malformed invocation, not a trigger.
@@ -331,7 +538,7 @@ pub(crate) fn take_pending_deep_link(
 
 /// Take whatever a cold start parked, if anything. Extracted so the parking
 /// contract can be driven directly by a unit test without an `AppHandle`.
-fn take_parked(slot: &std::sync::Mutex<Option<ConnectRequest>>) -> Option<ConnectRequest> {
+fn take_parked<T>(slot: &std::sync::Mutex<Option<T>>) -> Option<T> {
     slot.lock().ok().and_then(|mut slot| slot.take())
 }
 
@@ -340,12 +547,11 @@ fn take_parked(slot: &std::sync::Mutex<Option<ConnectRequest>>) -> Option<Connec
 /// A live delivery is already an event the mounted listeners receive; writing
 /// the slot on that path is what left it permanently non-empty (see
 /// [`Delivery`]). The cold-start path keeps its slot so the frontend's
-/// mount-time `take_pending_deep_link` still has something to consume.
-fn park_for_frontend(
-    slot: &std::sync::Mutex<Option<ConnectRequest>>,
-    request: ConnectRequest,
-    delivery: Delivery,
-) {
+/// mount-time `take_pending_*` still has something to consume.
+///
+/// Generic over the request type so `connect` and `register` share one parking
+/// contract rather than growing a second, subtly different one.
+fn park_for_frontend<T>(slot: &std::sync::Mutex<Option<T>>, request: T, delivery: Delivery) {
     if delivery == Delivery::Live {
         return;
     }
@@ -362,6 +568,33 @@ pub struct ConnectRequest {
     pub extension_name: String,
     /// `local` or `https`, for the review dialog's source row.
     pub source: String,
+}
+
+/// The shape the frontend receives for a `register` request.
+///
+/// `candidate` is the *discovery* result, never a binding. `None` means the
+/// validated name was not found on this device: the frontend renders an inline
+/// reason rather than failing silently, and highlights nothing. Even a `Some`
+/// candidate is only *offered* — the tool lock is written solely by the user
+/// pressing Connect on the ordinary `extensions_connect_tool` path.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterRequest {
+    pub command: String,
+    /// Shell-inert argument hint, carried for display only.
+    pub args: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub candidate: Option<ToolCandidate>,
+}
+
+/// The second cold-start slot: a `register` request has a different shape from
+/// a `connect` one, so it parks in its own cell rather than widening the
+/// connect cell into an enum both paths would have to match on.
+#[tauri::command]
+pub(crate) fn take_pending_deep_link_register(
+    state: tauri::State<'_, crate::AppState>,
+) -> Option<RegisterRequest> {
+    take_parked(&state.pending_deep_link_register)
 }
 
 /// Route a URL and run it. This is the one entry point shared by the
@@ -381,6 +614,13 @@ pub fn dispatch_url(app: &AppHandle, raw: &str, delivery: Delivery) {
                 }
             });
         }
+        Ok(Trigger::Register(request)) => {
+            let handle = app.clone();
+            // Discovery is a filesystem walk, so it runs off the event loop.
+            // The resolved request is still only an *offer*: `register` never
+            // binds, installs or executes anything (see [`register`]).
+            tauri::async_runtime::spawn_blocking(move || register(&handle, request, delivery));
+        }
         Err(reject) => {
             tracing::warn!("ignoring deep link {raw}: {}", reject.reason());
             if reject.is_silent() {
@@ -389,6 +629,95 @@ pub fn dispatch_url(app: &AppHandle, raw: &str, delivery: Delivery) {
             focus_main(app);
             notify_reject(app);
         }
+    }
+}
+
+/// Resolve a validated `register` command against the live discovery inventory
+/// and hand the result to the integrations review surface.
+///
+/// The whole point of this function is what it does **not** do. It reads the
+/// inventory, asks the one resolver for a candidate, and emits an event. It
+/// never touches `ToolLock`, never calls `connect_tool`, never runs the
+/// resolved executable and never approves a permission — a URL scheme is
+/// reachable from any web page, and a link that could bind a tool would be a
+/// way to make this machine run a stranger's program from a click in a
+/// browser.
+fn register(app: &AppHandle, request: CommandRequest, delivery: Delivery) {
+    let resolved = {
+        let state = app.state::<ExtensionState>();
+        resolve_registered_command(&state, &request)
+    };
+    if resolved.candidate.is_none() {
+        tracing::info!(
+            "register found no executable named {} on this device",
+            request.command
+        );
+    }
+    // Same fork as `connect`: a cold start runs before the webview has
+    // listeners, so it parks the request; a live delivery is the event itself.
+    park_for_frontend(
+        &app.state::<crate::AppState>().pending_deep_link_register,
+        resolved.clone(),
+        delivery,
+    );
+    focus_main(app);
+    if let Err(error) = app.emit(REGISTER_EVENT, resolved) {
+        tracing::warn!("could not deliver a register request: {error}");
+    }
+}
+
+/// The pure half of [`register`], split out so a unit test can drive it with a
+/// temporary [`ExtensionState`] and assert the red line directly: after a
+/// resolve, the tool lock and the extension repository are byte-for-byte what
+/// they were.
+///
+/// Resolution uses the *existing* discovery + resolver chain — a first pass
+/// against the cached snapshot, then one forced refresh if the name was not
+/// found, because a tool installed a minute ago may predate the 5-minute TTL.
+/// No second PATH walk and no second name-matching rule is introduced here.
+pub(crate) fn resolve_registered_command(
+    state: &ExtensionState,
+    request: &CommandRequest,
+) -> RegisterRequest {
+    let names = [request.command.clone()];
+    let query = ResolveRequest {
+        tool: request.command.clone(),
+        required_version: None,
+        preferred_locator: None,
+    };
+    let mut candidate = None;
+    for attempt in 0..2 {
+        let candidates = {
+            let Ok(mut inventory) = state.tool_inventory.lock() else {
+                break;
+            };
+            if attempt == 1 {
+                inventory.refresh();
+            }
+            inventory.candidates()
+        };
+        match resolver::resolve_executable_names(&query, &names, &candidates) {
+            ResolveResult::Selected {
+                candidate: found, ..
+            } => {
+                candidate = Some(found);
+                break;
+            }
+            // Several PATH directories can hold the same name. The resolver
+            // reports that explicitly rather than picking; the review surface
+            // shows one row per name, so the first tied candidate is the row
+            // the user would have seen anyway. Still only an offer.
+            ResolveResult::Ambiguous { candidates } => {
+                candidate = candidates.into_iter().next().map(|scored| scored.candidate);
+                break;
+            }
+            ResolveResult::NotFound { .. } => continue,
+        }
+    }
+    RegisterRequest {
+        command: request.command.clone(),
+        args: request.args.clone(),
+        candidate,
     }
 }
 
@@ -585,13 +914,134 @@ mod tests {
     // ── the allow-list ────────────────────────────────────────────────────
 
     #[test]
-    fn the_external_action_table_is_exactly_two_actions() {
-        assert_eq!(ACTIONS, &["open", "connect"]);
+    fn the_external_action_table_is_exactly_three_actions() {
+        assert_eq!(ACTIONS, &["open", "connect", "register"]);
         assert!(is_action("open"));
         assert!(is_action("connect"));
+        assert!(is_action("register"));
         for refused in ["clip", "install", "settings", "Open", "", "open/", ".."] {
             assert!(!is_action(refused), "{refused} must not be an action");
         }
+    }
+
+    // ── register: the third action (R8-3) ─────────────────────────────────
+
+    #[test]
+    fn register_accepts_a_bare_command_name() {
+        assert_eq!(
+            parse_url("floter://register?cmd=rg"),
+            Ok(Trigger::Register(CommandRequest {
+                command: "rg".to_string(),
+                args: None,
+            }))
+        );
+        // A Windows launcher suffix and a dotted version are still one name.
+        for name in ["rg.exe", "python3.11", "my-tool", "a_b+c"] {
+            // `+` is form-encoded as `%2B` in a query string (a literal `+`
+            // decodes to a space), so a name that contains one has exactly one
+            // correct URL spelling. The CLI path percent-encodes it for free.
+            let encoded = name.replace('+', "%2B");
+            assert_eq!(
+                parse_url(&format!("floter://register?cmd={encoded}")),
+                Ok(Trigger::Register(CommandRequest {
+                    command: name.to_string(),
+                    args: None,
+                })),
+                "{name} is a command name"
+            );
+        }
+    }
+
+    #[test]
+    fn register_refuses_an_argument_that_reads_as_an_option() {
+        // `--hidden` starts with a dash: an argument that a tool would read as
+        // an option is exactly what this parameter must not carry, so it is
+        // refused rather than forwarded.
+        assert!(matches!(
+            parse_url("floter://register?cmd=rg&args=--hidden%20src"),
+            Err(Reject::InvalidArguments(_))
+        ));
+    }
+
+    #[test]
+    fn register_passes_inert_arguments_through_untouched() {
+        assert_eq!(
+            parse_url("floter://register?cmd=rg&args=src%20lib"),
+            Ok(Trigger::Register(CommandRequest {
+                command: "rg".to_string(),
+                args: Some(vec!["src".to_string(), "lib".to_string()]),
+            }))
+        );
+        // An empty `args` is the same as no `args`.
+        assert_eq!(
+            parse_url("floter://register?cmd=rg&args="),
+            Ok(Trigger::Register(CommandRequest {
+                command: "rg".to_string(),
+                args: None,
+            }))
+        );
+    }
+
+    #[test]
+    fn register_refuses_a_path_a_traversal_or_a_shell_string() {
+        for refused in [
+            "%2Fusr%2Fbin%2Frg",
+            "..%2Frg",
+            "rg%3Brm%20-rf%20%2F",
+            "rg%20--exec%3Dls",
+            "rg%0Ax",
+            "-rg",
+            "rg%24(x)",
+            "rg%60x%60",
+            "",
+        ] {
+            let parsed = parse_url(&format!("floter://register?cmd={refused}"));
+            assert!(parsed.is_err(), "cmd={refused} must be refused");
+        }
+        // A missing `cmd` is its own refusal, distinct from an empty one.
+        assert_eq!(parse_url("floter://register"), Err(Reject::MissingCommand));
+        assert_eq!(
+            parse_url("floter://register?cmd="),
+            Err(Reject::MissingCommand)
+        );
+    }
+
+    #[test]
+    fn register_refuses_an_over_long_name() {
+        let long = "a".repeat(MAX_COMMAND_CHARS + 1);
+        assert!(matches!(
+            parse_url(&format!("floter://register?cmd={long}")),
+            Err(Reject::CommandTooLong(_))
+        ));
+        let allowed = "a".repeat(MAX_COMMAND_CHARS);
+        assert!(parse_url(&format!("floter://register?cmd={allowed}")).is_ok());
+    }
+
+    #[test]
+    fn register_refuses_a_shell_metacharacter_in_args() {
+        for refused in [
+            "args=src%3Brm",
+            "args=%7Ccat",
+            "args=%24HOME",
+            "args=*",
+            "args=~%2Fetc",
+            "args=%22quoted%22",
+        ] {
+            let parsed = parse_url(&format!("floter://register?cmd=rg&{refused}"));
+            assert!(parsed.is_err(), "{refused} must be refused");
+        }
+    }
+
+    #[test]
+    fn register_refuses_an_unknown_parameter_and_keeps_the_action_silent_rule() {
+        assert!(matches!(
+            parse_url("floter://register?cmd=rg&manifest=/a/tool.json"),
+            Err(Reject::UnknownParameter(_))
+        ));
+        // The new action is *known*, so its refusals are noisy: a user who
+        // clicked a register link must be told when nothing happened.
+        let rejected = parse_url("floter://register").expect_err("missing cmd");
+        assert!(!rejected.is_silent());
     }
 
     // ── the accepted shapes ───────────────────────────────────────────────
@@ -834,6 +1284,41 @@ mod tests {
             canonical_argument(&args(&["floter", "floter://open"])),
             Some("floter://open".to_string())
         );
+        // `floter register <cmd> [args…]` normalizes into the same URL the
+        // scheme spells, so the CLI has no second parser (red line 4).
+        let register =
+            canonical_argument(&args(&["floter", "register", "rg"])).expect("register normalizes");
+        assert_eq!(
+            parse_url(&register),
+            Ok(Trigger::Register(CommandRequest {
+                command: "rg".to_string(),
+                args: None,
+            }))
+        );
+        let with_args = canonical_argument(&args(&["floter", "register", "rg", "src", "lib"]))
+            .expect("register normalizes with trailing words");
+        assert_eq!(
+            parse_url(&with_args),
+            Ok(Trigger::Register(CommandRequest {
+                command: "rg".to_string(),
+                args: Some(vec!["src".to_string(), "lib".to_string()]),
+            }))
+        );
+        // And the refusal still happens in the router, not in the normalizer:
+        // a path smuggled through the CLI reaches `parse_url` and dies there.
+        let bad_register =
+            canonical_argument(&args(&["floter", "register", "/usr/bin/rg"])).expect("normalizes");
+        assert!(matches!(
+            parse_url(&bad_register),
+            Err(Reject::CommandNotBasename(_))
+        ));
+        // A bare `floter register` still normalizes (the action is known) and
+        // is refused by the router, so the user gets the one toast rather than
+        // a silently dropped invocation.
+        let bare = canonical_argument(&args(&["floter", "register"])).expect("normalizes");
+        assert_eq!(bare, "floter://register");
+        assert_eq!(parse_url(&bare), Err(Reject::MissingCommand));
+        assert!(!Reject::MissingCommand.is_silent());
     }
 
     #[test]
@@ -896,6 +1381,115 @@ mod tests {
         park_for_frontend(&slot, request(), Delivery::Live);
         park_for_frontend(&slot, request(), Delivery::ColdStart);
         assert_eq!(take_parked(&slot), Some(request()));
+    }
+
+    // ── register never writes a binding (the hard red line) ──────────────
+
+    /// The red line of this round, asserted against the real files: resolving
+    /// a `floter://register` command reads the discovery inventory and stops.
+    /// No `tool-lock.json` byte changes and no repository entry is created —
+    /// the lock is written only by the user's explicit Connect
+    /// (`extensions_connect_tool`), which a link never reaches.
+    ///
+    /// Mutation: call `install::connect_tool` (or `ToolLock::bind` +
+    /// `save`) from [`resolve_registered_command`] and this goes red.
+    #[cfg(unix)]
+    #[test]
+    fn a_register_resolution_never_writes_a_binding() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("temp dir");
+        let root = directory.path().join("config");
+        let state = crate::extensions::ExtensionState::from_paths(
+            crate::extensions::ExtensionPaths::from_root(root.clone()),
+        )
+        .expect("extension state");
+
+        // A real executable, so the candidate the resolver returns is
+        // `available` exactly as a PATH discovery would be.
+        let bin = tempfile::tempdir().expect("bin dir");
+        let executable = bin.path().join("register-probe");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").expect("write");
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
+            .expect("chmod");
+        state
+            .tool_inventory
+            .lock()
+            .expect("inventory")
+            .set_candidates_for_test(vec![crate::extensions::inventory::executable_candidate(
+                &executable,
+                "register-probe",
+            )]);
+
+        // A pre-existing binding, so "unchanged" is a real comparison and not
+        // merely "the file is still absent".
+        let tool_lock_path = root.join("tool-lock.json");
+        let before = br#"{
+  "schemaVersion": 1,
+  "tools": {
+    "local.existing": {
+      "tool": "local.existing",
+      "locator": { "kind": "executable", "path": "/usr/bin/true" },
+      "fingerprint": null,
+      "lockedAt": 1,
+      "state": "connected"
+    }
+  }
+}
+"#;
+        std::fs::write(&tool_lock_path, before).expect("seed lock");
+        let repository_path = root.join("extension-repository.json");
+
+        let resolved = resolve_registered_command(
+            &state,
+            &CommandRequest {
+                command: "register-probe".to_string(),
+                args: Some(vec!["src".to_string()]),
+            },
+        );
+        // The resolve succeeded — this is the success path, not a refusal that
+        // trivially wrote nothing.
+        assert!(resolved.candidate.is_some(), "the probe must resolve");
+        assert_eq!(resolved.args.as_deref(), Some(&["src".to_string()][..]));
+
+        // The lock is byte-for-byte what it was, and no repository entry was
+        // created by the resolution.
+        assert_eq!(
+            std::fs::read(&tool_lock_path).expect("read lock"),
+            before.to_vec(),
+            "a register resolution must not touch the tool lock"
+        );
+        assert!(
+            !repository_path.exists(),
+            "a register resolution must not create an extension entry"
+        );
+    }
+
+    /// A name this device does not have resolves to `candidate: None` rather
+    /// than an error: the frontend needs a reason to render inline, and the
+    /// resolve path itself must stay infallible (best-effort contract).
+    #[cfg(unix)]
+    #[test]
+    fn a_register_for_an_unknown_command_resolves_to_no_candidate() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let state = crate::extensions::ExtensionState::from_paths(
+            crate::extensions::ExtensionPaths::from_root(directory.path().to_path_buf()),
+        )
+        .expect("extension state");
+        state
+            .tool_inventory
+            .lock()
+            .expect("inventory")
+            .set_candidates_for_test(Vec::new());
+        let resolved = resolve_registered_command(
+            &state,
+            &CommandRequest {
+                command: "definitely-not-a-real-tool-9d2f".to_string(),
+                args: None,
+            },
+        );
+        assert!(resolved.candidate.is_none());
+        assert_eq!(resolved.command, "definitely-not-a-real-tool-9d2f");
     }
 
     // ── the redirect suffix re-check (m-2) ───────────────────────────────

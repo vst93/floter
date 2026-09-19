@@ -1,4 +1,4 @@
-// R7-9 · the `floter://` scheme: one allow-list, two actions, and a hard rule
+// R7-9 · the `floter://` scheme: one allow-list, three actions, and a hard rule
 // that a link never installs anything.
 //
 // The backend is the authority (`src-tauri/src/deep_link.rs` owns the action
@@ -21,6 +21,7 @@ import { createTranslator, isMessageKey } from "../src/i18n.ts";
 import {
   DEEP_LINK_CONNECT_EVENT,
   DEEP_LINK_EXAMPLE,
+  DEEP_LINK_REGISTER_EXAMPLE,
   DEEP_LINK_REJECT_DEDUP_MS,
   DEEP_LINK_REJECT_EVENT,
   DEEP_LINK_REJECT_KEY,
@@ -42,7 +43,7 @@ const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 // a decision.
 test("the frontend declares no second action allow-list", async () => {
   const deepLink = stripJsComments(await read("src/deep-link.ts"));
-  for (const name of ["open", "connect"]) {
+  for (const name of ["open", "connect", "register"]) {
     assert.ok(
       !new RegExp(`["'\`]${name}["'\`]`).test(deepLink),
       `src/deep-link.ts must not enumerate the action "${name}" — the backend owns the table`,
@@ -64,7 +65,7 @@ test("the backend keeps exactly one action table and both entry points read it",
   const production = source.slice(0, source.indexOf("#[cfg(test)]"));
   assert.match(
     production,
-    /pub const ACTIONS: &\[&str\] = &\["open", "connect"\];/,
+    /pub const ACTIONS: &\[&str\] = &\["open", "connect", "register"\];/,
     "the action table is declared once, verbatim",
   );
   assert.equal(
@@ -76,6 +77,15 @@ test("the backend keeps exactly one action table and both entry points read it",
     production.split('"open"').length - 1,
     2,
     "`open` appears only in the table and the router's own match arm — no second list",
+  );
+  // R8-3 adds `register`. It is named in the table once, in the router's two
+  // parameter guards, in the router's own match arm, and in the CLI normalizer
+  // that folds trailing words into `args` — five places, all of which read the
+  // *same* action name and none of which is a second table.
+  assert.equal(
+    production.split('"register"').length - 1,
+    5,
+    "`register` is one entry in the table plus the router/normalizer call sites, never a second list",
   );
   // Both entry points consult the shared predicate instead of a literal.
   assert.match(production, /pub fn is_action\(name: &str\) -> bool \{\n\s*ACTIONS\.contains/, "is_action reads the table");
@@ -216,6 +226,147 @@ test("the app consumes the link request exactly once", async () => {
   assert.match(app, /openSettings\("integrations"\)/, "the review dialog lives on the integrations page");
 });
 
+// ── B2 · register opens the review surface, and never binds ───────────────
+
+// The third action's whole contract: the backend resolves a name to a
+// candidate and stops. There is no `connect_tool`, no `ToolLock` write, no
+// approval and no execution anywhere on the register path.
+//
+// Mutation: call `install::connect_tool` (or bind + save the lock) from
+// `resolve_registered_command` and this goes red — as does the Rust test
+// `a_register_resolution_never_writes_a_binding`.
+test("the backend register path resolves but never binds, installs or runs", async () => {
+  const source = stripJsComments(await read("src-tauri/src/deep_link.rs"));
+  const production = source.slice(0, source.indexOf("#[cfg(test)]"));
+  for (const forbidden of [
+    "connect_tool",
+    "ToolLock",
+    "bind_locator",
+    "lock.save",
+    "extensions_install",
+    "ExtensionsLock",
+    "validate_permission_approval",
+    "approvedPermissions",
+    "std::process::Command",
+  ]) {
+    assert.ok(
+      !production.includes(forbidden),
+      `deep_link.rs must not reach ${forbidden} — register may only resolve and highlight`,
+    );
+  }
+  // It *does* resolve through the one discovery + resolver chain.
+  assert.match(production, /resolver::resolve_executable_names/, "the existing resolver is reused");
+  assert.match(production, /inventory\.candidates\(\)/, "and the existing inventory");
+  assert.match(production, /app\.emit\(REGISTER_EVENT, resolved\)/, "the offer is emitted");
+  assert.match(
+    production,
+    /pub const REGISTER_EVENT: &str = "floter:\/\/deep-link-register"/,
+    "the event name is declared once",
+  );
+});
+
+// The cold-start / live fork applies to register too: the Rust test drives the
+// shared parking contract, and this pins that the call site passes the kind.
+test("register parks on a cold start and not on a live delivery", async () => {
+  const rust = stripJsComments(await read("src-tauri/src/deep_link.rs"));
+  assert.match(
+    rust,
+    /fn park_for_frontend<T>\(/,  
+    "one generic parking contract serves both request shapes",
+  );
+  assert.match(
+    rust,
+    /pending_deep_link_register,\s*resolved\.clone\(\),\s*delivery,/,
+    "the register call site names its delivery kind",
+  );
+});
+
+// The frontend highlight is a highlight: it selects an existing Detected row
+// and changes nothing else. No connect call, no permission review, no install.
+//
+// Mutation: make the register effect call `connectDetected` (or
+// `extensions_connect_tool`) and this fails.
+test("a register request highlights a detected row and never connects it", async () => {
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  // The request is parked once, then resolved against the list. The split is
+  // load-bearing: a cold start delivers the link before the first
+  // `extensions_list` reply, so deciding in the same effect would report "not
+  // found" for a tool that is right there.
+  const parkAt = panel.indexOf("if (!pendingDeepLinkRegister) return;");
+  assert.notEqual(parkAt, -1, "the register hand-off must exist");
+  const park = panel.slice(parkAt, panel.indexOf("}, [pendingDeepLinkRegister])", parkAt));
+  assert.match(park, /setRegisterPending\(pendingDeepLinkRegister\)/, "the request is parked");
+
+  const at = panel.indexOf("if (!registerPending || loading) return;");
+  assert.notEqual(at, -1, "the resolve effect must wait for the list to load");
+  const block = panel.slice(at, panel.indexOf("}, [registerPending, loading])", at));
+  assert.match(block, /suggestedExtensions\.find/, "it must look for the row the backend resolved");
+  assert.match(block, /setRegisterTarget\(\{ id: match\.id/, "and mark that row");
+  assert.match(block, /setRegisterMiss\(\{ command: request\.command, alreadyConnected \}\)/, "an unresolved name gets an inline reason");
+  assert.match(block, /connectedExtensions\.some/, "an already-connected tool gets a different sentence");
+  for (const forbidden of ["connectDetected", "extensions_connect_tool", "extensions_install", "approvedPermissions"]) {
+    assert.ok(
+      !block.includes(forbidden),
+      `the register highlight must not reach ${forbidden}`,
+    );
+  }
+  // The mark is presentational: the row keeps its own Connect button.
+  const row = stripJsComments(await read("src/extensions/ExtensionRow.tsx"));
+  assert.match(row, /highlighted \? " extension-row--register" : ""/, "the highlight is a class");
+  assert.match(row, /extension-row__register-dot/, "and a non-focusable mark, not a control");
+  assert.match(row, /onClick=\{extension\.runtimeAvailable \? onConnect : onRepair\}/, "the row's own button is unchanged");
+});
+
+// The app consumes a cold-start register request exactly once, like connect.
+test("the app consumes the register request exactly once", async () => {
+  const app = stripJsComments(await read("src/App.tsx"));
+  assert.match(app, /const \[pendingDeepLinkRegister, setPendingDeepLinkRegister\] = useState/, "it is app state");
+  assert.match(app, /listen<DeepLinkRegisterRequest>\(\s*DEEP_LINK_REGISTER_EVENT/, "the live event delivers it");
+  assert.match(
+    app,
+    /invoke<DeepLinkRegisterRequest \| null>\("take_pending_deep_link_register"\)/,
+    "a cold start consumes the stored request",
+  );
+  assert.match(
+    app,
+    /onDeepLinkRegisterConsumed=\{\(\) => setPendingDeepLinkRegister\(null\)\}/,
+    "the hand-off clears the slot",
+  );
+  // The frontend has no second action table here either.
+  const deepLink = stripJsComments(await read("src/deep-link.ts"));
+  assert.ok(!/ACTIONS|ALLOWED_ACTIONS|allowList|allowlist/i.test(deepLink), "still no frontend table");
+});
+
+// The "not found" reason must survive the Detected section's own contract:
+// that section renders *nothing* when nothing is detected, so a reason nested
+// inside it would vanish in exactly the case it exists for. The notice is a
+// sibling of the section, above it.
+//
+// Mutation: move the `{registerMiss && …}` block inside
+// `{suggestedExtensions.length > 0 && …}` and this fails.
+test("a register miss is rendered even when the Detected section is absent", async () => {
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  const gateAt = panel.indexOf("suggestedExtensions.length > 0 &&");
+  assert.notEqual(gateAt, -1, "the Detected section keeps its gate");
+  const missAt = panel.indexOf("{registerMiss && (");
+  assert.notEqual(missAt, -1, "the miss notice must exist");
+  assert.ok(missAt < gateAt, "the miss notice must sit outside (before) the section gate");
+  assert.match(panel.slice(missAt, gateAt), /role="alert"/, "and must be announced");
+  // Both sentences are real, bilingual dictionary entries with the same
+  // placeholder, so the two outcomes cannot drift apart.
+  for (const key of ["settings.extensions.registerNotFound", "settings.extensions.registerAlreadyConnected"] as const) {
+    const en = createTranslator("en")(key);
+    const zh = createTranslator("zh")(key);
+    assert.ok(en.includes("{name}") && zh.includes("{name}"), `${key} must name the tool`);
+    assert.ok(/[\u4e00-\u9fff]/.test(zh), `${key} must be translated`);
+    assert.notEqual(zh, en, `${key} must not fall back to English`);
+  }
+  // The highlight mark is bilingual too.
+  const markEn = createTranslator("en")("settings.extensions.registerHighlight");
+  const markZh = createTranslator("zh")("settings.extensions.registerHighlight");
+  assert.ok(markEn.length > 0 && /[\u4e00-\u9fff]/.test(markZh));
+});
+
 // ── C · refusals are one deduped toast, unknown actions are silent ────────
 
 // The deduper is the *same* one the plugin pages use, and the window is the
@@ -344,16 +495,21 @@ test("the Linux control socket forwards the URL to the one router", async () => 
 test("the About page shows a valid example and copies it", async () => {
   const row = stripJsComments(await read("src/settings/DeepLinkRow.tsx"));
   assert.match(row, /DEEP_LINK_EXAMPLE/, "the example comes from the shared module");
-  assert.match(row, /navigator\.clipboard\.writeText\(DEEP_LINK_EXAMPLE\)/, "the button copies it");
+  assert.match(row, /DEEP_LINK_REGISTER_EXAMPLE/, "so does the R8-3 register example");
+  assert.match(row, /navigator\.clipboard\.writeText\(value\)/, "each line copies its own URL");
   assert.match(row, /t\("settings\.deepLinkCopy"\)/, "the button is labelled");
   assert.match(row, /settings-deep-link__value/, "the value is rendered in its own shape");
   const about = stripJsComments(await read("src/settings/AboutPage.tsx"));
   assert.match(about, /<DeepLinkRow t=\{t\} onCopied=\{onCopiedLink\} \/>/, "the About page renders the row");
-  // The example is the connect form: the only action with a parameter worth
-  // copying. Its manifest value is a local absolute `.json` path.
+  // The first example is the connect form: its manifest value is a local
+  // absolute `.json` path.
   assert.equal(DEEP_LINK_EXAMPLE, "floter://connect?manifest=/path/to/tool.json");
   assert.match(DEEP_LINK_EXAMPLE, /^floter:\/\/connect\?manifest=\//);
   assert.ok(DEEP_LINK_EXAMPLE.endsWith(".json"), "the example ends in .json, the one accepted suffix");
+  // The second is the register form (R8-3): a bare command name, no path and
+  // no arguments — the shape the router's `validate_command` accepts.
+  assert.equal(DEEP_LINK_REGISTER_EXAMPLE, "floter://register?cmd=rg");
+  assert.match(DEEP_LINK_REGISTER_EXAMPLE, /^floter:\/\/register\?cmd=[A-Za-z0-9._+-]+$/);
 });
 
 test("the deep-link copy is bilingual and stays free of platform jargon", () => {

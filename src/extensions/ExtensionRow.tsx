@@ -25,6 +25,10 @@ type Props = {
   onOpen?: () => void;
   /** The connect entry (detected rows only). Never reconnect. */
   onConnect?: () => void;
+  /** R8-3: a `floter://register` link named this row's tool. A *mark*, not an
+   *  action — the row keeps its own Connect button, and the highlight only says
+   *  "this is the one the link was about". */
+  highlighted?: boolean;
   /** Connected-only recheck; for a detected row this is the "install tool
    *  first" guidance (opens the publisher homepage), not a disk write. */
   onRepair?: () => void;
@@ -69,6 +73,7 @@ export function ExtensionRow({
   t,
   onOpen,
   onConnect,
+  highlighted,
   onRepair,
   onReconnect,
   onToggle,
@@ -128,6 +133,19 @@ export function ExtensionRow({
       </span>
       <span className="extension-row__main">
         <span className="extension-row__title">
+          {/* R8-3 · the `floter://register` mark. A status *mark*, not a
+              control: it is not focusable and adds no affordance, so it never
+              competes with the row's Connect button. `role="img"` + label is
+              what makes it readable — an aria-hidden dot would leave "this is
+              the tool the link named" with no non-visual representation. */}
+          {highlighted && (
+            <span
+              className="extension-row__register-dot"
+              role="img"
+              aria-label={t("settings.extensions.registerHighlight")}
+              title={t("settings.extensions.registerHighlight")}
+            />
+          )}
           <strong>{extension.name}</strong>
           <span>v{extension.currentVersion}</span>
           {/* A status *mark*, not a control: it is not focusable and adds no
@@ -199,7 +217,7 @@ export function ExtensionRow({
   );
 
   return (
-    <article className={`extension-row${extension.connected ? "" : " extension-row--detected"}${extension.state === "broken" ? " extension-row--broken" : ""}`}>
+    <article className={`extension-row${extension.connected ? "" : " extension-row--detected"}${extension.state === "broken" ? " extension-row--broken" : ""}${highlighted ? " extension-row--register" : ""}`}>
       {extension.connected ? (
         <button type="button" className="extension-row__open" onClick={onOpen}>
           {rowContent}

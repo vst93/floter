@@ -104,6 +104,33 @@ GDK_BACKEND=x11 floter
 And if you are on the AppImage, install the package for your distribution
 instead — a WebKit built against your own system's libraries is the real fix.
 
+## Integrations from a link or a command
+
+Floter answers `floter://` links, so a tool can be brought to the integrations
+review surface from a browser, a README, or a shell alias:
+
+| Link | What it does |
+| --- | --- |
+| `floter://open` | Focus (or summon) the window. |
+| `floter://connect?manifest=/path/to/tool.json` | Open the review dialog for a local absolute `.json` manifest, or for an `https://` one. |
+| `floter://register?cmd=rg` | Highlight the tool named `rg` on the **Detected** list. |
+
+A link never installs and never binds. `register` resolves the name against the
+tools already on `PATH` and stops at the review surface — connecting is still
+your own press on the row, which runs the ordinary permission review. `cmd` is a
+bare command name: no path, no shell syntax, and no arguments beyond an optional
+shell-inert `args` hint that is displayed and never executed. If the name is not
+on this device, the Detected section says so instead of failing silently.
+
+The same actions have CLI spellings, normalized into the same URLs by the one
+parser:
+
+```bash
+floter open
+floter connect /path/to/tool.json
+floter register rg
+```
+
 ## Terminal sessions
 
 Use the terminal icon beside the launcher input, or open **Settings → Sessions**,

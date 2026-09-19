@@ -98,6 +98,30 @@ GDK_BACKEND=x11 floter
 
 如果你用的是 AppImage，请改装发行版对应的安装包——用系统自身的库链接出来的 WebKit 才是根治办法。
 
+## 从链接或命令接入
+
+Floter 响应 `floter://` 链接，因此可以直接从浏览器、README 或 shell 别名把一个
+工具带到集成审阅界面：
+
+| 链接 | 作用 |
+| --- | --- |
+| `floter://open` | 唤起（或聚焦）窗口。 |
+| `floter://connect?manifest=/path/to/tool.json` | 为本地绝对 `.json` 清单或 `https://` 清单打开审阅对话框。 |
+| `floter://register?cmd=rg` | 在**检测到**列表中高亮名为 `rg` 的工具。 |
+
+链接永不安装、也永不绑定。`register` 只是在 `PATH` 上已有的工具里解析该名字，然后
+停在审阅界面——接入仍然需要你自己点行上的按钮，走常规权限审阅。`cmd` 是纯命令名：
+不含路径、不含 shell 语法；可选参数 `args` 只作为提示展示，宿主从不执行。设备上没有
+该名字时，「检测到」区域会直接说明原因，而不是静默失败。
+
+同样的动作也有命令行写法，由同一个解析器归一化成相同的 URL：
+
+```bash
+floter open
+floter connect /path/to/tool.json
+floter register rg
+```
+
 ## 终端会话
 
 点击启动器输入框旁的终端图标，或打开「设置 → 会话」，即可恢复或终止持久化

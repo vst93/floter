@@ -52,9 +52,11 @@ import {
 } from "./i18n";
 import {
   DEEP_LINK_CONNECT_EVENT,
+  DEEP_LINK_REGISTER_EVENT,
   DEEP_LINK_REJECT_EVENT,
   deepLinkRejectGate,
   type DeepLinkConnectRequest,
+  type DeepLinkRegisterRequest,
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
@@ -275,6 +277,10 @@ export default function App() {
    *  panel to turn it into a review dialog. The backend already checked the
    *  path and the manifest structure; this is only the hand-off. */
   const [pendingDeepLink, setPendingDeepLink] = useState<DeepLinkConnectRequest | null>(null);
+  /** A validated `floter://register` request, waiting for the integrations
+   *  panel to highlight the discovered tool. Same one-shot hand-off as the
+   *  connect request above — and the same rule: highlighting is all it does. */
+  const [pendingDeepLinkRegister, setPendingDeepLinkRegister] = useState<DeepLinkRegisterRequest | null>(null);
   const isComposing = useRef(false);
   const suppressBlurUntil = useRef(0);
 
@@ -1292,11 +1298,13 @@ export default function App() {
     };
   }, []);
 
-  // The `floter://` scheme's two outcomes. The backend owns the allow-list and
+  // The `floter://` scheme's outcomes. The backend owns the allow-list and
   // the validation; here a *validated* connect request becomes the review
-  // dialog, and a refusal becomes one toast. Neither path installs anything:
-  // the dialog's Connect button runs the ordinary `extensions_install`, so a
-  // link can never approve or enable on the user's behalf.
+  // dialog, a *validated* register request highlights the discovered tool on
+  // the same review surface, and a refusal becomes one toast. None of the
+  // paths installs or binds anything: the dialog's Connect button runs the
+  // ordinary `extensions_install` / `extensions_connect_tool`, so a link can
+  // never approve, enable or bind on the user's behalf.
   useEffect(() => {
     const openReview = (request: DeepLinkConnectRequest) => {
       setPendingDeepLink(request);
@@ -1305,6 +1313,17 @@ export default function App() {
     const unlistenConnectPromise = listen<DeepLinkConnectRequest>(
       DEEP_LINK_CONNECT_EVENT,
       (event) => openReview(event.payload),
+    );
+    // A register request lands on the same page but on the Detected surface:
+    // the tool is only highlighted, and the user's Connect press is still the
+    // one action that binds it.
+    const highlightRegistered = (request: DeepLinkRegisterRequest) => {
+      setPendingDeepLinkRegister(request);
+      openSettings("integrations");
+    };
+    const unlistenRegisterPromise = listen<DeepLinkRegisterRequest>(
+      DEEP_LINK_REGISTER_EVENT,
+      (event) => highlightRegistered(event.payload),
     );
     // A refusal is externally triggered and may repeat (a page retrying a
     // broken link, a shell loop), so it rides the app's existing 30s failure
@@ -1325,8 +1344,15 @@ export default function App() {
         if (pending) openReview(pending);
       })
       .catch(() => undefined);
+    // The same once-only consumption for a cold-start `floter register …`.
+    invoke<DeepLinkRegisterRequest | null>("take_pending_deep_link_register")
+      .then((pending) => {
+        if (pending) highlightRegistered(pending);
+      })
+      .catch(() => undefined);
     return () => {
       unlistenConnectPromise.then((unlisten) => unlisten());
+      unlistenRegisterPromise.then((unlisten) => unlisten());
       unlistenRejectPromise.then((unlisten) => unlisten());
     };
     // `openSettings` and `notify` are stable app-lifetime callbacks; the
@@ -1729,6 +1755,8 @@ export default function App() {
                 onNotify={notify}
                 pendingDeepLink={pendingDeepLink}
                 onDeepLinkConsumed={() => setPendingDeepLink(null)}
+                pendingDeepLinkRegister={pendingDeepLinkRegister}
+                onDeepLinkRegisterConsumed={() => setPendingDeepLinkRegister(null)}
               />
               )}
 
