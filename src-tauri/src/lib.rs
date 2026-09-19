@@ -1321,6 +1321,15 @@ pub fn run() {
                 deep_link::canonical_argument(&std::env::args().collect::<Vec<_>>());
             let extension_state = ExtensionState::new().map_err(std::io::Error::other)?;
             let _ = extension_state.app_handle.set(app.app_handle().clone());
+            // Durable binding catch-up belongs to startup, not to any list poll:
+            // `extensions_list` only reports a fingerprint divergence so a
+            // rebuilt tool keeps rendering Connected; this pass is what writes
+            // the refreshed fingerprint (and any state transition) back to
+            // `tool-lock.json`. Idempotent, so an unchanged install writes
+            // nothing; a failure is logged rather than aborting the launch.
+            if let Err(error) = extension_state.reconcile_tool_bindings() {
+                tracing::warn!("failed to reconcile tool bindings at startup: {error}");
+            }
             app.manage(extension_state);
             if let Some(url) = cold_start {
                 deep_link::dispatch_url(app.handle(), &url, deep_link::Delivery::ColdStart);

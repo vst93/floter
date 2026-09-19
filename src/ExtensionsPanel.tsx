@@ -708,7 +708,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const configDirty = configuration?.descriptor.owner === "host"
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
 
-  const refreshData = async () => {
+  const loadExtensions = async () => {
     const generation = ++refreshGeneration.current;
     setLoading(true);
     try {
@@ -723,7 +723,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   };
   const refresh = () => {
     if (refreshPending.current) return refreshPending.current;
-    const request = refreshData().finally(() => { refreshPending.current = null; });
+    const request = loadExtensions().finally(() => { refreshPending.current = null; });
     refreshPending.current = request;
     return request;
   };

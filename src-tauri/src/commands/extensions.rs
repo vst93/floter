@@ -31,25 +31,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
-/// Resolve a system entry's executable binding for the list view, silently
-/// refreshing a same-path fingerprint change once the refreshed provider
-/// validates. Shares the catalog load path's validation so both read paths
-/// agree on "the refreshed tool is fine".
+/// Resolve a system entry's executable binding for the list view **without
+/// mutating anything**: the effective state is computed from the live
+/// executable, and a same-path fingerprint change the refreshed provider
+/// validates is reported as [`LockState::Connected`] so the row keeps its
+/// user-visible state. Sharing the catalog load path's validation keeps both
+/// read paths agreeing on "the refreshed tool is fine".
 ///
-/// This is deliberately *not* a first-binding path: an entry with no persisted
-/// binding is reported as [`LockState::ReconnectRequired`] ("unbound") and the
-/// lock is not written. Only a same-path fingerprint rebind (`changed == true`)
-/// is persisted by the caller. First bindings belong to the explicit
-/// connect/reconnect commands.
+/// The returned flag is a *divergence* signal, not a licence to write: the
+/// list uses it only to drop the provider-command cache so the next catalog
+/// load (which owns the durable rebind) re-reads and persists. First bindings
+/// and state transitions belong to the explicit connect/reconnect/reprobe
+/// commands and to the startup reconcile.
 ///
 /// The caller's already-parsed `manifest` (when available) is reused for the
 /// validation instead of being read from disk a second time.
 fn resolve_system_binding(
     entry: &ExtensionLockEntry,
     manifest: Option<&ExtensionManifest>,
-    tool_lock: &mut crate::extensions::ToolLock,
+    tool_lock: &crate::extensions::ToolLock,
 ) -> Result<(LockState, bool), String> {
-    crate::extensions::tool_lock::resolve_existing_binding(
+    crate::extensions::tool_lock::inspect_executable_binding(
         tool_lock,
         &entry.id,
         &entry.executable_path,
@@ -194,16 +196,17 @@ async fn list_extensions(
     // background task once the list is assembled, so neither the tool-lock
     // guard nor the response is held across the probe awaits.
     let mut drift_candidates: Vec<(ExtensionLockEntry, ExtensionManifest)> = Vec::new();
-    // The tool-lock guard is confined to this block so it is released before
-    // the cache invalidation await below (a `std::sync::MutexGuard` is not
-    // `Send` and must not be held across an await point).
-    let mut tool_lock_changed = false;
+    // The tool-lock guard is scoped to its own block and the read path never
+    // mutates the lock: a diverged fingerprint is reported (so the row keeps
+    // its Connected state) but persisted by the catalog load / startup
+    // reconcile, never by a list poll. `binding_diverged` therefore only
+    // drives the in-memory cache invalidation below.
+    let mut binding_diverged = false;
     {
-        let mut tool_lock = state
+        let tool_lock = state
             .tool_lock
             .lock()
             .map_err(|_| "Tool lock is unavailable".to_string())?;
-        let tool_lock_snapshot = tool_lock.clone();
         for entry in lock.list() {
             // One read serves both the parsed manifest and the on-disk
             // digest. A digest is only reported when the file is readable, so
@@ -221,13 +224,14 @@ async fn list_extensions(
                     )
                 });
             let lock_state = if entry.runtime_ownership == ExtensionRuntimeOwnership::System {
-                // Same-path fingerprint changes (an upstream rebuild) are silently
-                // re-bound once the refreshed provider validates, so a version
-                // upgrade no longer flips `runtime_available` to false. Reuse the
-                // manifest already parsed above rather than reading it again.
-                let (state, changed) =
-                    resolve_system_binding(&entry, manifest.as_ref(), &mut tool_lock)?;
-                tool_lock_changed |= changed;
+                // Same-path fingerprint changes (an upstream rebuild) are
+                // reported as Connected once the refreshed provider validates,
+                // so a version upgrade no longer flips `runtime_available` to
+                // false. Reuse the manifest already parsed above rather than
+                // reading it again.
+                let (state, diverged) =
+                    resolve_system_binding(&entry, manifest.as_ref(), &tool_lock)?;
+                binding_diverged |= diverged;
                 Some(state)
             } else {
                 None
@@ -278,19 +282,16 @@ async fn list_extensions(
                 current_manifest_digest,
             ));
         }
-        if tool_lock_changed {
-            if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
-                *tool_lock = tool_lock_snapshot;
-                return Err(error);
-            }
-        }
     }
-    // A persisted same-path rebind changed the effective binding, so the
-    // provider command cache no longer describes the current state. Drop it
-    // now so the next `catalog_search` re-reads the tool instead of serving a
-    // stale table for up to the 60s TTL. Idempotent listings (no durable
-    // change) never reach the invalidation below, so they do not invalidate.
-    if tool_lock_changed {
+    // The persisted binding disagrees with what is on disk (a same-path
+    // fingerprint change or a state transition). The read path does not write
+    // it, but the cached provider table still describes the previous binding,
+    // so drop it now: the next `catalog_search` re-reads the tool and, through
+    // the catalog's own reconcile, persists the rebind instead of serving a
+    // stale table for up to the 60s TTL. Idempotent listings (no divergence)
+    // never reach the invalidation below. This is an in-memory drop only — no
+    // file is touched by a list poll.
+    if binding_diverged {
         state.invalidate_provider_commands().await;
     }
     // Upstream command drift for generated custom integrations: when the
@@ -2419,6 +2420,24 @@ mod tests {
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
         assert!(!listed.reconnect_available);
 
+        // The read path never writes: the persisted fingerprint still points at
+        // the tool the user approved. The listing reports the refreshed state
+        // (Connected) but the durable catch-up is the startup reconcile's job.
+        let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_ne!(
+            binding.tools[&entry.id].fingerprint,
+            inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint,
+            "a list poll must not persist a fingerprint rebind"
+        );
+
+        // The startup reconcile owns that write and is idempotent.
+        state.reconcile_tool_bindings().unwrap();
+        let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_eq!(binding.tools[&entry.id].state, LockState::Connected);
+        assert_eq!(
+            binding.tools[&entry.id].fingerprint,
+            inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint
+        );
         // Repository and tool-lock agree after the silent rebind.
         let stored = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
@@ -2428,12 +2447,6 @@ mod tests {
         assert_eq!(stored.state, ExtensionStateKind::Enabled);
         assert!(stored.enabled);
         assert_eq!(stored.last_error_code, None);
-        let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
-        assert_eq!(binding.tools[&entry.id].state, LockState::Connected);
-        assert_eq!(
-            binding.tools[&entry.id].fingerprint,
-            inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint
-        );
 
         // Re-listing is stable (no oscillation): still Connected, still available.
         let items = list_extensions(&state).await.unwrap().0;
@@ -2566,7 +2579,16 @@ mod tests {
         assert!(listed.runtime_available);
         assert!(!listed.reconnect_available);
 
-        // The new fingerprint was persisted, not the one the user approved.
+        // A list poll must not persist the rebind: the stored fingerprint is
+        // still the one the user approved. The startup reconcile is what writes
+        // the new fingerprint.
+        let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_ne!(
+            binding.tools[&entry.id].fingerprint,
+            inventory::executable_candidate(Path::new(&executable_path), "v").fingerprint,
+            "a list poll must not persist a fingerprint rebind"
+        );
+        state.reconcile_tool_bindings().unwrap();
         let binding = ToolLock::load(&state.paths.tool_lock_file).unwrap();
         assert_eq!(binding.tools[&entry.id].state, LockState::Connected);
         assert_eq!(
@@ -2811,13 +2833,17 @@ mod tests {
         );
     }
 
-    /// Cache linkage: a same-path fingerprint change is silently rebound and
-    /// persisted by the list, which must invalidate the provider-command cache
-    /// immediately (not wait out the 60s TTL). An idempotent re-list after the
-    /// rebind must not invalidate again.
+    /// Cache linkage: a same-path fingerprint change is *reported* by the list
+    /// (Connected) while the durable rebind is deferred, but the cached
+    /// provider table still describes the previous binding. The list must drop
+    /// that cache immediately (not wait out the 60s TTL) and must never write
+    /// the lock. The invalidation is idempotent, so a second listing that still
+    /// sees the divergence (the catalog has not re-read the tool yet) does not
+    /// churn the counter or re-drop an already-empty cache.
     #[cfg(unix)]
     #[tokio::test]
     async fn list_rebind_invalidates_the_catalog_command_cache_exactly_once() {
+        use crate::extensions::ToolLock;
         let fixture = list_binding_fixture();
         {
             let mut tool_lock = fixture.state.tool_lock.lock().unwrap();
@@ -2833,8 +2859,14 @@ mod tests {
         assert!(loaded > 0);
         assert!(fixture.state.provider_commands.has_cached_entry().await);
         let invalidations = fixture.state.provider_commands.invalidation_count();
+        let stored_fingerprint = ToolLock::load(&fixture.state.paths.tool_lock_file)
+            .unwrap()
+            .tools[&fixture.entry.id]
+            .fingerprint
+            .clone();
 
-        // Upstream rebuild in place: the list silently rebinds and writes.
+        // Upstream rebuild in place: the list reports Connected, drops the
+        // stale cache, and writes nothing.
         std::fs::write(&fixture.executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
         let listed = list_item(&fixture.state, &fixture.entry.id).await;
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
@@ -2844,13 +2876,30 @@ mod tests {
             invalidations + 1
         );
         assert!(!fixture.state.provider_commands.has_cached_entry().await);
+        assert_eq!(
+            ToolLock::load(&fixture.state.paths.tool_lock_file)
+                .unwrap()
+                .tools[&fixture.entry.id]
+                .fingerprint,
+            stored_fingerprint,
+            "the list must not persist the rebind"
+        );
 
-        // Idempotent re-listing (no durable change) does not invalidate again.
+        // Still diverged and now with an empty cache: the second listing is a
+        // no-op for the counter (no churn) and still writes nothing.
         let listed = list_item(&fixture.state, &fixture.entry.id).await;
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
         assert_eq!(
             fixture.state.provider_commands.invalidation_count(),
             invalidations + 1
+        );
+        assert_eq!(
+            ToolLock::load(&fixture.state.paths.tool_lock_file)
+                .unwrap()
+                .tools[&fixture.entry.id]
+                .fingerprint,
+            stored_fingerprint,
+            "the list must not persist the rebind"
         );
     }
 

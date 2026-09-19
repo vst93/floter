@@ -33,10 +33,18 @@ pub(crate) struct ProviderCommandCache {
 
 impl ProviderCommandCache {
     pub async fn invalidate(&self) {
+        let mut cached = self.cached.lock().await;
+        // Nothing cached is already the desired state. This keeps a read path
+        // that notices an ongoing divergence (e.g. a listing polled while the
+        // catalog has not yet re-read the tool) from churning the counter or
+        // re-dropping an already-empty cache on every poll.
+        if cached.is_none() {
+            return;
+        }
         #[cfg(test)]
         self.invalidations
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        *self.cached.lock().await = None;
+        *cached = None;
     }
 
     /// Test-only: how many explicit invalidations have been observed.

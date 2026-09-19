@@ -241,6 +241,62 @@ pub(crate) fn resolve_existing_binding(
     resolve_executable_binding_impl(lock, binding, executable_path, false, validate)
 }
 
+/// Strictly read-only sibling of [`resolve_existing_binding`]: compute the
+/// effective [`LockState`] for `binding` from the *live* executable without
+/// touching the lock at all — not on disk and not in memory.
+///
+/// `changed` mirrors what the mutating variants would report: `true` when the
+/// persisted binding disagrees with what is on disk (a same-path fingerprint
+/// change `validate` accepts, or a state transition such as a removed
+/// executable). A read-path caller uses that flag to drop derived caches; it
+/// must **not** use it to write. The durable reconcile belongs to the startup
+/// pass, the catalog load path and the explicit connect/reconnect/reprobe
+/// commands.
+///
+/// The same-path rebind is still *reported* as [`LockState::Connected`] so the
+/// user-visible state never regresses to "reverify" merely because the read
+/// path is inert; only the persistence moves.
+pub(crate) fn inspect_executable_binding(
+    lock: &ToolLock,
+    binding: &str,
+    executable_path: &str,
+    validate: impl FnOnce() -> Result<(), String>,
+) -> Result<(LockState, bool), String> {
+    let Some(entry) = lock.tools.get(binding) else {
+        // No persisted binding: report "unbound" and never a durable change.
+        // First bindings belong to the explicit commands / catalog lazy bind.
+        return Ok((LockState::ReconnectRequired, false));
+    };
+    let previous = entry.state;
+    let candidate = crate::extensions::inventory::executable_candidate(
+        Path::new(executable_path),
+        Path::new(executable_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(executable_path),
+    );
+    let live = if matches!(&entry.locator, ToolLocator::Executable { path } if !Path::new(path).is_file())
+    {
+        LockState::ReconnectRequired
+    } else if candidate.locator.normalized() == entry.locator.normalized()
+        && candidate.fingerprint == entry.fingerprint
+    {
+        LockState::Connected
+    } else {
+        LockState::ReverifyRequired
+    };
+    // A same-path fingerprint change the refreshed provider validates is the
+    // silent rebind: report Connected and flag the durable divergence so the
+    // caller can drop derived caches. The write itself is deferred.
+    if live == LockState::ReverifyRequired
+        && candidate.locator.normalized() == entry.locator.normalized()
+        && validate().is_ok()
+    {
+        return Ok((LockState::Connected, true));
+    }
+    Ok((live, previous != live))
+}
+
 fn resolve_executable_binding_impl(
     lock: &mut ToolLock,
     binding: &str,
@@ -511,5 +567,81 @@ mod tests {
         assert!(changed);
         assert_eq!(lock.tools["tool"].state, LockState::Connected);
         assert!(lock.tools["tool"].fingerprint.is_some());
+    }
+
+    /// The strict read path ([`inspect_executable_binding`]) must report the
+    /// same effective state as the mutating variants while leaving the lock
+    /// byte-identical in memory — no keys added, no fingerprints refreshed, no
+    /// state transitions stamped.
+    #[cfg(unix)]
+    #[test]
+    fn inspect_reports_but_never_mutates_the_lock() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+
+        // Unbound: reported ReconnectRequired, no durable change, no stamp.
+        let lock = ToolLock::default();
+        let (state, diverged) = inspect_executable_binding(
+            &lock,
+            "tool",
+            &executable.to_string_lossy(),
+            || Ok(()),
+        )
+        .unwrap();
+        assert_eq!(state, LockState::ReconnectRequired);
+        assert!(!diverged);
+        assert!(!lock.tools.contains_key("tool"));
+
+        // Bound, rebuilt in place: reported Connected (the silent rebind is
+        // still user-visible) with `diverged == true`, but the stored
+        // fingerprint must remain the one the user approved.
+        let mut bound = ToolLock::default();
+        bound.bind("tool", &executable_candidate(&executable));
+        let approved = bound.tools["tool"].fingerprint.clone();
+        write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
+        let (state, diverged) =
+            inspect_executable_binding(&bound, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+        assert_eq!(state, LockState::Connected);
+        assert!(diverged, "the divergence is reported so the caller can drop caches");
+        assert_eq!(bound.tools["tool"].fingerprint, approved);
+        assert_eq!(bound.tools["tool"].state, LockState::Connected);
+
+        // A removed executable is reported ReconnectRequired and flagged, but
+        // the persisted entry is untouched.
+        std::fs::remove_file(&executable).unwrap();
+        let (state, diverged) =
+            inspect_executable_binding(&bound, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
+        assert_eq!(state, LockState::ReconnectRequired);
+        assert!(diverged);
+        assert_eq!(bound.tools["tool"].fingerprint, approved);
+        assert_eq!(bound.tools["tool"].state, LockState::Connected);
+    }
+
+    /// A failed validation must not be reported as a silent rebind: the entry
+    /// stays `ReverifyRequired` (the caller's broken handling), exactly as the
+    /// mutating sibling decides.
+    #[cfg(unix)]
+    #[test]
+    fn inspect_keeps_a_rejected_refresh_in_reverify() {
+        let temporary = tempfile::tempdir().unwrap();
+        let executable = temporary.path().join("tool");
+        write_executable(&executable, "#!/bin/sh\nexit 0\n");
+        let mut lock = ToolLock::default();
+        lock.bind("tool", &executable_candidate(&executable));
+        write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
+
+        let (state, diverged) = inspect_executable_binding(
+            &lock,
+            "tool",
+            &executable.to_string_lossy(),
+            || Err("invalid descriptor".into()),
+        )
+        .unwrap();
+        assert_eq!(state, LockState::ReverifyRequired);
+        assert!(diverged);
+        assert_eq!(lock.tools["tool"].state, LockState::Connected);
     }
 }

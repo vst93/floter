@@ -401,6 +401,65 @@ impl ExtensionState {
         Ok(state)
     }
 
+    /// Startup binding reconcile — the durable half of the read path's binding
+    /// resolution.
+    ///
+    /// [`commands::extensions::extensions_list`](crate::commands::extensions)
+    /// is strictly read-only: it *reports* a diverged `tool-lock.json` binding
+    /// (so a rebuilt tool keeps rendering Connected) but never writes it. This
+    /// pass, run once at startup, owns the durable catch-up for every enabled
+    /// system entry whose persisted fingerprint no longer matches the
+    /// executable on disk (a same-path rebuild the refreshed provider still
+    /// validates) and for every entry whose state moved (executable removed or
+    /// restored).
+    ///
+    /// Missing bindings are deliberately **not** created here: first bindings
+    /// belong to the explicit connect/reconnect commands and to the catalog's
+    /// lazy bind, so a legacy repository without a `tool-lock.json` entry
+    /// keeps rendering "unbound" instead of a read-side startup silently
+    /// stamping a choice the user never made.
+    ///
+    /// Idempotent: a second run finds nothing to change and writes nothing.
+    /// Per-entry failures (an unreadable manifest) are logged and skipped — a
+    /// single bad integration must not abort startup.
+    pub(crate) fn reconcile_tool_bindings(&self) -> Result<(), String> {
+        let lock = lock::ExtensionsLock::load(&self.paths.repository_file)?;
+        let mut tool_lock = self
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        let snapshot = tool_lock.clone();
+        let mut changed = false;
+        for entry in lock.list() {
+            if entry.runtime_ownership != ExtensionRuntimeOwnership::System {
+                continue;
+            }
+            let validate = || catalog::validate_refreshed_binding(&entry);
+            match tool_lock::resolve_existing_binding(
+                &mut tool_lock,
+                &entry.id,
+                &entry.executable_path,
+                validate,
+            ) {
+                Ok((_, entry_changed)) => changed |= entry_changed,
+                Err(error) => {
+                    tracing::warn!(
+                        extension_id = %entry.id,
+                        error = %error,
+                        "skipping a tool binding during startup reconcile"
+                    );
+                }
+            }
+        }
+        if changed {
+            if let Err(error) = tool_lock.save(&self.paths.tool_lock_file) {
+                *tool_lock = snapshot;
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
     pub fn protect_execution_plan(
         &self,
         plan: provider::ExecutionPlan,
@@ -888,6 +947,130 @@ mod tests {
                 .check_executable_binding("example.tool", &executable.to_string_lossy())
                 .unwrap(),
             LockState::ReconnectRequired
+        );
+    }
+
+    /// Startup owns the durable half of binding resolution: a same-path
+    /// fingerprint change that the read path only *reports* is persisted by
+    /// [`ExtensionState::reconcile_tool_bindings`]. It is idempotent (a second
+    /// run writes nothing), never creates a first binding for an unbound entry,
+    /// and leaves a healthy binding byte-identical.
+    #[cfg(unix)]
+    #[test]
+    fn startup_reconcile_persists_a_fingerprint_rebind_and_is_idempotent() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("v");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let root = directory.path().join("integration");
+        let tools = crate::extensions::recommendations::load_recommended().unwrap();
+        let tool = &tools[0];
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("floter.extension.json"), tool.manifest_bytes).unwrap();
+        std::fs::write(
+            root.join("provider-description.json"),
+            tool.descriptor_bytes,
+        )
+        .unwrap();
+        let entry = crate::extensions::lock::ExtensionLockEntry {
+            id: tool.manifest.id.clone(),
+            name: tool.manifest.name.clone(),
+            publisher_id: tool.manifest.publisher.id.clone(),
+            publisher_name: tool.manifest.publisher.name.clone(),
+            distribution_source: crate::extensions::lock::ExtensionDistributionSource::Local,
+            runtime_ownership: ExtensionRuntimeOwnership::System,
+            provider_kind: ExtensionProviderKind::StaticDescriptor,
+            state: ExtensionStateKind::Enabled,
+            enabled: true,
+            package_name: None,
+            package_version: tool.description.provider.version.clone(),
+            tool_version: None,
+            integrity: None,
+            runtime_integrity: None,
+            content_integrity: None,
+            previous_integrity: None,
+            previous_runtime_integrity: None,
+            previous_content_integrity: None,
+            signature_verified: false,
+            previous_signature_verified: None,
+            official_verified: false,
+            previous_official_verified: None,
+            current_version: tool.description.provider.version.clone(),
+            previous_version: None,
+            manifest_path: root
+                .join("floter.extension.json")
+                .to_string_lossy()
+                .into_owned(),
+            executable_path: executable.to_string_lossy().into_owned(),
+            runtime_root: None,
+            installed_at: 1,
+            updated_at: 1,
+            pinned: false,
+            channel: "external".into(),
+            approved_permissions: Vec::new(),
+            approved_at: 0,
+            approved_manifest_digest: None,
+            last_error_code: None,
+            last_error_detail: None,
+            last_error_at: None,
+            broken_reason: None,
+            enabled_before_broken: None,
+            probe_report: None,
+            config_generation: 0,
+        };
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        let mut repository = crate::extensions::lock::ExtensionsLock::default();
+        repository.extensions.insert(entry.id.clone(), entry.clone());
+        repository
+            .save(&state.paths.repository_file)
+            .unwrap();
+
+        // An unbound entry is never given a first binding by the reconcile.
+        state.reconcile_tool_bindings().unwrap();
+        assert!(!state.paths.tool_lock_file.exists());
+
+        // An explicit connect binds, then the tool is rebuilt in place.
+        {
+            let mut tool_lock = state.tool_lock.lock().unwrap();
+            let candidate = crate::extensions::inventory::executable_candidate(&executable, "v");
+            tool_lock.bind(&entry.id, &candidate);
+            tool_lock.save(&state.paths.tool_lock_file).unwrap();
+        }
+        std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let approved = ToolLock::load(&state.paths.tool_lock_file).unwrap().tools[&entry.id]
+            .fingerprint
+            .clone();
+
+        // The reconcile persists the refreshed fingerprint.
+        state.reconcile_tool_bindings().unwrap();
+        let rebound = ToolLock::load(&state.paths.tool_lock_file).unwrap();
+        assert_eq!(rebound.tools[&entry.id].state, LockState::Connected);
+        assert_ne!(rebound.tools[&entry.id].fingerprint, approved);
+        assert_eq!(
+            rebound.tools[&entry.id].fingerprint,
+            crate::extensions::inventory::executable_candidate(&executable, "v").fingerprint
+        );
+
+        // Idempotent: a second run leaves the file byte-identical.
+        let bytes = std::fs::read(&state.paths.tool_lock_file).unwrap();
+        let modified = std::fs::metadata(&state.paths.tool_lock_file)
+            .unwrap()
+            .modified()
+            .unwrap();
+        state.reconcile_tool_bindings().unwrap();
+        assert_eq!(std::fs::read(&state.paths.tool_lock_file).unwrap(), bytes);
+        assert_eq!(
+            std::fs::metadata(&state.paths.tool_lock_file)
+                .unwrap()
+                .modified()
+                .unwrap(),
+            modified
         );
     }
 }
