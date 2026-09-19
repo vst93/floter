@@ -679,6 +679,19 @@
   gap: 8px;
 }
 
+/* R8-2 · the Detected section's permanent disclosure. It is a sentence, not
+   chrome: body-caption size, muted, aligned to the section's 4px inset so it
+   shares the heading's optical edge. It must never be hidden, collapsed or
+   moved behind a tooltip — the one-click connect has no other permission
+   surface, so this line *is* the disclosure. */
+.extensions-section-hint {
+  margin: 0;
+  padding: 0 4px;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  line-height: 1.45;
+}
+
 /* A detected row IS the connect call to action: unlike a connected row, whose
    actions only appear on hover/focus, the connect button stays visible so the
    section never reads as an inert inventory dump. */

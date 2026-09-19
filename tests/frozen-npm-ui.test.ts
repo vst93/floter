@@ -43,10 +43,12 @@ test("panel keeps local connection paths working", async () => {
     "extensions_enable",
     "extensions_disable",
     "extensions_uninstall",
-    // extensions_connect_tool was retired from the panel: PATH discoveries are
-    // connected through the create-custom-integration drawer
-    // (extensions_create_custom), recommendations through
-    // extensions_connect_recommended.
+    // R8-2 un-retired extensions_connect_tool: a bare PATH discovery now
+    // connects in one call with no form. Recommendations still go through
+    // extensions_connect_recommended (they have an authored manifest and a
+    // permission review), and the create-custom drawer still uses
+    // extensions_create_custom.
+    "extensions_connect_tool",
     "extensions_connect_recommended",
     "extensions_create_custom",
     "extensions_search_tools",

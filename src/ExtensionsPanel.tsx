@@ -614,6 +614,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [toolSearching, setToolSearching] = useState(false);
   const [toolSearchFailed, setToolSearchFailed] = useState(false);
   const [toolHighlight, setToolHighlight] = useState(0);
+  /** The last failed one-click connect, shown inline in the Detected section.
+   *  A detected row has no drawer to open, so a failure with no in-place home
+   *  would leave the click with no visible result. Cleared on the next
+   *  attempt, and never a substitute for the toast (both are shown). */
+  const [detectedError, setDetectedError] = useState<{ id: string; message: string } | null>(null);
   const [customDirty, setCustomDirty] = useState(false);  // Inline discard confirmations (replacing window.confirm): armed while the
   // bar above a drawer footer asks "discard unsaved changes?". Cleared as
   // soon as the user edits again, saves, or dismisses the bar.
@@ -1252,36 +1257,47 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     setToolResults([]);
   };
 
-  // Connect entry for a Detected row. This is deliberately the SAME connect
-  // flow as before and NEVER reconnect: reconnect re-scans the tool inventory
-  // and writes a tool binding — an explicit, system-only action (R3/G3) that a
-  // detection row must not trigger implicitly. Nothing here writes to disk.
+  // Connect entry for a Detected row. This NEVER reconnects: reconnect re-scans
+  // the tool inventory and writes a tool binding — an explicit, system-only
+  // action (R3/G3) that a detection row must not trigger implicitly.
   //   - recommended / convention-location manifest: an authored manifest
   //     exists, so `connectRecommended` runs the shared pipeline (permission
   //     review, multi-candidate chooser).
-  //   - bare PATH discovery: the drawer opens in create mode with the
-  //     executable prefilled (R7-3a). This is now the ONLY create entry —
-  //     R7-3b took the blank "Create custom" button off the toolbar, so an
-  //     integration is always authored from something the device actually has
-  //     rather than from an empty form.
-  const connectDetected = (extension: Extension) => {
+  //   - bare PATH discovery: one click, zero forms (R8-2). The row already
+  //     carries the real `ToolCandidate` the backend produced, so it is handed
+  //     straight to `extensions_connect_tool`; the backend derives the id,
+  //     command, version and description and applies the disclosure set.
+  //     Rebuilding that candidate in the frontend (the old path) would be a
+  //     second source of truth for the same decision, and it lost `sources`,
+  //     `quality` and `fingerprint` on the way.
+  const connectDetected = async (extension: Extension) => {
     if (busyRef.current) return;
     if (extension.recommended || extension.manifestSuggestion) {
       connectRecommended(extension);
       return;
     }
-    openCreateCustomIntegration();
-    if (!extension.executablePath) return;
-    chooseToolCandidate({
-      id: extension.id,
-      name: extension.name,
-      locator: { kind: "executable", path: extension.executablePath },
-      version: extension.toolVersion,
-      sources: ["path"],
-      quality: "auto-detected",
-      available: extension.runtimeAvailable,
-      fingerprint: null,
-    });
+    const candidate = extension.toolCandidates.find(
+      (entry) => entry.locator.kind === "executable" && entry.locator.path === extension.executablePath,
+    ) ?? extension.toolCandidates[0];
+    if (!candidate || candidate.locator.kind !== "executable") return;
+    setDetectedError(null);
+    setBusy({ id: extension.id, kind: "install" });
+    try {
+      // `approvedPermissions` is deliberately omitted: the backend's
+      // `tool_binding_permissions()` is the single source of the disclosure
+      // set, and a hard-coded copy here would be a second one.
+      await invoke("extensions_connect_tool", { candidate });
+      await refreshAfterMutation();
+      showSuccess(t("settings.extensions.connectedNotice", { name: extension.name }));
+    } catch (nextError) {
+      // Inline, on the section — not only a toast. A connect that fails must
+      // leave a visible reason next to the row that failed, or the click looks
+      // like it did nothing.
+      setDetectedError({ id: extension.id, message: errorMessage(nextError) });
+      showError(errorMessage(nextError));
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleToolSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -1843,6 +1859,22 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               <span>{t("settings.extensions.section.detected")}</span>
               <span className="extension-status">{suggestedExtensions.length}</span>
             </h3>
+            {/* R8-2 · permanent, section-level disclosure. One click now
+                connects a discovered tool with no form, so the explanation of
+                what that grants cannot live in a dialog the user never sees —
+                it is always on, above the rows, in the same place every time.
+                It states the two enforced capabilities and the disclosure
+                one; nothing about `filesystem-write` / `network-fetch`, which
+                are never part of a tool binding. */}
+            <p className="extensions-section-hint extensions-section-hint--detected">
+              {t("settings.extensions.detectedDisclosure")}
+            </p>
+            {detectedError && (
+              <div className="extensions-notice extensions-notice--error" role="alert">
+                <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+                <span>{t("settings.extensions.detectedConnectFailed", { name: suggestedExtensions.find((extension) => extension.id === detectedError.id)?.name ?? "" })}: {detectedError.message}</span>
+              </div>
+            )}
             <div className="extensions-list extensions-list--installed">
               {suggestedExtensions.map((extension) => (
                 <ExtensionRowComponent

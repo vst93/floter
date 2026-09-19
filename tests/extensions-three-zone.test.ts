@@ -176,7 +176,7 @@ test("detected rows connect through the connect flow, never reconnect", async ()
   // because R7-3b deleted the `toolSuggestions` block that used to be this
   // test's end anchor — an anchor a later round deletes silently shortens the
   // slice (or fails) instead of failing on the thing under test.
-  const entry = functionBody(panel, "const connectDetected = (extension: Extension)");
+  const entry = functionBody(panel, "const connectDetected = async (extension: Extension)");
   assert.match(entry, /connectRecommended\(extension\)/, "authored manifests must use the connect pipeline");
   assert.ok(
     !/reconnectSystem/.test(entry),
@@ -238,17 +238,35 @@ test("the edit drawer no longer re-renders the detected list", async () => {
   );
 });
 
-// The connect entry's prefill path (a bare PATH discovery) has to survive the
-// narrowing: the discovery's own path is what the user is choosing between, so
-// the row must still be able to hand it to the (prefilled) create form.
-test("a bare PATH discovery still prefills the create form", async () => {
+// R7-3a opened the create-custom drawer prefilled for a bare PATH discovery;
+// R8-2 replaced that with a genuine one-click connect (`extensions_connect_tool`),
+// because the drawer asked for four fields the backend already knew. The
+// prefill path itself survives — it is what the drawer's executable search
+// uses — but the Detected row no longer goes through it.
+//
+// Mutation: route a Detected row back through `openCreateCustomIntegration` +
+// `chooseToolCandidate` (a form the user has to confirm) and this fails.
+test("a bare PATH discovery connects in one call, without the create form", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
-  const entry = functionBody(panel, "const connectDetected = (extension: Extension)");
-  assert.match(entry, /openCreateCustomIntegration\(\)/, "a discovery must reach the create form");
-  assert.match(entry, /chooseToolCandidate\(\{/, "the discovery must prefill the executable");
-  assert.match(entry, /path: extension\.executablePath/, "the prefill is the discovered path");
-  // The form it opens must accept the prefill — a create-mode drawer, not an
-  // edit-mode one (the constructor is the only place `editingCustomId` is set).
+  const entry = functionBody(panel, "const connectDetected = async (extension: Extension)");
+  assert.match(
+    entry,
+    /invoke\("extensions_connect_tool", \{ candidate \}\)/,
+    "a discovery must connect through the one-click command",
+  );
+  assert.ok(
+    !/openCreateCustomIntegration/.test(entry),
+    "the Detected path must not open the create form (that is the multi-step path R8-2 removes)",
+  );
+  assert.ok(
+    !/chooseToolCandidate/.test(entry),
+    "the Detected path must not rebuild a candidate in the frontend",
+  );
+  // The candidate handed to the backend is the row's own, so no field of it is
+  // invented here.
+  assert.match(entry, /extension\.toolCandidates/, "the row's own candidate must be used");
+  // The form it used to open must still accept a prefill — the drawer's search
+  // list is the remaining caller of `chooseToolCandidate`.
   const open = functionBody(panel, "const openCreateCustomIntegration =");
   assert.match(open, /setEditingCustomId\(null\)/, "the prefill form is create mode, not edit mode");
   assert.match(open, /setShowCustomIntegration\(true\)/, "the create form must actually open");

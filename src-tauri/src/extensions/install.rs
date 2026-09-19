@@ -964,6 +964,16 @@ fn permission_labels(permissions: &[Permission]) -> String {
         .join(", ")
 }
 
+/// Resolve the caller's permission approval for a one-click tool connection.
+///
+/// `None` means "the caller has no list of its own, use the disclosure set" and
+/// yields [`tool_binding_permissions`]. This exists so the *omission* is decided
+/// in one place: the IPC command passes the optional argument through and the
+/// frontend never has to hold a copy of the list.
+pub fn approved_tool_binding_permissions(approved: Option<Vec<Permission>>) -> Vec<Permission> {
+    approved.unwrap_or_else(tool_binding_permissions)
+}
+
 /// Exact-set match between the user-approved permissions and the disclosure
 /// for one-click tool connections. Both sides are canonicalized (sorted and
 /// deduplicated) before comparing so ordering never matters; any missing or

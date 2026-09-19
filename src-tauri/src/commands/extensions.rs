@@ -359,8 +359,11 @@ async fn list_extensions(
         ));
     }
     // Discovery suggestions: PATH executables that are not connected yet and
-    // do not collide with a known integration name. Sorted by discovery
-    // quality then name so the best candidates surface first.
+    // do not collide with a known integration name. Ranked by the shared
+    // discovery ordering (quality, then `candidate_priority`, then name) so the
+    // twelve rows a user sees are the twelve a person would recognise — plain
+    // alphabetical order surfaced `7z 7za 7zr a52dec …` on a real machine and
+    // pushed `git` to position 895.
     let mut suggestions: Vec<ToolCandidate> = Vec::new();
     for candidate in &candidates {
         if !candidate.available {
@@ -394,11 +397,7 @@ async fn list_extensions(
         }
         suggestions.push(candidate.clone());
     }
-    suggestions.sort_by(|left, right| {
-        left.quality
-            .cmp(&right.quality)
-            .then(left.name.cmp(&right.name))
-    });
+    inventory::rank_candidates(&mut suggestions);
     if suggestions.len() > 12 {
         suggestions.truncate(12);
     }
@@ -679,7 +678,12 @@ impl ExtensionListItem {
             // device, not a publisher.
             publisher_descriptor: false,
             tool_lock_state: None,
-            tool_candidates: Vec::new(),
+            // The candidate the row was built from, so the panel can connect it
+            // without rebuilding a half-populated copy: `extensions_connect_tool`
+            // needs the real `quality`/`sources`/`fingerprint`, and a
+            // frontend-side reconstruction is exactly the second source of
+            // truth this round removes.
+            tool_candidates: vec![candidate.clone()],
             current_manifest_digest: None,
             last_probe_at: None,
             command_count: None,
@@ -1242,18 +1246,32 @@ pub async fn extensions_search_tools(
 /// One-click connection of an auto-discovered PATH tool. The candidate comes
 /// from the discovery suggestions in `extensions_list`; the connection itself
 /// runs the regular custom-integration pipeline.
+///
+/// `approved_permissions` is **optional**: omitting it means "the caller has no
+/// permission list of its own, use the disclosure set" and the command applies
+/// [`install::tool_binding_permissions`] — the same three declarations the
+/// pipeline stamps into the request. The frontend must therefore never
+/// hard-code the list: a hard-coded copy would be a second source of truth for
+/// the one thing the approval record exists to record. Supplying a set is still
+/// supported and is still validated exactly ([`install::validate_tool_binding_approval`]).
 #[tauri::command]
 pub async fn extensions_connect_tool(
+    app: AppHandle,
     state: State<'_, ExtensionState>,
     candidate: ToolCandidate,
-    approved_permissions: Vec<crate::extensions::manifest::Permission>,
+    approved_permissions: Option<Vec<crate::extensions::manifest::Permission>>,
 ) -> Result<ExtensionLockEntry, String> {
     if !candidate.available {
         return Err(format!("Tool {} is not available", candidate.name));
     }
-    install::validate_tool_binding_approval(&approved_permissions)?;
+    let approved = install::approved_tool_binding_permissions(approved_permissions);
+    install::validate_tool_binding_approval(&approved)?;
     let entry = install::connect_tool(&state, candidate).await?;
     state.invalidate_provider_commands().await;
+    // Same event as every other mutating extension command: the panel's list is
+    // refreshed by whoever is listening, so a connect that skipped this would
+    // leave a second window (or the settings card) showing the old list.
+    app.emit("extensions-changed", ()).ok();
     Ok(entry)
 }
 
@@ -2719,6 +2737,112 @@ mod tests {
             .into_iter()
             .find(|item| item.entry.id == id)
             .expect("entry is listed")
+    }
+
+    /// P2 at the command layer: with a realistic noisy inventory installed, the
+    /// Detected suggestions must lead with the tools a user recognises. The
+    /// candidates are injected through the test-only inventory seam so the
+    /// assertion does not depend on the machine's real PATH.
+    ///
+    /// Mutation: revert the sort key to quality-then-name and this fails (the
+    /// first row becomes `7z`).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_suggestions_rank_curated_tools_inside_the_first_twelve() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let bin = directory.path().join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        // A synthetic PATH slice: alphabetical noise, then the wanted tools.
+        let names = [
+            "7z",
+            "7za",
+            "7zr",
+            "a52dec",
+            "aafire",
+            "aainfo",
+            "aalib-config",
+            "aasavefont",
+            "aatest",
+            "accessdb",
+            "aclocal",
+            "aclocal-1.18",
+            "git",
+            "rg",
+            "ffmpeg",
+            "docker",
+        ];
+        let mut injected = Vec::new();
+        for name in names {
+            let path = bin.join(name);
+            std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+            injected.push(inventory::executable_candidate(&path, name));
+        }
+
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        state
+            .tool_inventory
+            .lock()
+            .unwrap()
+            .set_candidates_for_test(injected);
+
+        let (items, _) = list_extensions(&state).await.unwrap();
+        let suggestions: Vec<&str> = items
+            .iter()
+            .filter(|item| !item.connected)
+            .map(|item| item.entry.name.as_str())
+            .collect();
+        assert_eq!(
+            suggestions.len(),
+            12,
+            "the Detected list stays capped at 12"
+        );
+        for wanted in ["git", "rg", "ffmpeg", "docker"] {
+            assert!(
+                suggestions.contains(&wanted),
+                "{wanted} must be inside the first twelve; got {suggestions:?}"
+            );
+        }
+        assert_eq!(suggestions[0], "docker");
+    }
+
+    /// S1-e: `approved_permissions` is optional on the one-click connect. The
+    /// omitted form applies the default disclosure set, so the frontend never
+    /// has to hard-code a second copy of it.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connect_tool_accepts_an_omitted_permission_set() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let executable = directory.path().join("omitted-tool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        let approved = install::approved_tool_binding_permissions(None);
+        install::validate_tool_binding_approval(&approved).unwrap();
+        let entry = install::connect_tool(
+            &state,
+            inventory::executable_candidate(&executable, "omitted-tool"),
+        )
+        .await
+        .unwrap();
+        let recorded: std::collections::BTreeSet<Permission> =
+            entry.approved_permissions.iter().copied().collect();
+        let expected: std::collections::BTreeSet<Permission> =
+            install::tool_binding_permissions().into_iter().collect();
+        assert_eq!(recorded, expected);
     }
 
     /// The list must expose the digest of the manifest bytes **currently on

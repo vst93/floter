@@ -3,6 +3,11 @@
 //! Discovery never executes a candidate or recursively walks arbitrary PATH
 //! entries. Symlink targets are validated, while the discovered link path is
 //! retained because shim names such as `python` and `node` are meaningful.
+//!
+//! Discovery itself only *collects* candidates; ranking them is
+//! [`candidate_priority`], a pure function over a finished candidate. It lives
+//! here (rather than in the command layer) so the same ordering can be asserted
+//! in a unit test without building an inventory.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -141,6 +146,21 @@ impl ToolInventory {
         inventory
     }
 
+    /// Replace the discovered candidates with a fixed set and mark the
+    /// snapshot fresh. Test-only: the ranking assertions need a *known* PATH,
+    /// and the real one differs on every machine.
+    #[cfg(test)]
+    pub fn set_candidates_for_test(&mut self, candidates: Vec<ToolCandidate>) {
+        self.snapshot = ToolInventorySnapshot {
+            generated_at: unix_now(),
+            platform: current_platform(),
+            candidates,
+        };
+        self.last_environment = environment_signature();
+        self.refreshed_at = Instant::now();
+        self.ttl = Duration::from_secs(3600);
+    }
+
     pub fn needs_refresh(&self) -> bool {
         self.snapshot.generated_at == 0
             || self.refreshed_at.elapsed() >= self.ttl
@@ -234,6 +254,136 @@ pub fn executable_candidate(path: &Path, name: impl Into<String>) -> ToolCandida
         quality: DiscoveryQuality::UserDefined,
         available,
     }
+}
+
+/// Ranking signal for a discovery suggestion. Pure, no I/O, and **additive**
+/// only — it can reorder the Detected list but never hide a candidate, because
+/// the list is truncated after ranking, not filtered by it.
+///
+/// Why it exists: every PATH executable is `AutoDetected`, so quality + name is
+/// plain alphabetical order and the first twelve rows of a real machine are
+/// `7z 7za 7zr a52dec …`. The catalog has a three-tier `score_entry` for search
+/// hits; discovery had no equivalent.
+///
+/// Signals, all from data discovery already collected:
+///
+/// * curated allow-list membership (`extensions::curated_tools`, the single
+///   hand-authored input) — a person recognises the name;
+/// * a desktop entry (`Desktop`/`LaunchServices`) — the OS itself published a
+///   name and a human comment for it;
+/// * a non-blank `description` — the Linux desktop parser's `Comment`;
+/// * a user-owned install directory (`~/.local/bin`, `~/.cargo/bin`, …) — a
+///   tool the user put there deliberately;
+/// * penalties for names that are almost always *variants* of a real tool
+///   (`aclocal-1.18`) or wrappers (`xml2-config`), and for one-character names.
+///
+/// The absolute value is meaningless; only the ordering it induces is. It is
+/// computed as a signed sum and clamped at zero so a heavily penalised name can
+/// never wrap around into a high score.
+pub fn candidate_priority(candidate: &ToolCandidate) -> u32 {
+    const BASE: i64 = 1_000;
+    const CURATED_BONUS: i64 = 300;
+    const DESKTOP_BONUS: i64 = 200;
+    const DESCRIPTION_BONUS: i64 = 60;
+    const USER_DIRECTORY_BONUS: i64 = 40;
+
+    let stem = executable_stem(&candidate.name);
+    let mut score = BASE;
+    if crate::extensions::curated_tools::is_curated(&stem) {
+        score += CURATED_BONUS;
+    }
+    if candidate.sources.iter().any(|source| {
+        matches!(
+            source,
+            DiscoverySource::Desktop | DiscoverySource::LaunchServices
+        )
+    }) {
+        score += DESKTOP_BONUS;
+    }
+    if candidate
+        .description
+        .as_deref()
+        .is_some_and(|description| !description.trim().is_empty())
+    {
+        score += DESCRIPTION_BONUS;
+    }
+    if candidate
+        .locator
+        .executable_path()
+        .is_some_and(is_user_owned_directory)
+    {
+        score += USER_DIRECTORY_BONUS;
+    }
+    // Length penalty: a long name is far more often a variant or a wrapper
+    // than the primary command (`python3.11-config`, `x86_64-linux-gnu-gcc-12`).
+    // Applied from 10 characters up so ordinary names (`ffmpeg`, `docker`) are
+    // untouched.
+    let length = stem.chars().count() as i64;
+    score -= (length - 10).max(0) * 4;
+    if is_variant_name(&stem) {
+        score -= 200;
+    }
+    if stem.chars().count() <= 1 {
+        score -= 100;
+    }
+    score.max(0) as u32
+}
+
+/// The discovery-suggestion ordering, as one pure function: discovery quality
+/// first (the existing contract — a `NativeSupport` desktop entry outranks a
+/// bare `AutoDetected` PATH hit), then [`candidate_priority`] descending, then
+/// the name so the order is total and stable. Extracted from the command layer
+/// so the ordering can be asserted without an `ExtensionState`.
+pub fn rank_candidates(candidates: &mut [ToolCandidate]) {
+    candidates.sort_by(|left, right| {
+        left.quality
+            .cmp(&right.quality)
+            .then_with(|| candidate_priority(right).cmp(&candidate_priority(left)))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+}
+
+/// Lowercased executable name with a Windows launcher suffix removed, so
+/// `rg.exe`, `rg.cmd` and `rg` all compare equal against the curated list.
+fn executable_stem(name: &str) -> String {
+    let name = name.trim().to_ascii_lowercase();
+    for suffix in [".exe", ".cmd", ".bat", ".com"] {
+        if let Some(stripped) = name.strip_suffix(suffix) {
+            return stripped.to_string();
+        }
+    }
+    name
+}
+
+/// Whether a name reads as a *variant* rather than the primary command:
+/// `aclocal-1.18`, `gcc-12`, `xml2-config`, `python3-config`. Deliberately
+/// conservative — a false positive only costs 200 points in the first twelve
+/// rows, and the curated bonus still wins for anything on the allow-list.
+fn is_variant_name(name: &str) -> bool {
+    if name.ends_with("-config") || name.ends_with("-test") {
+        return true;
+    }
+    let Some((_, suffix)) = name.rsplit_once('-') else {
+        return false;
+    };
+    !suffix.is_empty()
+        && suffix.chars().any(|character| character.is_ascii_digit())
+        && suffix
+            .chars()
+            .all(|character| character.is_ascii_digit() || character == '.')
+}
+
+/// Whether an executable lives under a directory the user owns and populated
+/// (`~/.local/bin`, `~/.cargo/bin`, `~/.nix-profile/bin`). Best-effort: an
+/// unreadable path simply earns no bonus.
+fn is_user_owned_directory(path: &Path) -> bool {
+    let Some(home) = dirs::home_dir() else {
+        return false;
+    };
+    path.starts_with(home.join(".local/bin"))
+        || path.starts_with(home.join(".cargo/bin"))
+        || path.starts_with(home.join(".nix-profile/bin"))
+        || path.starts_with(home.join("bin"))
 }
 
 fn discover_path(candidates: &mut BTreeMap<String, ToolCandidate>) {
@@ -1223,6 +1373,188 @@ mod tests {
         assert_eq!(
             DesktopEntry::parse(&link).and_then(|entry| entry.name),
             Some("Linked tool".to_string())
+        );
+    }
+
+    // ── candidate_priority ──────────────────────────────────────────────
+
+    /// A bare PATH candidate, with every optional signal under the caller's
+    /// control so each assertion isolates one signal.
+    fn path_candidate(name: &str, path: &str) -> ToolCandidate {
+        ToolCandidate {
+            id: format!("executable:{path}"),
+            name: name.to_string(),
+            locator: ToolLocator::Executable {
+                path: path.to_string(),
+            },
+            version: None,
+            description: None,
+            sources: vec![DiscoverySource::Path],
+            quality: DiscoveryQuality::AutoDetected,
+            available: true,
+            fingerprint: None,
+        }
+    }
+
+    /// The core of P2: a curated name must outrank an unfamiliar one that
+    /// sorts before it alphabetically. `7z` sorts first; `git` must still win.
+    ///
+    /// Mutation: drop the curated bonus (or the whole function) and this fails.
+    #[test]
+    fn candidate_priority_promotes_curated_names_over_alphabetical_order() {
+        let known = path_candidate("git", "/usr/bin/git");
+        let noise = path_candidate("7z", "/usr/bin/7z");
+        assert!(
+            candidate_priority(&known) > candidate_priority(&noise),
+            "a curated name must outrank an alphabetical neighbour"
+        );
+
+        let mut ranked = vec![
+            noise,
+            known.clone(),
+            path_candidate("a52dec", "/usr/bin/a52dec"),
+        ];
+        rank_candidates(&mut ranked);
+        assert_eq!(ranked[0].name, "git", "the curated name must sort first");
+    }
+
+    /// Windows launcher suffixes must not defeat the allow-list lookup.
+    #[test]
+    fn candidate_priority_normalises_windows_launcher_suffixes() {
+        let exe = path_candidate("rg.exe", "/usr/bin/rg.exe");
+        let bare = path_candidate("rg", "/usr/bin/rg");
+        assert_eq!(candidate_priority(&exe), candidate_priority(&bare));
+        assert!(
+            candidate_priority(&exe) > candidate_priority(&path_candidate("zzz", "/usr/bin/zzz"))
+        );
+    }
+
+    /// Desktop evidence (the OS published a name and a `Comment`) is worth more
+    /// than a bare PATH hit, and the description alone also counts.
+    ///
+    /// Mutation: drop the desktop/description bonuses and this fails.
+    #[test]
+    fn candidate_priority_rewards_desktop_evidence() {
+        let mut desktop = path_candidate("gimp", "/usr/bin/gimp");
+        desktop.sources = vec![DiscoverySource::Desktop];
+        desktop.quality = DiscoveryQuality::NativeSupport;
+        let bare = path_candidate("gimp", "/usr/bin/gimp");
+        assert!(candidate_priority(&desktop) > candidate_priority(&bare));
+
+        let mut described = path_candidate("gimp", "/usr/bin/gimp");
+        described.description = Some("Create images and edit photographs".to_string());
+        assert!(candidate_priority(&described) > candidate_priority(&bare));
+
+        // A blank comment is not evidence.
+        let mut blank = path_candidate("gimp", "/usr/bin/gimp");
+        blank.description = Some("   ".to_string());
+        assert_eq!(candidate_priority(&blank), candidate_priority(&bare));
+
+        // LaunchServices is the macOS spelling of the same evidence.
+        let mut mac = path_candidate("gimp", "/usr/bin/gimp");
+        mac.sources = vec![DiscoverySource::LaunchServices];
+        assert!(candidate_priority(&mac) > candidate_priority(&bare));
+    }
+
+    /// Variant names (`aclocal-1.18`, `gcc-12`, `xml2-config`) and one-character
+    /// names are demoted; the primary spelling is not.
+    ///
+    /// Mutation: drop `is_variant_name` and this fails.
+    #[test]
+    fn candidate_priority_demotes_variant_names() {
+        let primary = path_candidate("aclocal", "/usr/bin/aclocal");
+        let variant = path_candidate("aclocal-1.18", "/usr/bin/aclocal-1.18");
+        assert!(
+            candidate_priority(&primary) > candidate_priority(&variant),
+            "a versioned variant must rank below its primary name"
+        );
+        assert!(
+            candidate_priority(&path_candidate("xml2-config", "/usr/bin/xml2-config"))
+                < candidate_priority(&path_candidate("xml2", "/usr/bin/xml2")),
+            "a `-config` wrapper must rank below the plain name"
+        );
+        assert!(
+            candidate_priority(&path_candidate("z", "/usr/bin/z"))
+                < candidate_priority(&path_candidate("zz", "/usr/bin/zz")),
+            "a one-character name is noise"
+        );
+        // A dash followed by a word is a real name, not a variant.
+        assert_eq!(
+            candidate_priority(&path_candidate("redis-cli", "/usr/bin/redis-cli")),
+            candidate_priority(&path_candidate("git", "/usr/bin/git")),
+            "two curated names with no other signal score alike"
+        );
+    }
+
+    /// The scenario from the research report: a synthetic slice of a real PATH
+    /// (alphabetical noise + the tools a user actually wants) must put `git`
+    /// and `rg` inside the first twelve, which is where the list truncates.
+    ///
+    /// Mutation: revert the sort key to quality-then-name and this fails.
+    #[test]
+    fn rank_candidates_surfaces_wanted_tools_inside_the_first_twelve() {
+        let mut ranked: Vec<ToolCandidate> = [
+            "7z",
+            "7za",
+            "7zr",
+            "a52dec",
+            "aafire",
+            "aainfo",
+            "aalib-config",
+            "aasavefont",
+            "aatest",
+            "accessdb",
+            "aclocal",
+            "aclocal-1.18",
+            "git",
+            "rg",
+            "ffmpeg",
+            "docker",
+        ]
+        .into_iter()
+        .map(|name| path_candidate(name, &format!("/usr/bin/{name}")))
+        .collect();
+        rank_candidates(&mut ranked);
+        let first_twelve: Vec<&str> = ranked
+            .iter()
+            .take(12)
+            .map(|item| item.name.as_str())
+            .collect();
+        for wanted in ["git", "rg", "ffmpeg", "docker"] {
+            assert!(
+                first_twelve.contains(&wanted),
+                "{wanted} must be inside the first twelve; got {first_twelve:?}"
+            );
+        }
+        // The noise must not be *deleted*, only pushed down: ranking reorders.
+        assert_eq!(ranked.len(), 16);
+    }
+
+    /// Quality remains the first key: a `NativeSupport` desktop entry outranks
+    /// an `AutoDetected` PATH hit even when the PATH name is curated.
+    #[test]
+    fn rank_candidates_keeps_quality_as_the_first_key() {
+        let mut desktop = path_candidate("gimp", "/usr/bin/gimp");
+        desktop.sources = vec![DiscoverySource::Desktop];
+        desktop.quality = DiscoveryQuality::NativeSupport;
+        let mut ranked = vec![path_candidate("git", "/usr/bin/git"), desktop];
+        rank_candidates(&mut ranked);
+        assert_eq!(ranked[0].name, "gimp");
+    }
+
+    /// A user-owned install directory is a deliberate act, so it earns the
+    /// small bonus — but it must never let a stranger beat a curated tool.
+    #[test]
+    fn candidate_priority_rewards_user_directories_without_beating_curated() {
+        let Some(home) = dirs::home_dir() else {
+            return;
+        };
+        let local = path_candidate("mytool", &home.join(".local/bin/mytool").to_string_lossy());
+        let system = path_candidate("mytool", "/usr/bin/mytool");
+        assert!(candidate_priority(&local) > candidate_priority(&system));
+        assert!(
+            candidate_priority(&path_candidate("git", "/usr/bin/git")) > candidate_priority(&local),
+            "a curated system tool still outranks a user-local stranger"
         );
     }
 }

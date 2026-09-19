@@ -2,6 +2,7 @@ pub mod capability_probe;
 pub mod catalog;
 pub mod config;
 pub mod conformance;
+pub mod curated_tools;
 pub mod cwd_policy;
 pub mod data_ownership;
 pub mod error_codes;
