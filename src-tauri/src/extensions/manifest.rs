@@ -203,6 +203,49 @@ pub enum Permission {
     Environment,
 }
 
+/// Whether the Host itself decides a permission, or merely discloses it.
+///
+/// R7-8a · The trust-boundary distinction the review UI draws. `environment`
+/// and `process-spawn` are the only permissions the Host refuses at execution
+/// time (`artifacts.rs` clears the environment, `conformance.rs`/`provider.rs`
+/// gate descriptor-driven program starts). Everything else — filesystem,
+/// network, clipboard — is a declaration the user reviews; the provider still
+/// runs with the Host's own operating-system rights, there is no sandbox.
+///
+/// This is the authority the review UI mirrors. The TypeScript tier vocabulary
+/// (`src/extensions/permission-tiers.ts`) and the canonical name table below
+/// are pinned against each other by `tests/permission-tiers.test.ts`, and the
+/// classifier is locked against that table by a unit test here — so the two
+/// languages cannot drift on which permissions the Host really blocks.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PermissionEnforcement {
+    /// The Host owns the yes/no and refuses an unapproved request.
+    Enforced,
+    /// Declared for review; the Host does not intercept it.
+    Disclosed,
+}
+
+/// Canonical kebab-case names of every host-enforced permission, in a stable
+/// order. Greppable on purpose: the node parity test reads this declaration as
+/// text and compares it to `HOST_ENFORCED_PERMISSIONS`.
+pub const HOST_ENFORCED_PERMISSION_NAMES: [&str; 2] = ["environment", "process-spawn"];
+
+/// Classify one permission by *who owns the decision*. The match is exhaustive
+/// over the closed enum, so a newly added permission cannot silently default to
+/// the flattering `Enforced` — adding a variant is a compile error until it is
+/// classified on purpose.
+pub const fn permission_enforcement(permission: Permission) -> PermissionEnforcement {
+    match permission {
+        Permission::Environment | Permission::ProcessSpawn => PermissionEnforcement::Enforced,
+        Permission::FilesystemRead
+        | Permission::FilesystemWrite
+        | Permission::NetworkFetch
+        | Permission::ClipboardRead
+        | Permission::ClipboardWrite => PermissionEnforcement::Disclosed,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedManifest {
@@ -795,5 +838,94 @@ mod tests {
         manifest.compatibility.floter = ">=0.2.3".to_string();
 
         assert!(manifest.validate_compatibility("0.3.0-preview").is_ok());
+    }
+
+    // R7-8a · the classification is the source of truth the review UI mirrors,
+    // so every kind is pinned explicitly. A new permission variant must be
+    // classified here on purpose — the exhaustive match is the compile-time
+    // half, this is the behavioural half.
+    #[test]
+    fn classifies_every_permission_by_who_owns_the_decision() {
+        assert_eq!(
+            permission_enforcement(Permission::Environment),
+            PermissionEnforcement::Enforced
+        );
+        assert_eq!(
+            permission_enforcement(Permission::ProcessSpawn),
+            PermissionEnforcement::Enforced
+        );
+        for permission in [
+            Permission::FilesystemRead,
+            Permission::FilesystemWrite,
+            Permission::NetworkFetch,
+            Permission::ClipboardRead,
+            Permission::ClipboardWrite,
+        ] {
+            assert_eq!(
+                permission_enforcement(permission),
+                PermissionEnforcement::Disclosed,
+                "{permission:?} is declared, not intercepted"
+            );
+        }
+    }
+
+    // The canonical name list is what the TypeScript vocabulary is compared to,
+    // so it must name exactly the permissions the classifier calls enforced.
+    // Change the classifier alone and the list disagrees; change the list alone
+    // and the sweep below disagrees.
+    #[test]
+    fn the_canonical_enforced_names_match_the_classifier() {
+        let mut enforced: Vec<&str> = ALL_PERMISSIONS
+            .iter()
+            .filter(|permission| {
+                permission_enforcement(**permission) == PermissionEnforcement::Enforced
+            })
+            .map(|permission| permission_wire_name(*permission))
+            .collect();
+        // The enum declaration order is not the presentation order; the claim
+        // under test is *which* permissions are enforced, so compare as a set.
+        enforced.sort_unstable();
+        let mut canonical = HOST_ENFORCED_PERMISSION_NAMES.to_vec();
+        canonical.sort_unstable();
+        assert_eq!(enforced, canonical);
+        // …and the serialized names really are the kebab-case the UI keys on.
+        for name in HOST_ENFORCED_PERMISSION_NAMES {
+            assert_eq!(
+                serde_json::to_value(permission_from_wire_name(name)).unwrap(),
+                serde_json::Value::String(name.to_string()),
+                "{name} must round-trip through the serde representation"
+            );
+        }
+    }
+
+    // Local helpers for the two tests above: the enum is closed, so a table in
+    // the test is the honest way to enumerate it without a nightly iterator.
+    const ALL_PERMISSIONS: [Permission; 7] = [
+        Permission::FilesystemRead,
+        Permission::FilesystemWrite,
+        Permission::NetworkFetch,
+        Permission::ProcessSpawn,
+        Permission::ClipboardRead,
+        Permission::ClipboardWrite,
+        Permission::Environment,
+    ];
+
+    fn permission_wire_name(permission: Permission) -> &'static str {
+        match permission {
+            Permission::FilesystemRead => "filesystem-read",
+            Permission::FilesystemWrite => "filesystem-write",
+            Permission::NetworkFetch => "network-fetch",
+            Permission::ProcessSpawn => "process-spawn",
+            Permission::ClipboardRead => "clipboard-read",
+            Permission::ClipboardWrite => "clipboard-write",
+            Permission::Environment => "environment",
+        }
+    }
+
+    fn permission_from_wire_name(name: &str) -> Permission {
+        ALL_PERMISSIONS
+            .into_iter()
+            .find(|permission| permission_wire_name(*permission) == name)
+            .expect("the canonical name list names a real permission")
     }
 }

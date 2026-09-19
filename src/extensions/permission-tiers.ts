@@ -32,14 +32,32 @@ export const permissionTier = (permission: string): PermissionTier =>
  * input order inside each group. A permission the host does not know about is
  * disclosure, never enforced: over-claiming enforcement is the failure mode
  * that would make the UI lie.
+ *
+ * R7-8a · When the backend sent its own `enforcement` on the wire (the review
+ * payload carries one per summary), that value is authoritative and is used
+ * directly — the Rust classifier is the source of truth and this map is only
+ * the synchronous projection the custom editor needs (it renders checkboxes on
+ * every keystroke and cannot await IPC per permission). A permission that
+ * arrives without the field still falls back to the local projection, so a
+ * caller that builds a list by hand is not silently tiered as enforced.
  */
-export const groupPermissions = <T extends { permission: string }>(
+export const groupPermissions = <T extends { permission: string; enforcement?: string }>(
   permissions: readonly T[],
 ): { enforced: T[]; disclosure: T[] } => {
   const enforced: T[] = [];
   const disclosure: T[] = [];
   for (const permission of permissions) {
-    (permissionTier(permission.permission) === "enforced" ? enforced : disclosure).push(permission);
+    const tier = permission.enforcement ? wireTier(permission.enforcement) : permissionTier(permission.permission);
+    (tier === "enforced" ? enforced : disclosure).push(permission);
   }
   return { enforced, disclosure };
 };
+
+/**
+ * The backend serializes `PermissionEnforcement` lowercase (`enforced` /
+ * `disclosed`); the UI calls the second tier `disclosure`. Normalize here so
+ * the wire vocabulary and the UI vocabulary meet in exactly one place. An
+ * unrecognized value is disclosure — under-claim by default, never over-claim.
+ */
+export const wireTier = (enforcement: string): PermissionTier =>
+  enforcement === "enforced" ? "enforced" : "disclosure";

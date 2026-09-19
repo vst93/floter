@@ -4,8 +4,9 @@ use crate::extensions::lock::{
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
-    validate_relative_path, Compatibility, Distribution, ExtensionManifest, Permission, PlatformOs,
-    PlatformTarget, ProviderConfig, ProviderKind, Publisher, Runtime, ScriptLanguage,
+    permission_enforcement, validate_relative_path, Compatibility, Distribution, ExtensionManifest,
+    Permission, PermissionEnforcement, PlatformOs, PlatformTarget, ProviderConfig, ProviderKind,
+    Publisher, Runtime, ScriptLanguage,
 };
 use crate::extensions::probe_executor;
 use crate::extensions::provider::ProviderInvocation;
@@ -50,6 +51,10 @@ pub struct ExtensionPermissionReview {
 #[serde(rename_all = "camelCase")]
 pub struct PermissionSummary {
     pub permission: Permission,
+    /// Who owns the decision — the Host (`enforced`) or a declaration the user
+    /// reviews (`disclosed`). Sent on the wire so the review UI renders the
+    /// backend's classification instead of maintaining a parallel truth.
+    pub enforcement: PermissionEnforcement,
     pub title: String,
     pub description: String,
 }
@@ -1569,6 +1574,7 @@ pub(crate) fn permission_review(
             };
             PermissionSummary {
                 permission,
+                enforcement: permission_enforcement(permission),
                 title: title.to_string(),
                 description: description.to_string(),
             }
@@ -5171,6 +5177,48 @@ mod tests {
         assert_eq!(review.extension_name, "V Tools");
         assert_eq!(review.permissions[0].permission, Permission::FilesystemRead);
         assert_eq!(review.permissions[0].title, "读取文件");
+    }
+
+    // R7-8a · The classification is only real if it reaches the UI, so this is
+    // a behaviour lock on the serialized payload, not a source-string check: it
+    // serializes a real review and inspects the JSON the frontend receives. A
+    // constant field, a renamed key, or a classifier that stopped being wired
+    // into `permission_review` all turn this red.
+    #[test]
+    fn the_review_payload_carries_the_backend_enforcement() {
+        use crate::extensions::manifest::PermissionEnforcement;
+        let manifest = ExtensionManifest::parse(include_bytes!(
+            "../../../docs/extensions/examples/v/floter.extension.json"
+        ))
+        .unwrap();
+        let review = permission_review(&manifest, "en");
+        let value = serde_json::to_value(&review).unwrap();
+        let entries = value["permissions"].as_array().unwrap();
+        assert_eq!(entries.len(), manifest.permissions.len());
+        for (entry, permission) in entries.iter().zip(manifest.permissions.iter()) {
+            let expected = permission_enforcement(*permission);
+            assert_eq!(
+                entry["enforcement"],
+                serde_json::to_value(expected).unwrap(),
+                "{permission:?} must ship its backend classification"
+            );
+            // The two enforced permissions really are marked enforced, and the
+            // disclosure ones really are not — the count is what stops a
+            // classifier that labels everything `Enforced` from passing.
+            assert_eq!(
+                entry["enforcement"] == "enforced",
+                expected == PermissionEnforcement::Enforced,
+                "{permission:?} enforcement must match the classifier"
+            );
+        }
+        let enforced = entries
+            .iter()
+            .filter(|entry| entry["enforcement"] == "enforced")
+            .count();
+        assert_eq!(
+            enforced, 2,
+            "exactly environment and process-spawn are enforced"
+        );
     }
 
     #[tokio::test]

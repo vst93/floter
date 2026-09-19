@@ -507,7 +507,11 @@ type PermissionName =
 export type PermissionReview = {
   extensionId: string;
   extensionName: string;
-  permissions: Array<{ permission: PermissionName; title: string; description: string }>;
+  /** `enforcement` is the backend's own classification (Rust
+   *  `permission_enforcement`); the review UI renders it rather than deciding
+   *  locally. Optional so an older/hand-built payload degrades to the local
+   *  projection instead of failing. */
+  permissions: Array<{ permission: PermissionName; enforcement?: "enforced" | "disclosed"; title: string; description: string }>;
   publisherSigned: boolean;
   officialVerified: boolean;
   deprecation: string | null;

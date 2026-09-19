@@ -26,6 +26,7 @@ import {
   HOST_ENFORCED_PERMISSIONS,
   groupPermissions,
   permissionTier,
+  wireTier,
 } from "../src/extensions/permission-tiers.ts";
 import { approvalIsStale, shortDigest } from "../src/extensions/approval-record.ts";
 
@@ -83,6 +84,85 @@ test("an unknown permission is disclosure, never enforced", () => {
   ]);
   assert.deepEqual(grouped.enforced.map((p) => p.permission), ["process-spawn", "environment"]);
   assert.deepEqual(grouped.disclosure.map((p) => p.permission), ["telepathy"]);
+});
+
+// ── A1b · the Rust authority and the TS projection cannot drift ─────────────
+//
+// R7-8a · The classification is a product decision, and the backend now owns
+// it (`permission_enforcement` in `src-tauri/src/extensions/manifest.rs`). The
+// UI keeps a synchronous projection (`HOST_ENFORCED_PERMISSIONS`) rather than
+// asking the Host per checkbox: the custom editor renders the declared list on
+// every keystroke and an IPC round-trip per permission would be absurd for a
+// static map. Two constants, then — and this test is the contract between
+// them, the same shape `window-contract.test.ts` uses for the launcher width.
+// Change the Rust classifier or its canonical name list alone and this is red;
+// change the TS projection alone and this is red.
+test("the Rust enforced set matches the TS projection", async () => {
+  const rust = stripJsComments(await read("src-tauri/src/extensions/manifest.rs"));
+  const declaration = /pub const HOST_ENFORCED_PERMISSION_NAMES\s*:\s*\[&str;\s*\d+\]\s*=\s*\[([^\]]*)\]/.exec(
+    rust,
+  );
+  assert.ok(
+    declaration,
+    "src-tauri/src/extensions/manifest.rs no longer declares `HOST_ENFORCED_PERMISSION_NAMES` — " +
+      "the Rust side is the classification source of truth and this test reads it as text",
+  );
+  const rustNames = [...declaration[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(
+    [...rustNames].sort(),
+    [...HOST_ENFORCED_PERMISSIONS].sort(),
+    "the Rust enforced set and the TS HOST_ENFORCED_PERMISSIONS must name the same permissions",
+  );
+  // The classifier, not just the list, must agree. Read the arm that resolves
+  // to `Enforced` and collect the `Permission::…` names it covers, so a
+  // one-line edit to the match arm that leaves the canonical list untouched is
+  // still caught. The enforced arm is the first `=> PermissionEnforcement::Enforced`
+  // in the function; its patterns are the text between `match permission {` and it.
+  const enforcedArm = /fn permission_enforcement[\s\S]*?match permission \{([\s\S]*?)=>\s*PermissionEnforcement::Enforced/.exec(
+    rust,
+  );
+  assert.ok(enforcedArm, "the classifier must have an arm that resolves to Enforced");
+  const classified = [...enforcedArm[1].matchAll(/Permission::([A-Za-z]+)/g)].map((match) => match[1]);
+  const pascal = (kebab: string) =>
+    kebab
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("");
+  assert.deepEqual(
+    [...classified].sort(),
+    rustNames.map(pascal).sort(),
+    "the classifer's Enforced arm must cover exactly the canonical enforced names",
+  );
+  for (const name of rustNames) {
+    assert.equal(permissionTier(name), "enforced", `${name} must be enforced on the TS side`);
+  }
+});
+
+// The Rust authority is only authoritative if the UI actually reads it. The
+// review payload carries `enforcement` per permission (pinned behaviorally on
+// the Rust side by `the_review_payload_carries_the_backend_enforcement`), and
+// `groupPermissions` must prefer it over the local projection — otherwise a
+// backend change to the classifier would not reach the screen. The `wireTier`
+// normalizer is the one place the wire word (`disclosed`) meets the UI word
+// (`disclosure`), and an unknown value under-claims.
+test("the review payload's wire enforcement wins over the local projection", () => {
+  // The backend says `enforced`; the local projection would have said
+  // disclosure for a permission the local list does not know. The wire wins.
+  const grouped = groupPermissions([
+    { permission: "filesystem-read", enforcement: "enforced" },
+    { permission: "environment", enforcement: "disclosed" },
+  ]);
+  assert.deepEqual(grouped.enforced.map((p) => p.permission), ["filesystem-read"]);
+  assert.deepEqual(grouped.disclosure.map((p) => p.permission), ["environment"]);
+  // A payload without the field falls back to the projection rather than
+  // defaulting everything to disclosure.
+  const fallback = groupPermissions([{ permission: "environment" }]);
+  assert.deepEqual(fallback.enforced.map((p) => p.permission), ["environment"]);
+  // The normalizer maps the wire word to the UI word, and under-claims on an
+  // unknown value.
+  assert.equal(wireTier("disclosed"), "disclosure");
+  assert.equal(wireTier("enforced"), "enforced");
+  assert.equal(wireTier("telepathy"), "disclosure");
 });
 
 // ── A2/A3 · the render ────────────────────────────────────────────────────

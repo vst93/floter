@@ -10,6 +10,9 @@ import { groupPermissions } from "./permission-tiers";
 
 export type PermissionEntry = {
   permission: string;
+  /** The backend's own classification, carried on the wire (R7-8a). When
+   *  present `groupPermissions` renders it instead of the local projection. */
+  enforcement?: "enforced" | "disclosed";
   title: string;
   description?: string;
 };
