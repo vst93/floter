@@ -1789,8 +1789,8 @@
   color: var(--text-secondary);
 }
 
-/* R7-8 · the demoted official-index note: no pane of its own, just one muted
-   line under the signature it qualifies. */
+/* The qualified note under a primary fact (today: the freshness health
+   source) has no pane of its own, just one muted line. */
 .extension-detail-note--secondary {
   padding: 0;
   border-left: 0;

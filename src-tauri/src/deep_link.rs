@@ -87,8 +87,8 @@ pub const REJECT_EVENT: &str = "floter://deep-link-rejected";
 /// link cannot act on "path traversal", and the person who can reads logs.
 pub const REJECT_MESSAGE_KEY: &str = "settings.deepLinkRejected";
 
-/// Ceiling on a remotely fetched manifest. Same order of magnitude as the
-/// official-index limit; a manifest is kilobytes.
+/// Ceiling on a remotely fetched manifest. A manifest is kilobytes, so this
+/// is a generous bound that still stops a hostile server from streaming.
 pub const MAX_MANIFEST_BYTES: usize = 1024 * 1024;
 
 /// Where a `connect` manifest comes from. Both variants are validated before

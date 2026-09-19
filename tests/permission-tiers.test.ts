@@ -459,31 +459,60 @@ test("the boundary note reuses its style and adds no filter", async () => {
   assert.ok(!/filter/.test(dialog), "the review dialog must not gain a filter");
 });
 
-// ── officialVerified · the demotion choice ────────────────────────────────
+// ── officialVerified · physically removed (R-FREEZE-1) ────────────────────
 
-// `plugin-system-audit.md` §六 lists the official signature index as
-// half-frozen/pending-removal, and the flag is false for every local,
-// recommended or PATH-discovered tool. As a peer metadata row it read as a
-// verdict a whole class of integrations could never earn, so R7-8 demotes it
-// to a secondary note shown only when it is true. The publisher signature
-// stays the primary fact.
-test("the official-index result is demoted to a secondary note", async () => {
+// `plugin-system-audit.md` §六 and `tool-binding-design.md`「冻结区」 list the
+// official signature index as undisputed dead weight: it was already demoted to
+// a secondary note in R7-8, and the flag is false for every local, recommended
+// or PATH-discovered tool. R-FREEZE-1 deletes the index module, the sole
+// command that consumed it, the UI note and both i18n keys. This test is the
+// mutation lock: reviving the badge (or the key it renders) turns it red.
+test("the official-index trust projection is gone, not demoted", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   assert.ok(
-    !panel.includes('t("settings.extensions.trust")'),
-    "the peer 'Source verification' row must be gone",
+    !panel.includes("officialVerified"),
+    "no `officialVerified` projection may survive in the panel",
   );
   assert.ok(
-    panel.includes('selected.officialVerified &&') &&
-      panel.includes("extension-detail-note--secondary") &&
-      panel.includes('t("settings.extensions.trustOfficial")'),
-    "the official result must render as a secondary note, gated on being true",
+    !panel.includes("extensions_refresh_official_status"),
+    "the panel must not call the deleted official-status command",
+  );
+  assert.ok(
+    !panel.includes("trustOfficial"),
+    "the official note must be gone, not demoted",
   );
   assert.ok(
     panel.includes('"settings.extensions.signatureVerified"'),
     "the publisher signature stays the primary, checkable fact",
   );
-  const css = stripComments(await read("src/styles/extensions.css"));
-  const secondary = cssRule(css, ".extension-detail-note--secondary");
-  assert.match(secondary, /background:\s*transparent/, "the demoted note paints no pane");
+
+  const i18n = await read("src/i18n.ts");
+  assert.ok(
+    !i18n.includes("settings.extensions.trustOfficial"),
+    "the trustOfficial key must be removed from both dictionaries",
+  );
+
+  const command = await read("src-tauri/src/commands/extensions.rs");
+  assert.ok(
+    !command.includes("extensions_refresh_official_status"),
+    "the backend command must be deleted with its module",
+  );
+  assert.ok(
+    !command.includes("official_index"),
+    "no backend reference to the deleted official-index module may remain",
+  );
+});
+
+test("the official-index module and its signing script are physically gone", async () => {
+  for (const path of [
+    "src-tauri/src/extensions/official_index.rs",
+    "scripts/sign-official-index.mjs",
+    "extensions/official-index/index.json",
+  ]) {
+    await assert.rejects(
+      read(path),
+      /ENOENT/,
+      `${path} must not exist after the freeze round`,
+    );
+  }
 });

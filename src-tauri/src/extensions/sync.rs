@@ -517,10 +517,9 @@ async fn preflight_entry(
     }
     let root = tempfile::tempdir_in(&state.paths.cache)
         .map_err(|error| format!("Cannot create import preflight directory: {error}"))?;
-    let prepared_state = ExtensionState::from_paths_with_official_index(
-        crate::extensions::ExtensionPaths::from_root(root.path().join("state")),
-        state.official_index.clone(),
-    )?;
+    let prepared_state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+        root.path().join("state"),
+    ))?;
     let entry = match desired.distribution_source {
         ExtensionDistributionSource::Npm => {
             // The NPM distribution pipeline was removed; NPM entries can no
@@ -1186,6 +1185,36 @@ mod tests {
             .is_empty());
         assert!(!state.paths.extensions.join("local.preflight-test").exists());
         assert!(!state.paths.data.join("local.preflight-test").exists());
+    }
+
+    /// R-FREEZE-1 · `preflight_entry` builds its staging `ExtensionState`
+    /// through the plain `from_paths` constructor now that the official-index
+    /// config passthrough is gone. Ordinary imports must not change: a normal
+    /// local entry still preflights, installs and reports success, and the
+    /// staging state must not resurrect an official-index state file.
+    #[tokio::test]
+    async fn import_preflight_is_unchanged_without_the_index_config() {
+        if install::find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
+                .unwrap();
+        let entry = portable_script_entry("local.no-index", "stable");
+        let approvals = fixture_approvals(std::slice::from_ref(&entry));
+
+        let report = import_document(
+            &state,
+            Path::new("fixture.json"),
+            import_document_with(vec![entry]),
+            &approvals,
+        )
+        .await;
+
+        assert!(report.failed.is_empty(), "{:?}", report.failed);
+        assert_eq!(report.succeeded.len(), 1);
+        assert!(!state.paths.root.join("official-index-state.json").exists());
     }
 
     #[tokio::test]

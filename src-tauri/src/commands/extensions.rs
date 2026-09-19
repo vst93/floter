@@ -204,11 +204,7 @@ async fn list_extensions(
             .lock()
             .map_err(|_| "Tool lock is unavailable".to_string())?;
         let tool_lock_snapshot = tool_lock.clone();
-        for mut entry in lock.list() {
-            // Installation persists this result only after both package and
-            // official-index signatures pass. Never present an official badge
-            // if the package signature is no longer trusted.
-            entry.official_verified &= entry.signature_verified;
+        for entry in lock.list() {
             // One read serves both the parsed manifest and the on-disk
             // digest. A digest is only reported when the file is readable, so
             // "unknown" stays distinguishable from "changed".
@@ -409,36 +405,6 @@ async fn list_extensions(
         items.push(ExtensionListItem::suggested_discovered(candidate));
     }
     Ok((items, drift_candidates))
-}
-
-#[tauri::command]
-pub async fn extensions_refresh_official_status(
-    state: State<'_, ExtensionState>,
-) -> Result<BTreeMap<String, bool>, String> {
-    let lock = ExtensionsLock::load(&state.paths.repository_file)?;
-    let official_index = crate::extensions::official_index::fetch(&state).await.ok();
-    Ok(lock
-        .list()
-        .into_iter()
-        .map(|entry| {
-            let verified = entry.signature_verified
-                && official_index.as_ref().is_some_and(|index| {
-                    entry.package_name.as_deref().is_some_and(|package| {
-                        ExtensionManifest::load(Path::new(&entry.manifest_path))
-                            .ok()
-                            .is_some_and(|manifest| {
-                                index.authorizes(
-                                    &entry.id,
-                                    package,
-                                    &entry.publisher_id,
-                                    manifest.signatures.as_ref(),
-                                )
-                            })
-                    })
-                });
-            (entry.id, verified)
-        })
-        .collect())
 }
 
 #[derive(Debug, Clone, Serialize)]

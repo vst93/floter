@@ -16,7 +16,6 @@ pub mod launch;
 pub mod lifecycle;
 pub mod lock;
 pub mod manifest;
-pub mod official_index;
 pub(crate) mod operation;
 pub mod platform;
 pub mod probe;
@@ -311,7 +310,6 @@ pub struct ExtensionPaths {
     pub legacy_lock_file: PathBuf,
     pub repository_file: PathBuf,
     pub tool_lock_file: PathBuf,
-    pub official_index_state_file: PathBuf,
 }
 
 impl ExtensionPaths {
@@ -330,7 +328,6 @@ impl ExtensionPaths {
             legacy_lock_file: root.join("extensions.lock.json"),
             repository_file: root.join("extension-repository.json"),
             tool_lock_file: root.join("tool-lock.json"),
-            official_index_state_file: root.join("official-index-state.json"),
             root,
         }
     }
@@ -347,14 +344,12 @@ impl ExtensionPaths {
 pub struct ExtensionState {
     pub paths: ExtensionPaths,
     pub client: reqwest::Client,
-    pub official_index: official_index::OfficialIndexConfig,
     pub provider: provider::ProviderManager,
     pub recommendations: Vec<recommendations::RecommendedTool>,
     pub(crate) mutation_lock: tokio::sync::Mutex<()>,
     pub(crate) provider_commands: catalog::ProviderCommandCache,
     pub tool_inventory: std::sync::Mutex<ToolInventory>,
     pub tool_lock: std::sync::Mutex<ToolLock>,
-    pub(crate) accepted_official_index_version: std::sync::Mutex<u64>,
     execution_plans: ExecutionPlanCache,
     /// AppHandle used to emit operation progress events; absent in unit tests.
     pub(crate) app_handle: std::sync::OnceLock<tauri::AppHandle>,
@@ -377,17 +372,8 @@ impl ExtensionState {
     }
 
     pub(crate) fn from_paths(paths: ExtensionPaths) -> Result<Self, String> {
-        Self::from_paths_with_official_index(paths, official_index::OfficialIndexConfig::default())
-    }
-
-    pub(crate) fn from_paths_with_official_index(
-        paths: ExtensionPaths,
-        official_index: official_index::OfficialIndexConfig,
-    ) -> Result<Self, String> {
         paths.ensure()?;
         let tool_lock = ToolLock::load(&paths.tool_lock_file)?;
-        let accepted_official_index_version =
-            official_index::load_accepted_version(&paths.official_index_state_file)?;
         let recommendations = recommendations::load_recommended()?;
         let client = reqwest::Client::builder()
             .user_agent(format!("floter/{}", env!("CARGO_PKG_VERSION")))
@@ -404,13 +390,11 @@ impl ExtensionState {
             provider: provider::ProviderManager::new(paths.cache.join("providers")),
             paths,
             client,
-            official_index,
             recommendations,
             mutation_lock: tokio::sync::Mutex::new(()),
             provider_commands: catalog::ProviderCommandCache::default(),
             tool_inventory: std::sync::Mutex::new(ToolInventory::new()),
             tool_lock: std::sync::Mutex::new(tool_lock),
-            accepted_official_index_version: std::sync::Mutex::new(accepted_official_index_version),
             execution_plans: ExecutionPlanCache::default(),
             app_handle: std::sync::OnceLock::new(),
             active_cancel: std::sync::Mutex::new(None),
@@ -806,6 +790,20 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn commit_point_scopes_isolate_tasks_across_worker_threads() {
         assert_async_commit_point_isolation().await;
+    }
+
+    /// R-FREEZE-1 · `ExtensionState` must start without any official-index
+    /// state: the module, its config field and its on-disk version file are
+    /// gone. Startup still succeeds and no `official-index-state.json` is
+    /// created, so removing the index line did not leave a dangling field or
+    /// a startup read that silently survived.
+    #[test]
+    fn startup_no_longer_reads_or_writes_official_index_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap();
+        assert!(!state.paths.root.join("official-index-state.json").exists());
     }
 
     #[test]

@@ -71,7 +71,6 @@ export type Extension = {
   toolVersion: string | null;
   integrity: string | null;
   signatureVerified: boolean;
-  officialVerified: boolean;
   currentVersion: string;
   previousVersion: string | null;
   manifestPath: string;
@@ -513,7 +512,6 @@ export type PermissionReview = {
    *  projection instead of failing. */
   permissions: Array<{ permission: PermissionName; enforcement?: "enforced" | "disclosed"; title: string; description: string }>;
   publisherSigned: boolean;
-  officialVerified: boolean;
   deprecation: string | null;
 };
 
@@ -710,15 +708,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const configDirty = configuration?.descriptor.owner === "host"
     && JSON.stringify(configValues) !== JSON.stringify(savedConfigValues);
 
-  const refreshOfficialStatus = async (generation: number) => {
-    const statuses = await invoke<Record<string, boolean>>("extensions_refresh_official_status");
-    if (generation !== refreshGeneration.current) return;
-    setExtensions((current) => current.map((extension) => ({
-      ...extension,
-      officialVerified: statuses[extension.id] ?? false,
-    })));
-  };
-
   const refreshData = async () => {
     const generation = ++refreshGeneration.current;
     setLoading(true);
@@ -726,7 +715,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       const entries = await invoke<Extension[]>("extensions_list");
       if (generation !== refreshGeneration.current) return;
       setExtensions(entries);
-      void refreshOfficialStatus(generation).catch(() => {});
     } catch (nextError) {
       if (generation === refreshGeneration.current) showError(localErrorMessage(nextError, t));
     } finally {
@@ -1964,16 +1952,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 <p className="extension-detail-description">{provider?.description.provider.description || t("settings.extensions.noDescription")}</p>
                 {selected.publisherDescriptor && (
                   <p className="extension-detail-note">{t("settings.extensions.publisherDescriptorNote")}</p>
-                )}
-                {/* R7-8 · `officialVerified` is demoted, not deleted. The
-                    official signature index is half-frozen (`plugin-system-audit.md`
-                    §六) and the flag is false for every local/recommended tool,
-                    so as a peer row it read as a verdict nobody could earn.
-                    The publisher signature stays the primary, checkable fact;
-                    the index result becomes a secondary note shown only when
-                    it is actually true. */}
-                {selected.officialVerified && (
-                  <p className="extension-detail-note extension-detail-note--secondary">{t("settings.extensions.trustOfficial")}</p>
                 )}
               </section>
 

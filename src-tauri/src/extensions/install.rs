@@ -43,7 +43,6 @@ pub struct ExtensionPermissionReview {
     pub extension_name: String,
     pub permissions: Vec<PermissionSummary>,
     pub publisher_signed: bool,
-    pub official_verified: bool,
     pub deprecation: Option<String>,
 }
 
@@ -1585,7 +1584,6 @@ pub(crate) fn permission_review(
         extension_name: manifest.name.clone(),
         permissions,
         publisher_signed: false,
-        official_verified: false,
         deprecation: None,
     }
 }
