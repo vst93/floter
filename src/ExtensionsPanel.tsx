@@ -1509,6 +1509,23 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     // not: the freshness row reports what happened, the toast only reports what
     // is worth interrupting for.
     setDriftProbe({ ...decision.display, atSeconds: Math.floor(Date.now() / 1000) });
+    // R7-7b · and so is the *list row*. The dot on the row is projected from
+    // the same fields the drawer reads, so without this the one place G2's
+    // background re-probe is visible in the list would stay stale until some
+    // unrelated mutation happened to call `refresh()` — the row would say "in
+    // sync" about a command list that just changed. Fields absent from the
+    // frame keep the list's value rather than being zeroed.
+    const atSeconds = Math.floor(Date.now() / 1000);
+    setExtensions((current) => current.map((entry) => entry.id === payload.extensionId
+      ? {
+        ...entry,
+        lastProbeAt: atSeconds,
+        commandCount: typeof notice.commandCount === "number" ? notice.commandCount : entry.commandCount,
+        previousCommandCount: typeof notice.previousCommandCount === "number"
+          ? notice.previousCommandCount
+          : entry.previousCommandCount,
+      }
+      : entry));
     if (!decision.announce || !extension) return;
     const { delta } = decision.announce;
     onNotify(
@@ -2282,6 +2299,12 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
  * something newer to fetch" — the NPM update chain was removed (`350e2d6`) and
  * nothing in this block may imply its return (AGENT-NOTES: no store-style
  * update centre).
+ *
+ * R7-7b · G2's one-shot visibility is COMPLETE and is not duplicated in the
+ * list row: the notice lives here (the toast + this block, driven by
+ * `handleDriftNotice`), and the row only carries the *persistent* state
+ * (`freshnessDotState`, no toast, no re-announcement). One change, one
+ * interruption.
  */
 function FreshnessSection({
   t,

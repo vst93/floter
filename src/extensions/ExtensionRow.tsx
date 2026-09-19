@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { Translate } from "../i18n";
 import { useEffect, useRef } from "react";
+import { freshnessDotState, freshnessOf } from "./freshness";
 import type { Extension, ExtensionOperation } from "../ExtensionsPanel";
 
 type Props = {
@@ -104,6 +105,21 @@ export function ExtensionRow({
   const status = extension.connected
     ? t(`settings.extensions.status.${extension.state}`)
     : t("settings.extensions.status.notConnected");
+  // R7-7b · the row's freshness dot, projected by the same pure module the
+  // drawer's freshness block uses. Deliberately coarser than the drawer: a row
+  // never sees the health report, so a degraded integration reads `unknown`
+  // here and "Succeeded with warnings" there — both true, at their own
+  // resolution. The error code is passed through so a stale probe timestamp
+  // cannot make the last *failed* probe read as a clean comparison.
+  const dotState = freshnessDotState(freshnessOf({
+    lastProbeAt: extension.lastProbeAt,
+    errorCode: extension.lastErrorCode,
+    commandCount: extension.commandCount,
+    previousCommandCount: extension.previousCommandCount,
+  }));
+  const dotLabel = t("settings.extensions.freshnessDot", {
+    state: t(`settings.extensions.freshnessDot.${dotState}` as Parameters<Translate>[0]),
+  });
 
   const rowContent = (
     <>
@@ -114,6 +130,26 @@ export function ExtensionRow({
         <span className="extension-row__title">
           <strong>{extension.name}</strong>
           <span>v{extension.currentVersion}</span>
+          {/* A status *mark*, not a control: it is not focusable and adds no
+              affordance, so it never competes with the row's existing focus
+              targets. `role="img"` + label is what makes it readable — an
+              aria-hidden dot would leave the state with no non-visual
+              representation at all.
+
+              Connected rows only. A detected row has no probe of any kind, so
+              its dot could only ever say "unknown" — three grey dots down the
+              Detected section is noise carrying zero information. `unknown`
+              still has a real home on a *connected* row: a publisher-
+              descriptor integration's command table is never probed, and a
+              generated one is unknown until its first probe. */}
+          {extension.connected && (
+            <span
+              className={`extension-row__dot extension-row__dot--${dotState}`}
+              role="img"
+              aria-label={dotLabel}
+              title={dotLabel}
+            />
+          )}
         </span>
         <span className="extension-row__meta" title={`${packageIdentity} · ${status}`}>
           <span>{packageIdentity}</span>

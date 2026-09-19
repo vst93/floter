@@ -824,6 +824,41 @@
   line-height: 1.3;
 }
 
+/* R7-7b · the row's freshness dot. One 8px solid mark trailing the title, in
+   the muted text family so the three states read as one quiet indicator rather
+   than a badge, a pill or an alert. Deliberately NOT an accent fill (HIG-2's
+   accent budget is about actions; `tests/accent-budget.test.ts` judges this
+   shape as a `MARK` and keeps it out of the census) and deliberately without
+   any animation — nothing here is pulsing or transitioning, because a status
+   the user did not ask about must not move on its own. */
+.extension-row__dot {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+/* Probed twice and the command count did not move: the quiet, verified state. */
+.extension-row__dot--synced {
+  background: var(--text-secondary);
+}
+
+/* The only state that earns warmth: the tool itself changed under Floter, and
+   the user may want to look. Reuses the existing warning token — no new colour. */
+.extension-row__dot--changed {
+  background: var(--text-warning);
+}
+
+/* Never probed, probed only once, a failed probe, or a publisher descriptor
+   whose command table is not probed: all "we cannot say". Same muted mark as
+   the base rule, declared so the state is legible in the markup and so a
+   future token change cannot silently recolour it. */
+.extension-row__dot--unknown {
+  background: var(--text-muted);
+}
+
 /* Secondary identity line: allowed to wrap (row grows) instead of clipping,
    with dot separators and tertiary weight so it stays below the title. */
 .extension-row__meta {

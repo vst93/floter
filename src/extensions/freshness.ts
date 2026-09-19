@@ -123,6 +123,34 @@ export const freshnessOf = (input: FreshnessInput): Freshness => {
 };
 
 /**
+ * R7-7b · the list row's one-word freshness, as a status dot.
+ *
+ * Three states, and only three, because those are the three things a row can
+ * honestly say about its command list:
+ *
+ *  - `changed`: a probe compared this command list with the one before it and
+ *    the count moved. The only state that requires positive evidence.
+ *  - `synced`: a probe compared the two and found them equal.
+ *  - `unknown`: there is nothing to compare — never probed, a probe in flight,
+ *    a failed/degraded probe, or a publisher descriptor whose command table is
+ *    never probed at all. A *first* probe lands here on purpose: it has no
+ *    earlier probe to compare with, so painting it "in sync" would be exactly
+ *    the fabricated confidence `commandDelta` already refuses to produce. That
+ *    is also why this reads `delta.kind` rather than `result` alone.
+ */
+export type FreshnessDotState = "synced" | "changed" | "unknown";
+
+export const freshnessDotState = (freshness: Freshness): FreshnessDotState => {
+  if (freshness.delta.kind === "increase" || freshness.delta.kind === "decrease") {
+    return "changed";
+  }
+  if (freshness.result === "success" && freshness.delta.kind === "unchanged") {
+    return "synced";
+  }
+  return "unknown";
+};
+
+/**
  * "3 minutes ago" in the user's language, from the platform's own
  * `Intl.RelativeTimeFormat` — no dependency, no hand-rolled plural table, and
  * correct in both of Floter's languages. `justNowKey` is the caller's
