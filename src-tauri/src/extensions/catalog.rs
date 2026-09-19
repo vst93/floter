@@ -544,7 +544,14 @@ pub(crate) async fn load_provider_commands_uncached(
             };
             match binding_state {
                 crate::extensions::tool_lock::LockState::Connected => {
-                    if already_broken && lock.clear_broken(&entry.id)? {
+                    // Clearing the persisted failure is itself gated on the
+                    // failure's cause being gone: a `broken` entry whose
+                    // descriptor no longer parses must not flip back to
+                    // enabled for one load and lose its recorded reason.
+                    if already_broken
+                        && crate::extensions::runtime_binding::recovery_is_proven(&entry)
+                        && lock.clear_broken(&entry.id)?
+                    {
                         lock_changed = true;
                     }
                 }
@@ -610,19 +617,41 @@ pub(crate) async fn load_provider_commands_uncached(
                         }
                     }));
                 }
-                Err(error) => eprintln!(
-                    "floter: cannot load static integration {}: {error}",
-                    entry.id
-                ),
+                Err(error) => {
+                    // A descriptor that will not load is not a transient
+                    // catalog miss: it is recorded in the repository so the
+                    // row can say *why* it is unavailable. Before G5 this was
+                    // an `eprintln!` and the row kept claiming `Ready`.
+                    let code = crate::extensions::runtime_binding::failure_code(&error);
+                    if !already_recorded_broken(lock.get(&entry.id)?, code, &error)
+                        && lock.mark_broken(&entry.id, code, &error)?
+                    {
+                        lock_changed = true;
+                    }
+                    tracing::warn!(
+                        extension_id = %entry.id,
+                        error = %error,
+                        "cannot load static integration for the command catalog"
+                    );
+                }
             }
             continue;
         }
         let mut invocation = match crate::extensions::registry::provider_invocation(&entry) {
             Ok(invocation) => invocation,
             Err(error) => {
-                eprintln!(
-                    "floter: cannot load extension {} for command catalog: {error}",
-                    entry.id
+                // Same rule as the static branch: a manifest that will not
+                // resolve is recorded, not merely logged.
+                let code = crate::extensions::runtime_binding::failure_code(&error);
+                if !already_recorded_broken(lock.get(&entry.id)?, code, &error)
+                    && lock.mark_broken(&entry.id, code, &error)?
+                {
+                    lock_changed = true;
+                }
+                tracing::warn!(
+                    extension_id = %entry.id,
+                    error = %error,
+                    "cannot load extension for the command catalog"
                 );
                 continue;
             }
@@ -643,17 +672,16 @@ pub(crate) async fn load_provider_commands_uncached(
         let response = match state.provider.describe(&invocation, false).await {
             Ok(response) => response,
             Err(error) => {
-                let (error_code, _) =
-                    crate::extensions::error_codes::ProviderErrorCode::extract_from_message(&error);
-                let code_str = error_code.map(|c| c.as_str()).unwrap_or("describe-failed");
+                let code_str = crate::extensions::runtime_binding::failure_code(&error);
                 if !already_recorded_broken(lock.get(&entry.id)?, code_str, &error)
                     && lock.mark_broken(&entry.id, code_str, &error)?
                 {
                     lock_changed = true;
                 }
-                eprintln!(
-                    "floter: cannot describe extension {} for command catalog: {error}",
-                    entry.id
+                tracing::warn!(
+                    extension_id = %entry.id,
+                    error = %error,
+                    "cannot describe extension for the command catalog"
                 );
                 continue;
             }
@@ -675,7 +703,7 @@ pub(crate) async fn load_provider_commands_uncached(
     }
     if lock_changed {
         if let Err(error) = lock.save(&state.paths.repository_file) {
-            eprintln!("floter: cannot persist extension binding state: {error}");
+            tracing::warn!(error = %error, "cannot persist extension binding state");
         }
     }
     Ok(result)

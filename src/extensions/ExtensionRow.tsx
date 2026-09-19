@@ -174,8 +174,23 @@ export function ExtensionRow({
             {status}
           </span>
           {!extension.runtimeAvailable && (
-            <span className="extension-status extension-status--broken">
+            <span
+              className="extension-status extension-status--broken"
+              title={
+                extension.runtimeUnavailableCode
+                  ? `${t(`settings.extensions.errorCode.${extension.runtimeUnavailableCode}` as Parameters<Translate>[0])}${extension.runtimeUnavailableDetail ? ` · ${extension.runtimeUnavailableDetail}` : ""}`
+                  : t("settings.extensions.runtimeUnavailable")
+              }
+            >
               {t("settings.extensions.runtimeUnavailable")}
+              {/* The specific cause rides beside the badge only when the list
+                  knows one: `runtimeUnavailableCode` comes from the single
+                  availability projector, so a catalog-load failure the user
+                  used to be unable to see now has a dictionary entry in the
+                  row itself, without a new visual. */}
+              {extension.runtimeUnavailableCode
+                ? ` · ${t(`settings.extensions.errorCode.${extension.runtimeUnavailableCode}` as Parameters<Translate>[0])}`
+                : ""}
             </span>
           )}
         </span>

@@ -62,6 +62,12 @@ export type Extension = {
   connected: boolean;
   runtimeSource: "managed" | "system" | "bundled";
   runtimeAvailable: boolean;
+  /** Why the runtime is unavailable, from the single availability projector
+   *  (`extensions::runtime_binding`). `null`/absent exactly when
+   *  `runtimeAvailable` is true; a failure the catalog used to only log now
+   *  reaches the row instead of leaving it claiming the tool was fine. */
+  runtimeUnavailableCode?: string | null;
+  runtimeUnavailableDetail?: string | null;
   reconnectAvailable: boolean;
   homepage: string | null;
   state: ExtensionStateKind;
@@ -1932,6 +1938,13 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               {detailError && <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{detailError}</span></div>}
               {selected.state === "broken" && (selected.brokenReason || selected.lastErrorCode) && (
                 <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.brokenDetail")}: {selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` ${selected.brokenReason}` : ""}</span></div>
+              )}
+              {/* Not broken, yet not runnable: the binding or the executable is
+                  gone. The reason comes from the same projector as
+                  `runtimeAvailable`, so the row can name the cause instead of
+                  only the symptom (audit G5). */}
+              {!selected.runtimeAvailable && selected.runtimeUnavailableCode && (
+                <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.runtimeUnavailableDetail")}: <code>{selected.runtimeUnavailableCode}</code>{selected.runtimeUnavailableDetail ? ` ${selected.runtimeUnavailableDetail}` : ""}</span></div>
               )}
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.info")}</h4>

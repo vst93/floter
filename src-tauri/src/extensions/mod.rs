@@ -26,6 +26,9 @@ pub mod recommendations;
 pub mod registry;
 pub mod repository;
 pub mod resolver;
+/// The single availabilty projector (audit G5). See the module docs for the
+/// precedence rule between the repository state machine and the live binding.
+pub(crate) mod runtime_binding;
 pub mod session_restore;
 pub mod sync;
 #[cfg(test)]

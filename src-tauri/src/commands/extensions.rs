@@ -416,6 +416,12 @@ pub struct ExtensionListItem {
     pub connected: bool,
     pub runtime_source: String,
     pub runtime_available: bool,
+    /// Why the runtime is unavailable, projected by the same single source as
+    /// `runtime_available` (`extensions::runtime_binding`). `None` exactly when
+    /// `runtime_available` is true. Audit G5: these are the fields that make a
+    /// failure the catalog used to only `eprintln!` visible in the row.
+    pub runtime_unavailable_code: Option<String>,
+    pub runtime_unavailable_detail: Option<String>,
     pub reconnect_available: bool,
     pub homepage: Option<String>,
     pub generated_custom: bool,
@@ -484,9 +490,13 @@ impl ExtensionListItem {
                     .and_then(install::read_help_probe_record)
             })
             .flatten();
-        let stored_runtime_available = crate::extensions::registry::runtime_available(&entry);
-        let runtime_available = stored_runtime_available
-            && tool_lock_state.is_none_or(|state| state == LockState::Connected);
+        let binding = crate::extensions::runtime_binding::RuntimeBinding::project(
+            &entry,
+            tool_lock_state,
+        );
+        let runtime_available = binding.is_available();
+        let runtime_unavailable_code = binding.code().map(str::to_string);
+        let runtime_unavailable_detail = binding.detail().map(str::to_string);
         let runtime_source = match entry.provider_kind {
             ExtensionProviderKind::BundledStatic => "bundled".to_string(),
             ExtensionProviderKind::Executable | ExtensionProviderKind::StaticDescriptor => {
@@ -502,6 +512,8 @@ impl ExtensionListItem {
             connected: true,
             runtime_source,
             runtime_available,
+            runtime_unavailable_code,
+            runtime_unavailable_detail,
             reconnect_available,
             homepage,
             generated_custom,
@@ -574,6 +586,11 @@ impl ExtensionListItem {
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
+            // Suggestion rows are not bound yet: there is no repository state
+            // and no lock entry to explain a reason from, and the badge
+            // already says "Tool unavailable".
+            runtime_unavailable_code: None,
+            runtime_unavailable_detail: None,
             runtime_source: "system".to_string(),
             connected: false,
             recommended: true,
@@ -650,6 +667,8 @@ impl ExtensionListItem {
         };
         Self {
             runtime_available: candidate.available,
+            runtime_unavailable_code: None,
+            runtime_unavailable_detail: None,
             runtime_source: "system".to_string(),
             connected: false,
             recommended: false,
@@ -742,6 +761,8 @@ impl ExtensionListItem {
         };
         Self {
             runtime_available: !tool_candidates.is_empty(),
+            runtime_unavailable_code: None,
+            runtime_unavailable_detail: None,
             runtime_source: "system".to_string(),
             connected: false,
             recommended: false,
