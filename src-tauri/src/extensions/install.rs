@@ -244,7 +244,6 @@ async fn create_custom_integration_locked(
                 version_args: request.version_args.clone(),
             }
         },
-        artifacts: crate::extensions::manifest::Artifacts::default(),
         provider: ProviderConfig {
             kind: ProviderKind::StaticDescriptor,
             descriptor: Some("provider-description.json".to_string()),
@@ -1124,9 +1123,6 @@ pub fn custom_integration_definition(
             ),
             version_args.clone(),
         ),
-        Runtime::Bundled { .. } => {
-            return Err("Custom integrations cannot use a bundled runtime".to_string())
-        }
     };
     Ok(CustomIntegrationDefinition {
         id: manifest.id,
@@ -1910,7 +1906,6 @@ pub(crate) async fn install_linked(
         version_args: match &manifest.runtime {
             Runtime::System { version_args, .. } => version_args.clone(),
             Runtime::Script { version_args, .. } => version_args.clone(),
-            Runtime::Bundled { .. } => Vec::new(),
         },
         config: resolved.provider,
         permissions: manifest.permissions.clone(),
@@ -1992,7 +1987,6 @@ pub(crate) async fn install_linked(
         previous_integrity: None,
         previous_runtime_integrity: None,
         previous_content_integrity: None,
-        asset_selection: None,
         signature_verified: false,
         previous_signature_verified: None,
         official_verified: false,
@@ -2218,7 +2212,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -5080,7 +5073,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -5248,7 +5240,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -5372,7 +5363,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -5800,7 +5790,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

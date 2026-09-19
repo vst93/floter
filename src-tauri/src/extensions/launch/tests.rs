@@ -334,43 +334,6 @@ async fn undeclared_launch_preserves_cwd_fallback_chain() {
 }
 
 #[tokio::test]
-async fn bundled_command_uses_declared_program_and_approved_grants() {
-    let mut fixture = Fixture::new(false);
-    let helper = fixture.root.path().join("helper.sh");
-    std::os::unix::fs::symlink(&fixture.executable, &helper).unwrap();
-    fixture.manifest["runtime"] = json!({
-        "type": "bundled", "executable": "provider.sh",
-        "platformPackages": {PlatformTarget::current().unwrap().identifier(): "launch-runtime"}
-    });
-    fixture.manifest["distribution"]["type"] = json!("npm");
-    fixture.manifest["permissions"] = json!(["process-spawn"]);
-    fixture.manifest["lifecycle"]["launch"]["command"]["program"] = json!("helper.sh");
-    fixture.save();
-    ExtensionManifest::load(&fixture.manifest_path).unwrap();
-    let mut repository = ExtensionsLock::load(&fixture.state.paths.repository_file).unwrap();
-    let entry = repository.extensions.get_mut(ID).unwrap();
-    entry.distribution_source = crate::extensions::lock::ExtensionDistributionSource::Npm;
-    entry.runtime_ownership = crate::extensions::lock::ExtensionRuntimeOwnership::Bundled;
-    entry.runtime_root = Some(fixture.root.path().to_string_lossy().into_owned());
-    entry.approved_permissions = vec![Permission::ProcessSpawn];
-    repository
-        .save(&fixture.state.paths.repository_file)
-        .unwrap();
-    let plan = fixture.launch().await;
-    assert_eq!(fixture.spawn(&plan).await[0], helper.to_string_lossy());
-
-    std::fs::remove_file(&helper).unwrap();
-    let (fallback, logs) = fixture.logged_launch().await;
-    assert_v1(&fallback.unwrap(), fixture.root.path());
-    assert!(
-        logs.contains("WARN")
-            && logs.contains("lifecycle.launch.command")
-            && logs.contains("Execution program does not exist"),
-        "{logs}"
-    );
-}
-
-#[tokio::test]
 async fn protected_launch_plan_ignores_ipc_tampering_and_is_single_use() {
     let fixture = Fixture::new(false);
     let mut plan = fixture.launch().await;

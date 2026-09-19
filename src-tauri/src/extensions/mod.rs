@@ -1,5 +1,3 @@
-pub mod artifacts;
-pub mod asset_matcher;
 pub mod capability_probe;
 pub mod catalog;
 pub mod config;
@@ -22,7 +20,6 @@ pub mod probe;
 pub mod probe_executor;
 pub mod probe_runner;
 pub(crate) mod process_cleanup;
-pub mod profile;
 pub mod provider;
 mod proxy;
 pub mod recommendations;
@@ -291,7 +288,6 @@ pub use lock::{
 pub use manifest::{ExtensionManifest, ResolvedManifest};
 pub use platform::{PlatformAbi, PlatformArch, PlatformLibc, PlatformOs, PlatformTarget};
 pub use probe::{ProbeQuality, ProbeResult, ProviderDescriber};
-pub use profile::{Profile, ProfileKind, ProfileStack};
 pub use provider::{ExecutionMode, ExecutionPlan, ProviderDescription, ProviderResponse};
 pub use resolver::{ResolveRequest, ResolveResult, ScoreBreakdown, ScoredCandidate};
 pub use terminal_capability::{

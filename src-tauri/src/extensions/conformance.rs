@@ -1,5 +1,5 @@
 use crate::extensions::config::{self, ConfigurationDescriptor};
-use crate::extensions::manifest::{validate_relative_path, ExtensionManifest, Permission, Runtime};
+use crate::extensions::manifest::{validate_relative_path, ExtensionManifest, Permission};
 use crate::extensions::provider::ProviderDescription;
 use serde::Deserialize;
 
@@ -42,12 +42,13 @@ pub fn validate_execution_contract(
                 command.id
             ));
         }
-        if !matches!(manifest.runtime, Runtime::Bundled { .. }) {
-            return Err(format!(
-                "Linked command {} may only execute self",
-                command.id
-            ));
-        }
+        // A non-self program is resolved against the bundled runtime root,
+        // which only existed for the removed NPM distribution. Every runtime
+        // the Host can still install (system, script) may only execute self.
+        return Err(format!(
+            "Linked command {} may only execute self",
+            command.id
+        ));
     }
     Ok(())
 }

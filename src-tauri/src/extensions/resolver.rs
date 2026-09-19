@@ -1,7 +1,6 @@
 //! Deterministic candidate selection with explicit ambiguity.
 
 use super::inventory::{DiscoveryQuality, ToolCandidate};
-use super::profile::Profile;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +8,6 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct ResolveRequest {
     pub tool: String,
-    pub profile: Option<Profile>,
     pub required_version: Option<String>,
     #[serde(default)]
     pub preferred_locator: Option<String>,
@@ -42,20 +40,13 @@ pub struct ScoredCandidate {
 pub struct ScoreBreakdown {
     pub exact_match: u8,
     pub version: u8,
-    pub profile: u8,
     pub stability: u8,
     pub history: u8,
 }
 
 impl ScoreBreakdown {
-    fn key(&self) -> (u8, u8, u8, u8, u8) {
-        (
-            self.exact_match,
-            self.version,
-            self.profile,
-            self.stability,
-            self.history,
-        )
+    fn key(&self) -> (u8, u8, u8, u8) {
+        (self.exact_match, self.version, self.stability, self.history)
     }
 }
 
@@ -164,16 +155,6 @@ fn score(request: &ResolveRequest, candidate: &ToolCandidate) -> ScoreBreakdown 
             }
         })
         .unwrap_or(0);
-    let profile = if request
-        .profile
-        .as_ref()
-        .is_some_and(|profile| profile.is_container())
-        && candidate.locator.normalized().starts_with("docker:")
-    {
-        3
-    } else {
-        0
-    };
     let stability = match candidate.quality {
         DiscoveryQuality::OfficialAdapter => 4,
         DiscoveryQuality::NativeSupport => 3,
@@ -193,7 +174,6 @@ fn score(request: &ResolveRequest, candidate: &ToolCandidate) -> ScoreBreakdown 
     ScoreBreakdown {
         exact_match,
         version,
-        profile,
         stability,
         history,
     }
@@ -234,7 +214,6 @@ mod tests {
         let result = resolve(
             &ResolveRequest {
                 tool: "tool".into(),
-                profile: None,
                 required_version: None,
                 preferred_locator: None,
             },
@@ -253,7 +232,6 @@ mod tests {
         let result = resolve(
             &ResolveRequest {
                 tool: "tool".into(),
-                profile: None,
                 required_version: None,
                 preferred_locator: Some("/opt/Floter/Tool".into()),
             },
@@ -279,7 +257,6 @@ mod tests {
         let result = resolve_executable_names(
             &ResolveRequest {
                 tool: "tool".into(),
-                profile: None,
                 required_version: None,
                 preferred_locator: Some(second.locator.normalized()),
             },
@@ -303,7 +280,6 @@ mod tests {
         let result = resolve_executable_names(
             &ResolveRequest {
                 tool: "tool".into(),
-                profile: None,
                 required_version: None,
                 preferred_locator: None,
             },

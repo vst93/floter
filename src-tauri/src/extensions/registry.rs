@@ -23,7 +23,6 @@ pub(crate) fn provider_invocation_with_manifest(
     let version_args = match &manifest.runtime {
         Runtime::System { version_args, .. } => version_args.clone(),
         Runtime::Script { version_args, .. } => version_args.clone(),
-        Runtime::Bundled { .. } => Vec::new(),
     };
     let permissions = manifest.permissions.clone();
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;

@@ -544,7 +544,6 @@ impl ExtensionListItem {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -624,7 +623,6 @@ impl ExtensionListItem {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -714,7 +712,6 @@ impl ExtensionListItem {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -795,7 +792,6 @@ fn resolve_manifest_candidate(
     resolver::resolve_executable_names(
         &ResolveRequest {
             tool,
-            profile: None,
             required_version: None,
             preferred_locator,
         },
@@ -1343,7 +1339,6 @@ pub fn extensions_local_manifest_review(
     }
     let runtime = match manifest.runtime {
         crate::extensions::manifest::Runtime::System { .. } => "system",
-        crate::extensions::manifest::Runtime::Bundled { .. } => "bundled",
         crate::extensions::manifest::Runtime::Script { .. } => "script",
     };
     let platforms = manifest
@@ -1565,7 +1560,6 @@ async fn reconnect_system_locked(
                 crate::extensions::manifest::Runtime::Script { version_args, .. } => {
                     version_args.clone()
                 }
-                crate::extensions::manifest::Runtime::Bundled { .. } => Vec::new(),
             },
             config: resolved.provider,
             permissions: manifest.permissions.clone(),
@@ -2374,7 +2368,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -2522,7 +2515,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -2638,7 +2630,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -3214,7 +3205,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

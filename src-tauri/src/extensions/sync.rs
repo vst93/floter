@@ -961,7 +961,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,
@@ -1076,7 +1075,6 @@ mod tests {
                     path: "provider.sh".into(),
                     version_args: Vec::new(),
                 },
-                artifacts: crate::extensions::manifest::Artifacts::default(),
                 provider: ProviderConfig {
                     kind: ProviderKind::StaticDescriptor,
                     descriptor: Some("provider-description.json".into()),

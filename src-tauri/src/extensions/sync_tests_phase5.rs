@@ -38,7 +38,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

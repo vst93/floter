@@ -548,10 +548,6 @@ fn recover_install_journals(
                     let _ = std::fs::remove_dir_all(staged);
                 }
             }
-            crate::extensions::artifacts::activate_entry_shims(
-                &state.paths.extensions,
-                &journal.new_entry,
-            )?;
             remove_journal(path)?;
         } else if journal.staged_version.is_none() && journal.target_version.is_none() {
             // Download/pre-staging journal: nothing became visible, drop it.
@@ -783,7 +779,6 @@ fn rebuild_current_pointers(state: &ExtensionState, lock: &ExtensionsLock) -> Re
             }
             continue;
         }
-        crate::extensions::artifacts::activate_entry_shims(&state.paths.extensions, entry)?;
         // A pointer is the runtime-facing projection of the repository. If it
         // cannot be rewritten, startup must fail loudly instead of leaving a
         // valid repository paired with a stale executable shim.
@@ -830,7 +825,6 @@ mod tests {
             previous_integrity: None,
             previous_runtime_integrity: None,
             previous_content_integrity: None,
-            asset_selection: None,
             signature_verified: false,
             previous_signature_verified: None,
             official_verified: false,

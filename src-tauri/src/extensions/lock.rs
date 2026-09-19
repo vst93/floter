@@ -8,7 +8,6 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::extensions::asset_matcher::AssetSelection;
 use crate::extensions::manifest::Permission;
 
 pub(crate) const LOCK_SCHEMA_VERSION: u32 = 2;
@@ -101,8 +100,6 @@ pub struct ExtensionLockEntry {
     pub previous_runtime_integrity: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous_content_integrity: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub asset_selection: Option<AssetSelection>,
     #[serde(default)]
     pub signature_verified: bool,
     #[serde(default)]
@@ -635,6 +632,58 @@ mod tests {
         assert_eq!(entry.content_integrity.as_deref(), Some("sha512-CCCC"));
         assert!(entry.signature_verified);
         assert!(entry.official_verified);
+    }
+
+    /// The NPM asset-selection dimension was removed along with the NPM
+    /// distribution. Lock files written before that removal still carry an
+    /// `assetSelection` object (here populated, not just null). The entry must
+    /// keep loading — the field is a legacy compatibility input, not an unknown
+    /// key — but a re-serialized entry must no longer emit it, and the lock can
+    /// no longer round-trip the field.
+    #[test]
+    fn legacy_asset_selection_loads_but_is_dropped_from_the_entry_shape() {
+        let entry: ExtensionLockEntry = serde_json::from_value(serde_json::json!({
+            "id": "legacy.asset.tool",
+            "name": "Legacy asset tool",
+            "publisherId": "example",
+            "publisherName": "Example",
+            "distributionSource": "npm",
+            "runtimeOwnership": "bundled",
+            "providerKind": "executable",
+            "state": "enabled",
+            "enabled": true,
+            "packageName": "@example/legacy-asset-tool",
+            "packageVersion": "1.2.3",
+            "toolVersion": null,
+            "integrity": "sha512-AAAA",
+            "currentVersion": "1.2.3",
+            "previousVersion": null,
+            "manifestPath": "/tmp/versions/1.2.3/floter.extension.json",
+            "executablePath": "/tmp/versions/1.2.3/runtime/tool",
+            "runtimeRoot": "/tmp/versions/1.2.3/runtime",
+            "assetSelection": {
+                "selected": {
+                    "name": "legacy-asset-tool-linux-x64",
+                    "url": "https://example.com/legacy-asset-tool-linux-x64.tar",
+                    "score": 90,
+                    "reason": "best platform match"
+                },
+                "rejected": []
+            },
+            "installedAt": 1,
+            "updatedAt": 2,
+            "pinned": false,
+            "channel": "stable"
+        }))
+        .unwrap();
+
+        assert_eq!(entry.distribution_source, ExtensionDistributionSource::Npm);
+        assert_eq!(entry.current_version, "1.2.3");
+        let serialized = serde_json::to_value(&entry).unwrap();
+        assert!(
+            serialized.get("assetSelection").is_none(),
+            "a removed field must not re-enter the entry shape: {serialized}"
+        );
     }
 
     #[test]

@@ -12,7 +12,7 @@
     "providerProtocol": "^1.0"
   },
   "distribution": {
-    "type": "npm"
+    "type": "local"
   },
   "runtime": {
     "type": "system",
