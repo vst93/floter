@@ -185,6 +185,21 @@ type KeyOverrides = Partial<{
   defaultPrevented: boolean;
 }>;
 
+/**
+ * Minimal stand-in for `HTMLElement`: the handler only ever asks it for
+ * `closest(selector)`. Instances are created with the answers they should give,
+ * so a test can put the event target inside (or outside) a modal without a DOM.
+ */
+class FakeHTMLElement {
+  private readonly closestMap: Record<string, unknown>;
+  constructor(closestMap: Record<string, unknown> = {}) {
+    this.closestMap = closestMap;
+  }
+  closest(selector: string): unknown {
+    return this.closestMap[selector] ?? null;
+  }
+}
+
 function keyEvent(overrides: KeyOverrides = {}) {
   return {
     key: "",
@@ -211,6 +226,8 @@ function keyEvent(overrides: KeyOverrides = {}) {
 function makeHarness(options: {
   mode: string;
   dismiss: { action: string; stopPropagation?: boolean; reassertOnKeyUp?: boolean } | null;
+  /** Extra dependency seams (modal guard, page navigator, sidebar buttons). */
+  overrides?: Partial<Deps>;
 }) {
   const calls: Recorded = {
     invoke: [],
@@ -239,7 +256,7 @@ function makeHarness(options: {
     document: { activeElement: null },
     // The handler only uses this in an `instanceof` check; a local class is
     // enough and keeps the node process free of a DOM shim.
-    HTMLElement: class {},
+    HTMLElement: FakeHTMLElement,
     invoke: (cmd: string, args: unknown) => calls.invoke.push({ cmd, args }),
     encodeKey: () => null,
     isTerminalCompositionKey: () => false,
@@ -286,6 +303,7 @@ function makeHarness(options: {
     showLauncherFeedback: (key: string) => calls.showLauncherFeedback.push(key),
     setHistoryIndex: (value: unknown) => calls.setHistoryIndex.push(value),
     collapsedCardRef: { current: null },
+    ...options.overrides,
   };
   const api = compileHandler()(...DEP_NAMES.map((name) => deps[name])) as {
     runDismissAction: (
@@ -493,5 +511,152 @@ test("the reassertOnKeyUp flag is bound to the terminal new-command cell", () =>
     (terminalRow.match(/reassertOnKeyUp/g) || []).length,
     1,
     "exactly one terminal cell re-arms",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Settings modal guard — the surface must stand down while a dialog is open.
+//
+// The acceptance criterion is "modal open => the frame's focus never regresses
+// and the surface rules stay put". `surfaceYieldsToModal` + the `[aria-modal]`
+// test is what makes that true; before this block, deleting the guard left the
+// whole suite green.
+// ---------------------------------------------------------------------------
+
+test("settings yields every key to an open modal (no dismiss, no page switch)", () => {
+  // Pretend the press happened inside a dialog. The guard must return before
+  // the sidebar arrows AND before the dismiss table resolves.
+  const target = new FakeHTMLElement({ '[aria-modal="true"]': {} });
+  const h = makeHarness({
+    mode: "settings",
+    dismiss: { action: "close-settings" },
+    overrides: {
+      surfaceYieldsToModal: () => true,
+      isArrowKeyEditableTarget: () => false,
+      nextSettingsPage: () => "sessions",
+      settingsSidebarButtons: { current: new Map() },
+    },
+  });
+  for (const key of ["Escape", "w", "ArrowDown"]) {
+    const event = keyEvent({ key, code: key, metaKey: key === "w", target });
+    h.api.onKeyDown(event);
+    assert.equal(event.preventCalls, 0, `${key} inside a modal must not be consumed by the surface`);
+  }
+  assert.deepEqual(h.calls.closeSettings, [], "the modal closes itself; the surface must not also close");
+  assert.deepEqual(h.calls.changeSettingsPage, [], "↑/↓ must not switch pages under the dialog");
+});
+
+test("the modal guard is gated by surfaceYieldsToModal, not by `mode`", () => {
+  // Same aria-modal target, but the surface is not one that yields: the guard
+  // must not fire, so the dismiss rule still runs.
+  const target = new FakeHTMLElement({ '[aria-modal="true"]': {} });
+  const h = makeHarness({
+    mode: "settings",
+    dismiss: { action: "close-settings" },
+    overrides: { surfaceYieldsToModal: () => false },
+  });
+  const event = keyEvent({ key: "Escape", code: "Escape", target });
+  h.api.onKeyDown(event);
+  assert.deepEqual(h.calls.closeSettings, [1], "without the declaration the surface keeps handling keys");
+});
+
+// ---------------------------------------------------------------------------
+// Settings sidebar ↑/↓ — the entry focus only pays off if the arrows drive it.
+// ---------------------------------------------------------------------------
+
+test("settings ↑/↓ moves focus to the next sidebar button and switches page", () => {
+  const focused: string[] = [];
+  const buttons = new Map<string, { focus: () => void }>([
+    ["sessions", { focus: () => focused.push("sessions") }],
+    ["about", { focus: () => focused.push("about") }],
+  ]);
+  const h = makeHarness({
+    mode: "settings",
+    dismiss: null,
+    overrides: {
+      settingsPage: "general",
+      nextSettingsPage: (_page: string, direction: string) =>
+        direction === "down" ? "sessions" : "about",
+      settingsSidebarButtons: { current: buttons },
+    },
+  });
+
+  h.api.onKeyDown(keyEvent({ key: "ArrowDown", code: "ArrowDown" }));
+  assert.deepEqual(focused, ["sessions"], "↓ must land the keyboard on the next item");
+  assert.deepEqual(h.calls.changeSettingsPage, ["sessions"], "↓ must commit the page switch");
+
+  h.api.onKeyDown(keyEvent({ key: "ArrowUp", code: "ArrowUp" }));
+  assert.deepEqual(focused, ["sessions", "about"], "↑ must land the keyboard on the previous item");
+  assert.deepEqual(h.calls.changeSettingsPage, ["sessions", "about"]);
+});
+
+test("settings ↑/↓ leaves editable and modal targets alone", () => {
+  const h = makeHarness({
+    mode: "settings",
+    dismiss: null,
+    overrides: {
+      isArrowKeyEditableTarget: () => true,
+      nextSettingsPage: () => "sessions",
+      settingsSidebarButtons: { current: new Map() },
+    },
+  });
+  const event = keyEvent({ key: "ArrowDown", code: "ArrowDown" });
+  h.api.onKeyDown(event);
+  assert.equal(event.preventCalls, 0, "an input keeps its caret movement");
+  assert.deepEqual(h.calls.changeSettingsPage, [], "no page switch from an editable target");
+});
+
+test("the arrow handler refreshes sessions when the switch lands on that page", () => {
+  const h = makeHarness({
+    mode: "settings",
+    dismiss: null,
+    overrides: {
+      nextSettingsPage: () => "sessions",
+      settingsSidebarButtons: { current: new Map() },
+    },
+  });
+  h.api.onKeyDown(keyEvent({ key: "ArrowDown", code: "ArrowDown" }));
+  assert.deepEqual(h.calls.refreshTerminalSessions, [1], "landing on sessions must refresh it");
+});
+
+// ---------------------------------------------------------------------------
+// Dialog focus (58c6d24 + the inert walk) must survive the new entry focus.
+//
+// R7-2 lands the keyboard on the sidebar. Opening a dialog inside settings must
+// still make everything outside it inert up to the `.settings-card` boundary,
+// and closing must restore the element that had the keyboard (now the sidebar
+// item) unless it has itself gone inert. `useDialogFocus` is React-bound, so
+// this is the source-shape backstop the file already uses for side effects.
+// ---------------------------------------------------------------------------
+
+test("the dialog inert walk still stops at the settings-card boundary", async () => {
+  const panel = stripComments(readText("src/ExtensionsPanel.tsx"));
+  const walkStart = panel.indexOf("const inertElements");
+  assert.ok(walkStart > -1, "useDialogFocus must keep its inert walk");
+  const walkEnd = panel.indexOf("const handleKeyDown", walkStart);
+  assert.ok(walkEnd > walkStart, "the walk must precede the key handler");
+  const walk = panel.slice(walkStart, walkEnd);
+
+  assert.match(
+    walk,
+    /sibling\.inert\s*=\s*true/,
+    "siblings outside the dialog must be made inert",
+  );
+  assert.match(
+    walk,
+    /classList\.contains\("settings-card"\)\s*\)?\s*break/,
+    "the walk must stop at the settings-card boundary",
+  );
+});
+
+test("closing a dialog restores focus without reviving an inert target", async () => {
+  const panel = stripComments(readText("src/ExtensionsPanel.tsx"));
+  const restoreStart = panel.indexOf("previouslyFocused?.isConnected");
+  assert.ok(restoreStart > -1, "the restore block must exist");
+  const restore = panel.slice(restoreStart, restoreStart + 200);
+  assert.match(
+    restore,
+    /!previouslyFocused\.closest\("\[inert\]"\)/,
+    "a target that is inert (or inside an inert subtree) must not be refocused",
   );
 });
