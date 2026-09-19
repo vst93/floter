@@ -490,10 +490,8 @@ impl ExtensionListItem {
                     .and_then(install::read_help_probe_record)
             })
             .flatten();
-        let binding = crate::extensions::runtime_binding::RuntimeBinding::project(
-            &entry,
-            tool_lock_state,
-        );
+        let binding =
+            crate::extensions::runtime_binding::RuntimeBinding::project(&entry, tool_lock_state);
         let runtime_available = binding.is_available();
         let runtime_unavailable_code = binding.code().map(str::to_string);
         let runtime_unavailable_detail = binding.detail().map(str::to_string);
@@ -2204,6 +2202,7 @@ mod tests {
                 script_content: Some("printf test".into()),
                 args_prefix: Vec::new(),
                 version_args: Vec::new(),
+                description: None,
                 permissions: Vec::new(),
                 platforms: vec![crate::extensions::PlatformTarget::current().unwrap().os],
             },
@@ -3009,6 +3008,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: vec!["--version".into()],
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
             },
@@ -3145,6 +3145,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: vec!["--version".into()],
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
             },

@@ -1132,6 +1132,7 @@ mod tests {
                 script_content: Some("printf '%s\\n' \"$@\"".into()),
                 args_prefix: vec!["default".into()],
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
             },

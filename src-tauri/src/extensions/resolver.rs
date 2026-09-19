@@ -203,6 +203,7 @@ mod tests {
                 path: format!("/usr/bin/{id}"),
             },
             version: Some(version.into()),
+            description: None,
             sources: vec![DiscoverySource::Path],
             quality: DiscoveryQuality::AutoDetected,
             available: true,

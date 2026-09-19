@@ -77,6 +77,12 @@ pub struct CustomIntegrationRequest {
     pub args_prefix: Vec<String>,
     #[serde(default)]
     pub version_args: Vec<String>,
+    /// Best-effort human description inferred by the discovery layer (for
+    /// example a Linux desktop entry's `Comment`). `None` (or blank) keeps the
+    /// generated `Local integration for <executable>` fallback, so a missing
+    /// description never blocks a connection.
+    #[serde(default)]
+    pub description: Option<String>,
     #[serde(default)]
     pub permissions: Vec<Permission>,
     #[serde(default)]
@@ -207,6 +213,25 @@ async fn create_custom_integration_locked(
     if !script_mode && request.script_language.is_some() {
         return Err("Script language is only valid for script integrations".to_string());
     }
+    // Best-effort real version: run the requested version probe and, when the
+    // output carries a semver, store that as the manifest/descriptor version
+    // (both require semver) instead of the caller's placeholder. A missing
+    // `--version`, a non-zero exit, or unparseable output keeps the caller's
+    // version and never blocks the connection. The raw stdout still lands in
+    // `entry.tool_version` through the shared `linked_tool_version` probe.
+    let version = if script_mode {
+        request.version.trim().to_string()
+    } else {
+        probe_tool_version_output(
+            &executable,
+            &request.permissions,
+            &request.version_args,
+            &BTreeMap::new(),
+        )
+        .await
+        .and_then(|output| semver_from_version_output(&output))
+        .unwrap_or_else(|| request.version.trim().to_string())
+    };
     let executable_name = executable
         .file_name()
         .and_then(|value| value.to_str())
@@ -219,7 +244,13 @@ async fn create_custom_integration_locked(
         description: if script_mode {
             "Local script integration".to_string()
         } else {
-            format!("Local integration for {executable_name}")
+            request
+                .description
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("Local integration for {executable_name}"))
         },
         homepage: None,
         icon: None,
@@ -286,7 +317,7 @@ async fn create_custom_integration_locked(
             .map_err(|error| format!("Cannot write custom integration manifest: {error}"))?;
         let mut package_bytes = serde_json::to_vec_pretty(&serde_json::json!({
             "name": format!("floter-local-{}", id.replace(['.', '_'], "-")),
-            "version": request.version.trim(),
+            "version": version.clone(),
             "private": true,
             "keywords": ["floter-extension"],
             "floter": { "manifest": "floter.extension.json" }
@@ -312,7 +343,7 @@ async fn create_custom_integration_locked(
             "provider": {
                 "id": id,
                 "name": name,
-                "version": request.version.trim(),
+                "version": version.clone(),
                 "description": manifest.description
             },
             "commands": commands
@@ -1022,7 +1053,15 @@ pub fn tool_binding_request(
         script_language: None,
         script_content: None,
         args_prefix: Vec::new(),
-        version_args: Vec::new(),
+        // A discovered tool is bound with the conventional version probe so
+        // `linked_tool_version` can observe the real upstream version and the
+        // version-drift reprobe has a value to compare against. Best-effort:
+        // a tool without `--version` simply records no version.
+        version_args: vec!["--version".into()],
+        description: candidate
+            .description
+            .clone()
+            .filter(|value| !value.trim().is_empty()),
         permissions: tool_binding_permissions(),
         platforms: vec![PlatformTarget::current()?.os],
     })
@@ -2140,15 +2179,35 @@ pub(crate) async fn linked_tool_version(
     let Runtime::System { version_args, .. } = &manifest.runtime else {
         return None;
     };
+    probe_tool_version_output(
+        executable,
+        &manifest.permissions,
+        version_args,
+        &provider.environment,
+    )
+    .await
+}
+
+/// Run a bounded `<executable> <versionArgs>` probe and return the raw stdout
+/// (trimmed, first 200 chars) on success. Best-effort by contract: a missing
+/// binary, a non-zero exit, a timeout, or empty output all yield `None` and
+/// never block the caller. Shared by connect-time version inference and the
+/// drift reprobe so both observe exactly the same value.
+async fn probe_tool_version_output(
+    executable: &Path,
+    permissions: &[Permission],
+    version_args: &[String],
+    configured_environment: &BTreeMap<String, String>,
+) -> Option<String> {
     if version_args.is_empty() {
         return None;
     }
     let mut command = tokio::process::Command::new(executable);
-    if !manifest.permissions.contains(&Permission::Environment) {
+    if !permissions.contains(&Permission::Environment) {
         command.env_clear();
     }
     let environment =
-        crate::extensions::proxy::command_environment(&manifest.permissions, &provider.environment);
+        crate::extensions::proxy::command_environment(permissions, configured_environment);
     command
         .args(version_args)
         .envs(environment)
@@ -2171,6 +2230,58 @@ pub(crate) async fn linked_tool_version(
                 .collect()
         })
         .filter(|version: &String| !version.is_empty())
+}
+
+/// Extract the first semver-shaped token from a `--version` output. Tolerates a
+/// leading `v`, surrounding punctuation, multiple lines, and noise words
+/// (`git version 2.42.0`, `rg 14.1.0`, `v1.2`). Garbage in, empty out: when no
+/// token parses as a real semver the result is `None` — this function never
+/// guesses or fabricates a version.
+pub fn semver_from_version_output(output: &str) -> Option<String> {
+    output
+        .split_whitespace()
+        .find_map(semver_from_version_token)
+}
+
+fn semver_from_version_token(token: &str) -> Option<String> {
+    let token = token.trim_matches(|character: char| {
+        matches!(
+            character,
+            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '"' | '\'' | '`'
+        )
+    });
+    let token = token.strip_prefix(['v', 'V']).unwrap_or(token);
+    let start = token.find(|character: char| character.is_ascii_digit())?;
+    let candidate = token[start..]
+        .chars()
+        .take_while(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '+')
+        })
+        .collect::<String>();
+    let (core, suffix) = match candidate.find(['-', '+']) {
+        Some(index) => (&candidate[..index], &candidate[index..]),
+        None => (candidate.as_str(), ""),
+    };
+    let mut components = core.split('.');
+    let major = components.next()?;
+    let minor = components.next()?;
+    let patch = components.next();
+    if components.next().is_some()
+        || !major.bytes().all(|byte| byte.is_ascii_digit())
+        || !minor.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let patch = match patch {
+        Some(patch) if !patch.is_empty() && patch.bytes().all(|byte| byte.is_ascii_digit()) => {
+            patch
+        }
+        Some(_) => return None,
+        None => "0",
+    };
+    Version::parse(&format!("{major}.{minor}.{patch}{suffix}"))
+        .ok()
+        .map(|version| version.to_string())
 }
 
 #[cfg(test)]
@@ -2397,6 +2508,7 @@ mod tests {
             script_content: Some("printf original".into()),
             args_prefix: vec!["original".into()],
             version_args: Vec::new(),
+            description: None,
             permissions: vec![Permission::Environment, Permission::FilesystemRead],
             platforms: current_platforms(),
         }
@@ -2440,6 +2552,7 @@ mod tests {
                 path: path.to_string_lossy().into_owned(),
             },
             version: None,
+            description: None,
             sources: vec![crate::extensions::inventory::DiscoverySource::Path],
             quality: crate::extensions::inventory::DiscoveryQuality::AutoDetected,
             available: true,
@@ -2610,6 +2723,341 @@ mod tests {
         assert!(tool_binding_request(&candidate).is_err());
     }
 
+    /// P1 regression: before S1-a the PATH connect path wrote an empty
+    /// `versionArgs`, so `linked_tool_version` always returned `None` and the
+    /// version-drift reprobe was dead code for every discovered tool. This
+    /// walks the real `connect_tool` entry point: connect a tool that reports a
+    /// version, upgrade it upstream, and require the reprobe to fire.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_path_connected_tool_is_eligible_for_version_drift_reprobe() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("drifting.sh");
+        let write = |payload: &str| {
+            std::fs::write(&executable, payload).unwrap();
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        };
+        write(concat!(
+            "#!/bin/sh\n",
+            "if [ \"$1\" = \"--version\" ]; then echo 'drifting 1.0.0'; exit 0; fi\n",
+            "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n'; exit 0; fi\n",
+            "exit 0\n"
+        ));
+
+        let entry = connect_tool(&state, discovered_candidate(&executable, "Drifting"))
+            .await
+            .unwrap();
+        // The connect path must have recorded the real version, not `0.0.0`.
+        assert_eq!(entry.tool_version.as_deref(), Some("drifting 1.0.0"));
+        assert!(drift_reprobe_eligible(
+            &entry,
+            &manifest_of(&state, &entry.id)
+        ));
+
+        // Upstream upgrade: the same path now reports 2.0.0.
+        write(concat!(
+            "#!/bin/sh\n",
+            "if [ \"$1\" = \"--version\" ]; then echo 'drifting 2.0.0'; exit 0; fi\n",
+            "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
+            "exit 0\n"
+        ));
+
+        let changed =
+            reprobe_on_tool_version_change(&state, &entry, &manifest_of(&state, &entry.id)).await;
+        assert!(changed, "a real version drift must trigger a reprobe");
+        let recorded = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(&entry.id)
+            .unwrap()
+            .tool_version
+            .clone();
+        assert_eq!(recorded.as_deref(), Some("drifting 2.0.0"));
+    }
+
+    #[cfg(unix)]
+    fn manifest_of(state: &ExtensionState, id: &str) -> ExtensionManifest {
+        let entry = ExtensionsLock::load(&state.paths.repository_file)
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .clone();
+        ExtensionManifest::load(Path::new(&entry.manifest_path)).unwrap()
+    }
+
+    /// A PATH discovery is bound with the conventional `--version` probe so the
+    /// version-drift reprobe has a value to compare against, and a description
+    /// learned by the desktop layer rides along (S1-a/S1-b).
+    #[cfg(unix)]
+    #[test]
+    fn tool_binding_request_uses_the_conventional_version_probe_and_description() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("described-tool");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        make_executable(&executable).unwrap();
+        let mut candidate = discovered_candidate(&executable, "Described tool");
+        candidate.description = Some("Search files for a pattern".into());
+
+        let request = tool_binding_request(&candidate).unwrap();
+        assert_eq!(request.version_args, vec!["--version".to_string()]);
+        assert_eq!(
+            request.description.as_deref(),
+            Some("Search files for a pattern")
+        );
+    }
+
+    #[test]
+    fn semver_from_version_output_extracts_the_first_real_version() {
+        // Plain and `v`-prefixed single-token outputs.
+        assert_eq!(semver_from_version_output("14.1.0"), Some("14.1.0".into()));
+        assert_eq!(semver_from_version_output("v1.2.3"), Some("1.2.3".into()));
+        // Noise words before the version (the common `git version 2.42.0`).
+        assert_eq!(
+            semver_from_version_output("git version 2.42.0"),
+            Some("2.42.0".into())
+        );
+        // Multiple lines: the first parseable token wins.
+        assert_eq!(
+            semver_from_version_output("tool 3.4.5\nCopyright 2024"),
+            Some("3.4.5".into())
+        );
+        // A two-component version is completed to semver, not rejected.
+        assert_eq!(semver_from_version_output("v1.2"), Some("1.2.0".into()));
+        // Pre-release / build metadata is preserved.
+        assert_eq!(
+            semver_from_version_output("app 2.0.0-rc.1"),
+            Some("2.0.0-rc.1".into())
+        );
+        // Trailing punctuation and parentheses are tolerated.
+        assert_eq!(
+            semver_from_version_output("(tool 1.0.0)"),
+            Some("1.0.0".into())
+        );
+    }
+
+    #[test]
+    fn semver_from_version_output_never_fabricates_a_version() {
+        // Garbage in, empty out: no digits, no semver shape, or an empty
+        // output must all yield `None` rather than a guessed constant.
+        assert_eq!(semver_from_version_output(""), None);
+        assert_eq!(semver_from_version_output("   \n\t "), None);
+        assert_eq!(semver_from_version_output("no version here"), None);
+        assert_eq!(semver_from_version_output("build 20240101"), None);
+        assert_eq!(semver_from_version_output("release 1"), None);
+        assert_eq!(semver_from_version_output("a.b.c"), None);
+    }
+
+    /// S1-a end-to-end: a tool that prints a real version on `--version` gets
+    /// that version stored in the manifest, the descriptor, and `tool_version`
+    /// (via the shared probe), instead of the caller's placeholder.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connecting_a_tool_records_its_real_version() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("versioned.sh");
+        std::fs::write(
+            &executable,
+            concat!(
+                "#!/bin/sh\n",
+                "if [ \"$1\" = \"--version\" ]; then echo 'versioned 4.2.0'; exit 0; fi\n",
+                "exit 0\n"
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.versioned-test".into(),
+                name: "Versioned test".into(),
+                command: "versioned-test".into(),
+                version: "0.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: vec!["--version".into()],
+                description: None,
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(entry.package_version, "4.2.0");
+        assert_eq!(entry.tool_version.as_deref(), Some("versioned 4.2.0"));
+        let descriptor_path = state
+            .paths
+            .data
+            .join("local.versioned-test")
+            .join("integration")
+            .join("provider-description.json");
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        assert_eq!(descriptor["provider"]["version"], "4.2.0");
+    }
+
+    /// S1-a best-effort: a tool whose `--version` is unparseable keeps the
+    /// caller's version and still connects (never blocks, never fabricates).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connecting_a_tool_without_a_parseable_version_keeps_the_fallback() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("unversioned.sh");
+        std::fs::write(
+            &executable,
+            concat!(
+                "#!/bin/sh\n",
+                "if [ \"$1\" = \"--version\" ]; then echo 'no version here'; exit 0; fi\n",
+                "exit 0\n"
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.unversioned-test".into(),
+                name: "Unversioned test".into(),
+                command: "unversioned-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: vec!["--version".into()],
+                description: None,
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(entry.package_version, "1.0.0");
+        // The raw probe output is still recorded as the tool version.
+        assert_eq!(entry.tool_version.as_deref(), Some("no version here"));
+    }
+
+    /// S1-b end-to-end: a discovery-supplied description replaces the generic
+    /// "Local integration for X" fallback in both the manifest and descriptor.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connecting_a_tool_uses_the_inferred_description() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("described.sh");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.described-test".into(),
+                name: "Described test".into(),
+                command: "described-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: Some("Recursively search for a pattern".into()),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let manifest_path = state
+            .paths
+            .data
+            .join(&entry.id)
+            .join("integration")
+            .join("floter.extension.json");
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest["description"], "Recursively search for a pattern");
+        let descriptor_path = state
+            .paths
+            .data
+            .join(&entry.id)
+            .join("integration")
+            .join("provider-description.json");
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor_path).unwrap()).unwrap();
+        assert_eq!(
+            descriptor["provider"]["description"],
+            "Recursively search for a pattern"
+        );
+    }
+
+    /// S1-b best-effort: a blank description falls back to the generic text.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn connecting_a_tool_without_a_description_keeps_the_fallback() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("plain.sh");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let entry = create_custom_integration(
+            &state,
+            CustomIntegrationRequest {
+                id: "local.plain-test".into(),
+                name: "Plain test".into(),
+                command: "plain-test".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: Some("   ".into()),
+                permissions: vec![Permission::Environment],
+                platforms: current_platforms(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let manifest_path = state
+            .paths
+            .data
+            .join(&entry.id)
+            .join("integration")
+            .join("floter.extension.json");
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest["description"], "Local integration for plain.sh");
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn creates_an_executable_integration_with_an_exact_execution_plan() {
@@ -2632,6 +3080,7 @@ mod tests {
                 script_content: None,
                 args_prefix: vec!["prefix with spaces".into()],
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -2726,6 +3175,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -2824,6 +3274,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -2973,6 +3424,7 @@ mod tests {
                 script_content: None,
                 args_prefix: vec!["--prefix".into()],
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -3095,6 +3547,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -3228,6 +3681,7 @@ mod tests {
                     script_content: None,
                     args_prefix: Vec::new(),
                     version_args: vec!["--version".into()],
+                    description: None,
                     permissions: vec![Permission::Environment],
                     platforms: current_platforms(),
                 },
@@ -3543,6 +3997,7 @@ mod tests {
                 script_content: Some("printf '%s\\n' \"$@\"".into()),
                 args_prefix: vec!["default value".into()],
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -3599,6 +4054,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },
@@ -4737,6 +5193,7 @@ mod tests {
             script_content: Some("printf old".into()),
             args_prefix: vec!["old".into()],
             version_args: Vec::new(),
+            description: None,
             permissions: vec![Permission::Environment],
             platforms: current_platforms(),
         };
@@ -4992,6 +5449,7 @@ mod tests {
                 script_content: None,
                 args_prefix: Vec::new(),
                 version_args: Vec::new(),
+                description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
             },

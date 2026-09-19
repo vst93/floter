@@ -272,10 +272,11 @@ mod tests {
             (LockState::ReconnectRequired, "binding-missing"),
             (LockState::ReverifyRequired, "binding-changed"),
         ] {
-            let projected =
-                RuntimeBinding::project_with(&entry(ExtensionStateKind::Enabled), Some(state), || {
-                    Ok(())
-                });
+            let projected = RuntimeBinding::project_with(
+                &entry(ExtensionStateKind::Enabled),
+                Some(state),
+                || Ok(()),
+            );
             assert!(!projected.is_available(), "{state:?}");
             assert_eq!(projected.code(), Some(code), "{state:?}");
             assert!(projected

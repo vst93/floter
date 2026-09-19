@@ -1028,10 +1028,10 @@ mod tests {
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
         let mut repository = crate::extensions::lock::ExtensionsLock::default();
-        repository.extensions.insert(entry.id.clone(), entry.clone());
         repository
-            .save(&state.paths.repository_file)
-            .unwrap();
+            .extensions
+            .insert(entry.id.clone(), entry.clone());
+        repository.save(&state.paths.repository_file).unwrap();
 
         // An unbound entry is never given a first binding by the reconcile.
         state.reconcile_tool_bindings().unwrap();

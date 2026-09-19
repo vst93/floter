@@ -354,6 +354,7 @@ mod tests {
             name: "tool".into(),
             locator: ToolLocator::Executable { path: path.into() },
             version: None,
+            description: None,
             sources: vec![DiscoverySource::Path],
             quality: DiscoveryQuality::AutoDetected,
             available: true,
@@ -582,13 +583,9 @@ mod tests {
 
         // Unbound: reported ReconnectRequired, no durable change, no stamp.
         let lock = ToolLock::default();
-        let (state, diverged) = inspect_executable_binding(
-            &lock,
-            "tool",
-            &executable.to_string_lossy(),
-            || Ok(()),
-        )
-        .unwrap();
+        let (state, diverged) =
+            inspect_executable_binding(&lock, "tool", &executable.to_string_lossy(), || Ok(()))
+                .unwrap();
         assert_eq!(state, LockState::ReconnectRequired);
         assert!(!diverged);
         assert!(!lock.tools.contains_key("tool"));
@@ -604,7 +601,10 @@ mod tests {
             inspect_executable_binding(&bound, "tool", &executable.to_string_lossy(), || Ok(()))
                 .unwrap();
         assert_eq!(state, LockState::Connected);
-        assert!(diverged, "the divergence is reported so the caller can drop caches");
+        assert!(
+            diverged,
+            "the divergence is reported so the caller can drop caches"
+        );
         assert_eq!(bound.tools["tool"].fingerprint, approved);
         assert_eq!(bound.tools["tool"].state, LockState::Connected);
 
@@ -633,13 +633,11 @@ mod tests {
         lock.bind("tool", &executable_candidate(&executable));
         write_executable(&executable, "#!/bin/sh\nprintf rebuilt\n");
 
-        let (state, diverged) = inspect_executable_binding(
-            &lock,
-            "tool",
-            &executable.to_string_lossy(),
-            || Err("invalid descriptor".into()),
-        )
-        .unwrap();
+        let (state, diverged) =
+            inspect_executable_binding(&lock, "tool", &executable.to_string_lossy(), || {
+                Err("invalid descriptor".into())
+            })
+            .unwrap();
         assert_eq!(state, LockState::ReverifyRequired);
         assert!(diverged);
         assert_eq!(lock.tools["tool"].state, LockState::Connected);

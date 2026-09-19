@@ -83,6 +83,11 @@ pub struct ToolCandidate {
     pub name: String,
     pub locator: ToolLocator,
     pub version: Option<String>,
+    /// Best-effort human description sourced from discovery metadata (a Linux
+    /// desktop entry's `Comment`). `None` means no source was found; the
+    /// connect path then keeps its generated fallback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub sources: Vec<DiscoverySource>,
     pub quality: DiscoveryQuality,
     pub available: bool,
@@ -224,6 +229,7 @@ pub fn executable_candidate(path: &Path, name: impl Into<String>) -> ToolCandida
         fingerprint: available.then(|| fingerprint(&path)).flatten(),
         locator,
         version: None,
+        description: None,
         sources: vec![DiscoverySource::Path],
         quality: DiscoveryQuality::UserDefined,
         available,
@@ -262,7 +268,7 @@ fn discover_executable_directory(
         else {
             continue;
         };
-        insert_executable(candidates, path, name, source.clone(), quality);
+        insert_executable(candidates, path, name, source.clone(), quality, None);
     }
 }
 
@@ -401,6 +407,7 @@ fn collect_desktop_entries(
                 entry.name.unwrap_or(name),
                 DiscoverySource::Desktop,
                 DiscoveryQuality::NativeSupport,
+                entry.comment,
             ),
             DesktopCommand::Flatpak { app_id } => insert(
                 candidates,
@@ -410,6 +417,7 @@ fn collect_desktop_entries(
                 entry.name.unwrap_or(app_id),
                 DiscoverySource::Desktop,
                 DiscoveryQuality::NativeSupport,
+                entry.comment,
             ),
             DesktopCommand::Snap { name } => insert(
                 candidates,
@@ -417,6 +425,7 @@ fn collect_desktop_entries(
                 entry.name.unwrap_or(name),
                 DiscoverySource::Desktop,
                 DiscoveryQuality::NativeSupport,
+                entry.comment,
             ),
         }
     }
@@ -433,6 +442,7 @@ fn desktop_file_id(root: &Path, path: &Path) -> String {
 #[cfg(target_os = "linux")]
 struct DesktopEntry {
     name: Option<String>,
+    comment: Option<String>,
     exec: Option<String>,
     try_exec: Option<String>,
     entry_type: Option<String>,
@@ -446,6 +456,7 @@ impl DesktopEntry {
         let content = fs::read_to_string(path).ok()?;
         let mut entry = Self {
             name: None,
+            comment: None,
             exec: None,
             try_exec: None,
             entry_type: None,
@@ -472,6 +483,7 @@ impl DesktopEntry {
             let value = value.trim();
             match key {
                 "Name" => entry.name = Some(desktop_unescape(value)),
+                "Comment" => entry.comment = Some(desktop_unescape(value)),
                 "Exec" => entry.exec = Some(desktop_unescape(value)),
                 "TryExec" => entry.try_exec = Some(desktop_unescape(value)),
                 "Type" => entry.entry_type = Some(value.to_string()),
@@ -716,6 +728,7 @@ fn discover_macos_apps(candidates: &mut BTreeMap<String, ToolCandidate>, directo
                 name,
                 DiscoverySource::LaunchServices,
                 DiscoveryQuality::NativeSupport,
+                None,
             );
         }
     }
@@ -761,6 +774,7 @@ fn insert_executable(
     name: String,
     source: DiscoverySource,
     quality: DiscoveryQuality,
+    description: Option<String>,
 ) {
     let path = absolute_path(&path);
     if !is_executable(&path) {
@@ -774,6 +788,7 @@ fn insert_executable(
         name,
         source,
         quality,
+        description,
     );
 }
 
@@ -783,6 +798,7 @@ fn insert(
     name: String,
     source: DiscoverySource,
     quality: DiscoveryQuality,
+    description: Option<String>,
 ) {
     let key = locator.normalized();
     let fingerprint = locator.executable_path().and_then(fingerprint);
@@ -793,6 +809,7 @@ fn insert(
             name,
             locator,
             version: None,
+            description: None,
             sources: Vec::new(),
             quality,
             available: true,
@@ -806,6 +823,12 @@ fn insert(
         entry.quality = quality;
     }
     entry.fingerprint = fingerprint;
+    // A later discovery source may be the first to know a human description
+    // (the desktop layer knows `Comment`, PATH discovery does not). Keep the
+    // first non-blank one; never overwrite a known description with `None`.
+    if entry.description.is_none() {
+        entry.description = description.filter(|value| !value.trim().is_empty());
+    }
 }
 
 fn candidate_match_score(candidate: &ToolCandidate, query: &str) -> Option<u8> {
@@ -959,6 +982,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn insert_keeps_the_first_non_blank_description() {
+        let mut candidates = BTreeMap::new();
+        let locator = || ToolLocator::Executable {
+            path: "/usr/bin/described".into(),
+        };
+        insert(
+            &mut candidates,
+            locator(),
+            "described".into(),
+            DiscoverySource::Path,
+            DiscoveryQuality::AutoDetected,
+            None,
+        );
+        // A later source that knows the human description fills the gap.
+        insert(
+            &mut candidates,
+            locator(),
+            "described".into(),
+            DiscoverySource::Desktop,
+            DiscoveryQuality::NativeSupport,
+            Some("Searches things".into()),
+        );
+        // A blank description never overwrites a known one.
+        insert(
+            &mut candidates,
+            locator(),
+            "described".into(),
+            DiscoverySource::Registry,
+            DiscoveryQuality::NativeSupport,
+            Some("   ".into()),
+        );
+        assert_eq!(
+            candidates["/usr/bin/described"].description.as_deref(),
+            Some("Searches things")
+        );
+    }
+
+    #[test]
     fn locator_normalization_separates_docker_from_executable() {
         assert_ne!(
             ToolLocator::DockerImage {
@@ -979,6 +1040,7 @@ mod tests {
                 path: "/usr/bin/floter-tool".into(),
             },
             version: Some("1.2.3".into()),
+            description: Some("A demo tool".into()),
             sources: vec![DiscoverySource::LaunchServices],
             quality: DiscoveryQuality::NativeSupport,
             available: true,
@@ -995,6 +1057,7 @@ mod tests {
                     "path": "/usr/bin/floter-tool"
                 },
                 "version": "1.2.3",
+                "description": "A demo tool",
                 "sources": ["launch-services"],
                 "quality": "native-support",
                 "available": true,
@@ -1017,6 +1080,7 @@ mod tests {
                 path: format!("/bin/{name}"),
             },
             version: None,
+            description: None,
             sources: vec![DiscoverySource::Path],
             quality: DiscoveryQuality::AutoDetected,
             available: true,
@@ -1093,6 +1157,38 @@ mod tests {
             ["env", "MODE=test", "/opt/My Tool/bin/tool", "--open=", "%"]
         );
         assert_eq!(unwrap_env(&argv).unwrap()[0], "/opt/My Tool/bin/tool");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn desktop_parser_reads_the_human_comment() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("described.desktop");
+        fs::write(
+            &path,
+            "[Desktop Entry]\nType=Application\nName=Described tool\nComment=Recursively search the current directory\nExec=/bin/true\n",
+        )
+        .unwrap();
+        let entry = DesktopEntry::parse(&path).unwrap();
+        assert_eq!(entry.name.as_deref(), Some("Described tool"));
+        assert_eq!(
+            entry.comment.as_deref(),
+            Some("Recursively search the current directory")
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn desktop_parser_leaves_the_comment_absent_without_one() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("bare.desktop");
+        fs::write(
+            &path,
+            "[Desktop Entry]\nType=Application\nName=Bare tool\nExec=/bin/true\n",
+        )
+        .unwrap();
+        let entry = DesktopEntry::parse(&path).unwrap();
+        assert_eq!(entry.comment, None);
     }
 
     #[cfg(target_os = "linux")]
