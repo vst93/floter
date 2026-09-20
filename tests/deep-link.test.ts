@@ -78,13 +78,15 @@ test("the backend keeps exactly one action table and both entry points read it",
     2,
     "`open` appears only in the table and the router's own match arm — no second list",
   );
-  // R8-3 adds `register`. It is named in the table once, in the router's two
-  // parameter guards, in the router's own match arm, and in the CLI normalizer
-  // that folds trailing words into `args` — five places, all of which read the
-  // *same* action name and none of which is a second table.
+  // R8-3 adds `register`, R8-4 adds its fourth parameter (`confirm`, the
+  // terminal spelling's `--yes`). It is named in the table once, in the
+  // router's three parameter guards, in the router's own match arm, in the CLI
+  // normalizer that folds trailing words into `args`, and in `wants_register`
+  // (the transport question, not a second parser) — seven places, all of which
+  // read the *same* action name and none of which is a second table.
   assert.equal(
     production.split('"register"').length - 1,
-    5,
+    7,
     "`register` is one entry in the table plus the router/normalizer call sites, never a second list",
   );
   // Both entry points consult the shared predicate instead of a literal.
@@ -155,6 +157,9 @@ test("a followed redirect is re-checked against the same suffix rule", async () 
 // button is the only way forward, and it runs the ordinary pipeline.
 test("the backend deep-link path never installs, approves or enables", async () => {
   const source = stripJsComments(await read("src-tauri/src/deep_link.rs"));
+  // The production half: the test module below legitimately names the lock
+  // field it asserts on.
+  const production = source.slice(0, source.indexOf("#[cfg(test)]"));
   for (const forbidden of [
     "extensions_install",
     "install::install",
@@ -165,15 +170,14 @@ test("the backend deep-link path never installs, approves or enables", async () 
     "ExtensionsLock",
   ]) {
     assert.ok(
-      !source.includes(forbidden),
+      !production.includes(forbidden),
       `deep_link.rs must not reach ${forbidden} — a link may only open the review dialog`,
     );
   }
   // The structural check is a parse, not an install.
-  assert.match(source, /ExtensionManifest::load\(&path\)\?/, "the manifest is parsed");
-  assert.match(source, /app\.emit\(\s*CONNECT_EVENT/, "and the request is emitted");
+  assert.match(production, /ExtensionManifest::load\(&path\)\?/, "the manifest is parsed");
+  assert.match(production, /app\.emit\(\s*CONNECT_EVENT/, "and the request is emitted");
 });
-
 // The frontend's only consumer of a link request turns it into the *same*
 // review dialog the file picker opens — one function, two callers — and the
 // install still happens only from that dialog's confirm.
@@ -226,20 +230,33 @@ test("the app consumes the link request exactly once", async () => {
   assert.match(app, /openSettings\("integrations"\)/, "the review dialog lives on the integrations page");
 });
 
-// ── B2 · register opens the review surface, and never binds ───────────────
+// ── B2 · register opens the review surface, and only a terminal `--yes` binds ─
 
-// The third action's whole contract: the backend resolves a name to a
-// candidate and stops. There is no `connect_tool`, no `ToolLock` write, no
-// approval and no execution anywhere on the register path.
+// R8-4 changes what "never binds" means, and this is the contract that keeps
+// the change honest. A `register` trigger binds **only** when all three hold:
 //
-// Mutation: call `install::connect_tool` (or bind + save the lock) from
-// `resolve_registered_command` and this goes red — as does the Rust test
-// `a_register_resolution_never_writes_a_binding`.
-test("the backend register path resolves but never binds, installs or runs", async () => {
+//   1. it arrived on the terminal transport (`RegisterOrigin::Terminal`) — a
+//      fact only this process' argv or a control-socket line can supply, never
+//      a URL's contents;
+//   2. the user already said yes (the name is curated, or `--yes` was given);
+//   3. the name resolved to an available executable.
+//
+// And even then the write is `install::connect_tool` — the *existing* connect
+// entry point — so the lock, the approval record and the catalog stay on the
+// one pipeline every other connection uses. There is still no `ToolLock` write,
+// no `bind_locator`, no `lock.save` and no `extensions_install` in this file.
+//
+// Mutation: drop the `RegisterOrigin::Terminal` conjunct (or the
+// `register_may_bind` guard entirely) and the Rust tests
+// `the_same_curated_name_over_a_link_still_does_not_bind` and
+// `a_register_that_may_not_bind_writes_nothing` go red — as does this one,
+// because `register_may_bind` is asserted to be the only gate.
+test("the backend register path binds only through the gated connect path", async () => {
   const source = stripJsComments(await read("src-tauri/src/deep_link.rs"));
   const production = source.slice(0, source.indexOf("#[cfg(test)]"));
+  // The private lock write is still absent: this module cannot bind anything
+  // itself, so the only binding it can cause is the shared connect pipeline.
   for (const forbidden of [
-    "connect_tool",
     "ToolLock",
     "bind_locator",
     "lock.save",
@@ -251,9 +268,44 @@ test("the backend register path resolves but never binds, installs or runs", asy
   ]) {
     assert.ok(
       !production.includes(forbidden),
-      `deep_link.rs must not reach ${forbidden} — register may only resolve and highlight`,
+      `deep_link.rs must not reach ${forbidden} — a register may only resolve, offer, or run the connect path`,
     );
   }
+  // The one sanctioned write goes through the existing entry point.
+  assert.match(
+    production,
+    /crate::extensions::install::connect_tool\(/,
+    "the binding is the ordinary connect pipeline, not a private write",
+  );
+  // And it is unreachable without the gate: the call site sits inside a
+  // function that returns early unless `register_may_bind` is true.
+  const connect = production.slice(
+    production.indexOf("pub(crate) fn connect_registered_command"),
+  );
+  const gate = connect.indexOf("register_may_bind(request)");
+  const call = connect.indexOf("connect_tool(state, candidate)");
+  assert.notEqual(gate, -1, "the gate must be consulted");
+  assert.notEqual(call, -1, "the connect call must exist");
+  assert.ok(gate < call, "the gate is checked before anything can be written");
+  assert.match(connect, /if !register_may_bind\(request\) \{\s*return resolved;\s*\}/, "and a failed gate returns the untouched resolve");
+  // The gate itself requires the terminal transport — a URL can never pass.
+  assert.match(
+    production,
+    /pub fn register_may_bind\(request: &CommandRequest\) -> bool \{\s*request\.origin == RegisterOrigin::Terminal/,
+    "the transport is part of the gate, not of the URL",
+  );
+  // The terminal transport is set by a *separate* entry point, so the URL
+  // router cannot produce it.
+  assert.match(
+    production,
+    /pub fn parse_terminal_url\(raw: &str\) -> Result<Trigger, Reject> \{\s*match parse_url\(raw\)\? \{\s*Trigger::Register\(mut request\) => \{\s*request\.origin = RegisterOrigin::Terminal;/,
+    "only the terminal parser upgrades the origin, and it reuses the one router",
+  );
+  assert.match(
+    production,
+    /origin: RegisterOrigin::Link,/,
+    "the URL router hard-codes the link origin",
+  );
   // It *does* resolve through the one discovery + resolver chain.
   assert.match(production, /resolver::resolve_executable_names/, "the existing resolver is reused");
   assert.match(production, /inventory\.candidates\(\)/, "and the existing inventory");
@@ -335,6 +387,123 @@ test("the app consumes the register request exactly once", async () => {
   // The frontend has no second action table here either.
   const deepLink = stripJsComments(await read("src/deep-link.ts"));
   assert.ok(!/ACTIONS|ALLOWED_ACTIONS|allowList|allowlist/i.test(deepLink), "still no frontend table");
+});
+
+// ── B3 · the terminal `floter register` (R8-4) ────────────────────────────
+
+// The CLI has no parser of its own: `main.rs` asks `deep_link` to normalize the
+// argv into the *same* URL a link is spelled with, and the router validates it.
+// The mutation this locks is a second argv parser appearing in `main.rs` — a
+// `match` on "register" with its own flag handling.
+test("the CLI has no second parser: it normalizes into the router's URL", async () => {
+  const main = stripJsComments(await read("src-tauri/src/main.rs"));
+  assert.match(
+    main,
+    /deep_link::register_cli\(&arguments,/,
+    "the terminal spelling is one call into deep_link",
+  );
+  assert.match(
+    main,
+    /deep_link::canonical_argument\(&arguments\)/,
+    "and the generic trigger path still normalizes the same way",
+  );
+  // No `--yes` handling, no argument indexing, no second action name in the
+  // process entry point.
+  for (const forbidden of ["--yes", "clap", "clap::", "register\""]) {
+    assert.ok(
+      !main.includes(forbidden),
+      `main.rs must not parse arguments itself (found ${forbidden})`,
+    );
+  }
+  // The decision lives in `deep_link`, and it reuses the router.
+  const rust = stripJsComments(await read("src-tauri/src/deep_link.rs"));
+  assert.match(
+    rust,
+    /let request = match parse_terminal_url\(&url\) \{/,
+    "the CLI plan routes through the one parser",
+  );
+  assert.match(
+    rust,
+    /let Some\(url\) = canonical_argument\(args\) else \{/,
+    "and normalizes argv through the one normalizer",
+  );
+});
+
+// The disclosure is printed for every bind, and `--yes` does not exempt it:
+// the plan carries the sentence, so deleting it is a failing test rather than a
+// silent loss.
+//
+// Mutation: remove the disclosure from `RegisterCliPlan::Bind` (or stop
+// printing it) and this goes red, as does the Rust test
+// `the_disclosure_names_every_permission_the_binding_gets`.
+test("every terminal bind prints its disclosure, and --yes does not exempt it", async () => {
+  const rust = stripJsComments(await read("src-tauri/src/deep_link.rs"));
+  const production = rust.slice(0, rust.indexOf("#[cfg(test)]"));
+  // The sentence is built from the one permission function, not restated.
+  assert.match(
+    production,
+    /fn permission_disclosure\(\) -> String \{\s*crate::extensions::install::tool_binding_disclosure\(\)\s*\}/,
+    "the disclosure comes from the one permission source",
+  );
+  assert.match(
+    production,
+    /let disclosure = format!\(\s*"\{\} at \{\} \(\{\}\)",/,
+    "the bind plan names the tool, its path and its permissions",
+  );
+  // It is printed *before* anything is delivered or written, and the bind arm
+  // is the only one that prints it.
+  const bind = production.slice(production.indexOf("RegisterCliPlan::Bind {"));
+  assert.match(
+    bind,
+    /println!\("floter: connecting \{\} \(\{disclosure\}\)", request\.command\);/,
+    "the disclosure is the first line of a bind",
+  );
+  const disclosureAt = bind.indexOf("println!(\"floter: connecting");
+  const deliverAt = bind.indexOf("deliver(url, RegisterOrigin::Terminal)");
+  assert.notEqual(disclosureAt, -1, "the disclosure line must exist");
+  assert.notEqual(deliverAt, -1, "the delivery must exist");
+  assert.ok(disclosureAt < deliverAt, "disclosure is printed before the write");
+  // `--yes` never short-circuits the plan: `confirmed` only reaches the gate.
+  assert.ok(
+    !/if request\.confirmed \{\s*return Some\(RegisterCliPlan::Bind/.test(production),
+    "--yes must not bypass the plan",
+  );
+  // And a refusal is never silent: it has a line and a non-zero code.
+  assert.match(
+    production,
+    /RegisterCliPlan::Refused \{ .. \} => \{\s*for line in plan\.stdout_lines\(\) \{\s*println!\("\{line\}"\);\s*\}\s*Some\(1\)/,
+    "a refusal prints and exits non-zero",
+  );
+});
+
+// The frontend mirrors the two new wire fields, and a completed bind is
+// rendered as the "already connected" sentence rather than a highlight of a row
+// that no longer exists.
+test("a completed terminal bind renders as already-connected, not as a highlight", async () => {
+  const deepLink = stripJsComments(await read("src/deep-link.ts"));
+  assert.match(deepLink, /confirmed\?: boolean;/, "the confirmation is on the wire");
+  assert.match(deepLink, /bound\?: \{ id: string \} \| null;/, "so is the completed binding");
+  assert.match(deepLink, /bindError\?: string \| null;/, "and the failure");
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  assert.match(
+    panel,
+    /if \(request\.bound\) \{\s*setRegisterTarget\(null\);\s*setRegisterMiss\(\{ command: request\.command, alreadyConnected: true \}\);\s*return;\s*\}/,
+    "a bound tool has no Detected row, so it gets the accurate sentence",
+  );
+  // A confirmed request refreshes the list: the row moved from Detected to
+  // Connected, so the panel must re-read rather than render a stale list.
+  assert.match(
+    panel,
+    /if \(pendingDeepLinkRegister\.confirmed\) void refreshAfterMutation\(\);/,
+    "a terminal bind refreshes the list",
+  );
+  // Still no connect call from the panel's register path: the backend owns the
+  // write, and the frontend only renders what came back.
+  const parkAt = panel.indexOf("if (!registerPending || loading) return;");
+  const block = panel.slice(parkAt, panel.indexOf("}, [registerPending, loading])", parkAt));
+  for (const forbidden of ["extensions_connect_tool", "extensions_install", "approvedPermissions"]) {
+    assert.ok(!block.includes(forbidden), `the register render must not reach ${forbidden}`);
+  }
 });
 
 // The "not found" reason must survive the Detected section's own contract:
@@ -483,7 +652,12 @@ test("the Linux control socket forwards the URL to the one router", async () => 
   const ipc = stripJsComments(await read("src-tauri/src/ipc.rs"));
   assert.match(ipc, /pub fn send_deep_link\(url: &str\)/, "the socket has a link command");
   assert.match(ipc, /command\.strip_prefix\("link "\)/, "and the server recognizes it");
-  assert.match(ipc, /crate::deep_link::dispatch_url\(&handle, &url, crate::deep_link::Delivery::Live\)/, "the server calls the one router as a live delivery");
+  assert.match(ipc, /crate::deep_link::dispatch_url\(\s*&handle,\s*&url,\s*crate::deep_link::Delivery::Live,?\s*\)/, "the server calls the one router as a live delivery");
+  // R8-4 adds the terminal verb: the same router, plus the transport fact a
+  // URL cannot carry. Both verbs land in `deep_link`; neither re-parses.
+  assert.match(ipc, /pub fn send_terminal_deep_link\(url: &str\)/, "the terminal verb is a separate wire command");
+  assert.match(ipc, /strip_prefix\("terminal-link "\)/, "and the server recognizes it");
+  assert.match(ipc, /crate::deep_link::dispatch_terminal_url\(/, "which routes through the terminal entry point");
   // The encoding round-trips, so the router sees the URL the sender wrote.
   assert.match(ipc, /fn encode_link\(url: &str\) -> String/, "the wire encoding is explicit");
   assert.match(ipc, /fn decode_link\(encoded: &str\) -> String/, "and its inverse exists");

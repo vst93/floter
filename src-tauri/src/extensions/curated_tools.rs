@@ -139,3 +139,71 @@ pub const CURATED_TOOLS: &[&str] = &[
 pub fn is_curated(name: &str) -> bool {
     CURATED_TOOLS.contains(&name)
 }
+
+/// Lowercased name with a Windows launcher suffix removed, so `rg.exe`,
+/// `rg.cmd` and `rg` all compare equal against [`CURATED_TOOLS`].
+///
+/// This is the one spelling rule for the allow-list: the discovery ranking
+/// (`inventory::candidate_priority`) and the `floter register` CLI gate both
+/// normalize through it, so a name cannot be curated for one and not the
+/// other. It lives here, next to the list it normalizes for.
+pub fn curated_stem(name: &str) -> String {
+    let name = name.trim().to_ascii_lowercase();
+    for suffix in [".exe", ".cmd", ".bat", ".com"] {
+        if let Some(stripped) = name.strip_suffix(suffix) {
+            return stripped.to_string();
+        }
+    }
+    name
+}
+
+/// Whether a raw command spelling (a name the user typed, possibly with a
+/// `.exe` suffix and any casing) names a curated tool.
+pub fn is_curated_command(name: &str) -> bool {
+    is_curated(&curated_stem(name))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The one spelling rule, asserted where it lives. `inventory`'s ranking
+    /// and the `register` gate both call [`curated_stem`], so a name cannot be
+    /// curated for one and not the other — the mutation this test would catch
+    /// is a second copy of the suffix strip appearing at a call site.
+    #[test]
+    fn the_spelling_rule_is_one_function() {
+        for (raw, stem) in [
+            ("rg", "rg"),
+            ("RG", "rg"),
+            ("rg.exe", "rg"),
+            ("Rg.CMD", "rg"),
+            ("tool.bat", "tool"),
+            ("tool.com", "tool"),
+            ("  git  ", "git"),
+            // A suffix inside the name is not a suffix.
+            ("rg.exe.bak", "rg.exe.bak"),
+            ("", ""),
+        ] {
+            assert_eq!(curated_stem(raw), stem, "{raw}");
+            assert_eq!(
+                is_curated_command(raw),
+                is_curated(stem),
+                "{raw} must gate exactly like its stem"
+            );
+        }
+    }
+
+    #[test]
+    fn the_allow_list_answers_about_the_stem() {
+        assert!(is_curated_command("rg.exe"));
+        assert!(is_curated_command("GIT"));
+        assert!(!is_curated_command("rg-extra"));
+        assert!(!is_curated_command("my-own-tool"));
+        // Every entry is already in the normalized spelling, so the list needs
+        // no second normalization pass.
+        for name in CURATED_TOOLS {
+            assert_eq!(*name, curated_stem(name), "{name} must be canonical");
+        }
+    }
+}

@@ -83,6 +83,22 @@ pub fn send_deep_link(url: &str) -> Result<(), String> {
     send_command_to(&socket_path(), &format!("link {}", encode_link(url)))
 }
 
+/// Forward a trigger that came from the user's own terminal (`floter register
+/// <cmd>`).
+///
+/// A separate wire verb on purpose. The receiving instance has to know whether
+/// the URL arrived from the operating system (any page can hand one over) or
+/// from a process the user ran; that difference is what decides whether a
+/// `register` may finish a connection or only offer one (see
+/// `deep_link::RegisterOrigin`). Deriving it from the URL's contents would make
+/// it forgeable by the very input channel the distinction exists to constrain.
+pub fn send_terminal_deep_link(url: &str) -> Result<(), String> {
+    send_command_to(
+        &socket_path(),
+        &format!("terminal-link {}", encode_link(url)),
+    )
+}
+
 /// Percent-encode everything outside the URL's own safe set, **including the
 /// percent sign itself**, so `decode_link` is the exact inverse. Encoding `%`
 /// is what keeps an already-percent-encoded query (`?manifest=%2Fhome%2F…`)
@@ -210,12 +226,27 @@ fn serve_connection(app: &AppHandle, stream: UnixStream) {
             continue;
         }
         // An external trigger arrives as one `link <url>` line and is routed
-        // by the same `deep_link` parser a live OS delivery uses.
-        if let Some(encoded) = command.strip_prefix("link ") {
+        // by the same `deep_link` parser a live OS delivery uses. A
+        // `terminal-link` line is the same parser plus the transport fact: the
+        // sender was the user's own `floter register` process, so a `register`
+        // may bind when the user already said yes.
+        if let Some(encoded) = command
+            .strip_prefix("terminal-link ")
+            .or_else(|| command.strip_prefix("link "))
+        {
+            let from_terminal = command.starts_with("terminal-link ");
             let url = decode_link(encoded.trim());
             let handle = app.clone();
             let _ = app.run_on_main_thread(move || {
-                crate::deep_link::dispatch_url(&handle, &url, crate::deep_link::Delivery::Live);
+                if from_terminal {
+                    crate::deep_link::dispatch_terminal_url(
+                        &handle,
+                        &url,
+                        crate::deep_link::Delivery::Live,
+                    );
+                } else {
+                    crate::deep_link::dispatch_url(&handle, &url, crate::deep_link::Delivery::Live);
+                }
             });
             continue;
         }
@@ -359,6 +390,45 @@ mod tests {
             .map_while(Result::ok)
             .collect();
         assert_eq!(lines, vec!["toggle".to_string()]);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The terminal verb is a *separate* line, because the transport is what
+    /// decides whether a `register` may finish a connection. A receiver that
+    /// could not tell the two apart would have to guess from the URL — and the
+    /// URL is the forgeable part.
+    #[test]
+    fn the_terminal_link_line_is_distinguishable_from_a_plain_link() {
+        let path = scratch_path("terminal-link");
+        let listener = bind(&path).expect("bind");
+
+        send_command_to(&path, "link floter://register?cmd=rg").expect("send link");
+        send_command_to(&path, "terminal-link floter://register?cmd=rg&confirm=1")
+            .expect("send terminal link");
+
+        let lines: Vec<String> = (0..2)
+            .filter_map(|_| {
+                let (stream, _) = listener.accept().ok()?;
+                BufReader::new(stream).lines().next()?.ok()
+            })
+            .collect();
+        assert_eq!(lines.len(), 2);
+        assert!(
+            lines[0].starts_with("link ") && !lines[0].starts_with("terminal-link "),
+            "a plain link keeps its verb: {}",
+            lines[0]
+        );
+        assert!(
+            lines[1].starts_with("terminal-link "),
+            "a terminal trigger names itself: {}",
+            lines[1]
+        );
+        // The receiver's own predicate, so the assertion is about the code the
+        // server runs rather than about the strings above.
+        let from_terminal = |line: &str| line.starts_with("terminal-link ");
+        assert!(!from_terminal(&lines[0]));
+        assert!(from_terminal(&lines[1]));
 
         let _ = std::fs::remove_file(&path);
     }

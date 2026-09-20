@@ -956,6 +956,23 @@ fn permission_label(permission: &Permission) -> &'static str {
     }
 }
 
+/// The disclosure sentence for the one-click tool-binding set, e.g.
+/// `permissions: environment, process-spawn, filesystem-read`.
+///
+/// It reads [`tool_binding_permissions`] rather than restating the three names,
+/// so a sentence a user reads and an approval record the lock stores can never
+/// disagree. `pub` because the terminal `floter register` path prints it (see
+/// `deep_link::register`), and a caller that printed its own copy would be the
+/// second source of truth this function exists to prevent.
+pub fn tool_binding_disclosure() -> String {
+    let labels = tool_binding_permissions()
+        .iter()
+        .map(permission_label)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("permissions: {labels}")
+}
+
 fn permission_labels(permissions: &[Permission]) -> String {
     permissions
         .iter()

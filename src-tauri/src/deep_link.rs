@@ -23,6 +23,13 @@
 //!       surface for display only. Nothing is bound, installed or executed.
 //! ```
 //!
+//! The terminal spellings of the same actions are normalized into these URLs by
+//! [`canonical_argument`] and routed by [`parse_url`] — one parser, two
+//! spellings. `floter register <cmd>` is the one place where a spelling carries
+//! something a URL cannot say: `--yes`, the user's own confirmation, folded
+//! into a `confirm=1` query parameter. It is what lets a terminal invocation
+//! *finish* the connection (see below) instead of stopping at the offer.
+//!
 //! Everything else is refused. An unknown action is dropped with one log line
 //! and no UI noise (it is not a thing the user asked for — it is noise from
 //! somewhere else). A *malformed* `floter://` URL, or a `connect` whose
@@ -42,10 +49,17 @@
 //!   leaves the ordinary approval record (`approvedPermissions` /
 //!   `approvedAt` / `approvedManifestDigest`).
 //! * **A deep link never binds either.** [`register`] resolves a command to a
-//!   [`ToolCandidate`] and stops at the same review surface; the tool lock is
-//!   written only by the user's explicit Connect (`extensions_connect_tool`),
-//!   never by this module. `deep_link.rs` does not name `ToolLock`,
-//!   `bind_locator`, `lock.save` or `connect_tool` at all.
+//!   [`ToolCandidate`] and, when the trigger arrived as a URL, stops at the
+//!   same review surface. The one exception is the *terminal* spelling with
+//!   the user's confirmation: [`register_may_bind`] is true only when the
+//!   name is on the curated allow-list or the invocation carried `--yes`, and
+//!   even then the binding runs through `install::connect_tool` — the
+//!   *existing* connect path, with the *fixed* disclosure set — never through
+//!   a private lock write. No download, no install, and a name that does not
+//!   resolve to an available executable binds nothing.
+//! * **The lock has one writer.** This module never names `ToolLock`,
+//!   `bind_locator` or `lock.save`; the only binding it can cause goes through
+//!   `install::connect_tool`.
 
 use std::path::{Component, Path, PathBuf};
 
@@ -144,6 +158,34 @@ pub enum ManifestSource {
 pub struct CommandRequest {
     pub command: String,
     pub args: Option<Vec<String>>,
+    /// The user's explicit `--yes` on the terminal spelling of this trigger.
+    /// It is content, not permission: the *origin* decides whether a bind may
+    /// happen at all, and `--yes` is one of the two ways the terminal path may
+    /// ask for one (see [`register_may_bind`]). A URL cannot produce it except
+    /// by spelling `confirm=1`, which is inert without a terminal origin.
+    pub confirmed: bool,
+    /// The transport this trigger arrived on.
+    pub origin: RegisterOrigin,
+}
+
+/// Where a `register` trigger came from.
+///
+/// This is the bit that decides whether the trigger may *finish* a connection,
+/// and it is deliberately **not** a URL parameter: a `floter://` URL is an
+/// untrusted input channel (any page can make the OS hand one over), so a URL
+/// that could ask for a bind would be a way to make this machine bind a
+/// stranger's tool from a click in a browser. The origin is therefore decided
+/// by the *transport* — the process' own argv, or the control socket line,
+/// which only the user's own processes can write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegisterOrigin {
+    /// A `floter://register?…` link, from the OS or from the CLI's URL spelling.
+    /// Resolves and stops at the review surface.
+    Link,
+    /// `floter register <cmd>` typed in a terminal. The same resolution, and
+    /// then — only when [`register_may_bind`] says so — the ordinary connect
+    /// pipeline.
+    Terminal,
 }
 
 /// One accepted external trigger. Reaching this type means every check passed.
@@ -421,6 +463,7 @@ pub fn parse_url(raw: &str) -> Result<Trigger, Reject> {
     let mut manifest = None;
     let mut command = None;
     let mut arguments = None;
+    let mut confirmed = false;
     for (key, value) in url.query_pairs() {
         if action == "connect" && key == "manifest" && manifest.is_none() {
             manifest = Some(value.into_owned());
@@ -432,6 +475,17 @@ pub fn parse_url(raw: &str) -> Result<Trigger, Reject> {
         }
         if action == "register" && key == "args" && arguments.is_none() {
             arguments = Some(value.into_owned());
+            continue;
+        }
+        // The fourth spelling of the *same* trigger: a terminal invocation
+        // carries the user's explicit confirmation as a flag. It is not a
+        // parameter of its own (nothing to validate) and not a second action;
+        // it only sets the bit that lets the terminal path bind instead of
+        // stopping at the review surface. Spelling `confirm=1` in a hand-typed
+        // `floter://` URL is inert: the *origin*, not the parameter, is what
+        // authorizes a bind (see [`RegisterOrigin`]).
+        if action == "register" && key == "confirm" {
+            confirmed = true;
             continue;
         }
         return Err(Reject::UnknownParameter(key.into_owned()));
@@ -446,10 +500,37 @@ pub fn parse_url(raw: &str) -> Result<Trigger, Reject> {
                 .map(validate_arguments)
                 .transpose()?
                 .flatten(),
+            confirmed,
+            // A URL is a URL: it resolves and stops. Only
+            // [`parse_terminal_url`] upgrades this, and only for a trigger that
+            // arrived on a transport a page cannot write.
+            origin: RegisterOrigin::Link,
         })),
         _ => Ok(Trigger::Connect(validate_manifest_source(
             &manifest.ok_or(Reject::MissingManifest)?,
         )?)),
+    }
+}
+
+/// Parse a URL that arrived on a **terminal** transport (the process' own
+/// argv, or a control-socket line) rather than from the operating system.
+///
+/// It is [`parse_url`] plus one fact the URL cannot carry: the transport. The
+/// validation is not duplicated — a `connect` or an `open` is returned exactly
+/// as the router returns it — and the only change is
+/// [`RegisterOrigin::Terminal`] on a `register` trigger, which is what
+/// [`register_may_bind`] reads.
+///
+/// This exists so the distinction is made at the *edge*, where the transport is
+/// still known, and never by looking at the URL's contents. A hostile page can
+/// write any URL it likes; it cannot write this process' argv or the socket.
+pub fn parse_terminal_url(raw: &str) -> Result<Trigger, Reject> {
+    match parse_url(raw)? {
+        Trigger::Register(mut request) => {
+            request.origin = RegisterOrigin::Terminal;
+            Ok(Trigger::Register(request))
+        }
+        other => Ok(other),
     }
 }
 
@@ -481,6 +562,14 @@ pub fn canonical_argument(args: &[String]) -> Option<String> {
     }
     // `floter <action> [value]`. Flags are skipped, so `floter --background
     // open` and `floter open` normalize identically.
+    //
+    // `--yes` is the one flag with a meaning of its own (see
+    // [`CommandRequest::confirmed`]): it is not a value and not an action, it
+    // is the user's confirmation, and it is recorded as a query parameter
+    // exactly like `cmd` and `args` so the router stays the only validator.
+    // Position does not matter — `floter --yes register rg` and `floter
+    // register rg --yes` produce the same URL.
+    let confirmed = args.iter().skip(1).any(|argument| argument == "--yes");
     let mut words = args
         .iter()
         .skip(1)
@@ -513,6 +602,9 @@ pub fn canonical_argument(args: &[String]) -> Option<String> {
                         .join(" "),
                 );
             }
+            if confirmed {
+                url.query_pairs_mut().append_pair("confirm", "1");
+            }
             return Some(url.into());
         }
         url.query_pairs_mut().append_pair("manifest", value);
@@ -522,6 +614,18 @@ pub fn canonical_argument(args: &[String]) -> Option<String> {
         return None;
     }
     Some(url.into())
+}
+
+/// Whether an argument list is the **terminal** spelling of the `register`
+/// action (`floter register <cmd> [--yes]`).
+///
+/// This only answers "which transport is this?" — what the invocation *means*
+/// is still decided by [`canonical_argument`] and [`parse_terminal_url`], so the
+/// CLI keeps one parser. It exists here rather than in `ipc` (where
+/// `wants_toggle`/`wants_clip` live) because the answer is needed on every
+/// platform, not just the ones with a control socket.
+pub fn wants_register(args: &[String]) -> bool {
+    args.iter().skip(1).any(|argument| argument == "register")
 }
 
 /// A URL normalized before the app finished starting (`floter connect …` with
@@ -585,6 +689,22 @@ pub struct RegisterRequest {
     pub args: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub candidate: Option<ToolCandidate>,
+    /// Whether the invocation carried an explicit `--yes`. The frontend uses it
+    /// to render "bound" instead of "found" when a terminal `floter register
+    /// rg --yes` already completed the connection; it is never an approval in
+    /// itself (see [`register`]).
+    #[serde(default)]
+    pub confirmed: bool,
+    /// The lock entry written by a terminal invocation that was allowed to
+    /// bind. `None` on every other path — including every URL delivery, which
+    /// stops at the offer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound: Option<crate::extensions::ExtensionLockEntry>,
+    /// Why a terminal invocation that was allowed to bind did not: the ordinary
+    /// connect pipeline's own error, carried to the frontend so the row can
+    /// explain itself. `None` when nothing was attempted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bind_error: Option<String>,
 }
 
 /// The second cold-start slot: a `register` request has a different shape from
@@ -601,26 +721,13 @@ pub(crate) fn take_pending_deep_link_register(
 /// single-instance forward, the Linux control socket, the macOS
 /// `RunEvent::Opened` delivery and a cold start. `delivery` says which of
 /// those it is, and therefore whether a resolved `connect` is parked.
+///
+/// Every URL that reaches this function is treated as a **link**: it may
+/// resolve and offer, never bind. The terminal spelling goes through
+/// [`dispatch_terminal_url`], which is the same router plus the transport fact.
 pub fn dispatch_url(app: &AppHandle, raw: &str, delivery: Delivery) {
     match parse_url(raw) {
-        Ok(Trigger::Open) => focus_main(app),
-        Ok(Trigger::Connect(source)) => {
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(reason) = connect(&handle, source, delivery).await {
-                    tracing::warn!("refusing deep link: {reason}");
-                    focus_main(&handle);
-                    notify_reject(&handle);
-                }
-            });
-        }
-        Ok(Trigger::Register(request)) => {
-            let handle = app.clone();
-            // Discovery is a filesystem walk, so it runs off the event loop.
-            // The resolved request is still only an *offer*: `register` never
-            // binds, installs or executes anything (see [`register`]).
-            tauri::async_runtime::spawn_blocking(move || register(&handle, request, delivery));
-        }
+        Ok(trigger) => dispatch_parsed(app, trigger, delivery),
         Err(reject) => {
             tracing::warn!("ignoring deep link {raw}: {}", reject.reason());
             if reject.is_silent() {
@@ -632,26 +739,102 @@ pub fn dispatch_url(app: &AppHandle, raw: &str, delivery: Delivery) {
     }
 }
 
+/// Route a URL that arrived on a **terminal** transport.
+///
+/// The mirror of [`dispatch_url`] with one difference, made at the edge where
+/// the transport is still known: [`parse_terminal_url`] marks a `register`
+/// trigger [`RegisterOrigin::Terminal`], so it may finish the connection when
+/// [`register_may_bind`] allows it. `connect` and `open` behave exactly as they
+/// do for a link — a terminal `floter connect …` is still a review dialog, not
+/// an install.
+///
+/// It is called for `floter register <cmd>` and for a `link ` line whose sender
+/// was the user's own `floter register` process (see `ipc.rs`), never for an
+/// OS-delivered URL.
+pub fn dispatch_terminal_url(app: &AppHandle, raw: &str, delivery: Delivery) {
+    match parse_terminal_url(raw) {
+        Ok(Trigger::Register(request)) => {
+            let handle = app.clone();
+            tauri::async_runtime::spawn_blocking(move || register(&handle, request, delivery));
+        }
+        Ok(other) => dispatch_parsed(app, other, delivery),
+        Err(reject) => {
+            tracing::warn!("ignoring terminal trigger {raw}: {}", reject.reason());
+            if reject.is_silent() {
+                return;
+            }
+            focus_main(app);
+            notify_reject(app);
+        }
+    }
+}
+
+/// Run an already-parsed trigger. Split out of [`dispatch_url`] so the
+/// terminal entry point shares the `open`/`connect` arms rather than
+/// re-implementing them.
+fn dispatch_parsed(app: &AppHandle, trigger: Trigger, delivery: Delivery) {
+    match trigger {
+        Trigger::Open => focus_main(app),
+        Trigger::Connect(source) => {
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(reason) = connect(&handle, source, delivery).await {
+                    tracing::warn!("refusing deep link: {reason}");
+                    focus_main(&handle);
+                    notify_reject(&handle);
+                }
+            });
+        }
+        // `dispatch_terminal_url` handles this arm itself; reaching here means
+        // a link, which never binds.
+        Trigger::Register(request) => {
+            let handle = app.clone();
+            tauri::async_runtime::spawn_blocking(move || register(&handle, request, delivery));
+        }
+    }
+}
+
 /// Resolve a validated `register` command against the live discovery inventory
 /// and hand the result to the integrations review surface.
 ///
-/// The whole point of this function is what it does **not** do. It reads the
-/// inventory, asks the one resolver for a candidate, and emits an event. It
-/// never touches `ToolLock`, never calls `connect_tool`, never runs the
-/// resolved executable and never approves a permission — a URL scheme is
-/// reachable from any web page, and a link that could bind a tool would be a
-/// way to make this machine run a stranger's program from a click in a
-/// browser.
+/// On the **link** origin this function is exactly what R8-3 built: it reads
+/// the inventory, asks the one resolver for a candidate, and emits an event. A
+/// URL scheme is reachable from any web page, and a link that could bind a tool
+/// would be a way to make this machine bind a stranger's program from a click
+/// in a browser.
+///
+/// On the **terminal** origin — `floter register <cmd>`, which only the user
+/// can type — it finishes the job when [`register_may_bind`] allows it (the
+/// name is curated, or `--yes` was given) and the name resolved to a real,
+/// available executable. Even then the binding is not done here: it runs
+/// `install::connect_tool`, the *existing* connect path, with the *fixed*
+/// disclosure set, so the lock, the approval record and the catalog stay on the
+/// one pipeline every other connection uses. No download, no install, and a
+/// name that did not resolve binds nothing.
 fn register(app: &AppHandle, request: CommandRequest, delivery: Delivery) {
     let resolved = {
         let state = app.state::<ExtensionState>();
-        resolve_registered_command(&state, &request)
+        connect_registered_command(&state, &request)
     };
     if resolved.candidate.is_none() {
         tracing::info!(
             "register found no executable named {} on this device",
             request.command
         );
+    }
+    if let Some(entry) = resolved.bound.as_ref() {
+        tracing::info!(
+            "register connected {} as {} ({})",
+            request.command,
+            entry.id,
+            permission_disclosure()
+        );
+        // Same event as every other mutating extension command, so a window
+        // that is already showing the list refreshes instead of going stale.
+        let _ = app.emit("extensions-changed", ());
+    }
+    if let Some(reason) = resolved.bind_error.as_deref() {
+        tracing::warn!("register could not connect {}: {reason}", request.command);
     }
     // Same fork as `connect`: a cold start runs before the webview has
     // listeners, so it parks the request; a live delivery is the event itself.
@@ -663,6 +846,267 @@ fn register(app: &AppHandle, request: CommandRequest, delivery: Delivery) {
     focus_main(app);
     if let Err(error) = app.emit(REGISTER_EVENT, resolved) {
         tracing::warn!("could not deliver a register request: {error}");
+    }
+}
+
+/// Resolve a `register` trigger, and — only when [`register_may_bind`] allows
+/// it — finish the connection through the ordinary pipeline.
+///
+/// This is the whole behaviour of `floter register <cmd>` as one function over
+/// an [`ExtensionState`], with no `AppHandle` and no event loop, so the tests
+/// can drive the real lock write against a temporary directory instead of
+/// asserting a promise about it. [`register`] is the thin event/park wrapper.
+///
+/// The gate is checked *before* anything can be written, and the write itself is
+/// `install::connect_tool` — the same entry point `extensions_connect_tool`
+/// calls. There is no private lock write on this path: no `ToolLock`, no
+/// `bind_locator`, no `lock.save`. A name that did not resolve to an available
+/// executable, or a trigger that did not clear the gate, leaves the lock file
+/// byte-for-byte untouched.
+pub(crate) fn connect_registered_command(
+    state: &ExtensionState,
+    request: &CommandRequest,
+) -> RegisterRequest {
+    let mut resolved = resolve_registered_command(state, request);
+    if !register_may_bind(request) {
+        return resolved;
+    }
+    let Some(candidate) = resolved.candidate.clone().filter(|found| found.available) else {
+        return resolved;
+    };
+    match tauri::async_runtime::block_on(crate::extensions::install::connect_tool(state, candidate))
+    {
+        Ok(entry) => resolved.bound = Some(entry),
+        Err(reason) => resolved.bind_error = Some(reason),
+    }
+    resolved
+}
+
+/// The disclosure the terminal path prints and the log records: the tool, and
+/// the exact permission set it will run with.
+///
+/// It reads [`crate::extensions::install::tool_binding_disclosure`] — which
+/// reads [`crate::extensions::install::tool_binding_permissions`], the one
+/// place the set is written down — rather than restating the three names, so
+/// the sentence a user reads can never drift from the set the approval record
+/// stores. The `--yes` flag does not skip it: a confirmation is not an
+/// exemption from being told what was confirmed.
+fn permission_disclosure() -> String {
+    crate::extensions::install::tool_binding_disclosure()
+}
+
+/// Whether this trigger may *finish* a connection without a dialog.
+///
+/// Two facts must hold, and neither is reachable from a link:
+///
+/// * the origin is [`RegisterOrigin::Terminal`] — the invocation came from this
+///   process' own argv or from a control-socket line, not from an OS-delivered
+///   URL a web page can write;
+/// * the user already said yes: the name is on the one curated allow-list, or
+///   the invocation carried `--yes`.
+///
+/// It reads [`crate::extensions::curated_tools::is_curated_command`], so the CLI
+/// gate and the discovery ranking share one list and one spelling rule.
+pub fn register_may_bind(request: &CommandRequest) -> bool {
+    request.origin == RegisterOrigin::Terminal
+        && (request.confirmed
+            || crate::extensions::curated_tools::is_curated_command(&request.command))
+}
+
+/// What `floter register <cmd> [--yes]` should do, decided without printing
+/// anything so a test can assert the decision directly.
+///
+/// The three outcomes are the whole CLI contract: a refusal that exits
+/// non-zero, an offer that falls back to the review surface, and a bind that
+/// prints the disclosure first.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RegisterCliPlan {
+    /// Nothing can proceed, and the message says why. The caller prints it and
+    /// exits non-zero — a command the user typed must never fail silently.
+    Refused { message: String },
+    /// The name is not curated and `--yes` was not given. Nothing is bound;
+    /// the same name is handed to the review surface, and the message tells
+    /// the user how to connect it in one step next time.
+    Offer { url: String, message: String },
+    /// The user already said yes and the name resolved. `url` is what a running
+    /// instance receives; `disclosure` is the line printed either way.
+    Bind {
+        request: CommandRequest,
+        url: String,
+        disclosure: String,
+    },
+}
+
+impl RegisterCliPlan {
+    /// The process exit code this plan implies.
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            Self::Refused { .. } => 1,
+            Self::Offer { .. } | Self::Bind { .. } => 0,
+        }
+    }
+
+    /// The stdout line(s) this plan prints, in order. Never empty for a refusal
+    /// or a bind: those are the two cases a user must be able to read off the
+    /// terminal, and the disclosure is one of them.
+    pub fn stdout_lines(&self) -> Vec<String> {
+        match self {
+            Self::Refused { message } => vec![message.clone()],
+            Self::Offer { message, .. } => vec![message.clone()],
+            Self::Bind {
+                request,
+                disclosure,
+                ..
+            } => vec![
+                format!("floter: connecting {} ({disclosure})", request.command),
+                "floter: connected through the ordinary integration pipeline".to_string(),
+            ],
+        }
+    }
+}
+
+/// Decide what `floter register <cmd> [--yes]` means, against a real
+/// [`ExtensionState`].
+///
+/// Returns `None` when `args` is not a register invocation at all, so the caller
+/// can fall through to the ordinary launch. Everything it decides is either a
+/// router verdict (the same [`parse_terminal_url`] a delivered URL goes
+/// through) or a read-only lookup in the discovery inventory — it never writes.
+/// The write, when there is one, belongs to [`connect_registered_command`].
+pub(crate) fn plan_register_cli(
+    state: &ExtensionState,
+    args: &[String],
+) -> Option<RegisterCliPlan> {
+    if !wants_register(args) {
+        return None;
+    }
+    let Some(url) = canonical_argument(args) else {
+        return Some(RegisterCliPlan::Refused {
+            message: "floter: register needs a command name, for example `floter register rg`"
+                .to_string(),
+        });
+    };
+    let request = match parse_terminal_url(&url) {
+        Ok(Trigger::Register(request)) => request,
+        // A refusal is the router's, verbatim, so the CLI cannot tell a
+        // different story than a delivered URL would.
+        Err(reject) => {
+            return Some(RegisterCliPlan::Refused {
+                message: format!("floter: cannot register this name ({})", reject.reason()),
+            })
+        }
+        Ok(_) => return None,
+    };
+    if !register_may_bind(&request) {
+        return Some(RegisterCliPlan::Offer {
+            // The offer is a *link*: it opens the review surface, exactly as
+            // `floter://register?cmd=…` does.
+            url: url.replace("&confirm=1", ""),
+            message: format!(
+                "floter: {} is not on the curated list; showing it on the integrations review \
+                 surface instead of connecting it (add --yes to connect it in one step)",
+                request.command
+            ),
+        });
+    }
+    let resolved = resolve_registered_command(state, &request);
+    let Some(candidate) = resolved.candidate.filter(|found| found.available) else {
+        return Some(RegisterCliPlan::Refused {
+            message: format!(
+                "floter: no executable named {} was found on this device",
+                request.command
+            ),
+        });
+    };
+    // The disclosure is part of the plan, not of the printing, so removing it
+    // is a failing test rather than a silent loss of the one sentence the user
+    // is owed.
+    let disclosure = format!(
+        "{} at {} ({})",
+        candidate.name,
+        candidate
+            .locator
+            .executable_path()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| candidate.id.clone()),
+        permission_disclosure()
+    );
+    Some(RegisterCliPlan::Bind {
+        request,
+        url,
+        disclosure,
+    })
+}
+
+/// Run `floter register <cmd> [--yes]` as a synchronous terminal command.
+///
+/// Returns `None` when the caller should keep going — either because `args` is
+/// not a register invocation at all, or because the decision was an *offer*,
+/// which belongs on the review surface and therefore to the ordinary trigger
+/// path (a live instance through the socket, a cold start through the GUI).
+/// Otherwise every line has been printed and the returned value is the process
+/// exit code.
+///
+/// `deliver` hands a URL to a running instance (the control socket on Linux).
+/// When it succeeds the instance owns the write, which is the point: a second
+/// process writing `tool-lock.json` behind a live instance would leave that
+/// instance's in-memory lock stale. When it fails there is no instance, so this
+/// process is the only writer and performs the connection itself.
+pub fn register_cli(
+    args: &[String],
+    deliver: impl Fn(&str, RegisterOrigin) -> Result<(), String>,
+) -> Option<i32> {
+    if !wants_register(args) {
+        return None;
+    }
+    let state = match ExtensionState::new() {
+        Ok(state) => state,
+        Err(reason) => {
+            println!("floter: cannot read the integration state: {reason}");
+            return Some(1);
+        }
+    };
+    let plan = plan_register_cli(&state, args)?;
+    match &plan {
+        // A refusal is the one outcome a user must be able to read off the
+        // terminal, and the exit code is what makes it a failure rather than a
+        // log line.
+        RegisterCliPlan::Refused { .. } => {
+            for line in plan.stdout_lines() {
+                println!("{line}");
+            }
+            Some(1)
+        }
+        // An offer is not a terminal outcome: the user asked for the tool to be
+        // shown, so the window opens on it. The line is printed here because the
+        // user typed a command and deserves an answer, and then the ordinary
+        // trigger path takes over (socket, or GUI cold start).
+        RegisterCliPlan::Offer { .. } => {
+            for line in plan.stdout_lines() {
+                println!("{line}");
+            }
+            None
+        }
+        RegisterCliPlan::Bind {
+            request,
+            url,
+            disclosure,
+        } => {
+            // The disclosure is printed before anything is written, and `--yes`
+            // does not exempt it.
+            println!("floter: connecting {} ({disclosure})", request.command);
+            if deliver(url, RegisterOrigin::Terminal).is_ok() {
+                println!("floter: connected through the ordinary integration pipeline");
+                return Some(0);
+            }
+            let resolved = connect_registered_command(&state, request);
+            if let Some(reason) = resolved.bind_error.as_deref() {
+                println!("floter: could not connect {}: {reason}", request.command);
+                return Some(1);
+            }
+            println!("floter: connected through the ordinary integration pipeline");
+            Some(0)
+        }
     }
 }
 
@@ -718,6 +1162,9 @@ pub(crate) fn resolve_registered_command(
         command: request.command.clone(),
         args: request.args.clone(),
         candidate,
+        confirmed: request.confirmed,
+        bound: None,
+        bind_error: None,
     }
 }
 
@@ -933,6 +1380,8 @@ mod tests {
             Ok(Trigger::Register(CommandRequest {
                 command: "rg".to_string(),
                 args: None,
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             }))
         );
         // A Windows launcher suffix and a dotted version are still one name.
@@ -946,6 +1395,8 @@ mod tests {
                 Ok(Trigger::Register(CommandRequest {
                     command: name.to_string(),
                     args: None,
+                    confirmed: false,
+                    origin: RegisterOrigin::Link,
                 })),
                 "{name} is a command name"
             );
@@ -970,6 +1421,8 @@ mod tests {
             Ok(Trigger::Register(CommandRequest {
                 command: "rg".to_string(),
                 args: Some(vec!["src".to_string(), "lib".to_string()]),
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             }))
         );
         // An empty `args` is the same as no `args`.
@@ -978,6 +1431,8 @@ mod tests {
             Ok(Trigger::Register(CommandRequest {
                 command: "rg".to_string(),
                 args: None,
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             }))
         );
     }
@@ -1293,6 +1748,8 @@ mod tests {
             Ok(Trigger::Register(CommandRequest {
                 command: "rg".to_string(),
                 args: None,
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             }))
         );
         let with_args = canonical_argument(&args(&["floter", "register", "rg", "src", "lib"]))
@@ -1302,6 +1759,8 @@ mod tests {
             Ok(Trigger::Register(CommandRequest {
                 command: "rg".to_string(),
                 args: Some(vec!["src".to_string(), "lib".to_string()]),
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             }))
         );
         // And the refusal still happens in the router, not in the normalizer:
@@ -1445,6 +1904,8 @@ mod tests {
             &CommandRequest {
                 command: "register-probe".to_string(),
                 args: Some(vec!["src".to_string()]),
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             },
         );
         // The resolve succeeded — this is the success path, not a refusal that
@@ -1486,6 +1947,8 @@ mod tests {
             &CommandRequest {
                 command: "definitely-not-a-real-tool-9d2f".to_string(),
                 args: None,
+                confirmed: false,
+                origin: RegisterOrigin::Link,
             },
         );
         assert!(resolved.candidate.is_none());
@@ -1523,5 +1986,556 @@ mod tests {
             &Url::parse("http://example.com/tool.json").expect("url")
         )
         .is_err());
+    }
+
+    // ── R8-4 · `floter register <cmd>`: the terminal spelling ────────────
+
+    fn terminal_args(list: &[&str]) -> Vec<String> {
+        list.iter().map(|value| (*value).to_string()).collect()
+    }
+
+    /// The CLI folds into the *same* URL the scheme spells — there is no second
+    /// parser — and `--yes` is the one thing it adds, as a query parameter the
+    /// router validates like any other.
+    #[test]
+    fn the_register_cli_normalizes_into_the_same_url() {
+        for spelling in [
+            &["floter", "register", "rg", "--yes"][..],
+            &["floter", "--yes", "register", "rg"][..],
+        ] {
+            let url = canonical_argument(&terminal_args(spelling)).expect("normalizes");
+            assert_eq!(url, "floter://register?cmd=rg&confirm=1", "{spelling:?}");
+            // And the router is what reads it, so the parameter is validated in
+            // one place rather than parsed twice.
+            match parse_url(&url) {
+                Ok(Trigger::Register(request)) => {
+                    assert_eq!(request.command, "rg");
+                    assert!(request.confirmed, "--yes must survive normalization");
+                    assert_eq!(request.origin, RegisterOrigin::Link, "a URL is a URL");
+                }
+                other => panic!("{spelling:?} produced {other:?}"),
+            }
+        }
+        // Without the flag, the same words produce the same URL R8-3 already
+        // accepted — the flag is additive, not a second shape.
+        assert_eq!(
+            canonical_argument(&terminal_args(&["floter", "register", "rg"])),
+            Some("floter://register?cmd=rg".to_string())
+        );
+        // Trailing words still become the inert `args` hint, and `--yes` does
+        // not leak into it.
+        assert_eq!(
+            canonical_argument(&terminal_args(&[
+                "floter", "register", "rg", "src", "--yes"
+            ])),
+            Some("floter://register?cmd=rg&args=src&confirm=1".to_string())
+        );
+    }
+
+    /// An unknown subcommand is not a trigger at all: the normalizer returns
+    /// `None`, the process falls through to the ordinary launch, and nothing is
+    /// ever resolved. The report's "unknown command" case.
+    #[test]
+    fn an_unknown_subcommand_normalizes_to_nothing() {
+        assert_eq!(
+            canonical_argument(&terminal_args(&["floter", "registr", "rg"])),
+            None
+        );
+        assert_eq!(
+            canonical_argument(&terminal_args(&["floter", "install", "rg"])),
+            None
+        );
+        assert_eq!(canonical_argument(&terminal_args(&["floter"])), None);
+    }
+
+    /// The transport, not the URL, is what a bind depends on. This is the whole
+    /// reason [`parse_terminal_url`] exists.
+    #[test]
+    fn only_the_terminal_transport_can_confirm_a_register() {
+        let link = |url: &str| match parse_url(url) {
+            Ok(Trigger::Register(request)) => request,
+            other => panic!("{url} produced {other:?}"),
+        };
+        let terminal = |url: &str| match parse_terminal_url(url) {
+            Ok(Trigger::Register(request)) => request,
+            other => panic!("{url} produced {other:?}"),
+        };
+
+        // A link — even one spelling `confirm=1` by hand — may not bind.
+        for url in [
+            "floter://register?cmd=rg",
+            "floter://register?cmd=rg&confirm=1",
+            "floter://register?cmd=notacuratedtool",
+        ] {
+            assert_eq!(link(url).origin, RegisterOrigin::Link, "{url}");
+            assert!(
+                !register_may_bind(&link(url)),
+                "a URL must never be allowed to bind ({url})"
+            );
+        }
+        // The terminal transport may, when the user already said yes.
+        assert!(register_may_bind(&terminal("floter://register?cmd=rg")));
+        assert!(register_may_bind(&terminal(
+            "floter://register?cmd=notacuratedtool&confirm=1"
+        )));
+        // …and not otherwise.
+        assert!(!register_may_bind(&terminal(
+            "floter://register?cmd=notacuratedtool"
+        )));
+        // `open` and `connect` are unchanged by the transport upgrade.
+        assert_eq!(
+            parse_terminal_url("floter://open"),
+            parse_url("floter://open")
+        );
+        assert_eq!(
+            parse_terminal_url("floter://connect?manifest=/opt/tool.json"),
+            parse_url("floter://connect?manifest=/opt/tool.json")
+        );
+        // A refusal is the router's, not a second one.
+        assert_eq!(
+            parse_terminal_url("floter://register?cmd=%2Fusr%2Fbin%2Frg"),
+            Err(Reject::CommandNotBasename("/usr/bin/rg".to_string()))
+        );
+    }
+
+    /// The gate reads the *one* curated allow-list, with the same spelling rule
+    /// the discovery ranking uses (`rg.exe` is `rg`).
+    #[test]
+    fn the_bind_gate_reads_the_one_curated_allow_list() {
+        let request = |command: &str, confirmed: bool| CommandRequest {
+            command: command.to_string(),
+            args: None,
+            confirmed,
+            origin: RegisterOrigin::Terminal,
+        };
+        for curated in ["rg", "git", "docker", "rg.exe", "RG"] {
+            assert!(
+                register_may_bind(&request(curated, false)),
+                "{curated} is on the allow-list"
+            );
+        }
+        for uncurated in ["my-own-tool", "register-probe", "definitely-not-curated"] {
+            assert!(
+                !register_may_bind(&request(uncurated, false)),
+                "{uncurated}"
+            );
+            assert!(
+                register_may_bind(&request(uncurated, true)),
+                "--yes is the user's own confirmation"
+            );
+        }
+        // The list itself is the single source: the gate and the ranking answer
+        // the same question about the same name.
+        assert!(crate::extensions::curated_tools::is_curated_command(
+            "rg.exe"
+        ));
+        assert!(!crate::extensions::curated_tools::is_curated_command(
+            "rg-extra"
+        ));
+    }
+
+    /// A register that is *not* allowed to bind leaves the lock byte-for-byte
+    /// alone — including a curated name that simply is not on this device.
+    ///
+    /// Mutation: drop the [`register_may_bind`] check (or move it after the
+    /// connect) and the non-curated case goes red; bind without resolving first
+    /// and the missing-tool case goes red.
+    #[cfg(unix)]
+    #[test]
+    fn a_register_that_may_not_bind_writes_nothing() {
+        let fixture = register_fixture(&["my-own-tool"]);
+        let before = fixture.lock_bytes();
+
+        for (command, confirmed) in [
+            // Not curated, and no `--yes`: the gate is closed.
+            ("my-own-tool", false),
+            // The gate is open, but this device has no such executable. A
+            // `--yes` is a confirmation, not an installation.
+            ("definitely-not-here-9d2f", true),
+        ] {
+            let resolved = connect_registered_command(
+                &fixture.state,
+                &CommandRequest {
+                    command: command.to_string(),
+                    args: None,
+                    confirmed,
+                    origin: RegisterOrigin::Terminal,
+                },
+            );
+            assert!(
+                resolved.bound.is_none(),
+                "{command} (--yes={confirmed}) must not bind"
+            );
+            assert!(
+                resolved.bind_error.is_none(),
+                "nothing was attempted, so nothing failed"
+            );
+            assert_eq!(
+                fixture.lock_bytes(),
+                before,
+                "{command} (--yes={confirmed}) must leave the lock untouched"
+            );
+        }
+        assert!(!fixture.repository_path().exists());
+    }
+
+    /// A candidate whose executable disappeared is not connectable, and `--yes`
+    /// does not change that. The resolver's own availability filter refuses it
+    /// (so the plan refuses the command), and the belt-and-braces
+    /// `.filter(|found| found.available)` in [`connect_registered_command`]
+    /// keeps the connect pipeline from ever being handed a dead path if that
+    /// filter is ever loosened.
+    ///
+    /// Mutation: relax `resolve_filtered`'s `candidate.available` filter *and*
+    /// drop the `.filter(|found| found.available)` guard and this goes red —
+    /// the connect pipeline would be handed a path that no longer exists.
+    #[cfg(unix)]
+    #[test]
+    fn a_vanished_executable_is_never_handed_to_the_connect_path() {
+        let fixture = register_fixture(&["my-own-tool"]);
+        std::fs::remove_file(&fixture.executable).expect("remove the executable");
+        // Re-inspect the path *after* the removal, so the inventory reports the
+        // candidate as unavailable — the shape a fresh scan produces once the
+        // file is gone.
+        let unavailable =
+            crate::extensions::inventory::executable_candidate(&fixture.executable, "my-own-tool");
+        assert!(
+            !unavailable.available,
+            "the probe must see the file is gone"
+        );
+        fixture
+            .state
+            .tool_inventory
+            .lock()
+            .expect("inventory")
+            .set_candidates_for_test(vec![unavailable]);
+
+        let resolved = connect_registered_command(
+            &fixture.state,
+            &CommandRequest {
+                command: "my-own-tool".to_string(),
+                args: None,
+                confirmed: true,
+                origin: RegisterOrigin::Terminal,
+            },
+        );
+        assert!(
+            resolved.candidate.is_none(),
+            "an unavailable candidate is not resolved"
+        );
+        assert!(resolved.bound.is_none(), "so it cannot bind");
+        assert!(resolved.bind_error.is_none(), "nothing was attempted");
+        assert!(!fixture.repository_path().exists());
+        assert!(!fixture.lock_path().exists());
+
+        // And the CLI refuses it out loud rather than reporting a connection.
+        let args = ["floter", "register", "my-own-tool", "--yes"]
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect::<Vec<_>>();
+        match plan_register_cli(&fixture.state, &args) {
+            Some(RegisterCliPlan::Refused { message }) => {
+                assert!(message.contains("my-own-tool"), "{message}");
+                assert!(message.contains("no executable"), "{message}");
+            }
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+
+    /// The success path, through the real pipeline: a curated name resolves and
+    /// the lock gains exactly the entry `install::connect_tool` writes, with the
+    /// fixed disclosure set.
+    #[cfg(unix)]
+    #[test]
+    fn a_curated_terminal_register_binds_through_the_connect_path() {
+        let fixture = register_fixture(&["git"]);
+        assert!(!fixture.lock_path().exists(), "nothing is bound yet");
+
+        let resolved = connect_registered_command(
+            &fixture.state,
+            &CommandRequest {
+                command: "git".to_string(),
+                args: None,
+                confirmed: false,
+                origin: RegisterOrigin::Terminal,
+            },
+        );
+
+        let entry = resolved.bound.expect("a curated tool binds");
+        assert_eq!(entry.id, "local.git");
+        assert_eq!(
+            entry.approved_permissions,
+            crate::extensions::install::tool_binding_permissions()
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>(),
+            "the three-permission disclosure set, fixed"
+        );
+        // The write is the ordinary one: the repository entry is on disk, and
+        // the first binding it implies lands in `tool-lock.json` through the
+        // same catalog load any other connection goes through — not through a
+        // private write this module invented.
+        assert!(fixture.repository_path().exists());
+        tauri::async_runtime::block_on(
+            crate::extensions::catalog::load_provider_commands_uncached(&fixture.state),
+        )
+        .expect("the catalog load succeeds");
+        let stored = crate::extensions::ToolLock::load(&fixture.lock_path())
+            .expect("the lock is readable")
+            .tools
+            .get("local.git")
+            .cloned()
+            .expect("the entry is in the lock");
+        assert_eq!(stored.tool, "local.git");
+        assert_eq!(
+            stored.locator.executable_path().map(Path::to_path_buf),
+            Some(fixture.executable.clone())
+        );
+    }
+
+    /// `--yes` on a name that is not on the allow-list takes the same route: the
+    /// user's confirmation substitutes for curation, and nothing else changes.
+    #[cfg(unix)]
+    #[test]
+    fn an_explicit_yes_binds_an_uncurated_name_through_the_same_path() {
+        let fixture = register_fixture(&["my-own-tool"]);
+
+        let resolved = connect_registered_command(
+            &fixture.state,
+            &CommandRequest {
+                command: "my-own-tool".to_string(),
+                args: None,
+                confirmed: true,
+                origin: RegisterOrigin::Terminal,
+            },
+        );
+
+        let entry = resolved.bound.expect("--yes binds");
+        assert_eq!(entry.id, "local.my-own-tool");
+        assert!(fixture.repository_path().exists());
+        tauri::async_runtime::block_on(
+            crate::extensions::catalog::load_provider_commands_uncached(&fixture.state),
+        )
+        .expect("the catalog load succeeds");
+        let lock = crate::extensions::ToolLock::load(&fixture.lock_path()).expect("the lock");
+        assert!(lock.tools.contains_key("local.my-own-tool"));
+    }
+
+    /// A **link** for the very same curated name still stops at the offer: the
+    /// transport is the difference, and this is the mutation that would erase
+    /// it.
+    #[cfg(unix)]
+    #[test]
+    fn the_same_curated_name_over_a_link_still_does_not_bind() {
+        let fixture = register_fixture(&["git"]);
+
+        let resolved = connect_registered_command(
+            &fixture.state,
+            &CommandRequest {
+                command: "git".to_string(),
+                args: None,
+                confirmed: false,
+                origin: RegisterOrigin::Link,
+            },
+        );
+
+        assert!(resolved.candidate.is_some(), "it is still resolved");
+        assert!(resolved.bound.is_none(), "but a link never binds");
+        assert!(!fixture.lock_path().exists());
+    }
+
+    /// The disclosure is built from the one permission function, so a sentence
+    /// the user reads cannot disagree with the record the lock stores.
+    ///
+    /// Mutation: delete the sentence (or hard-code a shorter one) and the
+    /// permission names below stop matching.
+    #[test]
+    fn the_disclosure_names_every_permission_the_binding_gets() {
+        let disclosure = crate::extensions::install::tool_binding_disclosure();
+        assert!(disclosure.starts_with("permissions: "), "{disclosure}");
+        for label in ["environment", "process-spawn", "filesystem-read"] {
+            assert!(disclosure.contains(label), "{disclosure} must name {label}");
+        }
+        assert_eq!(
+            disclosure.matches(',').count() + 1,
+            crate::extensions::install::tool_binding_permissions().len(),
+            "one label per permission, no more"
+        );
+    }
+
+    /// The CLI decision itself, with no printing and no writing: a curated hit
+    /// is a bind, an uncurated name without `--yes` is an offer, and a name that
+    /// is not on the device is a refusal with a non-zero exit code.
+    #[cfg(unix)]
+    #[test]
+    fn the_cli_plan_decides_bind_offer_or_refuse() {
+        let fixture = register_fixture(&["git", "my-own-tool"]);
+        let args = |list: &[&str]| {
+            list.iter()
+                .map(|value| (*value).to_string())
+                .collect::<Vec<_>>()
+        };
+
+        // A curated name on this device: the terminal path may bind.
+        match plan_register_cli(&fixture.state, &args(&["floter", "register", "git"])) {
+            Some(RegisterCliPlan::Bind {
+                request,
+                url,
+                disclosure,
+            }) => {
+                assert_eq!(request.command, "git");
+                assert_eq!(url, "floter://register?cmd=git");
+                assert!(disclosure.contains("permissions: "), "{disclosure}");
+                assert!(disclosure.contains("environment"), "{disclosure}");
+            }
+            other => panic!("expected a bind, got {other:?}"),
+        }
+
+        // Not curated, no `--yes`: an offer, and the offer is a *link* (the
+        // `confirm` parameter is dropped, so the review surface cannot bind).
+        match plan_register_cli(
+            &fixture.state,
+            &args(&["floter", "register", "my-own-tool"]),
+        ) {
+            Some(RegisterCliPlan::Offer { url, message }) => {
+                assert_eq!(url, "floter://register?cmd=my-own-tool");
+                assert!(message.contains("--yes"), "{message} must say how to bind");
+                assert!(!url.contains("confirm"), "the offer must not carry a bind");
+            }
+            other => panic!("expected an offer, got {other:?}"),
+        }
+
+        // `--yes` turns the same name into a bind, and the URL records the
+        // confirmation for the instance that receives it.
+        match plan_register_cli(
+            &fixture.state,
+            &args(&["floter", "register", "my-own-tool", "--yes"]),
+        ) {
+            Some(RegisterCliPlan::Bind { url, .. }) => {
+                assert_eq!(url, "floter://register?cmd=my-own-tool&confirm=1");
+            }
+            other => panic!("expected a bind, got {other:?}"),
+        }
+
+        // A curated name this device does not have: refused, non-zero, and the
+        // sentence names the command. Nothing falls back to a window.
+        match plan_register_cli(&fixture.state, &args(&["floter", "register", "hg"])) {
+            Some(RegisterCliPlan::Refused { message }) => {
+                assert!(message.contains("hg"), "{message}");
+                assert_eq!(
+                    plan_register_cli(&fixture.state, &args(&["floter", "register", "hg"]))
+                        .expect("a refusal")
+                        .exit_code(),
+                    1
+                );
+            }
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+        // A malformed name is refused by the router, and the message carries
+        // the router's own reason.
+        match plan_register_cli(
+            &fixture.state,
+            &args(&["floter", "register", "/usr/bin/rg"]),
+        ) {
+            Some(RegisterCliPlan::Refused { message }) => {
+                assert!(message.contains("not a bare command name"), "{message}");
+            }
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+        // A bare `register` has no command to resolve.
+        assert!(matches!(
+            plan_register_cli(&fixture.state, &args(&["floter", "register"])),
+            Some(RegisterCliPlan::Refused { .. })
+        ));
+        // Not a register invocation at all: the caller falls through to the GUI.
+        assert!(plan_register_cli(&fixture.state, &args(&["floter", "--toggle"])).is_none());
+        assert!(plan_register_cli(&fixture.state, &args(&["floter"])).is_none());
+    }
+
+    /// Planning never writes: the lock is untouched by every branch, including
+    /// the one that decides to bind. The write belongs to the execution step.
+    ///
+    /// Mutation: move the `connect_tool` call into `plan_register_cli` and this
+    /// goes red.
+    #[cfg(unix)]
+    #[test]
+    fn planning_a_register_never_writes_anything() {
+        let fixture = register_fixture(&["git"]);
+        let args = |list: &[&str]| {
+            list.iter()
+                .map(|value| (*value).to_string())
+                .collect::<Vec<_>>()
+        };
+        for spelling in [
+            &["floter", "register", "git"][..],
+            &["floter", "register", "git", "--yes"][..],
+            &["floter", "register", "nothing-here"][..],
+        ] {
+            let _ = plan_register_cli(&fixture.state, &args(spelling));
+            assert!(!fixture.lock_path().exists(), "{spelling:?}");
+            assert!(!fixture.repository_path().exists(), "{spelling:?}");
+        }
+    }
+
+    /// A scratch home with one fake executable on its inventory, and the lock
+    /// path the real pipeline would write.
+    struct RegisterFixture {
+        state: ExtensionState,
+        executable: PathBuf,
+        root: PathBuf,
+        _bin: tempfile::TempDir,
+        _home: tempfile::TempDir,
+    }
+
+    impl RegisterFixture {
+        fn lock_path(&self) -> PathBuf {
+            self.root.join("tool-lock.json")
+        }
+
+        fn repository_path(&self) -> PathBuf {
+            self.root.join("extension-repository.json")
+        }
+
+        /// `None` while nothing has been written, so "unchanged" can be
+        /// asserted as "still absent" on the zero-binding paths.
+        fn lock_bytes(&self) -> Option<Vec<u8>> {
+            std::fs::read(self.lock_path()).ok()
+        }
+    }
+
+    fn register_fixture(names: &[&str]) -> RegisterFixture {
+        use std::os::unix::fs::PermissionsExt;
+
+        let home = tempfile::tempdir().expect("home");
+        let root = home.path().join("config");
+        let state =
+            ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(root.clone()))
+                .expect("extension state");
+        let bin = tempfile::tempdir().expect("bin");
+        let mut candidates = Vec::new();
+        for name in names {
+            let executable = bin.path().join(name);
+            std::fs::write(&executable, "#!/bin/sh\nexit 0\n").expect("write");
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
+                .expect("chmod");
+            candidates.push(crate::extensions::inventory::executable_candidate(
+                &executable,
+                *name,
+            ));
+        }
+        let executable = bin.path().join(names[0]);
+        state
+            .tool_inventory
+            .lock()
+            .expect("inventory")
+            .set_candidates_for_test(candidates);
+        RegisterFixture {
+            state,
+            executable,
+            root,
+            _bin: bin,
+            _home: home,
+        }
     }
 }

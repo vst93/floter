@@ -62,6 +62,16 @@ export type DeepLinkRegisterRequest = {
   command: string;
   args?: string[] | null;
   candidate?: DeepLinkRegisterCandidate | null;
+  /** Whether the invocation carried an explicit `--yes` (the terminal spelling
+   *  only — a URL can never say it). Display context, never an approval. */
+  confirmed?: boolean;
+  /** Set when a confirmed terminal invocation already completed the connection
+   *  through the ordinary connect path. The tool is no longer a Detected row,
+   *  so the panel's "already connected" sentence is the accurate one. */
+  bound?: { id: string } | null;
+  /** Set when a confirmed terminal invocation was attempted and the ordinary
+   *  connect path refused it. */
+  bindError?: string | null;
 };
 
 /** The subset of `ToolCandidate` the register surface needs. Declared here (not

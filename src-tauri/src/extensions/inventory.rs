@@ -287,7 +287,7 @@ pub fn candidate_priority(candidate: &ToolCandidate) -> u32 {
     const DESCRIPTION_BONUS: i64 = 60;
     const USER_DIRECTORY_BONUS: i64 = 40;
 
-    let stem = executable_stem(&candidate.name);
+    let stem = crate::extensions::curated_tools::curated_stem(&candidate.name);
     let mut score = BASE;
     if crate::extensions::curated_tools::is_curated(&stem) {
         score += CURATED_BONUS;
@@ -341,18 +341,6 @@ pub fn rank_candidates(candidates: &mut [ToolCandidate]) {
             .then_with(|| candidate_priority(right).cmp(&candidate_priority(left)))
             .then_with(|| left.name.cmp(&right.name))
     });
-}
-
-/// Lowercased executable name with a Windows launcher suffix removed, so
-/// `rg.exe`, `rg.cmd` and `rg` all compare equal against the curated list.
-fn executable_stem(name: &str) -> String {
-    let name = name.trim().to_ascii_lowercase();
-    for suffix in [".exe", ".cmd", ".bat", ".com"] {
-        if let Some(stripped) = name.strip_suffix(suffix) {
-            return stripped.to_string();
-        }
-    }
-    name
 }
 
 /// Whether a name reads as a *variant* rather than the primary command:

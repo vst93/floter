@@ -1318,12 +1318,19 @@ pub fn run() {
             // runs the very same router a live link does; the resolved request
             // is stored because the webview's listeners do not exist yet.
             //
+            // The terminal spelling of `register` takes the terminal router, so
+            // a cold `floter register rg` may still bind when the user already
+            // said yes. Every other trigger — including a hand-typed
+            // `floter://register…` URL — takes the link router and stops at the
+            // offer.
+            //
             // Order matters: `connect` reads `ExtensionState` (to stage a
             // remote manifest and to read the cache directory), so the state
             // has to be managed before the router runs. `open` needs nothing
             // but the window.
-            let cold_start =
-                deep_link::canonical_argument(&std::env::args().collect::<Vec<_>>());
+            let arguments = std::env::args().collect::<Vec<_>>();
+            let cold_start = deep_link::canonical_argument(&arguments);
+            let cold_start_is_terminal = deep_link::wants_register(&arguments);
             let extension_state = ExtensionState::new().map_err(std::io::Error::other)?;
             let _ = extension_state.app_handle.set(app.app_handle().clone());
             // Durable binding catch-up belongs to startup, not to any list poll:
@@ -1337,7 +1344,15 @@ pub fn run() {
             }
             app.manage(extension_state);
             if let Some(url) = cold_start {
-                deep_link::dispatch_url(app.handle(), &url, deep_link::Delivery::ColdStart);
+                if cold_start_is_terminal {
+                    deep_link::dispatch_terminal_url(
+                        app.handle(),
+                        &url,
+                        deep_link::Delivery::ColdStart,
+                    );
+                } else {
+                    deep_link::dispatch_url(app.handle(), &url, deep_link::Delivery::ColdStart);
+                }
             }
             deep_link::register_scheme(app.handle());
             deep_link::listen_for_url_events(app.handle());

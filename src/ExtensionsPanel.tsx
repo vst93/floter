@@ -1203,6 +1203,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     if (!pendingDeepLinkRegister) return;
     onDeepLinkRegisterConsumed();
     setRegisterPending(pendingDeepLinkRegister);
+    // A terminal `floter register <cmd>` that was allowed to bind has already
+    // run the ordinary connect path by the time the event arrives. The panel
+    // has to re-read the list for that case: the row it would have highlighted
+    // is now a Connected entry, and the Detected list is stale without this.
+    if (pendingDeepLinkRegister.confirmed) void refreshAfterMutation();
     // Same one-shot reasoning as the connect effect above: the app hands the
     // request over exactly once, and the callbacks are stable for the panel's
     // lifetime.
@@ -1218,6 +1223,16 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     if (!registerPending || loading) return;
     const request = registerPending;
     setRegisterPending(null);
+    // A confirmed terminal invocation already finished: the backend bound the
+    // tool through the ordinary connect path and the row is a Connected entry
+    // now. There is no Detected row left to highlight, and the accurate
+    // sentence is the "already connected" one — the same one a second
+    // `floter register rg --yes` produces.
+    if (request.bound) {
+      setRegisterTarget(null);
+      setRegisterMiss({ command: request.command, alreadyConnected: true });
+      return;
+    }
     const path = request.candidate?.locator.kind === "executable"
       ? request.candidate.locator.path
       : undefined;
