@@ -1201,6 +1201,87 @@
   outline-offset: 1px;
 }
 
+/* R9-2 slice 3 · the run-time parameter form. Its own full-width line in the
+   row, matching the output block's rhythm: routine input, never an overlay. */
+.extension-run-params {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 4px;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--ext-radius);
+  background: var(--surface-sunken);
+  cursor: default;
+}
+
+.extension-run-params__head {
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.extension-run-params__hint,
+.extension-run-params__note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  line-height: 1.35;
+}
+
+.extension-run-params__row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.4fr);
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.extension-run-params__label {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.extension-run-params__label em {
+  color: var(--text-warning);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.extension-run-params__label small {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: 400;
+}
+
+.extension-run-params__row input,
+.extension-run-params__row select {
+  min-width: 0;
+  width: 100%;
+}
+
+.extension-run-params__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-warning);
+  font-size: var(--text-caption);
+  line-height: 1.35;
+}
+
+.extension-run-params__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .extensions-action-button {
   height: var(--extensions-control-height);
   min-height: var(--extensions-control-height);

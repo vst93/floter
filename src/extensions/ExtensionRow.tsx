@@ -17,6 +17,9 @@ import type { Translate } from "../i18n";
 import { useEffect, useRef } from "react";
 import { freshnessDotState, freshnessOf } from "./freshness";
 import type { Extension, ExtensionOperation, RunOutput } from "../ExtensionsPanel";
+import type { ScriptParam } from "./script-params";
+import type { ParamValues } from "./run-params";
+import { RunParamForm } from "./RunParamForm";
 
 type Props = {
   extension: Extension;
@@ -55,6 +58,17 @@ type Props = {
   /** Flip the manifest's `output` mode. Wired only for connected rows. */
   onToggleOutputMode?: () => void;
   outputModeBusy?: boolean;
+  /** R9-2 slice 3 · the run-time parameter form. `runParams` is the projected
+   *  declaration; a non-empty list means the Run control opens the inline form
+   *  instead of running straight away. All of these are absent for an
+   *  integration with no declared parameters, whose run behavior is unchanged. */
+  runParams?: readonly ScriptParam[];
+  runFormOpen?: boolean;
+  runParamValues?: ParamValues;
+  onRunParamChange?: (id: string, value: string) => void;
+  onRunConfirm?: (values: ParamValues) => void;
+  onRunCancel?: () => void;
+  runError?: string | null;
 };
 
 const integrationKindKey = (extension: Extension): Parameters<Translate>[0] => {
@@ -104,8 +118,16 @@ export function ExtensionRow({
   outputOpen,
   onToggleOutputMode,
   outputModeBusy,
+  runParams,
+  runFormOpen,
+  runParamValues,
+  onRunParamChange,
+  onRunConfirm,
+  onRunCancel,
+  runError,
 }: Props) {
   const busy = Boolean(operation);
+  const hasParams = (runParams?.length ?? 0) > 0;
   const menuRef = useRef<HTMLDetailsElement>(null);
 
   const closeMenu = () => {
@@ -352,13 +374,17 @@ export function ExtensionRow({
             action, not the row's reason to exist. When the row cannot run
             (disabled, broken, runtime missing) the button stays in place but
             disabled with the reason in its title, so the affordance does not
-            appear and vanish between states. */}
+            appear and vanish between states.
+            R9-2 slice 3 · when the integration declares parameters this opens
+            the inline form instead of running at once; the same button is the
+            disclosure, so there is no second control to learn. */}
         {extension.connected && onRun && (
           <button
             type="button"
             className="extensions-icon-button extensions-icon-button--row"
             aria-label={t(runAvailable ? "settings.extensions.customRun" : "settings.extensions.customRunUnavailable")}
             title={t(runAvailable ? "settings.extensions.customRun" : "settings.extensions.customRunUnavailable")}
+            aria-expanded={hasParams ? Boolean(runFormOpen) : undefined}
             aria-busy={runBusy}
             disabled={busy || !runAvailable}
             onClick={onRun}
@@ -451,6 +477,24 @@ export function ExtensionRow({
             )}
           </button>
         </span>
+      )}
+
+      {/* R9-2 slice 3 · the run-time parameter form. Inline and in the row,
+          exactly like the output block above: filling in a run's arguments is
+          routine input, not an approval, so it is never a dialog. An
+          integration with no declared parameters never renders this, which is
+          what keeps its run behavior identical to before the feature. */}
+      {extension.connected && hasParams && runFormOpen && (
+        <RunParamForm
+          params={runParams ?? []}
+          values={runParamValues ?? {}}
+          onChange={(id, value) => onRunParamChange?.(id, value)}
+          onRun={(values) => onRunConfirm?.(values)}
+          onCancel={() => onRunCancel?.()}
+          busy={Boolean(runBusy)}
+          error={runError ?? null}
+          t={t}
+        />
       )}
 
       {/* R9-2 · the last background run's captured output. Inline and

@@ -27,6 +27,21 @@ export type ScriptParam = {
   flag: string | null;
 };
 
+/** The wire shape as the backend serializes it: the optional fields are
+ *  genuinely absent (`skip_serializing_if`), not null. Reading a manifest
+ *  through this keeps the run-time form honest about which fields it can
+ *  actually see. */
+export type ScriptParamWire = {
+  id: string;
+  label?: string;
+  kind: ScriptParamKind;
+  default?: string | null;
+  required?: boolean;
+  placeholder?: string | null;
+  options?: string[];
+  flag?: string | null;
+};
+
 /** The order the kind picker offers. Mirrors `ParamKind` in Rust. */
 export const PARAM_KINDS: readonly ScriptParamKind[] = ["text", "number", "boolean", "select", "path"];
 
@@ -136,7 +151,7 @@ export const toWireParams = (params: readonly ScriptParam[]): ScriptParam[] =>
 
 /** Read the wire shape back into the editor's nullable shape. A manifest that
  *  predates the field (or a definition with no params) yields an empty list. */
-export const fromWireParams = (params: readonly ScriptParam[] | null | undefined): ScriptParam[] =>
+export const fromWireParams = (params: readonly ScriptParamWire[] | null | undefined): ScriptParam[] =>
   (params ?? []).map((param) => ({
     id: param.id ?? "",
     label: param.label ?? "",

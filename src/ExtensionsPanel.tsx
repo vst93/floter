@@ -43,7 +43,13 @@ import {
   paramIssues,
   toWireParams,
   type ScriptParam,
+  type ScriptParamWire,
 } from "./extensions/script-params";
+import {
+  paramRunErrorMessage,
+  seedParamValues,
+  type ParamValues,
+} from "./extensions/run-params";
 import {
   createReprobeNoticeGate,
   decideDriftNotice,
@@ -105,6 +111,11 @@ export type Extension = {
    *  when the field is absent). The row's inline switch edits this through the
    *  ordinary update transaction. */
   output: "background" | "terminal";
+  /** R9-2 slice 3 · the declared inputs the run-time form renders, from the
+   *  manifest. The backend re-reads `manifest.params` as the argv authority,
+   *  so this is a rendering projection only. Absent on older payloads and on
+   *  detected rows, which is why the run form treats `undefined` as empty. */
+  params?: ScriptParamWire[] | null;
   /** Command list comes from a descriptor shipped with the publisher's
    *  release, so it tracks the release payload, not the local binary. */
   publisherDescriptor: boolean;
@@ -684,6 +695,15 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [runBusy, setRunBusy] = useState<string | null>(null);
   const [runOutputs, setRunOutputs] = useState<Record<string, RunOutput>>({});
   const [outputOpen, setOutputOpen] = useState<Record<string, boolean>>({});
+  /** R9-2 slice 3 · the run-time parameter form. `runFormId` is the row whose
+   *  form is open (one at a time), `runParamValues` is the live answers for
+   *  that form, `runParamMemory` is the last submitted answers per integration
+   *  (session memory only — never persisted), and `runParamError` is a backend
+   *  refusal mapped back onto the form. */
+  const [runFormId, setRunFormId] = useState<string | null>(null);
+  const [runParamValues, setRunParamValues] = useState<ParamValues>({});
+  const [runParamMemory, setRunParamMemory] = useState<Record<string, ParamValues>>({});
+  const [runParamError, setRunParamError] = useState<string | null>(null);
   /** R8-3: the row a `floter://register` link asked us to highlight, and the
    *  inline reason when the name was not found. Purely presentational — a
    *  highlight is not a connect, and the row's own button stays the only way
@@ -1525,13 +1545,45 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   // sees or assembles argv. A background run completes inline and reports
   // through the ordinary toast stack, and its captured output is stashed for
   // the row's inline "last output" scroller.
-  const runExtension = async (extension: Extension) => {
+  //
+  // R9-2 slice 3 · if the integration declares parameters, the Run button opens
+  // the inline form seeded from this session's last answers (falling back to
+  // each parameter's default); confirming calls the same backend command with
+  // the collected `values`. An integration with no parameters runs straight
+  // away, exactly as before.
+  const declaredRunParams = (extension: Extension): ScriptParam[] =>
+    fromWireParams(extension.params);
+
+  const openRunForm = (extension: Extension) => {
     if (runBusy) return;
+    // Re-opening the form for the row it is already showing keeps the user's
+    // in-progress edits; only a freshly opened form is seeded from memory.
+    if (runFormId === extension.id) return;
+    setRunFormId(extension.id);
+    setRunParamError(null);
+    setRunParamValues(seedParamValues(declaredRunParams(extension), runParamMemory[extension.id]));
+  };
+
+  const runExtension = async (extension: Extension, values?: ParamValues) => {
+    if (runBusy) return;
+    const params = declaredRunParams(extension);
+    if (values === undefined && params.length > 0) {
+      openRunForm(extension);
+      return;
+    }
     setRunBusy(extension.id);
+    setRunParamError(null);
     try {
-      const outcome = await invoke<RunOutcome>("extensions_run", { id: extension.id });
+      const outcome = await invoke<RunOutcome>("extensions_run", {
+        id: extension.id,
+        values: values ?? null,
+      });
       if (outcome.route === "terminal") {
+        if (values !== undefined) {
+          setRunParamMemory((current) => ({ ...current, [extension.id]: values }));
+        }
         if (outcome.plan) await onOpenCommand(outcome.plan, extension.name);
+        setRunFormId(null);
         return;
       }
       if (outcome.output) {
@@ -1539,10 +1591,20 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       }
       const duration = formatRunDuration(outcome.durationMs);
       if (outcome.success) {
+        // Only a *completed* run clears the form and banks the answers; a
+        // refusal keeps the form open so the user can fix the value in place.
+        if (values !== undefined) {
+          setRunParamMemory((current) => ({ ...current, [extension.id]: values }));
+        }
+        setRunFormId(null);
         showSuccess(t("settings.extensions.customRunSucceeded", { name: extension.name, duration }));
       } else {
         // A failing script is still a *completed run*: the exit code is the
         // fact the user needs, and the output is one click away in the row.
+        if (values !== undefined) {
+          setRunParamMemory((current) => ({ ...current, [extension.id]: values }));
+        }
+        setRunFormId(null);
         onNotify("warning", t("settings.extensions.customRunFailedToast", {
           name: extension.name,
           code: outcome.exitCode ?? 0,
@@ -1550,10 +1612,33 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         setOutputOpen((current) => ({ ...current, [extension.id]: true }));
       }
     } catch (nextError) {
-      showError(errorMessage(nextError));
+      // A `run_param_*` refusal is an inline problem under the input that
+      // caused it, not a toast — the form is still open and the user is one
+      // edit away from a valid run. Anything else keeps the ordinary toast.
+      const message = errorMessage(nextError);
+      const mapped = paramRunErrorMessage(
+        message,
+        params,
+        (key, arguments_) => t(key as Parameters<Translate>[0], arguments_),
+      );
+      if (mapped) {
+        setRunParamError(mapped);
+      } else {
+        showError(message);
+      }
     } finally {
       setRunBusy(null);
     }
+  };
+
+  const cancelRunForm = () => {
+    setRunFormId(null);
+    setRunParamError(null);
+  };
+
+  const changeRunParam = (id: string, value: string) => {
+    setRunParamValues((current) => ({ ...current, [id]: value }));
+    setRunParamError(null);
   };
 
   // Flip the manifest's output mode through the ordinary update transaction.
@@ -2144,6 +2229,13 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 onRun={() => void runExtension(extension)}
                 runBusy={runBusy === extension.id}
                 runAvailable={runAvailability(extension)}
+                runParams={declaredRunParams(extension)}
+                runFormOpen={runFormId === extension.id}
+                runParamValues={runParamValues}
+                onRunParamChange={changeRunParam}
+                onRunConfirm={(values) => void runExtension(extension, values)}
+                onRunCancel={cancelRunForm}
+                runError={runFormId === extension.id ? runParamError : null}
                 lastOutput={runOutputs[extension.id] ?? null}
                 outputOpen={Boolean(outputOpen[extension.id])}
                 onToggleOutput={() => toggleOutputView(extension.id)}

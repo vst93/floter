@@ -23,7 +23,7 @@
 //! so the argv whitelist exists before anything can use it.
 
 use super::lock::{ExtensionLockEntry, ExtensionsLock};
-use super::manifest::{ExtensionManifest, OutputMode};
+use super::manifest::{validate_flag, ExtensionManifest, OutputMode, ParamDefinition, ParamKind};
 use super::process_cleanup::{command_output, CommandOutputError};
 use super::provider::{
     self, CommandDescriptor, ExecutionDescriptor, ExecutionMode, ExecutionPlan, ProviderInvocation,
@@ -41,6 +41,146 @@ use std::time::{Duration, Instant};
 /// Matches the probe cap (`capability_probe::MAX_PROBE_OUTPUT_BYTES`): a
 /// runaway script must not be able to grow the host's memory without bound.
 pub(crate) const MAX_RUN_OUTPUT_BYTES: usize = 64 * 1024;
+
+/// The argument values a caller filled in for one run, keyed by parameter id.
+/// Values are always strings on the wire; the kind conversion happens here.
+pub type ParamValues = BTreeMap<String, String>;
+
+/// Characters cmd.exe re-parses. A `.cmd`/`.bat` program is launched through
+/// `cmd.exe /D /S /C` (`provider::execution_host`), so an argument containing
+/// any of these can still change the command line even though it arrived as its
+/// own `argv` entry. The structured-argv guarantee does not extend across
+/// cmd.exe, so the run refuses such a value rather than pretending it is safe.
+/// This is the only platform-specific hole in the defence and it is closed by
+/// refusal, not by quoting.
+pub const WINDOWS_CMD_UNSAFE_CHARS: [char; 6] = ['&', '|', '<', '>', '^', '%'];
+
+/// The first character in `value` that cmd.exe would re-parse, if any.
+pub fn windows_cmd_unsafe_char(value: &str) -> Option<char> {
+    value
+        .chars()
+        .find(|character| WINDOWS_CMD_UNSAFE_CHARS.contains(character))
+}
+
+/// Whether `program` is a Windows command script, which `execution_host`
+/// launches through cmd.exe. Always false off Windows: the wrap only happens
+/// there, so only there can a value be re-parsed. Kept separate from the check
+/// itself so the character set stays testable on every platform.
+pub fn program_is_cmd_script(program: &Path) -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+    let extension = program
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat")
+}
+
+/// Append `flag` (when present) and `value` as **two separate argv items**.
+fn push_flagged(args: &mut Vec<String>, flag: Option<&str>, value: &str) {
+    if let Some(flag) = flag {
+        args.push(flag.to_string());
+    }
+    args.push(value.to_string());
+}
+
+/// Turn the declared parameters plus the caller's answers into argv items.
+///
+/// This is the whole run-time half of the parameter feature, and it exists in
+/// exactly one place so no second argv builder can drift from it. It reads the
+/// manifest's `params` as the single source; the descriptor side contributes
+/// nothing to this decision. The order (research §1.4) is: the interpreter /
+/// script prefix and the descriptor's `argsPrefix` are already in the plan when
+/// this function's result is appended, so the final argv is
+///
+/// ```text
+/// executable_prefix ++ args_prefix ++ <param args> ++ <user args, empty today>
+/// ```
+///
+/// Per declared parameter, in declaration order:
+///
+///   * `flag` then `value` as two separate items when a flag is declared;
+///   * `value` alone when it is not;
+///   * `flag` alone for a boolean that is true;
+///   * nothing for a boolean that is false or absent (a non-boolean that is
+///     absent and not required is skipped, mirroring the manifest rule).
+///
+/// Values are converted per kind: `number` must parse as `i64` or `f64`, a
+/// `select` must be one of its options, `path` and `text` are passed through
+/// untouched (no expansion). A `required` parameter with neither a value nor a
+/// default is refused, naming the id. A value keyed by an id that is not
+/// declared is refused too — silently dropping it would hide a caller bug, and
+/// treating it as free-form would be an injection path.
+///
+/// Every value is its own `Vec<String>` element. Nothing here ever joins an
+/// argument into a shell string, which is the injection defence: the process
+/// receives the value as a single `argv` entry and no shell parses it.
+///
+/// Mutation: join the flag and value (`format!("{flag} {value}")`) or build a
+/// shell string and the hostile-value tests receive a split or executed
+/// argument and go red.
+pub(crate) fn param_arguments(
+    params: &[ParamDefinition],
+    values: &ParamValues,
+    cmd_script: bool,
+) -> Result<Vec<String>, String> {
+    for key in values.keys() {
+        if !params.iter().any(|param| &param.id == key) {
+            return Err(format!("run_param_unknown:{key}"));
+        }
+    }
+    let mut args = Vec::new();
+    for param in params {
+        let provided = values.get(&param.id).filter(|value| !value.is_empty());
+        let raw = match provided {
+            Some(value) => value.clone(),
+            None => match param.default.as_deref().filter(|value| !value.is_empty()) {
+                Some(default) => default.to_string(),
+                None => {
+                    if param.required {
+                        return Err(format!("run_param_required:{}", param.id));
+                    }
+                    continue;
+                }
+            },
+        };
+        if let Some(flag) = &param.flag {
+            validate_flag(flag).map_err(|_| format!("run_param_invalid:{}", param.id))?;
+        }
+        if cmd_script && windows_cmd_unsafe_char(&raw).is_some() {
+            return Err(format!("run_param_windows_unsafe:{}", param.id));
+        }
+        match param.kind {
+            ParamKind::Boolean => match raw.trim().to_ascii_lowercase().as_str() {
+                "true" => {
+                    if let Some(flag) = &param.flag {
+                        args.push(flag.clone());
+                    }
+                }
+                "false" => {}
+                _ => return Err(format!("run_param_invalid:{}", param.id)),
+            },
+            ParamKind::Number => {
+                let trimmed = raw.trim();
+                if trimmed.parse::<i64>().is_err() && trimmed.parse::<f64>().is_err() {
+                    return Err(format!("run_param_invalid:{}", param.id));
+                }
+                push_flagged(&mut args, param.flag.as_deref(), trimmed);
+            }
+            ParamKind::Select => {
+                if !param.options.iter().any(|option| option == &raw) {
+                    return Err(format!("run_param_invalid:{}", param.id));
+                }
+                push_flagged(&mut args, param.flag.as_deref(), &raw);
+            }
+            ParamKind::Text | ParamKind::Path => {
+                push_flagged(&mut args, param.flag.as_deref(), &raw);
+            }
+        }
+    }
+    Ok(args)
+}
 
 /// How long a background run may take before it is killed. Long enough for a
 /// real script, short enough that a hung one does not pin the host forever.
@@ -189,9 +329,15 @@ fn run_cwd(state: &ExtensionState, id: &str) -> Result<PathBuf, String> {
 
 /// Build the argv for one run. Returns the plan **unprotected**; the terminal
 /// route protects it before it crosses IPC.
+///
+/// The parameter args are appended *after* the descriptor's `argsPrefix` (which
+/// `execution_plan` already places) and before the free-form user args (none
+/// today), so the one argv shape the run can produce is
+/// `executable_prefix ++ args_prefix ++ param args`.
 fn build_plan(
     entry: &ExtensionLockEntry,
     manifest: &ExtensionManifest,
+    values: &ParamValues,
     cwd: &Path,
 ) -> Result<ExecutionPlan, String> {
     let mut invocation: ProviderInvocation =
@@ -204,21 +350,34 @@ fn build_plan(
         .clone_from(&entry.approved_permissions);
     let args_prefix = descriptor_args_prefix(entry, manifest);
     let descriptor = run_descriptor(entry, args_prefix);
-    provider::execution_plan(&descriptor, &invocation, Vec::new(), Some(cwd))
+    // A `.cmd`/`.bat` program is launched through cmd.exe, where a value's
+    // metacharacters can still be re-parsed; the parameter builder refuses such
+    // a value up front. Every other program receives structured argv.
+    let cmd_script = program_is_cmd_script(&invocation.executable);
+    let param_args = if manifest.params.is_empty() && values.is_empty() {
+        Vec::new()
+    } else {
+        param_arguments(&manifest.params, values, cmd_script)?
+    };
+    provider::execution_plan(&descriptor, &invocation, param_args, Some(cwd))
 }
 
-/// Run a connected integration. `output_override` lets the caller force a
+/// Run a connected integration. `values` carries the caller's answers keyed by
+/// parameter id (`None` is the same as an empty map: an integration with no
+/// parameters runs exactly as before). `output_override` lets the caller force a
 /// route for one run (`"terminal"` / `"background"`); `None` uses the
 /// manifest's declared `output` mode.
 pub async fn run(
     state: &ExtensionState,
     id: &str,
+    values: Option<ParamValues>,
     output_override: Option<String>,
 ) -> Result<RunOutcome, String> {
     let (entry, manifest) = runnable_entry(state, id)?;
     let route = resolve_route(&manifest, output_override.as_deref())?;
     let cwd = run_cwd(state, id)?;
-    let plan = build_plan(&entry, &manifest, &cwd)?;
+    let values = values.unwrap_or_default();
+    let plan = build_plan(&entry, &manifest, &values, &cwd)?;
     match route {
         RunRoute::Terminal => {
             // The frontend gets only the token: program/args/env are stripped
@@ -531,7 +690,7 @@ mod tests {
         .unwrap();
         assert_eq!(entry.id, id);
 
-        let outcome = run(&state, id, None).await.unwrap();
+        let outcome = run(&state, id, None, None).await.unwrap();
         assert_eq!(outcome.route, RunRoute::Background);
         assert!(outcome.plan.is_none());
         assert_eq!(outcome.exit_code, Some(3));
@@ -544,6 +703,73 @@ mod tests {
         let remembered = state.run_output(id).unwrap();
         assert_eq!(remembered, output);
         assert!(state.run_output("local.absent").is_none());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn terminal_run_stacks_prefix_then_parameters_in_one_argv() {
+        use std::os::unix::fs::PermissionsExt;
+
+        // The one argv shape the run can produce, end to end:
+        // `executable_prefix ++ args_prefix ++ <param flag> ++ <param value>`.
+        // Every element is a separate item and the params land AFTER the
+        // descriptor prefix, which is the order the research report fixes.
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("order.sh");
+        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let mut target = param("target", ParamKind::Text);
+        target.flag = Some("--target".into());
+        let id = "local.order";
+        crate::extensions::install::create_custom_integration(
+            &state,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Order".into(),
+                command: "order".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: vec!["--prefix".into()],
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![
+                    crate::extensions::manifest::Permission::Environment,
+                    crate::extensions::manifest::Permission::ProcessSpawn,
+                ],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Terminal,
+                params: vec![target],
+            },
+        )
+        .await
+        .unwrap();
+
+        let outcome = run(&state, id, Some(values(&[("target", "example.com")])), None)
+            .await
+            .unwrap();
+        let plan = outcome.plan.unwrap();
+        let resolved = state
+            .take_execution_plan(&plan.plan_token.unwrap())
+            .unwrap();
+        assert_eq!(
+            resolved.args,
+            vec![
+                "--prefix".to_string(),
+                "--target".to_string(),
+                "example.com".to_string()
+            ]
+        );
+        assert!(resolved.program.ends_with("order.sh"));
     }
 
     #[cfg(unix)]
@@ -589,7 +815,7 @@ mod tests {
         .await
         .unwrap();
 
-        let outcome = run(&state, id, None).await.unwrap();
+        let outcome = run(&state, id, None, None).await.unwrap();
         assert_eq!(outcome.route, RunRoute::Terminal);
         let plan = outcome.plan.unwrap();
         // The IPC payload carries the token only — no argv, no environment.
@@ -604,6 +830,197 @@ mod tests {
         let resolved = state.take_execution_plan(&token).unwrap();
         assert_eq!(resolved.args, vec!["--from-descriptor".to_string()]);
         assert!(resolved.program.ends_with("term.sh"));
+    }
+
+    // ── R9-2 slice 3 · the parameter assembler ───────────────────────────
+
+    fn param(id: &str, kind: ParamKind) -> ParamDefinition {
+        ParamDefinition {
+            id: id.into(),
+            label: String::new(),
+            kind,
+            default: None,
+            required: false,
+            placeholder: None,
+            options: Vec::new(),
+            flag: None,
+        }
+    }
+
+    fn values(pairs: &[(&str, &str)]) -> ParamValues {
+        pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect()
+    }
+
+    fn args_for(
+        param: &ParamDefinition,
+        pairs: &[(&str, &str)],
+        cmd_script: bool,
+    ) -> Result<Vec<String>, String> {
+        param_arguments(std::slice::from_ref(param), &values(pairs), cmd_script)
+    }
+
+    #[test]
+    fn param_arguments_follow_the_declared_order_with_flags_and_positionals() {
+        // Declaration order is argv order, and a flag becomes its OWN item —
+        // never `--flag value` joined into one. Mutation: join flag and value
+        // (`format!("{flag} {value}")`) and the assertions collapse.
+        let mut flagged = param("target", ParamKind::Text);
+        flagged.flag = Some("--target".into());
+        let positional = param("rest", ParamKind::Text);
+        let args = param_arguments(
+            &[flagged, positional],
+            &values(&[("target", "example.com"), ("rest", "extra")]),
+            false,
+        )
+        .unwrap();
+        assert_eq!(args, vec!["--target", "example.com", "extra"]);
+        // Each value stays exactly one item even when it contains spaces.
+        let mut spaced = param("target", ParamKind::Text);
+        spaced.flag = Some("--target".into());
+        let args = param_arguments(&[spaced], &values(&[("target", "two words")]), false).unwrap();
+        assert_eq!(args, vec!["--target", "two words"]);
+    }
+
+    #[test]
+    fn param_arguments_skips_absent_optionals_and_refuses_missing_required() {
+        let optional = param("note", ParamKind::Text);
+        assert!(args_for(&optional, &[], false).unwrap().is_empty());
+        // A default seeds the value, so an absent optional with a default is
+        // present.
+        let mut defaulted = optional.clone();
+        defaulted.default = Some("hi".into());
+        assert_eq!(
+            param_arguments(&[defaulted], &ParamValues::new(), false).unwrap(),
+            vec!["hi"]
+        );
+        // A required parameter with no value and no default is refused, and the
+        // error names the id (the frontend maps it to a localised message).
+        let mut required = param("note", ParamKind::Text);
+        required.required = true;
+        let error = param_arguments(&[required.clone()], &ParamValues::new(), false).unwrap_err();
+        assert_eq!(error, "run_param_required:note");
+        // …but a supplied value satisfies it.
+        assert_eq!(
+            param_arguments(&[required.clone()], &values(&[("note", "x")]), false).unwrap(),
+            vec!["x"]
+        );
+        // An empty string is "not supplied": a required value cannot be blank.
+        let error = param_arguments(&[required], &values(&[("note", "")]), false).unwrap_err();
+        assert_eq!(error, "run_param_required:note");
+    }
+
+    #[test]
+    fn param_arguments_converts_by_kind() {
+        // number: integer and float spellings are both accepted, trimmed.
+        let count = param("count", ParamKind::Number);
+        assert_eq!(
+            args_for(&count, &[("count", "12")], false).unwrap(),
+            vec!["12"]
+        );
+        assert_eq!(
+            args_for(&count, &[("count", " -3.5 ")], false).unwrap(),
+            vec!["-3.5"]
+        );
+        assert_eq!(
+            param_arguments(&[count], &values(&[("count", "three")]), false).unwrap_err(),
+            "run_param_invalid:count"
+        );
+        // select: the value must be one of the options.
+        let mut mode = param("mode", ParamKind::Select);
+        mode.options = vec!["fast".into(), "slow".into()];
+        assert_eq!(
+            param_arguments(&[mode.clone()], &values(&[("mode", "fast")]), false).unwrap(),
+            vec!["fast"]
+        );
+        assert_eq!(
+            param_arguments(&[mode], &values(&[("mode", "turbo")]), false).unwrap_err(),
+            "run_param_invalid:mode"
+        );
+        // boolean: true pushes the flag (and only the flag); false/absent push
+        // nothing. A flagless true is a no-op, not a `"true"` item.
+        let mut force = param("force", ParamKind::Boolean);
+        force.flag = Some("--force".into());
+        assert_eq!(
+            param_arguments(&[force.clone()], &values(&[("force", "true")]), false).unwrap(),
+            vec!["--force"]
+        );
+        assert!(
+            param_arguments(&[force.clone()], &values(&[("force", "false")]), false)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(param_arguments(&[force], &ParamValues::new(), false)
+            .unwrap()
+            .is_empty());
+        // path and text pass through untouched — no `$HOME`/`~` expansion.
+        let path = param("dest", ParamKind::Path);
+        assert_eq!(
+            param_arguments(&[path], &values(&[("dest", "$HOME/x ~/y")]), false).unwrap(),
+            vec!["$HOME/x ~/y"]
+        );
+    }
+
+    #[test]
+    fn param_arguments_refuses_an_undeclared_value_key() {
+        // Mutation: drop the unknown-key loop and this silently ignores the
+        // value instead of refusing it.
+        let error = param_arguments(
+            &[param("known", ParamKind::Text)],
+            &values(&[("known", "ok"), ("sneaky", "--rm")]),
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(error, "run_param_unknown:sneaky");
+    }
+
+    #[test]
+    fn param_arguments_refuses_a_malformed_flag_at_run_time() {
+        // `validate_flag` is the manifest single source; the assembler re-runs
+        // it so a hand-edited manifest cannot smuggle a space (two argv items)
+        // through the run path.
+        let mut bad = param("target", ParamKind::Text);
+        bad.flag = Some("--target value".into());
+        assert_eq!(
+            param_arguments(&[bad], &values(&[("target", "x")]), false).unwrap_err(),
+            "run_param_invalid:target"
+        );
+    }
+
+    #[test]
+    fn param_arguments_refuses_cmd_metacharacters_for_a_cmd_script() {
+        // The Windows `.cmd`/`.bat` hole: the program is launched through
+        // cmd.exe, where `& | < > ^ %` are re-parsed even though the value
+        // arrived as its own argv entry. The run refuses such a value.
+        // Mutation: drop `%` from `WINDOWS_CMD_UNSAFE_CHARS` and the last case
+        // below goes green (the value is passed through).
+        let text = param("target", ParamKind::Text);
+        for value in ["a&b", "a|b", "a<b", "a>b", "a^b", "a%b"] {
+            assert_eq!(
+                args_for(&text, &[("target", value)], true).unwrap_err(),
+                "run_param_windows_unsafe:target",
+                "{value:?} must be refused for a cmd script"
+            );
+            // …and the SAME value is fine for a non-cmd program: the set is
+            // platform/extension-scoped, not a blanket rejection.
+            assert_eq!(
+                args_for(&text, &[("target", value)], false).unwrap(),
+                vec![value]
+            );
+        }
+        // The check covers flag+value; a metacharacter anywhere refuses the run.
+        let mut flagged = param("target", ParamKind::Text);
+        flagged.flag = Some("--target".into());
+        assert_eq!(
+            param_arguments(&[flagged], &values(&[("target", "ok%not-ok")]), true).unwrap_err(),
+            "run_param_windows_unsafe:target"
+        );
+        // A non-cmd program is never wrapped, so `program_is_cmd_script` must
+        // be false for it on every platform (off Windows it is always false).
+        assert!(!program_is_cmd_script(Path::new("runner.exe")));
+        assert!(!program_is_cmd_script(Path::new("runner.sh")));
     }
 
     #[cfg(unix)]
@@ -675,7 +1092,7 @@ mod tests {
         .await
         .unwrap();
 
-        let outcome = run(&state, id, None).await.unwrap();
+        let outcome = run(&state, id, None, None).await.unwrap();
         assert_eq!(outcome.success, Some(true), "{outcome:?}");
         let stdout = outcome.output.unwrap().stdout;
         let lines: Vec<&str> = stdout.lines().collect();
@@ -696,11 +1113,97 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn background_run_passes_parameter_values_as_separate_argv_items() {
+        use std::os::unix::fs::PermissionsExt;
+
+        // The run-time half of the injection defense: a value a user typed into
+        // the parameter form is a single argv item, even when it is a shell
+        // word. The declared parameter has a flag, so the process must receive
+        // `--target` and the value as TWO items (never `--target=<value>` and
+        // never one joined string).
+        //
+        // Mutation: join the value into the flag (or build a shell string) and
+        // the `$(...)` runs, the `;` chain touches the marker, and the argv
+        // count no longer matches.
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let marker = script_directory.path().join("param-shell-marker");
+        let executable = script_directory.path().join("params.sh");
+        std::fs::write(
+            &executable,
+            concat!(
+                "#!/bin/sh\n",
+                "for arg in \"$@\"; do printf '[%s]\\n' \"$arg\"; done\n"
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let hostile_value = format!("$(touch {}) ; rm -rf / with spaces", marker.display());
+        let mut target = param("target", ParamKind::Text);
+        target.flag = Some("--target".into());
+        let id = "local.param-defense";
+        crate::extensions::install::create_custom_integration(
+            &state,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Param defense".into(),
+                command: "param-defense".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![
+                    crate::extensions::manifest::Permission::Environment,
+                    crate::extensions::manifest::Permission::ProcessSpawn,
+                ],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: vec![target],
+            },
+        )
+        .await
+        .unwrap();
+
+        let outcome = run(
+            &state,
+            id,
+            Some(values(&[("target", hostile_value.as_str())])),
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome.success, Some(true), "{outcome:?}");
+        let stdout = outcome.output.unwrap().stdout;
+        let lines: Vec<&str> = stdout.lines().collect();
+        // Exactly flag + value, as two items, with the value intact.
+        let expected = ["--target".to_string(), hostile_value.clone()];
+        assert_eq!(lines.len(), expected.len(), "{stdout}");
+        for (line, item) in lines.iter().zip(&expected) {
+            assert_eq!(line, &format!("[{item}]"), "{stdout}");
+        }
+        assert!(
+            !marker.exists(),
+            "the `;` in the parameter value must not have started a second command"
+        );
+    }
+
     #[tokio::test]
     async fn run_rejects_a_disconnected_or_disabled_integration() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let error = run(&state, "local.missing", None).await.unwrap_err();
+        let error = run(&state, "local.missing", None, None).await.unwrap_err();
         assert!(error.contains("local.missing"), "{error}");
     }
 }
