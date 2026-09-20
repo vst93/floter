@@ -43,6 +43,11 @@ export interface PinnedTerminalCardProps {
   focused: boolean;
   /** Rendered but invisible while the launcher/settings own the window. */
   hidden: boolean;
+  /** Which surface hosts this instance. `"launcher"` is the collapsed
+   *  launcher, where the header is an implicit, hover-revealed drag band
+   *  (R10-B, the same reveal the terminal bar and the clipboard page use);
+   *  `"terminal"` keeps the card's always-visible header. */
+  variant?: "terminal" | "launcher";
   onClose: () => void;
   /** Body click: make the pinned session the active input target. */
   onFocusRequest: () => void;
@@ -62,6 +67,7 @@ export function PinnedTerminalCard({
   onGeometryChange,
   focused,
   hidden,
+  variant = "terminal",
   onClose,
   onFocusRequest,
   onSessionExit,
@@ -276,6 +282,7 @@ export function PinnedTerminalCard({
       role="dialog"
       aria-label={title}
       data-pinned-card
+      data-variant={variant}
     >
       <header className="pinned-card__header" onPointerDown={onHeaderPointerDown}>
         <span className="pinned-card__dot" aria-hidden="true" />

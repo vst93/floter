@@ -59,6 +59,32 @@
   cursor: grabbing;
 }
 
+.collapsed-shell [data-variant="launcher"] .pinned-card__header {
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+/* R10-B · the launcher's card header is not a menu bar.
+
+   In the terminal page the header stays visible: it names the session and it
+   is the drag handle. On the collapsed launcher there is no room for a second
+   bar — the launcher already has one surface and one voice — so the header
+   becomes an implicit band, revealed only while the pointer is on it, exactly
+   like `.terminal-bar__identity` and the clipboard page's header row. The 28px
+   of layout is kept (the card never jumps when the band fades in), and while
+   the band is invisible its children are `visibility: hidden`, so nothing is
+   clickable or tabbable where nothing is drawn. The header itself stays
+   hit-testable — that is what makes `:hover` able to reveal it at all. */
+
+
+.collapsed-shell [data-variant="launcher"] .pinned-card__header:hover,
+.collapsed-shell [data-variant="launcher"] .pinned-card__header:focus-within {
+  opacity: 1;
+}
+
+.collapsed-shell [data-variant="launcher"] .pinned-card__header:not(:hover):not(:focus-within) > * {
+  visibility: hidden;
+}
+
 .pinned-card__dot {
   width: 6px;
   height: 6px;

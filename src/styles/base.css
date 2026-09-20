@@ -1155,6 +1155,7 @@ canvas {
 
   .collapsed-card,
   .collapsed-card__settings,
+  .collapsed-shell [data-variant="launcher"] .pinned-card__header,
   .launcher-bottom-clip,
   .settings-option,
   .settings-switch,

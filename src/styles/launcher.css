@@ -36,7 +36,6 @@
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   user-select: none;
-  cursor: grab;
   overflow: hidden;
   transition: transform var(--dur-2) ease, border-color var(--dur-3) ease, background var(--dur-3) ease, box-shadow var(--dur-3) ease;
 }
@@ -53,6 +52,36 @@
 
 .collapsed-card:active {
   transform: none;
+}
+
+/* R10-B · the launcher's implicit drag handle.
+
+   The card used to be a drag surface from end to end, so a press anywhere — a
+   result row, a hint, the empty space around the field — could move the
+   window. The handle is now one blank 28px band across the card's top, the
+   same implicit one the clipboard page uses (`.clipboard-panel__topbar`).
+
+   It is the input row's first child, absolutely positioned, and it paints
+   *under* the field and the two buttons — both already `z-index: 1`, the field
+   `position: relative` — so it never swallows a click meant for the field. A
+   sibling of the row could not do this: the row's own box is hit-testable, so
+   it would cover the band entirely. Absolute rather than in flow because the
+   card's height is measured (`syncLauncherHeight`) and the window follows it;
+   a reserved 28px row would add a blank strip to the top of the launcher —
+   the very band this round is removing from the pinned card. */
+.collapsed-card__drag-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--u) * 28);
+  z-index: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.collapsed-card__drag-zone:active {
+  cursor: grabbing;
 }
 
 .collapsed-card__input-row {

@@ -1555,6 +1555,10 @@ export default function App() {
       onGeometryChange={updateCardGeometry}
       focused={activeSurface === "pinned"}
       hidden={mode !== "terminal"}
+      // R10-B: only the collapsed launcher tags the card "launcher" — its
+      // header becomes the implicit, hover-revealed drag band there. The
+      // terminal page keeps the always-visible header it has today.
+      variant={mode === "collapsed" ? "launcher" : "terminal"}
       onClose={() => void unpinPinnedSession()}
       onFocusRequest={() => {
         setActiveSurface("pinned");
@@ -1846,12 +1850,23 @@ export default function App() {
             ref={collapsedCardRef}
             className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
             style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
-            onMouseDown={startDrag}
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
             }}
           >
+            {/* R10-B: the launcher's implicit drag handle. The card itself is
+                no longer a drag surface — a press on a result row or a hint
+                must never move the window — so the one place that does is an
+                invisible 28px band across the card's top, the same implicit
+                handle the clipboard page uses. It is the input row's first
+                child and paints under the field and the buttons (both already
+                `z-index: 1`), so the field keeps every one of its clicks. */}
             <div className="collapsed-card__input-row">
+              <div
+                className="collapsed-card__drag-zone"
+                aria-hidden="true"
+                onMouseDown={startDrag}
+              />
               <div className="collapsed-card__aura" aria-hidden="true" />
               <input
                 ref={inputRef}
