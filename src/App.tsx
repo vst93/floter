@@ -585,6 +585,7 @@ export default function App() {
     ensureTerminalSession,
     describeMainSession,
     resetTerminalFrontendState,
+    terminalResident,
     openInTerminal,
     copySelection,
     pasteClipboard,
@@ -616,7 +617,6 @@ export default function App() {
     setTerminalFeedback,
     setQuery,
     setMode,
-    scheduleCollapsedFocusBeats,
     showTerminalFeedback,
     t,
   });
@@ -2143,6 +2143,25 @@ export default function App() {
                     shortcut: formatShortcut(shortcuts.pin_terminal),
                   })}
                 </span>
+              </div>
+            )}
+            {/* R9-2 slice 5 · the PTY child exited and the page is being
+                *held* rather than collapsed: the final frame stays painted so
+                the output is readable, and this line names the exit code and
+                the way out. A non-zero code reads in the warning colour; a
+                clean exit in the ordinary secondary text. Closing is the
+                user's decision, made with the header × or the new-command
+                shortcut. */}
+            {terminalResident && (
+              <div
+                className={`terminal-resident${terminalResident.code !== null && terminalResident.code !== 0 ? " terminal-resident--warning" : ""}`}
+                role="status"
+                aria-live="polite"
+              >
+                <span className="terminal-resident__title">
+                  {t("terminal.processExited", { code: terminalResident.code ?? 0 })}
+                </span>
+                <span className="terminal-resident__hint">{t("terminal.processExitedHint")}</span>
               </div>
             )}
             {terminalFeedback && (

@@ -2214,10 +2214,11 @@ pub async fn extensions_launch(
 /// Run a connected integration once (R9-2 slice 1).
 ///
 /// This is the execution entry the custom-script feature never had. The
-/// manifest's `output` mode decides the route; `outputOverride` forces one for
-/// a single run. The terminal route returns a protected execution plan the
-/// frontend hands to `term_spawn` (it never assembles argv); the background
-/// route runs the process here and returns the captured output.
+/// manifest's `output` mode decides the route (R9-2 slice 5 removed the
+/// per-run override: the mode is configured in the drawer, not flipped per
+/// call). The terminal route returns a protected execution plan the frontend
+/// hands to `term_spawn` (it never assembles argv); the background route runs
+/// the process here and returns the captured output.
 ///
 /// `values` carries the caller's answers for the integration's declared
 /// `params`, keyed by parameter id (R9-2 slice 3). Every value becomes its own
@@ -2228,9 +2229,8 @@ pub async fn extensions_run(
     state: State<'_, ExtensionState>,
     id: String,
     values: Option<crate::extensions::run::ParamValues>,
-    output_override: Option<String>,
 ) -> Result<crate::extensions::run::RunOutcome, String> {
-    crate::extensions::run::run(&state, &id, values, output_override).await
+    crate::extensions::run::run(&state, &id, values).await
 }
 
 /// The most recent background-run output for an integration, if any. A pure

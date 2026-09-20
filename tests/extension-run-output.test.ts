@@ -20,6 +20,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createTranslator } from "../src/i18n.ts";
 import {
+  DEFAULT_OUTPUT_MODE,
   formatRunDuration,
   outputModeLabel,
   runAvailability,
@@ -101,7 +102,7 @@ test("a terminal run hands the protected plan to the terminal page", async () =>
   const at = panel.indexOf('invoke<RunOutcome>("extensions_run"');
   assert.notEqual(at, -1, "the run handler must call extensions_run");
   // The route comes from the outcome, never from a frontend-side guess.
-  const handler = panel.slice(at, panel.indexOf("const toggleOutputMode", at));
+  const handler = panel.slice(at, panel.indexOf("const toggleOutputView", at));
   assert.match(
     handler,
     /if \(outcome\.route === "terminal"\)/,
@@ -128,7 +129,7 @@ test("a terminal run hands the protected plan to the terminal page", async () =>
 test("a background run reports through the toast stack and keeps the output", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const at = panel.indexOf('invoke<RunOutcome>("extensions_run"');
-  const handler = panel.slice(at, panel.indexOf("const toggleOutputMode", at));
+  const handler = panel.slice(at, panel.indexOf("const toggleOutputView", at));
   // Success and failure are two different notices, and the failure names the
   // exit code — the fact a user needs from a script that did not succeed.
   assert.match(handler, /customRunSucceeded/, "a successful run must report completion");
@@ -146,34 +147,57 @@ test("a background run reports through the toast stack and keeps the output", as
   );
 });
 
-// ── 4 · the output mode is edited, not merely displayed ────────────────────
+// ── 4 · the output mode is configured in the drawer only (R9-2 slice 5) ────
 
-test("the inline output switch writes the manifest through the update command", async () => {
-  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
-  const at = panel.indexOf("const toggleOutputMode");
-  assert.notEqual(at, -1, "the output-mode toggle must exist");
-  const handler = panel.slice(at, panel.indexOf("const toggleOutputView", at));
-  assert.match(handler, /invoke<CustomIntegrationForm>\("extensions_custom_get"/, "the toggle must read the current definition");
-  assert.match(handler, /invoke\("extensions_custom_update"/, "the toggle must persist through the update transaction");
-  assert.match(handler, /output: extension\.output === "terminal" \? "background" : "terminal"/, "the toggle must flip the declared mode");
+test("the row no longer carries an inline output-mode switch", async () => {
+  // The user's feedback: "the output mode should just be set in the config, the
+  // list doesn't need its own switch". The row keeps Run and View output, and
+  // the mode lives in the drawer editor alone.
+  const source = stripJsComments(await read("src/extensions/ExtensionRow.tsx"));
   assert.ok(
-    !/localStorage|sessionStorage/.test(handler),
-    "the output mode is manifest state, not a frontend-only preference",
+    !/extension-row__output-switch/.test(source),
+    "the row must not render an output-mode switch",
+  );
+  assert.ok(
+    !/onToggleOutputMode/.test(source),
+    "the row must not accept an output-mode toggle handler",
+  );
+  // Run and the output reveal are the only two run-related affordances left.
+  assert.match(source, /customRun\b|customRunning\b/, "the row must keep its Run control");
+  assert.match(source, /customViewOutput/, "the row must keep its view-output affordance");
+  // The panel no longer owns a toggle handler that flips the mode per row.
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  assert.ok(
+    !/const toggleOutputMode/.test(panel),
+    "the panel must not keep a per-row output-mode toggle",
+  );
+  assert.ok(
+    !/outputModeBusy/.test(panel),
+    "the panel must not pass an output-mode busy flag to the row",
   );
 });
 
-test("the row renders an output-mode switch and the drawer a matching radio pair", async () => {
-  const source = stripJsComments(await read("src/extensions/ExtensionRow.tsx"));
-  assert.match(
-    source,
-    /className=\{`settings-switch extension-row__output-switch/,
-    "the row must render the output switch with its own class",
+test("a new integration defaults to background output", async () => {
+  // The drawer's form is seeded from `DEFAULT_CUSTOM_INTEGRATION.output`, which
+  // is the shared `DEFAULT_OUTPUT_MODE`. Mutation: flip that constant to
+  // "terminal" and both assertions below go red.
+  assert.equal(DEFAULT_OUTPUT_MODE, "background", "the shared default must be background");
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  assert.match(panel, /output: DEFAULT_OUTPUT_MODE/, "the form must be seeded from the shared default");
+  assert.ok(
+    !/output: "terminal"/.test(panel),
+    "no form default may hard-code the terminal mode",
   );
+  // The drawer's radio reflects that draft value and nothing else.
+  const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
   assert.match(
-    source,
-    /aria-checked=\{extension\.output === "terminal"\}/,
-    "the switch must reflect the manifest's declared mode",
+    drawer,
+    /aria-checked=\{integration\.output === mode\}/,
+    "the drawer's radio must reflect the draft's mode",
   );
+});
+
+test("the drawer is the only surface that sets the output mode", async () => {
   const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
   assert.match(drawer, /extension-custom-output/, "the drawer must render the output block");
   assert.match(
@@ -181,9 +205,11 @@ test("the row renders an output-mode switch and the drawer a matching radio pair
     /\["background", "terminal"\] as const\)\.map/,
     "the drawer must offer exactly the two declared modes",
   );
-  // The two surfaces must name the modes through the same keys.
+  // The selector writes the manifest through the ordinary update transaction.
+  assert.match(drawer, /update\(\(current\) => \(\{ \.\.\.current, output: mode \}\)\)/, "the radio must write the draft");
+  // Both mode names render from the drawer's own keys.
   for (const key of ["customOutputTerminal", "customOutputBackground"]) {
-    assert.ok(source.includes(key) || drawer.includes(key), `${key} must be rendered`);
+    assert.ok(drawer.includes(key), `${key} must be rendered in the drawer`);
   }
   assert.equal(outputModeLabel("terminal"), "terminal");
   assert.equal(outputModeLabel("background"), "background");
@@ -230,7 +256,6 @@ test("every new run/output key exists in both dictionaries with the same placeho
     "settings.extensions.customOutputTerminal",
     "settings.extensions.customOutputBackground",
     "settings.extensions.customOutputHint",
-    "settings.extensions.customOutputUpdated",
     "settings.extensions.customRun",
     "settings.extensions.customRunning",
     "settings.extensions.customRunUnavailable",

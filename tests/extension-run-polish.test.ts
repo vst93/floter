@@ -84,7 +84,7 @@ test("the toast summary names the line count and the cap", () => {
 test("a successful run reports its line count and offers the output jump", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const at = panel.indexOf('invoke<RunOutcome>("extensions_run"');
-  const handler = panel.slice(at, panel.indexOf("const toggleOutputMode", at));
+  const handler = panel.slice(at, panel.indexOf("const toggleOutputView", at));
   assert.match(handler, /runOutputSummary\(outcome\.output, t\)/, "the success toast must summarise the output");
   // The action rides the toast only when there is something to show, and it
   // opens the same inline block the row's own toggle opens.
@@ -99,7 +99,7 @@ test("a successful run reports its line count and offers the output jump", async
 test("a failed run reports the exit code as a warning and opens the output", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const at = panel.indexOf('invoke<RunOutcome>("extensions_run"');
-  const handler = panel.slice(at, panel.indexOf("const toggleOutputMode", at));
+  const handler = panel.slice(at, panel.indexOf("const toggleOutputView", at));
   assert.match(handler, /customRunFailedToast/, "the failure toast key must remain");
   assert.match(handler, /outcome\.exitCode/, "the failure toast must carry the real exit code");
   // Warning, not error: a script that exits non-zero is a completed run whose

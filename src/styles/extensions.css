@@ -1109,14 +1109,6 @@
   justify-content: center;
 }
 
-/* R9-2 · the row's output-mode switch. It is the same control as the enable
-   toggle (one switch vocabulary), but sits one step quieter: a run's output
-   route is a preference, not the row's on/off state. No new accent face —
-   the active thumb is the existing `.settings-switch--active` rule. */
-.extension-row__output-switch {
-  margin-inline-end: var(--extensions-inline-gap);
-}
-
 /* R9-2 · the last background output, inline in the row. A fixed-height
    scroller, deliberately: a run can print unbounded text and an unconstrained
    <pre> would stretch the row (and the list) with it. It spans the row's full

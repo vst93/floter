@@ -99,8 +99,6 @@ export function useTerminalView(options: {
   setTerminalFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   setQuery: Dispatch<SetStateAction<string>>;
   setMode: (mode: ViewMode) => void;
-  /** The shared collapsed-focus beat pattern (see `collapsed-focus.ts`). */
-  scheduleCollapsedFocusBeats: () => void;
   showTerminalFeedback: (key: MessageKey) => void;
   t: Translate;
 }) {
@@ -128,12 +126,18 @@ export function useTerminalView(options: {
     setTerminalFeedback,
     setQuery,
     setMode,
-    scheduleCollapsedFocusBeats,
     showTerminalFeedback,
     t,
   } = options;
 
   const [terminalMounted, setTerminalMounted] = useState(false);
+  /** R9-2 slice 5 · the terminal page's residency after the PTY child exits.
+   *
+   *  A completed run (or an exited interactive shell) must not tear the page
+   *  down: the last frame stays painted and this notice states the exit code,
+   *  so the user reads the output and closes the page themselves. `null` means
+   *  no resident state — the normal live view. */
+  const [terminalResident, setTerminalResident] = useState<{ code: number | null } | null>(null);
   const rendererRef = useRef<TerminalCanvas | null>(null);
   const frameRef = useRef<Uint8Array | null>(null);
   const blinkRef = useRef(true);
@@ -283,6 +287,7 @@ export function useTerminalView(options: {
     ptyReady.current = false;
     terminalGeneration.current = null;
     resetTerminalFrontendState();
+    setTerminalResident(null);
     const closing = invoke("term_close", { id: "main" }).catch(() => undefined);
     sessionClosePromise.current = closing;
     closing.finally(() => {
@@ -300,6 +305,9 @@ export function useTerminalView(options: {
       await sessionClosePromise.current;
     }
     if (ptyReady.current) return;
+    // A fresh session replaces any resident (exited) view; the exit notice
+    // belongs to the session that produced it.
+    setTerminalResident(null);
     const { cols, rows } = dimsRef.current;
     const generation = ++nextTerminalGeneration.current;
     terminalGeneration.current = generation;
@@ -330,13 +338,25 @@ export function useTerminalView(options: {
     }
   };
 
-  const handleTerminalExit = () => {
-    closeTerminalSession();
-    setTerminalFeedback(null);
-    setQuery("");
-    setTerminalMounted(false);
-    setMode("collapsed");
-    scheduleCollapsedFocusBeats();
+  /**
+   * The PTY child exited. R9-2 slice 5: this **holds** the page instead of
+   * collapsing it — the final frame stays painted, input is gated off
+   * (`ptyReady` false), and `terminalResident` drives a notice that names the
+   * exit code. The user closes the page with the header's × or the configured
+   * new-command shortcut (`returnToInputMode`), which is the only thing that
+   * tears the view down.
+   *
+   * Mutation: call `closeTerminalSession()` + `setMode("collapsed")` here
+   * again and the residency test (`terminal-command-execution`) goes red: the
+   * page would vanish before the output could be read.
+   */
+  const handleTerminalExit = (code: number | null) => {
+    // Release the input slot but keep the rendered frame and the mounted page.
+    // Deliberately NOT `closeTerminalSession`: that resets `frameRef`, which
+    // would erase the very output the user is meant to read.
+    ptyReady.current = false;
+    terminalGeneration.current = null;
+    setTerminalResident({ code });
   };
 
   /** Fill the terminal bar's identity zone for `brokerSessionId`: the command
@@ -409,7 +429,7 @@ export function useTerminalView(options: {
       setMainSessionIdentity((current) =>
         current ? { ...current, exited: true, exitCode: event.payload.code } : current,
       );
-      handleTerminalExit();
+      handleTerminalExit(event.payload.code);
     });
 
     return () => {
@@ -827,6 +847,7 @@ export function useTerminalView(options: {
   return {
     terminalMounted,
     setTerminalMounted,
+    terminalResident,
     rendererRef,
     dimsRef,
     selectionRef,

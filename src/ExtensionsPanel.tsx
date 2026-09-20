@@ -27,7 +27,7 @@ import { resolveCommandAliases } from "./command-aliases";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
-import { formatRunDuration, hasRunOutput, runAvailability, runOutputSummary } from "./extensions/run-routing";
+import { DEFAULT_OUTPUT_MODE, formatRunDuration, hasRunOutput, runAvailability, runOutputSummary } from "./extensions/run-routing";
 import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
 import { PermissionTierList } from "./extensions/PermissionTierList";
 import { permissionTier } from "./extensions/permission-tiers";
@@ -368,7 +368,7 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   versionArgs: [],
   permissions: ["environment"],
   platforms: [CURRENT_PLATFORM],
-  output: "background",
+  output: DEFAULT_OUTPUT_MODE,
   params: [],
 };
 
@@ -1667,30 +1667,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     setRunParamError(null);
   };
 
-  // Flip the manifest's output mode through the ordinary update transaction.
-  // The manifest bytes change, so a later approval check reports the row as
-  // changed-since-approval — that is the intended consequence of editing a
-  // capability surface, not a side effect to suppress.
-  const toggleOutputMode = async (extension: Extension) => {
-    if (busyRef.current || customLoadingRef.current) return;
-    setBusy({ id: extension.id, kind: "save" });
-    try {
-      const definition = await invoke<CustomIntegrationForm>("extensions_custom_get", { id: extension.id });
-      await invoke("extensions_custom_update", {
-        id: extension.id,
-        request: {
-          ...definition,
-          output: extension.output === "terminal" ? "background" : "terminal",
-        },
-      });
-      await refreshAfterMutation();
-      showSuccess(t("settings.extensions.customOutputUpdated"));
-    } catch (nextError) {
-      showError(errorMessage(nextError));
-    } finally {
-      setBusy(null);
-    }
-  };
+  // R9-2 slice 5 · the output mode is configured in the drawer editor only.
+  // The row no longer carries an inline switch (and therefore no longer has a
+  // toggle handler here): the manifest is edited through the ordinary update
+  // transaction in the drawer, so there is exactly one place the mode is set.
 
   const toggleOutputView = (id: string) => {
     setOutputOpen((current) => ({ ...current, [id]: !current[id] }));
@@ -2265,8 +2245,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 lastOutput={runOutputs[extension.id] ?? null}
                 outputOpen={Boolean(outputOpen[extension.id])}
                 onToggleOutput={() => toggleOutputView(extension.id)}
-                onToggleOutputMode={() => void toggleOutputMode(extension)}
-                outputModeBusy={busy?.id === extension.id && busy.kind === "save"}
                 onCancelOperation={() => void invoke("extensions_cancel_operation", { operationId: "active" }).then(() => {
                   setOperationProgress((prev) => {
                     const next = { ...prev };

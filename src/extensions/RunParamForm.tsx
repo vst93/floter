@@ -1,9 +1,9 @@
 // R9-2 slice 3 · the run-time parameter form, inline.
 //
 // The runtime half of "the user fills values in and the script receives them".
-// It renders *inside* the row (never a dialog or an overlay): the same surface
-// the output switch already lives on, reusing the run-routing projection so a
-// row that cannot run cannot show a live Run button either.
+// It renders *inside* the row (never a dialog or an overlay), reusing the
+// run-routing projection so a row that cannot run cannot show a live Run
+// button either.
 //
 // The forms are kind-driven, matching the four controls `ConfigFieldControl`
 // uses for settings: text and path are text inputs, number is a decimal input,
@@ -123,7 +123,7 @@ export function RunParamForm({ params, values, outputMode, onChange, onRun, onCa
       <p className="extension-run-params__note">{t("settings.extensions.customParamInjectionNote")}</p>
       {/* Where the output goes, at the foot of the form where the Run button
           is: one line naming the route the manifest already declares (the
-          same two states the row's switch and the drawer's radio use). No new
+          same two states the drawer's radio uses). No new
           control — it only states the decision the user is about to act on. */}
       <p className="extension-run-params__output-hint">{outputHint}</p>
       <div className="extension-run-params__actions">

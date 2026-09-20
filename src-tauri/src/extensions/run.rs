@@ -300,21 +300,11 @@ pub struct RunOutcome {
     pub output: Option<RunOutput>,
 }
 
-/// Resolve the route for a run, honouring an explicit per-run override.
-fn resolve_route(
-    manifest: &ExtensionManifest,
-    output_override: Option<&str>,
-) -> Result<RunRoute, String> {
-    match output_override {
-        None => Ok(manifest.output.into()),
-        Some(value) => match value.trim().to_ascii_lowercase().as_str() {
-            "terminal" => Ok(RunRoute::Terminal),
-            "background" => Ok(RunRoute::Background),
-            other => Err(format!(
-                "Unknown output mode \"{other}\": expected terminal or background"
-            )),
-        },
-    }
+/// Resolve the route for a run. The manifest's declared `output` mode is the
+/// only authority: the row no longer carries a per-run override (R9-2 slice 5),
+/// so there is exactly one place the route can come from.
+fn resolve_route(manifest: &ExtensionManifest) -> RunRoute {
+    manifest.output.into()
 }
 
 /// Snapshot the connected entry and its manifest, refusing anything that is
@@ -432,21 +422,19 @@ fn build_plan(
 
 /// Run a connected integration. `values` carries the caller's answers keyed by
 /// parameter id (`None` is the same as an empty map: an integration with no
-/// parameters runs exactly as before). `output_override` lets the caller force a
-/// route for one run (`"terminal"` / `"background"`); `None` uses the
-/// manifest's declared `output` mode.
+/// parameters runs exactly as before). The route is always the manifest's
+/// declared `output` mode (R9-2 slice 5 removed the per-run override).
 pub async fn run(
     state: &ExtensionState,
     id: &str,
     values: Option<ParamValues>,
-    output_override: Option<String>,
 ) -> Result<RunOutcome, String> {
     let (entry, manifest) = runnable_entry(state, id)?;
     // One run at a time per integration. The guard is held for the whole
     // function, so a second request for the same id is refused while this one
     // is still executing; it releases on every exit path (R9-2 slice 4).
     let _in_flight = state.begin_run(id)?;
-    let route = resolve_route(&manifest, output_override.as_deref())?;
+    let route = resolve_route(&manifest);
     let cwd = run_cwd(state, id)?;
     let values = values.unwrap_or_default();
     let plan = build_plan(&entry, &manifest, &values, &cwd)?;
@@ -671,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn route_prefers_the_override_then_the_manifest() {
+    fn route_comes_from_the_manifest_alone() {
         let mut manifest: ExtensionManifest = serde_json::from_str(
             r#"{
                 "schemaVersion": "2.0",
@@ -687,26 +675,15 @@ mod tests {
         .unwrap();
         // Absent `output` defaults to background — the compatibility rule.
         assert_eq!(manifest.output, OutputMode::Background);
-        assert_eq!(
-            resolve_route(&manifest, None).unwrap(),
-            RunRoute::Background
-        );
-        assert_eq!(
-            resolve_route(&manifest, Some("terminal")).unwrap(),
-            RunRoute::Terminal
-        );
-        assert_eq!(
-            resolve_route(&manifest, Some("Background")).unwrap(),
-            RunRoute::Background
-        );
-        assert!(resolve_route(&manifest, Some("stdout")).is_err());
-
+        assert_eq!(resolve_route(&manifest), RunRoute::Background);
+        // R9-2 slice 5: there is no override argument at all. The manifest is
+        // the only input, so flipping it is the only way the route changes.
+        // Mutation: reintroduce an `output_override` parameter and this call
+        // no longer compiles — the guard is the signature itself.
         manifest.output = OutputMode::Terminal;
-        assert_eq!(resolve_route(&manifest, None).unwrap(), RunRoute::Terminal);
-        assert_eq!(
-            resolve_route(&manifest, Some("background")).unwrap(),
-            RunRoute::Background
-        );
+        assert_eq!(resolve_route(&manifest), RunRoute::Terminal);
+        manifest.output = OutputMode::Background;
+        assert_eq!(resolve_route(&manifest), RunRoute::Background);
     }
 
     #[cfg(unix)]
@@ -762,7 +739,7 @@ mod tests {
         .unwrap();
         assert_eq!(entry.id, id);
 
-        let outcome = run(&state, id, None, None).await.unwrap();
+        let outcome = run(&state, id, None).await.unwrap();
         assert_eq!(outcome.route, RunRoute::Background);
         assert!(outcome.plan.is_none());
         assert_eq!(outcome.exit_code, Some(3));
@@ -826,7 +803,7 @@ mod tests {
         .await
         .unwrap();
 
-        let outcome = run(&state, id, Some(values(&[("target", "example.com")])), None)
+        let outcome = run(&state, id, Some(values(&[("target", "example.com")])))
             .await
             .unwrap();
         let plan = outcome.plan.unwrap();
@@ -887,7 +864,7 @@ mod tests {
         .await
         .unwrap();
 
-        let outcome = run(&state, id, None, None).await.unwrap();
+        let outcome = run(&state, id, None).await.unwrap();
         assert_eq!(outcome.route, RunRoute::Terminal);
         let plan = outcome.plan.unwrap();
         // The IPC payload carries the token only — no argv, no environment.
@@ -1164,7 +1141,7 @@ mod tests {
         .await
         .unwrap();
 
-        let outcome = run(&state, id, None, None).await.unwrap();
+        let outcome = run(&state, id, None).await.unwrap();
         assert_eq!(outcome.success, Some(true), "{outcome:?}");
         let stdout = outcome.output.unwrap().stdout;
         let lines: Vec<&str> = stdout.lines().collect();
@@ -1252,7 +1229,6 @@ mod tests {
             &state,
             id,
             Some(values(&[("target", hostile_value.as_str())])),
-            None,
         )
         .await
         .unwrap();
@@ -1275,7 +1251,7 @@ mod tests {
     async fn run_rejects_a_disconnected_or_disabled_integration() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let error = run(&state, "local.missing", None, None).await.unwrap_err();
+        let error = run(&state, "local.missing", None).await.unwrap_err();
         assert!(error.contains("local.missing"), "{error}");
     }
 
@@ -1351,8 +1327,7 @@ mod tests {
         .await
         .unwrap();
 
-        let (first, second) =
-            tokio::join!(run(&state, id, None, None), run(&state, id, None, None),);
+        let (first, second) = tokio::join!(run(&state, id, None), run(&state, id, None),);
         // Exactly one future wins the slot; the other is refused with the
         // stable key.
         let refusals: Vec<String> = [first, second]
@@ -1368,6 +1343,6 @@ mod tests {
         // The slot is released once the surviving run finishes, so the next
         // run is not blocked by a stale mark.
         assert!(!state.run_in_flight(id));
-        assert!(run(&state, id, None, None).await.is_ok());
+        assert!(run(&state, id, None).await.is_ok());
     }
 }

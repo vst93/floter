@@ -46,9 +46,18 @@ export const formatRunDuration = (milliseconds: number): string => {
 
 /** Where a run's output goes, given the manifest's declared mode. The backend
  *  is the authority (`extensions_run` returns the route it took); this names
- *  the two states so the row's switch and the drawer's radio cannot disagree
- *  about the vocabulary. */
+ *  the two states so the drawer's radio and the run-parameter form cannot
+ *  disagree about the vocabulary. */
 export type OutputMode = "background" | "terminal";
+
+/** The mode a freshly created integration starts in (R9-2 slice 5). The
+ *  drawer is the only surface that edits the mode, and this is the value its
+ *  form is seeded with — kept here so the default and the two state names are
+ *  one declaration rather than a literal repeated in the panel.
+ *
+ *  Mutation: flip this to `"terminal"` and the default-mode test in
+ *  `extension-run-output` goes red. */
+export const DEFAULT_OUTPUT_MODE: OutputMode = "background";
 
 export const outputModeLabel = (mode: OutputMode): string =>
   mode === "terminal" ? "terminal" : "background";

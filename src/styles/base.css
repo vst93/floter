@@ -1143,6 +1143,7 @@ canvas {
   .terminal-panel--entered,
   .app-toast,
   .terminal-feedback,
+  .terminal-resident,
   .update-banner,
   .settings-save-alert--toast,
   .pinned-card,

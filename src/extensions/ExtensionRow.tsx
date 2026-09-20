@@ -55,9 +55,6 @@ type Props = {
   lastOutput?: RunOutput | null;
   onToggleOutput?: () => void;
   outputOpen?: boolean;
-  /** Flip the manifest's `output` mode. Wired only for connected rows. */
-  onToggleOutputMode?: () => void;
-  outputModeBusy?: boolean;
   /** R9-2 slice 3 · the run-time parameter form. `runParams` is the projected
    *  declaration; a non-empty list means the Run control opens the inline form
    *  instead of running straight away. All of these are absent for an
@@ -116,8 +113,6 @@ export function ExtensionRow({
   lastOutput,
   onToggleOutput,
   outputOpen,
-  onToggleOutputMode,
-  outputModeBusy,
   runParams,
   runFormOpen,
   runParamValues,
@@ -435,31 +430,6 @@ export function ExtensionRow({
 
       {extension.connected && (
         <span className="extension-row__toggle-slot" onClick={(event) => event.stopPropagation()}>
-          {/* R9-2 · the per-integration output mode, inline and persistent.
-              It reads the same two states the manifest stores, so flipping it
-              writes the manifest (and re-runs the ordinary update/approval
-              chain) rather than holding a second, frontend-only preference.
-              A switch is the right control: the choice is binary and its
-              current state is what the next run will do. */}
-          {onToggleOutputMode && (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={extension.output === "terminal"}
-              aria-label={t("settings.extensions.customOutput")}
-              title={`${t("settings.extensions.customOutput")} · ${t(extension.output === "terminal" ? "settings.extensions.customOutputTerminal" : "settings.extensions.customOutputBackground")}`}
-              aria-busy={outputModeBusy}
-              className={`settings-switch extension-row__output-switch${extension.output === "terminal" ? " settings-switch--active" : ""}${outputModeBusy ? " settings-switch--loading" : ""}`}
-              disabled={busy}
-              onClick={onToggleOutputMode}
-            >
-              {outputModeBusy ? (
-                <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" />
-              ) : (
-                <span className="settings-switch__thumb" />
-              )}
-            </button>
-          )}
           <button
             type="button"
             role="switch"
