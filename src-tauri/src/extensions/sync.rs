@@ -1088,6 +1088,7 @@ mod tests {
                 platform_overrides: BTreeMap::new(),
                 permissions: vec![Permission::ProcessSpawn],
                 lifecycle: crate::extensions::lifecycle::ToolLifecycle::default(),
+                output: crate::extensions::manifest::OutputMode::default(),
             }),
             script_content: Some(script),
             provider_descriptor: Some(description),
@@ -1135,6 +1136,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
+                output: crate::extensions::manifest::OutputMode::default(),
             },
         )
         .await

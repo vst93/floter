@@ -217,6 +217,13 @@
         ]
       }
     },
+    "output": {
+      "enum": [
+        "background",
+        "terminal"
+      ],
+      "default": "background"
+    },
     "lifecycle": {
       "type": "object",
       "additionalProperties": false,

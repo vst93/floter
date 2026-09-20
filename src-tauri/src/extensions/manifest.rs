@@ -40,8 +40,43 @@ pub struct ExtensionManifest {
     pub platform_overrides: BTreeMap<String, PlatformOverride>,
     #[serde(default)]
     pub permissions: Vec<Permission>,
+    /// Where a manual run of this integration sends its output. `background`
+    /// (the serde default) keeps every manifest written before this field
+    /// existed on its old behavior: run silently, report on completion.
+    /// `terminal` switches the run to the terminal page so stdout/stderr
+    /// stream into the PTY instead of being captured.
+    #[serde(default, skip_serializing_if = "OutputMode::is_background")]
+    pub output: OutputMode,
     #[serde(default, skip_serializing_if = "ToolLifecycle::is_empty")]
     pub lifecycle: ToolLifecycle,
+}
+
+/// How a run's stdout/stderr is surfaced. Declared on the manifest so the
+/// choice travels with the integration (and its digest), while the row keeps
+/// an inline switch that edits it through the ordinary update transaction.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputMode {
+    /// Capture output in memory and report a completion toast. No terminal.
+    #[default]
+    Background,
+    /// Open the terminal page and stream the process through a real PTY.
+    Terminal,
+}
+
+impl OutputMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Background => "background",
+            Self::Terminal => "terminal",
+        }
+    }
+
+    /// Kept as a named predicate so the serde attribute above and any caller
+    /// agree on what "the default" is.
+    pub fn is_background(&self) -> bool {
+        matches!(self, Self::Background)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -517,6 +552,80 @@ fn command_version(program: &str, args: &[&str]) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn output_defaults_to_background_and_round_trips_through_schema() {
+        // A manifest written before `output` existed must keep parsing and
+        // must default to background — the compatibility rule the field was
+        // added under. Mutation: change `OutputMode`'s `#[default]` to
+        // `Terminal` and this turns red.
+        let legacy = serde_json::json!({
+            "schemaVersion": "2.0",
+            "id": "local.legacy-output",
+            "name": "Legacy output",
+            "publisher": { "id": "local-user", "name": "Local user" },
+            "compatibility": { "floter": ">=0.3.2", "providerProtocol": "^1.0" },
+            "distribution": { "type": "local" },
+            "runtime": { "type": "system", "executableNames": ["tool"] },
+            "provider": { "type": "executable", "argsPrefix": [] }
+        });
+        let parsed = ExtensionManifest::parse(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert_eq!(parsed.output, OutputMode::Background);
+        assert!(parsed.output.is_background());
+
+        // The field is optional in the schema (`additionalProperties: false`
+        // would otherwise reject it) and both values are accepted.
+        for (value, expected) in [
+            ("terminal", OutputMode::Terminal),
+            ("background", OutputMode::Background),
+        ] {
+            let mut with_output = legacy.clone();
+            with_output["output"] = serde_json::json!(value);
+            let parsed =
+                ExtensionManifest::parse(&serde_json::to_vec(&with_output).unwrap()).unwrap();
+            assert_eq!(parsed.output, expected);
+            assert_eq!(parsed.output.as_str(), value);
+        }
+
+        // A typo is a schema error, not a silent fallback.
+        let mut invalid = legacy;
+        invalid["output"] = serde_json::json!("stdout");
+        let error = ExtensionManifest::parse(&serde_json::to_vec(&invalid).unwrap()).unwrap_err();
+        assert!(error.contains("output"), "{error}");
+    }
+
+    #[test]
+    fn background_is_omitted_from_serialized_manifests() {
+        // The digest binds an approval to the manifest bytes, so a default
+        // that always serialized would change every existing manifest's
+        // digest on the next save. `skip_serializing_if` keeps a background
+        // manifest byte-identical to its pre-field form.
+        let manifest = ExtensionManifest::parse(
+            &serde_json::to_vec(&serde_json::json!({
+                "schemaVersion": "2.0",
+                "id": "local.serialize-output",
+                "name": "Serialize output",
+                "publisher": { "id": "local-user", "name": "Local user" },
+                "compatibility": { "floter": ">=0.3.2", "providerProtocol": "^1.0" },
+                "distribution": { "type": "local" },
+                "runtime": { "type": "system", "executableNames": ["tool"] },
+                "provider": { "type": "executable", "argsPrefix": [] }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(
+            value.get("output").is_none(),
+            "background must not serialize"
+        );
+
+        let mut terminal = manifest;
+        terminal.output = OutputMode::Terminal;
+        let value: Value = serde_json::to_value(&terminal).unwrap();
+        assert_eq!(value["output"], serde_json::json!("terminal"));
+    }
 
     #[test]
     fn parses_reference_manifest() {

@@ -27,6 +27,7 @@ pub mod recommendations;
 pub mod registry;
 pub mod repository;
 pub mod resolver;
+pub mod run;
 /// The single availabilty projector (audit G5). See the module docs for the
 /// precedence rule between the repository state machine and the live binding.
 pub(crate) mod runtime_binding;
@@ -351,6 +352,10 @@ pub struct ExtensionState {
     pub tool_inventory: std::sync::Mutex<ToolInventory>,
     pub tool_lock: std::sync::Mutex<ToolLock>,
     execution_plans: ExecutionPlanCache,
+    /// Most recent background-run output per integration. Session-scoped on
+    /// purpose: a run's output is diagnostic, and persisting it would add a
+    /// privacy/cleanup surface nothing has asked for (R9-2 slice 1).
+    run_outputs: run::RunOutputStore,
     /// AppHandle used to emit operation progress events; absent in unit tests.
     pub(crate) app_handle: std::sync::OnceLock<tauri::AppHandle>,
     /// Cancel token for the currently running long operation, if any.
@@ -396,6 +401,7 @@ impl ExtensionState {
             tool_inventory: std::sync::Mutex::new(ToolInventory::new()),
             tool_lock: std::sync::Mutex::new(tool_lock),
             execution_plans: ExecutionPlanCache::default(),
+            run_outputs: run::RunOutputStore::default(),
             app_handle: std::sync::OnceLock::new(),
             active_cancel: std::sync::Mutex::new(None),
             progress_listener: std::sync::Mutex::new(None),
@@ -473,6 +479,17 @@ impl ExtensionState {
 
     pub fn take_execution_plan(&self, token: &str) -> Result<provider::ExecutionPlan, String> {
         self.execution_plans.take(token)
+    }
+
+    /// Record the captured output of a background run, replacing any earlier
+    /// record for the same integration.
+    pub(crate) fn remember_run_output(&self, id: &str, output: run::RunOutput) {
+        self.run_outputs.remember(id, output);
+    }
+
+    /// The most recent background-run output for an integration, if any.
+    pub fn run_output(&self, id: &str) -> Option<run::RunOutput> {
+        self.run_outputs.get(id)
     }
 
     pub async fn invalidate_provider_commands(&self) {

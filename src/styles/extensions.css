@@ -1109,6 +1109,98 @@
   justify-content: center;
 }
 
+/* R9-2 · the row's output-mode switch. It is the same control as the enable
+   toggle (one switch vocabulary), but sits one step quieter: a run's output
+   route is a preference, not the row's on/off state. No new accent face —
+   the active thumb is the existing `.settings-switch--active` rule. */
+.extension-row__output-switch {
+  margin-inline-end: var(--extensions-inline-gap);
+}
+
+/* R9-2 · the last background output, inline in the row. A fixed-height
+   scroller, deliberately: a run can print unbounded text and an unconstrained
+   <pre> would stretch the row (and the list) with it. It spans the row's full
+   width on its own line, under the meta line, and never overlays anything. */
+.extension-row__output {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 4px;
+  padding: 6px 8px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--ext-radius);
+  background: var(--surface-sunken);
+  cursor: default;
+}
+
+.extension-row__output-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.extension-row__output-head span {
+  flex: 1;
+  min-width: 0;
+}
+
+.extension-row__output-head em {
+  color: var(--text-tertiary);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.extension-row__output-body {
+  max-height: 180px;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  color: var(--text-strong);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+/* The "view output" reveal. A text control, not an icon button: it names what
+   it opens, and it sits on its own line so it cannot be mistaken for one of
+   the row's hover-revealed actions. */
+.extension-row__output-toggle {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-caption);
+}
+
+@media (hover: hover) {
+
+.extension-row__output-toggle:hover {
+  background: var(--ext-bg-hover);
+  color: var(--text-primary);
+}
+}
+
+.extension-row__output-toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
 .extensions-action-button {
   height: var(--extensions-control-height);
   min-height: var(--extensions-control-height);
@@ -1625,6 +1717,13 @@
    the label. */
 .extension-custom-mode__item--active { background: var(--glass-raised-quiet); box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge); color: var(--text-primary); }
 .extension-custom-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+/* R9-2 · the output-mode block in the drawer: a caption, the same two-state
+   switcher the integration-type field uses, and the consequence in a hint.
+   It reuses `.extension-custom-mode` so there is one segmented control
+   vocabulary in the form, not two. */
+.extension-custom-output { display: grid; gap: 6px; }
+.extension-custom-output__label { color: var(--text-muted); font-size: var(--text-caption); font-weight: 600; }
+.extension-custom-output .extension-custom-mode { max-width: 320px; }
 .extension-custom-form label { min-width: 0; display: grid; gap: 4px; color: var(--text-muted); font-size: var(--text-caption); font-weight: 600; }
 .extension-custom-form__wide { grid-column: 1 / -1; }
 .extension-custom-form input,

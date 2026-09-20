@@ -27,6 +27,7 @@ import { resolveCommandAliases } from "./command-aliases";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
+import { formatRunDuration, runAvailability } from "./extensions/run-routing";
 import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
 import { PermissionTierList } from "./extensions/PermissionTierList";
 import { permissionTier } from "./extensions/permission-tiers";
@@ -94,6 +95,10 @@ export type Extension = {
   pinned: boolean;
   channel: string;
   generatedCustom: boolean;
+  /** Where a manual run sends its output, from the manifest (`background`
+   *  when the field is absent). The row's inline switch edits this through the
+   *  ordinary update transaction. */
+  output: "background" | "terminal";
   /** Command list comes from a descriptor shipped with the publisher's
    *  release, so it tracks the release payload, not the local binary. */
   publisherDescriptor: boolean;
@@ -234,6 +239,25 @@ export type ExtensionExecutionPlan = {
   argumentOverride?: string[];
 };
 
+/** Captured stdout/stderr of one background run (R9-2). */
+export type RunOutput = {
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+};
+
+/** The outcome of one manual run. `plan` is present only for the terminal
+ *  route, `output`/`exitCode`/`success` only for the background route. */
+export type RunOutcome = {
+  id: string;
+  route: "terminal" | "background";
+  plan?: ExtensionExecutionPlan;
+  exitCode?: number;
+  success?: boolean;
+  durationMs: number;
+  output?: RunOutput;
+};
+
 type ExtensionConfiguration = {
   descriptor: {
     configVersion: number;
@@ -308,6 +332,7 @@ export type CustomIntegrationForm = {
   versionArgs: string[];
   permissions: PermissionName[];
   platforms: Array<"darwin" | "linux" | "windows">;
+  output: "background" | "terminal";
 };
 
 const CURRENT_PLATFORM: "darwin" | "linux" | "windows" = navigator.userAgent.includes("Mac") ? "darwin" : navigator.userAgent.includes("Win") ? "windows" : "linux";
@@ -325,6 +350,7 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   versionArgs: [],
   permissions: ["environment"],
   platforms: [CURRENT_PLATFORM],
+  output: "background",
 };
 
 const SCRIPT_LANGUAGE_LABELS: Record<ScriptLanguageId, string> = Object.fromEntries(
@@ -642,6 +668,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
    *  would leave the click with no visible result. Cleared on the next
    *  attempt, and never a substitute for the toast (both are shown). */
   const [detectedError, setDetectedError] = useState<{ id: string; message: string } | null>(null);
+  /** R9-2 · manual-run state. `runBusy` is the id currently running (only one
+   *  run at a time: a second click while the first is in flight would race the
+   *  same integration), `runOutputs` is the last background output per id (a
+   *  mirror of the backend's session store, refreshed on each run), and
+   *  `outputOpen` is the set of rows whose inline output scroller is expanded. */
+  const [runBusy, setRunBusy] = useState<string | null>(null);
+  const [runOutputs, setRunOutputs] = useState<Record<string, RunOutput>>({});
+  const [outputOpen, setOutputOpen] = useState<Record<string, boolean>>({});
   /** R8-3: the row a `floter://register` link asked us to highlight, and the
    *  inline reason when the name was not found. Purely presentational — a
    *  highlight is not a connect, and the row's own button stays the only way
@@ -1472,6 +1506,75 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     }
   };
 
+  // R9-2 · run a connected integration once.
+  //
+  // The route is the manifest's `output` mode, decided by the backend — this
+  // handler never picks a route itself. A terminal run returns a *protected*
+  // plan and the only thing done with it here is handing it to the existing
+  // `onOpenCommand` channel (terminal page + `term_spawn`); the frontend never
+  // sees or assembles argv. A background run completes inline and reports
+  // through the ordinary toast stack, and its captured output is stashed for
+  // the row's inline "last output" scroller.
+  const runExtension = async (extension: Extension) => {
+    if (runBusy) return;
+    setRunBusy(extension.id);
+    try {
+      const outcome = await invoke<RunOutcome>("extensions_run", { id: extension.id });
+      if (outcome.route === "terminal") {
+        if (outcome.plan) await onOpenCommand(outcome.plan, extension.name);
+        return;
+      }
+      if (outcome.output) {
+        setRunOutputs((current) => ({ ...current, [extension.id]: outcome.output as RunOutput }));
+      }
+      const duration = formatRunDuration(outcome.durationMs);
+      if (outcome.success) {
+        showSuccess(t("settings.extensions.customRunSucceeded", { name: extension.name, duration }));
+      } else {
+        // A failing script is still a *completed run*: the exit code is the
+        // fact the user needs, and the output is one click away in the row.
+        onNotify("warning", t("settings.extensions.customRunFailedToast", {
+          name: extension.name,
+          code: outcome.exitCode ?? 0,
+        }));
+        setOutputOpen((current) => ({ ...current, [extension.id]: true }));
+      }
+    } catch (nextError) {
+      showError(errorMessage(nextError));
+    } finally {
+      setRunBusy(null);
+    }
+  };
+
+  // Flip the manifest's output mode through the ordinary update transaction.
+  // The manifest bytes change, so a later approval check reports the row as
+  // changed-since-approval — that is the intended consequence of editing a
+  // capability surface, not a side effect to suppress.
+  const toggleOutputMode = async (extension: Extension) => {
+    if (busyRef.current || customLoadingRef.current) return;
+    setBusy({ id: extension.id, kind: "save" });
+    try {
+      const definition = await invoke<CustomIntegrationForm>("extensions_custom_get", { id: extension.id });
+      await invoke("extensions_custom_update", {
+        id: extension.id,
+        request: {
+          ...definition,
+          output: extension.output === "terminal" ? "background" : "terminal",
+        },
+      });
+      await refreshAfterMutation();
+      showSuccess(t("settings.extensions.customOutputUpdated"));
+    } catch (nextError) {
+      showError(errorMessage(nextError));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleOutputView = (id: string) => {
+    setOutputOpen((current) => ({ ...current, [id]: !current[id] }));
+  };
+
   const handleToolSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (!toolResults.length) return;
@@ -2017,6 +2120,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 onToggle={() => void toggleExtension(extension)}
                 onEdit={() => void editCustomIntegration(extension)}
                 onUninstall={() => uninstallExtension(extension)}
+                onRun={() => void runExtension(extension)}
+                runBusy={runBusy === extension.id}
+                runAvailable={runAvailability(extension)}
+                lastOutput={runOutputs[extension.id] ?? null}
+                outputOpen={Boolean(outputOpen[extension.id])}
+                onToggleOutput={() => toggleOutputView(extension.id)}
+                onToggleOutputMode={() => void toggleOutputMode(extension)}
+                outputModeBusy={busy?.id === extension.id && busy.kind === "save"}
                 onCancelOperation={() => void invoke("extensions_cancel_operation", { operationId: "active" }).then(() => {
                   setOperationProgress((prev) => {
                     const next = { ...prev };

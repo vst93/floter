@@ -1,9 +1,12 @@
 import {
+  ChevronDown,
+  ChevronRight,
   ExternalLink,
   Link2,
   LoaderCircle,
   MoreHorizontal,
   Package,
+  Play,
   RefreshCw,
   Trash2,
   Unplug,
@@ -13,7 +16,7 @@ import {
 import type { Translate } from "../i18n";
 import { useEffect, useRef } from "react";
 import { freshnessDotState, freshnessOf } from "./freshness";
-import type { Extension, ExtensionOperation } from "../ExtensionsPanel";
+import type { Extension, ExtensionOperation, RunOutput } from "../ExtensionsPanel";
 
 type Props = {
   extension: Extension;
@@ -39,6 +42,19 @@ type Props = {
   onEdit?: () => void;
   onUninstall?: () => void;
   onCancelOperation?: () => void;
+  /** R9-2 · the manual-run entry. Wired only for connected, enabled,
+   *  runtime-available rows; a row that cannot run renders a disabled control
+   *  with the reason, never a silent absence. */
+  onRun?: () => void;
+  runBusy?: boolean;
+  runAvailable?: boolean;
+  /** The most recent background-run output for this integration, if any. */
+  lastOutput?: RunOutput | null;
+  onToggleOutput?: () => void;
+  outputOpen?: boolean;
+  /** Flip the manifest's `output` mode. Wired only for connected rows. */
+  onToggleOutputMode?: () => void;
+  outputModeBusy?: boolean;
 };
 
 const integrationKindKey = (extension: Extension): Parameters<Translate>[0] => {
@@ -80,6 +96,14 @@ export function ExtensionRow({
   onEdit,
   onUninstall,
   onCancelOperation,
+  onRun,
+  runBusy,
+  runAvailable,
+  lastOutput,
+  onToggleOutput,
+  outputOpen,
+  onToggleOutputMode,
+  outputModeBusy,
 }: Props) {
   const busy = Boolean(operation);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -322,6 +346,31 @@ export function ExtensionRow({
           </button>
         )}
 
+        {/* R9-2 · the manual-run entry. Connected rows only — a detected row
+            has nothing to run yet. The control is *neutral* on purpose: the
+            accent budget is spent by the Connect button, and Run is a routine
+            action, not the row's reason to exist. When the row cannot run
+            (disabled, broken, runtime missing) the button stays in place but
+            disabled with the reason in its title, so the affordance does not
+            appear and vanish between states. */}
+        {extension.connected && onRun && (
+          <button
+            type="button"
+            className="extensions-icon-button extensions-icon-button--row"
+            aria-label={t(runAvailable ? "settings.extensions.customRun" : "settings.extensions.customRunUnavailable")}
+            title={t(runAvailable ? "settings.extensions.customRun" : "settings.extensions.customRunUnavailable")}
+            aria-busy={runBusy}
+            disabled={busy || !runAvailable}
+            onClick={onRun}
+          >
+            {runBusy ? (
+              <LoaderCircle className="extensions-spinner" size={14} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <Play size={14} strokeWidth={2} aria-hidden="true" />
+            )}
+          </button>
+        )}
+
         {extension.connected && (
           <details ref={menuRef} className="extension-menu" onKeyDown={(event) => {
             if (event.key !== "Escape") return;
@@ -360,6 +409,31 @@ export function ExtensionRow({
 
       {extension.connected && (
         <span className="extension-row__toggle-slot" onClick={(event) => event.stopPropagation()}>
+          {/* R9-2 · the per-integration output mode, inline and persistent.
+              It reads the same two states the manifest stores, so flipping it
+              writes the manifest (and re-runs the ordinary update/approval
+              chain) rather than holding a second, frontend-only preference.
+              A switch is the right control: the choice is binary and its
+              current state is what the next run will do. */}
+          {onToggleOutputMode && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={extension.output === "terminal"}
+              aria-label={t("settings.extensions.customOutput")}
+              title={`${t("settings.extensions.customOutput")} · ${t(extension.output === "terminal" ? "settings.extensions.customOutputTerminal" : "settings.extensions.customOutputBackground")}`}
+              aria-busy={outputModeBusy}
+              className={`settings-switch extension-row__output-switch${extension.output === "terminal" ? " settings-switch--active" : ""}${outputModeBusy ? " settings-switch--loading" : ""}`}
+              disabled={busy}
+              onClick={onToggleOutputMode}
+            >
+              {outputModeBusy ? (
+                <LoaderCircle className="extensions-spinner" size={12} strokeWidth={2} aria-hidden="true" />
+              ) : (
+                <span className="settings-switch__thumb" />
+              )}
+            </button>
+          )}
           <button
             type="button"
             role="switch"
@@ -377,6 +451,49 @@ export function ExtensionRow({
             )}
           </button>
         </span>
+      )}
+
+      {/* R9-2 · the last background run's captured output. Inline and
+          collapsible — a fixed-height scroller, never an overlay — because
+          this is routine feedback, not a review. */}
+      {extension.connected && outputOpen && (
+        <div className="extension-row__output" onClick={(event) => event.stopPropagation()}>
+          <div className="extension-row__output-head">
+            <span>{t("settings.extensions.customLastOutput")}</span>
+            {lastOutput?.truncated && <em>{t("settings.extensions.customOutputTruncated")}</em>}
+            {onToggleOutput && (
+              <button
+                type="button"
+                className="extensions-icon-button extensions-icon-button--row"
+                aria-label={t("settings.extensions.customHideOutput")}
+                title={t("settings.extensions.customHideOutput")}
+                onClick={onToggleOutput}
+              >
+                <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <pre className="extension-row__output-body">
+            {lastOutput && (lastOutput.stdout || lastOutput.stderr)
+              ? [lastOutput.stdout, lastOutput.stderr].filter(Boolean).join("")
+              : t("settings.extensions.customNoOutput")}
+          </pre>
+        </div>
+      )}
+
+      {/* The "view output" affordance. Only a background run leaves a record
+          (a terminal run streams into the PTY instead), so it appears only
+          when there is something to read. */}
+      {extension.connected && lastOutput && !outputOpen && onToggleOutput && (
+        <button
+          type="button"
+          className="extension-row__output-toggle"
+          aria-expanded={false}
+          onClick={(event) => { event.stopPropagation(); onToggleOutput(); }}
+        >
+          <ChevronRight size={12} strokeWidth={2} aria-hidden="true" />
+          {t("settings.extensions.customViewOutput")}
+        </button>
       )}
     </article>
   );

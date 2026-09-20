@@ -5,8 +5,8 @@ use crate::extensions::lock::{
 };
 use crate::extensions::manifest::{
     permission_enforcement, validate_relative_path, Compatibility, Distribution, ExtensionManifest,
-    Permission, PermissionEnforcement, PlatformOs, PlatformTarget, ProviderConfig, ProviderKind,
-    Publisher, Runtime, ScriptLanguage,
+    OutputMode, Permission, PermissionEnforcement, PlatformOs, PlatformTarget, ProviderConfig,
+    ProviderKind, Publisher, Runtime, ScriptLanguage,
 };
 use crate::extensions::probe_executor;
 use crate::extensions::provider::ProviderInvocation;
@@ -87,6 +87,10 @@ pub struct CustomIntegrationRequest {
     pub permissions: Vec<Permission>,
     #[serde(default)]
     pub platforms: Vec<PlatformOs>,
+    /// Where a manual run sends its output. Absent means the serde default
+    /// (`background`), so a caller that predates this field is unaffected.
+    #[serde(default)]
+    pub output: OutputMode,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -104,6 +108,7 @@ pub struct CustomIntegrationDefinition {
     pub version_args: Vec<String>,
     pub permissions: Vec<Permission>,
     pub platforms: Vec<PlatformOs>,
+    pub output: OutputMode,
 }
 
 fn default_custom_mode() -> String {
@@ -288,6 +293,7 @@ async fn create_custom_integration_locked(
         permissions: request.permissions.clone(),
         lifecycle: crate::extensions::lifecycle::ToolLifecycle::default(),
         platforms: request.platforms.clone(),
+        output: request.output,
     };
     let manifest_bytes = serde_json::to_vec(&manifest)
         .map_err(|error| format!("Cannot serialize custom integration manifest: {error}"))?;
@@ -1103,6 +1109,7 @@ pub fn tool_binding_request(
             .filter(|value| !value.trim().is_empty()),
         permissions: tool_binding_permissions(),
         platforms: vec![PlatformTarget::current()?.os],
+        output: OutputMode::default(),
     })
 }
 
@@ -1215,6 +1222,7 @@ pub fn custom_integration_definition(
         version_args,
         permissions: manifest.permissions,
         platforms: manifest.platforms,
+        output: manifest.output,
     })
 }
 
@@ -2993,6 +3001,7 @@ mod tests {
             description: None,
             permissions: vec![Permission::Environment, Permission::FilesystemRead],
             platforms: current_platforms(),
+            output: OutputMode::default(),
         }
     }
 
@@ -3270,6 +3279,17 @@ mod tests {
         ExtensionManifest::load(Path::new(&entry.manifest_path)).unwrap()
     }
 
+    fn manifest_path_of(state: &ExtensionState, id: &str) -> PathBuf {
+        PathBuf::from(
+            ExtensionsLock::load(&state.paths.repository_file)
+                .unwrap()
+                .get(id)
+                .unwrap()
+                .manifest_path
+                .clone(),
+        )
+    }
+
     /// A PATH discovery is bound with the conventional `--version` probe so the
     /// version-drift reprobe has a value to compare against, and a description
     /// learned by the desktop layer rides along (S1-a/S1-b).
@@ -3371,6 +3391,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3427,6 +3448,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3467,6 +3489,7 @@ mod tests {
                 description: Some("Recursively search for a pattern".into()),
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3524,6 +3547,7 @@ mod tests {
                 description: Some("   ".into()),
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3565,6 +3589,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3660,6 +3685,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3759,6 +3785,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -3909,6 +3936,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -4032,6 +4060,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -4166,6 +4195,7 @@ mod tests {
                     description: None,
                     permissions: vec![Permission::Environment],
                     platforms: current_platforms(),
+                    output: OutputMode::default(),
                 },
             )
             .await
@@ -4482,6 +4512,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -4539,6 +4570,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -5678,6 +5710,7 @@ mod tests {
             description: None,
             permissions: vec![Permission::Environment],
             platforms: current_platforms(),
+            output: OutputMode::default(),
         };
         let created = create_custom_integration(&state, request.clone())
             .await
@@ -5934,6 +5967,7 @@ mod tests {
                 description: None,
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
+                output: OutputMode::default(),
             },
         )
         .await
@@ -6427,6 +6461,54 @@ mod tests {
             definition.script_content.as_deref(),
             Some("printf original")
         );
+    }
+
+    /// `output` travels through the custom-integration form: written to the
+    /// manifest, read back by the definition projection, and preserved by an
+    /// edit that only touches another field. Mutation: drop `output` from the
+    /// manifest construction (or the definition projection) and the round-trip
+    /// assertion goes red.
+    #[tokio::test]
+    async fn custom_integration_output_round_trips_and_survives_an_edit() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.output-test";
+
+        let mut request = script_request(id, "Output test", "output-test");
+        request.output = OutputMode::Terminal;
+        create_custom_integration(&state, request).await.unwrap();
+
+        let definition = custom_integration_definition(&state, id).unwrap();
+        assert_eq!(definition.output, OutputMode::Terminal);
+
+        // The manifest on disk really carries the field…
+        let manifest = manifest_of(&state, id);
+        assert_eq!(manifest.output, OutputMode::Terminal);
+
+        // …and an edit that keeps it does not lose it.
+        let mut update = script_request(id, "Output test", "output-test");
+        update.output = OutputMode::Terminal;
+        update_custom_integration(&state, id, update).await.unwrap();
+        assert_eq!(
+            custom_integration_definition(&state, id).unwrap().output,
+            OutputMode::Terminal
+        );
+
+        // A background integration reads back as background, and the field is
+        // absent from the serialized manifest (the default is not written).
+        let mut background = script_request("local.output-default", "Default", "output-default");
+        background.output = OutputMode::Background;
+        create_custom_integration(&state, background).await.unwrap();
+        let manifest = manifest_of(&state, "local.output-default");
+        assert_eq!(manifest.output, OutputMode::Background);
+        let raw: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(&manifest_path_of(&state, "local.output-default")).unwrap(),
+        )
+        .unwrap();
+        assert!(raw.get("output").is_none());
     }
 
     #[tokio::test]
