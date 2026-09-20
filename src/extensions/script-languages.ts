@@ -50,7 +50,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     extension: "js",
     compiled: false,
     toolchain: "node",
-    template: "#!/usr/bin/env node\n\n// Floter provider script\n",
+    template: "#!/usr/bin/env node\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with process.argv.slice(2).\n// 编辑器里声明的参数会作为 argv 传入，可用 process.argv.slice(2) 读取。\n",
   },
   {
     id: "shell",
@@ -58,7 +58,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     extension: "sh",
     compiled: false,
     toolchain: "sh",
-    template: "#!/bin/sh\n\n# Floter provider script\n",
+    template: "#!/bin/sh\n\n# Floter provider script\n# Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n# Read them as \"$1\", \"$2\", … or \"$@\".\n# 编辑器里声明的参数会作为 argv 传入，可用 \"$1\"、\"$2\" 或 \"$@\" 读取。\n",
   },
   {
     id: "powershell",
@@ -66,7 +66,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     extension: "ps1",
     compiled: false,
     toolchain: "pwsh",
-    template: "#!/usr/bin/env pwsh\n\n# Floter provider script\n",
+    template: "#!/usr/bin/env pwsh\n\n# Floter provider script\n# Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n# Read them with $args.\n# 编辑器里声明的参数会作为 argv 传入，可用 $args 读取。\n",
   },
   {
     id: "python",
@@ -74,7 +74,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     extension: "py",
     compiled: false,
     toolchain: "python3",
-    template: "#!/usr/bin/env python3\n\n# Floter provider script\n",
+    template: "#!/usr/bin/env python3\n\n# Floter provider script\n# Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n# Read them with sys.argv[1:].\n# 编辑器里声明的参数会作为 argv 传入，可用 sys.argv[1:] 读取。\n",
   },
   {
     id: "ruby",
@@ -82,7 +82,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     extension: "rb",
     compiled: false,
     toolchain: "ruby",
-    template: "#!/usr/bin/env ruby\n\n# Floter provider script\n",
+    template: "#!/usr/bin/env ruby\n\n# Floter provider script\n# Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n# Read them with ARGV.\n# 编辑器里声明的参数会作为 argv 传入，可用 ARGV 读取。\n",
   },
   {
     id: "php",
@@ -90,7 +90,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     extension: "php",
     compiled: false,
     toolchain: "php",
-    template: "<?php\n\n// Floter provider script\n",
+    template: "<?php\n\n// Floter provider script\n// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n// Read them with $argv.\n// 编辑器里声明的参数会作为 argv 传入，可用 $argv 读取。\n",
   },
   {
     id: "go",
@@ -99,7 +99,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     compiled: true,
     toolchain: "go",
     template:
-      "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t// Floter provider script\n\tfmt.Println(\"floter provider\")\n}\n",
+      "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t// Floter provider script\n\t// Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n\t// Read them with os.Args[1:] (add the \"os\" import).\n\t// 编辑器里声明的参数会作为 argv 传入，可用 os.Args[1:] 读取（需引入 \"os\"）。\n\tfmt.Println(\"floter provider\")\n}\n",
   },
   {
     id: "rust",
@@ -108,7 +108,7 @@ export const SCRIPT_LANGUAGES: readonly ScriptLanguageOption[] = [
     compiled: true,
     toolchain: "rustc",
     template:
-      "fn main() {\n    // Floter provider script\n    println!(\"floter provider\");\n}\n",
+      "fn main() {\n    // Floter provider script\n    // Parameters you declare in the editor arrive as argv, e.g. --target example.com.\n    // Read them with std::env::args().skip(1).\n    // 编辑器里声明的参数会作为 argv 传入，可用 std::env::args().skip(1) 读取。\n    println!(\"floter provider\");\n}\n",
   },
 ] as const;
 

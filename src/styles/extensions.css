@@ -1804,6 +1804,25 @@
 .extension-argument-editor__row .extensions-icon-button { width: 28px; height: 28px; min-height: 28px; }
 .extension-argument-editor__empty { min-height: 28px; padding: 8px; border: 1px dashed var(--hairline); border-radius: var(--ext-radius); color: var(--text-tertiary); font-size: var(--text-caption); }
 
+/* R9-2 slice 2 · parameter definitions. The section reuses the argument
+   editor's heading/empty language (one visual family for "a list you add rows
+   to") and only adds what a record needs: a wrap of compact fields per row, a
+   required toggle, and an inline error under the offending row. No accent is
+   spent here — a parameter definition is not a state, and the drawer already
+   spends its accent on the primary button and the mode radios. */
+.extension-param-editor { min-width: 0; display: grid; gap: 6px; align-content: start; }
+.extension-param-editor__hint { margin: 0; color: var(--text-tertiary); font-size: var(--text-caption); line-height: 1.35; }
+.extension-param-editor__row { min-width: 0; display: grid; gap: 6px; padding: 8px; border: 1px solid var(--hairline); border-radius: var(--ext-radius); }
+.extension-param-editor__fields { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 8px; }
+.extension-param-editor__fields label { min-width: 0; display: grid; gap: 3px; color: var(--text-muted); font-size: var(--text-caption); font-weight: 600; }
+.extension-param-editor__fields input,
+.extension-param-editor__fields select { min-width: 0; }
+.extension-param-editor__options { grid-column: 1 / -1; }
+.extension-param-editor__controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.extension-param-editor__toggle { display: flex; grid-auto-flow: column; align-items: center; gap: 4px; color: var(--text-secondary); font-size: var(--text-caption); font-weight: 500; }
+.extension-param-editor__toggle input { width: 14px; min-height: 14px; accent-color: var(--accent); }
+.extension-param-editor__error { margin: 0; display: flex; align-items: center; gap: 5px; color: var(--text-warning); font-size: var(--text-caption); line-height: 1.35; }
+
 /* Detail drawer: the backdrop is fixed-scoped to the floater body (see the
    containment note on `.settings-card`), so `inset: 56px 0 0` starts below
    the 56px settings header and `justify-content: flex-end` pins the drawer

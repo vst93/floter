@@ -10,6 +10,15 @@ import {
   type ScriptLanguageId,
   type ScriptRuntimeCheck,
 } from "./script-languages";
+import {
+  emptyParam,
+  formatParamOptions,
+  PARAM_KINDS,
+  paramIssues,
+  parseParamOptions,
+  type ScriptParam,
+  type ScriptParamKind,
+} from "./script-params";
 
 const PLATFORMS = ["darwin", "linux", "windows"] as const;
 // R7-8 · the two lists come from the shared tier vocabulary, so the editor can
@@ -49,6 +58,48 @@ function ToolResultOption({ item, index, highlight, onHighlight, onChoose }: Too
 
 function ArgumentListEditor({ values, label, addLabel, removeLabel, emptyLabel, onChange }: { values: string[]; label: string; addLabel: string; removeLabel: string; emptyLabel: string; onChange: (values: string[]) => void }) {
   return <div className="extension-argument-editor"><div className="extension-argument-editor__heading"><span>{label}</span><button type="button" className="extensions-icon-button extension-argument-editor__add" aria-label={addLabel} title={addLabel} onClick={() => onChange([...values, ""])}><Plus size={13} strokeWidth={2} aria-hidden="true" /></button></div>{values.length === 0 ? <span className="extension-argument-editor__empty">{emptyLabel}</span> : values.map((value, index) => <div className="extension-argument-editor__row" key={index}><input aria-label={`${label} ${index + 1}`} value={value} onChange={(event) => onChange(values.map((item, i) => i === index ? event.target.value : item))} /><button type="button" className="extensions-icon-button" aria-label={removeLabel} title={removeLabel} onClick={() => onChange(values.filter((_, i) => i !== index))}><X size={13} strokeWidth={2} /></button></div>)}</div>;
+}
+
+/** R9-2 slice 2 · the parameter *definition* editor.
+ *
+ *  This is the configuration half of "declare the inputs a script accepts".
+ *  It is deliberately a sibling of `ArgumentListEditor` (same row language,
+ *  same add/remove icon buttons) but each row expands into the fields a
+ *  definition needs, because a fixed argument is one string and a parameter is
+ *  a small record.
+ *
+ *  Everything here is inline: no dialog, no popover. The validation errors
+ *  render under the row that caused them (`paramIssues` is the same rule the
+ *  backend enforces), so a save never has to bounce back from the server to
+ *  explain a typo. */
+function ScriptParamEditor({ params, onChange, t }: { params: ScriptParam[]; onChange: (params: ScriptParam[]) => void; t: Translate }) {
+  const issues = paramIssues(params);
+  const issueFor = (index: number) => issues.find((issue) => issue.index === index);
+  const kindLabel = (kind: ScriptParamKind) => t(`settings.extensions.customParamType.${kind}` as Parameters<Translate>[0]);
+  const patch = (index: number, next: Partial<ScriptParam>) =>
+    onChange(params.map((param, i) => (i === index ? { ...param, ...next } : param)));
+  return <div className="extension-param-editor extension-custom-form__wide">
+    <div className="extension-argument-editor__heading"><span>{t("settings.extensions.customParams")}</span><button type="button" className="extensions-icon-button extension-argument-editor__add" aria-label={t("settings.extensions.customParamAdd")} title={t("settings.extensions.customParamAdd")} onClick={() => onChange([...params, emptyParam()])}><Plus size={13} strokeWidth={2} aria-hidden="true" /></button></div>
+    <p className="extension-param-editor__hint">{t("settings.extensions.customParamsHint")}</p>
+    {params.length === 0
+      ? <span className="extension-argument-editor__empty">{t("settings.extensions.customParamEmpty")}</span>
+      : params.map((param, index) => <div className="extension-param-editor__row" key={index}>
+        <div className="extension-param-editor__fields">
+          <label><span>{t("settings.extensions.customParamLabel")}</span><input value={param.label} onChange={(event) => patch(index, { label: event.target.value })} /></label>
+          <label><span>{t("settings.extensions.customParamId")}</span><input value={param.id} spellCheck={false} onChange={(event) => patch(index, { id: event.target.value })} /></label>
+          <label><span>{t("settings.extensions.customParamType")}</span><select value={param.kind} onChange={(event) => patch(index, { kind: event.target.value as ScriptParamKind })}>{PARAM_KINDS.map((kind) => <option key={kind} value={kind}>{kindLabel(kind)}</option>)}</select></label>
+          {param.kind !== "boolean" && <label><span>{t("settings.extensions.customParamPlaceholder")}</span><input value={param.placeholder ?? ""} onChange={(event) => patch(index, { placeholder: event.target.value })} /></label>}
+          <label><span>{t("settings.extensions.customParamDefault")}</span><input value={param.default ?? ""} onChange={(event) => patch(index, { default: event.target.value })} /></label>
+          <label><span>{t("settings.extensions.customParamFlag")}</span><input value={param.flag ?? ""} spellCheck={false} placeholder="--target" onChange={(event) => patch(index, { flag: event.target.value })} /></label>
+        </div>
+        <div className="extension-param-editor__controls">
+          <label className="extension-param-editor__toggle"><input type="checkbox" checked={param.required} onChange={(event) => patch(index, { required: event.target.checked })} /><span>{t("settings.extensions.customParamRequired")}</span></label>
+          <button type="button" className="extensions-icon-button" aria-label={t("settings.extensions.customParamRemove")} title={t("settings.extensions.customParamRemove")} onClick={() => onChange(params.filter((_, i) => i !== index))}><X size={13} strokeWidth={2} /></button>
+        </div>
+        {param.kind === "select" && <label className="extension-param-editor__options"><span>{t("settings.extensions.customParamOptions")}</span><input value={formatParamOptions(param.options)} onChange={(event) => patch(index, { options: parseParamOptions(event.target.value) })} /></label>}
+        {issueFor(index) && <p className="extension-param-editor__error" role="alert"><AlertCircle size={12} strokeWidth={2} aria-hidden="true" /><span>{t(issueFor(index)!.key as Parameters<Translate>[0])}</span></p>}
+      </div>)}
+  </div>;
 }
 
 /** R9-1 · the inline toolchain status under the language picker.
@@ -95,6 +146,7 @@ export function CustomIntegrationDrawer({ open, editingId, loading, error, integ
           so "background" is not read as "discarded". */}
       <div className="extension-custom-output extension-custom-form__wide"><span className="extension-custom-output__label">{t("settings.extensions.customOutput")}</span><div className="extension-custom-mode" role="radiogroup" aria-label={t("settings.extensions.customOutput")}>{(["background", "terminal"] as const).map((mode) => <button key={mode} type="button" role="radio" tabIndex={integration.output === mode ? 0 : -1} aria-checked={integration.output === mode} className={integration.output === mode ? "extension-custom-mode__item extension-custom-mode__item--active" : "extension-custom-mode__item"} onClick={() => update((current) => ({ ...current, output: mode }))}>{t(mode === "terminal" ? "settings.extensions.customOutputTerminal" : "settings.extensions.customOutputBackground")}</button>)}</div><p className="extension-custom-form__hint">{t("settings.extensions.customOutputHint")}</p></div>
       <ArgumentListEditor values={integration.argsPrefix} label={t("settings.extensions.customArgsPrefix")} addLabel={t("settings.extensions.customArgumentAdd")} removeLabel={t("settings.extensions.customArgumentRemove")} emptyLabel={t("settings.extensions.customNoArguments")} onChange={(values) => update((current) => ({ ...current, argsPrefix: values }))} /><ArgumentListEditor values={integration.versionArgs} label={t("settings.extensions.customVersionArgs")} addLabel={t("settings.extensions.customArgumentAdd")} removeLabel={t("settings.extensions.customArgumentRemove")} emptyLabel={t("settings.extensions.customNoArguments")} onChange={(values) => update((current) => ({ ...current, versionArgs: values }))} />
+      <ScriptParamEditor params={integration.params} t={t} onChange={(params) => update((current) => ({ ...current, params }))} />
       </div>
       <fieldset className="extension-custom-permissions"><legend>{t("settings.extensions.customPlatforms")}</legend>{PLATFORMS.map((platform) => <label key={platform}><input type="checkbox" checked={integration.platforms.includes(platform)} onChange={(event) => update((current) => ({ ...current, platforms: event.target.checked ? [...current.platforms, platform] : current.platforms.filter((item) => item !== platform) }))} /><span>{platform === "darwin" ? "macOS" : platform === "linux" ? "Linux" : "Windows"}</span></label>)}</fieldset>
       <div className="extension-custom-permission-boundary" role="note"><ShieldCheck size={15} strokeWidth={2} aria-hidden="true" /><span>{t("settings.extensions.permissionBoundary")}</span></div>

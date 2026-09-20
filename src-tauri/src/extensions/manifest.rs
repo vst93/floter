@@ -47,8 +47,155 @@ pub struct ExtensionManifest {
     /// stream into the PTY instead of being captured.
     #[serde(default, skip_serializing_if = "OutputMode::is_background")]
     pub output: OutputMode,
+    /// R9-2 · user-fillable input definitions. The runtime half (rendering the
+    /// inputs and turning the answers into argv) is a later slice; this field
+    /// is the *definition* half: it travels with the manifest, the digest and
+    /// the export, exactly like `output` does. `#[serde(default)]` keeps every
+    /// manifest written before the field existed parsing unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub params: Vec<ParamDefinition>,
     #[serde(default, skip_serializing_if = "ToolLifecycle::is_empty")]
     pub lifecycle: ToolLifecycle,
+}
+
+/// One declared input for a script/executable integration. This is a
+/// *capability declaration*: editing it changes the manifest bytes, which
+/// invalidates the approved digest on purpose (the user asked for the input,
+/// so the approval must be re-confirmed).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ParamDefinition {
+    /// Stable key used for persistence and dedup. Never handed to the script.
+    pub id: String,
+    /// Display name. Empty is allowed (the runtime falls back to `id`).
+    #[serde(default)]
+    pub label: String,
+    pub kind: ParamKind,
+    /// Pre-fill, not an exemption: a `required` parameter with a default still
+    /// counts as required, the default only seeds the input.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    /// Choices for `kind = select`; empty for every other kind.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options: Vec<String>,
+    /// Optional argv prefix (`--target`). Omitted means a positional value.
+    /// Whitelisted by `validate_flag` because a malformed flag could split
+    /// into two argv entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flag: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ParamKind {
+    Text,
+    Number,
+    Boolean,
+    Select,
+    Path,
+}
+
+impl ParamKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::Number => "number",
+            Self::Boolean => "boolean",
+            Self::Select => "select",
+            Self::Path => "path",
+        }
+    }
+}
+
+/// A `flag` becomes an independent argv entry, so it must be one token by
+/// construction: a leading `-` followed only by characters that cannot open a
+/// shell metacharacter, whitespace or a quote. This is the *foundation* of the
+/// injection defence — the runtime slice appends each flag as its own
+/// `Vec<String>` element, and this check is what guarantees that element is
+/// still exactly one flag.
+///
+/// Mutation: allow `$` here and the injection tests in `install`/`provider`
+/// turn red.
+pub fn validate_flag(flag: &str) -> Result<(), String> {
+    let mut bytes = flag.bytes();
+    if bytes.next() != Some(b'-') {
+        return Err(format!("Parameter flag must start with '-': {flag}"));
+    }
+    if flag.len() < 2 {
+        return Err(format!("Parameter flag must name an option: {flag}"));
+    }
+    if !bytes.all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')) {
+        return Err(format!(
+            "Parameter flag may only contain letters, numbers, '-', '_' and '.': {flag}"
+        ));
+    }
+    Ok(())
+}
+
+/// The one validator for a `params` array. Enforced wherever a manifest is
+/// parsed, so a hand-written manifest and one produced by the connect form
+/// meet the same rule.
+///
+/// Mutation: drop the `options.is_empty()` branch and a `select` with no
+/// choices validates, which the schema/definition tests assert against.
+pub fn validate_param_definitions(params: &[ParamDefinition]) -> Result<(), String> {
+    let mut ids = std::collections::HashSet::new();
+    for param in params {
+        if param.id.is_empty()
+            || !param
+                .id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        {
+            return Err(format!(
+                "Invalid parameter id (use letters, numbers, '.', '-' or '_'): {}",
+                param.id
+            ));
+        }
+        if !ids.insert(param.id.as_str()) {
+            return Err(format!("Duplicate parameter id: {}", param.id));
+        }
+        if let Some(flag) = &param.flag {
+            validate_flag(flag).map_err(|error| format!("Parameter {}: {error}", param.id))?;
+        }
+        if param.kind == ParamKind::Select && param.options.is_empty() {
+            return Err(format!(
+                "Parameter {} is a select without options",
+                param.id
+            ));
+        }
+        if let Some(default) = &param.default {
+            match param.kind {
+                ParamKind::Number => {
+                    default.trim().parse::<f64>().map_err(|_| {
+                        format!("Parameter {} default is not a number: {default}", param.id)
+                    })?;
+                }
+                ParamKind::Boolean => {
+                    if !matches!(default.as_str(), "true" | "false") {
+                        return Err(format!(
+                            "Parameter {} default is not a boolean: {default}",
+                            param.id
+                        ));
+                    }
+                }
+                ParamKind::Select => {
+                    if !param.options.iter().any(|option| option == default) {
+                        return Err(format!(
+                            "Parameter {} default is not one of its options: {default}",
+                            param.id
+                        ));
+                    }
+                }
+                ParamKind::Text | ParamKind::Path => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 /// How a run's stdout/stderr is surfaced. Declared on the manifest so the
@@ -445,6 +592,7 @@ impl ExtensionManifest {
             validate_relative_path(descriptor, "provider descriptor")?;
         }
         self.lifecycle.validate()?;
+        validate_param_definitions(&self.params)?;
         if self.distribution == Distribution::Local
             && self.provider.kind == ProviderKind::StaticDescriptor
             && self.provider.descriptor.is_none()
@@ -625,6 +773,162 @@ mod tests {
         terminal.output = OutputMode::Terminal;
         let value: Value = serde_json::to_value(&terminal).unwrap();
         assert_eq!(value["output"], serde_json::json!("terminal"));
+    }
+
+    fn param_manifest(params: Value) -> Value {
+        serde_json::json!({
+            "schemaVersion": "2.0",
+            "id": "local.param-probe",
+            "name": "Param probe",
+            "publisher": { "id": "local-user", "name": "Local user" },
+            "compatibility": { "floter": ">=0.3.2", "providerProtocol": "^1.0" },
+            "distribution": { "type": "local" },
+            "runtime": { "type": "system", "executableNames": ["tool"] },
+            "provider": { "type": "executable", "argsPrefix": [] },
+            "params": params,
+        })
+    }
+
+    #[test]
+    fn params_are_optional_and_round_trip_through_the_schema() {
+        // A manifest written before `params` existed still parses, and the
+        // empty list is not serialized (a digest must not change for a field
+        // that was never set).
+        let legacy = param_manifest(serde_json::json!([]));
+        let mut legacy = legacy;
+        legacy.as_object_mut().unwrap().remove("params");
+        let parsed = ExtensionManifest::parse(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert!(parsed.params.is_empty());
+        let value: Value = serde_json::to_value(&parsed).unwrap();
+        assert!(
+            value.get("params").is_none(),
+            "empty params must not serialize"
+        );
+
+        // A full definition round-trips field for field.
+        let document = param_manifest(serde_json::json!([{
+            "id": "target",
+            "label": "Target host",
+            "kind": "text",
+            "default": "example.com",
+            "required": true,
+            "placeholder": "host",
+            "flag": "--target"
+        }, {
+            "id": "mode",
+            "kind": "select",
+            "options": ["fast", "slow"],
+            "default": "fast"
+        }]));
+        let parsed = ExtensionManifest::parse(&serde_json::to_vec(&document).unwrap()).unwrap();
+        assert_eq!(parsed.params.len(), 2);
+        assert_eq!(parsed.params[0].kind, ParamKind::Text);
+        assert_eq!(parsed.params[0].flag.as_deref(), Some("--target"));
+        assert!(parsed.params[0].required);
+        assert_eq!(parsed.params[1].kind, ParamKind::Select);
+        assert_eq!(parsed.params[1].options, vec!["fast", "slow"]);
+        let value: Value = serde_json::to_value(&parsed).unwrap();
+        assert_eq!(value["params"][0]["flag"], serde_json::json!("--target"));
+        assert_eq!(value["params"][1]["kind"], serde_json::json!("select"));
+
+        // A kind the schema does not know is a schema error, not a fallback.
+        let invalid = param_manifest(serde_json::json!([{ "id": "x", "kind": "color" }]));
+        let error = ExtensionManifest::parse(&serde_json::to_vec(&invalid).unwrap()).unwrap_err();
+        assert!(
+            error.contains("params") || error.contains("kind"),
+            "{error}"
+        );
+
+        // `params` is an array, and the schema says so.
+        let wrong_shape = param_manifest(serde_json::json!("target"));
+        let error =
+            ExtensionManifest::parse(&serde_json::to_vec(&wrong_shape).unwrap()).unwrap_err();
+        assert!(error.contains("params"), "{error}");
+    }
+
+    #[test]
+    fn flag_whitelist_rejects_injection() {
+        // Legal flags: a leading dash and only token-safe characters.
+        for flag in ["--target", "-t", "--dry-run", "--host.name", "--a_b"] {
+            assert!(validate_flag(flag).is_ok(), "{flag} should be legal");
+        }
+        // Mutation: allow `$` and the first case below goes green, taking the
+        // injection defence with it.
+        for flag in [
+            "target",
+            "-",
+            "--target value",
+            "--target;rm -rf /",
+            "--target$(whoami)",
+            // A lone `$` is the minimal case: only the `$` branch rejects it,
+            // so removing that branch from the whitelist turns this red.
+            "--target$X",
+            "--target\"quoted\"",
+            "--target'q'",
+            "--target|pipe",
+            "--target&bg",
+            "--target>out",
+            "--target<in",
+            "--target\nnext",
+            "--target`cmd`",
+            "--target%VAR%",
+        ] {
+            assert!(validate_flag(flag).is_err(), "{flag} must be rejected");
+        }
+    }
+
+    #[test]
+    fn param_definitions_enforce_ids_options_and_defaults() {
+        let def = |id: &str, kind: ParamKind| ParamDefinition {
+            id: id.into(),
+            label: String::new(),
+            kind,
+            default: None,
+            required: false,
+            placeholder: None,
+            options: Vec::new(),
+            flag: None,
+        };
+        assert!(validate_param_definitions(&[def("target", ParamKind::Text)]).is_ok());
+        // The id whitelist mirrors the configuration-key rule.
+        for id in ["", "Target Host", "target;rm", "a$b", "../etc"] {
+            assert!(
+                validate_param_definitions(&[def(id, ParamKind::Text)]).is_err(),
+                "{id} must be rejected"
+            );
+        }
+        // Duplicate ids are rejected even when both entries are otherwise fine.
+        let error = validate_param_definitions(&[
+            def("target", ParamKind::Text),
+            def("target", ParamKind::Text),
+        ])
+        .unwrap_err();
+        assert!(error.contains("Duplicate"), "{error}");
+        // A select without options is invalid.
+        assert!(validate_param_definitions(&[def("mode", ParamKind::Select)]).is_err());
+        let mut select = def("mode", ParamKind::Select);
+        select.options = vec!["fast".into()];
+        assert!(validate_param_definitions(&[select.clone()]).is_ok());
+        // Defaults must be legal for the kind; `required` plus `default` is fine
+        // (the default is only a pre-fill).
+        let mut number = def("count", ParamKind::Number);
+        number.default = Some("three".into());
+        assert!(validate_param_definitions(&[number]).is_err());
+        let mut number = def("count", ParamKind::Number);
+        number.default = Some("3".into());
+        number.required = true;
+        assert!(validate_param_definitions(&[number]).is_ok());
+        let mut boolean = def("force", ParamKind::Boolean);
+        boolean.default = Some("yes".into());
+        assert!(validate_param_definitions(&[boolean]).is_err());
+        let mut select = def("mode", ParamKind::Select);
+        select.options = vec!["fast".into()];
+        select.default = Some("slow".into());
+        assert!(validate_param_definitions(&[select]).is_err());
+        // A bad flag is caught on the definition, not only by `validate_flag`.
+        let mut flagged = def("target", ParamKind::Text);
+        flagged.flag = Some("--target value".into());
+        assert!(validate_param_definitions(&[flagged]).is_err());
     }
 
     #[test]

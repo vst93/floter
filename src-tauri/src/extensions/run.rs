@@ -92,30 +92,6 @@ pub struct RunOutcome {
     pub output: Option<RunOutput>,
 }
 
-/// Whitelist for an argument *flag* (a leading token such as `--target`).
-///
-/// Slice 3 appends user-filled parameters to the argv; this is the guard that
-/// keeps a flag from ever becoming two argv items or a shell word. A flag must
-/// start with `-` and contain only `[A-Za-z0-9_.-]` after it — no spaces, no
-/// quotes, no `;|&$<>` and no empty string.
-pub fn validate_flag(flag: &str) -> Result<(), String> {
-    if !flag.starts_with('-') {
-        return Err(format!("Argument flag must start with '-': {flag}"));
-    }
-    if flag.len() == 1 {
-        return Err("Argument flag must not be just '-'".to_string());
-    }
-    if !flag
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.'))
-    {
-        return Err(format!(
-            "Argument flag contains characters outside [A-Za-z0-9_.-]: {flag}"
-        ));
-    }
-    Ok(())
-}
-
 /// Resolve the route for a run, honouring an explicit per-run override.
 fn resolve_route(
     manifest: &ExtensionManifest,
@@ -367,6 +343,7 @@ impl RunOutputStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::manifest::validate_flag;
     use crate::extensions::ExtensionPaths;
 
     fn test_state(root: &Path) -> ExtensionState {
@@ -547,6 +524,7 @@ mod tests {
                         .os,
                 ],
                 output: OutputMode::Background,
+                params: Vec::new(),
             },
         )
         .await
@@ -605,6 +583,7 @@ mod tests {
                         .os,
                 ],
                 output: OutputMode::Terminal,
+                params: Vec::new(),
             },
         )
         .await
@@ -690,6 +669,7 @@ mod tests {
                         .os,
                 ],
                 output: OutputMode::Background,
+                params: Vec::new(),
             },
         )
         .await

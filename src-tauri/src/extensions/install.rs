@@ -4,9 +4,10 @@ use crate::extensions::lock::{
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
 use crate::extensions::manifest::{
-    permission_enforcement, validate_relative_path, Compatibility, Distribution, ExtensionManifest,
-    OutputMode, Permission, PermissionEnforcement, PlatformOs, PlatformTarget, ProviderConfig,
-    ProviderKind, Publisher, Runtime, ScriptLanguage,
+    permission_enforcement, validate_param_definitions, validate_relative_path, Compatibility,
+    Distribution, ExtensionManifest, OutputMode, ParamDefinition, Permission,
+    PermissionEnforcement, PlatformOs, PlatformTarget, ProviderConfig, ProviderKind, Publisher,
+    Runtime, ScriptLanguage,
 };
 use crate::extensions::probe_executor;
 use crate::extensions::provider::ProviderInvocation;
@@ -91,6 +92,11 @@ pub struct CustomIntegrationRequest {
     /// (`background`), so a caller that predates this field is unaffected.
     #[serde(default)]
     pub output: OutputMode,
+    /// R9-2 · declared input definitions. Carried verbatim into the manifest;
+    /// validation happens once in `create_custom_integration_locked` so a
+    /// rejected definition never reaches disk.
+    #[serde(default)]
+    pub params: Vec<ParamDefinition>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -109,6 +115,7 @@ pub struct CustomIntegrationDefinition {
     pub permissions: Vec<Permission>,
     pub platforms: Vec<PlatformOs>,
     pub output: OutputMode,
+    pub params: Vec<ParamDefinition>,
 }
 
 fn default_custom_mode() -> String {
@@ -177,6 +184,7 @@ async fn create_custom_integration_locked(
     if request.platforms.is_empty() {
         return Err("Select at least one supported platform".to_string());
     }
+    validate_param_definitions(&request.params)?;
     let script_mode = request.mode == "script";
     if request.mode != "script" && request.mode != "executable" {
         return Err("Custom integration mode must be executable or script".to_string());
@@ -294,6 +302,7 @@ async fn create_custom_integration_locked(
         lifecycle: crate::extensions::lifecycle::ToolLifecycle::default(),
         platforms: request.platforms.clone(),
         output: request.output,
+        params: request.params.clone(),
     };
     let manifest_bytes = serde_json::to_vec(&manifest)
         .map_err(|error| format!("Cannot serialize custom integration manifest: {error}"))?;
@@ -1110,6 +1119,9 @@ pub fn tool_binding_request(
         permissions: tool_binding_permissions(),
         platforms: vec![PlatformTarget::current()?.os],
         output: OutputMode::default(),
+        // A discovered tool carries no declared inputs: the user adds them in
+        // the editor if they want interactive fill-in.
+        params: Vec::new(),
     })
 }
 
@@ -1223,6 +1235,7 @@ pub fn custom_integration_definition(
         permissions: manifest.permissions,
         platforms: manifest.platforms,
         output: manifest.output,
+        params: manifest.params,
     })
 }
 
@@ -2768,6 +2781,7 @@ fn semver_from_version_token(token: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::extensions::catalog::{self, CatalogSearchRequest, CompletionRequest};
+    use crate::extensions::manifest::ParamKind;
     use crate::extensions::sync;
     use crate::extensions::ExtensionPaths;
     use chrono::Utc;
@@ -3002,6 +3016,7 @@ mod tests {
             permissions: vec![Permission::Environment, Permission::FilesystemRead],
             platforms: current_platforms(),
             output: OutputMode::default(),
+            params: Vec::new(),
         }
     }
 
@@ -3392,6 +3407,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3449,6 +3465,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3490,6 +3507,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3548,6 +3566,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3590,6 +3609,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3686,6 +3706,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3786,6 +3807,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3937,6 +3959,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -4061,6 +4084,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -4196,6 +4220,7 @@ mod tests {
                     permissions: vec![Permission::Environment],
                     platforms: current_platforms(),
                     output: OutputMode::default(),
+                    params: Vec::new(),
                 },
             )
             .await
@@ -4513,6 +4538,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -4571,6 +4597,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -5711,6 +5738,7 @@ mod tests {
             permissions: vec![Permission::Environment],
             platforms: current_platforms(),
             output: OutputMode::default(),
+            params: Vec::new(),
         };
         let created = create_custom_integration(&state, request.clone())
             .await
@@ -5968,6 +5996,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: current_platforms(),
                 output: OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -6509,6 +6538,107 @@ mod tests {
         )
         .unwrap();
         assert!(raw.get("output").is_none());
+    }
+
+    /// `params` travels through the custom-integration form the same way
+    /// `output` does: written to the manifest, read back by the definition
+    /// projection, and preserved across an edit. Mutation: drop `params` from
+    /// the manifest construction (or the definition projection) and the
+    /// round-trip assertion goes red.
+    #[tokio::test]
+    async fn custom_integration_params_round_trip_and_reject_injection() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.params-test";
+
+        let target = ParamDefinition {
+            id: "target".into(),
+            label: "Target host".into(),
+            kind: ParamKind::Text,
+            default: Some("example.com".into()),
+            required: true,
+            placeholder: Some("host".into()),
+            options: Vec::new(),
+            flag: Some("--target".into()),
+        };
+        let mode = ParamDefinition {
+            id: "mode".into(),
+            label: String::new(),
+            kind: ParamKind::Select,
+            default: Some("fast".into()),
+            required: false,
+            placeholder: None,
+            options: vec!["fast".into(), "slow".into()],
+            flag: None,
+        };
+        let mut request = script_request(id, "Params test", "params-test");
+        request.params = vec![target.clone(), mode.clone()];
+        create_custom_integration(&state, request).await.unwrap();
+
+        let definition = custom_integration_definition(&state, id).unwrap();
+        assert_eq!(definition.params, vec![target.clone(), mode.clone()]);
+        // The manifest on disk carries the definitions, not just the projection.
+        assert_eq!(manifest_of(&state, id).params, vec![target.clone(), mode]);
+
+        // An edit that keeps the definitions preserves them.
+        let mut update = script_request(id, "Params test", "params-test");
+        update.params = vec![target.clone()];
+        update_custom_integration(&state, id, update).await.unwrap();
+        assert_eq!(
+            custom_integration_definition(&state, id).unwrap().params,
+            vec![target]
+        );
+
+        // A malformed flag is rejected before anything reaches disk, and the
+        // integration that already exists is untouched.
+        let mut hostile = script_request("local.params-hostile", "Hostile", "params-hostile");
+        hostile.params = vec![ParamDefinition {
+            id: "target".into(),
+            label: String::new(),
+            kind: ParamKind::Text,
+            default: None,
+            required: false,
+            placeholder: None,
+            options: Vec::new(),
+            flag: Some("--target$(whoami)".into()),
+        }];
+        let error = create_custom_integration(&state, hostile)
+            .await
+            .unwrap_err();
+        assert!(error.contains("flag"), "{error}");
+        assert!(!state.paths.data.join("local.params-hostile").exists());
+
+        // A duplicate id is rejected too.
+        let mut duplicate = script_request("local.params-dup", "Duplicate", "params-dup");
+        duplicate.params = vec![
+            ParamDefinition {
+                id: "target".into(),
+                label: String::new(),
+                kind: ParamKind::Text,
+                default: None,
+                required: false,
+                placeholder: None,
+                options: Vec::new(),
+                flag: None,
+            },
+            ParamDefinition {
+                id: "target".into(),
+                label: String::new(),
+                kind: ParamKind::Text,
+                default: None,
+                required: false,
+                placeholder: None,
+                options: Vec::new(),
+                flag: None,
+            },
+        ];
+        let error = create_custom_integration(&state, duplicate)
+            .await
+            .unwrap_err();
+        assert!(error.contains("Duplicate"), "{error}");
     }
 
     #[tokio::test]

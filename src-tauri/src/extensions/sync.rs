@@ -1089,6 +1089,7 @@ mod tests {
                 permissions: vec![Permission::ProcessSpawn],
                 lifecycle: crate::extensions::lifecycle::ToolLifecycle::default(),
                 output: crate::extensions::manifest::OutputMode::default(),
+                params: Vec::new(),
             }),
             script_content: Some(script),
             provider_descriptor: Some(description),
@@ -1137,6 +1138,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
                 output: crate::extensions::manifest::OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await

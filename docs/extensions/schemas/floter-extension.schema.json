@@ -369,7 +369,9 @@
                 },
                 "args": {
                   "type": "array",
-                  "items": { "type": "string" },
+                  "items": {
+                    "type": "string"
+                  },
                   "default": [],
                   "description": "Literal arguments before caller argv. Provider protocol argsPrefix is not used."
                 }
@@ -487,6 +489,58 @@
               ],
               "default": "reattach"
             }
+          }
+        }
+      }
+    },
+    "params": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "number",
+              "boolean",
+              "select",
+              "path"
+            ]
+          },
+          "default": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "flag": {
+            "type": "string",
+            "pattern": "^-[A-Za-z0-9_.-]+$"
           }
         }
       }

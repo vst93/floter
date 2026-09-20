@@ -39,6 +39,12 @@ import {
   type ScriptRuntimeCheck,
 } from "./extensions/script-languages";
 import {
+  fromWireParams,
+  paramIssues,
+  toWireParams,
+  type ScriptParam,
+} from "./extensions/script-params";
+import {
   createReprobeNoticeGate,
   decideDriftNotice,
   freshnessOf,
@@ -333,6 +339,7 @@ export type CustomIntegrationForm = {
   permissions: PermissionName[];
   platforms: Array<"darwin" | "linux" | "windows">;
   output: "background" | "terminal";
+  params: ScriptParam[];
 };
 
 const CURRENT_PLATFORM: "darwin" | "linux" | "windows" = navigator.userAgent.includes("Mac") ? "darwin" : navigator.userAgent.includes("Win") ? "windows" : "linux";
@@ -351,6 +358,7 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   permissions: ["environment"],
   platforms: [CURRENT_PLATFORM],
   output: "background",
+  params: [],
 };
 
 const SCRIPT_LANGUAGE_LABELS: Record<ScriptLanguageId, string> = Object.fromEntries(
@@ -1395,6 +1403,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       versionArgs: [],
       permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions],
       platforms: [CURRENT_PLATFORM],
+      params: [],
     };
     customGeneration.current += 1;
     customSavedRef.current = draft;
@@ -1433,8 +1442,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         versionArgs: [...definition.versionArgs],
         permissions: [...definition.permissions],
         platforms: [...definition.platforms],
+        params: fromWireParams(definition.params),
       });
-      customSavedRef.current = { ...definition, scriptLanguage: definition.scriptLanguage ?? "shell", scriptContent: definition.scriptContent ?? "", argsPrefix: [...definition.argsPrefix], versionArgs: [...definition.versionArgs], permissions: [...definition.permissions], platforms: [...definition.platforms] };
+      customSavedRef.current = { ...definition, scriptLanguage: definition.scriptLanguage ?? "shell", scriptContent: definition.scriptContent ?? "", argsPrefix: [...definition.argsPrefix], versionArgs: [...definition.versionArgs], permissions: [...definition.permissions], platforms: [...definition.platforms], params: fromWireParams(definition.params) };
       setCustomDirty(false);
     } catch (nextError) {
       if (generation === customGeneration.current) setCustomIntegrationError(errorMessage(nextError));
@@ -1609,6 +1619,16 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     }
     setBusy({ id: customIntegration.id, kind: editingCustomId ? "save" : "install" });
     setCustomIntegrationError(null);
+    // R9-2 slice 2 · the parameter list is a capability declaration, so an
+    // invalid row must not reach the backend. `ScriptParamEditor` already
+    // renders the per-row message; this is the submit-side guard, shown inline
+    // (never a toast — the offending row is right there).
+    const paramProblem = paramIssues(customIntegration.params)[0];
+    if (paramProblem) {
+      setCustomIntegrationError(t(paramProblem.key as Parameters<Translate>[0]));
+      setBusy(null);
+      return;
+    }
     try {
       const request = {
         ...customIntegration,
@@ -1617,6 +1637,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         scriptContent: customIntegration.mode === "script" ? customIntegration.scriptContent : null,
         argsPrefix: customIntegration.argsPrefix,
         versionArgs: customIntegration.versionArgs,
+        params: toWireParams(customIntegration.params),
       };
       await invoke(editingCustomId ? "extensions_custom_update" : "extensions_create_custom", {
         ...(editingCustomId ? { id: editingCustomId } : {}),

@@ -2369,6 +2369,7 @@ mod tests {
                 permissions: Vec::new(),
                 platforms: vec![crate::extensions::PlatformTarget::current().unwrap().os],
                 output: crate::extensions::manifest::OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3282,6 +3283,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
                 output: crate::extensions::manifest::OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
@@ -3420,6 +3422,7 @@ mod tests {
                 permissions: vec![Permission::Environment],
                 platforms: vec![PlatformTarget::current().unwrap().os],
                 output: crate::extensions::manifest::OutputMode::default(),
+                params: Vec::new(),
             },
         )
         .await
