@@ -23,6 +23,10 @@ pub(crate) fn configure_command(command: &mut Command) {
 #[derive(Debug)]
 pub(crate) enum CommandOutputError {
     TimedOut(Duration),
+    /// The OS refused to start the process. Kept as the original
+    /// [`std::io::Error`] rather than a formatted string so a caller can
+    /// distinguish "not found" from "not executable" and say which (R9-5).
+    SpawnFailed(std::io::Error),
     Failed(String),
 }
 
@@ -34,6 +38,7 @@ impl std::fmt::Display for CommandOutputError {
                 "Command timed out after {} ms",
                 timeout.as_millis()
             ),
+            Self::SpawnFailed(error) => write!(formatter, "Cannot spawn command: {error}"),
             Self::Failed(error) => formatter.write_str(error),
         }
     }
@@ -50,9 +55,7 @@ pub(crate) async fn command_output(
 ) -> Result<Output, CommandOutputError> {
     configure_command(&mut command);
     command.kill_on_drop(true);
-    let mut child = command
-        .spawn()
-        .map_err(|error| CommandOutputError::Failed(format!("Cannot spawn command: {error}")))?;
+    let mut child = command.spawn().map_err(CommandOutputError::SpawnFailed)?;
     let mut cleanup = ChildCleanup::new(&child);
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();

@@ -1665,15 +1665,38 @@ pub(crate) fn script_interpreter_names(language: ScriptLanguage) -> Vec<String> 
 /// Scan `PATH` for the first name in [`script_interpreter_names`] that resolves
 /// to a linked executable. **Never** a hard-coded absolute path: the whole
 /// point is that the host's `PATH` is the source of truth.
+/// Scan the host's search path for the first name in
+/// [`script_interpreter_names`] that resolves to a linked executable. **Never**
+/// a hard-coded absolute path: the whole point is that the host's `PATH` is
+/// the source of truth.
+///
+/// The path is [`runtime_path::search_path`], not the bare process `PATH`: a
+/// macOS Finder launch hands Floter the launchd baseline, which has no
+/// Homebrew, rustup or `~/.local/bin` entry. Resolving through the shared
+/// search path is what keeps the runtime check and the run from disagreeing
+/// about whether a toolchain is installed (R9-5).
 pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBuf, String> {
     let names = script_interpreter_names(language);
-    let path = std::env::var_os("PATH").ok_or("PATH is not set")?;
-    let directories = std::env::split_paths(&path).collect::<Vec<_>>();
+    let directories = crate::extensions::runtime_path::search_directories();
     scan_directories_for_toolchain(&directories, &names).ok_or_else(|| {
         format!(
             "Script toolchain is not available: {} not found on PATH",
             names.join(" or ")
         )
+    })
+}
+
+/// The same scan as [`find_script_interpreter`], keyed for the user: the
+/// language, the candidate names, and the directories that were searched. Used
+/// by the run path, where "not found" without "where" is not actionable.
+///
+/// Mutation: return the plain string above and the run's keyed-error test
+/// (`a_missing_interpreter_is_reported_with_the_directories_searched`) goes red.
+pub(crate) fn resolve_script_interpreter(language: ScriptLanguage) -> Result<PathBuf, String> {
+    let names = script_interpreter_names(language);
+    let directories = crate::extensions::runtime_path::search_directories();
+    scan_directories_for_toolchain(&directories, &names).ok_or_else(|| {
+        crate::extensions::run_error::interpreter_missing(language.as_str(), &names, &directories)
     })
 }
 
@@ -2657,8 +2680,10 @@ pub(crate) fn find_system_executable(manifest: &ExtensionManifest) -> Result<Pat
     else {
         return Err("Expected a system runtime".to_string());
     };
-    let path = std::env::var_os("PATH").ok_or("PATH is not set")?;
-    for directory in std::env::split_paths(&path) {
+    // The shared search path, not the bare process `PATH`: a macOS Finder
+    // launch would otherwise refuse to connect a Homebrew-installed tool that
+    // the user's shell finds trivially (R9-5).
+    for directory in crate::extensions::runtime_path::search_directories() {
         for name in executable_names {
             for candidate_name in linked_candidate_names(name) {
                 let candidate = directory.join(candidate_name);

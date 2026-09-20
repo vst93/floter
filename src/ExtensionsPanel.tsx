@@ -51,6 +51,7 @@ import {
   seedParamValues,
   type ParamValues,
 } from "./extensions/run-params";
+import { runErrorMessage } from "./extensions/run-errors";
 import {
   createReprobeNoticeGate,
   decideDriftNotice,
@@ -1664,9 +1665,19 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       );
       if (mapped) {
         setRunParamError(mapped);
-      } else {
-        showError(message);
+        return;
       }
+      // R9-5 · a run that could not even start (a missing script, a missing
+      // interpreter, a spawn refusal) arrives as a keyed backend message. It is
+      // an error the user must see: the toast says what was not found and
+      // where the host looked, instead of the launcher's generic sentence.
+      const runError = runErrorMessage(message, t);
+      if (runError) {
+        setOutputOpen((current) => ({ ...current, [extension.id]: true }));
+        showError(runError);
+        return;
+      }
+      showError(message);
     } finally {
       setRunBusy(null);
     }

@@ -81,6 +81,11 @@ pub(crate) fn resolve_runtime_target(
                 // their first positional argument.
                 _ => vec![script.to_string_lossy().into_owned()],
             };
+            // The plain resolver: its message is shown verbatim by the install
+            // path and the details drawer, both of which render a sentence, not
+            // a keyed payload. The *run* path pre-checks with the keyed
+            // resolver (`run::build_plan`) so a manual run can name the binary
+            // and the directories searched (R9-5).
             Ok((super::install::find_script_interpreter(*language)?, args))
         }
         _ => Ok((executable.to_path_buf(), Vec::new())),

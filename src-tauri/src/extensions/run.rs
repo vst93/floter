@@ -23,13 +23,16 @@
 //! so the argv whitelist exists before anything can use it.
 
 use super::lock::{ExtensionLockEntry, ExtensionsLock};
-use super::manifest::{validate_flag, ExtensionManifest, OutputMode, ParamDefinition, ParamKind};
+use super::manifest::{
+    validate_flag, ExtensionManifest, OutputMode, ParamDefinition, ParamKind, Runtime,
+};
 use super::process_cleanup::{command_output, CommandOutputError};
 use super::provider::{
     self, CommandDescriptor, ExecutionDescriptor, ExecutionMode, ExecutionPlan, ProviderInvocation,
     WorkingDirectory,
 };
 use super::registry;
+use super::run_error;
 use super::ExtensionState;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -417,7 +420,87 @@ fn build_plan(
     } else {
         param_arguments(&manifest.params, values, cmd_script)?
     };
-    provider::execution_plan(&descriptor, &invocation, param_args, Some(cwd))
+    // A program the plan cannot spawn must fail *here*, with the path in the
+    // message, rather than as an opaque ENOENT from whichever route ran it.
+    // `execution_plan` already refuses a non-file program, but it can still be
+    // a file without the execute bit, and the terminal route's refusal would
+    // otherwise only reach the user as the launcher's generic sentence.
+    check_spawnable(&invocation.executable)?;
+    let mut plan = provider::execution_plan(&descriptor, &invocation, param_args, Some(cwd))?;
+    // Hand the child the same search path the interpreter was resolved
+    // through. Without this a script that shells out to `node`/`python3` would
+    // fail under a Finder launch even though Floter itself found the toolchain
+    // (R9-5).
+    if plan.inherit_environment {
+        plan.environment.insert(
+            "PATH".to_string(),
+            crate::extensions::runtime_path::search_path()
+                .to_string_lossy()
+                .into_owned(),
+        );
+    }
+    Ok(plan)
+}
+
+/// Refuse a program that cannot be spawned, naming it.
+///
+/// `NotFound` (the file is gone) and `PermissionDenied`-as-not-executable are
+/// distinct keys because each has a distinct remedy. Only the direct program is
+/// checked: an interpreter is resolved through `runtime_path`, and the plan's
+/// own program is what the OS would fail on.
+fn check_spawnable(program: &Path) -> Result<(), String> {
+    if !program.is_file() {
+        return Err(run_error::program_missing(program));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let executable = program
+            .metadata()
+            .map(|metadata| metadata.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false);
+        if !executable {
+            return Err(run_error::program_not_executable(program));
+        }
+    }
+    Ok(())
+}
+
+/// Pre-flight a script integration with **keyed** refusals.
+///
+/// The generic resolver reports a missing script or interpreter as a prose
+/// sentence, which is fine for a log line but useless in a toast: it does not
+/// say where the host looked, so the user cannot tell an uninstalled toolchain
+/// from a `PATH` the app never inherited. This check runs first on the run
+/// path so the failure the user actually sees carries the facts (R9-5).
+///
+/// Only the two cases the user can act on are checked; everything else is left
+/// to [`build_plan`], which is the authority on the argv.
+fn check_script_runtime(
+    entry: &ExtensionLockEntry,
+    manifest: &ExtensionManifest,
+) -> Result<(), String> {
+    let Runtime::Script { language, path, .. } = &manifest.runtime else {
+        return Ok(());
+    };
+    let root = Path::new(&entry.manifest_path)
+        .parent()
+        .ok_or_else(|| "Script manifest has no parent directory".to_string())?;
+    let script = root.join(path);
+    if !script.is_file() {
+        return Err(run_error::script_missing(&script));
+    }
+    if language.is_compiled() {
+        let artifact = crate::extensions::install::script_build_output(root, *language);
+        if !artifact.is_file() {
+            return Err(run_error::program_missing(&artifact));
+        }
+        return Ok(());
+    }
+    // Resolved through the shared search path, so this agrees with both the
+    // runtime check and `build_plan`'s own resolution.
+    crate::extensions::install::resolve_script_interpreter(*language)?;
+    Ok(())
 }
 
 /// Run a connected integration. `values` carries the caller's answers keyed by
@@ -434,6 +517,11 @@ pub async fn run(
     // function, so a second request for the same id is refused while this one
     // is still executing; it releases on every exit path (R9-2 slice 4).
     let _in_flight = state.begin_run(id)?;
+    // Pre-flight with keyed refusals *before* the route branches: a missing
+    // script or interpreter has to reach the user as a named fact on both the
+    // terminal and the background route, not as an opaque spawn error from one
+    // of them (R9-5).
+    check_script_runtime(&entry, &manifest)?;
     let route = resolve_route(&manifest);
     let cwd = run_cwd(state, id)?;
     let values = values.unwrap_or_default();
@@ -497,8 +585,12 @@ async fn execute_background(plan: ExecutionPlan) -> Result<(bool, Option<i32>, R
     let output = command_output(command, RUN_TIMEOUT)
         .await
         .map_err(|error| match error {
-            CommandOutputError::TimedOut(timeout) => {
-                format!("Run timed out after {} seconds", timeout.as_secs())
+            CommandOutputError::TimedOut(timeout) => run_error::timed_out(timeout),
+            // The OS refused the spawn. `program` is known here, so the keyed
+            // message can name it and keep the OS's own words for anything
+            // that is not the two named cases.
+            CommandOutputError::SpawnFailed(error) => {
+                run_error::spawn_failed(Path::new(&plan.program), &error)
             }
             CommandOutputError::Failed(detail) => detail,
         })?;
@@ -1258,6 +1350,280 @@ mod tests {
         let state = test_state(directory.path());
         let error = run(&state, "local.missing", None).await.unwrap_err();
         assert!(error.contains("local.missing"), "{error}");
+    }
+
+    // ── R9-5 · a failed run says what and where ──────────────────────────
+
+    /// Create a script integration whose declared script file is then deleted,
+    /// leaving the manifest pointing at nothing.
+    #[cfg(unix)]
+    async fn create_script_then_remove_its_file(
+        state: &ExtensionState,
+        id: &str,
+        language: crate::extensions::manifest::ScriptLanguage,
+    ) {
+        let entry = crate::extensions::install::create_custom_integration_for_test(
+            state,
+            id,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Script".into(),
+                command: "script".into(),
+                version: "1.0.0".into(),
+                executable_path: String::new(),
+                mode: "script".into(),
+                script_language: Some(language),
+                script_content: Some("printf hi".into()),
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![crate::extensions::manifest::Permission::Environment],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+        let root = Path::new(&entry.manifest_path).parent().unwrap();
+        std::fs::remove_file(root.join(format!(
+            "provider.{}",
+            crate::extensions::install::script_extension(language)
+        )))
+        .unwrap();
+    }
+
+    /// A missing script file must reach the caller as the keyed message naming
+    /// the path — not as an opaque spawn failure and not as a silent no-op.
+    ///
+    /// Mutation: drop the `check_script_runtime` call in `run` and the error
+    /// becomes `Script file is missing: …` (the resolver's prose), so the key
+    /// assertion goes red.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_missing_script_file_is_reported_with_its_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        create_script_then_remove_its_file(
+            &state,
+            "local.gone",
+            crate::extensions::manifest::ScriptLanguage::Shell,
+        )
+        .await;
+
+        let error = run(&state, "local.gone", None).await.unwrap_err();
+        assert_eq!(
+            run_error::message_key(&error),
+            Some(run_error::RUN_SCRIPT_MISSING),
+            "{error}"
+        );
+        assert!(error.contains("provider.sh"), "{error}");
+    }
+
+    /// A toolchain that is not installed must name the language, the binary it
+    /// looked for and the directories it searched — the facts a user needs to
+    /// tell "not installed" from "installed somewhere Floter cannot see".
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_missing_interpreter_is_reported_with_the_directories_searched() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let id = "local.no-interpreter";
+        crate::extensions::install::create_custom_integration_for_test(
+            &state,
+            id,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Script".into(),
+                command: "script".into(),
+                version: "1.0.0".into(),
+                executable_path: String::new(),
+                mode: "script".into(),
+                // A language this machine is extremely unlikely to have, so the
+                // test does not depend on the host's installed toolchains. The
+                // resolver is driven directly for the positive case below.
+                script_language: Some(crate::extensions::manifest::ScriptLanguage::Ruby),
+                script_content: Some("puts 1".into()),
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![crate::extensions::manifest::Permission::Environment],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap_err();
+        // The connect path refuses a missing toolchain up front (the save is
+        // allowed by the *drawer*, which warns instead), so the keyed message
+        // is produced by the resolver itself. Drive it directly: the payload is
+        // what the run path surfaces when the toolchain disappears later.
+        let error = crate::extensions::install::resolve_script_interpreter(
+            crate::extensions::manifest::ScriptLanguage::Ruby,
+        )
+        .unwrap_err();
+        assert_eq!(
+            run_error::message_key(&error),
+            Some(run_error::RUN_INTERPRETER_MISSING),
+            "{error}"
+        );
+        assert!(error.contains("\"language\":\"ruby\""), "{error}");
+        assert!(error.contains("\"names\":[\"ruby\"]"), "{error}");
+        assert!(error.contains("\"searched\":["), "{error}");
+    }
+
+    /// The interpreter the check finds is the interpreter the run uses: both
+    /// go through the shared search path, so a `PATH` the app did not inherit
+    /// cannot make them disagree.
+    ///
+    /// Mutation: point `find_script_interpreter` back at the bare process
+    /// `PATH` and the two lists stop being equal whenever the baseline adds a
+    /// directory.
+    #[cfg(unix)]
+    #[test]
+    fn the_check_and_the_run_resolve_through_the_same_search_path() {
+        use crate::extensions::manifest::ScriptLanguage;
+        let names = crate::extensions::install::script_interpreter_names(ScriptLanguage::Shell);
+        let directories = crate::extensions::runtime_path::search_directories();
+        let resolved =
+            crate::extensions::install::resolve_script_interpreter(ScriptLanguage::Shell);
+        let plain = crate::extensions::install::find_script_interpreter(ScriptLanguage::Shell);
+        // `sh` exists on every Unix this project supports, so both must resolve.
+        let resolved = resolved.expect("the shared path resolves sh");
+        let plain = plain.expect("the plain path resolves sh");
+        assert_eq!(resolved, plain);
+        // …and the directory it was found in really is one the shared path
+        // searched (the payload the keyed error would have carried).
+        assert!(
+            directories
+                .iter()
+                .any(|directory| resolved.starts_with(directory)),
+            "{} is not under any searched directory",
+            resolved.display()
+        );
+        assert!(!names.is_empty());
+    }
+
+    /// A background run hands its child the same `PATH` it resolved the
+    /// interpreter through, so a script that shells out to `node`/`python3`
+    /// does not fail under a Finder launch.
+    ///
+    /// Mutation: drop the `PATH` insertion in `build_plan` and the child sees
+    /// the bare process environment instead.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_run_hands_the_child_the_shared_search_path() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("env.sh");
+        std::fs::write(&executable, "#!/bin/sh\nprintf '%s' \"$PATH\"\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let id = "local.env";
+        crate::extensions::install::create_custom_integration_for_test(
+            &state,
+            id,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Env".into(),
+                command: "env".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![
+                    crate::extensions::manifest::Permission::Environment,
+                    crate::extensions::manifest::Permission::ProcessSpawn,
+                ],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let outcome = run(&state, id, None).await.unwrap();
+        let stdout = outcome.output.unwrap().stdout;
+        let expected = crate::extensions::runtime_path::search_path()
+            .to_string_lossy()
+            .into_owned();
+        assert_eq!(stdout, expected);
+    }
+
+    /// A program that is not an executable file is refused with the keyed
+    /// message naming it, before any route tries to spawn it.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_non_executable_program_is_refused_by_key() {
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("plain.txt");
+        std::fs::write(&executable, "not a program").unwrap();
+        // Deliberately no execute bit.
+
+        // `create_custom_integration` refuses a non-executable executable path
+        // at connect time, so drive the check the run path applies directly.
+        let error = check_spawnable(&executable).unwrap_err();
+        assert_eq!(
+            run_error::message_key(&error),
+            Some(run_error::RUN_PROGRAM_NOT_EXECUTABLE),
+            "{error}"
+        );
+        assert!(error.contains("plain.txt"), "{error}");
+
+        let missing = check_spawnable(&script_directory.path().join("absent"));
+        assert_eq!(
+            run_error::message_key(&missing.unwrap_err()),
+            Some(run_error::RUN_PROGRAM_MISSING)
+        );
+    }
+
+    /// The spawn-failure mapping is what turns an OS error into a readable
+    /// key: ENOENT becomes "program missing", a permission refusal becomes
+    /// "not executable", and anything else keeps the OS's own words.
+    #[test]
+    fn spawn_failures_map_to_readable_keys() {
+        let program = Path::new("/opt/homebrew/bin/node");
+        let not_found =
+            run_error::spawn_failed(program, &std::io::Error::from(std::io::ErrorKind::NotFound));
+        assert_eq!(
+            run_error::message_key(&not_found),
+            Some(run_error::RUN_PROGRAM_MISSING)
+        );
+        let denied = run_error::spawn_failed(
+            program,
+            &std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        );
+        assert_eq!(
+            run_error::message_key(&denied),
+            Some(run_error::RUN_PROGRAM_NOT_EXECUTABLE)
+        );
+        let other = run_error::spawn_failed(program, &std::io::Error::other("Exec format error"));
+        assert_eq!(
+            run_error::message_key(&other),
+            Some(run_error::RUN_SPAWN_FAILED)
+        );
+        assert!(other.contains("Exec format error"), "{other}");
     }
 
     // ── R9-2 slice 4 · one run at a time per integration ─────────────────

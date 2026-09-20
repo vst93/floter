@@ -28,9 +28,13 @@ pub mod registry;
 pub mod repository;
 pub mod resolver;
 pub mod run;
+/// Keyed, readable failures for a manual run (R9-5).
+pub mod run_error;
 /// The single availabilty projector (audit G5). See the module docs for the
 /// precedence rule between the repository state machine and the live binding.
 pub(crate) mod runtime_binding;
+/// The one `PATH` every toolchain resolution goes through (R9-5).
+mod runtime_path;
 pub mod session_restore;
 pub mod sync;
 #[cfg(test)]
