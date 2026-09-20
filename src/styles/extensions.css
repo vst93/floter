@@ -2463,6 +2463,19 @@
   padding: 8px 10px;
 }
 
+/* R9-4 · the drawer's discard bar is a sibling of the scrolling form, not a
+   child of it, so it must not shrink and must not scroll away: it is the one
+   control that lets the user out of an armed close. The dialog is a flex
+   column; `flex: 0 0 auto` keeps the bar at its natural height at the bottom
+   edge, and the margin separates it from the form above and the footer below.
+   Before this, the bar lived inside `.extension-custom-form` (the
+   `overflow-y: auto` viewport) and rendered off-screen whenever the form was
+   scrolled up — the drawer then looked unclosable. */
+.extension-discard-bar--dialog {
+  flex: 0 0 auto;
+  margin: 8px 14px 12px;
+}
+
 .extension-discard-bar .extensions-action-button {
   height: 24px;
   min-height: 24px;

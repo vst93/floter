@@ -45,6 +45,7 @@ import {
   type ScriptParam,
   type ScriptParamWire,
 } from "./extensions/script-params";
+import { customIntegrationDirty } from "./extensions/integration-dirty";
 import {
   paramRunErrorMessage,
   seedParamValues,
@@ -766,14 +767,19 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const busyRef = extensionActions.busyRef;
   useTimedReset(removalTarget, () => setRemovalTarget(null));
   useTimedReset(detailsDiscardArmed, () => setDetailsDiscardArmed(false));
-  useTimedReset(customDiscardArmed, () => setCustomDiscardArmed(false));
+  // R9-4 · the custom drawer's discard bar is NOT on a timer. It used to
+  // disarm itself after 3s: the user pressed close, a bar appeared, and by the
+  // time they reached for "discard" it had vanished, leaving the dialog open
+  // with no explanation — the same silent dead end the placement fix removes.
+  // It now stays until the user answers it (discard, cancel, or another edit),
+  // which is the only state in which the bar's own question is answered.
 
   const updateCustomIntegration = (update: (current: CustomIntegrationForm) => CustomIntegrationForm) => {
     setCustomIntegrationError(null);
     setCustomDiscardArmed(false);
     setCustomIntegration((current) => {
       const next = update(current);
-      setCustomDirty(JSON.stringify(next) !== JSON.stringify(customSavedRef.current));
+      setCustomDirty(customIntegrationDirty(next, customSavedRef.current));
       return next;
     });
   };
@@ -1459,7 +1465,12 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     try {
       const definition = await invoke<CustomIntegrationForm>("extensions_custom_get", { id: extension.id });
       if (generation !== customGeneration.current) return;
-      setCustomIntegration({
+      // R9-4 · one normalized editor form is written to BOTH the live state
+      // and the saved baseline. The two used to be built by separate literal
+      // spreads, so the baseline could disagree with the form the user was
+      // looking at — and a raw JSON comparison then reported an untouched
+      // legacy definition as dirty the moment it opened.
+      const loaded: CustomIntegrationForm = {
         ...definition,
         scriptLanguage: definition.scriptLanguage ?? "shell",
         scriptContent: definition.scriptContent ?? "",
@@ -1468,8 +1479,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         permissions: [...definition.permissions],
         platforms: [...definition.platforms],
         params: fromWireParams(definition.params),
-      });
-      customSavedRef.current = { ...definition, scriptLanguage: definition.scriptLanguage ?? "shell", scriptContent: definition.scriptContent ?? "", argsPrefix: [...definition.argsPrefix], versionArgs: [...definition.versionArgs], permissions: [...definition.permissions], platforms: [...definition.platforms], params: fromWireParams(definition.params) };
+      };
+      setCustomIntegration(loaded);
+      customSavedRef.current = loaded;
       setCustomDirty(false);
     } catch (nextError) {
       if (generation === customGeneration.current) setCustomIntegrationError(errorMessage(nextError));
@@ -1489,7 +1501,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         name: current.name === DEFAULT_CUSTOM_INTEGRATION.name ? command : current.name,
         command: current.command === DEFAULT_CUSTOM_INTEGRATION.command ? slug : current.command,
       };
-      setCustomDirty(JSON.stringify(next) !== JSON.stringify(customSavedRef.current));
+      setCustomDirty(customIntegrationDirty(next, customSavedRef.current));
       return next;
     });
     setCustomIntegrationError(null);

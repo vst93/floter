@@ -4597,6 +4597,7 @@ mod tests {
     /// Publisher-shipped static descriptors (v-tools) are never eligible for a
     /// drift re-probe — their command list is release content, not derived from
     /// the local binary.
+
     #[cfg(unix)]
     #[tokio::test]
     async fn publisher_descriptor_is_never_reprobed_on_version_change() {
