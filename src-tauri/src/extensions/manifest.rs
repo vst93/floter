@@ -102,6 +102,51 @@ pub enum ScriptLanguage {
     Js,
     Shell,
     Powershell,
+    Python,
+    Ruby,
+    Php,
+    Go,
+    Rust,
+}
+
+impl ScriptLanguage {
+    /// Every variant, in the order the editor offers them. Kept here (next to
+    /// the enum) so a new language is a compile error away from every consumer
+    /// rather than a silently missing entry in one of them.
+    pub const ALL: [ScriptLanguage; 8] = [
+        ScriptLanguage::Js,
+        ScriptLanguage::Shell,
+        ScriptLanguage::Powershell,
+        ScriptLanguage::Python,
+        ScriptLanguage::Ruby,
+        ScriptLanguage::Php,
+        ScriptLanguage::Go,
+        ScriptLanguage::Rust,
+    ];
+
+    /// The wire/manifest spelling (`"go"`, `"powershell"`). Also the cache key
+    /// for the PATH scan, so it must stay stable.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ScriptLanguage::Js => "js",
+            ScriptLanguage::Shell => "shell",
+            ScriptLanguage::Powershell => "powershell",
+            ScriptLanguage::Python => "python",
+            ScriptLanguage::Ruby => "ruby",
+            ScriptLanguage::Php => "php",
+            ScriptLanguage::Go => "go",
+            ScriptLanguage::Rust => "rust",
+        }
+    }
+
+    /// Compiled languages are *source-distributed build scripts*: there is no
+    /// interpreter to hand the source to. `go`/`rustc` are the **toolchain**
+    /// that turns the source into the artifact Floter actually runs, and the
+    /// artifact is what the runtime binding resolves to. Every branch that
+    /// treats a script as "interpreter + source path" has to ask this first.
+    pub fn is_compiled(self) -> bool {
+        matches!(self, ScriptLanguage::Go | ScriptLanguage::Rust)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

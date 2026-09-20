@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, Check, X } from "lucide-react";
+import { AlertCircle, Check, TriangleAlert, X } from "lucide-react";
 import type { Translate } from "../i18n";
 import { TOAST_DISMISS_MS, type AppToast } from "../toast-state";
 
@@ -95,6 +95,8 @@ function Toast({
     >
       {toast.kind === "error" ? (
         <AlertCircle size={15} strokeWidth={2} aria-hidden="true" />
+      ) : toast.kind === "warning" ? (
+        <TriangleAlert size={15} strokeWidth={2} aria-hidden="true" />
       ) : (
         <Check size={15} strokeWidth={2} aria-hidden="true" />
       )}

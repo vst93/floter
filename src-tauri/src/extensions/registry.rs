@@ -51,20 +51,35 @@ pub(crate) fn resolve_runtime_target(
 ) -> Result<(PathBuf, Vec<String>), String> {
     match &manifest.runtime {
         Runtime::Script { language, path, .. } => {
-            let script = manifest_path
+            let root = manifest_path
                 .parent()
-                .ok_or("Script manifest has no parent directory")?
-                .join(path);
+                .ok_or("Script manifest has no parent directory")?;
+            let script = root.join(path);
             if !script.is_file() {
                 return Err(format!("Script file is missing: {}", script.display()));
             }
-            let args = match language {
-                ScriptLanguage::Js | ScriptLanguage::Shell => {
-                    vec![script.to_string_lossy().into_owned()]
+            // Compiled languages have no interpreter to hand the source to:
+            // the toolchain produced an artifact at connect time and *that* is
+            // the program. The source path is not passed as an argument, and
+            // `find_script_interpreter` (which would resolve `go`/`rustc`) is
+            // deliberately not called here.
+            if language.is_compiled() {
+                let artifact = super::install::script_build_output(root, *language);
+                if !artifact.is_file() {
+                    return Err(format!(
+                        "Compiled script artifact is missing: {}; save the integration to rebuild it",
+                        artifact.display()
+                    ));
                 }
+                return Ok((artifact, Vec::new()));
+            }
+            let args = match language {
                 ScriptLanguage::Powershell => {
                     vec!["-File".into(), script.to_string_lossy().into_owned()]
                 }
+                // js / shell / python / ruby / php all take the script path as
+                // their first positional argument.
+                _ => vec![script.to_string_lossy().into_owned()],
             };
             Ok((super::install::find_script_interpreter(*language)?, args))
         }

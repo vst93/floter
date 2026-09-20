@@ -61,7 +61,9 @@ const IDENTICAL_VALUES_ALLOWED = new Set([
   "settings.extensions.freshnessCommandsValue", // "{count}"
   "settings.extensions.reprobeNoticeDeltaIncrease", // "+{count}"
   "settings.extensions.reprobeNoticeDeltaDecrease", // "−{count}"
-  "settings.extensions.customId", // "ID"
+  // "settings.extensions.customId" is no longer here: R9-1 renamed it from
+  // the byte-identical "ID" to a real label in both languages, so the sweep
+  // now requires a translation like any other key.
   "notification.title", // "floter"
 ]);
 

@@ -32,6 +32,12 @@ import { PermissionTierList } from "./extensions/PermissionTierList";
 import { permissionTier } from "./extensions/permission-tiers";
 import { approvalIsStale, shortDigest } from "./extensions/approval-record";
 import {
+  SCRIPT_LANGUAGES,
+  scriptExtension,
+  type ScriptLanguageId,
+  type ScriptRuntimeCheck,
+} from "./extensions/script-languages";
+import {
   createReprobeNoticeGate,
   decideDriftNotice,
   freshnessOf,
@@ -296,7 +302,7 @@ export type CustomIntegrationForm = {
   command: string;
   version: string;
   executablePath: string;
-  scriptLanguage: "js" | "shell" | "powershell";
+  scriptLanguage: ScriptLanguageId;
   scriptContent: string;
   argsPrefix: string[];
   versionArgs: string[];
@@ -320,6 +326,14 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   permissions: ["environment"],
   platforms: [CURRENT_PLATFORM],
 };
+
+const SCRIPT_LANGUAGE_LABELS: Record<ScriptLanguageId, string> = Object.fromEntries(
+  SCRIPT_LANGUAGES.map((language) => [language.id, language.label]),
+) as Record<ScriptLanguageId, string>;
+
+/** The human label for a language id, for prose (a toast naming the missing
+ *  toolchain). Never translated: these are proper nouns. */
+const scriptLanguageLabel = (id: ScriptLanguageId) => SCRIPT_LANGUAGE_LABELS[id] ?? id;
 
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
@@ -483,7 +497,7 @@ type ExtensionsPanelProps = {
    * container, so feedback stays visible wherever the user scrolled to). The
    * optional action rides the same stack — R7-7's drift notice uses it to open
    * the integration it is talking about. */
-  onNotify: (kind: "error" | "success", text: string, action?: { label: string; run: () => void }) => void;
+  onNotify: (kind: "error" | "success" | "warning", text: string, action?: { label: string; run: () => void }) => void;
   /** A validated `floter://connect` request. The backend has already checked
    * the manifest's path and structure; the panel turns it into the *same*
    * review dialog the file picker opens, so a link can never install, approve
@@ -645,6 +659,15 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const [customDiscardArmed, setCustomDiscardArmed] = useState(false);
   const customSavedRef = useRef<CustomIntegrationForm>(DEFAULT_CUSTOM_INTEGRATION);
   const customGeneration = useRef(0);
+  // R9-1 · the language picker's inline toolchain status. Cached per language
+  // so re-selecting a language the user already checked is instant, and so the
+  // probe runs once per language per drawer session rather than per keystroke.
+  // A `null` entry means "asked, still in flight"; an absent key means "not
+  // asked yet".
+  const [runtimeChecks, setRuntimeChecks] = useState<Partial<Record<ScriptLanguageId, ScriptRuntimeCheck | null>>>({});
+  const runtimeChecksRef = useRef(new Map<ScriptLanguageId, ScriptRuntimeCheck>());
+  const runtimeChecksPending = useRef(new Map<ScriptLanguageId, Promise<ScriptRuntimeCheck>>());
+  const runtimeChecksEpoch = useRef(0);
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
   const [uninstallDialogTarget, setUninstallDialogTarget] = useState<Extension | null>(null);
@@ -690,6 +713,12 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
   const resetCustomIntegration = () => {
     customGeneration.current += 1;
+    // A fresh drawer gets a fresh toolchain verdict: the user may have
+    // installed the runtime since the last one.
+    runtimeChecksEpoch.current += 1;
+    runtimeChecksRef.current.clear();
+    runtimeChecksPending.current.clear();
+    setRuntimeChecks({});
     setCustomIntegrationLoading(false);
     setEditingCustomId(null);
     const fresh = { ...DEFAULT_CUSTOM_INTEGRATION, argsPrefix: [], versionArgs: [], permissions: [...DEFAULT_CUSTOM_INTEGRATION.permissions], platforms: [CURRENT_PLATFORM] as Array<"darwin" | "linux" | "windows"> };
@@ -722,11 +751,44 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     resetCustomIntegration();
   };
 
-  const scriptTemplate = (language: CustomIntegrationForm["scriptLanguage"]) => ({
-    js: "#!/usr/bin/env node\n\n// Floter provider script\n",
-    shell: "#!/bin/sh\n\n# Floter provider script\n",
-    powershell: "#!/usr/bin/env pwsh\n\n# Floter provider script\n",
-  }[language]);
+  /** Probe the local toolchain for one script language. Read-only and
+   *  non-blocking: a miss only annotates the form. In-flight probes are
+   *  deduplicated and finished ones cached in a ref, so re-selecting a
+   *  language — or saving while a probe is running — never fires a second
+   *  PATH scan. `null` renders as "checking"; the map is the authority and
+   *  `runtimeChecks` is its render mirror. */
+  const probeScriptRuntime = useCallback(async (language: ScriptLanguageId): Promise<ScriptRuntimeCheck> => {
+    const cached = runtimeChecksRef.current.get(language);
+    if (cached) return cached;
+    const pending = runtimeChecksPending.current.get(language);
+    if (pending) return pending;
+    const epoch = runtimeChecksEpoch.current;
+    setRuntimeChecks((current) => ({ ...current, [language]: null }));
+    const record = (result: ScriptRuntimeCheck) => {
+      // A drawer that closed and reopened in between must not inherit the
+      // previous session's verdict: the machine may have changed.
+      if (epoch !== runtimeChecksEpoch.current) return result;
+      runtimeChecksRef.current.set(language, result);
+      setRuntimeChecks((current) => ({ ...current, [language]: result }));
+      return result;
+    };
+    const request = invoke<ScriptRuntimeCheck>("extensions_script_runtime_check", { language })
+      .then(record)
+      // A probe that cannot run is not a verdict about the machine, but the
+      // line must stop spinning, so it is recorded as a miss.
+      .catch(() => record({ available: false, path: null, version: null, versionOutput: null, compiled: false, candidates: [] }))
+      .finally(() => runtimeChecksPending.current.delete(language));
+    runtimeChecksPending.current.set(language, request);
+    return request;
+  }, []);
+
+  // Probe whenever the drawer is open on a script integration. The effect keys
+  // on the language so switching the picker checks the newly chosen one; the
+  // cache above keeps a re-selection from probing twice.
+  useEffect(() => {
+    if (!showCustomIntegration || customIntegration.mode !== "script") return;
+    void probeScriptRuntime(customIntegration.scriptLanguage);
+  }, [showCustomIntegration, customIntegration.mode, customIntegration.scriptLanguage, probeScriptRuntime]);
 
   const connectedExtensions = useMemo(() => extensions.filter((extension) => extension.connected), [extensions]);
   const suggestedExtensions = useMemo(() => extensions.filter((extension) => !extension.connected), [extensions]);
@@ -1289,6 +1351,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
   const openCreateCustomIntegration = () => {
     if (busyRef.current || customLoadingRef.current) return;
+    runtimeChecksEpoch.current += 1;
+    runtimeChecksRef.current.clear();
+    runtimeChecksPending.current.clear();
+    setRuntimeChecks({});
     const draft: CustomIntegrationForm = {
       ...DEFAULT_CUSTOM_INTEGRATION,
       argsPrefix: [],
@@ -1313,6 +1379,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   const editCustomIntegration = async (extension: Extension) => {
     if (!extension.generatedCustom || busyRef.current || customLoadingRef.current) return;
     resetCustomIntegration();
+    runtimeChecksEpoch.current += 1;
+    runtimeChecksRef.current.clear();
+    runtimeChecksPending.current.clear();
+    setRuntimeChecks({});
     const generation = customGeneration.current;
     setCustomIntegrationLoading(true);
     setEditingCustomId(extension.id);
@@ -1422,6 +1492,18 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     event.preventDefault();
     if (busyRef.current || customLoadingRef.current) return;
     const generation = customGeneration.current;
+    // R9-1 · a missing toolchain does not block the save (a user may install
+    // the runtime and come back), but it warns once so the integration is not
+    // silently dead on arrival. A cached probe answers instantly; a pending
+    // one is awaited so the warning reflects the truth rather than a race.
+    if (customIntegration.mode === "script") {
+      const check = await probeScriptRuntime(customIntegration.scriptLanguage);
+      if (!check.available) {
+        onNotify("warning", t("settings.extensions.customScriptRuntimeSaveWarning", {
+          language: scriptLanguageLabel(customIntegration.scriptLanguage),
+        }));
+      }
+    }
     setBusy({ id: customIntegration.id, kind: editingCustomId ? "save" : "install" });
     setCustomIntegrationError(null);
     try {
@@ -1478,7 +1560,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     if (customContentRef.current) return;
     setCustomContentOperation("export");
     setCustomIntegrationError(null);
-    const extension = customIntegration.scriptLanguage === "shell" ? "sh" : customIntegration.scriptLanguage === "powershell" ? "ps1" : "js";
+    const extension = scriptExtension(customIntegration.scriptLanguage);
     try {
       const path = await invoke<string | null>("extensions_custom_export_script", { id: customIntegration.id, content: customIntegration.scriptContent, extension });
       if (path) showSuccess(t("settings.extensions.customScriptExported"));
@@ -2075,7 +2157,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         </div>
       )}
 
-      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} discardArmed={customDiscardArmed} onDismissDiscard={() => setCustomDiscardArmed(false)} onDiscard={discardCustomIntegration} toolResults={toolResults} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolCandidate} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} scriptTemplate={scriptTemplate} />
+      <CustomIntegrationDrawer open={showCustomIntegration} editingId={editingCustomId} loading={customIntegrationLoading} error={customIntegrationError} integration={customIntegration} busy={Boolean(busy)} contentOperation={customContentOperation} discardArmed={customDiscardArmed} onDismissDiscard={() => setCustomDiscardArmed(false)} onDiscard={discardCustomIntegration} toolResults={toolResults} toolSearching={toolSearching} toolSearchFailed={toolSearchFailed} toolHighlight={toolHighlight} toolResultsRef={toolResultsRef} dialogRef={customDialogRef} t={t} onClose={closeCustomIntegration} onSubmit={(event) => void createCustomIntegration(event)} onUpdate={updateCustomIntegration} onToolKeyDown={handleToolSearchKeyDown} onToolHighlight={setToolHighlight} onChooseTool={chooseToolCandidate} onCopy={copyCustomContent} onCopyPlan={() => void copyExecutionPlan()} onExportScript={() => void exportCustomScript()} runtimeCheck={runtimeChecks[customIntegration.scriptLanguage] ?? null} />
 
       {selected && (
         <div className="extension-drawer-backdrop" role="presentation" style={showCustomIntegration || pendingLocal || pendingToolSelection || pendingPermissionReview ? { display: "none" } : undefined} onMouseDown={closeDetails}>

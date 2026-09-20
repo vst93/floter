@@ -32,8 +32,9 @@ use commands::extensions::{
     extensions_export, extensions_health, extensions_import, extensions_install, extensions_launch,
     extensions_list, extensions_local_manifest_review, extensions_pick_local_manifest,
     extensions_pick_local_package, extensions_recommended_permissions, extensions_reconnect_system,
-    extensions_repair, extensions_reprobe, extensions_reprobe_commands, extensions_search_tools,
-    extensions_uninstall, extensions_uninstall_componentized,
+    extensions_repair, extensions_reprobe, extensions_reprobe_commands,
+    extensions_script_runtime_check, extensions_search_tools, extensions_uninstall,
+    extensions_uninstall_componentized,
 };
 use commands::system::system_power;
 use commands::terminal::{
@@ -1582,6 +1583,7 @@ pub fn run() {
             extensions_connect_tool,
             extensions_custom_get,
             extensions_custom_update,
+            extensions_script_runtime_check,
             extensions_search_tools,
             extensions_recommended_permissions,
             extensions_connect_recommended,

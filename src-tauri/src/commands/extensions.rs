@@ -13,7 +13,9 @@ use crate::extensions::lock::{
     ExtensionDistributionSource, ExtensionLockEntry, ExtensionProviderKind,
     ExtensionRuntimeOwnership, ExtensionStateKind, ExtensionsLock,
 };
-use crate::extensions::manifest::{ExtensionManifest, Permission, PlatformTarget, Runtime};
+use crate::extensions::manifest::{
+    ExtensionManifest, Permission, PlatformTarget, Runtime, ScriptLanguage,
+};
 use crate::extensions::probe_executor;
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
@@ -1434,6 +1436,108 @@ pub async fn extensions_custom_export_script(
     std::fs::write(&path, content)
         .map_err(|error| format!("Cannot write script export: {error}"))?;
     Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// Read-only probe of the local toolchain for one script language. Answers
+/// the language picker's inline status line: is the interpreter (or, for a
+/// compiled language, the build toolchain) reachable through `PATH`, where is
+/// it, and what does it report for `--version`?
+///
+/// This never blocks a save. A user who has not installed Python yet can still
+/// author the integration and install the runtime afterwards; the check exists
+/// so they learn that *before* the first run, not from an opaque failure.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScriptRuntimeCheck {
+    /// Whether the toolchain resolved. Mirrors `path.is_some()`; kept explicit
+    /// so the frontend reads one boolean rather than inferring from a nullable.
+    pub available: bool,
+    /// The resolved executable's absolute path, when found.
+    pub path: Option<String>,
+    /// The first semver-shaped token the toolchain printed, when it printed
+    /// one. `None` when the toolchain is present but its version output was
+    /// unparseable — which is not the same as "unavailable".
+    pub version: Option<String>,
+    /// The raw first line of the version output, for the status line's label.
+    pub version_output: Option<String>,
+    /// Whether this language is compiled (the artifact is built, not
+    /// interpreted). The UI uses it to explain what "available" means here.
+    pub compiled: bool,
+    /// The candidate names that were searched, in order — shown on a miss so
+    /// the message can name what was looked for instead of saying "not found".
+    pub candidates: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn extensions_script_runtime_check(
+    language: String,
+) -> Result<ScriptRuntimeCheck, String> {
+    let parsed = parse_script_language(&language)
+        .ok_or_else(|| format!("Unknown script language: {language}"))?;
+    let candidates = install::script_interpreter_names(parsed);
+    let resolved = install::find_script_interpreter(parsed).ok();
+    let (version, version_output) = match resolved.as_deref() {
+        Some(executable) => probe_script_toolchain_version(executable, parsed).await,
+        None => (None, None),
+    };
+    Ok(ScriptRuntimeCheck {
+        available: resolved.is_some(),
+        path: resolved.map(|path| path.to_string_lossy().into_owned()),
+        version,
+        version_output,
+        compiled: parsed.is_compiled(),
+        candidates,
+    })
+}
+
+/// Parse the wire spelling of a script language back into the enum. The
+/// command takes a plain string so an unknown value is a clean error instead
+/// of a deserialization panic inside the IPC layer.
+pub(crate) fn parse_script_language(value: &str) -> Option<ScriptLanguage> {
+    ScriptLanguage::ALL
+        .into_iter()
+        .find(|language| language.as_str() == value.trim().to_ascii_lowercase())
+}
+
+/// Run each of the language's version argvs in order and return the first
+/// non-empty output, as `(semver, raw first line)`. Best-effort by contract:
+/// a toolchain that answers nothing still counts as available.
+async fn probe_script_toolchain_version(
+    executable: &Path,
+    language: ScriptLanguage,
+) -> (Option<String>, Option<String>) {
+    for args in install::script_version_argvs(language) {
+        let mut command = tokio::process::Command::new(executable);
+        command
+            .args(&args)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true);
+        let Ok(output) = crate::extensions::process_cleanup::command_output(
+            command,
+            std::time::Duration::from_secs(5),
+        )
+        .await
+        else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        // Python 2 printed `--version` to stderr; some builds still do, and
+        // `php -v` writes a banner to stdout. Accept either stream.
+        let text = if stdout.is_empty() { stderr } else { stdout };
+        if text.is_empty() {
+            continue;
+        }
+        let first_line = text.lines().next().unwrap_or("").trim().to_string();
+        let version = install::semver_from_version_output(&text);
+        return (version, (!first_line.is_empty()).then_some(first_line));
+    }
+    (None, None)
 }
 
 /// Resolve a suggested tool id to its manifest, preferring shipped
@@ -3989,5 +4093,101 @@ mod tests {
         assert!(published.last_probe_at.is_none());
         assert!(published.command_count.is_none());
         assert!(published.previous_command_count.is_none());
+    }
+
+    // ── R9-1 · the read-only toolchain check ───────────────────────────────
+
+    /// The wire spelling round-trips, and an unknown value is a clean `None`
+    /// rather than a panic. This is the parse the command applies to its
+    /// string argument.
+    #[test]
+    fn the_runtime_check_parses_every_language_and_rejects_unknown_ones() {
+        for language in ScriptLanguage::ALL {
+            assert_eq!(parse_script_language(language.as_str()), Some(language));
+        }
+        assert_eq!(
+            parse_script_language("PYTHON"),
+            Some(ScriptLanguage::Python)
+        );
+        assert_eq!(
+            parse_script_language(" python "),
+            Some(ScriptLanguage::Python)
+        );
+        assert_eq!(parse_script_language("brainfuck"), None);
+        assert_eq!(parse_script_language(""), None);
+    }
+
+    /// A language with no toolchain on this machine reports `available: false`
+    /// with the names it searched — never a silent empty result. The name list
+    /// comes from the same table the executor scans, so the message can name
+    /// exactly what was looked for.
+    #[tokio::test]
+    async fn a_missing_toolchain_reports_the_names_it_searched() {
+        // `ruby` is not a build dependency of this project and is absent on the
+        // CI images this suite targets; when it *is* present the assertion
+        // below still holds because the check simply succeeds. Pick a language
+        // whose absence is the normal case on the test host, but assert the
+        // *shape* either way.
+        let check = extensions_script_runtime_check("ruby".to_string())
+            .await
+            .unwrap();
+        assert!(
+            !check.candidates.is_empty(),
+            "the searched names are reported"
+        );
+        assert_eq!(
+            check.available,
+            check.path.is_some(),
+            "availability is exactly \"a path was resolved\""
+        );
+        if !check.available {
+            assert!(check.version.is_none());
+            assert!(check.version_output.is_none());
+            assert_eq!(check.candidates, vec!["ruby".to_string()]);
+        }
+        assert!(!check.compiled);
+    }
+
+    /// The compiled flag mirrors the enum, so the UI can explain that Go/Rust
+    /// are built rather than interpreted.
+    #[tokio::test]
+    async fn the_runtime_check_reports_compiled_languages() {
+        let go = extensions_script_runtime_check("go".to_string())
+            .await
+            .unwrap();
+        assert!(go.compiled);
+        let js = extensions_script_runtime_check("js".to_string())
+            .await
+            .unwrap();
+        assert!(!js.compiled);
+    }
+
+    /// An unknown language is an error, not a default. A typo must not silently
+    /// check JavaScript and paint a green line for the wrong runtime.
+    #[tokio::test]
+    async fn the_runtime_check_rejects_an_unknown_language() {
+        let error = extensions_script_runtime_check("cobol".to_string())
+            .await
+            .unwrap_err();
+        assert!(error.contains("Unknown script language"), "{error}");
+    }
+
+    /// Node is a hard dependency of this repository, so `js` is available on
+    /// every machine that can run the suite. This is the positive case the
+    /// status line renders: a resolved path plus a parsed version.
+    #[tokio::test]
+    async fn an_available_toolchain_reports_a_path_and_a_version() {
+        let check = extensions_script_runtime_check("js".to_string())
+            .await
+            .unwrap();
+        assert!(check.available, "node is required to build this repository");
+        let path = check.path.expect("an available toolchain has a path");
+        assert!(std::path::Path::new(&path).is_file(), "{path}");
+        assert!(
+            check.version.is_some(),
+            "node answers --version with a semver: {:?}",
+            check.version_output
+        );
+        assert!(check.version_output.is_some());
     }
 }

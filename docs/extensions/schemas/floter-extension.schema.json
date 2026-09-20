@@ -715,7 +715,12 @@
           "enum": [
             "js",
             "shell",
-            "powershell"
+            "powershell",
+            "python",
+            "ruby",
+            "php",
+            "go",
+            "rust"
           ]
         },
         "path": {

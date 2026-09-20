@@ -1,7 +1,7 @@
 // Pure state helpers behind the app-level toast stack. Kept free of React and
 // DOM so the node test suite can exercise the queueing rules directly.
 
-export type ToastKind = "error" | "success";
+export type ToastKind = "error" | "success" | "warning";
 
 /**
  * The optional action a toast can carry.
@@ -32,9 +32,11 @@ export type AppToast = {
 export const MAX_TOASTS = 3;
 
 /** How long each toast stays before auto-dismissing. Errors linger because
- * they carry information the user may want to act on. */
+ * they carry information the user may want to act on; a warning sits between
+ * the two — it is advisory ("this will not run yet"), not a failure. */
 export const TOAST_DISMISS_MS: Record<ToastKind, number> = {
   error: 8000,
+  warning: 6000,
   success: 4000,
 };
 

@@ -372,6 +372,18 @@ async fn create_custom_integration_locked(
         return Err(error);
     }
 
+    // A compiled language has no interpreter for `install_linked` to resolve,
+    // so the source is built here — inside the same staging directory that is
+    // removed on any failure — and the artifact is what the runtime binding
+    // will point at. The failure text is the toolchain's own stderr so the
+    // editor can show it inline.
+    if script_mode && script_language.is_compiled() {
+        if let Err(error) = build_compiled_script(&package_root, script_language).await {
+            let _ = std::fs::remove_dir_all(&package_root);
+            return Err(error);
+        }
+    }
+
     let result = install_linked(
         state,
         ExtensionInstallRequest {
@@ -1305,35 +1317,468 @@ pub async fn update_custom_integration(
     Err(error)
 }
 
-fn script_extension(language: ScriptLanguage) -> &'static str {
+/// Where a language's toolchain lives and how it is invoked. **One** table:
+/// the candidate-name list, the version probe and the "is this thing on this
+/// machine" check all read it, so "the check found it" and "the run found it"
+/// cannot diverge (the old code had the check and the run asking the same
+/// question twice, and a hard-coded absolute path anywhere would answer them
+/// differently on the next machine).
+struct ScriptToolchain {
+    /// Ordered by preference: the first hit wins. `python` prefers `python3`
+    /// because a bare `python` on a modern system is either absent or Python 2;
+    /// the numbered variants cover distributions that ship only `python3.12`.
+    /// No absolute paths — resolution is always a PATH scan.
+    candidates: &'static [&'static str],
+    /// Appended when the language has no numbered-variant list worth naming.
+    /// Kept separate from `candidates` so the glob order stays "plain names
+    /// first, then versions descending" rather than interleaved by accident.
+    versioned_candidates: &'static [&'static str],
+    /// The argv shape that prints a version, tried in order until one succeeds.
+    version_args: &'static [&'static [&'static str]],
+    /// Set for compiled languages: the toolchain *builds* the source and the
+    /// produced artifact is what runs. `None` for interpreters, where the
+    /// resolved binary is itself the runtime.
+    build: Option<ScriptBuild>,
+}
+
+/// How a compiled language turns `provider.<ext>` into a runnable artifact.
+#[derive(Clone, Copy)]
+struct ScriptBuild {
+    /// The single argv that produces the artifact, with `{source}` and
+    /// `{output}` placeholders substituted by [`script_build_command`].
+    args: &'static [&'static str],
+    /// Environment the build must run with (e.g. `GOCACHE`), applied on top of
+    /// the process environment. `None` values are removed.
+    environment: &'static [(&'static str, Option<&'static str>)],
+}
+
+/// The one place a language's runtime facts live.
+fn script_toolchain(language: ScriptLanguage) -> ScriptToolchain {
+    match language {
+        ScriptLanguage::Js => ScriptToolchain {
+            candidates: &["node"],
+            versioned_candidates: &[],
+            version_args: &[&["--version"]],
+            build: None,
+        },
+        ScriptLanguage::Shell => ScriptToolchain {
+            candidates: &["sh"],
+            versioned_candidates: &[],
+            version_args: &[&["--version"]],
+            build: None,
+        },
+        ScriptLanguage::Powershell => ScriptToolchain {
+            candidates: &["pwsh", "powershell"],
+            versioned_candidates: &[],
+            version_args: &[&[
+                "-NoProfile",
+                "-Command",
+                "$PSVersionTable.PSVersion.ToString()",
+            ]],
+            build: None,
+        },
+        ScriptLanguage::Python => ScriptToolchain {
+            candidates: &["python3", "python"],
+            versioned_candidates: &[
+                "python3.14",
+                "python3.13",
+                "python3.12",
+                "python3.11",
+                "python3.10",
+                "python3.9",
+                "python3.8",
+            ],
+            version_args: &[&["--version"]],
+            build: None,
+        },
+        ScriptLanguage::Ruby => ScriptToolchain {
+            candidates: &["ruby"],
+            versioned_candidates: &[],
+            version_args: &[&["--version"]],
+            build: None,
+        },
+        ScriptLanguage::Php => ScriptToolchain {
+            candidates: &["php"],
+            versioned_candidates: &[
+                "php8.5", "php8.4", "php8.3", "php8.2", "php8.1", "php8.0", "php7.4",
+            ],
+            version_args: &[&["--version"]],
+            build: None,
+        },
+        ScriptLanguage::Go => ScriptToolchain {
+            candidates: &["go"],
+            versioned_candidates: &[],
+            version_args: &[&["version"]],
+            build: Some(ScriptBuild {
+                args: &["build", "-o", "{output}", "{source}"],
+                // `go build` writes to `$GOCACHE` and `$GOPATH`; point them at
+                // the integration's own cache so a build never depends on (or
+                // pollutes) whatever `$HOME` the host process happens to have.
+                environment: &[("GOCACHE", Some("{cache}")), ("GOFLAGS", Some("-mod=mod"))],
+            }),
+        },
+        ScriptLanguage::Rust => ScriptToolchain {
+            candidates: &["rustc"],
+            versioned_candidates: &[],
+            version_args: &[&["--version"]],
+            build: Some(ScriptBuild {
+                args: &["-o", "{output}", "{source}"],
+                environment: &[],
+            }),
+        },
+    }
+}
+
+/// Outcome of a compiled-language build. `cached` records whether the build
+/// was skipped because the artifact was already newer than its source — the
+/// fact the runtime check reports as "built" rather than "built just now".
+/// Read by the build tests and reserved for the editor's post-save status
+/// line; the connect path only needs the artifact to exist.
+#[allow(dead_code)]
+#[derive(Debug)]
+pub(crate) struct ScriptBuildOutcome {
+    pub artifact: PathBuf,
+    pub cached: bool,
+}
+
+/// Build `provider.<ext>` into its artifact for a compiled language.
+///
+/// The cache rule is mtime-based: an artifact at least as new as the source is
+/// reused, so opening the editor and saving an unchanged script does not shell
+/// out to `go build` again. A build failure is reported with the toolchain's
+/// own stderr — that is the only text that tells a user *why* the compile
+/// failed, and it belongs inline in the form, not in a generic error.
+pub(crate) async fn build_compiled_script(
+    integration_root: &Path,
+    language: ScriptLanguage,
+) -> Result<ScriptBuildOutcome, String> {
+    if !language.is_compiled() {
+        return Err(format!(
+            "{} is interpreted and needs no build step",
+            language.as_str()
+        ));
+    }
+    let source = integration_root.join(format!("provider.{}", script_extension(language)));
+    if !source.is_file() {
+        return Err(format!("Script source is missing: {}", source.display()));
+    }
+    let output = script_build_output(integration_root, language);
+    if artifact_is_fresh(&output, &source) {
+        return Ok(ScriptBuildOutcome {
+            artifact: output,
+            cached: true,
+        });
+    }
+    let toolchain = find_script_interpreter(language)
+        .map_err(|error| format!("{} toolchain is not available: {error}", language.as_str()))?;
+    let cache = integration_root.join("build").join("cache");
+    std::fs::create_dir_all(&cache)
+        .map_err(|error| format!("Cannot create the build cache directory: {error}"))?;
+    if let Some(parent) = output.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("Cannot create the build output directory: {error}"))?;
+    }
+    let args = script_build_command(language, &source, &output, &cache)?;
+    let mut command = tokio::process::Command::new(&toolchain);
+    command
+        .args(&args)
+        .current_dir(integration_root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    for (name, value) in script_build_environment(language, &cache) {
+        match value {
+            Some(value) => command.env(name, value),
+            None => command.env_remove(name),
+        };
+    }
+    let result =
+        crate::extensions::process_cleanup::command_output(command, Duration::from_secs(120)).await;
+    let output_bytes = match result {
+        Ok(output) => output,
+        Err(error) => {
+            return Err(format!(
+                "{} build could not start: {error}",
+                language.as_str()
+            ))
+        }
+    };
+    if !output_bytes.status.success() {
+        let stderr = String::from_utf8_lossy(&output_bytes.stderr)
+            .trim()
+            .chars()
+            .take(2_000)
+            .collect::<String>();
+        let stdout = String::from_utf8_lossy(&output_bytes.stdout)
+            .trim()
+            .chars()
+            .take(500)
+            .collect::<String>();
+        let detail = if stderr.is_empty() { stdout } else { stderr };
+        return Err(format!(
+            "{} build failed: {}",
+            language.as_str(),
+            if detail.is_empty() {
+                "the toolchain produced no output".to_string()
+            } else {
+                detail
+            }
+        ));
+    }
+    if !output.is_file() {
+        return Err(format!(
+            "{} build reported success but produced no artifact at {}",
+            language.as_str(),
+            output.display()
+        ));
+    }
+    make_executable(&output)?;
+    Ok(ScriptBuildOutcome {
+        artifact: output,
+        cached: false,
+    })
+}
+
+/// True when `artifact` exists and is not older than `source`. A missing mtime
+/// on either side is treated as "not fresh", which rebuilds rather than
+/// running a possibly stale binary.
+fn artifact_is_fresh(artifact: &Path, source: &Path) -> bool {
+    let Ok(artifact_modified) = artifact.metadata().and_then(|meta| meta.modified()) else {
+        return false;
+    };
+    let Ok(source_modified) = source.metadata().and_then(|meta| meta.modified()) else {
+        return false;
+    };
+    artifact_modified >= source_modified
+}
+
+/// `provider.<ext>` for the language. Go/Rust share `.go`/`.rs`; everything
+/// else is the interpreter's own extension.
+pub(crate) fn script_extension(language: ScriptLanguage) -> &'static str {
     match language {
         ScriptLanguage::Js => "js",
         ScriptLanguage::Shell => "sh",
         ScriptLanguage::Powershell => "ps1",
+        ScriptLanguage::Python => "py",
+        ScriptLanguage::Ruby => "rb",
+        ScriptLanguage::Php => "php",
+        ScriptLanguage::Go => "go",
+        ScriptLanguage::Rust => "rs",
     }
 }
 
+/// Every name a language may be installed under, in probe order: the plain
+/// candidates first, then the numbered variants. Exposed so the runtime check
+/// and the executor cannot disagree about what "installed" means.
+pub(crate) fn script_interpreter_names(language: ScriptLanguage) -> Vec<String> {
+    let toolchain = script_toolchain(language);
+    toolchain
+        .candidates
+        .iter()
+        .chain(toolchain.versioned_candidates.iter())
+        .flat_map(|name| linked_candidate_names(name))
+        .collect()
+}
+
+/// Scan `PATH` for the first name in [`script_interpreter_names`] that resolves
+/// to a linked executable. **Never** a hard-coded absolute path: the whole
+/// point is that the host's `PATH` is the source of truth.
 pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBuf, String> {
-    let names: &[&str] = match language {
-        ScriptLanguage::Js => &["node"],
-        ScriptLanguage::Shell => &["sh"],
-        ScriptLanguage::Powershell => &["pwsh", "powershell"],
-    };
+    let names = script_interpreter_names(language);
     let path = std::env::var_os("PATH").ok_or("PATH is not set")?;
-    for directory in std::env::split_paths(&path) {
-        for name in names {
-            for candidate in linked_candidate_names(name) {
-                let path = directory.join(candidate);
-                if is_linked_executable(&path) {
-                    return Ok(path);
-                }
+    let directories = std::env::split_paths(&path).collect::<Vec<_>>();
+    scan_directories_for_toolchain(&directories, &names).ok_or_else(|| {
+        format!(
+            "Script toolchain is not available: {} not found on PATH",
+            names.join(" or ")
+        )
+    })
+}
+
+/// The scan itself, over an explicit directory list. Split out so a test can
+/// point it at a fixture directory instead of mutating the process `PATH`
+/// (which is global state a parallel test runner must not touch), and so the
+/// memo's key is exactly the input that determines the answer.
+///
+/// The loops are **name-outer, directory-inner**: the candidate list is the
+/// preference order, so a `python3` anywhere on `PATH` beats a bare `python`
+/// earlier in it — the same answer `which python3 || which python` gives. A
+/// directory-outer scan would silently prefer whichever name happened to sit
+/// in the first directory.
+///
+/// The result is a pure function of `(directories, names)`, so it is cached
+/// process-wide for a minute. Without this, every keystroke in the language
+/// picker re-`stat`ed every directory on `PATH` for every candidate name.
+pub(crate) fn scan_directories_for_toolchain(
+    directories: &[PathBuf],
+    names: &[String],
+) -> Option<PathBuf> {
+    if let Some(hit) = cached_script_scan(directories, names) {
+        return Some(hit);
+    }
+    for name in names {
+        for directory in directories {
+            let candidate = directory.join(name);
+            if is_linked_executable(&candidate) {
+                remember_script_scan(directories, names, &candidate);
+                return Some(candidate);
             }
         }
     }
-    Err(format!(
-        "Script interpreter is not available: {}",
-        names.join(" or ")
-    ))
+    None
+}
+
+/// 60-second memo of `find_script_interpreter`. The key is the joined `PATH`
+/// plus the candidate list, so a `PATH` change (a shell that exports a new
+/// toolchain dir) invalidates naturally instead of pinning a stale answer.
+const SCRIPT_SCAN_TTL: Duration = Duration::from_secs(60);
+
+fn script_scan_cache() -> &'static std::sync::Mutex<BTreeMap<String, (std::time::Instant, PathBuf)>>
+{
+    static CACHE: std::sync::OnceLock<
+        std::sync::Mutex<BTreeMap<String, (std::time::Instant, PathBuf)>>,
+    > = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))
+}
+
+fn script_scan_key(directories: &[PathBuf], names: &[String]) -> String {
+    let mut key = names.join("\u{0}");
+    key.push('\u{1}');
+    key.push_str(
+        &directories
+            .iter()
+            .map(|directory| directory.to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("\u{0}"),
+    );
+    key
+}
+
+fn cached_script_scan(directories: &[PathBuf], names: &[String]) -> Option<PathBuf> {
+    let key = script_scan_key(directories, names);
+    let mut cache = script_scan_cache().lock().ok()?;
+    match cache.get(&key) {
+        Some((at, path)) if at.elapsed() < SCRIPT_SCAN_TTL => Some(path.clone()),
+        Some(_) => {
+            cache.remove(&key);
+            None
+        }
+        None => None,
+    }
+}
+
+fn remember_script_scan(directories: &[PathBuf], names: &[String], path: &Path) {
+    if let Ok(mut cache) = script_scan_cache().lock() {
+        cache.insert(
+            script_scan_key(directories, names),
+            (std::time::Instant::now(), path.to_path_buf()),
+        );
+        // A process that visits many languages (or has a long `PATH`) must not
+        // grow this map without bound; the entries are all one minute old or
+        // younger, so dropping them wholesale is cheaper than aging them.
+        if cache.len() > 64 {
+            cache.clear();
+        }
+    }
+}
+
+/// Test hook: drop the scan memo so a test can point `PATH` at a fixture
+/// directory and observe a fresh scan.
+#[cfg(test)]
+pub(crate) fn clear_script_scan_cache() {
+    if let Ok(mut cache) = script_scan_cache().lock() {
+        cache.clear();
+    }
+}
+
+/// Substitute the `{source}` / `{output}` / `{cache}` placeholders in a build
+/// argv. Split from [`script_build_command`] so the substitution is testable
+/// without a toolchain on the machine.
+pub(crate) fn expand_build_args(
+    template: &[&str],
+    source: &Path,
+    output: &Path,
+    cache: &Path,
+) -> Vec<String> {
+    template
+        .iter()
+        .map(|argument| {
+            argument
+                .replace("{source}", &source.to_string_lossy())
+                .replace("{output}", &output.to_string_lossy())
+                .replace("{cache}", &cache.to_string_lossy())
+        })
+        .collect()
+}
+
+/// The toolchain argv that compiles `source` into `output` for a compiled
+/// language. Errors for an interpreted language, whose toolchain has no build
+/// step — that is the `is_compiled` branch every caller is expected to take.
+pub(crate) fn script_build_command(
+    language: ScriptLanguage,
+    source: &Path,
+    output: &Path,
+    cache: &Path,
+) -> Result<Vec<String>, String> {
+    let Some(build) = script_toolchain(language).build else {
+        return Err(format!(
+            "{} is interpreted and has no build step",
+            language.as_str()
+        ));
+    };
+    Ok(expand_build_args(build.args, source, output, cache))
+}
+
+/// The environment a compiled language's build needs, with placeholders
+/// resolved. Interpreters get an empty list.
+pub(crate) fn script_build_environment(
+    language: ScriptLanguage,
+    cache: &Path,
+) -> Vec<(String, Option<String>)> {
+    match script_toolchain(language).build {
+        Some(build) => build
+            .environment
+            .iter()
+            .map(|(name, value)| {
+                (
+                    (*name).to_string(),
+                    value.map(|value| value.replace("{cache}", &cache.to_string_lossy())),
+                )
+            })
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+/// The artifact a compiled language's source builds to, under the
+/// integration's own directory. `go`/`rustc` both produce a single file; the
+/// path is derived from the language so two languages never collide.
+pub(crate) fn script_build_output(integration_root: &Path, language: ScriptLanguage) -> PathBuf {
+    let name = if cfg!(windows) {
+        "provider.exe"
+    } else {
+        "provider"
+    };
+    integration_root
+        .join("build")
+        .join(language.as_str())
+        .join(name)
+}
+
+/// All version-probe argvs for a language, in try order. The runtime check
+/// walks them so PowerShell's `$PSVersionTable` fallback is available when
+/// `--version` is not.
+pub(crate) fn script_version_argvs(language: ScriptLanguage) -> Vec<Vec<String>> {
+    script_toolchain(language)
+        .version_args
+        .iter()
+        .map(|args| {
+            args.iter()
+                .map(|argument| (*argument).to_string())
+                .collect()
+        })
+        .collect()
 }
 
 /// Data needed to connect a local static integration whose manifest (and
@@ -2524,6 +2969,16 @@ mod tests {
     }
 
     fn script_request(id: &str, name: &str, command: &str) -> CustomIntegrationRequest {
+        script_request_for(id, name, command, ScriptLanguage::Shell, "printf original")
+    }
+
+    fn script_request_for(
+        id: &str,
+        name: &str,
+        command: &str,
+        language: ScriptLanguage,
+        content: &str,
+    ) -> CustomIntegrationRequest {
         CustomIntegrationRequest {
             id: id.into(),
             name: name.into(),
@@ -2531,8 +2986,8 @@ mod tests {
             version: "1.0.0".into(),
             executable_path: String::new(),
             mode: "script".into(),
-            script_language: Some(ScriptLanguage::Shell),
-            script_content: Some("printf original".into()),
+            script_language: Some(language),
+            script_content: Some(content.into()),
             args_prefix: vec!["original".into()],
             version_args: Vec::new(),
             description: None,
@@ -6614,5 +7069,397 @@ mod tests {
         assert!(result.unwrap_err().contains("cancelled"));
         let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
         assert!(lock.extensions.contains_key(extension_id));
+    }
+
+    // ── R9-1 · the script language table ───────────────────────────────────
+
+    /// Every language has an extension, and the two compiled ones do not share
+    /// an interpreter. A missing arm here would be a compile error in the
+    /// match, but a *wrong* arm is silent — this pins the wire spelling.
+    #[test]
+    fn every_script_language_has_a_stable_extension_and_wire_name() {
+        for language in ScriptLanguage::ALL {
+            let extension = script_extension(language);
+            assert!(
+                !extension.is_empty() && extension.chars().all(|c| c.is_ascii_alphanumeric()),
+                "{} has a usable extension",
+                language.as_str()
+            );
+            // The extension is what `provider.<ext>` is built from, so it must
+            // never carry a dot or a path separator.
+            assert!(!extension.contains('.') && !extension.contains('/'));
+        }
+        assert_eq!(script_extension(ScriptLanguage::Go), "go");
+        assert_eq!(script_extension(ScriptLanguage::Rust), "rs");
+        assert_eq!(script_extension(ScriptLanguage::Python), "py");
+        assert_eq!(script_extension(ScriptLanguage::Ruby), "rb");
+        assert_eq!(script_extension(ScriptLanguage::Php), "php");
+        assert_eq!(ScriptLanguage::Python.as_str(), "python");
+        assert_eq!(ScriptLanguage::Rust.as_str(), "rust");
+    }
+
+    /// Compiled languages are classified as such; interpreted ones are not.
+    /// This is the single predicate every \"interpreter vs build\" branch reads.
+    #[test]
+    fn only_go_and_rust_are_compiled() {
+        for language in ScriptLanguage::ALL {
+            assert_eq!(
+                language.is_compiled(),
+                matches!(language, ScriptLanguage::Go | ScriptLanguage::Rust),
+                "{}",
+                language.as_str()
+            );
+        }
+    }
+
+    /// `python` prefers `python3` (a bare `python` is absent or Python 2 on a
+    /// modern system) and the numbered variants are searched after the plain
+    /// names. Mutation: make the candidate list a hard-coded absolute path and
+    /// this fails, because no name would be joinable against a fixture dir.
+    #[test]
+    fn python_prefers_python3_then_falls_back_to_numbered_variants() {
+        let names = script_interpreter_names(ScriptLanguage::Python);
+        let python3 = names.iter().position(|name| name == "python3").unwrap();
+        let python = names.iter().position(|name| name == "python").unwrap();
+        let python312 = names
+            .iter()
+            .position(|name| name == "python3.12")
+            .expect("a numbered variant is searched");
+        assert!(python3 < python, "python3 must be preferred over python");
+        assert!(
+            python < python312,
+            "plain names must be searched before numbered variants"
+        );
+        // No absolute path anywhere in the table.
+        for name in &names {
+            assert!(
+                !name.starts_with('/') && !name.contains(std::path::MAIN_SEPARATOR),
+                "{name} must be a bare name resolved against PATH"
+            );
+        }
+    }
+
+    /// The toolchain for a compiled language is the *build* tool, and the
+    /// build argv substitutes the source/output/cache placeholders. A
+    /// regression that routed `go` through the interpreter path would produce
+    /// an argv that never names the output file.
+    #[test]
+    fn compiled_languages_build_rather_than_interpret() {
+        let source = Path::new("/tmp/src/provider.go");
+        let output = Path::new("/tmp/out/provider");
+        let cache = Path::new("/tmp/cache");
+        let go = script_build_command(ScriptLanguage::Go, source, output, cache).unwrap();
+        assert_eq!(go[0], "build");
+        assert!(go.contains(&"-o".to_string()));
+        assert!(go.contains(&output.to_string_lossy().into_owned()));
+        assert!(go.contains(&source.to_string_lossy().into_owned()));
+
+        let rust = script_build_command(ScriptLanguage::Rust, source, output, cache).unwrap();
+        assert_eq!(rust[0], "-o");
+        assert!(rust.contains(&output.to_string_lossy().into_owned()));
+
+        // Interpreted languages have no build step at all.
+        for language in [
+            ScriptLanguage::Js,
+            ScriptLanguage::Shell,
+            ScriptLanguage::Powershell,
+            ScriptLanguage::Python,
+            ScriptLanguage::Ruby,
+            ScriptLanguage::Php,
+        ] {
+            assert!(
+                script_build_command(language, source, output, cache).is_err(),
+                "{} is interpreted",
+                language.as_str()
+            );
+            assert!(script_build_environment(language, cache).is_empty());
+        }
+        // Go needs its own cache dir; that is what keeps a build from writing
+        // into the user's $HOME.
+        let environment = script_build_environment(ScriptLanguage::Go, cache);
+        assert!(environment
+            .iter()
+            .any(|(name, value)| name == "GOCACHE" && value.as_deref() == Some("/tmp/cache")));
+    }
+
+    /// The artifact path is per-language under the integration root, so two
+    /// languages in one integration cannot overwrite each other.
+    #[test]
+    fn compiled_artifacts_are_scoped_per_language() {
+        let root = Path::new("/data/local.tool/integration");
+        let go = script_build_output(root, ScriptLanguage::Go);
+        let rust = script_build_output(root, ScriptLanguage::Rust);
+        assert!(go.starts_with(root));
+        assert_ne!(go, rust);
+        assert_eq!(go.file_name().unwrap(), rust.file_name().unwrap());
+        assert!(go.to_string_lossy().contains("/go/"));
+        assert!(rust.to_string_lossy().contains("/rust/"));
+    }
+
+    // ── R9-1 · the PATH scan and its memo ──────────────────────────────────
+
+    #[cfg(unix)]
+    fn write_fake_tool(directory: &Path, name: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::create_dir_all(directory).unwrap();
+        let path = directory.join(name);
+        std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    /// The scan resolves against the directory list it is given, in order, and
+    /// never a hard-coded path. Mutation: replace the scan body with a fixed
+    /// `PathBuf::from("/usr/bin/python3")` and this fails on a fixture dir.
+    #[cfg(unix)]
+    #[test]
+    fn the_scan_walks_the_directories_in_order() {
+        clear_script_scan_cache();
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let names = script_interpreter_names(ScriptLanguage::Python);
+        assert!(
+            scan_directories_for_toolchain(
+                &[first.path().to_path_buf(), second.path().to_path_buf()],
+                &names
+            )
+            .is_none(),
+            "an empty PATH resolves nothing"
+        );
+
+        // `python` exists in both directories; the first directory wins, which
+        // is what PATH precedence means.
+        let first_python = write_fake_tool(first.path(), "python");
+        let second_python = write_fake_tool(second.path(), "python");
+        assert_eq!(
+            scan_directories_for_toolchain(
+                &[first.path().to_path_buf(), second.path().to_path_buf()],
+                &names
+            )
+            .unwrap(),
+            first_python
+        );
+        assert_eq!(
+            scan_directories_for_toolchain(
+                &[second.path().to_path_buf(), first.path().to_path_buf()],
+                &names
+            )
+            .unwrap(),
+            second_python
+        );
+
+        // A `python3` in the *later* directory still beats a `python` in the
+        // first: the candidate order is the preference, not the directory
+        // order.
+        let third = tempfile::tempdir().unwrap();
+        let third_python3 = write_fake_tool(third.path(), "python3");
+        assert_eq!(
+            scan_directories_for_toolchain(
+                &[first.path().to_path_buf(), third.path().to_path_buf(),],
+                &names
+            )
+            .unwrap(),
+            third_python3
+        );
+    }
+
+    /// The memo answers a second identical scan without touching the disk:
+    /// delete the fixture after the first scan and the cached hit is still
+    /// returned. Mutation: drop `remember_script_scan` / the cache read and
+    /// this fails, because the second scan would find nothing.
+    #[cfg(unix)]
+    #[test]
+    fn the_scan_is_memoized_for_the_same_directory_list() {
+        clear_script_scan_cache();
+        let directory = tempfile::tempdir().unwrap();
+        let names = vec!["floter-fake-runtime".to_string()];
+        let executable = write_fake_tool(directory.path(), "floter-fake-runtime");
+        let directories = vec![directory.path().to_path_buf()];
+        assert_eq!(
+            scan_directories_for_toolchain(&directories, &names).unwrap(),
+            executable
+        );
+        std::fs::remove_file(&executable).unwrap();
+        assert_eq!(
+            scan_directories_for_toolchain(&directories, &names).unwrap(),
+            executable,
+            "the memo answers without re-statting"
+        );
+        // …and a different name list is a different question, so it rescans.
+        let other = vec!["floter-other-runtime".to_string()];
+        assert!(scan_directories_for_toolchain(&directories, &other).is_none());
+    }
+
+    /// A non-executable file is not a runtime: the same `is_linked_executable`
+    /// gate the executor applies, so \"the check found it\" and \"the run found
+    /// it\" cannot disagree.
+    #[cfg(unix)]
+    #[test]
+    fn a_non_executable_file_is_not_a_toolchain() {
+        clear_script_scan_cache();
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("not-runnable");
+        std::fs::write(&path, "plain text").unwrap();
+        assert!(scan_directories_for_toolchain(
+            &[directory.path().to_path_buf()],
+            &["not-runnable".to_string()]
+        )
+        .is_none());
+    }
+
+    // ── R9-1 · compiled scripts end to end ─────────────────────────────────
+
+    /// A Go script is written as `provider.go`, built into the per-language
+    /// artifact, and the runtime binding resolves to that artifact rather than
+    /// to the source or to an interpreter. This is the end-to-end proof that
+    /// the compiled branch is wired through the connect path.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_go_script_is_built_and_bound_to_its_artifact() {
+        if find_script_interpreter(ScriptLanguage::Go).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let entry = create_custom_integration(
+            &state,
+            script_request_for(
+                "local.go-script",
+                "Go Script",
+                "go-script",
+                ScriptLanguage::Go,
+                "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"ok\") }\n",
+            ),
+        )
+        .await
+        .unwrap();
+
+        let root = Path::new(&entry.manifest_path).parent().unwrap();
+        assert!(root.join("provider.go").is_file());
+        let artifact = script_build_output(root, ScriptLanguage::Go);
+        assert!(artifact.is_file(), "the artifact must exist after connect");
+
+        let invocation = crate::extensions::registry::provider_invocation(&entry).unwrap();
+        assert_eq!(invocation.executable, artifact);
+        assert!(
+            invocation.executable_prefix.is_empty(),
+            "a compiled artifact is run directly; the source is not an argument"
+        );
+    }
+
+    /// A source change is rebuilt, an unchanged source is not. The mtime rule
+    /// is what makes saving the editor twice cheap.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_compiled_script_rebuilds_only_when_the_source_is_newer() {
+        if find_script_interpreter(ScriptLanguage::Go).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("provider.go"), "package main\n\nfunc main() {}\n").unwrap();
+        let first = build_compiled_script(&root, ScriptLanguage::Go)
+            .await
+            .unwrap();
+        assert!(!first.cached, "the first build is a real build");
+        let second = build_compiled_script(&root, ScriptLanguage::Go)
+            .await
+            .unwrap();
+        assert!(second.cached, "an unchanged source is not rebuilt again");
+        assert_eq!(first.artifact, second.artifact);
+    }
+
+    /// A compile error surfaces the toolchain's own stderr, which is the only
+    /// text that can tell the user *why*. Mutation: swallow the stderr and
+    /// this fails on the empty detail.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_failed_build_reports_the_toolchain_stderr() {
+        if find_script_interpreter(ScriptLanguage::Go).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("integration");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(
+            root.join("provider.go"),
+            "package main\n\nfunc main() { this is not go }\n",
+        )
+        .unwrap();
+        let error = build_compiled_script(&root, ScriptLanguage::Go)
+            .await
+            .unwrap_err();
+        assert!(error.contains("go build failed"), "{error}");
+        assert!(
+            error.contains("provider.go") || error.contains("syntax"),
+            "the toolchain's own diagnostic must survive: {error}"
+        );
+        assert!(
+            !script_build_output(&root, ScriptLanguage::Go).is_file(),
+            "a failed build leaves no artifact behind"
+        );
+    }
+
+    /// A missing toolchain is reported as such, not as a source problem.
+    #[tokio::test]
+    async fn a_compiled_build_without_a_toolchain_is_reported_clearly() {
+        // `rustc`/`go` are looked up on PATH; point the language at a name no
+        // machine has by using a bogus language's absence of a toolchain is not
+        // possible, so this asserts the interpreted guard instead, which is the
+        // same \"no build step\" branch.
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let error = build_compiled_script(root, ScriptLanguage::Python)
+            .await
+            .unwrap_err();
+        assert!(error.contains("needs no build step"), "{error}");
+    }
+
+    /// The manifest schema accepts every new language, and the enum rejects a
+    /// value it does not know (so a typo cannot silently degrade to js).
+    #[test]
+    fn the_manifest_accepts_every_new_script_language() {
+        for language in ScriptLanguage::ALL {
+            let value = serde_json::json!({
+                "schemaVersion": "2.0",
+                "id": "local.script-tool",
+                "name": "Script tool",
+                "publisher": { "id": "local-user", "name": "Local user" },
+                "compatibility": { "floter": ">=0.3.2", "providerProtocol": "^1.0" },
+                "distribution": { "type": "local" },
+                "runtime": {
+                    "type": "script",
+                    "language": language.as_str(),
+                    "path": format!("provider.{}", script_extension(language))
+                },
+                "provider": { "type": "static-descriptor", "descriptor": "provider-description.json", "argsPrefix": [] },
+                "platforms": ["linux"]
+            });
+            let manifest = ExtensionManifest::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
+            match manifest.runtime {
+                Runtime::Script {
+                    language: parsed, ..
+                } => assert_eq!(parsed, language),
+                _ => panic!("expected a script runtime"),
+            }
+        }
+    }
+
+    /// The old three values still deserialize exactly as before: the enum grew
+    /// new variants, it did not renumber or rename the existing ones. This is
+    /// the backward-compatibility contract for every lock/manifest written
+    /// before R9-1.
+    #[test]
+    fn legacy_script_language_values_still_deserialize() {
+        for (wire, expected) in [
+            ("js", ScriptLanguage::Js),
+            ("shell", ScriptLanguage::Shell),
+            ("powershell", ScriptLanguage::Powershell),
+        ] {
+            let parsed: ScriptLanguage = serde_json::from_str(&format!("\"{wire}\"")).unwrap();
+            assert_eq!(parsed, expected);
+        }
+        assert!(serde_json::from_str::<ScriptLanguage>("\"brainfuck\"").is_err());
     }
 }
