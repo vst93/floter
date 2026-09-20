@@ -85,9 +85,9 @@ test("the panel and the drawer both read the shared table", async () => {
   assert.match(drawer, /SCRIPT_LANGUAGES\.map\(/);
 });
 
-// ── 2 · the ID is derived, not authored ───────────────────────────────────
+// ── 2 · the ID is minted by the backend, never derived ────────────────────
 
-test("the ID is a derived caption, not a form field", async () => {
+test("the ID is a read-only caption on edit, not a form field", async () => {
   const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
   // Mutation: put the `<input … value={integration.id} …>` back and this fails
   // — the ID would be a first-class field the user is asked to author again.
@@ -98,23 +98,31 @@ test("the ID is a derived caption, not a form field", async () => {
   assert.match(
     drawer,
     /extension-custom-form__derived/,
-    "the ID is rendered as the derived caption",
+    "the ID is rendered as a caption",
   );
-  // The caption carries the value and, on create, says it was generated.
+  // The caption carries the value and is shown only when editing.
   assert.match(drawer, /<code>\{integration\.id\}<\/code>/);
-  assert.match(drawer, /customIdDerived/);
-  // The command id remains the only thing the derivation reads.
+  assert.match(
+    drawer,
+    /\{editingId && <p className="extension-custom-form__derived"/,
+    "the caption is edit-only: on create there is no id yet",
+  );
+  // The command id is a separate, editable field.
   assert.match(drawer, /customCommand/);
 });
 
-test("the derivation still runs on create and is frozen on edit", async () => {
+test("the frontend never derives an id; the backend mints it", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
-  // The name → slug → `local.{slug}` derivation is unchanged…
-  assert.match(panel, /`local\.\$\{slug\}`/, "the id is still derived from the slug");
-  // …and the drawer shows the value read-only on edit (the backend refuses a
-  // changed id: `Custom integration ID cannot be changed after creation`).
-  const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
-  assert.match(drawer, /\{!editingId && <em>/, "the \"generated\" note is create-only");
+  // Mutation: re-introduce the name → slug → `local.{slug}` derivation and
+  // this fails — the id would track the command instead of being a stable
+  // identity minted once at creation.
+  assert.ok(
+    !/local\.\$\{/.test(panel),
+    "no frontend id derivation may survive",
+  );
+  // The create payload sends the empty placeholder, and the edit payload is
+  // addressed by the entry's own id (the body id is ignored by the backend).
+  assert.match(panel, /id: editingCustomId \?\? ""/, "the request id is backend-owned");
 });
 
 // ── 3 · the inline toolchain status ───────────────────────────────────────
@@ -210,7 +218,9 @@ test("the probe is cached per language and reset per drawer session", async () =
 test("a missing toolchain warns once on save but never blocks it", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const body = panel.slice(panel.indexOf("const createCustomIntegration = async"));
-  const upToBusy = body.slice(0, body.indexOf("setBusy({ id: customIntegration.id"));
+  const busyMarker = "setBusy({ id: editingCustomId ?? customIntegration.command";
+  assert.notEqual(body.indexOf(busyMarker), -1, "the busy marker must exist");
+  const upToBusy = body.slice(0, body.indexOf(busyMarker));
   assert.match(upToBusy, /probeScriptRuntime\(customIntegration\.scriptLanguage\)/);
   assert.match(upToBusy, /onNotify\("warning"/);
   assert.ok(
@@ -233,7 +243,6 @@ test("the new strings exist in both dictionaries", async () => {
   const en = createTranslator("en");
   const zh = createTranslator("zh");
   for (const key of [
-    "settings.extensions.customIdDerived",
     "settings.extensions.customScriptRuntimeChecking",
     "settings.extensions.customScriptRuntimeMissing",
     "settings.extensions.customScriptRuntimeSaveWarning",

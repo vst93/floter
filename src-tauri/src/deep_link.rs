@@ -2262,7 +2262,15 @@ mod tests {
         );
 
         let entry = resolved.bound.expect("a curated tool binds");
-        assert_eq!(entry.id, "local.git");
+        // R9-3 · the identity is minted at creation, not derived from the
+        // registered command. The *command* still tracks the tool. Shape:
+        // `^local\.[0-9a-f]{8,}$`.
+        let bound_id = entry.id.clone();
+        let suffix = bound_id.strip_prefix("local.").unwrap_or("");
+        assert!(
+            suffix.len() >= 8 && suffix.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "the minted id is `local.<8+ hex>`: {bound_id}"
+        );
         assert_eq!(
             entry.approved_permissions,
             crate::extensions::install::tool_binding_permissions()
@@ -2284,10 +2292,10 @@ mod tests {
         let stored = crate::extensions::ToolLock::load(&fixture.lock_path())
             .expect("the lock is readable")
             .tools
-            .get("local.git")
+            .get(&bound_id)
             .cloned()
             .expect("the entry is in the lock");
-        assert_eq!(stored.tool, "local.git");
+        assert_eq!(stored.tool, bound_id);
         assert_eq!(
             stored.locator.executable_path().map(Path::to_path_buf),
             Some(fixture.executable.clone())
@@ -2312,14 +2320,18 @@ mod tests {
         );
 
         let entry = resolved.bound.expect("--yes binds");
-        assert_eq!(entry.id, "local.my-own-tool");
+        let bound_id = entry.id.clone();
+        assert!(
+            bound_id.starts_with("local.") && bound_id != "local.my-own-tool",
+            "the id is minted, not derived from the command: {bound_id}"
+        );
         assert!(fixture.repository_path().exists());
         tauri::async_runtime::block_on(
             crate::extensions::catalog::load_provider_commands_uncached(&fixture.state),
         )
         .expect("the catalog load succeeds");
         let lock = crate::extensions::ToolLock::load(&fixture.lock_path()).expect("the lock");
-        assert!(lock.tools.contains_key("local.my-own-tool"));
+        assert!(lock.tools.contains_key(&bound_id));
     }
 
     /// A **link** for the very same curated name still stops at the offer: the

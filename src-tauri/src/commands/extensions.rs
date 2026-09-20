@@ -650,6 +650,11 @@ impl ExtensionListItem {
             .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_default();
         let entry = ExtensionLockEntry {
+            // A synthetic row key for the discovery suggestion list — not an
+            // installed identity and never persisted. It deliberately carries a
+            // `:` that `validate_id` rejects, so it cannot be mistaken for (or
+            // reused as) an extension id. Real ids are minted only by
+            // `install::create_custom_integration` (R9-3).
             id: format!("local.discovered:{}", candidate.name),
             name: candidate.name.clone(),
             publisher_id: "local-user".to_string(),
@@ -2358,6 +2363,25 @@ mod tests {
     /// this guard, never a `--test-threads=1` run parameter.
     static DRIFT_GATE_TEST: Mutex<()> = Mutex::new(());
 
+    /// R9-3 · the discovery suggestion row's key is *not* an extension id. It
+    /// exists only to give an uninstalled suggestion a React key; a real id is
+    /// minted by `install::create_custom_integration`. The `:` in the key makes
+    /// it fail `validate_id`, so it can never be persisted as (or mistaken for)
+    /// an installed identity.
+    #[test]
+    fn a_discovery_suggestion_key_is_not_a_valid_extension_id() {
+        use crate::extensions::inventory::executable_candidate;
+        use crate::extensions::lock::validate_id;
+
+        let candidate = executable_candidate(Path::new("/usr/bin/true"), "true");
+        let row = ExtensionListItem::suggested_discovered(&candidate);
+        assert!(row.entry.id.starts_with("local.discovered:"));
+        assert!(
+            validate_id(&row.entry.id).is_err(),
+            "the synthetic row key must never validate as an extension id"
+        );
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn writer_swap_enable_disable_after_migration() {
@@ -2375,8 +2399,9 @@ mod tests {
         crate::extensions::repository::migrate_to_repository(&state.paths).unwrap();
         let archive = state.paths.root.join("extensions.lock.json.migrated");
         let legacy_bytes = std::fs::read(&archive).unwrap();
-        let entry = install::create_custom_integration(
+        let entry = install::create_custom_integration_for_test(
             &state,
+            "local.enable-writer",
             install::CustomIntegrationRequest {
                 id: "local.enable-writer".into(),
                 name: "Enable writer".into(),
@@ -3289,8 +3314,9 @@ mod tests {
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
-        install::create_custom_integration(
+        install::create_custom_integration_for_test(
             &state,
+            "local.lister-test",
             CustomIntegrationRequest {
                 id: "local.lister-test".into(),
                 name: "Lister Test".into(),
@@ -3428,8 +3454,9 @@ mod tests {
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
-        install::create_custom_integration(
+        install::create_custom_integration_for_test(
             &state,
+            "local.gate-test",
             CustomIntegrationRequest {
                 id: "local.gate-test".into(),
                 name: "Gate Test".into(),

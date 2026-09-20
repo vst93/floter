@@ -927,7 +927,9 @@ fn atomic_write(path: &Path, bytes: &[u8], label: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::install::{create_custom_integration, CustomIntegrationRequest};
+    use crate::extensions::install::{
+        create_custom_integration_for_test, CustomIntegrationRequest,
+    };
     use crate::extensions::lock::{ExtensionProviderKind, ExtensionStateKind};
     use crate::extensions::manifest::{
         Compatibility, Distribution, PlatformTarget, ProviderConfig, ProviderKind, Publisher,
@@ -1121,8 +1123,9 @@ mod tests {
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
                 .unwrap();
-        create_custom_integration(
+        create_custom_integration_for_test(
             &state,
+            "local.export-test",
             CustomIntegrationRequest {
                 id: "local.export-test".into(),
                 name: "Export test".into(),

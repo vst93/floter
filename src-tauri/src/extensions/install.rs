@@ -62,6 +62,12 @@ pub struct PermissionSummary {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomIntegrationRequest {
+    /// Accepted on the wire for backwards compatibility and **ignored**: since
+    /// R9-3 the id is minted by the create sink ([`create_custom_integration`])
+    /// and the update path takes it from the addressed entry. Keeping the field
+    /// deserializable means an older frontend payload still parses instead of
+    /// failing the whole request.
+    #[serde(default)]
     pub id: String,
     pub name: String,
     pub command: String,
@@ -148,19 +154,89 @@ pub async fn install(
     install_linked(state, request).await
 }
 
+/// Mint the identity of a new custom integration (R9-3).
+///
+/// This is the **only** place a custom integration id is created. The value is
+/// a random `local.<8 hex>` drawn from a v4 uuid: stable for the life of the
+/// entry and unrelated to every editable field. Deriving it from the command
+/// (the pre-R9-3 rule) meant a later command-id edit left the id describing an
+/// integration that no longer existed under that name.
+fn new_custom_integration_id() -> String {
+    let short = uuid::Uuid::new_v4().simple().to_string();
+    format!("local.{}", &short[..8])
+}
+
+/// Whether an error means the candidate id is already taken. Both the staging
+/// directory reservation and the repository insert report the same condition
+/// with different wording; the allocator treats either as "roll again".
+fn is_id_collision(error: &str) -> bool {
+    error.contains("already installed") || error.contains("already exist")
+}
+
 pub async fn create_custom_integration(
     state: &ExtensionState,
     request: CustomIntegrationRequest,
 ) -> Result<ExtensionLockEntry, String> {
     let _guard = state.mutation_lock.lock().await;
-    create_custom_integration_locked(state, request).await
+    create_custom_integration_with(state, request, new_custom_integration_id).await
 }
 
-async fn create_custom_integration_locked(
+/// Test hook (R9-3): create under a caller-chosen id.
+///
+/// Production mints the id inside the create sink and nowhere else. A test that
+/// later addresses the entry (edit, reprobe, uninstall) would otherwise have to
+/// thread the returned id through every call, so this hook pins one. It is
+/// `#[cfg(test)]` precisely so it can never become a second allocator in a
+/// shipped build.
+#[cfg(test)]
+pub(crate) async fn create_custom_integration_for_test(
     state: &ExtensionState,
+    id: &str,
     request: CustomIntegrationRequest,
 ) -> Result<ExtensionLockEntry, String> {
-    let id = request.id.trim().to_ascii_lowercase();
+    let _guard = state.mutation_lock.lock().await;
+    create_custom_integration_locked(state, id, request).await
+}
+
+/// The create sink behind [`create_custom_integration`], with the id generator
+/// injected so a test can force a collision and prove the allocator regenerates
+/// rather than reusing the taken id. Production always passes
+/// [`new_custom_integration_id`]; nothing else may mint an id.
+async fn create_custom_integration_with(
+    state: &ExtensionState,
+    request: CustomIntegrationRequest,
+    mut next_id: impl FnMut() -> String,
+) -> Result<ExtensionLockEntry, String> {
+    let mut last_error = String::new();
+    for _ in 0..16u32 {
+        let id = next_id();
+        match create_custom_integration_locked(state, &id, request.clone()).await {
+            Ok(entry) => return Ok(entry),
+            Err(error) => {
+                if !is_id_collision(&error) {
+                    return Err(error);
+                }
+                last_error = error;
+            }
+        }
+    }
+    Err(if last_error.is_empty() {
+        "Cannot allocate a custom integration id".to_string()
+    } else {
+        last_error
+    })
+}
+
+/// Write one custom integration under an **already-decided** id. The create
+/// sink passes a freshly minted id; the update path passes the addressed
+/// entry's id, which is how an edit can never move the identity. This function
+/// is private on purpose: it must not become a second allocator.
+async fn create_custom_integration_locked(
+    state: &ExtensionState,
+    id: &str,
+    request: CustomIntegrationRequest,
+) -> Result<ExtensionLockEntry, String> {
+    let id = id.trim().to_ascii_lowercase();
     validate_id(&id)?;
     let name = request.name.trim();
     if name.is_empty() || name.chars().count() > 80 {
@@ -1098,7 +1174,10 @@ pub fn tool_binding_request(
         return Err(format!("Cannot derive a Floter command from \"{stem}\""));
     }
     Ok(CustomIntegrationRequest {
-        id: format!("local.{command}"),
+        // R9-3 · the id is not derived here either: `create_custom_integration`
+        // mints it. This field is inert on the create path, but it stays a
+        // `String` on the wire so older payloads still deserialize.
+        id: String::new(),
         name: name.to_string(),
         command,
         version: candidate.version.clone().unwrap_or_else(|| "0.0.0".into()),
@@ -1126,39 +1205,16 @@ pub fn tool_binding_request(
 }
 
 /// One-click connection of an auto-discovered tool. Delegates to the exact
-/// custom-integration pipeline; only the id-collision fallback (`.2`, `.3`,
-/// ...) is added on top so repeated basenames across PATH directories can
-/// coexist under distinct extension ids.
+/// custom-integration pipeline. Since R9-3 the id is minted by the create sink
+/// itself (a random `local.<hex>`), so two PATH executables with the same
+/// basename no longer need a hand-rolled suffix scheme — the allocator rolls a
+/// fresh id when one is taken.
 pub async fn connect_tool(
     state: &ExtensionState,
     candidate: crate::extensions::inventory::ToolCandidate,
 ) -> Result<ExtensionLockEntry, String> {
-    let mut request = tool_binding_request(&candidate)?;
-    let base_id = request.id.clone();
-    let mut last_error = String::new();
-    for attempt in 0..10u32 {
-        request.id = if attempt == 0 {
-            base_id.clone()
-        } else {
-            format!("{base_id}.{}", attempt + 1)
-        };
-        match create_custom_integration(state, request.clone()).await {
-            Ok(entry) => return Ok(entry),
-            Err(error) => {
-                let occupied =
-                    error.contains("already installed") || error.contains("already exist");
-                if !occupied {
-                    return Err(error);
-                }
-                last_error = error;
-            }
-        }
-    }
-    Err(if last_error.is_empty() {
-        format!("Cannot allocate an extension id for {}", candidate.name)
-    } else {
-        last_error
-    })
+    let request = tool_binding_request(&candidate)?;
+    create_custom_integration(state, request).await
 }
 
 pub fn custom_integration_definition(
@@ -1245,9 +1301,13 @@ pub async fn update_custom_integration(
     request: CustomIntegrationRequest,
 ) -> Result<ExtensionLockEntry, String> {
     validate_id(extension_id)?;
-    if request.id.trim().to_ascii_lowercase() != extension_id {
-        return Err("Custom integration ID cannot be changed after creation".to_string());
-    }
+    // R9-3 · the identity is fixed at creation and this path never consults the
+    // request for it. The addressed entry's id is the only id an update can
+    // write, so a request that carries a different (or blank) id is ignored
+    // rather than rejected — a client that no longer sends one is still valid.
+    let _ = request.id;
+    let mutation_id = request.id.clone(); // mutation: consult request id
+    let _ = mutation_id;
     let _guard = state.mutation_lock.lock().await;
     crate::extensions::transaction::recover_pending_removals(state)?;
     let lock = ExtensionsLock::load(&state.paths.repository_file)?;
@@ -1301,7 +1361,7 @@ pub async fn update_custom_integration(
     }
     drop(lock);
 
-    let result = create_custom_integration_locked(state, request).await;
+    let result = create_custom_integration_locked(state, extension_id, request).await;
     if result.is_ok() {
         let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
         if let Some(updated) = lock.extensions.get_mut(extension_id) {
@@ -2990,6 +3050,48 @@ mod tests {
         vec![PlatformTarget::current().unwrap().os]
     }
 
+    /// Create a custom integration under a fixed id.
+    ///
+    /// The request's own `id` field is inert since R9-3 (the backend mints
+    /// one), so a test that wants to address the entry later — edit, reprobe,
+    /// uninstall, fault injection — pins it through the test hook. The
+    /// mint-on-create behaviour itself is covered by
+    /// `create_mints_a_random_id_and_never_reuses_it`.
+    async fn create_custom_integration(
+        state: &ExtensionState,
+        request: CustomIntegrationRequest,
+    ) -> Result<ExtensionLockEntry, String> {
+        let id = request.id.clone();
+        create_custom_integration_for_test(state, &id, request).await
+    }
+
+    /// Mint a fresh id via the production path and return both the entry and
+    /// the id it was given, so a test can address it afterwards.
+    async fn create_with_minted_id(
+        state: &ExtensionState,
+        request: CustomIntegrationRequest,
+    ) -> (String, ExtensionLockEntry) {
+        let entry = super::create_custom_integration(state, request)
+            .await
+            .unwrap();
+        let id = entry.id.clone();
+        (id, entry)
+    }
+
+    /// R9-3 · the shape of a minted id: `^local\.[0-9a-f]{8,}$`. Nothing in
+    /// the value refers to the command or the name, which is exactly the point —
+    /// the identity is created once and stays put while every editable field
+    /// may change around it.
+    fn assert_minted_id(id: &str) {
+        let suffix = id
+            .strip_prefix("local.")
+            .unwrap_or_else(|| panic!("id must carry the local namespace: {id}"));
+        assert!(
+            suffix.len() >= 8 && suffix.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "the minted id must match `^local\\.[0-9a-f]{{8,}}$`: {id}"
+        );
+    }
+
     fn script_request(id: &str, name: &str, command: &str) -> CustomIntegrationRequest {
         script_request_for(id, name, command, ScriptLanguage::Shell, "printf original")
     }
@@ -3113,7 +3215,9 @@ mod tests {
         let entry = connect_tool(&state, discovered_candidate(&executable, "MyTool"))
             .await
             .unwrap();
-        assert_eq!(entry.id, "local.mytool");
+        // The id is minted by the create sink, not derived from the executable
+        // name; the *command* is what tracks the tool.
+        assert_minted_id(&entry.id);
         assert_eq!(
             entry.distribution_source,
             ExtensionDistributionSource::Local
@@ -3194,7 +3298,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn connect_tool_allocates_a_new_id_when_the_base_name_is_taken() {
+    async fn connect_tool_mints_a_distinct_id_for_each_connection() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let first = directory.path().join("dup");
@@ -3211,15 +3315,20 @@ mod tests {
                     .unwrap();
             }
         }
-        connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
+        let first_entry = connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
             .await
             .unwrap();
         let second_entry = connect_tool(&state, discovered_candidate(&second_bin, "dup2"))
             .await
             .unwrap();
 
-        assert_ne!(second_entry.id, "local.dup2");
-        assert!(second_entry.id.starts_with("local.dup."));
+        // Two connections of executables that share a basename each get their
+        // own minted identity. The old `.2` suffix scheme is gone: the second
+        // id is not derived from the first at all.
+        assert_minted_id(&first_entry.id);
+        assert_minted_id(&second_entry.id);
+        assert_ne!(first_entry.id, second_entry.id);
+        assert!(!second_entry.id.starts_with(&first_entry.id));
     }
 
     #[cfg(unix)]
@@ -5724,7 +5833,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let request = CustomIntegrationRequest {
-            id: "local.edit-test".into(),
+            id: String::new(),
             name: "Edit test".into(),
             command: "edit-test".into(),
             version: "1.0.0".into(),
@@ -5740,10 +5849,13 @@ mod tests {
             output: OutputMode::default(),
             params: Vec::new(),
         };
-        let created = create_custom_integration(&state, request.clone())
+        // Production create: the id comes back from the backend.
+        let created = super::create_custom_integration(&state, request.clone())
             .await
             .unwrap();
         assert!(is_generated_custom_integration(&created));
+        assert_minted_id(&created.id);
+        let id = created.id.clone();
 
         let mut changed = request;
         changed.name = "Edited test".into();
@@ -5751,16 +5863,152 @@ mod tests {
         changed.version = "1.1.0".into();
         changed.script_content = Some("printf new".into());
         changed.args_prefix = vec!["new value".into()];
-        let updated = update_custom_integration(&state, "local.edit-test", changed)
+        let updated = update_custom_integration(&state, &id, changed)
             .await
             .unwrap();
-        let definition = custom_integration_definition(&state, "local.edit-test").unwrap();
+        let definition = custom_integration_definition(&state, &id).unwrap();
 
         assert_eq!(updated.name, "Edited test");
         assert_eq!(definition.command, "edited-test");
         assert_eq!(definition.version, "1.1.0");
         assert_eq!(definition.script_content.as_deref(), Some("printf new"));
         assert_eq!(definition.args_prefix, ["new value"]);
+        // R9-3 · the identity is untouched by any field change: name, command,
+        // version and content all moved, the id did not.
+        assert_eq!(updated.id, id, "an edit must never move the identity");
+        assert_eq!(definition.id, id);
+    }
+
+    /// R9-3 · the update path ignores whatever id the request carries. A
+    /// request that names a *different* integration, or none at all, still
+    /// updates the addressed entry and leaves its identity alone.
+    #[tokio::test]
+    async fn an_update_ignores_the_id_in_the_request() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let mut request = script_request("", "Identity test", "identity-test");
+        request.id = String::new();
+        let (id, created) = create_with_minted_id(&state, request.clone()).await;
+        assert!(is_generated_custom_integration(&created));
+
+        // The request body claims a different id — the pre-R9-3 guard would
+        // have rejected this; now it is simply dropped.
+        let mut changed = request;
+        changed.id = "local.some-other-integration".into();
+        changed.name = "Identity test edited".into();
+        let updated = update_custom_integration(&state, &id, changed)
+            .await
+            .unwrap();
+
+        assert_eq!(updated.id, id);
+        assert_eq!(updated.name, "Identity test edited");
+        // No entry was created under the requested id.
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+        assert!(lock.get("local.some-other-integration").is_err());
+    }
+
+    /// R9-3 · the create sink is the single allocator. Two creates in a row get
+    /// two distinct minted ids in the documented shape.
+    #[tokio::test]
+    async fn create_mints_a_random_id_and_never_reuses_it() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let (first, first_entry) =
+            create_with_minted_id(&state, script_request("", "First", "shared-command")).await;
+        let (second, second_entry) =
+            create_with_minted_id(&state, script_request("", "Second", "shared-command")).await;
+
+        assert_minted_id(&first);
+        assert_minted_id(&second);
+        assert_ne!(first, second, "each creation mints a fresh identity");
+        // The id does not encode the command, so two integrations sharing one
+        // command id coexist under unrelated identities.
+        assert!(!first.contains("shared-command"));
+        assert!(!second.contains("shared-command"));
+        assert_eq!(first_entry.id, first);
+        assert_eq!(second_entry.id, second);
+    }
+
+    /// R9-3 · collision handling is regeneration, not a derived suffix. The
+    /// generator is forced to hand back an already-taken id first; the second
+    /// draw must be used, and the first entry must be untouched.
+    #[tokio::test]
+    async fn create_regenerates_the_id_when_the_first_draw_is_taken() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let taken = "local.aaaaaaaa";
+        create_custom_integration_for_test(
+            &state,
+            taken,
+            script_request("", "Occupant", "occupant"),
+        )
+        .await
+        .unwrap();
+
+        // A generator whose first draw collides and whose second is fresh.
+        let draws = std::cell::Cell::new(0u32);
+        let mut generator = || {
+            let attempt = draws.get();
+            draws.set(attempt + 1);
+            if attempt == 0 {
+                taken.to_string()
+            } else {
+                "local.bbbbbbbb".to_string()
+            }
+        };
+        let entry = create_custom_integration_with(
+            &state,
+            script_request("", "Second", "second"),
+            &mut generator,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(entry.id, "local.bbbbbbbb");
+        assert_eq!(
+            draws.get(),
+            2,
+            "a taken id must be rolled again, not suffixed"
+        );
+        // The occupant is untouched by the retry.
+        let lock = ExtensionsLock::load(&state.paths.repository_file).unwrap();
+        assert_eq!(lock.get(taken).unwrap().name, "Occupant");
+    }
+
+    /// R9-3 · an existing entry whose id predates the random scheme keeps that
+    /// id across an edit. There is no migration: an old id is already a stable
+    /// identity and rewriting it would break the user's data.
+    #[tokio::test]
+    async fn a_legacy_shaped_id_survives_an_edit_unchanged() {
+        if find_script_interpreter(ScriptLanguage::Shell).is_err() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let legacy = "local.legacy-command";
+        let request = script_request(legacy, "Legacy", "legacy-command");
+        create_custom_integration_for_test(&state, legacy, request.clone())
+            .await
+            .unwrap();
+
+        let mut changed = request;
+        changed.id = String::new();
+        changed.command = "renamed-command".into();
+        let updated = update_custom_integration(&state, legacy, changed)
+            .await
+            .unwrap();
+
+        assert_eq!(updated.id, legacy, "an old id is never rewritten");
+        assert_eq!(updated.name, "Legacy");
     }
 
     #[tokio::test]

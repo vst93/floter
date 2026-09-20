@@ -708,8 +708,9 @@ mod tests {
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
         let id = "local.runner";
-        let entry = crate::extensions::install::create_custom_integration(
+        let entry = crate::extensions::install::create_custom_integration_for_test(
             &state,
+            id,
             crate::extensions::install::CustomIntegrationRequest {
                 id: id.into(),
                 name: "Runner".into(),
@@ -773,8 +774,9 @@ mod tests {
         let mut target = param("target", ParamKind::Text);
         target.flag = Some("--target".into());
         let id = "local.order";
-        crate::extensions::install::create_custom_integration(
+        crate::extensions::install::create_custom_integration_for_test(
             &state,
+            id,
             crate::extensions::install::CustomIntegrationRequest {
                 id: id.into(),
                 name: "Order".into(),
@@ -834,8 +836,9 @@ mod tests {
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
         let id = "local.terminal";
-        crate::extensions::install::create_custom_integration(
+        crate::extensions::install::create_custom_integration_for_test(
             &state,
+            id,
             crate::extensions::install::CustomIntegrationRequest {
                 id: id.into(),
                 name: "Terminal".into(),
@@ -1111,8 +1114,9 @@ mod tests {
             "--flag=value with spaces".to_string(),
         ];
         let id = "local.argv-defense";
-        crate::extensions::install::create_custom_integration(
+        crate::extensions::install::create_custom_integration_for_test(
             &state,
+            id,
             crate::extensions::install::CustomIntegrationRequest {
                 id: id.into(),
                 name: "Argv defense".into(),
@@ -1195,8 +1199,9 @@ mod tests {
         let mut target = param("target", ParamKind::Text);
         target.flag = Some("--target".into());
         let id = "local.param-defense";
-        crate::extensions::install::create_custom_integration(
+        crate::extensions::install::create_custom_integration_for_test(
             &state,
+            id,
             crate::extensions::install::CustomIntegrationRequest {
                 id: id.into(),
                 name: "Param defense".into(),
@@ -1297,8 +1302,9 @@ mod tests {
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
         let id = "local.slow";
-        crate::extensions::install::create_custom_integration(
+        crate::extensions::install::create_custom_integration_for_test(
             &state,
+            id,
             crate::extensions::install::CustomIntegrationRequest {
                 id: id.into(),
                 name: "Slow".into(),

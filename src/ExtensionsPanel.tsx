@@ -357,7 +357,11 @@ const CURRENT_PLATFORM: "darwin" | "linux" | "windows" = navigator.userAgent.inc
 
 const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   mode: "executable",
-  id: "local.custom-tool",
+  // R9-3 · the id is minted by the backend at creation and never authored or
+  // derived in the frontend. The placeholder is empty on purpose: on create the
+  // drawer shows no id at all, and on edit the loaded definition carries the
+  // real, immutable one.
+  id: "",
   name: "Custom Tool",
   command: "custom-tool",
   version: "1.0.0",
@@ -1484,7 +1488,6 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         executablePath: candidate.locator.path,
         name: current.name === DEFAULT_CUSTOM_INTEGRATION.name ? command : current.name,
         command: current.command === DEFAULT_CUSTOM_INTEGRATION.command ? slug : current.command,
-        id: current.id === DEFAULT_CUSTOM_INTEGRATION.id ? `local.${slug}` : current.id,
       };
       setCustomDirty(JSON.stringify(next) !== JSON.stringify(customSavedRef.current));
       return next;
@@ -1708,7 +1711,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
         }));
       }
     }
-    setBusy({ id: customIntegration.id, kind: editingCustomId ? "save" : "install" });
+    // R9-3 · the busy marker is keyed by the addressed entry on edit and by the
+    // form itself on create (there is no id yet — the backend mints one).
+    setBusy({ id: editingCustomId ?? customIntegration.command, kind: editingCustomId ? "save" : "install" });
     setCustomIntegrationError(null);
     // R9-2 slice 2 · the parameter list is a capability declaration, so an
     // invalid row must not reach the backend. `ScriptParamEditor` already
@@ -1723,6 +1728,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     try {
       const request = {
         ...customIntegration,
+        // R9-3 · the frontend never authors or derives an id. On create it
+        // sends the empty placeholder; the backend mints one. On edit the
+        // addressed id comes from the path argument and the body is ignored.
+        id: editingCustomId ?? "",
         executablePath: customIntegration.mode === "executable" ? customIntegration.executablePath : "",
         scriptLanguage: customIntegration.mode === "script" ? customIntegration.scriptLanguage : null,
         scriptContent: customIntegration.mode === "script" ? customIntegration.scriptContent : null,
@@ -1777,7 +1786,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     setCustomIntegrationError(null);
     const extension = scriptExtension(customIntegration.scriptLanguage);
     try {
-      const path = await invoke<string | null>("extensions_custom_export_script", { id: customIntegration.id, content: customIntegration.scriptContent, extension });
+      const path = await invoke<string | null>("extensions_custom_export_script", { id: editingCustomId ?? customIntegration.command, content: customIntegration.scriptContent, extension });
       if (path) showSuccess(t("settings.extensions.customScriptExported"));
     } catch (nextError) {
       setCustomIntegrationError(errorMessage(nextError));

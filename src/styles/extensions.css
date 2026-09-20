@@ -1869,15 +1869,14 @@
 /* The edit form's one caption line (R7-3b): muted, caption scale, under the
    field it describes. */
 .extension-custom-form__hint { margin: 8px 0 0; color: var(--text-muted); font-size: var(--text-caption); line-height: 1.45; }
-/* R9-1 · the derived integration ID. It is not a field: no border, no field
+/* R9-3 · the integration ID caption. It is not a field: no border, no field
    material, no focus ring — a caption with a monospace value, sitting under the
-   name/version/command row. On edit it carries the value; on create the value
-   is still the live derivation, so the user can see what the backend will
-   allocate without having to author it. */
+   name/version/command row. It is shown on edit only, where it carries the
+   value the backend minted at creation (the identity can never change). On
+   create there is no id yet, so the line is not rendered at all. */
 .extension-custom-form__derived { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; color: var(--text-muted); font-size: var(--text-caption); }
 .extension-custom-form__derived span { font-weight: 600; }
 .extension-custom-form__derived code { color: var(--text-secondary); font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: var(--text-caption); overflow-wrap: anywhere; }
-.extension-custom-form__derived em { color: var(--text-tertiary); font-style: normal; }
 /* R9-1 · the inline toolchain status line under the language picker. Muted by
    default (a fact, not a call to action); the missing state keeps the amber
    *label* only — no fill, no new accent face, so the form's colour budget is
