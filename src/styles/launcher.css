@@ -459,7 +459,22 @@
   display: grid;
   gap: 1px;
   min-height: 0;
-  max-height: min(420px, var(--launcher-results-height, 420px));
+  /* R10-A: the row budget in pixels — ten rows. A result row is
+     `calc(var(--u) * 42)` (see `.launcher-result`), so ten of them are
+     `calc(var(--u) * 420)`. The fixed 50px covers what does not scale with
+     `--u`: the 14px scroll-edge reservation at the top, the ten 1px grid gaps
+     around the ten rows, and the empty-query section title (a `--text-body`
+     line at 1.4 plus its 6/4px padding ≈ 26px). The title is the reason the
+     chrome is a whole row's worth rather than a few pixels — without it the
+     empty-query state, which is exactly where the clipboard row is most
+     useful, would scroll that row out of sight. Ten rows fit in every state;
+     a drop group adds more and the list scrolls for those.
+     `--launcher-results-height` is the viewport cap the App writes on a short
+     display and is the smaller of the two there. */
+  max-height: min(
+    calc(var(--u) * 420 + 50px),
+    var(--launcher-results-height, calc(var(--u) * 420 + 50px))
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: var(--scrollbar-thumb) transparent;

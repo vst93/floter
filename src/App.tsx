@@ -84,7 +84,11 @@ import {
 } from "./launcher/LauncherResults";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
-import { launcherShortcutSlots } from "./launcher";
+import {
+  RESULTS_VIEWPORT_CHROME,
+  shortcutSlotsWithFixedTail,
+  withClipboardResultRow,
+} from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
@@ -677,9 +681,14 @@ export default function App() {
     () => fileDropRows(droppedFiles, dropsExpanded, t),
     [droppedFiles, dropsExpanded, t],
   );
+  // R10-A: the tenth row. Nine matched results are followed by one fixed row
+  // that opens the clipboard history, in every query state — empty, matching,
+  // and (especially) matching nothing, which is when the clipboard is the
+  // useful thing left to offer. `withClipboardResultRow` keeps a query that
+  // already matched the clipboard command from growing a duplicate.
   const displayedResults = useMemo(
-    () => (fileRows.length ? [...fileRows, ...launcherResults] : launcherResults),
-    [fileRows, launcherResults],
+    () => withClipboardResultRow(fileRows.length ? [...fileRows, ...launcherResults] : launcherResults, t),
+    [fileRows, launcherResults, t],
   );
 
   // While the selection is on a file row the action bar describes that file's
@@ -690,10 +699,16 @@ export default function App() {
   // The action bar is a secondary control for a visible result list. Do not
   // expand the result area for an unmatched query just because the generic
   // shell fallback exists; feedback rows remain independently visible below.
+  //
+  // R10-A: the gate reads the *matched* rows, not the composed list. The fixed
+  // clipboard row makes `displayedResults` non-empty in every state, so asking
+  // it here would silently start showing the shell fallback for a query that
+  // matched nothing — the exact thing the sentence above forbids. A drop still
+  // brings its own bar through the `selectedDroppedFile` branch.
   const visibleActionBar: ActionBar | null =
     selectedDroppedFile
       ? fileDropActionBar(selectedDroppedFile, fileActionIndex, t)
-      : displayedResults.length > 0
+      : launcherResults.length > 0 || fileRows.length > 0
         ? actionBar
         : null;
 
@@ -703,9 +718,12 @@ export default function App() {
     () => displayedResults.map((item) => item.type !== "command" || Boolean(item.execution)),
     [displayedResults],
   );
+  // R10-A: the fixed clipboard row is the tenth row and the shortcut family is
+  // 1-9, so its badge stays blank — see `shortcutSlotsWithFixedTail`. The rows
+  // above it number exactly as before.
   const displayedShortcutSlots = useMemo(
-    () => launcherShortcutSlots(displayedRunnableFlags),
-    [displayedRunnableFlags],
+    () => shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags),
+    [displayedResults, displayedRunnableFlags],
   );
 
   const {
@@ -1827,7 +1845,7 @@ export default function App() {
           <div
             ref={collapsedCardRef}
             className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
-            style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - 220)}px` } as React.CSSProperties}
+            style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
             onMouseDown={startDrag}
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
@@ -2035,7 +2053,8 @@ export default function App() {
                     if (visibleActionBar) executeActionBar(visibleActionBar);
                   }}
                 />
-                {displayedResults.length === 0 &&
+                {launcherResults.length === 0 &&
+                  fileRows.length === 0 &&
                   !actionBar &&
                   !query.trim() &&
                   !settings.show_commands_in_search && (
