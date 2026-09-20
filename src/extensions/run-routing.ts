@@ -6,6 +6,8 @@
 // them directly and reads the JSX facts off the source (the same split
 // `script-language-runtime.test.ts` established).
 
+import type { Translate } from "../i18n";
+
 /** The subset of an extension row the run entry depends on. Kept structural
  *  (not `Extension`) so this module has no import cycle with the panel. */
 export type RunnableExtension = {
@@ -50,3 +52,53 @@ export type OutputMode = "background" | "terminal";
 
 export const outputModeLabel = (mode: OutputMode): string =>
   mode === "terminal" ? "terminal" : "background";
+
+/** The part of a captured run output the completion toast summarises. Kept
+ *  structural (not the panel's `RunOutput`) so this module keeps no import
+ *  cycle with the panel. */
+export type CapturedRunOutput = {
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+};
+
+/** Whether a run produced anything at all. Drives the empty state of the
+ *  inline output block and whether the completion toast offers a "view
+ *  output" action. */
+export const hasRunOutput = (output: CapturedRunOutput): boolean =>
+  output.stdout.length > 0 || output.stderr.length > 0;
+
+/**
+ * How many lines a run's combined output produced.
+ *
+ * Both streams read in the order they were captured (the same join the inline
+ * block renders), a single trailing newline does not invent an extra empty
+ * line, and a stream of exactly one newline still counts as one line. An empty
+ * capture is zero lines, which is what lets the toast say "0 lines" rather
+ * than "1 line" for a silent script.
+ */
+export const runOutputLineCount = (output: CapturedRunOutput): number => {
+  const text = `${output.stdout}${output.stderr}`;
+  if (text.length === 0) return 0;
+  const withoutTrailingNewline = text.endsWith("\n") ? text.slice(0, -1) : text;
+  return withoutTrailingNewline.split("\n").length;
+};
+
+/**
+ * The output half of the completion toast, localised by the caller's
+ * translator. "12 lines" becomes "12 lines · truncated at 64 KB" when either
+ * stream hit the retention cap, so the user knows the scroller is showing a
+ * prefix rather than the whole thing.
+ *
+ * One function so the line-count wording cannot drift between the toast and
+ * the inline block's own truncation line.
+ */
+export const runOutputSummary = (output: CapturedRunOutput, t: Translate): string => {
+  const lines = runOutputLineCount(output);
+  return t(
+    output.truncated
+      ? "settings.extensions.customRunOutputLinesTruncated"
+      : "settings.extensions.customRunOutputLines",
+    { lines },
+  );
+};

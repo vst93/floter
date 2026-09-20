@@ -32,7 +32,7 @@ use super::provider::{
 use super::registry;
 use super::ExtensionState;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
@@ -41,6 +41,74 @@ use std::time::{Duration, Instant};
 /// Matches the probe cap (`capability_probe::MAX_PROBE_OUTPUT_BYTES`): a
 /// runaway script must not be able to grow the host's memory without bound.
 pub(crate) const MAX_RUN_OUTPUT_BYTES: usize = 64 * 1024;
+
+/// The prefix of the refusal a second concurrent run of the same integration
+/// receives. The frontend maps it to a localised "a run is already in
+/// progress" notice; it is a stable key plus the id, never a prose string.
+pub(crate) const RUN_ALREADY_IN_FLIGHT: &str = "run_already_in_flight";
+
+/// Per-integration in-flight marks for manual runs (R9-2 slice 4).
+///
+/// Deliberately in memory only: a run is a foreground action of *this* host
+/// process, so a lock file would outlive the process that could honour it and
+/// would need crash cleanup. One `BTreeSet` under one mutex — the critical
+/// section is an insert or a remove, so contention is irrelevant.
+#[derive(Default)]
+pub(crate) struct RunInFlight {
+    active: std::sync::Mutex<BTreeSet<String>>,
+}
+
+impl RunInFlight {
+    /// Claim the run slot for `id`, or refuse when another run of the same
+    /// integration is still in flight. The returned guard releases the slot on
+    /// drop, so every exit path — success, refusal, timeout, panic unwind —
+    /// clears it and a later run is not blocked forever.
+    pub(crate) fn begin(&self, id: &str) -> Result<RunInFlightGuard<'_>, String> {
+        let mut active = self
+            .active
+            .lock()
+            .map_err(|_| "run registry poisoned".to_string())?;
+        if !active.insert(id.to_string()) {
+            return Err(format!("{RUN_ALREADY_IN_FLIGHT}:{id}"));
+        }
+        Ok(RunInFlightGuard {
+            registry: self,
+            id: id.to_string(),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_active(&self, id: &str) -> bool {
+        self.active
+            .lock()
+            .map(|active| active.contains(id))
+            .unwrap_or(false)
+    }
+}
+
+/// RAII release of one [`RunInFlight`] claim. Mutation: replace `begin` with a
+/// no-op guard and the concurrent-run refusal test goes red.
+pub(crate) struct RunInFlightGuard<'a> {
+    registry: &'a RunInFlight,
+    id: String,
+}
+
+impl std::fmt::Debug for RunInFlightGuard<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RunInFlightGuard")
+            .field("id", &self.id)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for RunInFlightGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut active) = self.registry.active.lock() {
+            active.remove(&self.id);
+        }
+    }
+}
 
 /// The argument values a caller filled in for one run, keyed by parameter id.
 /// Values are always strings on the wire; the kind conversion happens here.
@@ -374,6 +442,10 @@ pub async fn run(
     output_override: Option<String>,
 ) -> Result<RunOutcome, String> {
     let (entry, manifest) = runnable_entry(state, id)?;
+    // One run at a time per integration. The guard is held for the whole
+    // function, so a second request for the same id is refused while this one
+    // is still executing; it releases on every exit path (R9-2 slice 4).
+    let _in_flight = state.begin_run(id)?;
     let route = resolve_route(&manifest, output_override.as_deref())?;
     let cwd = run_cwd(state, id)?;
     let values = values.unwrap_or_default();
@@ -1205,5 +1277,97 @@ mod tests {
         let state = test_state(directory.path());
         let error = run(&state, "local.missing", None, None).await.unwrap_err();
         assert!(error.contains("local.missing"), "{error}");
+    }
+
+    // ── R9-2 slice 4 · one run at a time per integration ─────────────────
+
+    #[test]
+    fn run_in_flight_refuses_a_second_claim_and_releases_on_drop() {
+        // Mutation: make `begin` return a guard without inserting (or drop the
+        // insert) and the second claim below succeeds instead of refusing.
+        let registry = RunInFlight::default();
+        assert!(!registry.is_active("local.a"));
+        let first = registry.begin("local.a").expect("first claim");
+        assert!(registry.is_active("local.a"));
+        assert_eq!(
+            registry.begin("local.a").unwrap_err(),
+            "run_already_in_flight:local.a",
+        );
+        // A different integration is never blocked by another's run.
+        let other = registry.begin("local.b").expect("unrelated claim");
+        assert!(registry.is_active("local.b"));
+        // Dropping the guard releases exactly its own slot.
+        drop(first);
+        assert!(!registry.is_active("local.a"));
+        assert!(registry.is_active("local.b"));
+        assert!(registry.begin("local.a").is_ok());
+        drop(other);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_second_concurrent_run_of_the_same_integration_is_refused() {
+        use std::os::unix::fs::PermissionsExt;
+
+        // End to end: the first run is still executing (it sleeps) when the
+        // second request arrives for the same id, so the second is refused
+        // with the stable key. Mutation: drop the `begin_run` call in `run`
+        // and both futures succeed instead of one failing.
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("slow.sh");
+        std::fs::write(&executable, "#!/bin/sh\nsleep 1\necho done\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let id = "local.slow";
+        crate::extensions::install::create_custom_integration(
+            &state,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Slow".into(),
+                command: "slow".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![
+                    crate::extensions::manifest::Permission::Environment,
+                    crate::extensions::manifest::Permission::ProcessSpawn,
+                ],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let (first, second) =
+            tokio::join!(run(&state, id, None, None), run(&state, id, None, None),);
+        // Exactly one future wins the slot; the other is refused with the
+        // stable key.
+        let refusals: Vec<String> = [first, second]
+            .into_iter()
+            .filter_map(Result::err)
+            .collect();
+        assert_eq!(
+            refusals.len(),
+            1,
+            "exactly one of the two runs must be refused"
+        );
+        assert_eq!(refusals[0], format!("run_already_in_flight:{id}"));
+        // The slot is released once the surviving run finishes, so the next
+        // run is not blocked by a stale mark.
+        assert!(!state.run_in_flight(id));
+        assert!(run(&state, id, None, None).await.is_ok());
     }
 }

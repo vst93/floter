@@ -27,7 +27,7 @@ import { resolveCommandAliases } from "./command-aliases";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
-import { formatRunDuration, runAvailability } from "./extensions/run-routing";
+import { formatRunDuration, hasRunOutput, runAvailability, runOutputSummary } from "./extensions/run-routing";
 import { LocalInstallDialog } from "./extensions/LocalInstallDialog";
 import { PermissionTierList } from "./extensions/PermissionTierList";
 import { permissionTier } from "./extensions/permission-tiers";
@@ -748,6 +748,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   // when the integrations list was long and the user had scrolled down.
   const showError = useCallback((text: string) => onNotify("error", text), [onNotify]);
   const showSuccess = useCallback((text: string) => onNotify("success", text), [onNotify]);
+  const showWarning = useCallback((text: string) => onNotify("warning", text), [onNotify]);
   const refreshAfterMutation = async () => {
     await refreshPending.current;
     await refreshRef.current();
@@ -1555,7 +1556,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
     fromWireParams(extension.params);
 
   const openRunForm = (extension: Extension) => {
-    if (runBusy) return;
+    if (runBusy) {
+      showWarning(t("settings.extensions.customRunAlreadyRunning"));
+      return;
+    }
     // Re-opening the form for the row it is already showing keeps the user's
     // in-progress edits; only a freshly opened form is seeded from memory.
     if (runFormId === extension.id) return;
@@ -1565,7 +1569,13 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   };
 
   const runExtension = async (extension: Extension, values?: ParamValues) => {
-    if (runBusy) return;
+    if (runBusy) {
+      // A second run request while one is still in flight is refused here and
+      // on the backend (`run_already_in_flight`). The hint names the state
+      // instead of the click appearing to do nothing.
+      showWarning(t("settings.extensions.customRunAlreadyRunning"));
+      return;
+    }
     const params = declaredRunParams(extension);
     if (values === undefined && params.length > 0) {
       openRunForm(extension);
@@ -1597,7 +1607,17 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
           setRunParamMemory((current) => ({ ...current, [extension.id]: values }));
         }
         setRunFormId(null);
-        showSuccess(t("settings.extensions.customRunSucceeded", { name: extension.name, duration }));
+        const outputSummary = outcome.output && hasRunOutput(outcome.output)
+          ? ` · ${runOutputSummary(outcome.output, t)}`
+          : "";
+        const canViewOutput = Boolean(outcome.output && hasRunOutput(outcome.output));
+        onNotify(
+          "success",
+          t("settings.extensions.customRunSucceeded", { name: extension.name, duration }) + outputSummary,
+          canViewOutput
+            ? { label: t("settings.extensions.customViewOutput"), run: () => setOutputOpen((current) => ({ ...current, [extension.id]: true })) }
+            : undefined,
+        );
       } else {
         // A failing script is still a *completed run*: the exit code is the
         // fact the user needs, and the output is one click away in the row.
@@ -1616,6 +1636,12 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
       // caused it, not a toast — the form is still open and the user is one
       // edit away from a valid run. Anything else keeps the ordinary toast.
       const message = errorMessage(nextError);
+      if (message.startsWith("run_already_in_flight:")) {
+        // The backend refused because this integration already has a run in
+        // flight (a second window, or a request that raced the local guard).
+        showWarning(t("settings.extensions.customRunAlreadyRunning"));
+        return;
+      }
       const mapped = paramRunErrorMessage(
         message,
         params,

@@ -488,6 +488,7 @@ export function ExtensionRow({
         <RunParamForm
           params={runParams ?? []}
           values={runParamValues ?? {}}
+          outputMode={extension.output}
           onChange={(id, value) => onRunParamChange?.(id, value)}
           onRun={(values) => onRunConfirm?.(values)}
           onCancel={() => onRunCancel?.()}
@@ -520,8 +521,18 @@ export function ExtensionRow({
           <pre className="extension-row__output-body">
             {lastOutput && (lastOutput.stdout || lastOutput.stderr)
               ? [lastOutput.stdout, lastOutput.stderr].filter(Boolean).join("")
-              : t("settings.extensions.customNoOutput")}
+              : <span className="extension-row__output-empty">{t("settings.extensions.customNoOutput")}</span>}
           </pre>
+          {/* The retained output is capped per stream (64 KB), so when
+              either stream was cut the block says so at the *end* of the
+              text — the place the reader reaches when they notice the
+              output stops. A mark in the head alone is easy to miss once
+              scrolled. */}
+          {lastOutput?.truncated && (
+            <p className="extension-row__output-tail">
+              {t("settings.extensions.customOutputTruncatedTail")}
+            </p>
+          )}
         </div>
       )}
 

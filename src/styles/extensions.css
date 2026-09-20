@@ -1166,6 +1166,33 @@
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
+  /* Long paths and unbroken tokens must not widen the row on a narrow
+     window: `pre-wrap` plus this keeps the scroller inside its column and
+     lets the vertical scrollbar appear instead of the page scrolling. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* R9-2 slice 4 · the empty capture. It keeps the scroller's normal line box so
+   an expanded block does not collapse to a sliver of blank height, and it
+   reads as a quiet placeholder rather than content. Colours are the block's
+   existing tokens — the sunken surface and the muted text — with no new
+   palette entry. */
+.extension-row__output-empty {
+  color: var(--text-muted);
+  font-family: inherit;
+  font-style: italic;
+}
+
+/* …and the truncation mark at the END of the text: the retained capture is
+   capped per stream at 64 KB, so a reader who scrolls to where the output
+   stops is told why. The head `em` says the same thing at the top; this one is
+   the line that survives scrolling. */
+.extension-row__output-tail {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  font-style: italic;
 }
 
 /* The "view output" reveal. A text control, not an icon button: it names what
@@ -1224,6 +1251,16 @@
 
 .extension-run-params__hint,
 .extension-run-params__note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  line-height: 1.35;
+}
+
+/* R9-2 slice 4 · the output route, stated at the foot of the form beside the
+   Run button. Same type as the other hints and no colour of its own — it is an
+   orientation line, not a warning, so it must not read as one. */
+.extension-run-params__output-hint {
   margin: 0;
   color: var(--text-tertiary);
   font-size: var(--text-caption);

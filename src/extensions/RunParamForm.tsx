@@ -19,6 +19,10 @@ import { collectParamValues, paramValueIssues, type ParamValues } from "./run-pa
 type Props = {
   params: readonly ScriptParam[];
   values: ParamValues;
+  /** R9-2 slice 4 · where this run's output will go, from the manifest. The
+   *  form states it up front so the user knows before pressing Run whether
+   *  the result lands on the terminal page or in a completion notice. */
+  outputMode: "background" | "terminal";
   onChange: (id: string, value: string) => void;
   onRun: (values: ParamValues) => void;
   onCancel: () => void;
@@ -31,10 +35,15 @@ type Props = {
 const kindLabelKey = (kind: ScriptParam["kind"]) =>
   `settings.extensions.customParamType.${kind}` as Parameters<Translate>[0];
 
-export function RunParamForm({ params, values, onChange, onRun, onCancel, busy, error, t }: Props) {
+export function RunParamForm({ params, values, outputMode, onChange, onRun, onCancel, busy, error, t }: Props) {
   const issues = paramValueIssues(params, values);
   const issueByIndex = new Map(issues.map((issue) => [issue.index, issue]));
   const canRun = issues.length === 0 && !busy;
+  const outputHint = t(
+    outputMode === "terminal"
+      ? "settings.extensions.customRunOutputHintTerminal"
+      : "settings.extensions.customRunOutputHintBackground",
+  );
 
   return (
           <div className="extension-run-params" onClick={(event) => event.stopPropagation()}>
@@ -112,6 +121,11 @@ export function RunParamForm({ params, values, onChange, onRun, onCancel, busy, 
         </p>
       )}
       <p className="extension-run-params__note">{t("settings.extensions.customParamInjectionNote")}</p>
+      {/* Where the output goes, at the foot of the form where the Run button
+          is: one line naming the route the manifest already declares (the
+          same two states the row's switch and the drawer's radio use). No new
+          control — it only states the decision the user is about to act on. */}
+      <p className="extension-run-params__output-hint">{outputHint}</p>
       <div className="extension-run-params__actions">
         <button type="button" className="extensions-action-button" disabled={busy} onClick={onCancel}>
           {t("settings.extensions.customRunCancel")}

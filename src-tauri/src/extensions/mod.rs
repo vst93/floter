@@ -356,6 +356,10 @@ pub struct ExtensionState {
     /// purpose: a run's output is diagnostic, and persisting it would add a
     /// privacy/cleanup surface nothing has asked for (R9-2 slice 1).
     run_outputs: run::RunOutputStore,
+    /// Per-integration in-flight marks for manual runs (R9-2 slice 4). Session
+    /// scoped and in memory: a second concurrent run of the same integration is
+    /// refused rather than racing the first one's argv/output state.
+    runs_in_flight: run::RunInFlight,
     /// AppHandle used to emit operation progress events; absent in unit tests.
     pub(crate) app_handle: std::sync::OnceLock<tauri::AppHandle>,
     /// Cancel token for the currently running long operation, if any.
@@ -402,6 +406,7 @@ impl ExtensionState {
             tool_lock: std::sync::Mutex::new(tool_lock),
             execution_plans: ExecutionPlanCache::default(),
             run_outputs: run::RunOutputStore::default(),
+            runs_in_flight: run::RunInFlight::default(),
             app_handle: std::sync::OnceLock::new(),
             active_cancel: std::sync::Mutex::new(None),
             progress_listener: std::sync::Mutex::new(None),
@@ -490,6 +495,18 @@ impl ExtensionState {
     /// The most recent background-run output for an integration, if any.
     pub fn run_output(&self, id: &str) -> Option<run::RunOutput> {
         self.run_outputs.get(id)
+    }
+
+    /// Claim the single run slot for an integration. The returned guard refuses
+    /// a second concurrent run of the same id and releases the slot when
+    /// dropped, so every exit path clears it.
+    pub(crate) fn begin_run(&self, id: &str) -> Result<run::RunInFlightGuard<'_>, String> {
+        self.runs_in_flight.begin(id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn run_in_flight(&self, id: &str) -> bool {
+        self.runs_in_flight.is_active(id)
     }
 
     pub async fn invalidate_provider_commands(&self) {
