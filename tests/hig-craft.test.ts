@@ -292,6 +292,21 @@ test("the scroll edge effect is a gradient band, never a filter", async () => {
   assert.match(results!.body, /background-image:\s*var\(--scroll-edge-band\)/);
   assert.match(results!.body, /background-size:\s*100% var\(--scroll-edge\)/);
 
+  // R22 · base.css still owns the token at 14px — this test reads it above and
+  // the assertion is unchanged — but the launcher *surface* tightens it to 8px
+  // on its own scope. The band, its `background-size` and the scroller's
+  // `padding-top` all read the variable, so they shrink together: one override,
+  // no second gradient, no fork of the token. This is the round's whole
+  // scroll-edge change and it is pinned here so a later edit cannot quietly
+  // widen the gap under the query field again (「我指的这中间的空白太宽了」).
+  const card = rules(launcher).find(({ selector }) => selector === ".collapsed-card");
+  assert.ok(card, "launcher.css must define .collapsed-card");
+  assert.equal(
+    token(card!.body, "scroll-edge"),
+    "8px",
+    "the launcher scope reserves 8px of scroll edge, not base.css's 14px",
+  );
+
   const settings = stripComments(await read("src/styles/settings.css"));
   const content = rules(settings).find(({ selector }) => selector === ".settings-content");
   assert.ok(content, "settings.css must define .settings-content");

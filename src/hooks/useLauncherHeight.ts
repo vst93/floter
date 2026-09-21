@@ -39,7 +39,8 @@ export function useLauncherHeight(
     // reflowing the list — leaves the window at the height of the *previous*
     // list. The card is `min-height: 100%` inside a centred shell, so a card
     // taller than its window overflows at *both* ends: the field loses its top
-    // edge (the user's 「输入框高度异常」 — 56u of field rendered as ~52px of
+    // edge (the user's 「输入框高度异常」 — the field's 56u (48u since R22) row
+    // rendered as ~52px of
     // visible band) and the action bar is cut by the window's bottom edge
     // (「界面边框又变形了」). No dependency list can enumerate "a row got
     // taller", so the trigger stops being a prediction and becomes a

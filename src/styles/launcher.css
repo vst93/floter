@@ -9,6 +9,15 @@
 .collapsed-card {
   position: relative;
   width: 100%;
+  /* R22 · the scroll-edge reservation is a launcher-local decision. base.css
+     owns the token at 14px (`--scroll-edge`, pinned there for every scroller);
+     this surface is the one where the band sits directly under a text field, so
+     here it is tightened to 8px. That is the whole change: the band, its
+     `background-size` and the scroller's `padding-top` all read this variable,
+     so they shrink together and the fade stays a fade — just a shorter one —
+     while the gap between the query and the first row loses 6px of reservation
+     it was only ever holding for the gradient. base.css is untouched. */
+  --scroll-edge: 8px;
   /* Not `height`: the window is sized to this card (see the measuring layout
      effect in App.tsx), so the card has to be free to be taller than the window
      it currently sits in. Pinned to an exact height it would instead squeeze its
@@ -108,7 +117,16 @@
    in brightness with a gap in it, not a mark. */
 .collapsed-card__input-row {
   position: relative;
-  min-height: calc(var(--u) * 56);
+  /* R22 · 56u → 48u. The row's only content is a 22u line box (see
+     `.collapsed-card__input`), so 56u left ~17px of dead height below the text
+     that read as part of the gap between the query and the first result
+     (「我指的这中间的空白太宽了」). At 48u the line box keeps ~13px above and
+     below it: still breathing, no longer a shelf. The R18 lift is unchanged —
+     the row is still one step brighter than the card — and the R21
+     `--surface-opaque` underlay below is untouched. The pinned metric moves
+     with it: `tests/ui-scale.test.ts` asserts 48px, and the chrome constant
+     drops 8u to match. */
+  min-height: calc(var(--u) * 48);
   display: flex;
   align-items: center;
   padding: 0 calc(var(--u) * 16);
@@ -139,8 +157,8 @@
     var(--glass-field),
     var(--surface-opaque);
   /* The breath below the block. A margin here rather than extra padding on
-     `.launcher-bottom` so this row keeps the 56u height it has always had (a
-     pinned metric — see `tests/ui-scale.test.ts`). */
+     `.launcher-bottom` so this row keeps the height it has always had (a pinned
+     metric — see `tests/ui-scale.test.ts`; 56u until R22, 48u now). */
   margin-bottom: calc(var(--u) * 8);
   overflow: hidden;
 }
@@ -576,8 +594,10 @@
      `tests/launcher-ten-rows.test.ts` asserts this declaration still spells
      those numbers.
 
-     The fixed 50px covers what does not scale with the unit: the 14px
-     scroll-edge reservation at the top, the nine 1px grid gaps around the nine
+     The fixed 50px covers what does not scale with the unit: the scroll-edge
+     reservation at the top (8px here — R22 tightens `--scroll-edge` from
+     base.css's 14px to 8px for the launcher's own scope, see
+     `.collapsed-card`), the nine 1px grid gaps around the nine
      rows, and the empty-query section title (a `--text-body` line at 1.4 plus
      its 6/4px padding ≈ 26px). The title is the reason the chrome is a whole
      row's worth rather than a few pixels — without it the empty-query state,
@@ -611,12 +631,12 @@
 /* R14 · …but only while the list can actually scroll. The band exists to
    dissolve rows *as they pass under the field*; with nothing to scroll, nothing
    ever passes under it, and all that was left was the gradient itself sitting
-   in the 14px the scroller reserves — a grey stripe that, under the R13 seam
+   in the reservation the scroller keeps — a grey stripe that, under the R13 seam
    hairline, read as a second, thicker divider. The padding stays either way
    (the reservation is what keeps the first row from starting under the field's
-   shadow, and keeping it constant is what stops the list from jumping 14px the
-   moment it grows past the viewport). The class is set from the measurement in
-   `LauncherResults.tsx`.
+   shadow, and keeping it constant is what stops the list from jumping the
+   band's height the moment it grows past the viewport). The class is set from
+   the measurement in `LauncherResults.tsx`.
    The band is still declared above, so the scroller's material is unchanged;
    this rule only decides whether it is painted. */
 .launcher-results:not(.launcher-results--scrollable) {

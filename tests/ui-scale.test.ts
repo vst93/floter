@@ -186,7 +186,12 @@ const SAMPLES: [string, string, string, string][] = [
   ["src/styles/base.css", ".platform-windows .terminal-shell", "padding", "10px"],
   ["src/styles/base.css", ".platform-linux .collapsed-shell", "padding", "4px"],
   // launcher.css
-  ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "56px"],
+  // R22 · the field's row was 56px for eleven rounds and is 48px now: the row's
+  // only content is the field's 22px line box, so 56px left ~17px of dead height
+  // under the text that read as part of the gap to the first result
+  // (「我指的这中间的空白太宽了」). The pinned metric moves with the sheet — this
+  // entry is the current value, so it is updated rather than dropped.
+  ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "48px"],
   ["src/styles/launcher.css", ".collapsed-card__input", "min-height", "22px"],
   ["src/styles/launcher.css", ".collapsed-card__settings", "width", "28px"],
   ["src/styles/launcher.css", ".launcher-result", "height", "42px"],
@@ -335,8 +340,12 @@ test("the knob is live: the same samples scale with `--ui-scale`", async () => {
   // real before the UI is allowed to choose it.
   const css = await read("src/styles/launcher.css");
   const value = declarations(ruleFor(css, ".collapsed-card__input-row").body, "min-height")[0];
-  assert.deepEqual(resolveValue(value, 1), [56]);
-  assert.deepEqual(resolveValue(value, 1.2), [67.2], "56 * 1.2");
+  // R22 moved the row from 56u to 48u; the arithmetic is what this test is
+  // about, so the pair moves with the sheet.
+  assert.deepEqual(resolveValue(value, 1), [48]);
+  // Float arithmetic: `calc(48px * 1.2)` lands a hair under 57.6, so compare
+  // the product rather than requiring the decimal to round-trip.
+  assert.deepEqual(resolveValue(value, 1.2), [48 * 1.2], "48 * 1.2");
 });
 
 // ── 3 · hairlines are not scaled ──────────────────────────────────────────

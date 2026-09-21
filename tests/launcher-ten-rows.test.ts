@@ -493,10 +493,20 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
     new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`).exec(ceiling)![1],
   );
   assert.equal(chrome, RESULTS_LIST_CHROME, "the fixed chrome is the module's constant");
-  // The chrome has to be at least the scroll-edge band (14px, see base.css)
-  // plus the gaps around nine rows, and it has to leave room for a section
-  // title — otherwise the empty-query state scrolls the clipboard row away.
-  const band = Number(/\.launcher-results\s*\{[^}]*padding:\s*var\(--scroll-edge\)/s.test(launcher) ? 14 : 0);
+  // The chrome has to be at least the scroll-edge band plus the gaps around
+  // nine rows, and it has to leave room for a section title — otherwise the
+  // empty-query state scrolls the clipboard row away.
+  //
+  // R22 · the band is launcher-local now: `styles/launcher.css` overrides
+  // `--scroll-edge` (14px in base.css) with 8px on `.collapsed-card`, so this
+  // scroller reserves 8px, not the root token. Read the override from the sheet
+  // rather than hard-coding either number — the assertion below is what pins it.
+  const bandOverride = /\.collapsed-card\s*\{[^}]*--scroll-edge:\s*(\d+)px/s.exec(launcher);
+  assert.ok(bandOverride, "the launcher scope overrides --scroll-edge locally");
+  assert.equal(Number(bandOverride[1]), 8, "R22 tightens the launcher's scroll-edge reservation to 8px");
+  const band = Number(
+    /\.launcher-results\s*\{[^}]*padding:\s*var\(--scroll-edge\)/s.test(launcher) ? bandOverride[1] : 0,
+  );
   assert.ok(band > 0, "the scroller still reserves the scroll-edge band as padding");
   assert.ok(
     chrome >= band + MAX_RESULTS + 20,
@@ -539,17 +549,19 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   // R20 re-audited it again and found the action bar is 42u, not the 30u the
   // R19 list read (that is the feedback row's floor); the constant still stands,
   // because it is a floor for a short display and only has to be *at least* the
-  // chrome it stands for — 232u ≥ 149u (R21 took the panel's tail from 4u to 2u,
-  // widening the slack; the formula is untouched). What matters is that it does
+  // chrome it stands for — 224u ≥ 141u (R22 took the field's row from 56u to
+  // 48u and the constant down by the same 8u; R21 had already taken the panel's
+  // tail from 4u to 2u, widening the slack; the formula is untouched). What
+  // matters is that it does
   // not bind on
   // an ordinary one, i.e. that the work area is at least
-  // `RESULTS_VIEWPORT_CHROME + the worst-case list` = 232 + 428 = 660px. Every
+  // `RESULTS_VIEWPORT_CHROME + the worst-case list` = 224 + 428 = 652px. Every
   // display a launcher is used on clears that (a 1280x800 work area is 768px),
   // and on a shorter one the cap binds *deliberately*: the list scrolls rather
   // than the card overflowing its window.
-  assert.equal(RESULTS_VIEWPORT_CHROME, 232);
+  assert.equal(RESULTS_VIEWPORT_CHROME, 224);
   const shortestWorkAreaTheCapDoesNotBind = RESULTS_VIEWPORT_CHROME + budget + chrome;
-  assert.equal(shortestWorkAreaTheCapDoesNotBind, 660);
+  assert.equal(shortestWorkAreaTheCapDoesNotBind, 652);
   assert.ok(
     shortestWorkAreaTheCapDoesNotBind < 768,
     "the App's cap must not bind on the shortest ordinary work area (1280x800)",
@@ -591,8 +603,9 @@ test("the field's text sits on the field's own inset", async () => {
   assert.match(row![1], /align-items:\s*center/, "the row centres the field's box");
   const input = /\.collapsed-card__input\s*\{([^}]*)\}/s.exec(launcher);
   assert.ok(input, ".collapsed-card__input must exist");
-  // R20 · the field keeps its pinned 56u row and 22u box (see
-  // `tests/ui-scale.test.ts`); what it may not keep is the user agent's
+  // R20 · the field keeps its pinned row and 22u box (see
+  // `tests/ui-scale.test.ts`; the row is 48u since R22, 56u before); what it may
+  // not keep is the user agent's
   // `padding: 1px 2px`, which lives *inside* this element's border box: it
   // pushed the line box 1px below the row's centre and the first glyph 2px
   // right of the row's inset. Zeroed, the box the row centres is the line box,

@@ -62,11 +62,14 @@ export const ROW_HEIGHT_COMPACT = 34;
 export const RESULTS_LIST_HEIGHT = MAX_RESULTS * ROW_HEIGHT_TWO_LINE;
 
 /** What the ceiling adds on top of the rows: the fixed pixels that do not scale
- *  with the unit — the 14px scroll-edge reservation the scroller keeps as top
- *  padding (see `--scroll-edge` in `styles/base.css`), the nine 1px grid gaps
- *  around nine rows, and the empty-query section title (a `--text-body` line at
- *  1.4 plus its 6/4px padding ≈ 26px). `14 + 9 + 26 = 49`, and the constant
- *  keeps a pixel of slack at 50. */
+ *  with the unit — the scroll-edge reservation the scroller keeps as top
+ *  padding (R22: 8px in the launcher, where `styles/launcher.css` overrides
+ *  `--scroll-edge` locally over base.css's 14px — see `--scroll-edge` in
+ *  `styles/base.css`), the nine 1px grid gaps around nine rows, and the
+ *  empty-query section title (a `--text-body` line at 1.4 plus its 6/4px padding
+ *  ≈ 26px). `8 + 9 + 26 = 43`; the constant is left at 50, a ceiling that is a
+ *  whole 7px clear of what it has to cover (it was `14 + 9 + 26 = 49` before
+ *  R22, with one pixel of slack). */
 export const RESULTS_LIST_CHROME = 50;
 
 /** The fixed row's id. Stable across query states so a re-render keys it to
@@ -84,7 +87,8 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  the query block without touching this number. At the default interface step
  *  (`--ui-scale: 1`, so the unit is 1px):
  *
- *    `.collapsed-card__input-row`  56u  (min-height, pinned since R10)
+ *    `.collapsed-card__input-row`  48u  (min-height — 56u pinned since R10,
+ *                                      tightened to 48u in R22)
  *    R18 breath below it            8u  (`margin-bottom` on the input row)
  *    `.launcher-bottom` padding     6u  (4u top + 2u bottom — R21: the tail
  *                                      pairs with the last row's own leading,
@@ -93,7 +97,15 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *    feedback row                  30u  (min-height, may appear)
  *    card margin / rounding slack   7u
  *    ─────────────────────────────────
- *                                 149u
+ *                                 141u
+ *
+ *  R22 · the field's row loses 8u (56u → 48u, see `styles/launcher.css`) and
+ *  so does this constant: 232 → 224. Nothing else in the audit moves — the
+ *  row's *height* is the only number that changed, and the R18 breath, the
+ *  tail, the action bar and the feedback row are all untouched — so the segment
+ *  list above is 149u − 8u = 141u and the constant still clears it by 83u of
+ *  slack. The scroll-edge reservation that also sits in this gap is a *list*
+ *  number, not a chrome one: it is already inside `RESULTS_LIST_CHROME`.
  *
  *  R20 · the R19 audit above read the action bar as 30u (the *feedback* row's
  *  floor). `.launcher-action-bar` declares `height: calc(var(--u) * 42)`, so the
@@ -101,13 +113,13 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  not in the constant. `RESULTS_VIEWPORT_CHROME` is a **floor** for a short
  *  display, not a measurement, and it only has to be at least the chrome it
  *  stands for so that the cap it writes is never larger than the window can
- *  hold: 232u ≥ 149u, by 83u of slack. What R20 has to check is that the cap
+ *  hold: 224u ≥ 141u, by 83u of slack. What R20 has to check is that the cap
  *  does not bind on an ordinary display, i.e. that
- *  `availHeight - 232 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
+ *  `availHeight - 224 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
  *  worst-case list plus its fixed chrome, `378 + 50 = 428px`. That holds for
- *  every display taller than 660px of work area, and it is asserted in
+ *  every display taller than 652px of work area, and it is asserted in
  *  `tests/launcher-ten-rows.test.ts`. */
-export const RESULTS_VIEWPORT_CHROME = 232;
+export const RESULTS_VIEWPORT_CHROME = 224;
 
 /** Whether a row is *a* clipboard row — the fixed one, or the one the query
  *  produced by matching the clipboard system command. Either way the list must
