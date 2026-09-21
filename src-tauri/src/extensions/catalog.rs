@@ -498,12 +498,30 @@ pub(crate) async fn load_provider_commands_uncached(
                     .lock()
                     .map_err(|_| "Tool lock is unavailable".to_string())?;
                 let snapshot = tool_lock.clone();
-                match crate::extensions::tool_lock::resolve_executable_binding(
-                    &mut tool_lock,
-                    &entry.id,
-                    &entry.executable_path,
-                    || validate_refreshed_binding(&entry),
-                ) {
+                // R11 · a script integration binds its **interpreter by name**:
+                // the interpreter is re-resolved through the host search path on
+                // every check, so an upgrade that rewrites the binary in place
+                // never invalidates the binding. Every other runtime (a system
+                // tool, a compiled artifact) keeps the frozen path + fingerprint
+                // semantics.
+                let interpreter =
+                    crate::extensions::registry::entry_script_interpreter_language(&entry);
+                let result = match interpreter {
+                    Some(language) => crate::extensions::tool_lock::resolve_interpreter_binding(
+                        &mut tool_lock,
+                        &entry.id,
+                        language.as_str(),
+                        crate::extensions::registry::script_interpreter_is_available(language),
+                        true,
+                    ),
+                    None => crate::extensions::tool_lock::resolve_executable_binding(
+                        &mut tool_lock,
+                        &entry.id,
+                        &entry.executable_path,
+                        || validate_refreshed_binding(&entry),
+                    ),
+                };
+                match result {
                     Ok((binding_state, changed)) => {
                         if changed {
                             if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
@@ -568,15 +586,13 @@ pub(crate) async fn load_provider_commands_uncached(
                     };
                     let detail = match binding_state {
                         crate::extensions::tool_lock::LockState::ReconnectRequired => {
-                            format!(
-                                "Executable is no longer available at {}",
-                                entry.executable_path
+                            crate::extensions::runtime_binding::binding_missing_detail(
+                                &entry.executable_path,
                             )
                         }
                         crate::extensions::tool_lock::LockState::ReverifyRequired => {
-                            format!(
-                                "Executable fingerprint changed at {}",
-                                entry.executable_path
+                            crate::extensions::runtime_binding::binding_changed_detail(
+                                &entry.executable_path,
                             )
                         }
                         crate::extensions::tool_lock::LockState::Connected => unreachable!(),
@@ -1437,11 +1453,15 @@ mod tests {
         );
         assert!(!broken.enabled);
         assert_eq!(broken.last_error_code.as_deref(), Some("binding-missing"));
-        assert!(broken
-            .broken_reason
-            .as_deref()
-            .unwrap()
-            .contains("no longer available"));
+        // R11 · the recorded reason is the **keyed** detail
+        // (`binding-missing:{"path":…}`): the backend owns the fact, the
+        // frontend owns the words, so the row never prints a raw English
+        // "no longer available" sentence beside an untranslated code.
+        let reason = broken.broken_reason.as_deref().unwrap();
+        assert!(
+            reason.starts_with("binding-missing:") && reason.contains("/v"),
+            "the recorded reason must name the missing executable: {reason}"
+        );
 
         // Restore the exact bytes and mtime so the recorded fingerprint
         // matches, then reload. Broken clears and the entry returns to its

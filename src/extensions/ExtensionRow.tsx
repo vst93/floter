@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import type { Translate } from "../i18n";
+import { failureReason } from "./binding-errors";
 import { useEffect, useRef } from "react";
 import { freshnessDotState, freshnessOf } from "./freshness";
 import type { Extension, ExtensionOperation, RunOutput } from "../ExtensionsPanel";
@@ -227,7 +228,7 @@ export function ExtensionRow({
           <span
             className={`extension-status extension-status--${extension.state}`}
             title={extension.state === "broken"
-              ? extension.brokenReason || (extension.lastErrorCode && t(`settings.extensions.errorCode.${extension.lastErrorCode}` as any)) || undefined
+              ? failureReason(extension.lastErrorCode, extension.brokenReason, t) || undefined
               : undefined}
           >
             {status}
@@ -237,7 +238,7 @@ export function ExtensionRow({
               className="extension-status extension-status--broken"
               title={
                 extension.runtimeUnavailableCode
-                  ? `${t(`settings.extensions.errorCode.${extension.runtimeUnavailableCode}` as Parameters<Translate>[0])}${extension.runtimeUnavailableDetail ? ` · ${extension.runtimeUnavailableDetail}` : ""}`
+                  ? failureReason(extension.runtimeUnavailableCode, extension.runtimeUnavailableDetail, t)
                   : t("settings.extensions.runtimeUnavailable")
               }
             >

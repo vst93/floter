@@ -52,6 +52,7 @@ import {
   type ParamValues,
 } from "./extensions/run-params";
 import { runErrorMessage } from "./extensions/run-errors";
+import { failureReason } from "./extensions/binding-errors";
 import {
   createReprobeNoticeGate,
   decideDriftNotice,
@@ -2444,14 +2445,16 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               {detailLoading && <div className="extension-drawer__loading"><LoaderCircle className="extensions-spinner" size={17} strokeWidth={2} />{t("settings.extensions.loadingDetails")}</div>}
               {detailError && <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{detailError}</span></div>}
               {selected.state === "broken" && (selected.brokenReason || selected.lastErrorCode) && (
-                <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.brokenDetail")}: {selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` ${selected.brokenReason}` : ""}</span></div>
+                <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.brokenDetail")}: {failureReason(selected.lastErrorCode, selected.brokenReason, t)}</span></div>
               )}
               {/* Not broken, yet not runnable: the binding or the executable is
                   gone. The reason comes from the same projector as
                   `runtimeAvailable`, so the row can name the cause instead of
-                  only the symptom (audit G5). */}
+                  only the symptom (audit G5). R11 · the code AND the detail go
+                  through the dictionary: the box used to print
+                  `不可用: binding-changed Executable fingerprint changed at …`. */}
               {!selected.runtimeAvailable && selected.runtimeUnavailableCode && (
-                <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.runtimeUnavailableDetail")}: <code>{selected.runtimeUnavailableCode}</code>{selected.runtimeUnavailableDetail ? ` ${selected.runtimeUnavailableDetail}` : ""}</span></div>
+                <div className="extensions-notice extensions-notice--error"><AlertCircle size={15} strokeWidth={2} /><span>{t("settings.extensions.runtimeUnavailableDetail")}: {failureReason(selected.runtimeUnavailableCode, selected.runtimeUnavailableDetail, t)}</span></div>
               )}
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.info")}</h4>
@@ -2464,7 +2467,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                   <div><dt>{t("settings.extensions.availability")}</dt><dd title={t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}>{t(selected.runtimeAvailable ? "settings.extensions.runtimeAvailable" : "settings.extensions.runtimeUnavailable")}</dd></div>
                   <div><dt>{t("settings.extensions.status")}</dt><dd title={t(`settings.extensions.status.${selected.state}`)}>{t(`settings.extensions.status.${selected.state}`)}</dd></div>
                   {selected.state === "broken" && (selected.lastErrorCode || selected.brokenReason) && (
-                    <div><dt>{t("settings.extensions.brokenDetail")}</dt><dd className="extension-metadata__dd--wrap" title={[selected.lastErrorCode, selected.brokenReason].filter(Boolean).join(" · ")}>{selected.lastErrorCode ? <code>{selected.lastErrorCode}</code> : null}{selected.brokenReason ? ` · ${selected.brokenReason}` : ""}</dd></div>
+                    <div><dt>{t("settings.extensions.brokenDetail")}</dt><dd className="extension-metadata__dd--wrap" title={failureReason(selected.lastErrorCode, selected.brokenReason, t)}>{failureReason(selected.lastErrorCode, selected.brokenReason, t)}</dd></div>
                   )}
                   <div><dt>{t("settings.extensions.signature")}</dt><dd title={t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}>{t(selected.signatureVerified ? "settings.extensions.signatureVerified" : "settings.extensions.signatureMissing")}</dd></div>
                   <div><dt>{t("settings.extensions.homepage")}</dt><dd className="extension-metadata__dd--wrap" title={selected.homepage ?? t("settings.extensions.unavailable")}>{selected.homepage ?? t("settings.extensions.unavailable")}</dd></div>

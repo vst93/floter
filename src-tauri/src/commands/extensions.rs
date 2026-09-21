@@ -53,6 +53,22 @@ fn resolve_system_binding(
     manifest: Option<&ExtensionManifest>,
     tool_lock: &crate::extensions::ToolLock,
 ) -> Result<(LockState, bool), String> {
+    // R11 · a script integration binds its **interpreter by name**, so the row
+    // stays available across a toolchain upgrade that rewrites the binary in
+    // place (and across a move to another install prefix). The interpreter is
+    // re-resolved through the shared search path, exactly as the run path does.
+    let interpreter = match manifest {
+        Some(manifest) => crate::extensions::registry::script_interpreter_language(manifest),
+        None => crate::extensions::registry::entry_script_interpreter_language(entry),
+    };
+    if let Some(language) = interpreter {
+        let (state, diverged) = crate::extensions::tool_lock::inspect_interpreter_binding(
+            tool_lock,
+            &entry.id,
+            crate::extensions::registry::script_interpreter_is_available(language),
+        );
+        return Ok((state, diverged));
+    }
     crate::extensions::tool_lock::inspect_executable_binding(
         tool_lock,
         &entry.id,
@@ -1709,6 +1725,12 @@ async fn reconnect_system_locked(
         return Err(format!("Integration does not use a system runtime: {id}"));
     }
     let manifest = crate::extensions::ExtensionManifest::load(Path::new(&current.manifest_path))?;
+    // R11 · a script integration has no system candidate to rediscover: its
+    // interpreter is re-resolved by name through the shared search path, the
+    // same resolver the run path uses.
+    if let Some(language) = crate::extensions::registry::script_interpreter_language(&manifest) {
+        return rebind_script_interpreter_locked(state, id, language).await;
+    }
     let candidate = match executable_path {
         Some(path) => inspect_manifest_executable(&manifest, path)?,
         None => discovered_system_candidate(state, id, &manifest, true)?,
@@ -1996,6 +2018,18 @@ pub async fn extensions_repair(
 
 async fn repair(state: &ExtensionState, id: String) -> Result<ExtensionRepairReport, String> {
     let _guard = state.mutation_lock.lock().await;
+    // R11 · an interpreted script binds its **interpreter by name**. Repair must
+    // therefore re-resolve the interpreter through the host search path and
+    // re-bind it — the system-tool reconnect cannot rediscover a script manifest
+    // (`resolve_manifest_candidate` only understands `executableNames`), which
+    // is why an interpreter upgrade used to end in `Cannot repair`.
+    if let Some(language) = script_integration_language(state, &id) {
+        if script_binding_needs_rebind(state, &id) {
+            return repair_script_interpreter_locked(state, id, language).await;
+        }
+        // A healthy script integration with a clean by-name binding falls
+        // through to the ordinary verify path below and reports "verified".
+    }
     match install::verify_installed_locked(state, &id).await {
         Ok(entry) => {
             // Verification passing clears any stale operation-error record so
@@ -2059,6 +2093,139 @@ async fn repair(state: &ExtensionState, id: String) -> Result<ExtensionRepairRep
                 entry,
             })
         }
+    }
+}
+
+/// The interpreter language of `id`'s runtime when it is an interpreted script.
+/// `None` for a system tool, a compiled artifact, or anything that cannot be
+/// read — those keep the existing repair paths.
+fn script_integration_language(
+    state: &ExtensionState,
+    id: &str,
+) -> Option<crate::extensions::manifest::ScriptLanguage> {
+    let entry = ExtensionsLock::load(&state.paths.repository_file)
+        .ok()?
+        .get(id)
+        .ok()?
+        .clone();
+    crate::extensions::registry::entry_script_interpreter_language(&entry)
+}
+
+/// Whether an interpreted script's binding actually needs the by-name rebind.
+///
+/// A persisted failure always does. A healthy integration with no binding yet
+/// does **not**: the catalog owns the lazy first binding, and a repair that
+/// pre-empted it would report "rebound" for an integration that was never
+/// broken. A binding that is already a connected by-name binding is left alone.
+fn script_binding_needs_rebind(state: &ExtensionState, id: &str) -> bool {
+    if ExtensionsLock::load(&state.paths.repository_file)
+        .ok()
+        .and_then(|lock| lock.get(id).ok().map(|entry| entry.state))
+        == Some(ExtensionStateKind::Broken)
+    {
+        return true;
+    }
+    match state
+        .tool_lock
+        .lock()
+        .ok()
+        .and_then(|lock| lock.tools.get(id).cloned())
+    {
+        None => false,
+        Some(binding) => binding.state != crate::extensions::tool_lock::LockState::Connected,
+    }
+}
+
+/// One-click self-heal for a script integration's interpreter binding (R11).
+///
+/// Re-resolve the interpreter through the host search path, refresh the
+/// recorded path and version, clear the persisted failure, and re-bind the tool
+/// lock **by name**. An interpreter upgrade therefore always recovers; only a
+/// genuinely missing toolchain (or a descriptor that no longer verifies) is an
+/// error.
+async fn rebind_script_interpreter_locked(
+    state: &ExtensionState,
+    id: &str,
+    language: crate::extensions::manifest::ScriptLanguage,
+) -> Result<ExtensionLockEntry, String> {
+    let executable =
+        crate::extensions::install::find_script_interpreter(language).map_err(|error| {
+            format!(
+                "The {} interpreter is not available: {error}",
+                language.as_str()
+            )
+        })?;
+    let (version, version_output) = probe_script_toolchain_version(&executable, language).await;
+    {
+        let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
+        let target = lock
+            .extensions
+            .get_mut(id)
+            .ok_or_else(|| format!("Integration is not connected: {id}"))?;
+        // Refresh the recorded interpreter path and version: the binding is by
+        // name, but the row still shows where the interpreter lives today.
+        target.executable_path = executable.to_string_lossy().into_owned();
+        if let Some(output) = version_output.clone() {
+            target.tool_version = Some(output);
+        } else if let Some(version) = version.clone() {
+            target.tool_version = Some(version);
+        }
+        target.updated_at = crate::extensions::lock::unix_now();
+        lock.clear_broken(id)?;
+        lock.save(&state.paths.repository_file)?;
+    }
+    {
+        let mut tool_lock = state
+            .tool_lock
+            .lock()
+            .map_err(|_| "Tool lock is unavailable".to_string())?;
+        let previous = tool_lock.clone();
+        tool_lock.bind_interpreter(id, language.as_str());
+        if let Err(error) = tool_lock.save(&state.paths.tool_lock_file) {
+            *tool_lock = previous;
+            return Err(error);
+        }
+    }
+    // The rebind only counts if the integration still verifies against the
+    // freshly resolved interpreter. A descriptor that no longer parses keeps its
+    // failure; an upgrade does not.
+    match install::verify_installed_locked(state, id).await {
+        Ok(entry) => {
+            state.invalidate_provider_commands().await;
+            Ok(entry)
+        }
+        Err(problem) => {
+            let code = install::classify_verify_error(&problem);
+            let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
+            lock.mark_broken(id, &code, &problem)?;
+            lock.save(&state.paths.repository_file)?;
+            state.invalidate_provider_commands().await;
+            Err(problem)
+        }
+    }
+}
+
+async fn repair_script_interpreter_locked(
+    state: &ExtensionState,
+    id: String,
+    language: crate::extensions::manifest::ScriptLanguage,
+) -> Result<ExtensionRepairReport, String> {
+    match rebind_script_interpreter_locked(state, &id, language).await {
+        Ok(entry) => {
+            let detail = format!(
+                "{} interpreter re-resolved at {}",
+                language.as_str(),
+                entry.executable_path
+            );
+            Ok(ExtensionRepairReport {
+                id,
+                repaired: true,
+                action: "reconnected-script-runtime".to_string(),
+                detail,
+                entry,
+            })
+        }
+        Err(problem) => Err(format!("Cannot repair {id}: {problem}")),
     }
 }
 
@@ -4113,6 +4280,110 @@ mod tests {
                 health_report(&fixture.state, ID).unwrap().status,
                 HealthStatus::Unhealthy
             );
+        }
+
+        /// R11 · a script integration whose interpreter was upgraded must
+        /// recover from one recheck: the repair re-resolves the interpreter
+        /// through the host search path and re-binds it **by name**. An older
+        /// build left a legacy absolute-path binding plus a `binding-changed`
+        /// failure; repair must never answer `Cannot repair` for it.
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn repair_rebinds_a_script_interpreter_by_name() {
+            use crate::extensions::inventory::ToolLocator;
+            use crate::extensions::tool_lock::LockState;
+
+            let fixture = Fixture::new(true);
+            let installed = fixture.install().await;
+
+            // Seed what a pre-R11 build persisted: a frozen absolute-path
+            // binding whose fingerprint no longer matches, plus the failure the
+            // list projected from it.
+            {
+                let mut tool_lock = fixture.state.tool_lock.lock().unwrap();
+                let candidate = crate::extensions::inventory::executable_candidate(
+                    Path::new(&installed.executable_path),
+                    "sh",
+                );
+                tool_lock.bind(&installed.id, &candidate);
+                tool_lock.tools.get_mut(&installed.id).unwrap().state = LockState::ReverifyRequired;
+                tool_lock.save(&fixture.state.paths.tool_lock_file).unwrap();
+            }
+            {
+                let mut repository =
+                    ExtensionsLock::load(&fixture.state.paths.repository_file).unwrap();
+                repository
+                    .mark_broken(
+                        &installed.id,
+                        "binding-changed",
+                        &crate::extensions::runtime_binding::binding_changed_detail(
+                            &installed.executable_path,
+                        ),
+                    )
+                    .unwrap();
+                repository
+                    .save(&fixture.state.paths.repository_file)
+                    .unwrap();
+            }
+
+            let report = repair(&fixture.state, installed.id.clone()).await.unwrap();
+            assert!(
+                report.repaired,
+                "an interpreter upgrade is always repairable"
+            );
+            assert_eq!(report.action, "reconnected-script-runtime");
+
+            // The binding is the by-name form again and reads Connected.
+            let binding =
+                crate::extensions::ToolLock::load(&fixture.state.paths.tool_lock_file).unwrap();
+            assert!(matches!(
+                binding.tools[&installed.id].locator,
+                ToolLocator::Interpreter { .. }
+            ));
+            assert_eq!(binding.tools[&installed.id].state, LockState::Connected);
+
+            // …and the integration is usable again: no failure, enabled.
+            let stored = fixture.entry();
+            assert_eq!(stored.state, ExtensionStateKind::Enabled);
+            assert!(stored.enabled);
+            assert_eq!(stored.last_error_code, None);
+        }
+
+        /// R11 · the exact reported surface: a script integration whose
+        /// interpreter was upgraded in place must stay **available** in the
+        /// list. The pre-R11 legacy binding recorded a fingerprint; R11 judges
+        /// an interpreter by presence, so a stale fingerprint is ignored.
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn a_script_binding_ignores_a_changed_interpreter_fingerprint() {
+            use crate::extensions::tool_lock::LockState;
+
+            let fixture = Fixture::new(true);
+            let installed = fixture.install().await;
+            {
+                let mut tool_lock = fixture.state.tool_lock.lock().unwrap();
+                let mut candidate = crate::extensions::inventory::executable_candidate(
+                    Path::new(&installed.executable_path),
+                    "sh",
+                );
+                // The legacy absolute-path form the user's broken entry has,
+                // with a fingerprint that no longer matches the upgraded binary.
+                candidate.fingerprint = Some("stale-fingerprint".into());
+                tool_lock.bind(&installed.id, &candidate);
+                tool_lock.save(&fixture.state.paths.tool_lock_file).unwrap();
+            }
+
+            let items = list_extensions(&fixture.state).await.unwrap().0;
+            let listed = items
+                .iter()
+                .find(|item| item.entry.id == installed.id)
+                .expect("the script integration is still listed");
+            assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
+            assert!(
+                listed.runtime_available,
+                "an interpreter upgrade must not mark the integration unavailable"
+            );
+            assert_eq!(listed.runtime_unavailable_code, None);
         }
     }
 

@@ -453,13 +453,29 @@ impl ExtensionState {
             if entry.runtime_ownership != ExtensionRuntimeOwnership::System {
                 continue;
             }
-            let validate = || catalog::validate_refreshed_binding(&entry);
-            match tool_lock::resolve_existing_binding(
-                &mut tool_lock,
-                &entry.id,
-                &entry.executable_path,
-                validate,
-            ) {
+            // R11 · a script integration's interpreter binding is by name and is
+            // resolved through the live search path, never against a frozen
+            // fingerprint. Every other runtime keeps the path/fingerprint path.
+            let interpreter = registry::entry_script_interpreter_language(&entry);
+            let result = match interpreter {
+                Some(language) => tool_lock::resolve_interpreter_binding(
+                    &mut tool_lock,
+                    &entry.id,
+                    language.as_str(),
+                    registry::script_interpreter_is_available(language),
+                    false,
+                ),
+                None => {
+                    let validate = || catalog::validate_refreshed_binding(&entry);
+                    tool_lock::resolve_existing_binding(
+                        &mut tool_lock,
+                        &entry.id,
+                        &entry.executable_path,
+                        validate,
+                    )
+                }
+            };
+            match result {
                 Ok((_, entry_changed)) => changed |= entry_changed,
                 Err(error) => {
                     tracing::warn!(

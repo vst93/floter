@@ -45,6 +45,19 @@ pub enum ToolLocator {
     Executable {
         path: String,
     },
+    /// A script integration's interpreter, bound **by name** rather than by a
+    /// frozen absolute path. The stored value is the manifest's script-language
+    /// spelling (`php`, `js`, `shell`, …); the concrete candidate binaries
+    /// (`php`, `php8.4`, `node`, …) are re-resolved through the host search path
+    /// on every check.
+    ///
+    /// Frozen paths are wrong for an interpreter: a Homebrew upgrade replaces
+    /// the binary behind `/opt/homebrew/bin/php` in place, and a version manager
+    /// can move it entirely — neither is a change to the integration the user
+    /// approved. Only the interpreter actually disappearing is.
+    Interpreter {
+        language: String,
+    },
     DockerImage {
         reference: String,
         digest: Option<String>,
@@ -70,6 +83,9 @@ impl ToolLocator {
                 format!("flatpak:{}", app_id.trim().to_ascii_lowercase())
             }
             Self::Snap { name } => format!("snap:{}", name.trim().to_ascii_lowercase()),
+            Self::Interpreter { language } => {
+                format!("interpreter:{}", language.trim().to_ascii_lowercase())
+            }
         }
     }
 

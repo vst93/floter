@@ -621,6 +621,10 @@ const en = {
   "settings.extensions.errorCode.identity-mismatch": "Provider identity mismatch",
   "settings.extensions.errorCode.manifest-missing": "Manifest missing or invalid",
   "settings.extensions.errorCode.invalid-descriptor": "Invalid provider descriptor",
+  // R11 · the binding-failure *detail* sentence. The backend records the fact
+  // as a keyed payload (`binding-changed:{"path":…}`); these are the words.
+  "settings.extensions.bindingChangedDetail": "Executable changed: {path} — possibly a tool upgrade; click Re-check to recover",
+  "settings.extensions.bindingMissingDetail": "Executable not found: {path}",
   // R7-10b · the system-notification copy. A notification is OS chrome, so it
   // is not part of any in-app surface — but its words are still the app's
   // words, and they live here so both languages sit side by side and a key
@@ -1270,6 +1274,8 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.errorCode.identity-mismatch": "Provider 身份不匹配",
   "settings.extensions.errorCode.manifest-missing": "清单缺失或无效",
   "settings.extensions.errorCode.invalid-descriptor": "Provider 描述符无效",
+  "settings.extensions.bindingChangedDetail": "可执行文件已变更：{path}（可能是工具升级所致，点「重新检测」即可恢复）",
+  "settings.extensions.bindingMissingDetail": "可执行文件不存在：{path}",
   "notification.title": "floter",
   "notification.install.success": "{name} 已安装",
   "notification.install.failure": "{name} 安装失败",

@@ -111,19 +111,13 @@ impl RuntimeBinding {
             Some(LockState::ReconnectRequired) => {
                 return Self::unavailable(
                     ProviderErrorCode::BindingMissing.as_str(),
-                    format!(
-                        "Executable is no longer available at {}",
-                        entry.executable_path
-                    ),
+                    binding_missing_detail(&entry.executable_path),
                 );
             }
             Some(LockState::ReverifyRequired) => {
                 return Self::unavailable(
                     ProviderErrorCode::BindingChanged.as_str(),
-                    format!(
-                        "Executable fingerprint changed at {}",
-                        entry.executable_path
-                    ),
+                    binding_changed_detail(&entry.executable_path),
                 );
             }
             Some(LockState::Connected) | None => {}
@@ -142,13 +136,31 @@ fn live_runtime(entry: &ExtensionLockEntry) -> Result<(), (String, String)> {
         Ok(invocation) if invocation.executable.is_file() => Ok(()),
         Ok(invocation) => Err((
             ProviderErrorCode::BindingMissing.as_str().to_string(),
-            format!(
-                "Executable is no longer available at {}",
-                invocation.executable.display()
-            ),
+            binding_missing_detail(&invocation.executable.to_string_lossy()),
         )),
         Err(error) => Err((failure_code(&error).to_string(), error)),
     }
+}
+
+/// A **keyed** binding failure detail: the provider error code plus a JSON
+/// payload naming the file. The frontend owns the words (both languages) and
+/// the backend owns the fact — the R9-5 rule, extended to the binding codes.
+///
+/// The detail is what the error box used to print raw, as
+/// `不可用: binding-changed Executable fingerprint changed at /opt/homebrew/bin/php`
+/// — a key prefix glued to an English sentence. Now the code and the payload
+/// both travel to a dictionary entry.
+pub(crate) fn binding_missing_detail(path: &str) -> String {
+    binding_detail(ProviderErrorCode::BindingMissing, path)
+}
+
+pub(crate) fn binding_changed_detail(path: &str) -> String {
+    binding_detail(ProviderErrorCode::BindingChanged, path)
+}
+
+fn binding_detail(code: ProviderErrorCode, path: &str) -> String {
+    let body = serde_json::json!({ "path": path }).to_string();
+    format!("{}:{body}", code.as_str())
 }
 
 /// Whether a `broken` entry's runtime can be proven usable without launching
@@ -320,6 +332,26 @@ mod tests {
         );
         assert!(!projected.is_available());
         assert_eq!(projected.code(), Some("binding-missing"));
+    }
+
+    /// R11 · the binding details are **keyed** (`binding-changed:{"path":…}`),
+    /// the shape `src/extensions/binding-errors.ts` parses into a dictionary
+    /// entry. A prose detail would reach the error box untranslated, so the
+    /// contract is pinned on both sides of the IPC.
+    #[test]
+    fn binding_failure_details_are_keyed_for_the_dictionary() {
+        for (detail, code) in [
+            (
+                binding_changed_detail("/opt/homebrew/bin/php"),
+                "binding-changed",
+            ),
+            (binding_missing_detail("/nope/tool"), "binding-missing"),
+        ] {
+            let (key, payload) = detail.split_once(':').expect("the detail is keyed");
+            assert_eq!(key, code);
+            assert!(payload.starts_with('{'), "{detail}");
+            assert!(payload.contains("\"path\""), "{detail}");
+        }
     }
 
     /// Every code the catalog can record has to be one the UI dictionary can

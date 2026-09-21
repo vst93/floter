@@ -10,6 +10,41 @@ pub fn provider_invocation(entry: &ExtensionLockEntry) -> Result<ProviderInvocat
     provider_invocation_with_manifest(entry, &manifest)
 }
 
+/// The interpreter language this runtime binds **by name**, when the runtime is
+/// an *interpreted* script. `None` for every other runtime:
+///
+/// * a system tool's identity is the external executable the user chose;
+/// * a compiled script's identity is the artifact Floter built, which is a
+///   real file whose fingerprint is meaningful.
+///
+/// Only an interpreter is re-resolved through the host search path on every
+/// check, because only an interpreter is expected to be replaced in place by a
+/// toolchain upgrade.
+pub(crate) fn script_interpreter_language(manifest: &ExtensionManifest) -> Option<ScriptLanguage> {
+    match &manifest.runtime {
+        Runtime::Script { language, .. } if !language.is_compiled() => Some(*language),
+        _ => None,
+    }
+}
+
+/// [`script_interpreter_language`] for an entry, reading (and parsing) the
+/// installed manifest. A manifest that will not load yields `None`: the binding
+/// then falls back to the frozen-path semantics and the catalog's own manifest
+/// validation reports the real failure.
+pub(crate) fn entry_script_interpreter_language(
+    entry: &ExtensionLockEntry,
+) -> Option<ScriptLanguage> {
+    let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path)).ok()?;
+    script_interpreter_language(&manifest)
+}
+
+/// Whether the host's search path currently resolves the language's
+/// interpreter. The single answer both the binding check and the run path use,
+/// so they cannot disagree about whether a script integration is usable.
+pub(crate) fn script_interpreter_is_available(language: ScriptLanguage) -> bool {
+    super::install::find_script_interpreter(language).is_ok()
+}
+
 pub(crate) fn provider_invocation_with_manifest(
     entry: &ExtensionLockEntry,
     manifest: &ExtensionManifest,
