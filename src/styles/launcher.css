@@ -130,13 +130,22 @@
    `::after` is the neutral one the list lights. They are mutually exclusive
    by construction (the neutral line drops to 0 the moment the row is
    focused), so the seam is always exactly one pixel tall and never doubles
-   into a smudge. */
+   into a smudge.
+
+   R16 · the seam runs the content column's width, not the field's padding.
+   R15 measured it at 16u and the user read the result as a line that had
+   *stopped short of* the rows above and below it (「阴影线条拉齐」): the
+   rows are full-bleed inside the card, so a divider inset to the field's
+   padding sat ~100px inside both ends of the very list it divides. The
+   11px column is this card's own column language — `section-title` and the
+   rows' inner padding both speak it — so the seam now shares an edge with
+   the content it separates instead of with the field's text inset. */
 .collapsed-card__input-row::before,
 .collapsed-card__input-row::after {
   content: "";
   position: absolute;
-  left: calc(var(--u) * 16);
-  right: calc(var(--u) * 16);
+  left: calc(var(--u) * 11);
+  right: calc(var(--u) * 11);
   bottom: 0;
   height: 1px;
   opacity: 0;
@@ -161,8 +170,8 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--input-stroke) 12%,
-    var(--input-stroke) 88%,
+    var(--input-stroke) 3%,
+    var(--input-stroke) 97%,
     transparent 100%
   );
 }
@@ -182,8 +191,8 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--accent-edge) 10%,
-    var(--accent-edge) 90%,
+    var(--accent-edge) 3%,
+    var(--accent-edge) 97%,
     transparent 100%
   );
 }

@@ -127,13 +127,33 @@ test("the input row owns a 1px seam on its floor, faded to nothing at both ends"
   assert.equal(decl(geometry!.body, "pointer-events"), "none", "a seam must never eat a click meant for the field or a row");
   assert.equal(
     decl(geometry!.body, "left"),
-    "calc(var(--u) * 16)",
-    "the seam is inset to the field's own padding: the mark belongs to the field, not to the window",
+    "calc(var(--u) * 11)",
+    "R16: the seam shares the content column's edge — inset to the field's padding it read as a line that stopped short of the rows it divides",
+  );
+  assert.equal(
+    decl(geometry!.body, "right"),
+    "calc(var(--u) * 11)",
+    "and both ends move together: a seam flush on one side and short on the other is a crooked rule",
   );
   const background = decl(seam!.body, "background");
   assert.ok(background && /linear-gradient\(\s*90deg/.test(background), "the seam is drawn as a gradient so it can fade at both ends");
   assert.ok(/transparent 0%/.test(background!) && /transparent 100%/.test(background!), "both ends of the seam must reach transparent: a line with two soft ends separates without ruling");
   assert.ok(/var\(--input-stroke\)/.test(background!), "the resting seam is --input-stroke, the same hairline the card's own edge is drawn with");
+  // R16 · the fade is a guard against a hard endpoint, not a way to shorten
+  // the line. At 12%/88% the solid span was ~76% of a 1223px run and the user
+  // read the result as a rule that did not reach the rows it divides.
+  const ends = stops(background!).map((s) =>
+    Number(s.match(/([\d.]+)%$/)?.[1]),
+  );
+  assert.equal(ends.length, 4, "four stops: two ends, two shoulders");
+  assert.ok(
+    ends[0] === 0 && ends[3] === 100,
+    "the transparent ends still sit on the element's own edges",
+  );
+  assert.ok(
+    ends[1]! <= 5 && ends[2]! >= 95,
+    `R16: the shoulders stay within 5% of each end so the seam spans its column; got ${ends[1]}%..${ends[2]}%`,
+  );
 });
 
 test("the seam is gated: only while there is a list under it", async () => {
