@@ -96,16 +96,18 @@ test("the old smear cannot come back in a new shape: no accent wash gradient any
     !/--accent-wash/.test(css),
     "a vertical bloom is still a wash: the token is retired from this sheet, not reshaped",
   );
-  // The one accent gradient that is allowed under the field is the focus seam,
-  // and it is a 1px keyline — never a filled area.
+  // The only accent under the field is the focus seam, and R17 took its fade
+  // away too (「不要渐隐」): a solid 1px accent keyline, never a filled area.
   const accentSeam = rule(css, ".collapsed-card__input-row::before");
   assert.ok(accentSeam, "the focus seam must still exist");
   const background = decl(accentSeam!.body, "background") ?? "";
-  assert.equal(angle(background), "90deg", "the only accent under the field is the horizontal hairline");
-  assert.equal(
-    stops(background).length,
-    4,
-    "four stops and no more: transparent at both ends, accent in the middle — an area fill would need a vertical angle",
+  assert.ok(
+    background && !/gradient/.test(background),
+    "the focus seam is a solid accent rule: no gradient, no area fill",
+  );
+  assert.ok(
+    /var\(--accent-edge\)/.test(background),
+    "the focus seam is --accent-edge, the keyline token",
   );
   assert.equal(
     decl(rule(css, SEAM)!.body, "height"),
@@ -136,24 +138,12 @@ test("the input row owns a 1px seam on its floor, faded to nothing at both ends"
     "and both ends move together: a seam flush on one side and short on the other is a crooked rule",
   );
   const background = decl(seam!.body, "background");
-  assert.ok(background && /linear-gradient\(\s*90deg/.test(background), "the seam is drawn as a gradient so it can fade at both ends");
-  assert.ok(/transparent 0%/.test(background!) && /transparent 100%/.test(background!), "both ends of the seam must reach transparent: a line with two soft ends separates without ruling");
+  // R17 · the fade is gone at the user's word (「不要渐隐」): a solid hairline,
+  // the same var the card's own edge is drawn with. The line already shares
+  // the content column's edge (11u inset), so there is no endpoint to soften —
+  // a gradient here can only shorten the rule or smear it.
+  assert.ok(background && !/gradient/.test(background), "the seam is a solid rule: no gradient, no fade");
   assert.ok(/var\(--input-stroke\)/.test(background!), "the resting seam is --input-stroke, the same hairline the card's own edge is drawn with");
-  // R16 · the fade is a guard against a hard endpoint, not a way to shorten
-  // the line. At 12%/88% the solid span was ~76% of a 1223px run and the user
-  // read the result as a rule that did not reach the rows it divides.
-  const ends = stops(background!).map((s) =>
-    Number(s.match(/([\d.]+)%$/)?.[1]),
-  );
-  assert.equal(ends.length, 4, "four stops: two ends, two shoulders");
-  assert.ok(
-    ends[0] === 0 && ends[3] === 100,
-    "the transparent ends still sit on the element's own edges",
-  );
-  assert.ok(
-    ends[1]! <= 5 && ends[2]! >= 95,
-    `R16: the shoulders stay within 5% of each end so the seam spans its column; got ${ends[1]}%..${ends[2]}%`,
-  );
 });
 
 test("the seam is gated: only while there is a list under it", async () => {

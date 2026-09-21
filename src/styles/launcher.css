@@ -167,13 +167,7 @@
    seam below is deliberately left at full strength — it carries state, and a
    state mark may be louder than a divider. */
 .collapsed-card__input-row::after {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--input-stroke) 3%,
-    var(--input-stroke) 97%,
-    transparent 100%
-  );
+  background: var(--input-stroke);
 }
 
 .collapsed-card--results-visible .collapsed-card__input-row::after {
@@ -188,13 +182,7 @@
    already wears `--glass-rim-shadow-active` and a second halo would be the
    same sentence said twice. */
 .collapsed-card__input-row::before {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--accent-edge) 3%,
-    var(--accent-edge) 97%,
-    transparent 100%
-  );
+  background: var(--accent-edge);
 }
 
 .collapsed-card:focus-within .collapsed-card__input-row::before {
