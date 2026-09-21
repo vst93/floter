@@ -116,7 +116,11 @@ const MARK = /[-_](?:dot|progress-(?:bar|fill|track))\b/;
 // name; a counted selector that is in *no* entry is a new accent fill and fails
 // the complement assertion.
 const VIEWS: { name: string; mode: string; selectors: string[] }[] = [
-  { name: "collapsed · results", mode: "collapsed", selectors: [".launcher-result--selected", ".launcher-action-bar--selected"] },
+  // R14: the action bar's selection became the neutral raised pane — a row, not
+  // a banner — so it is no longer an accent fill and is deliberately left out of
+  // this ledger. If a later round tints it again the complement assertion names
+  // it as an orphan, instead of a ledger entry quietly absorbing it.
+  { name: "collapsed · results", mode: "collapsed", selectors: [".launcher-result--selected"] },
   { name: "collapsed · onboarding tip", mode: "collapsed", selectors: [".launcher-tip"] },
   { name: "collapsed · feedback toast", mode: "collapsed", selectors: [".launcher-feedback", ".launcher-feedback--warning"] },
   { name: "collapsed · system confirm", mode: "collapsed", selectors: [".launcher-system-confirm", ".launcher-system-confirm__execute"] },

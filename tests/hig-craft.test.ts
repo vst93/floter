@@ -330,6 +330,80 @@ test("the resting state starts below the scroll edge band", async () => {
   }
 });
 
+// R14 · The band is a *scrolling* effect, so a list that already fits must not
+// paint it. Painted unconditionally it sat in the scroller's own 14px
+// reservation as a grey stripe directly under the R13 seam hairline, which read
+// as one thick second divider below the input — the user's 「双灰条」.
+// The switch is a class, and it is thrown by a measurement rather than by a
+// guess about the row budget (that number lives in one place, the App's), so
+// both halves are pinned here.
+test("the scroll edge band is painted only while the list can scroll", async () => {
+  const launcher = stripComments(await read("src/styles/launcher.css"));
+  // The band stays declared on `.launcher-results` itself (the two tests above
+  // read it there); this rule is the switch that turns it off.
+  const gate = rules(launcher).find(({ selector }) =>
+    selector.startsWith(".launcher-results:not(.launcher-results--scrollable)"),
+  );
+  assert.ok(gate, "launcher.css must gate the band on the scrollable class");
+  assert.match(gate!.body, /background-image:\s*none/, "the band is switched off, not merely faded");
+  assert.ok(
+    !/padding/.test(gate!.body),
+    "the 14px reservation must not move with the band, or the list jumps as it grows",
+  );
+
+  // The class is emitted from the scroller's own box.
+  const results = stripComments(await read("src/launcher/LauncherResults.tsx"));
+  assert.match(
+    results,
+    /launcher-results\$\{scrollable \? " launcher-results--scrollable" : ""\}/,
+    "the scroller carries the class the gate reads",
+  );
+  assert.match(
+    results,
+    /setScrollable\(node\.scrollHeight > node\.clientHeight \+ 1\)/,
+    "the class is thrown from the scroller's measured box, not from a row count",
+  );
+});
+
+// R14 · The action bar is a row, not a banner. It used to carry the same accent
+// fill, accent keyline and raised shadow as a selected result row, which made
+// the loudest object on the panel the one row that is not a result: a
+// full-width blue block under a column of quiet rows.
+test("the action bar's selection is the neutral raised pane, not an accent block", async () => {
+  const launcher = stripComments(await read("src/styles/launcher.css"));
+  const selected = rules(launcher).find(
+    ({ selector }) => selector === ".launcher-action-bar--selected",
+  );
+  assert.ok(selected, "launcher.css must define the selected action bar");
+  assert.match(
+    selected!.body,
+    /background:\s*var\(--glass-raised-quiet\)/,
+    "the selection is the neutral lit pane the chosen states use",
+  );
+  assert.ok(
+    !/var\(--(?:accent-tint|accent-edge)(?!-)/.test(selected!.body),
+    "no accent fill and no accent keyline: the accent belongs to the result rows",
+  );
+  assert.ok(
+    !/inset 0 0 0 1px/.test(selected!.body),
+    "the inner stroke that made the block read as a banner is gone",
+  );
+  assert.match(
+    selected!.body,
+    /box-shadow:\s*var\(--glass-raised-shadow\)/,
+    "it is still a lit pane — the rim is what keeps it visible as the selection",
+  );
+  // The row above it keeps the accent, so the panel still says which row is
+  // chosen with the one colour it is allowed.
+  const row = rules(launcher).find(({ selector }) => selector === ".launcher-result--selected");
+  assert.match(row!.body, /background:\s*var\(--glass-raised\)/);
+  // …and the `⌘↩` badge that says "this runs on Enter" is untouched.
+  assert.ok(
+    rules(launcher).some(({ selector }) => selector === ".launcher-action-bar__hint"),
+    "the shortcut badge stays: it is what the lighter selection is legible by",
+  );
+});
+
 // ── Hairlines ─────────────────────────────────────────────────────────────
 
 test("the bar/content separators are gradient hairlines, not solid rules", async () => {

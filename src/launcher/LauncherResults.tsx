@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import type { Translate } from "../i18n";
 import type { LocalApplication } from "../App";
 import { formatResultShortcut } from "../shortcuts";
@@ -161,6 +161,37 @@ export function LauncherResults({
   onRunResult,
   onRunActionBar,
 }: LauncherResultsProps) {
+  // R14 · The scroll-edge band is a *scrolling* effect, so it is painted only
+  // while there is something to scroll. Painted unconditionally it was a 14px
+  // grey stripe parked under the field's hairline in every list that already
+  // fits — with the R13 seam above it that read as one thick grey bar under the
+  // input, the "double grey bar" the user photographed.
+  //
+  // The switch is a class (`--scrollable`, see `styles/launcher.css`), and the
+  // measurement is the scroller's own box: `scrollHeight` against `clientHeight`
+  // is exactly the question "is there more list than viewport", so a row that
+  // just changed height (a compact row gaining a subtitle) counts without
+  // anyone predicting the row budget a second time. The tolerance is one pixel:
+  // a sub-pixel remainder from the fractional `--u` scale is not something the
+  // user can scroll to.
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const [scrollable, setScrollable] = useState(false);
+  useLayoutEffect(() => {
+    const node = resultsRef.current;
+    if (!node) {
+      setScrollable(false);
+      return;
+    }
+    const sync = () => setScrollable(node.scrollHeight > node.clientHeight + 1);
+    sync();
+    // Content changes arrive as a re-render (this effect's deps); a box change
+    // — the viewport cap starting to bind — arrives as a resize of the
+    // scroller itself.
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [results, showRecentTitle]);
+
   // The container stays mounted even with nothing to show. Returning `null`
   // here used to unmount and rebuild every row on the keystroke that emptied
   // or refilled the list, which is a layout and paint of the whole subtree at
@@ -170,7 +201,11 @@ export function LauncherResults({
   return (
     <div id="launcher-options" className="launcher-options" role="listbox" aria-label={t("launcher.results")}>
       {results.length > 0 && (
-        <div className="launcher-results" role="presentation">
+        <div
+          ref={resultsRef}
+          className={`launcher-results${scrollable ? " launcher-results--scrollable" : ""}`}
+          role="presentation"
+        >
           {showRecentTitle && (
             <div
               className="launcher-section-title"

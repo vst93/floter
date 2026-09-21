@@ -36,7 +36,7 @@ import {
   withClipboardResultRow,
 } from "../src/launcher/result-budget.ts";
 import { launcherShortcutSlots } from "../src/launcher.ts";
-import { appSubtitleKey, resultRowContent } from "../src/launcher/row-content.ts";
+import { appSubtitleKey, isTranscription, resultRowContent } from "../src/launcher/row-content.ts";
 import type { LauncherItem } from "../src/launcher/LauncherResults.tsx";
 
 const root = new URL("../", import.meta.url);
@@ -214,17 +214,106 @@ test("an application row drops the type word from both columns", () => {
   assert.equal(bare.subtitle, null, "a subtitle that only repeats the type is not printed");
   assert.equal(bare.source, null, "an application never prints a right-hand type word");
 
-  // A subtitle that says something the type word does not — the app's real
-  // name — survives, but the right-hand word still does not.
+  // R14: the app's real name is no longer "information" when it is only the
+  // other-language half of the pair the title came from (see the test below);
+  // what survives is a subtitle that is neither the type word nor the title.
   const named = resultRowContent(appRow("wecom", "/Applications/WeCom.app", "WeCom"), t);
-  assert.equal(named.subtitle, "WeCom", "a real name is information and stays");
+  assert.equal(named.subtitle, null, "a second spelling of the title is not a subtitle");
   assert.equal(named.source, null, "the right-hand word is dropped for apps either way");
+
+  const remarked = resultRowContent(
+    appRow("notes", "/Applications/Notes.app", "Ideas and todos"),
+    t,
+  );
+  assert.equal(remarked.subtitle, "Ideas and todos", "a real remark is information and stays");
+});
+
+// R14, the user's three examples, verbatim: 「QQ音乐/QQMusic、Safari浏览器/Safari、
+// 企业微信/WeCom——副标题只是同一名字的另一种语言 = 零信息」. The catalog prints
+// `app.name` in the subtitle slot exactly when it differs from the localized
+// title, so the pair is by construction one app's name in two languages — and
+// two of the three share no character at all, so no string folding can see it.
+test("an app's other-language name is not a subtitle", () => {
+  const localized = (id: string, localizedName: string, name: string): LauncherItem => ({
+    type: "app",
+    id,
+    title: localizedName,
+    subtitle: name,
+    app: { path: `/Applications/${id}.app`, name, localizedName } as never,
+  });
+
+  for (const [localizedName, name] of [
+    ["QQ音乐", "QQMusic"],
+    ["Safari浏览器", "Safari"],
+    ["企业微信", "WeCom"],
+  ] as const) {
+    const row = resultRowContent(localized(name, localizedName, name), t);
+    assert.equal(
+      row.subtitle,
+      null,
+      `${localizedName} / ${name}: the platform's other name for the same app says nothing new`,
+    );
+    assert.equal(row.source, null, `${localizedName}: the right-hand word stays dropped`);
+  }
+
+  // The rule reads the app's own two name fields, so a *description* the
+  // platform ships is not mistaken for a variant of the name.
+  const described: LauncherItem = {
+    type: "app",
+    id: "music",
+    title: "QQ音乐",
+    subtitle: "音乐播放器",
+    app: {
+      path: "/Applications/QQMusic.app",
+      name: "QQMusic",
+      localizedName: "QQ音乐",
+      comment: "音乐播放器",
+    } as never,
+  };
+  assert.equal(resultRowContent(described, t).subtitle, "音乐播放器", "a description is not a name");
+});
+
+// The general half of the rule: a subtitle that is the title written again in
+// another case, width or spacing is a transcription, whatever the row kind.
+test("a subtitle that is the title transcribed is dropped for every row kind", () => {
+  assert.equal(isTranscription("Safari", "safari"), true);
+  assert.equal(isTranscription("Safari浏览器", "Ｓａｆａｒｉ浏览器"), true, "full-width folds to ASCII");
+  assert.equal(isTranscription("Visual Studio Code", "visual studio code"), true);
+  assert.equal(isTranscription("QQ 音乐", "qq音乐"), true, "spacing is not information");
+  assert.equal(isTranscription("WeCom", "WeChat"), false, "a different name is not a transcription");
+  assert.equal(isTranscription("剪贴板历史", "打开剪贴板历史面板"), false, "an action sentence is not a transcription");
+
+  const command: LauncherItem = {
+    type: "command",
+    id: "c",
+    title: "Deploy",
+    subtitle: "deploy",
+    warnings: [],
+    sourceName: "Deploy Kit",
+    commandLine: "deploy",
+    execution: null,
+    completion: false,
+  };
+  assert.equal(resultRowContent(command, t).subtitle, null, "the command row prints its title alone");
 });
 
 test("every other row kind keeps the word it earns", () => {
+  // R14: a system action prints no right-hand word at all — the screenshot had
+  // "Floter 内置" beside both the restart and the clipboard row.
   const clipboard = resultRowContent(clipboardResultRow(t), t);
-  assert.equal(clipboard.source, t("extensions.builtIn"), "the clipboard row keeps Floter built-in");
-  assert.equal(clipboard.subtitle, t("system.clipboardHistorySubtitle"), "and its subtitle");
+  assert.equal(clipboard.source, null, "a system action drops the right-hand word");
+  assert.equal(clipboard.subtitle, t("system.clipboardHistorySubtitle"), "and keeps its action subtitle");
+
+  const restart: LauncherItem = {
+    type: "system",
+    id: "system-restart",
+    title: t("system.restart"),
+    subtitle: t("system.restartSubtitle"),
+    action: "restart",
+  };
+  const restartRow = resultRowContent(restart, t);
+  assert.equal(restartRow.source, null, "the restart row prints the icon and the title, nothing else");
+  assert.equal(restartRow.subtitle, t("system.restartSubtitle"), "its subtitle is not a transcription");
 
   const history: LauncherItem = { type: "history", id: "h", title: "ls", commandLine: "ls" };
   const historyRow = resultRowContent(history, t);

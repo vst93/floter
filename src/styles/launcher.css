@@ -633,6 +633,21 @@
   background-size: 100% var(--scroll-edge);
 }
 
+/* R14 · …but only while the list can actually scroll. The band exists to
+   dissolve rows *as they pass under the field*; with nothing to scroll, nothing
+   ever passes under it, and all that was left was the gradient itself sitting
+   in the 14px the scroller reserves — a grey stripe that, under the R13 seam
+   hairline, read as a second, thicker divider. The padding stays either way
+   (the reservation is what keeps the first row from starting under the field's
+   shadow, and keeping it constant is what stops the list from jumping 14px the
+   moment it grows past the viewport). The class is set from the measurement in
+   `LauncherResults.tsx`.
+   The band is still declared above, so the scroller's material is unchanged;
+   this rule only decides whether it is painted. */
+.launcher-results:not(.launcher-results--scrollable) {
+  background-image: none;
+}
+
 .launcher-section-title {
   padding: 6px 11px 4px;
   /* PAGES-APPLY · the app's group-title language. SETTINGS-APPLE retired the
@@ -888,9 +903,19 @@
   border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
+/* R14 · The action bar's selection is a row, not a banner. It used to take the
+   same treatment as a selected result row — the accent tint, the accent keyline
+   and the raised-pane shadow — which made the heaviest object on the panel the
+   one row that is not a result at all: a full-width blue block under a column
+   of quiet rows, louder than every match above it. It now takes
+   `--glass-raised-quiet`, the neutral raised pane the settings' chosen states
+   already use: the same lit material (rim and shadow) with no accent fill and
+   no accent keyline, one step above a hovered row. The `⌘↩` badge stays and is
+   what says "this runs on Enter"; the row reads as selected because it is a lit
+   pane among transparent ones, not because it shouts. */
 .launcher-action-bar--selected {
-  background: var(--glass-raised);
-  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
+  background: var(--glass-raised-quiet);
+  box-shadow: var(--glass-raised-shadow);
 }
 
 .launcher-action-bar__icon {
