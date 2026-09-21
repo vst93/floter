@@ -488,21 +488,26 @@
   display: grid;
   gap: 1px;
   min-height: 0;
-  /* R10-A: the row budget in pixels — ten rows. A result row is
-     `calc(var(--u) * 42)` (see `.launcher-result`), so ten of them are
-     `calc(var(--u) * 420)`. The fixed 50px covers what does not scale with
-     `--u`: the 14px scroll-edge reservation at the top, the ten 1px grid gaps
-     around the ten rows, and the empty-query section title (a `--text-body`
-     line at 1.4 plus its 6/4px padding ≈ 26px). The title is the reason the
-     chrome is a whole row's worth rather than a few pixels — without it the
-     empty-query state, which is exactly where the clipboard row is most
-     useful, would scroll that row out of sight. Ten rows fit in every state;
-     a drop group adds more and the list scrolls for those.
+  /* R12: the row budget in pixels. A two-line result row is
+     `calc(var(--u) * 42)` (see `.launcher-result`); a one-line row — no
+     subtitle to print (see `row-content.ts`) — is `calc(var(--u) * 34)`. The
+     launcher's ten rows are nine matched results above one fixed clipboard
+     row, and the matched rows are the ones that mostly collapse: an
+     application whose subtitle is only "应用程序" prints one line. So the
+     ceiling is sized for nine compact rows plus the clipboard row (which keeps
+     its subtitle), i.e. `calc(var(--u) * (9 * 34 + 42))` = `calc(var(--u) *
+     348)`. The fixed 50px covers what does not scale with `--u`: the 14px
+     scroll-edge reservation at the top, the ten 1px grid gaps around the ten
+     rows, and the empty-query section title (a `--text-body` line at 1.4 plus
+     its 6/4px padding ≈ 26px). The title is the reason the chrome is a whole
+     row's worth rather than a few pixels — without it the empty-query state,
+     which is exactly where the clipboard row is most useful, would scroll that
+     row out of sight.
      `--launcher-results-height` is the viewport cap the App writes on a short
      display and is the smaller of the two there. */
   max-height: min(
-    calc(var(--u) * 420 + 50px),
-    var(--launcher-results-height, calc(var(--u) * 420 + 50px))
+    calc(var(--u) * 348 + 50px),
+    var(--launcher-results-height, calc(var(--u) * 348 + 50px))
   );
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -567,6 +572,17 @@
      keeps the selection unmistakable where the tint alone reads faintly. */
   background: var(--glass-raised);
   box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
+}
+
+/* R12 · A row with nothing to say on a second line prints its title alone.
+   The two-line stack reserved a line's worth of height for a word the row no
+   longer repeats (see `row-content.ts`), which left the list reading as a
+   column of half-empty 42px slots. Compact rows are shorter, so ten of them
+   read as a tight Raycast-style stack; a row that keeps a subtitle — an
+   application's real name, the clipboard row — keeps the full height. The
+   row's `align-items: center` already centres the single line. */
+.launcher-result--compact {
+  height: calc(var(--u) * 34);
 }
 
 .launcher-result--unavailable {

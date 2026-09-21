@@ -1,7 +1,8 @@
 import { Fragment } from "react";
-import type { Translate, MessageKey } from "../i18n";
+import type { Translate } from "../i18n";
 import type { LocalApplication } from "../App";
-import { IS_MAC, formatResultShortcut } from "../shortcuts";
+import { formatResultShortcut } from "../shortcuts";
+import { resultRowContent } from "./row-content";
 import {
   Terminal as TerminalIcon,
   History as HistoryIcon,
@@ -51,22 +52,6 @@ export type LauncherItem =
   | { type: "file-more"; id: string; hidden: number; title: string; subtitle: string };
 
 export type ActionBar = { type: ActionBarKind; label: string; value: string };
-
-// Where an application came from, read off the shape of its path: `.app`
-// bundles on macOS, `.desktop` entries on Linux, Start Menu shortcuts on
-// Windows.
-export const appSubtitleKey = (path: string): MessageKey => {
-  if (IS_MAC) {
-    if (path.startsWith("/Applications/")) return "launcher.application";
-    if (path.startsWith("/System/Applications/")) return "launcher.systemApplication";
-    if (path.includes("/Applications/")) return "launcher.userApplication";
-    return "launcher.application";
-  }
-  if (/^([A-Za-z]:)?[\\/]Users[\\/]/.test(path)) return "launcher.userApplication";
-  if (path.startsWith("/home/") || path.startsWith("/root/")) return "launcher.userApplication";
-  if (/^\/(usr|opt|var)\//.test(path)) return "launcher.systemApplication";
-  return "launcher.application";
-};
 
 /** Lucide `rotate-cw` for restart, `power` for shutdown, `clipboard` for the
  *  clipboard panel. */
@@ -204,15 +189,12 @@ export function LauncherResults({
             // the heading sits above the first file and the expander does not
             // look like the start of a second group.
             const isFileGroup = item.type === "file" || item.type === "file-more";
-            const source = item.type === "command"
-              ? item.sourceName
-              : item.type === "app"
-                ? t(appSubtitleKey(item.app.path))
-                : isHistory
-                  ? t("launcher.history")
-                  : isFileGroup
-                    ? t("launcher.files")
-                    : t("extensions.builtIn");
+            // R12: which of the two optional strings this row actually earns.
+            // An application drops the right-hand type word entirely, and any
+            // row whose subtitle is only its type word drops that too, so the
+            // row collapses to one line (see `row-content.ts`).
+            const { source, subtitle } = resultRowContent(item, t);
+            const compact = subtitle === null;
             const shortcutSlot = resultShortcutSlots[index];
             // The empty-query state stacks two sections inside a single result
             // list: recents first, then the last few typed commands. The first
@@ -250,7 +232,9 @@ export function LauncherResults({
                   type="button"
                   className={`launcher-result${selected ? " launcher-result--selected" : ""}${
                     unavailable ? " launcher-result--unavailable" : ""
-                  }${isHistory ? " launcher-result--history" : ""}`}
+                  }${isHistory ? " launcher-result--history" : ""}${
+                    compact ? " launcher-result--compact" : ""
+                  }`}
                   role="option"
                   aria-selected={selected}
                   aria-disabled={unavailable}
@@ -280,9 +264,9 @@ export function LauncherResults({
                   </span>
                   <span className="launcher-result__main">
                     <span className="launcher-result__title">{item.title}</span>
-                    <span className="launcher-result__subtitle">
-                      {isHistory ? t("launcher.history") : item.subtitle}
-                    </span>
+                    {subtitle !== null && (
+                      <span className="launcher-result__subtitle">{subtitle}</span>
+                    )}
                   </span>
                   {warnings.map((warning) => (
                     <span
@@ -293,9 +277,11 @@ export function LauncherResults({
                         : "extensions.conflict")}
                     />
                   ))}
-                  <span className="launcher-result__source" title={source}>
-                    {source}
-                  </span>
+                  {source !== null && (
+                    <span className="launcher-result__source" title={source}>
+                      {source}
+                    </span>
+                  )}
                   <span className="launcher-result__action">
                     {shortcutSlot === null
                       ? ""

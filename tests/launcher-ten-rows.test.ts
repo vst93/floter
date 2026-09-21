@@ -17,9 +17,10 @@
 //   4. the tail row is selectable and runnable, and the numbered `1`-`9` family
 //      keeps numbering the matched rows exactly as it did before.
 //
-// The height half is pinned from the two sheets that derive it: a row is
-// `calc(var(--u) * 42)` and the list's ceiling is ten of them plus the fixed
-// scroll-edge/gap chrome.
+// The height half is pinned from the two sheets that derive it: a two-line row
+// is `calc(var(--u) * 42)`, a one-line row is `calc(var(--u) * 34)`, and the
+// list's ceiling is nine compact result rows plus the fixed clipboard row plus
+// the fixed scroll-edge/gap chrome.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -35,6 +36,7 @@ import {
   withClipboardResultRow,
 } from "../src/launcher/result-budget.ts";
 import { launcherShortcutSlots } from "../src/launcher.ts";
+import { appSubtitleKey, resultRowContent } from "../src/launcher/row-content.ts";
 import type { LauncherItem } from "../src/launcher/LauncherResults.tsx";
 
 const root = new URL("../", import.meta.url);
@@ -51,6 +53,14 @@ const app = (id: string): LauncherItem => ({
   title: id,
   subtitle: "Application",
   app: {} as never,
+});
+// R12: an app with a real path and a chosen subtitle, for the row-content rule.
+const appRow = (id: string, path: string, subtitle: string): LauncherItem => ({
+  type: "app",
+  id,
+  title: id,
+  subtitle,
+  app: { path } as never,
 });
 const catalogClipboardRow = (): LauncherItem => ({
   type: "system",
@@ -194,30 +204,105 @@ test("the clipboard row is runnable and keeps the shortcut family at nine", () =
   assert.equal(nineSlots[9], null, "the tenth row is the fixed one and carries no number");
 });
 
+// ── 6 · what a row actually prints (R12) ──────────────────────────────────
+
+test("an application row drops the type word from both columns", () => {
+  const typeWord = t(appSubtitleKey("/Applications/WeCom.app"));
+  // The subtitle is nothing but the type word: both columns go quiet and the
+  // row collapses to one line.
+  const bare = resultRowContent(appRow("wecom", "/Applications/WeCom.app", typeWord), t);
+  assert.equal(bare.subtitle, null, "a subtitle that only repeats the type is not printed");
+  assert.equal(bare.source, null, "an application never prints a right-hand type word");
+
+  // A subtitle that says something the type word does not — the app's real
+  // name — survives, but the right-hand word still does not.
+  const named = resultRowContent(appRow("wecom", "/Applications/WeCom.app", "WeCom"), t);
+  assert.equal(named.subtitle, "WeCom", "a real name is information and stays");
+  assert.equal(named.source, null, "the right-hand word is dropped for apps either way");
+});
+
+test("every other row kind keeps the word it earns", () => {
+  const clipboard = resultRowContent(clipboardResultRow(t), t);
+  assert.equal(clipboard.source, t("extensions.builtIn"), "the clipboard row keeps Floter built-in");
+  assert.equal(clipboard.subtitle, t("system.clipboardHistorySubtitle"), "and its subtitle");
+
+  const history: LauncherItem = { type: "history", id: "h", title: "ls", commandLine: "ls" };
+  const historyRow = resultRowContent(history, t);
+  assert.equal(historyRow.source, t("launcher.history"), "history keeps its source word");
+  assert.equal(historyRow.subtitle, null, "but not a subtitle that repeats it");
+
+  const command: LauncherItem = {
+    type: "command",
+    id: "c",
+    title: "deploy",
+    subtitle: "Ship it",
+    warnings: [],
+    sourceName: "Deploy Kit",
+    commandLine: "deploy",
+    execution: null,
+    completion: false,
+  };
+  const commandRow = resultRowContent(command, t);
+  assert.equal(commandRow.source, "Deploy Kit", "a command keeps its contributing extension");
+  assert.equal(commandRow.subtitle, "Ship it", "and its description");
+});
+
+test("the renderer prints the subtitle and source only when they exist", async () => {
+  const results = stripJsComments(await read("src/launcher/LauncherResults.tsx"));
+  assert.match(
+    results,
+    /resultRowContent\(item, t\)/,
+    "the row asks the one module what to print",
+  );
+  assert.match(
+    results,
+    /subtitle !== null && \(\s*<span className="launcher-result__subtitle">/,
+    "the subtitle span is behind the null guard",
+  );
+  assert.match(
+    results,
+    /source !== null && \(\s*<span className="launcher-result__source"/,
+    "the source span is behind the null guard",
+  );
+  assert.match(
+    results,
+    /compact \? " launcher-result--compact" : ""/,
+    "a one-line row takes the compact height",
+  );
+});
+
 // ── 5 · the height the ten rows need ──────────────────────────────────────
 
-test("the results ceiling is ten rows plus the fixed chrome", async () => {
+test("the results ceiling is nine compact rows plus the clipboard row", async () => {
   const launcher = stripCssComments(await read("src/styles/launcher.css"));
-  const resultRow = /\.launcher-result\s*\{[^}]*height:\s*calc\(var\(--u\)\s*\*\s*(\d+)\)/s.exec(
-    launcher,
+  const rowHeightOf = (selector: string): number => {
+    const rule = new RegExp(
+      `${selector.replace(/\./g, "\\.")}\\s*\\{[^}]*height:\\s*calc\\(var\\(--u\\)\\s*\\*\\s*(\\d+)\\)`,
+      "s",
+    ).exec(launcher);
+    assert.ok(rule, `${selector} must still declare its height off --u`);
+    return Number(rule![1]);
+  };
+  const rowHeight = rowHeightOf(".launcher-result");
+  const compactHeight = rowHeightOf(".launcher-result--compact");
+  assert.ok(
+    compactHeight < rowHeight,
+    `a one-line row (${compactHeight}) must be shorter than a two-line row (${rowHeight})`,
   );
-  assert.ok(resultRow, ".launcher-result must still declare its height off --u");
-  const rowHeight = Number(resultRow[1]);
 
   const results = /\.launcher-results\s*\{[^}]*max-height:\s*([^;]+);/s.exec(launcher);
   assert.ok(results, ".launcher-results must declare a max-height");
   const ceiling = results[1];
-  // Ten rows, at the row's own height, plus the fixed chrome: the scroll-edge
-  // reservation, the ten 1px gaps and the empty-query section title. None of
-  // those scale with `--u`.
+  // Nine matched rows collapse to one line each; the fixed clipboard row keeps
+  // its subtitle, so it stays at the full height.
+  const budget = (MAX_RESULTS - 1) * compactHeight + rowHeight;
   assert.match(
     ceiling,
-    new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${MAX_RESULTS * rowHeight}\\s*\\+\\s*(\\d+)px\\)`),
-    `the ceiling must be ${MAX_RESULTS} x ${rowHeight}px + chrome, got "${ceiling}"`,
+    new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`),
+    `the ceiling must be nine x ${compactHeight}px + ${rowHeight}px + chrome, got "${ceiling}"`,
   );
   const chrome = Number(
-    new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${MAX_RESULTS * rowHeight}\\s*\\+\\s*(\\d+)px\\)`)
-      .exec(ceiling)![1],
+    new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`).exec(ceiling)![1],
   );
   // The chrome has to be at least the scroll-edge band (14px, see base.css)
   // plus the gaps around ten rows, and it has to leave room for a section

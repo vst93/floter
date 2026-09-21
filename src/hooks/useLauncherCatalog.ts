@@ -21,12 +21,12 @@ import {
   type ExecutionPlan,
 } from "../launcher";
 import {
-  appSubtitleKey,
   type ActionBar,
   type CommandWarning,
   type LauncherItem,
   type SystemAction,
 } from "../launcher/LauncherResults";
+import { appSubtitleKey } from "../launcher/row-content";
 import { createSettingsHydration } from "../settings-persistence";
 import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandAlias, rebaseAliasCommandLine, resolveCommandAliases, MATCH_EXACT, type CommandAliases } from "../command-aliases";
 import { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS } from "../launcher/result-budget";
