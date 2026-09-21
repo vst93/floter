@@ -87,9 +87,9 @@ test("the aura is gone: no wash node, no wash rule, no wash token in the sheet",
   const row = rule(css, ".collapsed-card__input-row");
   assert.ok(row, "the input row rule must still exist");
   assert.equal(decl(row!.body, "box-shadow"), null, "the input row paints no shadow of its own");
-  assert.equal(
-    decl(row!.body, "background"),
-    "var(--glass-field)",
+  assert.deepEqual(
+    decl(row!.body, "background")!.split(",").map((layer) => layer.trim()),
+    ["var(--glass-field)", "var(--surface-opaque)"],
     "R18: the row is the search *surface* — the field token, one step brighter than the card face",
   );
   assert.ok(!/gradient/.test(row!.body), "and it is a flat fill, not a wash in a new shape");
@@ -172,10 +172,12 @@ test("the two surfaces are told apart by brightness, with a breath of card betwe
   assert.ok(bottom, "the list panel must exist");
   // The brighter face: the field token, which base.css defines as a white
   // overlay in *both* palettes, so it is a lift off the card's tint either way.
-  assert.equal(
-    decl(row!.body, "background"),
-    "var(--glass-field)",
-    "the search block is --glass-field: a white lift over the card's tint",
+  // R21: and it is laid over the card's own near-solid face, so the lift lands
+  // on a surface instead of on whatever the window is showing through.
+  assert.deepEqual(
+    decl(row!.body, "background")!.split(",").map((layer) => layer.trim()),
+    ["var(--glass-field)", "var(--surface-opaque)"],
+    "the search block is --glass-field over --surface-opaque: a white lift on a solid face",
   );
   // The darker face, unchanged: the list keeps the content recess it has always
   // had, so the two surfaces differ in brightness alone.
@@ -200,7 +202,7 @@ test("the breath between the two faces is transparent card, not a painted line",
   );
   assert.equal(
     decl(bottom!.body, "padding"),
-    "calc(var(--u) * 4)",
+    "calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 2)",
     "and the panel's own 4u completes the 12u breath — the two faces never touch",
   );
   // A transparent gap, not a painted one: no border and no pseudo-element may

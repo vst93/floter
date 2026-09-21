@@ -90,11 +90,16 @@ test("every named control draws a lens rung, not a bare ring", async () => {
   // only under the pointer: the icon chip (a bare glyph on the surface) and the
   // clipboard row. Their *hover* rule must carry the lens rung, or the lens
   // never reaches them.
+  //
+  // R21: the launcher's result row left this list. Its pointer state is now the
+  // *selection* state — `onPointerEnter` moves the selection onto the row (see
+  // `tests/launcher-pointer-selection.test.ts`) — so there is no hover-only
+  // pane left to grade: the lit row is `.launcher-result--selected`, and its
+  // accent tint plus keyline are the two marks the accent budget allows it.
   for (const [file, selector] of [
     ["src/styles/extensions.css", ".extensions-icon-button:hover:not(:disabled):not(.extensions-icon-button--disabled)"],
     ["src/styles/terminal.css", ".clipboard-row:hover"],
     ["src/styles/terminal.css", ".toolbar-button:hover:not(:disabled)"],
-    ["src/styles/launcher.css", ".launcher-result:not(.launcher-result--unavailable):not(.launcher-result--selected):hover"],
   ] as [string, string][]) {
     const body = ruleBody(await read(file), selector);
     assert.match(

@@ -114,8 +114,30 @@
   padding: 0 calc(var(--u) * 16);
   /* Full-bleed: the block runs edge to edge and the card's own radius (plus
      its `overflow: hidden`) shapes its top corners. No second pill inside the
-     window's own edge. */
-  background: var(--glass-field);
+     window's own edge.
+
+     R21 · and it is *solid*. R18 painted this row with `--glass-field` alone —
+     a white lift over whatever the card's glass was showing, which on a
+     launcher over another window means that window. `--glass-field` is half
+     opaque in the light palette (`rgba(255, 255, 255, 0.5)`) and three percent
+     in the dark one, so the field was never a surface, only a wash: the chat
+     window behind the launcher read *through* it as a blurred second line of
+     text under the query. The field's box was 56u all along (R20 held), but its
+     bottom edge was invisible and the ghost under the text made the row look
+     like it had grown a second line — 「输入框部分高度还是不正常」.
+
+     The fix is a stack, not a new colour: the card's own near-solid face
+     (`--surface-opaque`, the stand-in the reduced-transparency block already
+     gives the card and this panel) with `--glass-field` laid over it. The lift
+     is unchanged — the field is still one step brighter than the card in both
+     palettes — but it now lands on something solid, so nothing behind the
+     window can be read through the one surface a caret sits on. The trade-off
+     is the ladder's usual one at this size: the field stops being a window onto
+     the desktop. A caret over a ghost is worse than the millimetre of glass it
+     costs. */
+  background:
+    var(--glass-field),
+    var(--surface-opaque);
   /* The breath below the block. A margin here rather than extra padding on
      `.launcher-bottom` so this row keeps the 56u height it has always had (a
      pinned metric — see `tests/ui-scale.test.ts`). */
@@ -208,13 +230,26 @@
    action bar with nothing matched above it still sits in the same panel a list
    would have. The inset is the same on all four sides: a selected row is a
    tinted rectangle, and an even margin around it is the difference between a
-   row sitting in a field and a row resting on the bottom edge of one. */
+   row sitting in a field and a row resting on the bottom edge of one.
+   R21: the sides and the top keep that 4u inset; only the bottom is 2u, because
+   the last row's own half-leading already supplies the rest of that breath —
+   see the R21 note on the padding below. */
 .launcher-bottom {
   position: relative;
   z-index: 1;
   display: grid;
   gap: 0;
-  padding: calc(var(--u) * 4);
+  /* R21 · the tail is the one inset that is not a margin around a row. Top and
+     sides stay 4u — they keep a selected row's tint off the card's edge and the
+     top one completes the 12u breath under the field (see
+     `.collapsed-card__input-row`) — but the bottom is 2u, because the last row
+     already brings its own half-leading: a 42u action bar centres ~35u of
+     content and a 34u compact row centres one 15u line, so the visible blank
+     under the last line of text was 4u + up to 9.5u (「底部空白太大」). Measured
+     on the R20 build (714x475 window): 12px of card below the last glyph; with
+     the tail at 2u it is 10px, and what is left is the row's own leading — a
+     property of the row, not of the panel. */
+  padding: calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 2);
   background: var(--surface-sunken);
 }
 
@@ -928,20 +963,19 @@
   box-shadow: none;
 }
 
-/* Result rows and the action bar answer the pointer with the same resting
-   pane a button does, so hovering a row and hovering a control read as the
-   same gesture on the same material. */
-@media (hover: hover) {
+/* R21 · there is no hover-only highlight any more, and this is the fix, not an
+   omission.
 
-.launcher-result:not(.launcher-result--unavailable):not(.launcher-result--selected):hover {
-  background: var(--glass-control);
-  box-shadow: var(--elev-0);
-}
-
-.launcher-action-bar:not(.launcher-action-bar--selected):hover {
-  background: var(--glass-control);
-}
-}
+   Pointing at a row now *moves the selection to it* (see `onPointerEnter` in
+   `LauncherResults.tsx`), so the row under the pointer is the selected row and
+   `--glass-raised` plus its accent keyline is already what lights it. A second,
+   pointer-only pane on top of that was the conflict the user reported
+   (「鼠标悬浮选中和输入时自动选中项之前存在交互冲突」): it kept painting
+   after the keyboard had moved the selection off the row under a stationary
+   pointer, so two rows were lit at once and Enter ran the one the pointer was
+   not on. One state, one visual — the same rule the rest of the sheet follows.
+   The action bar follows the rows: it is selected by the same pointer, with the
+   same neutral raised pane (`--glass-raised-quiet`) the keyboard gives it. */
 
 /* ── Action bar shortcut hint ───────────────────────────────────────────── */
 

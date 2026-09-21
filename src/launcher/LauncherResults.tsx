@@ -274,7 +274,15 @@ export function LauncherResults({
                   aria-selected={selected}
                   aria-disabled={unavailable}
                   tabIndex={-1}
-                  onMouseMove={() => {
+                  // R21 · the pointer takes the selection over on *entry*, not on
+                  // every move. `onMouseMove` re-asserted the hovered row on
+                  // every pixel of travel, so a keyboard step was undone by a
+                  // mouse resting over the row the selection had just left —
+                  // two highlights, one of them stale. Entering a row selects
+                  // it; nothing fires while the pointer sits still, so the
+                  // keyboard continues from the row the pointer is on and the
+                  // two devices share one state.
+                  onPointerEnter={() => {
                     if (unavailable) return;
                     onSelectResult(index);
                   }}
@@ -342,7 +350,9 @@ export function LauncherResults({
           // label has to be the action the bar is actually showing.
           aria-label={actionBar.label}
           tabIndex={-1}
-          onMouseMove={() => onSelectActionBar()}
+          // R21 · same rule as a result row: the pointer selects on entry, so
+          // the row under the cursor and the row Enter runs are the same row.
+          onPointerEnter={() => onSelectActionBar()}
           onMouseDown={(event) => event.preventDefault()}
           onClick={onRunActionBar}
         >

@@ -86,12 +86,14 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *
  *    `.collapsed-card__input-row`  56u  (min-height, pinned since R10)
  *    R18 breath below it            8u  (`margin-bottom` on the input row)
- *    `.launcher-bottom` padding     8u  (4u top + 4u bottom)
+ *    `.launcher-bottom` padding     6u  (4u top + 2u bottom — R21: the tail
+ *                                      pairs with the last row's own leading,
+ *                                      see `styles/launcher.css`)
  *    action bar row                42u  (height — it is a row, see below)
  *    feedback row                  30u  (min-height, may appear)
  *    card margin / rounding slack   7u
  *    ─────────────────────────────────
- *                                 151u
+ *                                 149u
  *
  *  R20 · the R19 audit above read the action bar as 30u (the *feedback* row's
  *  floor). `.launcher-action-bar` declares `height: calc(var(--u) * 42)`, so the
@@ -99,7 +101,7 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  not in the constant. `RESULTS_VIEWPORT_CHROME` is a **floor** for a short
  *  display, not a measurement, and it only has to be at least the chrome it
  *  stands for so that the cap it writes is never larger than the window can
- *  hold: 232u ≥ 151u, by 81u of slack. What R20 has to check is that the cap
+ *  hold: 232u ≥ 149u, by 83u of slack. What R20 has to check is that the cap
  *  does not bind on an ordinary display, i.e. that
  *  `availHeight - 232 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
  *  worst-case list plus its fixed chrome, `378 + 50 = 428px`. That holds for

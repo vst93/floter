@@ -539,7 +539,9 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   // R20 re-audited it again and found the action bar is 42u, not the 30u the
   // R19 list read (that is the feedback row's floor); the constant still stands,
   // because it is a floor for a short display and only has to be *at least* the
-  // chrome it stands for — 232u ≥ 151u. What matters is that it does not bind on
+  // chrome it stands for — 232u ≥ 149u (R21 took the panel's tail from 4u to 2u,
+  // widening the slack; the formula is untouched). What matters is that it does
+  // not bind on
   // an ordinary one, i.e. that the work area is at least
   // `RESULTS_VIEWPORT_CHROME + the worst-case list` = 232 + 428 = 660px. Every
   // display a launcher is used on clears that (a 1280x800 work area is 768px),
