@@ -1848,9 +1848,12 @@ export default function App() {
           {pinnedCardElement}
           <div
             ref={collapsedCardRef}
-            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}${
-              displayedResults.length > 0 ? " collapsed-card--results-visible" : ""
-            }`}
+            /* R18: the seam's gate class is gone with the seam. It existed only
+               to light the divider between the field and the list, and nothing
+               may take its place: gating a *layout* metric (the search
+               surface's breath) on the result count is exactly the 4px jump
+               R15 removed from the action bar. */
+            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
             style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();

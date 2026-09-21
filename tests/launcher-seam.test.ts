@@ -1,28 +1,36 @@
-// R13 · the seam between the launcher's field and its list.
+// R18 · the field and the list are divided by brightness, not by a line.
 //
-// The user's report, verbatim: 「样式也不行啊，不够精致，输入框下方的阴影太草率了」.
-// The screenshot was the filled list state, and the thing under the field was
-// the aura: one horizontal stop that ran `--accent-wash` 42% across the row and
-// ended on a hard vertical edge. A rectangle of colour with a straight right
-// wall parked under the field reads as a stain, not as light — and the list
-// itself began on a line nobody had drawn.
+// The history, in one paragraph. R13 replaced the aura (「输入框下方的阴影太草率
+// 了」) with a hairline on the input row's floor. R15 removed the aura and left
+// the hairline; R16 stretched it to the content column (「阴影线条拉齐」); R17
+// made it solid (「不要渐隐」). The verdict after all four was the same as before
+// them — 「还是很丑」 — and this round the user named a reference instead of a
+// complaint: tinycast, which draws *no* rule between its field and its list.
+// Its search block is simply one step brighter than the panel, its list sits on
+// the panel's own material, and the boundary is read from that difference.
 //
-// R13 reshaped that aura; R15 removed it. The user's note never changed
-// (「这个阴影还是太丑了，可以淡点，简洁点」), and a wash over the whole input row is
-// a shadow however its stops are arranged. What is left is the seam:
+// So R18 is a subtraction, and a structural one:
 //
-//   1. the input row owns a 1px hairline on its own floor — a neutral one
-//      while there is a list to divide and an accent one while the row is
-//      focused, never both, so the seam is always exactly one pixel; and
-//   2. nothing else is drawn under the field. No aura node, no aura rule, no
-//      `--accent-wash` in this sheet, and no fill or shadow on the input row —
-//      the caret and the seam are the whole focus story.
+//   1. the two seam pseudo-elements, their shared geometry rule and both gates
+//      are deleted — not hidden, not made transparent, deleted;
+//   2. the two gradient hairlines the panel still drew between its surfaces
+//      (`.launcher-bottom::before`, `.launcher-action-bar::before`) go with
+//      them, because a panel that has no seam between its field and its list
+//      has no business drawing one between its list and its action bar either;
+//   3. in their place the search row paints `--glass-field` — the token that
+//      means "the surface a text field sits on", a white lift over the card's
+//      tint in both palettes — and carries `margin-bottom: calc(var(--u) * 8)`,
+//      which with `.launcher-bottom`'s own 4u of padding leaves a 12u
+//      transparent breath between the two faces; and
+//   4. the accent budget shrinks to the two marks the reference's palette has:
+//      the selected row's tint + keyline, and the caret. The onboarding tip's
+//      keyline and glyph leave the accent.
 //
-// Both are checked positively (the gradients exist with their stops, the gates
-// exist, the class is emitted) and negatively (the wash is gone from the sheet
-// *and* from the markup, no `color-mix`, no `90deg` accent gradient, the two
-// lines cannot co-occur), so putting the smear back — in any shape — is what
-// turns the suite red.
+// The tests below are the same shape as the round's: the removal is checked
+// negatively (no pseudo-element, no band, no `--hairline-fade`, no `height:
+// 1px` anywhere in the sheet) and the replacement positively (the two faces,
+// their two materials, the 12u of nothing between them), so putting any of it
+// back — in any shape — turns the suite red.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -51,9 +59,6 @@ const stops = (value: string) => {
   return angle(value) ? parts.slice(1) : parts;
 };
 
-// Both seams share one geometry rule; the per-element rules only carry colour.
-const SEAM = ".collapsed-card__input-row::before, .collapsed-card__input-row::after";
-
 const LAUNCHER = "src/styles/launcher.css";
 const APP = "src/App.tsx";
 
@@ -75,14 +80,19 @@ test("the aura is gone: no wash node, no wash rule, no wash token in the sheet",
   );
   assert.ok(
     !/--accent-wash/.test(css),
-    "launcher.css must not reference --accent-wash any more: focus is the caret and the seam, not a wash",
+    "launcher.css must not reference --accent-wash any more: focus is the caret and the card's own edge",
   );
-  // The removal is a subtraction, not a swap: the row gains nothing in its
-  // place. No fill, no shadow, no new gradient on the input row itself.
+  // The removal is a subtraction, not a swap: the row gained a *material*, and
+  // nothing else. No shadow, no gradient, no accent.
   const row = rule(css, ".collapsed-card__input-row");
   assert.ok(row, "the input row rule must still exist");
-  assert.equal(decl(row!.body, "background"), null, "the input row paints no fill of its own");
   assert.equal(decl(row!.body, "box-shadow"), null, "the input row paints no shadow of its own");
+  assert.equal(
+    decl(row!.body, "background"),
+    "var(--glass-field)",
+    "R18: the row is the search *surface* — the field token, one step brighter than the card face",
+  );
+  assert.ok(!/gradient/.test(row!.body), "and it is a flat fill, not a wash in a new shape");
   assert.ok(!/color-mix/.test(css), "launcher.css must stay color-mix-free (WebKitGTK without the feature renders an empty box)");
 });
 
@@ -96,118 +106,165 @@ test("the old smear cannot come back in a new shape: no accent wash gradient any
     !/--accent-wash/.test(css),
     "a vertical bloom is still a wash: the token is retired from this sheet, not reshaped",
   );
-  // The only accent under the field is the focus seam, and R17 took its fade
-  // away too (「不要渐隐」): a solid 1px accent keyline, never a filled area.
-  const accentSeam = rule(css, ".collapsed-card__input-row::before");
-  assert.ok(accentSeam, "the focus seam must still exist");
-  const background = decl(accentSeam!.body, "background") ?? "";
+  // R18: and there is no seam left to reshape either. The search surface is
+  // neutral — the only accent the row owns is the caret — and the panel draws
+  // no accent mark between its surfaces at all.
+  const row = rule(css, ".collapsed-card__input-row");
+  assert.ok(row, "the input row must still exist");
+  assert.ok(!/accent/.test(row!.body), "the search surface carries no accent: the caret is the row's whole colour story");
   assert.ok(
-    background && !/gradient/.test(background),
-    "the focus seam is a solid accent rule: no gradient, no area fill",
+    !/inset|box-shadow/.test(row!.body),
+    "and no inset mark: a keyline inside the surface is the seam by another name",
+  );
+});
+
+test("the divider is gone: no seam pseudo-elements and no hairline band left in the sheet", async () => {
+  const css = stripComments(await read(LAUNCHER));
+  // The R13/R16/R17 seam: both pseudo-elements, their shared geometry rule and
+  // the two gates are deleted, not hidden behind an opacity.
+  assert.equal(
+    rule(css, ".collapsed-card__input-row::before"),
+    undefined,
+    "the focused seam is gone: focus is the caret and the card's own edge now",
+  );
+  assert.equal(
+    rule(css, ".collapsed-card__input-row::after"),
+    undefined,
+    "and the neutral seam with it — a divider the user has rejected four times does not get a fifth shape",
   );
   assert.ok(
-    /var\(--accent-edge\)/.test(background),
-    "the focus seam is --accent-edge, the keyline token",
+    !/collapsed-card__input-row::/.test(css),
+    "no pseudo-element may survive on the input row at all",
   );
   assert.equal(
-    decl(rule(css, SEAM)!.body, "height"),
-    "1px",
-    "and it is a line: an accent gradient taller than a pixel is the aura again",
+    rule(css, ".collapsed-card--results-visible .collapsed-card__input-row::after"),
+    undefined,
+    "the gate that lit the neutral seam goes with the seam",
+  );
+  assert.equal(
+    rule(css, ".collapsed-card:focus-within .collapsed-card__input-row::before"),
+    undefined,
+    "and the gate that lit the accent one",
+  );
+  // The two other rules the panel drew between its surfaces: the gradient
+  // hairline above the list field and the one above the action bar. A panel
+  // with no divider between its field and its list may not keep one between its
+  // list and its action bar.
+  assert.equal(
+    rule(css, ".launcher-bottom::before"),
+    undefined,
+    "the field/list boundary is a brightness step now, not a band",
+  );
+  assert.equal(
+    rule(css, ".launcher-action-bar::before"),
+    undefined,
+    "the list/action-bar boundary likewise — the action bar welds to the list it belongs to",
+  );
+  assert.ok(!/--hairline-fade/.test(css), "no gradient hairline is left in the sheet");
+  assert.ok(!/height:\s*1px/.test(css), "and no 1px band anywhere: the panel draws no dividers at all");
+});
+
+test("the two surfaces are told apart by brightness, with a breath of card between them", async () => {
+  const css = stripComments(await read(LAUNCHER));
+  const row = rule(css, ".collapsed-card__input-row");
+  const bottom = rule(css, ".launcher-bottom");
+  assert.ok(row, "the search surface must exist");
+  assert.ok(bottom, "the list panel must exist");
+  // The brighter face: the field token, which base.css defines as a white
+  // overlay in *both* palettes, so it is a lift off the card's tint either way.
+  assert.equal(
+    decl(row!.body, "background"),
+    "var(--glass-field)",
+    "the search block is --glass-field: a white lift over the card's tint",
+  );
+  // The darker face, unchanged: the list keeps the content recess it has always
+  // had, so the two surfaces differ in brightness alone.
+  assert.equal(
+    decl(bottom!.body, "background"),
+    "var(--surface-sunken)",
+    "the list keeps the darker recess — the difference between the faces is the divider now",
   );
 });
 
-test("the input row owns a 1px seam on its floor, faded to nothing at both ends", async () => {
+test("the breath between the two faces is transparent card, not a painted line", async () => {
   const css = stripComments(await read(LAUNCHER));
-  const seam = rule(css, ".collapsed-card__input-row::after");
-  assert.ok(seam, "the neutral seam must be a pseudo-element on the input row — no node, nothing to measure");
-  const geometry = rule(css, SEAM);
-  assert.ok(geometry, "both seams share one geometry rule, so they can never drift apart");
-  assert.equal(decl(geometry!.body, "content"), '""', "a pseudo-element needs content to exist at all");
-  assert.equal(decl(geometry!.body, "height"), "1px", "the seam is a hairline");
-  assert.equal(decl(geometry!.body, "bottom"), "0", "the seam sits on the row's floor, where the list begins");
-  assert.equal(decl(geometry!.body, "opacity"), "0", "the seam is dark until the list lights it");
-  assert.equal(decl(geometry!.body, "pointer-events"), "none", "a seam must never eat a click meant for the field or a row");
+  const row = rule(css, ".collapsed-card__input-row");
+  const bottom = rule(css, ".launcher-bottom");
+  assert.ok(row && bottom, "both faces must exist");
+  // The breath: 8u of the row's own margin plus the panel's 4u of padding is
+  // 12u of the card's own material between the two faces.
   assert.equal(
-    decl(geometry!.body, "left"),
-    "calc(var(--u) * 11)",
-    "R16: the seam shares the content column's edge — inset to the field's padding it read as a line that stopped short of the rows it divides",
+    decl(row!.body, "margin-bottom"),
+    "calc(var(--u) * 8)",
+    "the row carries the gap below the search surface",
   );
   assert.equal(
-    decl(geometry!.body, "right"),
-    "calc(var(--u) * 11)",
-    "and both ends move together: a seam flush on one side and short on the other is a crooked rule",
+    decl(bottom!.body, "padding"),
+    "calc(var(--u) * 4)",
+    "and the panel's own 4u completes the 12u breath — the two faces never touch",
   );
-  const background = decl(seam!.body, "background");
-  // R17 · the fade is gone at the user's word (「不要渐隐」): a solid hairline,
-  // the same var the card's own edge is drawn with. The line already shares
-  // the content column's edge (11u inset), so there is no endpoint to soften —
-  // a gradient here can only shorten the rule or smear it.
-  assert.ok(background && !/gradient/.test(background), "the seam is a solid rule: no gradient, no fade");
-  assert.ok(/var\(--input-stroke\)/.test(background!), "the resting seam is --input-stroke, the same hairline the card's own edge is drawn with");
-});
-
-test("the seam is gated: only while there is a list under it", async () => {
-  const css = stripComments(await read(LAUNCHER));
-  const gate = rule(css, ".collapsed-card--results-visible .collapsed-card__input-row::after");
-  assert.ok(gate, "the neutral seam needs a gate — an empty launcher has no list to divide the field from");
+  // A transparent gap, not a painted one: no border and no pseudo-element may
+  // turn the breath back into a line.
   assert.equal(
-    decl(gate!.body, "opacity"),
-    "0.6",
-    "R15: the neutral divider lands at 0.6, not at full strength — a divider is found, not seen",
+    decl(row!.body, "border-bottom"),
+    null,
+    "the gap is not a border — a border would paint the line straight back in",
+  );
+  assert.ok(
+    !/hairline-fade|::(before|after)/.test(css),
+    "and nothing in the sheet draws on either boundary",
   );
 });
 
-test("focus lights the accent hairline and puts the neutral one out — one pixel, never two", async () => {
+test("focus is still unmistakable without the seam", async () => {
   const css = stripComments(await read(LAUNCHER));
-  const accent = rule(css, ".collapsed-card__input-row::before");
-  assert.ok(accent, "the focused seam is ::before, so it and the neutral ::after can never share a pixel");
-  const geometry = rule(css, SEAM);
-  assert.equal(decl(geometry!.body, "height"), "1px", "the focused seam is a keyline, not a glow");
-  assert.equal(decl(geometry!.body, "bottom"), "0", "the focused seam is the landing point of the aura: the row's floor");
-  const background = decl(accent!.body, "background");
-  assert.ok(background && /var\(--accent-edge\)/.test(background!), "the focused seam is --accent-edge, the app's keyline token");
-  assert.ok(!/var\(--accent-edge-strong\)/.test(background!), "--accent-edge-strong is a filled control's edge; a 1px seam is a mark");
-  const light = rule(css, ".collapsed-card:focus-within .collapsed-card__input-row::before");
-  assert.ok(light && decl(light.body, "opacity") === "1", "focus-within must light the accent seam");
-  const off = rule(css, ".collapsed-card--results-visible:focus-within .collapsed-card__input-row::after");
-  assert.ok(off && decl(off.body, "opacity") === "0", "the neutral seam must drop to zero the moment the row is focused, or the seam doubles");
-});
-
-test("the aura's old gate is gone and focus is still unmistakable without it", async () => {
-  const css = stripComments(await read(LAUNCHER));
-  // No rule anywhere lights a wash on the input row.
-  const lit = rules(css).filter((r) => /collapsed-card__aura/.test(r.selector));
-  assert.equal(lit.length, 0, "nothing may light an aura: the gate and the rule go together");
-  // Focus stays legible through the card's own two marks — the active border
-  // and the focus seam — which is what makes the removal safe (WCAG 2.4.7).
+  // No rule anywhere lights a wash or a seam on the input row.
+  assert.equal(
+    rules(css).filter((r) => /collapsed-card__input-row::/.test(r.selector)).length,
+    0,
+    "nothing may light a mark on the search surface: the removal is complete or it is not a removal",
+  );
+  // Focus stays legible through the card's own edge and the caret, which is
+  // what makes the removal safe (WCAG 2.4.7).
   const focused = rule(css, ".collapsed-card:focus-within");
-  assert.ok(focused, "the card's focus state must survive the aura");
+  assert.ok(focused, "the card's focus state must survive the seams");
   assert.equal(
     decl(focused!.body, "border-color"),
     "var(--input-stroke-active)",
     "focus still paints the card's own edge",
   );
-  const seam = rule(css, ".collapsed-card:focus-within .collapsed-card__input-row::before");
-  assert.ok(
-    seam && decl(seam.body, "opacity") === "1",
-    "and the accent seam at full strength: the seam, not a wash, is the focus story now",
+  const field = rule(css, ".collapsed-card__input");
+  assert.ok(field, "the field must still exist");
+  assert.equal(
+    decl(field!.body, "caret-color"),
+    "var(--accent)",
+    "and the caret is the accent — the one mark inside the surface",
   );
 });
 
-test("the class the sheet gates on is the class the launcher emits", async () => {
+test("the seam's gate class is gone from the markup and the sheet", async () => {
   const css = stripComments(await read(LAUNCHER));
   const app = await read(APP);
-  const emitted = app.match(/className=\{`collapsed-card\$\{[^}]*\}[^`]*`\}/)?.[0];
-  assert.ok(emitted, "the collapsed card's class list must be findable in App.tsx");
-  assert.ok(emitted!.includes("collapsed-card--results-visible"), "the launcher must emit collapsed-card--results-visible");
+  // R13 added `collapsed-card--results-visible` for one job: lighting the
+  // neutral seam while there was a list under the field. The seam is gone, so
+  // the class is dead state — and it must not be resurrected to gate the new
+  // breath, because a *layout* metric that appears and disappears with the
+  // result count is the 8px jump R15 spent a round removing from the action
+  // bar.
   assert.ok(
-    /displayedResults\.length > 0 \? " collapsed-card--results-visible" : ""/.test(emitted!),
-    "the class must be gated on the rendered list, not on the query: the empty-query clipboard row is a list too",
+    !/collapsed-card--results-visible/.test(app),
+    "the markup must not emit the seam's gate class any more",
   );
-  assert.ok(css.includes(".collapsed-card--results-visible"), "and the sheet must be the one that reads it — no orphan class");
-  // The card must not gate on the query instead: an empty query still shows
-  // the clipboard row, and that list needs the same seam.
-  assert.ok(!/hasQuery \? " collapsed-card--results-visible"/.test(emitted!), "gating the seam on hasQuery would hide it in the empty-query list");
+  assert.ok(
+    !/collapsed-card--results-visible/.test(css),
+    "and no rule may read it — a gate with nothing behind it is a comment",
+  );
+  // The card's own class list is untouched: the launcher still names itself and
+  // still carries the query-filled state.
+  const emitted = app.match(/className=\{`collapsed-card\$\{[^`]*`\}/)?.[0];
+  assert.ok(emitted, "the collapsed card's class list must still be findable in App.tsx");
+  assert.ok(emitted!.includes("collapsed-card--filled"), "the filled state survives the round");
+  assert.ok(css.includes(".collapsed-card {"), "and the sheet still styles the card itself");
 });
 
 // ── R15 · the clip expands as a layout snap, and the window catches up ────

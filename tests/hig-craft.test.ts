@@ -411,10 +411,9 @@ test("the bar/content separators are gradient hairlines, not solid rules", async
   assert.match(token(rootBlock, "hairline-fade"), /^linear-gradient\(/);
   assert.match(token(rootBlock, "hairline-fade-vertical"), /^linear-gradient\(/);
 
-  // The three bar edges the round converted. Each is now a pseudo-element
-  // band painted with the token, and none of them may be a border again.
+  // The bar edges the round converted. Each is now a pseudo-element band
+  // painted with the token, and none of them may be a border again.
   const cases: [string, string, string][] = [
-    ["src/styles/launcher.css", ".launcher-bottom::before", "var(--hairline-fade)"],
     ["src/styles/settings.css", ".settings-card__header::after", "var(--hairline-fade)"],
     ["src/styles/settings.css", ".settings-sidebar::after", "var(--hairline-fade-vertical)"],
     ["src/styles/terminal.css", ".clipboard-panel__topbar::after", "var(--hairline-fade)"],
@@ -446,6 +445,19 @@ test("the bar/content separators are gradient hairlines, not solid rules", async
   const bottom = rules(launcher).find(({ selector }) => selector === ".launcher-bottom");
   assert.ok(bottom, "launcher.css must define .launcher-bottom");
   assert.ok(!/border-top/.test(bottom!.body), ".launcher-bottom must not re-add a border-top");
+  // R18 · the launcher is no longer a member of this family, and not because
+  // its band moved: the panel draws no divider between its surfaces at all.
+  // Its field is one step brighter than the list and the two are held apart by
+  // 12u of card material (see `tests/launcher-seam.test.ts`), so the sheet must
+  // not carry a hairline band — or a 1px mark of any kind — to be re-adopted.
+  assert.ok(
+    !/--hairline-fade/.test(launcher),
+    "launcher.css must paint no gradient hairline: the panel has no dividers",
+  );
+  assert.ok(
+    !/height:\s*1px/.test(launcher),
+    "and no 1px band either — the boundary is a brightness step, not a mark",
+  );
 });
 
 // ── Hit targets ───────────────────────────────────────────────────────────

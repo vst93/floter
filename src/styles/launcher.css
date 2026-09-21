@@ -84,113 +84,43 @@
   cursor: grabbing;
 }
 
+/* R18 · the search surface, and the breath that separates it from the list.
+
+   R13 drew a hairline on this row's floor, R16 stretched it to the content
+   column and R17 made it solid — three rounds tuning a rule the panel never
+   needed. The user's verdict did not move (「还是很丑」), and the reference they
+   named — tinycast — has no rule between its field and its list at all: the
+   search block is one step brighter than the panel, the list sits on the
+   panel's own material, and the boundary is read from that difference alone.
+
+   So the two seams, their shared geometry rule and both gates are gone (see
+   `tests/launcher-seam.test.ts`). In their place:
+
+     * this row paints `--glass-field` — the token that means "the surface a
+       text field sits on", a white lift over the card's tint in *both*
+       palettes and therefore a brighter block than the card face; and
+     * `margin-bottom: calc(var(--u) * 8)` stands where the line used to be.
+       With `.launcher-bottom`'s own 4u of padding that is a 12u transparent
+       breath between the two surfaces, so they never touch and what shows
+       through between them is the card's own material.
+
+   Nothing is drawn between the surfaces any more: the divider is a difference
+   in brightness with a gap in it, not a mark. */
 .collapsed-card__input-row {
   position: relative;
   min-height: calc(var(--u) * 56);
   display: flex;
   align-items: center;
   padding: 0 calc(var(--u) * 16);
+  /* Full-bleed: the block runs edge to edge and the card's own radius (plus
+     its `overflow: hidden`) shapes its top corners. No second pill inside the
+     window's own edge. */
+  background: var(--glass-field);
+  /* The breath below the block. A margin here rather than extra padding on
+     `.launcher-bottom` so this row keeps the 56u height it has always had (a
+     pinned metric — see `tests/ui-scale.test.ts`). */
+  margin-bottom: calc(var(--u) * 8);
   overflow: hidden;
-}
-
-/* R15 · the aura is gone, and it is not coming back in another shape.
-
-   R13 took the aura apart and rebuilt it: instead of one horizontal stop with
-   a hard 42% wall, it became a full-width vertical bloom that fell away in
-   both directions. R14 kept it. The verdict after both was unchanged —
-   「这个阴影还是太丑了，可以淡点，简洁点」. A wash over the whole input row is a
-   shadow by another name, and softening it is still tuning a thing the row
-   does not need.
-
-   The row already says "focused" twice, in ways that are *lines* rather than
-   fields: the caret itself, and the seam hairline on the row's floor (below),
-   which lights in `--accent-edge` while the row is focused. One accent line
-   beats one accent field, so the field is retired. Nothing replaces it: this
-   round is subtraction only, and the sheet gains no new shadow or gradient.
-
-   `--accent-wash` still exists in base.css (this round is barred from that
-   file) but nothing in the launcher references it any more — the sheet is
-   locked against the token coming back, see `tests/launcher-seam.test.ts`. */
-
-/* R13 · the seam between the field and the list.
-
-   Before this round the first result row sat directly on the input row's
-   floor: the list simply started, and the two surfaces met on a line nobody
-   drew. That is the second half of 「输入框下方的阴影太草率了」 — the aura had
-   an edge because the layout had one.
-
-   So the input row now owns a 1px hairline on its own floor, drawn as a
-   gradient that fades to nothing at both ends: a line with two soft ends
-   separates without ruling. It is inset to the field's own padding, so the
-   mark belongs to the field rather than to the window, and it is a
-   pseudo-element — no node, nothing to measure, nothing for
-   `syncLauncherHeight` to see.
-
-   Two elements, one line: `::before` is the accent hairline focus lights,
-   `::after` is the neutral one the list lights. They are mutually exclusive
-   by construction (the neutral line drops to 0 the moment the row is
-   focused), so the seam is always exactly one pixel tall and never doubles
-   into a smudge.
-
-   R16 · the seam runs the content column's width, not the field's padding.
-   R15 measured it at 16u and the user read the result as a line that had
-   *stopped short of* the rows above and below it (「阴影线条拉齐」): the
-   rows are full-bleed inside the card, so a divider inset to the field's
-   padding sat ~100px inside both ends of the very list it divides. The
-   11px column is this card's own column language — `section-title` and the
-   rows' inner padding both speak it — so the seam now shares an edge with
-   the content it separates instead of with the field's text inset. */
-.collapsed-card__input-row::before,
-.collapsed-card__input-row::after {
-  content: "";
-  position: absolute;
-  left: calc(var(--u) * 11);
-  right: calc(var(--u) * 11);
-  bottom: 0;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-3) ease;
-}
-
-/* The neutral seam: `--input-stroke`, the same hairline the card's own edge
-   is drawn with, so the divider is the card's line language and not a new
-   one. Faded in only while there is a list under it to divide the field
-   from.
-
-   R15 · it lands at 0.6 rather than at full strength. With the aura gone the
-   seam is the only thing drawn between the field and the list, and the user's
-   standing note on this surface is that everything here is one step too
-   heavy (「可以淡点，简洁点」). A neutral divider's job is to be *found*, not
-   to be seen: at full `--input-stroke` it read as a rule drawn across the
-   card, at 0.6 it separates the two surfaces and disappears again. The focus
-   seam below is deliberately left at full strength — it carries state, and a
-   state mark may be louder than a divider. */
-.collapsed-card__input-row::after {
-  background: var(--input-stroke);
-}
-
-.collapsed-card--results-visible .collapsed-card__input-row::after {
-  opacity: 0.6;
-}
-
-/* The focused seam: the accent hairline, a touch wider than the neutral one
-   because it is now carrying the focus state. This is the landing point the
-   wash never had — the aura says the field is lit, this says *where the light
-   falls*, on the floor of the row, right above the list it is lighting.
-   Deliberately 1px and `--accent-edge` (a keyline), never a glow: the card
-   already wears `--glass-rim-shadow-active` and a second halo would be the
-   same sentence said twice. */
-.collapsed-card__input-row::before {
-  background: var(--accent-edge);
-}
-
-.collapsed-card:focus-within .collapsed-card__input-row::before {
-  opacity: 1;
-}
-
-.collapsed-card--results-visible:focus-within .collapsed-card__input-row::after {
-  opacity: 0;
 }
 
 .collapsed-card__input {
@@ -261,13 +191,16 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-/* The whole area below the input: the result list, the action bar, or both. The
-   sunken field and the hairline that separates it from the input live here
-   rather than on the list, so that an action bar with nothing matched above it
-   sits in the same panel a list would have. The inset is the same on all four
-   sides: a selected row is a tinted rectangle, and an even margin around it is
-   the difference between a row sitting in a field and a row resting on the
-   bottom edge of one. */
+/* The whole area below the input: the result list, the action bar, or both.
+   It is the panel's *darker* field — the search block above it is the brighter
+   one — and R18 took the gradient hairline off its top edge: the two surfaces
+   are now divided by the 12u of card material the input row's margin and this
+   panel's own padding leave between them (see the comment on
+   `.collapsed-card__input-row`). Nothing is painted on the boundary, so an
+   action bar with nothing matched above it still sits in the same panel a list
+   would have. The inset is the same on all four sides: a selected row is a
+   tinted rectangle, and an even margin around it is the difference between a
+   row sitting in a field and a row resting on the bottom edge of one. */
 .launcher-bottom {
   position: relative;
   z-index: 1;
@@ -275,20 +208,6 @@
   gap: 0;
   padding: calc(var(--u) * 4);
   background: var(--surface-sunken);
-}
-
-/* The separator between the query field and the result field is a gradient
-   hairline drawn as a background band, not a border: a 1px solid line stops
-   dead at both frame edges, while the fade dissolves into the surface. The
-   band keeps its own box so the row metrics are unchanged. */
-.launcher-bottom::before {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 1px;
-  background: var(--hairline-fade);
-  pointer-events: none;
 }
 
 /* The native window owns the overall height. Keep the clip's final layout state
@@ -431,12 +350,13 @@
      surface, not a control, and its height is content-driven. It keeps the
      ladder's control step (raised to 9px this round). */
   border-radius: var(--radius-sm);
-  /* A first-run hint the user dismisses, not a primary action: the neutral
-     raised pane with the accent keyline. HIG-2 takes it off the accent
-     budget so the collapsed window's one accent fill is the focused result
-     row. */
+  /* A first-run hint the user dismisses, not a primary action: a neutral
+     raised pane, edge and all. R18 takes the last accent off it (the keyline
+     used to be `--accent-edge`) so the panel's colour budget is exactly two
+     marks — the selected row's tint + keyline, and the caret — as the
+     reference's palette is. */
   background: var(--glass-raised-quiet);
-  border: 1px solid var(--accent-edge);
+  border: 1px solid var(--glass-control-edge);
   box-shadow: var(--elev-0);
   color: var(--text-secondary);
   font-size: var(--text-body);
@@ -458,7 +378,8 @@
   height: calc(var(--u) * 18);
   display: grid;
   place-items: center;
-  color: var(--accent, var(--text-strong));
+  /* The glyph is a mark on a message, not an action: strong, not accent. */
+  color: var(--text-strong);
 }
 
 .launcher-tip__text {
@@ -876,11 +797,13 @@
   align-items: center;
   gap: calc(var(--u) * 10);
   /* Unconditional, and deliberately not toggled by whether a list sits above:
-     these 4px used to appear and disappear as the result count crossed 0/1,
-     which moved the action bar — and the window's height — by 4px on the
-     keystroke that emptied or filled the list. A separator that is always
-     there costs one hairline in the no-results case and buys a bottom edge
-     that never jumps while typing. */
+     these 3px used to appear and disappear as the result count crossed 0/1,
+     which moved the action bar — and the window's height — by 3px on the
+     keystroke that emptied or filled the list. A constant gap costs 3px in the
+     no-results case and buys a bottom edge that never jumps while typing.
+     R18: it is a gap and nothing more — the gradient hairline that used to sit
+     in it is gone, so the row is separated from the list above by the card's
+     own material, exactly like the field above it. */
   margin-top: calc(var(--u) * 3);
   padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
   border-radius: var(--radius-md);
@@ -891,24 +814,10 @@
   transition: background-color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
-/* The separator is the same gradient hairline the bottom field uses, drawn as
-   a 1px band above the row so it never collides with the rounded corners. */
-.launcher-action-bar::before {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 1px;
-  background: var(--hairline-fade);
-  pointer-events: none;
-}
-
 /* Square top corners when a list actually sits above, so the action bar reads
    as the last row of that list rather than as a separate card. Paint only —
-   the separator's metrics live on `.launcher-action-bar` unconditionally so
-   that nothing here can move the panel's bottom edge as results come and go. */
-/* The band's containing block: the action bar is positioned so the gradient
-   hairline can sit exactly on its top edge. */
+   the row's metrics live on `.launcher-action-bar` unconditionally so that
+   nothing here can move the panel's bottom edge as results come and go. */
 .launcher-results + .launcher-action-bar {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
@@ -953,12 +862,15 @@
 }
 
 .launcher-action-bar__hint {
+  /* R18 · plain muted text, like every other shortcut in the panel. A filled
+     chip reads as a control — the row it sits on is already the control — and
+     the reference prints its shortcuts as bare grey glyphs on the row's own
+     material. The padding stays: it is the badge's own breath (a pinned
+     metric — see `tests/ui-scale.test.ts`). */
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   font-weight: 500;
   padding: calc(var(--u) * 2) calc(var(--u) * 6);
-  border-radius: var(--radius-xs);
-  background: var(--icon-surface);
   font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
   letter-spacing: 0.02em;
 }

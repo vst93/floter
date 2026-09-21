@@ -347,8 +347,6 @@ test("1px hairlines stay literal: ink, not layout", async () => {
   // as a grey smear. The transform therefore only touches box dimensions, and
   // every hairline must still read a bare 1px.
   const DIVIDER: [string, string][] = [
-    ["src/styles/launcher.css", ".launcher-bottom::before"],
-    ["src/styles/launcher.css", ".launcher-action-bar::before"],
     ["src/styles/settings.css", ".settings-card__header::after"],
     ["src/styles/settings.css", ".settings-row__divider"],
   ];
@@ -357,6 +355,21 @@ test("1px hairlines stay literal: ink, not layout", async () => {
     const band = declarations(body, "height")[0];
     assert.equal(band, "1px", `${file}: ${selector} is a hairline and must stay a literal 1px, got "${band}"`);
   }
+  // R18 · the launcher left this list, and it left it by drawing *no* divider
+  // at all: its field and its list are separated by a brightness step and a
+  // 12u transparent breath (see `tests/launcher-seam.test.ts`). There is
+  // therefore no 1px band in that sheet to scale or to pin — and these two
+  // assertions are what keep the round from being read as "the launcher's
+  // hairlines were quietly dropped from the census".
+  const launcherCss = await read("src/styles/launcher.css");
+  assert.ok(
+    !/height:\s*1px/.test(launcherCss),
+    "the launcher paints no 1px band: it has no dividers to scale",
+  );
+  assert.ok(
+    !/--hairline-fade/.test(launcherCss),
+    "and no gradient hairline either",
+  );
   // No sheet may write a scaled hairline: `calc(var(--u) * 1)` is the shape
   // that would slip past the rule above.
   for (const file of ["src/styles/base.css", "src/styles/launcher.css", "src/styles/settings.css"]) {
