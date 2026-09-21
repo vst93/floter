@@ -268,7 +268,10 @@ test("syncLauncherHeight re-asserts focus once its native resize settles", async
   const source = await read("src/hooks/useLauncherHeight.ts");
   assert.match(
     source,
-    /\.then\(\(\)\s*=>\s*reassertCollapsedFocus\(\)\)/,
+    // R15: the handler became a block — it re-asserts focus *and* starts the
+    // settle re-measure — so the call is matched inside the resolved arm
+    // rather than as a bare expression body.
+    /\.then\(\(\)\s*=>\s*\{[\s\S]*?reassertCollapsedFocus\(\)/,
     "the resize completion must re-run the focus collector",
   );
   // And App wires the collector's reassert into that hook.
@@ -298,9 +301,11 @@ test("syncLauncherHeight actually re-asserts focus once setSize resolves (runtim
   const globalWindow = globalThis as unknown as {
     window: unknown;
     getComputedStyle: (el: unknown) => Record<string, string>;
+    requestAnimationFrame: (cb: () => void) => number;
   };
   const previousWindow = globalWindow.window;
   const previousGetComputedStyle = globalWindow.getComputedStyle;
+  const previousRequestAnimationFrame = globalWindow.requestAnimationFrame;
   const calls: Array<{ cmd: string; args: unknown }> = [];
   globalWindow.window = {
     __TAURI_INTERNALS__: {
@@ -322,6 +327,15 @@ test("syncLauncherHeight actually re-asserts focus once setSize resolves (runtim
     paddingTop: "0px",
     paddingBottom: "0px",
   });
+  // R15: the helper re-measures after the resize settles, scheduled for the
+  // next paint. Stub the frame out (and never run the callback) so the settle
+  // pass is observable but cannot touch the stubs after the test has restored
+  // them; the fallback timer would otherwise fire mid-teardown.
+  let settleFrames = 0;
+  globalWindow.requestAnimationFrame = () => {
+    settleFrames += 1;
+    return 0;
+  };
 
   try {
     const { syncLauncherHeight } = await import("../src/hooks/useLauncherHeight.ts");
@@ -347,10 +361,16 @@ test("syncLauncherHeight actually re-asserts focus once setSize resolves (runtim
       "the launcher resize goes through setSize",
     );
     assert.equal(reasserted, 1, "a resolved setSize must run the focus reassert");
+    assert.equal(
+      settleFrames,
+      1,
+      "R15: the settle re-measure must be scheduled for the next paint after the resize lands",
+    );
     setHook(null);
   } finally {
     globalWindow.window = previousWindow;
     globalWindow.getComputedStyle = previousGetComputedStyle;
+    globalWindow.requestAnimationFrame = previousRequestAnimationFrame;
   }
 });
 

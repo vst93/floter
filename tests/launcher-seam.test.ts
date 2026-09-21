@@ -7,19 +7,22 @@
 // wall parked under the field reads as a stain, not as light — and the list
 // itself began on a line nobody had drawn.
 //
-// Two facts carry the round, and each is asserted from the source that owns it:
+// R13 reshaped that aura; R15 removed it. The user's note never changed
+// (「这个阴影还是太丑了，可以淡点，简洁点」), and a wash over the whole input row is
+// a shadow however its stops are arranged. What is left is the seam:
 //
-//   1. the aura falls away in *both* directions — full width, its one strength
-//      at the field's text line, zero at both the row's top and its floor, so
-//      there is no boundary left anywhere inside the card; and
-//   2. the input row owns a 1px seam on its own floor, a neutral hairline while
-//      there is a list to divide and an accent hairline while the row is
-//      focused — never both, so the seam is always exactly one pixel.
+//   1. the input row owns a 1px hairline on its own floor — a neutral one
+//      while there is a list to divide and an accent one while the row is
+//      focused, never both, so the seam is always exactly one pixel; and
+//   2. nothing else is drawn under the field. No aura node, no aura rule, no
+//      `--accent-wash` in this sheet, and no fill or shadow on the input row —
+//      the caret and the seam are the whole focus story.
 //
 // Both are checked positively (the gradients exist with their stops, the gates
-// exist, the class is emitted) and negatively (the horizontal wash is gone, no
-// `color-mix`, no `90deg` accent gradient, the two lines cannot co-occur), so
-// putting the smear back is what turns the suite red.
+// exist, the class is emitted) and negatively (the wash is gone from the sheet
+// *and* from the markup, no `color-mix`, no `90deg` accent gradient, the two
+// lines cannot co-occur), so putting the smear back — in any shape — is what
+// turns the suite red.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -54,33 +57,61 @@ const SEAM = ".collapsed-card__input-row::before, .collapsed-card__input-row::af
 const LAUNCHER = "src/styles/launcher.css";
 const APP = "src/App.tsx";
 
-test("the aura falls away in both directions: full width, zero at the top, zero at the floor", async () => {
+test("the aura is gone: no wash node, no wash rule, no wash token in the sheet", async () => {
   const css = stripComments(await read(LAUNCHER));
-  const aura = rule(css, ".collapsed-card__aura");
-  assert.ok(aura, ".collapsed-card__aura must exist — it is the field's lit state");
-  const background = decl(aura!.body, "background");
-  assert.ok(background, "the aura must paint a background");
-  assert.equal(angle(background!), "180deg", "the aura must fall vertically — a horizontal angle is the smear this round removed");
-  assert.ok(!/90deg/.test(background!), "no horizontal accent gradient may remain on the aura");
-  const parts = stops(background!);
-  assert.ok(parts.length >= 4, `the aura needs at least four stops (zero → peak → peak → zero), got ${parts.length}`);
-  assert.ok(parts[0].startsWith("transparent"), "the aura must start at nothing under the card's top rim");
-  assert.ok(parts[parts.length - 1].startsWith("transparent"), "the aura must reach nothing at the row's floor");
-  assert.ok(
-    parts.some((stop) => stop.startsWith("var(--accent-wash)")),
-    "the aura's one strength is --accent-wash itself: the wash is redistributed, not turned up",
+  const app = await read(APP);
+  assert.equal(
+    rule(css, ".collapsed-card__aura"),
+    undefined,
+    "the aura rule must be gone — R15 retires the field rather than tuning it again",
   );
-  // The peak is a token, never a literal: a hardcoded rgba would be wrong in
-  // the other palette, and the sheet is color-mix-free on purpose.
+  assert.ok(
+    !/\.collapsed-card__aura\b/.test(css),
+    "no selector may survive the rule: a leftover gate would resurrect the wash",
+  );
+  assert.ok(
+    !/collapsed-card__aura/.test(app),
+    "the aura node must be gone from App.tsx too — a rule with no node is a comment, a node with no rule is a blank",
+  );
+  assert.ok(
+    !/--accent-wash/.test(css),
+    "launcher.css must not reference --accent-wash any more: focus is the caret and the seam, not a wash",
+  );
+  // The removal is a subtraction, not a swap: the row gains nothing in its
+  // place. No fill, no shadow, no new gradient on the input row itself.
+  const row = rule(css, ".collapsed-card__input-row");
+  assert.ok(row, "the input row rule must still exist");
+  assert.equal(decl(row!.body, "background"), null, "the input row paints no fill of its own");
+  assert.equal(decl(row!.body, "box-shadow"), null, "the input row paints no shadow of its own");
   assert.ok(!/color-mix/.test(css), "launcher.css must stay color-mix-free (WebKitGTK without the feature renders an empty box)");
-  assert.ok(!/rgba?\(/.test(background!), "the aura gradient must derive from a token, not a hardcoded colour");
 });
 
-test("the old smear is gone: no 42% horizontal cutoff anywhere on the aura", async () => {
+test("the old smear cannot come back in a new shape: no accent wash gradient anywhere", async () => {
   const css = stripComments(await read(LAUNCHER));
-  const background = decl(rule(css, ".collapsed-card__aura")!.body, "background");
-  assert.ok(!/transparent\s+42%/.test(background!), "the 42% cutoff is the report itself — it must not come back");
-  assert.ok(!/^\s*linear-gradient\(\s*90deg/.test(background!), "the aura is no longer a horizontal band");
+  assert.ok(
+    !/transparent\s+42%/.test(css),
+    "the 42% cutoff is the original report — it must not come back",
+  );
+  assert.ok(
+    !/--accent-wash/.test(css),
+    "a vertical bloom is still a wash: the token is retired from this sheet, not reshaped",
+  );
+  // The one accent gradient that is allowed under the field is the focus seam,
+  // and it is a 1px keyline — never a filled area.
+  const accentSeam = rule(css, ".collapsed-card__input-row::before");
+  assert.ok(accentSeam, "the focus seam must still exist");
+  const background = decl(accentSeam!.body, "background") ?? "";
+  assert.equal(angle(background), "90deg", "the only accent under the field is the horizontal hairline");
+  assert.equal(
+    stops(background).length,
+    4,
+    "four stops and no more: transparent at both ends, accent in the middle — an area fill would need a vertical angle",
+  );
+  assert.equal(
+    decl(rule(css, SEAM)!.body, "height"),
+    "1px",
+    "and it is a line: an accent gradient taller than a pixel is the aura again",
+  );
 });
 
 test("the input row owns a 1px seam on its floor, faded to nothing at both ends", async () => {
@@ -109,7 +140,11 @@ test("the seam is gated: only while there is a list under it", async () => {
   const css = stripComments(await read(LAUNCHER));
   const gate = rule(css, ".collapsed-card--results-visible .collapsed-card__input-row::after");
   assert.ok(gate, "the neutral seam needs a gate — an empty launcher has no list to divide the field from");
-  assert.equal(decl(gate!.body, "opacity"), "1", "the gate must be what turns the seam on");
+  assert.equal(
+    decl(gate!.body, "opacity"),
+    "0.6",
+    "R15: the neutral divider lands at 0.6, not at full strength — a divider is found, not seen",
+  );
 });
 
 test("focus lights the accent hairline and puts the neutral one out — one pixel, never two", async () => {
@@ -128,12 +163,25 @@ test("focus lights the accent hairline and puts the neutral one out — one pixe
   assert.ok(off && decl(off.body, "opacity") === "0", "the neutral seam must drop to zero the moment the row is focused, or the seam doubles");
 });
 
-test("the aura keeps its gate: filled or focused, and nothing else", async () => {
+test("the aura's old gate is gone and focus is still unmistakable without it", async () => {
   const css = stripComments(await read(LAUNCHER));
-  const lit = rules(css).filter((r) => /\.collapsed-card__aura\b/.test(r.selector) && decl(r.body, "opacity") === "1");
-  assert.equal(lit.length, 1, "one rule lights the aura, and it names both states");
-  assert.ok(lit[0].selector.includes(".collapsed-card--filled"), "a filled field is lit");
-  assert.ok(lit[0].selector.includes(":focus-within"), "a focused field is lit");
+  // No rule anywhere lights a wash on the input row.
+  const lit = rules(css).filter((r) => /collapsed-card__aura/.test(r.selector));
+  assert.equal(lit.length, 0, "nothing may light an aura: the gate and the rule go together");
+  // Focus stays legible through the card's own two marks — the active border
+  // and the focus seam — which is what makes the removal safe (WCAG 2.4.7).
+  const focused = rule(css, ".collapsed-card:focus-within");
+  assert.ok(focused, "the card's focus state must survive the aura");
+  assert.equal(
+    decl(focused!.body, "border-color"),
+    "var(--input-stroke-active)",
+    "focus still paints the card's own edge",
+  );
+  const seam = rule(css, ".collapsed-card:focus-within .collapsed-card__input-row::before");
+  assert.ok(
+    seam && decl(seam.body, "opacity") === "1",
+    "and the accent seam at full strength: the seam, not a wash, is the focus story now",
+  );
 });
 
 test("the class the sheet gates on is the class the launcher emits", async () => {
@@ -150,4 +198,100 @@ test("the class the sheet gates on is the class the launcher emits", async () =>
   // The card must not gate on the query instead: an empty query still shows
   // the clipboard row, and that list needs the same seam.
   assert.ok(!/hasQuery \? " collapsed-card--results-visible"/.test(emitted!), "gating the seam on hasQuery would hide it in the empty-query list");
+});
+
+// ── R15 · the clip expands as a layout snap, and the window catches up ────
+//
+// The report, verbatim: 「动不动页面布局就崩了」. The screenshot was the query `v`
+// — nine rows and the action bar — with the bar's text cut through the middle
+// by the card's own bottom edge. The card is `overflow: hidden` and the window
+// is sized from a measurement of the card (see `syncLauncherHeight`), so any
+// gap between "the content grew" and "the window grew" is visible as a cut.
+//
+// Two locks, one on each side of that gap:
+//
+//   1. the clip's expansion may never be *animated*: a transitioned
+//      `grid-template-rows`/`max-height` would put the clip at a fraction of
+//      its final size at the moment the measuring layout effect runs, and the
+//      window would be set to that fraction; and
+//   2. the window is re-measured once the native resize has settled, so a
+//      resize that lands late (or a second content change while the first
+//      resize is in flight) is corrected instead of leaving the card clipped.
+
+const HOOK = "src/hooks/useLauncherHeight.ts";
+
+// The layout properties that must never appear in a transition on the clip.
+const LAYOUT_PROPS = ["grid-template-rows", "max-height", "height", "padding", "margin"];
+
+test("the clip's expansion is a layout snap: only paint is transitioned", async () => {
+  const css = stripComments(await read(LAUNCHER));
+  for (const selector of [".launcher-bottom-clip", ".launcher-bottom-clip--open"]) {
+    const clip = rule(css, selector);
+    assert.ok(clip, `${selector} must exist — the clip is the action bar's reveal`);
+    const property = decl(clip!.body, "transition-property");
+    assert.equal(
+      property,
+      "opacity, visibility",
+      `${selector} may transition paint only: a transitioned layout property makes the measured height a fraction of the real one`,
+    );
+    // The shorthand must not be used either: a later `transition:` would
+    // silently override the longhands above (and vice versa), and the lock
+    // would be checking a declaration the browser ignores.
+    assert.equal(
+      decl(clip!.body, "transition"),
+      null,
+      `${selector} must declare the longhands, not the shorthand — a shorthand next to them is a second, unread source of truth`,
+    );
+    for (const prop of LAYOUT_PROPS) {
+      assert.ok(
+        !new RegExp(`transition-property[^;]*\\b${prop}\\b`).test(clip!.body),
+        `${prop} must never be transitioned on ${selector}`,
+      );
+    }
+  }
+  // …and the layout states themselves are unchanged: 0fr/0 collapsed, 1fr/600px
+  // open. The fix is the transition list, not the geometry.
+  assert.equal(decl(rule(css, ".launcher-bottom-clip")!.body, "grid-template-rows"), "0fr");
+  assert.equal(decl(rule(css, ".launcher-bottom-clip")!.body, "max-height"), "0");
+  assert.equal(decl(rule(css, ".launcher-bottom-clip--open")!.body, "grid-template-rows"), "1fr");
+  assert.equal(decl(rule(css, ".launcher-bottom-clip--open")!.body, "max-height"), "600px");
+});
+
+test("the window is re-measured after the resize settles, so the card is never left clipped", async () => {
+  const hook = await read(HOOK);
+  // The measurement itself is untouched: the last laid-out child, offsets (not
+  // rects — the entry scale animation would scale a rect), plus the card's
+  // frame and the shell's padding.
+  assert.match(
+    hook,
+    /last\.offsetTop \+ last\.offsetHeight \+ frame/,
+    "the measurement stays an offset measurement of the last laid-out child",
+  );
+  assert.match(
+    hook,
+    /parseFloat\(shellStyle\.paddingTop\)[\s\S]{0,200}parseFloat\(shellStyle\.paddingBottom\)/,
+    "the shell's padding is still added back: the window has to be that much taller for it to show",
+  );
+  // The correction: after the resize resolves, re-measure on the next frame and
+  // resize again only if the content really did move.
+  assert.match(
+    hook,
+    /\.then\(\(\) => \{[\s\S]*?reassertCollapsedFocus\(\);[\s\S]*?afterPaint\(\(\) => \{[\s\S]*?measureCardHeight\(card\)[\s\S]*?settled !== height[\s\S]*?resizeLauncherWindow\(card, settled/,
+    "the settle pass must re-measure after the resize lands and re-apply only a real difference",
+  );
+  // …and it waits for the next paint, with a timer fallback so the helper stays
+  // drivable where `requestAnimationFrame` does not exist (the node suite).
+  assert.match(
+    hook,
+    /const afterPaint = \(run: \(\) => void\) => \{[\s\S]*?typeof requestAnimationFrame === "function"[\s\S]*?setTimeout\(run, 16\)/,
+    "the settle pass must run after a paint, with a non-WebView fallback",
+  );
+  // …and it is bounded: a card that keeps changing size cannot spin.
+  assert.match(hook, /const SETTLE_PASSES = \d+;/, "the settle passes must be a named, bounded constant");
+  assert.match(hook, /passes <= 0/, "the settle pass must terminate");
+  assert.match(
+    hook,
+    /resizeLauncherWindow\(card, height, SETTLE_PASSES\)/,
+    "the initial resize must start the bounded chain",
+  );
 });

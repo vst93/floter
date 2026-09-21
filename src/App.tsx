@@ -1869,7 +1869,11 @@ export default function App() {
                 aria-hidden="true"
                 onMouseDown={startDrag}
               />
-              <div className="collapsed-card__aura" aria-hidden="true" />
+              {/* R15: the focus aura that used to sit here — a full-width
+                  accent wash over the input row — is retired. Focus is the
+                  caret and the accent seam on the row's floor (see
+                  `styles/launcher.css`); a second accent field under the same
+                  row was the shadow the user kept asking to be lighter. */}
               <input
                 ref={inputRef}
                 className="collapsed-card__input"

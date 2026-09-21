@@ -232,9 +232,11 @@ test("the real measurement requests the laid-out height verbatim, never a scaled
   const globalWindow = globalThis as unknown as {
     window: unknown;
     getComputedStyle: (el: unknown) => Record<string, string>;
+    requestAnimationFrame: (cb: () => void) => number;
   };
   const previousWindow = globalWindow.window;
   const previousGetComputedStyle = globalWindow.getComputedStyle;
+  const previousRequestAnimationFrame = globalWindow.requestAnimationFrame;
   const sizes: { width: number; height: number }[] = [];
   // `setSize` passes a live `Size`/`LogicalSize` instance, and that is what this
   // double receives — the `{ Logical: … }` shape only exists *after* the IPC
@@ -270,6 +272,11 @@ test("the real measurement requests the laid-out height verbatim, never a scaled
     paddingTop: "0px",
     paddingBottom: "0px",
   });
+  // R15: the helper schedules a settle re-measure for the next paint. Stub the
+  // frame out and never run the callback — the test asserts the *first* request
+  // (the one that carries the measured height), and an unrun frame cannot touch
+  // the stubs this test restores in its `finally`.
+  globalWindow.requestAnimationFrame = () => 0;
 
   try {
     const { syncLauncherHeight } = await import("../src/hooks/useLauncherHeight.ts");
@@ -294,6 +301,7 @@ test("the real measurement requests the laid-out height verbatim, never a scaled
   } finally {
     globalWindow.window = previousWindow;
     globalWindow.getComputedStyle = previousGetComputedStyle;
+    globalWindow.requestAnimationFrame = previousRequestAnimationFrame;
   }
 });
 

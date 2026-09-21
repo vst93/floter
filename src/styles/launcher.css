@@ -93,49 +93,24 @@
   overflow: hidden;
 }
 
-/* R13 · the aura is a bloom, not a smear.
+/* R15 · the aura is gone, and it is not coming back in another shape.
 
-   It used to be one horizontal stop — `--accent-wash` pulled 42% across the
-   row and *cut off* on a hard vertical edge at that 42% mark. A user looking
-   at the filled list read exactly that edge (「输入框下方的阴影太草率了」): a
-   rectangle of colour parked under the field, with a straight right-hand wall,
-   is a stain; light does not end like that.
+   R13 took the aura apart and rebuilt it: instead of one horizontal stop with
+   a hard 42% wall, it became a full-width vertical bloom that fell away in
+   both directions. R14 kept it. The verdict after both was unchanged —
+   「这个阴影还是太丑了，可以淡点，简洁点」. A wash over the whole input row is a
+   shadow by another name, and softening it is still tuning a thing the row
+   does not need.
 
-   It now falls away in both directions instead. Full width — nothing to cut
-   on the right — rising to its one strength at the field's own text line
-   (20–36% of the row, where the caret and the query are) and easing back to
-   nothing over the long 64% tail that reaches the row's floor. Four stops,
-   peak → mid → 0, and no boundary anywhere inside the card: the tint starts
-   at zero under the card's top rim and ends at zero above the results, so
-   the eye never catches an edge, only a gradient.
+   The row already says "focused" twice, in ways that are *lines* rather than
+   fields: the caret itself, and the seam hairline on the row's floor (below),
+   which lights in `--accent-edge` while the row is focused. One accent line
+   beats one accent field, so the field is retired. Nothing replaces it: this
+   round is subtraction only, and the sheet gains no new shadow or gradient.
 
-   The peak is `--accent-wash` itself, the same strength the old left-hand
-   column had at its brightest — the wash is *redistributed*, not turned up.
-   Layering the token twice would have doubled the peak (and doubled it again
-   in light mode, where the token already carries 0.085 to be visible at all);
-   the stylesheet is deliberately color-mix-free, so a derived in-between
-   alpha is not available and a real eased curve would have to be faked. A
-   linear ramp over one 56u row is the honest version: the falloff happens
-   across the row's whole height, and that is the part the eye reads. */
-.collapsed-card__aura {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    var(--accent-wash) 20%,
-    var(--accent-wash) 36%,
-    transparent 100%
-  );
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-3) ease;
-}
-
-.collapsed-card--filled .collapsed-card__aura,
-.collapsed-card:focus-within .collapsed-card__aura {
-  opacity: 1;
-}
+   `--accent-wash` still exists in base.css (this round is barred from that
+   file) but nothing in the launcher references it any more — the sheet is
+   locked against the token coming back, see `tests/launcher-seam.test.ts`. */
 
 /* R13 · the seam between the field and the list.
 
@@ -172,7 +147,16 @@
 /* The neutral seam: `--input-stroke`, the same hairline the card's own edge
    is drawn with, so the divider is the card's line language and not a new
    one. Faded in only while there is a list under it to divide the field
-   from. */
+   from.
+
+   R15 · it lands at 0.6 rather than at full strength. With the aura gone the
+   seam is the only thing drawn between the field and the list, and the user's
+   standing note on this surface is that everything here is one step too
+   heavy (「可以淡点，简洁点」). A neutral divider's job is to be *found*, not
+   to be seen: at full `--input-stroke` it read as a rule drawn across the
+   card, at 0.6 it separates the two surfaces and disappears again. The focus
+   seam below is deliberately left at full strength — it carries state, and a
+   state mark may be louder than a divider. */
 .collapsed-card__input-row::after {
   background: linear-gradient(
     90deg,
@@ -184,7 +168,7 @@
 }
 
 .collapsed-card--results-visible .collapsed-card__input-row::after {
-  opacity: 1;
+  opacity: 0.6;
 }
 
 /* The focused seam: the accent hairline, a touch wider than the neutral one
@@ -313,7 +297,20 @@
 /* The native window owns the overall height. Keep the clip's final layout state
    in sync with that resize and fade its contents independently; animating CSS
    height at the same time as a native resize makes measurements depend on the
-   current animation frame and can leave stale space after a hide or reveal. */
+   current animation frame and can leave stale space after a hide or reveal.
+
+   R15 · the rule is now explicit rather than incidental: `transition-property`
+   is `opacity, visibility` and nothing else, in *both* states. Only paint may
+   animate here. If a layout property (`grid-template-rows`, `max-height`,
+   `height`) were ever transitioned, the clip would spend `--dur-3` at a
+   fraction of its final size, `syncLauncherHeight` would measure that
+   fraction in its layout effect, and the window would be set shorter than the
+   rows it holds — the card's own `overflow: hidden` then cuts the action bar
+   through the middle of its text, which is exactly the report this round
+   fixes (「动不动页面布局就崩了」). Opening is a layout *snap*: the row count
+   changes, the clip is at full height in the same frame the measurement
+   happens, and only the fade is animated. See
+   `tests/launcher-seam.test.ts › the expansion is a layout snap`. */
 .launcher-bottom-clip {
   display: grid;
   grid-template-rows: 0fr;
@@ -324,9 +321,12 @@
   visibility: hidden;
   pointer-events: none;
   overflow: hidden;
-  transition:
-    opacity var(--dur-3) var(--ease-out),
-    visibility 0s;
+  /* Paint only. `visibility` is listed so the reveal is not delayed by the
+     fade; no layout property is listed, so the collapse and the expand both
+     land at their final size in the frame they are applied. */
+  transition-property: opacity, visibility;
+  transition-duration: var(--dur-3), 0s;
+  transition-timing-function: var(--ease-out), linear;
 }
 
 .launcher-bottom-clip--open {
@@ -335,9 +335,9 @@
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transition:
-    opacity var(--dur-3) var(--ease-out),
-    visibility 0s;
+  transition-property: opacity, visibility;
+  transition-duration: var(--dur-3), 0s;
+  transition-timing-function: var(--ease-out), linear;
 }
 
 /* The 0fr track only collapses when its child can shrink below its content. */
@@ -687,11 +687,24 @@
 }
 
 .launcher-result--selected {
-  /* Selected rows are raised glass, not a flat accent block: the accent tint
-     supplies the colour and the top rim supplies the material. The inset edge
-     keeps the selection unmistakable where the tint alone reads faintly. */
+  /* Selected rows are tinted, not lifted.
+
+     R15 · they used to carry `--glass-raised-shadow` as well — an outer drop
+     shadow plus a top rim highlight — on top of the tint and the accent
+     keyline. In the screenshot the first row (the selected `v` command) was
+     visibly the heaviest object in a list of ten quiet rows: the selection was
+     legible from its *shadow* before its colour. The row already carries two
+     unambiguous signals — the accent tint fill and the inset accent keyline —
+     and the selection is a state, not a raised pane: it does not need to
+     detach from the surface to be found.
+
+     So the outer shadow goes and the inset keyline stays, at the same
+     `--accent-edge` strength. The action bar's own selection keeps
+     `--glass-raised-quiet` (it is the only row that is *not* a result, and a
+     neutral rim is what distinguishes it); the result rows take no shadow at
+     all. */
   background: var(--glass-raised);
-  box-shadow: var(--glass-raised-shadow), inset 0 0 0 1px var(--accent-edge);
+  box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
 /* R12 · A row with nothing to say on a second line prints its title alone.
