@@ -1,21 +1,27 @@
-// R22 · the gap between the query text and the first result row.
+// R22 · the gap between the query text and the first result row; re-derived in
+// R23 for the field's second trim.
 //
-// The user drew a box around it (「我指的这中间的空白太宽了」). Measured from the
-// sheet, the space between the *bottom of the field's row* and the *top of the
-// first result row* is three stacked decisions, all of them deliberate and none
-// of them wrong on its own:
+// The user drew a box around it (「我指的这中间的空白太宽了」) in R22, and after
+// that round still read the space below the query as too wide
+// (「输入框下内边距还是太宽」) — so the field's row lost another 6u in R23.
+// Measured from the sheet, the space between the *bottom of the field's row* and
+// the *top of the first result row* is three stacked decisions, all of them
+// deliberate and none of them wrong on its own:
 //
-//   * the field row's dead height below its 22u line box — `(48u − 22u) / 2`
-//     = 13u after R22, `(56u − 22u) / 2` = 17u before;
+//   * the field row's dead height below its 22u line box — `(42u − 22u) / 2`
+//     = 10u after R23, 13u in R22, `(56u − 22u) / 2` = 17u before;
 //   * R18's breath below the block — the row's 8u `margin-bottom` plus
-//     `.launcher-bottom`'s 4u top padding = 12u (untouched this round); and
+//     `.launcher-bottom`'s 4u top padding = 12u (untouched in either round); and
 //   * the scroll-edge reservation the scroller keeps as top padding — 14px
 //     from base.css before, 8px now that the launcher overrides the token.
 //
-// Stacked, that is `17 + 12 + 14 = 43px` before and `13 + 12 + 8 = 33px` after:
-// the 8u the field gave back plus the 6px the reservation gave back, and nothing
-// else moves. The assertions below are the arithmetic, so a later edit to any
-// one of the three has to face the total.
+// Stacked, that is `17 + 12 + 14 = 43px` before, `13 + 12 + 8 = 33px` after R22
+// and `10 + 12 + 8 = 30px` after R23: R22 gave back 4u of field dead height (one
+// side only — the row is flex-centred, so an 8u row cut is a 4u cut per side)
+// plus 6px of reservation; R23 gave back 3u more of that same per-side dead
+// height (a 6u row cut is 3u per side). Nothing else moves. The assertions below
+// are the arithmetic, so a later edit to any one of the three has to face the
+// total.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -56,10 +62,10 @@ test("the query-to-first-row gap is the sum of three pinned decisions", async ()
     /min-height:\s*([^;]+);/.exec(rule(launcher, ".collapsed-card__input"))![1],
     "field min-height",
   );
-  assert.equal(rowHeight, 48, "R22 takes the field's row from 56u to 48u");
+  assert.equal(rowHeight, 42, "R23 takes the field's row from 48u to 42u");
   assert.equal(fieldHeight, 22, "the field's own box is unchanged at 22u");
   const deadBelowTheText = (rowHeight - fieldHeight) / 2;
-  assert.equal(deadBelowTheText, 13, "the line box keeps 13u above and below it — still a breath");
+  assert.equal(deadBelowTheText, 10, "the line box keeps 10u above and below it — the breathing floor");
 
   // 2 · R18's breath, untouched: the row's margin plus the panel's top padding.
   const breath = units(/margin-bottom:\s*([^;]+);/.exec(row)![1], "input row margin-bottom");
@@ -84,12 +90,16 @@ test("the query-to-first-row gap is the sum of three pinned decisions", async ()
   const results = rule(launcher, ".launcher-results");
   assert.match(results, /padding:\s*var\(--scroll-edge\)\s+0\s+0;/, "the reservation is the variable");
 
-  // The total, and the fact that it only shrank by what the two decisions gave.
+  // The total, and the fact that it only shrank by what the decisions gave.
   const before = (56 - 22) / 2 + 12 + 14;
   const after = deadBelowTheText + 12 + 8;
   assert.equal(before, 43);
-  assert.equal(after, 33);
-  assert.equal(before - after, 10, "8u of field dead height plus 6px of reservation, and nothing else");
+  assert.equal(after, 30);
+  assert.equal(
+    before - after,
+    13,
+    "4u (R22) + 3u (R23) of field dead height, one side each, plus 6px of reservation, and nothing else",
+  );
 });
 
 test("the launcher override is local: no other surface inherits it", async () => {

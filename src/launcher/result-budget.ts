@@ -87,8 +87,8 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  the query block without touching this number. At the default interface step
  *  (`--ui-scale: 1`, so the unit is 1px):
  *
- *    `.collapsed-card__input-row`  48u  (min-height — 56u pinned since R10,
- *                                      tightened to 48u in R22)
+ *    `.collapsed-card__input-row`  42u  (min-height — 56u pinned since R10,
+ *                                      tightened to 48u in R22, to 42u in R23)
  *    R18 breath below it            8u  (`margin-bottom` on the input row)
  *    `.launcher-bottom` padding     6u  (4u top + 2u bottom — R21: the tail
  *                                      pairs with the last row's own leading,
@@ -97,7 +97,7 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *    feedback row                  30u  (min-height, may appear)
  *    card margin / rounding slack   7u
  *    ─────────────────────────────────
- *                                 141u
+ *                                 133u
  *
  *  R22 · the field's row loses 8u (56u → 48u, see `styles/launcher.css`) and
  *  so does this constant: 232 → 224. Nothing else in the audit moves — the
@@ -107,19 +107,26 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  slack. The scroll-edge reservation that also sits in this gap is a *list*
  *  number, not a chrome one: it is already inside `RESULTS_LIST_CHROME`.
  *
+ *  R23 · the field's row loses 6u more (48u → 42u) after the user still read the
+ *  space below the query as too wide (「输入框下内边距还是太宽」), and the constant
+ *  follows it down by the same 6u: 224 → 216. The audit is 141u − 8u (R22) − 6u
+ *  (R23) = 133u, and nothing else in the segment list moves. The slack is
+ *  unchanged at 83u — both the constant and the audit shrink together — so the
+ *  floor still clears the chrome it stands for: 216u ≥ 133u.
+ *
  *  R20 · the R19 audit above read the action bar as 30u (the *feedback* row's
  *  floor). `.launcher-action-bar` declares `height: calc(var(--u) * 42)`, so the
  *  chrome is 12u more than that audit claimed — the correction is in the list,
  *  not in the constant. `RESULTS_VIEWPORT_CHROME` is a **floor** for a short
  *  display, not a measurement, and it only has to be at least the chrome it
  *  stands for so that the cap it writes is never larger than the window can
- *  hold: 224u ≥ 141u, by 83u of slack. What R20 has to check is that the cap
+ *  hold: 216u ≥ 133u, by 83u of slack. What R20 has to check is that the cap
  *  does not bind on an ordinary display, i.e. that
- *  `availHeight - 224 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
+ *  `availHeight - 216 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
  *  worst-case list plus its fixed chrome, `378 + 50 = 428px`. That holds for
- *  every display taller than 652px of work area, and it is asserted in
+ *  every display taller than 644px of work area, and it is asserted in
  *  `tests/launcher-ten-rows.test.ts`. */
-export const RESULTS_VIEWPORT_CHROME = 224;
+export const RESULTS_VIEWPORT_CHROME = 216;
 
 /** Whether a row is *a* clipboard row — the fixed one, or the one the query
  *  produced by matching the clipboard system command. Either way the list must

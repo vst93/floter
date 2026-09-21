@@ -125,8 +125,21 @@
      the row is still one step brighter than the card — and the R21
      `--surface-opaque` underlay below is untouched. The pinned metric moves
      with it: `tests/ui-scale.test.ts` asserts 48px, and the chrome constant
-     drops 8u to match. */
-  min-height: calc(var(--u) * 48);
+     drops 8u to match.
+
+     R23 · 48u → 42u. R22 removed 8u and the user still read the space *below*
+     the query as too wide (「输入框下内边距还是太宽」): with a 22u line box
+     flex-centred in a 48u row, each side is 13px, and the eye weighs the lower
+     one more because the R18 breath sits under it. At 42u each side is 10px
+     (22u line box + 2 × 10u) — the row is still taller than its text and still
+     breathes, but the field is no longer a shelf. **This is the deliberate
+     floor**: 10px a side is the last step before the line box starts to look
+     pinched (the user's 「挤」), so the next report from here is a stop, not
+     another -6u. The R18 lift and the R21 `--surface-opaque` underlay are both
+     untouched; only the row's height moved. The pinned metric follows again:
+     `tests/ui-scale.test.ts` asserts 42px and the chrome constant drops a
+     further 8u (224 → 216). */
+  min-height: calc(var(--u) * 42);
   display: flex;
   align-items: center;
   padding: 0 calc(var(--u) * 16);
@@ -140,7 +153,8 @@
      opaque in the light palette (`rgba(255, 255, 255, 0.5)`) and three percent
      in the dark one, so the field was never a surface, only a wash: the chat
      window behind the launcher read *through* it as a blurred second line of
-     text under the query. The field's box was 56u all along (R20 held), but its
+     text under the query. The field's box was 56u all along (R20 held; 48u in
+     R22, 42u in R23), but its
      bottom edge was invisible and the ghost under the text made the row look
      like it had grown a second line — 「输入框部分高度还是不正常」.
 
@@ -158,7 +172,8 @@
     var(--surface-opaque);
   /* The breath below the block. A margin here rather than extra padding on
      `.launcher-bottom` so this row keeps the height it has always had (a pinned
-     metric — see `tests/ui-scale.test.ts`; 56u until R22, 48u now). */
+     metric — see `tests/ui-scale.test.ts`; 56u until R22, 48u in R22, 42u in
+     R23). */
   margin-bottom: calc(var(--u) * 8);
   overflow: hidden;
 }

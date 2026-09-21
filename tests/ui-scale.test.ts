@@ -186,12 +186,15 @@ const SAMPLES: [string, string, string, string][] = [
   ["src/styles/base.css", ".platform-windows .terminal-shell", "padding", "10px"],
   ["src/styles/base.css", ".platform-linux .collapsed-shell", "padding", "4px"],
   // launcher.css
-  // R22 · the field's row was 56px for eleven rounds and is 48px now: the row's
+  // R22 · the field's row was 56px for eleven rounds and became 48px: the row's
   // only content is the field's 22px line box, so 56px left ~17px of dead height
   // under the text that read as part of the gap to the first result
-  // (「我指的这中间的空白太宽了」). The pinned metric moves with the sheet — this
-  // entry is the current value, so it is updated rather than dropped.
-  ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "48px"],
+  // (「我指的这中间的空白太宽了」). R23 · still too wide below the text, so the row
+  // is 42px now: the line box keeps 10px a side (22u + 2 × 10u), the deliberate
+  // floor below which the field starts to look pinched. The pinned metric moves
+  // with the sheet — this entry is the current value, so it is updated rather
+  // than dropped.
+  ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "42px"],
   ["src/styles/launcher.css", ".collapsed-card__input", "min-height", "22px"],
   ["src/styles/launcher.css", ".collapsed-card__settings", "width", "28px"],
   ["src/styles/launcher.css", ".launcher-result", "height", "42px"],
@@ -340,12 +343,12 @@ test("the knob is live: the same samples scale with `--ui-scale`", async () => {
   // real before the UI is allowed to choose it.
   const css = await read("src/styles/launcher.css");
   const value = declarations(ruleFor(css, ".collapsed-card__input-row").body, "min-height")[0];
-  // R22 moved the row from 56u to 48u; the arithmetic is what this test is
-  // about, so the pair moves with the sheet.
-  assert.deepEqual(resolveValue(value, 1), [48]);
-  // Float arithmetic: `calc(48px * 1.2)` lands a hair under 57.6, so compare
+  // R22 moved the row from 56u to 48u and R23 from 48u to 42u; the arithmetic
+  // is what this test is about, so the pair moves with the sheet.
+  assert.deepEqual(resolveValue(value, 1), [42]);
+  // Float arithmetic: `calc(42px * 1.2)` lands a hair under 50.4, so compare
   // the product rather than requiring the decimal to round-trip.
-  assert.deepEqual(resolveValue(value, 1.2), [48 * 1.2], "48 * 1.2");
+  assert.deepEqual(resolveValue(value, 1.2), [42 * 1.2], "42 * 1.2");
 });
 
 // ── 3 · hairlines are not scaled ──────────────────────────────────────────
