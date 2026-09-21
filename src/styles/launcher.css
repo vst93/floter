@@ -130,6 +130,14 @@
   min-width: 0;
   min-height: calc(var(--u) * 22);
   border: none;
+  /* R20 · the field's text sits on the field's own inset. A `<input>` carries a
+     user-agent `padding: 1px 2px`, which is inside this element's border box:
+     it pushed the line box 1px below the row's centre and the first glyph 2px
+     right of the 16u inset the row sets, so the text was the only thing on the
+     surface not drawn from the layout's own numbers. Zeroed, the line box is
+     exactly the element's box — which the row's `align-items: center` then
+     centres — and the caret starts on the inset. */
+  padding: 0;
   /* ROUND-PASS exception: the launcher's field is not a boxed input at all —
      it is borderless text inside the card, and the card's own
      --window-radius is the only visible shape. Giving it a pill would draw a
@@ -513,13 +521,27 @@
   min-height: 0;
   /* R12: the row budget in pixels. A two-line result row is
      `calc(var(--u) * 42)` (see `.launcher-result`); a one-line row — no
-     subtitle to print (see `row-content.ts`) — is `calc(var(--u) * 34)`. The
+     subtitle to print (see `row-content.ts`) — is `calc(var(--u) * 34)`.
+
+     R20 · the ceiling is the **worst case**, not the best one: every one of the
      launcher's nine rows (R19: eight matched results above one fixed clipboard
-     row, down from ten) are the matched rows that mostly collapse: an
-     application whose subtitle is only "应用程序" prints one line. So the
-     ceiling is sized for eight compact rows plus the clipboard row (which keeps
-     its subtitle), i.e. `calc(var(--u) * (8 * 34 + 42))` = `calc(var(--u) *
-     314)`. The fixed 50px covers what does not scale with `--u`: the 14px
+     row) at its *tallest*, because a query that matches commands is exactly a
+     list of two-line rows — every command carries a description. So the ceiling
+     is `calc(var(--u) * (9 * 42))` = `calc(var(--u) * 378)`. R19 sized it for
+     eight compact rows plus the clipboard row (`calc(var(--u) * 314)`), which is
+     the height of the list in one particular state: a query whose matches were
+     all apps. With nine two-line rows the content was 28u taller than the cap,
+     so the list scrolled inside a box that was supposed to hold it — the
+     scroll-edge band appeared, and the card outgrew the window it was measured
+     into (see `useLauncherHeight`).
+
+     The same two row heights are the exported `ROW_HEIGHT_TWO_LINE` /
+     `ROW_HEIGHT_COMPACT` in `launcher/result-budget.ts`, which also owns
+     `RESULTS_LIST_HEIGHT` (378) and `RESULTS_LIST_CHROME` (50) below;
+     `tests/launcher-ten-rows.test.ts` asserts this declaration still spells
+     those numbers.
+
+     The fixed 50px covers what does not scale with the unit: the 14px
      scroll-edge reservation at the top, the nine 1px grid gaps around the nine
      rows, and the empty-query section title (a `--text-body` line at 1.4 plus
      its 6/4px padding ≈ 26px). The title is the reason the chrome is a whole
@@ -529,8 +551,8 @@
      `--launcher-results-height` is the viewport cap the App writes on a short
      display and is the smaller of the two there. */
   max-height: min(
-    calc(var(--u) * 314 + 50px),
-    var(--launcher-results-height, calc(var(--u) * 314 + 50px))
+    calc(var(--u) * 378 + 50px),
+    var(--launcher-results-height, calc(var(--u) * 378 + 50px))
   );
   overflow-y: auto;
   overscroll-behavior: contain;

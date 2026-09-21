@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { reassertCollapsedFocus } from "../collapsed-focus.ts";
 import { INPUT_WINDOW_WIDTH } from "../window-contract.ts";
@@ -10,15 +10,62 @@ import { INPUT_WINDOW_WIDTH } from "../window-contract.ts";
  * as tall as the rows inside it — no prediction, just measurement. Offsets
  * rather than getBoundingClientRect because the shell plays a scale animation
  * on entry and a rect measured mid-animation is scaled by 0.986.
+ *
+ * R20 · the same "no prediction" rule now covers the case the dependency list
+ * could not: a row that changes height while the row count stands still. The
+ * hook watches the card itself, so the window follows the card's measured
+ * content rather than the events that are supposed to imply it.
  */
 export function useLauncherHeight(
   mode: string,
   collapsedCardRef: React.RefObject<HTMLDivElement | null>,
   dependencies: React.DependencyList,
 ) {
+  // The height this hook last asked the window for. Only the observer reads it
+  // (see below); the effect's own sync always runs.
+  const applied = useRef(0);
+
   useLayoutEffect(() => {
     if (mode !== "collapsed") return;
+    const card = collapsedCardRef.current;
     syncLauncherHeight(collapsedCardRef);
+    if (!card || typeof ResizeObserver === "undefined") return;
+
+    // R20 · the dependency list above is the row *count*; the window's height is
+    // the rows' *height*, and the two do not move together. Every state that
+    // changes a row's box without changing how many rows there are — a compact
+    // row gaining a subtitle because the query reached a command, the
+    // onboarding tip arriving or being dismissed, a font landing late and
+    // reflowing the list — leaves the window at the height of the *previous*
+    // list. The card is `min-height: 100%` inside a centred shell, so a card
+    // taller than its window overflows at *both* ends: the field loses its top
+    // edge (the user's 「输入框高度异常」 — 56u of field rendered as ~52px of
+    // visible band) and the action bar is cut by the window's bottom edge
+    // (「界面边框又变形了」). No dependency list can enumerate "a row got
+    // taller", so the trigger stops being a prediction and becomes a
+    // measurement: watch the card's own box and re-apply the measured height
+    // whenever it moves.
+    //
+    // Two guards, both about not resizing the window against itself:
+    //   * the target is compared with the window's *current* height rather than
+    //     with a remembered number, so the very first callback after a sync is a
+    //     no-op and a genuine external resize (the native reveal path sets a
+    //     baseline of its own) is still corrected; and
+    //   * a target we have already asked for is never asked for twice, so an
+    //     observer that fires on the resize it caused terminates instead of
+    //     oscillating against a platform that lands a pixel or two away.
+    const observer = new ResizeObserver(() => {
+      const current = collapsedCardRef.current;
+      if (!current) return;
+      const target = measureCardHeight(current);
+      if (!target) return;
+      if (Math.abs(target - window.innerHeight) <= 1) return;
+      if (target === applied.current) return;
+      applied.current = target;
+      resizeLauncherWindow(current, target, SETTLE_PASSES);
+    });
+    observer.observe(card);
+    return () => observer.disconnect();
   }, [mode, collapsedCardRef, ...dependencies]);
 }
 

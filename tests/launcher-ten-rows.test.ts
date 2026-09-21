@@ -23,12 +23,16 @@
 //      clipboard row;
 //   4. the tail row is selectable and runnable, and it always owns slot nine —
 //      `⌘9` opens the clipboard panel, and the matched rows number 1-8 above it;
-//   5. the height ceiling is eight compact rows plus the clipboard row.
+//   5. the height ceiling is the worst case, not the best one: nine rows at
+//      their two-line height, so a query whose matches all carry a description
+//      — a command always does — still fits without the list scrolling inside
+//      its own cap.
 //
 // The height half is pinned from the two sheets that derive it: a two-line row
-// is `calc(var(--u) * 42)`, a one-line row is `calc(var(--u) * 34)`, and the
-// list's ceiling is eight compact result rows plus the fixed clipboard row plus
-// the fixed scroll-edge/gap chrome.
+// is `calc(var(--u) * 42)`, a one-line row is `calc(var(--u) * 34)` — the same
+// pair `result-budget.ts` exports as `ROW_HEIGHT_TWO_LINE` /
+// `ROW_HEIGHT_COMPACT` — and the list's ceiling is nine two-line rows plus the
+// fixed scroll-edge/gap chrome.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -38,7 +42,11 @@ import {
   COMMAND_LIMIT_WITH_MATCHES,
   FIXED_TAIL_SLOT,
   MAX_RESULTS,
+  RESULTS_LIST_CHROME,
+  RESULTS_LIST_HEIGHT,
   RESULTS_VIEWPORT_CHROME,
+  ROW_HEIGHT_COMPACT,
+  ROW_HEIGHT_TWO_LINE,
   clipboardResultRow,
   isClipboardResult,
   resultIndexForSlot,
@@ -444,7 +452,7 @@ test("the renderer prints the subtitle and source only when they exist", async (
 
 // ── 5 · the height the nine rows need ────────────────────────────────────
 
-test("the results ceiling is eight compact rows plus the clipboard row", async () => {
+test("the results ceiling is every row at its tallest, not the shortest state", async () => {
   const launcher = stripCssComments(await read("src/styles/launcher.css"));
   const rowHeightOf = (selector: string): number => {
     const rule = new RegExp(
@@ -460,21 +468,31 @@ test("the results ceiling is eight compact rows plus the clipboard row", async (
     compactHeight < rowHeight,
     `a one-line row (${compactHeight}) must be shorter than a two-line row (${rowHeight})`,
   );
+  // R20: the sheets and the budget module are one decision written three times
+  // (the two row heights here, the ceiling below, the constants there).
+  assert.equal(rowHeight, ROW_HEIGHT_TWO_LINE, "the sheet and the module share the two-line height");
+  assert.equal(compactHeight, ROW_HEIGHT_COMPACT, "…and the compact height");
 
   const results = /\.launcher-results\s*\{[^}]*max-height:\s*([^;]+);/s.exec(launcher);
   assert.ok(results, ".launcher-results must declare a max-height");
   const ceiling = results[1];
-  // Eight matched rows collapse to one line each; the fixed clipboard row keeps
-  // its subtitle, so it stays at the full height.
-  const budget = (MAX_RESULTS - 1) * compactHeight + rowHeight;
+  // R20 · the budget is the **worst case**: every row at its tallest, because a
+  // query that matched commands is exactly a list of two-line rows — each
+  // command carries a description. R19 sized the ceiling from the compact
+  // height (`8 x 34 + 42` = 314u), which is only the height of a query whose
+  // matches were all apps; nine two-line rows are 378u and scrolled inside it.
+  const budget = RESULTS_LIST_HEIGHT;
+  assert.equal(budget, MAX_RESULTS * ROW_HEIGHT_TWO_LINE, "the budget is nine two-line rows");
+  assert.equal(budget, 378, "nine two-line rows are 378u");
   assert.match(
     ceiling,
     new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`),
-    `the ceiling must be eight x ${compactHeight}px + ${rowHeight}px + chrome, got "${ceiling}"`,
+    `the ceiling must be ${MAX_RESULTS} x ${rowHeight}px + chrome, got "${ceiling}"`,
   );
   const chrome = Number(
     new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`).exec(ceiling)![1],
   );
+  assert.equal(chrome, RESULTS_LIST_CHROME, "the fixed chrome is the module's constant");
   // The chrome has to be at least the scroll-edge band (14px, see base.css)
   // plus the gaps around nine rows, and it has to leave room for a section
   // title — otherwise the empty-query state scrolls the clipboard row away.
@@ -484,6 +502,24 @@ test("the results ceiling is eight compact rows plus the clipboard row", async (
     chrome >= band + MAX_RESULTS + 20,
     `chrome of ${chrome}px must cover the ${band}px band, nine 1px gaps and a title line`,
   );
+
+  // ── the assertion this round exists for ─────────────────────────────────
+  // Nine two-line rows, plus the band, the nine 1px gaps and the empty-query
+  // section title, must fit *inside* the ceiling. If the content is taller than
+  // the cap the list scrolls in the state the launcher is most often in: the
+  // scroll-edge band paints, and the card outgrows the window it is measured
+  // into (the action bar cut by the window's bottom edge — 「界面边框又变形了」).
+  const titleLine = 26; // `--text-body` at 1.4 plus the 6/4px padding
+  const content = band + MAX_RESULTS + titleLine + budget;
+  assert.ok(
+    content <= budget + chrome,
+    `nine two-line rows with a ${band}px band, ${MAX_RESULTS} gaps and a ${titleLine}px title need ${content}px, but the ceiling is ${budget + chrome}px`,
+  );
+  assert.ok(
+    content > (MAX_RESULTS - 1) * compactHeight + rowHeight + chrome,
+    "a ceiling sized from the compact height cannot hold the worst case — that is the bug R20 fixes",
+  );
+
   assert.match(
     ceiling,
     /var\(--launcher-results-height/,
@@ -500,7 +536,71 @@ test("the results ceiling is eight compact rows plus the clipboard row", async (
   );
   // R19: the chrome the App subtracts was re-audited for R18's 12u breath —
   // 127u of non-list chrome became 139u, and the constant grew by the same 12.
+  // R20 re-audited it again and found the action bar is 42u, not the 30u the
+  // R19 list read (that is the feedback row's floor); the constant still stands,
+  // because it is a floor for a short display and only has to be *at least* the
+  // chrome it stands for — 232u ≥ 151u. What matters is that it does not bind on
+  // an ordinary one, i.e. that the work area is at least
+  // `RESULTS_VIEWPORT_CHROME + the worst-case list` = 232 + 428 = 660px. Every
+  // display a launcher is used on clears that (a 1280x800 work area is 768px),
+  // and on a shorter one the cap binds *deliberately*: the list scrolls rather
+  // than the card overflowing its window.
   assert.equal(RESULTS_VIEWPORT_CHROME, 232);
+  const shortestWorkAreaTheCapDoesNotBind = RESULTS_VIEWPORT_CHROME + budget + chrome;
+  assert.equal(shortestWorkAreaTheCapDoesNotBind, 660);
+  assert.ok(
+    shortestWorkAreaTheCapDoesNotBind < 768,
+    "the App's cap must not bind on the shortest ordinary work area (1280x800)",
+  );
+});
+
+test("the height sync follows the card's box, not just the row count", async () => {
+  const hook = stripJsComments(await read("src/hooks/useLauncherHeight.ts"));
+  // R20 · the dependency list is the row *count*; a row can change height
+  // without the count moving (a compact row gaining a subtitle the moment the
+  // query reaches a command), and the window then keeps the previous list's
+  // height. The card is taller than its window and the centred shell splits the
+  // overflow, so the field loses its top edge and the action bar is cut by the
+  // bottom one. No dependency list can enumerate "a row got taller", so the
+  // trigger is a measurement of the card itself.
+  assert.match(hook, /new ResizeObserver\(/, "the card's own box is observed");
+  assert.match(hook, /observer\.observe\(card\)/, "…and the card is what is observed");
+  assert.match(hook, /observer\.disconnect\(\)/, "the observer does not outlive the surface");
+  assert.match(
+    hook,
+    /resizeLauncherWindow\(current, target, SETTLE_PASSES\)/,
+    "it re-uses the one resize path, bounded by the same settle passes",
+  );
+  // Self-limiting, both ways: a target the window already carries is a no-op,
+  // and a target already asked for is never asked for twice — so an observer
+  // that fires on the resize it caused terminates rather than oscillating.
+  assert.match(
+    hook,
+    /Math\.abs\(target - window\.innerHeight\) <= 1/,
+    "a target the window already has is a no-op",
+  );
+  assert.match(hook, /target === applied\.current/, "a repeated target must not resize twice");
+});
+
+test("the field's text sits on the field's own inset", async () => {
+  const launcher = stripCssComments(await read("src/styles/launcher.css"));
+  const row = /\.collapsed-card__input-row\s*\{([^}]*)\}/s.exec(launcher);
+  assert.ok(row, ".collapsed-card__input-row must exist");
+  assert.match(row![1], /align-items:\s*center/, "the row centres the field's box");
+  const input = /\.collapsed-card__input\s*\{([^}]*)\}/s.exec(launcher);
+  assert.ok(input, ".collapsed-card__input must exist");
+  // R20 · the field keeps its pinned 56u row and 22u box (see
+  // `tests/ui-scale.test.ts`); what it may not keep is the user agent's
+  // `padding: 1px 2px`, which lives *inside* this element's border box: it
+  // pushed the line box 1px below the row's centre and the first glyph 2px
+  // right of the row's inset. Zeroed, the box the row centres is the line box,
+  // and the caret starts where the field starts.
+  assert.match(input![1], /padding:\s*0;/, "the field's text is not offset by the user agent's padding");
+  assert.match(
+    input![1],
+    /min-height:\s*calc\(var\(--u\) \* 22\)/,
+    "…and the field keeps the 22u box the height budget is built on",
+  );
 });
 
 test("the list still scrolls past the budget, so extra rows are reachable", async () => {

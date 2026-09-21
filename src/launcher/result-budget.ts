@@ -38,6 +38,37 @@ export const FIXED_TAIL_SLOT = MAX_RESULTS;
  *  same 3-to-5 shape the launcher showed when the budget was eight rows. */
 export const COMMAND_LIMIT_WITH_MATCHES = 3;
 
+/** The two heights a result row is drawn at, in `--u` units. This pair is the
+ *  single source of the numbers `styles/launcher.css` writes as
+ *  `calc(var(--u) * N)` on `.launcher-result` and `.launcher-result--compact`;
+ *  `tests/launcher-ten-rows.test.ts` asserts the three agree.
+ *
+ *  A row that prints a subtitle is two-line and takes the first; a row whose
+ *  title stands alone (see `row-content.ts`) collapses to the second. */
+export const ROW_HEIGHT_TWO_LINE = 42;
+export const ROW_HEIGHT_COMPACT = 34;
+
+/** The list's ceiling in `--u` units: **every** row at its tallest height.
+ *
+ *  R20 · the ceiling used to be computed from the *compact* height alone —
+ *  `8 × ROW_HEIGHT_COMPACT + ROW_HEIGHT_TWO_LINE` = 314u — which is the height
+ *  of the list in the state that happened to be photographed, not the height it
+ *  can reach. A query that matches commands is exactly the state that breaks it:
+ *  every command row carries a description, so all nine rows are two-line, the
+ *  content is 28u taller than the ceiling it was measured against, and the list
+ *  scrolls inside a cap that was sized for shorter rows. The ceiling is a
+ *  *ceiling*, so it is now the worst case: `MAX_RESULTS × ROW_HEIGHT_TWO_LINE`
+ *  = 378u. */
+export const RESULTS_LIST_HEIGHT = MAX_RESULTS * ROW_HEIGHT_TWO_LINE;
+
+/** What the ceiling adds on top of the rows: the fixed pixels that do not scale
+ *  with the unit — the 14px scroll-edge reservation the scroller keeps as top
+ *  padding (see `--scroll-edge` in `styles/base.css`), the nine 1px grid gaps
+ *  around nine rows, and the empty-query section title (a `--text-body` line at
+ *  1.4 plus its 6/4px padding ≈ 26px). `14 + 9 + 26 = 49`, and the constant
+ *  keeps a pixel of slack at 50. */
+export const RESULTS_LIST_CHROME = 50;
+
 /** The fixed row's id. Stable across query states so a re-render keys it to
  *  the same row. */
 export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
@@ -50,23 +81,30 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  binds.
  *
  *  R19 · re-audited against the sheet, segment by segment, because R18 changed
- *  the query block without touching this number. At `--ui-scale: 1` (`--u` is
- *  1px):
+ *  the query block without touching this number. At the default interface step
+ *  (`--ui-scale: 1`, so the unit is 1px):
  *
  *    `.collapsed-card__input-row`  56u  (min-height, pinned since R10)
  *    R18 breath below it            8u  (`margin-bottom` on the input row)
  *    `.launcher-bottom` padding     8u  (4u top + 4u bottom)
- *    action bar row                30u  (min-height)
+ *    action bar row                42u  (height — it is a row, see below)
  *    feedback row                  30u  (min-height, may appear)
  *    card margin / rounding slack   7u
  *    ─────────────────────────────────
- *                                 139u
+ *                                 151u
  *
- *  The previous audit was 127u — the same list without R18's 12u breath (the
- *  8u margin plus the 4u of `.launcher-bottom` padding it sits against). The
- *  constant keeps the slack it always had over the audit (the cap is a floor
- *  for a short display, not a measurement) and grows by exactly that breath:
- *  `220 + 12 = 232`. */
+ *  R20 · the R19 audit above read the action bar as 30u (the *feedback* row's
+ *  floor). `.launcher-action-bar` declares `height: calc(var(--u) * 42)`, so the
+ *  chrome is 12u more than that audit claimed — the correction is in the list,
+ *  not in the constant. `RESULTS_VIEWPORT_CHROME` is a **floor** for a short
+ *  display, not a measurement, and it only has to be at least the chrome it
+ *  stands for so that the cap it writes is never larger than the window can
+ *  hold: 232u ≥ 151u, by 81u of slack. What R20 has to check is that the cap
+ *  does not bind on an ordinary display, i.e. that
+ *  `availHeight - 232 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
+ *  worst-case list plus its fixed chrome, `378 + 50 = 428px`. That holds for
+ *  every display taller than 660px of work area, and it is asserted in
+ *  `tests/launcher-ten-rows.test.ts`. */
 export const RESULTS_VIEWPORT_CHROME = 232;
 
 /** Whether a row is *a* clipboard row — the fixed one, or the one the query
