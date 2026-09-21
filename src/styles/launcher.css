@@ -514,13 +514,13 @@
   /* R12: the row budget in pixels. A two-line result row is
      `calc(var(--u) * 42)` (see `.launcher-result`); a one-line row — no
      subtitle to print (see `row-content.ts`) — is `calc(var(--u) * 34)`. The
-     launcher's ten rows are nine matched results above one fixed clipboard
-     row, and the matched rows are the ones that mostly collapse: an
+     launcher's nine rows (R19: eight matched results above one fixed clipboard
+     row, down from ten) are the matched rows that mostly collapse: an
      application whose subtitle is only "应用程序" prints one line. So the
-     ceiling is sized for nine compact rows plus the clipboard row (which keeps
-     its subtitle), i.e. `calc(var(--u) * (9 * 34 + 42))` = `calc(var(--u) *
-     348)`. The fixed 50px covers what does not scale with `--u`: the 14px
-     scroll-edge reservation at the top, the ten 1px grid gaps around the ten
+     ceiling is sized for eight compact rows plus the clipboard row (which keeps
+     its subtitle), i.e. `calc(var(--u) * (8 * 34 + 42))` = `calc(var(--u) *
+     314)`. The fixed 50px covers what does not scale with `--u`: the 14px
+     scroll-edge reservation at the top, the nine 1px grid gaps around the nine
      rows, and the empty-query section title (a `--text-body` line at 1.4 plus
      its 6/4px padding ≈ 26px). The title is the reason the chrome is a whole
      row's worth rather than a few pixels — without it the empty-query state,
@@ -529,8 +529,8 @@
      `--launcher-results-height` is the viewport cap the App writes on a short
      display and is the smaller of the two there. */
   max-height: min(
-    calc(var(--u) * 348 + 50px),
-    var(--launcher-results-height, calc(var(--u) * 348 + 50px))
+    calc(var(--u) * 314 + 50px),
+    var(--launcher-results-height, calc(var(--u) * 314 + 50px))
   );
   overflow-y: auto;
   overscroll-behavior: contain;

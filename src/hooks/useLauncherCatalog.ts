@@ -34,12 +34,12 @@ import { IS_WINDOWS } from "../shortcuts";
 import type { AppSettings, LocalApplication } from "../App";
 import type { MessageKey, Translate } from "../i18n";
 
-// R10-A: `MAX_RESULTS` is 10 — nine matched result rows plus the one fixed
+// R10-A/R19: `MAX_RESULTS` is 9 — eight matched result rows plus the one fixed
 // clipboard row the App appends to the tail. Every slice below therefore keeps
-// its `- 1`, so the catalog itself never returns more than those nine rows. The
-// number lives in `launcher/result-budget.ts` beside the row that owns the
-// tenth slot, so the budget and the row cannot drift apart; it is re-exported
-// here because this module is where the result budget is read.
+// its `- 1`, so the catalog itself never returns more than those eight rows. The
+// number lives in `launcher/result-budget.ts` beside the row that owns the last
+// slot, so the budget and the row cannot drift apart; it is re-exported here
+// because this module is where the result budget is read.
 export { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS };
 
 /** Idle window before an icon is fetched, so the intermediate result lists that
@@ -376,6 +376,8 @@ export function useLauncherCatalog(options: {
       const recentPaths = recentItems(
         launchCounts,
         searchableApps.map((entry) => entry.app.path),
+        // R19: eight matched rows — the ninth visible row is the fixed
+        // clipboard row the App appends, not a recent application.
         MAX_RESULTS - 1,
       );
       const recentRows: LauncherItem[] = [];
@@ -453,10 +455,10 @@ export function useLauncherCatalog(options: {
     const rankedMatches = matches
       .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
       .map((match) => match.item);
-    // R10-A: nine matched rows. When applications or power actions matched
+    // R10-A/R19: eight matched rows. When applications or power actions matched
     // alongside the commands the split keeps its old shape — three catalog
-    // commands, six slots for the local matches; when nothing else matched the
-    // commands may take all nine.
+    // commands, five slots for the local matches; when nothing else matched the
+    // commands may take all eight.
     const commandLimit = rankedMatches.length
       ? Math.min(COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS - 3)
       : MAX_RESULTS - 1;
@@ -561,9 +563,10 @@ export function useLauncherCatalog(options: {
       });
 
     // The catalog returns the matched rows only: the App appends the fixed
-    // clipboard row after these (R10-A), and the action bar is a row of its own
-    // beneath the list. Keep at least one local match when applications or
-    // power actions matched alongside catalog commands.
+    // clipboard row after these (R10-A; R19 set the matched ceiling to eight),
+    // and the action bar is a row of its own beneath the list. Keep at least one
+    // local match when applications or power actions matched alongside catalog
+    // commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
   }, [catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, t]);
 

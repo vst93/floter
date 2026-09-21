@@ -1,25 +1,33 @@
-// R10-A · The launcher's ten rows: nine matched results, then one fixed row
+// R10-A · The launcher's rows: eight matched results, then one fixed row
 // that opens the clipboard history.
 //
 // The user's report, verbatim: "当下的搜索页面高度太低了，搜索的时候展示的项
 // 太少，需要展示 9 项加一个底部的单独进入剪切板的项 一共 10 项，高度可以再稍微
 // 调整一下看看，总之让它的宽高比例也要处于一个协调的状态".
 //
-// Four facts carry the round, and each one is asserted positively so that
+// R19 · the user re-read the same screenshot and counted: "列表项也有问题，除了
+// 末尾的 cmd+回车的终端执行，上方一共有 10 项了，应该最大只能有 9 项". The
+// action bar is not a list row, so nine rows above it is the whole budget — eight
+// matches plus the fixed tail. The tail is the ninth row of a nine-row list, so
+// it takes the ninth slot of the `1`-`9` family (`⌘9`), which is also the
+// user's third point: "同时内置插件也要支持 cmd+n 的快捷键".
+//
+// Five facts carry the round, and each one is asserted positively so that
 // deleting the code (rather than the prose) is what turns the suite red:
 //
-//   1. the budget is ten, and the catalog's own ceiling is nine — the tenth slot
-//      belongs to the fixed row, not to a match;
+//   1. the budget is nine, and the catalog's own ceiling is eight — the ninth
+//      slot belongs to the fixed row, not to a match;
 //   2. the tail row is a clipboard system row in every query state: empty,
 //      matching, and matching nothing;
 //   3. a query that already matched the clipboard command does not get a second
 //      clipboard row;
-//   4. the tail row is selectable and runnable, and the numbered `1`-`9` family
-//      keeps numbering the matched rows exactly as it did before.
+//   4. the tail row is selectable and runnable, and it always owns slot nine —
+//      `⌘9` opens the clipboard panel, and the matched rows number 1-8 above it;
+//   5. the height ceiling is eight compact rows plus the clipboard row.
 //
 // The height half is pinned from the two sheets that derive it: a two-line row
 // is `calc(var(--u) * 42)`, a one-line row is `calc(var(--u) * 34)`, and the
-// list's ceiling is nine compact result rows plus the fixed clipboard row plus
+// list's ceiling is eight compact result rows plus the fixed clipboard row plus
 // the fixed scroll-edge/gap chrome.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -28,10 +36,12 @@ import { createTranslator } from "../src/i18n.ts";
 import {
   CLIPBOARD_RESULT_ID,
   COMMAND_LIMIT_WITH_MATCHES,
+  FIXED_TAIL_SLOT,
   MAX_RESULTS,
   RESULTS_VIEWPORT_CHROME,
   clipboardResultRow,
   isClipboardResult,
+  resultIndexForSlot,
   shortcutSlotsWithFixedTail,
   withClipboardResultRow,
 } from "../src/launcher/result-budget.ts";
@@ -72,15 +82,16 @@ const catalogClipboardRow = (): LauncherItem => ({
 
 // ── 1 · the budget ────────────────────────────────────────────────────────
 
-test("the launcher budget is ten rows: nine matches plus the clipboard row", () => {
-  assert.equal(MAX_RESULTS, 10);
-  assert.equal(COMMAND_LIMIT_WITH_MATCHES, 3, "three commands, six local matches");
+test("the launcher budget is nine rows: eight matches plus the clipboard row", () => {
+  assert.equal(MAX_RESULTS, 9);
+  assert.equal(FIXED_TAIL_SLOT, 9, "the fixed row owns the last slot of the 1-9 family");
+  assert.equal(COMMAND_LIMIT_WITH_MATCHES, 3, "three commands, five local matches");
 });
 
-test("the catalog itself never returns the tenth row", async () => {
+test("the catalog itself never returns the ninth row", async () => {
   // The fixed row is the App's, not the catalog's: every slice in the hook is
   // `MAX_RESULTS - 1`. If one of them grew to `MAX_RESULTS` the tail row would
-  // push the list to eleven.
+  // push the list to ten.
   const hook = stripJsComments(await read("src/hooks/useLauncherCatalog.ts"));
   assert.match(
     hook,
@@ -91,11 +102,11 @@ test("the catalog itself never returns the tenth row", async () => {
   assert.equal(slices.length, 1, "the ranked slice is the catalog's own ceiling");
   assert.ok(
     /MAX_RESULTS - 1,\n\s*\);/.test(hook),
-    "the empty-query recents limit is nine too",
+    "the empty-query recents limit is eight too",
   );
   assert.ok(
     !/slice\(0, MAX_RESULTS\)/.test(hook) && !/MAX_RESULTS \*/.test(hook),
-    "nothing in the catalog may hand out a tenth matched row",
+    "nothing in the catalog may hand out a ninth matched row",
   );
 });
 
@@ -169,9 +180,9 @@ test("a query that matched the clipboard command does not grow a second row", ()
   assert.deepEqual(twice, once);
 });
 
-// ── 4 · the row is selectable and runnable, and 1-9 is unchanged ──────────
+// ── 4 · the row is runnable, and it always owns slot nine ────────────────
 
-test("the clipboard row is runnable and keeps the shortcut family at nine", () => {
+test("the clipboard row is runnable and always owns the ninth slot", () => {
   const tail = clipboardResultRow(t);
   assert.equal(tail.type, "system");
   assert.equal(tail.action, "clipboard");
@@ -184,24 +195,95 @@ test("the clipboard row is runnable and keeps the shortcut family at nine", () =
   const runnableFlags = rows.map((item) => item.type !== "command");
   assert.deepEqual(runnableFlags, [true, true, true]);
 
-  // The family is 1-9, so the tenth row's badge stays blank rather than
-  // promising a `⌘10` that `matchesResultShortcut` can never produce.
+  // R19: the tail is the ninth row, so it takes the ninth slot of the family —
+  // a real `⌘9` badge, not a blank one. It owns that slot however few rows came
+  // before it: the two matches number 1-2, the clipboard row is still 9.
   const slots = shortcutSlotsWithFixedTail(rows, runnableFlags);
-  assert.deepEqual(slots, [1, 2, null]);
+  assert.deepEqual(slots, [1, 2, FIXED_TAIL_SLOT]);
   assert.deepEqual(
     launcherShortcutSlots(runnableFlags),
     [1, 2, 3],
-    "without the tail policy the row would claim a third number — the helper is load-bearing",
+    "without the tail policy the row would claim the next number — the helper is load-bearing",
+  );
+  assert.equal(
+    resultIndexForSlot(slots, 9),
+    2,
+    "⌘9 resolves to the clipboard row, the same index a click on it would use",
   );
 
-  // Nine matched rows still number one through nine, in order.
-  const nine = Array.from({ length: MAX_RESULTS - 1 }, (_, i) => app(`app-${i}`));
-  const nineSlots = shortcutSlotsWithFixedTail(
-    withClipboardResultRow(nine, t),
-    nine.map(() => true).concat([true]),
+  // The full list: eight matches number one through eight, in order, and the
+  // fixed row is the ninth.
+  const eight = Array.from({ length: MAX_RESULTS - 1 }, (_, i) => app(`app-${i}`));
+  const fullSlots = shortcutSlotsWithFixedTail(
+    withClipboardResultRow(eight, t),
+    eight.map(() => true).concat([true]),
   );
-  assert.deepEqual(nineSlots.slice(0, 9), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.equal(nineSlots[9], null, "the tenth row is the fixed one and carries no number");
+  assert.deepEqual(fullSlots, [1, 2, 3, 4, 5, 6, 7, 8, FIXED_TAIL_SLOT]);
+  assert.equal(resultIndexForSlot(fullSlots, 9), 8, "the ninth row is the clipboard row");
+  assert.equal(resultIndexForSlot(fullSlots, 10), -1, "the family stops at nine");
+
+  // A row that cannot run takes no number, so the matched rows after it keep
+  // numbering without gaps — but the tail still owns 9.
+  const unavailable: LauncherItem = {
+    type: "command",
+    id: "c",
+    title: "deploy",
+    subtitle: "",
+    warnings: [],
+    sourceName: "Kit",
+    commandLine: "deploy",
+    execution: null,
+    completion: false,
+  };
+  const gapped = [app("a"), unavailable, app("b"), tail];
+  const gappedFlags = gapped.map((item) => item.type !== "command" || Boolean(item.execution));
+  assert.deepEqual(shortcutSlotsWithFixedTail(gapped, gappedFlags), [1, null, 2, FIXED_TAIL_SLOT]);
+
+  // A list grown past the budget (dropped files prepended to a full match set)
+  // must not hand slot nine to a match: the clipboard panel stays on `⌘9`.
+  const overflow = [app("f1"), app("f2")].concat(eight, [tail]);
+  const overflowSlots = shortcutSlotsWithFixedTail(overflow, overflow.map(() => true));
+  assert.equal(overflowSlots[overflowSlots.length - 1], FIXED_TAIL_SLOT);
+  assert.equal(overflowSlots.filter((slot) => slot === FIXED_TAIL_SLOT).length, 1);
+  assert.equal(
+    resultIndexForSlot(overflowSlots, 9),
+    overflow.length - 1,
+    "⌘9 reaches the clipboard row even when the list overflows the budget",
+  );
+
+  // A query that matched the clipboard command appends no fixed row, so there
+  // is no ninth row to own the slot: the match numbers naturally, like any row.
+  const matched = withClipboardResultRow([app("a"), catalogClipboardRow()], t);
+  assert.deepEqual(
+    shortcutSlotsWithFixedTail(matched, matched.map(() => true)),
+    [1, 2],
+    "a matched clipboard row is an ordinary match, not the fixed tail",
+  );
+});
+
+test("the key handler and the badges share the one slot map", async () => {
+  // The mapping must have exactly one home (`result-budget.ts`): the two
+  // `⌘N` routes ask `resultIndexForSlot`, and no component may re-derive a
+  // slot from a row position.
+  for (const path of ["src/hooks/useLauncherActions.ts", "src/hooks/useAppKeyboard.ts"]) {
+    const source = stripJsComments(await read(path));
+    assert.match(
+      source,
+      /resultIndexForSlot\(resultShortcutSlots, resultNumber\)/,
+      `${path}: the numbered route resolves through the shared map`,
+    );
+    assert.ok(
+      !/resultShortcutSlots\.indexOf\(/.test(source),
+      `${path}: no private slot lookup left behind`,
+    );
+  }
+  // The badge reads the map by row index; it never computes a number.
+  const results = stripJsComments(await read("src/launcher/LauncherResults.tsx"));
+  assert.match(results, /const shortcutSlot = resultShortcutSlots\[index\];/);
+  assert.ok(
+    !/length\s*-\s*1\s*\)\s*\/\s*\d/.test(results) && !/index\s*\+\s*1/.test(results),
+    "the renderer does not derive a slot from the row number",
+  );
 });
 
 // ── 6 · what a row actually prints (R12) ──────────────────────────────────
@@ -360,9 +442,9 @@ test("the renderer prints the subtitle and source only when they exist", async (
   );
 });
 
-// ── 5 · the height the ten rows need ──────────────────────────────────────
+// ── 5 · the height the nine rows need ────────────────────────────────────
 
-test("the results ceiling is nine compact rows plus the clipboard row", async () => {
+test("the results ceiling is eight compact rows plus the clipboard row", async () => {
   const launcher = stripCssComments(await read("src/styles/launcher.css"));
   const rowHeightOf = (selector: string): number => {
     const rule = new RegExp(
@@ -382,25 +464,25 @@ test("the results ceiling is nine compact rows plus the clipboard row", async ()
   const results = /\.launcher-results\s*\{[^}]*max-height:\s*([^;]+);/s.exec(launcher);
   assert.ok(results, ".launcher-results must declare a max-height");
   const ceiling = results[1];
-  // Nine matched rows collapse to one line each; the fixed clipboard row keeps
+  // Eight matched rows collapse to one line each; the fixed clipboard row keeps
   // its subtitle, so it stays at the full height.
   const budget = (MAX_RESULTS - 1) * compactHeight + rowHeight;
   assert.match(
     ceiling,
     new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`),
-    `the ceiling must be nine x ${compactHeight}px + ${rowHeight}px + chrome, got "${ceiling}"`,
+    `the ceiling must be eight x ${compactHeight}px + ${rowHeight}px + chrome, got "${ceiling}"`,
   );
   const chrome = Number(
     new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`).exec(ceiling)![1],
   );
   // The chrome has to be at least the scroll-edge band (14px, see base.css)
-  // plus the gaps around ten rows, and it has to leave room for a section
+  // plus the gaps around nine rows, and it has to leave room for a section
   // title — otherwise the empty-query state scrolls the clipboard row away.
   const band = Number(/\.launcher-results\s*\{[^}]*padding:\s*var\(--scroll-edge\)/s.test(launcher) ? 14 : 0);
   assert.ok(band > 0, "the scroller still reserves the scroll-edge band as padding");
   assert.ok(
     chrome >= band + MAX_RESULTS + 20,
-    `chrome of ${chrome}px must cover the ${band}px band, ten 1px gaps and a title line`,
+    `chrome of ${chrome}px must cover the ${band}px band, nine 1px gaps and a title line`,
   );
   assert.match(
     ceiling,
@@ -416,7 +498,9 @@ test("the results ceiling is nine compact rows plus the clipboard row", async ()
     /--launcher-results-height": `\$\{Math\.max\(84, window\.screen\.availHeight - RESULTS_VIEWPORT_CHROME\)\}px`/,
     "the inline cap subtracts the shared chrome constant",
   );
-  assert.equal(RESULTS_VIEWPORT_CHROME, 220);
+  // R19: the chrome the App subtracts was re-audited for R18's 12u breath —
+  // 127u of non-list chrome became 139u, and the constant grew by the same 12.
+  assert.equal(RESULTS_VIEWPORT_CHROME, 232);
 });
 
 test("the list still scrolls past the budget, so extra rows are reachable", async () => {

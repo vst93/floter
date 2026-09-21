@@ -31,6 +31,7 @@ import {
   type ShortcutMap,
 } from "../shortcuts";
 import { PINNED_SESSION_ID, type PinEvent, type PinState } from "../terminal/pinState";
+import { resultIndexForSlot } from "../launcher/result-budget";
 import { CLIPBOARD_PLUGIN_ID } from "../plugin-pages";
 import type { BrokerSessionInfo, LocalApplication, ViewMode } from "../App";
 import type { MessageKey, Translate } from "../i18n";
@@ -542,10 +543,12 @@ export function useLauncherActions(options: {
       return;
     }
     // Numbered results only: the action bar has no number, so `Cmd/Ctrl+1` can
-    // never run a command by mistake.
+    // never run a command by mistake. R19: the slot → row mapping is
+    // `result-budget.ts`'s (`resultIndexForSlot`), the same one that prints the
+    // badges, so `⌘9` runs the fixed clipboard row like a click on it would.
     const resultNumber = matchesResultShortcut(event, shortcuts.select_result);
     if (resultNumber !== null) {
-      const resultIndex = resultShortcutSlots.indexOf(resultNumber);
+      const resultIndex = resultIndexForSlot(resultShortcutSlots, resultNumber);
       if (resultIndex >= 0) {
         event.preventDefault();
         runLauncherItem(launcherResults[resultIndex]);

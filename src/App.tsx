@@ -681,10 +681,11 @@ export default function App() {
     () => fileDropRows(droppedFiles, dropsExpanded, t),
     [droppedFiles, dropsExpanded, t],
   );
-  // R10-A: the tenth row. Nine matched results are followed by one fixed row
+  // R10-A/R19: the tail row. Eight matched results are followed by one fixed row
   // that opens the clipboard history, in every query state — empty, matching,
   // and (especially) matching nothing, which is when the clipboard is the
-  // useful thing left to offer. `withClipboardResultRow` keeps a query that
+  // useful thing left to offer. Nine rows in all, which is the whole budget.
+  // `withClipboardResultRow` keeps a query that
   // already matched the clipboard command from growing a duplicate.
   const displayedResults = useMemo(
     () => withClipboardResultRow(fileRows.length ? [...fileRows, ...launcherResults] : launcherResults, t),
@@ -718,9 +719,10 @@ export default function App() {
     () => displayedResults.map((item) => item.type !== "command" || Boolean(item.execution)),
     [displayedResults],
   );
-  // R10-A: the fixed clipboard row is the tenth row and the shortcut family is
-  // 1-9, so its badge stays blank — see `shortcutSlotsWithFixedTail`. The rows
-  // above it number exactly as before.
+  // R10-A/R19: the fixed clipboard row is the ninth and last row, and the
+  // shortcut family is 1-9, so it carries a real `⌘9` badge — the slot map lives
+  // in `shortcutSlotsWithFixedTail` and nowhere else (the key handler asks the
+  // same map through `resultIndexForSlot`).
   const displayedShortcutSlots = useMemo(
     () => shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags),
     [displayedResults, displayedRunnableFlags],

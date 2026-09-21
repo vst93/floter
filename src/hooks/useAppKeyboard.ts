@@ -29,6 +29,7 @@ import {
 } from "../surface-policy";
 import type { ViewMode } from "../App";
 import type { LauncherItem } from "../launcher/LauncherResults";
+import { resultIndexForSlot } from "../launcher/result-budget";
 import type { MessageKey } from "../i18n";
 
 export function useAppKeyboard(options: {
@@ -350,7 +351,9 @@ export function useAppKeyboard(options: {
       const inputFocused = document.activeElement === inputRef.current;
       const resultNumber = inputFocused ? null : matchesResultShortcut(event, shortcuts.select_result);
       if (resultNumber !== null) {
-        const resultIndex = resultShortcutSlots.indexOf(resultNumber);
+        // R19: one mapping, shared with the badges — `⌘9` is the fixed
+        // clipboard row (see `resultIndexForSlot`).
+        const resultIndex = resultIndexForSlot(resultShortcutSlots, resultNumber);
         if (resultIndex >= 0) {
           event.preventDefault();
           runLauncherItem(launcherResults[resultIndex]);
