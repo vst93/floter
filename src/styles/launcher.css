@@ -93,10 +93,40 @@
   overflow: hidden;
 }
 
+/* R13 · the aura is a bloom, not a smear.
+
+   It used to be one horizontal stop — `--accent-wash` pulled 42% across the
+   row and *cut off* on a hard vertical edge at that 42% mark. A user looking
+   at the filled list read exactly that edge (「输入框下方的阴影太草率了」): a
+   rectangle of colour parked under the field, with a straight right-hand wall,
+   is a stain; light does not end like that.
+
+   It now falls away in both directions instead. Full width — nothing to cut
+   on the right — rising to its one strength at the field's own text line
+   (20–36% of the row, where the caret and the query are) and easing back to
+   nothing over the long 64% tail that reaches the row's floor. Four stops,
+   peak → mid → 0, and no boundary anywhere inside the card: the tint starts
+   at zero under the card's top rim and ends at zero above the results, so
+   the eye never catches an edge, only a gradient.
+
+   The peak is `--accent-wash` itself, the same strength the old left-hand
+   column had at its brightest — the wash is *redistributed*, not turned up.
+   Layering the token twice would have doubled the peak (and doubled it again
+   in light mode, where the token already carries 0.085 to be visible at all);
+   the stylesheet is deliberately color-mix-free, so a derived in-between
+   alpha is not available and a real eased curve would have to be faked. A
+   linear ramp over one 56u row is the honest version: the falloff happens
+   across the row's whole height, and that is the part the eye reads. */
 .collapsed-card__aura {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, var(--accent-wash), transparent 42%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--accent-wash) 20%,
+    var(--accent-wash) 36%,
+    transparent 100%
+  );
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-3) ease;
@@ -105,6 +135,81 @@
 .collapsed-card--filled .collapsed-card__aura,
 .collapsed-card:focus-within .collapsed-card__aura {
   opacity: 1;
+}
+
+/* R13 · the seam between the field and the list.
+
+   Before this round the first result row sat directly on the input row's
+   floor: the list simply started, and the two surfaces met on a line nobody
+   drew. That is the second half of 「输入框下方的阴影太草率了」 — the aura had
+   an edge because the layout had one.
+
+   So the input row now owns a 1px hairline on its own floor, drawn as a
+   gradient that fades to nothing at both ends: a line with two soft ends
+   separates without ruling. It is inset to the field's own padding, so the
+   mark belongs to the field rather than to the window, and it is a
+   pseudo-element — no node, nothing to measure, nothing for
+   `syncLauncherHeight` to see.
+
+   Two elements, one line: `::before` is the accent hairline focus lights,
+   `::after` is the neutral one the list lights. They are mutually exclusive
+   by construction (the neutral line drops to 0 the moment the row is
+   focused), so the seam is always exactly one pixel tall and never doubles
+   into a smudge. */
+.collapsed-card__input-row::before,
+.collapsed-card__input-row::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--u) * 16);
+  right: calc(var(--u) * 16);
+  bottom: 0;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-3) ease;
+}
+
+/* The neutral seam: `--input-stroke`, the same hairline the card's own edge
+   is drawn with, so the divider is the card's line language and not a new
+   one. Faded in only while there is a list under it to divide the field
+   from. */
+.collapsed-card__input-row::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--input-stroke) 12%,
+    var(--input-stroke) 88%,
+    transparent 100%
+  );
+}
+
+.collapsed-card--results-visible .collapsed-card__input-row::after {
+  opacity: 1;
+}
+
+/* The focused seam: the accent hairline, a touch wider than the neutral one
+   because it is now carrying the focus state. This is the landing point the
+   wash never had — the aura says the field is lit, this says *where the light
+   falls*, on the floor of the row, right above the list it is lighting.
+   Deliberately 1px and `--accent-edge` (a keyline), never a glow: the card
+   already wears `--glass-rim-shadow-active` and a second halo would be the
+   same sentence said twice. */
+.collapsed-card__input-row::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-edge) 10%,
+    var(--accent-edge) 90%,
+    transparent 100%
+  );
+}
+
+.collapsed-card:focus-within .collapsed-card__input-row::before {
+  opacity: 1;
+}
+
+.collapsed-card--results-visible:focus-within .collapsed-card__input-row::after {
+  opacity: 0;
 }
 
 .collapsed-card__input {

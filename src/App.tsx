@@ -1848,7 +1848,9 @@ export default function App() {
           {pinnedCardElement}
           <div
             ref={collapsedCardRef}
-            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
+            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}${
+              displayedResults.length > 0 ? " collapsed-card--results-visible" : ""
+            }`}
             style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
