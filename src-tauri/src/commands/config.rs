@@ -174,6 +174,11 @@ pub struct BrowserPluginSettings {
     /// is 9222; the setting exists because a second browser instance has to
     /// pick another one.
     pub cdp_port: u16,
+    /// R27 · how bookmark and history results are ordered: `"relevance"` (the
+    /// ranking the launcher has always used), `"recent"`, `"alphabetical"` or
+    /// `"visits"`. An unknown value normalizes back to `"relevance"`, so a
+    /// hand-edited file cannot leave the list unsorted.
+    pub sort_order: String,
 }
 
 impl Default for BrowserPluginSettings {
@@ -185,8 +190,68 @@ impl Default for BrowserPluginSettings {
             history_days: 30,
             cdp_enabled: false,
             cdp_port: crate::browser_data::tabs::DEFAULT_CDP_PORT,
+            sort_order: DEFAULT_BROWSER_SORT_ORDER.to_string(),
         }
     }
+}
+
+/// The shipped sort order, and the value every other spelling falls back to.
+pub const DEFAULT_BROWSER_SORT_ORDER: &str = "relevance";
+
+/// R27 · the four sort orders the browser plugin offers, in the order its
+/// settings card lists them. `relevance` is the launcher's own ranking (the
+/// backend's match score); the other three are explicit orderings a bookmark
+/// tool is expected to offer.
+pub const BROWSER_SORT_ORDERS: [&str; 4] =
+    ["relevance", "recent", "alphabetical", "visits"];
+
+/// Accept one of {@link BROWSER_SORT_ORDERS}; anything else is `relevance`.
+pub fn normalize_browser_sort_order(value: &str) -> String {
+    let value = value.trim().to_lowercase();
+    if BROWSER_SORT_ORDERS.contains(&value.as_str()) {
+        value
+    } else {
+        DEFAULT_BROWSER_SORT_ORDER.to_string()
+    }
+}
+
+/// R27 · the clipboard plugin's own settings block, as its page reads and
+/// writes it.
+///
+/// One field today (the capacity). A struct rather than a bare number for the
+/// same reason the browser plugin has one: the page's narrow command pair needs
+/// a shape to grow into, and a JSON object is the shape the settings file
+/// already uses for the browser block. Deliberately **not** `rename_all` — the
+/// browser block and the rest of `AppSettings` are snake_case over the wire, and
+/// a second convention for one field would be the surprise.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ClipboardPluginSettings {
+    pub max_items: u32,
+}
+
+impl Default for ClipboardPluginSettings {
+    fn default() -> Self {
+        Self {
+            max_items: DEFAULT_CLIPBOARD_MAX_ITEMS,
+        }
+    }
+}
+
+/// R27 · persist the clipboard capacity and return the stored (normalized)
+/// value.
+///
+/// A function rather than a command so the clipboard module — which owns the
+/// history cache and is feature-gated — can write this one field without
+/// reaching into the settings lock or duplicating the normalization.
+#[cfg(feature = "clipboard-history")]
+pub fn write_clipboard_max_items(max_items: u32) -> Result<u32, String> {
+    let _guard = settings_lock()?;
+    let mut settings = load_settings();
+    settings.clipboard_history_max_items = max_items;
+    let settings = normalize_settings(settings);
+    write_settings(&settings)?;
+    Ok(settings.clipboard_history_max_items)
 }
 
 /// Missing keys fall back to `Default`, so settings files written by older
@@ -234,6 +299,11 @@ pub struct AppSettings {
     pub clipboard_history_enabled: bool,
     /// Global hotkey that summons the clipboard panel.
     pub clipboard_history_hotkey: String,
+    /// R27 · how many non-favorite clipboard entries the history keeps. The
+    /// long-standing constant was 300; the clipboard plugin's own settings page
+    /// exposes it (10–500). Favorites are exempt from the cap and from the
+    /// retention window, exactly as before.
+    pub clipboard_history_max_items: u32,
     /// Application path -> launch count, ranking the launcher's empty-query
     /// recent list. Owned by the frontend; no dedicated command persists it.
     pub launch_counts: HashMap<String, u32>,
@@ -303,6 +373,7 @@ impl Default for AppSettings {
             show_recent_in_launcher: true,
             clipboard_history_enabled: true,
             clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
+            clipboard_history_max_items: DEFAULT_CLIPBOARD_MAX_ITEMS,
             launch_counts: HashMap::new(),
             last_settings_page: "general".to_string(),
             show_menubar_icon: default_true(),
@@ -600,6 +671,17 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         normalize_shortcut(CLIPBOARD_PANEL, &settings.clipboard_history_hotkey)
             .filter(|normalized| normalized.contains('+'))
             .unwrap_or_default();
+    // R27 · the clipboard capacity. The floor is what makes the setting a
+    // *capacity* rather than an off switch (the switch is
+    // `clipboard_history_enabled`); the ceiling keeps a hand-edited file from
+    // asking the monitor to hold an unbounded index in memory.
+    settings.clipboard_history_max_items = settings
+        .clipboard_history_max_items
+        .clamp(MIN_CLIPBOARD_MAX_ITEMS, MAX_CLIPBOARD_MAX_ITEMS);
+    // R27 · the browser plugin's result ordering. An unknown value falls back to
+    // the launcher's own ranking, never to an unsorted list.
+    settings.browser_plugin.sort_order =
+        normalize_browser_sort_order(&settings.browser_plugin.sort_order);
     // R26-A: the browser plugin's target is either `auto` or a browser id the
     // discovery table knows. An unknown value (a browser the user uninstalled,
     // a hand-edited file) falls back to `auto` rather than to a dead target.
@@ -623,6 +705,13 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
 /// The largest history window the plugin will honour (ten years). A larger
 /// value is a typo, not a request.
 const MAX_HISTORY_DAYS: u32 = 3650;
+
+/// R27 · the clipboard capacity the plugin's settings page offers. The default
+/// is the constant the store shipped with (300 non-favorite entries); the range
+/// is wide enough to be a preference and narrow enough to be a bound.
+pub const DEFAULT_CLIPBOARD_MAX_ITEMS: u32 = 300;
+pub const MIN_CLIPBOARD_MAX_ITEMS: u32 = 10;
+pub const MAX_CLIPBOARD_MAX_ITEMS: u32 = 500;
 
 /// Accept `auto`, the `custom` slot, or any id in the discovery table.
 pub fn normalize_browser_target(target: &str) -> String {
@@ -655,6 +744,20 @@ fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> 
     // The clipboard hotkey is owned by its dedicated command; a stale frontend
     // snapshot must not resurrect an older binding.
     submitted.clipboard_history_hotkey = stored.clipboard_history_hotkey.clone();
+    // R27 · the clipboard capacity is owned by the clipboard plugin's own
+    // settings page (through `clipboard_set_settings`), the same way the
+    // browser plugin's data fields are owned by its page. A whole-app save
+    // submits the frontend's snapshot of these, which is stale the moment the
+    // plugin page writes — so the stored values win.
+    submitted.clipboard_history_max_items = stored.clipboard_history_max_items;
+    // R27 · the browser block's *data* fields are the page's; only the on/off
+    // switch is the settings panel's. Taking the stored block and re-applying
+    // the submitted switch keeps both owners honest: a whole-app save can no
+    // longer revert a sort order or a directory the page just wrote, and the
+    // panel's toggle still lands.
+    let browser_enabled = submitted.browser_plugin.enabled;
+    submitted.browser_plugin = stored.browser_plugin.clone();
+    submitted.browser_plugin.enabled = browser_enabled;
     normalize_settings(submitted)
 }
 
@@ -1111,6 +1214,9 @@ mod tests {
                 // R26-B: 0 is not a port; the normalizer restores the default.
                 cdp_enabled: true,
                 cdp_port: 0,
+                // R27 · an unknown ordering normalizes back to the launcher's
+                // own ranking rather than leaving the list unsorted.
+                sort_order: "sideways".into(),
             },
             ..AppSettings::default()
         });
@@ -1122,6 +1228,7 @@ mod tests {
             crate::browser_data::tabs::DEFAULT_CDP_PORT
         );
         assert!(settings.browser_plugin.cdp_enabled);
+        assert_eq!(settings.browser_plugin.sort_order, "relevance");
 
         let kept = normalize_settings(AppSettings {
             browser_plugin: BrowserPluginSettings {
@@ -1131,6 +1238,7 @@ mod tests {
                 history_days: 7,
                 cdp_enabled: false,
                 cdp_port: 9333,
+                sort_order: "recent".into(),
             },
             ..AppSettings::default()
         });
@@ -1141,6 +1249,58 @@ mod tests {
         assert_eq!(kept.browser_plugin.history_days, 7);
         assert_eq!(kept.browser_plugin.cdp_port, 9333);
         assert!(!kept.browser_plugin.cdp_enabled);
+        assert_eq!(kept.browser_plugin.sort_order, "recent");
+    }
+
+    /// R27 · the clipboard capacity is clamped on save, ships at the value the
+    /// store always had, and — like the browser plugin's data fields — is owned
+    /// by the plugin's own page, so a whole-app settings save cannot reset it.
+    #[test]
+    fn the_clipboard_capacity_is_clamped_and_owned_by_the_plugin_page() {
+        let clamp = |value: u32| {
+            normalize_settings(AppSettings {
+                clipboard_history_max_items: value,
+                ..AppSettings::default()
+            })
+            .clipboard_history_max_items
+        };
+        assert_eq!(clamp(0), MIN_CLIPBOARD_MAX_ITEMS);
+        assert_eq!(clamp(10), 10);
+        assert_eq!(clamp(500), 500);
+        assert_eq!(clamp(u32::MAX), MAX_CLIPBOARD_MAX_ITEMS);
+        // The shipped default is the capacity the store always had.
+        assert_eq!(DEFAULT_CLIPBOARD_MAX_ITEMS, 300);
+        assert_eq!(AppSettings::default().clipboard_history_max_items, 300);
+
+        // The stored snapshot is the authority for both plugin-owned blocks…
+        let mut stored = normalize_settings(AppSettings {
+            clipboard_history_max_items: 50,
+            ..AppSettings::default()
+        });
+        stored.browser_plugin.sort_order = "recent".into();
+        // …and the frontend's snapshot is stale on both, but carries the one
+        // field the settings *panel* owns: the browser plugin's switch.
+        let submitted = AppSettings {
+            clipboard_history_max_items: 300,
+            browser_plugin: BrowserPluginSettings {
+                enabled: false,
+                ..BrowserPluginSettings::default()
+            },
+            ..AppSettings::default()
+        };
+        let merged = merge_frontend_settings(submitted, &stored);
+        assert_eq!(
+            merged.clipboard_history_max_items, 50,
+            "a whole-app save must not reset the plugin page's capacity"
+        );
+        assert_eq!(
+            merged.browser_plugin.sort_order, "recent",
+            "a whole-app save must not reset the plugin page's sort order"
+        );
+        assert!(
+            !merged.browser_plugin.enabled,
+            "the settings panel's own switch still lands"
+        );
     }
 
     /// R26-B · the settings round trip the plugin page depends on: what
@@ -1157,6 +1317,7 @@ mod tests {
                 history_days: 14,
                 cdp_enabled: true,
                 cdp_port: 9333,
+                sort_order: "alphabetical".into(),
             },
             ..AppSettings::default()
         });
@@ -1172,6 +1333,8 @@ mod tests {
         assert_eq!(read_back.browser_plugin.history_days, 14);
         assert!(read_back.browser_plugin.cdp_enabled);
         assert_eq!(read_back.browser_plugin.cdp_port, 9333);
+        // R27 · the sort order is part of the round trip like every other field.
+        assert_eq!(read_back.browser_plugin.sort_order, "alphabetical");
     }
 
     #[test]

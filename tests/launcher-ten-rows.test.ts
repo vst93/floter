@@ -155,8 +155,8 @@ test("the App composes the fixed row into the list it renders and keys", async (
   const source = stripJsComments(await read("src/App.tsx"));
   assert.match(
     source,
-    /const displayedResults = useMemo\(\s*\(\) => withClipboardResultRow\(/,
-    "displayedResults is where the tail row is appended",
+    /const displayedResults = useMemo\(\s*\(\) =>\s*launcherScope\s*\?\s*\[\.\.\.launcherResults\]\s*:\s*withClipboardResultRow\(/,
+    "displayedResults is where the tail row is appended — except inside a plugin scope (R27), where the list is the plugin's own content",
   );
   assert.match(source, /results=\{displayedResults\}/, "the renderer gets the composed list");
   assert.match(source, /launcherResults: displayedResults/, "the key handler follows it");

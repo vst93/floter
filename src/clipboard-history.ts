@@ -442,3 +442,46 @@ export const clipboardAge = (createdAtMs: number, nowMs: number): ClipboardAge =
   if (days <= 7) return { unit: "day", value: days };
   return { unit: "date", value: 0 };
 };
+
+// ── R27 · the plugin's own settings ───────────────────────────────────────
+//
+// The clipboard plugin grew a settings card of its own (the browser plugin has
+// had one since R26-B), and the one control on it is the capacity: how many
+// non-favorite entries the history keeps. The shape and the clamp live here
+// rather than in the page for the same reason the entry normalizers do — the
+// page owns a DOM and imports CSS, so a node test can only pin a decision that
+// lives outside it.
+
+/** The plugin's settings block, mirroring `ClipboardPluginSettings` in Rust. */
+export type ClipboardPluginSettings = {
+  /** How many non-favorite entries the history keeps. Favorites are exempt. */
+  max_items: number;
+};
+
+/** The shipped capacity. Mirrors `DEFAULT_CLIPBOARD_MAX_ITEMS` in Rust, and the
+ *  constant the store itself shipped with before it was configurable. */
+export const DEFAULT_CLIPBOARD_MAX_ITEMS = 300;
+/** The floor: below this the control stops being a capacity and starts being an
+ *  off switch (that is `clipboard_history_enabled`). */
+export const MIN_CLIPBOARD_MAX_ITEMS = 10;
+/** The ceiling: high enough to be a preference, low enough that a hand-edited
+ *  file cannot ask the monitor to hold an unbounded index. */
+export const MAX_CLIPBOARD_MAX_ITEMS = 500;
+
+/** Clamp a capacity to the range the backend honours. A non-finite value — an
+ *  empty input box, `NaN` from a bad parse — is the shipped default, not zero:
+ *  a typo must not read as "keep nothing". */
+export const clampClipboardMaxItems = (value: number): number => {
+  if (!Number.isFinite(value)) return DEFAULT_CLIPBOARD_MAX_ITEMS;
+  return Math.min(MAX_CLIPBOARD_MAX_ITEMS, Math.max(MIN_CLIPBOARD_MAX_ITEMS, Math.trunc(value)));
+};
+
+/** Coerce whatever the bridge returned into the trusted shape. The backend's
+ *  `normalize_settings` is the authority; this is the same rule on the page
+ *  side, so the card shows the value that was actually stored. */
+export const normalizeClipboardSettings = (value: unknown): ClipboardPluginSettings => {
+  const record =
+    typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const raw = typeof record.max_items === "number" ? record.max_items : DEFAULT_CLIPBOARD_MAX_ITEMS;
+  return { max_items: clampClipboardMaxItems(raw) };
+};

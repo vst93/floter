@@ -1,0 +1,124 @@
+/* R27 · the plugin settings card, shared by every plugin page.
+ *
+ * Before this round each plugin page owned its own card: the browser page had
+ * `.browser-page__settings` and a `browser-field` family, and the clipboard
+ * page had no settings card at all. The user's ask is that the plugin system
+ * read as one thing (「要整体性更强」), so the card is now a *shared sheet*:
+ * both `plugins/browser/page.css` and `plugins/clipboard/page.css` `@import`
+ * this file, and both pages' scripts use these class names.
+ *
+ * The classes are deliberately neutral (`plugin-*`) rather than prefixed per
+ * page — the point is that a plugin page's settings look the same wherever they
+ * are. The tokens (`--hairline`, `--surface-field`, …) are each document's own
+ * `:root` block; a page that imports this file without defining them gets the
+ * pre-JS fallbacks its own sheet already ships.
+ *
+ * This file is a plugin-page stylesheet: it is loaded inside the sandboxed
+ * iframe, not by the host app.
+ */
+
+.plugin-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface-field);
+}
+
+.plugin-settings__title {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.plugin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.plugin-field__label {
+  color: var(--text-secondary);
+}
+
+.plugin-field__hint {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.plugin-field__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-field__control {
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 7px;
+  background: var(--surface-row);
+  box-shadow: var(--control-lens);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 120ms ease-out;
+}
+
+.plugin-field__control:focus-visible {
+  border-color: var(--accent-ring);
+}
+
+.plugin-field__control--text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.plugin-field__control--number {
+  width: 96px;
+  flex: 0 0 auto;
+}
+
+.plugin-field__checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.plugin-settings__text-button {
+  height: 30px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 7px;
+  background: var(--surface-control);
+  box-shadow: var(--control-lens);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+@media (hover: hover) {
+.plugin-settings__text-button:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+}
+
+.plugin-settings__text-button:active {
+  transform: scale(0.98);
+}
+
+.plugin-settings__notice {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.plugin-settings__notice--error {
+  color: var(--text-warning);
+}

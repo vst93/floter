@@ -25,6 +25,7 @@ import {
   isKnownTarget,
   isMacUserAgent,
   normalizeBrowserSettings,
+  normalizeBrowserSortOrder,
   normalizeCdpPort,
   normalizeProfiles,
   normalizeSearchRows,
@@ -301,6 +302,7 @@ test("settings normalize to what the backend will store", () => {
     history_days: 30,
     cdp_enabled: false,
     cdp_port: DEFAULT_CDP_PORT,
+    sort_order: "relevance",
   });
   const settings = normalizeBrowserSettings({
     target: "brave",
@@ -314,6 +316,15 @@ test("settings normalize to what the backend will store", () => {
   assert.equal(settings.history_days, 3650);
   assert.equal(settings.cdp_enabled, true);
   assert.equal(settings.cdp_port, 9333);
+  // R27: the sort order defaults to the launcher's own ranking and normalizes
+  // every other spelling to it, so a hand-edited file cannot leave the list
+  // unsorted.
+  assert.equal(normalizeBrowserSettings({}).sort_order, "relevance");
+  assert.equal(normalizeBrowserSettings({ sort_order: "recent" }).sort_order, "recent");
+  assert.equal(normalizeBrowserSettings({ sort_order: "ALPHABETICAL" }).sort_order, "alphabetical");
+  assert.equal(normalizeBrowserSettings({ sort_order: "visits" }).sort_order, "visits");
+  assert.equal(normalizeBrowserSettings({ sort_order: "sideways" }).sort_order, "relevance");
+  assert.equal(normalizeBrowserSortOrder(undefined), "relevance");
   // A blank directory is none, not an empty string.
   assert.equal(normalizeBrowserSettings({ custom_base_dir: "   " }).custom_base_dir, null);
   // R26-D: the plugin's switch defaults on and survives an explicit off.

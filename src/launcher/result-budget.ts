@@ -225,11 +225,37 @@ export const launcherWindowHeight = (scale: number): number =>
  */
 export type LauncherHeightBand = { capacity: number; floor: number };
 
-/** The bands, smallest first. The last capacity is always `MAX_RESULTS`. */
+/**
+ * The bands, smallest first. The last capacity is always `MAX_RESULTS`.
+ *
+ * R27 · the band table starts at **one** row and the band height no longer
+ * reserves an action bar that is not drawn. The user's third report on this
+ * area is 「当选项很少或者没有的时候，底部还是会强制留出一段高度」, and the
+ * diagnosis was two constants, not one:
+ *
+ *   · the compact band's floor was two rows, so a query that matched nothing —
+ *     whose whole content is the field and the one fixed clipboard row — was
+ *     drawn in a window sized for two rows plus an action bar; and
+ *   · every band reserved the action bar's 45u unconditionally, while the bar
+ *     is hidden in exactly the states the report is about (no matched rows, and
+ *     both plugin modes, where `useLauncherCatalog` returns no action bar at
+ *     all).
+ *
+ * So the bands are `1 / 3 / 6 / 9` rows, and {@link launcherBandUnits} takes
+ * whether the bar is drawn. A one-row launcher is now field + row + tail with
+ * nothing under it — Raycast's empty state, which is the reference the user
+ * named.
+ *
+ * `floor` is the smallest row count that *keeps* the band once it is open. The
+ * keep-range of a band is `floor..capacity`; below it the window steps down. The
+ * gap between one band's floor and the next band's capacity is what kills the
+ * flap at a boundary (see {@link LAUNCHER_BAND_HYSTERESIS}).
+ */
 export const LAUNCHER_HEIGHT_BANDS: readonly LauncherHeightBand[] = [
-  { capacity: 2, floor: 1 },
-  { capacity: 5, floor: 3 },
-  { capacity: MAX_RESULTS, floor: 6 },
+  { capacity: 1, floor: 1 },
+  { capacity: 3, floor: 3 },
+  { capacity: 6, floor: 5 },
+  { capacity: MAX_RESULTS, floor: 7 },
 ];
 
 /** How many rows below a band's floor the count must fall before the window
@@ -263,20 +289,78 @@ export const resolveLauncherBand = (current: number, rows: number): number => {
   return rows < floor - LAUNCHER_BAND_HYSTERESIS ? target : current;
 };
 
-/** The unit height of a band: the full budget less one row for every row of
- *  capacity the band gives up. Band 0 at two rows is `475u - 7 × 42u = 181u`. */
-export const launcherBandUnits = (band: number): number => {
+/**
+ * The segments of a band that do not depend on the row count, in units:
+ * the field's row (42u), the breath below it (4u), the panel's top inset (4u)
+ * and its tail (2u). `52 + capacity × 42 + bar` is the band.
+ */
+export const LAUNCHER_BAND_CHROME_UNITS = 52;
+
+/**
+ * The action bar's own segment, in units: R18's constant 3u gap plus the row
+ * itself (42u). R27 · it is charged only when the bar is actually drawn — see
+ * {@link launcherBandUnits}.
+ */
+export const LAUNCHER_BAND_BAR_UNITS = 45;
+
+/** The unit height of a band, with or without its action bar.
+ *
+ *  R27 · the bar is a parameter rather than a constant of every band. In the
+ *  full slab the bar is there and `launcherBandUnits(last)` is the R25 budget
+ *  (`52 + 9×42 + 45 = 475u`); in the no-match state and in both plugin modes
+ *  there is no bar and the band is 45u shorter, which is what stops the window
+ *  from reserving a row the user never sees. */
+export const launcherBandUnits = (band: number, actionBar = true): number => {
   const clamped = Math.max(0, Math.min(LAUNCHER_HEIGHT_BANDS.length - 1, band));
   const capacity = LAUNCHER_HEIGHT_BANDS[clamped].capacity;
-  return LAUNCHER_WINDOW_HEIGHT_UNITS - (MAX_RESULTS - capacity) * ROW_HEIGHT_TWO_LINE;
+  return (
+    LAUNCHER_BAND_CHROME_UNITS +
+    capacity * ROW_HEIGHT_TWO_LINE +
+    (actionBar ? LAUNCHER_BAND_BAR_UNITS : 0)
+  );
+};
+
+/** The list's own section heading: one `--text-body` line at 1.4 plus its 6/4px
+ *  padding pair (see `.launcher-section-title`). The top band folds this into
+ *  the R25 chrome ceiling instead of adding it, so the full slab is unchanged. */
+export const LAUNCHER_SECTION_TITLE_CHROME = 26;
+
+/**
+ * The fixed pixels a band's window adds to its unit part: the card's 1px frame
+ * top and bottom, the scroller's scroll-edge reservation, the 1px grid gaps
+ * between the rows, and (empty query only) the section heading.
+ *
+ * R27 · the top band keeps the R25 ceiling — `RESULTS_LIST_CHROME + 2` — because
+ * that constant is what makes the full slab 527px and it is deliberately a
+ * *ceiling* with slack for the list's real worst case. Shorter bands do not need
+ * that slack (their content is shorter by construction), so they use the honest
+ * count and the empty launcher loses the ~30px the ceiling was holding for rows
+ * it does not have.
+ */
+export const launcherBandChrome = (band: number, sectionTitle = false): number => {
+  const clamped = Math.max(0, Math.min(LAUNCHER_HEIGHT_BANDS.length - 1, band));
+  const capacity = LAUNCHER_HEIGHT_BANDS[clamped].capacity;
+  if (capacity >= MAX_RESULTS) return LAUNCHER_WINDOW_HEIGHT_CHROME;
+  return (
+    2 +
+    (capacity > 0 ? 4 : 0) +
+    Math.max(0, capacity - 1) +
+    (sectionTitle ? LAUNCHER_SECTION_TITLE_CHROME : 0)
+  );
 };
 
 /** A band's window height at an interface step, never above the display cap.
  *  The unit part scales; the chrome is added once, unscaled, exactly as
  *  {@link launcherWindowHeight} does for the full slab. */
-export const launcherBandHeight = (band: number, scale: number, maxHeight: number): number =>
+export const launcherBandHeight = (
+  band: number,
+  scale: number,
+  maxHeight: number,
+  actionBar = true,
+  sectionTitle = false,
+): number =>
   Math.min(
-    Math.ceil(launcherBandUnits(band) * scale + LAUNCHER_WINDOW_HEIGHT_CHROME),
+    Math.ceil(launcherBandUnits(band, actionBar) * scale + launcherBandChrome(band, sectionTitle)),
     maxHeight,
   );
 

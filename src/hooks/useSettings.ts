@@ -49,6 +49,8 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // The clipboard panel ships with NO global hotkey; users may bind one on
   // the shortcuts settings page.
   clipboard_history_hotkey: "",
+  // R27 · the shipped capacity, matching `DEFAULT_CLIPBOARD_MAX_ITEMS` in Rust.
+  clipboard_history_max_items: 300,
   launch_counts: {},
   last_settings_page: "general",
   seen_tip: false,
@@ -71,6 +73,7 @@ const SETTINGS_DEFAULTS: AppSettings = {
     history_days: 30,
     cdp_enabled: false,
     cdp_port: 9222,
+    sort_order: "relevance",
   },
 };
 
@@ -213,6 +216,7 @@ export function useSettings(options: {
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
+          clipboard_history_max_items: loaded.clipboard_history_max_items ?? 300,
           launch_counts: loaded.launch_counts ?? {},
           last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
           seen_tip: loaded.seen_tip ?? false,
@@ -234,6 +238,7 @@ export function useSettings(options: {
             history_days: loaded.browser_plugin?.history_days ?? 30,
             cdp_enabled: loaded.browser_plugin?.cdp_enabled ?? false,
             cdp_port: loaded.browser_plugin?.cdp_port ?? 9222,
+            sort_order: loaded.browser_plugin?.sort_order ?? "relevance",
           },
         };
         const hydrated = settingsHydration.mergeLoaded(

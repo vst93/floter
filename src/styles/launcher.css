@@ -195,6 +195,27 @@
   overflow: hidden;
 }
 
+/* R27 · the plugin scope glyph, at the left of the field.
+
+   In a plugin mode (`browser ` / `clip `) the field is the plugin's search box,
+   and this 16u glyph is what says so — the one small icon at the left of the
+   field Raycast and tinycast use to mark the current scope (「输入框前面需要有
+   一个 icon 表示当前的插件」). It is furniture: no listener, no hover state, and
+   it inherits the row's own muted text colour so it never competes with the
+   caret. The 8u margin is the same step the icon column uses elsewhere; the
+   field's own 16u left inset is unchanged, so a launcher that is *not* in a
+   mode is pixel-identical to before this round. */
+.collapsed-card__scope {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-right: calc(var(--u) * 8);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .collapsed-card__input {
   position: relative;
   z-index: 1;

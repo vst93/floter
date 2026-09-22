@@ -338,6 +338,46 @@ export const parseBrowserMode = (value: string): BrowserMode | null => {
   return null;
 };
 
+/** R27 · the clipboard plugin's inline result mode.
+ *
+ * The browser mode's twin: a trigger word followed by a space puts the
+ * launcher's numbered list on the clipboard history, and the input keeps the
+ * same field it always had — that *is* the fusion the user asked for
+ * (「现有的"剪切板"和"书签搜索"这两个插件需要和搜索框进行融合」). The bare word
+ * still runs/opens the panel: the mode is a deliberate place, entered by typing
+ * the word and a space, or by the system row's Enter.
+ *
+ * `clip` is the short trigger; on Windows `clip` is also a real command, so the
+ * bare word deliberately stays the shell's — only `clip ` (with the space)
+ * enters the mode. */
+export type ClipboardMode = {
+  /** The text after the trigger word, already trimmed. Empty is the whole
+   *  history. */
+  needle: string;
+};
+
+const CLIPBOARD_TRIGGERS = new Set(["clip", "clipboard", "剪贴板", "粘贴板"]);
+
+/** Parse a query into a clipboard-mode request, or `null` when the query is not
+ *  in the mode. Same rule as the browser mode: the trigger word must be
+ *  followed by whitespace, which is what makes entering and leaving it a single
+ *  keystroke. */
+export const parseClipboardMode = (value: string): ClipboardMode | null => {
+  const match = /^(\S+)\s+(.*)$/s.exec(value);
+  if (!match) return null;
+  if (!CLIPBOARD_TRIGGERS.has(match[1].toLowerCase())) return null;
+  return { needle: match[2].trim() };
+};
+
+/** R27 · which plugin owns the launcher's input right now, if any. Drives the
+ *  scope glyph in the input row (see `App.tsx`) and nothing else: the two modes
+ *  are otherwise independent, and this function only names the one the user is
+ *  standing in. */
+export type PluginScope = "browser" | "clipboard";
+
+export const pluginScope = (value: string): PluginScope | null =>
+  parseClipboardMode(value) ? "clipboard" : parseBrowserMode(value) ? "browser" : null;
+
 /** Decide which row a fresh query should select before the user navigates. */
 export const shouldDefaultToActionBar = (
   query: string,

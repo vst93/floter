@@ -1640,6 +1640,10 @@ pub fn run() {
             clipboard_history::clipboard_entry_statuses,
             #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_read_file_preview,
+            #[cfg(feature = "clipboard-history")]
+            clipboard_history::clipboard_get_settings,
+            #[cfg(feature = "clipboard-history")]
+            clipboard_history::clipboard_set_settings,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

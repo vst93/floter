@@ -345,6 +345,32 @@ export function useLauncherActions(options: {
   };
 
   /**
+   * R27 · copy a clipboard row's entry back to the system clipboard.
+   *
+   * The same act the clipboard panel's own row performs
+   * (`clipboard_copy_entry`), reached from the search field instead of the
+   * panel. The launcher closes only after the backend accepted the copy, so a
+   * failure leaves the row on screen with a feedback line rather than a silent
+   * no-op.
+   */
+  const copyClipboardEntry = async (id: string) => {
+    if (launcherOpening.current) return;
+    launcherOpening.current = true;
+    setLauncherFeedback(null);
+    try {
+      await invoke("clipboard_copy_entry", { id });
+    } catch {
+      showLauncherFeedback("clipboard.copyFailed");
+      return;
+    } finally {
+      launcherOpening.current = false;
+    }
+    setQuery("");
+    setHistoryIndex(-1);
+    invoke("hide_window");
+  };
+
+  /**
    * Run one of a dropped file's three actions.
    *
    * The whole point of R7-10a: these are the *only* three things a dropped file
@@ -562,6 +588,13 @@ export function useLauncherActions(options: {
         return;
       }
       void openBrowserUrl(item.profileKey, item.url);
+      return;
+    }
+    if (item.type === "clipboard") {
+      // R27: a status row ("nothing copied yet", "the plugin is off") is not
+      // runnable; every other clipboard row copies its entry back.
+      if (item.disabled || !item.entry) return;
+      void copyClipboardEntry(item.entry.id);
       return;
     }
     if (item.type === "history") {

@@ -1,3 +1,5 @@
+@import "../settings-card.css";
+
 /* Standalone styles for the browser plugin page. The document is loaded in an
    iframe, so it owns its tokens and cannot borrow the host stylesheet — the
    same arrangement `src/plugins/clipboard/page.css` uses, with the same
@@ -200,7 +202,7 @@ button {
 }
 
 .browser-page__icon-button:active,
-.browser-page__text-button:active,
+.plugin-settings__text-button:active,
 .browser-row:active {
   transform: scale(0.98);
 }
@@ -340,104 +342,8 @@ button {
   font-size: 12px;
 }
 
-/* ── The settings card ──────────────────────────────────────────────────── */
 
-.browser-page__settings {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  background: var(--surface-field);
-}
-
-.browser-page__settings-title {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.browser-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.browser-field__label {
-  color: var(--text-secondary);
-}
-
-.browser-field__hint {
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.browser-field__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.browser-field__control {
-  height: 30px;
-  box-sizing: border-box;
-  padding: 0 9px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 7px;
-  background: var(--surface-row);
-  box-shadow: var(--control-lens);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 120ms ease-out;
-}
-
-.browser-field__control:focus-visible {
-  border-color: var(--accent-ring);
-}
-
-.browser-field__control--text {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.browser-field__control--number {
-  width: 96px;
-  flex: 0 0 auto;
-}
-
-.browser-field__checkbox {
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  accent-color: var(--accent);
-}
-
-.browser-page__text-button {
-  height: 30px;
-  flex: 0 0 auto;
-  padding: 0 11px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 7px;
-  background: var(--surface-control);
-  box-shadow: var(--control-lens);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
-}
-
-.browser-page__text-button:hover {
-  background: var(--surface-control-hover);
-  color: var(--text-primary);
-}
-
-.browser-page__notice {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.browser-page__notice--error {
-  color: var(--text-warning);
-}
+/* R27 · the settings card moved to a shared plugin-page sheet:
+   `src/plugins/settings-card.css`. Both built-in plugin pages import it, so a
+   card in the clipboard page and a card in the browser page are one design
+   (`.plugin-settings` / `.plugin-field`) rather than two lookalikes. */

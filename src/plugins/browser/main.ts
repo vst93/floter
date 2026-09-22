@@ -24,7 +24,7 @@
 // this file only paints them.
 
 import "./page.css";
-import { createTranslator, normalizeLanguage, type Translate } from "../../i18n";
+import { createTranslator, normalizeLanguage, type MessageKey, type Translate } from "../../i18n";
 import {
   BRIDGE_TAG,
   PLUGIN_PAGE_PROTOCOL,
@@ -45,6 +45,7 @@ import {
   type GlassStep,
 } from "../../glass-material";
 import {
+  BROWSER_SORT_ORDERS,
   browserTargets,
   defaultBrowserSettings,
   isKnownTarget,
@@ -61,6 +62,7 @@ import {
   type BrowserPluginSettings,
   type BrowserProfile,
   type BrowserSearchRow,
+  type BrowserSortOrder,
   type BrowserTab,
 } from "../../browser-page";
 
@@ -444,21 +446,30 @@ function rowForTab(tab: BrowserTab, windows: number): HTMLElement {
   return button;
 }
 
+/** R27 · the dictionary key naming each sort order, so the select's options and
+ *  the settings page's labels come from the one table. */
+const BROWSER_SORT_LABEL_KEYS: Record<BrowserSortOrder, MessageKey> = {
+  relevance: "settings.browserSortRelevance",
+  recent: "settings.browserSortRecent",
+  alphabetical: "settings.browserSortAlphabetical",
+  visits: "settings.browserSortVisits",
+};
+
 /** One labelled control row inside the settings card. */
 function field(labelText: string, control: HTMLElement, hint?: string): HTMLElement {
-  const wrapper = el("label", "browser-field");
-  wrapper.append(el("span", "browser-field__label", labelText), control);
-  if (hint) wrapper.append(el("span", "browser-field__hint", hint));
+  const wrapper = el("label", "plugin-field");
+  wrapper.append(el("span", "plugin-field__label", labelText), control);
+  if (hint) wrapper.append(el("span", "plugin-field__hint", hint));
   return wrapper;
 }
 
 /** The plugin's own settings card. Every control writes the whole settings
  * object back through `browser_set_settings`; the backend normalizes. */
 function settingsCard(): HTMLElement {
-  const card = el("div", "browser-page__settings");
-  card.append(el("div", "browser-page__settings-title", t("browserPage.settings")));
+  const card = el("div", "plugin-settings");
+  card.append(el("div", "plugin-settings__title", t("browserPage.settings")));
 
-  const target = el("select", "browser-field__control");
+  const target = el("select", "plugin-field__control");
   const auto = el("option", undefined, t("settings.browserTargetAuto"));
   auto.value = "auto";
   target.append(auto);
@@ -473,13 +484,28 @@ function settingsCard(): HTMLElement {
   });
   card.append(field(t("settings.browserTarget"), target));
 
-  const dirInput = el("input", "browser-field__control browser-field__control--text");
+  // R27 · the result ordering. A control the launcher reads directly from the
+  // stored settings (the search commands apply it), so this select only has to
+  // write it; the next `browser ` search uses it.
+  const sort = el("select", "plugin-field__control");
+  for (const order of BROWSER_SORT_ORDERS) {
+    const option = el("option", undefined, t(BROWSER_SORT_LABEL_KEYS[order]));
+    option.value = order;
+    sort.append(option);
+  }
+  sort.value = settings.sort_order;
+  sort.addEventListener("change", () => {
+    void saveSettings({ ...settings, sort_order: sort.value as BrowserSortOrder });
+  });
+  card.append(field(t("settings.browserSort"), sort, t("settings.browserSortHint")));
+
+  const dirInput = el("input", "plugin-field__control plugin-field__control--text");
   dirInput.type = "text";
   dirInput.value = settings.custom_base_dir ?? "";
   dirInput.placeholder = t("browserPage.customDirPlaceholder");
   dirInput.spellcheck = false;
-  const dirRow = el("div", "browser-field__row");
-  const useDefault = el("button", "browser-page__text-button", t("browserPage.useDefaultDir"));
+  const dirRow = el("div", "plugin-field__row");
+  const useDefault = el("button", "plugin-settings__text-button", t("browserPage.useDefaultDir"));
   useDefault.type = "button";
   const commitDir = () => {
     const value = dirInput.value.trim();
@@ -501,16 +527,16 @@ function settingsCard(): HTMLElement {
   // A plain `<div>`, not a `<label>`: a label wrapping a button makes the
   // button's click focus the field as a side effect, and this row is a field
   // *and* an action. The field carries its own `aria-label` instead.
-  const dirField = el("div", "browser-field");
+  const dirField = el("div", "plugin-field");
   dirInput.setAttribute("aria-label", t("settings.browserCustomDir"));
   dirField.append(
-    el("span", "browser-field__label", t("settings.browserCustomDir")),
+    el("span", "plugin-field__label", t("settings.browserCustomDir")),
     dirRow,
-    el("span", "browser-field__hint", t("settings.browserCustomDirHint")),
+    el("span", "plugin-field__hint", t("settings.browserCustomDirHint")),
   );
   card.append(dirField);
 
-  const days = el("input", "browser-field__control browser-field__control--number");
+  const days = el("input", "plugin-field__control plugin-field__control--number");
   days.type = "number";
   days.min = "0";
   days.max = "3650";
@@ -528,7 +554,7 @@ function settingsCard(): HTMLElement {
   );
 
   if (!isMac) {
-    const cdp = el("input", "browser-field__checkbox");
+    const cdp = el("input", "plugin-field__checkbox");
     cdp.type = "checkbox";
     cdp.checked = settings.cdp_enabled;
     cdp.addEventListener("change", () => {
@@ -536,7 +562,7 @@ function settingsCard(): HTMLElement {
     });
     card.append(field(t("browserPage.cdp"), cdp, t("browserPage.cdpHint")));
 
-    const port = el("input", "browser-field__control browser-field__control--number");
+    const port = el("input", "plugin-field__control plugin-field__control--number");
     port.type = "number";
     port.min = "1";
     port.max = "65535";
@@ -548,12 +574,12 @@ function settingsCard(): HTMLElement {
   }
 
   if (directoryWarning) {
-    card.append(el("div", "browser-page__notice", t("browserPage.dirNoProfile")));
+    card.append(el("div", "plugin-settings__notice", t("browserPage.dirNoProfile")));
   }
   if (settingsNotice === "saved") {
-    card.append(el("div", "browser-page__notice", t("browserPage.settingsSaved")));
+    card.append(el("div", "plugin-settings__notice", t("browserPage.settingsSaved")));
   } else if (settingsNotice === "failed") {
-    card.append(el("div", "browser-page__notice browser-page__notice--error", t("browserPage.settingsFailed")));
+    card.append(el("div", "plugin-settings__notice plugin-settings__notice--error", t("browserPage.settingsFailed")));
   }
   return card;
 }

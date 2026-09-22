@@ -87,7 +87,7 @@ fn now_ms() -> i64 {
 fn ensure_loaded(entries: &mut Vec<ClipboardEntry>) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
     let loaded = store::load_index(&paths);
-    let (kept, dropped) = store::prune_entries(loaded, now_ms());
+    let (kept, dropped) = store::prune_entries(loaded, now_ms(), store::configured_max_items());
     if !dropped.is_empty() {
         if let Err(error) = store::save_index(&paths, &kept) {
             tracing::warn!("floter: clipboard retention save failed: {error}");
@@ -138,6 +138,40 @@ fn mutate_history<T>(
 }
 
 // ---- Tauri commands ------------------------------------------------------
+
+/// R27 · the clipboard plugin's own settings, as its page reads them.
+///
+/// The page runs in a sandboxed iframe and cannot reach `get_settings` (which
+/// carries the whole app settings object); this narrow pair reads and writes
+/// exactly the plugin's capacity, through the same settings lock and atomic
+/// write every other settings change uses.
+#[tauri::command]
+pub fn clipboard_get_settings() -> crate::commands::config::ClipboardPluginSettings {
+    crate::commands::config::ClipboardPluginSettings {
+        max_items: crate::commands::config::load_settings().clipboard_history_max_items,
+    }
+}
+
+/// R27 · replace the clipboard plugin's settings.
+///
+/// Writing the capacity and truncating the live history happen together, in
+/// that order: `prune_and_save` reads the freshly persisted number (see
+/// `store::configured_max_items`), so lowering the setting drops the entries
+/// that no longer fit **now** rather than on the next capture. The prune is
+/// best-effort — a settings write that succeeded must not be reported as failed
+/// because the retention pass could not reach the disk — but a *shrunk*
+/// history is the point of the control, so its error is logged.
+#[tauri::command]
+pub fn clipboard_set_settings(
+    app: AppHandle,
+    settings: crate::commands::config::ClipboardPluginSettings,
+) -> Result<crate::commands::config::ClipboardPluginSettings, String> {
+    let max_items = crate::commands::config::write_clipboard_max_items(settings.max_items)?;
+    if let Err(error) = mutate_history(&app, monitor::prune_and_save) {
+        tracing::warn!("floter: clipboard capacity prune failed: {error}");
+    }
+    Ok(crate::commands::config::ClipboardPluginSettings { max_items })
+}
 
 #[tauri::command]
 pub fn clipboard_get_entries(

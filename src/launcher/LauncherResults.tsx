@@ -10,6 +10,7 @@ import {
   Folder as FolderIcon,
   Globe as GlobeIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
+import type { ClipboardEntry } from "../clipboard-history";
 import type { DroppedFile } from "./file-drops";
 
 export type SystemAction = "restart" | "shutdown" | "clipboard" | "browser";
@@ -64,6 +65,21 @@ export type LauncherItem =
       profileKey: string;
       disabled?: boolean;
       tab?: { browserId: string; windowIndex: number; tabIndex: number };
+    }
+  /**
+   * R27 · a clipboard history row, produced by the launcher's clipboard result
+   *  mode (`clip `). Enter copies the entry back to the system clipboard and
+   *  closes the launcher — the same act the clipboard panel's own row performs,
+   *  reached without leaving the search field. A `disabled` row is a status line
+   *  ("nothing copied yet", "the plugin is off") and is not runnable.
+   */
+  | {
+      type: "clipboard";
+      id: string;
+      title: string;
+      subtitle: string;
+      entry?: ClipboardEntry;
+      disabled?: boolean;
     }
   /**
    * A previously typed command line, surfaced in the empty-query state so the
@@ -259,7 +275,8 @@ export function LauncherResults({
             const unavailable =
               (item.type === "command" && !item.execution) ||
               (item.type === "system" && item.disabled === true) ||
-              (item.type === "browser" && item.disabled === true);
+              (item.type === "browser" && item.disabled === true) ||
+              (item.type === "clipboard" && item.disabled === true);
             const warnings = item.type === "command" ? item.warnings : [];
             const isHistory = item.type === "history";
             // R7-10a: the dropped-file group. Both of its row kinds count, so
@@ -356,6 +373,8 @@ export function LauncherResults({
                       <img src={appIconUrls[item.app.path]} alt="" />
                     ) : item.type === "system" ? (
                       <SystemActionIcon action={item.action} />
+                    ) : item.type === "clipboard" ? (
+                      <SystemActionIcon action="clipboard" />
                     ) : item.type === "browser" ? (
                       <GlobeIcon size={16} />
                     ) : isHistory ? (

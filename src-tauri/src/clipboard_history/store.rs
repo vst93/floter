@@ -16,7 +16,15 @@ use std::sync::{Mutex, MutexGuard};
 
 /// Newest N non-favorite entries are kept. Favorites are exempt from both
 /// this cap and the age cap below.
-pub const MAX_NON_FAVORITE_ENTRIES: usize = 300;
+///
+/// R27 · the capacity is a **setting** now (`clipboard_history_max_items`,
+/// whose shipped default is `commands::config::DEFAULT_CLIPBOARD_MAX_ITEMS`),
+/// and every prune reads the current value through [`configured_max_items`].
+/// This constant is the number the store shipped with before that, kept as the
+/// tests' own reference value: the retention tests must keep asserting against
+/// a fixed capacity even after the user changes the setting.
+#[cfg(test)]
+const MAX_NON_FAVORITE_ENTRIES: usize = 300;
 /// Non-favorite entries older than this are dropped (30 days, in ms).
 pub const RETENTION_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 
@@ -117,9 +125,26 @@ pub fn save_index(paths: &StorePaths, entries: &[ClipboardEntry]) -> Result<(), 
     crate::extensions::lock::sync_directory(&paths.root).map_err(|error| error.to_string())
 }
 
+/// R27 · the user's configured capacity, read from the persisted settings.
+///
+/// One reader so the three prune paths — the load, the capture and the settings
+/// change itself — can never disagree about the number. `load_settings` reads
+/// the file, which is the same cost the monitor already pays on its other
+/// paths; a capture is at human speed, not a hot loop.
+pub fn configured_max_items() -> usize {
+    crate::commands::config::load_settings().clipboard_history_max_items as usize
+}
+
 /// Apply the retention policy: drop non-favorites older than the retention
-/// window, then keep only the newest [`MAX_NON_FAVORITE_ENTRIES`] of what is
-/// left. Favorites never expire and are never counted against the cap.
+/// window, then keep only the newest `max_non_favorite` of what is left.
+/// Favorites never expire and are never counted against the cap.
+///
+/// R27 · the cap is a parameter. It used to be the module constant, which made
+/// "keep 300" a property of the build rather than a setting; the caller reads
+/// the user's `clipboard_history_max_items` and hands it in. Lowering the
+/// setting takes effect on the very next prune (the settings command runs one
+/// itself, see `clipboard_set_settings`), so shrinking the capacity truncates
+/// the existing history immediately instead of on the next capture.
 ///
 /// Entries are kept in their input order (newest first, as stored); returns
 /// `(kept, dropped)` so callers can delete the image files of dropped image
@@ -127,6 +152,7 @@ pub fn save_index(paths: &StorePaths, entries: &[ClipboardEntry]) -> Result<(), 
 pub fn prune_entries(
     entries: Vec<ClipboardEntry>,
     now_ms: i64,
+    max_non_favorite: usize,
 ) -> (Vec<ClipboardEntry>, Vec<ClipboardEntry>) {
     let cutoff = now_ms - RETENTION_MS;
     let mut kept = Vec::new();
@@ -151,7 +177,7 @@ pub fn prune_entries(
     non_favorite_indices.sort_by_key(|&index| kept[index].created_at);
     let excess = non_favorite_indices
         .len()
-        .saturating_sub(MAX_NON_FAVORITE_ENTRIES);
+        .saturating_sub(max_non_favorite);
     let doomed: HashSet<usize> = non_favorite_indices.into_iter().take(excess).collect();
 
     let mut survivors = Vec::with_capacity(kept.len());
@@ -428,7 +454,7 @@ mod tests {
             text_entry("fresh", now - 1000, false, "h3"),
         ];
 
-        let (kept, dropped) = prune_entries(entries, now);
+        let (kept, dropped) = prune_entries(entries, now, MAX_NON_FAVORITE_ENTRIES);
 
         assert_eq!(kept.len(), 2);
         assert_eq!(kept[0].id, "old-fav");
@@ -449,7 +475,7 @@ mod tests {
         }
         entries.push(text_entry("oldest", now - RETENTION_MS, false, "hold"));
 
-        let (kept, dropped) = prune_entries(entries, now);
+        let (kept, dropped) = prune_entries(entries, now, MAX_NON_FAVORITE_ENTRIES);
 
         assert!(kept.iter().all(|entry| entry.id != "oldest"));
         assert_eq!(
@@ -478,7 +504,7 @@ mod tests {
             .collect();
         entries.insert(0, text_entry("fav-ancient", 0, true, "hfa"));
 
-        let (kept, dropped) = prune_entries(entries, now);
+        let (kept, dropped) = prune_entries(entries, now, MAX_NON_FAVORITE_ENTRIES);
 
         // Three fall to the age cap, two more (the oldest survivors) to the
         // count cap.
@@ -489,6 +515,41 @@ mod tests {
             MAX_NON_FAVORITE_ENTRIES
         );
         assert!(kept.iter().any(|entry| entry.id == "fav-ancient"));
+    }
+
+    /// R27 · the capacity is a *parameter*, so the settings page's number is the
+    /// one the history is pruned to. The old signature baked the module constant
+    /// in, which made "keep 300" a property of the build; this pins that a
+    /// smaller number truncates and that favorites stay exempt from it.
+    #[test]
+    fn the_capacity_parameter_truncates_to_the_caller_s_number() {
+        let now = 1_700_000_000_000;
+        let mut entries = vec![text_entry("fav", now, true, "hf")];
+        for index in 0..40 {
+            // Newest first, so the tail of the list is what a small cap drops.
+            entries.push(text_entry(&format!("e{index}"), now - index as i64 * 1000, false, "h"));
+        }
+
+        let (kept, dropped) = prune_entries(entries, now, 10);
+
+        assert_eq!(kept.iter().filter(|entry| !entry.favorite).count(), 10);
+        // The favorite is never counted against the cap and never dropped.
+        assert!(kept.iter().any(|entry| entry.id == "fav"));
+        assert_eq!(dropped.len(), 30);
+        // Newest survive: e0..e9, not the oldest ten.
+        assert!(kept.iter().any(|entry| entry.id == "e9"));
+        assert!(!kept.iter().any(|entry| entry.id == "e10"));
+
+        // A cap above the entry count is a no-op, not an error.
+        let (kept, dropped) = prune_entries(
+            (0..5)
+                .map(|index| text_entry(&format!("n{index}"), now - index, false, "h"))
+                .collect(),
+            now,
+            500,
+        );
+        assert_eq!(kept.len(), 5);
+        assert!(dropped.is_empty());
     }
 
     #[test]

@@ -309,7 +309,7 @@ fn capture_image(
 pub fn prune_and_save(entries: &mut Vec<ClipboardEntry>) -> Result<(), String> {
     let paths = store::app_store_paths().ok_or("No app data directory")?;
     let taken = std::mem::take(entries);
-    let (kept, dropped) = store::prune_entries(taken, now_ms());
+    let (kept, dropped) = store::prune_entries(taken, now_ms(), store::configured_max_items());
     *entries = kept;
     store::save_index(&paths, entries)?;
     for entry in &dropped {

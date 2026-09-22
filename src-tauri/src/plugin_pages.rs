@@ -60,6 +60,10 @@ const CLIPBOARD_COMMANDS: &[&str] = &[
     "clipboard_read_image",
     "clipboard_entry_statuses",
     "clipboard_read_file_preview",
+    // R27 · the plugin's own settings card writes through this narrow pair,
+    // exactly as the browser page's card does through `browser_set_settings`.
+    "clipboard_get_settings",
+    "clipboard_set_settings",
 ];
 
 /// R26-B · the browser plugin's own page. Its settings card writes through
@@ -282,6 +286,25 @@ mod tests {
         // An unknown plugin has no page and no permissions.
         assert!(descriptor("builtin.nope").is_none());
         assert!(descriptor("../../etc/passwd").is_none());
+    }
+
+    /// R27 · the clipboard page's own settings card writes through a narrow
+    /// pair, exactly as the browser page's does — and the pair is on the
+    /// clipboard page's allowlist, not the browser's.
+    #[test]
+    fn the_clipboard_page_can_read_and_write_its_own_settings() {
+        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
+        for command in ["clipboard_get_settings", "clipboard_set_settings"] {
+            assert!(
+                clipboard.allowed_commands.contains(&command),
+                "{command} must be allowlisted for the clipboard page"
+            );
+        }
+        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
+        assert!(
+            !browser.allowed_commands.contains(&"clipboard_set_settings"),
+            "a page's allowlist is its whole capability surface"
+        );
     }
 
     #[test]

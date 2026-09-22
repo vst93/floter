@@ -55,6 +55,11 @@ export const rowTypeWord = (item: LauncherItem, t: Translate): string => {
       return item.sourceName;
     case "system":
       return t("extensions.builtIn");
+    // R27 · a clipboard row's type word is the panel's own name; the row's
+    // subtitle is its age (or the entry's source), so the word is dropped when
+    // the two would say the same thing (see `resultRowContent`).
+    case "clipboard":
+      return t("system.clipboardHistory");
     case "history":
       return t("launcher.history");
     case "file":
@@ -137,7 +142,7 @@ export const resultRowContent = (item: LauncherItem, t: Translate): RowContent =
     isTranscription(item.title, subtitle);
   return {
     source:
-      item.type === "app" || item.type === "system" || item.type === "browser"
+      item.type === "app" || item.type === "system" || item.type === "browser" || item.type === "clipboard"
         ? null
         : typeWord,
     subtitle: subtitle === typeWord || transcription ? null : subtitle,

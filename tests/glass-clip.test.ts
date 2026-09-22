@@ -38,7 +38,12 @@ const stripJsComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 const rules = (css: string) => {
   const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+  // R27 · the plugin sheets now `@import` a shared card stylesheet. An at-rule
+  // carries no declarations of its own, so it is stripped before parsing —
+  // otherwise it would glue itself to the selector of the rule that follows it
+  // (`@import "…"; :root`) and every exact-selector lookup below would miss.
+  const withoutImports = css.replace(/@import[^;]*;/g, "");
+  for (const match of withoutImports.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
   }
   return out;

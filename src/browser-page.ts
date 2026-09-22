@@ -59,6 +59,34 @@ export type BrowserPluginSettings = {
   history_days: number;
   cdp_enabled: boolean;
   cdp_port: number;
+  /** R27 · how bookmark and history results are ordered. One of
+   *  {@link BROWSER_SORT_ORDERS}; the backend applies it in the search
+   *  commands. */
+  sort_order: BrowserSortOrder;
+};
+
+/** R27 · the four orderings the plugin's settings card offers. `relevance` is
+ *  the launcher's own ranking (the shipped behaviour), so a settings file
+ *  written before this key existed keeps the order it always had. */
+export type BrowserSortOrder = "relevance" | "recent" | "alphabetical" | "visits";
+
+export const BROWSER_SORT_ORDERS: readonly BrowserSortOrder[] = [
+  "relevance",
+  "recent",
+  "alphabetical",
+  "visits",
+] as const;
+
+export const DEFAULT_BROWSER_SORT_ORDER: BrowserSortOrder = "relevance";
+
+/** Accept one of {@link BROWSER_SORT_ORDERS}; anything else is the default.
+ *  The backend's `normalize_browser_sort_order` is the authority — this is the
+ *  same rule on the page side so the card shows the value that was saved. */
+export const normalizeBrowserSortOrder = (value: unknown): BrowserSortOrder => {
+  const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return (BROWSER_SORT_ORDERS as readonly string[]).includes(text)
+    ? (text as BrowserSortOrder)
+    : DEFAULT_BROWSER_SORT_ORDER;
 };
 
 /** The port Chromium's debug endpoint uses unless the user picks another.
@@ -77,6 +105,7 @@ export const defaultBrowserSettings = (): BrowserPluginSettings => ({
   history_days: 30,
   cdp_enabled: false,
   cdp_port: DEFAULT_CDP_PORT,
+  sort_order: DEFAULT_BROWSER_SORT_ORDER,
 });
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -206,6 +235,7 @@ export const normalizeBrowserSettings = (value: unknown): BrowserPluginSettings 
     history_days: clampHistoryDays(asNumber(record.history_days, 30)),
     cdp_enabled: asBoolean(record.cdp_enabled, false),
     cdp_port: normalizeCdpPort(record.cdp_port),
+    sort_order: normalizeBrowserSortOrder(record.sort_order),
   };
 };
 

@@ -1,3 +1,5 @@
+@import "../settings-card.css";
+
 /* Standalone styles for the clipboard plugin page. The document is loaded in
    an iframe, so it owns its tokens and cannot borrow the host stylesheet.
 
@@ -866,5 +868,63 @@ button {
 
   .clipboard-panel__spinner {
     animation: none;
+  }
+}
+
+/* ── R27 · plugin settings ─────────────────────────────────────────────── */
+
+/* The topbar's settings toggle: the same 28×28 control shape as the filter
+   clear button beside it, so the row reads as one family of small controls.
+   `--on` is the lit state (the card is showing) and uses the accent tint the
+   other chosen controls use, never an accent fill. */
+.clipboard-panel__settings {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
+}
+
+@media (hover: hover) {
+.clipboard-panel__settings:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+}
+
+.clipboard-panel__settings:active {
+  transform: scale(0.96);
+}
+
+.clipboard-panel__settings--on {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.clipboard-panel__settings:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+/* The settings card sits exactly where the list would be, inside the same
+   scroller and with the same 8px inset the list keeps — so opening the card
+   does not move the page's own edges, it only replaces what is drawn between
+   them. The card's own sheet is `src/plugins/settings-card.css`. */
+.clipboard-panel__settings-host {
+  padding: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clipboard-panel__settings {
+    transition: none;
   }
 }

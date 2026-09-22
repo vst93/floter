@@ -26,6 +26,11 @@ const OUT_OF_SCOPE = [
   "src/extensions/ComponentizedUninstallDialog.css",
   "src/plugins/clipboard/page.css",
   "src/plugins/browser/page.css",
+  // R27 · the shared plugin-settings card sheet both plugin pages import. It
+  // is a plugin-page document (loaded inside the sandboxed iframe), so it keeps
+  // the pages' own motion vocabulary for now rather than converging on the
+  // host's tokens.
+  "src/plugins/settings-card.css",
 ];
 
 // Animations that must not run under `prefers-reduced-motion` (G-12). The

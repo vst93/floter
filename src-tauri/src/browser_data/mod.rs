@@ -211,46 +211,107 @@ pub fn browser_default_profile() -> Option<String> {
         .map(|profile| profile.profile_key.clone())
 }
 
+/// R27 · order bookmark/history results for one of the plugin's four sort
+/// orders.
+///
+/// `relevance` is deliberately a no-op: the order the caller already produced
+/// *is* the launcher's ranking (the bookmarks bar's own order for bookmarks,
+/// newest-first for history), and re-deriving a match score here would be a
+/// second, silently different ranking. The other three are explicit orderings
+/// a bookmark tool is expected to offer; `visits` falls back to recency where a
+/// row has no visit count (every bookmark does not).
+pub fn sort_browser_items(items: &mut [BrowserItem], order: &str) {
+    match order {
+        "alphabetical" => items.sort_by(|a, b| {
+            a.title
+                .to_lowercase()
+                .cmp(&b.title.to_lowercase())
+                .then_with(|| a.url.cmp(&b.url))
+        }),
+        "recent" => items.sort_by(|a, b| {
+            let stamp = |item: &BrowserItem| item.last_visit.or(item.date_added).unwrap_or(0);
+            stamp(b).cmp(&stamp(a))
+        }),
+        "visits" => items.sort_by(|a, b| {
+            b.visit_count
+                .unwrap_or(0)
+                .cmp(&a.visit_count.unwrap_or(0))
+                .then_with(|| b.last_visit.unwrap_or(0).cmp(&a.last_visit.unwrap_or(0)))
+        }),
+        _ => {}
+    }
+}
+
+/// The order to apply and how many rows to fetch before ordering.
+///
+/// A non-relevance order has to see more than the caller's limit, or it would
+/// only reorder the newest N rows and quietly mis-sort the rest; `MAX_LIMIT` is
+/// the same bound every other query uses.
+fn sort_order_and_fetch_limit(limit: Option<usize>, order: Option<&str>) -> (String, usize) {
+    let order = match order {
+        Some(value) => crate::commands::config::normalize_browser_sort_order(value),
+        None => crate::commands::config::load_settings().browser_plugin.sort_order,
+    };
+    let fetch = if order == crate::commands::config::DEFAULT_BROWSER_SORT_ORDER {
+        normalize_limit(limit)
+    } else {
+        MAX_LIMIT
+    };
+    (order, fetch)
+}
+
 /// Search one profile's bookmarks by title or URL.
 ///
 /// An empty query returns the bookmarks in file order (the bar first, since
 /// Chromium writes `bookmark_bar` first), which is the launcher's default view.
+/// R27 · `sort_order` overrides the stored setting for one call; omitted, the
+/// user's `browser_plugin.sort_order` applies.
 #[tauri::command]
 pub fn browser_search_bookmarks(
     profile_key: String,
     query: String,
     limit: Option<usize>,
+    sort_order: Option<String>,
 ) -> Result<Vec<BrowserItem>, String> {
     let files = profile_files(&profile_key)?;
     let needle = query.trim().to_lowercase();
     let parsed = bookmarks::parse_bookmarks_file(&files.bookmarks)?;
+    let (order, _fetch) = sort_order_and_fetch_limit(limit, sort_order.as_deref());
     let mut items: Vec<BrowserItem> = parsed
         .into_iter()
         .filter(|bookmark| bookmarks::matches_query(bookmark, &needle))
         .map(|bookmark| BrowserItem::from_bookmark(&profile_key, bookmark))
         .collect();
+    sort_browser_items(&mut items, &order);
     items.truncate(normalize_limit(limit));
     Ok(items)
 }
 
-/// Search one profile's history by title or URL, newest first.
+/// Search one profile's history by title or URL, newest first by default.
 ///
 /// `days` limits the window (0 disables it). When omitted, the user's
-/// `browser_plugin.history_days` setting applies.
+/// `browser_plugin.history_days` setting applies. R27 · `sort_order` overrides
+/// the stored ordering for one call; omitted, `browser_plugin.sort_order`
+/// applies.
 #[tauri::command]
 pub fn browser_search_history(
     profile_key: String,
     query: String,
     limit: Option<usize>,
     days: Option<u32>,
+    sort_order: Option<String>,
 ) -> Result<Vec<BrowserItem>, String> {
     let files = profile_files(&profile_key)?;
     let days = days.unwrap_or_else(|| crate::commands::config::load_settings().browser_plugin.history_days);
-    let entries = history::query_history_file(&files.history, &query, normalize_limit(limit), days)?;
-    Ok(entries
+    let (order, fetch) = sort_order_and_fetch_limit(limit, sort_order.as_deref());
+    let entries = history::query_history_file(&files.history, &query, fetch, days)?;
+    let mut items: Vec<BrowserItem> = entries
         .into_iter()
         .map(|entry| BrowserItem::from_history(&profile_key, entry))
-        .collect())
+        .collect();
+    sort_browser_items(&mut items, &order);
+    items.truncate(normalize_limit(limit));
+    Ok(items)
 }
 
 /// Open a URL in the browser the row came from.
@@ -461,5 +522,78 @@ mod tests {
         // `default` has no browser id in the table, so the opener falls back to
         // the system handler rather than erroring.
         assert!(discover::parse_profile_key("default").is_none());
+    }
+
+    /// R27 · the four sort orders the plugin's settings card offers. Each one is
+    /// pinned against the *fact* it orders by, not against an incidental list
+    /// order — a sort that happens to look right on one fixture is the kind of
+    /// bug this round exists to avoid.
+    #[test]
+    fn the_result_orders_sort_by_the_fact_they_name() {
+        let item = |title: &str, url: &str, added: Option<i64>, visits: Option<u32>, last: Option<i64>| BrowserItem {
+            id: url.to_string(),
+            title: title.to_string(),
+            url: url.to_string(),
+            profile_key: "chrome/Default".to_string(),
+            folder_path: None,
+            date_added: added,
+            visit_count: visits,
+            last_visit: last,
+        };
+        let fixture = || {
+            vec![
+                item("Zeta", "https://z.example", Some(300), Some(2), Some(100)),
+                item("alpha", "https://a.example", Some(100), Some(9), Some(900)),
+                item("Beta", "https://b.example", Some(200), Some(5), Some(500)),
+            ]
+        };
+
+        // `relevance` is a no-op: the caller's order *is* the ranking.
+        let mut items = fixture();
+        sort_browser_items(&mut items, "relevance");
+        assert_eq!(items[0].title, "Zeta", "relevance leaves the input order alone");
+
+        // Alphabetical is case-insensitive, so `alpha` leads.
+        let mut items = fixture();
+        sort_browser_items(&mut items, "alphabetical");
+        assert_eq!(items[0].title, "alpha");
+        assert_eq!(items[2].title, "Zeta");
+
+        // Most recent: the greatest timestamp (last visit, else date added).
+        let mut items = fixture();
+        sort_browser_items(&mut items, "recent");
+        assert_eq!(items[0].title, "alpha");
+        assert_eq!(items[2].title, "Zeta");
+
+        // Most visited: the greatest visit count. A bookmark with no count
+        // sorts last rather than being dropped.
+        let mut items = fixture();
+        items.push(item("Bookmark", "https://c.example", Some(400), None, None));
+        sort_browser_items(&mut items, "visits");
+        assert_eq!(items[0].title, "alpha");
+        assert_eq!(items[3].title, "Bookmark");
+
+        // An unknown order is a no-op, exactly like relevance.
+        let mut items = fixture();
+        sort_browser_items(&mut items, "sideways");
+        assert_eq!(items[0].title, "Zeta");
+    }
+
+    /// R27 · a non-relevance order must see more than the caller's limit, or it
+    /// would only reorder the newest N and quietly mis-sort the rest.
+    #[test]
+    fn a_non_relevance_order_fetches_beyond_the_callers_limit() {
+        let (order, fetch) = sort_order_and_fetch_limit(Some(24), Some("alphabetical"));
+        assert_eq!(order, "alphabetical");
+        assert_eq!(fetch, MAX_LIMIT);
+        // …while the default order keeps the caller's own limit.
+        let (order, fetch) = sort_order_and_fetch_limit(Some(24), Some("relevance"));
+        assert_eq!(order, "relevance");
+        assert_eq!(fetch, 24);
+        // An unknown order normalizes to relevance, and therefore to the
+        // caller's limit — it is not a hidden wide query.
+        let (order, fetch) = sort_order_and_fetch_limit(Some(24), Some("sideways"));
+        assert_eq!(order, crate::commands::config::DEFAULT_BROWSER_SORT_ORDER);
+        assert_eq!(fetch, 24);
     }
 }

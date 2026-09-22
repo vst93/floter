@@ -14,14 +14,26 @@ import {
   launcherShortcutSlots,
   normalizeSearch,
   parseBrowserMode,
+  parseClipboardMode,
   parseCommandLine,
   recentItems,
   scoreApp,
   shouldDefaultToActionBar,
   type BrowserMode,
+  type ClipboardMode,
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
+import {
+  clipboardEntryType,
+  clipboardPreview,
+  filterClipboardEntries,
+  formatClipboardAge,
+  formatFilesPreview,
+  normalizeEntries,
+  type ClipboardEntry,
+  type ClipboardEntryType,
+} from "../clipboard-history";
 import {
   type ActionBar,
   type CommandWarning,
@@ -139,6 +151,53 @@ const BROWSER_FETCH_LIMIT = 24;
  *  two groups together outgrow its box. */
 const BROWSER_GROUP_LIMIT = MAX_RESULTS - 1;
 
+/** R27 · how many clipboard rows the mode shows. The budget is the same nine
+ *  rows (`MAX_RESULTS`), and the mode's list has no fixed tail, so eight is the
+ *  ceiling the launcher can draw without scrolling. */
+const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS - 1;
+
+/** R27 · the type word each clipboard entry kind prints on its row. The five
+ *  keys are the clipboard panel's own type labels, so the launcher and the page
+ *  name the same thing the same way. */
+const CLIPBOARD_TYPE_KEYS: Record<ClipboardEntryType, MessageKey> = {
+  text: "clipboard.typeText",
+  link: "clipboard.typeLink",
+  color: "clipboard.typeColor",
+  image: "clipboard.typeImage",
+  files: "clipboard.typeFiles",
+};
+
+/** R27 · one clipboard history row. The title is the entry's one-line preview
+ *  (a file entry shows its basename, an image its caption or size); the
+ *  subtitle is the type word plus the compact age, the same two facts the
+ *  panel's own rows carry. */
+const clipboardRow = (entry: ClipboardEntry, t: Translate, now: number): LauncherItem => {
+  const files = entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
+  const preview = files
+    ? `${files.basename}${files.extra > 0 ? ` +${files.extra}` : ""}`
+    : clipboardPreview(entry, 96);
+  const kindKey = CLIPBOARD_TYPE_KEYS[clipboardEntryType(entry)];
+  const age = formatClipboardAge(entry.created_at, now);
+  return {
+    type: "clipboard",
+    id: entry.id,
+    title: preview || t(kindKey),
+    subtitle: age ? `${t(kindKey)} · ${age}` : t(kindKey),
+    entry,
+  };
+};
+
+/** R27 · a status line for the clipboard mode: nothing copied yet, or the
+ *  plugin switched off. Not runnable — the same soft landing the browser mode
+ *  uses for its own empty and disabled states. */
+const clipboardStatusRow = (id: string, key: MessageKey, t: Translate): LauncherItem => ({
+  type: "clipboard",
+  id,
+  title: t(key),
+  subtitle: "",
+  disabled: true,
+});
+
 /**
  * The built-in power actions, searched like applications.
  *
@@ -239,6 +298,9 @@ export function useLauncherCatalog(options: {
    *  is a disabled note and the browser result mode fetches nothing: the
    *  plugin's whole surface soft-closes. */
   browserEnabled: boolean;
+  /** R27 · `settings.clipboard_history_enabled`. The clipboard mode's switch,
+   *  read from the same long-standing field the plugin list and the panel use. */
+  clipboardEnabled: boolean;
   t: Translate;
   settingsRef: RefObject<AppSettings>;
   settingsHydration: ReturnType<typeof createSettingsHydration<AppSettings>>;
@@ -252,6 +314,7 @@ export function useLauncherCatalog(options: {
     showRecentInLauncher,
     commandAliases,
     browserEnabled,
+    clipboardEnabled,
     t,
     settingsRef,
     settingsHydration,
@@ -564,6 +627,57 @@ export function useLauncherCatalog(options: {
     };
   }, [browserMode, browserEnabled, t]);
 
+  // R27 · clipboard result mode — the browser mode's twin, over the clipboard
+  // history the panel shows. The entries are fetched **once** when the mode
+  // opens (the history is local and the whole list arrives in one call); the
+  // needle filters in memory, so typing inside the mode costs no IPC and no
+  // window resize.
+  const clipboardMode = useMemo<ClipboardMode | null>(() => parseClipboardMode(query), [query]);
+  const clipboardActive = clipboardMode !== null;
+  const [clipboardEntries, setClipboardEntries] = useState<ClipboardEntry[]>([]);
+
+  useEffect(() => {
+    if (!clipboardActive || !clipboardEnabled) {
+      setClipboardEntries([]);
+      return;
+    }
+    let cancelled = false;
+    // `filter: null` is the whole history, newest first — the same call the
+    // panel's own load makes. The mode's needle is applied below, in memory.
+    invoke<unknown[]>("clipboard_get_entries", { filter: null })
+      .then((rows) => {
+        if (!cancelled) setClipboardEntries(normalizeEntries(rows));
+      })
+      .catch(() => {
+        if (!cancelled) setClipboardEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clipboardActive, clipboardEnabled]);
+
+  const clipboardRows = useMemo<LauncherItem[]>(() => {
+    if (!clipboardMode) return [];
+    if (!clipboardEnabled) {
+      return [clipboardStatusRow("clipboard-disabled", "clipboard.pageUnavailable", t)];
+    }
+    const now = Date.now();
+    const matches = filterClipboardEntries(clipboardEntries, clipboardMode.needle)
+      .slice(0, CLIPBOARD_FETCH_LIMIT);
+    return matches.length
+      ? matches.map((entry) => clipboardRow(entry, t, now))
+      : [
+          // Two different empty states, and the difference matters: an empty
+          // history is not a search that found nothing, and telling a user to
+          // shorten a query they never typed would be a lie.
+          clipboardStatusRow(
+            "clipboard-empty",
+            clipboardMode.needle ? "clipboard.emptyFilter" : "clipboard.empty",
+            t,
+          ),
+        ];
+  }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
+
   /**
    * The numbered result list: applications and the built-in system actions.
    *
@@ -574,8 +688,9 @@ export function useLauncherCatalog(options: {
    */
   const launcherResults = useMemo<LauncherItem[]>(() => {
     // R26-A: the browser mode owns the whole list — no applications, no
-    // commands, no ranking against them.
+    // commands, no ranking against them. R27: the clipboard mode does the same.
     if (browserMode) return browserRows;
+    if (clipboardMode) return clipboardRows;
     const command = query.trim();
     const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
     if (!command) {
@@ -788,12 +903,13 @@ export function useLauncherCatalog(options: {
     // local match when applications or power actions matched alongside catalog
     // commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [browserMode, browserRows, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, t]);
+  }, [browserMode, clipboardMode, clipboardRows, browserRows, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,
-    // so there is no shell action to offer underneath them.
-    if (browserMode) return null;
+    // so there is no shell action to offer underneath them. R27: the clipboard
+    // mode is the same kind of place.
+    if (browserMode || clipboardMode) return null;
     const value = query.trim();
     if (!value) return null;
     const type = classifyActionBar(value);
@@ -811,13 +927,14 @@ export function useLauncherCatalog(options: {
                 ? t("system.browserSearch")
                 : t("launcher.runInShell");
     return { type, label, value };
-  }, [browserMode, query, t]);
+  }, [browserMode, clipboardMode, query, t]);
 
   const runnableResultFlags = launcherResults.map((item) =>
     item.type === "command"
       ? Boolean(item.execution)
       : !(
           (item.type === "browser" && item.disabled === true) ||
+          (item.type === "clipboard" && item.disabled === true) ||
           (item.type === "system" && item.disabled === true)
         ),
   );

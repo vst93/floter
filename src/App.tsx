@@ -7,6 +7,8 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import {
   AlertCircle,
   Blocks,
+  Clipboard as ClipboardIcon,
+  Globe as GlobeIcon,
   Info,
   Keyboard,
   RefreshCw,
@@ -93,6 +95,7 @@ import {
   withClipboardResultRow,
 } from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
+import { pluginScope } from "./launcher";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
 import "./styles/launcher.css";
@@ -168,6 +171,12 @@ export type AppSettings = {
   clipboard_history_enabled: boolean;
   /** Global hotkey that summons the clipboard panel. */
   clipboard_history_hotkey: string;
+  /** R27 · how many non-favorite clipboard entries the history keeps (10–500,
+   * default 300). The clipboard plugin's own settings page writes it through
+   * `clipboard_set_settings`; the frontend carries the value so a whole-app
+   * settings save cannot silently reset it (the backend re-reads the stored one
+   * in `merge_frontend_settings`). */
+  clipboard_history_max_items: number;
   /** Application path -> launch count, ranking the empty-query recent list. */
   launch_counts: Record<string, number>;
   /** Settings page that was open last, restored on the next launch. */
@@ -210,6 +219,10 @@ export type BrowserPluginSettings = {
   history_days: number;
   cdp_enabled: boolean;
   cdp_port: number;
+  /** R27 · how bookmark and history results are ordered: `"relevance"`,
+   * `"recent"`, `"alphabetical"` or `"visits"`. Written by the plugin's own
+   * settings page; the backend applies it in the search commands. */
+  sort_order: string;
 };
 
 const SETTINGS_WINDOW_HEIGHT = 580;
@@ -689,6 +702,7 @@ export default function App() {
     showRecentInLauncher: settings.show_recent_in_launcher,
     commandAliases: settings.command_aliases,
     browserEnabled: settings.browser_plugin.enabled,
+    clipboardEnabled: settings.clipboard_history_enabled,
     t,
     settingsRef,
     settingsHydration,
@@ -727,9 +741,19 @@ export default function App() {
   // useful thing left to offer. Nine rows in all, which is the whole budget.
   // `withClipboardResultRow` keeps a query that
   // already matched the clipboard command from growing a duplicate.
+  //
+  // R27 · inside a plugin scope (`browser ` / `clip `) the tail is **not**
+  // appended: the list is the plugin's own content, and a "Clipboard History"
+  // row under a list of clipboard entries would be the panel's door inside the
+  // panel. The row is a launcher-wide affordance and stays in every other
+  // state, including the query that matched nothing.
+  const launcherScope = pluginScope(query);
   const displayedResults = useMemo(
-    () => withClipboardResultRow(fileRows.length ? [...fileRows, ...launcherResults] : launcherResults, t),
-    [fileRows, launcherResults, t],
+    () =>
+      launcherScope
+        ? [...launcherResults]
+        : withClipboardResultRow(fileRows.length ? [...fileRows, ...launcherResults] : launcherResults, t),
+    [fileRows, launcherResults, t, launcherScope],
   );
 
   // While the selection is on a file row the action bar describes that file's
@@ -1082,7 +1106,20 @@ export default function App() {
   const launcherBandRef = useRef(0);
   const launcherBand = resolveLauncherBand(launcherBandRef.current, launcherRows);
   launcherBandRef.current = launcherBand;
-  const launcherHeight = launcherBandHeight(launcherBand, launcherScale, launcherMaxHeight);
+  // R27 · the band's height charges the action bar only when the bar is drawn,
+  // and the empty-query heading only when that heading is drawn. Both are
+  // visible in the state the user reported: a query that matched nothing has no
+  // action bar (the shell fallback is gated on a *matched* row), so a band that
+  // always reserved it left 45u of glass under the one clipboard row.
+  const launcherHasBar = visibleActionBar !== null;
+  const launcherSectionTitle = !query.trim() && !fileRows.length;
+  const launcherHeight = launcherBandHeight(
+    launcherBand,
+    launcherScale,
+    launcherMaxHeight,
+    launcherHasBar,
+    launcherSectionTitle,
+  );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
   // to be current when they were installed.
@@ -1935,9 +1972,13 @@ export default function App() {
     // so rather than inviting a query that would match nothing.
     const placeholder = appsError
       ? t("input.scanFailed")
-      : appsLoading && !applications.length
-        ? t("input.scanning")
-        : t("input.placeholder");
+      : launcherScope === "clipboard"
+        ? t("input.placeholderClipboard")
+        : launcherScope === "browser"
+          ? t("input.placeholderBrowser")
+          : appsLoading && !applications.length
+            ? t("input.scanning")
+            : t("input.placeholder");
 
     return (
       <>
@@ -1976,11 +2017,27 @@ export default function App() {
                   caret and the accent seam on the row's floor (see
                   `styles/launcher.css`); a second accent field under the same
                   row was the shadow the user kept asking to be lighter. */}
+              {/* R27 · the plugin scope glyph. In a plugin mode the field is
+                  the plugin's search box, and the glyph is what says so — the
+                  same "one small icon at the left of the field" Raycast and
+                  tinycast use to mark the current scope. It is furniture, not
+                  a control: no listener, `aria-hidden`, and the placeholder
+                  and `aria-label` carry the meaning. Outside a mode it is not
+                  rendered at all, so the field's own left edge is unchanged. */}
+              {launcherScope && (
+                <span className="collapsed-card__scope" aria-hidden="true">
+                  {launcherScope === "clipboard" ? (
+                    <ClipboardIcon size={16} strokeWidth={1.8} />
+                  ) : (
+                    <GlobeIcon size={16} strokeWidth={1.8} />
+                  )}
+                </span>
+              )}
               <input
                 ref={inputRef}
                 className="collapsed-card__input"
                 role="combobox"
-                aria-label={t("input.placeholder")}
+                aria-label={placeholder}
                 aria-autocomplete="list"
                 aria-expanded={displayedResults.length > 0}
                 aria-controls={displayedResults.length > 0 ? "launcher-options" : undefined}
@@ -2165,7 +2222,7 @@ export default function App() {
                   // first file row), and it sits *above* the recent apps. The
                   // "Recently launched" heading renders before the whole list,
                   // so leaving it on would put a label over the wrong rows.
-                  showRecentTitle={!query.trim() && !fileRows.length}
+                  showRecentTitle={launcherSectionTitle}
                   onSelectResult={(index) => {
                     setSelectedActionBar(false);
                     setSelectedResultIndex(index);

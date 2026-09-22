@@ -47,11 +47,16 @@ import {
   clipboardAge,
   clipboardEntryType,
   clipboardPreview,
+  clampClipboardMaxItems,
+  DEFAULT_CLIPBOARD_MAX_ITEMS,
   filterClipboardEntries,
   formatClipboardDateTime,
   formatFilesPreview,
   imageFileMime,
   isFilesPreviewCandidate,
+  MAX_CLIPBOARD_MAX_ITEMS,
+  MIN_CLIPBOARD_MAX_ITEMS,
+  normalizeClipboardSettings,
   normalizeClipboardTypeFilter,
   normalizeEntries,
   normalizeClipboardSession,
@@ -60,6 +65,7 @@ import {
   urlHost,
   type ClipboardEntry,
   type ClipboardEntryType,
+  type ClipboardPluginSettings,
 } from "../../clipboard-history";
 import { clipboardIcon, type ClipboardIconName } from "../../clipboard-icons";
 import {
@@ -358,6 +364,18 @@ const savedTypeFilter = (() => {
 let entries: ClipboardEntry[] = [];
 let filterText = savedSession.filterText;
 let view: ClipboardView = savedSession.view;
+// ── R27 · the plugin's own settings card ─────────────────────────────────
+// The card is a *view* of the page (the browser page's arrangement): the
+// topbar keeps the field and the toggle, and the body swaps the list for the
+// card. `settings` mirrors the backend block; `settingsNotice` is the one-shot
+// saved/failed line the card prints.
+let settingsOpen = false;
+let settings: ClipboardPluginSettings = { max_items: DEFAULT_CLIPBOARD_MAX_ITEMS };
+let settingsNotice: "saved" | "failed" | null = null;
+/** What the painted settings card was built from, so a repaint that changes
+ *  nothing (the 2s poll) does not rebuild the card under the field the user is
+ *  typing in. Null whenever the card is not on screen. */
+let paintedSettingsKey: string | null = null;
 let typeFilter: ClipboardEntryType | null = savedTypeFilter;
 let selected = 0;
 let hydrated = false;
@@ -370,8 +388,7 @@ let pageDisposed = false;
  * the timer that clears it. Kept as state (not a CSS animation) so the tick is
  * driven by the same render pass as everything else and cannot outlive the row
  * it belongs to. */
-let copiedId: string | null = null;
-let copiedTimer: number | null = null;
+let copiedId: string | null = null;let copiedTimer: number | null = null;
 /** Whether the first fetch has landed (successfully or not). Drives the
  * loading state: only a page with nothing on screen yet shows the inline
  * spinner, so a background poll never replaces a populated list. */
@@ -417,6 +434,7 @@ root.innerHTML = `
       <span class="clipboard-panel__prompt" aria-hidden="true"></span>
       <input class="clipboard-panel__search" maxlength="512" spellcheck="false" autocapitalize="off" autocorrect="off" />
       <button type="button" class="clipboard-panel__filter-clear" hidden></button>
+      <button type="button" class="clipboard-panel__settings"></button>
       <div class="clipboard-panel__tabs clipboard-panel__scope" role="group" data-axis="scope">
         <button type="button" class="clipboard-panel__type clipboard-panel__scope-toggle" data-view="favorites" aria-pressed="false"></button>
       </div>
@@ -458,6 +476,7 @@ const saveSession = () => {
   } catch { /* Session storage may be unavailable in a sandbox. */ }
 };
 const filterClear = root.querySelector<HTMLButtonElement>(".clipboard-panel__filter-clear")!;
+const settingsToggle = root.querySelector<HTMLButtonElement>(".clipboard-panel__settings")!;
 const content = root.querySelector<HTMLElement>(".clipboard-panel__content")!;
 const hints = root.querySelector<HTMLElement>(".clipboard-panel__hints")!;
 const clearButton = root.querySelector<HTMLButtonElement>(".clipboard-panel__clear")!;
@@ -1228,6 +1247,28 @@ const render = () => {
 
   filterClear.hidden = !filterText;
 
+  // ── R27 · the plugin settings toggle and view ───────────────────────────
+  // The card replaces the *list*, not the page: the field, the tabs and the
+  // toggle keep their places, and only what sits between them changes — the
+  // same arrangement the browser page's settings card uses, so the two plugin
+  // pages behave alike.
+  settingsToggle.replaceChildren(clipboardIcon(document, "settings", 16));
+  settingsToggle.setAttribute("aria-pressed", String(settingsOpen));
+  settingsToggle.classList.toggle("clipboard-panel__settings--on", settingsOpen);
+  settingsToggle.title = t("clipboardPage.settings");
+  settingsToggle.setAttribute("aria-label", t("clipboardPage.settings"));
+  if (settingsOpen) {
+    const key = `${settings.max_items}:${settingsNotice ?? ""}`;
+    if (paintedSettingsKey !== key || !content.querySelector(".clipboard-panel__settings-host")) {
+      paintedSettingsKey = key;
+      content.replaceChildren(settingsCard());
+    }
+    tally.textContent = "";
+    finish();
+    return;
+  }
+  paintedSettingsKey = null;
+
   const filtered = filteredEntries();
   selected = filtered.length ? Math.min(selected, filtered.length - 1) : 0;
 
@@ -1685,6 +1726,12 @@ const setTypeFilter = (next: ClipboardEntryType | null) => {
 };
 
 window.addEventListener("keydown", (event) => {
+  // R27 · while the settings card is open it owns the keyboard. The card's
+  // number field is not the search field and not a `<button>`, so the resolver
+  // below would classify it as a list row and steal ArrowUp/ArrowDown (and
+  // rebuild the card under the caret). The host still closes the page on
+  // Escape/Cmd+W; this guard only silences the list's own keys.
+  if (settingsOpen) return;
   // The whole decision is a pure function (see `resolveClipboardKey` in
   // `clipboard-list.ts`); this handler is only the *executor*. Keeping the
   // policy out of the DOM is what lets the node suite drive the rewritten
@@ -1773,6 +1820,98 @@ window.addEventListener("keydown", (event) => {
   }
 }, { capture: true });
 
+// ── R27 · the plugin's own settings card ──────────────────────────────────
+
+/**
+ * The capacity control, on the shared `.plugin-settings` sheet both plugin
+ * pages import (see `src/plugins/settings-card.css`).
+ *
+ * One field, and it writes through `clipboard_set_settings` — the narrow pair
+ * that touches exactly this block. A whole-app settings save could not do the
+ * job: the host screen submits the entire settings object, and a page has no
+ * business rewriting fields it does not own.
+ */
+const settingsCard = (): HTMLElement => {
+  const host = document.createElement("div");
+  host.className = "clipboard-panel__settings-host";
+  const card = document.createElement("div");
+  card.className = "plugin-settings";
+
+  const title = document.createElement("div");
+  title.className = "plugin-settings__title";
+  title.textContent = t("clipboardPage.settings");
+  card.append(title);
+
+  const field = document.createElement("label");
+  field.className = "plugin-field";
+  const label = document.createElement("span");
+  label.className = "plugin-field__label";
+  label.textContent = t("clipboardPage.maxItems");
+  const input = document.createElement("input");
+  input.className = "plugin-field__control plugin-field__control--number";
+  input.type = "number";
+  input.min = String(MIN_CLIPBOARD_MAX_ITEMS);
+  input.max = String(MAX_CLIPBOARD_MAX_ITEMS);
+  input.value = String(settings.max_items);
+  input.setAttribute("aria-label", t("clipboardPage.maxItems"));
+  input.addEventListener("change", () => {
+    // Show the clamped value immediately: the user sees what was saved, not
+    // what they typed. The backend clamps with the same range, so the two can
+    // never disagree about the stored number.
+    const next = clampClipboardMaxItems(Number(input.value));
+    input.value = String(next);
+    void saveSettings({ max_items: next });
+  });
+  const hint = document.createElement("span");
+  hint.className = "plugin-field__hint";
+  hint.textContent =
+    `${t("clipboardPage.maxItemsHint")} · ${t("clipboardPage.maxItemsValue", { count: settings.max_items })}`;
+  field.append(label, input, hint);
+  card.append(field);
+
+  if (settingsNotice === "saved" || settingsNotice === "failed") {
+    const notice = document.createElement("div");
+    notice.className = "plugin-settings__notice"
+      + (settingsNotice === "failed" ? " plugin-settings__notice--error" : "");
+    notice.textContent = t(
+      settingsNotice === "failed" ? "clipboardPage.settingsFailed" : "clipboardPage.settingsSaved",
+    );
+    card.append(notice);
+  }
+
+  host.append(card);
+  return host;
+};
+
+/** Read the plugin's settings. A failure leaves the shipped capacity on screen;
+ *  the history itself is unaffected, and the next open retries. */
+const loadSettings = async (): Promise<void> => {
+  try {
+    settings = normalizeClipboardSettings(await invokeCommand<unknown>("clipboard_get_settings"));
+  } catch {
+    /* Keep the shipped default. */
+  }
+};
+
+/** Write the card's state back and re-read the history, so the page shows what
+ *  was stored rather than what was typed. Lowering the capacity truncates the
+ *  history on the backend, so the list has to be re-read or it would keep
+ *  painting rows that no longer exist. */
+const saveSettings = async (next: ClipboardPluginSettings): Promise<void> => {
+  try {
+    settings = normalizeClipboardSettings(
+      await invokeCommand<unknown>("clipboard_set_settings", { settings: next }),
+    );
+    settingsNotice = "saved";
+  } catch {
+    settingsNotice = "failed";
+    render();
+    return;
+  }
+  await reload();
+  render();
+};
+
 // ---- wiring ---------------------------------------------------------------
 
 let composing = false;
@@ -1790,6 +1929,17 @@ filterClear.addEventListener("click", () => {
   searchInput.value = "";
   selected = 0;
   searchInput.focus();
+  render();
+});
+// R27 · the settings toggle. Opening the card clears a half-armed "clear
+// history" confirmation: the two are different intentions, and leaving the
+// confirm armed behind a card the user then walks away from would fire on the
+// next click of a button they had forgotten about.
+settingsToggle.addEventListener("mousedown", (event) => event.preventDefault());
+settingsToggle.addEventListener("click", () => {
+  if (clearArmed) disarmClear();
+  settingsOpen = !settingsOpen;
+  if (settingsOpen) settingsNotice = null;
   render();
 });
 // ── The two tab groups ───────────────────────────────────────────────────
@@ -1875,6 +2025,10 @@ searchInput.focus();
 // Render immediately so the page is never blank (falls back to page.css
 // styles even if the @import chain is slow), then hydrate with data.
 render();
+// R27 · the settings card's value arrives over the bridge; repaint when it
+// does so an already-open card shows the stored number rather than the
+// shipped default.
+void loadSettings().then(() => render());
 void reload().then(() => {
   render();
   // Start periodic refresh after initial load.
