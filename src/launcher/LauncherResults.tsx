@@ -32,7 +32,17 @@ export type LauncherItem =
       execution: ExecutionPlan | null;
       completion: boolean;
     }
-  | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction }
+  | {
+      type: "system";
+      id: string;
+      title: string;
+      subtitle: string;
+      action: SystemAction;
+      /** R26-D · a status row rather than a runnable action (the browser plugin
+       *  switched off). Rendered dimmed and skipped by Enter, the numbered
+       *  shortcuts and the pointer, like a disabled browser row. */
+      disabled?: boolean;
+    }
   /**
    * R26-A · a browser bookmark or history row, produced by the launcher's
    * browser result mode. `url` is what Enter opens; `profileKey` says which
@@ -248,6 +258,7 @@ export function LauncherResults({
             const selected = !selectedActionBar && index === selectedResultIndex;
             const unavailable =
               (item.type === "command" && !item.execution) ||
+              (item.type === "system" && item.disabled === true) ||
               (item.type === "browser" && item.disabled === true);
             const warnings = item.type === "command" ? item.warnings : [];
             const isHistory = item.type === "history";

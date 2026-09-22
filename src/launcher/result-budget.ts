@@ -200,6 +200,86 @@ export const LAUNCHER_WINDOW_HEIGHT =
 export const launcherWindowHeight = (scale: number): number =>
   Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * scale + LAUNCHER_WINDOW_HEIGHT_CHROME);
 
+/**
+ * R26-D · one height band the launcher window may snap to.
+ *
+ * The user's report, verbatim: 「现在搜索页好像固定了高度，搜索和书签列表页高度都
+ * 受到了影响」. R25 fixed the shake by making the window a single constant slab
+ * (`LAUNCHER_WINDOW_HEIGHT`), which is right while a full list is showing and
+ * wrong the moment it is not: the empty query, a two-row bookmark search and a
+ * three-tab browser list all sat in a 527px window with most of the panel
+ * blank. The fix keeps the slab (a keystroke must never move the window) but
+ * lets the slab have *discrete* sizes.
+ *
+ * `capacity` is the worst-case row count the band's height holds — every row
+ * two-line, the same assumption the full budget makes. `floor` is the smallest
+ * row count that opens the band, i.e. the row below which the window steps back
+ * down. The two differ so a count oscillating across a boundary (5↔6 rows while
+ * typing) cannot resize: the band holds until the count falls a row *below* its
+ * floor.
+ *
+ * The bands are chosen so each step is one row-shorter than the last in the
+ * unit budget and the top band is exactly `LAUNCHER_WINDOW_HEIGHT`: a short
+ * list lands compact, a long one lands full, and there is one middle step so the
+ * jump from “a couple of rows” to “a full list” is not a single 300px snap.
+ */
+export type LauncherHeightBand = { capacity: number; floor: number };
+
+/** The bands, smallest first. The last capacity is always `MAX_RESULTS`. */
+export const LAUNCHER_HEIGHT_BANDS: readonly LauncherHeightBand[] = [
+  { capacity: 2, floor: 1 },
+  { capacity: 5, floor: 3 },
+  { capacity: MAX_RESULTS, floor: 6 },
+];
+
+/** How many rows below a band's floor the count must fall before the window
+ *  steps down. One is enough: a boundary oscillation is a one-row move, so
+ *  requiring a row of margin on the way out kills the flap without making a
+ *  genuinely shorter list wait. */
+export const LAUNCHER_BAND_HYSTERESIS = 1;
+
+/** The band a row count belongs to, ignoring the current band. The count is
+ *  floored at one row — the launcher always draws its fixed clipboard tail. */
+export const launcherBandIndex = (rows: number): number => {
+  const count = Math.max(1, Math.ceil(rows));
+  const index = LAUNCHER_HEIGHT_BANDS.findIndex((band) => count <= band.capacity);
+  return index === -1 ? LAUNCHER_HEIGHT_BANDS.length - 1 : index;
+};
+
+/**
+ * Resolve the band to draw for `rows`, from the band currently drawn.
+ *
+ * Grow immediately — a band that no longer holds the content would clip it —
+ * and shrink only once the count has fallen `LAUNCHER_BAND_HYSTERESIS` rows
+ * below the current band's floor. That asymmetry is what makes “typing never
+ * resizes” true inside a band: a keystroke that filters 6 rows to 5 keeps the
+ * full slab, and only a real move (5 → 2 rows) steps the window down once.
+ */
+export const resolveLauncherBand = (current: number, rows: number): number => {
+  const target = launcherBandIndex(rows);
+  if (target > current) return target;
+  if (target === current) return current;
+  const floor = LAUNCHER_HEIGHT_BANDS[current]?.floor ?? 1;
+  return rows < floor - LAUNCHER_BAND_HYSTERESIS ? target : current;
+};
+
+/** The unit height of a band: the full budget less one row for every row of
+ *  capacity the band gives up. Band 0 at two rows is `475u - 7 × 42u = 181u`. */
+export const launcherBandUnits = (band: number): number => {
+  const clamped = Math.max(0, Math.min(LAUNCHER_HEIGHT_BANDS.length - 1, band));
+  const capacity = LAUNCHER_HEIGHT_BANDS[clamped].capacity;
+  return LAUNCHER_WINDOW_HEIGHT_UNITS - (MAX_RESULTS - capacity) * ROW_HEIGHT_TWO_LINE;
+};
+
+/** A band's window height at an interface step, never above the display cap.
+ *  The unit part scales; the chrome is added once, unscaled, exactly as
+ *  {@link launcherWindowHeight} does for the full slab. */
+export const launcherBandHeight = (band: number, scale: number, maxHeight: number): number =>
+  Math.min(
+    Math.ceil(launcherBandUnits(band) * scale + LAUNCHER_WINDOW_HEIGHT_CHROME),
+    maxHeight,
+  );
+
 /** Whether a row is *a* clipboard row — the fixed one, or the one the query
  *  produced by matching the clipboard system command. Either way the list must
  *  not grow a second one. */

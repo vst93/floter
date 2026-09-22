@@ -13,22 +13,28 @@ import { LAUNCHER_WINDOW_HEIGHT } from "../launcher/result-budget.ts";
  * so every keystroke that changed how many rows matched resized the native
  * window, and the ResizeObserver's R20 settle pass could fire two or three
  * times inside one keystroke. The user's report is that shake: 「现在搜索页面
- * 输入进行过滤时页面整体有抖动的情况，不像原生应用」. The window now has the
- * height of the ten-row budget (`LAUNCHER_WINDOW_HEIGHT`) from the moment the
- * launcher opens until it is closed: typing, clearing the query, a tip
- * appearing, a feedback row arriving — none of them may move the window. What
- * moves is the list inside it, which scrolls.
+ * 输入进行过滤时页面整体有抖动的情况，不像原生应用」. The window now holds a
+ * budget height (`LAUNCHER_WINDOW_HEIGHT`, or a shorter R26-D band) while the
+ * launcher is open: typing, clearing the query, a tip appearing, a feedback row
+ * arriving — none of them may move the window *within a band*. What moves is
+ * the list inside it, which scrolls.
  *
- * The measurement survives as the one thing a constant cannot express: a card
- * whose content genuinely outgrew the budget (a first-run tip above a full
- * list, a font landing late) must not be clipped. The target is therefore the
- * larger of the two, and in every ordinary state they agree, so the guards
- * below turn each of those calls into a no-op instead of a native resize.
+ * R26-D · the height is a **band**, not one fixed slab. The caller hands the
+ * band's height (App.tsx resolves it from the row count, with hysteresis), so
+ * this hook still never measures to *decide*: a keystroke that keeps the same
+ * band hands back the same number and the guards below turn it into a no-op. A
+ * band crossing is one deliberate `setSize`.
  *
- * `windowHeight` is the constant at the caller's interface step, already
- * clamped to the display: it is a *height*, not a step, so this hook never
- * multiplies anything — a measurement is read back in the pixels the browser
- * laid out (see the step tests in the node suite).
+ * The measurement survives as the one thing a band cannot express: a card whose
+ * content genuinely outgrew the window it is drawn in (a first-run tip above a
+ * full list, a font landing late) must not be clipped. The target is therefore
+ * the band's height, raised only when the measurement exceeds the *current*
+ * window — see {@link launcherTargetHeight}.
+ *
+ * `windowHeight` is the caller's band at its interface step, already clamped to
+ * the display: it is a *height*, not a step, so this hook never multiplies
+ * anything — a measurement is read back in the pixels the browser laid out (see
+ * the step tests in the node suite).
  */
 export function useLauncherHeight(
   mode: string,
@@ -110,19 +116,34 @@ export function syncLauncherHeight(
  *
  * R25 · the constant is the answer in every state the sheets can draw; the
  * measurement is the guard for the states they cannot (see the note on the
- * hook). The card is pinned to the window's height, so its content box is the
- * window in the ordinary case and this `max` returns the constant verbatim —
- * the window does not move while the user types.
+ * hook).
  *
- * The shell's reservation is added to the constant rather than being part of
- * it: Windows and Linux pad `.collapsed-shell` so the card's box-shadow has
+ * R26-D · the measurement is now an *overflow* guard only. The card fills the
+ * window (`height: 100%`), so `measureCardHeight` returns the current window
+ * height in every ordinary state; comparing that with the budget (R25's
+ * `Math.max(windowHeight, measured)`) meant the window could never shrink — the
+ * card always “measured” as tall as the slab it was drawn in. What genuinely
+ * means “the content outgrew the window” is the measurement exceeding the
+ * window that is *currently* showing, so the guard raises only then. Otherwise
+ * the caller's height — the R26-D band, or the full slab — is the answer, and a
+ * shorter band may step the window down.
+ *
+ * The shell's reservation is added to the caller's height rather than being part
+ * of it: Windows and Linux pad `.collapsed-shell` so the card's box-shadow has
  * somewhere to land (macOS does not), and that padding comes out of the
  * window's height *before* the card sees any of it. It is a constant of the
  * platform's sheet — the same number every frame — which is why it can sit on
- * the constant side of the `max` without the window moving.
+ * the target side without the window moving.
  */
-const launcherTargetHeight = (card: HTMLElement, windowHeight: number): number =>
-  Math.max(windowHeight + shellPaddingHeight(card), measureCardHeight(card));
+const launcherTargetHeight = (card: HTMLElement, windowHeight: number): number => {
+  const base = windowHeight + shellPaddingHeight(card);
+  const measured = measureCardHeight(card);
+  const current = currentWindowHeight();
+  if (Number.isFinite(current) && measured > current + 1) {
+    return Math.max(base, measured);
+  }
+  return base;
+};
 
 /**
  * The height a launcher resize has asked the platform for, while that request

@@ -186,10 +186,12 @@ pub fn builtin_plugin_infos(
             // this is where it reads from.
             enabled: match descriptor.id {
                 CLIPBOARD_PLUGIN_ID => settings.clipboard_history_enabled,
-                // The browser plugin has no on/off switch: it is inert until
-                // the user types one of its trigger words, so "available" is
-                // the honest state.
-                BROWSER_PLUGIN_ID => true,
+                // R26-D · the browser plugin now has a real switch: its
+                // persisted state lives in the plugin's own settings block,
+                // exactly as the clipboard one lives in its long-standing
+                // field. Disabled, the launcher entry, the result list, the
+                // settings page and the notification entry all soft-close.
+                BROWSER_PLUGIN_ID => settings.browser_plugin.enabled,
                 _ => false,
             },
         })
@@ -351,9 +353,34 @@ mod tests {
             .iter()
             .find(|info| info.id == BROWSER_PLUGIN_ID)
             .expect("browser row");
-        assert!(browser.enabled, "the browser plugin is always available");
+        assert!(
+            browser.enabled,
+            "the browser plugin ships switched on"
+        );
         assert!(browser.has_page, "the browser row opens its settings page");
         assert_eq!(browser.title_key, "settings.browser");
         assert_eq!(browser.description_key, "settings.browserHint");
+    }
+
+    /// R26-D · the browser row's switch reads the plugin's own persisted
+    /// `enabled`, and switching it off is visible in the very list the settings
+    /// panel renders — the switch is not a frontend-only illusion.
+    #[test]
+    fn the_browser_row_reflects_the_plugins_own_switch() {
+        let mut settings = crate::commands::config::AppSettings::default();
+        settings.browser_plugin.enabled = false;
+        let infos = builtin_plugin_infos(&settings);
+        let browser = infos
+            .iter()
+            .find(|info| info.id == BROWSER_PLUGIN_ID)
+            .expect("browser row");
+        assert!(!browser.enabled, "the row follows browser_plugin.enabled");
+        // The clipboard switch is an independent field: disabling the browser
+        // must not touch it.
+        let clipboard = infos
+            .iter()
+            .find(|info| info.id == CLIPBOARD_PLUGIN_ID)
+            .expect("clipboard row");
+        assert!(clipboard.enabled);
     }
 }

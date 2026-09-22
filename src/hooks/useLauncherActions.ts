@@ -462,6 +462,9 @@ export function useLauncherActions(options: {
     // mode's own parser owns the trigger vocabulary, so the two can never
     // disagree about the word.
     if (item.action === "browser") {
+      // R26-D · a disabled row is a note, not a door: pressing Enter on it must
+      // not open the mode the plugin is switched out of.
+      if (item.disabled) return;
       setQuery("browser ");
       setHistoryIndex(-1);
       return;

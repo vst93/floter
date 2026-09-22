@@ -15,6 +15,7 @@ import {
   CLIPBOARD_PLUGIN_ID,
   buildPluginPageUrl,
   commandAllowed,
+  pluginPageNeedsSameOrigin,
   isBridgeClose,
   isBridgeDrag,
   isBridgeGlass,
@@ -305,4 +306,56 @@ test("the base-plugin list carries builtin.browser and mirrors the Rust registry
     /basePlugins=\{BUILTIN_BASE_PLUGINS/,
     "App.tsx must render the shared base-plugin list, not a hand-written array",
   );
+});
+
+// R26-D · every registered plugin page must announce the protocol.
+//
+// The user's report, verbatim: 「插件加载失败 此页面未声明插件页协议版本。本版本
+// 支持协议 1。请更新页面以发送 frame-ready 握手」. The browser page *did* send
+// the handshake — its module never ran, because the host only granted
+// `allow-same-origin` to the clipboard id and WebKit refused the opaque-origin
+// frame's ES module. The root cause is pinned separately below; this guard is
+// the general one: whatever the registry lists, its entry module must send the
+// handshake. It is driven off the Rust registry, so a new descriptor cannot
+// ship a page that never announces itself.
+test("every registered plugin page's entry module sends the frame-ready handshake", async () => {
+  const rust = await readFile(new URL("src-tauri/src/plugin_pages.rs", root), "utf8");
+  const descriptorsAt = rust.indexOf("static DESCRIPTORS");
+  assert.notEqual(descriptorsAt, -1, "the Rust descriptor registry must exist");
+  const pages = [...rust.slice(descriptorsAt).matchAll(/page: "([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(pages.length >= 2, `expected the registry to list pages, saw ${pages.length}`);
+
+  for (const page of pages) {
+    const html = await readFile(new URL(page, root), "utf8");
+    const script = /<script type="module" src="([^"]+)"/.exec(html);
+    assert.ok(script, `${page} must load an ES module entry`);
+    const entryPath = script![1].replace(/^\//, "");
+    const entry = await readFile(new URL(entryPath, root), "utf8");
+    assert.match(
+      entry,
+      /\{ \[BRIDGE_TAG\]: "frame-ready", protocol: PLUGIN_PAGE_PROTOCOL \}/,
+      `${entryPath} (the entry for ${page}) must send the frame-ready handshake`,
+    );
+  }
+});
+
+// R26-D · the sandbox exception is a *set*, not a clipboard-only special case.
+//
+// The bug that produced the missing handshake above: `PluginPageHost` wrote
+// `descriptor?.id === CLIPBOARD_PLUGIN_ID` inline, so the browser page (a
+// built-in that ships bundled assets on the app origin, exactly like the
+// clipboard page) was sandboxed with an opaque origin and its module never
+// loaded on WebKit. Every built-in page must be in the same-origin set.
+test("every built-in plugin page is sandboxed with allow-same-origin", () => {
+  for (const plugin of BUILTIN_BASE_PLUGINS) {
+    if (!plugin.hasPage) continue;
+    assert.equal(
+      pluginPageNeedsSameOrigin(plugin.id),
+      true,
+      `${plugin.id} ships bundled assets and must load same-origin`,
+    );
+  }
+  assert.equal(pluginPageNeedsSameOrigin("external.example"), false);
+  assert.equal(pluginPageNeedsSameOrigin(null), false);
+  assert.equal(pluginPageNeedsSameOrigin(undefined), false);
 });

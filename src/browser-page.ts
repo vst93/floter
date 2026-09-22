@@ -49,6 +49,11 @@ export type BrowserTab = {
 
 /** The plugin's settings block, mirroring `BrowserPluginSettings` in Rust. */
 export type BrowserPluginSettings = {
+  /** R26-D · the plugin's on/off switch. The page's own settings card does not
+   *  draw it (the switch lives on the host's base-plugins row), but the value
+   *  rides the block so the page and the host read one shape. The backend
+   *  preserves the stored flag on write regardless of what the page sends. */
+  enabled: boolean;
   target: string;
   custom_base_dir: string | null;
   history_days: number;
@@ -66,6 +71,7 @@ export const MAX_HISTORY_DAYS = 3650;
 /** The shipped settings, used until the backend answers and when an answer is
  * unreadable. Identical to `BrowserPluginSettings::default()` in Rust. */
 export const defaultBrowserSettings = (): BrowserPluginSettings => ({
+  enabled: true,
   target: "auto",
   custom_base_dir: null,
   history_days: 30,
@@ -193,6 +199,7 @@ export const normalizeBrowserSettings = (value: unknown): BrowserPluginSettings 
   const record = asRecord(value) ?? {};
   const custom = record.custom_base_dir;
   return {
+    enabled: asBoolean(record.enabled, true),
     target: asString(record.target, "auto") || "auto",
     custom_base_dir:
       typeof custom === "string" && custom.trim() ? custom.trim() : null,

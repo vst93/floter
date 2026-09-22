@@ -60,7 +60,7 @@ import {
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
-import { BUILTIN_BASE_PLUGINS, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
+import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import {
   formatResultShortcut,
   formatShortcut,
@@ -85,7 +85,9 @@ import {
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
+  launcherBandHeight,
   launcherWindowHeight,
+  resolveLauncherBand,
   RESULTS_VIEWPORT_CHROME,
   shortcutSlotsWithFixedTail,
   withClipboardResultRow,
@@ -190,7 +192,9 @@ export type AppSettings = {
    * or a browser id from `browser_discover`; `custom_base_dir` adds a
    * non-standard profile directory; `history_days` bounds history search
    * (`0` disables the filter). R26-B adds the DevTools debug-port pair the
-   * plugin's own page edits. The backend normalizes all five on save. */
+   * plugin's own page edits. R26-D adds the plugin's on/off switch, which the
+   * settings panel's base-plugins row flips. The backend normalizes all six on
+   * save. */
   browser_plugin: BrowserPluginSettings;
 }
 
@@ -199,6 +203,8 @@ export type AppSettings = {
  *  save submits this object, so a missing member would be read back as its
  *  default and silently wipe the plugin page's own choices. */
 export type BrowserPluginSettings = {
+  /** R26-D · the plugin's persisted on/off switch (the settings row's toggle). */
+  enabled: boolean;
   target: string;
   custom_base_dir: string | null;
   history_days: number;
@@ -577,7 +583,21 @@ export default function App() {
    * `restoringMode`: sizing belongs to the backend here — the mode effect
    * calls `show_plugin_page`, which applies the same saved geometry terminal
    * mode uses. */
+  // R26-D · the browser plugin's switch, readable from the once-registered
+  // listeners (the hotkey / `floter://plugin-page` path) without closing over
+  // the settings object that happened to be current when they were installed.
+  const browserPluginEnabledRef = useRef(settings.browser_plugin.enabled);
+  browserPluginEnabledRef.current = settings.browser_plugin.enabled;
+
   const openPluginPage = (pluginId: string) => {
+    // The browser plugin's page sits behind the plugin's own switch. Refusing
+    // here — with a reason — is what keeps every trigger honest: the settings
+    // row's Configure button, the global hotkey and `floter://plugin-page` all
+    // funnel through this one path. The clipboard page is unaffected.
+    if (pluginId === BROWSER_PLUGIN_ID && !browserPluginEnabledRef.current) {
+      notify("error", tRef.current("settings.browserDisabled"));
+      return;
+    }
     suppressBlurUntil.current = Date.now() + 400;
     if (modeRef.current !== "plugin") {
       pluginReturnMode.current = modeRef.current === "terminal" ? "terminal" : "collapsed";
@@ -668,6 +688,7 @@ export default function App() {
     showCommandsInSearch: settings.show_commands_in_search,
     showRecentInLauncher: settings.show_recent_in_launcher,
     commandAliases: settings.command_aliases,
+    browserEnabled: settings.browser_plugin.enabled,
     t,
     settingsRef,
     settingsHydration,
@@ -1026,27 +1047,50 @@ export default function App() {
     });
   }, [displayedResults.length]);
 
-  // R25 · the launcher window is a **fixed slab**: the ten-row budget, scaled
-  // once here (the only place that knows the interface step) and clamped to the
-  // display. Nothing a keystroke does may resize it — that is the whole fix for
+  // R25/R26-D · the launcher window is a **slab with discrete sizes**: the
+  // ten-row budget is the tallest, and shorter content snaps to a smaller band
+  // (see `LAUNCHER_HEIGHT_BANDS`). The step is read once here (the only place
+  // that knows the interface step) and clamped to the display. Nothing a
+  // keystroke does may resize it — that is the whole fix for
   // 「输入进行过滤时页面整体有抖动」 — so the value is computed from the budget
-  // and handed to the hook and to every imperative sync, never measured.
+  // and the row count, and handed to the hook and to every imperative sync,
+  // never measured.
   //
   // The step multiplies the *budget*, not a measurement: the card is drawn from
   // scaled CSS, so a measurement already carries the step and multiplying it
   // again would scale twice (see `useLauncherHeight`).
-  const launcherHeight = Math.min(
-    launcherWindowHeight(uiScaleFactor(settings.ui_scale)),
+  const launcherScale = uiScaleFactor(settings.ui_scale);
+  const launcherMaxHeight = Math.min(
+    launcherWindowHeight(launcherScale),
     Math.max(240, window.screen.availHeight - 24),
   );
+  // R26-D · how many rows the window has to hold right now. The composed list
+  // (the fixed clipboard tail included) is the row count; the first-run tip and
+  // the feedback/error rows are content too, so each is charged as one row —
+  // they are at most a row tall, and counting them keeps a band from landing one
+  // row short.
+  const launcherRows = Math.max(
+    1,
+    displayedResults.length +
+      (showOnboardingTip ? 1 : 0) +
+      (launcherFeedback || appsError || pendingSystemAction ? 1 : 0),
+  );
+  // The band is sticky: growing is immediate (a band too short would clip), and
+  // shrinking waits for the row count to fall a row below the band's floor, so a
+  // query oscillating across a boundary does not resize the window. See
+  // `resolveLauncherBand`.
+  const launcherBandRef = useRef(0);
+  const launcherBand = resolveLauncherBand(launcherBandRef.current, launcherRows);
+  launcherBandRef.current = launcherBand;
+  const launcherHeight = launcherBandHeight(launcherBand, launcherScale, launcherMaxHeight);
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
   // to be current when they were installed.
   const launcherHeightRef = useRef(launcherHeight);
   launcherHeightRef.current = launcherHeight;
 
-  // The launcher window is a constant height now; the hook holds it there and
-  // only raises it for a card that genuinely outgrew the budget. Extracted into
+  // The launcher window is the band's height now; the hook holds it there and
+  // only raises it for a card that genuinely outgrew the window. Extracted into
   // useLauncherHeight hook.
   //
   // R7-13c: `settings.ui_scale` is in the dependency list on purpose. The budget
@@ -1804,13 +1848,29 @@ export default function App() {
                 onChangeCommandAlias={changeCommandAlias}
                 basePlugins={BUILTIN_BASE_PLUGINS.map((plugin) => ({
                   ...plugin,
-                  // The clipboard switch is the only persisted one; every other
-                  // base plugin is always available (see `BUILTIN_BASE_PLUGINS`).
-                  enabled: plugin.toggleable ? settings.clipboard_history_enabled : true,
+                  // Each base plugin's switch reads its own persisted field: the
+                  // clipboard's long-standing `clipboard_history_enabled` and
+                  // the browser's `browser_plugin.enabled`. A plugin without a
+                  // switch (`toggleable: false`) is reported available.
+                  enabled: plugin.toggleable
+                    ? plugin.id === BROWSER_PLUGIN_ID
+                      ? settings.browser_plugin.enabled
+                      : settings.clipboard_history_enabled
+                    : true,
                 }))}
                 onToggleBasePlugin={(id, enabled) => {
-                  if (id !== CLIPBOARD_PLUGIN_ID) return;
-                  changeGeneralSetting("clipboard_history_enabled", enabled);
+                  if (id === CLIPBOARD_PLUGIN_ID) {
+                    changeGeneralSetting("clipboard_history_enabled", enabled);
+                    return;
+                  }
+                  if (id === BROWSER_PLUGIN_ID) {
+                    // The switch is one field of the plugin's own block, so the
+                    // write carries the rest of the block forward unchanged.
+                    changeGeneralSetting("browser_plugin", {
+                      ...settings.browser_plugin,
+                      enabled,
+                    });
+                  }
                 }}
                 onOpenPluginPage={(id) => openPluginPage(id)}
                 onNotify={notify}

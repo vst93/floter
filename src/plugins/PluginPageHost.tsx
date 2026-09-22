@@ -3,7 +3,6 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   BRIDGE_TAG,
-  CLIPBOARD_PLUGIN_ID,
   PLUGIN_PAGE_PROTOCOL,
   buildPluginPageUrl,
   commandAllowed,
@@ -15,6 +14,7 @@ import {
   isBridgeRequest,
   isBridgeResult,
   pluginPageHandshake,
+  pluginPageNeedsSameOrigin,
   shouldStartWindowDrag,
 } from "../plugin-pages";
 import type { BridgeNotifyRetry, BridgeOpacity, BridgeTheme, BridgeReload, BridgeVisibility, BridgeGlass, HandshakeVerdict } from "../plugin-pages";
@@ -532,9 +532,13 @@ export function PluginPageHost({
             className="plugin-page-host__frame"
             src={src}
             title={descriptor ? t(descriptor.titleKey as MessageKey) : pluginId ?? ""}
-            // WebKit needs same-origin for the built-in page to load its bundled
-            // stylesheet; external plugin pages retain the opaque-origin sandbox.
-            sandbox={descriptor?.id === CLIPBOARD_PLUGIN_ID ? "allow-scripts allow-same-origin" : "allow-scripts"}
+            // WebKit needs same-origin for a built-in page to load its bundled
+            // stylesheet and module entry; external plugin pages retain the
+            // opaque-origin sandbox. The set is the one in `plugin-pages.ts`
+            // (`pluginPageNeedsSameOrigin`), not a clipboard-only special case:
+            // the browser page is a built-in too, and an opaque-origin frame on
+            // WebKit never ran its module — so it never sent `frame-ready`.
+            sandbox={pluginPageNeedsSameOrigin(descriptor?.id) ? "allow-scripts allow-same-origin" : "allow-scripts"}
             onLoad={handleFrameLoad}
             // A refused handshake hides the frame but keeps it mounted: the
             // error state below is what the user must see, and unmounting on a

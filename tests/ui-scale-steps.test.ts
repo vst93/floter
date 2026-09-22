@@ -255,6 +255,10 @@ test("the real measurement asks for the budget constant, and only a card taller 
     value: { toJSON(): { Logical: { width: number; height: number } } };
   };
   globalWindow.window = {
+    // The height the native reveal left behind (the bare input row). The
+    // overflow guard compares the card against the window that is *currently*
+    // showing, so the double has to carry — and move with — that number.
+    innerHeight: 58,
     __TAURI_INTERNALS__: {
       metadata: { currentWindow: { label: "main" } },
       invoke: async (cmd: string, args: unknown) => {
@@ -263,6 +267,7 @@ test("the real measurement asks for the budget constant, and only a card taller 
         if (cmd === "plugin:window|set_size") {
           const { width, height } = (args as SetSizeArgs).value.toJSON().Logical;
           sizes.push({ width, height });
+          (globalWindow.window as { innerHeight: number }).innerHeight = height;
         }
         return undefined;
       },

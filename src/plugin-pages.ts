@@ -506,9 +506,11 @@ export type BuiltinBasePlugin = {
   titleKey: MessageKey;
   /** i18n key for the row's one-line description. */
   descriptionKey: MessageKey;
-  /** Whether the plugin has a persisted on/off switch. The clipboard plugin
-   *  does; the browser plugin is always available and only offers its own
-   *  settings page, so it renders no switch rather than a dead one. */
+  /** Whether the plugin has a persisted on/off switch. Both built-in plugins
+   *  do: the clipboard switch lives in its long-standing
+   *  `clipboard_history_enabled` field and the browser's in its own
+   *  `browser_plugin.enabled`. A future always-on plugin would render no switch
+   *  rather than a dead one. */
   toggleable: boolean;
   /** Whether the plugin declares an HTML settings page the row can open. */
   hasPage: boolean;
@@ -542,7 +544,28 @@ export const BUILTIN_BASE_PLUGINS: readonly BuiltinBasePlugin[] = [
     id: BROWSER_PLUGIN_ID,
     titleKey: "settings.browser",
     descriptionKey: "settings.browserHint",
-    toggleable: false,
+    toggleable: true,
     hasPage: true,
   },
 ];
+
+/**
+ * The built-in pages that must be sandboxed with `allow-same-origin`.
+ *
+ * Both built-ins ship as bundled assets on the app's own origin, and WebKit
+ * refuses to load a bundled stylesheet (and, for an ES module entry, the module
+ * itself) from an opaque-origin frame. R26-B gave the browser plugin a page but
+ * only the clipboard id was special-cased in `PluginPageHost`, so on macOS the
+ * browser page's module never ran — and a page whose script never runs never
+ * sends its `frame-ready`, which is exactly the “此页面未声明插件页协议版本”
+ * the user saw. This list is the one place that decides the exception; a page
+ * not named here keeps the opaque-origin sandbox.
+ */
+export const SAME_ORIGIN_PLUGIN_PAGES: readonly string[] = [
+  CLIPBOARD_PLUGIN_ID,
+  BROWSER_PLUGIN_ID,
+];
+
+/** Whether a plugin page may load same-origin (bundled) assets. */
+export const pluginPageNeedsSameOrigin = (id: string | null | undefined): boolean =>
+  id !== null && id !== undefined && SAME_ORIGIN_PLUGIN_PAGES.includes(id);

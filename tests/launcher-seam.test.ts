@@ -345,10 +345,9 @@ test("the window is re-measured after the resize settles, so the card is never l
   );
   // The correction: after the resize resolves, re-measure on the next frame and
   // resize again only if the content really did move.
-  // R25 · the re-measure now feeds the same target rule the first resize used —
-  // the budget constant, raised by the card's own content when it genuinely
-  // outgrew it — so the ordinary card settles back onto the height that was
-  // asked for and the pass ends without a second `setSize`.
+  // R26-D · the re-measure feeds the same target rule the first resize used,
+  // so the ordinary card settles back onto the height that was asked for and
+  // the pass ends without a second `setSize`.
   assert.match(
     hook,
     /\.then\(\(\) => \{[\s\S]*?reassertCollapsedFocus\(\);[\s\S]*?afterPaint\(\(\) => \{[\s\S]*?launcherTargetHeight\(card, height\)[\s\S]*?settled !== height[\s\S]*?resizeLauncherWindow\(card, settled/,
@@ -356,8 +355,13 @@ test("the window is re-measured after the resize settles, so the card is never l
   );
   assert.match(
     hook,
-    /Math\.max\(windowHeight \+ shellPaddingHeight\(card\), measureCardHeight\(card\)\)/,
-    "R25: the target is the budget constant, which only the card's own content may raise",
+    /const base = windowHeight \+ shellPaddingHeight\(card\);/,
+    "R26-D: the target is the caller's height (the band), plus the shell reservation",
+  );
+  assert.match(
+    hook,
+    /measured > current \+ 1/,
+    "…and only a card that overflows the current window may raise it",
   );
   // …and it waits for the next paint, with a timer fallback so the helper stays
   // drivable where `requestAnimationFrame` does not exist (the node suite).

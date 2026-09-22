@@ -127,12 +127,22 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   }
 });
 
-test("the App hands the constant to every collapsed sync, clamped to the display", async () => {
+test("the App hands the band height to every collapsed sync, clamped to the display", async () => {
   const app = (await read("src/App.tsx")).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   assert.match(
     app,
-    /const launcherHeight = Math\.min\(\s*launcherWindowHeight\(uiScaleFactor\(settings\.ui_scale\)\),\s*Math\.max\(240, window\.screen\.availHeight - 24\),\s*\);/,
-    "the window height is the budget at the current step, clamped to the work area",
+    /const launcherMaxHeight = Math\.min\(\s*launcherWindowHeight\(launcherScale\),\s*Math\.max\(240, window\.screen\.availHeight - 24\),\s*\);/,
+    "the full slab is the budget at the current step, clamped to the work area",
+  );
+  assert.match(
+    app,
+    /const launcherBand = resolveLauncherBand\(launcherBandRef\.current, launcherRows\);/,
+    "the band is resolved from the row count with the sticky hysteresis",
+  );
+  assert.match(
+    app,
+    /const launcherHeight = launcherBandHeight\(launcherBand, launcherScale, launcherMaxHeight\);/,
+    "the window height is the band's, never above the full slab",
   );
   assert.match(
     app,
@@ -142,12 +152,12 @@ test("the App hands the constant to every collapsed sync, clamped to the display
   assert.match(
     app,
     /useLauncherHeight\(mode, collapsedCardRef, launcherHeight, \[/,
-    "the hook is given the constant, not a measurement",
+    "the hook is given the band's height, not a measurement",
   );
   assert.match(
     app,
     /syncLauncherHeight\(collapsedCardRef, launcherHeightRef\.current\)/,
-    "every imperative collapsed sync asks for the same constant",
+    "every imperative collapsed sync asks for the same height",
   );
   assert.doesNotMatch(
     app,
@@ -245,8 +255,13 @@ test("the platform's shell reservation is read from the sheet, never re-spelled"
   );
   assert.match(
     hook,
-    /Math\.max\(windowHeight \+ shellPaddingHeight\(card\), measureCardHeight\(card\)\)/,
-    "and it rides on the constant side of the target, so the window still does not move",
+    /const base = windowHeight \+ shellPaddingHeight\(card\);/,
+    "the reservation rides on the target side, so the window still does not move for it",
+  );
+  assert.match(
+    hook,
+    /measured > current \+ 1/,
+    "R26-D: the measurement is an overflow guard against the *current* window, not the budget",
   );
 });
 
@@ -399,4 +414,76 @@ test("collapsed mode asks for the window height once, and typing never asks agai
     globalWindow.getComputedStyle = previousGetComputedStyle;
     globalWindow.requestAnimationFrame = previousRequestAnimationFrame;
   }
+});
+
+// R26-D · the slab now has discrete sizes.
+//
+// R25 made the window a single constant; the user's second report is that this
+// padded short content into a tall empty panel — 「现在搜索页好像固定了高度，
+// 搜索和书签列表页高度都受到了影响」. The fix keeps “a keystroke never moves
+// the window” and adds bands: the window snaps to the smallest band that holds
+// the rows it is drawing, and a band is sticky so a count oscillating across a
+// boundary cannot resize.
+test("R26-D · the window height is a discrete band, and a band is sticky", async () => {
+  const budget = await import("../src/launcher/result-budget.ts");
+  const {
+    LAUNCHER_HEIGHT_BANDS,
+    LAUNCHER_WINDOW_HEIGHT,
+    launcherBandHeight,
+    launcherBandIndex,
+    launcherBandUnits,
+    resolveLauncherBand,
+  } = budget;
+
+  // The band a count belongs to, ignoring the current one.
+  assert.equal(launcherBandIndex(1), 0);
+  assert.equal(launcherBandIndex(2), 0);
+  assert.equal(launcherBandIndex(3), 1);
+  assert.equal(launcherBandIndex(5), 1);
+  assert.equal(launcherBandIndex(6), 2);
+  assert.equal(launcherBandIndex(9), 2);
+
+  // The top band is the full slab; the shorter bands are genuinely shorter.
+  assert.equal(launcherBandHeight(2, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
+  assert.ok(launcherBandHeight(0, 1, LAUNCHER_WINDOW_HEIGHT) < LAUNCHER_WINDOW_HEIGHT);
+  assert.ok(
+    launcherBandHeight(1, 1, LAUNCHER_WINDOW_HEIGHT) <
+      launcherBandHeight(2, 1, LAUNCHER_WINDOW_HEIGHT),
+    "the middle band sits between compact and full",
+  );
+  // …and each band's height holds its capacity rows at the worst-case row
+  // height: field 42 + breath 4 + panel top 4 + rows×42 + gap 3 + bar 42 + tail 2.
+  for (const [index, band] of LAUNCHER_HEIGHT_BANDS.entries()) {
+    assert.ok(
+      launcherBandUnits(index) >= 97 + band.capacity * 42,
+      `band ${index} (${band.capacity} rows) must hold its rows without scrolling`,
+    );
+  }
+
+  // Growing is immediate; shrinking waits a row below the floor (hysteresis).
+  assert.equal(resolveLauncherBand(0, 3), 1, "3 rows opens the middle band");
+  assert.equal(resolveLauncherBand(1, 2), 1, "2 rows keeps it (hysteresis)");
+  assert.equal(resolveLauncherBand(1, 1), 0, "1 row steps down");
+  assert.equal(resolveLauncherBand(2, 6), 2, "6 rows keeps the full band");
+  assert.equal(resolveLauncherBand(2, 5), 2, "5 rows still keeps the full band");
+  assert.equal(resolveLauncherBand(2, 4), 1, "4 rows steps down to the middle band");
+  assert.equal(resolveLauncherBand(0, 9), 2, "a full list jumps straight to the slab");
+
+  // The typing session the fix is about: the count moves inside one band and
+  // back; no boundary is crossed, so no band — and therefore no window — moves.
+  let band = resolveLauncherBand(0, 9);
+  const moves: number[] = [];
+  const step = (rows: number) => {
+    const next = resolveLauncherBand(band, rows);
+    if (next !== band) {
+      band = next;
+      moves.push(launcherBandHeight(band, 1, LAUNCHER_WINDOW_HEIGHT));
+    }
+  };
+  for (const rows of [9, 8, 7, 6, 9, 8, 7, 6]) step(rows);
+  assert.deepEqual(moves, [], "no resize while the count stays inside the full band");
+  step(4);
+  assert.equal(moves.length, 1, "dropping to four rows steps the window down once");
+  for (const rows of [4, 5, 3, 4, 5, 3]) step(rows);
+  assert.equal(moves.length, 1, "4↔5 does not flap the window");
 });

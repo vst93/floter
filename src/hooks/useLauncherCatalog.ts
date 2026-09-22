@@ -235,6 +235,10 @@ export function useLauncherCatalog(options: {
   /** `settings.command_aliases` — the raw per-command alias map. Passed by
    *  identity so an edit re-ranks the visible command rows immediately. */
   commandAliases: CommandAliases;
+  /** R26-D · `settings.browser_plugin.enabled`. When off, the browser entry row
+   *  is a disabled note and the browser result mode fetches nothing: the
+   *  plugin's whole surface soft-closes. */
+  browserEnabled: boolean;
   t: Translate;
   settingsRef: RefObject<AppSettings>;
   settingsHydration: ReturnType<typeof createSettingsHydration<AppSettings>>;
@@ -247,6 +251,7 @@ export function useLauncherCatalog(options: {
     showCommandsInSearch,
     showRecentInLauncher,
     commandAliases,
+    browserEnabled,
     t,
     settingsRef,
     settingsHydration,
@@ -427,6 +432,23 @@ export function useLauncherCatalog(options: {
       setBrowserRows([]);
       return;
     }
+    if (!browserEnabled) {
+      // R26-D · the plugin is switched off. The mode word is still parseable (a
+      // stale query can carry `browser `), but nothing is fetched and one
+      // disabled line says why — soft-closed, not an error.
+      setBrowserRows([
+        {
+          type: "browser",
+          id: "browser-disabled",
+          title: t("launcher.browserDisabled"),
+          subtitle: "",
+          url: "",
+          profileKey: "default",
+          disabled: true,
+        },
+      ]);
+      return;
+    }
     // The early return above already narrowed the type; capturing it keeps that
     // narrowing visible inside the timer callback.
     const mode = browserMode;
@@ -540,7 +562,7 @@ export function useLauncherCatalog(options: {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [browserMode, t]);
+  }, [browserMode, browserEnabled, t]);
 
   /**
    * The numbered result list: applications and the built-in system actions.
@@ -637,8 +659,14 @@ export function useLauncherCatalog(options: {
           type: "system",
           id: `system-${entry.action}`,
           title,
-          subtitle: t(entry.subtitleKey),
+          // R26-D · a switched-off browser plugin keeps its entry row but marks
+          // it: the row is a note (“the plugin is turned off”), not a door.
+          subtitle:
+            entry.action === "browser" && !browserEnabled
+              ? t("launcher.browserDisabled")
+              : t(entry.subtitleKey),
           action: entry.action,
+          ...(entry.action === "browser" && !browserEnabled ? { disabled: true } : {}),
         },
         score,
       });
@@ -760,7 +788,7 @@ export function useLauncherCatalog(options: {
     // local match when applications or power actions matched alongside catalog
     // commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [browserMode, browserRows, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, t]);
+  }, [browserMode, browserRows, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,
@@ -788,7 +816,10 @@ export function useLauncherCatalog(options: {
   const runnableResultFlags = launcherResults.map((item) =>
     item.type === "command"
       ? Boolean(item.execution)
-      : !(item.type === "browser" && item.disabled === true),
+      : !(
+          (item.type === "browser" && item.disabled === true) ||
+          (item.type === "system" && item.disabled === true)
+        ),
   );
   const resultShortcutSlots = launcherShortcutSlots(runnableResultFlags);
   const runnableResultCount = runnableResultFlags.filter(Boolean).length;

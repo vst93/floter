@@ -147,6 +147,15 @@ const APP_MODIFIER: &str = "Ctrl";
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct BrowserPluginSettings {
+    /// R26-D · whether the plugin is switched on. The browser plugin used to be
+    /// unconditionally available (its only trigger was a typed word), so it had
+    /// no switch; the user asked for one so it behaves like the clipboard base
+    /// plugin. `true` is the shipped state, and the explicit `default_true` is
+    /// what makes a settings file written before this key existed (R26-A/B)
+    /// deserialize to the behaviour it shipped with rather than to
+    /// `bool::default()`.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
     /// Which browser the launcher searches: `"auto"` or a browser id
     /// (`"chrome"`, `"edge"`, `"brave"`, `"chromium"`, `"custom"`).
     pub target: String,
@@ -170,6 +179,7 @@ pub struct BrowserPluginSettings {
 impl Default for BrowserPluginSettings {
     fn default() -> Self {
         Self {
+            enabled: true,
             target: "auto".to_string(),
             custom_base_dir: None,
             history_days: 30,
@@ -820,7 +830,13 @@ pub fn browser_get_settings() -> BrowserPluginSettings {
 pub fn browser_set_settings(settings: BrowserPluginSettings) -> Result<BrowserPluginSettings, String> {
     let _guard = settings_lock()?;
     let mut stored = load_settings();
-    stored.browser_plugin = settings;
+    // The page's settings card owns the five data fields, not the on/off
+    // switch: it sends no `enabled`, so serde would default it back to `true`
+    // and a save from the card would silently re-enable a plugin the user had
+    // switched off. Carry the stored flag across instead.
+    let mut next = settings;
+    next.enabled = stored.browser_plugin.enabled;
+    stored.browser_plugin = next;
     let stored = normalize_settings(stored);
     write_settings(&stored)?;
     crate::browser_data::discover::clear_discovery_cache();
@@ -1052,6 +1068,26 @@ mod tests {
         assert_eq!(settings.browser_plugin.history_days, 30);
     }
 
+    /// R26-D · the browser plugin's on/off switch. A file written by R26-A/B has
+    /// no `enabled` key: it must deserialize to `true` (the behaviour those
+    /// builds shipped), and an explicit `false` must survive.
+    #[test]
+    fn the_browser_plugin_switch_defaults_on_and_round_trips_off() {
+        let shipped: AppSettings = serde_json::from_str(
+            "{\"browser_plugin\":{\"target\":\"edge\",\"history_days\":9}}",
+        )
+        .expect("R26-A settings deserialize");
+        assert!(
+            shipped.browser_plugin.enabled,
+            "a settings file without the switch deserializes to the shipped state (on)"
+        );
+
+        let off: AppSettings =
+            serde_json::from_str("{\"browser_plugin\":{\"enabled\":false}}")
+                .expect("disabled settings deserialize");
+        assert!(!off.browser_plugin.enabled, "an explicit off is honoured");
+    }
+
     #[test]
     fn the_browser_target_normalizes_to_a_known_id_or_auto() {
         assert_eq!(normalize_browser_target(""), "auto");
@@ -1068,6 +1104,7 @@ mod tests {
     fn the_history_window_is_clamped_and_an_empty_custom_dir_is_dropped() {
         let settings = normalize_settings(AppSettings {
             browser_plugin: BrowserPluginSettings {
+                enabled: true,
                 target: "firefox".into(),
                 custom_base_dir: Some("   ".into()),
                 history_days: u32::MAX,
@@ -1088,6 +1125,7 @@ mod tests {
 
         let kept = normalize_settings(AppSettings {
             browser_plugin: BrowserPluginSettings {
+                enabled: true,
                 target: "auto".into(),
                 custom_base_dir: Some(" /opt/browser ".into()),
                 history_days: 7,
@@ -1113,6 +1151,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("temp dir");
         let settings = normalize_settings(AppSettings {
             browser_plugin: BrowserPluginSettings {
+                enabled: true,
                 target: "brave".into(),
                 custom_base_dir: Some("/data/brave".into()),
                 history_days: 14,

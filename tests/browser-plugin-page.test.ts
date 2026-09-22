@@ -295,6 +295,7 @@ test("the target dropdown lists each browser once and validates against it", () 
 
 test("settings normalize to what the backend will store", () => {
   assert.deepEqual(normalizeBrowserSettings(undefined), {
+    enabled: true,
     target: "auto",
     custom_base_dir: null,
     history_days: 30,
@@ -315,6 +316,9 @@ test("settings normalize to what the backend will store", () => {
   assert.equal(settings.cdp_port, 9333);
   // A blank directory is none, not an empty string.
   assert.equal(normalizeBrowserSettings({ custom_base_dir: "   " }).custom_base_dir, null);
+  // R26-D: the plugin's switch defaults on and survives an explicit off.
+  assert.equal(normalizeBrowserSettings({}).enabled, true);
+  assert.equal(normalizeBrowserSettings({ enabled: false }).enabled, false);
   // 0 is a meaningful history window (it disables the filter) and survives.
   assert.equal(clampHistoryDays(0), 0);
   assert.equal(clampHistoryDays(-5), 0);

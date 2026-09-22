@@ -65,6 +65,7 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // browser, no custom directory, a 30-day history window. R26-B adds the
   // DevTools debug-port pair, off and on the browser's own port by default.
   browser_plugin: {
+    enabled: true,
     target: "auto",
     custom_base_dir: null,
     history_days: 30,
@@ -227,6 +228,7 @@ export function useSettings(options: {
           // `browser_plugin` block; the shipped defaults keep the plugin
           // usable without the user visiting its settings page.
           browser_plugin: {
+            enabled: loaded.browser_plugin?.enabled ?? true,
             target: loaded.browser_plugin?.target ?? "auto",
             custom_base_dir: loaded.browser_plugin?.custom_base_dir ?? null,
             history_days: loaded.browser_plugin?.history_days ?? 30,

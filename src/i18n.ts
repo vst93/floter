@@ -69,6 +69,7 @@ const en = {
   "launcher.browserNoProfile": "No supported browser was found on this computer",
   "launcher.browserProfile": "Profile: {profile}",
   "launcher.browserMore": "…and {count} more",
+  "launcher.browserDisabled": "Browser Bookmarks & History is turned off — enable it in Settings › Integrations",
   "launcher.error.browser": "Could not open this link",
   // R26-B · the browser plugin's own page: its search field, its three lists
   // and its settings card.
@@ -171,6 +172,7 @@ const en = {
   "settings.browserHistoryDaysHint": "How far back history search looks.",
   "settings.browserHistoryDaysValue": "{count} days",
   "settings.browserNoProfiles": "No supported browser was found on this computer.",
+  "settings.browserDisabled": "The browser plugin is turned off. Turn it on to open its page.",
   "settings.clipboardPrivacy": "Everything you copy system-wide is recorded — stored locally only.",
   "settings.clipboardHotkey": "Clipboard panel shortcut",
   "clipboard.title": "Clipboard",
@@ -773,6 +775,7 @@ const zh: Record<MessageKey, string> = {
   "launcher.browserNoProfile": "此电脑上未找到受支持的浏览器",
   "launcher.browserProfile": "配置文件：{profile}",
   "launcher.browserMore": "…另有 {count} 条",
+  "launcher.browserDisabled": "浏览器书签与历史记录已停用——可在“设置 › 集成”中启用",
   "launcher.error.browser": "无法打开此链接",
   "browserPage.title": "浏览器",
   "browserPage.search": "搜索书签、历史记录和标签页",
@@ -873,6 +876,7 @@ const zh: Record<MessageKey, string> = {
   "settings.browserHistoryDaysHint": "历史记录搜索追溯的时间长度。",
   "settings.browserHistoryDaysValue": "{count} 天",
   "settings.browserNoProfiles": "此电脑上未找到受支持的浏览器。",
+  "settings.browserDisabled": "浏览器插件已停用。开启后才能打开其页面。",
   "settings.clipboardPrivacy": "将记录系统内所有复制内容，仅保存在本地",
   "settings.clipboardHotkey": "剪贴板面板快捷键",
   "clipboard.title": "剪贴板",
