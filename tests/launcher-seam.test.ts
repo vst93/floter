@@ -19,9 +19,10 @@
 //      has no business drawing one between its list and its action bar either;
 //   3. in their place the search row paints `--glass-field` — the token that
 //      means "the surface a text field sits on", a white lift over the card's
-//      tint in both palettes — and carries `margin-bottom: calc(var(--u) * 8)`,
-//      which with `.launcher-bottom`'s own 4u of padding leaves a 12u
-//      transparent breath between the two faces; and
+//      tint in both palettes — and carries `margin-bottom: calc(var(--u) * 4)`,
+//      which with `.launcher-bottom`'s own 4u of padding leaves an 8u
+//      transparent breath between the two faces (R18 drew the margin at 8u for
+//      a 12u breath; R24 halved it, see `tests/launcher-input-gap.test.ts`); and
 //   4. the accent budget shrinks to the two marks the reference's palette has:
 //      the selected row's tint + keyline, and the caret. The onboarding tip's
 //      keyline and glyph leave the accent.
@@ -29,7 +30,7 @@
 // The tests below are the same shape as the round's: the removal is checked
 // negatively (no pseudo-element, no band, no `--hairline-fade`, no `height:
 // 1px` anywhere in the sheet) and the replacement positively (the two faces,
-// their two materials, the 12u of nothing between them), so putting any of it
+// their two materials, the 8u of nothing between them), so putting any of it
 // back — in any shape — turns the suite red.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -193,17 +194,18 @@ test("the breath between the two faces is transparent card, not a painted line",
   const row = rule(css, ".collapsed-card__input-row");
   const bottom = rule(css, ".launcher-bottom");
   assert.ok(row && bottom, "both faces must exist");
-  // The breath: 8u of the row's own margin plus the panel's 4u of padding is
-  // 12u of the card's own material between the two faces.
+  // The breath: 4u of the row's own margin plus the panel's 4u of padding is
+  // 8u of the card's own material between the two faces (R18: 8u + 4u = 12u;
+  // R24 halved the margin).
   assert.equal(
     decl(row!.body, "margin-bottom"),
-    "calc(var(--u) * 8)",
+    "calc(var(--u) * 4)",
     "the row carries the gap below the search surface",
   );
   assert.equal(
     decl(bottom!.body, "padding"),
     "calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 2)",
-    "and the panel's own 4u completes the 12u breath — the two faces never touch",
+    "and the panel's own 4u completes the 8u breath — the two faces never touch",
   );
   // A transparent gap, not a painted one: no border and no pseudo-element may
   // turn the breath back into a line.

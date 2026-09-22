@@ -299,12 +299,15 @@ test("the scroll edge effect is a gradient band, never a filter", async () => {
   // no second gradient, no fork of the token. This is the round's whole
   // scroll-edge change and it is pinned here so a later edit cannot quietly
   // widen the gap under the query field again (「我指的这中间的空白太宽了」).
+  // R24 · the same override halves once more, 8px → 4px, after the user still
+  // read that gap as too tall (「现在还是太高」); base.css is still untouched and
+  // there is still exactly one override.
   const card = rules(launcher).find(({ selector }) => selector === ".collapsed-card");
   assert.ok(card, "launcher.css must define .collapsed-card");
   assert.equal(
     token(card!.body, "scroll-edge"),
-    "8px",
-    "the launcher scope reserves 8px of scroll edge, not base.css's 14px",
+    "4px",
+    "the launcher scope reserves 4px of scroll edge, not base.css's 14px",
   );
 
   const settings = stripComments(await read("src/styles/settings.css"));
@@ -463,7 +466,8 @@ test("the bar/content separators are gradient hairlines, not solid rules", async
   // R18 · the launcher is no longer a member of this family, and not because
   // its band moved: the panel draws no divider between its surfaces at all.
   // Its field is one step brighter than the list and the two are held apart by
-  // 12u of card material (see `tests/launcher-seam.test.ts`), so the sheet must
+  // 8u of card material (12u in R18; R24 halved it — see
+  // `tests/launcher-seam.test.ts`), so the sheet must
   // not carry a hairline band — or a 1px mark of any kind — to be re-adopted.
   assert.ok(
     !/--hairline-fade/.test(launcher),

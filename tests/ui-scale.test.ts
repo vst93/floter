@@ -368,8 +368,9 @@ test("1px hairlines stay literal: ink, not layout", async () => {
     assert.equal(band, "1px", `${file}: ${selector} is a hairline and must stay a literal 1px, got "${band}"`);
   }
   // R18 · the launcher left this list, and it left it by drawing *no* divider
-  // at all: its field and its list are separated by a brightness step and a
-  // 12u transparent breath (see `tests/launcher-seam.test.ts`). There is
+  // at all: its field and its list are separated by a brightness step and an
+  // 8u transparent breath (R18: 12u; R24 halved it — see
+  // `tests/launcher-seam.test.ts`). There is
   // therefore no 1px band in that sheet to scale or to pin — and these two
   // assertions are what keep the round from being read as "the launcher's
   // hairlines were quietly dropped from the census".

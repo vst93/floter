@@ -501,9 +501,10 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   // `--scroll-edge` (14px in base.css) with 8px on `.collapsed-card`, so this
   // scroller reserves 8px, not the root token. Read the override from the sheet
   // rather than hard-coding either number — the assertion below is what pins it.
+  // R24 halves the local value again (8px → 4px); base.css still owns 14px.
   const bandOverride = /\.collapsed-card\s*\{[^}]*--scroll-edge:\s*(\d+)px/s.exec(launcher);
   assert.ok(bandOverride, "the launcher scope overrides --scroll-edge locally");
-  assert.equal(Number(bandOverride[1]), 8, "R22 tightens the launcher's scroll-edge reservation to 8px");
+  assert.equal(Number(bandOverride[1]), 4, "R24 tightens the launcher's scroll-edge reservation to 4px");
   const band = Number(
     /\.launcher-results\s*\{[^}]*padding:\s*var\(--scroll-edge\)/s.test(launcher) ? bandOverride[1] : 0,
   );
@@ -549,20 +550,22 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   // R20 re-audited it again and found the action bar is 42u, not the 30u the
   // R19 list read (that is the feedback row's floor); the constant still stands,
   // because it is a floor for a short display and only has to be *at least* the
-  // chrome it stands for — 216u ≥ 133u (R22 took the field's row from 56u to
-  // 48u and the constant down by the same 8u; R23 took it from 48u to 42u and
-  // the constant down by the same 6u, so 224 → 216; R21 had already taken the
-  // panel's tail from 4u to 2u, widening the slack; the formula is untouched).
+  // chrome it stands for — 212u ≥ 129u (R24 halved the R18 breath, 8u → 4u, and
+  // the constant followed it down by the same 4u, so 216 → 212; R22 took the
+  // field's row from 56u to 48u and the constant down by the same 8u; R23 took
+  // it from 48u to 42u and the constant down by the same 6u, so 224 → 216; R21
+  // had already taken the panel's tail from 4u to 2u, widening the slack; the
+  // formula is untouched).
   // What matters is that it does
   // not bind on
   // an ordinary one, i.e. that the work area is at least
-  // `RESULTS_VIEWPORT_CHROME + the worst-case list` = 216 + 428 = 644px. Every
+  // `RESULTS_VIEWPORT_CHROME + the worst-case list` = 212 + 428 = 640px. Every
   // display a launcher is used on clears that (a 1280x800 work area is 768px),
   // and on a shorter one the cap binds *deliberately*: the list scrolls rather
   // than the card overflowing its window.
-  assert.equal(RESULTS_VIEWPORT_CHROME, 216);
+  assert.equal(RESULTS_VIEWPORT_CHROME, 212);
   const shortestWorkAreaTheCapDoesNotBind = RESULTS_VIEWPORT_CHROME + budget + chrome;
-  assert.equal(shortestWorkAreaTheCapDoesNotBind, 644);
+  assert.equal(shortestWorkAreaTheCapDoesNotBind, 640);
   assert.ok(
     shortestWorkAreaTheCapDoesNotBind < 768,
     "the App's cap must not bind on the shortest ordinary work area (1280x800)",

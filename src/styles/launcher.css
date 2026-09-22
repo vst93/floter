@@ -16,8 +16,16 @@
      `background-size` and the scroller's `padding-top` all read this variable,
      so they shrink together and the fade stays a fade — just a shorter one —
      while the gap between the query and the first row loses 6px of reservation
-     it was only ever holding for the gradient. base.css is untouched. */
-  --scroll-edge: 8px;
+     it was only ever holding for the gradient. base.css is untouched.
+
+     R24 · 8px → 4px. R22 took the reservation from base.css's 14px to 8px and
+     the user still read the query-to-list gap as too tall (「现在还是太高」):
+     this band is the last of the three segments the gap is made of that is
+     still above its floor (see `tests/launcher-input-gap.test.ts`). 4px keeps
+     the fade's geometry intact — band, `background-size` and `padding-top`
+     still read the one variable — while giving back the last 4px of
+     reservation. base.css is still untouched: the shared token stays 14px. */
+  --scroll-edge: 4px;
   /* Not `height`: the window is sized to this card (see the measuring layout
      effect in App.tsx), so the card has to be free to be taller than the window
      it currently sits in. Pinned to an exact height it would instead squeeze its
@@ -108,10 +116,14 @@
      * this row paints `--glass-field` — the token that means "the surface a
        text field sits on", a white lift over the card's tint in *both*
        palettes and therefore a brighter block than the card face; and
-     * `margin-bottom: calc(var(--u) * 8)` stands where the line used to be.
-       With `.launcher-bottom`'s own 4u of padding that is a 12u transparent
+     * `margin-bottom: calc(var(--u) * 4)` stands where the line used to be.
+       With `.launcher-bottom`'s own 4u of padding that is an 8u transparent
        breath between the two surfaces, so they never touch and what shows
-       through between them is the card's own material.
+       through between them is the card's own material. (R18 drew it at 8u,
+       for a 12u breath; R24 halves the margin to 4u — the user read the gap
+       as still too tall for a third round — so the breath is 8u. The
+       panel's own padding is what stays, because it is also the inset that
+       keeps a selected row's tint off the panel's edge.)
 
    Nothing is drawn between the surfaces any more: the divider is a difference
    in brightness with a gap in it, not a mark. */
@@ -173,8 +185,11 @@
   /* The breath below the block. A margin here rather than extra padding on
      `.launcher-bottom` so this row keeps the height it has always had (a pinned
      metric — see `tests/ui-scale.test.ts`; 56u until R22, 48u in R22, 42u in
-     R23). */
-  margin-bottom: calc(var(--u) * 8);
+     R23). R24 · 8u → 4u: with the panel's 4u top padding the breath is 8u
+     instead of 12u. The row's own box does not move (42u, R23's stop) — this is
+     the second of the two segments outside the field, and the last one the user
+     can see. */
+  margin-bottom: calc(var(--u) * 4);
   overflow: hidden;
 }
 
@@ -257,7 +272,7 @@
 /* The whole area below the input: the result list, the action bar, or both.
    It is the panel's *darker* field — the search block above it is the brighter
    one — and R18 took the gradient hairline off its top edge: the two surfaces
-   are now divided by the 12u of card material the input row's margin and this
+   are now divided by the 8u of card material the input row's margin and this
    panel's own padding leave between them (see the comment on
    `.collapsed-card__input-row`). Nothing is painted on the boundary, so an
    action bar with nothing matched above it still sits in the same panel a list
@@ -274,7 +289,7 @@
   gap: 0;
   /* R21 · the tail is the one inset that is not a margin around a row. Top and
      sides stay 4u — they keep a selected row's tint off the card's edge and the
-     top one completes the 12u breath under the field (see
+     top one completes the 8u breath under the field (see
      `.collapsed-card__input-row`) — but the bottom is 2u, because the last row
      already brings its own half-leading: a 42u action bar centres ~35u of
      content and a 34u compact row centres one 15u line, so the visible blank
@@ -610,9 +625,9 @@
      those numbers.
 
      The fixed 50px covers what does not scale with the unit: the scroll-edge
-     reservation at the top (8px here — R22 tightens `--scroll-edge` from
-     base.css's 14px to 8px for the launcher's own scope, see
-     `.collapsed-card`), the nine 1px grid gaps around the nine
+     reservation at the top (4px here — R22 tightens `--scroll-edge` from
+     base.css's 14px to 8px for the launcher's own scope, R24 takes it to 4px,
+     see `.collapsed-card`), the nine 1px grid gaps around the nine
      rows, and the empty-query section title (a `--text-body` line at 1.4 plus
      its 6/4px padding ≈ 26px). The title is the reason the chrome is a whole
      row's worth rather than a few pixels — without it the empty-query state,

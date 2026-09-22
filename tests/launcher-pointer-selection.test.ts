@@ -84,7 +84,7 @@ test("the tail is shorter than the top, because the last row brings its own lead
   const [top, side, tail] = [...padding.matchAll(/calc\(var\(--u\) \* (\d+)\)/g)].map(
     (m) => m[1],
   );
-  assert.equal(top, "4", "the top stays 4u: it completes the 12u breath");
+  assert.equal(top, "4", "the top stays 4u: it completes the 8u breath (R24 halved it from 12u)");
   assert.equal(tail, "2", "the tail is 2u: the row's leading is the rest");
   assert.equal(side, "4", "the sides keep the 4u that holds a selected row's tint off the card's edge");
 });
