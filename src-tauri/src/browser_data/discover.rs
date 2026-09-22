@@ -49,17 +49,60 @@ pub struct BrowserCandidate {
 ///
 /// `home` and `local_appdata` are passed in rather than read here so tests can
 /// point them at a fixture tree. Each platform's table is its own `#[cfg]`
-/// branch — a test can only exercise the branch it was compiled for, which is
-/// exactly the branch the running build uses.
+/// branch; the macOS one is factored into [`macos_base_dirs`] so its *content*
+/// can be asserted from any host — a data bug (a wrong directory) cannot be
+/// caught by a branch the test host compiles out.
 #[cfg(target_os = "macos")]
 pub fn platform_base_dirs(
     home: &Path,
     _local_appdata: Option<&Path>,
 ) -> Vec<(&'static str, &'static str, PathBuf)> {
+    macos_base_dirs(home)
+}
+
+/// The macOS table.
+///
+/// Compiled for macOS *and* for the test build (`cfg(test)`), so the table can
+/// be asserted from any host: a macOS-only `#[cfg]` would make its content
+/// untestable on the CI/dev machine that runs the suite, which is how the
+/// `Microsoft/Edge` two-level path below shipped wrong in the first place.
+///
+/// Path layout differs per browser and the differences are load-bearing:
+///
+/// * Chrome nests under a vendor folder (`Google/Chrome`).
+/// * Edge does **not**: its data directory is a single `Microsoft Edge` folder
+///   directly under `Application Support` — the space is part of the name.
+///   The old `Microsoft/Edge` guess listed nothing, so discovery returned no
+///   Edge profiles and the launcher reported "no supported browser".
+/// * Brave nests under `BraveSoftware/Brave-Browser`; Chromium is a single
+///   top-level folder.
+/// * Every Edge channel has its own single top-level folder, suffix and all
+///   (`Microsoft Edge Beta`, `Microsoft Edge Dev`, `Microsoft Edge Canary`).
+#[cfg(any(target_os = "macos", test))]
+fn macos_base_dirs(home: &Path) -> Vec<(&'static str, &'static str, PathBuf)> {
     let support = home.join("Library").join("Application Support");
     vec![
-        ("chrome", "Google Chrome", support.join("Google").join("Chrome")),
-        ("edge", "Microsoft Edge", support.join("Microsoft").join("Edge")),
+        (
+            "chrome",
+            "Google Chrome",
+            support.join("Google").join("Chrome"),
+        ),
+        ("edge", "Microsoft Edge", support.join("Microsoft Edge")),
+        (
+            "edge-beta",
+            "Microsoft Edge Beta",
+            support.join("Microsoft Edge Beta"),
+        ),
+        (
+            "edge-dev",
+            "Microsoft Edge Dev",
+            support.join("Microsoft Edge Dev"),
+        ),
+        (
+            "edge-canary",
+            "Microsoft Edge Canary",
+            support.join("Microsoft Edge Canary"),
+        ),
         (
             "brave",
             "Brave",
@@ -523,5 +566,60 @@ mod tests {
     #[test]
     fn windows_without_local_appdata_lists_nothing() {
         assert!(platform_base_dirs(Path::new("/home/example"), None).is_empty());
+    }
+
+    /// R26-C · the macOS table's *content*, asserted from any host.
+    ///
+    /// `macos_base_dirs` is compiled under `cfg(any(target_os = "macos",
+    /// test))`, so a Linux CI run exercises the same literal table a macOS
+    /// build ships — the regression this guards (`Microsoft/Edge` instead of
+    /// the real single `Microsoft Edge` directory) is a data bug, and the data
+    /// has to be reachable by the test.
+    #[test]
+    fn the_macos_table_points_at_the_real_application_support_directories() {
+        let home = Path::new("/Users/example");
+        let support = home.join("Library").join("Application Support");
+        let dirs = macos_base_dirs(home);
+        let path_of = |id: &str| {
+            dirs.iter()
+                .find(|(browser_id, _, _)| *browser_id == id)
+                .map(|(_, _, path)| path.clone())
+                .unwrap_or_else(|| panic!("the macOS table must know {id}"))
+        };
+
+        assert_eq!(path_of("chrome"), support.join("Google").join("Chrome"));
+        assert_eq!(
+            path_of("brave"),
+            support.join("BraveSoftware").join("Brave-Browser")
+        );
+        assert_eq!(path_of("chromium"), support.join("Chromium"));
+
+        // The bug: Edge's macOS data directory is one top-level folder whose
+        // name contains a space, NOT a `Microsoft` vendor folder holding an
+        // `Edge` child. The real path is asserted exactly.
+        assert_eq!(path_of("edge"), support.join("Microsoft Edge"));
+        assert_eq!(path_of("edge-beta"), support.join("Microsoft Edge Beta"));
+        assert_eq!(path_of("edge-dev"), support.join("Microsoft Edge Dev"));
+        assert_eq!(
+            path_of("edge-canary"),
+            support.join("Microsoft Edge Canary")
+        );
+
+        // No macOS path may split the vendor into two components: a
+        // `Microsoft/Edge` join is the exact shape that read_dir'd empty.
+        for (browser_id, _, path) in &dirs {
+            let text = path.to_string_lossy();
+            assert!(
+                !text.contains("Microsoft/Edge"),
+                "{browser_id} must not use a Microsoft/Edge two-level directory: {text}"
+            );
+        }
+        // Every entry is unique and rooted under Application Support.
+        let mut ids: Vec<&str> = dirs.iter().map(|(id, _, _)| *id).collect();
+        let total = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), total, "browser ids must be unique");
+        assert!(dirs.iter().all(|(_, _, path)| path.starts_with(&support)));
     }
 }

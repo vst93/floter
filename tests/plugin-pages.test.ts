@@ -10,6 +10,9 @@ const root = new URL("../", import.meta.url);
 
 import {
   BRIDGE_TAG,
+  BROWSER_PLUGIN_ID,
+  BUILTIN_BASE_PLUGINS,
+  CLIPBOARD_PLUGIN_ID,
   buildPluginPageUrl,
   commandAllowed,
   isBridgeClose,
@@ -254,4 +257,52 @@ test("the plugin host hands the glass step to the page, and the page stops hardc
   assert.match(main, /isBridgeGlass\(data\)/, "the page must handle a live step change");
   assert.match(main, /normalizeGlassStep\(params\.get\("glass-step"\)\)/, "the page must read the bootstrap param");
   assert.match(main, /GLASS_STEP_TOKENS\[step\]/, "the page must resolve the step from the shared table");
+});
+
+// R26-C · the settings panel's base-plugins list must carry every registered
+// plugin, browser included.
+//
+// The bug: `App.tsx` assembled the list by hand and only ever named
+// `builtin.clipboard`, so when R26-B registered `builtin.browser` (descriptor +
+// page + allowlist) the settings panel never showed it — the plugin had no
+// entry and no way to open its page. The list now lives in
+// `BUILTIN_BASE_PLUGINS` (src/plugin-pages.ts), and this guard pins it to the
+// Rust registry in BOTH directions: a descriptor without a row fails, and a row
+// naming an unregistered plugin fails.
+test("the base-plugin list carries builtin.browser and mirrors the Rust registry", async () => {
+  const ids = BUILTIN_BASE_PLUGINS.map((plugin) => plugin.id);
+  assert.ok(
+    ids.includes(BROWSER_PLUGIN_ID),
+    "the base-plugin list must contain builtin.browser (the R26-C regression)",
+  );
+  assert.ok(ids.includes(CLIPBOARD_PLUGIN_ID), "the base-plugin list must contain builtin.clipboard");
+
+  // The registry's constant names -> values, then the ids `DESCRIPTORS` uses.
+  const rust = await readFile(new URL("src-tauri/src/plugin_pages.rs", root), "utf8");
+  const constants = new Map<string, string>();
+  for (const match of rust.matchAll(/pub const (\w+_PLUGIN_ID): &str = "([^"]+)";/g)) {
+    constants.set(match[1], match[2]);
+  }
+  const descriptorsAt = rust.indexOf("static DESCRIPTORS");
+  assert.notEqual(descriptorsAt, -1, "the Rust descriptor registry must exist");
+  const registryIds = [...rust.slice(descriptorsAt).matchAll(/id: (\w+_PLUGIN_ID),/g)].map((match) => {
+    const value = constants.get(match[1]);
+    assert.ok(value, `${match[1]} must be declared before the registry uses it`);
+    return value;
+  });
+
+  assert.deepEqual(
+    [...ids].sort(),
+    [...new Set(registryIds)].sort(),
+    "the settings list and the Rust registry must name the same plugins",
+  );
+
+  // The list is only real if the panel renders it: the hand-written array in
+  // App.tsx is gone, replaced by this registry.
+  const app = await readFile(new URL("src/App.tsx", root), "utf8");
+  assert.match(
+    app,
+    /basePlugins=\{BUILTIN_BASE_PLUGINS/,
+    "App.tsx must render the shared base-plugin list, not a hand-written array",
+  );
 });

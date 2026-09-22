@@ -60,7 +60,7 @@ import {
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { PluginPageHost } from "./plugins/PluginPageHost";
-import { CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
+import { BUILTIN_BASE_PLUGINS, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import {
   formatResultShortcut,
   formatShortcut,
@@ -1802,18 +1802,17 @@ export default function App() {
                 onToggleCommandsInSearch={toggleCommandsInSearch}
                 commandAliases={settings.command_aliases}
                 onChangeCommandAlias={changeCommandAlias}
-                basePlugins={[
-                  {
-                    id: CLIPBOARD_PLUGIN_ID,
-                    titleKey: "settings.clipboardHistory",
-                    descriptionKey: "settings.clipboardHistoryHint",
-                    enabled: settings.clipboard_history_enabled,
-                  },
-                ]}
+                basePlugins={BUILTIN_BASE_PLUGINS.map((plugin) => ({
+                  ...plugin,
+                  // The clipboard switch is the only persisted one; every other
+                  // base plugin is always available (see `BUILTIN_BASE_PLUGINS`).
+                  enabled: plugin.toggleable ? settings.clipboard_history_enabled : true,
+                }))}
                 onToggleBasePlugin={(id, enabled) => {
                   if (id !== CLIPBOARD_PLUGIN_ID) return;
                   changeGeneralSetting("clipboard_history_enabled", enabled);
                 }}
+                onOpenPluginPage={(id) => openPluginPage(id)}
                 onNotify={notify}
                 pendingDeepLink={pendingDeepLink}
                 onDeepLinkConsumed={() => setPendingDeepLink(null)}

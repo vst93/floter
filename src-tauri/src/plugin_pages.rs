@@ -160,8 +160,21 @@ pub struct BuiltinPluginInfo {
 
 #[tauri::command]
 pub fn builtin_plugins_list() -> Result<Vec<BuiltinPluginInfo>, String> {
-    let settings = crate::commands::config::load_settings();
-    Ok(all_descriptors()
+    Ok(builtin_plugin_infos(&crate::commands::config::load_settings()))
+}
+
+/// The registry projected through one settings snapshot.
+///
+/// Split out from the command so a test can render the list from
+/// `AppSettings::default()` without reading (or depending on) the machine's own
+/// config file. Every descriptor becomes a row — that is the whole point: a
+/// plugin registered in `DESCRIPTORS` can never be missing from the settings
+/// panel's list, which is exactly how `builtin.browser` went missing on the
+/// frontend side (see `BUILTIN_BASE_PLUGINS` in `src/plugin-pages.ts`).
+pub fn builtin_plugin_infos(
+    settings: &crate::commands::config::AppSettings,
+) -> Vec<BuiltinPluginInfo> {
+    all_descriptors()
         .iter()
         .map(|descriptor| BuiltinPluginInfo {
             id: descriptor.id.to_string(),
@@ -180,7 +193,7 @@ pub fn builtin_plugins_list() -> Result<Vec<BuiltinPluginInfo>, String> {
                 _ => false,
             },
         })
-        .collect())
+        .collect()
 }
 
 /// The plugin page a cold start should open, consumed once by the frontend
@@ -317,5 +330,30 @@ mod tests {
             assert!(!entry.allowed_commands.is_empty());
         }
         assert!(!ids.is_empty());
+    }
+
+    /// R26-C · the list the settings panel renders carries every descriptor,
+    /// browser included. The frontend's own guard lives in
+    /// `tests/plugin-pages.test.ts`; this one pins the backend half.
+    #[test]
+    fn the_builtin_plugin_list_carries_the_browser_descriptor() {
+        let settings = crate::commands::config::AppSettings::default();
+        let infos = builtin_plugin_infos(&settings);
+        let ids: Vec<&str> = infos.iter().map(|info| info.id.as_str()).collect();
+        assert!(ids.contains(&CLIPBOARD_PLUGIN_ID));
+        assert!(
+            ids.contains(&BROWSER_PLUGIN_ID),
+            "the base-plugin list must contain builtin.browser"
+        );
+        // One row per descriptor, never a hand-picked subset.
+        assert_eq!(infos.len(), all_descriptors().len());
+        let browser = infos
+            .iter()
+            .find(|info| info.id == BROWSER_PLUGIN_ID)
+            .expect("browser row");
+        assert!(browser.enabled, "the browser plugin is always available");
+        assert!(browser.has_page, "the browser row opens its settings page");
+        assert_eq!(browser.title_key, "settings.browser");
+        assert_eq!(browser.description_key, "settings.browserHint");
     }
 }

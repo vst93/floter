@@ -10,6 +10,8 @@
 // message carries a `floter` type tag; unknown messages are ignored rather
 // than erroring.
 
+import type { MessageKey } from "./i18n";
+
 /** Stable id of the built-in clipboard base plugin, mirroring the backend's
  * registry (src-tauri/src/plugin_pages.rs). */
 export const CLIPBOARD_PLUGIN_ID = "builtin.clipboard";
@@ -493,3 +495,54 @@ export const buildPluginPageUrl = (
   }
   return url.toString();
 };
+
+/**
+ * One row in the settings panel's base-plugins list (the extensions ecosystem's
+ * "Base plugins" section).
+ */
+export type BuiltinBasePlugin = {
+  id: string;
+  /** i18n key for the row's name. */
+  titleKey: MessageKey;
+  /** i18n key for the row's one-line description. */
+  descriptionKey: MessageKey;
+  /** Whether the plugin has a persisted on/off switch. The clipboard plugin
+   *  does; the browser plugin is always available and only offers its own
+   *  settings page, so it renders no switch rather than a dead one. */
+  toggleable: boolean;
+  /** Whether the plugin declares an HTML settings page the row can open. */
+  hasPage: boolean;
+  /** Optional extra note rendered under the row (e.g. the clipboard privacy
+   *  line). A plugin without one renders nothing extra. */
+  privacyKey?: MessageKey;
+};
+
+/**
+ * The base plugins the settings panel lists, mirroring the backend registry
+ * `src-tauri/src/plugin_pages.rs` (`DESCRIPTORS`).
+ *
+ * This is the list the UI renders — it is deliberately NOT assembled by hand
+ * in `App.tsx` any more. R26-B registered `builtin.browser` in Rust and gave it
+ * a settings page, but the panel still rendered a clipboard-only array, so the
+ * new plugin never appeared (and there was no way to open its page).
+ * `tests/plugin-pages.test.ts` asserts this list and the Rust descriptor table
+ * contain the *same* ids in both directions, so a new descriptor cannot ship
+ * without a row, and a row cannot name an unregistered plugin.
+ */
+export const BUILTIN_BASE_PLUGINS: readonly BuiltinBasePlugin[] = [
+  {
+    id: CLIPBOARD_PLUGIN_ID,
+    titleKey: "settings.clipboardHistory",
+    descriptionKey: "settings.clipboardHistoryHint",
+    toggleable: true,
+    hasPage: true,
+    privacyKey: "settings.clipboardPrivacy",
+  },
+  {
+    id: BROWSER_PLUGIN_ID,
+    titleKey: "settings.browser",
+    descriptionKey: "settings.browserHint",
+    toggleable: false,
+    hasPage: true,
+  },
+];

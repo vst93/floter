@@ -296,11 +296,17 @@ fn open_url_with(browser_id: &str, url: &str) -> Result<(), String> {
 }
 
 /// Map a browser id to its macOS application bundle name.
+///
+/// The Edge channels are separate app bundles, not one bundle with a flag, so
+/// each id names its own bundle — the same suffix the data directory uses.
 #[cfg(target_os = "macos")]
 fn macos_app_name(browser_id: &str) -> Option<&'static str> {
     match browser_id {
         "chrome" => Some("Google Chrome"),
         "edge" => Some("Microsoft Edge"),
+        "edge-beta" => Some("Microsoft Edge Beta"),
+        "edge-dev" => Some("Microsoft Edge Dev"),
+        "edge-canary" => Some("Microsoft Edge Canary"),
         "brave" => Some("Brave Browser"),
         "chromium" => Some("Chromium"),
         _ => None,

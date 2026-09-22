@@ -545,6 +545,9 @@ type ExtensionsPanelProps = {
   basePlugins: BasePluginRow[];
   /** Enable/disable a base plugin; tears its runtime down when disabled. */
   onToggleBasePlugin: (id: string, enabled: boolean) => void;
+  /** Open a base plugin's own settings page (the same page the global hotkey
+   * and `floter clip` open) over the settings surface. */
+  onOpenPluginPage: (id: string) => void;
   /** Push a toast onto the app-level stack (rendered by App outside any scroll
    * container, so feedback stays visible wherever the user scrolled to). The
    * optional action rides the same stack — R7-7's drift notice uses it to open
@@ -573,6 +576,13 @@ export type BasePluginRow = {
   titleKey: Parameters<Translate>[0];
   descriptionKey: Parameters<Translate>[0];
   enabled: boolean;
+  /** Whether the plugin has a persisted on/off switch. A plugin that is always
+   *  available (the browser plugin) renders no switch rather than a dead one. */
+  toggleable: boolean;
+  /** Whether the plugin declares an HTML settings page this row can open. */
+  hasPage: boolean;
+  /** Optional extra note rendered under the row (the clipboard privacy line). */
+  privacyKey?: Parameters<Translate>[0];
 };
 
 type PermissionName =
@@ -640,7 +650,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginPage, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2204,25 +2214,40 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                 <span className="extensions-base-plugin__main">
                   <span className="extensions-base-plugin__name">{t(plugin.titleKey)}</span>
                   <span className="extensions-base-plugin__description">{t(plugin.descriptionKey)}</span>
+                  {plugin.privacyKey && (
+                    <span className="extensions-base-plugin__privacy settings-privacy-hint">
+                      {t(plugin.privacyKey)}
+                    </span>
+                  )}
                 </span>
-                <button
-                  type="button"
-                  className={`settings-switch${plugin.enabled ? " settings-switch--active" : ""}`}
-                  role="switch"
-                  aria-checked={plugin.enabled}
-                  disabled={settingsBusy}
-                  aria-busy={settingsBusy}
-                  aria-label={t(plugin.titleKey)}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onToggleBasePlugin(plugin.id, !plugin.enabled)}
-                >
-                  <span className="settings-switch__thumb" />
-                </button>
+                <span className="extensions-base-plugin__actions">
+                  {plugin.hasPage && (
+                    <button
+                      type="button"
+                      className="extensions-action-button extensions-base-plugin__configure"
+                      onClick={() => onOpenPluginPage(plugin.id)}
+                    >
+                      {t("settings.plugins.configure")}
+                    </button>
+                  )}
+                  {plugin.toggleable && (
+                    <button
+                      type="button"
+                      className={`settings-switch${plugin.enabled ? " settings-switch--active" : ""}`}
+                      role="switch"
+                      aria-checked={plugin.enabled}
+                      disabled={settingsBusy}
+                      aria-busy={settingsBusy}
+                      aria-label={t(plugin.titleKey)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => onToggleBasePlugin(plugin.id, !plugin.enabled)}
+                    >
+                      <span className="settings-switch__thumb" />
+                    </button>
+                  )}
+                </span>
               </div>
             ))}
-            <p className="extensions-base-plugin__privacy settings-privacy-hint">
-              {t("settings.clipboardPrivacy")}
-            </p>
           </div>
         </section>
         <section className="extensions-section">

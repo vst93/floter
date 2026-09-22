@@ -2593,13 +2593,32 @@
   line-height: 1.5;
 }
 
+/* The row's controls (the optional "Settings" button and the optional switch)
+   sit in one flex group so the row stays a two-column layout: copy on the left,
+   controls on the right. */
+.extensions-base-plugin__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Optical nudge only. The 20px switch is already pinned to the card top by
    `align-items: flex-start`, so it does NOT move as the description grows
    (measured: switch top is 15px in both the one-line and two-line card). This
    2px simply drops it off the border edge; it is not load-bearing for height
    stability. */
-.extensions-base-plugin > .settings-switch {
+.extensions-base-plugin__actions > .settings-switch {
   margin-top: 2px;
+}
+
+/* The row's "Settings" action opens the plugin's own page. It borrows the
+   panel's action pill so it reads as the same control family, one step down in
+   size: it must not out-shout the plugin name it sits beside. */
+.extensions-base-plugin__configure {
+  height: 24px;
+  min-height: 24px;
+  font-size: var(--text-emphasis);
 }
 
 .extensions-base-plugin__hotkey {

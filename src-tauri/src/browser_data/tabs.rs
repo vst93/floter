@@ -55,12 +55,17 @@ pub struct BrowserTab {
 ///
 /// The same table `browser_open_url` uses. Kept here as well so the tab reader
 /// does not reach into the opener's internals; the two are deliberately
-/// identical, and both are covered by the platform table's own test.
+/// identical, and both are covered by the platform table's own test. Each Edge
+/// channel is its own bundle (`Microsoft Edge Beta`, …), matching its data
+/// directory name.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn mac_app_name(browser_id: &str) -> Option<&'static str> {
     match browser_id {
         "chrome" => Some("Google Chrome"),
         "edge" => Some("Microsoft Edge"),
+        "edge-beta" => Some("Microsoft Edge Beta"),
+        "edge-dev" => Some("Microsoft Edge Dev"),
+        "edge-canary" => Some("Microsoft Edge Canary"),
         "brave" => Some("Brave Browser"),
         "chromium" => Some("Chromium"),
         _ => None,
@@ -616,6 +621,9 @@ mod tests {
         for (id, app) in [
             ("chrome", "Google Chrome"),
             ("edge", "Microsoft Edge"),
+            ("edge-beta", "Microsoft Edge Beta"),
+            ("edge-dev", "Microsoft Edge Dev"),
+            ("edge-canary", "Microsoft Edge Canary"),
             ("brave", "Brave Browser"),
             ("chromium", "Chromium"),
         ] {
