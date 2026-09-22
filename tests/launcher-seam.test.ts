@@ -345,10 +345,19 @@ test("the window is re-measured after the resize settles, so the card is never l
   );
   // The correction: after the resize resolves, re-measure on the next frame and
   // resize again only if the content really did move.
+  // R25 · the re-measure now feeds the same target rule the first resize used —
+  // the budget constant, raised by the card's own content when it genuinely
+  // outgrew it — so the ordinary card settles back onto the height that was
+  // asked for and the pass ends without a second `setSize`.
   assert.match(
     hook,
-    /\.then\(\(\) => \{[\s\S]*?reassertCollapsedFocus\(\);[\s\S]*?afterPaint\(\(\) => \{[\s\S]*?measureCardHeight\(card\)[\s\S]*?settled !== height[\s\S]*?resizeLauncherWindow\(card, settled/,
+    /\.then\(\(\) => \{[\s\S]*?reassertCollapsedFocus\(\);[\s\S]*?afterPaint\(\(\) => \{[\s\S]*?launcherTargetHeight\(card, height\)[\s\S]*?settled !== height[\s\S]*?resizeLauncherWindow\(card, settled/,
     "the settle pass must re-measure after the resize lands and re-apply only a real difference",
+  );
+  assert.match(
+    hook,
+    /Math\.max\(windowHeight \+ shellPaddingHeight\(card\), measureCardHeight\(card\)\)/,
+    "R25: the target is the budget constant, which only the card's own content may raise",
   );
   // …and it waits for the next paint, with a timer fallback so the helper stays
   // drivable where `requestAnimationFrame` does not exist (the node suite).

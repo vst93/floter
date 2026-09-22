@@ -224,11 +224,16 @@ test("the height measurement adds the scale only to the native fallback, not the
   );
 });
 
-test("the real measurement requests the laid-out height verbatim, never a scaled one", async () => {
+test("the real measurement asks for the budget constant, and only a card taller than it may raise it", async () => {
   // The previous test models the arithmetic; this one drives the actual helper
-  // with a stubbed Tauri bridge, so a "helpful" multiply inside
-  // `syncLauncherHeight` (the double-scale bug) is caught at the source rather
-  // than in a re-implementation of it.
+  // with a stubbed Tauri bridge. R25 changed what the helper asks for: the
+  // launcher's window is a fixed slab (`LAUNCHER_WINDOW_HEIGHT`, the ten-row
+  // budget), never the measured card — that is what stopped the window being
+  // resized on every keystroke. The measurement survives as one guard: a card
+  // whose content genuinely outgrew the budget must not be clipped, so the
+  // requested height is the larger of the two. What must never happen is a
+  // *multiply* — the measurement is read back in the pixels the browser laid
+  // out, so scaling it again would double-scale (the bug this test guards).
   const globalWindow = globalThis as unknown as {
     window: unknown;
     getComputedStyle: (el: unknown) => Record<string, string>;
@@ -280,24 +285,42 @@ test("the real measurement requests the laid-out height verbatim, never a scaled
 
   try {
     const { syncLauncherHeight } = await import("../src/hooks/useLauncherHeight.ts");
+    const { LAUNCHER_WINDOW_HEIGHT } = await import("../src/launcher/result-budget.ts");
+    const ref = (children: Array<{ offsetTop: number; offsetHeight: number }>) =>
+      ({ current: { children, parentElement: null } }) as unknown as {
+        current: HTMLDivElement | null;
+      };
     // A card laid out at a *step* — the browser reports these numbers after the
     // step is applied, so they already carry it (nothing extra may be applied).
-    const card = {
-      children: [
+    // Its last child ends at 86 + 42, plus the 2px frame -> 130, well inside the
+    // budget, so the window is asked for the budget and nothing else.
+    syncLauncherHeight(
+      ref([
         { offsetTop: 56, offsetHeight: 30 },
         { offsetTop: 86, offsetHeight: 42 },
-      ],
-      parentElement: null,
-    };
-    syncLauncherHeight({ current: card } as unknown as {
-      current: HTMLDivElement | null;
-    });
+      ]),
+    );
     await new Promise((resolve) => setTimeout(resolve, 5));
 
     assert.equal(sizes.length, 1, "the helper asks the window for one size");
-    // The last laid-out child ends at 86 + 42, plus the 2px frame -> 130.
-    assert.equal(sizes[0].height, 130, "the requested height is the measured height, verbatim");
+    assert.equal(
+      sizes[0].height,
+      LAUNCHER_WINDOW_HEIGHT,
+      "the requested height is the ten-row budget, not the card it happens to be showing",
+    );
     assert.equal(sizes[0].width, 720, "and the width is the unscaled window contract");
+
+    // …and the one case the constant cannot express: a card whose content is
+    // taller than the budget (a first-run tip above a full list) may raise it.
+    syncLauncherHeight(ref([{ offsetTop: 0, offsetHeight: 600 }]));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    assert.equal(sizes.length, 2, "a card taller than the budget is not clipped");
+    assert.equal(
+      sizes[1].height,
+      602,
+      "the overflow guard asks for the card's own content (600 plus the 2px frame)",
+    );
   } finally {
     globalWindow.window = previousWindow;
     globalWindow.getComputedStyle = previousGetComputedStyle;

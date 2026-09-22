@@ -26,14 +26,16 @@
      still read the one variable — while giving back the last 4px of
      reservation. base.css is still untouched: the shared token stays 14px. */
   --scroll-edge: 4px;
-  /* Not `height`: the window is sized to this card (see the measuring layout
-     effect in App.tsx), so the card has to be free to be taller than the window
-     it currently sits in. Pinned to an exact height it would instead squeeze its
-     own rows — a flex item with nothing to give — and the bottom of the action
-     bar would be cut off by the window edge. `min-height` still fills a window
-     that happens to be larger, which is what the moment between a shrinking
-     result list and the resize landing looks like. */
-  min-height: 100%;
+  /* R25 · pinned to the window's height, not `min-height`-ed into it. The old
+     rule ("not `height`: the window is sized to this card, so the card has to be
+     free to be taller than the window it currently sits in") belonged to a
+     window that followed the card's measurement. The window is now a constant
+     drawn from the card's worst case (`LAUNCHER_WINDOW_HEIGHT`), so the card is
+     exactly the slab and the list inside it scrolls instead — which is what
+     keeps the field's top edge and the action bar's bottom edge where they are
+     while the user types. A card taller than its window is now the bug, not the
+     mechanism. */
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -285,7 +287,14 @@
 .launcher-bottom {
   position: relative;
   z-index: 1;
-  display: grid;
+  /* R25 · a column, not a grid: the list above the action bar is the only
+     flexible row, and the bar is pinned to the bottom edge. A grid with
+     content-sized rows left the leftover height at the bottom of the panel,
+     which is invisible while the window is measured to the card and a gap
+     between the last row and the bar now that it is not. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   gap: 0;
   /* R21 · the tail is the one inset that is not a margin around a row. Top and
      sides stay 4u — they keep a selected row's tint off the card's edge and the
@@ -339,6 +348,11 @@
 .launcher-bottom-clip--open {
   grid-template-rows: 1fr;
   max-height: 600px;
+  /* R25 · the open clip is the card's flexible row: it takes the height the
+     field, the breath and the first-run tip leave behind, and its own child
+     fills it (the 1fr track above). The closed clip stays content-sized at
+     zero, so an empty launcher is still just its field. */
+  flex: 1 1 auto;
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -690,7 +704,17 @@
 }
 
 .launcher-options {
-  display: grid;
+  /* R25 · the list plus the action bar fill the panel, and the free space
+     between them is pushed *above* the bar: the bar is the panel's last row and
+     sits on its bottom edge (its own 3u `margin-top` is the minimum gap, kept on
+     the bar itself — see `.launcher-action-bar`). The list keeps its own ceiling
+     and scrolls inside it, so a short result set leaves sunken panel material
+     between the last row and the bar rather than shrinking the window. */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 0;
 }
 
@@ -899,6 +923,11 @@
   position: relative;
   width: 100%;
   height: calc(var(--u) * 42);
+  /* R25 · the bar is the panel's pinned footer: it may not be squeezed by a
+     tight list above it (`.launcher-options` is a column that distributes its
+     free space, and a shrinking footer would be a second way for the bottom
+     edge to move while the user types). */
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;

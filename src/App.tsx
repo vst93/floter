@@ -85,6 +85,7 @@ import {
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
+  launcherWindowHeight,
   RESULTS_VIEWPORT_CHROME,
   shortcutSlotsWithFixedTail,
   withClipboardResultRow,
@@ -504,7 +505,7 @@ export default function App() {
     setMode("collapsed");
     try {
       await invoke("show_input");
-      syncLauncherHeight(collapsedCardRef);
+      syncLauncherHeight(collapsedCardRef, launcherHeightRef.current);
     } catch {
       // The DOM still transitions back to a usable launcher even if the native
       // resize failed; keep the keyboard recovery below independent of IPC.
@@ -1007,15 +1008,34 @@ export default function App() {
     });
   }, [displayedResults.length]);
 
-  // The launcher window is exactly as tall as the rows inside it, measured
-  // rather than predicted. Extracted into useLauncherHeight hook.
+  // R25 · the launcher window is a **fixed slab**: the ten-row budget, scaled
+  // once here (the only place that knows the interface step) and clamped to the
+  // display. Nothing a keystroke does may resize it — that is the whole fix for
+  // 「输入进行过滤时页面整体有抖动」 — so the value is computed from the budget
+  // and handed to the hook and to every imperative sync, never measured.
   //
-  // R7-13c: `settings.ui_scale` is in the dependency list on purpose. The card
-  // is drawn from scaled CSS, so its `offsetTop`/`offsetHeight` already include
-  // the step; the hook must **re-measure** when the step changes (the old
-  // pixels are stale), never multiply a measurement by the factor — that would
-  // scale twice. The knob stays out of the hook itself; the trigger is here.
-  useLauncherHeight(mode, collapsedCardRef, [
+  // The step multiplies the *budget*, not a measurement: the card is drawn from
+  // scaled CSS, so a measurement already carries the step and multiplying it
+  // again would scale twice (see `useLauncherHeight`).
+  const launcherHeight = Math.min(
+    launcherWindowHeight(uiScaleFactor(settings.ui_scale)),
+    Math.max(240, window.screen.availHeight - 24),
+  );
+  // The same number, readable by the listeners registered once for the app's
+  // lifetime (the reveal path): they must not close over the step that happened
+  // to be current when they were installed.
+  const launcherHeightRef = useRef(launcherHeight);
+  launcherHeightRef.current = launcherHeight;
+
+  // The launcher window is a constant height now; the hook holds it there and
+  // only raises it for a card that genuinely outgrew the budget. Extracted into
+  // useLauncherHeight hook.
+  //
+  // R7-13c: `settings.ui_scale` is in the dependency list on purpose. The budget
+  // is expressed in scaled units, so the window height moves with the step —
+  // recomputed, never multiplied onto a measurement. The knob stays out of the
+  // hook itself; the trigger is here.
+  useLauncherHeight(mode, collapsedCardRef, launcherHeight, [
     visibleActionBar,
     launcherFeedback,
     displayedResults.length,
@@ -1156,7 +1176,7 @@ export default function App() {
             // `syncLauncherHeight` re-runs the focus collector once its native
             // resize settles (see `collapsed-focus.ts`); the beats below cover
             // the commit instant and the reveal race in front of it.
-            syncLauncherHeight(collapsedCardRef);
+            syncLauncherHeight(collapsedCardRef, launcherHeightRef.current);
           })
           .catch(() => undefined);
       }
@@ -1254,7 +1274,7 @@ export default function App() {
       // restore the compact window before it is painted with stale space.
       window.requestAnimationFrame(() => {
         if (modeRef.current === "collapsed") {
-          syncLauncherHeight(collapsedCardRef);
+          syncLauncherHeight(collapsedCardRef, launcherHeightRef.current);
         }
       });
       // A webview resuming from a hidden state can run that rAF against a
@@ -1266,7 +1286,7 @@ export default function App() {
           modeRef.current === "collapsed" &&
           restoringMode.current === "collapsed"
         ) {
-          syncLauncherHeight(collapsedCardRef);
+          syncLauncherHeight(collapsedCardRef, launcherHeightRef.current);
         }
       }, 120);
       window.setTimeout(() => {

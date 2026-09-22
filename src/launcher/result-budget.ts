@@ -143,6 +143,63 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  in `tests/launcher-ten-rows.test.ts`. */
 export const RESULTS_VIEWPORT_CHROME = 212;
 
+/** R25 · the launcher window's height is a **constant**, derived from the same
+ *  ten-row budget the list above is built from. The user's report, verbatim:
+ *  「现在搜索页面输入进行过滤时页面整体有抖动的情况，不像原生应用」. The cause was
+ *  structural: every keystroke changed the row count, the row count drove a
+ *  measurement, and the measurement called `setSize` — the native window was
+ *  resized once per key. Every native launcher (Raycast, Alfred, Spotlight,
+ *  tinycast) does the opposite: the window is a fixed slab, the list scrolls
+ *  inside it, and the action bar is pinned to its bottom edge. That difference
+ *  is what "native" means here, so this round makes the launcher's window that
+ *  slab.
+ *
+ *  The constant is the **worst case of the budget chain**, segment by segment
+ *  (see the audit on `RESULTS_VIEWPORT_CHROME` below and `styles/launcher.css`
+ *  for each box):
+ *
+ *    `.collapsed-card__input-row`     42u  (min-height, R23)
+ *    the row's `margin-bottom`         4u  (R18's breath, halved in R24)
+ *    `.launcher-bottom` padding-top    4u  (with the line above: the 8u breath)
+ *    `.launcher-results` max-height  378u  (nine two-line rows, R20)
+ *    `.launcher-action-bar` margin     3u  (R18's constant gap)
+ *    `.launcher-action-bar` height    42u  (a row, not a footer)
+ *    `.launcher-bottom` padding-bottom 2u  (R21's tail)
+ *    ────────────────────────────────────
+ *                                    475u
+ *
+ *  plus the pixels that do not scale with the unit: the list's own chrome
+ *  (`RESULTS_LIST_CHROME`, 50px — band, gaps and the empty-query title) and the
+ *  card's 1px frame top and bottom. `475u + 52px` is 527px at the default
+ *  interface step, and 4px above the tallest card the sheets can actually
+ *  produce (the list's real worst case is 378u + 39px, 11px under its 50px
+ *  ceiling) — a window never clips, and the slack lands in the gap above the
+ *  pinned action bar, where nothing can see it.
+ *
+ *  The unit split is deliberate: the budget is a layout number and has to
+ *  follow the interface step, so it is written as units + fixed pixels and
+ *  scaled **once**, in `launcherWindowHeight` — never by multiplying a
+ *  measurement (see the note in `hooks/useLauncherHeight.ts`). */
+export const LAUNCHER_WINDOW_HEIGHT_UNITS = 475;
+
+/** The part of {@link LAUNCHER_WINDOW_HEIGHT} that does not scale: the list's
+ *  `RESULTS_LIST_CHROME` and the card's 1px frame top and bottom. */
+export const LAUNCHER_WINDOW_HEIGHT_CHROME = RESULTS_LIST_CHROME + 2;
+
+/** The launcher window's height at the default interface step: `475u + 52px`
+ *  = 527px. Every state of the launcher — empty query, one result, nine, a
+ *  feedback row, the first-run tip — is drawn inside this slab, so nothing a
+ *  keystroke does may resize the window. */
+export const LAUNCHER_WINDOW_HEIGHT =
+  LAUNCHER_WINDOW_HEIGHT_UNITS + LAUNCHER_WINDOW_HEIGHT_CHROME;
+
+/** The constant at an interface step, in logical pixels. The step multiplies
+ *  the unit part only; the chrome is fixed pixels either way, exactly as
+ *  `calc(var(--u) * N + Mpx)` behaves in the sheet. Rounded up, because a
+ *  window one pixel short of its card is a clipped card. */
+export const launcherWindowHeight = (scale: number): number =>
+  Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * scale + LAUNCHER_WINDOW_HEIGHT_CHROME);
+
 /** Whether a row is *a* clipboard row — the fixed one, or the one the query
  *  produced by matching the clipboard system command. Either way the list must
  *  not grow a second one. */
