@@ -83,7 +83,7 @@ export const shouldNotify = (foreground: PanelForeground, _outcome: Notification
  * Rust registry so a new plugin page cannot ship without a way to be named in
  * a notification.
  */
-export const NOTIFICATION_PLUGIN_IDS: readonly string[] = ["builtin.clipboard"];
+export const NOTIFICATION_PLUGIN_IDS: readonly string[] = ["builtin.clipboard", "builtin.browser"];
 
 /** What a notification is about, mirroring `notifications::Subject`. */
 export type NotificationSubject =

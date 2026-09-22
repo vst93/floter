@@ -61,9 +61,11 @@ export const rowTypeWord = (item: LauncherItem, t: Translate): string => {
     case "file-more":
       return t("launcher.files");
     // R26-A: a browser row is a bookmark or a history entry; the two share a
-    // row shape, and the URL subtitle already says which site it is.
+    // row shape, and the URL subtitle already says which site it is. R26-B: a
+    // live-tab row is neither — its type word is the group heading it sits
+    // under, so the row does not claim to be a bookmark.
     case "browser":
-      return t("system.browserSearch");
+      return item.tab ? t("browserPage.tabs") : t("system.browserSearch");
   }
 };
 

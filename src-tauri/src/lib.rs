@@ -1620,6 +1620,10 @@ pub fn run() {
             browser_data::browser_search_bookmarks,
             browser_data::browser_search_history,
             browser_data::browser_open_url,
+            browser_data::tabs::browser_list_tabs,
+            browser_data::tabs::browser_activate_tab,
+            commands::config::browser_get_settings,
+            commands::config::browser_set_settings,
             #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_get_entries,
             #[cfg(feature = "clipboard-history")]

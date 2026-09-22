@@ -15,6 +15,7 @@ export default defineConfig(async () => ({
       input: {
         main: "index.html",
         "plugins/clipboard": "plugins/clipboard/index.html",
+        "plugins/browser/page": "plugins/browser/page.html",
       },
     },
   },

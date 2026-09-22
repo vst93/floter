@@ -310,6 +310,41 @@ export function useLauncherActions(options: {
   };
 
   /**
+   * R26-B · switch to a tab the browser already has open.
+   *
+   * Distinct from `openBrowserUrl`: the tab exists, so the right action is to
+   * focus it, not to open the URL a second time. `url` rides along as the
+   * fallback the backend uses when it cannot reach the browser (a closed debug
+   * port, a browser that is not running), so the row still does what the user
+   * asked. The launcher closes on the same rule as `openBrowserUrl`: only after
+   * the backend accepted the call.
+   */
+  const activateBrowserTab = async (
+    tab: { browserId: string; windowIndex: number; tabIndex: number },
+    url: string,
+  ) => {
+    if (launcherOpening.current) return;
+    launcherOpening.current = true;
+    setLauncherFeedback(null);
+    try {
+      await invoke("browser_activate_tab", {
+        browserId: tab.browserId,
+        windowIndex: tab.windowIndex,
+        tabIndex: tab.tabIndex,
+        url,
+      });
+    } catch {
+      showLauncherFeedback("launcher.error.browser");
+      return;
+    } finally {
+      launcherOpening.current = false;
+    }
+    setQuery("");
+    setHistoryIndex(-1);
+    invoke("hide_window");
+  };
+
+  /**
    * Run one of a dropped file's three actions.
    *
    * The whole point of R7-10a: these are the *only* three things a dropped file
@@ -517,6 +552,12 @@ export function useLauncherActions(options: {
     if (item.type === "browser") {
       // A status row ("no browser found", "no matches") is not runnable.
       if (item.disabled) return;
+      // R26-B: a live-tab row switches to the tab; every other browser row
+      // opens its URL.
+      if (item.tab) {
+        void activateBrowserTab(item.tab, item.url);
+        return;
+      }
       void openBrowserUrl(item.profileKey, item.url);
       return;
     }

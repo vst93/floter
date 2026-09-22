@@ -116,10 +116,28 @@ type BrowserSearchRow = {
   profile_key: string;
 };
 
+/** R26-B · one row from `browser_list_tabs` — a tab the browser has open now.
+ *  `window_index`/`tab_index` identify it for `browser_activate_tab`. */
+type BrowserTabRow = {
+  browser_id: string;
+  window_index: number;
+  tab_index: number;
+  title: string;
+  url: string;
+  active: boolean;
+};
+
 /** How many browser rows to fetch. The launcher renders at most eight matched
  *  rows (`MAX_RESULTS - 1`), and the merge drops duplicate URLs, so a small
  *  over-fetch keeps the visible list full without an unbounded query. */
 const BROWSER_FETCH_LIMIT = 24;
+
+/** R26-B · the ceiling on one browser group. Bookmarks and history share the
+ *  first group (bookmarks win, history fills); the live tabs are a second, so
+ *  a browser with nothing open cannot hide the bookmarks and a browser with a
+ *  full bookmark bar cannot hide the tabs. The launcher list scrolls when the
+ *  two groups together outgrow its box. */
+const BROWSER_GROUP_LIMIT = MAX_RESULTS - 1;
 
 /**
  * The built-in power actions, searched like applications.
@@ -436,10 +454,25 @@ export function useLauncherCatalog(options: {
               query: mode.needle,
               limit: BROWSER_FETCH_LIMIT,
             }).catch(() => []);
-          const [bookmarks, history] = await Promise.all([
+          const tabRead =
+            mode.kind === "bookmarks" || mode.kind === "history"
+              ? Promise.resolve({ tabs: [] as BrowserTabRow[], failed: false })
+              : invoke<BrowserTabRow[]>("browser_list_tabs", {
+                  profileKeyOrBrowser: profileKey,
+                  limit: BROWSER_FETCH_LIMIT,
+                }).then(
+                  (value) => ({ tabs: value, failed: false }),
+                  // R26-B · the fetch that is *expected* to fail (no debug port,
+                  // browser not running) reports itself rather than throwing:
+                  // the two lists above must never be held up by it.
+                  () => ({ tabs: [] as BrowserTabRow[], failed: true }),
+                );
+          const [bookmarks, history, tabResult] = await Promise.all([
             mode.kind === "history" ? Promise.resolve([]) : fetch("browser_search_bookmarks"),
             mode.kind === "bookmarks" ? Promise.resolve([]) : fetch("browser_search_history"),
+            tabRead,
           ]);
+          const tabs = tabResult.tabs;
           const seen = new Set<string>();
           const rows: LauncherItem[] = [];
           for (const row of [...bookmarks, ...history]) {
@@ -455,7 +488,42 @@ export function useLauncherCatalog(options: {
               url: row.url,
               profileKey: row.profile_key,
             });
-            if (rows.length >= MAX_RESULTS - 1) break;
+            if (rows.length >= BROWSER_GROUP_LIMIT) break;
+          }
+          // R26-B · the Tabs group. Deliberately NOT merged into `seen`: a tab
+          // that is also a bookmark is two different actions (switch to it vs.
+          // open it again), so both rows stay.
+          for (const tab of tabs) {
+            if (!tab.url && !tab.title) continue;
+            rows.push({
+              type: "browser",
+              id: `tab:${tab.browser_id}:${tab.window_index}:${tab.tab_index}`,
+              title: tab.title || tab.url,
+              subtitle: tab.url,
+              url: tab.url,
+              profileKey,
+              tab: {
+                browserId: tab.browser_id,
+                windowIndex: tab.window_index,
+                tabIndex: tab.tab_index,
+              },
+            });
+            if (rows.length >= BROWSER_GROUP_LIMIT * 2) break;
+          }
+          // R26-B · the soft landing, made visible: when the tab read failed
+          // outright (no debug port, browser closed, AppleScript timed out) the
+          // group is empty and this one disabled line says so, rather than the
+          // user wondering why a running browser's tabs are missing.
+          if (!tabs.length && tabResult.failed) {
+            rows.push({
+              type: "browser",
+              id: "browser-tabs-unavailable",
+              title: t("launcher.browserTabsUnavailable"),
+              subtitle: "",
+              url: "",
+              profileKey: "default",
+              disabled: true,
+            });
           }
           return rows.length ? rows : statusRow("launcher.browserEmpty");
         })

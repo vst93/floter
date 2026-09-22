@@ -32,6 +32,10 @@ use crate::AppState;
 /// mechanism.
 pub const CLIPBOARD_PLUGIN_ID: &str = "builtin.clipboard";
 
+/// Stable id of the built-in browser plugin, the second user of this
+/// mechanism.
+pub const BROWSER_PLUGIN_ID: &str = "builtin.browser";
+
 /// Everything the host needs to render one plugin page.
 pub struct PluginPageDescriptor {
     pub id: &'static str,
@@ -58,14 +62,38 @@ const CLIPBOARD_COMMANDS: &[&str] = &[
     "clipboard_read_file_preview",
 ];
 
+/// R26-B · the browser plugin's own page. Its settings card writes through
+/// `browser_get_settings`/`browser_set_settings`, which touch only the plugin's
+/// settings block; the three read commands and the two tab commands are the
+/// same ones the launcher's inline mode uses.
+const BROWSER_COMMANDS: &[&str] = &[
+    "browser_discover",
+    "browser_search_bookmarks",
+    "browser_search_history",
+    "browser_list_tabs",
+    "browser_activate_tab",
+    "browser_open_url",
+    "browser_get_settings",
+    "browser_set_settings",
+];
+
 /// The registry of built-in plugin pages.
-static DESCRIPTORS: &[PluginPageDescriptor] = &[PluginPageDescriptor {
-    id: CLIPBOARD_PLUGIN_ID,
-    title_key: "settings.clipboardHistory",
-    description_key: "settings.clipboardHistoryHint",
-    page: "plugins/clipboard/index.html",
-    allowed_commands: CLIPBOARD_COMMANDS,
-}];
+static DESCRIPTORS: &[PluginPageDescriptor] = &[
+    PluginPageDescriptor {
+        id: CLIPBOARD_PLUGIN_ID,
+        title_key: "settings.clipboardHistory",
+        description_key: "settings.clipboardHistoryHint",
+        page: "plugins/clipboard/index.html",
+        allowed_commands: CLIPBOARD_COMMANDS,
+    },
+    PluginPageDescriptor {
+        id: BROWSER_PLUGIN_ID,
+        title_key: "settings.browser",
+        description_key: "settings.browserHint",
+        page: "plugins/browser/page.html",
+        allowed_commands: BROWSER_COMMANDS,
+    },
+];
 
 pub fn descriptor(id: &str) -> Option<&'static PluginPageDescriptor> {
     DESCRIPTORS.iter().find(|entry| entry.id == id)
@@ -145,6 +173,10 @@ pub fn builtin_plugins_list() -> Result<Vec<BuiltinPluginInfo>, String> {
             // this is where it reads from.
             enabled: match descriptor.id {
                 CLIPBOARD_PLUGIN_ID => settings.clipboard_history_enabled,
+                // The browser plugin has no on/off switch: it is inert until
+                // the user types one of its trigger words, so "available" is
+                // the honest state.
+                BROWSER_PLUGIN_ID => true,
                 _ => false,
             },
         })
@@ -235,6 +267,41 @@ mod tests {
         // An unknown plugin has no page and no permissions.
         assert!(descriptor("builtin.nope").is_none());
         assert!(descriptor("../../etc/passwd").is_none());
+    }
+
+    #[test]
+    fn the_registry_contains_the_browser_page_with_its_commands() {
+        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
+        assert_eq!(browser.page, "plugins/browser/page.html");
+        for command in [
+            "browser_search_bookmarks",
+            "browser_search_history",
+            "browser_list_tabs",
+            "browser_activate_tab",
+            "browser_open_url",
+            "browser_get_settings",
+            "browser_set_settings",
+        ] {
+            assert!(
+                browser.allowed_commands.contains(&command),
+                "{command} must be allowlisted for the browser page"
+            );
+        }
+    }
+
+    #[test]
+    fn the_two_builtin_pages_share_no_command() {
+        // A page's allowlist is its whole capability surface, so the browser
+        // page must not inherit a clipboard command (or the reverse) by being
+        // listed twice.
+        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
+        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
+        for command in browser.allowed_commands {
+            assert!(
+                !clipboard.allowed_commands.contains(command),
+                "{command} is allowlisted for both pages"
+            );
+        }
     }
 
     #[test]

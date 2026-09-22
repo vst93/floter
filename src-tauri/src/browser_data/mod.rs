@@ -15,12 +15,14 @@
 //! empty result.
 //!
 //! This is the read half of the plugin. The launcher's inline result mode and
-//! the plugin's own settings page consume these commands; tab search is a
-//! separate surface.
+//! the plugin's own settings page consume these commands; the live tabs of a
+//! running browser are the third surface ([`tabs`]), read through AppleScript
+//! on macOS and the DevTools Protocol elsewhere.
 
 pub mod bookmarks;
 pub mod discover;
 pub mod history;
+pub mod tabs;
 
 use serde::Serialize;
 use std::path::PathBuf;

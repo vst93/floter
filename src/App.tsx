@@ -189,16 +189,21 @@ export type AppSettings = {
   /** R26-A: the built-in browser plugin's own settings. `target` is `"auto"`
    * or a browser id from `browser_discover`; `custom_base_dir` adds a
    * non-standard profile directory; `history_days` bounds history search
-   * (`0` disables the filter). The backend normalizes all three on save. */
+   * (`0` disables the filter). R26-B adds the DevTools debug-port pair the
+   * plugin's own page edits. The backend normalizes all five on save. */
   browser_plugin: BrowserPluginSettings;
 }
 
-/** R26-A: the browser plugin's settings block, mirroring the Rust
- *  `BrowserPluginSettings`. */
+/** R26-A/R26-B: the browser plugin's settings block, mirroring the Rust
+ *  `BrowserPluginSettings`. Every field has to be here: a whole-app settings
+ *  save submits this object, so a missing member would be read back as its
+ *  default and silently wipe the plugin page's own choices. */
 export type BrowserPluginSettings = {
   target: string;
   custom_base_dir: string | null;
   history_days: number;
+  cdp_enabled: boolean;
+  cdp_port: number;
 };
 
 const SETTINGS_WINDOW_HEIGHT = 580;

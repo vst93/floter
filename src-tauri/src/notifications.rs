@@ -310,6 +310,8 @@ pub(crate) fn plugin_display_name(id: &str, language: &str) -> &'static str {
     match (id, chinese) {
         (crate::plugin_pages::CLIPBOARD_PLUGIN_ID, false) => "Clipboard History",
         (crate::plugin_pages::CLIPBOARD_PLUGIN_ID, true) => "剪贴板历史",
+        (crate::plugin_pages::BROWSER_PLUGIN_ID, false) => "Browser Bookmarks & History",
+        (crate::plugin_pages::BROWSER_PLUGIN_ID, true) => "浏览器书签与历史记录",
         // An unknown plugin still needs a name: the notification must not leak
         // a raw id, and it must not be silently dropped either.
         (_, false) => "Plugin",

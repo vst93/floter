@@ -14,6 +14,9 @@
  * registry (src-tauri/src/plugin_pages.rs). */
 export const CLIPBOARD_PLUGIN_ID = "builtin.clipboard";
 
+/** Stable id of the built-in browser plugin, mirroring the same registry. */
+export const BROWSER_PLUGIN_ID = "builtin.browser";
+
 /** Marker property every bridge message carries. */
 export const BRIDGE_TAG = "floter" as const;
 

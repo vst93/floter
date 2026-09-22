@@ -38,6 +38,12 @@ export type LauncherItem =
    * browser result mode. `url` is what Enter opens; `profileKey` says which
    * browser to open it in. A `disabled` row is a status line ("no browser
    * found", "no matches") and is not runnable.
+   *
+   * R26-B adds the second flavour: a row with `tab` set is a tab the browser
+   * has open *right now*, and Enter switches to it rather than opening the URL
+   * a second time. The tab identity is carried here rather than looked up from
+   * `url`, because the same page can be open in two windows and the two rows
+   * must stay distinct.
    */
   | {
       type: "browser";
@@ -47,6 +53,7 @@ export type LauncherItem =
       url: string;
       profileKey: string;
       disabled?: boolean;
+      tab?: { browserId: string; windowIndex: number; tabIndex: number };
     }
   /**
    * A previously typed command line, surfaced in the empty-query state so the
@@ -266,6 +273,17 @@ export function LauncherResults({
             // does not print two headings in a row.
             const filesSectionStartsHere =
               isFileGroup && (index === 0 || !["file", "file-more"].includes(results[index - 1].type));
+            // R26-B · the Tabs group sits below bookmarks and history and gets
+            // its own heading; the heading is printed once, above the first tab
+            // row, so the group reads as one block rather than three.
+            const browserTabsSectionStartsHere =
+              item.type === "browser" &&
+              Boolean(item.tab) &&
+              !(
+                index > 0 &&
+                results[index - 1].type === "browser" &&
+                Boolean((results[index - 1] as Extract<LauncherItem, { type: "browser" }>).tab)
+              );
             return (
               <Fragment key={item.id}>
                 {historySectionStartsHere && (
@@ -284,6 +302,15 @@ export function LauncherResults({
                     title={t("launcher.filesHint")}
                   >
                     {t("launcher.files")}
+                  </div>
+                )}
+                {browserTabsSectionStartsHere && (
+                  <div
+                    className="launcher-section-title"
+                    role="presentation"
+                    title={t("browserPage.tabsHint")}
+                  >
+                    {t("browserPage.tabs")}
                   </div>
                 )}
                 <button

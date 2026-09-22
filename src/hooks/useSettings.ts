@@ -62,8 +62,15 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // before this round rendered), so a pre-hydration frame is pixel-identical.
   ui_scale: "default",
   // R26-A: the browser plugin ships working out of the box — auto-detect the
-  // browser, no custom directory, a 30-day history window.
-  browser_plugin: { target: "auto", custom_base_dir: null, history_days: 30 },
+  // browser, no custom directory, a 30-day history window. R26-B adds the
+  // DevTools debug-port pair, off and on the browser's own port by default.
+  browser_plugin: {
+    target: "auto",
+    custom_base_dir: null,
+    history_days: 30,
+    cdp_enabled: false,
+    cdp_port: 9222,
+  },
 };
 
 /** Debounce window for the font-size and transparency sliders' writes. The
@@ -223,6 +230,8 @@ export function useSettings(options: {
             target: loaded.browser_plugin?.target ?? "auto",
             custom_base_dir: loaded.browser_plugin?.custom_base_dir ?? null,
             history_days: loaded.browser_plugin?.history_days ?? 30,
+            cdp_enabled: loaded.browser_plugin?.cdp_enabled ?? false,
+            cdp_port: loaded.browser_plugin?.cdp_port ?? 9222,
           },
         };
         const hydrated = settingsHydration.mergeLoaded(

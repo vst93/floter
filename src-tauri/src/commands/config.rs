@@ -155,6 +155,16 @@ pub struct BrowserPluginSettings {
     pub custom_base_dir: Option<String>,
     /// How far back history search looks, in days. `0` disables the filter.
     pub history_days: u32,
+    /// R26-B: whether to read live tabs from the browser's DevTools debug
+    /// endpoint. Off by default — the endpoint only exists when the browser was
+    /// started with `--remote-debugging-port`, so this is an explicit opt-in,
+    /// never something the plugin turns on behind the user's back. Ignored on
+    /// macOS, where tabs come from AppleScript instead.
+    pub cdp_enabled: bool,
+    /// R26-B: the port the debug endpoint listens on. The browser's own default
+    /// is 9222; the setting exists because a second browser instance has to
+    /// pick another one.
+    pub cdp_port: u16,
 }
 
 impl Default for BrowserPluginSettings {
@@ -163,6 +173,8 @@ impl Default for BrowserPluginSettings {
             target: "auto".to_string(),
             custom_base_dir: None,
             history_days: 30,
+            cdp_enabled: false,
+            cdp_port: crate::browser_data::tabs::DEFAULT_CDP_PORT,
         }
     }
 }
@@ -590,6 +602,11 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         .map(|dir| dir.trim().to_string())
         .filter(|dir| !dir.is_empty());
     settings.browser_plugin.history_days = settings.browser_plugin.history_days.min(MAX_HISTORY_DAYS);
+    // R26-B: a debug port of 0 is not a port; fall back to the browser's own
+    // default rather than writing a value the connect call can never use.
+    if settings.browser_plugin.cdp_port == 0 {
+        settings.browser_plugin.cdp_port = crate::browser_data::tabs::DEFAULT_CDP_PORT;
+    }
     settings
 }
 
@@ -775,6 +792,39 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
         &settings.clipboard_history_hotkey,
     );
     Ok(())
+}
+
+/// R26-B: read the built-in browser plugin's own settings.
+///
+/// The plugin's page runs inside a sandboxed iframe and cannot reach the app's
+/// `get_settings`/`save_settings` pair — those carry the whole app settings
+/// object, which the page has no business rewriting. This narrow pair reads and
+/// writes exactly the `browser_plugin` block, through the same settings lock and
+/// the same atomic write every other settings change uses.
+#[tauri::command]
+pub fn browser_get_settings() -> BrowserPluginSettings {
+    load_settings().browser_plugin
+}
+
+/// R26-B: replace the browser plugin's settings and return the normalized
+/// result.
+///
+/// `normalize_browser_target` and the rest of `normalize_settings` still have
+/// the last word, so an unknown browser id or a blank directory comes back as
+/// the value that was actually stored. Changing `custom_base_dir` invalidates
+/// the discovery cache explicitly: the cache is keyed by a directory signature
+/// that does include the custom path, but a path that does not exist yet hashes
+/// to nothing, so the explicit clear is what makes "point it at a new folder"
+/// take effect on the very next scan rather than the next restart.
+#[tauri::command]
+pub fn browser_set_settings(settings: BrowserPluginSettings) -> Result<BrowserPluginSettings, String> {
+    let _guard = settings_lock()?;
+    let mut stored = load_settings();
+    stored.browser_plugin = settings;
+    let stored = normalize_settings(stored);
+    write_settings(&stored)?;
+    crate::browser_data::discover::clear_discovery_cache();
+    Ok(stored.browser_plugin)
 }
 
 #[tauri::command]
@@ -1021,18 +1071,28 @@ mod tests {
                 target: "firefox".into(),
                 custom_base_dir: Some("   ".into()),
                 history_days: u32::MAX,
+                // R26-B: 0 is not a port; the normalizer restores the default.
+                cdp_enabled: true,
+                cdp_port: 0,
             },
             ..AppSettings::default()
         });
         assert_eq!(settings.browser_plugin.target, "auto");
         assert_eq!(settings.browser_plugin.custom_base_dir, None);
         assert_eq!(settings.browser_plugin.history_days, MAX_HISTORY_DAYS);
+        assert_eq!(
+            settings.browser_plugin.cdp_port,
+            crate::browser_data::tabs::DEFAULT_CDP_PORT
+        );
+        assert!(settings.browser_plugin.cdp_enabled);
 
         let kept = normalize_settings(AppSettings {
             browser_plugin: BrowserPluginSettings {
                 target: "auto".into(),
                 custom_base_dir: Some(" /opt/browser ".into()),
                 history_days: 7,
+                cdp_enabled: false,
+                cdp_port: 9333,
             },
             ..AppSettings::default()
         });
@@ -1041,6 +1101,56 @@ mod tests {
             Some("/opt/browser")
         );
         assert_eq!(kept.browser_plugin.history_days, 7);
+        assert_eq!(kept.browser_plugin.cdp_port, 9333);
+        assert!(!kept.browser_plugin.cdp_enabled);
+    }
+
+    /// R26-B · the settings round trip the plugin page depends on: what
+    /// `browser_set_settings` writes is exactly what `browser_get_settings`
+    /// reads back, and the R26-A block keeps its meaning across the round trip.
+    #[test]
+    fn the_browser_plugin_settings_survive_a_write_and_read() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let settings = normalize_settings(AppSettings {
+            browser_plugin: BrowserPluginSettings {
+                target: "brave".into(),
+                custom_base_dir: Some("/data/brave".into()),
+                history_days: 14,
+                cdp_enabled: true,
+                cdp_port: 9333,
+            },
+            ..AppSettings::default()
+        });
+        write_settings_to(directory.path(), &settings).expect("write settings");
+        let read_back = read_settings(&directory.path().join(SETTINGS_FILE_NAME))
+            .expect("read settings back");
+        assert_eq!(read_back.browser_plugin, settings.browser_plugin);
+        assert_eq!(read_back.browser_plugin.target, "brave");
+        assert_eq!(
+            read_back.browser_plugin.custom_base_dir.as_deref(),
+            Some("/data/brave")
+        );
+        assert_eq!(read_back.browser_plugin.history_days, 14);
+        assert!(read_back.browser_plugin.cdp_enabled);
+        assert_eq!(read_back.browser_plugin.cdp_port, 9333);
+    }
+
+    #[test]
+    fn older_browser_settings_get_the_debug_port_defaults() {
+        // A settings file written by R26-A has a `browser_plugin` block without
+        // the R26-B keys. The plugin must open with tab capture off and the
+        // browser's own port, not with a zeroed port it could never connect to.
+        let settings: AppSettings = serde_json::from_str(
+            "{\"browser_plugin\":{\"target\":\"chrome\",\"history_days\":9}}",
+        )
+        .expect("R26-A settings deserialize");
+        assert_eq!(settings.browser_plugin.target, "chrome");
+        assert_eq!(settings.browser_plugin.history_days, 9);
+        assert!(!settings.browser_plugin.cdp_enabled);
+        assert_eq!(
+            settings.browser_plugin.cdp_port,
+            crate::browser_data::tabs::DEFAULT_CDP_PORT
+        );
     }
 
     #[test]

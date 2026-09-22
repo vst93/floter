@@ -316,6 +316,20 @@ fn discovery_signature(custom_base_dir: Option<&Path>) -> u64 {
 
 static DISCOVERY_CACHE: Mutex<Option<(u64, Vec<BrowserProfileInfo>)>> = Mutex::new(None);
 
+/// Drop the discovery cache so the next read rescans from scratch.
+///
+/// The cache is signature-keyed and the signature includes the custom base dir,
+/// so a *change* to that path is normally picked up on its own. This exists for
+/// the case the signature cannot see: a path that did not exist when it was
+/// cached, or a directory whose contents changed without its own mtime moving.
+/// Saving the plugin's settings is the one moment the user is explicitly asking
+/// for a rescan, so it is the one moment worth paying for one.
+pub fn clear_discovery_cache() {
+    if let Ok(mut cache) = DISCOVERY_CACHE.lock() {
+        *cache = None;
+    }
+}
+
 /// Cached [`discover_profiles_with`]: the directory listing is only redone when
 /// the signature changes. The cache is process-wide and short-lived — a browser
 /// installed while Floter runs is picked up on the next call without a restart.

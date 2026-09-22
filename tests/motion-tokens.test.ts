@@ -18,13 +18,14 @@ const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stylesDir = new URL("src/styles/", root);
 
 // Every CSS file the app ships. R7-1's convergence covers `src/styles/*.css`
-// (the four surfaces' shared sheet). Two files are deliberately outside this
-// round's file boundary and are listed here so the exception is visible rather
-// than a silent gap: the uninstall dialog's own sheet, and the clipboard
-// plugin page, whose token pass belongs to R7-4/R7-6.
+// (the four surfaces' shared sheet). Files deliberately outside that boundary
+// are listed here so the exception is visible rather than a silent gap: the
+// uninstall dialog's own sheet, and the two plugin pages, whose token pass
+// belongs to R7-4/R7-6 (clipboard) and R26-B (browser).
 const OUT_OF_SCOPE = [
   "src/extensions/ComponentizedUninstallDialog.css",
   "src/plugins/clipboard/page.css",
+  "src/plugins/browser/page.css",
 ];
 
 // Animations that must not run under `prefers-reduced-motion` (G-12). The
