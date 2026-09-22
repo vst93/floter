@@ -24,6 +24,9 @@ export type ActionBarKind =
   | "restart"
   | "shutdown"
   | "clipboard"
+  // R26-A: the browser plugin's entry point. Like `clipboard`, the action bar
+  // claims the bare trigger word and dispatches it to the result-mode switch.
+  | "browser"
   // R7-10a: a dropped file's three actions. Not produced by
   // `classifyActionBar` — they are claimed by the file-drop layer — but they
   // are `ActionBarKind`s so the switcher is the existing action bar rather than
@@ -91,7 +94,7 @@ const ALIAS_SCORE_CAP = 690;
  * reaches the power action whether it landed on the action bar or on the
  * numbered row above it.
  */
-const SYSTEM_ACTION_QUERIES: Record<string, "restart" | "shutdown" | "clipboard"> = {
+const SYSTEM_ACTION_QUERIES: Record<string, "restart" | "shutdown" | "clipboard" | "browser"> = {
   restart: "restart",
   reboot: "restart",
   shutdown: "shutdown",
@@ -100,6 +103,16 @@ const SYSTEM_ACTION_QUERIES: Record<string, "restart" | "shutdown" | "clipboard"
   clipboard: "clipboard",
   "clipboard history": "clipboard",
   "paste history": "clipboard",
+  // R26-A: the browser plugin's trigger words. The bare word lands on the
+  // action bar / the system row; typing the word plus a space enters the
+  // plugin's result mode (see `useLauncherCatalog`). `history` is deliberately
+  // absent: it is the shell's own command, and the browser history search
+  // reaches the mode through the `history ` prefix instead.
+  browser: "browser",
+  bookmarks: "browser",
+  bookmark: "browser",
+  "浏览器": "browser",
+  "书签": "browser",
 };
 
 export const normalizeSearch = (value: string): string =>
@@ -285,6 +298,44 @@ export const classifyActionBar = (value: string): ActionBarKind => {
   if (URL_QUERY.test(value)) return "url";
   if (PATH_QUERY.test(value)) return "path";
   return "shell";
+};
+
+/** R26-A · the browser plugin's inline result mode. */
+export type BrowserMode = {
+  /** `all` searches bookmarks and history; the other two narrow the source. */
+  kind: "all" | "bookmarks" | "history";
+  /** The text after the trigger word, already trimmed. Empty is the default
+   *  view: the bookmarks bar plus the most recent history. */
+  needle: string;
+};
+
+/** Trigger words that enter the browser mode. Each must be followed by at
+ *  least one space, so the bare word stays on the action bar / system row —
+ *  the difference between `bookmarks` (a row you Enter) and `bookmarks rust`
+ *  (already inside the mode). */
+const BROWSER_BOOKMARK_TRIGGERS = new Set(["bookmarks", "bookmark", "书签"]);
+const BROWSER_ALL_TRIGGERS = new Set(["browser", "浏览器"]);
+// `history` is the shell's own command, so it only enters the mode once it has
+// an argument: `history` runs `history`, `history rust` searches the browser.
+const BROWSER_HISTORY_TRIGGERS = new Set(["history", "hist", "历史", "历史记录"]);
+
+/**
+ * Parse a query into a browser-mode request, or `null` when the query is not in
+ * the mode.
+ *
+ * The trigger word must be followed by whitespace. That one character is what
+ * lets the mode be entered deliberately — Enter on the `bookmarks` system row
+ * rewrites the query to `bookmarks ` — and left again by deleting the space.
+ */
+export const parseBrowserMode = (value: string): BrowserMode | null => {
+  const match = /^(\S+)\s+(.*)$/s.exec(value);
+  if (!match) return null;
+  const word = match[1].toLowerCase();
+  const needle = match[2].trim();
+  if (BROWSER_BOOKMARK_TRIGGERS.has(word)) return { kind: "bookmarks", needle };
+  if (BROWSER_ALL_TRIGGERS.has(word)) return { kind: "all", needle };
+  if (BROWSER_HISTORY_TRIGGERS.has(word)) return { kind: "history", needle };
+  return null;
 };
 
 /** Decide which row a fresh query should select before the user navigates. */

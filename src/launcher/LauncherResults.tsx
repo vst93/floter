@@ -8,10 +8,11 @@ import {
   History as HistoryIcon,
   File as FileIcon,
   Folder as FolderIcon,
+  Globe as GlobeIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
 import type { DroppedFile } from "./file-drops";
 
-export type SystemAction = "restart" | "shutdown" | "clipboard";
+export type SystemAction = "restart" | "shutdown" | "clipboard" | "browser";
 
 /** Command-row warnings kept out of the subtitle string: they are rendered as
  *  an always-visible dot with the text as tooltip, so a narrow window can
@@ -32,6 +33,21 @@ export type LauncherItem =
       completion: boolean;
     }
   | { type: "system"; id: string; title: string; subtitle: string; action: SystemAction }
+  /**
+   * R26-A · a browser bookmark or history row, produced by the launcher's
+   * browser result mode. `url` is what Enter opens; `profileKey` says which
+   * browser to open it in. A `disabled` row is a status line ("no browser
+   * found", "no matches") and is not runnable.
+   */
+  | {
+      type: "browser";
+      id: string;
+      title: string;
+      subtitle: string;
+      url: string;
+      profileKey: string;
+      disabled?: boolean;
+    }
   /**
    * A previously typed command line, surfaced in the empty-query state so the
    * user can recall a recent command with a click or Enter. Not a result and
@@ -76,6 +92,12 @@ const SystemActionIcon = ({ action }: { action: SystemAction }) => (
       <>
         <path d="M12 2v10" />
         <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
+      </>
+    ) : action === "browser" ? (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M2 12h20" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
       </>
     ) : (
       <>
@@ -217,7 +239,9 @@ export function LauncherResults({
           )}
           {results.map((item, index) => {
             const selected = !selectedActionBar && index === selectedResultIndex;
-            const unavailable = item.type === "command" && !item.execution;
+            const unavailable =
+              (item.type === "command" && !item.execution) ||
+              (item.type === "browser" && item.disabled === true);
             const warnings = item.type === "command" ? item.warnings : [];
             const isHistory = item.type === "history";
             // R7-10a: the dropped-file group. Both of its row kinds count, so
@@ -294,6 +318,8 @@ export function LauncherResults({
                       <img src={appIconUrls[item.app.path]} alt="" />
                     ) : item.type === "system" ? (
                       <SystemActionIcon action={item.action} />
+                    ) : item.type === "browser" ? (
+                      <GlobeIcon size={16} />
                     ) : isHistory ? (
                       <HistoryIcon />
                     ) : item.type === "file" ? (

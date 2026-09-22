@@ -1,5 +1,7 @@
 #[cfg(feature = "clipboard-history")]
 mod clipboard_history;
+// R26-A: the built-in browser plugin's data layer (bookmarks / history search).
+mod browser_data;
 mod commands;
 pub mod deep_link;
 pub mod extensions;
@@ -1613,6 +1615,11 @@ pub fn run() {
             catalog_complete,
             extensions_cancel_operation,
             commands::config::update_clipboard_hotkey,
+            browser_data::browser_discover,
+            browser_data::browser_default_profile,
+            browser_data::browser_search_bookmarks,
+            browser_data::browser_search_history,
+            browser_data::browser_open_url,
             #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_get_entries,
             #[cfg(feature = "clipboard-history")]

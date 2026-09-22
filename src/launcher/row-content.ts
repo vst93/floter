@@ -60,6 +60,10 @@ export const rowTypeWord = (item: LauncherItem, t: Translate): string => {
     case "file":
     case "file-more":
       return t("launcher.files");
+    // R26-A: a browser row is a bookmark or a history entry; the two share a
+    // row shape, and the URL subtitle already says which site it is.
+    case "browser":
+      return t("system.browserSearch");
   }
 };
 
@@ -130,7 +134,10 @@ export const resultRowContent = (item: LauncherItem, t: Translate): RowContent =
     (item.type === "app" && isAlternateAppName(item, subtitle)) ||
     isTranscription(item.title, subtitle);
   return {
-    source: item.type === "app" || item.type === "system" ? null : typeWord,
+    source:
+      item.type === "app" || item.type === "system" || item.type === "browser"
+        ? null
+        : typeWord,
     subtitle: subtitle === typeWord || transcription ? null : subtitle,
   };
 };

@@ -61,6 +61,9 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // R7-13c: the shipped interface-size step is `default` (the scale every build
   // before this round rendered), so a pre-hydration frame is pixel-identical.
   ui_scale: "default",
+  // R26-A: the browser plugin ships working out of the box — auto-detect the
+  // browser, no custom directory, a 30-day history window.
+  browser_plugin: { target: "auto", custom_base_dir: null, history_days: 30 },
 };
 
 /** Debounce window for the font-size and transparency sliders' writes. The
@@ -213,6 +216,14 @@ export function useSettings(options: {
           // hand-edited one may carry a step that no longer ships; both land on
           // `default` (the shipped step) rather than on an unscaled guess.
           ui_scale: normalizeUiScale(loaded.ui_scale),
+          // R26-A: a file written before the browser plugin existed has no
+          // `browser_plugin` block; the shipped defaults keep the plugin
+          // usable without the user visiting its settings page.
+          browser_plugin: {
+            target: loaded.browser_plugin?.target ?? "auto",
+            custom_base_dir: loaded.browser_plugin?.custom_base_dir ?? null,
+            history_days: loaded.browser_plugin?.history_days ?? 30,
+          },
         };
         const hydrated = settingsHydration.mergeLoaded(
           settingsRef.current,

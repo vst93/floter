@@ -287,6 +287,29 @@ export function useLauncherActions(options: {
   };
 
   /**
+   * R26-A · open a browser row's URL in the browser the row came from.
+   *
+   * Mirrors `openWithSystem`: the launcher closes only after the backend
+   * accepted the URL, so a refusal leaves the row on screen to retry.
+   */
+  const openBrowserUrl = async (profileKey: string, url: string) => {
+    if (launcherOpening.current) return;
+    launcherOpening.current = true;
+    setLauncherFeedback(null);
+    try {
+      await invoke("browser_open_url", { profileKey, url });
+    } catch {
+      showLauncherFeedback("launcher.error.browser");
+      return;
+    } finally {
+      launcherOpening.current = false;
+    }
+    setQuery("");
+    setHistoryIndex(-1);
+    invoke("hide_window");
+  };
+
+  /**
    * Run one of a dropped file's three actions.
    *
    * The whole point of R7-10a: these are the *only* three things a dropped file
@@ -366,7 +389,8 @@ export function useLauncherActions(options: {
     if (
       action.type === "restart" ||
       action.type === "shutdown" ||
-      action.type === "clipboard"
+      action.type === "clipboard" ||
+      action.type === "browser"
     ) {
       const systemAction = action.type;
       const titleKey =
@@ -374,13 +398,17 @@ export function useLauncherActions(options: {
           ? "system.restart"
           : systemAction === "shutdown"
             ? "system.shutdown"
-            : "system.clipboardHistory";
+            : systemAction === "clipboard"
+              ? "system.clipboardHistory"
+              : "system.browserSearch";
       const subtitleKey =
         systemAction === "restart"
           ? "system.restartSubtitle"
           : systemAction === "shutdown"
             ? "system.shutdownSubtitle"
-            : "system.clipboardHistorySubtitle";
+            : systemAction === "clipboard"
+              ? "system.clipboardHistorySubtitle"
+              : "system.browserSearchSubtitle";
       void runSystemAction({
         type: "system",
         id: `system-${systemAction}`,
@@ -394,6 +422,16 @@ export function useLauncherActions(options: {
   };
 
   const runSystemAction = async (item: Extract<LauncherItem, { type: "system" }>) => {
+    // R26-A: the browser row is not an action, it is the door into the browser
+    // result mode. Rewriting the query to `browser ` is what opens it — the
+    // mode's own parser owns the trigger vocabulary, so the two can never
+    // disagree about the word.
+    if (item.action === "browser") {
+      setQuery("browser ");
+      setHistoryIndex(-1);
+      return;
+    }
+
     // The clipboard page is a plain view flip — no confirmation, no window
     // hiding, just the same open path the global hotkey and `floter clip`
     // take.
@@ -424,7 +462,7 @@ export function useLauncherActions(options: {
 
     setPendingSystemAction(null);
 
-    if (item.action === "clipboard") return;
+    if (item.action === "clipboard" || item.action === "browser") return;
 
     if (systemPowerOpening.current) return;
     systemPowerOpening.current = true;
@@ -474,6 +512,12 @@ export function useLauncherActions(options: {
     }
     if (item.type === "system") {
       void runSystemAction(item);
+      return;
+    }
+    if (item.type === "browser") {
+      // A status row ("no browser found", "no matches") is not runnable.
+      if (item.disabled) return;
+      void openBrowserUrl(item.profileKey, item.url);
       return;
     }
     if (item.type === "history") {

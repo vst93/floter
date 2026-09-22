@@ -51,6 +51,13 @@ ed25519-dalek = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
+# R26-A: the browser plugin reads Chromium's `History` SQLite database. It is
+# always copied to a temp directory first (the live file is locked while the
+# browser runs), so this is a read-only consumer. `bundled` compiles SQLite
+# from source instead of linking the system library, which keeps the schema
+# reader identical on every platform we ship and avoids the version skew
+# between a distro's sqlite and the file the browser wrote.
+rusqlite = { version = "0.32", features = ["bundled"] }
 crossterm = "0.28"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
 semver = { version = "1.0.28", features = ["serde"] }

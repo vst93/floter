@@ -13,10 +13,12 @@ import {
   executionWithCompletion,
   launcherShortcutSlots,
   normalizeSearch,
+  parseBrowserMode,
   parseCommandLine,
   recentItems,
   scoreApp,
   shouldDefaultToActionBar,
+  type BrowserMode,
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
@@ -104,6 +106,21 @@ type CatalogSuggestion =
 /** Answer to `check_applications`: whether a rescan would find anything new. */
 type ApplicationsStatus = { upToDate: boolean; count: number };
 
+/** R26-A · one row from `browser_search_bookmarks` / `browser_search_history`.
+ *  The two commands share a shape; the fields one kind does not use are simply
+ *  absent (`#[serde(skip_serializing_if)]` on the Rust side). */
+type BrowserSearchRow = {
+  id: string;
+  title: string;
+  url: string;
+  profile_key: string;
+};
+
+/** How many browser rows to fetch. The launcher renders at most eight matched
+ *  rows (`MAX_RESULTS - 1`), and the merge drops duplicate URLs, so a small
+ *  over-fetch keeps the visible list full without an unbounded query. */
+const BROWSER_FETCH_LIMIT = 24;
+
 /**
  * The built-in power actions, searched like applications.
  *
@@ -162,6 +179,28 @@ const SYSTEM_COMMANDS: {
     // 剪贴板 → jtb, 剪贴板历史 → jtbls, 粘贴历史 → ntls; plus the English
     // initials so `ch` reaches it too.
     initials: "chjtblsjtblsntls",
+  },
+  {
+    // R26-A: the browser plugin's entry row. Entering it rewrites the query to
+    // `browser ` and the launcher switches into the browser result mode. Bare
+    // `history` is deliberately NOT a search name: it is the shell's command,
+    // and the mode is reachable through `browser`, `bookmarks` or `history `.
+    action: "browser",
+    titleKey: "system.browserSearch",
+    subtitleKey: "system.browserSearchSubtitle",
+    searchNames: [
+      "browser",
+      "browser history",
+      "browser bookmarks",
+      "bookmarks",
+      "bookmark",
+      "浏览器",
+      "浏览器书签",
+      "书签",
+      "历史记录",
+    ].map(normalizeSearch),
+    // 浏览器 → llq, 浏览器书签 → llqsq, 书签 → sq, 历史记录 → lsjl.
+    initials: "llqllqsqsqlsjl",
   },
 ];
 
@@ -353,6 +392,88 @@ export function useLauncherCatalog(options: {
     return () => window.clearTimeout(timer);
   }, [query, showCommandsInSearch, commandAliases]);
 
+  // R26-A · browser result mode.
+  //
+  // The mode is entered by a trigger word plus a space (`bookmarks `,
+  // `browser `, `history rust`). While it is on, the numbered list is the
+  // browser's own rows and nothing else — it is a deliberate place, not a
+  // ranking input. `parseBrowserMode` owns the trigger vocabulary so the node
+  // suite can pin it without a DOM.
+  const browserMode = useMemo<BrowserMode | null>(() => parseBrowserMode(query), [query]);
+  const [browserRows, setBrowserRows] = useState<LauncherItem[]>([]);
+  const browserRequest = useRef(0);
+
+  useEffect(() => {
+    const generation = ++browserRequest.current;
+    if (!browserMode) {
+      setBrowserRows([]);
+      return;
+    }
+    // The early return above already narrowed the type; capturing it keeps that
+    // narrowing visible inside the timer callback.
+    const mode = browserMode;
+    let cancelled = false;
+    // The same debounce the catalog search uses: one fetch per typing pause,
+    // and a stale response is dropped by the generation check.
+    const timer = window.setTimeout(() => {
+      const statusRow = (key: MessageKey): LauncherItem[] => [
+        {
+          type: "browser",
+          id: `browser-status-${key}`,
+          title: t(key),
+          subtitle: "",
+          url: "",
+          profileKey: "default",
+          disabled: true,
+        },
+      ];
+      invoke<string | null>("browser_default_profile")
+        .then(async (profileKey) => {
+          if (!profileKey) return statusRow("launcher.browserNoProfile");
+          const fetch = (command: string): Promise<BrowserSearchRow[]> =>
+            invoke<BrowserSearchRow[]>(command, {
+              profileKey,
+              query: mode.needle,
+              limit: BROWSER_FETCH_LIMIT,
+            }).catch(() => []);
+          const [bookmarks, history] = await Promise.all([
+            mode.kind === "history" ? Promise.resolve([]) : fetch("browser_search_bookmarks"),
+            mode.kind === "bookmarks" ? Promise.resolve([]) : fetch("browser_search_history"),
+          ]);
+          const seen = new Set<string>();
+          const rows: LauncherItem[] = [];
+          for (const row of [...bookmarks, ...history]) {
+            // A URL that is both a bookmark and a recent visit is one result;
+            // bookmarks come first, so the curated row wins.
+            if (!row.url || seen.has(row.url)) continue;
+            seen.add(row.url);
+            rows.push({
+              type: "browser",
+              id: row.id,
+              title: row.title || row.url,
+              subtitle: row.url,
+              url: row.url,
+              profileKey: row.profile_key,
+            });
+            if (rows.length >= MAX_RESULTS - 1) break;
+          }
+          return rows.length ? rows : statusRow("launcher.browserEmpty");
+        })
+        .then((rows) => {
+          if (cancelled || generation !== browserRequest.current) return;
+          setBrowserRows(rows);
+        })
+        .catch(() => {
+          if (cancelled || generation !== browserRequest.current) return;
+          setBrowserRows(statusRow("launcher.browserEmpty"));
+        });
+    }, CATALOG_SEARCH_DELAY);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [browserMode, t]);
+
   /**
    * The numbered result list: applications and the built-in system actions.
    *
@@ -362,6 +483,9 @@ export function useLauncherCatalog(options: {
    * own leaves every numbered slot for something that was actually matched.
    */
   const launcherResults = useMemo<LauncherItem[]>(() => {
+    // R26-A: the browser mode owns the whole list — no applications, no
+    // commands, no ranking against them.
+    if (browserMode) return browserRows;
     const command = query.trim();
     const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
     if (!command) {
@@ -568,9 +692,12 @@ export function useLauncherCatalog(options: {
     // local match when applications or power actions matched alongside catalog
     // commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, t]);
+  }, [browserMode, browserRows, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
+    // R26-A: the browser mode is a place of its own; its rows are run by Enter,
+    // so there is no shell action to offer underneath them.
+    if (browserMode) return null;
     const value = query.trim();
     if (!value) return null;
     const type = classifyActionBar(value);
@@ -584,12 +711,16 @@ export function useLauncherCatalog(options: {
             ? t("system.shutdown")
             : type === "clipboard"
               ? t("system.clipboardHistory")
-              : t("launcher.runInShell");
+              : type === "browser"
+                ? t("system.browserSearch")
+                : t("launcher.runInShell");
     return { type, label, value };
-  }, [query, t]);
+  }, [browserMode, query, t]);
 
-  const runnableResultFlags = launcherResults.map(
-    (item) => item.type !== "command" || Boolean(item.execution),
+  const runnableResultFlags = launcherResults.map((item) =>
+    item.type === "command"
+      ? Boolean(item.execution)
+      : !(item.type === "browser" && item.disabled === true),
   );
   const resultShortcutSlots = launcherShortcutSlots(runnableResultFlags);
   const runnableResultCount = runnableResultFlags.filter(Boolean).length;

@@ -186,7 +186,20 @@ export type AppSettings = {
    * lives in `ui-scale.ts` and is written onto the document root by a layout
    * effect in this file (before `useLauncherHeight` measures the card). */
   ui_scale: UiScale;
+  /** R26-A: the built-in browser plugin's own settings. `target` is `"auto"`
+   * or a browser id from `browser_discover`; `custom_base_dir` adds a
+   * non-standard profile directory; `history_days` bounds history search
+   * (`0` disables the filter). The backend normalizes all three on save. */
+  browser_plugin: BrowserPluginSettings;
 }
+
+/** R26-A: the browser plugin's settings block, mirroring the Rust
+ *  `BrowserPluginSettings`. */
+export type BrowserPluginSettings = {
+  target: string;
+  custom_base_dir: string | null;
+  history_days: number;
+};
 
 const SETTINGS_WINDOW_HEIGHT = 580;
 const SETTINGS_MIN_HEIGHT = 420;

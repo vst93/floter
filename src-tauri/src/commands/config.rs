@@ -139,6 +139,34 @@ const APP_MODIFIER: &str = "Cmd";
 #[cfg(not(target_os = "macos"))]
 const APP_MODIFIER: &str = "Ctrl";
 
+/// R26-A: the built-in browser plugin's own settings.
+///
+/// The plugin ships working out of the box, so every field has a default that
+/// means "decide for me": `target = "auto"` picks the browser with data, and
+/// `custom_base_dir = None` leaves discovery to the platform table.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BrowserPluginSettings {
+    /// Which browser the launcher searches: `"auto"` or a browser id
+    /// (`"chrome"`, `"edge"`, `"brave"`, `"chromium"`, `"custom"`).
+    pub target: String,
+    /// An extra directory to discover as a `custom` browser, for an install
+    /// the platform table does not know about.
+    pub custom_base_dir: Option<String>,
+    /// How far back history search looks, in days. `0` disables the filter.
+    pub history_days: u32,
+}
+
+impl Default for BrowserPluginSettings {
+    fn default() -> Self {
+        Self {
+            target: "auto".to_string(),
+            custom_base_dir: None,
+            history_days: 30,
+        }
+    }
+}
+
 /// Missing keys fall back to `Default`, so settings files written by older
 /// builds keep working when new fields are introduced.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -223,6 +251,13 @@ pub struct AppSettings {
     /// map.
     #[serde(default)]
     pub command_aliases: HashMap<String, String>,
+    /// R26-A: the built-in browser plugin (bookmarks / history search).
+    ///
+    /// `#[serde(default)]` keeps every settings file written before this key
+    /// existed deserializing to the shipped behaviour (auto-detect, no custom
+    /// directory, 30-day history window).
+    #[serde(default)]
+    pub browser_plugin: BrowserPluginSettings,
 }
 
 impl Default for AppSettings {
@@ -251,6 +286,7 @@ impl Default for AppSettings {
             show_menubar_icon: default_true(),
             ui_scale: DEFAULT_UI_SCALE.to_string(),
             command_aliases: HashMap::new(),
+            browser_plugin: BrowserPluginSettings::default(),
         }
     }
 }
@@ -542,7 +578,42 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         normalize_shortcut(CLIPBOARD_PANEL, &settings.clipboard_history_hotkey)
             .filter(|normalized| normalized.contains('+'))
             .unwrap_or_default();
+    // R26-A: the browser plugin's target is either `auto` or a browser id the
+    // discovery table knows. An unknown value (a browser the user uninstalled,
+    // a hand-edited file) falls back to `auto` rather than to a dead target.
+    settings.browser_plugin.target = normalize_browser_target(&settings.browser_plugin.target);
+    // An empty custom directory is the same as none; a path is kept verbatim
+    // and only trimmed.
+    settings.browser_plugin.custom_base_dir = settings
+        .browser_plugin
+        .custom_base_dir
+        .map(|dir| dir.trim().to_string())
+        .filter(|dir| !dir.is_empty());
+    settings.browser_plugin.history_days = settings.browser_plugin.history_days.min(MAX_HISTORY_DAYS);
     settings
+}
+
+/// The largest history window the plugin will honour (ten years). A larger
+/// value is a typo, not a request.
+const MAX_HISTORY_DAYS: u32 = 3650;
+
+/// Accept `auto`, the `custom` slot, or any id in the discovery table.
+pub fn normalize_browser_target(target: &str) -> String {
+    let target = target.trim();
+    if target.is_empty() || target == "auto" {
+        return "auto".to_string();
+    }
+    if target == "custom" {
+        return "custom".to_string();
+    }
+    let known = crate::browser_data::discover::candidate_browsers()
+        .iter()
+        .any(|candidate| candidate.browser_id == target);
+    if known {
+        target.to_string()
+    } else {
+        "auto".to_string()
+    }
 }
 
 /// Merge the settings owned by the frontend with fields persisted by dedicated
@@ -916,6 +987,61 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_older_settings_file_gets_the_shipped_browser_plugin_defaults() {
+        // R26-A: a file written before the plugin existed has no
+        // `browser_plugin` key at all. `#[serde(default)]` on the field must
+        // produce the shipped behaviour — auto-detect, no custom dir, a
+        // 30-day window — rather than an error or a zeroed struct.
+        let settings: AppSettings =
+            serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
+        assert_eq!(settings.browser_plugin, BrowserPluginSettings::default());
+        assert_eq!(settings.browser_plugin.target, "auto");
+        assert_eq!(settings.browser_plugin.custom_base_dir, None);
+        assert_eq!(settings.browser_plugin.history_days, 30);
+    }
+
+    #[test]
+    fn the_browser_target_normalizes_to_a_known_id_or_auto() {
+        assert_eq!(normalize_browser_target(""), "auto");
+        assert_eq!(normalize_browser_target("  auto "), "auto");
+        assert_eq!(normalize_browser_target("chrome"), "chrome");
+        assert_eq!(normalize_browser_target("edge"), "edge");
+        assert_eq!(normalize_browser_target("custom"), "custom");
+        // A browser this table does not know (Firefox stores its data in a
+        // different format entirely) must not become a dead target.
+        assert_eq!(normalize_browser_target("firefox"), "auto");
+    }
+
+    #[test]
+    fn the_history_window_is_clamped_and_an_empty_custom_dir_is_dropped() {
+        let settings = normalize_settings(AppSettings {
+            browser_plugin: BrowserPluginSettings {
+                target: "firefox".into(),
+                custom_base_dir: Some("   ".into()),
+                history_days: u32::MAX,
+            },
+            ..AppSettings::default()
+        });
+        assert_eq!(settings.browser_plugin.target, "auto");
+        assert_eq!(settings.browser_plugin.custom_base_dir, None);
+        assert_eq!(settings.browser_plugin.history_days, MAX_HISTORY_DAYS);
+
+        let kept = normalize_settings(AppSettings {
+            browser_plugin: BrowserPluginSettings {
+                target: "auto".into(),
+                custom_base_dir: Some(" /opt/browser ".into()),
+                history_days: 7,
+            },
+            ..AppSettings::default()
+        });
+        assert_eq!(
+            kept.browser_plugin.custom_base_dir.as_deref(),
+            Some("/opt/browser")
+        );
+        assert_eq!(kept.browser_plugin.history_days, 7);
+    }
 
     #[test]
     fn older_settings_keep_the_menu_bar_icon() {
