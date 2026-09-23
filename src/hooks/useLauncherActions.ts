@@ -557,6 +557,10 @@ export function useLauncherActions(options: {
 
   const runLauncherItem = (item: LauncherItem | undefined) => {
     if (!item) return;
+    // R30 · a plugin's status line is information, not an action: Enter and a
+    // click must do nothing at all (the renderer already refuses to draw it as
+    // a control, and this is the belt to that brace).
+    if (item.type === "status") return;
     if (item.type === "file") {
       // A dropped file's *row* is a preview: clicking it shows the three
       // actions and puts the keyboard on the bar. It never runs the file, and

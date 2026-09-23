@@ -60,6 +60,12 @@ export type PluginRow =
       subtitle?: string;
       /** A status line ("no browser found", "the plugin is off"), not a door. */
       disabled?: boolean;
+      /** R30 · the row is *about* the list rather than an entry in it ("tabs
+       *  are unavailable", "nothing copied yet"). The capability layer draws
+       *  it as the launcher's muted status note instead of a result row — see
+       *  {@link pluginRowToItem}. `disabled` still marks it unrunnable; this
+       *  is the shape, and the two agree on every row the built-ins emit. */
+      kind?: "status";
       /** What Enter opens; `profileKey` says in which browser. */
       url: string;
       profileKey: string;
@@ -73,6 +79,8 @@ export type PluginRow =
       title: string;
       subtitle?: string;
       disabled?: boolean;
+      /** R30 · see the browser family's `kind`. */
+      kind?: "status";
       /** What Enter copies back to the system clipboard. */
       entry?: ClipboardEntry;
     };
@@ -238,6 +246,12 @@ export const asPluginText = (output: unknown): string | null => {
  *  R26-A/R26-B/R27 each kept for themselves; it lives here now, so the two
  *  plugins emit data and this one function is what the launcher reads. */
 export const pluginRowToItem = (row: PluginRow): LauncherItem => {
+  // R30 · a status row is information, not an entry: it becomes the launcher's
+  // own `status` item, which the renderer draws as a muted note in the list's
+  // own column — no icon plate, no `⌘N` slot, no pointer state, no Enter. That
+  // is the whole of "降级渲染": the protocol says what the row *is* and the
+  // renderer decides how a thing that is not a result looks.
+  if (row.kind === "status") return { type: "status", id: row.id, title: row.title };
   if (row.family === "browser") {
     return {
       type: "browser",
@@ -361,6 +375,18 @@ export const mergePluginRows = (
  * so a row the user already sees never moves. `cursor` is the row count the
  * next page starts at — the offset strategy the two built-ins use — and is
  * `null` once the held rows are exhausted.
+ *
+ * R30 · what the returned `rows` mean, which is half of the round's fix: they
+ * are the rows that have been **loaded**, not the rows that happen to fit the
+ * box. The launcher renders every one of them into its internal scroller and
+ * lets the scroller's own ceiling (nine rows, `RESULTS_LIST_HEIGHT`) hide the
+ * rest, so `scrollHeight > clientHeight` holds from the first page on and the
+ * scroll-to-bottom trigger in `LauncherResults.tsx` can actually fire. (The
+ * other half is the fetch: see `BROWSER_FETCH_LIMIT`, which the inline mode now
+ * actually passes. Windowing the *render* to one page would have pinned
+ * `scrollTop` at 0 and left the trigger unreachable; a window of two pages
+ * whose emission is only one page long does the same thing from the other side,
+ * because there is no remainder to page.)
  */
 export const paginatePluginRows = (
   rows: readonly PluginRow[],
@@ -374,6 +400,45 @@ export const paginatePluginRows = (
     rows: visible,
     page: { cursor: hasMore ? String(visible.length) : null, hasMore },
   };
+};
+
+/**
+ * R30 · one page count's worth of a plugin's list emission: the rows that have
+ * been **loaded** so far, plus the pagination block that says whether more
+ * exist.
+ *
+ * This is the capability layer's answer to "how much of the plugin's output is
+ * on screen right now". R29 shipped the same shape and wired it to a fetch that
+ * could never fill it: the browser plugin's group ceiling is eight rows by
+ * default, so an emission was one page (nine rows with a status line), the
+ * "no remainder, return as-is" branch below always won, no `page` block was ever
+ * attached, and `LauncherResults.tsx`'s trigger — which reads `hasMore` and
+ * nothing else — was inert. The browser was the only plugin whose list could not
+ * scroll, and the user's report is exactly that (「滚动加载还是没有」).
+ *
+ * Three rules, and each one is a bug that was possible without it:
+ *
+ *   · **text never pages** — there are no rows to window;
+ *   · **a plugin that pages itself owns its block** — `cursor` is the plugin's
+ *     opaque continuation token and the launcher must not replace it with an
+ *     offset into rows it happens to be holding (R29 did replace it);
+ *   · **a complete list gets no block** — the comparison is against the
+ *     *window*, not against one page, so a ten-row list renders all ten rows and
+ *     draws no footer. R29 attached `{cursor: null, hasMore: false}` to any list
+ *     of ten to eighteen rows and printed "No more results" under a list that
+ *     had never paged.
+ */
+export const pagePluginEmission = (
+  emission: PluginEmission | null,
+  pagesLoaded: number,
+): PluginEmission | null => {
+  if (!emission) return null;
+  const rows = asPluginRows(emission.output);
+  if (!rows) return emission;
+  if (normalizePluginPage(emission.page)) return emission;
+  const windowed = paginatePluginRows(rows, pagesLoaded);
+  if (!windowed.page.hasMore) return emission;
+  return { output: windowed.rows, page: windowed.page, tier: emission.tier };
 };
 
 /** R29 · what the list's footer should say, if anything. `null` for a list that

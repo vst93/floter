@@ -41,14 +41,16 @@ const CLIPBOARD_TYPE_KEYS: Record<ClipboardEntryType, MessageKey> = {
 };
 
 /** A status line for the clipboard mode: nothing copied yet, or the plugin
- *  switched off. Information, not a door — the capability layer turns a list of
- *  only these into the display tier. */
+ *  switched off. Information, not a door — `kind` tells the capability layer to
+ *  draw it as the launcher's muted note (R30) and `disabled` makes a list of
+ *  only these display-only. */
 export const clipboardStatusRow = (id: string, key: MessageKey, t: Translate): PluginRow => ({
   family: "clipboard",
   id,
   title: t(key),
   subtitle: "",
   disabled: true,
+  kind: "status",
 });
 
 /** One clipboard history row. The title is the entry's one-line preview (a file

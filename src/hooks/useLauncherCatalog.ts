@@ -27,9 +27,7 @@ import {
 import { normalizeEntries, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
 import {
   PLUGIN_INITIAL_PAGES,
-  PLUGIN_PAGE_SIZE,
-  asPluginRows,
-  paginatePluginRows,
+  pagePluginEmission,
   pluginViewItems,
   resolvePluginView,
   type PluginEmission,
@@ -481,6 +479,11 @@ export function useLauncherCatalog(options: {
           // R28 · the merge, the group ceilings and the soft landings are the
           // plugin's own output rules now (see `plugins/browser/mode.ts`); this
           // hook only hands the three sources over and reads back a view.
+          // R30 · the group ceiling is raised to the fetch limit: the inline
+          // mode windows the held rows itself (`paginatePluginRows`), so the
+          // plugin has to hand over more than one viewport or there is nothing
+          // left to page. Without this the browser list was the only plugin
+          // list that could never scroll.
           return {
             output: browserSearchRows({
               bookmarks,
@@ -489,6 +492,7 @@ export function useLauncherCatalog(options: {
               tabsFailed: tabResult.failed,
               profileKey,
               t,
+              limit: BROWSER_FETCH_LIMIT,
             }),
           };
         })
@@ -569,15 +573,14 @@ export function useLauncherCatalog(options: {
     setPluginPages(PLUGIN_INITIAL_PAGES);
   }, [browserMode, clipboardMode]);
 
-  /** R29 · hand the capability layer the window of rows this page count shows,
-   *  plus the pagination block. A status-only emission (one row) never pages. */
-  const windowedEmission = (emission: PluginEmission | null): PluginEmission | null => {
-    if (!emission) return null;
-    const rows = asPluginRows(emission.output);
-    if (!rows || rows.length <= PLUGIN_PAGE_SIZE) return emission;
-    const paged = paginatePluginRows(rows, pluginPages);
-    return { output: paged.rows, page: paged.page, tier: emission.tier };
-  };
+  /**
+   * R30 · hand the capability layer the rows this page count has *loaded*, plus
+   * the pagination block that says whether more exist. The rule lives in the
+   * protocol module (`pagePluginEmission`) so the node suite can pin it without
+   * a DOM; this hook only supplies the page count and the emission.
+   */
+  const windowedEmission = (emission: PluginEmission | null): PluginEmission | null =>
+    pagePluginEmission(emission, pluginPages);
 
   // R28 · the capability layer's answer for whichever plugin mode is on. One
   // view, both plugins: the form (list or text), the tier (interactive or
@@ -872,6 +875,10 @@ export function useLauncherCatalog(options: {
     item.type === "command"
       ? Boolean(item.execution)
       : !(
+          // R30 · a plugin status line is never a result: the renderer draws it
+          // as a note, so it must not take a numbered slot, a selection step or
+          // Enter either.
+          item.type === "status" ||
           (item.type === "browser" && item.disabled === true) ||
           (item.type === "clipboard" && item.disabled === true) ||
           (item.type === "system" && item.disabled === true)

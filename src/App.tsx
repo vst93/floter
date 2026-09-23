@@ -814,8 +814,15 @@ export default function App() {
 
   // Numbered slots and the arrow-key loop follow the composed list, not the
   // query list: a file row is a runnable result like any other.
+  //
+  // R30 · a plugin status line is not: it is information about the list, drawn
+  // as a note rather than a row (see `launcher/plugin-mode.ts`), so the arrows
+  // step over it and it never takes a number.
   const displayedRunnableFlags = useMemo(
-    () => displayedResults.map((item) => item.type !== "command" || Boolean(item.execution)),
+    () =>
+      displayedResults.map(
+        (item) => item.type !== "status" && (item.type !== "command" || Boolean(item.execution)),
+      ),
     [displayedResults],
   );
   // R10-A/R19: the fixed clipboard row is the ninth and last row, and the

@@ -44,7 +44,15 @@ export type BrowserTabRow = {
  *  fetches once and pages the held rows client-side (`paginatePluginRows`), so
  *  the fetch has to cover the pages the user may scroll through. 200 is a
  *  deliberate half of that ceiling — deep enough for a long history without
- *  reading a half-megabyte of bookmarks on every keystroke pause. */
+ *  reading a half-megabyte of bookmarks on every keystroke pause.
+ *
+ * R30 · and the inline mode actually passes it (see `useLauncherCatalog`). R29
+ *  raised this constant and left the hook calling the function without a
+ *  `limit`, so every browser list was still capped at the *default* group
+ *  ceiling below — eight rows, or nine with a status line — which is one page:
+ *  the emission was never taller than the viewport, `paginatePluginRows` never
+ *  found a remainder, no `page` block was attached, and the scroll-to-load-more
+ *  path was dead for the plugin the round was written for. */
 export const BROWSER_FETCH_LIMIT = 200;
 
 /** The ceiling on one browser group. Bookmarks and history share the first
@@ -55,8 +63,10 @@ export const BROWSER_FETCH_LIMIT = 200;
 export const BROWSER_GROUP_LIMIT = MAX_RESULTS - 1;
 
 /** A status line: the soft landing for "no profile", "nothing matched", "the
- *  plugin is off" and "the tab read failed". Information, not a door — the
- *  capability layer turns a list of only these into the display tier. */
+ *  plugin is off" and "the tab read failed". Information, not a door — `kind`
+ *  says so to the capability layer (which draws it as the launcher's muted note,
+ *  R30) and `disabled` says so to the tier rule (a list of only these is
+ *  display-only). */
 export const browserStatusRow = (id: string, key: MessageKey, t: Translate): PluginRow => ({
   family: "browser",
   id,
@@ -65,6 +75,7 @@ export const browserStatusRow = (id: string, key: MessageKey, t: Translate): Plu
   url: "",
   profileKey: "default",
   disabled: true,
+  kind: "status",
 });
 
 /**
@@ -77,7 +88,15 @@ export const browserStatusRow = (id: string, key: MessageKey, t: Translate): Plu
  *
  * When the tab read failed outright (no debug port, browser closed, AppleScript
  * timed out) the group is empty and one disabled line says so, rather than the
- * user wondering why a running browser's tabs are missing.
+ * user wondering why a running browser's tabs are missing. R30 · that line now
+ * **leads** the list instead of trailing it. The two are the same sentence, but
+ * only one of them can be read: the launcher renders a prefix of the output and
+ * loads the rest as the user scrolls (see `pagePluginEmission`), so a note at the
+ * end of a 200-row fetch sits eleven pages down and is never seen — which is
+ * exactly the note the user photographed sitting under eight bookmarks. At the
+ * head it is a banner for the mode's degraded state, and the R30 status style
+ * keeps it from reading as a result (see `.launcher-status` in
+ * `styles/launcher.css`).
  */
 export const browserSearchRows = (options: {
   bookmarks: readonly BrowserSearchRow[];
@@ -128,7 +147,7 @@ export const browserSearchRows = (options: {
     if (rows.length >= cap * 2) break;
   }
   if (!tabs.length && tabsFailed) {
-    rows.push(browserStatusRow("browser-tabs-unavailable", "launcher.browserTabsUnavailable", t));
+    rows.unshift(browserStatusRow("browser-tabs-unavailable", "launcher.browserTabsUnavailable", t));
   }
   return rows.length ? rows : [browserStatusRow("browser-empty", "launcher.browserEmpty", t)];
 };

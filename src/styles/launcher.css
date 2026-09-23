@@ -26,6 +26,63 @@
      still read the one variable — while giving back the last 4px of
      reservation. base.css is still untouched: the shared token stays 14px. */
   --scroll-edge: 4px;
+
+  /* ── R30 · the launcher's readability floor ────────────────────────────
+     The user's report, verbatim: 「窗口半透明过度：背后的 IDE 文字…透过窗口可读」.
+     base.css's material model is left exactly as it is — the frame's alpha is
+     `min(solid_top, max(frame_floor, transparency))` and the haze layer follows
+     it (see `--glass-tint-alpha` there) — because that model is the HIG lock and
+     it is *correct*: the transparency slider is the user's tradeoff to make.
+     What was wrong is that the launcher had no floor of its own, so at the low
+     end of the slider the panel the user *reads* was the same thin sheet as a
+     decorative one: 61% of a dark tint at the default step, 51% at the bottom
+     of the slider, over a 22px blur — enough fill to smear desktop text, not
+     enough to stop it being read.
+
+     So the launcher — and only the launcher — takes a floor:
+
+       before (default step, transparency 47%)   tint alpha 0.610
+       after                                     tint alpha 0.809
+       before (transparency 10%)                 tint alpha 0.505
+       after                                     tint alpha 0.857
+
+     The composite a glyph on the card actually sits on is that alpha over the
+     desktop, so the launcher now transmits 19% of what is behind it instead of
+     39%, and the content recess (`--surface-sunken`, the result panel) stacks on
+     top of it for ~94% — the frame is a face again, and the blur that was doing
+     all the work is a texture on a face rather than the whole defence.
+
+     Three things this deliberately does **not** do:
+       · it does not touch base.css, so the settings card, the terminal and the
+         clipboard panel keep the slider's full range — the launcher is the
+         surface with body copy directly on the frame, and the floor is scoped
+         to it;
+       · it does not reach 1.0, so the material survives: the sheen gradient,
+         the rim, the blur and the step's saturation all still read, and at the
+         slider's top end the fill is the user's own 0.98;
+       · it does not raise the blur or the saturation. Apple's model puts
+         readability on the fill and the dimming layer, not on the blur, and
+         `--glass-blur` stays the step's literal so a step change still grades
+         this surface like every other one (see `tests/glass-controls.test.ts`).
+
+     `--glass-frame-floor` is read as well as the local floor, so
+     `prefers-contrast: more` (0.86) still wins over both. */
+  --launcher-glass-floor: 0.74;
+  --launcher-frame-alpha: min(
+    var(--glass-solid-top),
+    max(var(--launcher-glass-floor), var(--glass-frame-floor), var(--main-opacity))
+  );
+  --launcher-tint-alpha: calc(
+    1 - (1 - var(--glass-step-dim) * (1 - var(--main-opacity))) * (1 - var(--launcher-frame-alpha))
+  );
+  /* The palette's own tint colour at the launcher's alpha. base.css keeps the
+     same pair of literals for `--glass-tint` in its dark block and in its two
+     light blocks; this is the launcher's own copy, so the colour still follows
+     the palette (see the two overrides below) and only the alpha is the
+     launcher's. A `color-mix()` would avoid the copy and is deliberately not
+     used — the sheet is color-mix-free so old WebKitGTK cannot render the card
+     as an empty box (see `--accent-halo` in base.css). */
+  --launcher-tint: rgba(18, 19, 22, var(--launcher-tint-alpha));
   /* R25 · pinned to the window's height, not `min-height`-ed into it. The old
      rule ("not `height`: the window is sized to this card, so the card has to be
      free to be taller than the window it currently sits in") belonged to a
@@ -43,12 +100,13 @@
   border: 1px solid var(--input-stroke);
   border-radius: var(--window-radius);
   /* One sheet of glass: the top-down rim highlight, then the tinted fill
-     whose alpha is the glass strength. Everything below this card (results,
-     the action bar, feedback) floats on it with plain translucent fills and
+     whose alpha is the glass strength — floored, for this surface only, by
+     `--launcher-glass-floor` above. Everything below this card (results, the
+     action bar, feedback) floats on it with plain translucent fills and
      hairlines — none of them blurs the desktop a second time. */
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
-    var(--glass-tint);
+    var(--launcher-tint);
   /* One token carries the whole border: lit top, dark bottom, faint sides.
      See `--glass-rim-shadow` in base.css. */
   box-shadow: var(--glass-rim-shadow);
@@ -63,7 +121,7 @@
   border-color: var(--input-stroke-active);
   background:
     linear-gradient(180deg, var(--sheen-top-active), var(--sheen-bottom-active)),
-    var(--glass-tint);
+    var(--launcher-tint);
   /* Inward, like every other edge here: a ring drawn outside the card lands
      outside the window and is clipped away, corners first. */
   box-shadow: var(--glass-rim-shadow-active);
@@ -71,6 +129,22 @@
 
 .collapsed-card:active {
   transform: none;
+}
+
+/* R30 · the launcher's fill, in the light palette's colour. base.css declares
+   `--glass-tint` twice for light (the explicit attribute and the
+   pre-hydration `prefers-color-scheme` block, see `tests/light-theme.test.ts`);
+   a local token has to follow both, or the launcher would keep a dark fill on a
+   light desktop. The alpha is the shared launcher one — only the colour
+   changes. */
+[data-theme="light"] .collapsed-card {
+  --launcher-tint: rgba(250, 250, 252, var(--launcher-tint-alpha));
+}
+
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) .collapsed-card {
+    --launcher-tint: rgba(250, 250, 252, var(--launcher-tint-alpha));
+  }
 }
 
 /* R10-B · the launcher's implicit drag handle.
@@ -885,6 +959,24 @@
   color: var(--system-icon-text);
 }
 
+/* R30 · the browser list's own density. Every row of a bookmark/history/tab
+   list carries the same glyph, and eight identical grey plates down the column
+   was the heaviest thing in the screenshot the user sent — the list read as
+   eight controls rather than as eight links. The plate goes and the glyph stays:
+   a bare muted globe still says "this opens a page", and the row loses ~28u² of
+   surface per line.
+
+   The 28u column is deliberately **not** shrunk to 24/20u. That column is what
+   lines the list's titles up with every other launcher row (and with the status
+   line below, which uses the same column — see `.launcher-status__icon`), and
+   the weight the user flagged was the plate, not the box. The glyph keeps
+   lucide's 16px, the same as the action bar's. */
+.launcher-result__icon--browser {
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
 .launcher-result__main {
   flex: 1 1 0;
   min-width: 0;
@@ -954,6 +1046,56 @@
   font-size: var(--text-body);
   font-weight: 620;
   text-align: right;
+}
+
+/* R30 · a plugin's status line. It used to be an ordinary result row — the
+   same 42u height, the same globe plate, the same title type — so
+   「标签页不可用——请查看浏览器插件设置」 sat in the list looking exactly like the
+   eight bookmarks above it, differing only in that Enter did nothing. It is not
+   an entry, so it no longer looks like one:
+
+     · a 30u line instead of a 42u row — it is a footnote to the list, not a
+       member of it. 30u is the launcher's existing status height: it is what
+       `.launcher-feedback` (the "copied to clipboard", "command not found"
+       line under the list) already reserves, so a note and a feedback message
+       are the same object at two positions;
+     · an `info` glyph in the row's own icon column (so the text stays on the
+       title's optical left edge) and **no** plate, so it never reads as a
+       button;
+     · `--text-muted` at weight 480 — weaker than a subtitle, weaker than a
+       title, and the only text in the list that is not selectable;
+     · no pointer state, no `⌘N` slot and no Enter: the element is a plain div
+       with `role="presentation"`, not the `<button role="option">` a result is
+       (see `LauncherResults.tsx`).
+
+   It is a grid child of `.launcher-results` like any row, so it takes the same
+   1px gap and spans the full width. */
+.launcher-status {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 10);
+  padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
+  min-height: calc(var(--u) * 30);
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  font-weight: 480;
+  line-height: 1.3;
+  user-select: none;
+}
+
+.launcher-status__icon {
+  flex: 0 0 auto;
+  width: calc(var(--u) * 28);
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+}
+
+.launcher-status__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .launcher-result--selected .launcher-result__action {

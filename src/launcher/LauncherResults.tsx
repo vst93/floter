@@ -9,6 +9,7 @@ import {
   File as FileIcon,
   Folder as FolderIcon,
   Globe as GlobeIcon,
+  Info as InfoIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
 import {
   PLUGIN_LOAD_MORE_THRESHOLD,
@@ -49,6 +50,16 @@ export type LauncherItem =
        *  shortcuts and the pointer, like a disabled browser row. */
       disabled?: boolean;
     }
+  /**
+   * R30 · a plugin's status line — "tabs are unavailable", "nothing copied
+   *  yet", "the plugin is off". It is information *about* the list, not an
+   *  entry in it, so it is drawn as a muted note in the list's own column
+   *  rather than as a result row: no icon plate, no title/subtitle stack, no
+   *  `⌘N`, no pointer state, no Enter. The capability layer produces it from a
+   *  `PluginRow` whose `kind` is `"status"` (see `launcher/plugin-mode.ts`),
+   *  and this variant is the "降级" half of that protocol.
+   */
+  | { type: "status"; id: string; title: string }
   /**
    * R26-A · a browser bookmark or history row, produced by the launcher's
    * browser result mode. `url` is what Enter opens; `profileKey` says which
@@ -274,6 +285,35 @@ export function LauncherResults({
     return () => observer.disconnect();
   }, [results, showRecentTitle]);
 
+  // R30 · keyboard navigation walks the whole *loaded* list, not only the nine
+  // rows the scroller's ceiling shows, so the row the selection lands on can be
+  // outside the box. Keep it visible by moving the scroller's own `scrollTop` —
+  // the same thing `ExtensionsPanel.tsx` does, and for the same reason: a
+  // `scrollIntoView` walks up every scrollable ancestor and would drag the
+  // launcher window with it.
+  //
+  // It fires when the *selection* moves, and when the list shrinks (a new query
+  // is a new result set: the selection returns to its top, so the scroller goes
+  // back there too). It deliberately does **not** fire when the list grows: that
+  // is the scroll-to-load-more append, and re-asserting the selected row then
+  // would yank the user back to the top of the list they are scrolling through.
+  const scrolledToIndex = useRef(-1);
+  const previousLength = useRef(results.length);
+  useLayoutEffect(() => {
+    const list = resultsRef.current;
+    const shrank = results.length < previousLength.current;
+    previousLength.current = results.length;
+    const moved = selectedResultIndex !== scrolledToIndex.current;
+    if (!list || selectedActionBar || (!moved && !shrank)) return;
+    scrolledToIndex.current = selectedResultIndex;
+    const row = list.querySelector<HTMLElement>(`#launcher-option-${selectedResultIndex}`);
+    if (!row) return;
+    const listRect = list.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.top < listRect.top) list.scrollTop -= listRect.top - rowRect.top;
+    else if (rowRect.bottom > listRect.bottom) list.scrollTop += rowRect.bottom - listRect.bottom;
+  }, [selectedResultIndex, selectedActionBar, results]);
+
   // The container stays mounted even with nothing to show. Returning `null`
   // here used to unmount and rebuild every row on the keystroke that emptied
   // or refilled the list, which is a layout and paint of the whole subtree at
@@ -308,6 +348,22 @@ export function LauncherResults({
             </div>
           )}
           {results.map((item, index) => {
+            // R30 · a status line is not a result row: it prints one muted
+            // sentence in the list's own icon column and takes nothing else —
+            // no `⌘N` slot, no pointer state, no Enter, and no icon plate. See
+            // the `status` variant on `LauncherItem`.
+            if (item.type === "status") {
+              return (
+                <div key={item.id} className="launcher-status" role="presentation">
+                  <span className="launcher-status__icon" aria-hidden="true">
+                    <InfoIcon size={14} />
+                  </span>
+                  <span className="launcher-status__title" title={item.title}>
+                    {item.title}
+                  </span>
+                </div>
+              );
+            }
             const selected = interactive && !selectedActionBar && index === selectedResultIndex;
             const unavailable =
               (item.type === "command" && !item.execution) ||

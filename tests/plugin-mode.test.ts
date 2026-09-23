@@ -20,7 +20,9 @@ import {
   ROW_HEIGHT_TWO_LINE,
   launcherBandIndex,
   resolveLauncherBand,
+  shortcutSlotsWithFixedTail,
 } from "../src/launcher/result-budget.ts";
+import { resultRowContent } from "../src/launcher/row-content.ts";
 import {
   PLUGIN_TEXT_LINE_UNITS,
   PLUGIN_TEXT_MAX_UNITS,
@@ -157,6 +159,35 @@ test("a list of only status rows is display-only", () => {
   assert.equal(pluginTierFor([browserRow], "display"), "display");
 });
 
+// ── A2 · R30 · a status row is a note, not a result ───────────────────────
+
+test("a status row downgrades to the launcher's own note", () => {
+  const statusRow = browserStatusRow("tabs-unavailable", "launcher.browserTabsUnavailable", en);
+  assert.equal(statusRow.kind, "status", "the plugin's word is what the layer reads");
+  assert.equal(statusRow.disabled, true, "and the tier rule still reads the flag");
+
+  const view = resolvePluginView({ output: [browserRow, statusRow] });
+  assert.ok(view && view.form === "list");
+  assert.equal(view.tier, "interactive", "one real row keeps the list interactive");
+  const items = pluginViewItems(view);
+  assert.deepEqual(items.map((item) => item.type), ["browser", "status"]);
+  const note = items[1];
+  assert.equal(note.type === "status" ? note.title : "", en("launcher.browserTabsUnavailable"));
+
+  // The note is not a row with metadata and it takes no numbered slot: the
+  // first row keeps `⌘1` and the note gets nothing.
+  assert.deepEqual(resultRowContent(note, en), { source: null, subtitle: null });
+  assert.deepEqual(shortcutSlotsWithFixedTail(items, [true, false]), [1, null]);
+
+  // The clipboard's status line goes through the same door.
+  assert.equal(clipboardStatusRow("empty", "clipboard.empty", en).kind, "status");
+  assert.equal(
+    resolvePluginView({ output: [clipboardStatusRow("empty", "clipboard.empty", en)] })?.tier,
+    "display",
+    "a list of only notes is still display-only",
+  );
+});
+
 // ── B · the height: floor, ceiling, scroll and the band table ─────────────
 
 test("text has a floor, a ceiling, and scrolls past the ceiling", () => {
@@ -219,9 +250,24 @@ test("the capability layer owns the row-to-launcher mapping", () => {
   });
 
   const status = pluginRowToItem(browserStatusRow("s", "launcher.browserEmpty", en));
-  assert.equal(status.type, "browser");
-  assert.equal(status.type === "browser" ? status.disabled : false, true);
-  assert.equal(status.type === "browser" ? status.url : "x", "");
+  // R30 · a status row is not a result row: the protocol's `kind` downgrades it
+  // to the launcher's own status item, which the renderer draws as a muted note
+  // rather than as a `<button role="option">` (see `LauncherResults.tsx`).
+  assert.equal(status.type, "status");
+  assert.equal(status.type === "status" ? status.title : "", en("launcher.browserEmpty"));
+
+  // A row that is only `disabled`, without the status `kind`, keeps the pre-R30
+  // shape: the flag alone does not re-shape a row, the protocol's own word does.
+  const disabled = pluginRowToItem({
+    family: "browser",
+    id: "d",
+    title: "x",
+    url: "",
+    profileKey: "default",
+    disabled: true,
+  });
+  assert.equal(disabled.type, "browser");
+  assert.equal(disabled.type === "browser" ? disabled.disabled : false, true);
 
   const clip = pluginRowToItem({ family: "clipboard", id: "c", title: "hi", entry: entry("c", "hi") });
   assert.equal(clip.type, "clipboard");
@@ -256,6 +302,19 @@ test("the browser plugin emits rows: merge, groups and soft landings", () => {
   assert.equal(failed.length, 1);
   assert.equal(failed[0].disabled, true);
   assert.equal(failed[0].title, en("launcher.browserTabsUnavailable"));
+  assert.equal(failed[0].kind, "status", "and it is a note, not a result");
+
+  // R30 · the note leads the list. It is a banner for the mode's degraded state;
+  // trailing a pageable fetch it would sit eleven pages down and never be seen.
+  const unavailable = browserSearchRows({
+    bookmarks: [{ id: "b1", title: "Rust", url: "https://rust-lang.org", profile_key: "default" }],
+    history: [],
+    tabs: [],
+    tabsFailed: true,
+    profileKey: "default",
+    t: en,
+  });
+  assert.deepEqual(unavailable.map((row) => row.kind ?? row.family), ["status", "browser"]);
 
   const empty = browserSearchRows({ bookmarks: [], history: [], tabs: [], tabsFailed: false, profileKey: "default", t: en });
   assert.equal(empty.length, 1);

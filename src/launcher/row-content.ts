@@ -71,6 +71,11 @@ export const rowTypeWord = (item: LauncherItem, t: Translate): string => {
     // under, so the row does not claim to be a bookmark.
     case "browser":
       return item.tab ? t("browserPage.tabs") : t("system.browserSearch");
+    // R30 · a plugin's status line is not a row with metadata: it prints its
+    // one sentence and nothing else, so it has no type word to print beside it
+    // (see `resultRowContent`, which returns before this is ever read).
+    case "status":
+      return "";
   }
 };
 
@@ -135,6 +140,10 @@ export type RowContent = {
  *   collapses to a single line.
  */
 export const resultRowContent = (item: LauncherItem, t: Translate): RowContent => {
+  // R30 · a status line prints neither: it is one muted sentence, and the
+  // renderer draws it through its own element rather than the row's
+  // title/subtitle stack (see `LauncherResults.tsx`).
+  if (item.type === "status") return { source: null, subtitle: null };
   const typeWord = rowTypeWord(item, t);
   const subtitle = item.type === "history" ? t("launcher.history") : item.subtitle;
   const transcription =

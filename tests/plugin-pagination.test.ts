@@ -11,21 +11,23 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createTranslator } from "../src/i18n.ts";
-import { MAX_RESULTS } from "../src/launcher/result-budget.ts";
+import { MAX_RESULTS, RESULTS_LIST_HEIGHT, ROW_HEIGHT_TWO_LINE, shortcutSlotsWithFixedTail } from "../src/launcher/result-budget.ts";
 import {
   PLUGIN_INITIAL_PAGES,
   PLUGIN_LOAD_MORE_THRESHOLD,
   PLUGIN_PAGE_SIZE,
   mergePluginRows,
   normalizePluginPage,
+  pagePluginEmission,
   paginatePluginRows,
   pluginFooterState,
   pluginViewHasMore,
+  pluginViewItems,
   pluginViewPage,
   resolvePluginView,
   type PluginRow,
 } from "../src/launcher/plugin-mode.ts";
-import { browserSearchRows } from "../src/plugins/browser/mode.ts";
+import { BROWSER_FETCH_LIMIT, browserSearchRows } from "../src/plugins/browser/mode.ts";
 import { clipboardModeRows } from "../src/plugins/clipboard/mode.ts";
 
 const en = createTranslator("en");
@@ -198,8 +200,136 @@ test("the list scroller owns the scroll-to-bottom trigger", async () => {
 
 test("the catalog hook windows the plugin rows and resets per query", async () => {
   const source = await readFile(new URL("../src/hooks/useLauncherCatalog.ts", import.meta.url), "utf8");
-  assert.match(source, /paginatePluginRows/, "the hook windows with the protocol helper");
+  assert.match(source, /pagePluginEmission/, "the hook pages with the protocol helper");
   assert.match(source, /PLUGIN_INITIAL_PAGES/, "the window starts at the first pages");
   assert.match(source, /loadMorePluginPage/, "the hook exposes the load-more action");
   assert.match(source, /MAX_CLIPBOARD_MAX_ITEMS/, "the clipboard fetch is the whole bounded history");
+  // R30 · the browser fetch must be the pageable one. R29 raised
+  // `BROWSER_FETCH_LIMIT` and left the hook calling `browserSearchRows` without
+  // it, so every browser list stayed at the default eight-row group ceiling —
+  // one page, no remainder, no `page` block, no scroll. This is that line.
+  assert.match(
+    source,
+    /browserSearchRows\(\{[\s\S]{0,400}?limit: BROWSER_FETCH_LIMIT/,
+    "the inline browser fetch asks for the pageable limit, not the default group cap",
+  );
+});
+
+// ── G · R30 · the window is the load, and the render is the window ────────
+
+test("every loaded row is rendered, and the box is what hides the tail", () => {
+  // The user's report: 「滚动加载还是没有」. Two halves to the repair, and this is
+  // the first: the window says how much has been *loaded* and all of it is
+  // drawn, so the content is taller than the box and the scroller can move. (The
+  // second half — the fetch that makes the window more than one page — is pinned
+  // by "the browser fetch is pageable" below.)
+  const rows = Array.from({ length: 60 }, (_, i) => row(`r${i}`));
+  const emission = pagePluginEmission({ output: rows }, PLUGIN_INITIAL_PAGES);
+  assert.ok(emission, "a pageable emission survives the window");
+  const loaded = emission!.output as PluginRow[];
+  assert.equal(loaded.length, PLUGIN_INITIAL_PAGES * PLUGIN_PAGE_SIZE, "two pages are loaded");
+
+  const view = resolvePluginView(emission);
+  assert.equal(
+    pluginViewItems(view).length,
+    loaded.length,
+    "the render count is the loaded count — nothing is sliced for the box",
+  );
+
+  // …and the box really is shorter than that: the list's ceiling is nine rows,
+  // so the loaded content is taller than the viewport and the scroller can
+  // actually move. This is the condition the trigger needs.
+  assert.ok(
+    loaded.length * ROW_HEIGHT_TWO_LINE > RESULTS_LIST_HEIGHT,
+    "the loaded content must exceed the nine-row viewport, or scrollTop can never leave 0",
+  );
+  assert.equal(pluginViewHasMore(view), true, "and the list reports that more exist");
+});
+
+test("one scroll-to-bottom grows the window by exactly one page", () => {
+  const rows = Array.from({ length: 60 }, (_, i) => row(`r${i}`));
+  const first = pagePluginEmission({ output: rows }, PLUGIN_INITIAL_PAGES)!;
+  const second = pagePluginEmission({ output: rows }, PLUGIN_INITIAL_PAGES + 1)!;
+
+  const firstRows = first.output as PluginRow[];
+  const secondRows = second.output as PluginRow[];
+  assert.equal(secondRows.length, firstRows.length + PLUGIN_PAGE_SIZE, "one page arrives");
+  // The prefix is stable: a row the user already sees never moves.
+  assert.deepEqual(secondRows.slice(0, firstRows.length), firstRows);
+  assert.equal(pluginViewHasMore(resolvePluginView(second)), true, "sixty rows are not the end");
+});
+
+test("a list that fits the window is complete: no block, no footer, every row", () => {
+  const rows = Array.from({ length: 20 }, (_, i) => row(`r${i}`));
+  const emission = pagePluginEmission({ output: rows }, PLUGIN_INITIAL_PAGES + 1)!;
+  const view = resolvePluginView(emission);
+  assert.equal(pluginViewPage(view), null, "a complete list carries no pagination block");
+  assert.equal(pluginViewItems(view).length, rows.length, "and every row is rendered");
+  assert.equal(pluginFooterState(pluginViewPage(view), false), null, "so there is no footer");
+  assert.equal(
+    pagePluginEmission({ output: rows.slice(0, 3) }, 2)!.page,
+    undefined,
+    "a three-row list is complete on the first page",
+  );
+});
+
+test("a plugin that pages itself keeps its own cursor", () => {
+  const rows = Array.from({ length: 60 }, (_, i) => row(`r${i}`));
+  const declared = { cursor: "opaque-token", hasMore: true };
+  const emission = pagePluginEmission({ output: rows, page: declared }, 1)!;
+  assert.deepEqual(emission.page, declared, "the plugin's token is not replaced by an offset");
+  assert.equal(
+    (emission.output as PluginRow[]).length,
+    rows.length,
+    "and a self-paging plugin's emission is not windowed in memory",
+  );
+  assert.equal(pagePluginEmission({ output: "just text" }, 1)!.page, undefined, "text never pages");
+  assert.equal(pagePluginEmission(null, 1), null);
+});
+
+test("the browser fetch is pageable — the R29 root cause, pinned", () => {
+  const many = (prefix: string) =>
+    Array.from({ length: 60 }, (_, i) => ({
+      id: `${prefix}${i}`,
+      title: `${prefix} ${i}`,
+      url: `https://${prefix}.example/${i}`,
+      profile_key: "default",
+    }));
+  const sources = {
+    bookmarks: many("b"),
+    history: many("h"),
+    tabs: [],
+    tabsFailed: true,
+    profileKey: "default",
+    t: en,
+  };
+  // The default group ceiling is one page — eight rows, or nine with a status
+  // line — which is exactly the state the user's screenshot was in: an
+  // emission that never exceeded the viewport, so no `page` block was ever
+  // attached and the scroll-to-load path was dead. This is the R29 root cause.
+  const capped = pagePluginEmission({ output: browserSearchRows(sources) }, PLUGIN_INITIAL_PAGES)!;
+  assert.equal(capped.page, undefined, "the default ceiling is one page, so nothing pages");
+  assert.ok(
+    (capped.output as PluginRow[]).length <= PLUGIN_PAGE_SIZE,
+    "and the whole list fits the box",
+  );
+  // The inline mode's limit is what makes the same fetch pageable.
+  const inline = pagePluginEmission(
+    { output: browserSearchRows({ ...sources, limit: BROWSER_FETCH_LIMIT }) },
+    PLUGIN_INITIAL_PAGES,
+  )!;
+  assert.equal(inline.page?.hasMore, true, "the pageable fetch has more than one page");
+  assert.equal((inline.output as PluginRow[]).length, PLUGIN_INITIAL_PAGES * PLUGIN_PAGE_SIZE);
+});
+
+test("⌘N badges stay on the first viewport, however long the list grows", () => {
+  // R19's budget is untouched: the family is 1-9 and the ninth slot is the
+  // fixed clipboard row's, so a plugin list badges its first eight rows and
+  // nothing past them — loaded or not, scrolled to or not.
+  const items = pluginViewItems(
+    resolvePluginView(pagePluginEmission({ output: Array.from({ length: 60 }, (_, i) => row(`r${i}`)) }, 3)),
+  );
+  const slots = shortcutSlotsWithFixedTail(items, items.map(() => true));
+  assert.deepEqual(slots.slice(0, 8), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.ok(slots.slice(8).every((slot) => slot === null), "the ninth row onward carries no badge");
 });
