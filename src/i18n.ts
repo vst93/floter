@@ -166,6 +166,10 @@ const en = {
   "terminal.headerExited": "Exited · code {code}",
   "terminal.processExited": "Process exited · code {code}",
   "terminal.processExitedHint": "Output retained — close when you are done.",
+  // R44 · the copy notice in the terminal's status row. Muted, no accent, and
+  // the failure text names what went wrong rather than blaming the selection.
+  "terminal.copyNotice.copied": "Copied",
+  "terminal.copyNotice.failed": "Copy failed — clipboard unavailable",
   "terminal.sessionAttached": "Running · attached",
   "terminal.sessionDetached": "Running · detached",
   "terminal.sessionExited": "Exited",
@@ -999,6 +1003,9 @@ const zh: Record<MessageKey, string> = {
   "terminal.headerExited": "已退出 · 退出码 {code}",
   "terminal.processExited": "进程已退出 · 退出码 {code}",
   "terminal.processExitedHint": "输出已保留，看完后手动关闭。",
+  // R44 · 复制提示（终端底部状态行）。失败文案说明原因，而不是笼统报错。
+  "terminal.copyNotice.copied": "已复制",
+  "terminal.copyNotice.failed": "复制失败：剪贴板不可用",
   "terminal.sessionAttached": "运行中 · 已连接",
   "terminal.sessionDetached": "运行中 · 未连接",
   "terminal.sessionExited": "已退出",

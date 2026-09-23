@@ -174,7 +174,14 @@
 
 /* The PTY canvas fills the whole panel; the header floats above it, so no
    layout height is reserved for the bar and the content is never pushed down
-   (the first output line sits at the very top edge). */
+   (the first output line sits at the very top edge).
+
+   R44 · the body is now *always* a flex column. It carries exactly one row of
+   chrome that is not an overlay — the copy notice's status strip under the
+   canvas — and the canvas takes whatever is left. Keeping the row in the flow
+   at a fixed height (see `.terminal-copy-notice`) is what makes the notice
+   free: showing and hiding a message never resizes the canvas, so the PTY is
+   never resized and the terminal never jumps while a copy is read. */
 .terminal-panel__body {
   position: absolute;
   top: 0;
@@ -184,6 +191,51 @@
   padding: 0;
   background: transparent;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  /* The one number the notice row and the notices that sit above it share,
+     so the strip's height is declared once. */
+  --terminal-status-height: 20px;
+}
+
+/* R44 · the copy notice's status strip: one docked row under the canvas, not
+   a floating toast (the user's standing objection) and not a layout that
+   appears and disappears per copy. It is always in the flow at
+   `--terminal-status-height`, so the canvas above it keeps its exact size and
+   the PTY is never resized by a copy; only the text's opacity moves, and the
+   text is dropped entirely once the fade has run. Muted type, no accent, no
+   radius, no shadow — it is a status line, not a control. */
+.terminal-copy-notice {
+  flex: 0 0 auto;
+  height: var(--terminal-status-height);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-top: 1px solid var(--glass-control-edge);
+  background: var(--glass-control);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1;
+  /* Nothing here is interactive: the canvas behind the panel keeps every
+     pointer event. */
+  pointer-events: none;
+}
+
+.terminal-copy-notice__text {
+  opacity: 0;
+  transition: opacity var(--dur-2) ease;
+}
+
+/* The readable window. */
+.terminal-copy-notice[data-phase="visible"] .terminal-copy-notice__text {
+  opacity: 1;
+}
+
+/* The fade: the text is still mounted (the hook drops it one step later), so
+   this transition has the whole `COPY_NOTICE_FADE_MS` window to run in. */
+.terminal-copy-notice[data-phase="fade"] .terminal-copy-notice__text {
+  opacity: 0;
+  transition-duration: var(--dur-3);
 }
 
 /* R9-2 slice 5 · the PTY child exited and the terminal page is *held* rather
@@ -192,13 +244,17 @@
    prompt's exit line lands), leaves the frame above it fully readable, and
    takes no pointer events — the page behind it stays selectable and the
    header's × / Escape are the only exits. Non-zero exits recolour the title
-   with the warning token; the hint stays muted either way. */
+   with the warning token; the hint stays muted either way.
+
+   R44 · its "bottom edge" is the top of the copy notice's status strip (the
+   one row of the body that is in the flow), so the exit notice stacks above
+   the strip instead of being painted over it. */
 .terminal-resident {
   position: absolute;
   z-index: 4;
   left: 12px;
   right: 12px;
-  bottom: 12px;
+  bottom: calc(var(--terminal-status-height) + 12px);
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -276,7 +332,11 @@
   position: relative;
   z-index: 1;
   width: 100%;
-  height: 100%;
+  /* R44 · the mount is the body's flex child now, so it takes the height the
+     copy notice's status strip leaves instead of a fixed 100%. */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
   background: transparent;
   overflow: hidden;
 }
@@ -865,6 +925,13 @@
   .clipboard-row__star {
     transition: none;
   }
+
+  /* R44 · the copy notice still appears and still clears itself; it just does
+     not cross-fade. base.css owns the global motion list (R30), so this row's
+     own override lives with the rest of the terminal sheet's. */
+  .terminal-copy-notice__text {
+    transition: none;
+  }
 }
 
 /* ── Generic plugin pages ───────────────────────────────────────────────── */
@@ -1072,16 +1139,15 @@
   flex-direction: column;
 }
 
-/* In the settings layout the mount gives up its fixed full height and takes
-   the leftover space instead; `min-height: 0` is what lets it shrink. */
-.terminal-panel__body--settings .terminal-panel__mount {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: auto;
+/* R44 · the body is a flex column in every state now (the copy notice's status
+   strip is always in the flow), so this modifier no longer switches the
+   direction. What it still owns is the docked drawer's own flex sizing, which
+   is only meaningful while the drawer is rendered. */
+.terminal-panel__body--settings .terminal-settings-drawer {
+  flex: 0 0 auto;
 }
 
 .terminal-settings-drawer {
-  flex: 0 0 auto;
   position: relative;
   z-index: 3;
   padding: 10px 12px;

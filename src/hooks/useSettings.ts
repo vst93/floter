@@ -73,6 +73,10 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // R43 · the interaction axes. Every default is the behaviour the build before
   // this round shipped: a three-line wheel notch, a bold face for bold cells, no
   // copy-on-select and a verbatim paste.
+  // R44 · copy-on-select is the exception now: its default flipped to on (the
+  // user asked for the selection to be copied without a second gesture), so the
+  // constant below — not this comment — is the single truth. An explicit `false`
+  // persisted by a user who turned it off still wins over it.
   terminal_wheel_lines: DEFAULT_WHEEL_LINES,
   terminal_bold: DEFAULT_BOLD_MODE,
   terminal_select_copy: DEFAULT_SELECT_COPY,
@@ -295,6 +299,9 @@ export function useSettings(options: {
           // R43 · the interaction axes. A pre-round file has none of these keys;
           // a hand-edited one may carry an out-of-range number or an unknown
           // bold mode. Every one lands on its shipped value.
+          // R44 · `DEFAULT_SELECT_COPY` is now `true`, so a file that predates
+          // the key lands on the new default too — the backend's serde default
+          // agrees, and the two must keep agreeing.
           terminal_wheel_lines: normalizeWheelLines(
             loaded.terminal_wheel_lines ?? DEFAULT_WHEEL_LINES,
           ),

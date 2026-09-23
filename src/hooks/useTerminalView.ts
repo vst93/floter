@@ -110,6 +110,10 @@ export function useTerminalView(options: {
   setQuery: Dispatch<SetStateAction<string>>;
   setMode: (mode: ViewMode) => void;
   showTerminalFeedback: (key: MessageKey) => void;
+  /** R44 · report a copy's outcome in the terminal's own status row. Both the
+   *  copy-on-select path below and the explicit copy shortcut (which calls the
+   *  same `copySelection`) go through here, so every path gets one notice. */
+  showCopyNotice: (key: MessageKey) => void;
   t: Translate;
 }) {
   const {
@@ -146,6 +150,7 @@ export function useTerminalView(options: {
     setQuery,
     setMode,
     showTerminalFeedback,
+    showCopyNotice,
     t,
   } = options;
 
@@ -830,21 +835,31 @@ export function useTerminalView(options: {
     const sel = selectionRef.current;
     if (!renderer || !sel) return;
     const text = renderer.selectionText(sel);
-    if (text) {
-      try {
-        await writeSystemClipboard(text);
-      } catch {
-        // Clipboard unavailable; selection remains highlighted.
-        return;
-      }
-      // Where the copy shortcut is Ctrl-based it is also the shell's interrupt,
-      // so the highlight is dropped after a copy: the next press then reaches
-      // the shell instead of copying the same text again. macOS copies with Cmd
-      // and keeps its selection.
-      if (!IS_MAC) {
-        selectionRef.current = null;
-        render();
-      }
+    if (!text) {
+      // A selection of nothing but blank cells (a drag across empty screen) has
+      // nothing to put on the clipboard: that is not a failure, so it stays
+      // silent rather than reporting a copy that never happened.
+      return;
+    }
+    try {
+      await writeSystemClipboard(text);
+    } catch {
+      // Clipboard unavailable; the selection remains highlighted. R44 · the
+      // failed write is reported in the terminal's own status row — silence
+      // here was the gap the user reported.
+      showCopyNotice("terminal.copyNotice.failed");
+      return;
+    }
+    // R44 · the success notice fires only after the clipboard write resolved,
+    // so "Copied" can never be shown for a write that did not land.
+    showCopyNotice("terminal.copyNotice.copied");
+    // Where the copy shortcut is Ctrl-based it is also the shell's interrupt,
+    // so the highlight is dropped after a copy: the next press then reaches
+    // the shell instead of copying the same text again. macOS copies with Cmd
+    // and keeps its selection.
+    if (!IS_MAC) {
+      selectionRef.current = null;
+      render();
     }
   };
 

@@ -439,9 +439,17 @@ pub struct AppSettings {
     /// foreground).
     #[serde(default = "default_terminal_bold")]
     pub terminal_bold: String,
-    /// R43 · whether finishing a selection copies it to the system clipboard
-    /// (default off: the shipped behaviour is the explicit copy shortcut).
-    #[serde(default)]
+    /// R43 · whether finishing a selection copies it to the system clipboard.
+    ///
+    /// R44 · the default flips to on: the user asked for the selection to land
+    /// on the clipboard without a second gesture. `default_true` (rather than
+    /// a bare `#[serde(default)]`) is what makes a pre-R44 settings file — one
+    /// with no such key — deserialize to the new default instead of to
+    /// `bool::default()` (`false`). An explicit `false` written by a user who
+    /// turned the switch off is a present key and still wins, so the change is
+    /// additive for them; normalization does not touch it either, because
+    /// `false` remains a legitimate value.
+    #[serde(default = "default_true")]
     pub terminal_select_copy: bool,
     /// R43 · whether a paste has one trailing newline stripped so it is not run
     /// before the user has read it (default off: verbatim paste).
@@ -572,7 +580,7 @@ impl Default for AppSettings {
             terminal_scrollbar: true,
             terminal_wheel_lines: DEFAULT_WHEEL_LINES,
             terminal_bold: DEFAULT_BOLD_MODE.to_string(),
-            terminal_select_copy: false,
+            terminal_select_copy: true,
             terminal_paste_safe: false,
             language: "en".to_string(),
             terminal_width: DEFAULT_TERMINAL_WIDTH,
@@ -2355,6 +2363,12 @@ mod tests {
     /// which would turn the first two off and collapse the rows.
     ///
     /// R43 extends the same contract to the four interaction axes.
+    ///
+    /// R44 · copy-on-select is the one entry whose *shipped* value changed:
+    /// the round deliberately flipped the default to on, so a pre-round file
+    /// now comes back `true`. This assertion is the record of that intended
+    /// behaviour change — a file with no key is the *absence* of a preference,
+    /// not a `false` the user chose.
     #[test]
     fn pre_round_files_get_the_shipped_terminal_appearance() {
         let mut value = serde_json::to_value(AppSettings::default()).unwrap();
@@ -2380,8 +2394,37 @@ mod tests {
         assert!(recovered.terminal_scrollbar);
         assert_eq!(recovered.terminal_wheel_lines, DEFAULT_WHEEL_LINES);
         assert_eq!(recovered.terminal_bold, DEFAULT_BOLD_MODE);
-        assert!(!recovered.terminal_select_copy);
+        assert!(recovered.terminal_select_copy);
         assert!(!recovered.terminal_paste_safe);
+    }
+
+    /// R44 · the copy-on-select default flip, pinned on its own.
+    ///
+    /// Three things have to hold at once: a *fresh* settings file ships the
+    /// feature on, a file written before the key existed falls back to the
+    /// same on, and a user who explicitly turned it off keeps it off — the
+    /// persisted `false` is a value, not an absence, so normalization must
+    /// leave it alone.
+    #[test]
+    fn copy_on_select_ships_on_and_an_explicit_off_survives() {
+        assert!(AppSettings::default().terminal_select_copy);
+        assert!(default_true());
+
+        // Absence -> the new default (the serde path, not `Default::default()`).
+        let mut value = serde_json::to_value(AppSettings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("terminal_select_copy");
+        let recovered: AppSettings = serde_json::from_value(value).unwrap();
+        assert!(recovered.terminal_select_copy);
+
+        // A present `false` survives the round trip and the normalizer.
+        let explicit = AppSettings {
+            terminal_select_copy: false,
+            ..AppSettings::default()
+        };
+        let round_tripped: AppSettings =
+            serde_json::from_value(serde_json::to_value(&explicit).unwrap()).unwrap();
+        assert!(!round_tripped.terminal_select_copy);
+        assert!(!normalize_settings(explicit).terminal_select_copy);
     }
 
     /// R43 · the four interaction axes are normalized at the boundary: the

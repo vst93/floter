@@ -331,7 +331,7 @@ test("every new key is declared in both dictionaries", async () => {
 
 // ── 7 · R43 · the interaction axes ────────────────────────────────────────
 
-test("R43 · wheel lines clamp to 1–8, bold is one of two ids, the switches default off", () => {
+test("R43/R44 · wheel lines clamp to 1–8, bold is one of two ids, the switches read only a real boolean", () => {
   assert.equal(MIN_WHEEL_LINES, 1);
   assert.equal(MAX_WHEEL_LINES, 8);
   assert.equal(DEFAULT_WHEEL_LINES, 3);
@@ -347,9 +347,11 @@ test("R43 · wheel lines clamp to 1–8, bold is one of two ids, the switches de
   assert.equal(normalizeBoldMode("nonsense"), DEFAULT_BOLD_MODE);
   assert.deepEqual(BOLD_MODE_OPTIONS.map((option) => option.value), [...BOLD_MODES]);
 
-  // Both switches ship off — the shipped behaviour is the explicit copy
-  // shortcut and a verbatim paste — and only an explicit `true` turns one on.
-  assert.equal(DEFAULT_SELECT_COPY, false);
+  // R44 · copy-on-select now ships ON (the user asked for the selection to be
+  // copied without a second gesture), while safe paste still ships off. Only a
+  // real boolean `true` turns a switch on; `normalizeSelectCopy` is unchanged,
+  // because `false` remains a legitimate value a user can persist.
+  assert.equal(DEFAULT_SELECT_COPY, true);
   assert.equal(DEFAULT_PASTE_SAFE, false);
   assert.equal(normalizeSelectCopy(true), true);
   assert.equal(normalizeSelectCopy("true"), false, "a hand-edited string is not a switch");
@@ -410,6 +412,10 @@ test("R43 · the Rust domains match the frontend, with defaults and guards", asy
   }
   assert.match(rust, /#\[serde\(default = "default_terminal_wheel_lines"\)\]\n\s*pub terminal_wheel_lines/);
   assert.match(rust, /#\[serde\(default = "default_terminal_bold"\)\]\n\s*pub terminal_bold/);
+  // R44 · copy-on-select ships on, so its serde fallback has to be
+  // `default_true`: a bare `#[serde(default)]` would read every pre-R44
+  // settings file as an explicit `false` and silently undo the new default.
+  assert.match(rust, /#\[serde\(default = "default_true"\)\]\n\s*pub terminal_select_copy/);
   assert.match(rust, /settings\.terminal_wheel_lines = settings\s*\.terminal_wheel_lines\s*\.clamp\(MIN_WHEEL_LINES, MAX_WHEEL_LINES\)/);
   assert.match(rust, /BOLD_MODES\.contains\(&settings\.terminal_bold\.as_str\(\)\)/);
   assert.match(rust, /terminal_wheel_lines: DEFAULT_WHEEL_LINES/);

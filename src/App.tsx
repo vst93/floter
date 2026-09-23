@@ -23,6 +23,7 @@ import { useTerminalView, terminalFontFamily } from "./hooks/useTerminalView";
 import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
 import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
+import { useCopyNotice } from "./hooks/useCopyNotice";
 import { ToastHost } from "./components/ToastStack";
 import { appendToast, removeToast, type AppToast, type ToastAction, type ToastKind } from "./toast-state";
 import { useLauncherActions } from "./hooks/useLauncherActions";
@@ -603,6 +604,11 @@ export default function App() {
     showTerminalFeedback,
   } = useTimedFeedback();
 
+  // R44 · the copy notice: a pure phase machine (`terminal/copy-notice.ts`)
+  // driven by this hook's timers. It lives here, not in the terminal view,
+  // because the row it paints is part of the terminal panel's own layout.
+  const { copyNotice, showCopyNotice } = useCopyNotice();
+
   // App-level toast stack. Every surface (currently the integrations panel,
   // later others) pushes feedback here so it renders once, pinned to the card
   // and never inside a scroll container.
@@ -810,6 +816,7 @@ export default function App() {
     setQuery: setQueryExitingPlugin,
     setMode,
     showTerminalFeedback,
+    showCopyNotice,
     t,
   });
 
@@ -3231,6 +3238,22 @@ export default function App() {
                   queueMicrotask(() => flushTerminalTextInput());
                 }}
               />
+            </div>
+            {/* R44 · the copy notice. A docked status row under the canvas —
+                never a floating toast (the user's standing objection to
+                overlays) and never a row that grows with the message: it is
+                always in the layout at one fixed height, and only the text's
+                opacity moves. The PTY therefore never sees a resize because of
+                a copy, and the terminal can never jump while it is read. */}
+            <div
+              className="terminal-copy-notice"
+              data-phase={copyNotice.phase}
+              role="status"
+              aria-live="polite"
+            >
+              {copyNotice.message && (
+                <span className="terminal-copy-notice__text">{t(copyNotice.message)}</span>
+              )}
             </div>
             {mainPinnedAway && (
               <div className="terminal-pinned-note" role="status">

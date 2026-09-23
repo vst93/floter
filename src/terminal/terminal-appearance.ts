@@ -242,8 +242,15 @@ export const normalizeBoldMode = (value: string): BoldMode =>
   value === "bright" ? "bright" : DEFAULT_BOLD_MODE;
 
 /** Whether finishing a drag-copy puts the selection on the system clipboard.
- *  Off by default: the shipped behaviour is the explicit copy shortcut. */
-export const DEFAULT_SELECT_COPY = false;
+ *
+ *  R44 · **on by default**. R43 shipped it off (the explicit copy shortcut was
+ *  the only path); the user asked for the selection to land on the clipboard
+ *  without a second gesture, so the default flips here and in the Rust
+ *  `Default` / serde-default pair. The switch is still a real veto: an explicit
+ *  `false` — persisted by anyone who turned it off — wins over the default, and
+ *  `normalizeSelectCopy` still refuses anything that is not a boolean `true`.
+ *  This is the single source of truth the settings UI and `useSettings` read. */
+export const DEFAULT_SELECT_COPY = true;
 export const normalizeSelectCopy = (value: unknown): boolean => value === true;
 
 /** Whether a paste has one trailing newline stripped, so pasting a command
