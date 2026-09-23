@@ -370,9 +370,13 @@ test("row actions send exactly the arguments the commands declare", () => {
 });
 
 test("the launcher's tab rows carry the tab identity, not just the URL", async () => {
+  // R28 · the rows are the plugin's output now (`plugins/browser/mode.ts`) and
+  // the hook only hands the three sources over; the tab identity still rides
+  // the row, which is what lets Enter switch to a tab instead of reopening it.
   const catalog = await read("src/hooks/useLauncherCatalog.ts");
+  const mode = await read("src/plugins/browser/mode.ts");
   assert.match(catalog, /invoke<BrowserTabRow\[\]>\("browser_list_tabs"/);
-  assert.match(catalog, /tab: \{\s*browserId: tab\.browser_id,/);
+  assert.match(mode, /tab: \{\s*browserId: tab\.browser_id,/);
   const actions = await read("src/hooks/useLauncherActions.ts");
   assert.match(actions, /await invoke\("browser_activate_tab", \{/);
   assert.match(actions, /if \(item\.tab\) \{/);
@@ -380,12 +384,14 @@ test("the launcher's tab rows carry the tab identity, not just the URL", async (
 
 test("a failed tab read lands as one disabled line, never as an error", async () => {
   const catalog = await read("src/hooks/useLauncherCatalog.ts");
+  const mode = await read("src/plugins/browser/mode.ts");
   // The failure is a value the tab read reports, not a rejection that could
   // take the bookmark and history fetches with it.
   assert.match(catalog, /\(\) => \(\{ tabs: \[\] as BrowserTabRow\[\], failed: true \}\)/);
-  assert.match(catalog, /if \(!tabs\.length && tabResult\.failed\)/);
-  assert.match(catalog, /title: t\("launcher\.browserTabsUnavailable"\)/);
-  assert.match(catalog, /disabled: true,/);
+  // R28 · the group's soft landing is the plugin's output rule now.
+  assert.match(mode, /if \(!tabs\.length && tabsFailed\)/);
+  assert.match(mode, /browserStatusRow\("browser-tabs-unavailable", "launcher\.browserTabsUnavailable", t\)/);
+  assert.match(mode, /disabled: true,/);
   // …and it is translated, not a raw backend string.
   assert.equal(
     createTranslator("en")("launcher.browserTabsUnavailable"),

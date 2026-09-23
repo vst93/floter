@@ -124,12 +124,13 @@ test("inside a plugin scope the list is the plugin's own content", async () => {
   );
 
   const catalog = stripJsComments(await read("src/hooks/useLauncherCatalog.ts"));
-  // The mode owns the whole list, and offers no shell action underneath it —
-  // the same two rules R26-A gave the browser mode.
+  // R28 · the mode owns the whole list through the capability layer: the view
+  // the layer resolved is what the numbered list renders, and a text-form
+  // emission contributes no rows at all.
   assert.match(
     catalog,
-    /if \(browserMode\) return browserRows;\s*if \(clipboardMode\) return clipboardRows;/,
-    "the clipboard mode owns the numbered list",
+    /if \(browserMode \|\| clipboardMode\) return pluginView \? pluginViewItems\(pluginView\) : \[\];/,
+    "the plugin's view owns the numbered list",
   );
   assert.match(
     catalog,
@@ -137,15 +138,17 @@ test("inside a plugin scope the list is the plugin's own content", async () => {
     "neither plugin mode offers a shell action bar",
   );
   // The entries are fetched once per mode entry and filtered in memory, so
-  // typing inside the mode costs no IPC and no resize.
+  // typing inside the mode costs no IPC and no resize. R28 · the filter is the
+  // plugin's own output rule now (`plugins/clipboard/mode.ts`).
   assert.match(
     catalog,
     /invoke<unknown\[\]>\("clipboard_get_entries", \{ filter: null \}\)/,
     "the mode reads the whole history once",
   );
+  const clipboardMode = stripJsComments(await read("src/plugins/clipboard/mode.ts"));
   assert.match(
-    catalog,
-    /filterClipboardEntries\(clipboardEntries, clipboardMode\.needle\)/,
+    clipboardMode,
+    /filterClipboardEntries\(\[\.\.\.entries\], needle\)/,
     "the needle filters the fetched history in memory",
   );
   // The plugin's own switch soft-closes the mode, the way the browser's does.

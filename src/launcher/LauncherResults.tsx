@@ -190,6 +190,11 @@ type LauncherResultsProps = {
   actionBarShortcut: string;
   /** Rendered `select_result` shortcut, shown on numbered result rows. */
   selectResultShortcut: string;
+  /** R28 · whether the rows take the keyboard. The capability layer's list tier:
+   *  an `interactive` list is the R26/R27 behaviour, a `display` one keeps its
+   *  rows but none of the selection — no highlight, no pointer selection, no
+   *  Enter. Defaults to interactive so every non-plugin list is unchanged. */
+  interactive?: boolean;
   /** Whether the recent-items heading goes above the list (empty query). */
   showRecentTitle: boolean;
   onSelectResult: (index: number) => void;
@@ -210,6 +215,7 @@ export function LauncherResults({
   resultShortcutSlots,
   actionBarShortcut,
   selectResultShortcut,
+  interactive = true,
   showRecentTitle,
   onSelectResult,
   onSelectActionBar,
@@ -271,7 +277,7 @@ export function LauncherResults({
             </div>
           )}
           {results.map((item, index) => {
-            const selected = !selectedActionBar && index === selectedResultIndex;
+            const selected = interactive && !selectedActionBar && index === selectedResultIndex;
             const unavailable =
               (item.type === "command" && !item.execution) ||
               (item.type === "system" && item.disabled === true) ||
@@ -362,11 +368,15 @@ export function LauncherResults({
                   // keyboard continues from the row the pointer is on and the
                   // two devices share one state.
                   onPointerEnter={() => {
-                    if (unavailable) return;
+                    if (unavailable || !interactive) return;
                     onSelectResult(index);
                   }}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onRunResult(item)}
+                  onClick={() => {
+                    // R28 · a display-only list has nothing to run.
+                    if (!interactive) return;
+                    onRunResult(item);
+                  }}
                 >
                   <span className={`launcher-result__icon launcher-result__icon--${item.type}`}>
                     {item.type === "app" && appIconUrls[item.app.path] ? (

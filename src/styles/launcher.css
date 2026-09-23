@@ -708,6 +708,32 @@
   background-image: none;
 }
 
+/* R28 · the text form of the plugin capability: a plugin whose output is not the
+   standard structure is printed verbatim under the field. The user asked for
+   both bounds — 「一个最小高度也要限制，一个最大高度，超过最大就自动滚动」 — and
+   both are the capability layer's numbers (`PLUGIN_TEXT_MIN_UNITS` /
+   `PLUGIN_TEXT_MAX_UNITS` in `launcher/plugin-mode.ts`), written inline from
+   `PluginTextView.tsx` so the sheet and the module cannot drift apart. Past the
+   ceiling the block scrolls inside itself rather than growing the window: the
+   window height is still the band table's (see `pluginViewRows`). */
+.launcher-plugin-text {
+  margin: 0;
+  /* The two bounds arrive as unit counts from `PluginTextView.tsx`; the sheet
+     is what multiplies them by `--u`, so the scale knob keeps its one owner. */
+  min-height: calc(var(--u) * var(--plugin-text-min));
+  max-height: calc(var(--u) * var(--plugin-text-max));
+  padding: calc(var(--u) * 8) calc(var(--u) * 11);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--text-body);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .launcher-section-title {
   padding: 6px 11px 4px;
   /* PAGES-APPLY · the app's group-title language. SETTINGS-APPLE retired the

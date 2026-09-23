@@ -100,7 +100,7 @@ test("the pointer selects on entry — one event, one state, no per-move writes"
   assert.equal(enters.length, 2, "the result row and the action bar both select on entry");
   assert.match(
     source,
-    /onPointerEnter=\{\(\) => \{\s*if \(unavailable\) return;\s*onSelectResult\(index\);/,
+    /onPointerEnter=\{\(\) => \{\s*if \(unavailable \|\| !interactive\) return;\s*onSelectResult\(index\);/,
     "a result row moves the shared selection to itself",
   );
   assert.match(

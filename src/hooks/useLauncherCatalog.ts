@@ -24,16 +24,21 @@ import {
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
+import { normalizeEntries, type ClipboardEntry } from "../clipboard-history";
 import {
-  clipboardEntryType,
-  clipboardPreview,
-  filterClipboardEntries,
-  formatClipboardAge,
-  formatFilesPreview,
-  normalizeEntries,
-  type ClipboardEntry,
-  type ClipboardEntryType,
-} from "../clipboard-history";
+  pluginViewItems,
+  resolvePluginView,
+  type PluginEmission,
+  type PluginView,
+} from "../launcher/plugin-mode";
+import {
+  BROWSER_FETCH_LIMIT,
+  browserSearchRows,
+  browserStatusRow,
+  type BrowserSearchRow,
+  type BrowserTabRow,
+} from "../plugins/browser/mode";
+import { clipboardModeRows, clipboardStatusRow } from "../plugins/clipboard/mode";
 import {
   type ActionBar,
   type CommandWarning,
@@ -118,85 +123,11 @@ type CatalogSuggestion =
 /** Answer to `check_applications`: whether a rescan would find anything new. */
 type ApplicationsStatus = { upToDate: boolean; count: number };
 
-/** R26-A · one row from `browser_search_bookmarks` / `browser_search_history`.
- *  The two commands share a shape; the fields one kind does not use are simply
- *  absent (`#[serde(skip_serializing_if)]` on the Rust side). */
-type BrowserSearchRow = {
-  id: string;
-  title: string;
-  url: string;
-  profile_key: string;
-};
-
-/** R26-B · one row from `browser_list_tabs` — a tab the browser has open now.
- *  `window_index`/`tab_index` identify it for `browser_activate_tab`. */
-type BrowserTabRow = {
-  browser_id: string;
-  window_index: number;
-  tab_index: number;
-  title: string;
-  url: string;
-  active: boolean;
-};
-
-/** How many browser rows to fetch. The launcher renders at most eight matched
- *  rows (`MAX_RESULTS - 1`), and the merge drops duplicate URLs, so a small
- *  over-fetch keeps the visible list full without an unbounded query. */
-const BROWSER_FETCH_LIMIT = 24;
-
-/** R26-B · the ceiling on one browser group. Bookmarks and history share the
- *  first group (bookmarks win, history fills); the live tabs are a second, so
- *  a browser with nothing open cannot hide the bookmarks and a browser with a
- *  full bookmark bar cannot hide the tabs. The launcher list scrolls when the
- *  two groups together outgrow its box. */
-const BROWSER_GROUP_LIMIT = MAX_RESULTS - 1;
-
-/** R27 · how many clipboard rows the mode shows. The budget is the same nine
- *  rows (`MAX_RESULTS`), and the mode's list has no fixed tail, so eight is the
- *  ceiling the launcher can draw without scrolling. */
-const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS - 1;
-
-/** R27 · the type word each clipboard entry kind prints on its row. The five
- *  keys are the clipboard panel's own type labels, so the launcher and the page
- *  name the same thing the same way. */
-const CLIPBOARD_TYPE_KEYS: Record<ClipboardEntryType, MessageKey> = {
-  text: "clipboard.typeText",
-  link: "clipboard.typeLink",
-  color: "clipboard.typeColor",
-  image: "clipboard.typeImage",
-  files: "clipboard.typeFiles",
-};
-
-/** R27 · one clipboard history row. The title is the entry's one-line preview
- *  (a file entry shows its basename, an image its caption or size); the
- *  subtitle is the type word plus the compact age, the same two facts the
- *  panel's own rows carry. */
-const clipboardRow = (entry: ClipboardEntry, t: Translate, now: number): LauncherItem => {
-  const files = entry.kind === "files" ? formatFilesPreview(entry.paths) : null;
-  const preview = files
-    ? `${files.basename}${files.extra > 0 ? ` +${files.extra}` : ""}`
-    : clipboardPreview(entry, 96);
-  const kindKey = CLIPBOARD_TYPE_KEYS[clipboardEntryType(entry)];
-  const age = formatClipboardAge(entry.created_at, now);
-  return {
-    type: "clipboard",
-    id: entry.id,
-    title: preview || t(kindKey),
-    subtitle: age ? `${t(kindKey)} · ${age}` : t(kindKey),
-    entry,
-  };
-};
-
-/** R27 · a status line for the clipboard mode: nothing copied yet, or the
- *  plugin switched off. Not runnable — the same soft landing the browser mode
- *  uses for its own empty and disabled states. */
-const clipboardStatusRow = (id: string, key: MessageKey, t: Translate): LauncherItem => ({
-  type: "clipboard",
-  id,
-  title: t(key),
-  subtitle: "",
-  disabled: true,
-});
+// R28 · the row shapes the two plugins emit live in their own modules
+// (`plugins/browser/mode.ts`, `plugins/clipboard/mode.ts`) and the mapping from
+// those rows to `LauncherItem`s lives in the capability layer
+// (`launcher/plugin-mode.ts`). This hook only fetches, hands the output to the
+// layer and reads back a view.
 
 /**
  * The built-in power actions, searched like applications.
@@ -486,30 +417,24 @@ export function useLauncherCatalog(options: {
   // ranking input. `parseBrowserMode` owns the trigger vocabulary so the node
   // suite can pin it without a DOM.
   const browserMode = useMemo<BrowserMode | null>(() => parseBrowserMode(query), [query]);
-  const [browserRows, setBrowserRows] = useState<LauncherItem[]>([]);
+  const [browserEmission, setBrowserEmission] = useState<PluginEmission | null>(null);
   const browserRequest = useRef(0);
 
   useEffect(() => {
     const generation = ++browserRequest.current;
     if (!browserMode) {
-      setBrowserRows([]);
+      setBrowserEmission(null);
       return;
     }
     if (!browserEnabled) {
       // R26-D · the plugin is switched off. The mode word is still parseable (a
       // stale query can carry `browser `), but nothing is fetched and one
-      // disabled line says why — soft-closed, not an error.
-      setBrowserRows([
-        {
-          type: "browser",
-          id: "browser-disabled",
-          title: t("launcher.browserDisabled"),
-          subtitle: "",
-          url: "",
-          profileKey: "default",
-          disabled: true,
-        },
-      ]);
+      // disabled line says why — soft-closed, not an error. R28 · the plugin
+      // emits that line; the capability layer sees a list of only status rows
+      // and draws it in the display tier.
+      setBrowserEmission({
+        output: [browserStatusRow("browser-disabled", "launcher.browserDisabled", t)],
+      });
       return;
     }
     // The early return above already narrowed the type; capturing it keeps that
@@ -519,20 +444,12 @@ export function useLauncherCatalog(options: {
     // The same debounce the catalog search uses: one fetch per typing pause,
     // and a stale response is dropped by the generation check.
     const timer = window.setTimeout(() => {
-      const statusRow = (key: MessageKey): LauncherItem[] => [
-        {
-          type: "browser",
-          id: `browser-status-${key}`,
-          title: t(key),
-          subtitle: "",
-          url: "",
-          profileKey: "default",
-          disabled: true,
-        },
-      ];
+      const status = (id: string, key: MessageKey): PluginEmission => ({
+        output: [browserStatusRow(id, key, t)],
+      });
       invoke<string | null>("browser_default_profile")
         .then(async (profileKey) => {
-          if (!profileKey) return statusRow("launcher.browserNoProfile");
+          if (!profileKey) return status("browser-no-profile", "launcher.browserNoProfile");
           const fetch = (command: string): Promise<BrowserSearchRow[]> =>
             invoke<BrowserSearchRow[]>(command, {
               profileKey,
@@ -557,68 +474,27 @@ export function useLauncherCatalog(options: {
             mode.kind === "bookmarks" ? Promise.resolve([]) : fetch("browser_search_history"),
             tabRead,
           ]);
-          const tabs = tabResult.tabs;
-          const seen = new Set<string>();
-          const rows: LauncherItem[] = [];
-          for (const row of [...bookmarks, ...history]) {
-            // A URL that is both a bookmark and a recent visit is one result;
-            // bookmarks come first, so the curated row wins.
-            if (!row.url || seen.has(row.url)) continue;
-            seen.add(row.url);
-            rows.push({
-              type: "browser",
-              id: row.id,
-              title: row.title || row.url,
-              subtitle: row.url,
-              url: row.url,
-              profileKey: row.profile_key,
-            });
-            if (rows.length >= BROWSER_GROUP_LIMIT) break;
-          }
-          // R26-B · the Tabs group. Deliberately NOT merged into `seen`: a tab
-          // that is also a bookmark is two different actions (switch to it vs.
-          // open it again), so both rows stay.
-          for (const tab of tabs) {
-            if (!tab.url && !tab.title) continue;
-            rows.push({
-              type: "browser",
-              id: `tab:${tab.browser_id}:${tab.window_index}:${tab.tab_index}`,
-              title: tab.title || tab.url,
-              subtitle: tab.url,
-              url: tab.url,
+          // R28 · the merge, the group ceilings and the soft landings are the
+          // plugin's own output rules now (see `plugins/browser/mode.ts`); this
+          // hook only hands the three sources over and reads back a view.
+          return {
+            output: browserSearchRows({
+              bookmarks,
+              history,
+              tabs: tabResult.tabs,
+              tabsFailed: tabResult.failed,
               profileKey,
-              tab: {
-                browserId: tab.browser_id,
-                windowIndex: tab.window_index,
-                tabIndex: tab.tab_index,
-              },
-            });
-            if (rows.length >= BROWSER_GROUP_LIMIT * 2) break;
-          }
-          // R26-B · the soft landing, made visible: when the tab read failed
-          // outright (no debug port, browser closed, AppleScript timed out) the
-          // group is empty and this one disabled line says so, rather than the
-          // user wondering why a running browser's tabs are missing.
-          if (!tabs.length && tabResult.failed) {
-            rows.push({
-              type: "browser",
-              id: "browser-tabs-unavailable",
-              title: t("launcher.browserTabsUnavailable"),
-              subtitle: "",
-              url: "",
-              profileKey: "default",
-              disabled: true,
-            });
-          }
-          return rows.length ? rows : statusRow("launcher.browserEmpty");
+              t,
+            }),
+          };
         })
-        .then((rows) => {
+        .then((emission) => {
           if (cancelled || generation !== browserRequest.current) return;
-          setBrowserRows(rows);
+          setBrowserEmission(emission);
         })
         .catch(() => {
           if (cancelled || generation !== browserRequest.current) return;
-          setBrowserRows(statusRow("launcher.browserEmpty"));
+          setBrowserEmission(status("browser-empty", "launcher.browserEmpty"));
         });
     }, CATALOG_SEARCH_DELAY);
     return () => {
@@ -656,27 +532,28 @@ export function useLauncherCatalog(options: {
     };
   }, [clipboardActive, clipboardEnabled]);
 
-  const clipboardRows = useMemo<LauncherItem[]>(() => {
-    if (!clipboardMode) return [];
+  const clipboardEmission = useMemo<PluginEmission | null>(() => {
+    if (!clipboardMode) return null;
     if (!clipboardEnabled) {
-      return [clipboardStatusRow("clipboard-disabled", "clipboard.pageUnavailable", t)];
+      return {
+        output: [clipboardStatusRow("clipboard-disabled", "clipboard.pageUnavailable", t)],
+      };
     }
-    const now = Date.now();
-    const matches = filterClipboardEntries(clipboardEntries, clipboardMode.needle)
-      .slice(0, CLIPBOARD_FETCH_LIMIT);
-    return matches.length
-      ? matches.map((entry) => clipboardRow(entry, t, now))
-      : [
-          // Two different empty states, and the difference matters: an empty
-          // history is not a search that found nothing, and telling a user to
-          // shorten a query they never typed would be a lie.
-          clipboardStatusRow(
-            "clipboard-empty",
-            clipboardMode.needle ? "clipboard.emptyFilter" : "clipboard.empty",
-            t,
-          ),
-        ];
+    // The entries are fetched once and filtered in memory, so typing inside the
+    // mode costs no IPC. R28 · the rows are the plugin's *output*; the
+    // capability layer decides they are a list and how tall the window is.
+    return { output: clipboardModeRows(clipboardEntries, clipboardMode.needle, t, Date.now()) };
   }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
+
+  // R28 · the capability layer's answer for whichever plugin mode is on. One
+  // view, both plugins: the form (list or text), the tier (interactive or
+  // display) and — for text — the min/max height all come from here, so neither
+  // plugin decides how the launcher draws it.
+  const pluginView = useMemo<PluginView | null>(() => {
+    if (browserMode) return resolvePluginView(browserEmission);
+    if (clipboardMode) return resolvePluginView(clipboardEmission);
+    return null;
+  }, [browserMode, clipboardMode, browserEmission, clipboardEmission]);
 
   /**
    * The numbered result list: applications and the built-in system actions.
@@ -689,8 +566,11 @@ export function useLauncherCatalog(options: {
   const launcherResults = useMemo<LauncherItem[]>(() => {
     // R26-A: the browser mode owns the whole list — no applications, no
     // commands, no ranking against them. R27: the clipboard mode does the same.
-    if (browserMode) return browserRows;
-    if (clipboardMode) return clipboardRows;
+    // R28 · both reach the list through the one capability layer: the view it
+    // resolved contributes the rows (and nothing at all in the text form). While
+    // the mode is on but its output has not arrived yet (the fetch debounce),
+    // the list is empty rather than falling back to the ordinary search.
+    if (browserMode || clipboardMode) return pluginView ? pluginViewItems(pluginView) : [];
     const command = query.trim();
     const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
     if (!command) {
@@ -903,7 +783,7 @@ export function useLauncherCatalog(options: {
     // local match when applications or power actions matched alongside catalog
     // commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
-  }, [browserMode, clipboardMode, clipboardRows, browserRows, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, t]);
+  }, [pluginView, browserMode, clipboardMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,
@@ -1083,6 +963,7 @@ export function useLauncherCatalog(options: {
     appsError,
     appIconUrls,
     launcherResults,
+    pluginView,
     actionBar,
     runnableResultFlags,
     resultShortcutSlots,

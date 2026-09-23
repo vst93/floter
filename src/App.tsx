@@ -84,6 +84,8 @@ import {
   type ActionBar,
   type LauncherItem,
 } from "./launcher/LauncherResults";
+import { PluginTextView } from "./launcher/PluginTextView";
+import { pluginViewInteractive, pluginViewRows } from "./launcher/plugin-mode";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
@@ -683,6 +685,7 @@ export default function App() {
     appsError,
     appIconUrls,
     launcherResults,
+    pluginView,
     actionBar,
     firstRunnableResultIndex,
     defaultsToActionBar,
@@ -748,6 +751,12 @@ export default function App() {
   // panel. The row is a launcher-wide affordance and stays in every other
   // state, including the query that matched nothing.
   const launcherScope = pluginScope(query);
+  // R28 · the capability layer's view for the plugin mode the query is in, if
+  // any. The text form is drawn by its own block under the field; the list form
+  // is the ordinary numbered list, with the tier deciding whether its rows take
+  // the keyboard.
+  const pluginText = pluginView !== null && pluginView.form === "text" ? pluginView : null;
+  const pluginInteractive = pluginView === null || pluginViewInteractive(pluginView);
   const displayedResults = useMemo(
     () =>
       launcherScope
@@ -787,9 +796,14 @@ export default function App() {
   // shortcut family is 1-9, so it carries a real `⌘9` badge — the slot map lives
   // in `shortcutSlotsWithFixedTail` and nowhere else (the key handler asks the
   // same map through `resultIndexForSlot`).
+  //
+  // R28 · the capability layer's display tier takes every number away: a list
+  // that is there to be read, not run, has no `⌘N` to offer.
   const displayedShortcutSlots = useMemo(
-    () => shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags),
-    [displayedResults, displayedRunnableFlags],
+    () => pluginInteractive
+      ? shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags)
+      : displayedResults.map(() => null),
+    [displayedResults, displayedRunnableFlags, pluginInteractive],
   );
 
   const {
@@ -1093,9 +1107,13 @@ export default function App() {
   // the feedback/error rows are content too, so each is charged as one row —
   // they are at most a row tall, and counting them keeps a band from landing one
   // row short.
+  // R28 · in the text form the numbered list is empty but the block still
+  // occupies band rows: the capability layer reports how many
+  // (`pluginViewRows`), so a long output lands in the same discrete band a list
+  // of that height would.
   const launcherRows = Math.max(
     1,
-    displayedResults.length +
+    (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
       (showOnboardingTip ? 1 : 0) +
       (launcherFeedback || appsError || pendingSystemAction ? 1 : 0),
   );
@@ -2150,7 +2168,7 @@ export default function App() {
                 competing CSS height animation. */}
             <div
               className={
-                displayedResults.length > 0 || launcherFeedback || appsError
+                displayedResults.length > 0 || pluginText !== null || launcherFeedback || appsError
                   ? "launcher-bottom-clip launcher-bottom-clip--open"
                   : "launcher-bottom-clip"
               }
@@ -2208,31 +2226,41 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                <LauncherResults
-                  t={t}
-                  results={displayedResults}
-                  actionBar={visibleActionBar}
-                  appIconUrls={appIconUrls}
-                  selectedResultIndex={selectedResultIndex}
-                  selectedActionBar={selectedActionBar}
-                  resultShortcutSlots={displayedShortcutSlots}
-                  actionBarShortcut={actionBarShortcut}
-                  selectResultShortcut={shortcuts.select_result}
-                  // The drop group brings its own heading (emitted above the
-                  // first file row), and it sits *above* the recent apps. The
-                  // "Recently launched" heading renders before the whole list,
-                  // so leaving it on would put a label over the wrong rows.
-                  showRecentTitle={launcherSectionTitle}
-                  onSelectResult={(index) => {
-                    setSelectedActionBar(false);
-                    setSelectedResultIndex(index);
-                  }}
-                  onSelectActionBar={() => setSelectedActionBar(true)}
-                  onRunResult={runLauncherItem}
-                  onRunActionBar={() => {
-                    if (visibleActionBar) executeActionBar(visibleActionBar);
-                  }}
-                />
+                {pluginText ? (
+                  // R28 · the text form: the plugin's output printed under the
+                  // field, in place of the numbered list.
+                  <PluginTextView t={t} text={pluginText.text} metrics={pluginText.metrics} />
+                ) : (
+                  <LauncherResults
+                    t={t}
+                    results={displayedResults}
+                    actionBar={visibleActionBar}
+                    appIconUrls={appIconUrls}
+                    selectedResultIndex={selectedResultIndex}
+                    selectedActionBar={selectedActionBar}
+                    resultShortcutSlots={displayedShortcutSlots}
+                    actionBarShortcut={actionBarShortcut}
+                    selectResultShortcut={shortcuts.select_result}
+                    // R28 · the capability layer's list tier. A display-only list
+                    // keeps its rows but none of the keyboard: no highlight, no
+                    // pointer selection, no Enter.
+                    interactive={pluginInteractive}
+                    // The drop group brings its own heading (emitted above the
+                    // first file row), and it sits *above* the recent apps. The
+                    // "Recently launched" heading renders before the whole list,
+                    // so leaving it on would put a label over the wrong rows.
+                    showRecentTitle={launcherSectionTitle}
+                    onSelectResult={(index) => {
+                      setSelectedActionBar(false);
+                      setSelectedResultIndex(index);
+                    }}
+                    onSelectActionBar={() => setSelectedActionBar(true)}
+                    onRunResult={runLauncherItem}
+                    onRunActionBar={() => {
+                      if (visibleActionBar) executeActionBar(visibleActionBar);
+                    }}
+                  />
+                )}
                 {launcherResults.length === 0 &&
                   fileRows.length === 0 &&
                   !actionBar &&
