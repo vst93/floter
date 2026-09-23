@@ -17,6 +17,9 @@ mod hyprland;
 // R41 · the one detached-spawn helper every "start a program" path uses.
 mod process_launch;
 mod terminal;
+// R45 · the tray's Linux identity (SNI id / object path / menu path / icon
+// file), derived once so it cannot collide with another Tauri app's tray.
+mod tray_identity;
 
 use commands::actions::{open_path, open_url};
 use commands::apps::{
@@ -225,7 +228,7 @@ pub fn apply_tray_language(app: &AppHandle, language: &str) {
 /// the settings page (reachable from the panel the hotkey opens) are all
 /// independent, so the app stays reachable with the icon gone.
 pub fn apply_tray_visibility(app: &AppHandle, show_icon: bool) {
-    if let Some(tray) = app.tray_by_id("main-tray") {
+    if let Some(tray) = app.tray_by_id(tray_identity::TRAY_ICON_ID) {
         let _ = tray.set_visible(desired_tray_visibility(show_icon));
     }
 }
@@ -1407,7 +1410,7 @@ pub fn run() {
                 .default_window_icon()
                 .cloned()
                 .ok_or("missing default window icon")?;
-            TrayIconBuilder::with_id("main-tray")
+            TrayIconBuilder::with_id(tray_identity::TRAY_ICON_ID)
                 .icon(tray_icon)
                 .tooltip("floter")
                 .menu(&tray_menu)
@@ -1455,6 +1458,12 @@ pub fn run() {
             // (The tray handle is looked up by id — the builder's return value
             // is owned here, but the registry keeps it addressable.)
             apply_tray_visibility(app.handle(), settings.show_menubar_icon);
+
+            // R45: the tray has just written its icon under the id above; read
+            // that back so the identity we registered is in the log (and a
+            // silent non-registration is a warning rather than a mystery).
+            #[cfg(target_os = "linux")]
+            tray_identity::verify_registration();
 
             let window = app
                 .get_webview_window("main")
