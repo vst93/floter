@@ -53,7 +53,6 @@ import {
   isMessageKey,
   normalizeLanguage,
   type Language,
-  type MessageKey,
 } from "./i18n";
 import {
   DEEP_LINK_CONNECT_EVENT,
@@ -103,8 +102,10 @@ import {
 } from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
 import {
+  BROWSER_FILTER_AXIS,
   BROWSER_FILTERS,
   browserModeFor,
+  CLIPBOARD_FILTER_AXIS,
   CLIPBOARD_FILTERS,
   CLIPBOARD_FAVORITE_SHORTCUT,
   clipboardModeFor,
@@ -271,29 +272,6 @@ export type BrowserPluginSettings = {
   /** R32 · which fields the launcher's browser search matches against. One of
    *  `"all"` / `"title"` / `"url"`; the launcher applies it in memory. */
   search_fields: BrowserSearchField;
-};
-
-/** R32 · the label each browser range filter prints. Reuses the plugin's own
- *  scope words (`launcher.browserBookmarks`/`History`) so the chips and the
- *  result grouping name the same things the same way. */
-const BROWSER_FILTER_KEYS: Record<BrowserMode["kind"], MessageKey> = {
-  all: "launcher.browserAll",
-  bookmarks: "launcher.browserBookmarks",
-  history: "launcher.browserHistory",
-  tabs: "launcher.browserTabs",
-};
-
-/** R38 · the label each clipboard filter chip prints. `all`/`favorites` are the
- *  mode's own words; the four kind chips reuse the clipboard panel's type
- *  vocabulary (`clipboard.typeText` …), so the chips and a row's type name the
- *  same thing the same way. */
-const CLIPBOARD_FILTER_KEYS: Record<ClipboardModeFilter, MessageKey> = {
-  all: "launcher.clipboardFilterAll",
-  favorites: "launcher.clipboardFilterFavorites",
-  text: "clipboard.typeText",
-  image: "clipboard.typeImage",
-  link: "clipboard.typeLink",
-  files: "clipboard.typeFiles",
 };
 
 const SETTINGS_WINDOW_HEIGHT = 580;
@@ -2764,7 +2742,7 @@ export default function App() {
                         setBrowserFilter(kind);
                       }}
                     >
-                      {t(BROWSER_FILTER_KEYS[kind])}
+                      {t(BROWSER_FILTER_AXIS.labelKey(kind))}
                     </button>
                   ))}
                 </div>
@@ -2811,7 +2789,7 @@ export default function App() {
                         setClipboardFilter(filter);
                       }}
                     >
-                      {t(CLIPBOARD_FILTER_KEYS[filter])}
+                      {t(CLIPBOARD_FILTER_AXIS.labelKey(filter))}
                     </button>
                   ))}
                 </div>

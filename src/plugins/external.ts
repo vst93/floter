@@ -22,6 +22,7 @@
 // use.
 
 import type { ActivePluginMode } from "../launcher.ts";
+import { splitTriggerWord } from "./mode-entry.ts";
 
 /**
  * R39 · one command of an external plugin, as the Rust registry
@@ -98,9 +99,11 @@ export const externalPluginModeEntry = (
   value: string,
   commands: readonly ExternalPluginCommand[],
 ): { mode: ActivePluginMode; needle: string } | null => {
-  const match = /^(\S+)\s+([\s\S]*)$/.exec(value);
-  if (!match) return null;
-  const word = match[1].toLowerCase();
+  // R40 · the trigger split is the shared rule (`plugins/mode-entry.ts`): the
+  // first whitespace-separated word, lowercased, and the rest of the value.
+  const split = splitTriggerWord(value);
+  if (!split) return null;
+  const { word, rest } = split;
   const command = commands.find(
     (candidate) =>
       candidate.commandId.toLowerCase() === word ||
@@ -109,7 +112,7 @@ export const externalPluginModeEntry = (
   if (!command) return null;
   return {
     mode: { scope: "external", extensionId: command.extensionId, commandId: command.commandId },
-    needle: match[2].trim(),
+    needle: rest.trim(),
   };
 };
 

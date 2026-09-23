@@ -19,6 +19,7 @@ import {
   type BrowserSearchField,
 } from "../../browser-page.ts";
 import { matchesTokens, searchTokens } from "../search.ts";
+import { statusRowBase } from "../status.ts";
 
 /** One row from `browser_search_bookmarks` / `browser_search_history`. The two
  *  commands share a shape; the fields one kind does not use are simply absent
@@ -85,13 +86,9 @@ export const BROWSER_GROUP_LIMIT = MAX_RESULTS;
  *  field (see {@link browserSearchRows}). */
 export const browserStatusRow = (id: string, key: MessageKey, t: Translate): PluginRow => ({
   family: "browser",
-  id,
-  title: t(key),
-  subtitle: "",
+  ...statusRowBase(id, t(key)),
   url: "",
   profileKey: "default",
-  disabled: true,
-  kind: "status",
 });
 
 /**

@@ -44,6 +44,7 @@ import {
   type BrowserTabRow,
 } from "../plugins/browser/mode";
 import { clipboardModeRows, clipboardStatusRow } from "../plugins/clipboard/mode";
+import { pluginStatusRow } from "../plugins/status";
 import {
   type ActionBar,
   type CommandWarning,
@@ -647,7 +648,7 @@ export function useLauncherCatalog(options: {
     if (!externalMode || !externalCommand) return null;
     const sourceName = externalCommand.extensionName;
     const status = (id: string, title: string): PluginEmission => ({
-      output: [{ family: "plugin", id, title, kind: "status", disabled: true }],
+      output: [pluginStatusRow(id, title)],
       sourceName,
     });
     if (externalRun.status === "idle") return status("external-idle", t("launcher.externalIdle"));

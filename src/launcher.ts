@@ -1,3 +1,10 @@
+import {
+  cyclePluginFilter,
+  pluginFilterAxis,
+  type PluginFilterAxis,
+} from "./plugins/filter-axis.ts";
+import { splitTriggerWord } from "./plugins/mode-entry.ts";
+
 export type ExecutionMode = "pty" | "external";
 
 export type ExecutionPlan = {
@@ -313,25 +320,33 @@ export type BrowserMode = {
   needle: string;
 };
 
+/** R32/R40 · the browser mode's four range filters as a declarative axis: the
+ *  values Tab cycles and the i18n key each chip prints, in one place. R40 moved
+ *  the label map out of the App and onto the axis (see `plugins/filter-axis.ts`)
+ *  so the values, their order and their words cannot drift apart. The labels
+ *  reuse the plugin's own scope words (`launcher.browserBookmarks`/`History`)
+ *  so the chips and the result grouping name the same things the same way. */
+export const BROWSER_FILTER_AXIS: PluginFilterAxis<BrowserMode["kind"]> = pluginFilterAxis(
+  ["all", "bookmarks", "history", "tabs"] as const,
+  {
+    all: "launcher.browserAll",
+    bookmarks: "launcher.browserBookmarks",
+    history: "launcher.browserHistory",
+    tabs: "launcher.browserTabs",
+  },
+);
+
 /** R32 · the browser mode's four range filters, in the order Tab cycles them.
  *  `all` first because that is the shipped default and the entry point. */
-export const BROWSER_FILTERS: readonly BrowserMode["kind"][] = [
-  "all",
-  "bookmarks",
-  "history",
-  "tabs",
-] as const;
+export const BROWSER_FILTERS: readonly BrowserMode["kind"][] = BROWSER_FILTER_AXIS.values;
 
 /** R32 · move one step through {@link BROWSER_FILTERS}, wrapping at the ends.
- *  `direction` is `1` for Tab and `-1` for Shift+Tab. */
+ *  `direction` is `1` for Tab and `-1` for Shift+Tab. R40 · the rule itself is
+ *  the shared axis cycle (`plugins/filter-axis.ts`). */
 export const cycleBrowserFilter = (
   kind: BrowserMode["kind"],
   direction: 1 | -1,
-): BrowserMode["kind"] => {
-  const index = BROWSER_FILTERS.indexOf(kind);
-  const length = BROWSER_FILTERS.length;
-  return BROWSER_FILTERS[(index + direction + length) % length];
-};
+): BrowserMode["kind"] => cyclePluginFilter(BROWSER_FILTER_AXIS, kind, direction);
 
 /** R32 · whether an empty-word Backspace should leave a plugin mode.
  *
@@ -363,12 +378,13 @@ const BROWSER_HISTORY_TRIGGERS = new Set(["history", "hist", "历史", "历史�
  * The trigger word must be followed by whitespace. That one character is what
  * lets the mode be entered deliberately — Enter on the `bookmarks` system row
  * rewrites the query to `bookmarks ` — and left again by deleting the space.
+ * R40 · the split itself is the shared rule (`plugins/mode-entry.ts`).
  */
 export const parseBrowserMode = (value: string): BrowserMode | null => {
-  const match = /^(\S+)\s+(.*)$/s.exec(value);
-  if (!match) return null;
-  const word = match[1].toLowerCase();
-  const needle = match[2].trim();
+  const split = splitTriggerWord(value);
+  if (!split) return null;
+  const { word, rest } = split;
+  const needle = rest.trim();
   if (BROWSER_BOOKMARK_TRIGGERS.has(word)) return { kind: "bookmarks", needle };
   if (BROWSER_ALL_TRIGGERS.has(word)) return { kind: "all", needle };
   if (BROWSER_HISTORY_TRIGGERS.has(word)) return { kind: "history", needle };
@@ -410,15 +426,25 @@ export type ClipboardModeFilter =
   | "link"
   | "files";
 
+/** R38/R40 · the clipboard mode's six filter chips as a declarative axis — the
+ *  browser axis's twin. `all`/`favorites` are the mode's own words; the four
+ *  kind chips reuse the clipboard panel's type vocabulary (`clipboard.typeText`
+ *  …), so the chips and a row's type name the same thing the same way. R40
+ *  moved the label map out of the App and onto the axis. */
+export const CLIPBOARD_FILTER_AXIS: PluginFilterAxis<ClipboardModeFilter> = pluginFilterAxis(
+  ["all", "favorites", "text", "image", "link", "files"] as const,
+  {
+    all: "launcher.clipboardFilterAll",
+    favorites: "launcher.clipboardFilterFavorites",
+    text: "clipboard.typeText",
+    image: "clipboard.typeImage",
+    link: "clipboard.typeLink",
+    files: "clipboard.typeFiles",
+  },
+);
+
 /** R38 · the six filters, in display order. */
-export const CLIPBOARD_FILTERS: readonly ClipboardModeFilter[] = [
-  "all",
-  "favorites",
-  "text",
-  "image",
-  "link",
-  "files",
-] as const;
+export const CLIPBOARD_FILTERS: readonly ClipboardModeFilter[] = CLIPBOARD_FILTER_AXIS.values;
 
 /**
  * R38 · the clipboard mode's favorite key, in the same vocabulary a stored
@@ -434,15 +460,11 @@ export const CLIPBOARD_FAVORITE_SHORTCUT = "CmdOrCtrl+D";
 
 /** R38 · move one step through {@link CLIPBOARD_FILTERS}, wrapping at the ends.
  *  `direction` is `1` for Tab and `-1` for Shift+Tab, the same contract as
- *  {@link cycleBrowserFilter}. */
+ *  {@link cycleBrowserFilter}. R40 · the rule itself is the shared axis cycle. */
 export const cycleClipboardFilter = (
   filter: ClipboardModeFilter,
   direction: 1 | -1,
-): ClipboardModeFilter => {
-  const index = CLIPBOARD_FILTERS.indexOf(filter);
-  const length = CLIPBOARD_FILTERS.length;
-  return CLIPBOARD_FILTERS[(index + direction + length) % length];
-};
+): ClipboardModeFilter => cyclePluginFilter(CLIPBOARD_FILTER_AXIS, filter, direction);
 
 const CLIPBOARD_TRIGGERS = new Set(["clip", "clipboard", "剪贴板", "粘贴板"]);
 
@@ -451,11 +473,11 @@ const CLIPBOARD_TRIGGERS = new Set(["clip", "clipboard", "剪贴板", "粘贴板
  *  followed by whitespace, which is what makes entering and leaving it a single
  *  keystroke. */
 export const parseClipboardMode = (value: string): ClipboardMode | null => {
-  const match = /^(\S+)\s+(.*)$/s.exec(value);
-  if (!match) return null;
-  if (!CLIPBOARD_TRIGGERS.has(match[1].toLowerCase())) return null;
+  const split = splitTriggerWord(value);
+  if (!split) return null;
+  if (!CLIPBOARD_TRIGGERS.has(split.word)) return null;
   // R38 · entering the mode always starts on 全部; the chips switch it after.
-  return { needle: match[2].trim(), filter: "all" };
+  return { needle: split.rest.trim(), filter: "all" };
 };
 
 /**

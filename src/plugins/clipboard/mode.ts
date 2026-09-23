@@ -23,6 +23,7 @@ import type { MessageKey, Translate } from "../../i18n.ts";
 import type { ClipboardMode, ClipboardModeFilter } from "../../launcher.ts";
 import type { PluginRow } from "../../launcher/plugin-mode.ts";
 import { MAX_RESULTS } from "../../launcher/result-budget.ts";
+import { statusRowBase } from "../status.ts";
 
 /** How many clipboard rows the mode shows. The budget is the same ten rows
  *  (`MAX_RESULTS`). R36 derived nine from the launcher's fixed tail — the mode
@@ -50,11 +51,7 @@ const CLIPBOARD_KIND_KEYS: Record<ClipboardKindChip, MessageKey> = {
  *  only these display-only. */
 export const clipboardStatusRow = (id: string, key: MessageKey, t: Translate): PluginRow => ({
   family: "clipboard",
-  id,
-  title: t(key),
-  subtitle: "",
-  disabled: true,
-  kind: "status",
+  ...statusRowBase(id, t(key)),
 });
 
 /** One clipboard history row. The title is the entry's one-line preview (a file
