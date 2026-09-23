@@ -76,6 +76,12 @@ export const rowTypeWord = (item: LauncherItem, t: Translate): string => {
     // (see `resultRowContent`, which returns before this is ever read).
     case "status":
       return "";
+    // R39 · an external plugin row's type word is the plugin that emitted it.
+    // Like the built-ins, the row itself does not print it as a right-hand
+    // source — the plugin already owns the field's scope glyph — but it is the
+    // fallback the subtitle is compared against.
+    case "plugin":
+      return item.sourceName;
   }
 };
 
@@ -146,12 +152,17 @@ export const resultRowContent = (item: LauncherItem, t: Translate): RowContent =
   if (item.type === "status") return { source: null, subtitle: null };
   const typeWord = rowTypeWord(item, t);
   const subtitle = item.type === "history" ? t("launcher.history") : item.subtitle;
+  // R39 · an external plugin row may carry no subtitle at all; an empty string
+  // would draw a second, blank line, so it is dropped like a redundant one.
+  // Only plugin rows take this shortcut: a command row with an empty
+  // description still keeps its right-hand source word.
+  if (item.type === "plugin" && subtitle === "") return { source: null, subtitle: null };
   const transcription =
     (item.type === "app" && isAlternateAppName(item, subtitle)) ||
     isTranscription(item.title, subtitle);
   return {
     source:
-      item.type === "app" || item.type === "system" || item.type === "browser" || item.type === "clipboard"
+      item.type === "app" || item.type === "system" || item.type === "browser" || item.type === "clipboard" || item.type === "plugin"
         ? null
         : typeWord,
     subtitle: subtitle === typeWord || transcription ? null : subtitle,

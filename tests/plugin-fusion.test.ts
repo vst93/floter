@@ -136,12 +136,12 @@ test("inside a plugin scope the list is the plugin's own content", async () => {
   // emission contributes no rows at all.
   assert.match(
     catalog,
-    /if \(browserMode \|\| clipboardMode\) return pluginView \? pluginViewItems\(pluginView\) : \[\];/,
+    /if \(browserMode \|\| clipboardMode \|\| externalMode\) return pluginView \? pluginViewItems\(pluginView\) : \[\];/,
     "the plugin's view owns the numbered list",
   );
   assert.match(
     catalog,
-    /if \(browserMode \|\| clipboardMode\) return null;/,
+    /if \(browserMode \|\| clipboardMode \|\| externalMode\) return null;/,
     "neither plugin mode offers a shell action bar",
   );
   // The entries are fetched once per mode entry and filtered in memory, so

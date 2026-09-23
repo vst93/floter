@@ -24,6 +24,11 @@ import type { DeepLinkRegisterRequest } from "./deep-link";
 import type { Translate } from "./i18n";
 import type { CommandAliases } from "./command-aliases";
 import { resolveCommandAliases } from "./command-aliases";
+import {
+  isPluginCommandEnabled,
+  type ExternalPluginCommand,
+  type PluginCommandSwitches,
+} from "./plugins/external";
 import { useExtensionActions } from "./hooks/useExtensionActions";
 import { ExtensionRow as ExtensionRowComponent } from "./extensions/ExtensionRow";
 import { CustomIntegrationDrawer } from "./extensions/CustomIntegrationDrawer";
@@ -569,6 +574,19 @@ type ExtensionsPanelProps = {
   pendingDeepLinkRegister: DeepLinkRegisterRequest | null;
   /** Report the register hand-off as done, for the same one-shot reason. */
   onDeepLinkRegisterConsumed: () => void;
+  /** R39 · the external plugins' per-command switches (`extensionId ->
+   *  commandId -> enabled`). The commands list renders one switch per declared
+   *  command from this map. */
+  pluginCommandSwitches: PluginCommandSwitches;
+  /** R39 · flip one command's switch. The write rides the ordinary settings
+   *  path (a whole-app save), so the caller is App's `changeGeneralSetting`. */
+  onTogglePluginCommand: (extensionId: string, commandId: string, enabled: boolean) => void;
+  /** R39 · the registry of external plugin commands (`external_plugin_commands`),
+   *  used to resolve which of the drawer's commands are external and to refresh
+   *  the launcher's own copy after an install/enable change. */
+  externalCommands: ExternalPluginCommand[];
+  /** R39 · re-read the registry after a mutation that could change it. */
+  onRefreshExternalCommands: () => void;
 };
 
 export type BasePluginRow = {
@@ -652,7 +670,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginConfig, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginConfig, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed, pluginCommandSwitches, onTogglePluginCommand, externalCommands, onRefreshExternalCommands }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -902,6 +920,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   };
   const refresh = () => {
     if (refreshPending.current) return refreshPending.current;
+    // R39 · a mutation may have changed the external command registry (an
+    // install, a connect, an enable). Refresh the launcher's own copy in the
+    // same beat so the switches and the summonable commands never disagree.
+    onRefreshExternalCommands();
     const request = loadExtensions().finally(() => { refreshPending.current = null; });
     refreshPending.current = request;
     return request;
@@ -2569,6 +2591,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
               <section className="extension-detail-block">
                 <h4>{t("settings.extensions.commands")}</h4>
+                {/* R39 · what the per-command switch does. Printed above the
+                    list rather than repeated on every row. */}
+                <p className="settings-section__hint">{t("settings.extensions.commandsHint")}</p>
                 {provider?.description.commands.length ? (
                   <div className="extension-command-list">
                     {provider.description.commands.map((command) => {
@@ -2580,10 +2605,39 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                       // alias is live. See `resolveCommandAliases`.
                       const honored = Boolean(resolvedAliases[command.id]);
                       const taken = Boolean((commandAliases[command.id] ?? "").trim()) && !honored;
+                      // R39 · only a command the provider registry reports can be
+                      // summoned as a plugin mode, so only those rows get a
+                      // switch. A command the registry does not know (a stale
+                      // descriptor, a built-in) keeps the alias editor alone.
+                      const external = externalCommands.some(
+                        (candidate) =>
+                          candidate.extensionId === selected.id &&
+                          candidate.commandId === command.id,
+                      );
+                      const enabled = isPluginCommandEnabled(
+                        pluginCommandSwitches,
+                        selected.id,
+                        command.id,
+                      );
                       return (
                         <div key={command.id} className="extension-command-list__row">
                           <code>{command.name}</code>
                           <span>{command.description || t("settings.extensions.noDescription")}</span>
+                          {external && (
+                            <button
+                              type="button"
+                              className={`settings-switch${enabled ? " settings-switch--active" : ""}`}
+                              role="switch"
+                              aria-checked={enabled}
+                              disabled={settingsBusy}
+                              aria-busy={settingsBusy}
+                              aria-label={t("settings.extensions.commandEnable", { command: command.name })}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => onTogglePluginCommand(selected.id, command.id, !enabled)}
+                            >
+                              <span className="settings-switch__thumb" />
+                            </button>
+                          )}
                           {/* R7-11: the alias editor rides the command list itself
                               — one input per connected command — rather than a
                               second settings surface, so "this command, this

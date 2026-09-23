@@ -479,7 +479,14 @@ export const parseClipboardMode = (value: string): ClipboardMode | null => {
  */
 export type ActivePluginMode =
   | { scope: "browser"; kind: BrowserMode["kind"] }
-  | { scope: "clipboard"; filter: ClipboardModeFilter };
+  | { scope: "clipboard"; filter: ClipboardModeFilter }
+  /**
+   * R39 · an *external* plugin's command mode. The plugin is not a built-in;
+   * it is an integration whose provider descriptor declared this command and
+   * whose per-command switch the user turned on (see `plugins/external.ts`).
+   * The field's text is the command's argv, and Enter runs it.
+   */
+  | { scope: "external"; extensionId: string; commandId: string };
 
 /**
  * R31 · the transition into a mode: a typed value whose first word is a trigger
@@ -526,6 +533,19 @@ export const clipboardModeFor = (
 ): ClipboardMode | null =>
   mode?.scope === "clipboard"
     ? { needle: needle.trim(), filter: mode.filter }
+    : null;
+
+/** R39 · the external plugin request an active mode + the field's own text stand
+ *  for. The field's text is split into argv items by the caller
+ *  (`splitPluginCommandArgs` in `plugins/external.ts`), because the split is the
+ *  external protocol's business and this module stays free of it. `null` outside
+ *  an external mode. */
+export const externalModeFor = (
+  mode: ActivePluginMode | null,
+  needle: string,
+): { extensionId: string; commandId: string; args: string } | null =>
+  mode?.scope === "external"
+    ? { extensionId: mode.extensionId, commandId: mode.commandId, args: needle.trim() }
     : null;
 
 /** Decide which row a fresh query should select before the user navigates. */

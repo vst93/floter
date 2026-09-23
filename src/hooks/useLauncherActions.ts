@@ -86,6 +86,15 @@ export function useLauncherActions(options: {
    *  chips (the browser rule, applied to the clipboard's six) and ⌘D favorites
    *  the selected row. */
   clipboardScope: boolean;
+  /** R39 · whether an external plugin's command mode owns the field. */
+  externalScope: boolean;
+  /** R39 · whether Enter should run the external command with the field's
+   *  arguments. True when the mode's view has no interactive list of its own
+   *  (text, a status row, or a display-only list); false when its rows take
+   *  Enter themselves. */
+  externalEnterRunsCommand: boolean;
+  /** R39 · run the external command the field is feeding. */
+  runExternalCommand: () => void;
   /** R38 · step through the clipboard filter chips (`1` forward, `-1` back). */
   cycleClipboardFilter: (direction: 1 | -1) => void;
   /** R38 · toggle the favorite flag of the clipboard entry with this id. The
@@ -155,6 +164,9 @@ export function useLauncherActions(options: {
     clipboardScope,
     cycleClipboardFilter,
     toggleClipboardFavorite,
+    externalScope,
+    externalEnterRunsCommand,
+    runExternalCommand,
     isComposing,
     actionBar,
     shortcuts,
@@ -625,6 +637,28 @@ export function useLauncherActions(options: {
       void copyClipboardEntry(item.entry.id);
       return;
     }
+    if (item.type === "plugin") {
+      // R39 · an external plugin's list row. A row with no action (or one the
+      // plugin marked disabled) is information; the three actions the protocol
+      // defines are all performed by the launcher's own existing commands.
+      if (item.disabled || !item.action) return;
+      const action = item.action;
+      if (action.type === "open") {
+        void openWithSystem("open_url", { url: action.url });
+        return;
+      }
+      if (action.type === "copy") {
+        invoke("clipboard_write_text", { text: action.text }).catch(() => {
+          showLauncherFeedback("launcher.error.copy");
+        });
+        return;
+      }
+      // `insert`: put the text back in the field without running anything.
+      setQuery(action.text);
+      setHistoryIndex(-1);
+      focusCollapsedInput();
+      return;
+    }
     if (item.type === "history") {
       // History items recall the command line without executing it.
       setQuery(item.commandLine);
@@ -777,6 +811,14 @@ export function useLauncherActions(options: {
 
     if (event.key === "Enter") {
       event.preventDefault();
+      // R39 · an external plugin mode whose view is not an interactive list has
+      // no row to run: Enter is the command's own key, and the field's text is
+      // its argv. When the view *is* an interactive list, its rows take Enter
+      // (the branch below) and the command is re-run by editing the arguments.
+      if (externalScope && externalEnterRunsCommand) {
+        runExternalCommand();
+        return;
+      }
       // The list can empty out between a keystroke and the effect that moves the
       // selection off it, so an empty one falls back to the action bar rather
       // than running nothing at all.

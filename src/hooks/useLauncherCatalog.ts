@@ -32,6 +32,11 @@ import {
   type PluginView,
 } from "../launcher/plugin-mode";
 import {
+  externalRunText,
+  type ExternalPluginCommand,
+  type ExternalRunState,
+} from "../plugins/external";
+import {
   BROWSER_FETCH_LIMIT,
   browserSearchRows,
   browserStatusRow,
@@ -239,6 +244,17 @@ export function useLauncherCatalog(options: {
   /** R31 · the clipboard request the launcher is in, or `null` (see
    *  {@link browserMode}). */
   clipboardMode: ClipboardMode | null;
+  /** R39 · the external plugin request the launcher is in, or `null`. The
+   *  `args` field is the field's raw text; the hook does not split it (the run
+   *  does, in the App). */
+  externalMode: { extensionId: string; commandId: string; args: string } | null;
+  /** R39 · the external command the mode belongs to, for the row source word
+   *  and the status rows' wording. `null` outside the mode. */
+  externalCommand: ExternalPluginCommand | null;
+  /** R39 · the mode's run state. Drives the emission: idle/running/failed are
+   *  status rows, a finished run's output goes through the dual-form
+   *  pipeline. */
+  externalRun: ExternalRunState;
   /** `settings.launch_counts` — passed by identity so memoization behaves
    * exactly as when it was read off the settings state. */
   launchCounts: Record<string, number>;
@@ -275,6 +291,9 @@ export function useLauncherCatalog(options: {
     query,
     browserMode,
     clipboardMode,
+    externalMode,
+    externalCommand,
+    externalRun,
     launchCounts,
     showCommandsInSearch,
     showRecentInLauncher,
@@ -618,6 +637,31 @@ export function useLauncherCatalog(options: {
     return { output: clipboardModeRows(clipboardEntries, clipboardMode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS) };
   }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
 
+  // R39 · the external plugin mode's emission. The command's own output is the
+  // product: a conforming list (a JSON array of rows) becomes the launcher's
+  // list, anything else becomes text — the *same* decision the built-ins go
+  // through, made in `resolvePluginView` below. The three non-output states
+  // (not run yet, running, the run itself failed) are status rows, so the field
+  // never sits over an empty box with no explanation.
+  const externalEmission = useMemo<PluginEmission | null>(() => {
+    if (!externalMode || !externalCommand) return null;
+    const sourceName = externalCommand.extensionName;
+    const status = (id: string, title: string): PluginEmission => ({
+      output: [{ family: "plugin", id, title, kind: "status", disabled: true }],
+      sourceName,
+    });
+    if (externalRun.status === "idle") return status("external-idle", t("launcher.externalIdle"));
+    if (externalRun.status === "running") {
+      return status("external-running", t("launcher.externalRunning"));
+    }
+    if (externalRun.status === "failed") {
+      return status("external-failed", externalRun.message || t("launcher.externalFailed"));
+    }
+    const text = externalRunText(externalRun.output);
+    if (text === null) return status("external-empty", t("launcher.externalEmpty"));
+    return { output: text, sourceName };
+  }, [externalMode, externalCommand, externalRun, t]);
+
   // R38 · the favorite toggle, owned here because this hook owns the entries.
   // Optimistic: the star flips on the next paint and the write follows; a
   // refused write rolls the one row back and the launcher's feedback line says
@@ -669,10 +713,12 @@ export function useLauncherCatalog(options: {
   const pluginLoadingRef = useRef(false);
   // A new mode or a new needle is a new result set: the window resets to its
   // first pages. `browserMode`/`clipboardMode` are rebuilt per query, so their
-  // identity is the signal.
+  // identity is the signal. R39 · the external mode's list only changes when a
+  // run lands, so its signal is the run state, not the per-keystroke argument
+  // text.
   useEffect(() => {
     setPluginPages(PLUGIN_INITIAL_PAGES);
-  }, [browserMode, clipboardMode]);
+  }, [browserMode, clipboardMode, externalRun]);
 
   /**
    * R30 · hand the capability layer the rows this page count has *loaded*, plus
@@ -690,8 +736,9 @@ export function useLauncherCatalog(options: {
   const pluginView = useMemo<PluginView | null>(() => {
     if (browserMode) return resolvePluginView(windowedEmission(browserEmission));
     if (clipboardMode) return resolvePluginView(windowedEmission(clipboardEmission));
+    if (externalMode) return resolvePluginView(windowedEmission(externalEmission));
     return null;
-  }, [browserMode, clipboardMode, browserEmission, clipboardEmission, pluginPages]);
+  }, [browserMode, clipboardMode, externalMode, browserEmission, clipboardEmission, externalEmission, pluginPages]);
 
   // R29 · the scroll-to-bottom trigger. `pluginHasMore` is the one bit the
   // launcher reads; the ref lets the once-created callback see the current
@@ -733,7 +780,7 @@ export function useLauncherCatalog(options: {
     // resolved contributes the rows (and nothing at all in the text form). While
     // the mode is on but its output has not arrived yet (the fetch debounce),
     // the list is empty rather than falling back to the ordinary search.
-    if (browserMode || clipboardMode) return pluginView ? pluginViewItems(pluginView) : [];
+    if (browserMode || clipboardMode || externalMode) return pluginView ? pluginViewItems(pluginView) : [];
     const command = query.trim();
     const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
     if (!command) {
@@ -957,13 +1004,13 @@ export function useLauncherCatalog(options: {
     // its own beneath the list. Keep at least one local match when applications
     // or power actions matched alongside catalog commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS);
-  }, [pluginView, browserMode, clipboardMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, t]);
+  }, [pluginView, browserMode, clipboardMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,
     // so there is no shell action to offer underneath them. R27: the clipboard
     // mode is the same kind of place.
-    if (browserMode || clipboardMode) return null;
+    if (browserMode || clipboardMode || externalMode) return null;
     const value = query.trim();
     if (!value) return null;
     const type = classifyActionBar(value);
@@ -981,7 +1028,7 @@ export function useLauncherCatalog(options: {
                 ? t("system.browserSearch")
                 : t("launcher.runInShell");
     return { type, label, value };
-  }, [browserMode, clipboardMode, query, t]);
+  }, [browserMode, clipboardMode, externalMode, query, t]);
 
   const runnableResultFlags = launcherResults.map((item) =>
     item.type === "command"
@@ -993,6 +1040,8 @@ export function useLauncherCatalog(options: {
           item.type === "status" ||
           (item.type === "browser" && item.disabled === true) ||
           (item.type === "clipboard" && item.disabled === true) ||
+          // R39 · an external plugin row with no action is information only.
+          (item.type === "plugin" && (item.disabled === true || item.action === undefined)) ||
           (item.type === "system" && item.disabled === true)
         ),
   );

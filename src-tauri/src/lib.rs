@@ -38,6 +38,7 @@ use commands::extensions::{
     extensions_run_output, extensions_script_runtime_check, extensions_search_tools,
     extensions_uninstall, extensions_uninstall_componentized,
 };
+use commands::extensions::{external_plugin_commands, external_plugin_run};
 use commands::system::system_power;
 use commands::terminal::{
     open_in_default_terminal, term_attach_existing, term_close, term_detach_view, term_input,
@@ -1613,6 +1614,8 @@ pub fn run() {
             extensions_config_export,
             catalog_search,
             catalog_complete,
+            external_plugin_commands,
+            external_plugin_run,
             extensions_cancel_operation,
             commands::config::update_clipboard_hotkey,
             browser_data::browser_discover,

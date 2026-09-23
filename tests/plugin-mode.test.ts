@@ -86,8 +86,20 @@ test("the standard structure is a list, and nothing else is", () => {
   // The counterexample the round exists for: an array of objects that look
   // like rows but do not carry the structure. It must NOT half-parse into a
   // list; it falls to the text form whole.
-  assert.equal(asPluginRows([{ id: "x", title: "y" }]), null);
-  assert.equal(asPluginRows([browserRow, { id: "x", title: "y" }]), null);
+  //
+  // R39 · a bare `{ id, title }` is now the *generic external row* (its family
+  // defaults to `plugin`), so the counterexample is a row that is missing the
+  // required pair — or one whose optional action is malformed.
+  assert.deepEqual(asPluginRows([{ id: "x", title: "y" }]), [
+    { id: "x", title: "y", family: "plugin" },
+  ]);
+  assert.equal(asPluginRows([{ id: "x" }]), null, "no title, no row");
+  assert.equal(
+    asPluginRows([{ id: "x", title: "y", action: { type: "nope" } }]),
+    null,
+    "an unknown action type is not a row",
+  );
+  assert.equal(asPluginRows([browserRow, { id: "x" }]), null);
   assert.equal(asPluginRows([{ family: "browser", id: "x", title: "y" }]), null, "no url, no row");
   assert.equal(asPluginRows([{ family: "unknown", id: "x", title: "y" }]), null);
 
@@ -136,7 +148,7 @@ test("the capability layer resolves the form and the tier", () => {
   assert.deepEqual(pluginViewItems(text), []);
 
   // The counterexample at the resolve level.
-  const fallback = resolvePluginView({ output: [{ id: "x", title: "y" }] });
+  const fallback = resolvePluginView({ output: [{ id: "x" }] });
   assert.equal(fallback?.form, "text");
   assert.match(fallback?.form === "text" ? fallback.text : "", /"id": "x"/);
 

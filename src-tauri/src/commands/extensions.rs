@@ -2509,6 +2509,35 @@ pub async fn catalog_complete(
     catalog::complete(&state, &request).await
 }
 
+/// R39 · the external plugins' command registry. One entry per declared command
+/// of every loaded provider, so the integrations panel can render a switch per
+/// command and the launcher can resolve its mode trigger words. A pure read of
+/// the same provider table `catalog_search` uses.
+#[tauri::command]
+pub async fn external_plugin_commands(
+    state: State<'_, ExtensionState>,
+) -> Result<Vec<catalog::PluginCommandInfo>, String> {
+    catalog::plugin_command_registry(&state).await
+}
+
+/// R39 · run one external plugin command with the launcher's own argv.
+///
+/// The argv is the field's text, split into items by the frontend; the plan is
+/// built and spawned entirely in Rust (`provider::execution_plan` +
+/// `run::execute_plan_background`), so IPC never carries a shell string and no
+/// allowlist is extended. A command whose switch is off never reaches this
+/// call (the frontend gate); a command that does not exist is refused here.
+#[tauri::command]
+pub async fn external_plugin_run(
+    state: State<'_, ExtensionState>,
+    extension_id: String,
+    command_id: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+) -> Result<catalog::PluginCommandOutput, String> {
+    catalog::run_plugin_command(&state, &extension_id, &command_id, args, cwd.as_deref()).await
+}
+
 #[tauri::command]
 pub fn extensions_cancel_operation(
     state: State<'_, ExtensionState>,

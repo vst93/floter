@@ -2261,10 +2261,20 @@
 .extension-command-list > div {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1.3fr) minmax(110px, 0.8fr);
+  /* R39 · the fourth column is the per-command launcher switch. It is `auto`
+     (a fixed 34u control), so the three text columns keep the widths they had
+     and a command without a switch simply leaves the cell empty. */
+  grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1.3fr) minmax(110px, 0.8fr) auto;
   gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid var(--hairline);
+}
+
+/* R39 · the command row's launcher switch sits at the row's trailing edge,
+   vertically centred with the alias editor it follows. */
+.extension-command-list > div > .settings-switch {
+  align-self: center;
+  justify-self: end;
 }
 
 /* R7-11: the alias editor for one connected command. It sits in the command

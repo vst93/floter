@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
@@ -402,6 +402,25 @@ pub struct AppSettings {
     /// directory, 30-day history window).
     #[serde(default)]
     pub browser_plugin: BrowserPluginSettings,
+    /// R39 · the per-command switches of external (non-built-in) plugins:
+    /// `extensionId -> commandId -> enabled`.
+    ///
+    /// An external plugin's commands are declared by the extension's own
+    /// provider descriptor (`CommandDescriptor`, see
+    /// `extensions::provider`). Each one gets a switch in the integrations
+    /// panel; the launcher's plugin mode for that command exists only while
+    /// the switch is on, and the mode's Enter runs the command through the
+    /// same execution plan the catalog already builds (`provider::execution_plan`
+    /// — no shell, no new allowlist).
+    ///
+    /// **Absence means off.** A command with no entry here has never been
+    /// enabled by the user, so the plugin is not summonable: the user's own
+    /// words were 「打开后就可以允许在搜索框内呼出插件」. `#[serde(default)]`
+    /// keeps every settings file written before this key existing
+    /// deserializing to an empty map — which is exactly the pre-round
+    /// behaviour of "no external plugin mode exists".
+    #[serde(default)]
+    pub plugin_command_switches: BTreeMap<String, BTreeMap<String, bool>>,
 }
 
 impl Default for AppSettings {
@@ -433,6 +452,7 @@ impl Default for AppSettings {
             ui_scale: DEFAULT_UI_SCALE.to_string(),
             command_aliases: HashMap::new(),
             browser_plugin: BrowserPluginSettings::default(),
+            plugin_command_switches: BTreeMap::new(),
         }
     }
 }
@@ -763,7 +783,44 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     if settings.browser_plugin.cdp_port == 0 {
         settings.browser_plugin.cdp_port = crate::browser_data::tabs::DEFAULT_CDP_PORT;
     }
+    // R39 · the external plugins' per-command switches. See
+    // [`normalize_plugin_command_switches`].
+    settings.plugin_command_switches =
+        normalize_plugin_command_switches(settings.plugin_command_switches);
     settings
+}
+
+/// R39 · normalize the per-command switch map.
+///
+/// The keys are ids, so an empty or whitespace-only id can never match a
+/// declared command and is dropped; an inner map left empty is dropped too, so
+/// a plugin the user never touched has no entry at all — which is the same
+/// state as "every command off", the meaning of absence (see
+/// [`AppSettings::plugin_command_switches`]). Values are booleans and are kept
+/// verbatim: `false` is a deliberate "this one is off" and must not be pruned
+/// into a re-enabled default.
+fn normalize_plugin_command_switches(
+    switches: BTreeMap<String, BTreeMap<String, bool>>,
+) -> BTreeMap<String, BTreeMap<String, bool>> {
+    let mut normalized = BTreeMap::new();
+    for (extension, commands) in switches {
+        let extension = extension.trim();
+        if extension.is_empty() {
+            continue;
+        }
+        let mut kept = BTreeMap::new();
+        for (command, enabled) in commands {
+            let command = command.trim();
+            if command.is_empty() {
+                continue;
+            }
+            kept.insert(command.to_string(), enabled);
+        }
+        if !kept.is_empty() {
+            normalized.insert(extension.to_string(), kept);
+        }
+    }
+    normalized
 }
 
 /// The largest history window the plugin will honour (ten years). A larger
@@ -2211,6 +2268,80 @@ mod tests {
             merged.command_aliases.get("git").map(String::as_str),
             Some("gfm")
         );
+    }
+
+    // ── R39 · external plugin command switches ─────────────────────────────
+
+    #[test]
+    fn older_settings_start_with_no_plugin_command_switches() {
+        // Migration lock: a settings file written before the key existed (no
+        // `plugin_command_switches` at all) must deserialize to an empty map,
+        // which is the "every command off" state — no external plugin mode.
+        let settings: AppSettings =
+            serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
+        assert!(settings.plugin_command_switches.is_empty());
+        let empty: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert!(empty.plugin_command_switches.is_empty());
+    }
+
+    #[test]
+    fn plugin_command_switches_round_trip_through_disk() {
+        let directory = tempfile::tempdir().expect("settings directory");
+        let settings = AppSettings {
+            plugin_command_switches: BTreeMap::from([(
+                "local.tool".to_string(),
+                BTreeMap::from([
+                    ("search".to_string(), true),
+                    ("index".to_string(), false),
+                ]),
+            )]),
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &settings).expect("write settings");
+        let reloaded = load_settings_from(directory.path());
+        let tool = reloaded
+            .plugin_command_switches
+            .get("local.tool")
+            .expect("the plugin's block survives");
+        assert_eq!(tool.get("search"), Some(&true));
+        // An explicit `false` is a decision and must survive normalization and a
+        // disk round trip; pruning it would silently re-enable the command.
+        assert_eq!(tool.get("index"), Some(&false));
+    }
+
+    #[test]
+    fn plugin_command_switches_drop_empty_keys_and_keep_explicit_off() {
+        let settings = normalize_settings(AppSettings {
+            plugin_command_switches: BTreeMap::from([
+                (
+                    "  ".to_string(),
+                    BTreeMap::from([("search".to_string(), true)]),
+                ),
+                (
+                    "local.tool".to_string(),
+                    BTreeMap::from([
+                        ("".to_string(), true),
+                        ("  index  ".to_string(), false),
+                    ]),
+                ),
+                (
+                    "local.empty".to_string(),
+                    BTreeMap::from([("   ".to_string(), true)]),
+                ),
+            ]),
+            ..AppSettings::default()
+        });
+        // A blank plugin id can never match a declared command.
+        assert!(!settings.plugin_command_switches.contains_key(""));
+        // An inner map left empty is dropped, so the plugin has no block at all
+        // (the same state as "never touched").
+        assert!(!settings.plugin_command_switches.contains_key("local.empty"));
+        let tool = settings
+            .plugin_command_switches
+            .get("local.tool")
+            .expect("the kept block");
+        assert_eq!(tool.len(), 1, "the blank command id is dropped");
+        assert_eq!(tool.get("index"), Some(&false));
     }
 
     #[test]

@@ -44,6 +44,39 @@ export type PluginForm = "text" | "list";
 export type PluginTier = "display" | "interactive";
 
 /**
+ * R39 · the glyph allowlist an external plugin row may name in its `icon`
+ * field. A closed vocabulary rather than a free string: the launcher renders
+ * its own icons, and a plugin must not be able to name a component that does
+ * not exist (or inject markup through the field). An unknown name falls back
+ * to the generic plugin glyph.
+ */
+export type PluginRowIcon =
+  | "link"
+  | "file"
+  | "folder"
+  | "globe"
+  | "star"
+  | "clock"
+  | "text"
+  | "image"
+  | "command";
+
+/**
+ * R39 · what Enter does on an external plugin's list row. A row without one is
+ * information only; a list whose every row lacks one is display-only (see
+ * {@link pluginTierFor}). Every action is performed by the launcher's own
+ * existing commands — the plugin names an intent, never a shell.
+ *
+ *   · `open`   — hand a URL/path to the system (`open_url` / `open_path`).
+ *   · `copy`   — put text on the system clipboard (`clipboard_write_text`).
+ *   · `insert` — put text back into the launcher's field without running it.
+ */
+export type PluginRowAction =
+  | { readonly type: "open"; readonly url: string }
+  | { readonly type: "copy"; readonly text: string }
+  | { readonly type: "insert"; readonly text: string };
+
+/**
  * R28 · one row of the standard structure a plugin emits.
  *
  * The capability layer knows two families — the browser plugin's rows and the
@@ -89,6 +122,32 @@ export type PluginRow =
       kind?: "status";
       /** What Enter copies back to the system clipboard. */
       entry?: ClipboardEntry;
+    }
+  /**
+   * R39 · the generic row of an *external* plugin's list output. A plugin that
+   * is not one of the two built-ins emits rows in this shape (or a JSON string
+   * of them) and gets the launcher's list for free — the same rendering,
+   * numbered slots, pagination and viewport the built-ins use.
+   *
+   * The fields are the protocol the developer doc publishes: `id` and `title`
+   * are required; everything else is optional. `group` names a section the row
+   * sits under; `icon` must be one of {@link PluginRowIcon}; `action` is what
+   * Enter runs (absent → the row is display-only).
+   */
+  | {
+      family: "plugin";
+      id: string;
+      title: string;
+      subtitle?: string;
+      icon?: PluginRowIcon;
+      /** A section heading the row sits under. Rows sharing one `group` are
+       *  drawn as one block with the group's name printed once above them. */
+      group?: string;
+      /** A status line ("no results", "the tool is not connected"), drawn as
+       *  the launcher's muted note exactly as the built-ins' status rows are. */
+      kind?: "status";
+      disabled?: boolean;
+      action?: PluginRowAction;
     };
 
 /**
@@ -106,6 +165,11 @@ export type PluginEmission = {
    *  complete in one emission (the pre-R29 behaviour). Text emissions ignore
    *  it — there are no rows to page. */
   readonly page?: PluginPage;
+  /** R39 · the external plugin that produced this output, for the generic
+   *  `plugin` row family. The launcher prints it as the row's right-hand
+   *  source word; the built-ins leave it unset (their source is the mode
+   *  itself). */
+  readonly sourceName?: string;
 };
 
 /**
@@ -189,6 +253,30 @@ export const pluginTextMetrics = (text: string): PluginTextMetrics => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+/** R39 · the closed icon vocabulary, as a set for O(1) validation. */
+const PLUGIN_ROW_ICONS: ReadonlySet<string> = new Set([
+  "link",
+  "file",
+  "folder",
+  "globe",
+  "star",
+  "clock",
+  "text",
+  "image",
+  "command",
+]);
+
+/** R39 · validate a row's `action`. An unknown `type` — or a well-known type
+ *  missing its payload string — makes the *row* invalid, so the whole output
+ *  falls to the text form rather than rendering a row that silently does
+ *  nothing on Enter. */
+const isPluginRowAction = (value: unknown): value is PluginRowAction => {
+  if (!isRecord(value)) return false;
+  if (value.type === "open") return typeof value.url === "string";
+  if (value.type === "copy" || value.type === "insert") return typeof value.text === "string";
+  return false;
+};
+
 /** Whether one value conforms to the standard row structure. */
 const isPluginRow = (value: unknown): value is PluginRow => {
   if (!isRecord(value)) return false;
@@ -197,6 +285,18 @@ const isPluginRow = (value: unknown): value is PluginRow => {
     return typeof value.url === "string" && typeof value.profileKey === "string";
   }
   if (value.family === "clipboard") return true;
+  // R39 · a row with no `family` is a generic external plugin row. That is the
+  // ergonomic default the developer doc publishes: a plugin author writes
+  // `[{ id, title }]`, not `[{ family: "plugin", id, title }]`.
+  if (value.family === undefined || value.family === "plugin") {
+    if (value.icon !== undefined && !(typeof value.icon === "string" && PLUGIN_ROW_ICONS.has(value.icon))) {
+      return false;
+    }
+    if (value.group !== undefined && typeof value.group !== "string") return false;
+    if (value.subtitle !== undefined && typeof value.subtitle !== "string") return false;
+    if (value.action !== undefined && !isPluginRowAction(value.action)) return false;
+    return true;
+  }
   return false;
 };
 
@@ -212,7 +312,13 @@ const isPluginRow = (value: unknown): value is PluginRow => {
 export const asPluginRows = (output: unknown): PluginRow[] | null => {
   const value = typeof output === "string" ? parseJson(output) : output;
   if (!Array.isArray(value) || value.length === 0) return null;
-  return value.every(isPluginRow) ? (value as PluginRow[]) : null;
+  if (!value.every(isPluginRow)) return null;
+  // R39 · fill in the defaulted family so the cast below is honest: a parsed
+  // row without `family` *is* a generic plugin row from here on.
+  return value.map((row) => {
+    const record = row as Record<string, unknown>;
+    return (record.family === undefined ? { ...record, family: "plugin" } : record) as unknown as PluginRow;
+  });
 };
 
 /** `JSON.parse` only when the string even looks like an array, so an ordinary
@@ -251,7 +357,7 @@ export const asPluginText = (output: unknown): string | null => {
 /** The `LauncherItem` a standard row becomes. This is the row→launcher mapping
  *  R26-A/R26-B/R27 each kept for themselves; it lives here now, so the two
  *  plugins emit data and this one function is what the launcher reads. */
-export const pluginRowToItem = (row: PluginRow): LauncherItem => {
+export const pluginRowToItem = (row: PluginRow, sourceName?: string): LauncherItem => {
   // R30 · a status row is information, not an entry: it becomes the launcher's
   // own `status` item, which the renderer draws as a muted note in the list's
   // own column — no icon plate, no `⌘N` slot, no pointer state, no Enter. That
@@ -271,13 +377,29 @@ export const pluginRowToItem = (row: PluginRow): LauncherItem => {
       ...(row.tab ? { tab: row.tab } : {}),
     };
   }
+  if (row.family === "clipboard") {
+    return {
+      type: "clipboard",
+      id: row.id,
+      title: row.title,
+      subtitle: row.subtitle ?? "",
+      ...(row.entry ? { entry: row.entry } : {}),
+      ...(row.disabled ? { disabled: true } : {}),
+    };
+  }
+  // R39 · the generic external row. `sourceName` is the extension that emitted
+  // it, printed as the row's source word (the plugin's own name is real
+  // information the row would otherwise have to repeat).
   return {
-    type: "clipboard",
+    type: "plugin",
     id: row.id,
     title: row.title,
     subtitle: row.subtitle ?? "",
-    ...(row.entry ? { entry: row.entry } : {}),
+    sourceName: sourceName ?? "",
+    ...(row.icon ? { icon: row.icon } : {}),
+    ...(row.group ? { group: row.group } : {}),
     ...(row.disabled ? { disabled: true } : {}),
+    ...(row.action ? { action: row.action } : {}),
   };
 };
 
@@ -287,8 +409,18 @@ export const pluginRowToItem = (row: PluginRow): LauncherItem => {
  * states — "no browser found", "nothing copied yet", "the plugin is off" — and
  * they should not pretend to be selectable.
  */
-export const pluginTierFor = (rows: readonly PluginRow[], declared?: PluginTier): PluginTier =>
-  declared ?? (rows.every((row) => row.disabled === true) ? "display" : "interactive");
+export const pluginTierFor = (rows: readonly PluginRow[], declared?: PluginTier): PluginTier => {
+  if (declared) return declared;
+  // R39 · a generic external list takes the keyboard only when at least one of
+  // its rows actually has something to run. A list of information-only rows is
+  // display by construction, exactly as the built-ins' all-status lists are.
+  if (rows.some((row) => row.family === "plugin")) {
+    return rows.some((row) => row.family === "plugin" && row.action !== undefined)
+      ? "interactive"
+      : "display";
+  }
+  return rows.every((row) => row.disabled === true) ? "display" : "interactive";
+};
 
 /**
  * R28 · the capability layer's one entry point: turn a plugin's emission into
@@ -308,7 +440,7 @@ export const resolvePluginView = (emission: PluginEmission | null): PluginView |
     return {
       form: "list",
       tier: pluginTierFor(rows, emission.tier),
-      items: rows.map(pluginRowToItem),
+      items: rows.map((row) => pluginRowToItem(row, emission.sourceName)),
       page: normalizePluginPage(emission.page),
     };
   }

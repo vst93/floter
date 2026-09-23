@@ -392,6 +392,134 @@ fn completion_response(
     }
 }
 
+/// R39 · one external plugin command as the launcher's plugin modes see it.
+///
+/// This is the *registry* half of the per-command switch feature: the
+/// integrations panel renders one switch per entry, and the launcher resolves
+/// a typed trigger word against the enabled subset. It carries only facts the
+/// provider descriptor already declares — no new authority, no new field.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginCommandInfo {
+    /// The owning extension's id (the switch map's outer key).
+    pub extension_id: String,
+    /// The extension's human name (`source_name`), for the switch's caption.
+    pub extension_name: String,
+    /// The command id — the string the user types to enter the mode, and the
+    /// switch map's inner key.
+    pub command_id: String,
+    pub name: String,
+    pub description: String,
+    pub aliases: Vec<String>,
+    /// Whether the extension's runtime binding resolves right now. A command
+    /// whose runtime is missing may still be listed (the switch keeps its
+    /// state), but a run refuses with a named error.
+    pub runtime_available: bool,
+}
+
+/// R39 · the whole external plugin command registry.
+///
+/// One entry per command of every extension that loads a provider descriptor —
+/// the same table the catalog search reads (`loaded_provider_commands`), so a
+/// command can never be searchable without being switchable, or the reverse.
+/// Sorted by `(extensionId, commandId)` so the panel's rows and the tests are
+/// deterministic regardless of the lock's iteration order.
+pub async fn plugin_command_registry(
+    state: &ExtensionState,
+) -> Result<Vec<PluginCommandInfo>, String> {
+    let providers = loaded_provider_commands(state).await?;
+    let mut infos: Vec<PluginCommandInfo> = providers
+        .iter()
+        .map(|provider| PluginCommandInfo {
+            extension_id: provider.invocation.extension_id.clone(),
+            extension_name: provider.source_name.clone(),
+            command_id: provider.descriptor.id.clone(),
+            name: provider.descriptor.name.clone(),
+            description: provider.descriptor.description.clone(),
+            aliases: provider.descriptor.aliases.clone(),
+            runtime_available: provider.runtime_available,
+        })
+        .collect();
+    infos.sort_by(|left, right| {
+        left.extension_id
+            .cmp(&right.extension_id)
+            .then_with(|| left.command_id.cmp(&right.command_id))
+    });
+    Ok(infos)
+}
+
+/// R39 · the captured result of one external plugin command run.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginCommandOutput {
+    pub success: bool,
+    pub exit_code: Option<i32>,
+    pub duration_ms: u64,
+    pub stdout: String,
+    pub stderr: String,
+    pub truncated: bool,
+}
+
+/// R39 · run one external plugin command with the launcher's own argv.
+///
+/// This is the execution half of the plugin mode. It resolves the command out
+/// of the **same** provider table the catalog search uses, builds the plan with
+/// the **same** `provider::execution_plan` the catalog uses (which enforces the
+/// command's declared `execution.program` and the `process-spawn` permission),
+/// and spawns it directly with `std::process::Command`-equivalent argv — there
+/// is no shell, no string interpolation, and no new allowlist entry. A command
+/// the user disabled is refused *before* this function is reached (the frontend
+/// gate), and a command that does not exist is refused here.
+///
+/// `args` is the launcher field's own text, split into argv items by the
+/// frontend. Every item is one argument; nothing is ever joined into a shell
+/// string.
+pub async fn run_plugin_command(
+    state: &ExtensionState,
+    extension_id: &str,
+    command_id: &str,
+    args: Vec<String>,
+    cwd: Option<&str>,
+) -> Result<PluginCommandOutput, String> {
+    let providers = loaded_provider_commands(state).await?;
+    let provider = providers
+        .iter()
+        .find(|provider| {
+            provider.invocation.extension_id == extension_id
+                && (provider.descriptor.id == command_id
+                    || provider
+                        .descriptor
+                        .aliases
+                        .iter()
+                        .any(|alias| alias == command_id))
+        })
+        .ok_or_else(|| format!("Unknown plugin command: {extension_id}:{command_id}"))?;
+    if !provider.runtime_available {
+        return Err(format!(
+            "Plugin command runtime is unavailable: {extension_id}:{command_id}"
+        ));
+    }
+    let mut argv = provider.configured_args.clone();
+    argv.extend(args);
+    let plan = execution_plan(
+        &provider.descriptor,
+        &provider.invocation,
+        argv,
+        cwd.map(Path::new),
+    )?;
+    let started = Instant::now();
+    let (success, exit_code, output) =
+        crate::extensions::run::execute_plan_background(plan).await?;
+    Ok(PluginCommandOutput {
+        success,
+        exit_code,
+        duration_ms: started.elapsed().as_millis() as u64,
+        stdout: output.stdout,
+        stderr: output.stderr,
+        truncated: output.truncated,
+    })
+}
+
 async fn provider_entries(
     state: &ExtensionState,
     cwd: Option<&str>,

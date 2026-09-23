@@ -110,12 +110,23 @@ import {
   clipboardModeFor,
   cycleBrowserFilter as nextBrowserFilter,
   cycleClipboardFilter as nextClipboardFilter,
+  externalModeFor,
   pluginModeEntry,
   pluginModeExitOnBackspace,
   type ActivePluginMode,
   type BrowserMode,
   type ClipboardModeFilter,
 } from "./launcher";
+import {
+  enabledExternalCommands,
+  externalModeCommand,
+  externalPluginModeEntry,
+  splitPluginCommandArgs,
+  type ExternalPluginCommand,
+  type ExternalRunOutput,
+  type ExternalRunState,
+  type PluginCommandSwitches,
+} from "./plugins/external";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import type { BrowserSearchField } from "./browser-page";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
@@ -233,6 +244,12 @@ export type AppSettings = {
    * settings panel's base-plugins row flips. The backend normalizes all six on
    * save. */
   browser_plugin: BrowserPluginSettings;
+  /** R39 · the external plugins' per-command switches,
+   *  `extensionId -> commandId -> enabled`. The integrations panel renders one
+   *  switch per declared command; only an enabled command may be summoned as a
+   *  launcher plugin mode. Absence means off (see `PluginCommandSwitches` in
+   *  `plugins/external.ts`). */
+  plugin_command_switches: PluginCommandSwitches;
 }
 
 /** R26-A/R26-B: the browser plugin's settings block, mirroring the Rust
@@ -349,6 +366,31 @@ export default function App() {
   pluginModeRef.current = pluginMode;
 
   /**
+   * R39 · the external plugins' command registry — one entry per command of
+   * every loaded provider descriptor (`external_plugin_commands`). It is the
+   * *authority* for two things: which trigger words can enter a plugin mode,
+   * and which switches the integrations panel renders. Loaded once on mount
+   * and refreshed whenever the integrations panel changes something.
+   */
+  const [externalCommands, setExternalCommands] = useState<ExternalPluginCommand[]>([]);
+  const reloadExternalCommands = useCallback(() => {
+    invoke<ExternalPluginCommand[]>("external_plugin_commands")
+      .then((commands) => setExternalCommands(commands))
+      .catch(() => setExternalCommands([]));
+  }, []);
+  useEffect(() => {
+    reloadExternalCommands();
+  }, [reloadExternalCommands]);
+
+  /**
+   * R39 · the run state of the external plugin mode that is open. Reset when
+   * the mode's command changes (or the mode closes), *not* on every keystroke:
+   * editing the arguments after a run must leave the output on screen until the
+   * next Enter replaces it.
+   */
+  const [externalRun, setExternalRun] = useState<ExternalRunState>({ status: "idle" });
+
+  /**
    * R31 · the query setter the *hooks* receive.
    *
    * A programmatic query write is one of three things, and the mode has to react
@@ -380,6 +422,17 @@ export default function App() {
           if (entry) {
             setPluginMode(entry.mode);
             setQuery(entry.needle);
+            return;
+          }
+          // R39 · an external plugin's command trigger (the built-ins win the
+          // namespace, exactly as their parsers do).
+          const external = externalPluginModeEntry(
+            action,
+            enabledExternalCommandsRef.current,
+          );
+          if (external) {
+            setPluginMode(external.mode);
+            setQuery(external.needle);
             return;
           }
         }
@@ -742,6 +795,68 @@ export default function App() {
   // starve the fetch.
   const browserMode = useMemo(() => browserModeFor(pluginMode, query), [pluginMode, query]);
   const clipboardMode = useMemo(() => clipboardModeFor(pluginMode, query), [pluginMode, query]);
+  // R39 · the external plugin request (command + raw argument text), and the
+  // enabled subset of the registry. The subset is the *gate*: a command whose
+  // switch is off has no entry, so its trigger word falls through to the
+  // ordinary search page (「未开任何命令的插件不出现」).
+  const externalMode = useMemo(() => externalModeFor(pluginMode, query), [pluginMode, query]);
+  const enabledExternalCommandList = useMemo(
+    () => enabledExternalCommands(externalCommands, settings.plugin_command_switches),
+    [externalCommands, settings.plugin_command_switches],
+  );
+  const externalCommand = useMemo(
+    () => externalModeCommand(pluginMode, enabledExternalCommandList),
+    [pluginMode, enabledExternalCommandList],
+  );
+  const externalScope = pluginMode?.scope === "external";
+  // Ref mirror for the once-created query setter (see `setQueryExitingPlugin`),
+  // which must not be rebuilt on every registry refresh.
+  const enabledExternalCommandsRef = useRef(enabledExternalCommandList);
+  enabledExternalCommandsRef.current = enabledExternalCommandList;
+  // A run belongs to one command line. Switching command (or leaving the mode)
+  // discards the previous output; editing the argument text does too, because
+  // the shown output described the *old* arguments. The generation ref makes a
+  // late reply from a superseded run inert, so typing while a run is in flight
+  // cannot paint the output of arguments the field no longer holds.
+  const externalRunGeneration = useRef(0);
+  useEffect(() => {
+    externalRunGeneration.current += 1;
+    setExternalRun((current) =>
+      current.status === "done" || current.status === "failed"
+        ? { status: "idle" }
+        : current,
+    );
+  }, [externalMode?.extensionId, externalMode?.commandId, externalMode?.args]);
+  // A command that is no longer enabled (its switch was turned off while the
+  // mode was open) is not summonable; leave the mode rather than showing an
+  // empty field with no owner.
+  useEffect(() => {
+    if (externalScope && externalCommand === null) setPluginMode(null);
+  }, [externalScope, externalCommand]);
+  /**
+   * R39 · run the external command the field is feeding. The field's text is
+   * split into argv items by the external protocol's own splitter; Rust builds
+   * the plan and spawns it (no shell). The result lands in `externalRun`, which
+   * the catalog hook turns into the dual-form view.
+   */
+  const runExternalCommand = useCallback(() => {
+    if (!externalMode) return;
+    const generation = ++externalRunGeneration.current;
+    setExternalRun({ status: "running" });
+    invoke<ExternalRunOutput>("external_plugin_run", {
+      extensionId: externalMode.extensionId,
+      commandId: externalMode.commandId,
+      args: splitPluginCommandArgs(externalMode.args),
+    })
+      .then((output) => {
+        if (externalRunGeneration.current !== generation) return;
+        setExternalRun({ status: "done", output });
+      })
+      .catch((error) => {
+        if (externalRunGeneration.current !== generation) return;
+        setExternalRun({ status: "failed", message: String(error) });
+      });
+  }, [externalMode]);
 
   // R35 · the page-residency clock. It is the one place that answers "may the
   // app throw this surface away on its own?". Entering a surface (a plugin
@@ -790,6 +905,12 @@ export default function App() {
     // never restarts its fetch debounce on an unrelated render.
     browserMode,
     clipboardMode,
+    // R39 · the external plugin mode and its last run. The hook builds the
+    // emission from the run state and feeds it through the *same* dual-form
+    // pipeline the built-ins use.
+    externalMode,
+    externalCommand,
+    externalRun,
     launchCounts: settings.launch_counts,
     showCommandsInSearch: settings.show_commands_in_search,
     showRecentInLauncher: settings.show_recent_in_launcher,
@@ -1071,6 +1192,12 @@ export default function App() {
   // the keyboard.
   const pluginText = pluginView !== null && pluginView.form === "text" ? pluginView : null;
   const pluginInteractive = pluginView === null || pluginViewInteractive(pluginView);
+  // R39 · when the external mode's output is not an interactive list, Enter is
+  // the command's own key: it runs what the field holds. When the output *is* an
+  // interactive list, its rows take Enter instead (they have actions), and the
+  // command is re-run by editing the arguments and pressing Enter on a fresh
+  // (empty) list — which is the same rule the built-ins follow.
+  const externalEnterRunsCommand = externalScope && !pluginInteractive;
   // R29 · the plugin list's pagination block, or null for every other list.
   const pluginPage = pluginViewPage(pluginView);
   const displayedResults = useMemo(
@@ -1116,7 +1243,12 @@ export default function App() {
   const displayedRunnableFlags = useMemo(
     () =>
       displayedResults.map(
-        (item) => item.type !== "status" && (item.type !== "command" || Boolean(item.execution)),
+        (item) =>
+          item.type !== "status" &&
+          // R39 · an external plugin row with no action (or one it marks
+          // disabled) is information, not a result.
+          !(item.type === "plugin" && (item.disabled === true || item.action === undefined)) &&
+          (item.type !== "command" || Boolean(item.execution)),
       ),
     [displayedResults],
   );
@@ -1218,6 +1350,13 @@ export default function App() {
     refreshTerminalSessions,
     enterPluginMode,
     browserScope: launcherScope === "browser",
+    /** R39 · the external plugin mode. `externalEnterRunsCommand` is true when
+     *  the mode's view has no interactive list of its own (text, a status row,
+     *  or a display-only list), which is exactly when Enter should run the
+     *  command with the field's arguments rather than a selected row. */
+    externalScope,
+    externalEnterRunsCommand,
+    runExternalCommand,
     /** R38 · the clipboard mode's own two keys: Tab cycles the chips and ⌘D
      *  favorites the selected row. Passed as explicit facts (the mode the
      *  field owns, and the two actions) rather than re-derived from the query,
@@ -2320,6 +2459,19 @@ export default function App() {
                   }
                 }}
                 onOpenPluginConfig={(id) => openPluginConfig(id)}
+                pluginCommandSwitches={settings.plugin_command_switches}
+                onTogglePluginCommand={(extensionId, commandId, enabled) => {
+                  // R39 · one command's switch. The map is nested so a plugin's
+                  // block is replaced wholesale, keeping every other command's
+                  // state (including explicit `false`s) intact.
+                  const current = settings.plugin_command_switches;
+                  changeGeneralSetting("plugin_command_switches", {
+                    ...current,
+                    [extensionId]: { ...(current[extensionId] ?? {}), [commandId]: enabled },
+                  });
+                }}
+                externalCommands={externalCommands}
+                onRefreshExternalCommands={reloadExternalCommands}
                 onNotify={notify}
                 pendingDeepLink={pendingDeepLink}
                 onDeepLinkConsumed={() => setPendingDeepLink(null)}
@@ -2358,9 +2510,11 @@ export default function App() {
         ? t("input.placeholderClipboard")
         : launcherScope === "browser"
           ? t("input.placeholderBrowser")
-          : appsLoading && !applications.length
-            ? t("input.scanning")
-            : t("input.placeholder");
+          : launcherScope === "external"
+            ? t("input.placeholderPluginArgs")
+            : appsLoading && !applications.length
+              ? t("input.scanning")
+              : t("input.placeholder");
 
     return (
       <>
@@ -2409,6 +2563,12 @@ export default function App() {
                 <span className="collapsed-card__scope" aria-hidden="true">
                   {launcherScope === "clipboard" ? (
                     <ClipboardIcon size={16} strokeWidth={1.8} />
+                  ) : launcherScope === "external" ? (
+                    // R39 · an external plugin's command mode. The glyph is the
+                    // launcher's own terminal mark — a plugin's own icon is not
+                    // trusted markup — and the name beside it is the command's,
+                    // so the user can tell which command the field is feeding.
+                    <SquareTerminal size={16} strokeWidth={1.8} />
                   ) : (
                     <GlobeIcon size={16} strokeWidth={1.8} />
                   )}
@@ -2417,11 +2577,13 @@ export default function App() {
                       one, which is what a launcher with more than one plugin
                       needs and what the placeholder alone could not carry. */}
                   <span className="collapsed-card__scope-name">
-                    {t(
-                      launcherScope === "clipboard"
-                        ? "launcher.scopeClipboard"
-                        : "launcher.scopeBrowser",
-                    )}
+                    {launcherScope === "external"
+                      ? externalCommand?.name ?? t("launcher.scopePlugin")
+                      : t(
+                          launcherScope === "clipboard"
+                            ? "launcher.scopeClipboard"
+                            : "launcher.scopeBrowser",
+                        )}
                   </span>
                 </span>
               )}
@@ -2456,6 +2618,19 @@ export default function App() {
                     if (entry) {
                       setPluginMode(entry.mode);
                       setQuery(entry.needle);
+                      setHistoryIndex(-1);
+                      return;
+                    }
+                    // R39 · the same transition for an external plugin's command
+                    // (only an enabled command is in the list, so a disabled one
+                    // stays an ordinary query).
+                    const external = externalPluginModeEntry(
+                      value,
+                      enabledExternalCommandList,
+                    );
+                    if (external) {
+                      setPluginMode(external.mode);
+                      setQuery(external.needle);
                       setHistoryIndex(-1);
                       return;
                     }

@@ -11,9 +11,18 @@ const en = {
   // plugin; the placeholder says what the field searches now.
   "input.placeholderClipboard": "Search clipboard history",
   "input.placeholderBrowser": "Search bookmarks, history and tabs",
+  // R39 · an external plugin's command mode: the field holds the command's argv.
+  "input.placeholderPluginArgs": "Type arguments, press Enter to run",
   // R29 · the scope's name, beside its glyph in the field's left edge.
   "launcher.scopeClipboard": "Clipboard",
   "launcher.scopeBrowser": "Browser",
+  // R39 · an external plugin's command mode: the fallback scope name, and the
+  // four lines the mode's own state can print when there is no output yet.
+  "launcher.scopePlugin": "Plugin",
+  "launcher.externalIdle": "Type arguments and press Enter to run",
+  "launcher.externalRunning": "Running…",
+  "launcher.externalFailed": "The command could not run",
+  "launcher.externalEmpty": "The command produced no output",
   // R29 · the plugin list's pagination footer.
   "launcher.pluginLoadingMore": "Loading more…",
   "launcher.pluginEnd": "No more results",
@@ -23,6 +32,7 @@ const en = {
   "launcher.openInBrowser": "Open in browser",
   "launcher.openInFiles": "Open in files",
   "launcher.error.command": "Could not start this command",
+  "launcher.error.copy": "Could not copy that text",
   "launcher.error.application": "Could not open this application",
   "launcher.error.url": "Could not open this link",
   "launcher.error.path": "Could not open this path",
@@ -543,6 +553,10 @@ const en = {
   "settings.extensions.noDescription": "No description provided.",
   "settings.extensions.publisherDescriptorNote": "This integration's command list is provided by the publisher and ships with a Floter release. It does not change with the local tool binary.",
   "settings.extensions.commands": "Commands",
+  // R39 · the per-command switch. A command switched on may be summoned as a
+  // launcher plugin mode; the hint is the section's one-line explanation.
+  "settings.extensions.commandsHint": "Turn a command on to summon it in the search box: type the command name and a space, then its arguments.",
+  "settings.extensions.commandEnable": "Enable {command} in the launcher",
   "settings.extensions.commandAlias": "Alias",
   "settings.extensions.commandAliasFor": "Alias for {command}",
   "settings.extensions.commandAliasPlaceholder": "Type to run this command",
@@ -804,9 +818,17 @@ const zh: Record<MessageKey, string> = {
   "input.retryScan": "重新扫描应用",
   "input.placeholderClipboard": "搜索剪贴板记录",
   "input.placeholderBrowser": "搜索书签、历史记录和标签页",
+  // R39 · 外部插件命令模式：输入框里是该命令的参数。
+  "input.placeholderPluginArgs": "输入参数，回车执行",
   // R29 · 输入框左侧的插件名。
   "launcher.scopeClipboard": "剪贴板",
   "launcher.scopeBrowser": "浏览器",
+  // R39 · 外部插件命令模式：作用域名兜底与四种状态文案。
+  "launcher.scopePlugin": "插件",
+  "launcher.externalIdle": "输入参数后回车执行",
+  "launcher.externalRunning": "正在执行…",
+  "launcher.externalFailed": "命令无法执行",
+  "launcher.externalEmpty": "命令没有输出",
   // R29 · 插件列表底部的分页状态。
   "launcher.pluginLoadingMore": "正在加载…",
   "launcher.pluginEnd": "没有更多结果",
@@ -816,6 +838,7 @@ const zh: Record<MessageKey, string> = {
   "launcher.openInBrowser": "在浏览器中打开",
   "launcher.openInFiles": "在文件管理器中打开",
   "launcher.error.command": "无法启动此命令",
+  "launcher.error.copy": "无法复制该文本",
   "launcher.error.application": "无法打开此应用",
   "launcher.error.url": "无法打开此链接",
   "launcher.error.path": "无法打开此路径",
@@ -1310,6 +1333,9 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.noDescription": "暂无描述。",
   "settings.extensions.publisherDescriptorNote": "该命令列表由发布方提供并随 Floter 版本发布，不随本地工具二进制变化。",
   "settings.extensions.commands": "命令列表",
+  // R39 · 命令级开关。开启后该命令可在搜索框内呼出；下方 hint 是区块说明。
+  "settings.extensions.commandsHint": "打开开关后，可在搜索框输入命令名加空格呼出，随后输入的内容即为命令参数。",
+  "settings.extensions.commandEnable": "允许在搜索框呼出 {command}",
   "settings.extensions.commandAlias": "命令别名",
   "settings.extensions.commandAliasFor": "{command} 的别名",
   "settings.extensions.commandAliasPlaceholder": "输入即可运行该命令",

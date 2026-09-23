@@ -24,6 +24,8 @@ import {
   PLUGIN_LOAD_MORE_THRESHOLD,
   pluginFooterState,
   type PluginPage,
+  type PluginRowAction,
+  type PluginRowIcon,
 } from "./plugin-mode";
 import { clipboardKindChip } from "../plugins/clipboard/mode";
 import type { ClipboardEntry } from "../clipboard-history";
@@ -111,6 +113,26 @@ export type LauncherItem =
       subtitle: string;
       entry?: ClipboardEntry;
       disabled?: boolean;
+    }
+  /**
+   * R39 · a row of an *external* plugin's list output (see `PluginRow`'s
+   *  `plugin` family in `launcher/plugin-mode.ts`). The row is generic — the
+   *  launcher knows nothing about the plugin's domain — so the only things it
+   *  can carry are the ones the protocol defines: a glyph from a closed
+   *  allowlist, an optional section `group`, and an `action` Enter runs. A row
+   *  with no action is information; a list whose every row has none is
+   *  display-only (`pluginTierFor`).
+   */
+  | {
+      type: "plugin";
+      id: string;
+      title: string;
+      subtitle: string;
+      sourceName: string;
+      icon?: PluginRowIcon;
+      group?: string;
+      disabled?: boolean;
+      action?: PluginRowAction;
     }
   /**
    * A previously typed command line, surfaced in the empty-query state so the
@@ -245,6 +267,44 @@ const ClipboardRowIcon = ({
   if (chip === "link") return <LinkIcon size={16} strokeWidth={2} aria-hidden="true" />;
   if (chip === "files") return <FolderIcon size={16} strokeWidth={2} aria-hidden="true" />;
   return <TypeIcon size={16} strokeWidth={2} aria-hidden="true" />;
+};
+
+/**
+ * R39 · the generic glyph of an external plugin row.
+ *
+ * The protocol's `icon` field is a closed vocabulary (`PluginRowIcon`), and
+ * this is the one place that maps it to a Lucide glyph. An absent or unknown
+ * name falls back to the terminal glyph, which is also what a `command` row
+ * wears — the launcher never renders plugin-supplied markup, only its own
+ * icons. The row's title and subtitle carry the meaning, so the glyph is
+ * silent.
+ */
+const PluginRowGlyph = ({
+  item,
+}: {
+  item: Extract<LauncherItem, { type: "plugin" }>;
+}) => {
+  switch (item.icon) {
+    case "link":
+      return <LinkIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "file":
+      return <FileIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "folder":
+      return <FolderIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "globe":
+      return <GlobeIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "star":
+      return <StarIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "clock":
+      return <ClockIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "text":
+      return <TypeIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "image":
+      return <ImageIcon size={16} strokeWidth={2} aria-hidden="true" />;
+    case "command":
+    default:
+      return <TerminalIcon size={16} strokeWidth={2} aria-hidden="true" />;
+  }
 };
 
 /**
@@ -571,7 +631,10 @@ export function LauncherResults({
               (item.type === "command" && !item.execution) ||
               (item.type === "system" && item.disabled === true) ||
               (item.type === "browser" && item.disabled === true) ||
-              (item.type === "clipboard" && item.disabled === true);
+              (item.type === "clipboard" && item.disabled === true) ||
+              // R39 · an external plugin row with no action is information, not
+              // a door; a `disabled` one is the plugin saying so explicitly.
+              (item.type === "plugin" && (item.disabled === true || item.action === undefined));
             const warnings = item.type === "command" ? item.warnings : [];
             const isHistory = item.type === "history";
             // R7-10a: the dropped-file group. Both of its row kinds count, so
@@ -612,6 +675,18 @@ export function LauncherResults({
                 results[index - 1].type === "browser" &&
                 Boolean((results[index - 1] as Extract<LauncherItem, { type: "browser" }>).tab)
               );
+            // R39 · an external plugin may group its rows: the first row of a
+            // `group` prints the group's name as a section heading, exactly the
+            // way the tabs group above does. Consecutive rows sharing a group
+            // print it once.
+            const pluginGroupStartsHere =
+              item.type === "plugin" &&
+              Boolean(item.group) &&
+              !(
+                index > 0 &&
+                results[index - 1].type === "plugin" &&
+                (results[index - 1] as Extract<LauncherItem, { type: "plugin" }>).group === item.group
+              );
             return (
               <Fragment key={item.id}>
                 {historySectionStartsHere && (
@@ -639,6 +714,11 @@ export function LauncherResults({
                     title={t("browserPage.tabsHint")}
                   >
                     {t("browserPage.tabs")}
+                  </div>
+                )}
+                {pluginGroupStartsHere && item.type === "plugin" && (
+                  <div className="launcher-section-title" role="presentation" title={item.group}>
+                    {item.group}
                   </div>
                 )}
                 <button
@@ -684,6 +764,8 @@ export function LauncherResults({
                       />
                     ) : item.type === "browser" ? (
                       <BrowserRowIcon item={item} />
+                    ) : item.type === "plugin" ? (
+                      <PluginRowGlyph item={item} />
                     ) : isHistory ? (
                       <HistoryIcon />
                     ) : item.type === "file" ? (

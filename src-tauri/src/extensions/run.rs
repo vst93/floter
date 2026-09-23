@@ -565,6 +565,17 @@ pub async fn run(
     }
 }
 
+/// R39 · run a plan and capture its output, for the launcher's external plugin
+/// mode. The plan is built by the *caller* through `provider::execution_plan`,
+/// so this exposes no authority of its own: it is the same spawn
+/// `execute_background` performs for a manual run, with the same timeout and
+/// the same no-shell rule.
+pub(crate) async fn execute_plan_background(
+    plan: ExecutionPlan,
+) -> Result<(bool, Option<i32>, RunOutput), String> {
+    execute_background(plan).await
+}
+
 /// Spawn the plan directly (`program` + structured `args`) and capture both
 /// streams under a timeout. No shell is involved at any point.
 async fn execute_background(plan: ExecutionPlan) -> Result<(bool, Option<i32>, RunOutput), String> {
@@ -845,6 +856,137 @@ mod tests {
         let remembered = state.run_output(id).unwrap();
         assert_eq!(remembered, output);
         assert!(state.run_output("local.absent").is_none());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn plugin_command_registry_and_runner_read_the_provider_table() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let script_directory = tempfile::tempdir().unwrap();
+        let executable = script_directory.path().join("echoer.sh");
+        std::fs::write(
+            &executable,
+            "#!/bin/sh\nprintf 'args:%s\\n' \"$*\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let id = "local.echoer";
+        let entry = crate::extensions::install::create_custom_integration_for_test(
+            &state,
+            id,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Echoer".into(),
+                command: "echoer".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![
+                    crate::extensions::manifest::Permission::Environment,
+                    crate::extensions::manifest::Permission::ProcessSpawn,
+                ],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+        // Turn the integration into a static-descriptor provider declaring one
+        // command. The registry reads *this* table, so the command the panel
+        // switches and the launcher summons is exactly the one declared here.
+        let manifest_path = std::path::PathBuf::from(&entry.manifest_path);
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        manifest["provider"] = serde_json::json!({
+            "type": "static-descriptor",
+            "descriptor": "description.json",
+            "argsPrefix": []
+        });
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        std::fs::write(
+            manifest_path.parent().unwrap().join("description.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "protocolVersion": "1.0",
+                "provider": {"id": id, "name": "Echoer", "version": "1.0.0"},
+                "commands": [{
+                    "id": "echo",
+                    "name": "Echo",
+                    "description": "Echo the arguments",
+                    "aliases": ["say"],
+                    "execution": {"program": "self", "argsPrefix": [], "mode": "capture"}
+                }]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        state.invalidate_provider_commands().await;
+
+        let registry = crate::extensions::catalog::plugin_command_registry(&state)
+            .await
+            .unwrap();
+        let command = registry
+            .iter()
+            .find(|command| command.extension_id == id && command.command_id == "echo")
+            .expect("the declared command is in the registry");
+        assert_eq!(command.name, "Echo");
+        assert_eq!(command.description, "Echo the arguments");
+        assert_eq!(command.aliases, vec!["say".to_string()]);
+        assert!(command.runtime_available, "the fixture's binding is live");
+
+        // Run it with the launcher's own argv. Each item is one argument — the
+        // script prints them joined, which is exactly what proves the split
+        // happened before the spawn.
+        let output = crate::extensions::catalog::run_plugin_command(
+            &state,
+            id,
+            "echo",
+            vec!["hello world".into(), "--flag".into()],
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(output.success);
+        assert_eq!(output.exit_code, Some(0));
+        assert_eq!(output.stdout, "args:hello world --flag\n");
+        assert_eq!(output.stderr, "");
+
+        // An alias resolves to the same command…
+        let aliased = crate::extensions::catalog::run_plugin_command(
+            &state,
+            id,
+            "say",
+            vec!["x".into()],
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(aliased.stdout, "args:x\n");
+
+        // …and a command nobody declared is refused rather than reinterpreted.
+        assert!(crate::extensions::catalog::run_plugin_command(
+            &state,
+            id,
+            "nope",
+            Vec::new(),
+            None,
+        )
+        .await
+        .is_err());
     }
 
     #[cfg(unix)]

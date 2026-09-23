@@ -81,6 +81,9 @@ const SETTINGS_DEFAULTS: AppSettings = {
     sort_order: "relevance",
     search_fields: "all",
   },
+  // R39 · no external plugin command is enabled until the user turns one on
+  // ("absence means off"); an empty map is that state.
+  plugin_command_switches: {},
 };
 
 /** Debounce window for the font-size and transparency sliders' writes. The
