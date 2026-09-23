@@ -10,6 +10,11 @@ import {
   Folder as FolderIcon,
   Globe as GlobeIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
+import {
+  PLUGIN_LOAD_MORE_THRESHOLD,
+  pluginFooterState,
+  type PluginPage,
+} from "./plugin-mode";
 import type { ClipboardEntry } from "../clipboard-history";
 import type { DroppedFile } from "./file-drops";
 
@@ -197,6 +202,15 @@ type LauncherResultsProps = {
   interactive?: boolean;
   /** Whether the recent-items heading goes above the list (empty query). */
   showRecentTitle: boolean;
+  /** R29 · the list's pagination state, when the plugin pages. `null`/omitted
+   *  for every non-plugin list and for a plugin that emits everything at once,
+   *  which draws no footer at all. */
+  pluginPage?: PluginPage | null;
+  /** R29 · a page is in flight: the footer shows its loading line. */
+  pluginLoadingMore?: boolean;
+  /** R29 · ask the plugin for the next page. Called when the scroller comes
+   *  within {@link PLUGIN_LOAD_MORE_THRESHOLD} of the bottom. */
+  onLoadMore?: () => void;
   onSelectResult: (index: number) => void;
   onSelectActionBar: () => void;
   onRunResult: (item: LauncherItem) => void;
@@ -217,6 +231,9 @@ export function LauncherResults({
   selectResultShortcut,
   interactive = true,
   showRecentTitle,
+  pluginPage = null,
+  pluginLoadingMore = false,
+  onLoadMore,
   onSelectResult,
   onSelectActionBar,
   onRunResult,
@@ -237,6 +254,10 @@ export function LauncherResults({
   // user can scroll to.
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [scrollable, setScrollable] = useState(false);
+  // R29 · the list footer's one state: no footer for a list that does not page,
+  // a loading line while a page is in flight, an end line once every row shows,
+  // and nothing (the scroll itself is the affordance) while more remain.
+  const pluginFooter = pluginFooterState(pluginPage, pluginLoadingMore);
   useLayoutEffect(() => {
     const node = resultsRef.current;
     if (!node) {
@@ -266,6 +287,16 @@ export function LauncherResults({
           ref={resultsRef}
           className={`launcher-results${scrollable ? " launcher-results--scrollable" : ""}`}
           role="presentation"
+          // R29 · the pagination trigger. Only a list that actually has another
+          // page (and is not already fetching one) reacts; every other list
+          // keeps a plain scroller. The check is the scroller's own geometry, so
+          // it stays correct through a window resize without a second budget.
+          onScroll={(event) => {
+            if (!onLoadMore || !pluginPage?.hasMore || pluginLoadingMore) return;
+            const node = event.currentTarget;
+            const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
+            if (remaining <= PLUGIN_LOAD_MORE_THRESHOLD) onLoadMore();
+          }}
         >
           {showRecentTitle && (
             <div
@@ -427,6 +458,23 @@ export function LauncherResults({
               </Fragment>
             );
           })}
+          {pluginFooter !== null && (
+            <div
+              className={`launcher-plugin-footer launcher-plugin-footer--${pluginFooter}`}
+              role="presentation"
+            >
+              {pluginFooter === "loading" && (
+                <span className="launcher-plugin-footer__spinner" aria-hidden="true" />
+              )}
+              <span className="launcher-plugin-footer__label">
+                {pluginFooter === "loading"
+                  ? t("launcher.pluginLoadingMore")
+                  : pluginFooter === "end"
+                    ? t("launcher.pluginEnd")
+                    : ""}
+              </span>
+            </div>
+          )}
         </div>
       )}
       {actionBar && (

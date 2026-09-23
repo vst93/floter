@@ -83,8 +83,12 @@ export const clipboardModeRows = (
   needle: string,
   t: Translate,
   now: number,
+  /** R29 · the ceiling on the filtered rows. Defaults to the eight-row viewport
+   *  budget; the launcher's inline mode raises it and pages the held rows
+   *  client-side (`paginatePluginRows`). */
+  limit: number = CLIPBOARD_FETCH_LIMIT,
 ): PluginRow[] => {
-  const matches = filterClipboardEntries([...entries], needle).slice(0, CLIPBOARD_FETCH_LIMIT);
+  const matches = filterClipboardEntries([...entries], needle).slice(0, limit);
   if (matches.length) return matches.map((entry) => clipboardRow(entry, t, now));
   return [
     clipboardStatusRow(

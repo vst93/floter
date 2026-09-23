@@ -38,8 +38,14 @@ export type BrowserTabRow = {
 
 /** How many browser rows to fetch. The launcher renders at most eight matched
  *  rows (`MAX_RESULTS - 1`), and the merge drops duplicate URLs, so a small
- *  over-fetch keeps the visible list full without an unbounded query. */
-export const BROWSER_FETCH_LIMIT = 24;
+ *  over-fetch keeps the visible list full without an unbounded query.
+ *
+ * R29 · raised to the backend's own `MAX_LIMIT` (500): the inline mode now
+ *  fetches once and pages the held rows client-side (`paginatePluginRows`), so
+ *  the fetch has to cover the pages the user may scroll through. 200 is a
+ *  deliberate half of that ceiling — deep enough for a long history without
+ *  reading a half-megabyte of bookmarks on every keystroke pause. */
+export const BROWSER_FETCH_LIMIT = 200;
 
 /** The ceiling on one browser group. Bookmarks and history share the first
  *  group (bookmarks win, history fills); the live tabs are a second, so a
@@ -81,8 +87,14 @@ export const browserSearchRows = (options: {
   tabsFailed: boolean;
   profileKey: string;
   t: Translate;
+  /** R29 · the ceiling on each of the two groups. Defaults to
+   *  {@link BROWSER_GROUP_LIMIT}; the launcher's inline mode raises it and
+   *  pages the result client-side (`paginatePluginRows`), so the fetch is one
+   *  call while the *display* stays windowed. */
+  limit?: number;
 }): PluginRow[] => {
   const { bookmarks, history, tabs, tabsFailed, profileKey, t } = options;
+  const cap = options.limit ?? BROWSER_GROUP_LIMIT;
   const seen = new Set<string>();
   const rows: PluginRow[] = [];
   for (const row of [...bookmarks, ...history]) {
@@ -96,7 +108,7 @@ export const browserSearchRows = (options: {
       url: row.url,
       profileKey: row.profile_key,
     });
-    if (rows.length >= BROWSER_GROUP_LIMIT) break;
+    if (rows.length >= cap) break;
   }
   for (const tab of tabs) {
     if (!tab.url && !tab.title) continue;
@@ -113,7 +125,7 @@ export const browserSearchRows = (options: {
         tabIndex: tab.tab_index,
       },
     });
-    if (rows.length >= BROWSER_GROUP_LIMIT * 2) break;
+    if (rows.length >= cap * 2) break;
   }
   if (!tabs.length && tabsFailed) {
     rows.push(browserStatusRow("browser-tabs-unavailable", "launcher.browserTabsUnavailable", t));

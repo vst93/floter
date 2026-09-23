@@ -85,7 +85,9 @@ import {
   type LauncherItem,
 } from "./launcher/LauncherResults";
 import { PluginTextView } from "./launcher/PluginTextView";
-import { pluginViewInteractive, pluginViewRows } from "./launcher/plugin-mode";
+import { PluginConfigOverlay } from "./plugins/PluginConfigOverlay";
+import { pluginConfigSchema } from "./plugins/config-schema";
+import { pluginViewInteractive, pluginViewPage, pluginViewRows } from "./launcher/plugin-mode";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
@@ -101,6 +103,7 @@ import { pluginScope } from "./launcher";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
 import "./styles/launcher.css";
+import "./styles/plugin-config.css";
 import "./styles/terminal.css";
 import "./styles/settings.css";
 import "./styles/extensions.css";
@@ -282,6 +285,9 @@ export default function App() {
   const [pluginPageId, setPluginPageId] = useState<string | null>(null);
   const pluginPageIdRef = useRef<string | null>(null);
   useEffect(() => { pluginPageIdRef.current = pluginPageId; }, [pluginPageId]);
+  /** R29 · whether the launcher's generic plugin-configuration overlay is
+   *  open. One at a time, over whatever the collapsed surface was showing. */
+  const [pluginConfigOpen, setPluginConfigOpen] = useState(false);
   const [query, setQuery] = useState("");
   /** Header identity (status dot + title) for the session in the main terminal
    * view; null until a spawn/attach has described it. */
@@ -686,6 +692,8 @@ export default function App() {
     appIconUrls,
     launcherResults,
     pluginView,
+    pluginLoadingMore,
+    loadMorePluginPage,
     actionBar,
     firstRunnableResultIndex,
     defaultsToActionBar,
@@ -751,12 +759,30 @@ export default function App() {
   // panel. The row is a launcher-wide affordance and stays in every other
   // state, including the query that matched nothing.
   const launcherScope = pluginScope(query);
+  // R29 · the plugin the current scope belongs to, for the config overlay.
+  const launcherPluginId =
+    launcherScope === "clipboard"
+      ? CLIPBOARD_PLUGIN_ID
+      : launcherScope === "browser"
+        ? BROWSER_PLUGIN_ID
+        : null;
+  // Leaving the plugin scope (or the collapsed surface) closes the overlay: it
+  // belongs to that plugin's field, and a stale overlay over the app list would
+  // be a settings page with no owner.
+  useEffect(() => {
+    if (!launcherPluginId) setPluginConfigOpen(false);
+  }, [launcherPluginId]);
+  useEffect(() => {
+    if (mode !== "collapsed") setPluginConfigOpen(false);
+  }, [mode]);
   // R28 · the capability layer's view for the plugin mode the query is in, if
   // any. The text form is drawn by its own block under the field; the list form
   // is the ordinary numbered list, with the tier deciding whether its rows take
   // the keyboard.
   const pluginText = pluginView !== null && pluginView.form === "text" ? pluginView : null;
   const pluginInteractive = pluginView === null || pluginViewInteractive(pluginView);
+  // R29 · the plugin list's pagination block, or null for every other list.
+  const pluginPage = pluginViewPage(pluginView);
   const displayedResults = useMemo(
     () =>
       launcherScope
@@ -1113,9 +1139,15 @@ export default function App() {
   // of that height would.
   const launcherRows = Math.max(
     1,
-    (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
-      (showOnboardingTip ? 1 : 0) +
-      (launcherFeedback || appsError || pendingSystemAction ? 1 : 0),
+    // R29 · while the plugin config overlay is open, its own row budget is the
+    // window's: a header plus one row per declared field. The overlay scrolls
+    // past the nine-row ceiling like every other list.
+    (pluginConfigOpen && launcherPluginId
+      ? 1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)
+      : 0) ||
+      (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
+        (showOnboardingTip ? 1 : 0) +
+        (launcherFeedback || appsError || pendingSystemAction ? 1 : 0),
   );
   // The band is sticky: growing is immediate (a band too short would clip), and
   // shrinking waits for the row count to fall a row below the band's floor, so a
@@ -1157,6 +1189,9 @@ export default function App() {
     launcherFeedback,
     displayedResults.length,
     settings.ui_scale,
+    // R29 · the config overlay is its own row budget; the window must resize
+    // onto it in the same commit the overlay opens.
+    pluginConfigOpen,
   ]);
 
   // The terminal canvas is the active element when collapsed mode is committed.
@@ -2014,7 +2049,7 @@ export default function App() {
             className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
             style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
             onClick={(event) => {
-              if (!(event.target as HTMLElement).closest("button, input")) focusCollapsedInput();
+              if (!(event.target as HTMLElement).closest("button, input, select, .plugin-config")) focusCollapsedInput();
             }}
           >
             {/* R10-B: the launcher's implicit drag handle. The card itself is
@@ -2049,6 +2084,17 @@ export default function App() {
                   ) : (
                     <GlobeIcon size={16} strokeWidth={1.8} />
                   )}
+                  {/* R29 · the scope's *name*, not just its glyph. The icon
+                      says a plugin owns the field; the muted word says which
+                      one, which is what a launcher with more than one plugin
+                      needs and what the placeholder alone could not carry. */}
+                  <span className="collapsed-card__scope-name">
+                    {t(
+                      launcherScope === "clipboard"
+                        ? "launcher.scopeClipboard"
+                        : "launcher.scopeBrowser",
+                    )}
+                  </span>
                 </span>
               )}
               <input
@@ -2092,6 +2138,31 @@ export default function App() {
                 autoCapitalize="off"
                 autoCorrect="off"
               />
+              {launcherScope ? (
+                // R29 · in a plugin mode the field is the plugin's search box,
+                // so the row's trailing control is the *plugin's*: one gear
+                // that opens its generic configuration overlay. The sessions
+                // entry (the terminal list) is not a plugin action and is gone
+                // here; outside a mode the two buttons are exactly as before.
+                <button
+                  type="button"
+                  className="collapsed-card__settings collapsed-card__settings--plugin"
+                  aria-label={t("plugins.config.open")}
+                  title={t("plugins.config.openHint")}
+                  aria-expanded={pluginConfigOpen}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setPluginConfigOpen((open) => !open);
+                  }}
+                >
+                  <SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
+                </button>
+              ) : (
+                <>
               <button
                 type="button"
                 className="collapsed-card__settings"
@@ -2137,6 +2208,8 @@ export default function App() {
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
+                </>
+              )}
             </div>
             {/* First-run onboarding tip: a small dismissible banner shown above
                 the result area the first time the user opens the launcher. */}
@@ -2166,6 +2239,19 @@ export default function App() {
             {/* The clip controls visibility while the native window height follows
                 the measured content. Its contents fade in and out without a
                 competing CSS height animation. */}
+            {pluginConfigOpen && launcherPluginId ? (
+              // R29 · the plugin's configuration, rendered from its declarative
+              // schema by the generic controls. It takes the result area's place
+              // rather than opening a document: the launcher stays the surface,
+              // and the field above stays the plugin's own search box.
+              <PluginConfigOverlay
+                pluginId={launcherPluginId}
+                t={t}
+                clipboardEnabled={settings.clipboard_history_enabled}
+                onChangeGeneralSetting={(key, value) => changeGeneralSetting(key, value)}
+                onClose={() => setPluginConfigOpen(false)}
+              />
+            ) : (
             <div
               className={
                 displayedResults.length > 0 || pluginText !== null || launcherFeedback || appsError
@@ -2245,6 +2331,13 @@ export default function App() {
                     // keeps its rows but none of the keyboard: no highlight, no
                     // pointer selection, no Enter.
                     interactive={pluginInteractive}
+                    // R29 · the plugin list's pagination. `pluginViewPage` is
+                    // null for every non-plugin list, so this changes nothing
+                    // outside a plugin mode; inside one it turns the list into
+                    // a scroller that asks for the next page at the bottom.
+                    pluginPage={pluginPage}
+                    pluginLoadingMore={pluginLoadingMore}
+                    onLoadMore={loadMorePluginPage}
                     // The drop group brings its own heading (emitted above the
                     // first file row), and it sits *above* the recent apps. The
                     // "Recently launched" heading renders before the whole list,
@@ -2272,6 +2365,7 @@ export default function App() {
                   )}
               </div>
             </div>
+            )}
           </div>
         </div>
       </>

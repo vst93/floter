@@ -1,0 +1,228 @@
+/* R29 · the generic plugin configuration overlay.
+ *
+ * It takes the launcher's result area's place when the plugin-settings button
+ * is pressed (see `App.tsx`), so its geometry is the launcher's: the same `--u`
+ * scale, the same glass tokens, the same radius the card's own sheets use. It
+ * scrolls inside the band the launcher gave it, so a long schema (the browser's
+ * seven fields) can never grow the window past its band.
+ *
+ * Deliberately free of accent fills: the one switch face it renders is the
+ * settings screen's `.settings-switch`, whose accent fill is already in the
+ * budget ledger. Everything else here is hairline, surface and text — the
+ * overlay is furniture, not a second primary action. */
+
+.plugin-config {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.plugin-config__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 8);
+  min-height: calc(var(--u) * 28);
+  padding: 0 calc(var(--u) * 12) 0 calc(var(--u) * 16);
+}
+
+.plugin-config__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.plugin-config__close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--u) * 24);
+  height: calc(var(--u) * 24);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.plugin-config__close:hover {
+  color: var(--text-primary);
+  background: var(--glass-control-hover);
+}
+
+.plugin-config__close:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.plugin-config__fields {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 calc(var(--u) * 16) calc(var(--u) * 8);
+}
+
+.plugin-config-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 12);
+  min-height: calc(var(--u) * 40);
+  padding: calc(var(--u) * 4) 0;
+}
+
+/* A field whose control wants the whole width (a text field, a radio group)
+   stacks: label above, control under, so a long directory path is not crushed
+   into the right half of the row. */
+.plugin-config-field--text,
+.plugin-config-field--radio,
+.plugin-config-field--checkboxes {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--u) * 6);
+}
+
+.plugin-config-field__main {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  min-width: 0;
+}
+
+.plugin-config-field__label {
+  font-size: var(--text-body);
+  font-weight: 460;
+  color: var(--text-primary);
+}
+
+.plugin-config-field__help {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.plugin-config-field__control {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.plugin-config-field--text .plugin-config-field__control,
+.plugin-config-field--radio .plugin-config-field__control,
+.plugin-config-field--checkboxes .plugin-config-field__control {
+  justify-content: flex-start;
+}
+
+.plugin-config-select,
+.plugin-config-text,
+.plugin-config-number__input {
+  box-sizing: border-box;
+  height: calc(var(--u) * 28);
+  padding: 0 calc(var(--u) * 8);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--glass-field);
+  color: var(--text-primary);
+  font-size: var(--text-body);
+}
+
+.plugin-config-select {
+  min-width: calc(var(--u) * 120);
+  max-width: calc(var(--u) * 220);
+}
+
+.plugin-config-text {
+  width: 100%;
+}
+
+.plugin-config-number {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 6);
+}
+
+.plugin-config-number__input {
+  width: calc(var(--u) * 72);
+}
+
+.plugin-config-number__unit {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.plugin-config-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 10);
+  min-width: calc(var(--u) * 160);
+}
+
+.plugin-config-slider__input {
+  flex: 1 1 auto;
+  min-width: calc(var(--u) * 96);
+}
+
+.plugin-config-slider__value {
+  flex: 0 0 auto;
+  min-width: calc(var(--u) * 48);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.plugin-config-radio,
+.plugin-config-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 6);
+}
+
+.plugin-config-radio__option {
+  height: calc(var(--u) * 26);
+  padding: 0 calc(var(--u) * 10);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.plugin-config-radio__option--on {
+  color: var(--text-primary);
+  background: var(--glass-field);
+}
+
+.plugin-config-radio__option:focus-visible,
+.plugin-config-checkbox input:focus-visible,
+.plugin-config-select:focus-visible,
+.plugin-config-text:focus-visible,
+.plugin-config-number__input:focus-visible,
+.plugin-config-slider__input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.plugin-config-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 6);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  cursor: pointer;
+}

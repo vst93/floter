@@ -88,6 +88,29 @@ export type PluginRow =
 export type PluginEmission = {
   readonly output: unknown;
   readonly tier?: PluginTier;
+  /** R29 · the pagination state of a list emission. Omitted, the list is
+   *  complete in one emission (the pre-R29 behaviour). Text emissions ignore
+   *  it — there are no rows to page. */
+  readonly page?: PluginPage;
+};
+
+/**
+ * R29 · where a list emission sits in its own result set.
+ *
+ * The capability layer never interprets `cursor`: it is the plugin's opaque
+ * continuation token, echoed back verbatim on the next request. That keeps the
+ * protocol free of a paging strategy — offset-based (a numeric cursor) and
+ * key-based (an opaque id) plugins both fit — while `hasMore` is the one bit
+ * the launcher needs to draw its footer and to decide whether a scroll to the
+ * bottom should ask for another page.
+ */
+export type PluginPage = {
+  /** Opaque continuation token for the *next* page; `null` when this is the
+   *  last one. A plugin that pages by offset simply uses the row count. */
+  readonly cursor: string | null;
+  /** Whether at least one more page exists. The launcher's footer and its
+   *  scroll trigger both read this and nothing else. */
+  readonly hasMore: boolean;
 };
 
 /** R28 · the text form's measurements, all in `--u` units. */
@@ -108,9 +131,10 @@ export type PluginTextMetrics = {
   rows: number;
 };
 
-/** R28 · what the launcher should draw for a plugin's emission. */
+/** R28 · what the launcher should draw for a plugin's emission. R29 · a list
+ *  carries its pagination state (`null` when the plugin does not page). */
 export type PluginView =
-  | { form: "list"; tier: PluginTier; items: LauncherItem[] }
+  | { form: "list"; tier: PluginTier; items: LauncherItem[]; page: PluginPage | null }
   | { form: "text"; tier: "display"; text: string; metrics: PluginTextMetrics };
 
 /** R28 · a text line, in `--u` units. A code-ish line at the body size: the
@@ -264,11 +288,107 @@ export const resolvePluginView = (emission: PluginEmission | null): PluginView |
       form: "list",
       tier: pluginTierFor(rows, emission.tier),
       items: rows.map(pluginRowToItem),
+      page: normalizePluginPage(emission.page),
     };
   }
   const text = asPluginText(emission.output);
   if (text === null || text === "") return null;
   return { form: "text", tier: "display", text, metrics: pluginTextMetrics(text) };
+};
+
+/** R29 · one page's worth of rows the launcher adds per scroll-to-bottom. The
+ *  value is the launcher's own viewport height (`MAX_RESULTS`), so each page
+ *  adds exactly one screenful and the box never has to grow for a page. */
+export const PLUGIN_PAGE_SIZE = MAX_RESULTS;
+
+/** R29 · how many pages the first emission carries. Two, so the initial list
+ *  is taller than the box and the user has something to scroll — with one page
+ *  the rows fit exactly and the "scroll to load more" trigger could never
+ *  fire. */
+export const PLUGIN_INITIAL_PAGES = 2;
+
+/** R29 · how close to the bottom (in CSS pixels) the scroller must come before
+ *  the launcher asks for the next page. A row's height, so the request lands as
+ *  the last visible row is reached rather than after a rubber-band overshoot. */
+export const PLUGIN_LOAD_MORE_THRESHOLD = 48;
+
+/** R29 · accept only a well-formed pagination block. A cursor that is not a
+ *  string is dropped (treated as the start), and `hasMore` is strictly boolean:
+ *  guessing a continuation from malformed data is how a list silently loops. */
+export const normalizePluginPage = (page: PluginPage | undefined): PluginPage | null => {
+  if (!page || typeof page !== "object") return null;
+  const cursor = typeof page.cursor === "string" ? page.cursor : null;
+  return { cursor, hasMore: page.hasMore === true };
+};
+
+/** R29 · the pagination state of a list view, or `null` for text and for a
+ *  list a plugin never asked to page. */
+export const pluginViewPage = (view: PluginView | null): PluginPage | null =>
+  view !== null && view.form === "list" ? view.page : null;
+
+/** R29 · whether a scroll to the bottom should ask for another page. */
+export const pluginViewHasMore = (view: PluginView | null): boolean =>
+  pluginViewPage(view)?.hasMore === true;
+
+/**
+ * R29 · append one page of rows to the rows already held.
+ *
+ * Order is the plugin's; the merge only drops a row whose `id` already
+ * appeared. Pages can legitimately overlap — offset pagination over a store
+ * that shifted between requests repeats a row — and a list that showed the
+ * same bookmark twice would be a bug the plugin cannot see. The first
+ * occurrence wins, so an already-selected row keeps its position and index.
+ */
+export const mergePluginRows = (
+  previous: readonly PluginRow[],
+  next: readonly PluginRow[],
+): PluginRow[] => {
+  const seen = new Set(previous.map((row) => row.id));
+  const merged = [...previous];
+  for (const row of next) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    merged.push(row);
+  }
+  return merged;
+};
+
+/**
+ * R29 · the window of rows the launcher shows after `pagesLoaded` pages, and
+ * the pagination block that goes with it.
+ *
+ * The window is a prefix, not a slice: page boundaries only ever grow the list,
+ * so a row the user already sees never moves. `cursor` is the row count the
+ * next page starts at — the offset strategy the two built-ins use — and is
+ * `null` once the held rows are exhausted.
+ */
+export const paginatePluginRows = (
+  rows: readonly PluginRow[],
+  pagesLoaded: number,
+  pageSize: number = PLUGIN_PAGE_SIZE,
+): { rows: PluginRow[]; page: PluginPage } => {
+  const end = Math.max(1, Math.trunc(pagesLoaded)) * pageSize;
+  const visible = rows.slice(0, end);
+  const hasMore = rows.length > visible.length;
+  return {
+    rows: visible,
+    page: { cursor: hasMore ? String(visible.length) : null, hasMore },
+  };
+};
+
+/** R29 · what the list's footer should say, if anything. `null` for a list that
+ *  does not page at all; `"loading"` while a page is in flight; `"end"` once
+ *  every row is shown. `"more"` is the quiet state — the scroll trigger is the
+ *  affordance, not a button. */
+export type PluginFooterState = "loading" | "more" | "end" | null;
+
+export const pluginFooterState = (
+  page: PluginPage | null,
+  loadingMore: boolean,
+): PluginFooterState => {
+  if (page === null) return null;
+  if (loadingMore) return "loading";
+  return page.hasMore ? "more" : "end";
 };
 
 /** The rows a view stands for, for the band table. A text block stands for the

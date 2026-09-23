@@ -5,7 +5,7 @@
 // Extracted verbatim from `App.tsx`; the hook receives every App-owned value
 // it touches, so the behaviour is unchanged.
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import {
   classifyActionBar,
@@ -24,8 +24,12 @@ import {
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
-import { normalizeEntries, type ClipboardEntry } from "../clipboard-history";
+import { normalizeEntries, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
 import {
+  PLUGIN_INITIAL_PAGES,
+  PLUGIN_PAGE_SIZE,
+  asPluginRows,
+  paginatePluginRows,
   pluginViewItems,
   resolvePluginView,
   type PluginEmission,
@@ -542,18 +546,73 @@ export function useLauncherCatalog(options: {
     // The entries are fetched once and filtered in memory, so typing inside the
     // mode costs no IPC. R28 · the rows are the plugin's *output*; the
     // capability layer decides they are a list and how tall the window is.
-    return { output: clipboardModeRows(clipboardEntries, clipboardMode.needle, t, Date.now()) };
+    return { output: clipboardModeRows(clipboardEntries, clipboardMode.needle, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS) };
   }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
+
+  // R29 · client-side pagination of the inline plugin list.
+  //
+  // The two built-ins fetch their whole (bounded) result set in one call —
+  // `browser_search_*` with a 200-row ceiling, the clipboard history capped at
+  // its own 500 — and the launcher windows it. That keeps the *display*
+  // incremental (one viewport per scroll-to-bottom) while adding no
+  // offset/cursor parameter to the backend commands and no new entry to their
+  // allowlist: the protocol's cursor is honoured, but for these plugins it is an
+  // offset into rows the frontend already holds. A plugin that genuinely streams
+  // pages resolves the same `loadMorePluginPage` against its own backend.
+  const [pluginPages, setPluginPages] = useState(PLUGIN_INITIAL_PAGES);
+  const [pluginLoadingMore, setPluginLoadingMore] = useState(false);
+  const pluginLoadingRef = useRef(false);
+  // A new mode or a new needle is a new result set: the window resets to its
+  // first pages. `browserMode`/`clipboardMode` are rebuilt per query, so their
+  // identity is the signal.
+  useEffect(() => {
+    setPluginPages(PLUGIN_INITIAL_PAGES);
+  }, [browserMode, clipboardMode]);
+
+  /** R29 · hand the capability layer the window of rows this page count shows,
+   *  plus the pagination block. A status-only emission (one row) never pages. */
+  const windowedEmission = (emission: PluginEmission | null): PluginEmission | null => {
+    if (!emission) return null;
+    const rows = asPluginRows(emission.output);
+    if (!rows || rows.length <= PLUGIN_PAGE_SIZE) return emission;
+    const paged = paginatePluginRows(rows, pluginPages);
+    return { output: paged.rows, page: paged.page, tier: emission.tier };
+  };
 
   // R28 · the capability layer's answer for whichever plugin mode is on. One
   // view, both plugins: the form (list or text), the tier (interactive or
   // display) and — for text — the min/max height all come from here, so neither
-  // plugin decides how the launcher draws it.
+  // plugin decides how the launcher draws it. R29 · the list is windowed here.
   const pluginView = useMemo<PluginView | null>(() => {
-    if (browserMode) return resolvePluginView(browserEmission);
-    if (clipboardMode) return resolvePluginView(clipboardEmission);
+    if (browserMode) return resolvePluginView(windowedEmission(browserEmission));
+    if (clipboardMode) return resolvePluginView(windowedEmission(clipboardEmission));
     return null;
-  }, [browserMode, clipboardMode, browserEmission, clipboardEmission]);
+  }, [browserMode, clipboardMode, browserEmission, clipboardEmission, pluginPages]);
+
+  // R29 · the scroll-to-bottom trigger. `pluginHasMore` is the one bit the
+  // launcher reads; the ref lets the once-created callback see the current
+  // value without being rebuilt (and without re-binding the scroller).
+  const pluginHasMore =
+    pluginView !== null &&
+    pluginView.form === "list" &&
+    pluginView.page !== null &&
+    pluginView.page.hasMore;
+  const pluginHasMoreRef = useRef(pluginHasMore);
+  pluginHasMoreRef.current = pluginHasMore;
+
+  const loadMorePluginPage = useCallback(() => {
+    if (pluginLoadingRef.current || !pluginHasMoreRef.current) return;
+    pluginLoadingRef.current = true;
+    setPluginLoadingMore(true);
+    // The built-ins page in memory, so the append lands on the next frame —
+    // which is exactly where an async plugin's fetch would resolve. The footer
+    // reads `pluginLoadingMore` for its loading line.
+    window.requestAnimationFrame(() => {
+      setPluginPages((pages) => pages + 1);
+      pluginLoadingRef.current = false;
+      setPluginLoadingMore(false);
+    });
+  }, []);
 
   /**
    * The numbered result list: applications and the built-in system actions.
@@ -964,6 +1023,9 @@ export function useLauncherCatalog(options: {
     appIconUrls,
     launcherResults,
     pluginView,
+    pluginHasMore,
+    pluginLoadingMore,
+    loadMorePluginPage,
     actionBar,
     runnableResultFlags,
     resultShortcutSlots,

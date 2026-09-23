@@ -1148,6 +1148,7 @@ canvas {
   .settings-save-alert--toast,
   .pinned-card,
   .settings-save-alert__spinner,
+  .launcher-plugin-footer__spinner,
   .terminal-bar__dot,
   .extensions-overflow__items {
     animation: none;

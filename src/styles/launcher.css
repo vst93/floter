@@ -208,12 +208,25 @@
 .collapsed-card__scope {
   position: relative;
   z-index: 1;
-  display: grid;
+  display: inline-flex;
   flex: 0 0 auto;
-  place-items: center;
-  margin-right: calc(var(--u) * 8);
+  align-items: center;
+  gap: calc(var(--u) * 6);
+  margin-right: calc(var(--u) * 10);
   color: var(--text-muted);
   pointer-events: none;
+}
+
+/* R29 · the scope's name, beside its glyph. A muted label at the metadata size —
+   the same step the action bar's hint and a row's source word use — so it names
+   the plugin without competing with the field's own text or the caret. Weight
+   and tracking only; no accent, no chip, no background. */
+.collapsed-card__scope-name {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .collapsed-card__input {
@@ -1107,4 +1120,38 @@
 
 .launcher-action-bar__hint {
   white-space: nowrap;
+}
+
+/* ── R29 · the plugin list's pagination footer ──────────────────────────── */
+
+/* A quiet row under the last result. It is drawn only for a list that pages
+   (`pluginFooterState`), and only two of its three states carry text: `more`
+   is empty — the scroll itself is the affordance — `loading` shows a spinner
+   and a word, and `end` shows the exhausted-list word. The row is not a
+   result: it has no id, no selection and no shortcut, and it is `presentation`
+   so assistive tech reads it as decoration, not as an option. */
+.launcher-plugin-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 8);
+  min-height: calc(var(--u) * 22);
+  padding: 0 calc(var(--u) * 12);
+  color: var(--text-placeholder);
+  font-size: var(--text-caption);
+}
+
+.launcher-plugin-footer__spinner {
+  width: calc(var(--u) * 12);
+  height: calc(var(--u) * 12);
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline);
+  border-top-color: var(--text-muted);
+  animation: launcher-plugin-footer-spin 0.7s linear infinite;
+}
+
+@keyframes launcher-plugin-footer-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
