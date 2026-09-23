@@ -90,7 +90,8 @@ test("the aura is gone: no wash node, no wash rule, no wash token in the sheet",
   // R31 · the row paints exactly one thing now: the 1px hairline on its floor
   // (「输入框下方阴影可以只保留 1px」). No aura, no wash, no gradient — a single
   // inset line in the shared `--hairline` token. An inset shadow rather than a
-  // border, so the row's 42u box (a pinned metric) does not grow.
+  // border, so the row's box (a pinned metric — 42u in R23, 56u since R37) does
+  // not grow.
   assert.equal(
     decl(row!.body, "box-shadow"),
     "inset 0 -1px 0 var(--hairline)",

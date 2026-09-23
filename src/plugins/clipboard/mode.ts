@@ -25,9 +25,12 @@ import type { PluginRow } from "../../launcher/plugin-mode.ts";
 import { MAX_RESULTS } from "../../launcher/result-budget.ts";
 
 /** How many clipboard rows the mode shows. The budget is the same ten rows
- *  (`MAX_RESULTS`), and the mode's list has no fixed tail, so nine is the
- *  ceiling the launcher can number without scrolling. */
-export const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS - 1;
+ *  (`MAX_RESULTS`). R36 derived nine from the launcher's fixed tail — the mode
+ *  had no tail, so its ninth row was the highest the launcher could number.
+ *  R37 retires the tail (the clipboard is an ordinary contributor), so the mode
+ *  spends the whole budget too: its tenth row is reachable by `⌘0`, exactly as
+ *  a ten-row plugin page is (see `resultShortcutSlots`). */
+export const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS;
 
 /** The type word each clipboard entry kind prints on its row. The five keys are
  *  the clipboard panel's own type labels, so the launcher and the page name the

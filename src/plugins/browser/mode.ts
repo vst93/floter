@@ -41,11 +41,11 @@ export type BrowserTabRow = {
   active: boolean;
 };
 
-/** How many browser rows to fetch. The launcher numbers at most nine matched
- *  rows (`MAX_RESULTS - 1`), and the merge drops duplicate URLs, so a small
+/** How many browser rows to fetch. The launcher numbers the whole ten-row
+ *  budget (`MAX_RESULTS`), and the merge drops duplicate URLs, so a small
  *  over-fetch keeps the visible list full without an unbounded query.
  *
- * R29 · raised to the backend's own `MAX_LIMIT` (500): the inline mode now
+ *  R29 · raised to the backend's own `MAX_LIMIT` (500): the inline mode now
  *  fetches once and pages the held rows client-side (`paginatePluginRows`), so
  *  the fetch has to cover the pages the user may scroll through. 200 is a
  *  deliberate half of that ceiling — deep enough for a long history without
@@ -69,8 +69,13 @@ export const BROWSER_FETCH_LIMIT = 500;
  *  group (bookmarks win, history fills); the live tabs are a second, so a
  *  browser with nothing open cannot hide the bookmarks and a browser with a
  *  full bookmark bar cannot hide the tabs. The launcher list scrolls when the
- *  two groups together outgrow its box. */
-export const BROWSER_GROUP_LIMIT = MAX_RESULTS - 1;
+ *  two groups together outgrow its box.
+ *
+ *  R37 · `MAX_RESULTS - 1` through R36, because the tenth row was the
+ *  launcher's fixed clipboard tail. The tail is gone (the clipboard is an
+ *  ordinary contributor), so a plugin's default view spends the whole budget
+ *  like every other list. */
+export const BROWSER_GROUP_LIMIT = MAX_RESULTS;
 
 /** A status line: the soft landing for "no profile", "nothing matched" and "the
  *  plugin is off". Information, not a door — `kind` says so to the capability

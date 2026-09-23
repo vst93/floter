@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createTranslator } from "../src/i18n.ts";
-import { FIXED_TAIL_SLOT, MAX_RESULTS, RESULTS_LIST_HEIGHT, ROW_HEIGHT_TWO_LINE, shortcutSlotsWithFixedTail } from "../src/launcher/result-budget.ts";
+import { LAST_RESULT_SLOT, MAX_RESULTS, RESULTS_LIST_HEIGHT, ROW_HEIGHT_TWO_LINE, resultShortcutSlots } from "../src/launcher/result-budget.ts";
 import {
   PLUGIN_INITIAL_PAGES,
   PLUGIN_LOAD_MORE_THRESHOLD,
@@ -161,7 +161,8 @@ test("the browser plugin returns more than one group when the fetch allows it", 
     full.length > PLUGIN_INITIAL_PAGES * PLUGIN_PAGE_SIZE,
     "a long history must be pageable, not clipped to one viewport",
   );
-  // The default ceiling is unchanged: the non-paged caller still gets a screen.
+  // The default ceiling is the whole budget: R37 removed the fixed tail that
+  // used to reserve the tenth row, so a plugin's default view spends it too.
   const dflt = browserSearchRows({
     bookmarks: many("b"),
     history: many("h"),
@@ -169,7 +170,7 @@ test("the browser plugin returns more than one group when the fetch allows it", 
     profileKey: "default",
     t: en,
   });
-  assert.equal(dflt.length, MAX_RESULTS - 1);
+  assert.equal(dflt.length, MAX_RESULTS);
 });
 
 test("the clipboard plugin returns the whole history when the fetch allows it", () => {
@@ -182,8 +183,8 @@ test("the clipboard plugin returns the whole history when the fetch allows it", 
   }));
   const full = clipboardModeRows(entries, "", en, 1_700_000_000_000, 500);
   assert.equal(full.length, entries.length);
-  // The default stays the nine-row viewport budget.
-  assert.equal(clipboardModeRows(entries, "", en, 1_700_000_000_000).length, MAX_RESULTS - 1);
+  // The default is the whole ten-row viewport budget (R37).
+  assert.equal(clipboardModeRows(entries, "", en, 1_700_000_000_000).length, MAX_RESULTS);
 });
 
 // ── F · the wiring, pinned at the source ──────────────────────────────────
@@ -327,8 +328,8 @@ test("⌘N badges stay on the first viewport, however long the list grows", () =
   const items = pluginViewItems(
     resolvePluginView(pagePluginEmission({ output: Array.from({ length: 60 }, (_, i) => row(`r${i}`)) }, 3)),
   );
-  const slots = shortcutSlotsWithFixedTail(items, items.map(() => true));
+  const slots = resultShortcutSlots(items, items.map(() => true));
   assert.deepEqual(slots.slice(0, 9), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.equal(slots[9], FIXED_TAIL_SLOT, "the tenth row spends the family's last key");
+  assert.equal(slots[9], LAST_RESULT_SLOT, "the tenth row spends the family's last key");
   assert.ok(slots.slice(10).every((slot) => slot === null), "the eleventh row onward carries no badge");
 });

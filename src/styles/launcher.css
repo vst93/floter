@@ -220,14 +220,28 @@
      flex-centred in a 48u row, each side is 13px, and the eye weighs the lower
      one more because the R18 breath sits under it. At 42u each side is 10px
      (22u line box + 2 × 10u) — the row is still taller than its text and still
-     breathes, but the field is no longer a shelf. **This is the deliberate
-     floor**: 10px a side is the last step before the line box starts to look
-     pinched (the user's 「挤」), so the next report from here is a stop, not
-     another -6u. The R18 lift and the R21 `--surface-opaque` underlay are both
-     untouched; only the row's height moved. The pinned metric follows again:
-     `tests/ui-scale.test.ts` asserts 42px and the chrome constant drops a
-     further 8u (224 → 216). */
-  min-height: calc(var(--u) * 42);
+     breathes, but the field is no longer a shelf. The R18 lift and the R21
+     `--surface-opaque` underlay are both untouched; only the row's height
+     moved. The pinned metric follows again: `tests/ui-scale.test.ts` asserts
+     42px and the chrome constant drops a further 8u (224 → 216).
+
+     R37 · 42u → 56u. The user's report, verbatim: 「还有头部的输入框整体高度小
+     了些，可以和设置页面头部一样高，这样切换时一体性更好，包括其他内置插件的
+     数据框高度应该都保持一致，他们应该是在主搜索框基础上演变，应该公用一些组件」.
+     The band the user pointed at is `.settings-card__header`, which is 56u; the
+     launcher's field row was 42u, so switching surfaces moved the window's first
+     band by 14u. Both are the same number now — see `launcher/search-field.ts`,
+     which owns it — and the launcher's ordinary field and every plugin mode's
+     field are the *same DOM* (R31), so the three boxes the report names are one
+     box at one height. The line box does not move: it stays 22u, flex-centred,
+     so the extra 14u is 7u a side. That is a deliberate reversal of R23's trim
+     at the user's request: R23 chose 42u as the field's own floor, and R37
+     chooses the settings band's 56u as the *surfaces'* shared height. The breath
+     below the row is untouched at 4u (R24), so the query-to-first-row gap grows
+     by the 7u the row gained below its text. The pinned metric moves with it:
+     `tests/ui-scale.test.ts` asserts 56px, and the chrome constant follows the
+     same +14u (see `launcher/result-budget.ts`). */
+  min-height: calc(var(--u) * 56);
   display: flex;
   align-items: center;
   padding: 0 calc(var(--u) * 16);
@@ -242,7 +256,7 @@
      in the dark one, so the field was never a surface, only a wash: the chat
      window behind the launcher read *through* it as a blurred second line of
      text under the query. The field's box was 56u all along (R20 held; 48u in
-     R22, 42u in R23), but its
+     R22, 42u in R23, 56u again in R37), but its
      bottom edge was invisible and the ghost under the text made the row look
      like it had grown a second line — 「输入框部分高度还是不正常」.
 
@@ -259,12 +273,13 @@
     var(--glass-field),
     var(--surface-opaque);
   /* The breath below the block. A margin here rather than extra padding on
-     `.launcher-bottom` so this row keeps the height it has always had (a pinned
-     metric — see `tests/ui-scale.test.ts`; 56u until R22, 48u in R22, 42u in
-     R23). R24 · 8u → 4u: with the panel's 4u top padding the breath is 8u
-     instead of 12u. The row's own box does not move (42u, R23's stop) — this is
-     the second of the two segments outside the field, and the last one the user
-     can see. */
+     `.launcher-bottom` so this row keeps its own height (a pinned metric — see
+     `tests/ui-scale.test.ts`; 56u until R22, 48u in R22, 42u in R23, 56u in
+     R37). R24 · 8u → 4u: with the panel's 4u top padding the breath is 8u
+     instead of 12u. R37 leaves the breath alone: the row grew to the settings
+     band's 56u, and this margin is still the 4u it has been since R24 — the two
+     are separate decisions (the row's height and the gap under it), and only the
+     first one moved. */
   margin-bottom: calc(var(--u) * 4);
   overflow: hidden;
   /* R31 · the field/list boundary is one 1px hairline now.
@@ -276,7 +291,7 @@
      (「输入框下方阴影可以只保留 1px」). So the boundary is drawn, and only once:
      a 1px inset hairline on the row's floor, in the shared `--hairline` token
      (white 7% dark / black 8% light). An inset shadow rather than a border, so
-     the row's 42u box — a pinned metric — does not grow by the line, and
+     the row's 56u box — a pinned metric — does not grow by the line, and
      `overflow: hidden` keeps it inside the rounded top corners. The scroll-edge
      gradient band is gone for this scroller (see `.launcher-results`); the 4px
      reservation it used stays, because it is a pinned R22-R24 constant. */

@@ -54,12 +54,14 @@ import { IS_WINDOWS } from "../shortcuts";
 import type { AppSettings, LocalApplication } from "../App";
 import type { MessageKey, Translate } from "../i18n";
 
-// R10-A/R19/R36: `MAX_RESULTS` is 10 — nine matched result rows plus the one
-// fixed clipboard row the App appends to the tail. Every slice below therefore
-// keeps its `- 1`, so the catalog itself never returns more than those nine
-// rows. The number lives in `launcher/result-budget.ts` beside the row that owns
-// the last slot, so the budget and the row cannot drift apart; it is re-exported
-// here because this module is where the result budget is read.
+// R10-A/R19/R36/R37: `MAX_RESULTS` is 10 — and since R37 that is **ten
+// matched result rows**. Through R36 every slice below kept a `- 1` because the
+// tenth row was the App's fixed clipboard row, not a match; the fixed row is
+// gone (the clipboard is an ordinary contributor, see `launcher/result-budget.ts`),
+// so the catalog may now fill the whole budget. The number lives in
+// `launcher/result-budget.ts` beside the slot map that numbers the rows, so the
+// budget and the keys cannot drift apart; it is re-exported here because this
+// module is where the result budget is read.
 export { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS };
 
 /** Idle window before an icon is fetched, so the intermediate result lists that
@@ -697,9 +699,10 @@ export function useLauncherCatalog(options: {
       const recentPaths = recentItems(
         launchCounts,
         searchableApps.map((entry) => entry.app.path),
-        // R19/R36: nine matched rows — the tenth visible row is the fixed
-        // clipboard row the App appends, not a recent application.
-        MAX_RESULTS - 1,
+        // R19/R36/R37: the empty query's front door shows a full budget of
+        // recent applications — the tenth row is no longer a fixed clipboard
+        // row the App appends, so a recent app may take it.
+        MAX_RESULTS,
       );
       const recentRows: LauncherItem[] = [];
       for (const path of recentPaths) {
@@ -763,8 +766,10 @@ export function useLauncherCatalog(options: {
       if (!score) continue;
       // R26-D · a switched-off browser plugin keeps its entry row but marks
       // it: the row is a note (“the plugin is turned off”), not a door.
-      // R36 · the clipboard's launcher row follows the same rule (its fixed
-      // tail row does too — see `withClipboardResultRow`).
+      // R36 · the clipboard's launcher row follows the same rule. R37 · it is
+      // now the *only* clipboard row — the fixed tail that carried the same
+      // soft-close is gone, so this entry is the whole of the clipboard's
+      // presence in the list.
       const pluginOff =
         (entry.action === "browser" && !browserEnabled) ||
         (entry.action === "clipboard" && !clipboardEnabled);
@@ -790,13 +795,13 @@ export function useLauncherCatalog(options: {
     const rankedMatches = matches
       .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
       .map((match) => match.item);
-    // R10-A/R19/R36: nine matched rows. When applications or power actions
-    // matched alongside the commands the split keeps its old shape — three
-    // catalog commands, six slots for the local matches; when nothing else
-    // matched the commands may take all nine.
+    // R10-A/R19/R36/R37: the matched rows are the whole budget. When
+    // applications or power actions matched alongside the commands the split
+    // keeps its old shape — three catalog commands, seven slots for the local
+    // matches; when nothing else matched the commands may take all ten.
     const commandLimit = rankedMatches.length
       ? Math.min(COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS - 3)
-      : MAX_RESULTS - 1;
+      : MAX_RESULTS;
     const commandCounts = catalogSuggestions.reduce<Map<string, number>>((counts, suggestion) => {
       const command = suggestion.entry.command;
       counts.set(command, (counts.get(command) ?? 0) + 1);
@@ -897,12 +902,12 @@ export function useLauncherCatalog(options: {
         };
       });
 
-    // The catalog returns the matched rows only: the App appends the fixed
-    // clipboard row after these (R10-A; R19 set the matched ceiling to eight,
-    // R36 to nine), and the action bar is a row of its own beneath the list.
-    // Keep at least one local match when applications or power actions matched
-    // alongside catalog commands.
-    return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS - 1);
+    // The catalog returns the matched rows only, up to the whole budget: R37
+    // removed the App's fixed clipboard tail (R10-A; R19 set the matched
+    // ceiling to eight, R36 to nine, R37 to ten), and the action bar is a row of
+    // its own beneath the list. Keep at least one local match when applications
+    // or power actions matched alongside catalog commands.
+    return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS);
   }, [pluginView, browserMode, clipboardMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {

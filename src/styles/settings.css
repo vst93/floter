@@ -32,6 +32,14 @@
   overflow: hidden;
 }
 
+/* R37 · the settings card's top band is the height the launcher's field row
+   now matches (`launcher/search-field.ts`, `SEARCH_FIELD_HEIGHT_UNITS` = 56u).
+   The two surfaces are siblings — the window swaps one for the other — so the
+   first band of each is the same box and switching between them no longer moves
+   the window's top edge by 14u. The value is written as `calc(var(--u) * 56)`
+   rather than a `var()`, because `ui-scale.test.ts` reads the literal off the
+   sheet and `r37-field-height.test.ts` pins this rule and the launcher row to
+   each other. */
 .settings-card__header {
   position: relative;
   flex: 0 0 auto;

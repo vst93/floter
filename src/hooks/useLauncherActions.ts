@@ -691,7 +691,9 @@ export function useLauncherActions(options: {
     // Numbered results only: the action bar has no number, so `Cmd/Ctrl+1` can
     // never run a command by mistake. R19: the slot → row mapping is
     // `result-budget.ts`'s (`resultIndexForSlot`), the same one that prints the
-    // badges, so `⌘0` runs the fixed clipboard row like a click on it would.
+    // badges, so a numbered key runs exactly the row whose badge it matches.
+    // R37 · `0` is the family's tenth number now, not a fixed row's: it runs the
+    // tenth visible result like a click on it would.
     const resultNumber = matchesResultShortcut(event, shortcuts.select_result);
     if (resultNumber !== null) {
       const resultIndex = resultIndexForSlot(resultShortcutSlots, resultNumber);

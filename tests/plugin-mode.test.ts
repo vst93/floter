@@ -19,7 +19,7 @@ import {
   ROW_HEIGHT_TWO_LINE,
   launcherRowUnits,
   resolveLauncherRows,
-  shortcutSlotsWithFixedTail,
+  resultShortcutSlots,
 } from "../src/launcher/result-budget.ts";
 import { resultRowContent } from "../src/launcher/row-content.ts";
 import {
@@ -176,7 +176,7 @@ test("a status row downgrades to the launcher's own note", () => {
   // The note is not a row with metadata and it takes no numbered slot: the
   // first row keeps `⌘1` and the note gets nothing.
   assert.deepEqual(resultRowContent(note, en), { source: null, subtitle: null });
-  assert.deepEqual(shortcutSlotsWithFixedTail(items, [true, false]), [1, null]);
+  assert.deepEqual(resultShortcutSlots(items, [true, false]), [1, null]);
 
   // The clipboard's status line goes through the same door.
   assert.equal(clipboardStatusRow("empty", "clipboard.empty", en).kind, "status");
@@ -362,7 +362,7 @@ test("a browser group never grows past the launcher's row budget", () => {
     profileKey: "default",
     t: en,
   });
-  assert.equal(rows.length, MAX_RESULTS - 1, "the bookmark/history group stops at eight");
+  assert.equal(rows.length, MAX_RESULTS, "the bookmark/history group spends the whole budget (R37)");
 });
 
 test("the clipboard plugin emits rows: memory filter, cap and two empty states", () => {
@@ -440,7 +440,7 @@ test("the launcher draws the text form under the field and sizes the band from t
   );
   assert.match(
     app,
-    /pluginInteractive\s*\n?\s*\? shortcutSlotsWithFixedTail/,
+    /pluginInteractive\s*\n?\s*\? resultShortcutSlots/,
     "a display-only list hands out no numbered shortcuts",
   );
 });

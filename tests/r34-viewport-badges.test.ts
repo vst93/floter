@@ -1,52 +1,47 @@
-// R34 · the numbered `⌘N` badges follow the scroll viewport.
+// R34 · the numbered `⌘N` badges follow the scroll viewport; R37 makes the
+// assignment purely in order.
 //
 // The user's report, verbatim: 「cmd+n 的快捷键应该更随滚动翻页页适应，目的是快捷
 // 选择所见的列表，例外是是按住 cmd 聚焦的底部额外终端打开项。因为应用的概念就是
-// 搜索 + 终端」. Until this round the slots were assigned to the first nine rows of
-// the list, so scrolling a long (plugin, or file-drop) list left the rows on
-// screen with no number and `⌘N` reached rows the user could not see. The fix
+// 搜索 + 终端」. Until R34 the slots were assigned to the first nine rows of the
+// list, so scrolling a long (plugin, or file-drop) list left the rows on
+// screen with no number and `⌘N` reached rows the user could not see. R34
 // assigns `1`-`9` to the first nine runnable rows *inside the scroller's
 // viewport*, so scrolling renumbers the list to what is on screen.
 //
-// R36 · the family's tenth key, `⌘0`, is the bottom fixed item's (see
-// `FIXED_TAIL_SLOT`); a plugin list with no tail spends it on its tenth
-// viewport row instead. Both readings keep the invariant that `0` belongs to
-// exactly one row.
+// R36 grew the family a tenth key, `0`, right beside `9` on the number row.
 //
-// The two fixed bottom items are deliberately outside that numbering:
-//   · the clipboard tail row keeps `⌘0` (`FIXED_TAIL_SLOT`) wherever the list is
-//     scrolled, exactly as R19 gave it a fixed number; and
-//   · the terminal action bar keeps its own `⌘↩` / hold-`⌘` binding (it is not a
-//     numbered row at all).
-// Both are the "search + terminal" concept's fixed anchors, so scrolling must
-// not move them.
+// R37 · the user rejected the one exception R36 left: 「现在搜索页面中 剪切板这项被
+// 固定放到末尾，并且总是显示，还固定为了 cmd+0，这不对…同时快捷键也要按顺序安排」.
+// The clipboard's fixed tail row is deleted (it is an ordinary result
+// contributor now — see `launcher/result-budget.ts`), `FIXED_TAIL_SLOT`
+// retires, and the tenth key is simply the tenth runnable row in the viewport.
+// Nothing is reserved: `1`-`9` then `0`, in order, for whatever rows are on
+// screen.
 //
-// The mapping is a pure function (`shortcutSlotsWithFixedTail` +
-// `visibleRowRange` in `result-budget.ts`), so it is driven here without a DOM.
+// The one fixed bottom item that remains is the terminal action bar, and it is
+// deliberately *outside* this numbering: it keeps its own `⌘↩` / hold-`⌘`
+// binding and is not a numbered row at all.
+//
+// The mapping is a pure function (`resultShortcutSlots` + `visibleRowRange` in
+// `result-budget.ts`), so it is driven here without a DOM.
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  CLIPBOARD_RESULT_ID,
-  FIXED_TAIL_SLOT,
+  LAST_RESULT_SLOT,
   MAX_RESULTS,
   resultIndexForSlot,
-  shortcutSlotsWithFixedTail,
+  resultShortcutSlots,
   visibleRowRange,
 } from "../src/launcher/result-budget.ts";
 import type { LauncherItem } from "../src/launcher/LauncherResults.tsx";
 
-/** A minimal runnable row; the slot map only reads the tail row's id. */
+/** A minimal runnable row. */
 const row = (id: string): LauncherItem =>
   ({ type: "app", id, title: id, subtitle: "", app: {} as never }) as LauncherItem;
 
 const appRows = (count: number, from = 0): LauncherItem[] =>
   Array.from({ length: count }, (_, i) => row(`app-${from + i}`));
-
-const clipboardRow = (): LauncherItem =>
-  ({ type: "system", id: CLIPBOARD_RESULT_ID, title: "clip", subtitle: "", action: "clipboard" }) as LauncherItem;
-
-/** The composed list: matched rows plus the fixed clipboard tail. */
-const withTail = (count: number): LauncherItem[] => [...appRows(count), clipboardRow()];
 
 // ── 1 · the visible range ────────────────────────────────────────────────
 
@@ -79,96 +74,108 @@ test("R34 · the visible range starts on the first fully visible row", () => {
 
 // ── 2 · the viewport → slot mapping ──────────────────────────────────────
 
-test("R34 · 1-9 number the first nine runnable rows in the viewport", () => {
-  const rows = withTail(9); // nine matches + the fixed tail = ten rows
+test("R37 · 1-9 then 0 number the runnable rows in the viewport, in order", () => {
+  const rows = appRows(10);
   const flags = rows.map(() => true);
 
-  // A list that fits: the whole list, exactly as before R34.
+  // A list that fits: the whole list, `1`-`9` then `0`.
   assert.deepEqual(
-    shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: rows.length }),
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, FIXED_TAIL_SLOT],
+    resultShortcutSlots(rows, flags, { start: 0, end: rows.length }),
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, LAST_RESULT_SLOT],
   );
 
   // Scrolled down: the numbers follow the rows on screen; the rows above lose
-  // their badges; the tail keeps `⌘0` regardless.
+  // their badges, and the tenth *visible* row takes `0`.
   assert.deepEqual(
-    shortcutSlotsWithFixedTail(rows, flags, { start: 2, end: rows.length }),
-    [null, null, 1, 2, 3, 4, 5, 6, 7, FIXED_TAIL_SLOT],
+    resultShortcutSlots(rows, flags, { start: 2, end: rows.length }),
+    [null, null, 1, 2, 3, 4, 5, 6, 7, 8],
   );
 
   // A short viewport numbers only what it can see ("视口不足 9 行时只编可见的").
   assert.deepEqual(
-    shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: 3 }),
-    [1, 2, 3, null, null, null, null, null, null, FIXED_TAIL_SLOT],
+    resultShortcutSlots(rows, flags, { start: 0, end: 3 }),
+    [1, 2, 3, null, null, null, null, null, null, null],
+  );
+
+  // A full ten-row viewport spends `0` on its tenth row — there is no reserved
+  // slot to take it away any more (R37).
+  const ten = appRows(12);
+  assert.deepEqual(
+    resultShortcutSlots(ten, ten.map(() => true), { start: 0, end: MAX_RESULTS }),
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, LAST_RESULT_SLOT, null, null],
   );
 });
 
-test("R34 · a non-runnable row is skipped and takes no number", () => {
+test("R37 · a non-runnable row is skipped and takes no number", () => {
   const rows = [row("a"), row("status"), row("b")];
   const flags = [true, false, true];
-  assert.deepEqual(
-    shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: 3 }),
-    [1, null, 2],
-  );
-  // …and its absence does not shift a later row out of the nine.
-  const many = withTail(9);
+  assert.deepEqual(resultShortcutSlots(rows, flags, { start: 0, end: 3 }), [1, null, 2]);
+  // …and its absence does not shift a later row out of the family.
+  const many = appRows(10);
   const manyFlags = many.map((_, i) => i !== 3);
-  const slots = shortcutSlotsWithFixedTail(many, manyFlags, { start: 0, end: many.length });
+  const slots = resultShortcutSlots(many, manyFlags, { start: 0, end: many.length });
   assert.equal(slots[3], null, "the skipped row carries no badge");
   assert.deepEqual(slots.slice(0, 3), [1, 2, 3]);
   assert.equal(slots[4], 4, "the row after the skip continues the sequence");
-  assert.equal(slots[9], FIXED_TAIL_SLOT, "and the tail still owns `0`");
+  // The skip removes a row, so only nine runnable rows remain: the family's
+  // ninth key lands on the last one, and `0` is not spent at all.
+  assert.equal(slots[9], 9, "nine runnable rows number `1`-`9`");
+  assert.ok(
+    slots.every((slot) => slot !== LAST_RESULT_SLOT),
+    "with only nine runnable rows there is no tenth to spend `0` on",
+  );
 });
 
-// ── 3 · the fixed bottom items ───────────────────────────────────────────
+// ── 3 · the numbering is the viewport's, and nothing is reserved ──────────
 
-test("R34 · the fixed clipboard tail keeps ⌘0 wherever the list is scrolled", () => {
-  const rows = withTail(20); // a list longer than the slab, so it scrolls
+test("R37 · scrolling renumbers the whole family, `0` included", () => {
+  const rows = appRows(20);
   const flags = rows.map(() => true);
 
-  const top = shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: MAX_RESULTS });
-  assert.equal(top[top.length - 1], FIXED_TAIL_SLOT, "the tail is ⌘0 at the top");
+  const top = resultShortcutSlots(rows, flags, { start: 0, end: MAX_RESULTS });
+  assert.deepEqual(top.slice(0, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, LAST_RESULT_SLOT]);
+  assert.ok(top.slice(10).every((slot) => slot === null), "past the family, no badge");
+  assert.equal(resultIndexForSlot(top, 0), 9, "`⌘0` is the tenth visible row");
 
-  const scrolled = shortcutSlotsWithFixedTail(rows, flags, { start: 10, end: 18 });
-  assert.equal(scrolled[scrolled.length - 1], FIXED_TAIL_SLOT, "and still ⌘0 after scrolling");
-  assert.equal(
-    scrolled.filter((slot) => slot === FIXED_TAIL_SLOT).length,
-    1,
-    "no viewport row can steal the tail's slot",
-  );
-  // The eight on-screen rows take 1-8; the rows above are blank.
+  // A page down: the numbers move with the viewport, `0` included.
+  const scrolled = resultShortcutSlots(rows, flags, { start: 10, end: 18 });
   assert.deepEqual(scrolled.slice(10, 18), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.ok(scrolled.slice(0, 10).every((slot) => slot === null));
-  // The key handler maps `⌘0` to the tail's own index, not to a visible row.
-  assert.equal(resultIndexForSlot(scrolled, 0), rows.length - 1);
-  assert.equal(resultIndexForSlot(scrolled, 9), -1, "the tail is not reachable through `⌘9`");
+  assert.ok(scrolled.slice(18).every((slot) => slot === null));
+  assert.equal(resultIndexForSlot(scrolled, 1), 10, "`⌘1` is the first row of the viewport");
+  assert.equal(resultIndexForSlot(scrolled, 8), 17, "`⌘8` is the eighth");
+  assert.equal(resultIndexForSlot(scrolled, 9), -1, "a short viewport has no ninth slot");
+  assert.equal(resultIndexForSlot(scrolled, 0), -1, "…and no tenth row to spend `0` on");
+
+  // A full ten-row page: the tenth on-screen row takes `0`, wherever it is.
+  const page = resultShortcutSlots(rows, flags, { start: 5, end: 15 });
+  assert.equal(page[14], LAST_RESULT_SLOT, "the tenth row of the page owns `0`");
+  assert.equal(resultIndexForSlot(page, 0), 14);
+  assert.equal(
+    page.filter((slot) => slot === LAST_RESULT_SLOT).length,
+    1,
+    "`0` is handed to exactly one row",
+  );
 });
 
-test("R34 · a plugin list with no tail numbers only its viewport", () => {
-  // A paged plugin list has no fixed clipboard row.
-  const rows = appRows(24);
-  const flags = rows.map(() => true);
-  const first = shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: 9 });
-  assert.deepEqual(first.slice(0, 9), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.ok(first.slice(9).every((slot) => slot === null));
-
-  // R36 · a full ten-row viewport spends the tenth key on its tenth row, since
-  // there is no fixed tail to own it.
-  const full = shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: MAX_RESULTS });
-  assert.deepEqual(full.slice(0, MAX_RESULTS), [1, 2, 3, 4, 5, 6, 7, 8, 9, FIXED_TAIL_SLOT]);
-  assert.equal(resultIndexForSlot(full, 0), MAX_RESULTS - 1, "⌘0 is the tenth viewport row");
-
-  // Scroll a page down: the numbers move with the viewport.
-  const second = shortcutSlotsWithFixedTail(rows, flags, { start: 10, end: 18 });
-  assert.deepEqual(second.slice(10, 18), [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.ok(second.slice(0, 10).every((slot) => slot === null));
-  assert.ok(second.slice(18).every((slot) => slot === null));
-
-  // `⌘1` runs the first row of the *current* viewport, and `⌘8` the eighth.
-  assert.equal(resultIndexForSlot(second, 1), 10);
-  assert.equal(resultIndexForSlot(second, 8), 17);
-  assert.equal(resultIndexForSlot(second, 9), -1, "a short viewport has no ninth slot");
-  assert.equal(resultIndexForSlot(second, 0), -1, "…and no tenth row to spend `0` on");
+test("R37 · a matched clipboard row is an ordinary row and numbers in order", () => {
+  // The clipboard entry the catalog contributes is a `system` row like
+  // `restart`; nothing in the slot map may special-case it (that was R36's
+  // `FIXED_TAIL_SLOT`, retired here).
+  const clipboard = {
+    type: "system",
+    id: "system-clipboard",
+    title: "clip",
+    subtitle: "",
+    action: "clipboard",
+  } as LauncherItem;
+  const rows = [row("a"), clipboard, row("b")];
+  assert.deepEqual(
+    resultShortcutSlots(rows, rows.map(() => true)),
+    [1, 2, 3],
+    "the clipboard row numbers by its position, like every other row",
+  );
+  assert.equal(resultIndexForSlot([1, 2, 3], 2), 1, "`⌘2` reaches it where it sits");
 });
 
 test("R34 · the slot map is the key handler's one source", async () => {
@@ -210,12 +217,12 @@ test("R34 · the scroller re-measures on scroll and App feeds the slots from it"
   // badges and the key handler share one map.
   assert.match(
     app,
-    /const \[visibleResultRange, setVisibleResultRange\] = useState<VisibleRowRange>/, 
+    /const \[visibleResultRange, setVisibleResultRange\] = useState<VisibleRowRange>/,
     "App holds the reported viewport",
   );
   assert.match(
     app,
-    /shortcutSlotsWithFixedTail\(displayedResults, displayedRunnableFlags, visibleResultRange\)/,
+    /resultShortcutSlots\(displayedResults, displayedRunnableFlags, visibleResultRange\)/,
     "the slots are computed from the viewport",
   );
   assert.match(app, /onVisibleRowsChange=\{setVisibleResultRange\}/, "and the scroller feeds it");

@@ -116,13 +116,18 @@ test("the launcher draws the scope glyph inside the field, and only in a mode", 
 
 test("inside a plugin scope the list is the plugin's own content", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
-  // R27 · the fixed clipboard tail row is a launcher-wide affordance. Inside a
-  // plugin scope it would be the panel's door standing inside the panel, so the
-  // composed list is the plugin's rows verbatim.
+  // R27 · the list inside a plugin scope is the plugin's rows verbatim; R37
+  // removed the one row that used to be appended outside a scope (the fixed
+  // clipboard tail), so the composed list is now *always* the query's own rows
+  // (with a dropped file's group prepended outside a scope).
   assert.match(
     app,
-    /launcherScope\s*\?\s*\[\.\.\.launcherResults\]\s*:\s*withClipboardResultRow\(/,
-    "the tail row is appended in every state except a plugin scope",
+    /launcherScope\s*\?\s*\[\.\.\.launcherResults\]\s*:\s*fileRows\.length\s*\?\s*\[\.\.\.fileRows, \.\.\.launcherResults\]\s*:\s*launcherResults/,
+    "the list is the query's rows — no appended tail in any state",
+  );
+  assert.ok(
+    !/withClipboardResultRow/.test(app),
+    "R37: the fixed clipboard tail is gone from the App",
   );
 
   const catalog = stripJsComments(await read("src/hooks/useLauncherCatalog.ts"));

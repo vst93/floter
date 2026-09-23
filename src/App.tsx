@@ -97,10 +97,9 @@ import {
   launcherWindowHeight,
   MAX_RESULTS,
   resolveLauncherRows,
+  resultShortcutSlots,
   RESULTS_VIEWPORT_CHROME,
-  shortcutSlotsWithFixedTail,
   type VisibleRowRange,
-  withClipboardResultRow,
 } from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
 import {
@@ -969,18 +968,22 @@ export default function App() {
     () => fileDropRows(droppedFiles, dropsExpanded, t),
     [droppedFiles, dropsExpanded, t],
   );
-  // R10-A/R19/R36: the tail row. Nine matched results are followed by one fixed
-  // row that opens the clipboard history, in every query state — empty,
-  // matching, and (especially) matching nothing, which is when the clipboard is
-  // the useful thing left to offer. Ten rows in all, which is the whole budget.
-  // `withClipboardResultRow` keeps a query that
-  // already matched the clipboard command from growing a duplicate.
+  // R10-A/R19/R36 → R37 · the list the launcher renders is the query's own
+  // rows, and nothing else. Through R36 the App appended a *fixed* clipboard
+  // row to the tail of every query state; R37 de-specializes it — the user read
+  // that row back as the one thing in the list that was not a match
+  // (「它不应该是个特例，应该和其他项一样匹配了才显示」).
   //
-  // R27 · inside a plugin scope (`browser ` / `clip `) the tail is **not**
-  // appended: the list is the plugin's own content, and a "Clipboard History"
-  // row under a list of clipboard entries would be the panel's door inside the
-  // panel. The row is a launcher-wide affordance and stays in every other
-  // state, including the query that matched nothing.
+  // The clipboard is now an ordinary result contributor: the catalog's
+  // `system-clipboard` entry matches the query by its names and keywords
+  // exactly as `restart`/`shutdown`/`browser` do (see `SYSTEM_COMMANDS` in
+  // `useLauncherCatalog`), so it appears when it matches, ranks with everything
+  // else, and carries whatever numbered slot its position earns. No row is
+  // reserved, no `⌘0` is pinned, and a query that matched nothing shows nothing.
+  //
+  // R27 · inside a plugin scope (`browser` / `clip`) the list is the plugin's
+  // own content, and a dropped file's rows are the one local group prepended
+  // outside a scope. Both facts are unchanged; only the appended tail is gone.
   // R31 · the scope comes from the explicit mode state, not from re-parsing the
   // query. The variable keeps its name and its meaning: it is the plugin that
   // owns the field right now, or `null` on the ordinary search page.
@@ -1018,14 +1021,10 @@ export default function App() {
     () =>
       launcherScope
         ? [...launcherResults]
-        : withClipboardResultRow(
-            fileRows.length ? [...fileRows, ...launcherResults] : launcherResults,
-            t,
-            // R36 · a switched-off clipboard keeps its fixed tail row (and its
-            // `⌘0`) but the row is a note, not a door.
-            settings.clipboard_history_enabled,
-          ),
-    [fileRows, launcherResults, t, launcherScope, settings.clipboard_history_enabled],
+        : fileRows.length
+          ? [...fileRows, ...launcherResults]
+          : launcherResults,
+    [fileRows, launcherResults, launcherScope],
   );
 
   // While the selection is on a file row the action bar describes that file's
@@ -1037,11 +1036,14 @@ export default function App() {
   // expand the result area for an unmatched query just because the generic
   // shell fallback exists; feedback rows remain independently visible below.
   //
-  // R10-A: the gate reads the *matched* rows, not the composed list. The fixed
-  // clipboard row makes `displayedResults` non-empty in every state, so asking
-  // it here would silently start showing the shell fallback for a query that
-  // matched nothing — the exact thing the sentence above forbids. A drop still
-  // brings its own bar through the `selectedDroppedFile` branch.
+  // R10-A: the gate reads the *matched* rows, not the composed list. Through
+  // R36 the fixed clipboard row made `displayedResults` non-empty in every
+  // state, so asking it here would have shown the shell fallback for a query
+  // that matched nothing — the exact thing the sentence above forbids. R37
+  // removed the fixed row, but the gate still reads `launcherResults`: a drop
+  // may still prepend a row to an unmatched query, and the bar is a secondary
+  // control for a *matched* list either way. A drop brings its own bar through
+  // the `selectedDroppedFile` branch.
   const visibleActionBar: ActionBar | null =
     selectedDroppedFile
       ? fileDropActionBar(selectedDroppedFile, fileActionIndex, t)
@@ -1070,20 +1072,22 @@ export default function App() {
     start: 0,
     end: MAX_RESULTS,
   });
-  // R10-A/R19/R36: the fixed clipboard row is the tenth and last row, and the
-  // shortcut family is 1-9 plus 0, so it carries a real `⌘0` badge — the slot
-  // map lives in `shortcutSlotsWithFixedTail` and nowhere else (the key handler
-  // asks the same map through `resultIndexForSlot`).
+  // R34/R36/R37: the numbered slots are purely in order — `1`-`9` for the first
+  // nine runnable rows *inside the scroll viewport*, then `0` for the tenth.
+  // The slot map lives in `resultShortcutSlots` and nowhere else (the key
+  // handler asks the same map through `resultIndexForSlot`), so the badge a row
+  // shows and the key that reaches it cannot be derived from two rules.
   //
-  // R34 · `1`-`9` now number the first nine runnable rows *inside the scroll
-  // viewport*; the fixed clipboard row keeps `⌘0` outside that numbering, so
-  // scrolling never moves the bottom fixed item.
+  // R37 · nothing is reserved any more: through R36 the clipboard's fixed tail
+  // owned `0` outside the viewport numbering, which made the tenth key a fixed
+  // item's rather than the next result's. The fixed row is gone and `0` is just
+  // the tenth number, so scrolling renumbers the whole family — including `0`.
   //
   // R28 · the capability layer's display tier takes every number away: a list
   // that is there to be read, not run, has no `⌘N` to offer.
   const displayedShortcutSlots = useMemo(
     () => pluginInteractive
-      ? shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags, visibleResultRange)
+      ? resultShortcutSlots(displayedResults, displayedRunnableFlags, visibleResultRange)
       : displayedResults.map(() => null),
     [displayedResults, displayedRunnableFlags, pluginInteractive, visibleResultRange],
   );

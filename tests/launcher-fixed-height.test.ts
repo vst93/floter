@@ -80,7 +80,7 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   const barGap = units(/margin-top:\s*([^;]+);/.exec(bar)![1], "action bar margin-top");
   const barHeight = units(/height:\s*([^;]+);/.exec(bar)![1], "action bar height");
 
-  assert.equal(field, 42, "the field's row is R23's 42u");
+  assert.equal(field, 56, "the field's row is R37's 56u — the settings band's height");
   assert.equal(breath, 4, "R24's breath is 4u below the field…");
   assert.equal(panelTop, 4, "…plus the panel's own 4u inset");
   assert.equal(listUnits, 420, "the list's ceiling is R20/R36's ten two-line rows");
@@ -99,7 +99,7 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
     RESULTS_LIST_CHROME + 2,
     "the fixed part is the list's own chrome plus the card's 1px frame top and bottom",
   );
-  assert.equal(LAUNCHER_WINDOW_HEIGHT, 569, "517u + 52px at the default interface step");
+  assert.equal(LAUNCHER_WINDOW_HEIGHT, 583, "531u + 52px at the default interface step");
 
   // …and it clears the tallest card the sheets can actually produce. The list's
   // real chrome is 11px under its own 50px ceiling (4px band + nine 1px gaps +
@@ -116,8 +116,8 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   // short of its card is a clipped card. The fixed chrome does not scale, which
   // is exactly how `calc(var(--u) * N + Mpx)` behaves in the sheet.
   assert.equal(launcherWindowHeight(1), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherWindowHeight(1.1), Math.ceil(517 * 1.1 + 52));
-  assert.equal(launcherWindowHeight(1.25), Math.ceil(517 * 1.25 + 52));
+  assert.equal(launcherWindowHeight(1.1), Math.ceil(531 * 1.1 + 52));
+  assert.equal(launcherWindowHeight(1.25), Math.ceil(531 * 1.25 + 52));
   for (const scale of [1, 1.1, 1.25]) {
     assert.equal(
       launcherWindowHeight(scale),
@@ -441,7 +441,7 @@ test("R34 · the window height is per-row, and the row count is sticky", async (
   for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
     assert.equal(clampLauncherRows(rows), rows);
     assert.ok(
-      launcherRowUnits(rows) >= 97 + rows * 42,
+      launcherRowUnits(rows) >= 111 + rows * 42,
       `${rows} rows must hold their rows without scrolling`,
     );
     if (rows > 1) {
@@ -452,10 +452,10 @@ test("R34 · the window height is per-row, and the row count is sticky", async (
       );
     }
   }
-  // The top is still the R25/R36 slab.
-  assert.equal(launcherRowUnits(MAX_RESULTS, true), 517);
+  // The top is still the R25/R36/R37 slab.
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
   assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 569);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 583);
   assert.ok(
     launcherRowHeight(8, 1, LAUNCHER_WINDOW_HEIGHT) <
       launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
@@ -520,9 +520,9 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
 
   // The full slab is unchanged while the bar is drawn — that is R25's constant,
   // and the settings-panel/launcher-height round trip depends on it.
-  assert.equal(launcherRowUnits(MAX_RESULTS, true), 517);
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
   assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 569);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 583);
 
   // Without the bar, exactly the bar's own segment comes off — nothing else.
   for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
@@ -533,17 +533,17 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
     );
   }
 
-  // The one-row launcher is the empty launcher: field 42 + breath 4 + panel top
-  // 4 + one 42u row + tail 2 = 94u, plus the 1px frame top and bottom and the
+  // The one-row launcher is the empty launcher: field 56 + breath 4 + panel top
+  // 4 + one 42u row + tail 2 = 108u, plus the 1px frame top and bottom and the
   // scroller's 4px reservation — no bar, no section title, no row gaps.
-  assert.equal(launcherRowUnits(1, false), 94);
+  assert.equal(launcherRowUnits(1, false), 108);
   assert.equal(launcherRowChrome(1), 2 + 4);
-  assert.equal(launcherRowHeight(1, 1, LAUNCHER_WINDOW_HEIGHT, false), 100);
+  assert.equal(launcherRowHeight(1, 1, LAUNCHER_WINDOW_HEIGHT, false), 114);
   // …and the empty-query section title is chrome, not a row.
   assert.equal(launcherRowChrome(1, true), 2 + 4 + 26);
 
   // A short count's chrome counts the gaps it really has; the ten-row top
-  // keeps the R25 ceiling so the full slab stays 569px (a ceiling, not a
+  // keeps the R25 ceiling so the full slab stays 583px (a ceiling, not a
   // measurement).
   assert.equal(launcherRowChrome(2), 2 + 4 + 1);
   assert.equal(launcherRowChrome(3), 2 + 4 + 2);

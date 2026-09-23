@@ -314,7 +314,7 @@ export function LauncherResults({
 
   // R34 · the scroll viewport → the numbered `⌘N` slots. The scroller measures
   // which rows are on screen and reports the half-open index range to App, which
-  // turns it into the badges and the key map (see `shortcutSlotsWithFixedTail`).
+  // turns it into the badges and the key map (see `resultShortcutSlots`).
   // "What you see is what you select": scrolling renumbers the list.
   //
   // The measurement is the only DOM-aware half; the range itself comes from

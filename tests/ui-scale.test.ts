@@ -194,7 +194,11 @@ const SAMPLES: [string, string, string, string][] = [
   // floor below which the field starts to look pinched. The pinned metric moves
   // with the sheet — this entry is the current value, so it is updated rather
   // than dropped.
-  ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "42px"],
+  // R37 · back to 56px, and deliberately: the user asked for the launcher's
+  // field row and the settings card's header to be one height (「可以和设置页面
+  // 头部一样高，这样切换时一体性更好」), so the pinned metric is the settings
+  // band's own 56px again (see `launcher/search-field.ts`).
+  ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "56px"],
   ["src/styles/launcher.css", ".collapsed-card__input", "min-height", "22px"],
   ["src/styles/launcher.css", ".collapsed-card__settings", "width", "28px"],
   ["src/styles/launcher.css", ".launcher-result", "height", "42px"],
@@ -343,12 +347,13 @@ test("the knob is live: the same samples scale with `--ui-scale`", async () => {
   // real before the UI is allowed to choose it.
   const css = await read("src/styles/launcher.css");
   const value = declarations(ruleFor(css, ".collapsed-card__input-row").body, "min-height")[0];
-  // R22 moved the row from 56u to 48u and R23 from 48u to 42u; the arithmetic
-  // is what this test is about, so the pair moves with the sheet.
-  assert.deepEqual(resolveValue(value, 1), [42]);
-  // Float arithmetic: `calc(42px * 1.2)` lands a hair under 50.4, so compare
+  // R22 moved the row from 56u to 48u and R23 from 48u to 42u; R37 moves it
+  // back to 56u (the settings band's height). The arithmetic is what this test
+  // is about, so the pair moves with the sheet.
+  assert.deepEqual(resolveValue(value, 1), [56]);
+  // Float arithmetic: `calc(56px * 1.2)` lands a hair under 67.2, so compare
   // the product rather than requiring the decimal to round-trip.
-  assert.deepEqual(resolveValue(value, 1.2), [42 * 1.2], "42 * 1.2");
+  assert.deepEqual(resolveValue(value, 1.2), [56 * 1.2], "56 * 1.2");
 });
 
 // ── 3 · hairlines are not scaled ──────────────────────────────────────────

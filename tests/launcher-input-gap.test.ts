@@ -1,5 +1,6 @@
 // R22 · the gap between the query text and the first result row; re-derived in
-// R23 for the field's second trim and in R24 for the two segments outside it.
+// R23 for the field's second trim, in R24 for the two segments outside it, and
+// in R37 for the field row's return to the settings band's height.
 //
 // The user drew a box around it (「我指的这中间的空白太宽了」) in R22, after that
 // round still read the space below the query as too wide
@@ -7,13 +8,19 @@
 // after *that* still read the gap as too tall (「现在还是太高」), which is what R24
 // answers. R23 left the field at its floor (10u a side: a 22u line box in a 42u
 // row), so R24 moves the two segments around it instead.
+//
+// R37 · the user asked for the opposite of R23's trim on the *row*: 「头部的输入框
+// 整体高度小了些，可以和设置页面头部一样高」. The row is 56u again (the settings
+// band's height), so the per-side dead height is back to 17u. The *breath*
+// (R18/R24) and the scroller's reservation (R22-R24) are untouched — the row's
+// height and the gap under it are two decisions, and only the first one moved.
+//
 // Measured from the sheet, the space between the *bottom of the field's row* and
 // the *top of the first result row* is three stacked decisions, all of them
 // deliberate and none of them wrong on its own:
 //
-//   * the field row's dead height below its 22u line box — `(42u − 22u) / 2`
-//     = 10u after R23 (untouched in R24), 13u in R22, `(56u − 22u) / 2` = 17u
-//     before;
+//   * the field row's dead height below its 22u line box — `(56u − 22u) / 2`
+//     = 17u in R37, back to the pre-R22 value (10u in R23/R24, 13u in R22);
 //   * R18's breath below the block — the row's `margin-bottom` plus
 //     `.launcher-bottom`'s 4u top padding = 8u after R24 (4u + 4u), 12u in R18
 //     through R23; and
@@ -22,12 +29,15 @@
 //     override, 4px now.
 //
 // Stacked, that is `17 + 12 + 14 = 43px` before, `13 + 12 + 8 = 33px` after R22,
-// `10 + 12 + 8 = 30px` after R23 and `10 + 8 + 4 = 22px` after R24: R22 gave back
+// `10 + 12 + 8 = 30px` after R23, `10 + 8 + 4 = 22px` after R24 and
+// `17 + 8 + 4 = 29px` after R37: R22 gave back
 // 4u of field dead height (one side only — the row is flex-centred, so an 8u row
 // cut is a 4u cut per side) plus 6px of reservation; R23 gave back 3u more of
 // that same per-side dead height (a 6u row cut is 3u per side); R24 gave back
-// the remaining 4u of breath and the remaining 4px of reservation. Nothing else
-// moves. The assertions below are the arithmetic, so a later edit to any one of
+// the remaining 4u of breath and the remaining 4px of reservation; R37 gives
+// back the 7u the row gained below its line box, at the user's request, and
+// nothing else. The assertions below are the arithmetic, so a later edit to any
+// one of
 // the three has to face the total.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -69,10 +79,10 @@ test("the query-to-first-row gap is the sum of three pinned decisions", async ()
     /min-height:\s*([^;]+);/.exec(rule(launcher, ".collapsed-card__input"))![1],
     "field min-height",
   );
-  assert.equal(rowHeight, 42, "R23's 42u row is the floor — R24 does not touch the field");
+  assert.equal(rowHeight, 56, "R37's 56u row — the settings band's height");
   assert.equal(fieldHeight, 22, "the field's own box is unchanged at 22u");
   const deadBelowTheText = (rowHeight - fieldHeight) / 2;
-  assert.equal(deadBelowTheText, 10, "the line box keeps 10u above and below it — the breathing floor");
+  assert.equal(deadBelowTheText, 17, "the line box keeps 17u above and below it (R37)");
 
   // 2 · R18's breath, halved in R24: the row's margin plus the panel's top padding.
   const breath = units(/margin-bottom:\s*([^;]+);/.exec(row)![1], "input row margin-bottom");
@@ -98,19 +108,21 @@ test("the query-to-first-row gap is the sum of three pinned decisions", async ()
   const results = rule(launcher, ".launcher-results");
   assert.match(results, /padding:\s*var\(--scroll-edge\)\s+0\s+0;/, "the reservation is the variable");
 
-  // The total, and the fact that it only shrank by what the decisions gave.
+  // The total, and the fact that it only moved by what the decisions gave.
   const before = (56 - 22) / 2 + 12 + 14;
   const r22 = (48 - 22) / 2 + 12 + 8;
   const r23 = (42 - 22) / 2 + 12 + 8;
+  const r24 = (42 - 22) / 2 + (breath + topPadding) + px(override, "launcher --scroll-edge");
   const after = deadBelowTheText + (breath + topPadding) + px(override, "launcher --scroll-edge");
   assert.equal(before, 43);
   assert.equal(r22, 33, "R22 gave back 4u of field dead height plus 6px of reservation");
   assert.equal(r23, 30, "R23 gave back 3u more of the same per-side dead height");
-  assert.equal(after, 22, "R24 gives back the last 4u of breath and 4px of reservation");
+  assert.equal(r24, 22, "R24 gives back the last 4u of breath and 4px of reservation");
+  assert.equal(after, 29, "R37's row is 56u again, so the gap is back to the pre-R22 17u a side");
   assert.equal(
-    before - after,
-    21,
-    "7u of field dead height across R22–R23 (4u, then 3u, one side each), 4u of breath and 10px of reservation, and nothing else",
+    r24 - after,
+    -7,
+    "R37 restores exactly the 7u of per-side dead height R23 trimmed, and nothing else",
   );
 });
 
