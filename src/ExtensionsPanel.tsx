@@ -547,7 +547,7 @@ type ExtensionsPanelProps = {
   onToggleBasePlugin: (id: string, enabled: boolean) => void;
   /** Open a base plugin's own settings page (the same page the global hotkey
    * and `floter clip` open) over the settings surface. */
-  onOpenPluginPage: (id: string) => void;
+  onOpenPluginConfig: (id: string) => void;
   /** Push a toast onto the app-level stack (rendered by App outside any scroll
    * container, so feedback stays visible wherever the user scrolled to). The
    * optional action rides the same stack — R7-7's drift notice uses it to open
@@ -579,8 +579,10 @@ export type BasePluginRow = {
   /** Whether the plugin has a persisted on/off switch. A plugin that is always
    *  available (the browser plugin) renders no switch rather than a dead one. */
   toggleable: boolean;
-  /** Whether the plugin declares an HTML settings page this row can open. */
-  hasPage: boolean;
+  /** R33 · whether the plugin has a declarative configuration schema the
+   *  row's Configure button can open in the launcher's generic overlay. Both
+   *  built-ins do; a plugin without one renders no button. */
+  configurable: boolean;
   /** Optional extra note rendered under the row (the clipboard privacy line). */
   privacyKey?: Parameters<Translate>[0];
 };
@@ -650,7 +652,7 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginPage, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginConfig, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2221,11 +2223,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                   )}
                 </span>
                 <span className="extensions-base-plugin__actions">
-                  {plugin.hasPage && (
+                  {plugin.configurable && (
                     <button
                       type="button"
                       className="extensions-action-button extensions-base-plugin__configure"
-                      onClick={() => onOpenPluginPage(plugin.id)}
+                      onClick={() => onOpenPluginConfig(plugin.id)}
                     >
                       {t("settings.plugins.configure")}
                     </button>

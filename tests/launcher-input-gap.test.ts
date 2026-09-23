@@ -141,10 +141,12 @@ test("the launcher override is local: no other surface inherits it", async () =>
   // its own `.settings-shell`. So the override reaches the field row and the
   // results list, and stops there.
   const app = await read("src/App.tsx");
+  // R33 · the plugin layer is gone; the toast host is the only sibling before
+  // the collapsed shell, and it never nests in the card either.
   assert.match(
     app,
-    /\{pluginLayer\}\s*\{toastHost\}\s*<div className="collapsed-shell">/,
-    "the plugin layer is a sibling rendered before the collapsed shell, not nested in the card",
+    /\{toastHost\}\s*<div className="collapsed-shell">/,
+    "the toast host is a sibling rendered before the collapsed shell, not nested in the card",
   );
   assert.match(app, /<div className="settings-shell">/, "the settings page has its own shell");
 });

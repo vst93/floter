@@ -32,7 +32,7 @@ import {
 } from "../shortcuts";
 import { PINNED_SESSION_ID, type PinEvent, type PinState } from "../terminal/pinState";
 import { resultIndexForSlot } from "../launcher/result-budget";
-import { CLIPBOARD_PLUGIN_ID } from "../plugin-pages";
+
 import type { BrokerSessionInfo, LocalApplication, ViewMode } from "../App";
 import type { MessageKey, Translate } from "../i18n";
 import type { ActionBar, LauncherItem } from "../launcher/LauncherResults";
@@ -73,7 +73,6 @@ export function useLauncherActions(options: {
   rememberCommand: (command: string) => void;
   recordLaunch: (path: string) => void;
   refreshTerminalSessions: () => Promise<void>;
-  openPluginPage: (pluginId: string) => void;
   /** R31 · enter a plugin mode deliberately (the browser system row's Enter).
    *  The mode is App state now, so the row hands it over rather than rewriting
    *  the query to a trigger word the hook would have to parse back. */
@@ -140,7 +139,6 @@ export function useLauncherActions(options: {
     rememberCommand,
     recordLaunch,
     refreshTerminalSessions,
-    openPluginPage,
     enterPluginMode,
     browserScope,
     cycleBrowserFilter,
@@ -508,13 +506,11 @@ export function useLauncherActions(options: {
       return;
     }
 
-    // The clipboard page is a plain view flip — no confirmation, no window
-    // hiding, just the same open path the global hotkey and `floter clip`
-    // take.
+    // R33 · the clipboard row is the browser row's twin: it is the door into
+    // the clipboard result mode, not a settings page. Entering the mode gives
+    // the plugin's own list (and its gear opens the configuration overlay).
     if (item.action === "clipboard") {
-      setQuery("");
-      setHistoryIndex(-1);
-      openPluginPage(CLIPBOARD_PLUGIN_ID);
+      enterPluginMode({ scope: "clipboard" });
       return;
     }
 

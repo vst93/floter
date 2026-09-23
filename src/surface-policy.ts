@@ -21,8 +21,10 @@
 import { IS_WINDOWS, matchesShortcut, type ShortcutMap } from "./shortcuts.ts";
 import { COLLAPSED_FOCUS_BEATS_MS } from "./collapsed-focus.ts";
 import type { SettingsPage } from "./settings-persistence.ts";
-/** The four surfaces; mirrors `ViewMode` in `App.tsx`. */
-export type AppSurface = "collapsed" | "terminal" | "settings" | "plugin";
+/** The three surfaces; mirrors `ViewMode` in `App.tsx`. The retired plugin
+ *  page used to be a fourth; R33 folded its configuration into the collapsed
+ *  surface, so there is no iframe to hand the keyboard to any more. */
+export type AppSurface = "collapsed" | "terminal" | "settings";
 
 // ---------------------------------------------------------------------------
 // Focus on entry
@@ -32,8 +34,7 @@ export type AppSurface = "collapsed" | "terminal" | "settings" | "plugin";
 export type FocusOwner =
   | "collapsed-input"
   | "terminal-canvas"
-  | "settings-sidebar"
-  | "plugin-iframe";
+  | "settings-sidebar";
 
 export type SurfaceFocusPolicy = {
   /** The control the surface hands the keyboard to. */
@@ -74,10 +75,6 @@ export const SURFACE_FOCUS_POLICY: Record<AppSurface, SurfaceFocusPolicy> = {
   },
   settings: {
     owner: "settings-sidebar",
-    beats: [],
-  },
-  plugin: {
-    owner: "plugin-iframe",
     beats: [],
   },
 };
@@ -148,9 +145,6 @@ export function applySurfaceFocusOnEntry(
     case "settings-sidebar":
       seams.focusSettingsSidebar();
       break;
-    case "plugin-iframe":
-      // The sandboxed page focuses itself; the host deliberately does nothing.
-      break;
   }
   return policy.owner;
 }
@@ -168,7 +162,6 @@ export type DismissTrigger = (typeof DISMISS_TRIGGER_ORDER)[number];
 export type DismissAction =
   | "hide-window"
   | "close-settings"
-  | "close-plugin"
   | "return-to-input";
 
 export type DismissRule = {
@@ -222,11 +215,6 @@ export const DISMISS_TABLE: DismissTable = {
     "mod-w": { action: "close-settings", stopPropagation: true },
     escape: { action: "close-settings" },
     "new-command": { action: "close-settings" },
-  },
-  plugin: {
-    "mod-w": { action: "close-plugin", stopPropagation: true },
-    escape: { action: "close-plugin" },
-    "new-command": null,
   },
 };
 

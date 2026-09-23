@@ -60,7 +60,6 @@ export function useAppKeyboard(options: {
   changeSettingsPage: (page: SettingsPage) => void;
   settingsSidebarButtons: RefObject<Map<SettingsPage, HTMLButtonElement>>;
   refreshTerminalSessions: () => Promise<void>;
-  closePluginPage: () => void;
   runLauncherItem: (item: LauncherItem | undefined) => void;
   handleLauncherKey: (event: KeyboardEvent) => void;
   /** R31 · the collapsed surface's mode-aware Esc / Cmd+W rule. Called before
@@ -104,7 +103,6 @@ export function useAppKeyboard(options: {
     changeSettingsPage,
     settingsSidebarButtons,
     refreshTerminalSessions,
-    closePluginPage,
     runLauncherItem,
     handleLauncherKey,
     onLauncherDismiss,
@@ -146,9 +144,6 @@ export function useAppKeyboard(options: {
           return;
         case "close-settings":
           closeSettings();
-          return;
-        case "close-plugin":
-          closePluginPage();
           return;
         case "return-to-input":
           returnToInputMode();
@@ -314,18 +309,6 @@ export function useAppKeyboard(options: {
           changeSettingsPage(next);
           if (next === "sessions") void refreshTerminalSessions();
           return;
-        }
-        return;
-      }
-
-      if (mode === "plugin") {
-        // While the plugin page (a sandboxed iframe) owns focus it claims its
-        // own keys; presses that reach here found the host still holding the
-        // keyboard and must not fall through to launcher handling. Esc and
-        // Cmd/Ctrl+W close, matching what the page itself does with them.
-        const dismiss = resolveDismissRule(mode, event, shortcuts);
-        if (dismiss) {
-          runDismissAction(dismiss, event);
         }
         return;
       }

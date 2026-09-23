@@ -8,17 +8,9 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
-  // Plugin pages are separate HTML documents (each becomes a sandboxed iframe
-  // inside the app window), so they build as their own Vite entry points.
-  build: {
-    rollupOptions: {
-      input: {
-        main: "index.html",
-        "plugins/clipboard": "plugins/clipboard/index.html",
-        "plugins/browser/page": "plugins/browser/page.html",
-      },
-    },
-  },
+  // R33 · the built-in iframe plugin pages are retired, so the app has exactly
+  // one entry point again: the launcher/settings/terminal document. There is no
+  // second HTML chunk in the build any more.
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

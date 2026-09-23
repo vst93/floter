@@ -140,23 +140,18 @@ test("the host raises the page's feedback on the app stack, one pipeline", async
   assert.match(app, /onNotify=\{notify\}/, "App hands its notify to the plugin host");
 });
 
-test("App's notify grew an optional action slot and the plugin layer is untouched", async () => {
+test("App's notify grew an optional action slot and no plugin layer is left", async () => {
   const app = await read("src/App.tsx");
   assert.match(
     app,
     /const notify = useCallback\(\s*\(kind: ToastKind, text: string, action\?: ToastAction\)/,
     "notify must accept an optional action without changing its existing call shape",
   );
-  // Keep-alive hard red line: the layer is still the first sibling in all four
-  // modes, the toast host second, and the host's own props are the only change.
-  assert.equal((app.match(/\{pluginLayer\}/g) ?? []).length, 4);
-  const start = app.indexOf("const pluginLayer = (");
-  const jsx = code(app.slice(start, app.indexOf("const toastHost = (", start)));
-  assert.ok(!/\bkey=/.test(jsx), "the plugin layer must stay unkeyed");
-  assert.ok(
-    !/<ToastHost|TOAST_PORTAL_ID|floter-app-toasts/.test(jsx),
-    "the toast host must not move inside the plugin layer",
-  );
+  // R33 · the plugin layer is retired with the iframe page; the toast host is
+  // now the leading sibling of every mode tree and nothing may hide it inside
+  // a plugin wrapper again.
+  assert.equal((app.match(/\{pluginLayer\}/g) ?? []).length, 0);
+  assert.ok(!app.includes("const pluginLayer = ("), "the plugin layer must be gone");
 });
 
 // ── 2 · the page's notice is gone, at the source ──────────────────────────

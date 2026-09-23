@@ -37,10 +37,15 @@ const rules = (css: string) => {
 test("the topbar is rendered inside the plugin host, never as a new sibling layer", async () => {
   const host = await read("src/plugins/PluginPageHost.tsx");
   const app = await read("src/App.tsx");
-  // Keep-alive invariant carried forward: one host instance, hoisted, spread
-  // into all four mode trees as the stable leading sibling.
-  assert.equal((app.match(/<PluginPageHost\b/g) ?? []).length, 1);
-  assert.equal((app.match(/\{pluginLayer\}/g) ?? []).length, 4);
+  // R33 · the built-in pages are retired, so App no longer mounts the host or
+  // its layer. The component keeps its own chrome contract for the external
+  // pages the published protocol still exists to host.
+  assert.equal(
+    (app.match(/<PluginPageHost\b/g) ?? []).length,
+    0,
+    "the retired host must not be mounted",
+  );
+  assert.equal((app.match(/\{pluginLayer\}/g) ?? []).length, 0);
   // The topbar markup is inside the host component's own tree. The host's root
   // is `.plugin-page-host`; the header must appear after that opening tag and
   // before the component's closing brace, i.e. within the same subtree.
@@ -48,16 +53,6 @@ test("the topbar is rendered inside the plugin host, never as a new sibling laye
   assert.ok(rootTag > -1, "the host must render its root element");
   const topbar = host.indexOf("plugin-page-host__topbar");
   assert.ok(topbar > rootTag, "the topbar must live inside .plugin-page-host");
-  // And the layer itself gains no new child: its only element is the host.
-  assert.equal(
-    (app.match(/className="plugin-layer"/g) ?? []).length,
-    1,
-    "the plugin layer must stay a single wrapper around the one host",
-  );
-  assert.ok(
-    !/plugin-layer[\s\S]{0,400}?plugin-page-host__topbar/.test(app),
-    "the topbar must not be hoisted into App.tsx beside the layer",
-  );
 });
 
 test("the topbar is 28px chrome with a title and a close control on the type ramp", async () => {
@@ -98,13 +93,15 @@ test("the topbar carries no material of its own — zero literal blur, zero fill
 
 test("the topbar reuses the host's drag handler instead of inventing a second one", async () => {
   const host = await read("src/plugins/PluginPageHost.tsx");
-  // The prop is threaded from App's own `startDrag`, so the Windows blur-grace
-  // and the button/input guard apply to plugin chrome exactly as they do to the
-  // settings and terminal bars.
   assert.match(host, /onDragStart:\s*\(event: ReactMouseEvent\)\s*=>\s*void/);
   assert.match(host, /onMouseDown=\{onDragStart\}/);
+  // R33 · App no longer mounts the host, so the prop is threaded by whichever
+  // external page loader mounts it; the host's own contract is what stays.
   const app = await read("src/App.tsx");
-  assert.match(app, /onDragStart=\{startDrag\}/, "App must hand its startDrag to the host");
+  assert.ok(
+    !/<PluginPageHost\b/.test(app),
+    "the retired host must not be mounted from App",
+  );
   // No parallel Tauri drag-region attribute, which would be a second,
   // differently-behaving drag mechanism. Check the code, not the prose: the
   // comment above deliberately names the attribute it is rejecting.

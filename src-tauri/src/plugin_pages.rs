@@ -43,9 +43,10 @@ pub struct PluginPageDescriptor {
     pub title_key: &'static str,
     /// i18n key for the one-line description.
     pub description_key: &'static str,
-    /// Page asset path relative to the frontend root. Built-in pages ship in
-    /// the bundled frontend dist; external integrations will point at a
-    /// `page.html` inside their own directory instead.
+    /// Page asset path relative to the frontend root, or `""` when the plugin
+    /// has no page. R33 retired every built-in page onto the launcher's generic
+    /// configuration overlay, so the built-in slots are empty; a future
+    /// external integration would point this at a `page.html` in its own dir.
     pub page: &'static str,
     /// The only commands the bridge will invoke on this page's behalf.
     pub allowed_commands: &'static [&'static str],
@@ -87,14 +88,17 @@ static DESCRIPTORS: &[PluginPageDescriptor] = &[
         id: CLIPBOARD_PLUGIN_ID,
         title_key: "settings.clipboardHistory",
         description_key: "settings.clipboardHistoryHint",
-        page: "plugins/clipboard/index.html",
+        // R33 · the built-in iframe pages are retired. The descriptor keeps
+        // its empty page slot (and its whole allowlist) so the registry shape
+        // external plugin pages will use is already here; nothing opens it.
+        page: "",
         allowed_commands: CLIPBOARD_COMMANDS,
     },
     PluginPageDescriptor {
         id: BROWSER_PLUGIN_ID,
         title_key: "settings.browser",
         description_key: "settings.browserHint",
-        page: "plugins/browser/page.html",
+        page: "",
         allowed_commands: BROWSER_COMMANDS,
     },
 ];
@@ -157,7 +161,9 @@ pub struct BuiltinPluginInfo {
     pub id: String,
     pub title_key: String,
     pub description_key: String,
-    /// Whether the plugin declares an HTML page (all of them do today).
+    /// R33 · whether the plugin declares an HTML page. Both built-ins were
+    /// retired onto the launcher's generic configuration overlay, so this is
+    /// false for every descriptor today; the field stays for external pages.
     pub has_page: bool,
     pub enabled: bool,
 }
@@ -184,7 +190,7 @@ pub fn builtin_plugin_infos(
             id: descriptor.id.to_string(),
             title_key: descriptor.title_key.to_string(),
             description_key: descriptor.description_key.to_string(),
-            has_page: true,
+            has_page: false,
             // The persisted state of the clipboard base plugin lives in its
             // long-standing settings field; there is exactly one switch, and
             // this is where it reads from.
@@ -238,7 +244,7 @@ pub fn open_plugin_page(app: &AppHandle, id: &str) {
         let _ = crate::reveal_saved_mode(&window, &state);
     }
     let _ = window.emit(
-        "floter://plugin-page",
+        "floter://plugin-config",
         PluginPageEvent {
             id: id.to_string(),
             toggle: false,
@@ -261,7 +267,7 @@ pub fn toggle_plugin_page(app: &AppHandle, id: &str) {
         let _ = crate::reveal_saved_mode(&window, &state);
     }
     let _ = window.emit(
-        "floter://plugin-page",
+        "floter://plugin-config",
         PluginPageEvent {
             id: id.to_string(),
             toggle: was_visible,
@@ -276,7 +282,7 @@ mod tests {
     #[test]
     fn the_registry_contains_the_clipboard_page_with_its_commands() {
         let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
-        assert_eq!(clipboard.page, "plugins/clipboard/index.html");
+        assert_eq!(clipboard.page, "", "the clipboard page is retired (R33)");
         assert!(clipboard
             .allowed_commands
             .contains(&"clipboard_get_entries"));
@@ -310,7 +316,7 @@ mod tests {
     #[test]
     fn the_registry_contains_the_browser_page_with_its_commands() {
         let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
-        assert_eq!(browser.page, "plugins/browser/page.html");
+        assert_eq!(browser.page, "", "the browser page is retired (R33)");
         for command in [
             "browser_search_bookmarks",
             "browser_search_history",
@@ -343,15 +349,15 @@ mod tests {
     }
 
     #[test]
-    fn every_descriptor_has_a_unique_id_and_a_root_relative_page() {
+    fn every_descriptor_has_a_unique_id_and_no_registered_page() {
         let mut ids: Vec<&str> = Vec::new();
         for entry in all_descriptors() {
             assert!(!ids.contains(&entry.id), "duplicate plugin id {}", entry.id);
             ids.push(entry.id);
-            assert!(
-                entry.page.starts_with("plugins/"),
-                "page must be sandboxed under its own directory"
-            );
+            // R33 · the built-in iframe pages are retired: a registered path
+            // would be a page nothing is allowed to open. A future external
+            // page may set one; today the slot is empty for everyone.
+            assert!(entry.page.is_empty(), "no built-in page may be registered");
             assert!(!entry.allowed_commands.is_empty());
         }
         assert!(!ids.is_empty());
@@ -380,7 +386,10 @@ mod tests {
             browser.enabled,
             "the browser plugin ships switched on"
         );
-        assert!(browser.has_page, "the browser row opens its settings page");
+        assert!(
+            !browser.has_page,
+            "R33 · the built-in pages are retired; the row opens the overlay instead"
+        );
         assert_eq!(browser.title_key, "settings.browser");
         assert_eq!(browser.description_key, "settings.browserHint");
     }

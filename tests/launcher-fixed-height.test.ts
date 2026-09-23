@@ -136,13 +136,13 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherBand = resolveLauncherBand\(launcherBandRef\.current, launcherRows\);/,
-    "the band is resolved from the row count with the sticky hysteresis",
+    /const launcherHeldRows = resolveLauncherRows\(launcherRowsRef\.current, launcherRows\);/,
+    "the row count is resolved from the raw count with the sticky hysteresis",
   );
   assert.match(
     app,
-    /const launcherHeight = launcherBandHeight\(\s*launcherBand,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*launcherScope === "browser",\s*\);/,
-    "the window height is the band's, never above the full slab, with the bar, the section title and the browser filter charged only when they are drawn",
+    /const launcherHeight = launcherRowHeight\(\s*launcherHeldRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*launcherScope === "browser",\s*\);/,
+    "the window height is the row count's, never above the full slab, with the bar, the section title and the browser filter charged only when they are drawn",
   );
   assert.match(
     app,
@@ -416,87 +416,89 @@ test("collapsed mode asks for the window height once, and typing never asks agai
   }
 });
 
-// R26-D · the slab now has discrete sizes.
+// R34 · the slab's sizes are now per-row.
 //
-// R25 made the window a single constant; the user's second report is that this
-// padded short content into a tall empty panel — 「现在搜索页好像固定了高度，
-// 搜索和书签列表页高度都受到了影响」. The fix keeps “a keystroke never moves
-// the window” and adds bands: the window snaps to the smallest band that holds
-// the rows it is drawing, and a band is sticky so a count oscillating across a
-// boundary cannot resize.
-test("R26-D · the window height is a discrete band, and a band is sticky", async () => {
+// R26-D quantised the window into four bands (1 / 3 / 6 / 9 rows); the user's
+// next report is that the quantisation itself is the problem — 「搜索页高度应该随
+// 着选项列表高度自适应，现在最大高度就行了」. Four, five, seven and eight rows
+// each landed in the next band up and left empty rows under the list. The fix
+// keeps the band model's two properties (a keystroke never moves the window
+// inside a row count; a boundary oscillation does not flap) and makes the row
+// count the height.
+test("R34 · the window height is per-row, and the row count is sticky", async () => {
   const budget = await import("../src/launcher/result-budget.ts");
   const {
-    LAUNCHER_HEIGHT_BANDS,
     LAUNCHER_WINDOW_HEIGHT,
-    launcherBandHeight,
-    launcherBandIndex,
-    launcherBandUnits,
-    resolveLauncherBand,
+    clampLauncherRows,
+    launcherRowHeight,
+    launcherRowUnits,
+    MAX_RESULTS,
+    resolveLauncherRows,
   } = budget;
 
-  // The band a count belongs to, ignoring the current one. R27 · the table is
-  // 1 / 3 / 6 / 9 rows, so the first band is a *single* row: a query that
-  // matched nothing (field + the one fixed clipboard row) lands there instead
-  // of in a band sized for two rows.
-  assert.equal(launcherBandIndex(1), 0);
-  assert.equal(launcherBandIndex(2), 1);
-  assert.equal(launcherBandIndex(3), 1);
-  assert.equal(launcherBandIndex(4), 2);
-  assert.equal(launcherBandIndex(6), 2);
-  assert.equal(launcherBandIndex(7), 3);
-  assert.equal(launcherBandIndex(9), 3);
-
-  // The top band is the full slab; the shorter bands are genuinely shorter.
-  assert.equal(launcherBandHeight(3, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
-  assert.ok(launcherBandHeight(0, 1, LAUNCHER_WINDOW_HEIGHT) < LAUNCHER_WINDOW_HEIGHT);
-  assert.ok(
-    launcherBandHeight(1, 1, LAUNCHER_WINDOW_HEIGHT) <
-      launcherBandHeight(2, 1, LAUNCHER_WINDOW_HEIGHT),
-    "the middle band sits between compact and full",
-  );
-  // …and each band's height holds its capacity rows at the worst-case row
-  // height: field 42 + breath 4 + panel top 4 + rows×42 + gap 3 + bar 42 + tail 2.
-  for (const [index, band] of LAUNCHER_HEIGHT_BANDS.entries()) {
+  // A count *is* the height: each row adds exactly one worst-case row, so four
+  // rows are four rows tall instead of landing in a six-row band.
+  for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
+    assert.equal(clampLauncherRows(rows), rows);
     assert.ok(
-      launcherBandUnits(index) >= 97 + band.capacity * 42,
-      `band ${index} (${band.capacity} rows) must hold its rows without scrolling`,
+      launcherRowUnits(rows) >= 97 + rows * 42,
+      `${rows} rows must hold their rows without scrolling`,
     );
+    if (rows > 1) {
+      assert.equal(
+        launcherRowUnits(rows) - launcherRowUnits(rows - 1),
+        42,
+        "each extra row adds exactly one worst-case row",
+      );
+    }
   }
+  // The top is still the R25 slab.
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 475);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 527);
+  assert.ok(
+    launcherRowHeight(8, 1, LAUNCHER_WINDOW_HEIGHT) <
+      launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
+    "eight rows are genuinely shorter than nine",
+  );
 
-  // Growing is immediate; shrinking waits a row below the floor (hysteresis).
-  assert.equal(resolveLauncherBand(0, 3), 1, "3 rows opens the second band");
-  assert.equal(resolveLauncherBand(1, 3), 1, "3 rows keeps it (its own floor)");
-  assert.equal(resolveLauncherBand(1, 2), 1, "2 rows still keeps it (hysteresis)");
-  assert.equal(resolveLauncherBand(1, 1), 0, "1 row steps down to the compact band");
-  assert.equal(resolveLauncherBand(2, 6), 2, "6 rows keeps the middle band");
-  assert.equal(resolveLauncherBand(2, 5), 2, "5 rows still keeps it (its own floor)");
-  assert.equal(resolveLauncherBand(2, 4), 2, "4 rows still keeps it (hysteresis)");
-  assert.equal(resolveLauncherBand(2, 3), 1, "3 rows steps down to the second band");
-  assert.equal(resolveLauncherBand(3, 6), 3, "6 rows still keeps the full band (hysteresis)");
-  assert.equal(resolveLauncherBand(3, 5), 2, "5 rows steps down from the full band");
-  assert.equal(resolveLauncherBand(0, 9), 3, "a full list jumps straight to the slab");
+  // Growing is immediate; shrinking waits a row below the held count. The 1↔2
+  // boundary the user named never oscillates.
+  assert.equal(resolveLauncherRows(1, 4), 4, "4 rows opens four rows");
+  assert.equal(resolveLauncherRows(4, 4), 4, "4 rows keeps four rows");
+  assert.equal(resolveLauncherRows(4, 3), 4, "3 rows is absorbed (hysteresis)");
+  assert.equal(resolveLauncherRows(4, 2), 2, "2 rows steps down");
+  assert.equal(resolveLauncherRows(2, 1), 2, "1 row is absorbed at the 1↔2 edge");
+  assert.equal(resolveLauncherRows(2, 2), 2, "2 rows keeps it");
+  assert.equal(resolveLauncherRows(9, 1), 1, "a genuinely short list steps down");
+  // Clamped at both ends.
+  assert.equal(resolveLauncherRows(9, 40), MAX_RESULTS, "never taller than the slab");
+  assert.equal(resolveLauncherRows(1, 0), 1, "never shorter than one row");
 
-  // The typing session the fix is about: the count moves inside one band and
-  // back; no boundary is crossed, so no band — and therefore no window — moves.
-  let band = resolveLauncherBand(0, 9);
+  // The typing session the fix is about: a one-row shrink does not move the
+  // window, the same count never does, and a two-row drop moves it once.
+  let held = resolveLauncherRows(1, 9);
   const moves: number[] = [];
-  const step = (rows: number) => {
-    const next = resolveLauncherBand(band, rows);
-    if (next !== band) {
-      band = next;
-      moves.push(launcherBandHeight(band, 1, LAUNCHER_WINDOW_HEIGHT));
+  const step = (next: number) => {
+    const resolved = resolveLauncherRows(held, next);
+    if (resolved !== held) {
+      held = resolved;
+      moves.push(launcherRowHeight(held, 1, LAUNCHER_WINDOW_HEIGHT));
     }
   };
-  for (const rows of [9, 8, 7, 6, 9, 8, 7, 6]) step(rows);
-  assert.deepEqual(moves, [], "no resize while the count stays inside the full band");
-  step(5);
-  assert.equal(moves.length, 1, "dropping to five rows steps the window down once");
-  for (const rows of [5, 6, 5, 6]) step(rows);
-  assert.equal(moves.length, 1, "5↔6 does not flap the window");
+  for (const count of [9, 8, 9, 8]) step(count);
+  assert.deepEqual(moves, [], "8↔9 never moves the window");
+  step(7);
+  assert.equal(moves.length, 1, "dropping two rows moves it once");
+  // Growing back is a real content change and lands immediately; the
+  // oscillation that follows it never moves again (the shrink is absorbed).
+  step(8);
+  assert.equal(moves.length, 2, "7→8 grows once");
+  for (const count of [7, 8, 7, 8]) step(count);
+  assert.equal(moves.length, 2, "7↔8 does not flap after the first growth");
 });
 
-// R27 · the band charges the action bar only when the bar is drawn.
+// R27 · the height charges the action bar only when the bar is drawn.
 //
 // The user's third report on this area is 「当选项很少或者没有的时候，底部还是会
 // 强制留出一段高度」. R26-D gave the window discrete sizes, but every band still
@@ -505,47 +507,45 @@ test("R26-D · the window height is a discrete band, and a band is sticky", asyn
 // shell fallback) and both plugin modes (`useLauncherCatalog` returns no action
 // bar inside them). A one-row launcher therefore sat in a window 45u taller
 // than its content.
-test("R27 · a band charges the action bar only when the bar is drawn", async () => {
+test("R27 · a row count charges the action bar only when the bar is drawn", async () => {
   const budget = await import("../src/launcher/result-budget.ts");
   const {
-    LAUNCHER_BAND_BAR_UNITS,
-    LAUNCHER_HEIGHT_BANDS,
+    LAUNCHER_ACTION_BAR_UNITS,
     LAUNCHER_WINDOW_HEIGHT,
-    launcherBandChrome,
-    launcherBandHeight,
-    launcherBandUnits,
+    launcherRowChrome,
+    launcherRowHeight,
+    launcherRowUnits,
     MAX_RESULTS,
   } = budget;
 
   // The full slab is unchanged while the bar is drawn — that is R25's constant,
   // and the settings-panel/launcher-height round trip depends on it.
-  const top = LAUNCHER_HEIGHT_BANDS.length - 1;
-  assert.equal(launcherBandUnits(top, true), 475);
-  assert.equal(launcherBandHeight(top, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherBandHeight(top, 1, LAUNCHER_WINDOW_HEIGHT), 527);
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 475);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 527);
 
   // Without the bar, exactly the bar's own segment comes off — nothing else.
-  for (const index of LAUNCHER_HEIGHT_BANDS.keys()) {
+  for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
     assert.equal(
-      launcherBandUnits(index, false),
-      launcherBandUnits(index, true) - LAUNCHER_BAND_BAR_UNITS,
-      `band ${index} without its bar is exactly one bar shorter`,
+      launcherRowUnits(rows, false),
+      launcherRowUnits(rows, true) - LAUNCHER_ACTION_BAR_UNITS,
+      `${rows} rows without its bar is exactly one bar shorter`,
     );
   }
 
-  // The one-row band is the empty launcher: field 42 + breath 4 + panel top 4 +
-  // one 42u row + tail 2 = 94u, plus the 1px frame top and bottom and the
+  // The one-row launcher is the empty launcher: field 42 + breath 4 + panel top
+  // 4 + one 42u row + tail 2 = 94u, plus the 1px frame top and bottom and the
   // scroller's 4px reservation — no bar, no section title, no row gaps.
-  assert.equal(launcherBandUnits(0, false), 94);
-  assert.equal(launcherBandChrome(0), 2 + 4);
-  assert.equal(launcherBandHeight(0, 1, LAUNCHER_WINDOW_HEIGHT, false), 100);
+  assert.equal(launcherRowUnits(1, false), 94);
+  assert.equal(launcherRowChrome(1), 2 + 4);
+  assert.equal(launcherRowHeight(1, 1, LAUNCHER_WINDOW_HEIGHT, false), 100);
   // …and the empty-query section title is chrome, not a row.
-  assert.equal(launcherBandChrome(0, true), 2 + 4 + 26);
+  assert.equal(launcherRowChrome(1, true), 2 + 4 + 26);
 
-  // A short band's chrome counts the gaps it really has; the top band keeps the
-  // R25 ceiling so the full slab stays 527px (a ceiling, not a measurement).
-  assert.equal(launcherBandChrome(1), 2 + 4 + 2);
-  assert.equal(launcherBandChrome(2), 2 + 4 + 5);
-  assert.equal(launcherBandChrome(top), 52);
-  assert.equal(LAUNCHER_HEIGHT_BANDS[top].capacity, MAX_RESULTS);
+  // A short count's chrome counts the gaps it really has; the nine-row top
+  // keeps the R25 ceiling so the full slab stays 527px (a ceiling, not a
+  // measurement).
+  assert.equal(launcherRowChrome(2), 2 + 4 + 1);
+  assert.equal(launcherRowChrome(3), 2 + 4 + 2);
+  assert.equal(launcherRowChrome(MAX_RESULTS), 52);
 });

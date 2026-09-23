@@ -76,7 +76,9 @@ test("the backend registers the browser page with exactly its allowlist", async 
     "the browser plugin id is a literal constant",
   );
   assert.match(rust, /id: BROWSER_PLUGIN_ID,/);
-  assert.match(rust, /page: "plugins\/browser\/page\.html"/);
+  // R33 · the built-in page path is retired; the allowlist stays (the overlay
+  // and the launcher mode invoke these commands directly).
+  assert.match(rust, /page: "",/, "no built-in page path may be registered");
 
   // The allowlist literal, read from the file rather than re-derived, so a
   // command added in one place and not the other fails here.
@@ -119,14 +121,16 @@ test("the two plugin pages never share a command", async () => {
   }
 });
 
-test("every registered page exists on disk and stays under plugins/", async () => {
+test("no built-in page path is registered any more", async () => {
   const rust = await read("src-tauri/src/plugin_pages.rs");
-  const pages = [...rust.matchAll(/page: "([^"]+)"/g)].map((match) => match[1]);
-  assert.ok(pages.length >= 2, "both builtin pages must be registered");
+  const pages = [...rust.matchAll(/page: "([^"]*)"/g)].map((match) => match[1]);
+  assert.ok(pages.length >= 2, "both descriptors must still exist");
   for (const page of pages) {
-    assert.ok(page.startsWith("plugins/"), `${page} must live under plugins/`);
-    assert.ok(await exists(page), `${page} is registered but missing from the tree`);
+    assert.equal(page, "", "R33 · every built-in page slot must be empty");
   }
+  // And the documents the slots used to name are gone from the tree.
+  assert.equal(await exists("plugins/browser/page.html"), false);
+  assert.equal(await exists("plugins/clipboard/index.html"), false);
 });
 
 test("the frontend's plugin id mirrors the backend's literal", async () => {
@@ -142,22 +146,25 @@ test("the frontend's plugin id mirrors the backend's literal", async () => {
 
 // ── 2 · the page ───────────────────────────────────────────────────────────
 
-test("the browser page ships as a document with its entry point and stylesheet", async () => {
-  assert.ok(await exists(PAGE_HTML), "the registered page must exist");
-  assert.ok(await exists(PAGE_MAIN), "the page entry point must exist");
-  assert.ok(await exists(PAGE_CSS), "the page stylesheet must exist");
-
-  const html = await read(PAGE_HTML);
-  assert.match(html, /<div id="root"><\/div>/);
-  assert.match(html, /src="\/src\/plugins\/browser\/main\.ts"/);
+test("the browser page document is retired; its logic module is retained", async () => {
+  // R33 · the iframe document and its Vite entry are gone, so nothing can load
+  // the built-in page. The page's own source stays in the tree because the
+  // published bridge protocol (and its tests) still exercise it; a future
+  // external page loader would mount the same host.
+  assert.equal(await exists(PAGE_HTML), false, "the retired document must be gone");
+  assert.ok(await exists(PAGE_MAIN), "the retained page source must stay");
+  assert.ok(await exists(PAGE_CSS), "the retained page stylesheet must stay");
 });
 
-test("the page builds as its own Vite entry point", async () => {
+test("the build carries no iframe page entry point", async () => {
   const config = await read("vite.config.ts");
-  assert.match(
-    config,
-    /"plugins\/browser\/page": "plugins\/browser\/page\.html"/,
-    "a page that is not a Vite input is not in the bundle the descriptor points at",
+  assert.ok(
+    !/plugins\/(browser|clipboard)/.test(config),
+    "R33 · the retired pages must not be Vite inputs any more",
+  );
+  assert.ok(
+    !config.includes("rollupOptions"),
+    "there is one entry point again: the app document",
   );
 });
 

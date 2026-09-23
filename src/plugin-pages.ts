@@ -1,7 +1,14 @@
-// Pure logic behind floter's generic plugin HTML pages: the postMessage
-// bridge protocol between a plugin page and the host app, page URL building,
-// and allowlist checks. Kept free of React and Tauri so the node test suite
-// can exercise it directly (see tests/plugin-pages.test.ts).
+// Pure logic behind floter's plugin surfaces: the base-plugin registry the
+// settings panel renders, the generic postMessage bridge protocol between a
+// plugin page and the host app, page URL building, and allowlist checks. Kept
+// free of React and Tauri so the node test suite can exercise it directly.
+//
+// R33 · the built-in iframe pages are retired. Their configuration is now the
+// launcher's `PluginConfigOverlay`, driven by the schema in
+// `src/plugins/config-schema.ts`; nothing in the app opens an iframe any more.
+// The bridge below is kept as the *published* external-page protocol (see
+// docs/extensions/plugin-page-protocol.md) — a capability with no built-in
+// consumer, not a second settings surface.
 //
 // The contract: a plugin page runs in a sandboxed iframe. External pages use
 // an opaque origin (no same-origin, no Tauri APIs); the trusted built-in page
@@ -512,8 +519,10 @@ export type BuiltinBasePlugin = {
    *  `browser_plugin.enabled`. A future always-on plugin would render no switch
    *  rather than a dead one. */
   toggleable: boolean;
-  /** Whether the plugin declares an HTML settings page the row can open. */
-  hasPage: boolean;
+  /** R33 · whether the plugin has a declarative configuration schema the row
+   *  can open in the launcher's generic overlay. Both built-ins do; a plugin
+   *  without one renders no Configure button. */
+  configurable: boolean;
   /** Optional extra note rendered under the row (e.g. the clipboard privacy
    *  line). A plugin without one renders nothing extra. */
   privacyKey?: MessageKey;
@@ -537,7 +546,7 @@ export const BUILTIN_BASE_PLUGINS: readonly BuiltinBasePlugin[] = [
     titleKey: "settings.clipboardHistory",
     descriptionKey: "settings.clipboardHistoryHint",
     toggleable: true,
-    hasPage: true,
+    configurable: true,
     privacyKey: "settings.clipboardPrivacy",
   },
   {
@@ -545,7 +554,7 @@ export const BUILTIN_BASE_PLUGINS: readonly BuiltinBasePlugin[] = [
     titleKey: "settings.browser",
     descriptionKey: "settings.browserHint",
     toggleable: true,
-    hasPage: true,
+    configurable: true,
   },
 ];
 

@@ -1,8 +1,9 @@
-import { Fragment, useLayoutEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Translate } from "../i18n";
 import type { LocalApplication } from "../App";
 import { formatResultShortcut } from "../shortcuts";
 import { resultRowContent } from "./row-content";
+import { visibleRowRange, type RowSpan, type VisibleRowRange } from "./result-budget";
 import {
   Terminal as TerminalIcon,
   History as HistoryIcon,
@@ -268,6 +269,11 @@ type LauncherResultsProps = {
   onSelectActionBar: () => void;
   onRunResult: (item: LauncherItem) => void;
   onRunActionBar: () => void;
+  /** R34 · the scroller's visible rows, reported whenever they change (scroll,
+   *  resize, a new result set). App turns this into the numbered `⌘N` slots, so
+   *  the badges and the key handler follow the viewport. Omitted by the node
+   *  tests, which drive the slot map directly. */
+  onVisibleRowsChange?: (range: VisibleRowRange) => void;
 };
 
 /** The launcher's result list plus the action bar row beneath it. Pure
@@ -291,6 +297,7 @@ export function LauncherResults({
   onSelectActionBar,
   onRunResult,
   onRunActionBar,
+  onVisibleRowsChange,
 }: LauncherResultsProps) {
   // R14/R31 · the scroll-edge band is no longer painted on the launcher's
   // list. R14 gated it on the scroller's measured box so a list that already fit
@@ -304,6 +311,74 @@ export function LauncherResults({
   // a loading line while a page is in flight, an end line once every row shows,
   // and nothing (the scroll itself is the affordance) while more remain.
   const pluginFooter = pluginFooterState(pluginPage, pluginLoadingMore);
+
+  // R34 · the scroll viewport → the numbered `⌘N` slots. The scroller measures
+  // which rows are on screen and reports the half-open index range to App, which
+  // turns it into the badges and the key map (see `shortcutSlotsWithFixedTail`).
+  // "What you see is what you select": scrolling renumbers the list.
+  //
+  // The measurement is the only DOM-aware half; the range itself comes from
+  // `visibleRowRange` in `result-budget.ts`, so the rule is testable without a
+  // DOM. The report is deduplicated against the last one, so an App re-render
+  // triggered by a range change cannot loop back into another report.
+  const reportedRange = useRef<VisibleRowRange | null>(null);
+  const measureVisibleRows = useCallback(() => {
+    const list = resultsRef.current;
+    if (!list || !onVisibleRowsChange) return;
+    const listRect = list.getBoundingClientRect();
+    const spans: Array<RowSpan | null> = results.map(() => null);
+    list.querySelectorAll<HTMLElement>('button[id^="launcher-option-"]').forEach((row) => {
+      const index = Number(row.id.slice("launcher-option-".length));
+      if (!Number.isInteger(index) || index < 0 || index >= spans.length) return;
+      const rect = row.getBoundingClientRect();
+      spans[index] = {
+        top: rect.top - listRect.top + list.scrollTop,
+        height: rect.height,
+      };
+    });
+    const range = visibleRowRange(spans, list.scrollTop, list.clientHeight);
+    const previous = reportedRange.current;
+    if (previous && previous.start === range.start && previous.end === range.end) return;
+    reportedRange.current = range;
+    onVisibleRowsChange(range);
+  }, [results, onVisibleRowsChange]);
+  // One report per frame, at most: a scroll is a stream of events and the
+  // badges only have to keep up with the paint. The fallback keeps the helper
+  // drivable outside a WebView (the node suite has no `requestAnimationFrame`).
+  const visibleReportFrame = useRef(0);
+  const scheduleVisibleRows = useCallback(() => {
+    if (visibleReportFrame.current) return;
+    const run = () => {
+      visibleReportFrame.current = 0;
+      measureVisibleRows();
+    };
+    visibleReportFrame.current =
+      typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame(run)
+        : (setTimeout(run, 16) as unknown as number);
+  }, [measureVisibleRows]);
+  // Measure once per result set, in the layout pass, so the badges are correct
+  // before the frame that first shows the new list paints.
+  useLayoutEffect(() => {
+    measureVisibleRows();
+  }, [measureVisibleRows]);
+  // The list's own box can change without a scroll (the window resizing, the
+  // interface step changing); re-report when it does.
+  useEffect(() => {
+    const list = resultsRef.current;
+    if (!list || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => scheduleVisibleRows());
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [scheduleVisibleRows, results.length]);
+  useEffect(
+    () => () => {
+      if (!visibleReportFrame.current) return;
+      if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(visibleReportFrame.current);
+      else clearTimeout(visibleReportFrame.current);
+    },
+    [],
+  );
 
   // R30 · keyboard navigation walks the whole *loaded* list, not only the nine
   // rows the scroller's ceiling shows, so the row the selection lands on can be
@@ -352,6 +427,9 @@ export function LauncherResults({
           // keeps a plain scroller. The check is the scroller's own geometry, so
           // it stays correct through a window resize without a second budget.
           onScroll={(event) => {
+            // R34 · the numbered slots follow the viewport, so every scroll is
+            // a re-measure (rAF-throttled).
+            scheduleVisibleRows();
             if (!onLoadMore || !pluginPage?.hasMore || pluginLoadingMore) return;
             const node = event.currentTarget;
             const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;

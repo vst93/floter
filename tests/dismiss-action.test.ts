@@ -33,6 +33,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { DISMISS_TABLE } from "../src/surface-policy.ts";
 
 const ROOT = new URL("../", import.meta.url);
 const readText = (path: string) => readFileSync(new URL(path, ROOT), "utf8");
@@ -327,7 +328,6 @@ function makeHarness(options: {
 test("every dismiss action consumes the press (preventDefault)", () => {
   const cases: Array<[string, string]> = [
     ["settings", "close-settings"],
-    ["plugin", "close-plugin"],
     ["collapsed", "hide-window"],
     ["terminal", "return-to-input"],
   ];
@@ -362,18 +362,16 @@ test("settings ⌘W dispatches close-settings and stops propagation", () => {
   assert.deepEqual(h.calls.closePluginPage, [], "close-plugin must NOT run for settings");
 });
 
-test("plugin ⌘W dispatches close-plugin and stops propagation", () => {
-  const h = makeHarness({
-    mode: "plugin",
-    dismiss: { action: "close-plugin", stopPropagation: true },
-  });
-  const event = keyEvent({ key: "w", code: "KeyW", ctrlKey: true });
-  h.api.onKeyDown(event);
-
-  assert.equal(event.preventCalls, 1);
-  assert.equal(event.stopCalls, 1, "the plugin ⌘W rule must stop propagation");
-  assert.deepEqual(h.calls.closePluginPage, [1]);
-  assert.deepEqual(h.calls.closeSettings, [], "close-settings must NOT run for plugin");
+test("the retired plugin surface has no dismiss rule left in the table", () => {
+  // R33 · the plugin page is gone; its configuration is an overlay inside the
+  // collapsed surface, and Esc there is the launcher's own three-level rule
+  // (`onLauncherDismiss`), not a window-level `close-plugin` action. A stale
+  // table row would be a key handler for a surface that no longer exists.
+  assert.equal(
+    (DISMISS_TABLE as Record<string, unknown>).plugin,
+    undefined,
+    "the plugin row must be removed, not merely unreachable",
+  );
 });
 
 test("a rule without stopPropagation leaves propagation alone", () => {
@@ -463,7 +461,7 @@ test("the 1500ms timeout disarms the keyup re-arm if no release arrives", () => 
 });
 
 test("only the reassertOnKeyUp rule installs a keyup re-arm", () => {
-  for (const action of ["close-settings", "close-plugin", "hide-window", "return-to-input"]) {
+  for (const action of ["close-settings", "hide-window", "return-to-input"]) {
     const h = makeHarness({ mode: "collapsed", dismiss: { action } });
     h.api.onKeyDown(keyEvent({ key: "Escape", code: "Escape" }));
     assert.equal(

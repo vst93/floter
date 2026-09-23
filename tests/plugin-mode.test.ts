@@ -15,11 +15,10 @@ import test from "node:test";
 import type { ClipboardEntry } from "../src/clipboard-history.ts";
 import { createTranslator } from "../src/i18n.ts";
 import {
-  LAUNCHER_HEIGHT_BANDS,
   MAX_RESULTS,
   ROW_HEIGHT_TWO_LINE,
-  launcherBandIndex,
-  resolveLauncherBand,
+  launcherRowUnits,
+  resolveLauncherRows,
   shortcutSlotsWithFixedTail,
 } from "../src/launcher/result-budget.ts";
 import { resultRowContent } from "../src/launcher/row-content.ts";
@@ -206,23 +205,24 @@ test("text has a floor, a ceiling, and scrolls past the ceiling", () => {
   assert.equal(long.rows, MAX_RESULTS, "the ceiling is the nine-row budget, like the list's");
 });
 
-test("the text form folds into the same band table, with the same hysteresis", () => {
+test("the text form folds into the same row heights, with the same hysteresis", () => {
   const rowsFor = (lines: number) =>
     pluginTextMetrics(Array.from({ length: lines }, (_, i) => `l${i}`).join("\n")).rows;
 
-  // A short output lands in a short band; the ceiling lands in the top band,
+  // A short output is genuinely short; the ceiling lands on the nine-row slab,
   // exactly as a nine-row list does.
-  assert.equal(launcherBandIndex(rowsFor(1)), launcherBandIndex(2));
-  assert.equal(launcherBandIndex(rowsFor(40)), launcherBandIndex(MAX_RESULTS));
+  assert.ok(launcherRowUnits(rowsFor(1)) <= launcherRowUnits(rowsFor(2)));
+  assert.ok(launcherRowUnits(rowsFor(1)) < launcherRowUnits(MAX_RESULTS));
+  assert.equal(launcherRowUnits(rowsFor(40)), launcherRowUnits(MAX_RESULTS));
 
-  // The band is sticky — the R26-D rule, unchanged for text: once the top band
-  // is open, a line or two less does not step the window down.
-  const top = LAUNCHER_HEIGHT_BANDS.length - 1;
-  assert.equal(resolveLauncherBand(top, rowsFor(9)), top);
-  assert.equal(resolveLauncherBand(top, 1), launcherBandIndex(1), "a genuinely short output steps down");
+  // The count is sticky — the R34 rule, unchanged for text: once the top is
+  // open, one line less does not step the window down, but two do.
+  assert.equal(resolveLauncherRows(MAX_RESULTS, MAX_RESULTS - 1), MAX_RESULTS, "one row less is absorbed");
+  assert.equal(resolveLauncherRows(MAX_RESULTS, MAX_RESULTS - 2), MAX_RESULTS - 2, "two rows less steps down");
+  assert.equal(resolveLauncherRows(MAX_RESULTS, 1), 1, "a genuinely short output steps down");
 });
 
-test("the view reports the rows the band table reads", () => {
+test("the view reports the rows the row heights read", () => {
   const list = resolvePluginView({ output: [browserRow, clipRow] });
   assert.equal(pluginViewRows(list), 2);
   const text = resolvePluginView({ output: "a\nb\nc\nd\ne\nf\ng" });

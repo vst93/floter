@@ -201,177 +201,137 @@ export const launcherWindowHeight = (scale: number): number =>
   Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * scale + LAUNCHER_WINDOW_HEIGHT_CHROME);
 
 /**
- * R26-D · one height band the launcher window may snap to.
- *
- * The user's report, verbatim: 「现在搜索页好像固定了高度，搜索和书签列表页高度都
- * 受到了影响」. R25 fixed the shake by making the window a single constant slab
- * (`LAUNCHER_WINDOW_HEIGHT`), which is right while a full list is showing and
- * wrong the moment it is not: the empty query, a two-row bookmark search and a
- * three-tab browser list all sat in a 527px window with most of the panel
- * blank. The fix keeps the slab (a keystroke must never move the window) but
- * lets the slab have *discrete* sizes.
- *
- * `capacity` is the worst-case row count the band's height holds — every row
- * two-line, the same assumption the full budget makes. `floor` is the smallest
- * row count that opens the band, i.e. the row below which the window steps back
- * down. The two differ so a count oscillating across a boundary (5↔6 rows while
- * typing) cannot resize: the band holds until the count falls a row *below* its
- * floor.
- *
- * The bands are chosen so each step is one row-shorter than the last in the
- * unit budget and the top band is exactly `LAUNCHER_WINDOW_HEIGHT`: a short
- * list lands compact, a long one lands full, and there is one middle step so the
- * jump from “a couple of rows” to “a full list” is not a single 300px snap.
- */
-export type LauncherHeightBand = { capacity: number; floor: number };
-
 /**
- * The bands, smallest first. The last capacity is always `MAX_RESULTS`.
+ * R34 · the launcher window is **per-row**: its height is the exact height of
+ * the rows it is drawing, not the smallest of four bands that happens to hold
+ * them.
  *
- * R27 · the band table starts at **one** row and the band height no longer
- * reserves an action bar that is not drawn. The user's third report on this
- * area is 「当选项很少或者没有的时候，底部还是会强制留出一段高度」, and the
- * diagnosis was two constants, not one:
+ * The user's report, verbatim: 「搜索页高度应该随着选项列表高度自适应，现在最大
+ * 高度就行了」. R26-D's bands were `1 / 3 / 6 / 9` rows, so four, five, seven and
+ * eight rows each landed in the next band up and left one or two empty rows
+ * under the list — the window read as "always at its maximum height". The fix
+ * keeps every property the band model was built for (a keystroke never moves the
+ * window inside a row count; a boundary oscillation does not flap) and drops the
+ * quantisation: a row count *is* the height.
  *
- *   · the compact band's floor was two rows, so a query that matched nothing —
- *     whose whole content is the field and the one fixed clipboard row — was
- *     drawn in a window sized for two rows plus an action bar; and
- *   · every band reserved the action bar's 45u unconditionally, while the bar
- *     is hidden in exactly the states the report is about (no matched rows, and
- *     both plugin modes, where `useLauncherCatalog` returns no action bar at
- *     all).
+ * `resolveLauncherRows` is the sticky half. It grows immediately — a window one
+ * row short would clip the row — and shrinks only once the count has fallen
+ * {@link LAUNCHER_ROW_HYSTERESIS} rows *below* the held count. The one-row
+ * margin is what makes the `1 ↔ 2` boundary (the empty launcher gaining its
+ * first match) never oscillate: a shrink from two rows to one is absorbed, and
+ * the next growth finds the window already there.
  *
- * So the bands are `1 / 3 / 6 / 9` rows, and {@link launcherBandUnits} takes
- * whether the bar is drawn. A one-row launcher is now field + row + tail with
- * nothing under it — Raycast's empty state, which is the reference the user
- * named.
- *
- * `floor` is the smallest row count that *keeps* the band once it is open. The
- * keep-range of a band is `floor..capacity`; below it the window steps down. The
- * gap between one band's floor and the next band's capacity is what kills the
- * flap at a boundary (see {@link LAUNCHER_BAND_HYSTERESIS}).
+ * The rows are the same worst-case rows the band table charged: every row is
+ * `ROW_HEIGHT_TWO_LINE` (42u), so a row gaining a subtitle does not move the
+ * window (the "same count, no resize" invariant), and the chrome segments
+ * (field, breath, panel insets, the action bar, the browser filter, the
+ * section title) are charged exactly as R27/R32 charged them.
  */
-export const LAUNCHER_HEIGHT_BANDS: readonly LauncherHeightBand[] = [
-  { capacity: 1, floor: 1 },
-  { capacity: 3, floor: 3 },
-  { capacity: 6, floor: 5 },
-  { capacity: MAX_RESULTS, floor: 7 },
-];
 
-/** How many rows below a band's floor the count must fall before the window
+/** How many rows below the held count the launcher must fall before the window
  *  steps down. One is enough: a boundary oscillation is a one-row move, so
  *  requiring a row of margin on the way out kills the flap without making a
- *  genuinely shorter list wait. */
-export const LAUNCHER_BAND_HYSTERESIS = 1;
+ *  genuinely shorter list wait for a second row to disappear. */
+export const LAUNCHER_ROW_HYSTERESIS = 1;
 
-/** The band a row count belongs to, ignoring the current band. The count is
- *  floored at one row — the launcher always draws its fixed clipboard tail. */
-export const launcherBandIndex = (rows: number): number => {
-  const count = Math.max(1, Math.ceil(rows));
-  const index = LAUNCHER_HEIGHT_BANDS.findIndex((band) => count <= band.capacity);
-  return index === -1 ? LAUNCHER_HEIGHT_BANDS.length - 1 : index;
+/** The launcher's row count, floored at one (the fixed clipboard tail is always
+ *  drawn) and capped at the nine-row budget (the list scrolls inside the slab
+ *  past that, so the window never grows). */
+export const clampLauncherRows = (rows: number): number =>
+  Math.max(1, Math.min(MAX_RESULTS, Math.ceil(rows)));
+
+/**
+ * Resolve the held row count from the count currently held and the raw count the
+ * content needs. Growing is immediate; shrinking waits for the count to fall a
+ * row below the held one (see {@link LAUNCHER_ROW_HYSTERESIS}).
+ */
+export const resolveLauncherRows = (current: number, rows: number): number => {
+  const target = clampLauncherRows(rows);
+  const held = clampLauncherRows(current);
+  if (target >= held) return target;
+  return target < held - LAUNCHER_ROW_HYSTERESIS ? target : held;
 };
 
 /**
- * Resolve the band to draw for `rows`, from the band currently drawn.
- *
- * Grow immediately — a band that no longer holds the content would clip it —
- * and shrink only once the count has fallen `LAUNCHER_BAND_HYSTERESIS` rows
- * below the current band's floor. That asymmetry is what makes “typing never
- * resizes” true inside a band: a keystroke that filters 6 rows to 5 keeps the
- * full slab, and only a real move (5 → 2 rows) steps the window down once.
+ * The segments of a row-count's height that do not depend on the count, in
+ * units: the field's row (42u), the breath below it (4u), the panel's top inset
+ * (4u) and its tail (2u). `52 + rows × 42 + bar + filter` is the height.
  */
-export const resolveLauncherBand = (current: number, rows: number): number => {
-  const target = launcherBandIndex(rows);
-  if (target > current) return target;
-  if (target === current) return current;
-  const floor = LAUNCHER_HEIGHT_BANDS[current]?.floor ?? 1;
-  return rows < floor - LAUNCHER_BAND_HYSTERESIS ? target : current;
-};
-
-/**
- * The segments of a band that do not depend on the row count, in units:
- * the field's row (42u), the breath below it (4u), the panel's top inset (4u)
- * and its tail (2u). `52 + capacity × 42 + bar` is the band.
- */
-export const LAUNCHER_BAND_CHROME_UNITS = 52;
+export const LAUNCHER_ROW_CHROME_UNITS = 52;
 
 /**
  * The action bar's own segment, in units: R18's constant 3u gap plus the row
  * itself (42u). R27 · it is charged only when the bar is actually drawn — see
- * {@link launcherBandUnits}.
+ * {@link launcherRowUnits}.
  */
-export const LAUNCHER_BAND_BAR_UNITS = 45;
+export const LAUNCHER_ACTION_BAR_UNITS = 45;
 
 /**
  * R32 · the browser mode's range-filter subline, in units: the chip row's own
  * 24u plus the 4u breath below it (see `.launcher-filter`). It is charged by
- * every band while the browser scope is open — the chips row is fixed chrome
- * that is always drawn there, so it can never resize the window as the list
- * under it grows or filters. The 4u gap above it is the field row's own
- * `margin-bottom`, already inside {@link LAUNCHER_BAND_CHROME_UNITS}. */
+ * every row count while the browser scope is open — the chips row is fixed
+ * chrome that is always drawn there, so it can never resize the window as the
+ * list under it grows or filters. The 4u gap above it is the field row's own
+ * `margin-bottom`, already inside {@link LAUNCHER_ROW_CHROME_UNITS}.
+ */
 export const LAUNCHER_FILTER_UNITS = 28;
 
-/** The unit height of a band, with or without its action bar.
+/** The unit height of a row count, with or without its action bar and filter.
  *
- *  R27 · the bar is a parameter rather than a constant of every band. In the
- *  full slab the bar is there and `launcherBandUnits(last)` is the R25 budget
- *  (`52 + 9×42 + 45 = 475u`); in the no-match state and in both plugin modes
- *  there is no bar and the band is 45u shorter, which is what stops the window
+ *  The top of the table is unchanged: `launcherRowUnits(9, true)` is the R25
+ *  budget (`52 + 9×42 + 45 = 475u`). R27 · the bar is a parameter rather than a
+ *  constant of every height: in the no-match state and in both plugin modes
+ *  there is no bar and the height is 45u shorter, which is what stops the window
  *  from reserving a row the user never sees.
  *
  *  R32 · the browser filter is the second such parameter: a fixed subline the
- *  browser scope always draws, charged here so the band table stays the one
- *  place a window height comes from. */
-export const launcherBandUnits = (
-  band: number,
+ *  browser scope always draws, charged here so this module stays the one place a
+ *  window height comes from. */
+export const launcherRowUnits = (
+  rows: number,
   actionBar = true,
   filter = false,
-): number => {
-  const clamped = Math.max(0, Math.min(LAUNCHER_HEIGHT_BANDS.length - 1, band));
-  const capacity = LAUNCHER_HEIGHT_BANDS[clamped].capacity;
-  return (
-    LAUNCHER_BAND_CHROME_UNITS +
-    capacity * ROW_HEIGHT_TWO_LINE +
-    (actionBar ? LAUNCHER_BAND_BAR_UNITS : 0) +
-    (filter ? LAUNCHER_FILTER_UNITS : 0)
-  );
-};
+): number =>
+  LAUNCHER_ROW_CHROME_UNITS +
+  clampLauncherRows(rows) * ROW_HEIGHT_TWO_LINE +
+  (actionBar ? LAUNCHER_ACTION_BAR_UNITS : 0) +
+  (filter ? LAUNCHER_FILTER_UNITS : 0);
 
 /** The list's own section heading: one `--text-body` line at 1.4 plus its 6/4px
- *  padding pair (see `.launcher-section-title`). The top band folds this into
- *  the R25 chrome ceiling instead of adding it, so the full slab is unchanged. */
+ *  padding pair (see `.launcher-section-title`). The top of the table folds this
+ *  into the R25 chrome ceiling instead of adding it, so the full slab is
+ *  unchanged. */
 export const LAUNCHER_SECTION_TITLE_CHROME = 26;
 
 /**
- * The fixed pixels a band's window adds to its unit part: the card's 1px frame
- * top and bottom, the scroller's scroll-edge reservation, the 1px grid gaps
- * between the rows, and (empty query only) the section heading.
+ * The fixed pixels a row count's window adds to its unit part: the card's 1px
+ * frame top and bottom, the scroller's scroll-edge reservation, the 1px grid
+ * gaps between the rows, and (empty query only) the section heading.
  *
- * R27 · the top band keeps the R25 ceiling — `RESULTS_LIST_CHROME + 2` — because
- * that constant is what makes the full slab 527px and it is deliberately a
- * *ceiling* with slack for the list's real worst case. Shorter bands do not need
- * that slack (their content is shorter by construction), so they use the honest
- * count and the empty launcher loses the ~30px the ceiling was holding for rows
- * it does not have.
+ * R27 · the nine-row top keeps the R25 ceiling — `RESULTS_LIST_CHROME + 2` —
+ * because that constant is what makes the full slab 527px and it is deliberately
+ * a *ceiling* with slack for the list's real worst case. Shorter heights do not
+ * need that slack (their content is shorter by construction), so they use the
+ * honest count and the empty launcher loses the ~30px the ceiling was holding
+ * for rows it does not have. The honest count is why a four-row list is exactly
+ * four rows tall instead of landing in a six-row band.
  */
-export const launcherBandChrome = (band: number, sectionTitle = false): number => {
-  const clamped = Math.max(0, Math.min(LAUNCHER_HEIGHT_BANDS.length - 1, band));
-  const capacity = LAUNCHER_HEIGHT_BANDS[clamped].capacity;
-  if (capacity >= MAX_RESULTS) return LAUNCHER_WINDOW_HEIGHT_CHROME;
+export const launcherRowChrome = (rows: number, sectionTitle = false): number => {
+  const count = clampLauncherRows(rows);
+  if (count >= MAX_RESULTS) return LAUNCHER_WINDOW_HEIGHT_CHROME;
   return (
     2 +
-    (capacity > 0 ? 4 : 0) +
-    Math.max(0, capacity - 1) +
+    4 +
+    Math.max(0, count - 1) +
     (sectionTitle ? LAUNCHER_SECTION_TITLE_CHROME : 0)
   );
 };
 
-/** A band's window height at an interface step, never above the display cap.
- *  The unit part scales; the chrome is added once, unscaled, exactly as
+/** A row count's window height at an interface step, never above the display
+ *  cap. The unit part scales; the chrome is added once, unscaled, exactly as
  *  {@link launcherWindowHeight} does for the full slab. */
-export const launcherBandHeight = (
-  band: number,
+export const launcherRowHeight = (
+  rows: number,
   scale: number,
   maxHeight: number,
   actionBar = true,
@@ -380,8 +340,8 @@ export const launcherBandHeight = (
 ): number =>
   Math.min(
     Math.ceil(
-      launcherBandUnits(band, actionBar, filter) * scale +
-        launcherBandChrome(band, sectionTitle),
+      launcherRowUnits(rows, actionBar, filter) * scale +
+        launcherRowChrome(rows, sectionTitle),
     ),
     maxHeight,
   );
@@ -415,28 +375,89 @@ export const withClipboardResultRow = (
   items.some(isClipboardResult) ? [...items] : [...items, clipboardResultRow(t)];
 
 /**
+ * R34 · the half-open index range of the rows the scroller is showing. `start`
+ * is the first row that is fully visible from the top (a row clipped by the
+ * scroller's top edge is skipped, so the numbers always begin on a row the user
+ * can read in full); `end` is one past the last row with any part in the box.
+ *
+ * The launcher's numbered slots are assigned over `[start, end)` — "what you
+ * see is what you select". A list that fits needs no scrolling and the range is
+ * the whole list, so the ordinary case is unchanged.
+ */
+export type VisibleRowRange = { start: number; end: number };
+
+/** One row's geometry, as the scroller sees it: `top` is the row's top edge in
+ *  the scroller's content coordinates (i.e. `scrollTop` is already added), and
+ *  `height` is its laid-out box. `null` marks an index the list did not render
+ *  (a status note, which is not a row). */
+export type RowSpan = { top: number; height: number };
+
+/**
+ * R34 · the visible range, from each row's geometry and the scroller's own
+ * box. Pure: the component hands it the measured spans, so the mapping is a
+ * function the node suite can drive without a DOM.
+ *
+ * The rule is the one the user asked for — the first *fully* visible row at the
+ * top, then everything down to the last partially visible row at the bottom. A
+ * row clipped at the top (its top is above `scrollTop`) is skipped rather than
+ * numbered, because a number on a half-row is not "the list you can see".
+ */
+export const visibleRowRange = (
+  spans: readonly (RowSpan | null)[],
+  scrollTop: number,
+  viewportHeight: number,
+): VisibleRowRange => {
+  const bottom = scrollTop + viewportHeight;
+  let start = -1;
+  let end = -1;
+  spans.forEach((span, index) => {
+    if (!span) return;
+    const rowBottom = span.top + span.height;
+    if (rowBottom <= scrollTop + 0.5 || span.top >= bottom - 0.5) return;
+    if (start === -1) start = index;
+    end = index + 1;
+  });
+  if (start === -1) return { start: spans.length, end: spans.length };
+  // Skip a row whose top is clipped by the scroller's own edge.
+  while (start < end && (spans[start]?.top ?? scrollTop) < scrollTop - 0.5) start += 1;
+  if (start >= end) start = Math.max(0, end - 1);
+  return { start, end };
+};
+
+/**
  * The numbered `select_result` slots for the visible rows — the single source
  * of the `⌘N` → row mapping, for the badges and the key handler alike.
  *
  * The family is `1`-`9` — one digit behind the modifiers, see
- * `matchesResultShortcut`. The fixed clipboard row is the ninth row, so R19
- * gives it `FIXED_TAIL_SLOT` (`9`) rather than a blank badge: the slot is real
- * now, because the budget is nine rows and the tail is the last of them. The
- * matched rows above it number `1`-`8` in order, skipping the rows that are
- * not runnable (`launcherShortcutSlots`' own rule) and never reaching `9` —
- * otherwise a list grown past the budget (dropped files prepended) could hand
- * `⌘9` to a match and take the clipboard panel off the keyboard.
+ * `matchesResultShortcut`. R34 · the numbers follow the **scroll viewport**:
+ * `1`-`8` are the first eight runnable rows inside `visible`, so scrolling
+ * renumbers the list to what is on screen ("what you see is what you select").
+ * Rows outside the range carry no badge, and `⌘N` cannot reach them.
+ *
+ * The fixed clipboard row is the ninth row, so R19 gives it `FIXED_TAIL_SLOT`
+ * (`9`) rather than a blank badge, and R34 leaves it there **outside the
+ * viewport numbering**: it is the bottom fixed item, like the terminal action
+ * bar, so scrolling never moves its number. A list grown past the budget
+ * (dropped files prepended) still cannot hand `⌘9` to a match.
+ *
+ * Omitting `visible` numbers the whole list, which is the pre-R34 behaviour and
+ * the right answer for a list that fits (no scroll, so the viewport is the
+ * list).
  */
 export const shortcutSlotsWithFixedTail = (
   rows: readonly LauncherItem[],
   runnableFlags: readonly boolean[],
+  visible?: VisibleRowRange,
 ): Array<number | null> => {
   const lastIndex = rows.length - 1;
   const tailOwnsLastSlot = rows[lastIndex]?.id === CLIPBOARD_RESULT_ID;
+  const start = visible ? Math.max(0, Math.floor(visible.start)) : 0;
+  const end = visible ? Math.min(rows.length, Math.ceil(visible.end)) : rows.length;
   let next = 0;
   return rows.map((_, index) => {
     if (tailOwnsLastSlot && index === lastIndex) return FIXED_TAIL_SLOT;
     if (!runnableFlags[index]) return null;
+    if (index < start || index >= end) return null;
     next += 1;
     return next < FIXED_TAIL_SLOT ? next : null;
   });

@@ -167,7 +167,8 @@ test("the page asks the host to drag over the bridge, and the host routes it to 
   // The handler is App's own `beginDrag`, the body every shell's mousedown
   // funnels through, so the Windows blur-grace is not duplicated.
   const app = await read("src/App.tsx");
-  assert.match(app, /onWindowDrag=\{beginDrag\}/, "App must pass the shared drag body to the host");
+  // R33 · App no longer mounts the host; the shared body is still the one the
+  // shells use.
   assert.match(app, /const beginDrag = useCallback\(\(\) => \{/, "the drag body must be one shared callback");
   assert.match(app, /invoke\("start_drag"\)/, "the body must still invoke the OS drag");
 });

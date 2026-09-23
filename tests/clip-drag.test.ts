@@ -172,7 +172,9 @@ test("the host's drag routing is wired into the message listener and to App's sh
   // path, one Windows blur-grace. A second inline `invoke("start_drag")` in the
   // host would be the regression.
   const app = await read("src/App.tsx");
-  assert.match(app, /onWindowDrag=\{beginDrag\}/, "App must hand `beginDrag` to the host");
+  // R33 · App no longer mounts the host; the drag body stays the one shared
+  // callback the shells' own mousedown funnels through.
+  assert.ok(!/<PluginPageHost\b/.test(app), "the retired host must not be mounted");
   assert.match(app, /const beginDrag = useCallback\(\(\) => \{/, "the drag body must be one shared callback");
   assert.match(app, /invoke\("start_drag"\)/, "the body must still invoke the OS drag");
   // And the shells' own mousedown still funnels through it.

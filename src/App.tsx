@@ -62,7 +62,6 @@ import {
   type DeepLinkRegisterRequest,
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
-import { PluginPageHost } from "./plugins/PluginPageHost";
 import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import {
   formatResultShortcut,
@@ -92,11 +91,13 @@ import { pluginViewInteractive, pluginViewPage, pluginViewRows } from "./launche
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
-  launcherBandHeight,
+  launcherRowHeight,
   launcherWindowHeight,
-  resolveLauncherBand,
+  MAX_RESULTS,
+  resolveLauncherRows,
   RESULTS_VIEWPORT_CHROME,
   shortcutSlotsWithFixedTail,
+  type VisibleRowRange,
   withClipboardResultRow,
 } from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
@@ -131,7 +132,7 @@ if (IS_WINDOWS) {
 
 /** Any surface a plugin page can be opened over; it replaces the canvas and
  * returns to the remembered one when dismissed. */
-export type ViewMode = "collapsed" | "terminal" | "settings" | "plugin";
+export type ViewMode = "collapsed" | "terminal" | "settings";
 export type CursorShape = "beam" | "block" | "underline";
 // The Liquid Glass vocabulary lives in its own React-free module so the node
 // test runner can import it directly; App re-exports it for the components.
@@ -303,15 +304,13 @@ export default function App() {
    * current value (the clipboard hotkey toggles against it). */
   const modeRef = useRef<ViewMode>("collapsed");
   useEffect(() => { modeRef.current = mode; }, [mode]);
-  /** Where an open plugin page returns to when dismissed. */
-  const pluginReturnMode = useRef<"collapsed" | "terminal">("collapsed");
-  /** Which plugin page is showing while `mode === "plugin"` (one at a time). */
-  const [pluginPageId, setPluginPageId] = useState<string | null>(null);
-  const pluginPageIdRef = useRef<string | null>(null);
-  useEffect(() => { pluginPageIdRef.current = pluginPageId; }, [pluginPageId]);
   /** R29 · whether the launcher's generic plugin-configuration overlay is
    *  open. One at a time, over whatever the collapsed surface was showing. */
   const [pluginConfigOpen, setPluginConfigOpen] = useState(false);
+  /** R33 · ref mirror so the once-registered plugin-request listener can tell
+   *  a toggle-close from a fresh open without being rebuilt. */
+  const pluginConfigOpenRef = useRef(false);
+  pluginConfigOpenRef.current = pluginConfigOpen;
   const [query, setQuery] = useState("");
   /** R31 · the plugin mode the launcher is *in*, or `null` for the ordinary
    *  search page. Held as explicit state, not read back out of the query: in a
@@ -649,61 +648,13 @@ export default function App() {
     setMode("collapsed");
   };
 
-  /** Dismiss the plugin page; the mode effect sends the window back onto
-   * the remembered surface through its normal restore path (`show_input` /
-   * `show_terminal`). */
-  const closePluginPage = () => {
-    suppressBlurUntil.current = Date.now() + 400;
-    setPluginPageId(null);
-    setMode(pluginReturnMode.current);
-    // The iframe is kept alive across mode switches (see `pluginLayer`), so it
-    // is no longer torn down — and therefore no longer blurs itself — when the
-    // page closes. It stays hidden but can still hold the keyboard while the
-    // plugin id is null (a hidden iframe document is still focusable on
-    // WebKit), which would swallow the first keystroke aimed at the surface
-    // underneath. `scheduleCollapsedFocusBeats` runs the standard commit-instant
-    // + later-beat pattern, the resize-settled reassert chains off
-    // `syncLauncherHeight`, and the collector's focusout/window-focus watchers
-    // reclaim the input if the iframe (or anything else) takes the keyboard
-    // back later still.
-    if (pluginReturnMode.current === "terminal") {
-      focusTerminalView(0);
-      focusTerminalView(80);
-    } else {
-      scheduleCollapsedFocusBeats();
-    }
-  };
 
-  /** Open a plugin page over whatever surface is showing, remembering it for
-   * the return trip. One path for every trigger — hotkey, `floter clip`, the
-   * launcher entry, a cold-start request. Deliberately does NOT arm
-   * `restoringMode`: sizing belongs to the backend here — the mode effect
-   * calls `show_plugin_page`, which applies the same saved geometry terminal
-   * mode uses. */
   // R26-D · the browser plugin's switch, readable from the once-registered
-  // listeners (the hotkey / `floter://plugin-page` path) without closing over
+  // listeners (the hotkey / `floter://plugin-config` path) without closing over
   // the settings object that happened to be current when they were installed.
   const browserPluginEnabledRef = useRef(settings.browser_plugin.enabled);
   browserPluginEnabledRef.current = settings.browser_plugin.enabled;
 
-  const openPluginPage = (pluginId: string) => {
-    // The browser plugin's page sits behind the plugin's own switch. Refusing
-    // here — with a reason — is what keeps every trigger honest: the settings
-    // row's Configure button, the global hotkey and `floter://plugin-page` all
-    // funnel through this one path. The clipboard page is unaffected.
-    if (pluginId === BROWSER_PLUGIN_ID && !browserPluginEnabledRef.current) {
-      notify("error", tRef.current("settings.browserDisabled"));
-      return;
-    }
-    suppressBlurUntil.current = Date.now() + 400;
-    if (modeRef.current !== "plugin") {
-      pluginReturnMode.current = modeRef.current === "terminal" ? "terminal" : "collapsed";
-    }
-    modeRef.current = "plugin";
-    pluginPageIdRef.current = pluginId;
-    setPluginPageId(pluginId);
-    setMode("plugin");
-  };
 
   // ---- extracted hooks ----------------------------------------------------
   // Terminal canvas lifecycle, input and selection; launcher data; pin card
@@ -825,6 +776,44 @@ export default function App() {
     setSelectedResultIndex(0);
     setHistoryIndex(-1);
   }, []);
+
+  /**
+   * R33 · the unified configuration entry.
+   *
+   * The settings panel's Configure button and the external triggers (`floter
+   * clip`, the clipboard hotkey, a cold-start request) all land here now. One
+   * path, one surface: the app leaves whatever mode it was in — settings
+   * included — for the launcher's collapsed state, enters the plugin's own
+   * mode, and opens the generic configuration overlay on top of it. The plugin
+   * page (a second, unrelated settings UI) is gone; what the user sees from
+   * settings is exactly what the gear inside the mode shows.
+   *
+   * The three state writes are batched into one React commit, so the collapsed
+   * branch renders with the mode already set and the overlay already open —
+   * the overlay's host DOM exists in that same commit. No next-frame dance is
+   * needed (and an effect would only add a paint of the bare mode list before
+   * the overlay appears). Leaving settings for collapsed is exactly the
+   * transition `closeSettings` already owns, so the window resizes back to the
+   * launcher through the ordinary `show_input` path.
+   */
+  const openPluginConfig = useCallback((pluginId: string) => {
+    // The browser plugin's configuration sits behind the plugin's own switch.
+    // Refusing here — with a reason — is what keeps every trigger honest: the
+    // settings row's Configure button, the global hotkey and a cold-start
+    // request all funnel through this one path. The clipboard is unaffected.
+    if (pluginId === BROWSER_PLUGIN_ID && !browserPluginEnabledRef.current) {
+      notify("error", tRef.current("settings.browserDisabled"));
+      return;
+    }
+    if (pluginId !== BROWSER_PLUGIN_ID && pluginId !== CLIPBOARD_PLUGIN_ID) return;
+    suppressBlurUntil.current = Date.now() + 400;
+    modeRef.current = "collapsed";
+    setMode("collapsed");
+    enterPluginMode(
+      pluginId === BROWSER_PLUGIN_ID ? { scope: "browser", kind: "all" } : { scope: "clipboard" },
+    );
+    setPluginConfigOpen(true);
+  }, [enterPluginMode]);
 
   /**
    * R31 · leave a plugin mode, returning to the ordinary search page.
@@ -979,6 +968,11 @@ export default function App() {
       : launcherScope === "browser"
         ? BROWSER_PLUGIN_ID
         : null;
+  // R33 · ref mirror for the once-registered plugin-request listener: the
+  // hotkey's toggle has to know whether the overlay is already open for this
+  // very plugin before deciding to close it instead of opening it again.
+  const launcherPluginIdRef = useRef<string | null>(null);
+  launcherPluginIdRef.current = launcherPluginId;
   // Leaving the plugin scope (or the collapsed surface) closes the overlay: it
   // belongs to that plugin's field, and a stale overlay over the app list would
   // be a settings page with no owner.
@@ -1038,18 +1032,30 @@ export default function App() {
       ),
     [displayedResults],
   );
+  // R34 · the scroll viewport, reported by `LauncherResults` (see the
+  // `onVisibleRowsChange` prop). The numbered slots follow it, so scrolling
+  // renumbers the list to what is on screen. `[0, MAX_RESULTS]` until the first
+  // report: the whole list, which is exactly what a list that fits shows.
+  const [visibleResultRange, setVisibleResultRange] = useState<VisibleRowRange>({
+    start: 0,
+    end: MAX_RESULTS,
+  });
   // R10-A/R19: the fixed clipboard row is the ninth and last row, and the
   // shortcut family is 1-9, so it carries a real `⌘9` badge — the slot map lives
   // in `shortcutSlotsWithFixedTail` and nowhere else (the key handler asks the
   // same map through `resultIndexForSlot`).
   //
+  // R34 · `1`-`8` now number the first eight runnable rows *inside the scroll
+  // viewport*; the fixed clipboard row keeps `⌘9` outside that numbering, so
+  // scrolling never moves the bottom fixed item.
+  //
   // R28 · the capability layer's display tier takes every number away: a list
   // that is there to be read, not run, has no `⌘N` to offer.
   const displayedShortcutSlots = useMemo(
     () => pluginInteractive
-      ? shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags)
+      ? shortcutSlotsWithFixedTail(displayedResults, displayedRunnableFlags, visibleResultRange)
       : displayedResults.map(() => null),
-    [displayedResults, displayedRunnableFlags, pluginInteractive],
+    [displayedResults, displayedRunnableFlags, pluginInteractive, visibleResultRange],
   );
 
   const {
@@ -1120,7 +1126,6 @@ export default function App() {
     rememberCommand,
     recordLaunch,
     refreshTerminalSessions,
-    openPluginPage,
     enterPluginMode,
     browserScope: launcherScope === "browser",
     cycleBrowserFilter,
@@ -1205,7 +1210,6 @@ export default function App() {
     changeSettingsPage,
     settingsSidebarButtons,
     refreshTerminalSessions,
-    closePluginPage,
     runLauncherItem,
     handleLauncherKey,
     onLauncherDismiss,
@@ -1341,14 +1345,14 @@ export default function App() {
     });
   }, [displayedResults.length]);
 
-  // R25/R26-D · the launcher window is a **slab with discrete sizes**: the
-  // ten-row budget is the tallest, and shorter content snaps to a smaller band
-  // (see `LAUNCHER_HEIGHT_BANDS`). The step is read once here (the only place
-  // that knows the interface step) and clamped to the display. Nothing a
-  // keystroke does may resize it — that is the whole fix for
-  // 「输入进行过滤时页面整体有抖动」 — so the value is computed from the budget
-  // and the row count, and handed to the hook and to every imperative sync,
-  // never measured.
+  // R25/R34 · the launcher window is a **slab whose height is the row count**:
+  // the nine-row budget is the tallest, and shorter content is exactly as tall
+  // as its rows (see `resolveLauncherRows`). The step is read once here (the
+  // only place that knows the interface step) and clamped to the display.
+  // Nothing a keystroke does may resize it within a row count — that is the
+  // whole fix for 「输入进行过滤时页面整体有抖动」 — so the value is computed from
+  // the budget and the row count, and handed to the hook and to every
+  // imperative sync, never measured.
   //
   // The step multiplies the *budget*, not a measurement: the card is drawn from
   // scaled CSS, so a measurement already carries the step and multiplying it
@@ -1379,25 +1383,25 @@ export default function App() {
         (showOnboardingTip && !launcherScope ? 1 : 0) +
         (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0),
   );
-  // The band is sticky: growing is immediate (a band too short would clip), and
-  // shrinking waits for the row count to fall a row below the band's floor, so a
-  // query oscillating across a boundary does not resize the window. See
-  // `resolveLauncherBand`.
-  const launcherBandRef = useRef(0);
-  const launcherBand = resolveLauncherBand(launcherBandRef.current, launcherRows);
-  launcherBandRef.current = launcherBand;
-  // R27 · the band's height charges the action bar only when the bar is drawn,
-  // and the empty-query heading only when that heading is drawn. Both are
-  // visible in the state the user reported: a query that matched nothing has no
-  // action bar (the shell fallback is gated on a *matched* row), so a band that
-  // always reserved it left 45u of glass under the one clipboard row.
+  // R34 · the row count is sticky: growing is immediate (a height one row short
+  // would clip the row), and shrinking waits for the count to fall a row below
+  // the held count, so a query oscillating across a boundary does not resize the
+  // window. See `resolveLauncherRows`.
+  const launcherRowsRef = useRef(1);
+  const launcherHeldRows = resolveLauncherRows(launcherRowsRef.current, launcherRows);
+  launcherRowsRef.current = launcherHeldRows;
+  // R27 · the height charges the action bar only when the bar is drawn, and the
+  // empty-query heading only when that heading is drawn. Both are visible in the
+  // state the user reported: a query that matched nothing has no action bar (the
+  // shell fallback is gated on a *matched* row), so a height that always
+  // reserved it left 45u of glass under the one clipboard row.
   const launcherHasBar = visibleActionBar !== null;
   // R32 · the heading is the ordinary search page's, and only its: in a plugin
   // scope the list is the plugin's own and the "Recently launched" label sat
   // over bookmark rows (the leak the user reported).
   const launcherSectionTitle = !launcherScope && !query.trim() && !fileRows.length;
-  const launcherHeight = launcherBandHeight(
-    launcherBand,
+  const launcherHeight = launcherRowHeight(
+    launcherHeldRows,
     launcherScale,
     launcherMaxHeight,
     launcherHasBar,
@@ -1480,12 +1484,14 @@ export default function App() {
       .catch(() => undefined);
   }, []);
 
-  // A cold start with `floter clip` records a pending plugin page in the
+  // A cold start with `floter clip` records a pending plugin request in the
   // backend during setup; consume it once this component's listeners are up.
+  // R33 · it lands on the plugin's configuration overlay like every other
+  // external trigger.
   useEffect(() => {
     invoke<string | null>("take_pending_plugin_page")
       .then((pending) => {
-        if (pending) openPluginPage(pending);
+        if (pending) openPluginConfig(pending);
       })
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1534,17 +1540,6 @@ export default function App() {
       // the sidebar item for the current page, which is what makes ↑/↓ and Tab
       // work the moment the panel appears instead of starting on `<body>`.
       applySurfaceFocusOnEntry("settings", focusSeams);
-      return;
-    }
-
-    if (mode === "plugin") {
-      // Sizing is owned by the BACKEND on this path: a plugin page is a
-      // terminal page and takes exactly the terminal window's saved geometry
-      // through the same machinery (`show_plugin_page` in lib.rs). The
-      // frontend deliberately never calls setSize while the page is up — one
-      // side owns the size, so a stale launcher measurement can never shrink
-      // the window out from under a long list again.
-      invoke("show_plugin_page").catch(() => undefined);
       return;
     }
 
@@ -1624,10 +1619,6 @@ export default function App() {
         if (dialog && !dialog.contains(document.activeElement)) dialog.focus({ preventScroll: true });
         return;
       }
-      if (modeRef.current === "plugin") {
-        void invoke("show_plugin_page").catch(() => undefined);
-        return;
-      }
       if (event.payload === "terminal") {
         restoringMode.current = "terminal";
         setTerminalMounted(true);
@@ -1690,23 +1681,28 @@ export default function App() {
     };
   }, []);
 
-  // A plugin-page request. One internal path serves every trigger: the global
-  // hotkey, `floter clip` (running instance or cold start) and the launcher's
-  // system entry. `toggle` says the window was already visible when the hotkey
-  // went down: only then does pressing it again mean "hide" — and only for the
-  // very page that is already showing; any other request always opens.
+  // A plugin request. One internal path serves every trigger: the global
+  // hotkey, `floter clip` (running instance or cold start) and the settings
+  // panel's Configure button. `toggle` says the window was already visible when
+  // the hotkey went down: only then does pressing it again mean "close" — and
+  // only for the very overlay that is already open; any other request opens.
+  //
+  // R33 · the toggle used to hide the window when the plugin *page* was up. The
+  // page is gone, so its open/close meaning now maps onto the configuration
+  // overlay: a second press closes the overlay (the plugin mode underneath
+  // stays), it does not hide the whole panel.
   useEffect(() => {
-    const unlistenPagePromise = listen<{ id: string; toggle: boolean }>("floter://plugin-page", (event) => {
+    const unlistenConfigPromise = listen<{ id: string; toggle: boolean }>("floter://plugin-config", (event) => {
       const { id, toggle } = event.payload;
-      if (toggle && modeRef.current === "plugin" && pluginPageIdRef.current === id) {
-        invoke("hide_window").catch(() => undefined);
+      if (toggle && pluginConfigOpenRef.current && launcherPluginIdRef.current === id) {
+        setPluginConfigOpen(false);
         return;
       }
-      openPluginPage(id);
+      openPluginConfig(id);
     });
 
     return () => {
-      unlistenPagePromise.then((unlisten) => unlisten());
+      unlistenConfigPromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -1988,39 +1984,10 @@ export default function App() {
     />
   ) : null;
 
-  // The plugin page host lives OUTSIDE the four mode branches, rendered as the
-  // first child of every branch's tree. Because React reconciles siblings by
-  // position and type, this is the *same* element instance in all four modes —
-  // switching modes never unmounts it, so the sandboxed iframe is created once
-  // and reused. That is what makes opening the page instant (no re-fetch of the
-  // descriptor, page scripts or clipboard entries) and preserves its filter
-  // text, selection and scroll position across toggles. The layer is only
-  // painted in plugin mode (`data-active`); in the other modes it stays mounted
-  // but `display: none`.
-  const pluginLayer = (
-    <div
-      className="plugin-layer"
-      data-active={mode === "plugin" && pluginPageId ? "true" : undefined}
-    >
-      <PluginPageHost
-        pluginId={pluginPageId}
-        language={language}
-        theme={resolvedTheme}
-        mainOpacity={clampWindowOpacity(settings.main_opacity) / 100}
-        terminalOpacity={clampWindowOpacity(settings.terminal_opacity) / 100}
-        glassStep={settings.glass_step}
-        onClose={closePluginPage}
-        onDragStart={startDrag}
-        onWindowDrag={beginDrag}
-        onNotify={notify}
-      />
-    </div>
-  );
-
-  // The toast host is rendered once, as a stable sibling of the mode shell (and
-  // of `pluginLayer`), so the stack survives mode switches without unmounting:
-  // a toast raised in the integrations panel stays visible when the window
-  // flips to the launcher or a plugin page, and its dismiss timer is never cut
+  // The toast host is rendered once, as a stable sibling of the mode shell, so
+  // the stack survives mode switches without unmounting: a toast raised in the
+  // integrations panel stays visible when the window flips to the launcher or
+  // the terminal, and its dismiss timer is never cut
   // short. Its positioning is surface-specific, so the host carries the current
   // `data-surface` for `#floter-app-toasts` to key off (see extensions.css) —
   // the containing block is the viewport, whose height varies per surface.
@@ -2036,7 +2003,6 @@ export default function App() {
   if (mode === "settings") {
     return (
       <>
-        {pluginLayer}
         {toastHost}
         <div className="settings-shell">
           {pinnedCardElement}
@@ -2206,7 +2172,7 @@ export default function App() {
                     });
                   }
                 }}
-                onOpenPluginPage={(id) => openPluginPage(id)}
+                onOpenPluginConfig={(id) => openPluginConfig(id)}
                 onNotify={notify}
                 pendingDeepLink={pendingDeepLink}
                 onDeepLinkConsumed={() => setPendingDeepLink(null)}
@@ -2235,34 +2201,6 @@ export default function App() {
     );
   }
 
-  if (mode === "plugin" && pluginPageId) {
-    // A plugin page IS a terminal page: it renders in the very shell the
-    // terminal mode uses — same `.terminal-shell` window padding, same
-    // `.terminal-panel` card material, radius and platform shadows — shown
-    // underneath the plugin layer while active. The window geometry comes
-    // from the backend's `show_plugin_page` (same saved size as terminal
-    // mode); the embedded PTY keeps running underneath, untouched. The page
-    // itself is whatever HTML the plugin declared, hosted through the generic
-    // sandboxed-iframe + bridge pipeline, in the persistent `pluginLayer`
-    // above.
-    return (
-      <>
-        {pluginLayer}
-        {toastHost}
-        <div className="terminal-shell">
-          {pinnedCardElement}
-          {/* The panel renders only as the rounded backdrop under the plugin
-              layer; its body would be entirely covered and stay empty. The
-              veil is the tint that gives the frame its glass body while the
-              page's own sheet paints over it. */}
-          <section className="terminal-panel terminal-panel--entered">
-            <div className="terminal-panel__veil" aria-hidden="true" />
-          </section>
-        </div>
-      </>
-    );
-  }
-
   if (mode === "collapsed") {
     const hasQuery = query.trim().length > 0;
     // The first scan runs before there is anything to search, so the input says
@@ -2279,7 +2217,6 @@ export default function App() {
 
     return (
       <>
-        {pluginLayer}
         {toastHost}
         <div className="collapsed-shell">
           {pinnedCardElement}
@@ -2647,6 +2584,10 @@ export default function App() {
                       setSelectedResultIndex(index);
                     }}
                     onSelectActionBar={() => setSelectedActionBar(true)}
+                    // R34 · the scroller tells App which rows are on screen so
+                    // the `⌘N` slots can follow it; the setter is stable, so
+                    // the report only fires when the range really changes.
+                    onVisibleRowsChange={setVisibleResultRange}
                     onRunResult={runLauncherItem}
                     onRunActionBar={() => {
                       if (visibleActionBar) executeActionBar(visibleActionBar);
@@ -2682,7 +2623,6 @@ export default function App() {
 
   return (
     <>
-      {pluginLayer}
       {toastHost}
       <div className="terminal-shell">
         {pinnedCardElement}

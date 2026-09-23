@@ -318,23 +318,22 @@ test("the base-plugin list carries builtin.browser and mirrors the Rust registry
 // the general one: whatever the registry lists, its entry module must send the
 // handshake. It is driven off the Rust registry, so a new descriptor cannot
 // ship a page that never announces itself.
-test("every registered plugin page's entry module sends the frame-ready handshake", async () => {
+test("no built-in page is registered, and the retained entries still handshake", async () => {
   const rust = await readFile(new URL("src-tauri/src/plugin_pages.rs", root), "utf8");
   const descriptorsAt = rust.indexOf("static DESCRIPTORS");
   assert.notEqual(descriptorsAt, -1, "the Rust descriptor registry must exist");
-  const pages = [...rust.slice(descriptorsAt).matchAll(/page: "([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(pages.length >= 2, `expected the registry to list pages, saw ${pages.length}`);
-
-  for (const page of pages) {
-    const html = await readFile(new URL(page, root), "utf8");
-    const script = /<script type="module" src="([^"]+)"/.exec(html);
-    assert.ok(script, `${page} must load an ES module entry`);
-    const entryPath = script![1].replace(/^\//, "");
+  const pages = [...rust.slice(descriptorsAt).matchAll(/page: "([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(pages.length >= 2, `expected the registry to list both descriptors, saw ${pages.length}`);
+  // R33 · the built-in iframe pages are retired, so no descriptor names a
+  // document. The entry modules stay for the retained protocol and must keep
+  // sending the handshake if a future loader mounts them.
+  for (const page of pages) assert.equal(page, "", "no built-in page path may be registered");
+  for (const entryPath of ["src/plugins/clipboard/main.ts", "src/plugins/browser/main.ts"]) {
     const entry = await readFile(new URL(entryPath, root), "utf8");
     assert.match(
       entry,
       /\{ \[BRIDGE_TAG\]: "frame-ready", protocol: PLUGIN_PAGE_PROTOCOL \}/,
-      `${entryPath} (the entry for ${page}) must send the frame-ready handshake`,
+      `${entryPath} must keep sending the frame-ready handshake`,
     );
   }
 });
@@ -346,15 +345,15 @@ test("every registered plugin page's entry module sends the frame-ready handshak
 // built-in that ships bundled assets on the app origin, exactly like the
 // clipboard page) was sandboxed with an opaque origin and its module never
 // loaded on WebKit. Every built-in page must be in the same-origin set.
-test("every built-in plugin page is sandboxed with allow-same-origin", () => {
+test("the same-origin sandbox set is a set, not a clipboard-only special case", () => {
+  // R33 · no built-in page is registered any more, so every built-in row is
+  // `configurable` (overlay) rather than `hasPage`. The sandbox exception the
+  // R26-D bug was about is still a lookup, not an inline id test.
   for (const plugin of BUILTIN_BASE_PLUGINS) {
-    if (!plugin.hasPage) continue;
-    assert.equal(
-      pluginPageNeedsSameOrigin(plugin.id),
-      true,
-      `${plugin.id} ships bundled assets and must load same-origin`,
-    );
+    assert.equal(plugin.configurable, true, `${plugin.id} opens the generic overlay`);
   }
+  assert.equal(pluginPageNeedsSameOrigin(CLIPBOARD_PLUGIN_ID), true);
+  assert.equal(pluginPageNeedsSameOrigin(BROWSER_PLUGIN_ID), true);
   assert.equal(pluginPageNeedsSameOrigin("external.example"), false);
   assert.equal(pluginPageNeedsSameOrigin(null), false);
   assert.equal(pluginPageNeedsSameOrigin(undefined), false);

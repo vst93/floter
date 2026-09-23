@@ -455,7 +455,7 @@ export function useTerminalView(options: {
   // not tear down the renderer and rebind listeners — font changes are
   // handled by the effect below, which just re-measures cells and relayouts.
   useEffect(() => {
-    if (!terminalMounted || mode === "plugin" || mode === "settings") {
+    if (!terminalMounted || mode === "settings") {
       termOpened.current = false;
       rendererRef.current = null;
       return;

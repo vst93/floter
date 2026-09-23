@@ -22,7 +22,7 @@ import {
 } from "../src/launcher.ts";
 import {
   LAUNCHER_FILTER_UNITS,
-  launcherBandUnits,
+  launcherRowUnits,
 } from "../src/launcher/result-budget.ts";
 import { matchesTokens, searchTokens } from "../src/plugins/search.ts";
 import {
@@ -181,7 +181,7 @@ test("the browser filter cycles all → bookmarks → history → tabs and wraps
 
 test("the chips row is chrome: it is charged by the band and is not a result row", () => {
   assert.equal(
-    launcherBandUnits(3, true, true) - launcherBandUnits(3, true, false),
+    launcherRowUnits(3, true, true) - launcherRowUnits(3, true, false),
     LAUNCHER_FILTER_UNITS,
     "the filter adds a fixed amount of band height, whatever the row count",
   );

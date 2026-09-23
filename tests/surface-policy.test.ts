@@ -53,7 +53,9 @@ import {
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 
-const SURFACES: AppSurface[] = ["collapsed", "terminal", "settings", "plugin"];
+// R33 · the plugin page surface is retired; the launcher's collapsed surface
+// owns the plugin configuration overlay, so there is no fourth surface.
+const SURFACES: AppSurface[] = ["collapsed", "terminal", "settings"];
 const TRIGGERS: DismissTrigger[] = ["mod-w", "escape", "new-command"];
 
 type KeySpec = {
@@ -108,15 +110,6 @@ function preR72Dismiss(surface: AppSurface, event: KeyboardEvent): OldRule | nul
     // if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command))
     if (event.key === "Escape" || matchesShortcut(event, shortcuts.new_command)) {
       return { action: "close-settings", stop: false };
-    }
-    return null;
-  }
-  if (surface === "plugin") {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-      return { action: "close-plugin", stop: true };
-    }
-    if (event.key === "Escape") {
-      return { action: "close-plugin", stop: false };
     }
     return null;
   }
@@ -196,13 +189,6 @@ test("each surface's rule set is the one the pre-R7-2 branches encoded", () => {
   });
   assert.deepEqual(DISMISS_TABLE.settings.escape, { action: "close-settings" });
   assert.deepEqual(DISMISS_TABLE.settings["new-command"], { action: "close-settings" });
-
-  assert.deepEqual(DISMISS_TABLE.plugin["mod-w"], {
-    action: "close-plugin",
-    stopPropagation: true,
-  });
-  assert.deepEqual(DISMISS_TABLE.plugin.escape, { action: "close-plugin" });
-  assert.equal(DISMISS_TABLE.plugin["new-command"], null);
 });
 
 test("a rebound new-command follows the same table on every surface", () => {
@@ -211,7 +197,6 @@ test("a rebound new-command follows the same table on every surface", () => {
   assert.equal(resolveDismissRule("settings", ctrlQ, rebound)?.action, "close-settings");
   assert.equal(resolveDismissRule("collapsed", ctrlQ, rebound)?.action, "hide-window");
   assert.equal(resolveDismissRule("terminal", ctrlQ, rebound)?.action, "return-to-input");
-  assert.equal(resolveDismissRule("plugin", ctrlQ, rebound), null);
   // And the old chord no longer dismisses where it used to, exactly as before.
   const ctrlW = keyEvent({ key: "w", code: "KeyW", ctrl: true });
   assert.equal(resolveDismissRule("terminal", ctrlW, rebound), null);
@@ -255,7 +240,6 @@ test("every surface declares a keyboard owner", () => {
   assert.equal(SURFACE_FOCUS_POLICY.settings.owner, "settings-sidebar");
   assert.equal(SURFACE_FOCUS_POLICY.collapsed.owner, "collapsed-input");
   assert.equal(SURFACE_FOCUS_POLICY.terminal.owner, "terminal-canvas");
-  assert.equal(SURFACE_FOCUS_POLICY.plugin.owner, "plugin-iframe");
 });
 
 test("the declared beats reproduce the pre-R7-2 schedules", () => {
@@ -275,9 +259,8 @@ test("the declared beats reproduce the pre-R7-2 schedules", () => {
   assert.deepEqual([...SURFACE_FOCUS_POLICY.terminal.beats], [80]);
   assert.deepEqual(surfaceFocusBeats("terminal"), IS_WINDOWS ? [80, 180] : [80]);
 
-  // Settings claims the keyboard synchronously; plugin's guest document does.
+  // Settings claims the keyboard synchronously.
   assert.deepEqual(surfaceFocusBeats("settings"), []);
-  assert.deepEqual(surfaceFocusBeats("plugin"), []);
 });
 
 test("entering a surface asks exactly its declared owner for the keyboard", () => {
@@ -302,10 +285,6 @@ test("entering a surface asks exactly its declared owner for the keyboard", () =
   assert.equal(applySurfaceFocusOnEntry("collapsed", seams), "collapsed-input");
   assert.deepEqual(calls, surfaceFocusBeats("collapsed").map((b) => `collapsed:${b}`));
   calls.length = 0;
-
-  // The plugin iframe claims its own keyboard; the host must not fight it.
-  assert.equal(applySurfaceFocusOnEntry("plugin", seams), "plugin-iframe");
-  assert.deepEqual(calls, []);
 });
 
 test("focusSettingsSidebar focuses the current page's button and reports it", () => {
@@ -366,7 +345,7 @@ test("App's mode effect focuses the settings sidebar through the policy", async 
   // must not reach for any native focus command.
   const start = app.indexOf('if (mode === "settings")');
   assert.ok(start > -1, "the settings branch must exist");
-  const branch = app.slice(start, app.indexOf("if (mode === \"plugin\")", start));
+  const branch = app.slice(start, app.indexOf("if (mode === \"collapsed\")", start));
   assert.doesNotMatch(branch, /refocus_webview|set_focus|make_key|show_input/);
 });
 

@@ -162,8 +162,8 @@ test("the App composes the fixed row into the list it renders and keys", async (
   assert.match(source, /launcherResults: displayedResults/, "the key handler follows it");
   assert.match(
     source,
-    /shortcutSlotsWithFixedTail\(displayedResults, displayedRunnableFlags\)/,
-    "the numbered slots follow the same composed list",
+    /shortcutSlotsWithFixedTail\(displayedResults, displayedRunnableFlags, visibleResultRange\)/,
+    "the numbered slots follow the same composed list, renumbered to the scroll viewport (R34)",
   );
 });
 
