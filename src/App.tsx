@@ -105,12 +105,16 @@ import type { CommandAliases } from "./command-aliases";
 import {
   BROWSER_FILTERS,
   browserModeFor,
+  CLIPBOARD_FILTERS,
+  CLIPBOARD_FAVORITE_SHORTCUT,
   clipboardModeFor,
   cycleBrowserFilter as nextBrowserFilter,
+  cycleClipboardFilter as nextClipboardFilter,
   pluginModeEntry,
   pluginModeExitOnBackspace,
   type ActivePluginMode,
   type BrowserMode,
+  type ClipboardModeFilter,
 } from "./launcher";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import type { BrowserSearchField } from "./browser-page";
@@ -260,6 +264,19 @@ const BROWSER_FILTER_KEYS: Record<BrowserMode["kind"], MessageKey> = {
   bookmarks: "launcher.browserBookmarks",
   history: "launcher.browserHistory",
   tabs: "launcher.browserTabs",
+};
+
+/** R38 · the label each clipboard filter chip prints. `all`/`favorites` are the
+ *  mode's own words; the four kind chips reuse the clipboard panel's type
+ *  vocabulary (`clipboard.typeText` …), so the chips and a row's type name the
+ *  same thing the same way. */
+const CLIPBOARD_FILTER_KEYS: Record<ClipboardModeFilter, MessageKey> = {
+  all: "launcher.clipboardFilterAll",
+  favorites: "launcher.clipboardFilterFavorites",
+  text: "clipboard.typeText",
+  image: "clipboard.typeImage",
+  link: "clipboard.typeLink",
+  files: "clipboard.typeFiles",
 };
 
 const SETTINGS_WINDOW_HEIGHT = 580;
@@ -751,6 +768,8 @@ export default function App() {
     pluginView,
     pluginLoadingMore,
     loadMorePluginPage,
+    toggleClipboardFavorite,
+    reloadClipboardEntries,
     actionBar,
     firstRunnableResultIndex,
     defaultsToActionBar,
@@ -778,6 +797,7 @@ export default function App() {
     browserEnabled: settings.browser_plugin.enabled,
     browserSearchField: settings.browser_plugin.search_fields,
     clipboardEnabled: settings.clipboard_history_enabled,
+    showLauncherFeedback,
     t,
     settingsRef,
     settingsHydration,
@@ -833,7 +853,9 @@ export default function App() {
     modeRef.current = "collapsed";
     setMode("collapsed");
     enterPluginMode(
-      pluginId === BROWSER_PLUGIN_ID ? { scope: "browser", kind: "all" } : { scope: "clipboard" },
+      pluginId === BROWSER_PLUGIN_ID
+        ? { scope: "browser", kind: "all" }
+        : { scope: "clipboard", filter: "all" },
     );
     setPluginConfigOpen(true);
   }, [enterPluginMode]);
@@ -872,6 +894,36 @@ export default function App() {
     setPluginMode((current) =>
       current?.scope === "browser"
         ? { scope: "browser", kind: nextBrowserFilter(current.kind, direction) }
+        : current,
+    );
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /**
+   * R38 · the clipboard mode's filter chips, the browser filter's twin.
+   *
+   * The mode's `filter` **is** the selection (no second piece of state to keep
+   * in step), and leaving the mode forgets it exactly as it forgets the needle.
+   * A chip click and Tab both land here, so the two controls cannot disagree.
+   * The selection returns to the top: a new filter is a new list.
+   */
+  const setClipboardFilter = useCallback((filter: ClipboardModeFilter) => {
+    setPluginMode((current) =>
+      current?.scope === "clipboard" ? { scope: "clipboard", filter } : current,
+    );
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /** R38 · Tab / Shift+Tab through {@link CLIPBOARD_FILTERS}, wrapping at both
+   *  ends — the same contract as {@link cycleBrowserFilter}. */
+  const cycleClipboardFilter = useCallback((direction: 1 | -1) => {
+    setPluginMode((current) =>
+      current?.scope === "clipboard"
+        ? { scope: "clipboard", filter: nextClipboardFilter(current.filter, direction) }
         : current,
     );
     setSelectedActionBar(false);
@@ -988,6 +1040,10 @@ export default function App() {
   // query. The variable keeps its name and its meaning: it is the plugin that
   // owns the field right now, or `null` on the ordinary search page.
   const launcherScope = pluginMode?.scope ?? null;
+  /** R38 · the clipboard mode's active filter chip, or `all` outside the mode.
+   *  The mode object is the single owner (see `setClipboardFilter`). */
+  const clipboardFilter: ClipboardModeFilter =
+    pluginMode?.scope === "clipboard" ? pluginMode.filter : "all";
   // R29 · the plugin the current scope belongs to, for the config overlay.
   const launcherPluginId =
     launcherScope === "clipboard"
@@ -1162,6 +1218,13 @@ export default function App() {
     refreshTerminalSessions,
     enterPluginMode,
     browserScope: launcherScope === "browser",
+    /** R38 · the clipboard mode's own two keys: Tab cycles the chips and ⌘D
+     *  favorites the selected row. Passed as explicit facts (the mode the
+     *  field owns, and the two actions) rather than re-derived from the query,
+     *  exactly as the browser filter is. */
+    clipboardScope: launcherScope === "clipboard",
+    cycleClipboardFilter,
+    toggleClipboardFavorite,
     cycleBrowserFilter,
     isComposing,
     actionBar,
@@ -1442,7 +1505,10 @@ export default function App() {
     launcherSectionTitle,
     // R32 · the browser scope's range-filter subline is fixed chrome; charging
     // it here keeps the window from moving as the plugin's rows filter.
-    launcherScope === "browser",
+    // R38 · the clipboard mode draws the same subline (its own six chips), so
+    // it is charged by the same constant — the window must not resize when the
+    // chips appear or when a chip switches the list under them.
+    launcherScope === "browser" || launcherScope === "clipboard",
   );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
@@ -2538,6 +2604,53 @@ export default function App() {
                 </span>
               </div>
             )}
+            {/* R38 · the clipboard mode's filter chips: 全部 / 收藏 / 文字 /
+                图片 / 链接 / 文件. The browser range filter's twin — the same
+                `.launcher-filter` row, the same interaction (click or Tab),
+                the same muted register with the active chip underlined and
+                heavier, so six chips still spend no accent. `role="tablist"`
+                with `tabIndex={-1}` keeps the field the one keyboard owner;
+                Tab cycles the selection in `handleLauncherKey`. */}
+            {launcherScope === "clipboard" && (
+              <div className="launcher-filter">
+                <div
+                  className="launcher-filter__chips"
+                  role="tablist"
+                  aria-label={t("launcher.clipboardFilter")}
+                >
+                  {CLIPBOARD_FILTERS.map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      role="tab"
+                      tabIndex={-1}
+                      aria-selected={clipboardFilter === filter}
+                      className={
+                        clipboardFilter === filter
+                          ? "launcher-filter__chip launcher-filter__chip--active"
+                          : "launcher-filter__chip"
+                      }
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setClipboardFilter(filter);
+                      }}
+                    >
+                      {t(CLIPBOARD_FILTER_KEYS[filter])}
+                    </button>
+                  ))}
+                </div>
+                {/* The two keys the mode owns, in one quiet line: Tab cycles
+                    the chips, ⌘D favorites the selected row. Same
+                    `--text-caption` / `--text-tertiary` register as the
+                    browser hint, so neither key shouts. */}
+                <span className="launcher-filter__hint">
+                  {t("launcher.clipboardFilterHint", {
+                    shortcut: formatShortcut(CLIPBOARD_FAVORITE_SHORTCUT),
+                  })}
+                </span>
+              </div>
+            )}
             {/* First-run onboarding tip: a small dismissible banner shown above
                 the result area the first time the user opens the launcher. */}
             {showOnboardingTip && !launcherScope && (
@@ -2577,6 +2690,10 @@ export default function App() {
                 clipboardEnabled={settings.clipboard_history_enabled}
                 onChangeGeneralSetting={(key, value) => changeGeneralSetting(key, value)}
                 onBrowserSettingsChange={(block) => changeGeneralSetting("browser_plugin", block)}
+                // R38 · the overlay's "clear history" action mutated the store:
+                // refetch the mode's entries so the list behind the overlay is
+                // not left showing rows the user just deleted.
+                onActionComplete={reloadClipboardEntries}
                 onClose={() => setPluginConfigOpen(false)}
               />
             ) : (
@@ -2681,6 +2798,9 @@ export default function App() {
                     // the report only fires when the range really changes.
                     onVisibleRowsChange={setVisibleResultRange}
                     onRunResult={runLauncherItem}
+                    // R38 · the clipboard row's star. The same call the mode's
+                    // `⌘D` makes, so click and key share one path.
+                    onToggleClipboardFavorite={toggleClipboardFavorite}
                     onRunActionBar={() => {
                       if (visibleActionBar) executeActionBar(visibleActionBar);
                     }}

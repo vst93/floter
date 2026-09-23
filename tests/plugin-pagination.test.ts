@@ -181,10 +181,13 @@ test("the clipboard plugin returns the whole history when the fetch allows it", 
     created_at: 1_700_000_000_000 - i * 1000,
     favorite: false,
   }));
-  const full = clipboardModeRows(entries, "", en, 1_700_000_000_000, 500);
+  const full = clipboardModeRows(entries, { needle: "", filter: "all" }, en, 1_700_000_000_000, 500);
   assert.equal(full.length, entries.length);
   // The default is the whole ten-row viewport budget (R37).
-  assert.equal(clipboardModeRows(entries, "", en, 1_700_000_000_000).length, MAX_RESULTS);
+  assert.equal(
+    clipboardModeRows(entries, { needle: "", filter: "all" }, en, 1_700_000_000_000).length,
+    MAX_RESULTS,
+  );
 });
 
 // ── F · the wiring, pinned at the source ──────────────────────────────────

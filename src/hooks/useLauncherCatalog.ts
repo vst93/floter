@@ -261,6 +261,10 @@ export function useLauncherCatalog(options: {
   /** R27 · `settings.clipboard_history_enabled`. The clipboard mode's switch,
    *  read from the same long-standing field the plugin list and the panel use. */
   clipboardEnabled: boolean;
+  /** R38 · the launcher's one-line feedback under the list. The clipboard
+   *  mode's favorite toggle reports a failed write through it (the star has
+   *  already rolled back by then). */
+  showLauncherFeedback: (key: MessageKey, duration?: number) => void;
   t: Translate;
   settingsRef: RefObject<AppSettings>;
   settingsHydration: ReturnType<typeof createSettingsHydration<AppSettings>>;
@@ -278,6 +282,7 @@ export function useLauncherCatalog(options: {
     browserEnabled,
     browserSearchField,
     clipboardEnabled,
+    showLauncherFeedback,
     t,
     settingsRef,
     settingsHydration,
@@ -571,6 +576,14 @@ export function useLauncherCatalog(options: {
   // costs no IPC and no window resize.
   const clipboardActive = clipboardMode !== null;
   const [clipboardEntries, setClipboardEntries] = useState<ClipboardEntry[]>([]);
+  // R38 · a manual refetch trigger. The config overlay's "clear history"
+  // action mutates the store behind this hook's back, so the App bumps this
+  // counter and the fetch below runs again — the mode's list is never left
+  // showing rows the user just deleted.
+  const [clipboardRevision, setClipboardRevision] = useState(0);
+  const reloadClipboardEntries = useCallback(() => {
+    setClipboardRevision((revision) => revision + 1);
+  }, []);
 
   useEffect(() => {
     if (!clipboardActive || !clipboardEnabled) {
@@ -590,7 +603,7 @@ export function useLauncherCatalog(options: {
     return () => {
       cancelled = true;
     };
-  }, [clipboardActive, clipboardEnabled]);
+  }, [clipboardActive, clipboardEnabled, clipboardRevision]);
 
   const clipboardEmission = useMemo<PluginEmission | null>(() => {
     if (!clipboardMode) return null;
@@ -602,8 +615,44 @@ export function useLauncherCatalog(options: {
     // The entries are fetched once and filtered in memory, so typing inside the
     // mode costs no IPC. R28 · the rows are the plugin's *output*; the
     // capability layer decides they are a list and how tall the window is.
-    return { output: clipboardModeRows(clipboardEntries, clipboardMode.needle, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS) };
+    return { output: clipboardModeRows(clipboardEntries, clipboardMode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS) };
   }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
+
+  // R38 · the favorite toggle, owned here because this hook owns the entries.
+  // Optimistic: the star flips on the next paint and the write follows; a
+  // refused write rolls the one row back and the launcher's feedback line says
+  // why. The mode refetches on the next open, so the store stays the authority
+  // without a reload here. A ref mirrors the entries so the callback can read
+  // the row's current flag without being rebuilt per entry change.
+  const clipboardEntriesRef = useRef<ClipboardEntry[]>([]);
+  clipboardEntriesRef.current = clipboardEntries;
+  const toggleClipboardFavorite = useCallback(
+    (id: string) => {
+      const current = clipboardEntriesRef.current.find((entry) => entry.id === id);
+      if (!current) return;
+      const next = !current.favorite;
+      const paint = (favorite: boolean) =>
+        setClipboardEntries((entries) =>
+          entries.map((entry) => (entry.id === id ? { ...entry, favorite } : entry)),
+        );
+      paint(next);
+      invoke("clipboard_set_favorite", { id, favorite: next })
+        .then(() => {
+          // R38 · un-favoriting hands the entry back to the retention policy,
+          // and the backend prunes inside the same write — so an entry that had
+          // outlived the window can be gone by the time this resolves. Refetch
+          // then, rather than leaving a row whose Enter would fail. Favoriting
+          // can never prune (it only removes an entry from the non-favorite
+          // pool), so it needs no refetch.
+          if (!next) reloadClipboardEntries();
+        })
+        .catch(() => {
+          paint(current.favorite);
+          showLauncherFeedback("clipboard.favoriteFailed");
+        });
+    },
+    [reloadClipboardEntries, showLauncherFeedback],
+  );
 
   // R29 · client-side pagination of the inline plugin list.
   //
@@ -1096,6 +1145,8 @@ export function useLauncherCatalog(options: {
     pluginHasMore,
     pluginLoadingMore,
     loadMorePluginPage,
+    toggleClipboardFavorite,
+    reloadClipboardEntries,
     actionBar,
     runnableResultFlags,
     resultShortcutSlots,

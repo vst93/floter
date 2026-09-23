@@ -129,7 +129,7 @@ test("every surface and the ordinary search page map exactly once", () => {
     "terminal",
   );
   assert.equal(
-    residencySurface({ mode: "settings", pluginMode: { scope: "clipboard" }, pluginConfigOpen: true }),
+    residencySurface({ mode: "settings", pluginMode: { scope: "clipboard", filter: "all" }, pluginConfigOpen: true }),
     "settings",
   );
 });

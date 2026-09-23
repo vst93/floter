@@ -13,7 +13,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { nextLauncherSelection, type ActivePluginMode, type ExecutionPlan } from "../launcher";
+import { nextLauncherSelection, CLIPBOARD_FAVORITE_SHORTCUT, type ActivePluginMode, type ExecutionPlan } from "../launcher";
 import {
   fileActionKindForBar,
   fileActionRequest,
@@ -82,6 +82,16 @@ export function useLauncherActions(options: {
   browserScope: boolean;
   /** R32 · step through the browser filter (`1` forward, `-1` back). */
   cycleBrowserFilter: (direction: 1 | -1) => void;
+  /** R38 · whether the clipboard mode owns the field. Tab cycles its filter
+   *  chips (the browser rule, applied to the clipboard's six) and ⌘D favorites
+   *  the selected row. */
+  clipboardScope: boolean;
+  /** R38 · step through the clipboard filter chips (`1` forward, `-1` back). */
+  cycleClipboardFilter: (direction: 1 | -1) => void;
+  /** R38 · toggle the favorite flag of the clipboard entry with this id. The
+   *  write and its optimistic paint live in the catalog hook that owns the
+   *  entries; this is only the key's call into it. */
+  toggleClipboardFavorite: (id: string) => void;
   isComposing: RefObject<boolean>;
   actionBar: ActionBar | null;
   shortcuts: ShortcutMap;
@@ -142,6 +152,9 @@ export function useLauncherActions(options: {
     enterPluginMode,
     browserScope,
     cycleBrowserFilter,
+    clipboardScope,
+    cycleClipboardFilter,
+    toggleClipboardFavorite,
     isComposing,
     actionBar,
     shortcuts,
@@ -513,7 +526,7 @@ export function useLauncherActions(options: {
     // branch above has had since R26-D.
     if (item.action === "clipboard") {
       if (item.disabled) return;
-      enterPluginMode({ scope: "clipboard" });
+      enterPluginMode({ scope: "clipboard", filter: "all" });
       return;
     }
 
@@ -674,6 +687,29 @@ export function useLauncherActions(options: {
     if (event.key === "Tab" && browserScope) {
       event.preventDefault();
       cycleBrowserFilter(event.shiftKey ? -1 : 1);
+      return;
+    }
+
+    // R38 · the clipboard mode's twin: Tab cycles its six filter chips, and
+    // ⌘D / Ctrl+D favorites the selected row. Both are mode-local keys (like
+    // the browser's Tab) and both run here, before the numbered-result family,
+    // so the field keeps the keyboard for the whole gesture. The favorite key
+    // is checked against the row the selection is on and only ever acts on a
+    // runnable clipboard entry — a status line has nothing to favorite.
+    if (clipboardScope && event.key === "Tab") {
+      event.preventDefault();
+      cycleClipboardFilter(event.shiftKey ? -1 : 1);
+      return;
+    }
+    if (clipboardScope && matchesShortcut(event, CLIPBOARD_FAVORITE_SHORTCUT)) {
+      // The key is the mode's whether or not the selection happens to be on a
+      // row: consuming it keeps the webview's own bookmark gesture (if any)
+      // from firing on a status line.
+      event.preventDefault();
+      const selected = launcherResults[selectedResultIndex];
+      if (selected?.type === "clipboard" && !selected.disabled && selected.entry) {
+        toggleClipboardFavorite(selected.entry.id);
+      }
       return;
     }
 

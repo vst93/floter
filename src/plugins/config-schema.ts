@@ -102,6 +102,25 @@ export type PluginConfigField =
       labelKey: MessageKey;
       helpKey?: MessageKey;
       placeholderKey?: MessageKey;
+    }
+  /**
+   * R38 · a destructive command, not a value. The control is a button that arms
+   * on first press and runs on the second (the overlay's own two-step confirm —
+   * no system dialog), so a plugin can offer "clear history" without the
+   * overlay growing a plugin-specific branch. `command` is the bridge command
+   * the overlay invokes; the four keys are its label, help, confirm, cancel and
+   * failure wording. An `action` field holds no value (`normalizeConfigValue`
+   * returns `null`), so it never round-trips through the settings block.
+   */
+  | {
+      key: string;
+      type: "action";
+      labelKey: MessageKey;
+      helpKey?: MessageKey;
+      confirmKey: MessageKey;
+      cancelKey: MessageKey;
+      failedKey: MessageKey;
+      command: string;
     };
 
 /** A field's value, as the overlay stores it. */
@@ -139,6 +158,17 @@ export const CLIPBOARD_CONFIG_SCHEMA: PluginConfigSchema = {
       max: MAX_CLIPBOARD_MAX_ITEMS,
       step: 10,
       unitKey: "plugins.config.unitItems",
+    },
+    // R38 · the plugin's one destructive action lives here, not on the list.
+    {
+      key: "clear_history",
+      type: "action",
+      labelKey: "plugins.config.clearHistory",
+      helpKey: "plugins.config.clearHistoryHint",
+      confirmKey: "plugins.config.clearHistoryConfirm",
+      cancelKey: "plugins.config.clearHistoryCancel",
+      failedKey: "clipboard.clearFailed",
+      command: "clipboard_clear_history",
     },
   ],
 };
@@ -295,6 +325,9 @@ export const normalizeConfigValue = (
   switch (field.type) {
     case "toggle":
       return raw === true;
+    case "action":
+      // A command, not a value: nothing is stored and nothing round-trips.
+      return null;
     case "text":
       return typeof raw === "string" && raw.trim() ? raw.trim() : null;
     case "slider":

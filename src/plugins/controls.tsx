@@ -11,6 +11,7 @@
 // The overlay (`PluginConfigOverlay.tsx`) is the only caller; a new plugin adds
 // no control code, only a schema (`config-schema.ts`).
 
+import { useState } from "react";
 import type { Translate } from "../i18n";
 import {
   type PluginConfigField,
@@ -20,13 +21,16 @@ import {
 } from "./config-schema";
 
 /** What every control receives. `onChange` reports the field's key and its
- *  next value; the overlay owns normalization and persistence. */
+ *  next value; the overlay owns normalization and persistence. `onRun` is the
+ *  `action` control's counterpart: it runs the field's command and resolves to
+ *  whether the backend accepted it. */
 export type PluginControlProps = {
   t: Translate;
   field: PluginConfigField;
   value: PluginConfigValue;
   disabled?: boolean;
   onChange: (key: string, value: PluginConfigValue) => void;
+  onRun?: (key: string) => Promise<boolean>;
 };
 
 /** The label + help stack a control's row starts with. */
@@ -203,6 +207,65 @@ function TextControl({ t, field, value, disabled, onChange }: PluginControlProps
   );
 }
 
+/** R38 · a destructive command's control.
+ *
+ * Two-step, in place: the first press arms the row (the button becomes the
+ * confirm, with the question beside it and a Cancel next to that), the second
+ * runs it. No system dialog — the confirmation is part of the overlay, the same
+ * surface that offers the action. A refused run falls back to the armed state's
+ * sibling: the row prints the field's failure line and disarms, so the user is
+ * not left thinking it worked. */
+function ActionControl({ t, field, onRun }: PluginControlProps) {
+  if (field.type !== "action") return null;
+  const [armed, setArmed] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  if (!armed) {
+    return (
+      <span className="plugin-config-action">
+        {failed && (
+          <span className="plugin-config-action__status" role="status">
+            {t(field.failedKey)}
+          </span>
+        )}
+        <button
+          type="button"
+          className="plugin-config-action__button plugin-config-action__button--danger"
+          onClick={() => {
+            setFailed(false);
+            setArmed(true);
+          }}
+        >
+          {t(field.labelKey)}
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="plugin-config-action plugin-config-action--armed" role="group" aria-label={t(field.labelKey)}>
+      <span className="plugin-config-action__confirm">{t(field.confirmKey)}</span>
+      <button
+        type="button"
+        className="plugin-config-action__button plugin-config-action__button--danger"
+        onClick={() => {
+          setArmed(false);
+          void onRun?.(field.key).then((ok) => setFailed(ok === false));
+        }}
+      >
+        {t(field.labelKey)}
+      </button>
+      <button
+        type="button"
+        className="plugin-config-action__button"
+        onClick={() => setArmed(false)}
+      >
+        {t(field.cancelKey)}
+      </button>
+    </span>
+  );
+}
+
 /** The control one field asks for. Unknown kinds render nothing rather than
  *  guessing — a schema is data, and a typo in it must not paint a wrong
  *  control. */
@@ -222,6 +285,8 @@ export function PluginConfigControl(props: PluginControlProps) {
       return <SliderControl {...props} />;
     case "text":
       return <TextControl {...props} />;
+    case "action":
+      return <ActionControl {...props} />;
   }
 }
 

@@ -18,9 +18,9 @@ import {
   formatClipboardAge,
   formatFilesPreview,
   type ClipboardEntry,
-  type ClipboardEntryType,
 } from "../../clipboard-history.ts";
 import type { MessageKey, Translate } from "../../i18n.ts";
+import type { ClipboardMode, ClipboardModeFilter } from "../../launcher.ts";
 import type { PluginRow } from "../../launcher/plugin-mode.ts";
 import { MAX_RESULTS } from "../../launcher/result-budget.ts";
 
@@ -32,13 +32,14 @@ import { MAX_RESULTS } from "../../launcher/result-budget.ts";
  *  a ten-row plugin page is (see `resultShortcutSlots`). */
 export const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS;
 
-/** The type word each clipboard entry kind prints on its row. The five keys are
- *  the clipboard panel's own type labels, so the launcher and the page name the
- *  same thing the same way. */
-const CLIPBOARD_TYPE_KEYS: Record<ClipboardEntryType, MessageKey> = {
+/** The type word each clipboard entry prints on its row. The keys are the
+ *  clipboard panel's own type labels, and the *four-way split is the chips'
+ *  one* (`clipboardKindChip`): a colour literal is a `text` entry and its row
+ *  says 文字, so the row's word, its icon and the chip that reveals it always
+ *  agree. `clipboard.typeColor` remains the retired page's own label. */
+const CLIPBOARD_KIND_KEYS: Record<ClipboardKindChip, MessageKey> = {
   text: "clipboard.typeText",
   link: "clipboard.typeLink",
-  color: "clipboard.typeColor",
   image: "clipboard.typeImage",
   files: "clipboard.typeFiles",
 };
@@ -65,7 +66,7 @@ export const clipboardRow = (entry: ClipboardEntry, t: Translate, now: number): 
   const preview = files
     ? `${files.basename}${files.extra > 0 ? ` +${files.extra}` : ""}`
     : clipboardPreview(entry, 96);
-  const kindKey = CLIPBOARD_TYPE_KEYS[clipboardEntryType(entry)];
+  const kindKey = CLIPBOARD_KIND_KEYS[clipboardKindChip(entry)];
   const age = formatClipboardAge(entry.created_at, now);
   return {
     family: "clipboard",
@@ -74,6 +75,38 @@ export const clipboardRow = (entry: ClipboardEntry, t: Translate, now: number): 
     subtitle: age ? `${t(kindKey)} · ${age}` : t(kindKey),
     entry,
   };
+};
+
+/** R38 · which of the four *kind* chips an entry belongs to. Deliberately
+ *  coarser than `clipboardEntryType`: the chips are 文字 / 图片 / 链接 / 文件
+ *  with no colour chip, so a colour literal (a `text` entry) stays 文字. Images
+ *  and file lists keep their stored kind; a text entry whose whole content is a
+ *  URL is a link, and text and link are mutually exclusive with the link
+ *  winning — one entry, one chip. */
+export type ClipboardKindChip = "text" | "image" | "link" | "files";
+
+export const clipboardKindChip = (entry: ClipboardEntry): ClipboardKindChip => {
+  const type = clipboardEntryType(entry);
+  if (type === "image") return "image";
+  if (type === "files") return "files";
+  if (type === "link") return "link";
+  // `text` and `color` both land here: the chips have no colour face.
+  return "text";
+};
+
+/**
+ * R38 · whether an entry survives one chip. `all` keeps everything; `favorites`
+ * is the orthogonal retention axis (any kind may be a favorite); the other four
+ * are {@link clipboardKindChip}. Every entry matches exactly one kind chip, so
+ * the four kind counts add up to the unfiltered total.
+ */
+export const clipboardEntryMatchesFilter = (
+  entry: ClipboardEntry,
+  filter: ClipboardModeFilter,
+): boolean => {
+  if (filter === "all") return true;
+  if (filter === "favorites") return entry.favorite;
+  return clipboardKindChip(entry) === filter;
 };
 
 /**
@@ -85,7 +118,7 @@ export const clipboardRow = (entry: ClipboardEntry, t: Translate, now: number): 
  */
 export const clipboardModeRows = (
   entries: readonly ClipboardEntry[],
-  needle: string,
+  mode: ClipboardMode,
   t: Translate,
   now: number,
   /** R29 · the ceiling on the filtered rows. Defaults to the nine-row viewport
@@ -93,12 +126,19 @@ export const clipboardModeRows = (
    *  client-side (`paginatePluginRows`). */
   limit: number = CLIPBOARD_FETCH_LIMIT,
 ): PluginRow[] => {
-  const matches = filterClipboardEntries([...entries], needle).slice(0, limit);
+  const matched = filterClipboardEntries([...entries], mode.needle).filter((entry) =>
+    clipboardEntryMatchesFilter(entry, mode.filter),
+  );
+  const matches = matched.slice(0, limit);
   if (matches.length) return matches.map((entry) => clipboardRow(entry, t, now));
   return [
     clipboardStatusRow(
       "clipboard-empty",
-      needle ? "clipboard.emptyFilter" : "clipboard.empty",
+      mode.needle
+        ? "clipboard.emptyFilter"
+        : mode.filter === "favorites"
+          ? "clipboard.emptyFavorites"
+          : "clipboard.empty",
       t,
     ),
   ];

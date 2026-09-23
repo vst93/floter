@@ -82,6 +82,16 @@ const en = {
   // that cycles the filter, which is otherwise undiscoverable (the chips are
   // not in the tab order — the field owns the keyboard).
   "launcher.browserFilterHint": "Tab to switch",
+  // R38 · the clipboard mode's filter chips and its favorite toggle. The four
+  // kind chips reuse the clipboard panel's type vocabulary (`clipboard.typeText`
+  // …), so the chips and a row's own type name the same thing the same way;
+  // these are the mode's own words. The hint names the two keys the mode owns.
+  "launcher.clipboardFilter": "Filter clipboard history",
+  "launcher.clipboardFilterAll": "All",
+  "launcher.clipboardFilterFavorites": "Favorites",
+  "launcher.clipboardFilterHint": "Tab to switch · {shortcut} to favorite",
+  "launcher.clipboardFavorite": "Favorite",
+  "launcher.clipboardUnfavorite": "Unfavorite",
   "launcher.browserHint": "Type to search bookmarks and history",
   "launcher.browserEmpty": "No matching bookmarks or history",
   "launcher.browserNoProfile": "No supported browser was found on this computer",
@@ -195,6 +205,12 @@ const en = {
   "plugins.config.enabledHint": "Turn this plugin's search mode on or off.",
   "plugins.config.clipboardMaxItems": "History size",
   "plugins.config.clipboardMaxItemsHint": "How many clipboard entries to keep. Lowering it drops the oldest.",
+  // R38 · the clipboard plugin's one destructive action, moved off the list and
+  // into the config overlay. Two-step: the row arms, the second press clears.
+  "plugins.config.clearHistory": "Clear history",
+  "plugins.config.clearHistoryHint": "Removes every entry that is not a favorite.",
+  "plugins.config.clearHistoryConfirm": "Clear history?",
+  "plugins.config.clearHistoryCancel": "Cancel",
   "plugins.config.unitItems": "items",
   "plugins.config.unitDays": "days",
   "plugins.config.browserTarget": "Browser",
@@ -248,7 +264,7 @@ const en = {
   "clipboard.emptyHint": "Copy something and it will show up here.",
   "clipboard.emptyFilter": "No matches",
   "clipboard.emptyFilterHint": "Try a shorter or different search term.",
-  "clipboard.emptyFavorites": "Nothing pinned yet",
+  "clipboard.emptyFavorites": "No favorites yet",
   "clipboard.emptyFavoritesHint": "Press P on a row to pin it — pinned entries never expire.",
   "clipboard.scopePinned": "Pinned",
   "clipboard.scopePinnedLabel": "Show pinned entries only",
@@ -853,6 +869,14 @@ const zh: Record<MessageKey, string> = {
   "launcher.browserTabs": "标签页",
   "launcher.browserFilter": "过滤浏览器结果",
   "launcher.browserFilterHint": "Tab 切换",
+  // R38 · 剪贴板模式的筛选 chip 与收藏开关。四个类型 chip 复用剪贴板面板的类型
+  // 词汇（`clipboard.typeText` 等），因此 chip 与行的类型用词一致。
+  "launcher.clipboardFilter": "过滤剪贴板历史",
+  "launcher.clipboardFilterAll": "全部",
+  "launcher.clipboardFilterFavorites": "收藏",
+  "launcher.clipboardFilterHint": "Tab 切换 · {shortcut} 收藏",
+  "launcher.clipboardFavorite": "收藏",
+  "launcher.clipboardUnfavorite": "取消收藏",
   "launcher.browserHint": "输入以搜索书签和历史记录",
   "launcher.browserEmpty": "没有匹配的书签或历史记录",
   "launcher.browserNoProfile": "此电脑上未找到受支持的浏览器",
@@ -961,6 +985,11 @@ const zh: Record<MessageKey, string> = {
   "plugins.config.enabledHint": "开启或关闭该插件的搜索模式。",
   "plugins.config.clipboardMaxItems": "历史容量",
   "plugins.config.clipboardMaxItemsHint": "保留多少条剪贴板记录。调小会丢弃最旧的记录。",
+  // R38 · 剪贴板插件唯一的破坏性操作，从列表移入配置弹层。两步确认：先待命，再清空。
+  "plugins.config.clearHistory": "清空历史",
+  "plugins.config.clearHistoryHint": "删除所有未收藏的记录。",
+  "plugins.config.clearHistoryConfirm": "确认清空历史？",
+  "plugins.config.clearHistoryCancel": "取消",
   "plugins.config.unitItems": "条",
   "plugins.config.unitDays": "天",
   "plugins.config.browserTarget": "浏览器",
@@ -1011,7 +1040,7 @@ const zh: Record<MessageKey, string> = {
   "clipboard.emptyHint": "复制任何内容后都会出现在这里。",
   "clipboard.emptyFilter": "没有匹配项",
   "clipboard.emptyFilterHint": "试试更短或不同的关键词。",
-  "clipboard.emptyFavorites": "暂无置顶",
+  "clipboard.emptyFavorites": "暂无收藏",
   "clipboard.emptyFavoritesHint": "在记录上按 P 即可置顶——置顶记录永不过期。",
   "clipboard.scopePinned": "置顶",
   "clipboard.scopePinnedLabel": "只看置顶",

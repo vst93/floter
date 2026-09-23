@@ -226,3 +226,65 @@
   color: var(--text-muted);
   cursor: pointer;
 }
+
+/* R38 · a schema `action` field's control: the plugin's one destructive
+   command, offered in the overlay instead of on the list.
+
+   The resting face is a quiet hairline button, not an accent one — it is
+   destructive, so it must not read as the overlay's primary action, and the
+   overlay's whole premise is that it spends no accent fill (see the header).
+   `--text-warning` is the one colour it takes, on its label and its hairline,
+   and only for the button that actually clears.
+
+   The armed state is the overlay's own two-step confirm: the question appears
+   beside the button and a Cancel joins it, so the second press is deliberate
+   and Esc/the overlay's close button remain the way out. `flex-wrap` keeps the
+   three pieces from crushing on the narrowest window. */
+.plugin-config-action {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--u) * 6);
+}
+
+.plugin-config-action__button {
+  height: calc(var(--u) * 26);
+  padding: 0 calc(var(--u) * 10);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.plugin-config-action__button:hover {
+  color: var(--text-primary);
+  background: var(--glass-control-hover);
+}
+
+.plugin-config-action__button--danger {
+  border-color: color-mix(in srgb, var(--text-warning) 45%, transparent);
+  color: var(--text-warning);
+}
+
+.plugin-config-action__button--danger:hover {
+  color: var(--text-warning);
+  background: var(--glass-control-hover);
+}
+
+.plugin-config-action__button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.plugin-config-action__confirm {
+  font-size: var(--text-caption);
+  color: var(--text-primary);
+}
+
+.plugin-config-action__status {
+  font-size: var(--text-caption);
+  color: var(--text-warning);
+}

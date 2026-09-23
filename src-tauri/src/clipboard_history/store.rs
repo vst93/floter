@@ -552,6 +552,39 @@ mod tests {
         assert!(dropped.is_empty());
     }
 
+    /// R38 · the favorite flag is a *shield*, not a permanent one. Setting it
+    /// false is what `clipboard_set_favorite` does, and the next prune then
+    /// treats the entry as any other: the age window and the cap both apply
+    /// again. This is the interaction the launcher's favorite toggle relies on,
+    /// so it is pinned here rather than left to the command's call site.
+    #[test]
+    fn an_unfavorited_old_entry_is_pruned_like_any_other() {
+        let now = 1_700_000_000_000;
+        let favorite = text_entry("was-favorite", now - RETENTION_MS - 1, true, "h1");
+        let entries = vec![
+            favorite.clone(),
+            text_entry("fresh", now - 1000, false, "h2"),
+        ];
+
+        // While favorited, the age window does not touch it.
+        let (kept, dropped) = prune_entries(entries, now, MAX_NON_FAVORITE_ENTRIES);
+        assert_eq!(kept.len(), 2);
+        assert!(dropped.is_empty());
+
+        // Un-favoriting restores the ordinary rule: the ancient entry goes.
+        let mut unfavorited = favorite;
+        unfavorited.favorite = false;
+        let (kept, dropped) = prune_entries(
+            vec![unfavorited, text_entry("fresh", now - 1000, false, "h2")],
+            now,
+            MAX_NON_FAVORITE_ENTRIES,
+        );
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].id, "fresh");
+        assert_eq!(dropped.len(), 1);
+        assert_eq!(dropped[0].id, "was-favorite");
+    }
+
     #[test]
     fn identical_content_hashes_equal_across_kinds() {
         assert_eq!(content_hash(b"hello"), content_hash(b"hello"));

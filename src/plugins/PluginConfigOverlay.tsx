@@ -21,6 +21,7 @@ import { BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages";
 import {
   applyConfigChange,
   configDefaults,
+  configField,
   configValues,
   pluginConfigSchema,
   type PluginConfigContext,
@@ -42,6 +43,10 @@ export type PluginConfigOverlayProps = {
    *  on the next search, not on the next restart). Only the browser plugin
    *  calls it. */
   onBrowserSettingsChange: (settings: ReturnType<typeof normalizeBrowserSettings>) => void;
+  /** R38 · a schema `action` field ran successfully. The clipboard plugin uses
+   *  it to refetch the entries its list is holding, so clearing the history
+   *  from here empties the mode behind the overlay too. */
+  onActionComplete?: (key: string) => void;
   onClose: () => void;
 };
 
@@ -69,6 +74,7 @@ export function PluginConfigOverlay({
   clipboardEnabled,
   onChangeGeneralSetting,
   onBrowserSettingsChange,
+  onActionComplete,
   onClose,
 }: PluginConfigOverlayProps) {
   const [context, setContext] = useState<PluginConfigContext>({});
@@ -170,6 +176,27 @@ export function PluginConfigOverlay({
     [schema, persist],
   );
 
+  /**
+   * R38 · run one schema `action` field's command and report whether it was
+   * accepted. The control owns the two-step confirm and the failure line; this
+   * owns the invoke (the overlay is the only bridge caller) and tells the
+   * launcher when the world changed underneath it.
+   */
+  const runAction = useCallback(
+    async (key: string): Promise<boolean> => {
+      const field = schema ? configField(schema, key) : null;
+      if (!field || field.type !== "action") return false;
+      try {
+        await invoke(field.command);
+      } catch {
+        return false;
+      }
+      onActionComplete?.(key);
+      return true;
+    },
+    [schema, onActionComplete],
+  );
+
   if (!schema) return null;
 
   return (
@@ -210,6 +237,7 @@ export function PluginConfigOverlay({
             field={field}
             value={values[field.key] ?? null}
             onChange={handleChange}
+            onRun={runAction}
           />
         ))}
       </div>

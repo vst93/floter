@@ -362,6 +362,63 @@ pub fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
     Ok((info.width, info.height, buffer))
 }
 
+/// R38 · downscale RGBA8 pixels so neither side exceeds `max_side`, preserving
+/// the aspect ratio.
+///
+/// Box-average: each destination pixel is the mean of the source rectangle it
+/// covers, which is what keeps a 32px row icon readable instead of aliased the
+/// way nearest-neighbour would leave it. A source already at or below the
+/// ceiling is returned untouched — a thumbnail never upscales. The caller
+/// decodes the stored PNG once; this is the only per-pixel pass, and at icon
+/// sizes it is a few hundred additions.
+pub fn downscale_rgba(
+    width: u32,
+    height: u32,
+    rgba: &[u8],
+    max_side: u32,
+) -> (u32, u32, Vec<u8>) {
+    if width == 0 || height == 0 {
+        return (0, 0, Vec::new());
+    }
+    let max_side = max_side.max(1);
+    let scale = (max_side as f64 / width as f64)
+        .min(max_side as f64 / height as f64)
+        .min(1.0);
+    let target_w = ((width as f64 * scale).round() as u32).max(1);
+    let target_h = ((height as f64 * scale).round() as u32).max(1);
+    if target_w == width && target_h == height {
+        return (width, height, rgba.to_vec());
+    }
+    let mut out = vec![0u8; target_w as usize * target_h as usize * 4];
+    for ty in 0..target_h {
+        let y0 = ty as u64 * height as u64 / target_h as u64;
+        let y1 = ((ty as u64 + 1) * height as u64 / target_h as u64).max(y0 + 1);
+        for tx in 0..target_w {
+            let x0 = tx as u64 * width as u64 / target_w as u64;
+            let x1 = ((tx as u64 + 1) * width as u64 / target_w as u64).max(x0 + 1);
+            let mut sum = [0u32; 4];
+            let mut count = 0u32;
+            for y in y0..y1.min(height as u64) {
+                for x in x0..x1.min(width as u64) {
+                    let index = ((y as usize * width as usize) + x as usize) * 4;
+                    for (channel, total) in sum.iter_mut().enumerate() {
+                        *total += rgba[index + channel] as u32;
+                    }
+                    count += 1;
+                }
+            }
+            if count == 0 {
+                continue;
+            }
+            let out_index = ((ty as usize * target_w as usize) + tx as usize) * 4;
+            for (channel, total) in sum.iter().enumerate() {
+                out[out_index + channel] = ((*total + count / 2) / count) as u8;
+            }
+        }
+    }
+    (target_w, target_h, out)
+}
+
 /// Handle to one running monitor, cancelled and aborted on disable/quit.
 pub struct MonitorHandle {
     cancel: Arc<AtomicBool>,
@@ -468,6 +525,29 @@ mod tests {
         let (decoded_width, decoded_height, decoded) = decode_png(&encoded).expect("decode");
         assert_eq!((decoded_width, decoded_height), (width, height));
         assert_eq!(decoded, rgba);
+    }
+
+    #[test]
+    fn downscale_caps_the_long_side_and_preserves_aspect() {
+        // A 100x50 opaque red image at a 32px ceiling becomes 32x16, all red.
+        let width = 100u32;
+        let height = 50u32;
+        let rgba: Vec<u8> = (0..width * height).flat_map(|_| [200u8, 10, 10, 255]).collect();
+        let (tw, th, small) = downscale_rgba(width, height, &rgba, 32);
+        assert_eq!((tw, th), (32, 16));
+        assert_eq!(small.len(), (tw * th * 4) as usize);
+        assert!(small.chunks(4).all(|pixel| pixel == [200, 10, 10, 255]));
+
+        // A source already inside the ceiling is untouched (never upscaled).
+        let (tw, th, same) = downscale_rgba(16, 16, &rgba[..16 * 16 * 4], 32);
+        assert_eq!((tw, th), (16, 16));
+        assert_eq!(same, rgba[..16 * 16 * 4].to_vec());
+
+        // The box mean is a real average, not a sample: half black, half white
+        // over the two source rows lands on the midpoint.
+        let stripes: Vec<u8> = (0..2 * 2).flat_map(|index| if index < 2 { [0u8, 0, 0, 255] } else { [255u8, 255, 255, 255] }).collect();
+        let (_, _, averaged) = downscale_rgba(2, 2, &stripes, 1);
+        assert_eq!(averaged, vec![128, 128, 128, 255]);
     }
 
     #[test]

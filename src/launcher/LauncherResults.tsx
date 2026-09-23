@@ -1,4 +1,5 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { Translate } from "../i18n";
 import type { LocalApplication } from "../App";
 import { formatResultShortcut } from "../shortcuts";
@@ -14,12 +15,17 @@ import {
   Bookmark as BookmarkIcon,
   Clock as ClockIcon,
   AppWindow as AppWindowIcon,
+  Star as StarIcon,
+  Type as TypeIcon,
+  Link as LinkIcon,
+  Image as ImageIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
 import {
   PLUGIN_LOAD_MORE_THRESHOLD,
   pluginFooterState,
   type PluginPage,
 } from "./plugin-mode";
+import { clipboardKindChip } from "../plugins/clipboard/mode";
 import type { ClipboardEntry } from "../clipboard-history";
 import type { DroppedFile } from "./file-drops";
 
@@ -201,6 +207,47 @@ const BrowserRowIcon = ({
 };
 
 /**
+ * R38 · the clipboard row's icon slot, one glyph per kind.
+ *
+ * R27-R37 every clipboard row wore the same clipboard glyph, so a text entry, a
+ * URL, a screenshot and a file list were told apart only by their one-line
+ * preview. The row already knows its kind (`clipboardKindChip`, the same
+ * four-way split the filter chips use), so this is the one place that maps it to
+ * a glyph:
+ *
+ *   · text   → Lucide `type` (the clipboard panel's own text glyph)
+ *   · link   → Lucide `link`
+ *   · image  → the downscaled thumbnail once its bytes have arrived, the Lucide
+ *              `image` glyph until then
+ *   · files  → Lucide `folder`
+ *
+ * Same 24×24 / `stroke-width: 2` Lucide family and muted `--text-secondary` the
+ * rest of the launcher's icons use — the glyph is neutral furniture, never
+ * accent. A status line (no entry) keeps the clipboard glyph. Lucide marks its
+ * own SVG `aria-hidden`; the row's title and subtitle carry the meaning.
+ */
+const ClipboardRowIcon = ({
+  item,
+  thumbnail,
+}: {
+  item: Extract<LauncherItem, { type: "clipboard" }>;
+  thumbnail?: string;
+}) => {
+  if (!item.entry || item.disabled) return <SystemActionIcon action="clipboard" />;
+  const chip = clipboardKindChip(item.entry);
+  if (chip === "image") {
+    return thumbnail ? (
+      <img src={thumbnail} alt="" draggable={false} />
+    ) : (
+      <ImageIcon size={16} strokeWidth={2} aria-hidden="true" />
+    );
+  }
+  if (chip === "link") return <LinkIcon size={16} strokeWidth={2} aria-hidden="true" />;
+  if (chip === "files") return <FolderIcon size={16} strokeWidth={2} aria-hidden="true" />;
+  return <TypeIcon size={16} strokeWidth={2} aria-hidden="true" />;
+};
+
+/**
  * The action bar's icon: Lucide `terminal` for a shell, `external-link` for a
  * URL, `folder` for a path, and for R7-10a's three file actions `file`/`folder`
  * (open), `terminal` (cd) and `clipboard` (copy path).
@@ -269,6 +316,11 @@ type LauncherResultsProps = {
   onSelectActionBar: () => void;
   onRunResult: (item: LauncherItem) => void;
   onRunActionBar: () => void;
+  /** R38 · toggle the favorite flag of the clipboard entry with this id. Wired
+   *  to the star on a clipboard row; the same call the mode's `⌘D` makes (see
+   *  `useLauncherActions`), so click and key land on one path. Omitted by a
+   *  surface that renders rows without the action (the node tests). */
+  onToggleClipboardFavorite?: (id: string) => void;
   /** R34 · the scroller's visible rows, reported whenever they change (scroll,
    *  resize, a new result set). App turns this into the numbered `⌘N` slots, so
    *  the badges and the key handler follow the viewport. Omitted by the node
@@ -297,6 +349,7 @@ export function LauncherResults({
   onSelectActionBar,
   onRunResult,
   onRunActionBar,
+  onToggleClipboardFavorite,
   onVisibleRowsChange,
 }: LauncherResultsProps) {
   // R14/R31 · the scroll-edge band is no longer painted on the launcher's
@@ -409,6 +462,57 @@ export function LauncherResults({
     else if (rowRect.bottom > listRect.bottom) list.scrollTop += rowRect.bottom - listRect.bottom;
   }, [selectedResultIndex, selectedActionBar, results]);
 
+  // R38 · row thumbnails for image entries.
+  //
+  // The history stores full-resolution PNGs on disk; a 28u row icon wants 32px,
+  // so the backend downscales once per id and hands back a data URL
+  // (`clipboard_thumbnail`). Nothing is persisted — this state is the session
+  // memo — and a request is made only for rows the R34 viewport actually shows
+  // (`resultShortcutSlots[index] !== null`, the same visibility the `⌘N` badges
+  // read), so a 200-entry history never decodes 200 images. An id already
+  // fetched or already in flight is skipped; the result is merged in one write
+  // so a batch of thumbnails costs one repaint.
+  const [clipboardThumbnails, setClipboardThumbnails] = useState<Record<string, string>>({});
+  const thumbnailsRef = useRef(clipboardThumbnails);
+  thumbnailsRef.current = clipboardThumbnails;
+  const thumbnailPending = useRef<Set<string>>(new Set());
+  const visibleImageIds = useMemo(() => {
+    const ids: string[] = [];
+    results.forEach((item, index) => {
+      if (item.type !== "clipboard" || item.disabled || !item.entry) return;
+      if (item.entry.kind !== "image") return;
+      if (resultShortcutSlots[index] === null) return;
+      ids.push(item.entry.id);
+    });
+    return ids;
+  }, [results, resultShortcutSlots]);
+  useEffect(() => {
+    const missing = visibleImageIds.filter(
+      (id) => !thumbnailsRef.current[id] && !thumbnailPending.current.has(id),
+    );
+    if (!missing.length) return;
+    for (const id of missing) thumbnailPending.current.add(id);
+    let cancelled = false;
+    Promise.all(
+      missing.map((id) =>
+        invoke<string>("clipboard_thumbnail", { id, size: 32 })
+          .then((url) => [id, url] as const)
+          .catch(() => null),
+      ),
+    ).then((rows) => {
+      for (const id of missing) thumbnailPending.current.delete(id);
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const row of rows) if (row) next[row[0]] = row[1];
+      if (Object.keys(next).length) {
+        setClipboardThumbnails((previous) => ({ ...previous, ...next }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleImageIds]);
+
   // The container stays mounted even with nothing to show. Returning `null`
   // here used to unmount and rebuild every row on the keystroke that emptied
   // or refilled the list, which is a layout and paint of the whole subtree at
@@ -481,6 +585,11 @@ export function LauncherResults({
             const { source, subtitle } = resultRowContent(item, t);
             const compact = subtitle === null;
             const shortcutSlot = resultShortcutSlots[index];
+            // R38 · the entry a clipboard row's favorite star acts on, or
+            // `undefined` for a status line / any other row. Resolved once here
+            // so the JSX below and the star's handler read the same value.
+            const favoriteEntry =
+              item.type === "clipboard" && !item.disabled ? item.entry : undefined;
             // The empty-query state stacks two sections inside a single result
             // list: recents first, then the last few typed commands. The first
             // history row gets the section title; later rows flow under it
@@ -569,7 +678,10 @@ export function LauncherResults({
                     ) : item.type === "system" ? (
                       <SystemActionIcon action={item.action} />
                     ) : item.type === "clipboard" ? (
-                      <SystemActionIcon action="clipboard" />
+                      <ClipboardRowIcon
+                        item={item}
+                        thumbnail={item.entry ? clipboardThumbnails[item.entry.id] : undefined}
+                      />
                     ) : item.type === "browser" ? (
                       <BrowserRowIcon item={item} />
                     ) : isHistory ? (
@@ -601,6 +713,38 @@ export function LauncherResults({
                   {source !== null && (
                     <span className="launcher-result__source" title={source}>
                       {source}
+                    </span>
+                  )}
+                  {/* R38 · the clipboard row's favorite toggle. The star is a
+                      click region inside the row's own button (one interactive
+                      element, no nested control): a click toggles the flag and
+                      stops there, so the row's run action never fires. It is
+                      always visible on a favorited row and fades in on
+                      hover/selection otherwise, and it reserves its width
+                      either way so revealing it never reflows the `⌘N` badge.
+                      The keyboard equivalent is the mode's `⌘D`, which is why
+                      the glyph itself is `aria-hidden`. */}
+                  {favoriteEntry && onToggleClipboardFavorite && (
+                    <span
+                      className={`launcher-result__favorite${
+                        favoriteEntry.favorite ? " launcher-result__favorite--on" : ""
+                      }`}
+                      title={t(
+                        favoriteEntry.favorite
+                          ? "launcher.clipboardUnfavorite"
+                          : "launcher.clipboardFavorite",
+                      )}
+                      aria-hidden="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleClipboardFavorite(favoriteEntry.id);
+                      }}
+                    >
+                      <StarIcon
+                        size={13}
+                        strokeWidth={2}
+                        fill={favoriteEntry.favorite ? "currentColor" : "none"}
+                      />
                     </span>
                   )}
                   <span className="launcher-result__action">

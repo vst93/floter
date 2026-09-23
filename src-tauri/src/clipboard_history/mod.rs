@@ -425,6 +425,61 @@ pub fn clipboard_read_image(app: AppHandle, id: String) -> Result<Vec<u8>, Strin
     store::read_image(&paths, &file)
 }
 
+/// R38 · the default ceiling for a row thumbnail, in pixels on the long side.
+/// The launcher's icon plate is 28u, so 32 gives the browser a hair of source
+/// to scale without handing it a full-resolution capture.
+pub const THUMBNAIL_MAX_SIDE: u32 = 32;
+/// R38 · bounds on a caller-supplied thumbnail size. A tiny floor still
+/// produces a legible glyph; the ceiling keeps a bad caller from asking the
+/// decoder to do real work under the name "thumbnail".
+pub const THUMBNAIL_MIN_SIDE: u32 = 8;
+pub const THUMBNAIL_MAX_REQUEST: u32 = 128;
+
+/// The long side a thumbnail request resolves to: the caller's number clamped
+/// into the accepted range, or the shipped default when none was given. A
+/// malformed size can therefore never ask the decoder for a full-resolution
+/// pass under the name "thumbnail".
+pub fn thumbnail_side(requested: Option<u32>) -> u32 {
+    requested
+        .unwrap_or(THUMBNAIL_MAX_SIDE)
+        .clamp(THUMBNAIL_MIN_SIDE, THUMBNAIL_MAX_REQUEST)
+}
+
+/// R38 · a small PNG `data:` URL for one image entry's row icon.
+///
+/// The history stores full-resolution PNGs on disk (`image_file`); a launcher
+/// row wants a 32px glyph, and handing the webview the whole capture so a
+/// 28u `<img>` can shrink it is exactly the per-row decode the round forbids.
+/// So the backend decodes the stored PNG **once**, box-downscales it to the
+/// requested side and re-encodes a thumbnail-sized PNG as a data URL. Nothing
+/// is written to disk: the caller memoizes the string for the session and the
+/// thumbnail is recomputed on demand next launch. Only the image kind is
+/// served — a file list keeps its folder glyph.
+#[tauri::command]
+pub fn clipboard_thumbnail(
+    app: AppHandle,
+    id: String,
+    size: Option<u32>,
+) -> Result<String, String> {
+    use base64::Engine as _;
+    let paths = store::app_store_paths().ok_or("No app data directory")?;
+    let entry = read_history(&app)?
+        .into_iter()
+        .find(|entry| entry.id == id)
+        .ok_or_else(|| format!("Unknown clipboard entry: {id}"))?;
+    let file = entry.image_file.ok_or("Entry is not an image")?;
+    let bytes = store::read_image(&paths, &file)?;
+    let (width, height, rgba) = monitor::decode_png(&bytes)?;
+    let side = thumbnail_side(size);
+    let (small_width, small_height, small) =
+        monitor::downscale_rgba(width, height, &rgba, side);
+    let png = monitor::encode_png(small_width, small_height, &small)?;
+    Ok(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png)
+    ))
+}
+
 // ---- Global shortcut plumbing --------------------------------------------
 
 /// Register `shortcut` with the OS as the clipboard panel toggle.
@@ -654,5 +709,17 @@ mod tests {
         assert!(!is_image_file_path("/a/b/c.txt"));
         assert!(!is_image_file_path("/a/b/c"));
         assert!(!is_image_file_path("/a/b/c."));
+    }
+
+    /// R38 · the thumbnail size is bounded on both ends: no size means the
+    /// shipped icon default, a tiny request is lifted to the floor, and an
+    /// absurd one is capped so "thumbnail" can never become a full decode.
+    #[test]
+    fn thumbnail_side_is_bounded_on_both_ends() {
+        assert_eq!(thumbnail_side(None), THUMBNAIL_MAX_SIDE);
+        assert_eq!(thumbnail_side(Some(32)), 32);
+        assert_eq!(thumbnail_side(Some(1)), THUMBNAIL_MIN_SIDE);
+        assert_eq!(thumbnail_side(Some(0)), THUMBNAIL_MIN_SIDE);
+        assert_eq!(thumbnail_side(Some(u32::MAX)), THUMBNAIL_MAX_REQUEST);
     }
 }

@@ -391,6 +391,57 @@ export type ClipboardMode = {
   /** The text after the trigger word, already trimmed. Empty is the whole
    *  history. */
   needle: string;
+  /** R38 · the chips' one selection. `all` is the shipped default; `favorites`
+   *  is the retention view (favorites are exempt from pruning); the other four
+   *  are the entry's own kind, with a text entry refined into `link` when its
+   *  whole content is a URL. A single axis, exactly as the browser mode's
+   *  range filter is — the old page's two-axis (scope × type) model is not
+   *  resurrected. */
+  filter: ClipboardModeFilter;
+};
+
+/** R38 · the clipboard mode's six filter chips, in the order the chips row and
+ *  Tab cycle them. `all` first because it is the shipped default. */
+export type ClipboardModeFilter =
+  | "all"
+  | "favorites"
+  | "text"
+  | "image"
+  | "link"
+  | "files";
+
+/** R38 · the six filters, in display order. */
+export const CLIPBOARD_FILTERS: readonly ClipboardModeFilter[] = [
+  "all",
+  "favorites",
+  "text",
+  "image",
+  "link",
+  "files",
+] as const;
+
+/**
+ * R38 · the clipboard mode's favorite key, in the same vocabulary a stored
+ * shortcut uses. `CmdOrCtrl` resolves to ⌘ on macOS and Ctrl elsewhere, so the
+ * one literal is right on every platform.
+ *
+ * It is deliberately **not** a member of `ShortcutAction`: it is a mode-local
+ * key like R32's Tab (one surface, one meaning), and adding it to the settings
+ * map would be a settings migration for a control the user never asked to
+ * rebind. `⌘D` is the bookmark convention the star echoes.
+ */
+export const CLIPBOARD_FAVORITE_SHORTCUT = "CmdOrCtrl+D";
+
+/** R38 · move one step through {@link CLIPBOARD_FILTERS}, wrapping at the ends.
+ *  `direction` is `1` for Tab and `-1` for Shift+Tab, the same contract as
+ *  {@link cycleBrowserFilter}. */
+export const cycleClipboardFilter = (
+  filter: ClipboardModeFilter,
+  direction: 1 | -1,
+): ClipboardModeFilter => {
+  const index = CLIPBOARD_FILTERS.indexOf(filter);
+  const length = CLIPBOARD_FILTERS.length;
+  return CLIPBOARD_FILTERS[(index + direction + length) % length];
 };
 
 const CLIPBOARD_TRIGGERS = new Set(["clip", "clipboard", "剪贴板", "粘贴板"]);
@@ -403,7 +454,8 @@ export const parseClipboardMode = (value: string): ClipboardMode | null => {
   const match = /^(\S+)\s+(.*)$/s.exec(value);
   if (!match) return null;
   if (!CLIPBOARD_TRIGGERS.has(match[1].toLowerCase())) return null;
-  return { needle: match[2].trim() };
+  // R38 · entering the mode always starts on 全部; the chips switch it after.
+  return { needle: match[2].trim(), filter: "all" };
 };
 
 /**
@@ -427,7 +479,7 @@ export const parseClipboardMode = (value: string): ClipboardMode | null => {
  */
 export type ActivePluginMode =
   | { scope: "browser"; kind: BrowserMode["kind"] }
-  | { scope: "clipboard" };
+  | { scope: "clipboard"; filter: ClipboardModeFilter };
 
 /**
  * R31 · the transition into a mode: a typed value whose first word is a trigger
@@ -451,7 +503,9 @@ export const pluginModeEntry = (
   const browser = parseBrowserMode(value);
   if (browser) return { mode: { scope: "browser", kind: browser.kind }, needle: browser.needle };
   const clipboard = parseClipboardMode(value);
-  if (clipboard) return { mode: { scope: "clipboard" }, needle: clipboard.needle };
+  if (clipboard) {
+    return { mode: { scope: "clipboard", filter: clipboard.filter }, needle: clipboard.needle };
+  }
   return null;
 };
 
@@ -470,7 +524,9 @@ export const clipboardModeFor = (
   mode: ActivePluginMode | null,
   needle: string,
 ): ClipboardMode | null =>
-  mode?.scope === "clipboard" ? { needle: needle.trim() } : null;
+  mode?.scope === "clipboard"
+    ? { needle: needle.trim(), filter: mode.filter }
+    : null;
 
 /** Decide which row a fresh query should select before the user navigates. */
 export const shouldDefaultToActionBar = (

@@ -1137,6 +1137,38 @@
   text-align: right;
 }
 
+/* R38 · the clipboard row's favorite toggle.
+
+   The star is a click region *inside* the row's own `<button>` — the row stays
+   the one interactive element (no nested control), and the click stops there
+   so the run action never fires. It holds its width whether shown or not, so
+   revealing it on hover cannot shift the `⌘N` badge beside it. It fades in on
+   hover/selection and stays visible on a favorited row; `--text-secondary` is
+   the strongest colour it ever takes — the star is a state marker, not a call
+   to action, and the accent budget stays with the controls. */
+.launcher-result__favorite {
+  flex: 0 0 auto;
+  width: calc(var(--u) * 20);
+  height: calc(var(--u) * 20);
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-2) ease, color var(--dur-2) ease;
+}
+
+.launcher-result:hover .launcher-result__favorite,
+.launcher-result--selected .launcher-result__favorite,
+.launcher-result__favorite--on {
+  opacity: 1;
+}
+
+.launcher-result__favorite:hover,
+.launcher-result__favorite--on {
+  color: var(--text-secondary);
+}
+
 /* R30 · a plugin's status line. It used to be an ordinary result row — the
    same 42u height, the same globe plate, the same title type — so
    「标签页不可用——请查看浏览器插件设置」 sat in the list looking exactly like the

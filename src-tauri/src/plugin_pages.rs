@@ -59,6 +59,8 @@ const CLIPBOARD_COMMANDS: &[&str] = &[
     "clipboard_copy_entry",
     "clipboard_clear_history",
     "clipboard_read_image",
+    // R38 · the row-icon thumbnail the launcher's inline mode reads.
+    "clipboard_thumbnail",
     "clipboard_entry_statuses",
     "clipboard_read_file_preview",
     // R27 · the plugin's own settings card writes through this narrow pair,

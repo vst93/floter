@@ -369,23 +369,26 @@ test("the clipboard plugin emits rows: memory filter, cap and two empty states",
   const now = 1_700_000_000_000;
   const entries = [entry("a", "rust book"), entry("b", "grocery list"), entry("c", "rust compiler")];
 
-  const all = clipboardModeRows(entries, "", en, now);
+  const all = clipboardModeRows(entries, { needle: "", filter: "all" }, en, now);
   assert.deepEqual(all.map((row) => row.id), ["a", "b", "c"]);
   assert.equal(all[0].family, "clipboard");
   assert.equal(all[0].family === "clipboard" ? all[0].entry?.id : null, "a");
   assert.equal(all[0].title, "rust book");
 
-  assert.deepEqual(clipboardModeRows(entries, "rust", en, now).map((row) => row.id), ["a", "c"]);
+  assert.deepEqual(
+    clipboardModeRows(entries, { needle: "rust", filter: "all" }, en, now).map((row) => row.id),
+    ["a", "c"],
+  );
 
   // The two empty states are different sentences.
-  const emptyFilter = clipboardModeRows(entries, "zzz", en, now);
+  const emptyFilter = clipboardModeRows(entries, { needle: "zzz", filter: "all" }, en, now);
   assert.equal(emptyFilter.length, 1);
   assert.equal(emptyFilter[0].disabled, true);
   assert.equal(emptyFilter[0].title, en("clipboard.emptyFilter"));
-  assert.equal(clipboardModeRows([], "", en, now)[0].title, en("clipboard.empty"));
+  assert.equal(clipboardModeRows([], { needle: "", filter: "all" }, en, now)[0].title, en("clipboard.empty"));
 
   const many = Array.from({ length: 30 }, (_, i) => entry(`e${i}`, `note ${i}`));
-  assert.equal(clipboardModeRows(many, "", en, now).length, CLIPBOARD_FETCH_LIMIT);
+  assert.equal(clipboardModeRows(many, { needle: "", filter: "all" }, en, now).length, CLIPBOARD_FETCH_LIMIT);
 });
 
 test("neither plugin builds launcher items any more", async () => {

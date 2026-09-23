@@ -44,13 +44,13 @@ test("the clipboard mode is entered by a trigger word and a space", () => {
   assert.equal(parseClipboardMode("剪贴板"), null);
   assert.equal(parseClipboardMode(""), null);
 
-  assert.deepEqual(parseClipboardMode("clip "), { needle: "" });
-  assert.deepEqual(parseClipboardMode("clipboard "), { needle: "" });
-  assert.deepEqual(parseClipboardMode("剪贴板 "), { needle: "" });
-  assert.deepEqual(parseClipboardMode("clip  rust  "), { needle: "rust" });
-  assert.deepEqual(parseClipboardMode("clipboard https://x"), { needle: "https://x" });
+  assert.deepEqual(parseClipboardMode("clip "), { needle: "", filter: "all" });
+  assert.deepEqual(parseClipboardMode("clipboard "), { needle: "", filter: "all" });
+  assert.deepEqual(parseClipboardMode("剪贴板 "), { needle: "", filter: "all" });
+  assert.deepEqual(parseClipboardMode("clip  rust  "), { needle: "rust", filter: "all" });
+  assert.deepEqual(parseClipboardMode("clipboard https://x"), { needle: "https://x", filter: "all" });
   // Case is folded, exactly as the browser mode folds its trigger words.
-  assert.deepEqual(parseClipboardMode("CLIP hello"), { needle: "hello" });
+  assert.deepEqual(parseClipboardMode("CLIP hello"), { needle: "hello", filter: "all" });
 
   // The two modes do not overlap: a browser trigger never enters the clipboard
   // mode, and vice versa.
@@ -155,8 +155,8 @@ test("inside a plugin scope the list is the plugin's own content", async () => {
   const clipboardMode = stripJsComments(await read("src/plugins/clipboard/mode.ts"));
   assert.match(
     clipboardMode,
-    /filterClipboardEntries\(\[\.\.\.entries\], needle\)/,
-    "the needle filters the fetched history in memory",
+    /filterClipboardEntries\(\[\.\.\.entries\], mode\.needle\)\.filter\(\(entry\) =>\s*clipboardEntryMatchesFilter\(entry, mode\.filter\),\s*\)/,
+    "the needle filters the fetched history in memory, and the chip selects on top of it",
   );
   // The plugin's own switch soft-closes the mode, the way the browser's does.
   assert.match(
@@ -183,8 +183,13 @@ test("a clipboard row copies its entry and closes the launcher", async () => {
   const results = stripJsComments(await read("src/launcher/LauncherResults.tsx"));
   assert.match(
     results,
-    /item\.type === "clipboard" \? \(\s*<SystemActionIcon action="clipboard" \/>/,
-    "a clipboard row wears the clipboard glyph, like the system row it mirrors",
+    /item\.type === "clipboard" \? \(\s*<ClipboardRowIcon/,
+    "R38 · a clipboard row's glyph is per kind (text/link/image/files), not one shared clipboard",
+  );
+  assert.match(
+    results,
+    /if \(!item\.entry \|\| item\.disabled\) return <SystemActionIcon action="clipboard" \/>;/,
+    "a status row (no entry) keeps the clipboard glyph the system row mirrors",
   );
   assert.match(
     results,

@@ -1183,7 +1183,8 @@ canvas {
   .clipboard-panel__filter-clear,
   .clipboard-row,
   .launcher-action-bar,
-  .launcher-result {
+  .launcher-result,
+  .launcher-result__favorite {
     transition: none;
   }
 

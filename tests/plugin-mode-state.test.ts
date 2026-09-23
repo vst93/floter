@@ -46,11 +46,11 @@ test("a trigger word plus a space enters the mode and keeps only the needle", ()
     needle: "rust",
   });
   assert.deepEqual(pluginModeEntry("clip "), {
-    mode: { scope: "clipboard" },
+    mode: { scope: "clipboard", filter: "all" },
     needle: "",
   });
   assert.deepEqual(pluginModeEntry("clip  rust  "), {
-    mode: { scope: "clipboard" },
+    mode: { scope: "clipboard", filter: "all" },
     needle: "rust",
   });
   // The Chinese triggers enter the same two modes.
@@ -59,7 +59,7 @@ test("a trigger word plus a space enters the mode and keeps only the needle", ()
     needle: "文档",
   });
   assert.deepEqual(pluginModeEntry("剪贴板 "), {
-    mode: { scope: "clipboard" },
+    mode: { scope: "clipboard", filter: "all" },
     needle: "",
   });
 });
@@ -96,10 +96,13 @@ test("an active mode + the field's text is the request the hook fetches", () => 
     kind: "history",
     needle: "rust",
   });
-  assert.equal(browserModeFor({ scope: "clipboard" }, "rust"), null);
+  assert.equal(browserModeFor({ scope: "clipboard", filter: "all" }, "rust"), null);
   assert.equal(browserModeFor(null, "rust"), null);
 
-  assert.deepEqual(clipboardModeFor({ scope: "clipboard" }, "  rust  "), { needle: "rust" });
+  assert.deepEqual(clipboardModeFor({ scope: "clipboard", filter: "all" }, "  rust  "), {
+    needle: "rust",
+    filter: "all",
+  });
   assert.equal(clipboardModeFor({ scope: "browser", kind: "all" }, "rust"), null);
   assert.equal(clipboardModeFor(null, "rust"), null);
 });

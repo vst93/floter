@@ -193,7 +193,7 @@ test("only an already-empty plugin field exits on Backspace", () => {
   assert.equal(pluginModeExitOnBackspace(null, ""), false, "no mode, nothing to leave");
   assert.equal(pluginModeExitOnBackspace({ scope: "browser", kind: "all" }, "x"), false);
   assert.equal(pluginModeExitOnBackspace({ scope: "browser", kind: "all" }, ""), true);
-  assert.equal(pluginModeExitOnBackspace({ scope: "clipboard" }, ""), true);
+  assert.equal(pluginModeExitOnBackspace({ scope: "clipboard", filter: "all" }, ""), true);
 });
 
 // ── F · the search-field configuration ────────────────────────────────────
