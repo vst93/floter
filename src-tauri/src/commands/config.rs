@@ -60,6 +60,20 @@ const LEGACY_GLASS_STEPS: [(&str, &str); 5] = [
 const MIN_FONT_SIZE: u32 = 8;
 const MAX_FONT_SIZE: u32 = 48;
 
+// R42 · the terminal's appearance axes. The string domains match
+// `terminal/terminal-appearance.ts`; Rust cannot import TypeScript, so the two
+// tables are pinned against each other by `tests/terminal-settings.test.ts`.
+// The line height is a multiple of the font size; the padding is one of three
+// named steps whose pixel values live in the frontend (the backend only has to
+// keep the id legal).
+const MIN_LINE_HEIGHT: f64 = 1.0;
+const MAX_LINE_HEIGHT: f64 = 2.0;
+const DEFAULT_LINE_HEIGHT: f64 = 1.4;
+const DEFAULT_TERMINAL_PADDING: &str = "regular";
+const TERMINAL_PADDINGS: [&str; 3] = ["compact", "regular", "relaxed"];
+const DEFAULT_TERMINAL_THEME: &str = "inherit";
+const TERMINAL_THEMES: [&str; 3] = ["inherit", "contrast", "paper"];
+
 /// R7-13c · the three interface-size steps and the `--ui-scale` multiplier each
 /// one writes. The string domain matches `UiScale` in `src/ui-scale.ts`; the
 /// numbers match `UI_SCALE_FACTORS` there. Rust cannot import TypeScript, so the
@@ -101,6 +115,25 @@ pub fn ui_scale_factor(step: &str) -> f64 {
 /// R7-10c from silently hiding every existing user's menu bar icon.
 pub fn default_true() -> bool {
     true
+}
+
+/// R42 · the terminal's line-height multiple. `#[serde(default = ...)]` keeps a
+/// settings file written before this key existing at the shipped 1.4 rather
+/// than at `f64::default()` (`0.0`, which would collapse every row).
+pub fn default_terminal_line_height() -> f64 {
+    DEFAULT_LINE_HEIGHT
+}
+
+/// R42 · the terminal's padding step. `regular` is the 3px every earlier build
+/// shipped, so a pre-round file renders pixel-identically.
+pub fn default_terminal_padding() -> String {
+    DEFAULT_TERMINAL_PADDING.to_string()
+}
+
+/// R42 · the terminal palette. `inherit` keeps the shipped behaviour (the
+/// canvas reads the `--terminal-*` tokens for the app's theme).
+pub fn default_terminal_theme() -> String {
+    DEFAULT_TERMINAL_THEME.to_string()
 }
 
 /// R35 · the page-residency window: how long a surface survives a dismissal
@@ -334,6 +367,27 @@ pub struct AppSettings {
     pub font_family: String,
     /// Default cursor shape: "beam" | "block" | "underline".
     pub cursor_shape: String,
+    /// R42 · the terminal's line-height multiple (1.0–2.0, default 1.4). The
+    /// renderer clamps it too; this is the persisted, hand-edit-proof copy.
+    #[serde(default = "default_terminal_line_height")]
+    pub terminal_line_height: f64,
+    /// R42 · the canvas's inner inset as a named step: "compact" | "regular"
+    /// | "relaxed". `regular` is the 3px every earlier build shipped.
+    #[serde(default = "default_terminal_padding")]
+    pub terminal_padding: String,
+    /// R42 · the user's cursor-blink veto (default on, the shipped behaviour).
+    /// The program's own request still arrives on the wire; this is the user's
+    /// override, applied by the canvas renderer.
+    #[serde(default = "default_true")]
+    pub terminal_cursor_blink: bool,
+    /// R42 · the canvas palette: "inherit" | "contrast" | "paper". A canvas
+    /// colour mapping only — the R30 base.css material/glass formulas and every
+    /// global token are untouched.
+    #[serde(default = "default_terminal_theme")]
+    pub terminal_theme: String,
+    /// R42 · whether the scrollbar overlay may be drawn (default on).
+    #[serde(default = "default_true")]
+    pub terminal_scrollbar: bool,
     /// UI language: "en" | "zh".
     pub language: String,
     /// Last user-selected terminal window dimensions, in logical pixels.
@@ -452,6 +506,11 @@ impl Default for AppSettings {
             font_size: 14,
             font_family: "monospace".to_string(),
             cursor_shape: "beam".to_string(),
+            terminal_line_height: DEFAULT_LINE_HEIGHT,
+            terminal_padding: DEFAULT_TERMINAL_PADDING.to_string(),
+            terminal_cursor_blink: true,
+            terminal_theme: DEFAULT_TERMINAL_THEME.to_string(),
+            terminal_scrollbar: true,
             language: "en".to_string(),
             terminal_width: DEFAULT_TERMINAL_WIDTH,
             terminal_height: DEFAULT_TERMINAL_HEIGHT,
@@ -731,6 +790,28 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     } else {
         settings.font_family = settings.font_family.trim().to_string();
     }
+    // R42 · the terminal's appearance. A non-finite or out-of-range line height
+    // falls back to the shipped 1.4 (the renderer would clamp anyway, but the
+    // stored value has to be sane too); an unknown padding step or palette
+    // falls back to the shipped one rather than to whichever variant happens
+    // to sort first.
+    settings.terminal_line_height = if settings.terminal_line_height.is_finite() {
+        settings
+            .terminal_line_height
+            .clamp(MIN_LINE_HEIGHT, MAX_LINE_HEIGHT)
+    } else {
+        DEFAULT_LINE_HEIGHT
+    };
+    settings.terminal_padding = if TERMINAL_PADDINGS.contains(&settings.terminal_padding.as_str()) {
+        settings.terminal_padding
+    } else {
+        DEFAULT_TERMINAL_PADDING.to_string()
+    };
+    settings.terminal_theme = if TERMINAL_THEMES.contains(&settings.terminal_theme.as_str()) {
+        settings.terminal_theme
+    } else {
+        DEFAULT_TERMINAL_THEME.to_string()
+    };
     (settings.terminal_width, settings.terminal_height) =
         normalize_terminal_size(settings.terminal_width, settings.terminal_height);
     settings.main_opacity = normalize_window_opacity(settings.main_opacity, DEFAULT_MAIN_OPACITY);
@@ -2147,6 +2228,75 @@ mod tests {
         assert_eq!(settings.main_opacity, DEFAULT_MAIN_OPACITY);
         assert_eq!(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
         assert_eq!(settings.glass_step, DEFAULT_GLASS_STEP);
+    }
+
+    /// R42 · the terminal's appearance axes. A hand-edited or out-of-range
+    /// value lands on the shipped one rather than on a variant that would
+    /// silently change how the canvas paints; the number is clamped, the two
+    /// enums are validated.
+    #[test]
+    fn normalize_settings_guards_the_terminal_appearance() {
+        let settings = normalize_settings(AppSettings {
+            terminal_line_height: 9.0,
+            terminal_padding: "enormous".into(),
+            terminal_theme: "solarized".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(settings.terminal_line_height, MAX_LINE_HEIGHT);
+        assert_eq!(settings.terminal_padding, DEFAULT_TERMINAL_PADDING);
+        assert_eq!(settings.terminal_theme, DEFAULT_TERMINAL_THEME);
+
+        // Below the floor clamps up, and a non-finite value falls back.
+        let low = normalize_settings(AppSettings {
+            terminal_line_height: 0.1,
+            ..AppSettings::default()
+        });
+        assert_eq!(low.terminal_line_height, MIN_LINE_HEIGHT);
+        let nan = normalize_settings(AppSettings {
+            terminal_line_height: f64::NAN,
+            ..AppSettings::default()
+        });
+        assert_eq!(nan.terminal_line_height, DEFAULT_LINE_HEIGHT);
+
+        // The legitimate ids survive untouched.
+        let kept = normalize_settings(AppSettings {
+            terminal_line_height: 1.65,
+            terminal_padding: "relaxed".into(),
+            terminal_theme: "paper".into(),
+            terminal_cursor_blink: false,
+            terminal_scrollbar: false,
+            ..AppSettings::default()
+        });
+        assert_eq!(kept.terminal_line_height, 1.65);
+        assert_eq!(kept.terminal_padding, "relaxed");
+        assert_eq!(kept.terminal_theme, "paper");
+        assert!(!kept.terminal_cursor_blink);
+        assert!(!kept.terminal_scrollbar);
+    }
+
+    /// R42 · a settings file written before the keys existed must come back as
+    /// the shipped behaviour: a blinking cursor, a visible scrollbar, the
+    /// inherited palette and the 1.4 line height — never `Default::default()`,
+    /// which would turn the first two off and collapse the rows.
+    #[test]
+    fn pre_round_files_get_the_shipped_terminal_appearance() {
+        let mut value = serde_json::to_value(AppSettings::default()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        for key in [
+            "terminal_line_height",
+            "terminal_padding",
+            "terminal_cursor_blink",
+            "terminal_theme",
+            "terminal_scrollbar",
+        ] {
+            object.remove(key);
+        }
+        let recovered: AppSettings = serde_json::from_value(value).unwrap();
+        assert_eq!(recovered.terminal_line_height, DEFAULT_LINE_HEIGHT);
+        assert_eq!(recovered.terminal_padding, DEFAULT_TERMINAL_PADDING);
+        assert!(recovered.terminal_cursor_blink);
+        assert_eq!(recovered.terminal_theme, DEFAULT_TERMINAL_THEME);
+        assert!(recovered.terminal_scrollbar);
     }
 
     #[test]

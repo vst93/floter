@@ -76,6 +76,8 @@ import {
 } from "./shortcuts";
 import { type SettingsPage } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize } from "./settings/GeneralPage";
+import { TerminalAppearanceSettings } from "./settings/TerminalAppearance";
+import { normalizeCursorShape, terminalPaddingPx } from "./terminal/terminal-appearance";
 import { clampWindowOpacity } from "./glass-material";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -151,7 +153,11 @@ if (IS_WINDOWS) {
 /** Any surface a plugin page can be opened over; it replaces the canvas and
  * returns to the remembered one when dismissed. */
 export type ViewMode = "collapsed" | "terminal" | "settings";
-export type CursorShape = "beam" | "block" | "underline";
+// R42 · the terminal's appearance vocabulary lives in a React-free module so
+// the node test runner can import it directly and both settings surfaces share
+// one schema; App re-exports it for the components.
+import type { CursorShape, TerminalPadding, TerminalTheme } from "./terminal/terminal-appearance";
+export type { CursorShape, TerminalPadding, TerminalTheme } from "./terminal/terminal-appearance";
 // The Liquid Glass vocabulary lives in its own React-free module so the node
 // test runner can import it directly; App re-exports it for the components.
 import type { GlassStep } from "./glass-material";
@@ -198,6 +204,14 @@ export type AppSettings = {
   font_size: number;
   font_family: string;
   cursor_shape: CursorShape;
+  /** R42 · the rest of the terminal's appearance, owned by the terminal page's
+   *  own settings panel and the settings page's Terminal appearance card (both
+   *  render the same controls). Normalized on read and by the backend on save. */
+  terminal_line_height: number;
+  terminal_padding: TerminalPadding;
+  terminal_cursor_blink: boolean;
+  terminal_theme: TerminalTheme;
+  terminal_scrollbar: boolean;
   language: Language;
   main_opacity: number;
   terminal_opacity: number;
@@ -320,6 +334,10 @@ export default function App() {
   const restoringMode = useRef<ViewMode | null>(null);
 
   const [mode, setMode] = useState<ViewMode>("collapsed");
+  /** R42 · whether the terminal page's own settings panel is open. It is a
+   *  docked strip inside the terminal panel (not a floating layer — the user
+   *  dislikes overlays), toggled by the terminal bar's gear/X button. */
+  const [terminalSettingsOpen, setTerminalSettingsOpen] = useState(false);
   /** Ref mirror of `mode` so event listeners registered once can still see the
    * current value (the clipboard hotkey toggles against it). */
   const modeRef = useRef<ViewMode>("collapsed");
@@ -485,6 +503,7 @@ export default function App() {
     changeGlassIntensity,
     changeOpacity,
     changeFontSize,
+    changeTerminalLineHeight,
     changeUiScale,
     changeGeneralSetting,
     changeCommandAlias,
@@ -748,6 +767,11 @@ export default function App() {
     mode,
     fontFamily: settings.font_family,
     fontSize: settings.font_size,
+    lineHeight: settings.terminal_line_height,
+    padding: terminalPaddingPx(settings.terminal_padding),
+    cursorBlink: settings.terminal_cursor_blink,
+    showScrollbar: settings.terminal_scrollbar,
+    terminalTheme: settings.terminal_theme,
     resolvedTheme,
     ptyReady,
     pinnedReady,
@@ -1537,6 +1561,17 @@ export default function App() {
     invoke("term_set_theme", { id: PINNED_SESSION_ID, theme: resolvedTheme }).catch(() => undefined);
   }, [resolvedTheme]);
 
+  // R42 · the cursor shape is a terminal-side default (alacritty's
+  // `default_cursor_style`), so changing it live needs a broker round-trip
+  // rather than a canvas option. `term_set_cursor_style` updates the running
+  // emulator's config in place — no session restart, no lost scrollback — and
+  // a program that set its own cursor shape keeps it, exactly as before.
+  useEffect(() => {
+    const shape = normalizeCursorShape(settings.cursor_shape);
+    invoke("term_set_cursor_style", { id: "main", shape }).catch(() => undefined);
+    invoke("term_set_cursor_style", { id: PINNED_SESSION_ID, shape }).catch(() => undefined);
+  }, [settings.cursor_shape]);
+
   // A new query starts from its own default: the first result for a name, the
   // action bar for a command line, a URL or a path. See `defaultsToActionBar`.
   //
@@ -2242,6 +2277,11 @@ export default function App() {
       session={pinState.session}
       fontFamily={terminalFontFamily(settings.font_family)}
       fontSize={normalizeFontSize(settings.font_size)}
+      lineHeight={settings.terminal_line_height}
+      padding={terminalPaddingPx(settings.terminal_padding)}
+      cursorBlink={settings.terminal_cursor_blink}
+      showScrollbar={settings.terminal_scrollbar}
+      terminalTheme={settings.terminal_theme}
       theme={resolvedTheme}
       geometry={cardGeometry}
       onGeometryChange={updateCardGeometry}
@@ -2378,6 +2418,7 @@ export default function App() {
                 onChangeGeneralSetting={changeGeneralSetting}
                 onChangeLaunchAtStartup={(enabled) => void changeLaunchAtStartup(enabled)}
                 onChangeFontSize={changeFontSize}
+                onChangeLineHeight={changeTerminalLineHeight}
                 onChangeUiScale={changeUiScale}
                 onChangeOpacity={changeOpacity}
                 onChangeGlassIntensity={changeGlassIntensity}
@@ -3031,6 +3072,29 @@ export default function App() {
               </div>
             )}
             <div className="terminal-panel__actions">
+              {/* R42 · the terminal's own settings entry. It sits in the bar's
+                  action cluster, left of the popout/close pair, and flips from
+                  the sliders glyph to an X while the panel is up — the same
+                  open/close-at-one-spot idiom R41 gave the plugin gear. */}
+              <button
+                className={`toolbar-button toolbar-button--settings${
+                  terminalSettingsOpen ? " toolbar-button--settings-open" : ""
+                }`}
+                aria-label={t(
+                  terminalSettingsOpen ? "terminal.settingsClose" : "terminal.settingsOpen",
+                )}
+                title={t(
+                  terminalSettingsOpen ? "terminal.settingsClose" : "terminal.settingsOpenHint",
+                )}
+                aria-expanded={terminalSettingsOpen}
+                onClick={() => setTerminalSettingsOpen((open) => !open)}
+              >
+                {terminalSettingsOpen ? (
+                  <X size={15} strokeWidth={1.8} aria-hidden="true" />
+                ) : (
+                  <SlidersHorizontal size={15} strokeWidth={1.8} aria-hidden="true" />
+                )}
+              </button>
               <button
                 className="toolbar-button toolbar-button--popout"
                 aria-label={t("terminal.openInTerminal")}
@@ -3054,7 +3118,9 @@ export default function App() {
             </div>
           </header>
 
-          <div className="terminal-panel__body">
+          <div
+            className={`terminal-panel__body${terminalSettingsOpen ? " terminal-panel__body--settings" : ""}`}
+          >
             <div
               ref={mountRef}
               className="terminal-panel__mount"
@@ -3117,6 +3183,28 @@ export default function App() {
               <div className="terminal-feedback" role="status" aria-live="polite">
                 <AlertCircle className="terminal-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
                 <span>{t(terminalFeedback)}</span>
+              </div>
+            )}
+            {/* R42 · the terminal's own settings, docked at the bottom of the
+                panel — not a floating layer. The canvas above it reflows (its
+                ResizeObserver relayouts and resizes the PTY), while the frame
+                and the session's scrollback are untouched: the panel is a
+                sibling of the mount, not a replacement for it, so the running
+                session is never reset. */}
+            {terminalSettingsOpen && (
+              <div
+                className="terminal-settings-drawer"
+                role="region"
+                aria-label={t("settings.terminalAppearance")}
+              >
+                <TerminalAppearanceSettings
+                  variant="strip"
+                  settings={settings}
+                  t={t}
+                  onChangeFontSize={changeFontSize}
+                  onChangeLineHeight={changeTerminalLineHeight}
+                  onChange={changeGeneralSetting}
+                />
               </div>
             )}
           </div>

@@ -22,11 +22,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { TerminalCanvas, decodeFrame, wheelScrollSteps } from "./render";
 import { PINNED_SESSION_ID, type CardGeometry, type PinnedSession } from "./pinState";
+import { normalizeLineHeight, type TerminalTheme } from "./terminal-appearance";
 import type { Translate } from "../i18n";
 
-const LINE_HEIGHT = 1.4;
-const PADDING_X = 3;
-const PADDING_Y = 3;
 const RESIZE_HANDLE_SIZE = 14;
 
 type FramePayload = { id: string; generation: number; frame: string };
@@ -36,6 +34,13 @@ export interface PinnedTerminalCardProps {
   session: PinnedSession;
   fontFamily: string;
   fontSize: number;
+  /** R42 · the same appearance axes the main view reads, so the card is not a
+   *  second, differently-configured terminal. */
+  lineHeight: number;
+  padding: number;
+  cursorBlink: boolean;
+  showScrollbar: boolean;
+  terminalTheme: TerminalTheme;
   /** Current resolved theme ("dark" | "light"); a change repaints in place. */
   theme: string;
   geometry: CardGeometry;
@@ -62,6 +67,11 @@ export function PinnedTerminalCard({
   session,
   fontFamily,
   fontSize,
+  lineHeight,
+  padding,
+  cursorBlink,
+  showScrollbar,
+  terminalTheme,
   theme,
   geometry,
   onGeometryChange,
@@ -103,9 +113,12 @@ export function PinnedTerminalCard({
     const renderer = new TerminalCanvas(canvas, {
       fontFamily,
       fontSize,
-      lineHeight: LINE_HEIGHT,
-      paddingX: PADDING_X,
-      paddingY: PADDING_Y,
+      lineHeight: normalizeLineHeight(lineHeight),
+      paddingX: padding,
+      paddingY: padding,
+      cursorBlink,
+      showScrollbar,
+      theme: terminalTheme,
     });
     rendererRef.current = renderer;
 
@@ -136,7 +149,7 @@ export function PinnedTerminalCard({
       observer.disconnect();
       rendererRef.current = null;
     };
-  }, [draw, fontFamily, fontSize, rendererRef]);
+  }, [draw, fontFamily, fontSize, lineHeight, padding, cursorBlink, showScrollbar, terminalTheme, rendererRef]);
 
   // Theme switches repaint the existing frames instead of rebuilding.
   useEffect(() => {

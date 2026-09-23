@@ -380,13 +380,19 @@ test("the settings page renders three effect segments and two opacity sliders", 
   assert.match(page, /settings\.transparency\.terminal/, "the terminal transparency slider must exist");
   assert.match(page, /onChangeOpacity\("main"/, "the app slider writes the main target");
   assert.match(page, /onChangeOpacity\("terminal"/, "the terminal slider writes the terminal target");
-  // The OpacityControl component carries one `type="range"` and the font-size
-  // slider is a second; the two transparency sliders are two instances of the
-  // shared component, so three ranges render from two declarations.
+  // The OpacityControl component carries one `type="range"`; R42 moved the
+  // font-size range into the shared `TerminalAppearance` component (which the
+  // terminal page renders too), so this page declares only the opacity range.
   assert.equal(
     (page.match(/type="range"/g) ?? []).length,
+    1,
+    "General declares only the shared opacity range (the font size moved to TerminalAppearance)",
+  );
+  const terminalAppearance = await read("src/settings/TerminalAppearance.tsx");
+  assert.equal(
+    (terminalAppearance.match(/type="range"/g) ?? []).length,
     2,
-    "General declares the font-size range plus the shared opacity range",
+    "TerminalAppearance declares the font-size and line-height ranges",
   );
   assert.equal(
     (page.match(/<OpacityControl/g) ?? []).length,

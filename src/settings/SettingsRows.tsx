@@ -144,6 +144,49 @@ export function SettingsRow({
   );
 }
 
+/** A segmented picker — the trailing (or stacked) n-way choice the settings
+ *  cards use. The keyboard contract is a radiogroup: one tab stop (the chosen
+ *  segment) and `role="radio"` on each segment. R42 lifted it out of
+ *  `GeneralPage` so the in-terminal panel and the settings card render the
+ *  same control from the same schema. */
+export function SegmentedChoice<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div
+      className="settings-options settings-options--inline settings-options--trailing"
+      role="radiogroup"
+      aria-label={label}
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            className={`settings-option${active ? " settings-option--active" : ""}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onChange(option.value)}
+          >
+            <span className="settings-option__label">{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 type SettingsActionProps = {
   children: ReactNode;
   onClick: () => void;

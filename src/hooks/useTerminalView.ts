@@ -29,6 +29,7 @@ import { MOUSE_MOTION, usesMouseReporting } from "../terminal/keys";
 import { normalizeTerminalInputSpaces } from "../terminal/inputNormalize";
 import { PINNED_SESSION_ID } from "../terminal/pinState";
 import { normalizeFontSize } from "../settings/GeneralPage";
+import { normalizeLineHeight, type TerminalTheme } from "../terminal/terminal-appearance";
 import { createDeferredRepaint, type DeferredRepaint } from "../deferred-repaint";
 import { IS_MAC } from "../shortcuts";
 import type { ExecutionPlan } from "../launcher";
@@ -40,9 +41,6 @@ import type { MessageKey, Translate } from "../i18n";
 // `monospace` whose fontconfig match is frequently not a terminal face at all.
 const FALLBACK_FONT_FAMILY =
   "'SF Mono','Menlo','Monaco','Consolas','JetBrains Mono','DejaVu Sans Mono','Liberation Mono',monospace";
-const LINE_HEIGHT = 1.4;
-const PADDING_X = 3;
-const PADDING_Y = 3;
 const TERMINAL_SIZE_SAVE_DELAY = 280;
 const BRACKETED_PASTE = 1 << 4;
 
@@ -82,6 +80,12 @@ export function useTerminalView(options: {
   mode: ViewMode;
   fontFamily: string;
   fontSize: number;
+  /** R42 · the rest of the terminal's appearance, all user-owned. */
+  lineHeight: number;
+  padding: number;
+  cursorBlink: boolean;
+  showScrollbar: boolean;
+  terminalTheme: TerminalTheme;
   resolvedTheme: "dark" | "light";
   ptyReady: RefObject<boolean>;
   /** Card counterpart of `ptyReady`; see `surfaceReady` below. */
@@ -110,6 +114,11 @@ export function useTerminalView(options: {
     mode,
     fontFamily,
     fontSize,
+    lineHeight,
+    padding,
+    cursorBlink,
+    showScrollbar,
+    terminalTheme,
     resolvedTheme,
     ptyReady,
     pinnedReady,
@@ -466,9 +475,12 @@ export function useTerminalView(options: {
     const renderer = new TerminalCanvas(canvasRef.current, {
       fontFamily: terminalFontFamily(fontFamily),
       fontSize: normalizeFontSize(fontSize),
-      lineHeight: LINE_HEIGHT,
-      paddingX: PADDING_X,
-      paddingY: PADDING_Y,
+      lineHeight: normalizeLineHeight(lineHeight),
+      paddingX: padding,
+      paddingY: padding,
+      cursorBlink,
+      showScrollbar,
+      theme: terminalTheme,
     });
     rendererRef.current = renderer;
     termOpened.current = true;
@@ -526,13 +538,35 @@ export function useTerminalView(options: {
     };
   }, [terminalMounted, mode]);
 
-  // Font change: re-measure cells and relayout without rebuilding the
-  // renderer or rebinding listeners. The renderer's relayout() already
-  // calls measureCell() internally, so cell dimensions stay correct.
+  // Font/geometry change: re-measure cells and relayout without rebuilding
+  // the renderer or rebinding listeners. The renderer's relayout() already
+  // calls measureCell() internally, so cell dimensions stay correct. R42 adds
+  // line height and padding to the same axis: all four move the cell grid, so
+  // all four go through `setOptions` + `relayout`. The frame, the selection and
+  // the PTY's scrollback are untouched — nothing here closes the session.
   useEffect(() => {
-    if (!rendererRef.current) return;
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.setOptions({
+      fontFamily: terminalFontFamily(fontFamily),
+      fontSize: normalizeFontSize(fontSize),
+      lineHeight: normalizeLineHeight(lineHeight),
+      paddingX: padding,
+      paddingY: padding,
+    });
     relayoutAndResize();
-  }, [fontFamily, fontSize]);
+  }, [fontFamily, fontSize, lineHeight, padding]);
+
+  // R42 · the options that change pixels but not the grid: a cursor-blink veto,
+  // the scrollbar switch and the canvas palette. These repaint in place and
+  // deliberately do NOT relayout — a theme change must not resize the PTY.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.setOptions({ cursorBlink, showScrollbar, theme: terminalTheme });
+    renderer.updateTheme();
+    render();
+  }, [cursorBlink, showScrollbar, terminalTheme]);
 
   // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
   // grid current; this listener persists the logical window dimensions after a
@@ -585,8 +619,8 @@ export function useTerminalView(options: {
   const clampCell = (px: number, py: number): { col: number; row: number } | null => {
     const renderer = rendererRef.current;
     if (!renderer) return null;
-    let col = Math.floor((px - PADDING_X) / renderer.cellWidth);
-    let row = Math.floor((py - PADDING_Y) / renderer.cellHeight);
+    let col = Math.floor((px - renderer.paddingX) / renderer.cellWidth);
+    let row = Math.floor((py - renderer.paddingY) / renderer.cellHeight);
     col = Math.max(0, Math.min(renderer.cols - 1, col));
     row = Math.max(0, Math.min(renderer.rows - 1, row));
     return { col, row };

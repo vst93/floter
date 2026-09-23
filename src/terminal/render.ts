@@ -2,6 +2,11 @@
 //
 import { ALT_SCREEN } from "./keys";
 import { canvasFill } from "./canvas-fill";
+import {
+  DEFAULT_TERMINAL_THEME,
+  TERMINAL_PALETTES,
+  type TerminalTheme,
+} from "./terminal-appearance";
 
 // Consumes the binary frame produced by the Rust backend (see
 // `src-tauri/src/terminal/frame.rs` for the wire format) and paints it onto a
@@ -73,6 +78,14 @@ export interface RendererOptions {
   lineHeight: number;
   paddingX: number;
   paddingY: number;
+  /** R42 · the user's blink veto. The wire carries the *program's* request;
+   *  `false` here keeps the cursor steady no matter what the program asked. */
+  cursorBlink: boolean;
+  /** R42 · whether the scrollbar overlay may be drawn at all. */
+  showScrollbar: boolean;
+  /** R42 · the canvas palette. `inherit` reads the document's `--terminal-*`
+   *  tokens; the two overrides paint a fixed palette inside the canvas only. */
+  theme: TerminalTheme;
 }
 
 export interface Layout {
@@ -119,6 +132,14 @@ export class TerminalCanvas {
   rows = 0;
   historySize = 0;
   displayOffset = 0;
+  /** R42 · the current inner inset, so the host can hit-test with the same
+   *  numbers the renderer paints with after a padding change. */
+  get paddingX(): number {
+    return this.opts.paddingX;
+  }
+  get paddingY(): number {
+    return this.opts.paddingY;
+  }
   private cursorCol = 0;
   private cursorRow = 0;
   private lastBytes: Uint8Array | null = null;
@@ -158,6 +179,20 @@ export class TerminalCanvas {
   }
 
   /**
+   * R42 · apply a settings change in place.
+   *
+   * The renderer is deliberately *not* rebuilt when an appearance setting
+   * moves: it holds the last frame's geometry (cell size, grid) and the host
+   * holds the frame itself, so a rebuild would blank the canvas until the
+   * next frame arrived. Merging the options and letting the caller re-measure
+   * (`relayout`) or repaint (`updateTheme` + `draw`) keeps the running session
+   * — scroll position and all — untouched.
+   */
+  setOptions(next: Partial<RendererOptions>): void {
+    this.opts = { ...this.opts, ...next };
+  }
+
+  /**
    * Re-read the palette from the document's CSS custom properties.
    *
    * The variables are declared on `:root` and `[data-theme="light"]`, so the
@@ -168,9 +203,14 @@ export class TerminalCanvas {
    * Public because a theme change repaints in place: rebuilding the renderer
    * would take the scroll position and the last frame with it.
    */
-  updateTheme(): void {
+  updateTheme(theme: TerminalTheme = this.opts.theme ?? DEFAULT_TERMINAL_THEME): void {
     const style = getComputedStyle(document.documentElement);
-    this.bg = packedColor(style, "--terminal-bg", FALLBACK_BG);
+    // R42 · a theme override paints a fixed palette inside the canvas; only
+    // `inherit` reads the document tokens. The transparency floor/slider are a
+    // separate axis and are read either way, so a theme change never moves the
+    // frame's own thickness.
+    const palette = theme === "inherit" ? null : TERMINAL_PALETTES[theme];
+    this.bg = palette ? palette.bg : packedColor(style, "--terminal-bg", FALLBACK_BG);
     // The canvas paints the terminal's background colour, so its alpha is the
     // *frame alpha* — the terminal's own transparency slider, clamped to the
     // near-solid top and lifted only by the accessibility floor. The value is
@@ -185,12 +225,18 @@ export class TerminalCanvas {
     const solidTop = cssNumber(style, "--glass-solid-top", 0.98);
     const transparency = cssNumber(style, "--terminal-opacity", 0.46);
     this.bgOpacity = canvasFill(floor, solidTop, transparency);
-    this.fg = packedColor(style, "--terminal-fg", FALLBACK_FG);
-    this.cursor = packedColor(style, "--terminal-cursor", FALLBACK_CURSOR);
+    this.fg = palette ? palette.fg : packedColor(style, "--terminal-fg", FALLBACK_FG);
+    this.cursor = palette
+      ? palette.cursor
+      : packedColor(style, "--terminal-cursor", FALLBACK_CURSOR);
     // Kept as CSS strings: both are deliberately translucent, and the packed
     // integers the cell colours use have nowhere to put an alpha channel.
-    this.selection = cssColor(style, "--terminal-selection", FALLBACK_SELECTION);
-    this.scrollbar = cssColor(style, "--terminal-scrollbar", FALLBACK_SCROLLBAR);
+    this.selection = palette
+      ? palette.selection
+      : cssColor(style, "--terminal-selection", FALLBACK_SELECTION);
+    this.scrollbar = palette
+      ? palette.scrollbar
+      : cssColor(style, "--terminal-scrollbar", FALLBACK_SCROLLBAR);
     this.bgFill = this.color(this.bg, this.bgOpacity);
   }
 
@@ -403,7 +449,7 @@ export class TerminalCanvas {
     const showCursor =
       cursorVisible &&
       cursorShape !== CURSOR_HIDDEN &&
-      (!cursorBlinking || blinkOn) &&
+      (!this.opts.cursorBlink || !cursorBlinking || blinkOn) &&
       cursorCol < cols &&
       cursorRow < rows;
 
@@ -522,8 +568,11 @@ export class TerminalCanvas {
     this.lastFont = ctx.font;
   }
 
-  /** Bring the scrollbar up, or keep it up. */
+  /** Bring the scrollbar up, or keep it up. A no-op while the user has the
+   *  bar switched off, so nothing arms a fade timer for a bar that is never
+   *  painted. */
   showScrollbar(): void {
+    if (!this.opts.showScrollbar) return;
     this.scrollbarUntil = Date.now() + SCROLLBAR_LINGER;
   }
 
@@ -541,6 +590,7 @@ export class TerminalCanvas {
   }
 
   private drawScrollbar(): void {
+    if (!this.opts.showScrollbar) return;
     if ((this.mode & ALT_SCREEN) !== 0 || this.historySize <= 0) return;
     const alpha = this.scrollbarAlpha();
     if (alpha <= 0) return;
@@ -585,6 +635,7 @@ export class TerminalCanvas {
    * vertical extent is honoured for the same reason.
    */
   hitScrollbar(px: number, py: number): boolean {
+    if (!this.opts.showScrollbar) return false;
     if ((this.mode & ALT_SCREEN) !== 0 || this.historySize <= 0) return false;
     if (this.scrollbarAlpha() <= 0) return false;
     const rect = this.scrollbarRect();

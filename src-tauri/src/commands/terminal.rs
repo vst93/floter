@@ -158,6 +158,18 @@ pub fn term_set_theme(
     manager.set_theme(&id, &theme)
 }
 
+/// R42 · apply the user's default cursor shape to a running session without
+/// restarting it. See `TerminalSession::set_cursor_style`.
+#[tauri::command]
+pub fn term_set_cursor_style(
+    state: State<'_, TerminalState>,
+    id: String,
+    shape: String,
+) -> Result<(), String> {
+    let manager = state.0.lock().map_err(|e| e.to_string())?;
+    manager.set_cursor_style(&id, &shape)
+}
+
 #[tauri::command]
 pub fn term_input(
     state: State<'_, TerminalState>,

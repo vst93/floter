@@ -224,24 +224,34 @@ const LIGHT_ANSI: [Rgb; 16] = [
     },
 ];
 
-/// Build the alacritty `Config`, applying the user-configured default cursor
-/// style (defaults to a blinking beam).
-fn terminal_config() -> Config {
-    let mut config = Config::default();
-    let shape = match crate::commands::config::load_settings()
-        .cursor_shape
-        .as_str()
-    {
+/// Map the stored cursor-shape id onto alacritty's enum. An unknown id (a
+/// hand-edited file, a shape a later round retires) falls back to the shipped
+/// beam rather than to whatever variant happens to sort first.
+fn cursor_shape_from_name(name: &str) -> CursorShape {
+    match name {
         "block" => CursorShape::Block,
         "underline" => CursorShape::Underline,
         "beam" => CursorShape::Beam,
         _ => CursorShape::Beam,
-    };
+    }
+}
+
+/// The alacritty `Config` for a given default cursor shape. Kept separate from
+/// [`terminal_config`] so R42's live cursor-shape command can rebuild the same
+/// config at runtime without re-reading the settings file.
+fn terminal_config_with_cursor(shape: &str) -> Config {
+    let mut config = Config::default();
     config.default_cursor_style = CursorStyle {
-        shape,
+        shape: cursor_shape_from_name(shape),
         blinking: true,
     };
     config
+}
+
+/// Build the alacritty `Config`, applying the user-configured default cursor
+/// style (defaults to a blinking beam).
+fn terminal_config() -> Config {
+    terminal_config_with_cursor(&crate::commands::config::load_settings().cursor_shape)
 }
 
 fn apply_terminal_theme<T: EventListener>(term: &mut Term<T>, theme: TerminalTheme) {
@@ -437,6 +447,24 @@ impl TerminalSession {
     pub fn set_theme(&self, theme: &str) {
         let mut term = self.terminal.lock();
         apply_terminal_theme(&mut term, TerminalTheme::from_name(Some(theme)));
+        let _ = self.wakeup.send(RenderEvent::Wake);
+    }
+
+    /// R42 · change the running emulator's *default* cursor shape.
+    ///
+    /// The setting was applied only at spawn before this round, so a shape
+    /// change meant a new session. `Term::set_options` is alacritty's own live
+    /// config path: it replaces the config, damages the grid and wakes the
+    /// renderer, leaving the PTY, the grid and the scrollback untouched. A
+    /// program that set its own cursor shape (via an escape sequence) keeps it
+    /// — `cursor_style()` prefers the program's override over the default —
+    /// which is exactly how a terminal should behave.
+    pub fn set_cursor_style(&self, shape: &str) {
+        let config = terminal_config_with_cursor(shape);
+        {
+            let mut term = self.terminal.lock();
+            term.set_options(config);
+        }
         let _ = self.wakeup.send(RenderEvent::Wake);
     }
 
@@ -928,6 +956,17 @@ impl TerminalManager {
         let sessions = self.sessions.lock().map_err(|error| error.to_string())?;
         if let Some(session) = sessions.get(id) {
             session.set_theme(theme);
+        }
+        Ok(())
+    }
+
+    /// R42 · set the running session's default cursor shape. A session that is
+    /// not attached yet is silently skipped, exactly like `set_theme`: the
+    /// setting is also read at spawn, so the next attach gets it anyway.
+    pub fn set_cursor_style(&self, id: &str, shape: &str) -> Result<(), String> {
+        let sessions = self.sessions.lock().map_err(|error| error.to_string())?;
+        if let Some(session) = sessions.get(id) {
+            session.set_cursor_style(shape);
         }
         Ok(())
     }

@@ -16,6 +16,16 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { normalizeFontSize } from "../settings/GeneralPage";
+import {
+  DEFAULT_CURSOR_BLINK,
+  DEFAULT_LINE_HEIGHT,
+  DEFAULT_SCROLLBAR,
+  DEFAULT_TERMINAL_PADDING,
+  DEFAULT_TERMINAL_THEME,
+  normalizeLineHeight,
+  normalizeTerminalPadding,
+  normalizeTerminalTheme,
+} from "../terminal/terminal-appearance";
 import { normalizeUiScale, type UiScale } from "../ui-scale";
 import {
   createSerialSettingsWriter,
@@ -43,6 +53,15 @@ const SETTINGS_DEFAULTS: AppSettings = {
   font_size: 14,
   font_family: "monospace",
   cursor_shape: "beam",
+  // R42 · the terminal's appearance. The defaults are the exact behaviour
+  // every build before this round shipped — 1.4 line height, 3px padding
+  // (`regular`), a blinking cursor, the inherited palette and a visible
+  // scrollbar — so a pre-round settings file renders pixel-identically.
+  terminal_line_height: DEFAULT_LINE_HEIGHT,
+  terminal_padding: DEFAULT_TERMINAL_PADDING,
+  terminal_cursor_blink: DEFAULT_CURSOR_BLINK,
+  terminal_theme: DEFAULT_TERMINAL_THEME,
+  terminal_scrollbar: DEFAULT_SCROLLBAR,
   language: "en",
   main_opacity: 47,
   terminal_opacity: 46,
@@ -243,6 +262,21 @@ export function useSettings(options: {
           // hand-edited one may carry a step that no longer ships; both land on
           // `default` (the shipped step) rather than on an unscaled guess.
           ui_scale: normalizeUiScale(loaded.ui_scale),
+          // R42 · the terminal's appearance. A pre-round file has none of these
+          // keys; a hand-edited one may carry an out-of-range number or an
+          // unknown step. Every one lands on its shipped value rather than on a
+          // `0`/`false` that would silently change how the canvas paints.
+          terminal_line_height: normalizeLineHeight(
+            loaded.terminal_line_height ?? DEFAULT_LINE_HEIGHT,
+          ),
+          terminal_padding: normalizeTerminalPadding(
+            loaded.terminal_padding ?? DEFAULT_TERMINAL_PADDING,
+          ),
+          terminal_cursor_blink: loaded.terminal_cursor_blink ?? DEFAULT_CURSOR_BLINK,
+          terminal_theme: normalizeTerminalTheme(
+            loaded.terminal_theme ?? DEFAULT_TERMINAL_THEME,
+          ),
+          terminal_scrollbar: loaded.terminal_scrollbar ?? DEFAULT_SCROLLBAR,
           // R26-A: a file written before the browser plugin existed has no
           // `browser_plugin` block; the shipped defaults keep the plugin
           // usable without the user visiting its settings page.
@@ -374,6 +408,33 @@ export function useSettings(options: {
         .finally(() => pendingFields.current.delete(field));
     },
     [settingsHydration, persistSettings, suppressBlurUntil],
+  );
+
+  /**
+   * R42 · the terminal's line-height slider.
+   *
+   * The same debounce the font-size slider rides, for the same reason: a drag
+   * emits a tick per pixel and `changeGeneralSetting` has no debounce, so it
+   * would write the settings file dozens of times per gesture. The clamp/snap
+   * is `normalizeLineHeight`'s, shared with the backend's own normalizer.
+   */
+  const changeTerminalLineHeight = useCallback(
+    (next: number) => {
+      const lineHeight = normalizeLineHeight(next);
+      if (lineHeight === settingsRef.current.terminal_line_height) return;
+      const updated = { ...settingsRef.current, terminal_line_height: lineHeight };
+      settingsHydration.markChanged("terminal_line_height");
+      settingsRef.current = updated;
+      setSettings(updated);
+      if (settingsSaveTimer.current !== null) {
+        window.clearTimeout(settingsSaveTimer.current);
+      }
+      settingsSaveTimer.current = window.setTimeout(() => {
+        settingsSaveTimer.current = null;
+        persistSettings().catch(() => setSettingsSaveFailed(true));
+      }, SETTINGS_DEBOUNCE_MS);
+    },
+    [settingsHydration, persistSettings],
   );
 
   /**
@@ -528,6 +589,7 @@ export function useSettings(options: {
     changeGlassIntensity,
     changeOpacity,
     changeFontSize,
+    changeTerminalLineHeight,
     changeUiScale,
     changeGeneralSetting,
     changeCommandAlias,

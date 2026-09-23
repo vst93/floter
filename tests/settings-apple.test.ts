@@ -269,9 +269,21 @@ test("no stored settings key or semantics changed", async () => {
     assert.match(rust, new RegExp(`\\b${field}\\b`), `the Rust settings shape must keep ${field}`);
   }
   const page = await read("src/settings/GeneralPage.tsx");
+  // R42 · the terminal's appearance controls moved out of this page into the
+  // shared `TerminalAppearance` component (the terminal page renders the same
+  // one), so the three terminal fields are asserted there while the rest stay
+  // on the page. Same fields, same bridge — the guard follows the refactor.
+  const terminalAppearance = await read("src/settings/TerminalAppearance.tsx");
+  for (const field of ["font_size", "font_family", "cursor_shape"]) {
+    assert.match(
+      terminalAppearance,
+      new RegExp(`settings\\.${field}`),
+      `TerminalAppearance must still read ${field}`,
+    );
+  }
   for (const field of [
-    "glass_step", "main_opacity", "terminal_opacity", "font_size", "font_family",
-    "cursor_shape", "launch_at_startup", "hide_on_blur", "show_recent_in_launcher",
+    "glass_step", "main_opacity", "terminal_opacity",
+    "launch_at_startup", "hide_on_blur", "show_recent_in_launcher",
     "theme", "show_menubar_icon",
   ]) {
     assert.match(page, new RegExp(`settings\\.${field}`), `GeneralPage must still read ${field}`);

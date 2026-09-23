@@ -1,4 +1,4 @@
-import type { AppSettings, CursorShape } from "../App";
+import type { AppSettings } from "../App";
 import { useEffect, useState } from "react";
 import {
   UI_SCALE_STEPS,
@@ -27,11 +27,19 @@ import {
   type Translate,
 } from "../i18n";
 import {
+  SegmentedChoice,
   SettingsCard,
   SettingsRow,
   SettingsScale,
 } from "./SettingsRows";
+import { TerminalAppearanceSettings } from "./TerminalAppearance";
 import { menubarIconSwitchState, toggleMenubarIcon } from "./menubar-icon";
+
+// R42 · the terminal's font size — and the rest of its appearance — now live
+// in `terminal/terminal-appearance.ts`, which both this page and the terminal
+// page's own settings panel render from. Re-exported so every existing
+// importer (App, useSettings, useTerminalView) keeps its import path.
+export { normalizeFontSize } from "../terminal/terminal-appearance";
 
 const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
   { value: "auto", labelKey: "settings.theme.auto" },
@@ -46,24 +54,6 @@ const UI_SCALE_OPTIONS: { value: UiScale; labelKey: MessageKey }[] = UI_SCALE_ST
   (value) => ({ value, labelKey: `settings.uiScale.${value}` as MessageKey }),
 );
 
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 48;
-const FONT_FAMILY_OPTIONS = [
-  { value: "monospace", label: "System Mono" },
-  { value: "JetBrains Mono", label: "JetBrains Mono" },
-  { value: "SF Mono", label: "SF Mono" },
-  { value: "Cascadia Mono", label: "Cascadia Mono" },
-  { value: "Menlo", label: "Menlo" },
-  { value: "Consolas", label: "Consolas" },
-  { value: "DejaVu Sans Mono", label: "DejaVu Sans Mono" },
-  { value: "Liberation Mono", label: "Liberation Mono" },
-] as const;
-const CURSOR_SHAPE_OPTIONS: { value: CursorShape; labelKey: MessageKey }[] = [
-  { value: "beam", labelKey: "settings.cursor.beam" },
-  { value: "block", labelKey: "settings.cursor.block" },
-  { value: "underline", labelKey: "settings.cursor.underline" },
-];
-
 /** The three glass-effect stops (GLASS-3STOP). The label names the *effect*,
  *  not a tint: Frosted → Liquid → Liquid Max. One control drives the
  *  liquid-glass effect (blur / saturation / control-lens quality); the two
@@ -75,9 +65,6 @@ const GLASS_INTENSITY_OPTIONS = GLASS_INTENSITIES.map((value) => ({
   labelKey: GLASS_INTENSITY[value].label as MessageKey,
 }));
 
-export const normalizeFontSize = (value: number): number =>
-  Math.round(Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Number.isFinite(value) ? value : 14)));
-
 const MIN_OPACITY = 10;
 const MAX_OPACITY = 100;
 
@@ -86,48 +73,6 @@ const MAX_OPACITY = 100;
  *  (the stop control above), and each is configured on its own. */
 export const normalizeOpacity = (value: number): number =>
   clampWindowOpacity(Number.isFinite(value) ? value : 47);
-
-/** One segmented picker inside a row's control slot — the trailing
- *  three-way choice the reference pane uses for Appearance. The keyboard
- *  contract is the same radiogroup the page has always shipped: one tab stop
- *  (the chosen segment) and `role="radio"` on each segment. */
-function SegmentedChoice<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div
-      className="settings-options settings-options--inline settings-options--trailing"
-      role="radiogroup"
-      aria-label={label}
-    >
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={active ? 0 : -1}
-            className={`settings-option${active ? " settings-option--active" : ""}`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onChange(option.value)}
-          >
-            <span className="settings-option__label">{option.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 type OpacityControlProps = {
   label: string;
@@ -181,6 +126,9 @@ type GeneralPageProps = {
   onChangeGeneralSetting: <K extends keyof AppSettings>(field: K, value: AppSettings[K]) => void;
   onChangeLaunchAtStartup: (enabled: boolean) => void;
   onChangeFontSize: (size: number) => void;
+  /** R42 · the line-height slider is a per-tick control, so it rides the same
+   *  debounce as the font-size slider rather than persisting on every pixel. */
+  onChangeLineHeight: (value: number) => void;
   onChangeUiScale: (step: UiScale) => void;
   onChangeOpacity: (target: "main" | "terminal", value: number) => void;
   onChangeGlassIntensity: (level: GlassIntensity) => void;
@@ -356,6 +304,7 @@ export function GeneralPage({
   onChangeGeneralSetting,
   onChangeLaunchAtStartup,
   onChangeFontSize,
+  onChangeLineHeight,
   onChangeUiScale,
   onChangeOpacity,
   onChangeGlassIntensity,
@@ -553,67 +502,18 @@ export function GeneralPage({
             <h2 className="settings-section__label">{t("settings.terminalAppearance")}</h2>
           </div>
         </div>
-        <SettingsCard label={t("settings.terminalAppearance")}>
-          <SettingsRow
-            stacked
-            label={
-              <span className="settings-slider__head">
-                <span>{t("settings.fontSize")}</span>
-                <output className="terminal-setting-control__value">
-                  {normalizeFontSize(settings.font_size)} px
-                </output>
-              </span>
-            }
-            sublabel={t("settings.terminalAppearanceHint")}
-            control={
-              <>
-                <input
-                  type="range"
-                  min={MIN_FONT_SIZE}
-                  max={MAX_FONT_SIZE}
-                  step="1"
-                  value={normalizeFontSize(settings.font_size)}
-                  aria-label={t("settings.fontSize")}
-                  onChange={(event) => onChangeFontSize(Number(event.currentTarget.value))}
-                />
-                <SettingsScale low={t("settings.scale.small")} high={t("settings.scale.large")} />
-              </>
-            }
-          />
-          <SettingsRow
-            label={t("settings.fontFamily")}
-            control={
-              <select
-                className="settings-select"
-                value={settings.font_family}
-                aria-label={t("settings.fontFamily")}
-                onChange={(event) => onChangeGeneralSetting("font_family", event.currentTarget.value)}
-              >
-                {!FONT_FAMILY_OPTIONS.some((option) => option.value === settings.font_family) && (
-                  <option value={settings.font_family}>{settings.font_family}</option>
-                )}
-                {FONT_FAMILY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            }
-          />
-          <SettingsRow
-            stacked
-            label={t("settings.cursorShape")}
-            control={
-              <SegmentedChoice
-                label={t("settings.cursorShape")}
-                value={settings.cursor_shape}
-                onChange={(value) => onChangeGeneralSetting("cursor_shape", value)}
-                options={CURSOR_SHAPE_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: t(option.labelKey),
-                }))}
-              />
-            }
-          />
-        </SettingsCard>
+        {/* R42 · the card body is the shared terminal-appearance component,
+            the same one the terminal page's settings panel renders. One
+            schema, one set of normalizers, one AppSettings — so the two
+            surfaces cannot disagree. */}
+        <TerminalAppearanceSettings
+          variant="card"
+          settings={settings}
+          t={t}
+          onChangeFontSize={onChangeFontSize}
+          onChangeLineHeight={onChangeLineHeight}
+          onChange={onChangeGeneralSetting}
+        />
       </section>
 
       {/* The material group: the *effect* stop on one card and the two
