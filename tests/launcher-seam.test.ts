@@ -87,7 +87,15 @@ test("the aura is gone: no wash node, no wash rule, no wash token in the sheet",
   // nothing else. No shadow, no gradient, no accent.
   const row = rule(css, ".collapsed-card__input-row");
   assert.ok(row, "the input row rule must still exist");
-  assert.equal(decl(row!.body, "box-shadow"), null, "the input row paints no shadow of its own");
+  // R31 · the row paints exactly one thing now: the 1px hairline on its floor
+  // (「输入框下方阴影可以只保留 1px」). No aura, no wash, no gradient — a single
+  // inset line in the shared `--hairline` token. An inset shadow rather than a
+  // border, so the row's 42u box (a pinned metric) does not grow.
+  assert.equal(
+    decl(row!.body, "box-shadow"),
+    "inset 0 -1px 0 var(--hairline)",
+    "R31: the row's only mark is the 1px field/list hairline",
+  );
   assert.deepEqual(
     decl(row!.body, "background")!.split(",").map((layer) => layer.trim()),
     ["var(--glass-field)", "var(--surface-opaque)"],
@@ -113,10 +121,15 @@ test("the old smear cannot come back in a new shape: no accent wash gradient any
   const row = rule(css, ".collapsed-card__input-row");
   assert.ok(row, "the input row must still exist");
   assert.ok(!/accent/.test(row!.body), "the search surface carries no accent: the caret is the row's whole colour story");
-  assert.ok(
-    !/inset|box-shadow/.test(row!.body),
-    "and no inset mark: a keyline inside the surface is the seam by another name",
+  // R31 · and no *second* mark: the one inset hairline is allowed, anything else
+  // (a keyline, a bloom, a gradient) is the seam by another name.
+  const shadows = decl(row!.body, "box-shadow");
+  assert.equal(
+    shadows,
+    "inset 0 -1px 0 var(--hairline)",
+    "exactly one inset mark, the R31 hairline — no accent, no second inset",
   );
+  assert.ok(!/gradient/.test(row!.body), "and it is still a flat fill, not a wash in a new shape");
 });
 
 test("the divider is gone: no seam pseudo-elements and no hairline band left in the sheet", async () => {

@@ -285,12 +285,24 @@ test("the scroll edge effect is a gradient band, never a filter", async () => {
     "the scroll edge band must not be a filter",
   );
 
-  // The two scrolling regions the app owns both carry the band.
+  // The settings page and the clipboard list keep their bands. R31 removed the
+  // band from the launcher's list only: under a text field the user read the
+  // gradient as a shadow cast by the input and asked for a 1px line instead
+  // (「输入框下方阴影可以只保留 1px」); the launcher now draws the hairline on
+  // `.collapsed-card__input-row` and the scroller paints nothing (see the
+  // dedicated test below).
   const launcher = stripComments(await read("src/styles/launcher.css"));
   const results = rules(launcher).find(({ selector }) => selector === ".launcher-results");
   assert.ok(results, "launcher.css must define .launcher-results");
-  assert.match(results!.body, /background-image:\s*var\(--scroll-edge-band\)/);
-  assert.match(results!.body, /background-size:\s*100% var\(--scroll-edge\)/);
+  assert.ok(
+    !/background-image/.test(results!.body),
+    "R31: the launcher's scroller paints no band — the divider is the input row's hairline",
+  );
+  assert.match(
+    results!.body,
+    /padding:\s*var\(--scroll-edge\)\s+0\s+0;/,
+    "…but it still reserves the 4px scroll edge (the pinned R22-R24 constant)",
+  );
 
   // R22 · base.css still owns the token at 14px — this test reads it above and
   // the assertion is unchanged — but the launcher *surface* tightens it to 8px
@@ -317,7 +329,7 @@ test("the scroll edge effect is a gradient band, never a filter", async () => {
   assert.match(content!.body, /background-size:\s*100% var\(--scroll-edge\)/);
 
   // Neither scroller may have grown a blur while gaining the band.
-  for (const body of [results!.body, content!.body]) {
+  for (const body of [content!.body]) {
     assert.ok(!/backdrop-filter/.test(body), "a scroll edge band must not add a backdrop-filter");
   }
 });
@@ -349,37 +361,31 @@ test("the resting state starts below the scroll edge band", async () => {
 });
 
 // R14 · The band is a *scrolling* effect, so a list that already fits must not
-// paint it. Painted unconditionally it sat in the scroller's own 14px
-// reservation as a grey stripe directly under the R13 seam hairline, which read
-// as one thick second divider below the input — the user's 「双灰条」.
-// The switch is a class, and it is thrown by a measurement rather than by a
-// guess about the row budget (that number lives in one place, the App's), so
-// both halves are pinned here.
-test("the scroll edge band is painted only while the list can scroll", async () => {
+// paint it. R31 · the launcher goes one step further: the band is gone from this
+// scroller altogether, and the field/list divider is the input row's 1px
+// hairline. The test pins both halves — no band on the launcher, and the 4px
+// reservation (a pinned R22-R24 constant) still declared.
+test("the launcher's list no longer paints a scroll edge band", async () => {
   const launcher = stripComments(await read("src/styles/launcher.css"));
-  // The band stays declared on `.launcher-results` itself (the two tests above
-  // read it there); this rule is the switch that turns it off.
-  const gate = rules(launcher).find(({ selector }) =>
-    selector.startsWith(".launcher-results:not(.launcher-results--scrollable)"),
-  );
-  assert.ok(gate, "launcher.css must gate the band on the scrollable class");
-  assert.match(gate!.body, /background-image:\s*none/, "the band is switched off, not merely faded");
+  const results = rules(launcher).find(({ selector }) => selector === ".launcher-results");
+  assert.ok(results, "launcher.css must define .launcher-results");
   assert.ok(
-    !/padding/.test(gate!.body),
-    "the 14px reservation must not move with the band, or the list jumps as it grows",
+    !/background-image|scroll-edge-band/.test(results!.body),
+    "the launcher's scroller declares no band (R31)",
   );
-
-  // The class is emitted from the scroller's own box.
-  const results = stripComments(await read("src/launcher/LauncherResults.tsx"));
-  assert.match(
-    results,
-    /launcher-results\$\{scrollable \? " launcher-results--scrollable" : ""\}/,
-    "the scroller carries the class the gate reads",
+  assert.match(results!.body, /padding:\s*var\(--scroll-edge\)\s+0\s+0;/);
+  // …and the divider that replaces it is one inset hairline on the field row.
+  const row = rules(launcher).find(({ selector }) => selector === ".collapsed-card__input-row");
+  assert.ok(row, "launcher.css must define .collapsed-card__input-row");
+  assert.equal(
+    declarations(row!.body, "box-shadow")[0],
+    "inset 0 -1px 0 var(--hairline)",
+    "the field/list boundary is a single 1px hairline (R31)",
   );
-  assert.match(
-    results,
-    /setScrollable\(node\.scrollHeight > node\.clientHeight \+ 1\)/,
-    "the class is thrown from the scroller's measured box, not from a row count",
+  // The gate class is gone with the band it gated.
+  assert.ok(
+    !rules(launcher).some(({ selector }) => selector.includes("launcher-results--scrollable")),
+    "no scrollable gate survives the band it switched",
   );
 });
 
@@ -812,9 +818,10 @@ test("the content layer's background-image is tokenized, not a raw gradient", as
       splitTopLevel(value).filter((layer) => !CONTENT_IMAGE.test(layer)),
     );
 
-  // The three scrollers that legitimately paint the band must do so by token.
+  // The scrollers that legitimately paint the band must do so by token. R31
+  // removed the launcher from this list: its list paints no band, and its
+  // divider is the input row's hairline.
   const banded: [string, string][] = [
-    ["src/styles/launcher.css", ".launcher-results"],
     ["src/styles/settings.css", ".settings-content"],
     ["src/styles/terminal.css", ".clipboard-panel__list"],
   ];

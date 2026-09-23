@@ -99,7 +99,12 @@ import {
   withClipboardResultRow,
 } from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
-import { pluginScope } from "./launcher";
+import {
+  browserModeFor,
+  clipboardModeFor,
+  pluginModeEntry,
+  type ActivePluginMode,
+} from "./launcher";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
 import "./styles/launcher.css";
@@ -289,6 +294,58 @@ export default function App() {
    *  open. One at a time, over whatever the collapsed surface was showing. */
   const [pluginConfigOpen, setPluginConfigOpen] = useState(false);
   const [query, setQuery] = useState("");
+  /** R31 · the plugin mode the launcher is *in*, or `null` for the ordinary
+   *  search page. Held as explicit state, not read back out of the query: in a
+   *  mode the field shows only the needle the user typed, and the mode word is
+   *  gone from the text (see `ActivePluginMode` in `launcher.ts`). The three
+   *  things that write it are the input's own change handler (a trigger word +
+   *  space enters), the browser system row's Enter, and Esc / Cmd+W (leave). */
+  const [pluginMode, setPluginMode] = useState<ActivePluginMode | null>(null);
+  // Ref mirror so the query setter below can decide whether a programmatic
+  // write is an *entry* (only outside a mode) without being rebuilt per render.
+  const pluginModeRef = useRef(pluginMode);
+  pluginModeRef.current = pluginMode;
+
+  /**
+   * R31 · the query setter the *hooks* receive.
+   *
+   * A programmatic query write is one of three things, and the mode has to react
+   * to two of them:
+   *   · `""` — the launcher is being reset (a reveal, a return to the input, a
+   *     run that closes the window). Leave the plugin mode, or a fresh summon
+   *     would land back inside the browser.
+   *   · a string that enters a mode — a recalled history entry like
+   *     `browser rust`. Enter the mode and keep only the needle.
+   *   · anything else — plain text. Write it through.
+   *
+   * Function updaters (the keyboard fallback's backspace/typing) are always
+   * plain text: backspacing the needle to empty must NOT leave the mode
+   * (「退格删空即停」), so the entry branch is deliberately skipped for them.
+   * The input's own change handler does not use this setter — it runs the same
+   * entry test but never clears the mode on an empty field (see the field's
+   * `onChange` below).
+   */
+  const setQueryExitingPlugin = useCallback<React.Dispatch<React.SetStateAction<string>>>(
+    (action) => {
+      if (typeof action === "string") {
+        if (action === "") {
+          setPluginMode(null);
+          setQuery("");
+          return;
+        }
+        if (pluginModeRef.current === null) {
+          const entry = pluginModeEntry(action);
+          if (entry) {
+            setPluginMode(entry.mode);
+            setQuery(entry.needle);
+            return;
+          }
+        }
+      }
+      setQuery(action);
+    },
+    [],
+  );
   /** Header identity (status dot + title) for the session in the main terminal
    * view; null until a spawn/attach has described it. */
   const [mainSessionIdentity, setMainSessionIdentity] = useState<MainSessionIdentity | null>(null);
@@ -545,7 +602,7 @@ export default function App() {
     setTerminalFeedback(null);
     setLauncherFeedback(null);
     closeTerminalSession();
-    setQuery("");
+    setQueryExitingPlugin("");
     setTerminalMounted(false);
     setMode("collapsed");
     try {
@@ -679,11 +736,18 @@ export default function App() {
     setMainSessionIdentity,
     setMainPinnedAway,
     setTerminalFeedback,
-    setQuery,
+    setQuery: setQueryExitingPlugin,
     setMode,
     showTerminalFeedback,
     t,
   });
+
+  // R31 · the plugin requests the catalog hook fetches for, memoized by
+  // (mode, query). The hook's fetch effect keys on the request's identity, so
+  // an inline object literal would restart its debounce on every render and
+  // starve the fetch.
+  const browserMode = useMemo(() => browserModeFor(pluginMode, query), [pluginMode, query]);
+  const clipboardMode = useMemo(() => clipboardModeFor(pluginMode, query), [pluginMode, query]);
 
   const {
     applications,
@@ -708,6 +772,12 @@ export default function App() {
     recordLaunch,
   } = useLauncherCatalog({
     query,
+    // R31 · the plugin requests the hook fetches for. In a mode the query is
+    // the field's own needle; outside one both are null. Resolved above and
+    // memoized so the hook never re-parses a mode word out of the text and
+    // never restarts its fetch debounce on an unrelated render.
+    browserMode,
+    clipboardMode,
     launchCounts: settings.launch_counts,
     showCommandsInSearch: settings.show_commands_in_search,
     showRecentInLauncher: settings.show_recent_in_launcher,
@@ -720,6 +790,75 @@ export default function App() {
     setSettings,
     persistSettings,
   });
+
+  /**
+   * R31 · enter a plugin mode deliberately: the browser system row's Enter, and
+   * the trigger-word path in the field's own change handler below. The field is
+   * emptied (its old text belonged to the ordinary search page, not to the
+   * plugin), the mode becomes the scope glyph's owner, and the selection returns
+   * to the top of the plugin's own list.
+   */
+  const enterPluginMode = useCallback((mode: ActivePluginMode) => {
+    setPluginMode(mode);
+    setQuery("");
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /**
+   * R31 · leave a plugin mode, returning to the ordinary search page.
+   *
+   * The field's text is *kept*: the needle the user typed becomes an ordinary
+   * query, so `rust` searched inside the browser mode is still `rust` after
+   * Esc — the user's own words are never thrown away by a dismissal. The mode
+   * itself is what leaves, and with it the scope glyph and the plugin list.
+   */
+  const exitPluginMode = useCallback(() => {
+    setPluginMode(null);
+    setHistoryIndex(-1);
+  }, []);
+
+  /**
+   * R31 · Esc / Cmd+W on the collapsed surface, resolved in one place so the
+   * input's own handler and the window-level fallback cannot disagree.
+   *
+   * The order is the user's three-level rule:
+   *   1. the plugin configuration overlay is open → close it (Esc first);
+   *   2. a plugin mode owns the field → leave it, keeping the needle as an
+   *      ordinary query;
+   *   3. otherwise → the window (Esc hides it, as it always has; Cmd+W is the
+   *      new launcher-local binding and hides it too, `preventDefault`-ing so a
+   *      webview close-chord cannot fire first).
+   *
+   * Returns whether the press was consumed. Esc on the ordinary search page is
+   * deliberately left to the existing path (`handleLauncherKey` / the dismiss
+   * table), so its “clear the dropped rows, then hide” behaviour is unchanged.
+   */
+  const onLauncherDismiss = useCallback(
+    (event: KeyboardEvent): boolean => {
+      const escape = event.key === "Escape";
+      const modW = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w";
+      if (!escape && !modW) return false;
+      if (pluginConfigOpen) {
+        event.preventDefault();
+        setPluginConfigOpen(false);
+        return true;
+      }
+      if (pluginModeRef.current) {
+        event.preventDefault();
+        exitPluginMode();
+        return true;
+      }
+      if (modW) {
+        event.preventDefault();
+        invoke("hide_window");
+        return true;
+      }
+      return false;
+    },
+    [pluginConfigOpen, exitPluginMode],
+  );
 
   // R7-10a: the file drop listener. It owns the dropped-file state and the
   // `tauri://drag-drop` subscription; the rows and their three actions are
@@ -758,7 +897,10 @@ export default function App() {
   // row under a list of clipboard entries would be the panel's door inside the
   // panel. The row is a launcher-wide affordance and stays in every other
   // state, including the query that matched nothing.
-  const launcherScope = pluginScope(query);
+  // R31 · the scope comes from the explicit mode state, not from re-parsing the
+  // query. The variable keeps its name and its meaning: it is the plugin that
+  // owns the field right now, or `null` on the ordinary search page.
+  const launcherScope = pluginMode?.scope ?? null;
   // R29 · the plugin the current scope belongs to, for the config overlay.
   const launcherPluginId =
     launcherScope === "clipboard"
@@ -895,7 +1037,7 @@ export default function App() {
     showLauncherFeedback,
     setTerminalMounted,
     setMode,
-    setQuery,
+    setQuery: setQueryExitingPlugin,
     setHistoryIndex,
     setSelectedResultIndex,
     setSelectedActionBar,
@@ -908,6 +1050,7 @@ export default function App() {
     recordLaunch,
     refreshTerminalSessions,
     openPluginPage,
+    enterPluginMode,
     isComposing,
     actionBar,
     shortcuts,
@@ -992,8 +1135,9 @@ export default function App() {
     closePluginPage,
     runLauncherItem,
     handleLauncherKey,
+    onLauncherDismiss,
     resultShortcutSlots: displayedShortcutSlots,
-    setQuery,
+    setQuery: setQueryExitingPlugin,
     setHistory,
     showLauncherFeedback,
     setHistoryIndex,
@@ -1109,7 +1253,12 @@ export default function App() {
       firstRunnableResultIndex < 0 ? 0 : dropped + firstRunnableResultIndex,
     );
     setSelectedActionBar(defaultsToActionBar);
-  }, [defaultsToActionBar, fileRows.length, firstRunnableResultIndex, query]);
+    // R31 · `pluginMode` is a dependency so that leaving a mode re-evaluates
+    // the default selection: the ordinary results (and possibly the action bar)
+    // are a different list from the plugin's, and the selection has to land on
+    // the first runnable one of the new list rather than stay on an index that
+    // belonged to the plugin's.
+  }, [defaultsToActionBar, fileRows.length, firstRunnableResultIndex, query, pluginMode]);
 
   useEffect(() => {
     setSelectedResultIndex((index) => {
@@ -1378,7 +1527,7 @@ export default function App() {
     const unlistenModePromise = listen<string>("floter://mode", (event) => {
       if (event.payload === "collapsed") {
         closeTerminalSession();
-        setQuery("");
+        setQueryExitingPlugin("");
         clearDrops();
         setTerminalMounted(false);
         setMode("collapsed");
@@ -1419,7 +1568,7 @@ export default function App() {
 
       restoringMode.current = "collapsed";
       setLauncherFeedback(null);
-      setQuery("");
+      setQueryExitingPlugin("");
       // A summon is a fresh launcher. A drop belonged to the previous
       // interaction, so its rows go with the reveal that starts the next one —
       // the same place (and the same reason) the query is emptied.
@@ -1720,8 +1869,13 @@ export default function App() {
     }
   };
 
-  const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) =>
+  const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // R31 · Esc / Cmd+W are resolved above `handleLauncherKey`, because the
+    // mode-aware levels (close the config overlay, leave the plugin mode) are
+    // the collapsed surface's business rather than the field's key grammar.
+    if (onLauncherDismiss(event.nativeEvent)) return;
     handleLauncherKey(event.nativeEvent);
+  };
 
   // The card is mounted in every mode so its frame stream and renderer stay
   // alive across launcher ↔ terminal window transitions (nothing is missed
@@ -2122,7 +2276,24 @@ export default function App() {
                 value={query}
                 onChange={(event) => {
                   setLauncherFeedback(null);
-                  setQuery(event.target.value);
+                  const value = event.target.value;
+                  // R31 · entering a mode is a *transition out of the ordinary
+                  // search page*: the trigger word plus a space strips the word
+                  // and keeps the needle, and the mode becomes state. It only
+                  // runs while no mode is active — once inside one, the field's
+                  // text is the plugin's needle and a word that happens to look
+                  // like a trigger is just a query. An empty field does NOT
+                  // leave the mode (「退格删空即停」); Esc / Cmd+W is the way out.
+                  if (pluginModeRef.current === null) {
+                    const entry = pluginModeEntry(value);
+                    if (entry) {
+                      setPluginMode(entry.mode);
+                      setQuery(entry.needle);
+                      setHistoryIndex(-1);
+                      return;
+                    }
+                  }
+                  setQuery(value);
                   setHistoryIndex(-1);
                 }}
                 onKeyDown={onInputKeyDown}

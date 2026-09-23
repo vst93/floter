@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 import type { Translate } from "../i18n";
 import type { LocalApplication } from "../App";
 import { formatResultShortcut } from "../shortcuts";
@@ -10,6 +10,9 @@ import {
   Folder as FolderIcon,
   Globe as GlobeIcon,
   Info as InfoIcon,
+  Bookmark as BookmarkIcon,
+  Clock as ClockIcon,
+  AppWindow as AppWindowIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
 import {
   PLUGIN_LOAD_MORE_THRESHOLD,
@@ -79,6 +82,11 @@ export type LauncherItem =
       subtitle: string;
       url: string;
       profileKey: string;
+      /** R31 · which browser list the row came from, so the renderer can mark a
+       *  bookmark with a bookmark glyph and a history entry with a clock. A
+       *  live-tab row is told apart by `tab` instead, and a row that predates
+       *  this field falls back to the shared globe. */
+      source?: "bookmark" | "history";
       disabled?: boolean;
       tab?: { browserId: string; windowIndex: number; tabIndex: number };
     }
@@ -156,6 +164,40 @@ const SystemActionIcon = ({ action }: { action: SystemAction }) => (
     )}
   </svg>
 );
+
+/**
+ * R31 · the browser list's per-type glyph.
+ *
+ * Every browser row used to wear the same globe, which told the user "this opens
+ * a page" but not *which list* the page came from — and a browser mode is three
+ * lists at once (bookmarks, history, the tabs open right now). The row already
+ * carries the fact (the plugin tags `source` on the row it merges, and a live
+ * tab is told apart by `tab`), so this is the one place that maps the row's type
+ * to a glyph:
+ *
+ *   · bookmark  → Lucide `bookmark`
+ *   · history   → Lucide `clock` (a history entry is a page *at a time*, which
+ *                 the clock says more directly than the history arrow does)
+ *   · live tab  → Lucide `app-window` (the tab is a window the browser already
+ *                 has open — the row switches to it rather than opening it)
+ *   · no source → the shared `globe`, so a row from a plugin that predates this
+ *                 field still gets an icon instead of nothing.
+ *
+ * Lucide marks its own SVG `aria-hidden` when no accessibility prop is given;
+ * the row's title and subtitle already carry the meaning, so the glyph is
+ * deliberately silent. The 28u icon column and the muted no-plate treatment are
+ * R30's and are untouched — only the glyph inside the column changes.
+ */
+const BrowserRowIcon = ({
+  item,
+}: {
+  item: Extract<LauncherItem, { type: "browser" }>;
+}) => {
+  if (item.tab) return <AppWindowIcon size={16} aria-hidden="true" />;
+  if (item.source === "bookmark") return <BookmarkIcon size={16} aria-hidden="true" />;
+  if (item.source === "history") return <ClockIcon size={16} aria-hidden="true" />;
+  return <GlobeIcon size={16} aria-hidden="true" />;
+};
 
 /**
  * The action bar's icon: Lucide `terminal` for a shell, `external-link` for a
@@ -250,40 +292,18 @@ export function LauncherResults({
   onRunResult,
   onRunActionBar,
 }: LauncherResultsProps) {
-  // R14 · The scroll-edge band is a *scrolling* effect, so it is painted only
-  // while there is something to scroll. Painted unconditionally it was a 14px
-  // grey stripe parked under the field's hairline in every list that already
-  // fits — with the R13 seam above it that read as one thick grey bar under the
-  // input, the "double grey bar" the user photographed.
-  //
-  // The switch is a class (`--scrollable`, see `styles/launcher.css`), and the
-  // measurement is the scroller's own box: `scrollHeight` against `clientHeight`
-  // is exactly the question "is there more list than viewport", so a row that
-  // just changed height (a compact row gaining a subtitle) counts without
-  // anyone predicting the row budget a second time. The tolerance is one pixel:
-  // a sub-pixel remainder from the fractional `--u` scale is not something the
-  // user can scroll to.
+  // R14/R31 · the scroll-edge band is no longer painted on the launcher's
+  // list. R14 gated it on the scroller's measured box so a list that already fit
+  // would not show a grey stripe under the field; R31 removed the band from this
+  // scroller altogether (the user read it as a shadow under the input and asked
+  // for a 1px line — see `styles/launcher.css`). The 4px top reservation stays,
+  // so the scroller still needs its ref and its measurement for the R30
+  // selection-into-view rule below.
   const resultsRef = useRef<HTMLDivElement | null>(null);
-  const [scrollable, setScrollable] = useState(false);
   // R29 · the list footer's one state: no footer for a list that does not page,
   // a loading line while a page is in flight, an end line once every row shows,
   // and nothing (the scroll itself is the affordance) while more remain.
   const pluginFooter = pluginFooterState(pluginPage, pluginLoadingMore);
-  useLayoutEffect(() => {
-    const node = resultsRef.current;
-    if (!node) {
-      setScrollable(false);
-      return;
-    }
-    const sync = () => setScrollable(node.scrollHeight > node.clientHeight + 1);
-    sync();
-    // Content changes arrive as a re-render (this effect's deps); a box change
-    // — the viewport cap starting to bind — arrives as a resize of the
-    // scroller itself.
-    const observer = new ResizeObserver(sync);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [results, showRecentTitle]);
 
   // R30 · keyboard navigation walks the whole *loaded* list, not only the nine
   // rows the scroller's ceiling shows, so the row the selection lands on can be
@@ -325,7 +345,7 @@ export function LauncherResults({
       {results.length > 0 && (
         <div
           ref={resultsRef}
-          className={`launcher-results${scrollable ? " launcher-results--scrollable" : ""}`}
+          className="launcher-results"
           role="presentation"
           // R29 · the pagination trigger. Only a list that actually has another
           // page (and is not already fetching one) reacts; every other list
@@ -473,7 +493,7 @@ export function LauncherResults({
                     ) : item.type === "clipboard" ? (
                       <SystemActionIcon action="clipboard" />
                     ) : item.type === "browser" ? (
-                      <GlobeIcon size={16} />
+                      <BrowserRowIcon item={item} />
                     ) : isHistory ? (
                       <HistoryIcon />
                     ) : item.type === "file" ? (

@@ -248,6 +248,26 @@ test("the capability layer owns the row-to-launcher mapping", () => {
     windowIndex: 1,
     tabIndex: 2,
   });
+  // R31 · the row's list survives the mapping, so the renderer can pick a
+  // bookmark glyph vs. a clock. A tab has no `source`; `tab` is its mark.
+  const bookmark = pluginRowToItem({
+    family: "browser",
+    id: "b",
+    title: "Rust",
+    url: "https://rust-lang.org",
+    profileKey: "default",
+    source: "bookmark",
+  });
+  assert.equal(bookmark.type === "browser" ? bookmark.source : null, "bookmark");
+  const history = pluginRowToItem({
+    family: "browser",
+    id: "h",
+    title: "Rust",
+    url: "https://rust-lang.org",
+    profileKey: "default",
+    source: "history",
+  });
+  assert.equal(history.type === "browser" ? history.source : null, "history");
 
   const status = pluginRowToItem(browserStatusRow("s", "launcher.browserEmpty", en));
   // R30 · a status row is not a result row: the protocol's `kind` downgrades it
@@ -290,33 +310,38 @@ test("the browser plugin emits rows: merge, groups and soft landings", () => {
     tabs: [
       { browser_id: "chrome", window_index: 0, tab_index: 1, title: "Rust tab", url: "https://rust-lang.org", active: true },
     ],
-    tabsFailed: false,
     profileKey: "default",
     t: en,
   });
   // The bookmark wins the duplicate URL; the tab is a second group even though
   // its URL matches a bookmark — switch and open-again are different actions.
   assert.deepEqual(rows.map((row) => row.id), ["b1", "b2", "h2", "tab:chrome:0:1"]);
+  // R31 · each row carries which list it came from, so the launcher can mark a
+  // bookmark and a history entry differently. The tab is told apart by `tab`.
+  assert.deepEqual(
+    rows.map((row) => (row.family === "browser" ? (row.source ?? "tab") : row.family)),
+    ["bookmark", "bookmark", "history", "tab"],
+  );
 
-  const failed = browserSearchRows({ bookmarks: [], history: [], tabs: [], tabsFailed: true, profileKey: "default", t: en });
+  // R31 · a failed tab read no longer writes a note into the list: the guidance
+  // moved to the settings field, so an empty result is the ordinary empty note.
+  const failed = browserSearchRows({ bookmarks: [], history: [], tabs: [], profileKey: "default", t: en });
   assert.equal(failed.length, 1);
   assert.equal(failed[0].disabled, true);
-  assert.equal(failed[0].title, en("launcher.browserTabsUnavailable"));
+  assert.equal(failed[0].title, en("launcher.browserEmpty"));
   assert.equal(failed[0].kind, "status", "and it is a note, not a result");
 
-  // R30 · the note leads the list. It is a banner for the mode's degraded state;
-  // trailing a pageable fetch it would sit eleven pages down and never be seen.
-  const unavailable = browserSearchRows({
+  // …and a bookmark with a failed tab read is just the bookmark, no banner.
+  const noBanner = browserSearchRows({
     bookmarks: [{ id: "b1", title: "Rust", url: "https://rust-lang.org", profile_key: "default" }],
     history: [],
     tabs: [],
-    tabsFailed: true,
     profileKey: "default",
     t: en,
   });
-  assert.deepEqual(unavailable.map((row) => row.kind ?? row.family), ["status", "browser"]);
+  assert.deepEqual(noBanner.map((row) => row.kind ?? row.family), ["browser"]);
 
-  const empty = browserSearchRows({ bookmarks: [], history: [], tabs: [], tabsFailed: false, profileKey: "default", t: en });
+  const empty = browserSearchRows({ bookmarks: [], history: [], tabs: [], profileKey: "default", t: en });
   assert.equal(empty.length, 1);
   assert.equal(empty[0].disabled, true);
   assert.equal(empty[0].title, en("launcher.browserEmpty"));
@@ -334,7 +359,6 @@ test("a browser group never grows past the launcher's row budget", () => {
     bookmarks: many("b"),
     history: many("h"),
     tabs: [],
-    tabsFailed: false,
     profileKey: "default",
     t: en,
   });

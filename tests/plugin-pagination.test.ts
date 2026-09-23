@@ -153,7 +153,6 @@ test("the browser plugin returns more than one group when the fetch allows it", 
     bookmarks: many("b"),
     history: many("h"),
     tabs: [],
-    tabsFailed: false,
     profileKey: "default",
     t: en,
     limit: 200,
@@ -167,7 +166,6 @@ test("the browser plugin returns more than one group when the fetch allows it", 
     bookmarks: many("b"),
     history: many("h"),
     tabs: [],
-    tabsFailed: false,
     profileKey: "default",
     t: en,
   });
@@ -299,12 +297,12 @@ test("the browser fetch is pageable — the R29 root cause, pinned", () => {
     bookmarks: many("b"),
     history: many("h"),
     tabs: [],
-    tabsFailed: true,
     profileKey: "default",
     t: en,
   };
-  // The default group ceiling is one page — eight rows, or nine with a status
-  // line — which is exactly the state the user's screenshot was in: an
+  // The default group ceiling is one page — eight rows (R31 removed the tab
+  // status line, so a failed tab read no longer adds a ninth) — which is
+  // exactly the state the user's screenshot was in: an
   // emission that never exceeded the viewport, so no `page` block was ever
   // attached and the scroll-to-load path was dead. This is the R29 root cause.
   const capped = pagePluginEmission({ output: browserSearchRows(sources) }, PLUGIN_INITIAL_PAGES)!;

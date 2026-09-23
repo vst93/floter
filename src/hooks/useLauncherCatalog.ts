@@ -13,8 +13,6 @@ import {
   executionWithCompletion,
   launcherShortcutSlots,
   normalizeSearch,
-  parseBrowserMode,
-  parseClipboardMode,
   parseCommandLine,
   recentItems,
   scoreApp,
@@ -216,6 +214,14 @@ const SYSTEM_COMMANDS: {
 
 export function useLauncherCatalog(options: {
   query: string;
+  /** R31 · the browser request the launcher is in, or `null`. Computed by the
+   *  App from its explicit plugin-mode state + the field's text
+   *  (`browserModeFor`), so this hook never re-parses a mode word out of the
+   *  query — the query is the field's own text now. */
+  browserMode: BrowserMode | null;
+  /** R31 · the clipboard request the launcher is in, or `null` (see
+   *  {@link browserMode}). */
+  clipboardMode: ClipboardMode | null;
   /** `settings.launch_counts` — passed by identity so memoization behaves
    * exactly as when it was read off the settings state. */
   launchCounts: Record<string, number>;
@@ -242,6 +248,8 @@ export function useLauncherCatalog(options: {
 }) {
   const {
     query,
+    browserMode,
+    clipboardMode,
     launchCounts,
     showCommandsInSearch,
     showRecentInLauncher,
@@ -413,12 +421,12 @@ export function useLauncherCatalog(options: {
 
   // R26-A · browser result mode.
   //
-  // The mode is entered by a trigger word plus a space (`bookmarks `,
-  // `browser `, `history rust`). While it is on, the numbered list is the
-  // browser's own rows and nothing else — it is a deliberate place, not a
-  // ranking input. `parseBrowserMode` owns the trigger vocabulary so the node
-  // suite can pin it without a DOM.
-  const browserMode = useMemo<BrowserMode | null>(() => parseBrowserMode(query), [query]);
+  // R31 · the mode is explicit state now (see `ActivePluginMode` in
+  // `launcher.ts`): the App resolves it once from the field's text and passes
+  // the request in. This hook no longer parses the query — the query is the
+  // field's own needle, with the trigger word stripped on entry — so the
+  // vocabulary that enters a mode lives in exactly one place (`pluginModeEntry`)
+  // and the hook only fetches.
   const [browserEmission, setBrowserEmission] = useState<PluginEmission | null>(null);
   const browserRequest = useRef(0);
 
@@ -460,18 +468,20 @@ export function useLauncherCatalog(options: {
             }).catch(() => []);
           const tabRead =
             mode.kind === "bookmarks" || mode.kind === "history"
-              ? Promise.resolve({ tabs: [] as BrowserTabRow[], failed: false })
+              ? Promise.resolve<BrowserTabRow[]>([])
               : invoke<BrowserTabRow[]>("browser_list_tabs", {
                   profileKeyOrBrowser: profileKey,
                   limit: BROWSER_FETCH_LIMIT,
-                }).then(
-                  (value) => ({ tabs: value, failed: false }),
+                }).catch(
                   // R26-B · the fetch that is *expected* to fail (no debug port,
-                  // browser not running) reports itself rather than throwing:
-                  // the two lists above must never be held up by it.
-                  () => ({ tabs: [] as BrowserTabRow[], failed: true }),
+                  // browser not running) reports itself as an empty group rather
+                  // than throwing: the two lists above must never be held up by
+                  // it. R31 · it no longer emits a note into the list either —
+                  // the guidance lives on the settings field that fixes it (see
+                  // `browserSearchRows`).
+                  () => [] as BrowserTabRow[],
                 );
-          const [bookmarks, history, tabResult] = await Promise.all([
+          const [bookmarks, history, tabs] = await Promise.all([
             mode.kind === "history" ? Promise.resolve([]) : fetch("browser_search_bookmarks"),
             mode.kind === "bookmarks" ? Promise.resolve([]) : fetch("browser_search_history"),
             tabRead,
@@ -488,8 +498,7 @@ export function useLauncherCatalog(options: {
             output: browserSearchRows({
               bookmarks,
               history,
-              tabs: tabResult.tabs,
-              tabsFailed: tabResult.failed,
+              tabs,
               profileKey,
               t,
               limit: BROWSER_FETCH_LIMIT,
@@ -512,11 +521,11 @@ export function useLauncherCatalog(options: {
   }, [browserMode, browserEnabled, t]);
 
   // R27 · clipboard result mode — the browser mode's twin, over the clipboard
-  // history the panel shows. The entries are fetched **once** when the mode
-  // opens (the history is local and the whole list arrives in one call); the
-  // needle filters in memory, so typing inside the mode costs no IPC and no
-  // window resize.
-  const clipboardMode = useMemo<ClipboardMode | null>(() => parseClipboardMode(query), [query]);
+  // history the panel shows. R31 · like the browser mode, the request arrives
+  // resolved (`clipboardModeFor`) rather than being parsed here. The entries are
+  // fetched **once** when the mode opens (the history is local and the whole list
+  // arrives in one call); the needle filters in memory, so typing inside the mode
+  // costs no IPC and no window resize.
   const clipboardActive = clipboardMode !== null;
   const [clipboardEntries, setClipboardEntries] = useState<ClipboardEntry[]>([]);
 

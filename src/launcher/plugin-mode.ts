@@ -66,6 +66,12 @@ export type PluginRow =
        *  {@link pluginRowToItem}. `disabled` still marks it unrunnable; this
        *  is the shape, and the two agree on every row the built-ins emit. */
       kind?: "status";
+      /** R31 · which of the browser's lists this row came from, so the launcher
+       *  can mark a bookmark differently from a history entry (a live-tab row is
+       *  already told apart by `tab`). The merge below is the only place that
+       *  knows: once a bookmark and a history entry share a URL they are one
+       *  row, and the winning source is what the row reports. */
+      source?: "bookmark" | "history";
       /** What Enter opens; `profileKey` says in which browser. */
       url: string;
       profileKey: string;
@@ -260,6 +266,7 @@ export const pluginRowToItem = (row: PluginRow): LauncherItem => {
       subtitle: row.subtitle ?? "",
       url: row.url,
       profileKey: row.profileKey,
+      ...(row.source ? { source: row.source } : {}),
       ...(row.disabled ? { disabled: true } : {}),
       ...(row.tab ? { tab: row.tab } : {}),
     };

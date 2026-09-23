@@ -267,6 +267,20 @@
      can see. */
   margin-bottom: calc(var(--u) * 4);
   overflow: hidden;
+  /* R31 · the field/list boundary is one 1px hairline now.
+
+     R18 removed every drawn divider and let the two faces differ in brightness
+     alone; R30 kept that and the user read the result — a brighter field over a
+     darker recess, with the scroller's scroll-edge gradient band painting under
+     the field whenever the list could scroll — as a shadow under the input
+     (「输入框下方阴影可以只保留 1px」). So the boundary is drawn, and only once:
+     a 1px inset hairline on the row's floor, in the shared `--hairline` token
+     (white 7% dark / black 8% light). An inset shadow rather than a border, so
+     the row's 42u box — a pinned metric — does not grow by the line, and
+     `overflow: hidden` keeps it inside the rounded top corners. The scroll-edge
+     gradient band is gone for this scroller (see `.launcher-results`); the 4px
+     reservation it used stays, because it is a pinned R22-R24 constant. */
+  box-shadow: inset 0 -1px 0 var(--hairline);
 }
 
 /* R27 · the plugin scope glyph, at the left of the field.
@@ -764,35 +778,19 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: var(--scrollbar-thumb) transparent;
-  /* Scroll edge effect (HIG `scroll-views.md › Scroll edge effects`): rows
-     that scroll under the query field darken and dissolve instead of being
-     cut on a hard line. The band is a background-image on the scroller —
-     which stays pinned to the element's box while its content scrolls — so
-     it costs no extra node and never becomes a second filter.
-     The scroller reserves the band's own height as top padding: at rest the
-     first row starts below the fade, so nothing is dimmed until it actually
-     scrolls under the field. `padding-top` on a grid also moves the first
-     row rather than only the content box, which is what makes the reservation
-     exact. */
-  padding: var(--scroll-edge) 0 0;
-  background-image: var(--scroll-edge-band);
-  background-repeat: no-repeat;
-  background-size: 100% var(--scroll-edge);
-}
+  /* R31 · the scroller reserves the band's own height as top padding, but paints
+     no band.
 
-/* R14 · …but only while the list can actually scroll. The band exists to
-   dissolve rows *as they pass under the field*; with nothing to scroll, nothing
-   ever passes under it, and all that was left was the gradient itself sitting
-   in the reservation the scroller keeps — a grey stripe that, under the R13 seam
-   hairline, read as a second, thicker divider. The padding stays either way
-   (the reservation is what keeps the first row from starting under the field's
-   shadow, and keeping it constant is what stops the list from jumping the
-   band's height the moment it grows past the viewport). The class is set from
-   the measurement in `LauncherResults.tsx`.
-   The band is still declared above, so the scroller's material is unchanged;
-   this rule only decides whether it is painted. */
-.launcher-results:not(.launcher-results--scrollable) {
-  background-image: none;
+     R22-R24's `--scroll-edge` reservation stays — the first row still starts
+     below where the fade used to be, so a later edit cannot quietly widen the
+     gap under the query field (「我指的这中间的空白太宽了」) — but the gradient
+     itself is gone. It darkens rows as they pass under the field, and under a
+     text field the user read it as a shadow cast by the input and asked for a
+     1px line instead (「输入框下方阴影可以只保留 1px」). That line is the
+     hairline on `.collapsed-card__input-row`; the settings page and the
+     clipboard list keep their own HIG scroll-edge bands (base.css's shared
+     `--scroll-edge-band` token is untouched). */
+  padding: var(--scroll-edge) 0 0;
 }
 
 /* R28 · the text form of the plugin capability: a plugin whose output is not the

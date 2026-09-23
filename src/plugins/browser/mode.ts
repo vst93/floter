@@ -62,11 +62,12 @@ export const BROWSER_FETCH_LIMIT = 200;
  *  two groups together outgrow its box. */
 export const BROWSER_GROUP_LIMIT = MAX_RESULTS - 1;
 
-/** A status line: the soft landing for "no profile", "nothing matched", "the
- *  plugin is off" and "the tab read failed". Information, not a door — `kind`
- *  says so to the capability layer (which draws it as the launcher's muted note,
- *  R30) and `disabled` says so to the tier rule (a list of only these is
- *  display-only). */
+/** A status line: the soft landing for "no profile", "nothing matched" and "the
+ *  plugin is off". Information, not a door — `kind` says so to the capability
+ *  layer (which draws it as the launcher's muted note, R30) and `disabled` says
+ *  so to the tier rule (a list of only these is display-only). R31 · the tab
+ *  read's failure is no longer one of these; the guidance moved to the settings
+ *  field (see {@link browserSearchRows}). */
 export const browserStatusRow = (id: string, key: MessageKey, t: Translate): PluginRow => ({
   family: "browser",
   id,
@@ -86,24 +87,22 @@ export const browserStatusRow = (id: string, key: MessageKey, t: Translate): Plu
  * deduplicated against the first — a tab that is also a bookmark is two
  * different actions (switch to it vs. open it again), so both rows stay.
  *
- * When the tab read failed outright (no debug port, browser closed, AppleScript
- * timed out) the group is empty and one disabled line says so, rather than the
- * user wondering why a running browser's tabs are missing. R30 · that line now
- * **leads** the list instead of trailing it. The two are the same sentence, but
- * only one of them can be read: the launcher renders a prefix of the output and
- * loads the rest as the user scrolls (see `pagePluginEmission`), so a note at the
- * end of a 200-row fetch sits eleven pages down and is never seen — which is
- * exactly the note the user photographed sitting under eight bookmarks. At the
- * head it is a banner for the mode's degraded state, and the R30 status style
- * keeps it from reading as a result (see `.launcher-status` in
- * `styles/launcher.css`).
+ * R31 · a failed tab read (no debug port, browser closed, AppleScript timed
+ * out) leaves the tab group empty and **says nothing in the list**. R26-B had it
+ * emit a disabled line, and R30 moved that line to the head as a banner; the
+ * user's verdict was that the list is not the place for setup instructions
+ * (「顶部的提示有点生硬，可以只在设置页面相关配置上提示就行了」). The note read as a
+ * result sitting among results, and the guidance it carried is now the help text
+ * of the very field that fixes it (`plugins.config.cdpEnabledHint`). Bookmarks
+ * and history keep rendering whatever happens, and a genuinely empty search
+ * still falls to the one `browser-empty` note below — a search outcome, not a
+ * configuration nag. The `kind: "status"` capability itself is untouched; the
+ * browser simply does not emit one for this case any more.
  */
 export const browserSearchRows = (options: {
   bookmarks: readonly BrowserSearchRow[];
   history: readonly BrowserSearchRow[];
   tabs: readonly BrowserTabRow[];
-  /** Whether the tab read failed, as opposed to simply returning nothing. */
-  tabsFailed: boolean;
   profileKey: string;
   t: Translate;
   /** R29 · the ceiling on each of the two groups. Defaults to
@@ -112,11 +111,20 @@ export const browserSearchRows = (options: {
    *  call while the *display* stays windowed. */
   limit?: number;
 }): PluginRow[] => {
-  const { bookmarks, history, tabs, tabsFailed, profileKey, t } = options;
+  const { bookmarks, history, tabs, profileKey, t } = options;
   const cap = options.limit ?? BROWSER_GROUP_LIMIT;
   const seen = new Set<string>();
   const rows: PluginRow[] = [];
-  for (const row of [...bookmarks, ...history]) {
+  // Bookmarks first, then history: a URL that is both is one result and the
+  // curated bookmark wins. R31 · each row remembers which list it came from,
+  // so the launcher can mark a bookmark with a bookmark glyph and a history
+  // entry with a clock — the merge is the only place that knows, because the
+  // two lists become one row list here.
+  const merged: { row: BrowserSearchRow; source: "bookmark" | "history" }[] = [
+    ...bookmarks.map((row) => ({ row, source: "bookmark" as const })),
+    ...history.map((row) => ({ row, source: "history" as const })),
+  ];
+  for (const { row, source } of merged) {
     if (!row.url || seen.has(row.url)) continue;
     seen.add(row.url);
     rows.push({
@@ -126,6 +134,7 @@ export const browserSearchRows = (options: {
       subtitle: row.url,
       url: row.url,
       profileKey: row.profile_key,
+      source,
     });
     if (rows.length >= cap) break;
   }
@@ -146,8 +155,12 @@ export const browserSearchRows = (options: {
     });
     if (rows.length >= cap * 2) break;
   }
-  if (!tabs.length && tabsFailed) {
-    rows.unshift(browserStatusRow("browser-tabs-unavailable", "launcher.browserTabsUnavailable", t));
-  }
+  // R31 · a failed tab read is no longer a row. R30 drew it as a status note at
+  // the head of the list (「标签页不可用——请查看浏览器插件设置」), and the user's
+  // verdict was that the list is the wrong place for setup instructions — the
+  // note reads as a result and the guidance belongs on the settings field that
+  // fixes it (see `plugins.config.cdpEnabledHint`). Bookmarks and history keep
+  // rendering whatever happens; an empty result still falls to the one empty
+  // note below, which is a search outcome, not a configuration nag.
   return rows.length ? rows : [browserStatusRow("browser-empty", "launcher.browserEmpty", t)];
 };

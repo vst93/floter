@@ -14,7 +14,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { parseBrowserMode, parseClipboardMode, pluginScope } from "../src/launcher.ts";
+import { parseBrowserMode, parseClipboardMode, pluginModeEntry } from "../src/launcher.ts";
 import {
   clampClipboardMaxItems,
   DEFAULT_CLIPBOARD_MAX_ITEMS,
@@ -59,26 +59,28 @@ test("the clipboard mode is entered by a trigger word and a space", () => {
   assert.equal(parseBrowserMode("clip rust"), null);
 });
 
-test("the scope glyph names the plugin the field is searching", () => {
-  assert.equal(pluginScope("clip rust"), "clipboard");
-  assert.equal(pluginScope("clip "), "clipboard");
-  assert.equal(pluginScope("剪贴板 "), "clipboard");
-  assert.equal(pluginScope("bookmarks rust"), "browser");
-  assert.equal(pluginScope("browser "), "browser");
-  assert.equal(pluginScope("history rust"), "browser");
+test("the trigger vocabulary names the plugin a query would enter", () => {
+  // R31 · the scope is explicit state now; this is the vocabulary that enters
+  // it. `pluginModeEntry` is the single transition into a mode.
+  assert.equal(pluginModeEntry("clip rust")?.mode.scope, "clipboard");
+  assert.equal(pluginModeEntry("clip ")?.mode.scope, "clipboard");
+  assert.equal(pluginModeEntry("剪贴板 ")?.mode.scope, "clipboard");
+  assert.equal(pluginModeEntry("bookmarks rust")?.mode.scope, "browser");
+  assert.equal(pluginModeEntry("browser ")?.mode.scope, "browser");
+  assert.equal(pluginModeEntry("history rust")?.mode.scope, "browser");
   // Outside a mode there is no scope, so the field is drawn exactly as it was
   // before this round.
-  assert.equal(pluginScope("clip"), null);
-  assert.equal(pluginScope("git status"), null);
-  assert.equal(pluginScope(""), null);
+  assert.equal(pluginModeEntry("clip"), null);
+  assert.equal(pluginModeEntry("git status"), null);
+  assert.equal(pluginModeEntry(""), null);
 });
 
 test("the launcher draws the scope glyph inside the field, and only in a mode", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(
     app,
-    /const launcherScope = pluginScope\(query\);/,
-    "the scope is derived from the query in one place",
+    /const launcherScope = pluginMode\?\.scope \?\? null;/,
+    "the scope is read off the explicit plugin-mode state in one place",
   );
   // The glyph is conditional: no mode, no node — so a launcher outside a plugin
   // is pixel-identical to R26.

@@ -382,20 +382,27 @@ test("the launcher's tab rows carry the tab identity, not just the URL", async (
   assert.match(actions, /if \(item\.tab\) \{/);
 });
 
-test("a failed tab read lands as one disabled line, never as an error", async () => {
+test("a failed tab read is absorbed, and the guidance lives on the settings field", async () => {
   const catalog = await read("src/hooks/useLauncherCatalog.ts");
   const mode = await read("src/plugins/browser/mode.ts");
-  // The failure is a value the tab read reports, not a rejection that could
-  // take the bookmark and history fetches with it.
-  assert.match(catalog, /\(\) => \(\{ tabs: \[\] as BrowserTabRow\[\], failed: true \}\)/);
-  // R28 · the group's soft landing is the plugin's output rule now.
-  assert.match(mode, /if \(!tabs\.length && tabsFailed\)/);
-  assert.match(mode, /browserStatusRow\("browser-tabs-unavailable", "launcher\.browserTabsUnavailable", t\)/);
-  assert.match(mode, /disabled: true,/);
-  // …and it is translated, not a raw backend string.
-  assert.equal(
-    createTranslator("en")("launcher.browserTabsUnavailable"),
-    "Tabs are unavailable — check the browser plugin settings",
-  );
-  assert.match(createTranslator("zh")("launcher.browserTabsUnavailable"), /[\u4e00-\u9fff]/);
+  const schema = await read("src/plugins/config-schema.ts");
+  // R31 · the failure is still a value the tab read absorbs — a rejection that
+  // could take the bookmark and history fetches with it would be a regression —
+  // but it no longer writes a note into the list. The user's verdict was that
+  // the list is not the place for setup instructions; the note was removed and
+  // the guidance moved to the help text of the field that fixes it.
+  assert.match(catalog, /\(\) => \[\] as BrowserTabRow\[\]/);
+  assert.doesNotMatch(mode, /browser-tabs-unavailable/);
+  assert.doesNotMatch(mode, /tabsFailed/);
+  // …the field exists in the schema and its help carries the two mechanisms.
+  assert.match(schema, /key: "cdp_enabled", type: "toggle", labelKey: "plugins\.config\.cdpEnabled", helpKey: "plugins\.config\.cdpEnabledHint"/);
+  // …and the help is translated, in both languages, with the macOS path named.
+  const en = createTranslator("en")("plugins.config.cdpEnabledHint");
+  const zh = createTranslator("zh")("plugins.config.cdpEnabledHint");
+  assert.match(en, /debug port/i);
+  assert.match(en, /macOS/i);
+  assert.match(en, /AppleScript/);
+  assert.match(zh, /[\u4e00-\u9fff]/);
+  assert.match(zh, /macOS/);
+  assert.match(zh, /AppleScript/);
 });

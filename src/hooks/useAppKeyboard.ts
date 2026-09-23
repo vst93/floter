@@ -63,6 +63,10 @@ export function useAppKeyboard(options: {
   closePluginPage: () => void;
   runLauncherItem: (item: LauncherItem | undefined) => void;
   handleLauncherKey: (event: KeyboardEvent) => void;
+  /** R31 · the collapsed surface's mode-aware Esc / Cmd+W rule. Called before
+   *  the dismiss table so the config overlay and a plugin mode can claim the
+   *  press; returns whether it did. */
+  onLauncherDismiss: (event: KeyboardEvent) => boolean;
   resultShortcutSlots: Array<number | null>;
   setQuery: Dispatch<SetStateAction<string>>;
   setHistory: Dispatch<SetStateAction<string[]>>;
@@ -99,6 +103,7 @@ export function useAppKeyboard(options: {
     closePluginPage,
     runLauncherItem,
     handleLauncherKey,
+    onLauncherDismiss,
     resultShortcutSlots,
     setQuery,
     setHistory,
@@ -343,6 +348,10 @@ export function useAppKeyboard(options: {
       }
 
       const dismiss = resolveDismissRule("collapsed", event, shortcuts);
+      // R31 · the config overlay and a plugin mode are the two levels above the
+      // window. If neither claims the press, the table's own rule runs —
+      // unchanged for the ordinary search page.
+      if (onLauncherDismiss(event)) return;
       if (dismiss) {
         runDismissAction(dismiss, event);
         return;

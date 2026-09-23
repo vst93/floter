@@ -369,14 +369,71 @@ export const parseClipboardMode = (value: string): ClipboardMode | null => {
   return { needle: match[2].trim() };
 };
 
-/** R27 · which plugin owns the launcher's input right now, if any. Drives the
- *  scope glyph in the input row (see `App.tsx`) and nothing else: the two modes
- *  are otherwise independent, and this function only names the one the user is
- *  standing in. */
-export type PluginScope = "browser" | "clipboard";
+/**
+ * R31 · the plugin mode the launcher is *in*, held as explicit state rather than
+ * re-derived from the query on every render.
+ *
+ * R26/R27 fused the plugins into the search box by letting the mode word live in
+ * the field: `browser ` entered the browser mode, `clip ` the clipboard one, and
+ * `parseBrowserMode`/`parseClipboardMode` read the mode back out of the query on
+ * every keystroke. That is a clean way to *enter* a mode, but it makes the mode
+ * word part of the visible query — so the user types `browser rust` and reads
+ * `browser rust` in a box that is already the browser's own search field, with
+ * the scope glyph beside it saying the same thing twice (「既然概念上是已经进入插件
+ * 了，输入框左侧只保留插件信息就行了，browser 这段就可以不用了」).
+ *
+ * So the mode is lifted out of the text and stored: entering it strips the
+ * trigger word (the needle the user typed stays), the field shows only the
+ * needle, and leaving it (Esc / Cmd+W) puts the needle back as ordinary text.
+ * The trigger vocabulary still belongs to the parsers above — this type is the
+ * *state*, and {@link pluginModeEntry} is the one transition into it.
+ */
+export type ActivePluginMode =
+  | { scope: "browser"; kind: BrowserMode["kind"] }
+  | { scope: "clipboard" };
 
-export const pluginScope = (value: string): PluginScope | null =>
-  parseClipboardMode(value) ? "clipboard" : parseBrowserMode(value) ? "browser" : null;
+/**
+ * R31 · the transition into a mode: a typed value whose first word is a trigger
+ * and whose next character is whitespace enters that plugin, and the rest of the
+ * value is the needle. `null` when the value is not a mode entry.
+ *
+ * This reuses the two parsers rather than restating their vocabulary, so the
+ * words that enter a mode and the words the mode was always entered by cannot
+ * drift apart. The browser parser owns the three browser triggers
+ * (`browser `/`bookmarks `/`history ` and their Chinese spellings); the
+ * clipboard parser owns `clip `/`clipboard `/`剪贴板 `/`粘贴板 `.
+ *
+ * The bare word is deliberately *not* an entry: `history` is the shell's own
+ * command, `clip` is a real Windows command, and `bookmarks` is the system row
+ * the user Enters — each of those keeps its existing behaviour, and the space is
+ * what makes the mode deliberate.
+ */
+export const pluginModeEntry = (
+  value: string,
+): { mode: ActivePluginMode; needle: string } | null => {
+  const browser = parseBrowserMode(value);
+  if (browser) return { mode: { scope: "browser", kind: browser.kind }, needle: browser.needle };
+  const clipboard = parseClipboardMode(value);
+  if (clipboard) return { mode: { scope: "clipboard" }, needle: clipboard.needle };
+  return null;
+};
+
+/** R31 · the browser request an active mode + the field's own text stand for.
+ *  This is the shape `useLauncherCatalog` reads, so the hook no longer has to
+ *  re-parse a query that carries a mode word. `null` outside the browser mode. */
+export const browserModeFor = (
+  mode: ActivePluginMode | null,
+  needle: string,
+): BrowserMode | null =>
+  mode?.scope === "browser" ? { kind: mode.kind, needle: needle.trim() } : null;
+
+/** R31 · the clipboard request an active mode + the field's own text stand for.
+ *  `null` outside the clipboard mode. */
+export const clipboardModeFor = (
+  mode: ActivePluginMode | null,
+  needle: string,
+): ClipboardMode | null =>
+  mode?.scope === "clipboard" ? { needle: needle.trim() } : null;
 
 /** Decide which row a fresh query should select before the user navigates. */
 export const shouldDefaultToActionBar = (

@@ -105,6 +105,7 @@ const DEP_NAMES = [
   "closePluginPage",
   "runLauncherItem",
   "handleLauncherKey",
+  "onLauncherDismiss",
   "resultShortcutSlots",
   "setQuery",
   "setHistory",
@@ -297,6 +298,10 @@ function makeHarness(options: {
     closePluginPage: () => calls.closePluginPage.push(1),
     runLauncherItem: (item: unknown) => calls.runLauncherItem.push(item),
     handleLauncherKey: (event: unknown) => calls.handleLauncherKey.push(event),
+    // R31 · the collapsed surface's mode-aware Esc/Cmd+W rule. Default: it
+    // claims nothing, so the dismiss table behaves exactly as it did before the
+    // rule existed; the rule's own behaviour is pinned in `plugin-fusion.test.ts`.
+    onLauncherDismiss: () => false,
     resultShortcutSlots: [],
     setQuery: (updater: (current: string) => string) => calls.setQuery.push(updater),
     setHistory: (value: unknown) => calls.setHistory.push(value),

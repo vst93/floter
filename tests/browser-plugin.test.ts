@@ -85,9 +85,15 @@ test("the catalog declares one browser system row wired to the mode", async () =
   assert.doesNotMatch(source, /searchNames: \[[^\]]*"history"/);
 });
 
-test("entering the mode rewrites the query to the trigger the parser owns", async () => {
+test("entering the mode enters the explicit plugin state, not a rewritten query", async () => {
   const source = await read("src/hooks/useLauncherActions.ts");
-  assert.match(source, /item\.action === "browser"[\s\S]{0,220}setQuery\("browser "\)/);
+  // R31 · the mode is App state now, so the system row hands it over directly
+  // instead of rewriting the query to `browser ` for the parser to read back.
+  assert.match(
+    source,
+    /item\.action === "browser"[\s\S]{0,260}enterPluginMode\(\{ scope: "browser", kind: "all" \}\)/,
+  );
+  assert.doesNotMatch(source, /setQuery\("browser "\)/);
   // A browser row opens through the backend, not the generic URL opener.
   assert.match(source, /invoke\("browser_open_url", \{ profileKey, url \}\)/);
   assert.match(source, /showLauncherFeedback\("launcher\.error\.browser"\)/);
@@ -180,6 +186,12 @@ test("the launcher item type gained exactly one browser variant", async () => {
   const source = await read("src/launcher/LauncherResults.tsx");
   assert.match(source, /type: "browser"/);
   assert.match(source, /disabled\?: boolean/);
-  // The row is rendered with a globe, not the terminal fallback.
-  assert.match(source, /item\.type === "browser" \? \(\s*<GlobeIcon/);
+  // R31 · the browser list is three lists, so the row's glyph says which one:
+  // a bookmark, a clock for history, an app-window for a live tab, and the
+  // shared globe only as the fallback for a row with no source.
+  assert.match(source, /const BrowserRowIcon/);
+  assert.match(source, /<BookmarkIcon size=\{16\} aria-hidden="true" \/>/);
+  assert.match(source, /<ClockIcon size=\{16\} aria-hidden="true" \/>/);
+  assert.match(source, /<AppWindowIcon size=\{16\} aria-hidden="true" \/>/);
+  assert.match(source, /item\.type === "browser" \? \(\s*<BrowserRowIcon item=\{item\} \/>/);
 });

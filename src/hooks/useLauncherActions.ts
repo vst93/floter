@@ -13,7 +13,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { nextLauncherSelection, type ExecutionPlan } from "../launcher";
+import { nextLauncherSelection, type ActivePluginMode, type ExecutionPlan } from "../launcher";
 import {
   fileActionKindForBar,
   fileActionRequest,
@@ -74,6 +74,10 @@ export function useLauncherActions(options: {
   recordLaunch: (path: string) => void;
   refreshTerminalSessions: () => Promise<void>;
   openPluginPage: (pluginId: string) => void;
+  /** R31 · enter a plugin mode deliberately (the browser system row's Enter).
+   *  The mode is App state now, so the row hands it over rather than rewriting
+   *  the query to a trigger word the hook would have to parse back. */
+  enterPluginMode: (mode: ActivePluginMode) => void;
   isComposing: RefObject<boolean>;
   actionBar: ActionBar | null;
   shortcuts: ShortcutMap;
@@ -132,6 +136,7 @@ export function useLauncherActions(options: {
     recordLaunch,
     refreshTerminalSessions,
     openPluginPage,
+    enterPluginMode,
     isComposing,
     actionBar,
     shortcuts,
@@ -484,15 +489,15 @@ export function useLauncherActions(options: {
 
   const runSystemAction = async (item: Extract<LauncherItem, { type: "system" }>) => {
     // R26-A: the browser row is not an action, it is the door into the browser
-    // result mode. Rewriting the query to `browser ` is what opens it — the
-    // mode's own parser owns the trigger vocabulary, so the two can never
-    // disagree about the word.
+    // result mode. R31 · it enters the mode directly (`enterPluginMode`) rather
+    // than rewriting the query to `browser ` — the mode is explicit state now,
+    // and the trigger vocabulary lives in `pluginModeEntry` rather than being
+    // reconstructed here. The field is emptied by the entry.
     if (item.action === "browser") {
       // R26-D · a disabled row is a note, not a door: pressing Enter on it must
       // not open the mode the plugin is switched out of.
       if (item.disabled) return;
-      setQuery("browser ");
-      setHistoryIndex(-1);
+      enterPluginMode({ scope: "browser", kind: "all" });
       return;
     }
 
