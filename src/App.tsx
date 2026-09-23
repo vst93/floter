@@ -33,6 +33,8 @@ import {
   settingsSidebarTabIndex,
   surfaceFocusBeats,
 } from "./surface-policy";
+import { residencySurface } from "./surface-residency";
+import { useSurfaceResidency } from "./hooks/useSurfaceResidency";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
@@ -169,6 +171,12 @@ export type LocalApplication = {
 export type AppSettings = {
   hotkey: string;
   hide_on_blur: boolean;
+  /** R35 · how many seconds a surface (a plugin mode, its configuration
+   *  overlay, the settings panel, the terminal view) survives after the panel
+   *  is dismissed, before a summon returns to the search box. `0` disables the
+   *  window and restores the pre-R35 behaviour. Normalized by
+   *  `normalizeResidencySeconds` on read and by the backend on save. */
+  surface_residency_seconds: number;
   launch_at_startup: boolean;
   theme: string;
   font_size: number;
@@ -718,6 +726,22 @@ export default function App() {
   // starve the fetch.
   const browserMode = useMemo(() => browserModeFor(pluginMode, query), [pluginMode, query]);
   const clipboardMode = useMemo(() => clipboardModeFor(pluginMode, query), [pluginMode, query]);
+
+  // R35 · the page-residency clock. It is the one place that answers "may the
+  // app throw this surface away on its own?". Entering a surface (a plugin
+  // mode, its configuration overlay, the settings panel, the terminal) starts
+  // it; the reveal handler consults `holds()` before it would reset the
+  // collapsed surface. `residencySurfaceNow` is the value the clock is keyed
+  // on, so a move from the plugin mode to its overlay (or back) restarts the
+  // window while a filter keystroke inside one mode does not. The callbacks
+  // are destructured because they are the stable identities the effect keys
+  // on (the hook's return object is rebuilt every render).
+  const residency = useSurfaceResidency(settings.surface_residency_seconds);
+  const noteResidency = residency.note;
+  const residencySurfaceNow = residencySurface({ mode, pluginMode, pluginConfigOpen });
+  useEffect(() => {
+    noteResidency(residencySurfaceNow);
+  }, [residencySurfaceNow, noteResidency, settings.surface_residency_seconds]);
 
   const {
     applications,
@@ -1635,6 +1659,53 @@ export default function App() {
         return;
       }
 
+      // R35 · the residency window. The surface the user was on — a plugin
+      // mode or its configuration overlay; settings and terminal already
+      // survived above — outlives the summon for as long as the clock holds.
+      // Only the *automatic* reset stands down: Esc / Cmd+W, the close button
+      // and running a result each take their own path and leave the surface
+      // immediately, exactly as the report requires. The clock is refreshed
+      // here, because a summon back into the surface is the user confirming
+      // they are still in it. A lapsed clock falls through to the ordinary
+      // reset below.
+      // A clock left over from a surface that has just been left (settings or
+      // terminal, in the one render before the note effect clears it) must not
+      // claim this branch: only the two collapsed-surface clocks may.
+      const heldSurface = residency.current();
+      if (
+        modeRef.current === "collapsed" &&
+        (heldSurface === "plugin-mode" || heldSurface === "plugin-config") &&
+        residency.holds()
+      ) {
+        refreshApplicationsIfStale();
+        restoringMode.current = "collapsed";
+        setLauncherFeedback(null);
+        // The drop belonged to the previous interaction; the plugin's own list
+        // is what this summon restores, so the rows go with it.
+        clearDrops();
+        residency.refresh();
+        scheduleCollapsedFocusBeats();
+        window.requestAnimationFrame(() => {
+          if (modeRef.current === "collapsed") {
+            syncLauncherHeight(collapsedCardRef, launcherHeightRef.current);
+          }
+        });
+        window.setTimeout(() => {
+          if (
+            modeRef.current === "collapsed" &&
+            restoringMode.current === "collapsed"
+          ) {
+            syncLauncherHeight(collapsedCardRef, launcherHeightRef.current);
+          }
+        }, 120);
+        window.setTimeout(() => {
+          if (restoringMode.current === "collapsed") {
+            restoringMode.current = null;
+          }
+        }, 160);
+        return;
+      }
+
       refreshApplicationsIfStale();
 
       restoringMode.current = "collapsed";
@@ -2418,32 +2489,43 @@ export default function App() {
                 keyboard owner. Muted text, the active chip underlined and
                 heavier, so the row spends no accent budget. */}
             {launcherScope === "browser" && (
-              <div
-                className="launcher-filter"
-                role="tablist"
-                aria-label={t("launcher.browserFilter")}
-              >
-                {BROWSER_FILTERS.map((kind) => (
-                  <button
-                    key={kind}
-                    type="button"
-                    role="tab"
-                    tabIndex={-1}
-                    aria-selected={browserMode?.kind === kind}
-                    className={
-                      browserMode?.kind === kind
-                        ? "launcher-filter__chip launcher-filter__chip--active"
-                        : "launcher-filter__chip"
-                    }
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setBrowserFilter(kind);
-                    }}
-                  >
-                    {t(BROWSER_FILTER_KEYS[kind])}
-                  </button>
-                ))}
+              <div className="launcher-filter">
+                <div
+                  className="launcher-filter__chips"
+                  role="tablist"
+                  aria-label={t("launcher.browserFilter")}
+                >
+                  {BROWSER_FILTERS.map((kind) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      role="tab"
+                      tabIndex={-1}
+                      aria-selected={browserMode?.kind === kind}
+                      className={
+                        browserMode?.kind === kind
+                          ? "launcher-filter__chip launcher-filter__chip--active"
+                          : "launcher-filter__chip"
+                      }
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setBrowserFilter(kind);
+                      }}
+                    >
+                      {t(BROWSER_FILTER_KEYS[kind])}
+                    </button>
+                  ))}
+                </div>
+                {/* R35 · the quiet affordance that names the key which cycles
+                    the filter. Tab is invisible: the chips are not in the tab
+                    order (the field owns the keyboard), so nothing else tells
+                    the user the row is reachable without a mouse. Caption-size
+                    `--text-tertiary` keeps it below even an inactive chip, so
+                    it adds no emphasis and spends no accent. */}
+                <span className="launcher-filter__hint">
+                  {t("launcher.browserFilterHint")}
+                </span>
               </div>
             )}
             {/* First-run onboarding tip: a small dismissible banner shown above

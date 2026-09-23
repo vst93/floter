@@ -78,6 +78,10 @@ const en = {
   "launcher.browserAll": "All",
   "launcher.browserTabs": "Tabs",
   "launcher.browserFilter": "Filter browser results",
+  // R35 · the quiet affordance at the end of the chip row. It names the key
+  // that cycles the filter, which is otherwise undiscoverable (the chips are
+  // not in the tab order — the field owns the keyboard).
+  "launcher.browserFilterHint": "Tab to switch",
   "launcher.browserHint": "Type to search bookmarks and history",
   "launcher.browserEmpty": "No matching bookmarks or history",
   "launcher.browserNoProfile": "No supported browser was found on this computer",
@@ -290,6 +294,11 @@ const en = {
   "clipboard.emptyTypeHint": "Pick another type, or copy something new.",
   "settings.hideOnBlur": "Hide when focus is lost",
   "settings.hideOnBlurHint": "Dismiss the panel when you switch to another application.",
+  // R35 · the page-residency window. Seconds, `0` disables.
+  "settings.surfaceResidency": "Keep pages open for",
+  "settings.surfaceResidencyHint": "A plugin page, its settings, or the terminal stays put when the panel is dismissed, until this long has passed. 0 turns it off.",
+  "settings.surfaceResidencyOff": "Off",
+  "settings.surfaceResidencyValue": "{seconds} s",
   "settings.showRecentInLauncher": "Show recently launched apps",
   "settings.showRecentInLauncherHint": "Your most-used apps appear when the launcher is empty",
   // R7-10c · the menu bar / tray icon switch. No platform branch in the label:
@@ -843,6 +852,7 @@ const zh: Record<MessageKey, string> = {
   "launcher.browserAll": "全部",
   "launcher.browserTabs": "标签页",
   "launcher.browserFilter": "过滤浏览器结果",
+  "launcher.browserFilterHint": "Tab 切换",
   "launcher.browserHint": "输入以搜索书签和历史记录",
   "launcher.browserEmpty": "没有匹配的书签或历史记录",
   "launcher.browserNoProfile": "此电脑上未找到受支持的浏览器",
@@ -1044,6 +1054,10 @@ const zh: Record<MessageKey, string> = {
   "clipboard.emptyTypeHint": "换个类型，或复制一些新内容。",
   "settings.hideOnBlur": "失去焦点时隐藏",
   "settings.hideOnBlurHint": "切换到其他应用时自动收起面板。",
+  "settings.surfaceResidency": "页面驻留时间",
+  "settings.surfaceResidencyHint": "插件页面、其设置或终端在面板收起后会保留这么久；设为 0 则关闭。",
+  "settings.surfaceResidencyOff": "关闭",
+  "settings.surfaceResidencyValue": "{seconds} 秒",
   "settings.showRecentInLauncher": "显示最近启动的应用",
   "settings.showRecentInLauncherHint": "启动器为空时显示常用应用",
   // R7-10c · 菜单栏 / 托盘图标开关（不按平台分支，一句覆盖两边）。

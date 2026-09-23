@@ -433,6 +433,26 @@
   user-select: none;
 }
 
+/* R35 · the chips keep their own track; the hint is a sibling so it is not a
+   non-tab child of the `tablist` role. */
+.launcher-filter__chips {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 14);
+}
+
+/* R35 · the Tab affordance. Weaker than even an inactive chip (`--text-muted`,
+   body size): caption-size `--text-tertiary`, pushed to the row's trailing
+   edge. It names the key; it is not a control, so it never takes a tab stop. */
+.launcher-filter__hint {
+  margin-left: auto;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
 .launcher-filter__chip {
   appearance: none;
   border: 0;

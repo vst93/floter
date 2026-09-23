@@ -103,6 +103,24 @@ pub fn default_true() -> bool {
     true
 }
 
+/// R35 · the page-residency window: how long a surface survives a dismissal
+/// before a summon returns to the search box. The number matches
+/// `DEFAULT_RESIDENCY_SECONDS` / `RESIDENCY_MAX_SECONDS` in
+/// `src/surface-residency.ts`; the two tables are pinned against each other by
+/// `tests/surface-residency.test.ts`, the same arrangement `UI_SCALE_STEPS`
+/// uses. The frontend owns the clock — Rust only stores and clamps the number.
+pub const DEFAULT_SURFACE_RESIDENCY_SECONDS: u32 = 10;
+pub const MAX_SURFACE_RESIDENCY_SECONDS: u32 = 30;
+
+/// Serde default for `surface_residency_seconds`. Named rather than a bare
+/// `#[serde(default)]` so a settings file written before the key existed lands
+/// on the shipped ten seconds, not on `u32::default()` (`0`, the disabled
+/// state — which would silently turn the round's feature off for every
+/// existing user).
+pub fn default_surface_residency_seconds() -> u32 {
+    DEFAULT_SURFACE_RESIDENCY_SECONDS
+}
+
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 
 const SETTINGS_FILE_NAME: &str = "settings.json";
@@ -285,6 +303,16 @@ pub fn write_clipboard_max_items(max_items: u32) -> Result<u32, String> {
 pub struct AppSettings {
     pub hotkey: String,
     pub hide_on_blur: bool,
+    /// R35 · how many seconds a surface (a plugin mode, its configuration
+    /// overlay, the settings panel, the terminal view) survives after the panel
+    /// is dismissed, before a summon returns to the search box. `0` disables
+    /// the window and restores the pre-R35 behaviour. The frontend owns the
+    /// clock; this is only the number it reads. `#[serde(default = ...)]` keeps
+    /// every settings file written before this key existed deserializing to the
+    /// shipped ten seconds rather than to `u32::default()` (`0` — which would
+    /// silently turn the feature off).
+    #[serde(default = "default_surface_residency_seconds")]
+    pub surface_residency_seconds: u32,
     pub launch_at_startup: bool,
     /// UI theme: "dark" | "light" | "auto". Only the frontend reads it — "auto"
     /// is resolved there against the system appearance.
@@ -381,6 +409,7 @@ impl Default for AppSettings {
         Self {
             hotkey: DEFAULT_TOGGLE_WINDOW.to_string(),
             hide_on_blur: true,
+            surface_residency_seconds: DEFAULT_SURFACE_RESIDENCY_SECONDS,
             launch_at_startup: false,
             theme: "auto".to_string(),
             font_size: 14,
@@ -669,6 +698,12 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     settings.terminal_opacity =
         normalize_window_opacity(settings.terminal_opacity, DEFAULT_TERMINAL_OPACITY);
     settings.glass_step = normalize_glass_step(&settings.glass_step);
+    // R35 · the page-residency window. `0` is a legitimate value (the window is
+    // off), so unlike the opacity sliders this does not map `0` to a default;
+    // it only trims the hand-edited upper end. The floor is `0` by type.
+    settings.surface_residency_seconds = settings
+        .surface_residency_seconds
+        .min(MAX_SURFACE_RESIDENCY_SECONDS);
     // R7-13c: an unknown or hand-edited step falls back to the shipped one
     // rather than to whichever variant happens to sort first — a scale the user
     // never chose must not be applied to the whole interface.
@@ -1247,6 +1282,46 @@ mod tests {
             ..AppSettings::default()
         });
         assert_eq!(normalized.browser_plugin.search_fields, "all");
+    }
+
+    /// R35 · the page-residency window. It ships at ten seconds, `0` is a
+    /// legitimate "off" (so it must not be mapped to a default the way the
+    /// opacity clamp maps a zero), the ceiling is 30, and a settings file
+    /// written before the key existed deserializes to the shipped ten rather
+    /// than to `u32::default()` (`0`, the disabled state).
+    #[test]
+    fn the_surface_residency_ships_at_ten_clamps_at_thirty_and_keeps_zero() {
+        assert_eq!(DEFAULT_SURFACE_RESIDENCY_SECONDS, 10);
+        assert_eq!(MAX_SURFACE_RESIDENCY_SECONDS, 30);
+        assert_eq!(default_surface_residency_seconds(), 10);
+        assert_eq!(
+            AppSettings::default().surface_residency_seconds,
+            DEFAULT_SURFACE_RESIDENCY_SECONDS,
+        );
+
+        // A file without the key (every build before this round) keeps the
+        // shipped window rather than silently disabling it.
+        let legacy: AppSettings =
+            serde_json::from_str("{\"hide_on_blur\":true}").expect("legacy settings deserialize");
+        assert_eq!(legacy.surface_residency_seconds, 10);
+
+        // `0` survives normalization: it is the off switch, not a missing
+        // value.
+        let off = normalize_settings(AppSettings {
+            surface_residency_seconds: 0,
+            ..AppSettings::default()
+        });
+        assert_eq!(off.surface_residency_seconds, 0);
+
+        // The upper end is trimmed; the floor is `0` by type.
+        let trimmed = normalize_settings(AppSettings {
+            surface_residency_seconds: 9_999,
+            ..AppSettings::default()
+        });
+        assert_eq!(
+            trimmed.surface_residency_seconds,
+            MAX_SURFACE_RESIDENCY_SECONDS
+        );
     }
 
     #[test]

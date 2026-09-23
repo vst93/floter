@@ -28,11 +28,16 @@ import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
 import { normalizeLanguage, type Language } from "../i18n";
 import type { AppSettings } from "../App";
 import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassIntensity } from "../glass-material";
+import { DEFAULT_RESIDENCY_SECONDS, normalizeResidencySeconds } from "../surface-residency";
 import { withCommandAlias } from "../command-aliases";
 /** Defaults applied before the first disk read returns. */
 const SETTINGS_DEFAULTS: AppSettings = {
   hotkey: "Ctrl+Space",
   hide_on_blur: true,
+  // R35 · the shipped residency window, matching `DEFAULT_SURFACE_RESIDENCY_SECONDS`
+  // in Rust. Non-zero: the round asked for the behaviour, not for a switch that
+  // ships off.
+  surface_residency_seconds: DEFAULT_RESIDENCY_SECONDS,
   launch_at_startup: false,
   theme: "dark",
   font_size: 14,
@@ -214,6 +219,12 @@ export function useSettings(options: {
           main_opacity: clampWindowOpacity(loaded.main_opacity ?? 47),
           terminal_opacity: clampWindowOpacity(loaded.terminal_opacity ?? 46),
           glass_step: normalizeGlassStep(loaded.glass_step),
+          // R35 · a pre-round settings file has no residency key; a hand-edited
+          // one may carry an out-of-range number. Both land on the `[0, 30]`
+          // integer domain, with a missing value at the shipped default.
+          surface_residency_seconds: normalizeResidencySeconds(
+            loaded.surface_residency_seconds ?? DEFAULT_RESIDENCY_SECONDS,
+          ),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",

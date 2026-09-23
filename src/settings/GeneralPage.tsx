@@ -12,6 +12,11 @@ import {
   type GlassIntensity,
 } from "../glass-material";
 import {
+  RESIDENCY_MAX_SECONDS,
+  RESIDENCY_MIN_SECONDS,
+  normalizeResidencySeconds,
+} from "../surface-residency";
+import {
   LANGUAGE_OPTIONS,
   type Language,
   type MessageKey,
@@ -176,6 +181,12 @@ type GeneralPageProps = {
   onChangeOpacity: (target: "main" | "terminal", value: number) => void;
   onChangeGlassIntensity: (level: GlassIntensity) => void;
 };
+
+/** R35 · the page-residency durations the select offers, in seconds. `0` is the
+ *  disabled state; the rest step up to {@link RESIDENCY_MAX_SECONDS}. A bounded
+ *  preset list rather than a free number: the value is a preference between
+ *  "off" and "half a minute", and every useful answer is a round number. */
+const RESIDENCY_OPTIONS = [RESIDENCY_MIN_SECONDS, 5, 10, 15, 20, RESIDENCY_MAX_SECONDS];
 
 /** The single glass-effect control: three segments in the shared track, the
  *  same selection language the theme/cursor pickers use (accent tint, lit top
@@ -360,6 +371,47 @@ export function GeneralPage({
               >
                 <span className="settings-switch__thumb" />
               </button>
+            }
+          />
+          {/* R35 · the page-residency window. It sits beside `hide_on_blur`
+              because the two are read together but answer different questions:
+              `hide_on_blur` decides whether the *window* disappears, this one
+              decides whether the *surface* survives it. A bounded numeric
+              choice, so it uses the page's select idiom (font family) rather
+              than a fourth range: the glass page's slider census counts the
+              ranges it owns, and this setting is not one of them. */}
+          <SettingsRow
+            label={t("settings.surfaceResidency")}
+            sublabel={t("settings.surfaceResidencyHint")}
+            control={
+              <select
+                className="settings-select"
+                value={normalizeResidencySeconds(settings.surface_residency_seconds)}
+                aria-label={t("settings.surfaceResidency")}
+                onChange={(event) =>
+                  onChangeGeneralSetting(
+                    "surface_residency_seconds",
+                    normalizeResidencySeconds(Number(event.currentTarget.value)),
+                  )
+                }
+              >
+                {!RESIDENCY_OPTIONS.includes(
+                  normalizeResidencySeconds(settings.surface_residency_seconds),
+                ) && (
+                  <option value={normalizeResidencySeconds(settings.surface_residency_seconds)}>
+                    {t("settings.surfaceResidencyValue", {
+                      seconds: normalizeResidencySeconds(settings.surface_residency_seconds),
+                    })}
+                  </option>
+                )}
+                {RESIDENCY_OPTIONS.map((seconds) => (
+                  <option key={seconds} value={seconds}>
+                    {seconds === RESIDENCY_MIN_SECONDS
+                      ? t("settings.surfaceResidencyOff")
+                      : t("settings.surfaceResidencyValue", { seconds })}
+                  </option>
+                ))}
+              </select>
             }
           />
           <SettingsRow
