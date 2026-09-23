@@ -51,6 +51,7 @@ import {
   isMessageKey,
   normalizeLanguage,
   type Language,
+  type MessageKey,
 } from "./i18n";
 import {
   DEEP_LINK_CONNECT_EVENT,
@@ -100,12 +101,17 @@ import {
 } from "./launcher/result-budget";
 import type { CommandAliases } from "./command-aliases";
 import {
+  BROWSER_FILTERS,
   browserModeFor,
   clipboardModeFor,
+  cycleBrowserFilter as nextBrowserFilter,
   pluginModeEntry,
+  pluginModeExitOnBackspace,
   type ActivePluginMode,
+  type BrowserMode,
 } from "./launcher";
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
+import type { BrowserSearchField } from "./browser-page";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
 import "./styles/launcher.css";
 import "./styles/plugin-config.css";
@@ -233,6 +239,19 @@ export type BrowserPluginSettings = {
    * `"recent"`, `"alphabetical"` or `"visits"`. Written by the plugin's own
    * settings page; the backend applies it in the search commands. */
   sort_order: string;
+  /** R32 · which fields the launcher's browser search matches against. One of
+   *  `"all"` / `"title"` / `"url"`; the launcher applies it in memory. */
+  search_fields: BrowserSearchField;
+};
+
+/** R32 · the label each browser range filter prints. Reuses the plugin's own
+ *  scope words (`launcher.browserBookmarks`/`History`) so the chips and the
+ *  result grouping name the same things the same way. */
+const BROWSER_FILTER_KEYS: Record<BrowserMode["kind"], MessageKey> = {
+  all: "launcher.browserAll",
+  bookmarks: "launcher.browserBookmarks",
+  history: "launcher.browserHistory",
+  tabs: "launcher.browserTabs",
 };
 
 const SETTINGS_WINDOW_HEIGHT = 580;
@@ -783,6 +802,7 @@ export default function App() {
     showRecentInLauncher: settings.show_recent_in_launcher,
     commandAliases: settings.command_aliases,
     browserEnabled: settings.browser_plugin.enabled,
+    browserSearchField: settings.browser_plugin.search_fields,
     clipboardEnabled: settings.clipboard_history_enabled,
     t,
     settingsRef,
@@ -818,6 +838,57 @@ export default function App() {
     setPluginMode(null);
     setHistoryIndex(-1);
   }, []);
+
+  /**
+   * R32 · switch the browser mode's range filter. The chips and the Tab key are
+   * the two callers; both end on the same state write. The mode's `kind` **is**
+   * the filter, so there is no second piece of state to keep in step, and
+   * leaving the mode forgets the choice exactly as it forgets the needle.
+   */
+  const setBrowserFilter = useCallback((kind: BrowserMode["kind"]) => {
+    setPluginMode((current) =>
+      current?.scope === "browser" ? { scope: "browser", kind } : current,
+    );
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /** R32 · Tab / Shift+Tab through {@link BROWSER_FILTERS}. Wraps at both ends,
+   *  so the field's keyboard never falls out of the plugin on a stray Tab. */
+  const cycleBrowserFilter = useCallback((direction: 1 | -1) => {
+    setPluginMode((current) =>
+      current?.scope === "browser"
+        ? { scope: "browser", kind: nextBrowserFilter(current.kind, direction) }
+        : current,
+    );
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /**
+   * R32 · the empty-word way out of a plugin mode.
+   *
+   * R31 ruled that backspacing the needle to empty *stops* in the mode
+   * (「退格删空即停」); this is the user's next step — with the field already
+   * empty, another Backspace has nothing to delete and leaves the plugin. It is
+   * resolved here, beside Esc / Cmd+W, so the input's own handler and the
+   * window-level fallback agree. Returns whether the press was consumed.
+   */
+  const onPluginModeBackspace = useCallback(
+    (event: KeyboardEvent): boolean => {
+      if (event.key !== "Backspace" || event.metaKey || event.ctrlKey || event.altKey) {
+        return false;
+      }
+      if (isComposing.current) return false;
+      if (!pluginModeExitOnBackspace(pluginModeRef.current, query)) return false;
+      event.preventDefault();
+      exitPluginMode();
+      return true;
+    },
+    [query, exitPluginMode],
+  );
 
   /**
    * R31 · Esc / Cmd+W on the collapsed surface, resolved in one place so the
@@ -1051,6 +1122,8 @@ export default function App() {
     refreshTerminalSessions,
     openPluginPage,
     enterPluginMode,
+    browserScope: launcherScope === "browser",
+    cycleBrowserFilter,
     isComposing,
     actionBar,
     shortcuts,
@@ -1136,6 +1209,7 @@ export default function App() {
     runLauncherItem,
     handleLauncherKey,
     onLauncherDismiss,
+    onPluginModeBackspace,
     resultShortcutSlots: displayedShortcutSlots,
     setQuery: setQueryExitingPlugin,
     setHistory,
@@ -1302,8 +1376,8 @@ export default function App() {
       ? 1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)
       : 0) ||
       (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
-        (showOnboardingTip ? 1 : 0) +
-        (launcherFeedback || appsError || pendingSystemAction ? 1 : 0),
+        (showOnboardingTip && !launcherScope ? 1 : 0) +
+        (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0),
   );
   // The band is sticky: growing is immediate (a band too short would clip), and
   // shrinking waits for the row count to fall a row below the band's floor, so a
@@ -1318,13 +1392,19 @@ export default function App() {
   // action bar (the shell fallback is gated on a *matched* row), so a band that
   // always reserved it left 45u of glass under the one clipboard row.
   const launcherHasBar = visibleActionBar !== null;
-  const launcherSectionTitle = !query.trim() && !fileRows.length;
+  // R32 · the heading is the ordinary search page's, and only its: in a plugin
+  // scope the list is the plugin's own and the "Recently launched" label sat
+  // over bookmark rows (the leak the user reported).
+  const launcherSectionTitle = !launcherScope && !query.trim() && !fileRows.length;
   const launcherHeight = launcherBandHeight(
     launcherBand,
     launcherScale,
     launcherMaxHeight,
     launcherHasBar,
     launcherSectionTitle,
+    // R32 · the browser scope's range-filter subline is fixed chrome; charging
+    // it here keeps the window from moving as the plugin's rows filter.
+    launcherScope === "browser",
   );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
@@ -1874,6 +1954,9 @@ export default function App() {
     // mode-aware levels (close the config overlay, leave the plugin mode) are
     // the collapsed surface's business rather than the field's key grammar.
     if (onLauncherDismiss(event.nativeEvent)) return;
+    // R32 · an already-empty field's Backspace leaves the plugin mode; a
+    // Backspace that still has a character to delete is left to the field.
+    if (onPluginModeBackspace(event.nativeEvent)) return;
     handleLauncherKey(event.nativeEvent);
   };
 
@@ -2389,9 +2472,46 @@ export default function App() {
                 </>
               )}
             </div>
+            {/* R32 · the browser mode's range filter. A compact subline under
+                the field, present for the whole browser scope (including the
+                debounce before the first rows arrive) so the chips never
+                flicker in and out. It is chrome, not a result: no `⌘N` slot,
+                no arrow-key stop. Tab cycles it (see `handleLauncherKey`),
+                and a click sets it — `tabIndex={-1}` keeps the field the one
+                keyboard owner. Muted text, the active chip underlined and
+                heavier, so the row spends no accent budget. */}
+            {launcherScope === "browser" && (
+              <div
+                className="launcher-filter"
+                role="tablist"
+                aria-label={t("launcher.browserFilter")}
+              >
+                {BROWSER_FILTERS.map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    role="tab"
+                    tabIndex={-1}
+                    aria-selected={browserMode?.kind === kind}
+                    className={
+                      browserMode?.kind === kind
+                        ? "launcher-filter__chip launcher-filter__chip--active"
+                        : "launcher-filter__chip"
+                    }
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setBrowserFilter(kind);
+                    }}
+                  >
+                    {t(BROWSER_FILTER_KEYS[kind])}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* First-run onboarding tip: a small dismissible banner shown above
                 the result area the first time the user opens the launcher. */}
-            {showOnboardingTip && (
+            {showOnboardingTip && !launcherScope && (
               <div className="launcher-tip" role="status">
                 <div className="launcher-tip__body">
                   <span className="launcher-tip__icon" aria-hidden="true">
@@ -2427,6 +2547,7 @@ export default function App() {
                 t={t}
                 clipboardEnabled={settings.clipboard_history_enabled}
                 onChangeGeneralSetting={(key, value) => changeGeneralSetting(key, value)}
+                onBrowserSettingsChange={(block) => changeGeneralSetting("browser_plugin", block)}
                 onClose={() => setPluginConfigOpen(false)}
               />
             ) : (
@@ -2438,7 +2559,7 @@ export default function App() {
               }
             >
               <div className="launcher-bottom">
-                {appsError && (
+                {appsError && !launcherScope && (
                   <div className="launcher-feedback" role="alert">
                     <AlertCircle className="launcher-feedback__icon" size={15} strokeWidth={1.9} aria-hidden="true" />
                     <span>{t("input.scanFailed")}</span>
@@ -2536,6 +2657,7 @@ export default function App() {
                   fileRows.length === 0 &&
                   !actionBar &&
                   !query.trim() &&
+                  !launcherScope &&
                   !settings.show_commands_in_search && (
                     <div className="launcher-hint" role="status">
                       {t("launcher.enableIntegrationsHint")}

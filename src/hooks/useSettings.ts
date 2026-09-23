@@ -74,6 +74,7 @@ const SETTINGS_DEFAULTS: AppSettings = {
     cdp_enabled: false,
     cdp_port: 9222,
     sort_order: "relevance",
+    search_fields: "all",
   },
 };
 
@@ -239,6 +240,9 @@ export function useSettings(options: {
             cdp_enabled: loaded.browser_plugin?.cdp_enabled ?? false,
             cdp_port: loaded.browser_plugin?.cdp_port ?? 9222,
             sort_order: loaded.browser_plugin?.sort_order ?? "relevance",
+            // R32 · a file written before this key existed falls back to `all`,
+            // the shipped behaviour (title or URL).
+            search_fields: loaded.browser_plugin?.search_fields ?? "all",
           },
         };
         const hydrated = settingsHydration.mergeLoaded(

@@ -37,6 +37,11 @@ export type PluginConfigOverlayProps = {
   /** Write a field that lives in the general settings object. Only the
    *  clipboard switch does; the browser's `enabled` rides its own block. */
   onChangeGeneralSetting: (key: "clipboard_history_enabled", value: boolean) => void;
+  /** R32 · the browser block the overlay just wrote, so the launcher's own
+   *  settings snapshot can follow a change (the search-field radio takes effect
+   *  on the next search, not on the next restart). Only the browser plugin
+   *  calls it. */
+  onBrowserSettingsChange: (settings: ReturnType<typeof normalizeBrowserSettings>) => void;
   onClose: () => void;
 };
 
@@ -63,6 +68,7 @@ export function PluginConfigOverlay({
   t,
   clipboardEnabled,
   onChangeGeneralSetting,
+  onBrowserSettingsChange,
   onClose,
 }: PluginConfigOverlayProps) {
   const [context, setContext] = useState<PluginConfigContext>({});
@@ -136,10 +142,17 @@ export function PluginConfigOverlay({
           cdp_enabled: next.cdp_enabled === true,
           cdp_port: Number(next.cdp_port),
           sort_order: String(next.sort_order ?? "relevance"),
+          search_fields: String(next.search_fields ?? "all"),
         },
-      }).catch(() => undefined);
+      })
+        .then((stored) => {
+          // The backend has the last word on normalization; hand the launcher
+          // the block it actually stored so its next search uses it.
+          onBrowserSettingsChange(normalizeBrowserSettings(stored));
+        })
+        .catch(() => undefined);
     },
-    [pluginId, onChangeGeneralSetting],
+    [pluginId, onChangeGeneralSetting, onBrowserSettingsChange],
   );
 
   const handleChange = useCallback(

@@ -179,6 +179,12 @@ pub struct BrowserPluginSettings {
     /// `"visits"`. An unknown value normalizes back to `"relevance"`, so a
     /// hand-edited file cannot leave the list unsorted.
     pub sort_order: String,
+    /// R32 · which fields the launcher's browser search matches: `"all"`
+    /// (title or URL, the shipped behaviour), `"title"` or `"url"`. The
+    /// launcher applies the value in memory; the backend only persists and
+    /// normalizes it. A settings file written before this key existed
+    /// deserializes to `"all"` through the container's `#[serde(default)]`.
+    pub search_fields: String,
 }
 
 impl Default for BrowserPluginSettings {
@@ -191,12 +197,30 @@ impl Default for BrowserPluginSettings {
             cdp_enabled: false,
             cdp_port: crate::browser_data::tabs::DEFAULT_CDP_PORT,
             sort_order: DEFAULT_BROWSER_SORT_ORDER.to_string(),
+            search_fields: DEFAULT_BROWSER_SEARCH_FIELDS.to_string(),
         }
     }
 }
 
 /// The shipped sort order, and the value every other spelling falls back to.
 pub const DEFAULT_BROWSER_SORT_ORDER: &str = "relevance";
+
+/// R32 · the shipped search-field setting, and the fallback for anything else.
+pub const DEFAULT_BROWSER_SEARCH_FIELDS: &str = "all";
+
+/// R32 · the three fields the browser search can match, in the order the
+/// settings radio lists them. `all` is the OR of the other two.
+pub const BROWSER_SEARCH_FIELDS: [&str; 3] = ["all", "title", "url"];
+
+/// Accept one of [`BROWSER_SEARCH_FIELDS`]; anything else is `all`.
+pub fn normalize_browser_search_fields(value: &str) -> String {
+    let value = value.trim().to_lowercase();
+    if BROWSER_SEARCH_FIELDS.contains(&value.as_str()) {
+        value
+    } else {
+        DEFAULT_BROWSER_SEARCH_FIELDS.to_string()
+    }
+}
 
 /// R27 · the four sort orders the browser plugin offers, in the order its
 /// settings card lists them. `relevance` is the launcher's own ranking (the
@@ -682,6 +706,10 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     // the launcher's own ranking, never to an unsorted list.
     settings.browser_plugin.sort_order =
         normalize_browser_sort_order(&settings.browser_plugin.sort_order);
+    // R32 · the launcher's search-field setting. An unknown value falls back to
+    // matching title and URL, never to an empty result set.
+    settings.browser_plugin.search_fields =
+        normalize_browser_search_fields(&settings.browser_plugin.search_fields);
     // R26-A: the browser plugin's target is either `auto` or a browser id the
     // discovery table knows. An unknown value (a browser the user uninstalled,
     // a hand-edited file) falls back to `auto` rather than to a dead target.
@@ -1191,6 +1219,36 @@ mod tests {
         assert!(!off.browser_plugin.enabled, "an explicit off is honoured");
     }
 
+    /// R32 · the browser search-field setting normalizes to one of three values,
+    /// and a settings file written before the key existed deserializes to `all`.
+    #[test]
+    fn the_browser_search_fields_normalize_and_default_to_all() {
+        assert_eq!(DEFAULT_BROWSER_SEARCH_FIELDS, "all");
+        assert_eq!(normalize_browser_search_fields("all"), "all");
+        assert_eq!(normalize_browser_search_fields("TITLE"), "title");
+        assert_eq!(normalize_browser_search_fields(" url "), "url");
+        assert_eq!(normalize_browser_search_fields("body"), "all");
+        assert_eq!(normalize_browser_search_fields(""), "all");
+        assert_eq!(AppSettings::default().browser_plugin.search_fields, "all");
+
+        // A file without the key (every build before this round) keeps the
+        // shipped behaviour rather than matching nothing.
+        let legacy: AppSettings =
+            serde_json::from_str("{\"browser_plugin\":{\"target\":\"edge\"}}")
+                .expect("legacy settings deserialize");
+        assert_eq!(legacy.browser_plugin.search_fields, "all");
+
+        // A hand-edited value is normalized on save.
+        let normalized = normalize_settings(AppSettings {
+            browser_plugin: BrowserPluginSettings {
+                search_fields: "BODY".into(),
+                ..BrowserPluginSettings::default()
+            },
+            ..AppSettings::default()
+        });
+        assert_eq!(normalized.browser_plugin.search_fields, "all");
+    }
+
     #[test]
     fn the_browser_target_normalizes_to_a_known_id_or_auto() {
         assert_eq!(normalize_browser_target(""), "auto");
@@ -1217,6 +1275,8 @@ mod tests {
                 // R27 · an unknown ordering normalizes back to the launcher's
                 // own ranking rather than leaving the list unsorted.
                 sort_order: "sideways".into(),
+                // R32 · an unknown search field normalizes to `all`.
+                search_fields: "body".into(),
             },
             ..AppSettings::default()
         });
@@ -1229,6 +1289,7 @@ mod tests {
         );
         assert!(settings.browser_plugin.cdp_enabled);
         assert_eq!(settings.browser_plugin.sort_order, "relevance");
+        assert_eq!(settings.browser_plugin.search_fields, "all");
 
         let kept = normalize_settings(AppSettings {
             browser_plugin: BrowserPluginSettings {
@@ -1239,6 +1300,7 @@ mod tests {
                 cdp_enabled: false,
                 cdp_port: 9333,
                 sort_order: "recent".into(),
+                search_fields: "url".into(),
             },
             ..AppSettings::default()
         });
@@ -1250,6 +1312,7 @@ mod tests {
         assert_eq!(kept.browser_plugin.cdp_port, 9333);
         assert!(!kept.browser_plugin.cdp_enabled);
         assert_eq!(kept.browser_plugin.sort_order, "recent");
+        assert_eq!(kept.browser_plugin.search_fields, "url");
     }
 
     /// R27 · the clipboard capacity is clamped on save, ships at the value the
@@ -1318,6 +1381,7 @@ mod tests {
                 cdp_enabled: true,
                 cdp_port: 9333,
                 sort_order: "alphabetical".into(),
+                search_fields: "title".into(),
             },
             ..AppSettings::default()
         });

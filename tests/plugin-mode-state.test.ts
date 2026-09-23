@@ -191,7 +191,7 @@ test("the mode-aware rule runs before the dismiss table on both paths", async ()
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(
     app,
-    /const onInputKeyDown = \(event: React\.KeyboardEvent<HTMLInputElement>\) => \{[\s\S]{0,400}?if \(onLauncherDismiss\(event\.nativeEvent\)\) return;\s*handleLauncherKey\(event\.nativeEvent\);/,
+    /const onInputKeyDown = \(event: React\.KeyboardEvent<HTMLInputElement>\) => \{[\s\S]{0,400}?if \(onLauncherDismiss\(event\.nativeEvent\)\) return;[\s\S]{0,200}?handleLauncherKey\(event\.nativeEvent\);/,
     "the input's own handler asks the mode-aware rule first",
   );
   const keyboard = stripJsComments(await read("src/hooks/useAppKeyboard.ts"));

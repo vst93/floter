@@ -14,6 +14,11 @@
 import type { MessageKey, Translate } from "../../i18n.ts";
 import type { PluginRow } from "../../launcher/plugin-mode.ts";
 import { MAX_RESULTS } from "../../launcher/result-budget.ts";
+import {
+  DEFAULT_BROWSER_SEARCH_FIELD,
+  type BrowserSearchField,
+} from "../../browser-page.ts";
+import { matchesTokens, searchTokens } from "../search.ts";
 
 /** One row from `browser_search_bookmarks` / `browser_search_history`. The two
  *  commands share a shape; the fields one kind does not use are simply absent
@@ -52,8 +57,13 @@ export type BrowserTabRow = {
  *  ceiling below — eight rows, or nine with a status line — which is one page:
  *  the emission was never taller than the viewport, `paginatePluginRows` never
  *  found a remainder, no `page` block was attached, and the scroll-to-load-more
- *  path was dead for the plugin the round was written for. */
-export const BROWSER_FETCH_LIMIT = 200;
+ *  path was dead for the plugin the round was written for.
+ *
+ * R32 · the inline mode fetches this many rows **once** per filter and applies
+ *  the needle in memory (`plugins/search.ts`), so this is the depth a search can
+ *  look into. 500 is the backend's own `MAX_LIMIT`; it is also the number the
+ *  round's own note names (「500 条内存过滤，无压力」). */
+export const BROWSER_FETCH_LIMIT = 500;
 
 /** The ceiling on one browser group. Bookmarks and history share the first
  *  group (bookmarks win, history fills); the live tabs are a second, so a
@@ -98,7 +108,28 @@ export const browserStatusRow = (id: string, key: MessageKey, t: Translate): Plu
  * still falls to the one `browser-empty` note below — a search outcome, not a
  * configuration nag. The `kind: "status"` capability itself is untouched; the
  * browser simply does not emit one for this case any more.
+ *
+ * R32 · the three sources are filtered here, in memory, by the needle's AND
+ * tokens (`plugins/search.ts`) against the configured search field. The hook
+ * fetches each source once per filter and hands the whole group over, so typing
+ * inside the mode costs no IPC. The rule is the same for a bookmark, a history
+ * entry and a live tab; only the fields the tokens may hit differ, and that is
+ * what `searchField` chooses.
  */
+/** R32 · whether one browser row (bookmark, history entry or live tab) matches
+ *  the needle's tokens under the configured field. `title`/`url` narrow the
+ *  haystacks; `all` is their OR. The two row shapes share `title` and `url`, so
+ *  one function serves all three sources. */
+export const browserRowMatches = (
+  row: { title: string; url: string },
+  tokens: readonly string[],
+  field: BrowserSearchField,
+): boolean =>
+  matchesTokens(
+    tokens,
+    field === "title" ? [row.title] : field === "url" ? [row.url] : [row.title, row.url],
+  );
+
 export const browserSearchRows = (options: {
   bookmarks: readonly BrowserSearchRow[];
   history: readonly BrowserSearchRow[];
@@ -110,9 +141,18 @@ export const browserSearchRows = (options: {
    *  pages the result client-side (`paginatePluginRows`), so the fetch is one
    *  call while the *display* stays windowed. */
   limit?: number;
+  /** R32 · the field's own text. Split into AND tokens; empty matches all. */
+  needle?: string;
+  /** R32 · which fields the tokens may hit. Defaults to `all` (title or URL). */
+  searchField?: BrowserSearchField;
 }): PluginRow[] => {
-  const { bookmarks, history, tabs, profileKey, t } = options;
+  const { profileKey, t } = options;
   const cap = options.limit ?? BROWSER_GROUP_LIMIT;
+  const tokens = searchTokens(options.needle ?? "");
+  const field = options.searchField ?? DEFAULT_BROWSER_SEARCH_FIELD;
+  const bookmarks = options.bookmarks.filter((row) => browserRowMatches(row, tokens, field));
+  const history = options.history.filter((row) => browserRowMatches(row, tokens, field));
+  const tabs = options.tabs.filter((tab) => browserRowMatches(tab, tokens, field));
   const seen = new Set<string>();
   const rows: PluginRow[] = [];
   // Bookmarks first, then history: a URL that is both is one result and the

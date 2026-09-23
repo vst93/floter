@@ -302,12 +302,49 @@ export const classifyActionBar = (value: string): ActionBarKind => {
 
 /** R26-A · the browser plugin's inline result mode. */
 export type BrowserMode = {
-  /** `all` searches bookmarks and history; the other two narrow the source. */
-  kind: "all" | "bookmarks" | "history";
+  /** R32 · the four range filters the mode offers: `all` searches bookmarks and
+   *  history together, `bookmarks`/`history` narrow to one source, and `tabs`
+   *  shows only the browser's live tabs. The entry trigger picks the first
+   *  three (`bookmarks ` / `history ` / `browser `); the chips and Tab switch
+   *  between all four afterwards. */
+  kind: "all" | "bookmarks" | "history" | "tabs";
   /** The text after the trigger word, already trimmed. Empty is the default
    *  view: the bookmarks bar plus the most recent history. */
   needle: string;
 };
+
+/** R32 · the browser mode's four range filters, in the order Tab cycles them.
+ *  `all` first because that is the shipped default and the entry point. */
+export const BROWSER_FILTERS: readonly BrowserMode["kind"][] = [
+  "all",
+  "bookmarks",
+  "history",
+  "tabs",
+] as const;
+
+/** R32 · move one step through {@link BROWSER_FILTERS}, wrapping at the ends.
+ *  `direction` is `1` for Tab and `-1` for Shift+Tab. */
+export const cycleBrowserFilter = (
+  kind: BrowserMode["kind"],
+  direction: 1 | -1,
+): BrowserMode["kind"] => {
+  const index = BROWSER_FILTERS.indexOf(kind);
+  const length = BROWSER_FILTERS.length;
+  return BROWSER_FILTERS[(index + direction + length) % length];
+};
+
+/** R32 · whether an empty-word Backspace should leave a plugin mode.
+ *
+ * The R31 rule is that backspacing the needle to empty *stops* in the mode
+ * (「退格删空即停」) — the field's own change handler keeps the mode, and the way
+ * out is Esc / Cmd+W. The user asked for one more step: with the field already
+ * empty, another Backspace is a deliberate "there is nothing left to delete"
+ * and leaves the plugin. This predicate is that rule, so the input's handler and
+ * the window-level fallback cannot disagree about it. */
+export const pluginModeExitOnBackspace = (
+  mode: ActivePluginMode | null,
+  needle: string,
+): boolean => mode !== null && needle.length === 0;
 
 /** Trigger words that enter the browser mode. Each must be followed by at
  *  least one space, so the bare word stays on the action bar / system row —

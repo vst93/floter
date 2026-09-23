@@ -63,6 +63,31 @@ export type BrowserPluginSettings = {
    *  {@link BROWSER_SORT_ORDERS}; the backend applies it in the search
    *  commands. */
   sort_order: BrowserSortOrder;
+  /** R32 · which fields the launcher's needle is matched against: `"all"`
+   *  (title or URL), `"title"` or `"url"`. The launcher applies it in memory
+   *  (`plugins/browser/mode.ts`); the backend only persists the value. */
+  search_fields: BrowserSearchField;
+};
+
+/** R32 · the three fields a browser search can look at. */
+export type BrowserSearchField = "all" | "title" | "url";
+
+export const BROWSER_SEARCH_FIELDS: readonly BrowserSearchField[] = [
+  "all",
+  "title",
+  "url",
+] as const;
+
+export const DEFAULT_BROWSER_SEARCH_FIELD: BrowserSearchField = "all";
+
+/** Accept one of {@link BROWSER_SEARCH_FIELDS}; anything else is `all`. The
+ *  Rust `normalize_browser_search_fields` is the authority — this is the same
+ *  rule on the page side so the card shows the value that was saved. */
+export const normalizeBrowserSearchField = (value: unknown): BrowserSearchField => {
+  const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return (BROWSER_SEARCH_FIELDS as readonly string[]).includes(text)
+    ? (text as BrowserSearchField)
+    : DEFAULT_BROWSER_SEARCH_FIELD;
 };
 
 /** R27 · the four orderings the plugin's settings card offers. `relevance` is
@@ -106,6 +131,7 @@ export const defaultBrowserSettings = (): BrowserPluginSettings => ({
   cdp_enabled: false,
   cdp_port: DEFAULT_CDP_PORT,
   sort_order: DEFAULT_BROWSER_SORT_ORDER,
+  search_fields: DEFAULT_BROWSER_SEARCH_FIELD,
 });
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -236,6 +262,7 @@ export const normalizeBrowserSettings = (value: unknown): BrowserPluginSettings 
     cdp_enabled: asBoolean(record.cdp_enabled, false),
     cdp_port: normalizeCdpPort(record.cdp_port),
     sort_order: normalizeBrowserSortOrder(record.sort_order),
+    search_fields: normalizeBrowserSearchField(record.search_fields),
   };
 };
 

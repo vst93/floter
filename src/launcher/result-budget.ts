@@ -303,20 +303,38 @@ export const LAUNCHER_BAND_CHROME_UNITS = 52;
  */
 export const LAUNCHER_BAND_BAR_UNITS = 45;
 
+/**
+ * R32 · the browser mode's range-filter subline, in units: the chip row's own
+ * 24u plus the 4u breath below it (see `.launcher-filter`). It is charged by
+ * every band while the browser scope is open — the chips row is fixed chrome
+ * that is always drawn there, so it can never resize the window as the list
+ * under it grows or filters. The 4u gap above it is the field row's own
+ * `margin-bottom`, already inside {@link LAUNCHER_BAND_CHROME_UNITS}. */
+export const LAUNCHER_FILTER_UNITS = 28;
+
 /** The unit height of a band, with or without its action bar.
  *
  *  R27 · the bar is a parameter rather than a constant of every band. In the
  *  full slab the bar is there and `launcherBandUnits(last)` is the R25 budget
  *  (`52 + 9×42 + 45 = 475u`); in the no-match state and in both plugin modes
  *  there is no bar and the band is 45u shorter, which is what stops the window
- *  from reserving a row the user never sees. */
-export const launcherBandUnits = (band: number, actionBar = true): number => {
+ *  from reserving a row the user never sees.
+ *
+ *  R32 · the browser filter is the second such parameter: a fixed subline the
+ *  browser scope always draws, charged here so the band table stays the one
+ *  place a window height comes from. */
+export const launcherBandUnits = (
+  band: number,
+  actionBar = true,
+  filter = false,
+): number => {
   const clamped = Math.max(0, Math.min(LAUNCHER_HEIGHT_BANDS.length - 1, band));
   const capacity = LAUNCHER_HEIGHT_BANDS[clamped].capacity;
   return (
     LAUNCHER_BAND_CHROME_UNITS +
     capacity * ROW_HEIGHT_TWO_LINE +
-    (actionBar ? LAUNCHER_BAND_BAR_UNITS : 0)
+    (actionBar ? LAUNCHER_BAND_BAR_UNITS : 0) +
+    (filter ? LAUNCHER_FILTER_UNITS : 0)
   );
 };
 
@@ -358,9 +376,13 @@ export const launcherBandHeight = (
   maxHeight: number,
   actionBar = true,
   sectionTitle = false,
+  filter = false,
 ): number =>
   Math.min(
-    Math.ceil(launcherBandUnits(band, actionBar) * scale + launcherBandChrome(band, sectionTitle)),
+    Math.ceil(
+      launcherBandUnits(band, actionBar, filter) * scale +
+        launcherBandChrome(band, sectionTitle),
+    ),
     maxHeight,
   );
 

@@ -67,6 +67,10 @@ export function useAppKeyboard(options: {
    *  the dismiss table so the config overlay and a plugin mode can claim the
    *  press; returns whether it did. */
   onLauncherDismiss: (event: KeyboardEvent) => boolean;
+  /** R32 · the empty-word way out of a plugin mode: a Backspace on an already
+   *  empty field leaves the plugin. Called before the fallback's own Backspace
+   *  edit; returns whether it consumed the press. */
+  onPluginModeBackspace: (event: KeyboardEvent) => boolean;
   resultShortcutSlots: Array<number | null>;
   setQuery: Dispatch<SetStateAction<string>>;
   setHistory: Dispatch<SetStateAction<string[]>>;
@@ -104,6 +108,7 @@ export function useAppKeyboard(options: {
     runLauncherItem,
     handleLauncherKey,
     onLauncherDismiss,
+    onPluginModeBackspace,
     resultShortcutSlots,
     setQuery,
     setHistory,
@@ -391,12 +396,15 @@ export function useAppKeyboard(options: {
 
       if (event.metaKey || event.ctrlKey || event.altKey) return;
 
+      // R32 · an empty field's Backspace leaves a plugin mode rather than
+      // deleting nothing. Before the ordinary edit so the two cannot disagree.
+      if (onPluginModeBackspace(event)) return;
+
       if (event.key === "Backspace") {
         event.preventDefault();
         setQuery((current) => current.slice(0, -1));
         return;
       }
-
       // A printable key is typed into the query by hand: the field was not
       // focused when the press happened, so nothing else will insert it.
       if (event.key.length === 1) {

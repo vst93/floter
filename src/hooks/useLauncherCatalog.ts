@@ -46,6 +46,7 @@ import {
   type SystemAction,
 } from "../launcher/LauncherResults";
 import { appSubtitleKey } from "../launcher/row-content";
+import type { BrowserSearchField } from "../browser-page";
 import { createSettingsHydration } from "../settings-persistence";
 import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandAlias, rebaseAliasCommandLine, resolveCommandAliases, MATCH_EXACT, type CommandAliases } from "../command-aliases";
 import { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS } from "../launcher/result-budget";
@@ -122,6 +123,20 @@ type CatalogSuggestion =
 
 /** Answer to `check_applications`: whether a rescan would find anything new. */
 type ApplicationsStatus = { upToDate: boolean; count: number };
+
+/** R32 · the browser mode's fetched rows, or the one status line that stands in
+ *  for them when there is no profile (or the read failed outright). The three
+ *  sources are held raw — the needle is applied later, in memory — so typing
+ *  inside the mode re-renders without a fetch. */
+type BrowserFetchResult =
+  | {
+      ok: true;
+      profileKey: string;
+      bookmarks: BrowserSearchRow[];
+      history: BrowserSearchRow[];
+      tabs: BrowserTabRow[];
+    }
+  | { ok: false; statusId: string; statusKey: MessageKey };
 
 // R28 · the row shapes the two plugins emit live in their own modules
 // (`plugins/browser/mode.ts`, `plugins/clipboard/mode.ts`) and the mapping from
@@ -237,6 +252,10 @@ export function useLauncherCatalog(options: {
    *  is a disabled note and the browser result mode fetches nothing: the
    *  plugin's whole surface soft-closes. */
   browserEnabled: boolean;
+  /** R32 · `settings.browser_plugin.search_fields`. Which fields the browser
+   *  mode's needle is matched against (`all` / `title` / `url`). The clipboard
+   *  mode deliberately does not read it: a clipboard entry has no URL. */
+  browserSearchField: BrowserSearchField;
   /** R27 · `settings.clipboard_history_enabled`. The clipboard mode's switch,
    *  read from the same long-standing field the plugin list and the panel use. */
   clipboardEnabled: boolean;
@@ -255,6 +274,7 @@ export function useLauncherCatalog(options: {
     showRecentInLauncher,
     commandAliases,
     browserEnabled,
+    browserSearchField,
     clipboardEnabled,
     t,
     settingsRef,
@@ -427,47 +447,47 @@ export function useLauncherCatalog(options: {
   // field's own needle, with the trigger word stripped on entry — so the
   // vocabulary that enters a mode lives in exactly one place (`pluginModeEntry`)
   // and the hook only fetches.
-  const [browserEmission, setBrowserEmission] = useState<PluginEmission | null>(null);
+  //
+  // R32 · the three sources are fetched **once per range filter**, with an
+  // empty backend query, and the needle is applied in memory
+  // (`browserSearchRows`). That is what lets a multi-word query mean "all of
+  // these tokens" instead of the literal phrase, and it is why typing inside
+  // the mode now costs no IPC at all — the same shape the clipboard mode has
+  // had since R27. The fetch is keyed on the filter (`kind`), never on the
+  // needle, so a keystroke cannot re-read a 500-row history.
+  const [browserFetch, setBrowserFetch] = useState<BrowserFetchResult | null>(null);
   const browserRequest = useRef(0);
+  const browserKind = browserMode?.kind ?? null;
 
   useEffect(() => {
     const generation = ++browserRequest.current;
-    if (!browserMode) {
-      setBrowserEmission(null);
+    if (!browserMode || !browserEnabled) {
+      // Nothing to fetch: leaving the mode clears the held rows, and the
+      // switched-off plugin's one status line is drawn by the memo below.
+      setBrowserFetch(null);
       return;
     }
-    if (!browserEnabled) {
-      // R26-D · the plugin is switched off. The mode word is still parseable (a
-      // stale query can carry `browser `), but nothing is fetched and one
-      // disabled line says why — soft-closed, not an error. R28 · the plugin
-      // emits that line; the capability layer sees a list of only status rows
-      // and draws it in the display tier.
-      setBrowserEmission({
-        output: [browserStatusRow("browser-disabled", "launcher.browserDisabled", t)],
-      });
-      return;
-    }
-    // The early return above already narrowed the type; capturing it keeps that
-    // narrowing visible inside the timer callback.
-    const mode = browserMode;
+    const kind = browserMode.kind;
     let cancelled = false;
-    // The same debounce the catalog search uses: one fetch per typing pause,
-    // and a stale response is dropped by the generation check.
+    // The same debounce the catalog search uses: one fetch per filter, and a
+    // stale response is dropped by the generation check.
     const timer = window.setTimeout(() => {
-      const status = (id: string, key: MessageKey): PluginEmission => ({
-        output: [browserStatusRow(id, key, t)],
-      });
       invoke<string | null>("browser_default_profile")
-        .then(async (profileKey) => {
-          if (!profileKey) return status("browser-no-profile", "launcher.browserNoProfile");
+        .then(async (profileKey): Promise<BrowserFetchResult> => {
+          if (!profileKey) {
+            return { ok: false, statusId: "browser-no-profile", statusKey: "launcher.browserNoProfile" };
+          }
           const fetch = (command: string): Promise<BrowserSearchRow[]> =>
             invoke<BrowserSearchRow[]>(command, {
               profileKey,
-              query: mode.needle,
+              // R32 · an empty query fetches the whole (bounded) group; the
+              // needle's AND tokens are applied in memory, where all four
+              // sources can share one rule.
+              query: "",
               limit: BROWSER_FETCH_LIMIT,
             }).catch(() => []);
           const tabRead =
-            mode.kind === "bookmarks" || mode.kind === "history"
+            kind === "bookmarks" || kind === "history"
               ? Promise.resolve<BrowserTabRow[]>([])
               : invoke<BrowserTabRow[]>("browser_list_tabs", {
                   profileKeyOrBrowser: profileKey,
@@ -482,43 +502,64 @@ export function useLauncherCatalog(options: {
                   () => [] as BrowserTabRow[],
                 );
           const [bookmarks, history, tabs] = await Promise.all([
-            mode.kind === "history" ? Promise.resolve([]) : fetch("browser_search_bookmarks"),
-            mode.kind === "bookmarks" ? Promise.resolve([]) : fetch("browser_search_history"),
+            kind === "history" || kind === "tabs"
+              ? Promise.resolve([])
+              : fetch("browser_search_bookmarks"),
+            kind === "bookmarks" || kind === "tabs"
+              ? Promise.resolve([])
+              : fetch("browser_search_history"),
             tabRead,
           ]);
-          // R28 · the merge, the group ceilings and the soft landings are the
-          // plugin's own output rules now (see `plugins/browser/mode.ts`); this
-          // hook only hands the three sources over and reads back a view.
-          // R30 · the group ceiling is raised to the fetch limit: the inline
-          // mode windows the held rows itself (`paginatePluginRows`), so the
-          // plugin has to hand over more than one viewport or there is nothing
-          // left to page. Without this the browser list was the only plugin
-          // list that could never scroll.
-          return {
-            output: browserSearchRows({
-              bookmarks,
-              history,
-              tabs,
-              profileKey,
-              t,
-              limit: BROWSER_FETCH_LIMIT,
-            }),
-          };
+          return { ok: true, profileKey, bookmarks, history, tabs };
         })
-        .then((emission) => {
+        .then((result) => {
           if (cancelled || generation !== browserRequest.current) return;
-          setBrowserEmission(emission);
+          setBrowserFetch(result);
         })
         .catch(() => {
           if (cancelled || generation !== browserRequest.current) return;
-          setBrowserEmission(status("browser-empty", "launcher.browserEmpty"));
+          setBrowserFetch({ ok: false, statusId: "browser-empty", statusKey: "launcher.browserEmpty" });
         });
     }, CATALOG_SEARCH_DELAY);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [browserMode, browserEnabled, t]);
+    // The filter, the switch and the language own the fetch; the needle does
+    // not — it is applied in the memo below.
+  }, [browserKind, browserEnabled, t]);
+
+  // R28 · the merge, the group ceilings and the soft landings are the plugin's
+  // own output rules (see `plugins/browser/mode.ts`); this hook hands the three
+  // fetched sources over and reads back a view. R32 · the needle and the
+  // configured search field are applied here, in memory.
+  const browserEmission = useMemo<PluginEmission | null>(() => {
+    if (!browserMode) return null;
+    if (!browserEnabled) {
+      // R26-D · the plugin is switched off. The mode word is still parseable (a
+      // stale query can carry `browser `), but nothing is fetched and one
+      // disabled line says why — soft-closed, not an error.
+      return {
+        output: [browserStatusRow("browser-disabled", "launcher.browserDisabled", t)],
+      };
+    }
+    if (!browserFetch) return null;
+    if (!browserFetch.ok) {
+      return { output: [browserStatusRow(browserFetch.statusId, browserFetch.statusKey, t)] };
+    }
+    return {
+      output: browserSearchRows({
+        bookmarks: browserFetch.bookmarks,
+        history: browserFetch.history,
+        tabs: browserFetch.tabs,
+        profileKey: browserFetch.profileKey,
+        t,
+        limit: BROWSER_FETCH_LIMIT,
+        needle: browserMode.needle,
+        searchField: browserSearchField,
+      }),
+    };
+  }, [browserMode, browserEnabled, browserFetch, browserSearchField, t]);
 
   // R27 · clipboard result mode — the browser mode's twin, over the clipboard
   // history the panel shows. R31 · like the browser mode, the request arrives

@@ -2,6 +2,8 @@
 // filtering, previews and compact ages. Kept free of React and IPC so the
 // node test suite can exercise it directly (see tests/clipboard-history.test.ts).
 
+import { matchesTokens, searchTokens } from "./plugins/search.ts";
+
 export type ClipboardEntry = {
   id: string;
   /** "text" | "image" | "files" */
@@ -59,30 +61,44 @@ export const normalizeEntries = (rows: unknown): ClipboardEntry[] => {
 };
 
 /**
- * Case-insensitive substring filter over the panel's search line. Text entries
- * match on their content; files entries on any stored path (a basename is a
- * substring of its own path); image entries match a stored caption (an
- * image+text copy stores one image entry whose `text` is the caption) and a
- * bare image — nothing to say about it but its name — still answers to that
- * name in either UI language. Filtering only decides which rows are kept; an
- * image entry never turns into text because of its caption.
+ * The strings one clipboard entry can be searched through. Text entries match on
+ * their content; files entries on any stored path (a basename is a substring of
+ * its own path); image entries match a stored caption (an image+text copy stores
+ * one image entry whose `text` is the caption) and a bare image — nothing to say
+ * about it but its name — still answers to that name in either UI language.
+ * Filtering only decides which rows are kept; an image entry never turns into
+ * text because of its caption.
+ */
+export const clipboardEntrySearchFields = (entry: ClipboardEntry): string[] => {
+  const fields: string[] = [];
+  if (entry.kind === "files") {
+    fields.push(...(entry.paths ?? []));
+  } else if (entry.text) {
+    fields.push(entry.text);
+  }
+  if (entry.kind === "image") fields.push("image", "img", "图片");
+  return fields;
+};
+
+/**
+ * R32 · case-insensitive AND filter over the panel's search line.
+ *
+ * The line is split on whitespace and **every** token must be found in one of
+ * the entry's own fields (see {@link clipboardEntrySearchFields}); `hello world`
+ * now finds an entry that contains both words rather than only the literal
+ * phrase. An empty line is no filter at all. The rule itself lives in
+ * `plugins/search.ts`, so the launcher's clipboard mode and this panel filter
+ * identically.
  */
 export const filterClipboardEntries = (
   entries: ClipboardEntry[],
   query: string,
 ): ClipboardEntry[] => {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return entries.slice();
-  return entries.filter((entry) => {
-    if (entry.kind === "files") {
-      return (entry.paths ?? []).some((path) => path.toLowerCase().includes(needle));
-    }
-    // Text content, or an image's caption.
-    if ((entry.text ?? "").toLowerCase().includes(needle)) return true;
-    return entry.kind === "image"
-      ? ["image", "img", "图片"].some((word) => word.includes(needle))
-      : false;
-  });
+  const tokens = searchTokens(query);
+  if (!tokens.length) return entries.slice();
+  return entries.filter((entry) =>
+    matchesTokens(tokens, clipboardEntrySearchFields(entry)),
+  );
 };
 
 const IMAGE_PREVIEW_MAX = 60;

@@ -406,6 +406,62 @@
    R21: the sides and the top keep that 4u inset; only the bottom is 2u, because
    the last row's own half-leading already supplies the rest of that breath —
    see the R21 note on the padding below. */
+/* R32 · the browser mode's range filter — 全部 / 书签 / 历史 / Tab.
+
+   The user asked for a filter row that Tab and a click can switch, in a place
+   that costs no result row. It is a compact subline under the field, drawn for
+   the whole browser scope: a fixed piece of chrome, so it is charged by the
+   band table (`LAUNCHER_FILTER_UNITS`) and can never resize the window as the
+   list under it filters. The four labels are the plugin's own scope words, so
+   the chips and the grouped rows name the same things the same way.
+
+   The row spends no accent budget: the inactive chip is muted text, the active
+   one is the primary text colour with a heavier weight and an underline. That
+   is the same "state, not primary action" treatment the segmented controls use
+   (`--glass-raised-quiet`), expressed in type instead of a fill. */
+.launcher-filter {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 14);
+  min-height: calc(var(--u) * 24);
+  padding: 0 calc(var(--u) * 16);
+  /* The breath below the subline; the 4u above it is the field row's own
+     `margin-bottom` (see `.collapsed-card__input-row`). */
+  margin-bottom: calc(var(--u) * 4);
+  user-select: none;
+}
+
+.launcher-filter__chip {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 0 calc(var(--u) * 2);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-muted);
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+}
+
+.launcher-filter__chip:hover {
+  color: var(--text-secondary);
+}
+
+.launcher-filter__chip--active {
+  color: var(--text-primary);
+  font-weight: 640;
+  border-bottom-color: var(--text-primary);
+}
+
+.launcher-filter__chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
 .launcher-bottom {
   position: relative;
   z-index: 1;

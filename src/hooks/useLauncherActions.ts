@@ -78,6 +78,11 @@ export function useLauncherActions(options: {
    *  The mode is App state now, so the row hands it over rather than rewriting
    *  the query to a trigger word the hook would have to parse back. */
   enterPluginMode: (mode: ActivePluginMode) => void;
+  /** R32 · whether the browser mode owns the field, so Tab cycles its range
+   *  filter instead of moving focus into the card. */
+  browserScope: boolean;
+  /** R32 · step through the browser filter (`1` forward, `-1` back). */
+  cycleBrowserFilter: (direction: 1 | -1) => void;
   isComposing: RefObject<boolean>;
   actionBar: ActionBar | null;
   shortcuts: ShortcutMap;
@@ -137,6 +142,8 @@ export function useLauncherActions(options: {
     refreshTerminalSessions,
     openPluginPage,
     enterPluginMode,
+    browserScope,
+    cycleBrowserFilter,
     isComposing,
     actionBar,
     shortcuts,
@@ -658,6 +665,16 @@ export function useLauncherActions(options: {
       // launcher list is still visible underneath, but the action is a
       // deliberate two-step gesture and stray typing must not run anything.
       if (event.key !== "Tab") event.preventDefault();
+      return;
+    }
+
+    // R32 · in the browser mode Tab is the range filter's cycle key, in both
+    // directions. It runs before the command-completion Tab below because a
+    // browser row is never a command row; and it runs before the Shift+Tab
+    // focus escape so the field keeps the keyboard for the whole cycle.
+    if (event.key === "Tab" && browserScope) {
+      event.preventDefault();
+      cycleBrowserFilter(event.shiftKey ? -1 : 1);
       return;
     }
 

@@ -141,8 +141,8 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherHeight = launcherBandHeight\(\s*launcherBand,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*\);/,
-    "the window height is the band's, never above the full slab, with the bar and the section title charged only when they are drawn",
+    /const launcherHeight = launcherBandHeight\(\s*launcherBand,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*launcherScope === "browser",\s*\);/,
+    "the window height is the band's, never above the full slab, with the bar, the section title and the browser filter charged only when they are drawn",
   );
   assert.match(
     app,

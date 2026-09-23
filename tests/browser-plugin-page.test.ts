@@ -25,6 +25,7 @@ import {
   isKnownTarget,
   isMacUserAgent,
   normalizeBrowserSettings,
+  normalizeBrowserSearchField,
   normalizeBrowserSortOrder,
   normalizeCdpPort,
   normalizeProfiles,
@@ -303,6 +304,7 @@ test("settings normalize to what the backend will store", () => {
     cdp_enabled: false,
     cdp_port: DEFAULT_CDP_PORT,
     sort_order: "relevance",
+    search_fields: "all",
   });
   const settings = normalizeBrowserSettings({
     target: "brave",
@@ -325,6 +327,14 @@ test("settings normalize to what the backend will store", () => {
   assert.equal(normalizeBrowserSettings({ sort_order: "visits" }).sort_order, "visits");
   assert.equal(normalizeBrowserSettings({ sort_order: "sideways" }).sort_order, "relevance");
   assert.equal(normalizeBrowserSortOrder(undefined), "relevance");
+  // R32: the search-field setting defaults to `all` (title or URL) and every
+  // other spelling normalizes to it, so a hand-edited file cannot make the
+  // search match nothing.
+  assert.equal(normalizeBrowserSettings({}).search_fields, "all");
+  assert.equal(normalizeBrowserSettings({ search_fields: "title" }).search_fields, "title");
+  assert.equal(normalizeBrowserSettings({ search_fields: "URL" }).search_fields, "url");
+  assert.equal(normalizeBrowserSettings({ search_fields: "body" }).search_fields, "all");
+  assert.equal(normalizeBrowserSearchField(undefined), "all");
   // A blank directory is none, not an empty string.
   assert.equal(normalizeBrowserSettings({ custom_base_dir: "   " }).custom_base_dir, null);
   // R26-D: the plugin's switch defaults on and survives an explicit off.

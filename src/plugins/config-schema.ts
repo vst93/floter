@@ -30,9 +30,12 @@ import {
   DEFAULT_CLIPBOARD_MAX_ITEMS,
 } from "../clipboard-history.ts";
 import {
+  BROWSER_SEARCH_FIELDS,
   BROWSER_SORT_ORDERS,
+  DEFAULT_BROWSER_SEARCH_FIELD,
   DEFAULT_CDP_PORT,
   MAX_HISTORY_DAYS,
+  type BrowserSearchField,
   type BrowserSortOrder,
 } from "../browser-page.ts";
 import type { MessageKey } from "../i18n.ts";
@@ -194,6 +197,18 @@ export const browserConfigSchema = (
           labelKey: SORT_ORDER_KEYS[order],
         })),
       },
+      {
+        // R32 · which fields the launcher's browser search matches. The
+        // clipboard mode deliberately does not read it (no URLs to search).
+        key: "search_fields",
+        type: "radio",
+        labelKey: "plugins.config.searchFields",
+        helpKey: "plugins.config.searchFieldsHint",
+        options: BROWSER_SEARCH_FIELDS.map((field) => ({
+          value: field,
+          labelKey: SEARCH_FIELD_KEYS[field],
+        })),
+      },
       { key: "cdp_enabled", type: "toggle", labelKey: "plugins.config.cdpEnabled", helpKey: "plugins.config.cdpEnabledHint" },
       {
         key: "cdp_port",
@@ -215,6 +230,13 @@ const SORT_ORDER_KEYS: Record<BrowserSortOrder, MessageKey> = {
   recent: "settings.browserSortRecent",
   alphabetical: "settings.browserSortAlphabetical",
   visits: "settings.browserSortVisits",
+};
+
+/** The i18n key each search field prints. */
+const SEARCH_FIELD_KEYS: Record<BrowserSearchField, MessageKey> = {
+  all: "plugins.config.searchFieldsAll",
+  title: "plugins.config.searchFieldsTitle",
+  url: "plugins.config.searchFieldsUrl",
 };
 
 /** Resolve a plugin id to its schema. `null` for a plugin that has no
@@ -348,6 +370,7 @@ export const configDefaults = (
     custom_base_dir: null,
     history_days: 30,
     sort_order: "relevance",
+    search_fields: DEFAULT_BROWSER_SEARCH_FIELD,
     cdp_enabled: false,
     cdp_port: DEFAULT_CDP_PORT,
   });
