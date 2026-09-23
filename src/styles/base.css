@@ -1432,12 +1432,17 @@ html:not([data-glass]) {
   padding: calc(var(--u) * 10);
 }
 
-/* Not flush: the focused card draws its ring and shadow outward, and with no
-   padding the window edge clips them — corners first. 4px is enough for the
-   ring plus the contact shadow. `syncLauncherHeight` adds this padding back
-   into the window height it requests, so the card keeps its full size. */
+/* R46 · 4px → 10px, the panels' own margin. The three surfaces are the same
+   window swapping its body, so the card's distance to the window edge has to
+   be one number: at 4px the launcher card also had to *drop* the ambient cast
+   the panels carry (see the block below), and the launcher read as the one
+   surface on Linux without a frame shadow. The 4px rationale — "the focused
+   card draws its ring and shadow outward" — is already satisfied by 10px, and
+   `syncLauncherHeight` adds this padding back into the window height it asks
+   for, so the card keeps its full size and only the shadow's landing room
+   grows. The focused state (below) still adds the accent ring on top. */
 .platform-linux .collapsed-shell {
-  padding: calc(var(--u) * 4);
+  padding: calc(var(--u) * 10);
 }
 
 .platform-linux .collapsed-card,
@@ -1450,9 +1455,11 @@ html:not([data-glass]) {
     inset 0 -1px 0 var(--edge-shadow);
 }
 
-.platform-linux .collapsed-card {
-  box-shadow: inset 0 1px 0 var(--edge-highlight), inset 0 -1px 0 var(--edge-shadow);
-}
+/* R46 · the launcher used to override this group rule with the inset strokes
+   alone, so the one surface that swaps in and out of the same window was also
+   the only one with no cast shadow at rest. The override is gone: the resting
+   launcher card draws the panels' own cast, and the focused rule below is what
+   marks the focus (the accent ring), not the presence of a shadow. */
 
 .platform-linux .collapsed-card:focus-within {
   box-shadow:

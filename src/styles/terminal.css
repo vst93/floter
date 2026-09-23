@@ -83,7 +83,14 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 0 7px;
+  /* R46 · 7px → 12px. The bar's own inset was the one horizontal value in the
+     terminal that did not match the surface's chrome step: the copy notice,
+     the settings strip, the resident/exit note and the feedback toast all
+     inset 12px from the panel's edge (their number, not the canvas's — the
+     canvas keeps the user's own `terminal_padding`). The toolbar buttons and
+     the hover-revealed identity now start on that same line, so the bar reads
+     as part of the terminal's chrome rather than as a second rhythm. */
+  padding: 0 12px;
   cursor: grab;
   user-select: none;
   background: transparent;

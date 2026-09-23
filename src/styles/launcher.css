@@ -601,7 +601,9 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 8);
-  padding: 0 calc(var(--u) * 10);
+  /* R46 · 10u → 12u: the panel's 4u + this 12u is the launcher's 16u text
+     column (see `.launcher-result`). */
+  padding: 0 calc(var(--u) * 12);
   border-radius: var(--radius-sm);
   background: var(--system-icon-surface);
   color: var(--text-warning);
@@ -664,7 +666,8 @@
   min-height: calc(var(--u) * 30);
   display: flex;
   align-items: center;
-  padding: 0 calc(var(--u) * 10);
+  /* R46 · the same 4u + 12u = 16u column as every other panel block. */
+  padding: 0 calc(var(--u) * 12);
   color: var(--text-muted);
   font-size: var(--text-body);
   font-weight: 500;
@@ -679,7 +682,7 @@
   align-items: center;
   justify-content: space-between;
   gap: calc(var(--u) * 8);
-  padding: calc(var(--u) * 4) calc(var(--u) * 10) calc(var(--u) * 4) calc(var(--u) * 12);
+  padding: calc(var(--u) * 4) calc(var(--u) * 16);
   /* ROUND-PASS exception: a dismissible first-run callout is a message
      surface, not a control, and its height is content-driven. It keeps the
      ladder's control step (raised to 9px this round). */
@@ -775,7 +778,8 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 8);
-  padding: 0 calc(var(--u) * 10);
+  /* R46 · the alert rows share the panel's 16u column (see `.launcher-result`). */
+  padding: 0 calc(var(--u) * 12);
   border-radius: var(--radius-sm);
   background: var(--system-icon-surface);
   color: var(--text-warning);
@@ -914,7 +918,7 @@
      is what multiplies them by `--u`, so the scale knob keeps its one owner. */
   min-height: calc(var(--u) * var(--plugin-text-min));
   max-height: calc(var(--u) * var(--plugin-text-max));
-  padding: calc(var(--u) * 8) calc(var(--u) * 11);
+  padding: calc(var(--u) * 8) calc(var(--u) * 12);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -927,7 +931,13 @@
 }
 
 .launcher-section-title {
-  padding: 6px 11px 4px;
+  /* R46 · the last literal of the launcher's column. The title labels the rows
+     under it, so its inset is the rows' 12u — and it has to *scale* with them,
+     or the one column R46 unified would come apart again at the Large/Larger
+     steps (the title's font is already on the knob, so its box had the one
+     half-scaled padding pair in the column). Pixels at the default step are
+     unchanged: 6px/12px/4px. */
+  padding: calc(var(--u) * 6) calc(var(--u) * 12) calc(var(--u) * 4);
   /* PAGES-APPLY · the app's group-title language. SETTINGS-APPLE retired the
      uppercase 10px caption on the settings pages ("a caption reads as
      metadata; the reference labels groups with a title"); the launcher was the
@@ -963,7 +973,16 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 10);
-  padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
+  /* R46 · the launcher's text column is the query's own 16u (the window band's
+     inset, R37), and the sunken panel already contributes 4u of its own inset
+     — so every block *inside* the panel pads 12u and lands on that column (the
+     pagination footer already did). The row family (this rule,
+     `.launcher-status`, `.launcher-action-bar`), the group title and the
+     alert rows carried 11px/9px/10px, i.e. 15px/13px/14px from the card
+     edge: the titles, the icons and the ⌘N badges sat 1-3px off the line the
+     query text and the filter chips start on. Only the inner box moves — the
+     panel's 4u still keeps a selected row's tint off the panel's edge. */
+  padding: 0 calc(var(--u) * 12);
   /* ROUND-PASS exception: a result row is content, not a control. It scrolls
      with the list it belongs to, so it keeps the ladder's container step
      (--radius-md, raised to 12px this round) rather than the pill. */
@@ -1211,7 +1230,7 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 10);
-  padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
+  padding: 0 calc(var(--u) * 12);
   min-height: calc(var(--u) * 30);
   color: var(--text-muted);
   font-size: var(--text-body);
@@ -1280,7 +1299,7 @@
      in it is gone, so the row is separated from the list above by the card's
      own material, exactly like the field above it. */
   margin-top: calc(var(--u) * 3);
-  padding: 0 calc(var(--u) * 9) 0 calc(var(--u) * 11);
+  padding: 0 calc(var(--u) * 12);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);

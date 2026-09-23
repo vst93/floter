@@ -184,7 +184,13 @@ const SAMPLES: [string, string, string, string][] = [
   ["src/styles/base.css", "::-webkit-scrollbar", "width", "6px"],
   ["src/styles/base.css", ".platform-windows .collapsed-shell", "padding", "4px 10px 12px 4px"],
   ["src/styles/base.css", ".platform-windows .terminal-shell", "padding", "10px"],
-  ["src/styles/base.css", ".platform-linux .collapsed-shell", "padding", "4px"],
+  // R46 · 4px → 10px: the launcher card's margin to the window edge is the
+  // panels' own 10u, and with it the launcher also stops dropping the frame
+  // shadow the settings/terminal panels carry on Linux. The three shells are
+  // the same window swapping its body, so the margin is one number; the
+  // sample's value moves with the convergence (the pinned *pixels* stay the
+  // round's subject — see the R46 audit report for the cross-surface table).
+  ["src/styles/base.css", ".platform-linux .collapsed-shell", "padding", "10px"],
   // launcher.css
   // R22 · the field's row was 56px for eleven rounds and became 48px: the row's
   // only content is the field's 22px line box, so 56px left ~17px of dead height
@@ -202,9 +208,13 @@ const SAMPLES: [string, string, string, string][] = [
   ["src/styles/launcher.css", ".collapsed-card__input", "min-height", "22px"],
   ["src/styles/launcher.css", ".collapsed-card__settings", "width", "28px"],
   ["src/styles/launcher.css", ".launcher-result", "height", "42px"],
-  ["src/styles/launcher.css", ".launcher-action-bar", "padding", "0 9px 0 11px"],
+  // R46 · the row family's inner box moved onto the launcher's 16u text column
+  // (the panel's own 4u + this 12u); the row/status/action-bar trio and the
+  // group title all carry one inset now. The pinned pixels below are the new
+  // value, and the height above is unchanged — this round moves insets only.
+  ["src/styles/launcher.css", ".launcher-action-bar", "padding", "0 12px"],
   ["src/styles/launcher.css", ".launcher-action-bar", "margin-top", "3px"],
-  ["src/styles/launcher.css", ".launcher-tip", "padding", "4px 10px 4px 12px"],
+  ["src/styles/launcher.css", ".launcher-tip", "padding", "4px 16px"],
   ["src/styles/launcher.css", ".launcher-action-bar__hint", "padding", "2px 6px"],
   // settings.css
   ["src/styles/settings.css", ".settings-card__header", "height", "56px"],
@@ -233,8 +243,11 @@ const DEFERRED: [string, string, string, string, string][] = [
   ["src/styles/settings.css", ".session-manager__row", "min-height", "56px", "pinned by pages-apply.test.ts (session row floor)"],
   ["src/styles/settings.css", ".session-manager > .settings-empty", "min-height", "160px", "page-scoped placeholder floor, pair of the 92px above"],
   ["src/styles/settings.css", ".settings-page", "max-width", "640px", "pinned by settings-apple.test.ts (content column)"],
-  ["src/styles/launcher.css", ".launcher-section-title", "padding", "6px 11px 4px", "pinned by pages-apply.test.ts (group-title padding)"],
-  // A family of reading measures. They are content widths, not control
+  // R46 · the group title left the deferral list: it is the one launcher inset
+  // this round moved onto the 16u column, and a literal would have kept that
+  // alignment only at the default step (its font was already on the knob, so
+  // the padding was the column's one half-scaled pair). `pages-apply.test.ts`
+  // pins its shape, not the literal.  // A family of reading measures. They are content widths, not control
   // geometry; leg 3 converts them together so the 640/720/320/220 relation
   // stays one decision.
   ["src/styles/settings.css", ".settings-page--wide", "max-width", "720px", "wide-page reading measure"],

@@ -75,26 +75,38 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use terminal::session::TerminalManager;
 
 const INPUT_WINDOW_WIDTH: f64 = 720.0;
-/// Height of the launcher card as CSS lays it out: a 56px input row plus the
-/// card's top and bottom border. Windows additionally needs the shell padding
-/// that gives the card's box-shadow room outside it (`.platform-windows
-/// .collapsed-shell`: 4px top + 12px bottom). Allocating less than this clips
-/// the bottom of the input row until the frontend's first resize lands.
-#[cfg(not(target_os = "windows"))]
-const INPUT_WINDOW_HEIGHT: f64 = 58.0;
+/// Height of the launcher card as CSS lays it out, plus the shell padding that
+/// gives the card's box-shadow room outside it (`base.css`'s platform blocks).
+/// Allocating less than this clips the card until the frontend's first resize
+/// lands, so each platform states its own sum at `--ui-scale: 1`:
+///
+///   * macOS (and any other non-Windows/Linux target) — 58px: a 56px input row
+///     plus the card's 1px top and bottom border, and no shell padding (the
+///     window server owns the frame there, see `set_shadow(true)` below);
+///   * Linux — 78px: the same 58px card in the shell's 10px top + 10px bottom
+///     gutter (`R46`; it was 4px + 4px, i.e. 66, before the launcher's margin
+///     was converged on the panels' own 10u);
+///   * Windows — 72px: a borderless 56px card (`.platform-windows
+///     .collapsed-card` paints its edge as an inset stroke, not a border) in
+///     the shell's documented asymmetric 4px top + 12px bottom gutter.
 #[cfg(target_os = "windows")]
 const INPUT_WINDOW_HEIGHT: f64 = 72.0;
+#[cfg(target_os = "linux")]
+const INPUT_WINDOW_HEIGHT: f64 = 78.0;
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+const INPUT_WINDOW_HEIGHT: f64 = 58.0;
 
 /// The launcher's fallback height for the current interface-size step.
 ///
 /// `INPUT_WINDOW_HEIGHT` is a **scale-1** measurement, exactly like the CSS box
 /// values R7-13b tokenized: the collapsed card's input row, its border and the
-/// Windows shell padding are all written as `calc(var(--u) * N)` and therefore
-/// grow with `--ui-scale`. The frontend measures the real height on the first
-/// resize, but the native reset paths run *before* that measurement lands, so
-/// they must scale the baseline themselves or the window would open at the old
-/// step's height and be corrected a frame later (a visible jump, and the exact
-/// blank-space bug the reset exists to prevent).
+/// shell padding that gives it shadow room are all written as
+/// `calc(var(--u) * N)` and therefore grow with `--ui-scale`. The frontend
+/// measures the real height on the first resize, but the native reset paths run
+/// *before* that measurement lands, so they must scale the baseline themselves
+/// or the window would open at the old step's height and be corrected a frame
+/// later (a visible jump, and the exact blank-space bug the reset exists to
+/// prevent).
 ///
 /// The step is read from the settings file on demand rather than cached: a
 /// reset can happen at any time and the user changes the step in settings, so

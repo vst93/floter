@@ -239,7 +239,12 @@ test("the launcher group title is a title, not an uppercase caption", async () =
   // The heading still cannot reflow the list below it: its box is its own line
   // box plus one padding pair.
   assert.match(title, /line-height:\s*1\.4/, "an explicit line box");
-  assert.match(title, /padding:\s*6px 11px 4px/, "the pinned padding");
+  // R46 · the leading inset is the launcher's 16u text column (the group title
+  // sits in the same column as the rows' icon plates; the panel's own 4u plus
+  // this 12u), and it is now written in units so the label and the rows it
+  // labels stay on one line at every interface step. The pin is the *shape*
+  // (its own line box plus one padding pair), not the old literal.
+  assert.match(title, /padding:\s*calc\(var\(--u\) \* 6\) calc\(var\(--u\) \* 12\) calc\(var\(--u\) \* 4\)/, "the pinned padding");
   // And the class is still the shared one the launcher's own tests name.
   assert.match(stripJsComments(await read("src/launcher/LauncherResults.tsx")), /launcher-section-title/);
 });

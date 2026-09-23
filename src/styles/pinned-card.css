@@ -16,7 +16,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  /* R46 · `--radius-lg` → `--window-radius`. The ladder documents --radius-lg
+     as "the window / a full panel", but only `--window-radius` follows the
+     platform's own frame (`--window-radius: 8px` on Windows, where DWM rounds
+     an app window at 8). The card is the terminal's own surface in the hand,
+     so on Windows it carried a 14px corner inside an 8px window: a nested
+     corner wider than the frame it floats in. Identical on macOS/Linux. */
+  border-radius: var(--window-radius);
   border: 1px solid var(--input-stroke);
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
@@ -44,7 +50,13 @@
   align-items: center;
   gap: 7px;
   height: 28px;
-  padding: 0 6px 0 10px;
+  /* R46 · 6/10 → 12/12. The card is the terminal's own surface popped out, and
+     this is the terminal bar's band (28px, session dot, title, close) in its
+     material form — so it takes the bar's inset too (12px, the terminal
+     chrome's own step: the copy notice, the settings strip, the exit note and
+     the feedback toast all sit on it). 6px trailing is what the 20px close
+     button wants, not what the band wants; the box inset is the shared fact. */
+  padding: 0 12px;
   cursor: grab;
   user-select: none;
   background:
@@ -86,8 +98,12 @@
 }
 
 .pinned-card__dot {
-  width: 6px;
-  height: 6px;
+  /* R46 · 6px → 7px: the same live-session dot the terminal bar draws, and it
+     should be the same box in both bands. (The bar's copy adds the accent halo
+     and the pulse — that is the bar's liveness cue, not an elevation rung; this
+     card's marker stays static and keeps its 0.85.) */
+  width: 7px;
+  height: 7px;
   flex: none;
   border-radius: 50%;
   background: var(--accent);

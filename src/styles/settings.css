@@ -48,7 +48,12 @@
   align-items: center;
   justify-content: space-between;
   gap: calc(var(--u) * 10);
-  padding: 0 calc(var(--u) * 10) 0 calc(var(--u) * 16);
+  /* R46 · the trailing inset is the leading one. The header is the same 56u
+     window band as the launcher's field row (R37), and the launcher's trailing
+     control is the field row's own 16u — so the top-right control sat 6u
+     further out here and moved when the user flipped between the two surfaces.
+     One band, one inset on each side; the two header buttons move 6u left. */
+  padding: 0 calc(var(--u) * 16);
   background: linear-gradient(180deg, var(--sheen-top), transparent);
 }
 
@@ -124,7 +129,11 @@
   width: 100%;
   min-width: 0;
   min-height: calc(var(--u) * 34);
-  padding: 0 calc(var(--u) * 9);
+  /* R46 · 9u → 8u. The sidebar column pads 8u (above), so 8u + 8u is the
+     card's 16u text column — the same line the header title and the launcher's
+     field/chips/row icons sit on. At 9u the first glyph of every sidebar row
+     was 1u right of the title above it. */
+  padding: 0 calc(var(--u) * 8);
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 8);
