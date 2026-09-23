@@ -47,7 +47,6 @@ export type PluginConfigOverlayProps = {
    *  it to refetch the entries its list is holding, so clearing the history
    *  from here empties the mode behind the overlay too. */
   onActionComplete?: (key: string) => void;
-  onClose: () => void;
 };
 
 /** The schema-shaped values for one plugin, read from the backend. */
@@ -75,7 +74,6 @@ export function PluginConfigOverlay({
   onChangeGeneralSetting,
   onBrowserSettingsChange,
   onActionComplete,
-  onClose,
 }: PluginConfigOverlayProps) {
   const [context, setContext] = useState<PluginConfigContext>({});
   const schema = useMemo(() => pluginConfigSchema(pluginId, context), [pluginId, context]);
@@ -208,26 +206,11 @@ export function PluginConfigOverlay({
     >
       <div className="plugin-config__header">
         <span className="plugin-config__title">{t(schema.titleKey)}</span>
-        <button
-          type="button"
-          className="plugin-config__close"
-          aria-label={t("plugins.config.close")}
-          title={t("plugins.config.close")}
-          onClick={onClose}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
+        {/* R41 · the overlay carries no close button of its own. The field
+            row's trailing control flips to an X while this panel is open
+            (`App.tsx`), so there is exactly one place to close it — the same
+            place it was opened from — and the panel's own chrome stays a
+            title and its fields. */}
       </div>
       <div className="plugin-config__fields">
         {schema.fields.map((field) => (

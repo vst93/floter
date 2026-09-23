@@ -1345,7 +1345,10 @@ fn open_terminal_at_with_preference(
                 }
             }
         }
-        if strip_herdr_vars(&mut command).spawn().is_ok() {
+        // R41 · detached: a terminal emulator started for a hand-off must not
+        // be in Floter's session/process group or hold its stdio, and Floter
+        // must not wait for it (it is the *user's* terminal now).
+        if crate::process_launch::spawn_detached_command(strip_herdr_vars(&mut command)).is_ok() {
             return Ok(resume_command.is_some());
         }
     }

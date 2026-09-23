@@ -59,6 +59,44 @@ export const isPluginCommandEnabled = (
 ): boolean => switches[extensionId]?.[commandId] === true;
 
 /**
+ * R41 · the words that summon a command: its id, its human name, and its
+ * declared aliases. This is the *one* vocabulary the launcher's trigger parser
+ * and the integrations panel both read, so the words the panel prints are
+ * exactly the words that enter the mode.
+ *
+ * R39 matched only the id and the aliases while the panel printed (and the hint
+ * told the user to type) the command's **name**. For the doc's own example
+ * (`id: "search"`, `name: "Search"`) the two coincided under case folding and
+ * the bug hid; for any plugin whose name is not its id — `id: "acme.search"`,
+ * `name: "Search Acme"` — flipping the switch on changed nothing the user could
+ * see, because the word they typed was never in the vocabulary. Including the
+ * name closes that gap.
+ *
+ * The list is de-duplicated case-insensitively (id and name are often the same
+ * word in different case) and blank entries are dropped, so the panel's
+ * "summon with" line never repeats itself.
+ *
+ * Each source word is reduced to its **first whitespace-separated token**,
+ * because that is all the shared trigger split (`splitTriggerWord`) compares:
+ * the mode is entered by one word followed by a space, so a multi-word display
+ * name (`"Search Acme"`) is summonable as `search`, and the panel prints
+ * `search` — the word that actually works — rather than the full name the user
+ * cannot type as a trigger.
+ */
+export const pluginCommandTriggers = (command: ExternalPluginCommand): string[] => {
+  const seen = new Set<string>();
+  const triggers: string[] = [];
+  for (const source of [command.commandId, command.name, ...command.aliases]) {
+    const word = source.trim().split(/\s+/)[0] ?? "";
+    const key = word.toLowerCase();
+    if (!word || seen.has(key)) continue;
+    seen.add(key);
+    triggers.push(word);
+  }
+  return triggers;
+};
+
+/**
  * The commands the user has enabled — the launcher's whole view of external
  * plugins. A plugin with no enabled command contributes nothing here, so it is
  * never summonable: 「未开任何命令的插件不出现」.
@@ -94,6 +132,10 @@ export const pluginHasEnabledCommand = (
  * must already be the **enabled** subset — the gate is the caller's, so a
  * disabled command simply has no entry here and its trigger word falls through
  * to the ordinary search page.
+ *
+ * R41 · the matched vocabulary is {@link pluginCommandTriggers}: id, name and
+ * aliases. The panel prints the same list, so "type the command name" and "the
+ * launcher accepts the command name" are the same sentence.
  */
 export const externalPluginModeEntry = (
   value: string,
@@ -104,10 +146,10 @@ export const externalPluginModeEntry = (
   const split = splitTriggerWord(value);
   if (!split) return null;
   const { word, rest } = split;
-  const command = commands.find(
-    (candidate) =>
-      candidate.commandId.toLowerCase() === word ||
-      candidate.aliases.some((alias) => alias.toLowerCase() === word),
+  const command = commands.find((candidate) =>
+    pluginCommandTriggers(candidate).some(
+      (trigger) => trigger.toLowerCase() === word,
+    ),
   );
   if (!command) return null;
   return {

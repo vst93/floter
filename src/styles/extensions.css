@@ -2258,30 +2258,65 @@
   display: grid;
 }
 
-.extension-command-list > div {
+.extension-command-list > .extension-command-list__row {
   min-width: 0;
   display: grid;
-  /* R39 · the fourth column is the per-command launcher switch. It is `auto`
-     (a fixed 34u control), so the three text columns keep the widths they had
-     and a command without a switch simply leaves the cell empty. */
-  grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1.3fr) minmax(110px, 0.8fr) auto;
   gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--hairline);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--ext-radius);
+  background: var(--glass-control);
 }
 
-/* R39 · the command row's launcher switch sits at the row's trailing edge,
-   vertically centred with the alias editor it follows. */
-.extension-command-list > div > .settings-switch {
-  align-self: center;
-  justify-self: end;
+/* R41 · a command whose launcher switch is off is dimmed as a whole, so the
+   row's state is readable before the switch itself is found. It is a
+   de-emphasis, not a disable: the alias editor and the switch stay live, and
+   only the text loses weight. */
+.extension-command-list > .extension-command-list__row--off {
+  opacity: 0.62;
 }
 
-/* R7-11: the alias editor for one connected command. It sits in the command
-   list's own third column, so the input is visually attached to the command it
-   aliases rather than parked in a separate settings surface. The input follows
-   the container's radius (it is nested, not floating) and its label is the
-   caption tier, matching the description cell beside it. */
+.extension-command-list > .extension-command-list__row:last-child {
+  margin-bottom: 0;
+}
+
+/* R41 · the identity line: the command's name/description/trigger words on the
+   left, the launcher switch on the right. `flex` rather than the old four-column
+   grid so the switch never steals width from the text and the alias editor
+   below gets the card's whole width. */
+.extension-command-list__head {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.extension-command-list__head > .settings-switch {
+  flex: none;
+  margin-top: 2px;
+}
+
+.extension-command-list__identity {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.extension-command-list__triggers {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  opacity: 0.85;
+}
+
+/* R7-11: the alias editor for one connected command. R41 · it is the card's
+   second line now — the input spans the card rather than sharing a column with
+   the switch — so "this command, this alias" is still edited where the command
+   is named, but with a usable field width. The input follows the container's
+   radius (it is nested, not floating) and its label is the caption tier,
+   matching the description above it. */
 .extension-command-alias {
   min-width: 0;
   display: grid;
@@ -2318,7 +2353,6 @@
   line-height: 1.3;
 }
 
-.extension-command-list > div:last-child,
 .extension-diagnostics > div:last-child {
   border-bottom: 0;
 }

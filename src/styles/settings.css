@@ -841,6 +841,69 @@
   outline-offset: var(--focus-ring-offset);
 }
 
+/* R41 · the page-residency row: the select and, only for the custom entry, a
+   seconds field beside it. The wrapper is a flex line so the row grows to the
+   right of the select instead of squeezing it; the field keeps a usable width
+   and the select keeps its own pill. */
+.residency-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--u) * 6);
+  min-width: 0;
+}
+
+.residency-control__custom {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 4);
+  min-width: 0;
+}
+
+.residency-control__input {
+  width: calc(var(--u) * 72);
+  height: calc(var(--u) * 28);
+  padding: 0 calc(var(--u) * 8);
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-xs);
+  background: var(--glass-field);
+  box-shadow: var(--glass-field-shadow);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-body);
+}
+
+.residency-control__input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.residency-control__unit {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.residency-control__apply {
+  height: calc(var(--u) * 28);
+  padding: 0 calc(var(--u) * 12);
+  border: 1px solid var(--glass-control-edge);
+  border-radius: 999px;
+  background: var(--glass-control);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+
+.residency-control__apply:hover {
+  background: var(--glass-control-hover, var(--glass-control));
+}
+
+.residency-control__apply:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 /* The segmented track in a row's trailing slot: it sizes to its segments
    rather than stretching across the card, because it is a control, not a
    container. The full-width variant below is the one the theme/cursor rows

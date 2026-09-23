@@ -109,8 +109,21 @@ pub fn default_true() -> bool {
 /// `src/surface-residency.ts`; the two tables are pinned against each other by
 /// `tests/surface-residency.test.ts`, the same arrangement `UI_SCALE_STEPS`
 /// uses. The frontend owns the clock — Rust only stores and clamps the number.
+///
+/// R41 · the ceiling is no longer the last preset (30s) but the custom
+/// domain's own maximum, and [`SURFACE_RESIDENCY_NEVER_SECONDS`] is a sentinel
+/// that passes through untouched. The field stays `u32` so every settings file
+/// the earlier rounds wrote keeps deserializing.
 pub const DEFAULT_SURFACE_RESIDENCY_SECONDS: u32 = 10;
-pub const MAX_SURFACE_RESIDENCY_SECONDS: u32 = 30;
+/// R41 · the custom ceiling (one day). Matches
+/// `RESIDENCY_CUSTOM_MAX_SECONDS` in `src/surface-residency.ts`.
+pub const MAX_SURFACE_RESIDENCY_SECONDS: u32 = 86_400;
+/// R41 · "never": the surface survives any automatic dismissal until the user
+/// leaves it explicitly. The top of `u32`, so the persisted field can stay
+/// `u32` and the frontend's `RESIDENCY_NEVER_SECONDS` is the same number.
+/// The normalizer exempts it from the custom ceiling — a sentinel that got
+/// clamped to a day would silently stop being "never".
+pub const SURFACE_RESIDENCY_NEVER_SECONDS: u32 = u32::MAX;
 
 /// Serde default for `surface_residency_seconds`. Named rather than a bare
 /// `#[serde(default)]` so a settings file written before the key existed lands
@@ -427,7 +440,12 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             hotkey: DEFAULT_TOGGLE_WINDOW.to_string(),
-            hide_on_blur: true,
+            // R41 · the shipped value is still `true`, except under Hyprland,
+            // where the user asked for it to default off (a tiled desktop's
+            // focus hand-off makes blur-hide read as the panel vanishing for no
+            // reason). Only a *fresh* settings file is born from this; an
+            // existing key always wins. See `crate::hyprland`.
+            hide_on_blur: crate::hyprland::default_hide_on_blur(),
             surface_residency_seconds: DEFAULT_SURFACE_RESIDENCY_SECONDS,
             launch_at_startup: false,
             theme: "auto".to_string(),
@@ -722,9 +740,13 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     // R35 · the page-residency window. `0` is a legitimate value (the window is
     // off), so unlike the opacity sliders this does not map `0` to a default;
     // it only trims the hand-edited upper end. The floor is `0` by type.
-    settings.surface_residency_seconds = settings
-        .surface_residency_seconds
-        .min(MAX_SURFACE_RESIDENCY_SECONDS);
+    // R41 · the ceiling is the custom domain's day, and the "never" sentinel is
+    // exempt so it survives the clamp.
+    if settings.surface_residency_seconds != SURFACE_RESIDENCY_NEVER_SECONDS {
+        settings.surface_residency_seconds = settings
+            .surface_residency_seconds
+            .min(MAX_SURFACE_RESIDENCY_SECONDS);
+    }
     // R7-13c: an unknown or hand-edited step falls back to the shipped one
     // rather than to whichever variant happens to sort first — a scale the user
     // never chose must not be applied to the whole interface.
@@ -1342,15 +1364,17 @@ mod tests {
         assert_eq!(normalized.browser_plugin.search_fields, "all");
     }
 
-    /// R35 · the page-residency window. It ships at ten seconds, `0` is a
+    /// R35/R41 · the page-residency window. It ships at ten seconds, `0` is a
     /// legitimate "off" (so it must not be mapped to a default the way the
-    /// opacity clamp maps a zero), the ceiling is 30, and a settings file
-    /// written before the key existed deserializes to the shipped ten rather
-    /// than to `u32::default()` (`0`, the disabled state).
+    /// opacity clamp maps a zero), the custom ceiling is one day, the "never"
+    /// sentinel passes through untouched, and a settings file written before the
+    /// key existed deserializes to the shipped ten rather than to
+    /// `u32::default()` (`0`, the disabled state).
     #[test]
-    fn the_surface_residency_ships_at_ten_clamps_at_thirty_and_keeps_zero() {
+    fn the_surface_residency_ships_at_ten_clamps_at_a_day_and_keeps_never() {
         assert_eq!(DEFAULT_SURFACE_RESIDENCY_SECONDS, 10);
-        assert_eq!(MAX_SURFACE_RESIDENCY_SECONDS, 30);
+        assert_eq!(MAX_SURFACE_RESIDENCY_SECONDS, 86_400);
+        assert_eq!(SURFACE_RESIDENCY_NEVER_SECONDS, u32::MAX);
         assert_eq!(default_surface_residency_seconds(), 10);
         assert_eq!(
             AppSettings::default().surface_residency_seconds,
@@ -1371,14 +1395,34 @@ mod tests {
         });
         assert_eq!(off.surface_residency_seconds, 0);
 
+        // A preset and a custom value inside the day both survive.
+        for kept in [30, 120, 3_600, MAX_SURFACE_RESIDENCY_SECONDS] {
+            let normalized = normalize_settings(AppSettings {
+                surface_residency_seconds: kept,
+                ..AppSettings::default()
+            });
+            assert_eq!(normalized.surface_residency_seconds, kept);
+        }
+
         // The upper end is trimmed; the floor is `0` by type.
         let trimmed = normalize_settings(AppSettings {
-            surface_residency_seconds: 9_999,
+            surface_residency_seconds: MAX_SURFACE_RESIDENCY_SECONDS + 1,
             ..AppSettings::default()
         });
         assert_eq!(
             trimmed.surface_residency_seconds,
             MAX_SURFACE_RESIDENCY_SECONDS
+        );
+
+        // The "never" sentinel is exempt from the ceiling: it is not a long
+        // duration, it is a different state.
+        let never = normalize_settings(AppSettings {
+            surface_residency_seconds: SURFACE_RESIDENCY_NEVER_SECONDS,
+            ..AppSettings::default()
+        });
+        assert_eq!(
+            never.surface_residency_seconds,
+            SURFACE_RESIDENCY_NEVER_SECONDS
         );
     }
 

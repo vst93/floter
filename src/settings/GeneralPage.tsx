@@ -1,4 +1,5 @@
 import type { AppSettings, CursorShape } from "../App";
+import { useEffect, useState } from "react";
 import {
   UI_SCALE_STEPS,
   normalizeUiScale,
@@ -12,9 +13,12 @@ import {
   type GlassIntensity,
 } from "../glass-material";
 import {
-  RESIDENCY_MAX_SECONDS,
-  RESIDENCY_MIN_SECONDS,
+  RESIDENCY_CUSTOM_MAX_SECONDS,
+  RESIDENCY_PRESET_SECONDS,
   normalizeResidencySeconds,
+  residencyCustomSeedSeconds,
+  residencyFromSelect,
+  residencySelectValue,
 } from "../surface-residency";
 import {
   LANGUAGE_OPTIONS,
@@ -182,11 +186,110 @@ type GeneralPageProps = {
   onChangeGlassIntensity: (level: GlassIntensity) => void;
 };
 
-/** R35 · the page-residency durations the select offers, in seconds. `0` is the
- *  disabled state; the rest step up to {@link RESIDENCY_MAX_SECONDS}. A bounded
- *  preset list rather than a free number: the value is a preference between
- *  "off" and "half a minute", and every useful answer is a round number. */
-const RESIDENCY_OPTIONS = [RESIDENCY_MIN_SECONDS, 5, 10, 15, 20, RESIDENCY_MAX_SECONDS];
+/** R41 · the page-residency control. The R35 select offered six fixed steps;
+ *  the user asked for a longer ladder and a free number (「下拉项太少了……再加一个
+ *  自定义时间」). The control is the select plus an inline seconds field that
+ *  appears only for the custom entry, so the row stays one line in every other
+ *  state. The value the select *shows* is `residencySelectValue`'s pure
+ *  mapping of the stored number, never a second copy of the state. */
+function SurfaceResidencyControl({
+  t,
+  seconds,
+  onChange,
+}: {
+  t: Translate;
+  seconds: number;
+  onChange: (seconds: number) => void;
+}) {
+  const value = normalizeResidencySeconds(seconds);
+  const selectValue = residencySelectValue(value);
+  // Open when the stored value already is a custom one, so reopening the page
+  // on a custom duration shows the field it came from.
+  const [customOpen, setCustomOpen] = useState(selectValue === "custom");
+  const [draft, setDraft] = useState(() => String(residencyCustomSeedSeconds(value)));
+
+  // A value written by anything other than this field (a hand-edited file, a
+  // future page) re-seeds the draft while the field is closed; while it is
+  // open the user's own typing is the draft.
+  useEffect(() => {
+    if (!customOpen) setDraft(String(residencyCustomSeedSeconds(value)));
+  }, [value, customOpen]);
+
+  const commitCustom = () => {
+    const next = normalizeResidencySeconds(Number(draft));
+    onChange(next);
+    setDraft(String(next));
+    // A number that lands on a preset (30, 120, …) stops being "custom" and
+    // the field closes; anything else keeps the field open on the new value.
+    setCustomOpen(residencySelectValue(next) === "custom");
+  };
+
+  return (
+    <div className="residency-control">
+      <select
+        className="settings-select"
+        value={selectValue}
+        aria-label={t("settings.surfaceResidency")}
+        onChange={(event) => {
+          const choice = event.currentTarget.value;
+          if (choice === "custom") {
+            setDraft(String(residencyCustomSeedSeconds(value)));
+            setCustomOpen(true);
+            return;
+          }
+          const next = residencyFromSelect(choice);
+          if (next === null) return;
+          onChange(next);
+          setCustomOpen(false);
+        }}
+      >
+        <option value="off">{t("settings.surfaceResidencyOff")}</option>
+        {RESIDENCY_PRESET_SECONDS.map((preset) => (
+          <option key={preset} value={String(preset)}>
+            {t("settings.surfaceResidencyValue", { seconds: preset })}
+          </option>
+        ))}
+        <option value="never">{t("settings.surfaceResidencyNever")}</option>
+        <option value="custom">
+          {selectValue === "custom"
+            ? t("settings.surfaceResidencyCustomValue", { seconds: value })
+            : t("settings.surfaceResidencyCustom")}
+        </option>
+      </select>
+      {customOpen && (
+        <span className="residency-control__custom">
+          <input
+            type="number"
+            className="residency-control__input"
+            min={1}
+            max={RESIDENCY_CUSTOM_MAX_SECONDS}
+            step={1}
+            value={draft}
+            aria-label={t("settings.surfaceResidencyCustomLabel")}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitCustom();
+              }
+            }}
+          />
+          <span className="residency-control__unit">
+            {t("settings.surfaceResidencyCustomUnit")}
+          </span>
+          <button
+            type="button"
+            className="residency-control__apply"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={commitCustom}
+          >
+            {t("settings.surfaceResidencyCustomApply")}
+          </button>
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** The single glass-effect control: three segments in the shared track, the
  *  same selection language the theme/cursor pickers use (accent tint, lit top
@@ -376,42 +479,20 @@ export function GeneralPage({
           {/* R35 · the page-residency window. It sits beside `hide_on_blur`
               because the two are read together but answer different questions:
               `hide_on_blur` decides whether the *window* disappears, this one
-              decides whether the *surface* survives it. A bounded numeric
-              choice, so it uses the page's select idiom (font family) rather
-              than a fourth range: the glass page's slider census counts the
-              ranges it owns, and this setting is not one of them. */}
+              decides whether the *surface* survives it. R41 · the control is
+              the preset select plus an inline custom seconds field (see
+              `SurfaceResidencyControl`). */}
           <SettingsRow
             label={t("settings.surfaceResidency")}
             sublabel={t("settings.surfaceResidencyHint")}
             control={
-              <select
-                className="settings-select"
-                value={normalizeResidencySeconds(settings.surface_residency_seconds)}
-                aria-label={t("settings.surfaceResidency")}
-                onChange={(event) =>
-                  onChangeGeneralSetting(
-                    "surface_residency_seconds",
-                    normalizeResidencySeconds(Number(event.currentTarget.value)),
-                  )
+              <SurfaceResidencyControl
+                t={t}
+                seconds={settings.surface_residency_seconds}
+                onChange={(next) =>
+                  onChangeGeneralSetting("surface_residency_seconds", next)
                 }
-              >
-                {!RESIDENCY_OPTIONS.includes(
-                  normalizeResidencySeconds(settings.surface_residency_seconds),
-                ) && (
-                  <option value={normalizeResidencySeconds(settings.surface_residency_seconds)}>
-                    {t("settings.surfaceResidencyValue", {
-                      seconds: normalizeResidencySeconds(settings.surface_residency_seconds),
-                    })}
-                  </option>
-                )}
-                {RESIDENCY_OPTIONS.map((seconds) => (
-                  <option key={seconds} value={seconds}>
-                    {seconds === RESIDENCY_MIN_SECONDS
-                      ? t("settings.surfaceResidencyOff")
-                      : t("settings.surfaceResidencyValue", { seconds })}
-                  </option>
-                ))}
-              </select>
+              />
             }
           />
           <SettingsRow

@@ -53,11 +53,10 @@ pub fn max_cache_age() -> Option<Duration> {
 }
 
 pub fn open(path: &Path) -> Result<(), String> {
-    Command::new("open")
-        .arg(path)
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    // R41 · `open` already hands the request to LaunchServices and exits, so
+    // this was never the blocking path; it now shares the detached helper so
+    // the child is not coupled to Floter's session/stdio on any platform.
+    crate::process_launch::spawn_detached("open", &[path.as_os_str()]).map(|_| ())
 }
 
 fn collect_apps(

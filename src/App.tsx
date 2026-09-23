@@ -89,6 +89,7 @@ import { PluginTextView } from "./launcher/PluginTextView";
 import { PluginConfigOverlay } from "./plugins/PluginConfigOverlay";
 import { pluginConfigSchema } from "./plugins/config-schema";
 import { pluginViewInteractive, pluginViewPage, pluginViewRows } from "./launcher/plugin-mode";
+import { pluginFilterRowVisible } from "./launcher/filter-row";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
@@ -1150,6 +1151,16 @@ export default function App() {
       : launcherScope === "browser"
         ? BROWSER_PLUGIN_ID
         : null;
+  // R41 · whether the plugin's filter row (the browser range chips / the
+  // clipboard's six) is on screen. It belongs to the plugin *list body*, so it
+  // is hidden while the configuration overlay takes the list's place — and it
+  // is the same fact the window height charges, so the row's appearance and
+  // the band it occupies can never disagree. See `launcher/filter-row.ts`.
+  const filterRowVisible = pluginFilterRowVisible({
+    mode,
+    scope: launcherScope,
+    configOpen: pluginConfigOpen && launcherPluginId !== null,
+  });
   // R33 · ref mirror for the once-registered plugin-request listener: the
   // hotkey's toggle has to know whether the overlay is already open for this
   // very plugin before deciding to close it instead of opening it again.
@@ -1625,7 +1636,10 @@ export default function App() {
     // R38 · the clipboard mode draws the same subline (its own six chips), so
     // it is charged by the same constant — the window must not resize when the
     // chips appear or when a chip switches the list under them.
-    launcherScope === "browser" || launcherScope === "clipboard",
+    // R41 · the charge follows the row's *visibility*, not the scope: while the
+    // plugin's configuration overlay is open the chips are not drawn, so
+    // reserving their band would leave 28u of glass under the overlay.
+    filterRowVisible,
   );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
@@ -2642,11 +2656,17 @@ export default function App() {
                 // that opens its generic configuration overlay. The sessions
                 // entry (the terminal list) is not a plugin action and is gone
                 // here; outside a mode the two buttons are exactly as before.
+                // R41 · the button is the overlay's *only* close control: it
+                // flips from the gear (open) to an X (close) while the overlay
+                // is up, so the user closes the panel from the same spot they
+                // opened it and the overlay itself carries no second button.
                 <button
                   type="button"
-                  className="collapsed-card__settings collapsed-card__settings--plugin"
-                  aria-label={t("plugins.config.open")}
-                  title={t("plugins.config.openHint")}
+                  className={`collapsed-card__settings collapsed-card__settings--plugin${
+                    pluginConfigOpen ? " collapsed-card__settings--plugin-open" : ""
+                  }`}
+                  aria-label={t(pluginConfigOpen ? "plugins.config.close" : "plugins.config.open")}
+                  title={t(pluginConfigOpen ? "plugins.config.close" : "plugins.config.openHint")}
                   aria-expanded={pluginConfigOpen}
                   onMouseDown={(event) => {
                     event.preventDefault();
@@ -2657,7 +2677,11 @@ export default function App() {
                     setPluginConfigOpen((open) => !open);
                   }}
                 >
-                  <SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
+                  {pluginConfigOpen ? (
+                    <X size={16} strokeWidth={1.8} aria-hidden="true" />
+                  ) : (
+                    <SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
+                  )}
                 </button>
               ) : (
                 <>
@@ -2717,7 +2741,7 @@ export default function App() {
                 and a click sets it — `tabIndex={-1}` keeps the field the one
                 keyboard owner. Muted text, the active chip underlined and
                 heavier, so the row spends no accent budget. */}
-            {launcherScope === "browser" && (
+            {filterRowVisible && launcherScope === "browser" && (
               <div className="launcher-filter">
                 <div
                   className="launcher-filter__chips"
@@ -2764,7 +2788,7 @@ export default function App() {
                 heavier, so six chips still spend no accent. `role="tablist"`
                 with `tabIndex={-1}` keeps the field the one keyboard owner;
                 Tab cycles the selection in `handleLauncherKey`. */}
-            {launcherScope === "clipboard" && (
+            {filterRowVisible && launcherScope === "clipboard" && (
               <div className="launcher-filter">
                 <div
                   className="launcher-filter__chips"
@@ -2847,7 +2871,6 @@ export default function App() {
                 // refetch the mode's entries so the list behind the overlay is
                 // not left showing rows the user just deleted.
                 onActionComplete={reloadClipboardEntries}
-                onClose={() => setPluginConfigOpen(false)}
               />
             ) : (
             <div

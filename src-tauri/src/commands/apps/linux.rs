@@ -9,7 +9,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::AppHandle;
@@ -85,29 +84,54 @@ pub fn max_cache_age() -> Option<Duration> {
 }
 
 pub fn open(path: &Path) -> Result<(), String> {
+    // R41 · every branch spawns a **detached** child and never waits on the
+    // caller's thread. The previous `.desktop` branch used
+    // `gio launch … .status()`, which blocks the (synchronous,
+    // event-loop-thread) Tauri command until `gio` exits; while it did, the
+    // webview and the tray were frozen — the "the new app took over my process"
+    // report. `process_launch` also puts the child in its own session and gives
+    // it null stdio, so it is not coupled to Floter's process group and
+    // outlives Floter.
     if path.extension().and_then(|ext| ext.to_str()) != Some("desktop") {
-        return Command::new("xdg-open")
-            .arg(path)
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| e.to_string());
+        return crate::process_launch::spawn_detached("xdg-open", &[path.as_os_str()])
+            .map(|_| ());
     }
 
     // `gio launch` is the only launcher that honours the full entry semantics
     // (field codes, `Terminal=`, D-Bus activation), so it is the happy path.
-    if Command::new("gio")
-        .arg("launch")
-        .arg(path)
-        .status()
-        .is_ok_and(|status| status.success())
-    {
+    // It is still awaited, but on its **own** thread: the fallback for a `gio`
+    // that exists but refuses the entry survives without blocking the app.
+    let gio_args = [
+        std::ffi::OsString::from("launch"),
+        path.as_os_str().to_os_string(),
+    ];
+    if let Ok(mut child) = crate::process_launch::spawn_detached_child("gio", &gio_args) {
+        let path = path.to_path_buf();
+        std::thread::Builder::new()
+            .name("gio-launch-wait".to_string())
+            .spawn(move || {
+                let launched = child.wait().map(|status| status.success()).unwrap_or(false);
+                if !launched {
+                    // The entry was refused; try the argv fallback. The result
+                    // cannot reach the caller any more (the command already
+                    // returned Ok), which is the price of not blocking.
+                    let _ = spawn_desktop_exec(&path);
+                }
+            })
+            .ok();
         return Ok(());
     }
 
-    // No glib tooling installed: parse the `Exec=` line according to the
-    // desktop-entry rules. It is an argv declaration, not shell syntax.
-    // `Terminal=true` entries are not wrapped here — that is the fallback of a
-    // fallback, and the command still runs, just without a visible terminal.
+    // No `gio` at all: parse the `Exec=` line directly.
+    spawn_desktop_exec(path)
+}
+
+/// The no-glib fallback: read the `Exec=` line according to the desktop-entry
+/// rules (an argv declaration, not shell syntax) and spawn it detached.
+///
+/// `Terminal=true` entries are not wrapped here — that is the fallback of a
+/// fallback, and the command still runs, just without a visible terminal.
+fn spawn_desktop_exec(path: &Path) -> Result<(), String> {
     let entry = DesktopEntry::parse(path).ok_or("Cannot read desktop entry")?;
     let exec = entry.exec.ok_or("Desktop entry has no Exec line")?;
     let argv = parse_exec_argv(&exec).ok_or("Invalid desktop entry Exec line")?;
@@ -115,11 +139,7 @@ pub fn open(path: &Path) -> Result<(), String> {
         return Err("Desktop entry has an empty Exec line".to_string());
     };
 
-    Command::new(program)
-        .args(arguments)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    crate::process_launch::spawn_detached(program, arguments).map(|_| ())
 }
 
 pub fn icon_path(app: &AppHandle, path: &Path, source_hint: Option<&str>) -> Option<String> {

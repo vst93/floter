@@ -325,6 +325,13 @@ const en = {
   "settings.surfaceResidencyHint": "A plugin page, its settings, or the terminal stays put when the panel is dismissed, until this long has passed. 0 turns it off.",
   "settings.surfaceResidencyOff": "Off",
   "settings.surfaceResidencyValue": "{seconds} s",
+  // R41 · the two states beside the presets, and the inline custom field.
+  "settings.surfaceResidencyNever": "Never",
+  "settings.surfaceResidencyCustom": "Custom…",
+  "settings.surfaceResidencyCustomValue": "Custom ({seconds} s)",
+  "settings.surfaceResidencyCustomLabel": "Custom duration in seconds",
+  "settings.surfaceResidencyCustomUnit": "s",
+  "settings.surfaceResidencyCustomApply": "Set",
   "settings.showRecentInLauncher": "Show recently launched apps",
   "settings.showRecentInLauncherHint": "Your most-used apps appear when the launcher is empty",
   // R7-10c · the menu bar / tray icon switch. No platform branch in the label:
@@ -556,6 +563,7 @@ const en = {
   // R39 · the per-command switch. A command switched on may be summoned as a
   // launcher plugin mode; the hint is the section's one-line explanation.
   "settings.extensions.commandsHint": "Turn a command on to summon it in the search box: type the command name and a space, then its arguments.",
+  "settings.extensions.commandTriggers": "Summon with: {words}",
   "settings.extensions.commandEnable": "Enable {command} in the launcher",
   "settings.extensions.commandAlias": "Alias",
   "settings.extensions.commandAliasFor": "Alias for {command}",
@@ -1110,6 +1118,13 @@ const zh: Record<MessageKey, string> = {
   "settings.surfaceResidencyHint": "插件页面、其设置或终端在面板收起后会保留这么久；设为 0 则关闭。",
   "settings.surfaceResidencyOff": "关闭",
   "settings.surfaceResidencyValue": "{seconds} 秒",
+  // R41 · 预设之外的两个状态，以及行内自定义输入。
+  "settings.surfaceResidencyNever": "永不关闭",
+  "settings.surfaceResidencyCustom": "自定义…",
+  "settings.surfaceResidencyCustomValue": "自定义（{seconds} 秒）",
+  "settings.surfaceResidencyCustomLabel": "自定义秒数",
+  "settings.surfaceResidencyCustomUnit": "秒",
+  "settings.surfaceResidencyCustomApply": "确定",
   "settings.showRecentInLauncher": "显示最近启动的应用",
   "settings.showRecentInLauncherHint": "启动器为空时显示常用应用",
   // R7-10c · 菜单栏 / 托盘图标开关（不按平台分支，一句覆盖两边）。
@@ -1335,6 +1350,7 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.commands": "命令列表",
   // R39 · 命令级开关。开启后该命令可在搜索框内呼出；下方 hint 是区块说明。
   "settings.extensions.commandsHint": "打开开关后，可在搜索框输入命令名加空格呼出，随后输入的内容即为命令参数。",
+  "settings.extensions.commandTriggers": "呼出词：{words}",
   "settings.extensions.commandEnable": "允许在搜索框呼出 {command}",
   "settings.extensions.commandAlias": "命令别名",
   "settings.extensions.commandAliasFor": "{command} 的别名",

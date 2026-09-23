@@ -26,6 +26,7 @@ import type { CommandAliases } from "./command-aliases";
 import { resolveCommandAliases } from "./command-aliases";
 import {
   isPluginCommandEnabled,
+  pluginCommandTriggers,
   type ExternalPluginCommand,
   type PluginCommandSwitches,
 } from "./plugins/external";
@@ -2609,35 +2610,60 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                       // summoned as a plugin mode, so only those rows get a
                       // switch. A command the registry does not know (a stale
                       // descriptor, a built-in) keeps the alias editor alone.
-                      const external = externalCommands.some(
-                        (candidate) =>
-                          candidate.extensionId === selected.id &&
-                          candidate.commandId === command.id,
-                      );
+                      const externalCommand =
+                        externalCommands.find(
+                          (candidate) =>
+                            candidate.extensionId === selected.id &&
+                            candidate.commandId === command.id,
+                        ) ?? null;
+                      const external = externalCommand !== null;
                       const enabled = isPluginCommandEnabled(
                         pluginCommandSwitches,
                         selected.id,
                         command.id,
                       );
                       return (
-                        <div key={command.id} className="extension-command-list__row">
-                          <code>{command.name}</code>
-                          <span>{command.description || t("settings.extensions.noDescription")}</span>
-                          {external && (
-                            <button
-                              type="button"
-                              className={`settings-switch${enabled ? " settings-switch--active" : ""}`}
-                              role="switch"
-                              aria-checked={enabled}
-                              disabled={settingsBusy}
-                              aria-busy={settingsBusy}
-                              aria-label={t("settings.extensions.commandEnable", { command: command.name })}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => onTogglePluginCommand(selected.id, command.id, !enabled)}
-                            >
-                              <span className="settings-switch__thumb" />
-                            </button>
-                          )}
+                        <div
+                          key={command.id}
+                          className={`extension-command-list__row${
+                            external && !enabled ? " extension-command-list__row--off" : ""
+                          }`}
+                        >
+                          {/* R41 · two rows per command: the identity line
+                              (name, description, the summoning words and the
+                              switch) and, under it, the alias editor at the
+                              full card width. The switch no longer competes
+                              with the input for the same line. */}
+                          <div className="extension-command-list__head">
+                            <div className="extension-command-list__identity">
+                              <code>{command.name}</code>
+                              <span className="extension-command-list__description">
+                                {command.description || t("settings.extensions.noDescription")}
+                              </span>
+                              {externalCommand && (
+                                <span className="extension-command-list__triggers">
+                                  {t("settings.extensions.commandTriggers", {
+                                    words: pluginCommandTriggers(externalCommand).join(", "),
+                                  })}
+                                </span>
+                              )}
+                            </div>
+                            {external && (
+                              <button
+                                type="button"
+                                className={`settings-switch${enabled ? " settings-switch--active" : ""}`}
+                                role="switch"
+                                aria-checked={enabled}
+                                disabled={settingsBusy}
+                                aria-busy={settingsBusy}
+                                aria-label={t("settings.extensions.commandEnable", { command: command.name })}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => onTogglePluginCommand(selected.id, command.id, !enabled)}
+                              >
+                                <span className="settings-switch__thumb" />
+                              </button>
+                            )}
+                          </div>
                           {/* R7-11: the alias editor rides the command list itself
                               — one input per connected command — rather than a
                               second settings surface, so "this command, this

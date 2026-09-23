@@ -42,31 +42,6 @@
   color: var(--text-muted);
 }
 
-.plugin-config__close {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--u) * 24);
-  height: calc(var(--u) * 24);
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.plugin-config__close:hover {
-  color: var(--text-primary);
-  background: var(--glass-control-hover);
-}
-
-.plugin-config__close:focus-visible {
-  outline: var(--focus-ring-width) solid var(--accent-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .plugin-config__fields {
   display: flex;
   flex-direction: column;

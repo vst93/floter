@@ -14,8 +14,6 @@
 //! either command can report; a handler that then refuses the file is invisible
 //! from here.
 
-use std::process::Command;
-
 /// The binary that opens a URL or a path the way the desktop's own file manager
 /// would.
 ///
@@ -115,11 +113,11 @@ fn spawn_opener(target: impl AsRef<std::ffi::OsStr>) -> Result<(), String> {
     let Some(opener) = OPENER else {
         return Err("Opening links is not supported on this platform".to_string());
     };
-    Command::new(opener)
-        .arg(target)
-        .spawn()
-        .map(|_| ())
-        .map_err(|error| format!("{opener}: {error}"))
+    // R41 · detached: `open`/`xdg-open`/`explorer` must not be coupled to
+    // Floter's session, process group or stdio. On Linux `xdg-open` can stay
+    // alive for as long as the handler runs, and a child that inherited
+    // Floter's stdio would keep a pipe Floter owns open for that whole time.
+    crate::process_launch::spawn_detached(opener, &[target.as_ref()]).map(|_| ())
 }
 
 #[cfg(test)]

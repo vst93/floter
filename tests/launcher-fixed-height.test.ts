@@ -141,7 +141,7 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherHeight = launcherRowHeight\(\s*launcherHeldRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*launcherScope === "browser" \|\| launcherScope === "clipboard",\s*\);/,
+    /const launcherHeight = launcherRowHeight\(\s*launcherHeldRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\);/,
     "the window height is the row count's, never above the full slab, with the bar, the section title and the plugin filter charged only when they are drawn",
   );
   assert.match(

@@ -32,10 +32,17 @@ import test from "node:test";
 
 import {
   DEFAULT_RESIDENCY_SECONDS,
+  RESIDENCY_CUSTOM_MAX_SECONDS,
   RESIDENCY_MAX_SECONDS,
   RESIDENCY_MIN_SECONDS,
+  RESIDENCY_NEVER_SECONDS,
+  RESIDENCY_PRESET_SECONDS,
   normalizeResidencySeconds,
+  residencyCustomSeedSeconds,
+  residencyFromSelect,
   residencyHolds,
+  residencyNever,
+  residencySelectValue,
   residencySurface,
   startResidency,
 } from "../src/surface-residency.ts";
@@ -62,9 +69,27 @@ test("normalizeResidencySeconds clamps, rounds, and defaults a missing value", (
   assert.equal(normalizeResidencySeconds(10), 10);
   assert.equal(normalizeResidencySeconds(0), 0, "off survives");
   assert.equal(normalizeResidencySeconds(30), 30);
-  assert.equal(normalizeResidencySeconds(31), 30, "the ceiling is the ceiling");
+  // R41 · 30 is the last *preset*, not the ceiling: a custom value above it is
+  // kept up to the day.
+  assert.equal(normalizeResidencySeconds(31), 31);
+  assert.equal(normalizeResidencySeconds(3_600), 3_600);
+  assert.equal(
+    normalizeResidencySeconds(RESIDENCY_CUSTOM_MAX_SECONDS),
+    RESIDENCY_CUSTOM_MAX_SECONDS,
+  );
+  assert.equal(
+    normalizeResidencySeconds(RESIDENCY_CUSTOM_MAX_SECONDS + 1),
+    RESIDENCY_CUSTOM_MAX_SECONDS,
+    "the custom ceiling is the ceiling",
+  );
   assert.equal(normalizeResidencySeconds(-4), 0, "a negative is off, not a past deadline");
   assert.equal(normalizeResidencySeconds(7.6), 8, "the domain is whole seconds");
+  // R41 · the "never" sentinel is not a duration: it passes through the clamp
+  // untouched (a value clamped to a day would silently stop being "never").
+  assert.equal(
+    normalizeResidencySeconds(RESIDENCY_NEVER_SECONDS),
+    RESIDENCY_NEVER_SECONDS,
+  );
   // A missing/typed value lands on the shipped default, never on `0`: a
   // hand-edited file must not silently disable the round's feature.
   assert.equal(normalizeResidencySeconds(undefined), DEFAULT_RESIDENCY_SECONDS);
@@ -220,9 +245,13 @@ test("the duration crosses the bridge: Rust stores it, the frontend reads it", a
   assert.match(rust, /pub surface_residency_seconds: u32/);
   assert.match(rust, /#\[serde\(default = "default_surface_residency_seconds"\)\]/);
   assert.match(rust, /pub const DEFAULT_SURFACE_RESIDENCY_SECONDS: u32 = 10;/);
-  assert.match(rust, /pub const MAX_SURFACE_RESIDENCY_SECONDS: u32 = 30;/);
+  // R41 · the Rust ceiling is the custom day, and the "never" sentinel is a
+  // named constant on the Rust side too.
+  assert.match(rust, /pub const MAX_SURFACE_RESIDENCY_SECONDS: u32 = 86_400;/);
+  assert.match(rust, /pub const SURFACE_RESIDENCY_NEVER_SECONDS: u32 = u32::MAX;/);
   // The save path clamps but must NOT map `0` to a default (the opacity
-  // helper's rule would turn "off" back on).
+  // helper's rule would turn "off" back on), and must exempt the sentinel.
+  assert.match(rust, /!= SURFACE_RESIDENCY_NEVER_SECONDS/);
   assert.match(
     rust,
     /surface_residency_seconds\s*\.min\(MAX_SURFACE_RESIDENCY_SECONDS\)/,
@@ -237,14 +266,107 @@ test("the duration crosses the bridge: Rust stores it, the frontend reads it", a
 
   const page = await read("src/settings/GeneralPage.tsx");
   assert.match(page, /settings\.surface_residency_seconds/);
-  assert.match(page, /onChangeGeneralSetting\(\s*"surface_residency_seconds"/);
+  assert.match(page, /onChangeGeneralSetting\("surface_residency_seconds", next\)/);
 });
 
 test("the Rust constants and the TypeScript constants agree", async () => {
   const rust = await read("src-tauri/src/commands/config.rs");
   const rustDefault = rust.match(/DEFAULT_SURFACE_RESIDENCY_SECONDS: u32 = (\d+);/);
-  const rustMax = rust.match(/MAX_SURFACE_RESIDENCY_SECONDS: u32 = (\d+);/);
-  assert.ok(rustDefault && rustMax, "the Rust constants must be declared");
+  const rustMax = rust.match(/MAX_SURFACE_RESIDENCY_SECONDS: u32 = ([\d_]+);/);
+  const rustNever = rust.match(/SURFACE_RESIDENCY_NEVER_SECONDS: u32 = u32::MAX;/);
+  assert.ok(rustDefault && rustMax && rustNever, "the Rust constants must be declared");
   assert.equal(Number(rustDefault![1]), DEFAULT_RESIDENCY_SECONDS);
-  assert.equal(Number(rustMax![1]), RESIDENCY_MAX_SECONDS);
+  assert.equal(
+    Number(rustMax![1].replaceAll("_", "")),
+    RESIDENCY_CUSTOM_MAX_SECONDS,
+  );
+  assert.equal(RESIDENCY_NEVER_SECONDS, 4_294_967_295);
+});
+
+// ── 7 · R41: the extended residency ladder ────────────────────────────────
+
+test("the preset ladder is the round numbers the user asked for", () => {
+  // The R35 set (0/5/10/15/20/30) mixed a below-default step and an odd 15 in;
+  // R41 replaces it with a longer, rounder ladder. `0` and "never" are separate
+  // select options, not members of this list.
+  assert.deepEqual([...RESIDENCY_PRESET_SECONDS], [10, 20, 30, 60, 120]);
+  assert.ok(!(RESIDENCY_PRESET_SECONDS as readonly number[]).includes(0));
+  assert.ok(RESIDENCY_PRESET_SECONDS.includes(DEFAULT_RESIDENCY_SECONDS));
+  assert.ok(RESIDENCY_PRESET_SECONDS.includes(RESIDENCY_MAX_SECONDS));
+});
+
+test("the select's value is a pure mapping of the stored number", () => {
+  assert.equal(residencySelectValue(0), "off");
+  assert.equal(residencySelectValue(10), "10");
+  assert.equal(residencySelectValue(20), "20");
+  assert.equal(residencySelectValue(30), "30");
+  assert.equal(residencySelectValue(60), "60");
+  assert.equal(residencySelectValue(120), "120");
+  assert.equal(residencySelectValue(RESIDENCY_NEVER_SECONDS), "never");
+  // A custom duration is not one of the named options, so the select falls back
+  // to the custom entry; the inline field carries the real number.
+  assert.equal(residencySelectValue(45), "custom");
+  assert.equal(residencySelectValue(86_400), "custom");
+});
+
+test("a select choice resolves to the number it writes", () => {
+  assert.equal(residencyFromSelect("off"), 0);
+  assert.equal(residencyFromSelect("never"), RESIDENCY_NEVER_SECONDS);
+  assert.equal(residencyFromSelect("30"), 30);
+  assert.equal(residencyFromSelect("120"), 120);
+  // The custom entry carries no number of its own: the inline field owns it,
+  // and the caller must not write until the user commits.
+  assert.equal(residencyFromSelect("custom"), null);
+  assert.equal(residencyFromSelect("nonsense"), null);
+});
+
+test("the inline custom field opens on the value it should edit", () => {
+  // An existing custom duration seeds itself, so opening "custom" does not
+  // silently reset it.
+  assert.equal(residencyCustomSeedSeconds(45), 45);
+  assert.equal(residencyCustomSeedSeconds(3_600), 3_600);
+  // Off, a preset and "never" have no number to edit; the shipped default is
+  // the least surprising starting point.
+  assert.equal(residencyCustomSeedSeconds(0), DEFAULT_RESIDENCY_SECONDS);
+  assert.equal(residencyCustomSeedSeconds(30), DEFAULT_RESIDENCY_SECONDS);
+  assert.equal(
+    residencyCustomSeedSeconds(RESIDENCY_NEVER_SECONDS),
+    DEFAULT_RESIDENCY_SECONDS,
+  );
+});
+
+test("\"never\" starts a clock that holds forever, and never lapses", () => {
+  const clock = startResidency("plugin-mode", 1_000, RESIDENCY_NEVER_SECONDS);
+  assert.ok(clock);
+  assert.equal(clock!.expiresAt, Number.POSITIVE_INFINITY);
+  assert.equal(residencyHolds(clock, 1_000), true);
+  assert.equal(residencyHolds(clock, Number.MAX_SAFE_INTEGER), true);
+  assert.equal(residencyNever(RESIDENCY_NEVER_SECONDS), true);
+  assert.equal(residencyNever(86_400), false);
+  // The explicit exits do not consult the clock at all, so "never" cannot trap
+  // the user — that is the R35 red line, unchanged.
+});
+
+test("the R41 residency copy exists in both languages", async () => {
+  const source = await read("src/i18n.ts");
+  for (const key of [
+    "settings.surfaceResidencyNever",
+    "settings.surfaceResidencyCustom",
+    "settings.surfaceResidencyCustomValue",
+    "settings.surfaceResidencyCustomLabel",
+    "settings.surfaceResidencyCustomUnit",
+    "settings.surfaceResidencyCustomApply",
+  ]) {
+    const occurrences = source.split(`"${key}"`).length - 1;
+    assert.equal(occurrences, 2, `${key} must be declared in both dictionaries`);
+  }
+});
+
+test("the settings page renders the select, the never option and the inline custom field", async () => {
+  const page = stripJsComments(await read("src/settings/GeneralPage.tsx"));
+  assert.match(page, /residencySelectValue\(value\)/);
+  assert.match(page, /residencyFromSelect\(choice\)/);
+  assert.match(page, /t\("settings\.surfaceResidencyNever"\)/);
+  assert.match(page, /t\("settings\.surfaceResidencyCustomValue", \{ seconds: value \}\)/);
+  assert.match(page, /residency-control__input/);
 });

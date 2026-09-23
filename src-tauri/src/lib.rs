@@ -11,6 +11,11 @@ pub mod ipc;
 mod linux_render;
 mod notifications;
 pub mod plugin_pages;
+// R41 · Hyprland (Wayland) window shaping: float the panel instead of letting
+// the tiling compositor fill the screen.
+mod hyprland;
+// R41 · the one detached-spawn helper every "start a program" path uses.
+mod process_launch;
 mod terminal;
 
 use commands::actions::{open_path, open_url};
@@ -870,6 +875,11 @@ fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
         window.show().map_err(|e| e.to_string())?;
         let _ = window.set_always_on_top(true);
         window.set_focus().map_err(|e| e.to_string())?;
+        // R41 · Hyprland tiles a new toplevel; ask the compositor to float the
+        // window we just focused, before the geometry calls that follow. No-op
+        // on every other compositor. See `hyprland`.
+        #[cfg(target_os = "linux")]
+        hyprland::ensure_floating();
     }
     Ok(())
 }

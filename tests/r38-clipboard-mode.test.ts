@@ -295,15 +295,16 @@ test("the overlay invokes the action's command and tells the launcher it ran", a
 
 test("the clipboard mode's chips reuse the R32 launcher-filter row", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
-  assert.match(app, /launcherScope === "clipboard" && \(\s*<div className="launcher-filter">/);
+  assert.match(app, /filterRowVisible && launcherScope === "clipboard" && \(\s*<div className="launcher-filter">/);
   assert.match(app, /\{CLIPBOARD_FILTERS\.map\(\(filter\) => \(/);
   // The active chip is the mode's own `filter` — one source of truth.
   assert.match(app, /aria-selected=\{clipboardFilter === filter\}/);
   assert.match(app, /launcher-filter__chip--active/);
   // The subline is fixed chrome, so the window height charges it for the
   // clipboard scope exactly as R32 does for the browser — six chips can never
-  // resize the window as the list under them filters.
-  assert.match(app, /launcherScope === "browser" \|\| launcherScope === "clipboard",/);
+  // resize the window as the list under them filters. R41 · the charge follows
+  // the row's visibility, so the overlay no longer reserves the chips' band.
+  assert.match(app, /filterRowVisible,/);
 });
 
 test("the favorite toggle is one path: star click and ⌘D call the same handler", async () => {
