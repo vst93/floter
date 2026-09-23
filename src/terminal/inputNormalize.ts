@@ -53,3 +53,17 @@ export function normalizeTerminalInputSpaces(text: string): string {
     ? text.replace(SPACE_SEPARATOR_REPLACE, " ")
     : text;
 }
+
+/**
+ * R43 · strip one trailing line break from a pasted string.
+ *
+ * The user's option is "safe paste": a copied command almost always carries the
+ * newline that ran it in the terminal it came from, so pasting it here would
+ * execute before the user had read the line. Removing exactly one trailing
+ * `\n` or `\r\n` leaves every interior newline intact — a multi-line paste is
+ * still multi-line — and a string with no trailing break is returned as-is (no
+ * copy). Pure, so the rule is testable without a DOM.
+ */
+export function stripPasteNewline(text: string): string {
+  return text.replace(/\r?\n$/, "");
+}

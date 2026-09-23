@@ -93,14 +93,40 @@ pub fn open(path: &Path) -> Result<(), String> {
     // it null stdio, so it is not coupled to Floter's process group and
     // outlives Floter.
     if path.extension().and_then(|ext| ext.to_str()) != Some("desktop") {
-        return crate::process_launch::spawn_detached("xdg-open", &[path.as_os_str()])
+        return crate::process_launch::spawn_application("xdg-open", &[path.as_os_str()])
             .map(|_| ());
     }
 
-    // `gio launch` is the only launcher that honours the full entry semantics
-    // (field codes, `Terminal=`, D-Bus activation), so it is the happy path.
-    // It is still awaited, but on its **own** thread: the fallback for a `gio`
-    // that exists but refuses the entry survives without blocking the app.
+    // R43 · the app must be its **own** process, not a member of Floter's
+    // cgroup (「被启动的应用应该以独立进程的状态去运行，而不应该在我们这个应用的
+    // 下面」). R41 detached the child but still went through `gio`, which runs a
+    // non-D-Bus entry as a child of `gio` inside Floter's cgroup.
+    //
+    // The entry's own `Exec=` line is the honest argv, and launching it through
+    // `process_launch::spawn_application` puts it in a transient systemd user
+    // scope: a new session *and* a new cgroup, so Floter's own scope can no
+    // longer take the app with it. A `DBusActivatable=true` entry is the one
+    // exception — it is started by the session bus (already outside Floter's
+    // cgroup), and single-instance activation only works that way — so `gio`
+    // keeps that path.
+    let entry = DesktopEntry::parse(path);
+    if entry.as_ref().is_some_and(|entry| !entry.dbus_activatable) {
+        if let Some(exec) = entry.as_ref().and_then(|entry| entry.exec.as_deref()) {
+            if let Some(argv) = parse_exec_argv(exec) {
+                if let Some((program, arguments)) = argv.split_first() {
+                    if crate::process_launch::spawn_application(program, arguments).is_ok() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+
+    // `gio launch` is the fallback (and the path for D-Bus-activatable entries):
+    // it is the only launcher that honours the full entry semantics (field
+    // codes, `Terminal=`, D-Bus activation). It is awaited, but on its **own**
+    // thread, so a `gio` that refuses the entry still falls back to the argv
+    // spawn without blocking the app.
     let gio_args = [
         std::ffi::OsString::from("launch"),
         path.as_os_str().to_os_string(),
@@ -139,7 +165,7 @@ fn spawn_desktop_exec(path: &Path) -> Result<(), String> {
         return Err("Desktop entry has an empty Exec line".to_string());
     };
 
-    crate::process_launch::spawn_detached(program, arguments).map(|_| ())
+    crate::process_launch::spawn_application(program, arguments).map(|_| ())
 }
 
 pub fn icon_path(app: &AppHandle, path: &Path, source_hint: Option<&str>) -> Option<String> {
@@ -259,6 +285,11 @@ struct DesktopEntry {
     keywords: Option<String>,
     startup_wm_class: Option<String>,
     entry_type: Option<String>,
+    /// R43 · whether the entry asks the session bus to activate it
+    /// (`DBusActivatable=true`). Such an entry is started by the bus — in its
+    /// own scope, never Floter's — and single-instance activation only works
+    /// through that path, so `gio launch` stays the launcher for it.
+    dbus_activatable: bool,
     hidden: bool,
     no_display: bool,
 }
@@ -277,6 +308,7 @@ impl DesktopEntry {
             keywords: None,
             startup_wm_class: None,
             entry_type: None,
+            dbus_activatable: false,
             hidden: false,
             no_display: false,
         };
@@ -347,6 +379,7 @@ impl DesktopEntry {
                 ("Keywords", None) => entry.keywords = Some(unescape(value)),
                 ("StartupWMClass", None) => entry.startup_wm_class = Some(unescape(value)),
                 ("Type", None) => entry.entry_type = Some(value.to_string()),
+                ("DBusActivatable", None) => entry.dbus_activatable = value == "true",
                 ("Hidden", None) => entry.hidden = value == "true",
                 ("NoDisplay", None) => entry.no_display = value == "true",
                 _ => {}

@@ -158,6 +158,47 @@ export const externalPluginModeEntry = (
   };
 };
 
+/** The human name to print in the trigger hint. The command's own name is the
+ *  label the integrations panel shows; when it is blank the first trigger word
+ *  is the fallback, so the hint never renders an empty name. */
+export const externalCommandDisplayName = (command: ExternalPluginCommand): string =>
+  command.name.trim() || pluginCommandTriggers(command)[0] || command.commandId;
+
+/**
+ * R43 · the ordinary search page's trigger hint.
+ *
+ * The user asked for a nudge while a typed word is on its way to a plugin mode:
+ * 「在搜索框中搜索时，这个选项应该增加相关提示标记，提示用户可以按空格直接快捷
+ * 进入插件」. The rule is exactly the entry rule's left half — a **prefix** of an
+ * enabled command's trigger word (id / name / alias, {@link pluginCommandTriggers})
+ * typed as a *whole* query, with no whitespace yet. One space then enters the mode
+ * (`externalPluginModeEntry`), so the hint and the transition cannot disagree.
+ *
+ * Returns the first matching command in registry order plus how many commands
+ * matched. **Display strategy**: the first match is named (the list is ranked by
+ * the registry, which is stable), and `count` lets the caller append "(+N more)"
+ * rather than printing a second row that would resize the window. When the query
+ * is empty, already carries whitespace, or matches nothing, there is no hint.
+ *
+ * Pure (no React, no DOM) so the node suite drives the whole matrix.
+ */
+export const externalTriggerHint = (
+  query: string,
+  commands: readonly ExternalPluginCommand[],
+): { command: ExternalPluginCommand; count: number } | null => {
+  // A whole single word only, with no whitespace anywhere: a leading or
+  // trailing space is not a trigger (the entry rule matches the word at the
+  // very start and requires the *next* character to be the whitespace), and an
+  // interior space is a phrase. An empty field has nothing to hint about.
+  if (!query || /\s/.test(query)) return null;
+  const word = query.toLowerCase();
+  const matches = commands.filter((command) =>
+    pluginCommandTriggers(command).some((trigger) => trigger.toLowerCase().startsWith(word)),
+  );
+  if (matches.length === 0) return null;
+  return { command: matches[0], count: matches.length };
+};
+
 /** R39 · the command an active external mode stands for, or `null` outside the
  *  mode (and when the command is no longer in the enabled registry — a switch
  *  flipped off while the mode is open). */

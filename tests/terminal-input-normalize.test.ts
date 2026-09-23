@@ -135,3 +135,19 @@ test("the go-version failure signature is repaired", () => {
   assert.ok(!repaired.includes(0xc2));
   assert.ok(!repaired.includes(0xe3));
 });
+
+// R43 · safe paste strips exactly one trailing line break.
+test("R43 · stripPasteNewline removes one trailing break and nothing else", async () => {
+  const { stripPasteNewline } = await import("../src/terminal/inputNormalize.ts");
+  assert.equal(stripPasteNewline("ls -la\n"), "ls -la");
+  assert.equal(stripPasteNewline("ls -la\r\n"), "ls -la", "a CRLF counts as one break");
+  assert.equal(stripPasteNewline("ls -la"), "ls -la", "no trailing break is left alone");
+  // Exactly one: a paste that ends with two breaks keeps the blank line.
+  assert.equal(stripPasteNewline("ls -la\n\n"), "ls -la\n");
+  // Interior newlines are untouched — a multi-line paste stays multi-line.
+  assert.equal(stripPasteNewline("a\nb\nc\n"), "a\nb\nc");
+  assert.equal(stripPasteNewline(""), "");
+  // The hot path returns a new string only when it changed (regex replace is
+  // cheap; the point is the rule, not an allocation).
+  assert.equal(stripPasteNewline("printf '\\n'"), "printf '\\n'");
+});

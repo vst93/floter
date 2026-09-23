@@ -117,7 +117,10 @@ fn spawn_opener(target: impl AsRef<std::ffi::OsStr>) -> Result<(), String> {
     // Floter's session, process group or stdio. On Linux `xdg-open` can stay
     // alive for as long as the handler runs, and a child that inherited
     // Floter's stdio would keep a pipe Floter owns open for that whole time.
-    crate::process_launch::spawn_detached(opener, &[target.as_ref()]).map(|_| ())
+    // R43 · on Linux this also puts the opener in its own transient systemd
+    // scope, so the browser it hands off to is not in Floter's cgroup either
+    // (see `process_launch::spawn_application`).
+    crate::process_launch::spawn_application(opener, &[target.as_ref()]).map(|_| ())
 }
 
 #[cfg(test)]

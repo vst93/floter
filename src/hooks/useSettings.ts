@@ -17,14 +17,22 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { normalizeFontSize } from "../settings/GeneralPage";
 import {
+  DEFAULT_BOLD_MODE,
   DEFAULT_CURSOR_BLINK,
   DEFAULT_LINE_HEIGHT,
+  DEFAULT_PASTE_SAFE,
   DEFAULT_SCROLLBAR,
+  DEFAULT_SELECT_COPY,
   DEFAULT_TERMINAL_PADDING,
   DEFAULT_TERMINAL_THEME,
+  DEFAULT_WHEEL_LINES,
+  normalizeBoldMode,
   normalizeLineHeight,
+  normalizePasteSafe,
+  normalizeSelectCopy,
   normalizeTerminalPadding,
   normalizeTerminalTheme,
+  normalizeWheelLines,
 } from "../terminal/terminal-appearance";
 import { normalizeUiScale, type UiScale } from "../ui-scale";
 import {
@@ -62,6 +70,13 @@ const SETTINGS_DEFAULTS: AppSettings = {
   terminal_cursor_blink: DEFAULT_CURSOR_BLINK,
   terminal_theme: DEFAULT_TERMINAL_THEME,
   terminal_scrollbar: DEFAULT_SCROLLBAR,
+  // R43 · the interaction axes. Every default is the behaviour the build before
+  // this round shipped: a three-line wheel notch, a bold face for bold cells, no
+  // copy-on-select and a verbatim paste.
+  terminal_wheel_lines: DEFAULT_WHEEL_LINES,
+  terminal_bold: DEFAULT_BOLD_MODE,
+  terminal_select_copy: DEFAULT_SELECT_COPY,
+  terminal_paste_safe: DEFAULT_PASTE_SAFE,
   language: "en",
   main_opacity: 47,
   terminal_opacity: 46,
@@ -277,6 +292,19 @@ export function useSettings(options: {
             loaded.terminal_theme ?? DEFAULT_TERMINAL_THEME,
           ),
           terminal_scrollbar: loaded.terminal_scrollbar ?? DEFAULT_SCROLLBAR,
+          // R43 · the interaction axes. A pre-round file has none of these keys;
+          // a hand-edited one may carry an out-of-range number or an unknown
+          // bold mode. Every one lands on its shipped value.
+          terminal_wheel_lines: normalizeWheelLines(
+            loaded.terminal_wheel_lines ?? DEFAULT_WHEEL_LINES,
+          ),
+          terminal_bold: normalizeBoldMode(loaded.terminal_bold ?? DEFAULT_BOLD_MODE),
+          terminal_select_copy: normalizeSelectCopy(
+            loaded.terminal_select_copy ?? DEFAULT_SELECT_COPY,
+          ),
+          terminal_paste_safe: normalizePasteSafe(
+            loaded.terminal_paste_safe ?? DEFAULT_PASTE_SAFE,
+          ),
           // R26-A: a file written before the browser plugin existed has no
           // `browser_plugin` block; the shipped defaults keep the plugin
           // usable without the user visiting its settings page.

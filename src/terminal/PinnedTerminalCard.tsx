@@ -22,7 +22,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { TerminalCanvas, decodeFrame, wheelScrollSteps } from "./render";
 import { PINNED_SESSION_ID, type CardGeometry, type PinnedSession } from "./pinState";
-import { normalizeLineHeight, type TerminalTheme } from "./terminal-appearance";
+import { normalizeLineHeight, type BoldMode, type TerminalTheme } from "./terminal-appearance";
 import type { Translate } from "../i18n";
 
 const RESIZE_HANDLE_SIZE = 14;
@@ -41,6 +41,12 @@ export interface PinnedTerminalCardProps {
   cursorBlink: boolean;
   showScrollbar: boolean;
   terminalTheme: TerminalTheme;
+  /** R43 · the two renderer axes the card shares with the main view: the
+   *  wheel-scroll line count and the bold rendering mode. Copy-on-select and
+   *  safe paste are input-path options and live on the main view only — the
+   *  card draws but never owns the input. */
+  wheelLines: number;
+  boldMode: BoldMode;
   /** Current resolved theme ("dark" | "light"); a change repaints in place. */
   theme: string;
   geometry: CardGeometry;
@@ -72,6 +78,8 @@ export function PinnedTerminalCard({
   cursorBlink,
   showScrollbar,
   terminalTheme,
+  wheelLines,
+  boldMode,
   theme,
   geometry,
   onGeometryChange,
@@ -119,6 +127,8 @@ export function PinnedTerminalCard({
       cursorBlink,
       showScrollbar,
       theme: terminalTheme,
+      wheelLines,
+      boldMode,
     });
     rendererRef.current = renderer;
 
@@ -151,13 +161,16 @@ export function PinnedTerminalCard({
     };
   }, [draw, fontFamily, fontSize, lineHeight, padding, cursorBlink, showScrollbar, terminalTheme, rendererRef]);
 
-  // Theme switches repaint the existing frames instead of rebuilding.
+  // Theme switches repaint the existing frames instead of rebuilding. R43 · the
+  // wheel-scroll count and bold mode are renderer options too, merged here in
+  // place so a change does not blank the card until the next frame arrives.
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
+    renderer.setOptions({ wheelLines, boldMode });
     renderer.updateTheme();
     draw();
-  }, [draw, rendererRef, theme]);
+  }, [draw, rendererRef, theme, wheelLines, boldMode]);
 
   // Frame + exit streams for THIS session view only. `onSessionExit` is read
   // through a ref so a new closure on every parent render cannot resubscribe

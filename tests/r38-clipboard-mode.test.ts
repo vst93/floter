@@ -304,7 +304,9 @@ test("the clipboard mode's chips reuse the R32 launcher-filter row", async () =>
   // clipboard scope exactly as R32 does for the browser — six chips can never
   // resize the window as the list under them filters. R41 · the charge follows
   // the row's visibility, so the overlay no longer reserves the chips' band.
-  assert.match(app, /filterRowVisible,/);
+  // R43 · the charge is the shared subline band (`launcherSubline`), which is
+  // the chips row or the ordinary page's trigger hint — never both.
+  assert.match(app, /launcherSubline,/);
 });
 
 test("the favorite toggle is one path: star click and ⌘D call the same handler", async () => {

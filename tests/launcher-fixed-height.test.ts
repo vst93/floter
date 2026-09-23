@@ -116,9 +116,11 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   // short of its card is a clipped card. The fixed chrome does not scale, which
   // is exactly how `calc(var(--u) * N + Mpx)` behaves in the sheet.
   assert.equal(launcherWindowHeight(1), LAUNCHER_WINDOW_HEIGHT);
+  assert.equal(launcherWindowHeight(0.9), Math.ceil(531 * 0.9 + 52));
+  assert.equal(launcherWindowHeight(0.8), Math.ceil(531 * 0.8 + 52));
   assert.equal(launcherWindowHeight(1.1), Math.ceil(531 * 1.1 + 52));
   assert.equal(launcherWindowHeight(1.25), Math.ceil(531 * 1.25 + 52));
-  for (const scale of [1, 1.1, 1.25]) {
+  for (const scale of [0.8, 0.9, 1, 1.1, 1.25]) {
     assert.equal(
       launcherWindowHeight(scale),
       Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * scale) + LAUNCHER_WINDOW_HEIGHT_CHROME,
@@ -136,13 +138,13 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherHeldRows = resolveLauncherRows\(launcherRowsRef\.current, launcherRows\);/,
-    "the row count is resolved from the raw count with the sticky hysteresis",
+    /const launcherHeldUnits = resolveLauncherUnits\(launcherUnitsRef\.current, launcherListUnitsRaw\);/,
+    "R43: the list's real unit total is resolved with the sticky hysteresis",
   );
   assert.match(
     app,
-    /const launcherHeight = launcherRowHeight\(\s*launcherHeldRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\);/,
-    "the window height is the row count's, never above the full slab, with the bar, the section title and the plugin filter charged only when they are drawn",
+    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*launcherSubline,\s*\);/,
+    "the window height is the list's own content, never above the full slab, with the bar, the section title and the subline charged only when they are drawn",
   );
   assert.match(
     app,
@@ -548,4 +550,82 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
   assert.equal(launcherRowChrome(2), 2 + 4 + 1);
   assert.equal(launcherRowChrome(3), 2 + 4 + 2);
   assert.equal(launcherRowChrome(MAX_RESULTS), 52);
+});
+
+// R43 · the list's real height, not `count × 42`.
+//
+// The user's report: 「搜索页现在这个列表高度看起来还是没有完全自适应，在选项和
+// 底部独立的「终端运行」这个选项之间，还是会有一些空行」. The window was sized
+// as every row at its two-line height while a row whose subtitle was dropped is
+// drawn compact (34u), so a compact list sat in a window up to 80u taller than
+// its content and the leftover landed in the gap above the pinned action bar.
+// R43 sizes the window from the sum of the rows' own heights, with the same
+// grow-now / shrink-once-it-is-a-whole-row-lower hysteresis the count had.
+test("R43 · the window follows the list's real row heights, not count × 42", async () => {
+  const budget = await import("../src/launcher/result-budget.ts");
+  const {
+    LAUNCHER_ACTION_BAR_UNITS,
+    LAUNCHER_STATUS_UNITS,
+    LAUNCHER_WINDOW_HEIGHT,
+    MAX_RESULTS,
+    ROW_HEIGHT_COMPACT,
+    ROW_HEIGHT_TWO_LINE,
+    launcherContentHeight,
+    launcherListUnits,
+    launcherRowHeight,
+    resolveLauncherUnits,
+  } = budget;
+
+  // The sum is the rows' own heights: a compact row is shorter than a two-line
+  // row, and a status note is shorter still (its own `.launcher-status` 30u).
+  assert.equal(ROW_HEIGHT_COMPACT, 34);
+  assert.equal(ROW_HEIGHT_TWO_LINE, 42);
+  assert.equal(LAUNCHER_STATUS_UNITS, 30);
+  assert.equal(launcherListUnits([42, 42, 42]), 126);
+  assert.equal(launcherListUnits([34, 34, 34]), 102);
+  assert.equal(launcherListUnits([42, 34, 30]), 106);
+  assert.equal(launcherListUnits([]), 0, "an empty list is zero units");
+
+  // Sticky: growth immediate, a shrink absorbed until it is a whole worst-case
+  // row, larger drops land immediately.
+  assert.equal(resolveLauncherUnits(126, 168), 168, "growth is immediate");
+  assert.equal(resolveLauncherUnits(168, 126), 168, "a one-row shrink is absorbed");
+  assert.equal(resolveLauncherUnits(168, 120), 120, "more than a row steps down");
+  assert.equal(resolveLauncherUnits(34, 34), 34);
+
+  // The height at an interface step. At the full ten two-line rows the window is
+  // still R25/R37's 583px — the full state is unchanged — while ten compact rows
+  // are 80u shorter, which is exactly the blank the report is about.
+  assert.equal(
+    launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
+    LAUNCHER_WINDOW_HEIGHT,
+    "ten two-line rows keep the 583px slab",
+  );
+  assert.equal(launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 583);
+  const tenCompact = launcherContentHeight(10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT);
+  assert.equal(tenCompact, 503, "ten compact rows are 503px, 80u under the slab");
+  assert.ok(
+    tenCompact < launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
+    "the compact list is genuinely shorter than the worst-case slab the old sizing charged",
+  );
+  // The chrome is added once and unscaled, exactly as `launcherRowHeight` does.
+  for (const scale of [0.8, 0.9, 1, 1.1, 1.25]) {
+    assert.equal(
+      launcherContentHeight(3 * ROW_HEIGHT_COMPACT, 3, scale, LAUNCHER_WINDOW_HEIGHT, false, false, false),
+      Math.ceil((66 + 3 * ROW_HEIGHT_COMPACT) * scale + (2 + 4 + 2)),
+      "the unit part scales and the chrome is added once",
+    );
+  }
+  // A filter band and an action bar are charged exactly as the count sizing did.
+  assert.equal(
+    launcherContentHeight(ROW_HEIGHT_TWO_LINE, 1, 1, LAUNCHER_WINDOW_HEIGHT, true, false, false) -
+      launcherContentHeight(ROW_HEIGHT_TWO_LINE, 1, 1, LAUNCHER_WINDOW_HEIGHT, false, false, false),
+    LAUNCHER_ACTION_BAR_UNITS,
+  );
+  // A height never exceeds the display cap.
+  assert.equal(
+    launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, 400),
+    400,
+    "the display cap wins on a short display",
+  );
 });

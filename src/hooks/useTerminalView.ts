@@ -26,10 +26,10 @@ import {
   type Selection,
 } from "../terminal/render";
 import { MOUSE_MOTION, usesMouseReporting } from "../terminal/keys";
-import { normalizeTerminalInputSpaces } from "../terminal/inputNormalize";
+import { normalizeTerminalInputSpaces, stripPasteNewline } from "../terminal/inputNormalize";
 import { PINNED_SESSION_ID } from "../terminal/pinState";
 import { normalizeFontSize } from "../settings/GeneralPage";
-import { normalizeLineHeight, type TerminalTheme } from "../terminal/terminal-appearance";
+import { normalizeLineHeight, type BoldMode, type TerminalTheme } from "../terminal/terminal-appearance";
 import { createDeferredRepaint, type DeferredRepaint } from "../deferred-repaint";
 import { IS_MAC } from "../shortcuts";
 import type { ExecutionPlan } from "../launcher";
@@ -86,6 +86,12 @@ export function useTerminalView(options: {
   cursorBlink: boolean;
   showScrollbar: boolean;
   terminalTheme: TerminalTheme;
+  /** R43 · the interaction axes: wheel-scroll line count, bold rendering, copy
+   *  on selection, and stripping a paste's trailing newline. */
+  wheelLines: number;
+  boldMode: BoldMode;
+  selectCopy: boolean;
+  pasteSafe: boolean;
   resolvedTheme: "dark" | "light";
   ptyReady: RefObject<boolean>;
   /** Card counterpart of `ptyReady`; see `surfaceReady` below. */
@@ -119,6 +125,10 @@ export function useTerminalView(options: {
     cursorBlink,
     showScrollbar,
     terminalTheme,
+    wheelLines,
+    boldMode,
+    selectCopy,
+    pasteSafe,
     resolvedTheme,
     ptyReady,
     pinnedReady,
@@ -481,6 +491,8 @@ export function useTerminalView(options: {
       cursorBlink,
       showScrollbar,
       theme: terminalTheme,
+      wheelLines,
+      boldMode,
     });
     rendererRef.current = renderer;
     termOpened.current = true;
@@ -563,10 +575,10 @@ export function useTerminalView(options: {
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    renderer.setOptions({ cursorBlink, showScrollbar, theme: terminalTheme });
+    renderer.setOptions({ cursorBlink, showScrollbar, theme: terminalTheme, wheelLines, boldMode });
     renderer.updateTheme();
     render();
-  }, [cursorBlink, showScrollbar, terminalTheme]);
+  }, [cursorBlink, showScrollbar, terminalTheme, wheelLines, boldMode]);
 
   // Native edge resizing owns terminal geometry. ResizeObserver keeps the PTY
   // grid current; this listener persists the logical window dimensions after a
@@ -692,9 +704,15 @@ export function useTerminalView(options: {
     if (drag.mode === "mouse") {
       reportTerminalMouse("release", drag.button, event.clientX, event.clientY, event);
     }
+    // R43 · copy on select: the drag that just ended was a text selection and
+    // the user asked for it to land on the clipboard without a second gesture.
+    // The selection itself stays highlighted (the renderer keeps painting it),
+    // so this is additive to the explicit copy shortcut rather than a swap.
+    const finishedSelection = drag.mode === "select" && selectionRef.current !== null;
     dragRef.current = { mode: "none" };
     window.removeEventListener("mousemove", onWindowMouseMove);
     window.removeEventListener("mouseup", onWindowMouseUp);
+    if (finishedSelection && selectCopy) void copySelection();
   };
 
   const beginDrag = () => {
@@ -830,17 +848,22 @@ export function useTerminalView(options: {
     }
   };
 
-  const sendTerminalText = (text: string, bracketed = false) => {
+  const sendTerminalText = (text: string, bracketed = false, isPaste = false) => {
     // Gated on the *target* surface's readiness, matching `terminalInputTarget`
     // below: typed text, IME commits and pastes all go to the card while it owns
     // the keyboard, and the main slot is empty precisely then.
     if (!text || !surfaceReady()) return;
+    // R43 · safe paste: one trailing break is the newline a copied command
+    // carried, and leaving it in would run the command before it was read. The
+    // trim happens before the space normalization so both boundaries share one
+    // entry point.
+    const pasted = isPaste && pasteSafe ? stripPasteNewline(text) : text;
     // Injection boundary: whatever produced this string (hidden-textarea
     // commit on macOS WebKit, an IME composition, the system clipboard), a
     // Unicode space separator here would fuse two shell words into one —
     // `go\u3000version` reads to zsh as a single token named "go version".
     // Every Unicode Zs except the ASCII space becomes U+0020 before encode.
-    const normalized = normalizeTerminalInputSpaces(text);
+    const normalized = normalizeTerminalInputSpaces(pasted);
     const payload = bracketed ? `\x1b[200~${normalized}\x1b[201~` : normalized;
     void invoke("term_input", {
       id: terminalInputTarget(),
@@ -848,21 +871,21 @@ export function useTerminalView(options: {
     });
   };
 
-  const flushTerminalTextInput = (bracketed = false) => {
+  const flushTerminalTextInput = (bracketed = false, isPaste = false) => {
     const input = terminalTextInputRef.current;
     if (!input || terminalComposing.current || !input.value) return;
     const text = input.value;
     input.value = "";
-    sendTerminalText(text, bracketed);
+    sendTerminalText(text, bracketed, isPaste);
   };
 
   const onTerminalTextInput = (event: React.FormEvent<HTMLTextAreaElement>) => {
     const nativeEvent = event.nativeEvent as InputEvent;
     if (nativeEvent.isComposing || terminalComposing.current) return;
+    const isPaste = nativeEvent.inputType === "insertFromPaste";
     const bracketedPaste =
-      nativeEvent.inputType === "insertFromPaste" &&
-      Boolean((activeRenderer()?.mode ?? 0) & BRACKETED_PASTE);
-    flushTerminalTextInput(bracketedPaste);
+      isPaste && Boolean((activeRenderer()?.mode ?? 0) & BRACKETED_PASTE);
+    flushTerminalTextInput(bracketedPaste, isPaste);
   };
 
   const pasteClipboard = async () => {
@@ -875,7 +898,7 @@ export function useTerminalView(options: {
       return;
     }
     if (!text) return;
-    sendTerminalText(text, (renderer.mode & BRACKETED_PASTE) !== 0);
+    sendTerminalText(text, (renderer.mode & BRACKETED_PASTE) !== 0, true);
   };
 
   return {

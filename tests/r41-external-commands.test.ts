@@ -26,7 +26,9 @@ import test from "node:test";
 
 import {
   enabledExternalCommands,
+  externalCommandDisplayName,
   externalPluginModeEntry,
+  externalTriggerHint,
   isPluginCommandEnabled,
   pluginCommandTriggers,
   type ExternalPluginCommand,
@@ -179,4 +181,64 @@ test("the R41 panel copy exists in both languages", async () => {
   const source = await read("src/i18n.ts");
   const occurrences = source.split('"settings.extensions.commandTriggers"').length - 1;
   assert.equal(occurrences, 2, "settings.extensions.commandTriggers must be in both");
+});
+
+// ── 4 · R43 · the trigger hint ────────────────────────────────────────────
+//
+// While a typed word is a *prefix* of an enabled command's trigger word — and
+// no space has been typed yet — the ordinary search page shows a muted nudge
+// that one space enters the mode. The rule is the entry rule's left half, so the
+// hint and the transition cannot disagree. The mapping is pure, so the node
+// suite drives it without a DOM.
+test("R43 · the trigger hint is the prefix half of the entry rule", () => {
+  const commands = [
+    command("git", { name: "Git", aliases: ["g"] }),
+    command("grep", { name: "Search Text", aliases: [] }),
+  ];
+
+  // A prefix of any trigger word hints, and the first matching command in
+  // registry order is named.
+  assert.equal(externalTriggerHint("gi", commands)?.command.commandId, "git");
+  assert.equal(externalTriggerHint("g", commands)?.command.commandId, "git");
+  assert.equal(externalTriggerHint("gr", commands)?.command.commandId, "grep");
+  assert.equal(externalTriggerHint("sear", commands)?.command.commandId, "grep");
+  assert.equal(externalTriggerHint("GIT", commands)?.command.commandId, "git", "case-insensitive");
+
+  // The count is every command that matched, so the caller can say "(+N more)".
+  assert.equal(externalTriggerHint("g", commands)?.count, 2, "`g` matches git (alias g) and grep");
+  assert.equal(externalTriggerHint("gi", commands)?.count, 1);
+
+  // A whole single word only: an empty field, whitespace, a phrase, or a word
+  // that is not a prefix all have nothing to hint about.
+  assert.equal(externalTriggerHint("", commands), null);
+  assert.equal(externalTriggerHint("   ", commands), null);
+  assert.equal(externalTriggerHint("git ", commands), null, "a space is the transition, not a hint");
+  assert.equal(externalTriggerHint("git status", commands), null);
+  assert.equal(externalTriggerHint("gitz", commands), null, "a longer word is not a prefix");
+  assert.equal(externalTriggerHint("zzz", commands), null);
+  assert.equal(externalTriggerHint("gi", []), null, "no enabled command, no hint");
+
+  // The display name is the command's own name, with the first trigger word as
+  // the fallback so the hint never renders an empty name.
+  assert.equal(externalCommandDisplayName(commands[0]), "Git");
+  assert.equal(externalCommandDisplayName(command("x", { name: "  " })), "x");
+});
+
+test("R43 · the App renders the hint in the shared subline slot", async () => {
+  const app = stripJsComments(await read("src/App.tsx"));
+  // The hint is computed from the ordinary page's query and the enabled set.
+  assert.match(
+    app,
+    /const triggerHint =[\s\S]{0,120}?externalTriggerHint\(query, enabledExternalCommandList\)/,
+    "the hint reads the one trigger function and the enabled command list",
+  );
+  // It shares the chips row's band; the priority is by scope, so at most one
+  // draws. The window charges the band once through `launcherSubline`.
+  assert.match(app, /const launcherSubline = filterRowVisible \|\| triggerHint !== null;/);
+  assert.match(app, /launcher-filter launcher-filter--trigger-hint/);
+  assert.match(app, /t\("launcher\.triggerHint"/);
+  assert.match(app, /t\("launcher\.triggerHintMore"/);
+  // The band's own height is the module's constant, not a second number.
+  const budget = stripJsComments(await read("src/launcher/result-budget.ts"));
+  assert.match(budget, /LAUNCHER_FILTER_UNITS = 28/);
 });

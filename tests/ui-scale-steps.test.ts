@@ -47,12 +47,19 @@ const stripCssComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 // ── 1 · the step -> multiplier mapping ────────────────────────────────────
 
-test("the three steps map onto one multiplier each, default first", () => {
+test("the five steps map onto one multiplier each, smallest first", () => {
   // The round's whole vocabulary. The order is the picker's paint order, and
-  // the numbers are the report's decision: default 1 / large 1.1 / larger 1.25.
-  assert.deepEqual(UI_SCALE_STEPS, ["default", "large", "larger"]);
-  assert.deepEqual(UI_SCALE_FACTORS, { default: 1, large: 1.1, larger: 1.25 });
-  // The steps ascend: a picker whose entries do not grow would be three labels
+  // the numbers are the report's decision: tiny 0.8 / small 0.9 / default 1 /
+  // large 1.1 / larger 1.25. R43 added the two below default.
+  assert.deepEqual(UI_SCALE_STEPS, ["tiny", "small", "default", "large", "larger"]);
+  assert.deepEqual(UI_SCALE_FACTORS, {
+    tiny: 0.8,
+    small: 0.9,
+    default: 1,
+    large: 1.1,
+    larger: 1.25,
+  });
+  // The steps ascend: a picker whose entries do not grow would be five labels
   // for one size.
   const factors = UI_SCALE_STEPS.map((step) => UI_SCALE_FACTORS[step]);
   for (let i = 1; i < factors.length; i += 1) {
@@ -61,7 +68,8 @@ test("the three steps map onto one multiplier each, default first", () => {
       `the steps must ascend: ${factors[i - 1]} -> ${factors[i]}`,
     );
   }
-  assert.equal(factors[0], 1, "the default step is the scale every earlier build shipped");
+  assert.equal(factors[0], 0.8, "the smallest step is R43's 0.8 — the caption's 8px floor");
+  assert.equal(UI_SCALE_FACTORS.default, 1, "the default step is the scale every earlier build shipped");
 });
 
 test("an unknown or missing step resolves to default, never to a guess", () => {
@@ -95,6 +103,8 @@ test("applying a step writes the step's multiplier to --ui-scale", () => {
     },
   };
   const expected: [string, string][] = [
+    ["tiny", "0.8"],
+    ["small", "0.9"],
     ["default", "1"],
     ["large", "1.1"],
     ["larger", "1.25"],
@@ -473,14 +483,14 @@ test("the terminal canvas font is not on the knob", async () => {
 test("the frontend and Rust factor tables are the same table", async () => {
   // Rust cannot import TypeScript, so — exactly as with `INPUT_WINDOW_WIDTH` —
   // both sides declare the numbers and this test pins them. The Rust table is
-  // `pub const UI_SCALE_STEPS: [(&str, f64); 3] = [("default", 1.0), …]`.
+  // `pub const UI_SCALE_STEPS: [(&str, f64); 5] = [("tiny", 0.8), …]`.
   const rust = await read("src-tauri/src/commands/config.rs");
   const match = rust.match(
-    /pub const UI_SCALE_STEPS:\s*\[\(&str, f64\); 3\]\s*=\s*\[([\s\S]*?)\];/,
+    /pub const UI_SCALE_STEPS:\s*\[\(&str, f64\); 5\]\s*=\s*\[([\s\S]*?)\];/,
   );
   assert.ok(
     match,
-    "config.rs no longer declares `pub const UI_SCALE_STEPS: [(&str, f64); 3] = […];` — " +
+    "config.rs no longer declares `pub const UI_SCALE_STEPS: [(&str, f64); 5] = […];` — " +
       "the native half of this table is what the reset height reads",
   );
   const pairs = [...match![1].matchAll(/\("([a-z]+)",\s*([0-9.]+)\)/g)].map(

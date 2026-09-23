@@ -468,6 +468,22 @@
   white-space: nowrap;
 }
 
+/* R43 · the trigger hint. It rides the chips row's own `.launcher-filter` band
+   (same min-height and insets), so it costs the window the one 28u the band
+   table already charges. Muted, never accent: it is a discoverability nudge,
+   not a primary action, and it is not a control — the user presses the space
+   bar in the field, not this text. */
+.launcher-trigger-hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  font-weight: 520;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .launcher-filter__chip {
   appearance: none;
   border: 0;

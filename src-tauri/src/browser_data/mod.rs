@@ -338,22 +338,14 @@ pub fn browser_open_url(profile_key: String, url: String) -> Result<(), String> 
 #[cfg(target_os = "macos")]
 fn open_url_with(browser_id: &str, url: &str) -> Result<(), String> {
     if let Some(app) = macos_app_name(browser_id) {
-        if let Ok(status) = std::process::Command::new("open")
-            .arg("-a")
-            .arg(app)
-            .arg(url)
-            .status()
-        {
-            if status.success() {
-                return Ok(());
-            }
+        // R43 · detached like every other launch path: `open` hands the request
+        // to LaunchServices and exits, and the browser must not be coupled to
+        // Floter's stdio or process group.
+        if crate::process_launch::spawn_application("open", &["-a", app, url]).is_ok() {
+            return Ok(());
         }
     }
-    std::process::Command::new("open")
-        .arg(url)
-        .status()
-        .map(|_| ())
-        .map_err(|error| format!("could not open url: {error}"))
+    crate::process_launch::spawn_application("open", &[url]).map(|_| ())
 }
 
 /// Map a browser id to its macOS application bundle name.
@@ -378,20 +370,18 @@ fn macos_app_name(browser_id: &str) -> Option<&'static str> {
 fn open_url_with(_browser_id: &str, url: &str) -> Result<(), String> {
     // `start` is a `cmd` builtin, not an executable; the empty argument is the
     // window-title slot, which `start` would otherwise take the URL for.
-    std::process::Command::new("cmd")
-        .args(["/c", "start", "", url])
-        .status()
-        .map(|_| ())
-        .map_err(|error| format!("could not open url: {error}"))
+    // R43 · detached: the browser must outlive Floter and own no console of its
+    // own (see `process_launch`).
+    crate::process_launch::spawn_application("cmd", &["/c", "start", "", url]).map(|_| ())
 }
 
 #[cfg(target_os = "linux")]
 fn open_url_with(_browser_id: &str, url: &str) -> Result<(), String> {
-    std::process::Command::new("xdg-open")
-        .arg(url)
-        .status()
-        .map(|_| ())
-        .map_err(|error| format!("could not open url: {error}"))
+    // R43 · `spawn_application` gives the browser its own transient systemd
+    // scope on Linux, so it is not in Floter's cgroup. The old `.status()` here
+    // both blocked the (synchronous, event-loop-thread) command and left the
+    // browser in Floter's group — the very coupling the launch paths removed.
+    crate::process_launch::spawn_application("xdg-open", &[url]).map(|_| ())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]

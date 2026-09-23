@@ -391,8 +391,8 @@ test("the settings page renders three effect segments and two opacity sliders", 
   const terminalAppearance = await read("src/settings/TerminalAppearance.tsx");
   assert.equal(
     (terminalAppearance.match(/type="range"/g) ?? []).length,
-    2,
-    "TerminalAppearance declares the font-size and line-height ranges",
+    3,
+    "TerminalAppearance declares the font-size, line-height and wheel-scroll ranges",
   );
   assert.equal(
     (page.match(/<OpacityControl/g) ?? []).length,

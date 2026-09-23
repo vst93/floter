@@ -24,23 +24,36 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  BOLD_MODE_OPTIONS,
+  BOLD_MODES,
   CURSOR_SHAPE_OPTIONS,
+  DEFAULT_BOLD_MODE,
   DEFAULT_LINE_HEIGHT,
+  DEFAULT_PASTE_SAFE,
+  DEFAULT_SELECT_COPY,
   DEFAULT_TERMINAL_PADDING,
   DEFAULT_TERMINAL_THEME,
+  DEFAULT_WHEEL_LINES,
   LINE_HEIGHT_STEP,
   MAX_LINE_HEIGHT,
+  MAX_WHEEL_LINES,
   MIN_LINE_HEIGHT,
+  MIN_WHEEL_LINES,
   TERMINAL_PADDING_STEPS,
   TERMINAL_PALETTES,
   TERMINAL_THEMES,
   TERMINAL_THEME_OPTIONS,
   fontFamilyOptions,
+  normalizeBoldMode,
   normalizeCursorShape,
   normalizeFontSize,
   normalizeLineHeight,
+  normalizePasteSafe,
+  normalizeSelectCopy,
   normalizeTerminalPadding,
   normalizeTerminalTheme,
+  normalizeWheelLines,
+  packedHex,
   terminalPaddingPx,
 } from "../src/terminal/terminal-appearance.ts";
 
@@ -74,16 +87,34 @@ test("padding is three named steps with `regular` at the shipped 3px", () => {
 });
 
 test("the palette is a canvas-only override, `inherit` reads the document tokens", () => {
-  assert.deepEqual([...TERMINAL_THEMES], ["inherit", "contrast", "paper"]);
+  assert.deepEqual([...TERMINAL_THEMES], [
+    "inherit",
+    "contrast",
+    "paper",
+    "ink",
+    "fog",
+    "forest",
+    "dusk",
+    "mist",
+    "amber",
+  ]);
   assert.equal(normalizeTerminalTheme("paper"), "paper");
+  assert.equal(normalizeTerminalTheme("amber"), "amber");
   assert.equal(normalizeTerminalTheme("solarized"), DEFAULT_TERMINAL_THEME);
   // `inherit` deliberately has no palette: the renderer reads `--terminal-*`.
   assert.equal("inherit" in TERMINAL_PALETTES, false);
-  for (const theme of ["contrast", "paper"] as const) {
+  // R43 · every non-inherit theme has a full palette, and the packed colours
+  // are real 24-bit values.
+  assert.equal(Object.keys(TERMINAL_PALETTES).length, TERMINAL_THEMES.length - 1);
+  for (const theme of TERMINAL_THEMES) {
+    if (theme === "inherit") continue;
     const palette = TERMINAL_PALETTES[theme];
     assert.equal(typeof palette.bg, "number", `${theme}.bg is a packed colour`);
     assert.equal(typeof palette.fg, "number");
     assert.equal(typeof palette.cursor, "number");
+    assert.ok(palette.bg >= 0 && palette.bg <= 0xffffff, `${theme}.bg is 24-bit`);
+    assert.ok(palette.fg >= 0 && palette.fg <= 0xffffff, `${theme}.fg is 24-bit`);
+    assert.notEqual(palette.bg, palette.fg, `${theme} must not paint text on its own colour`);
     assert.match(palette.selection, /^rgba\(/, `${theme}.selection stays translucent`);
     assert.match(palette.scrollbar, /^rgba\(/);
   }
@@ -117,7 +148,7 @@ test("the font picker never drops the current face and falls back to the static 
 
 test("the renderer exposes the new options and keeps the R7-13b pin", async () => {
   const render = stripJsComments(await read("src/terminal/render.ts"));
-  for (const option of ["cursorBlink", "showScrollbar", "theme"]) {
+  for (const option of ["cursorBlink", "showScrollbar", "theme", "wheelLines", "boldMode"]) {
     assert.match(render, new RegExp(`${option}[?:]`), `RendererOptions must carry ${option}`);
   }
   assert.match(render, /setOptions\(next: Partial<RendererOptions>\)/, "an in-place option merge exists");
@@ -147,7 +178,10 @@ test("appearance changes never reset the session", async () => {
   assert.ok(geometry.length > 0, "the geometry effect must exist");
   assert.match(geometry, /relayoutAndResize\(\)/);
   const palette = hook.slice(hook.indexOf("renderer.setOptions({ cursorBlink"));
-  const paletteEffect = palette.slice(0, palette.indexOf("}, [cursorBlink, showScrollbar, terminalTheme])"));
+  const paletteEffect = palette.slice(
+    0,
+    palette.indexOf("}, [cursorBlink, showScrollbar, terminalTheme, wheelLines, boldMode])"),
+  );
   assert.ok(paletteEffect.length > 0, "the palette effect must exist");
   assert.match(paletteEffect, /render\(\)/);
   for (const forbidden of ["closeTerminalSession", "resetTerminalFrontendState", "frameRef.current = null", "setTerminalResident"]) {
@@ -197,6 +231,10 @@ test("Rust stores every new field with a default and a normalize guard", async (
     "terminal_cursor_blink",
     "terminal_theme",
     "terminal_scrollbar",
+    "terminal_wheel_lines",
+    "terminal_bold",
+    "terminal_select_copy",
+    "terminal_paste_safe",
   ]) {
     assert.match(rust, new RegExp(`pub ${field}:`), `AppSettings must carry ${field}`);
   }
@@ -270,10 +308,118 @@ test("every new key is declared in both dictionaries", async () => {
     "settings.terminalTheme.inherit",
     "settings.terminalTheme.contrast",
     "settings.terminalTheme.paper",
+    "settings.terminalTheme.ink",
+    "settings.terminalTheme.fog",
+    "settings.terminalTheme.forest",
+    "settings.terminalTheme.dusk",
+    "settings.terminalTheme.mist",
+    "settings.terminalTheme.amber",
+    "settings.terminalBold",
+    "settings.terminalBold.font",
+    "settings.terminalBold.bright",
+    "settings.terminalWheelLines",
+    "settings.terminalWheelLinesValue",
+    "settings.terminalSelectCopy",
+    "settings.terminalPasteSafe",
     "settings.terminalScrollbar",
   ];
   for (const key of keys) {
     assert.ok(en.includes(`"${key}":`), `en must declare ${key}`);
     assert.ok(zh.includes(`"${key}":`), `zh must declare ${key}`);
   }
+});
+
+// ── 7 · R43 · the interaction axes ────────────────────────────────────────
+
+test("R43 · wheel lines clamp to 1–8, bold is one of two ids, the switches default off", () => {
+  assert.equal(MIN_WHEEL_LINES, 1);
+  assert.equal(MAX_WHEEL_LINES, 8);
+  assert.equal(DEFAULT_WHEEL_LINES, 3);
+  assert.equal(normalizeWheelLines(3), 3);
+  assert.equal(normalizeWheelLines(0), MIN_WHEEL_LINES, "below the floor clamps up");
+  assert.equal(normalizeWheelLines(99), MAX_WHEEL_LINES, "above the ceiling clamps down");
+  assert.equal(normalizeWheelLines(3.6), 4, "an off-grid value rounds");
+  assert.equal(normalizeWheelLines(Number.NaN), DEFAULT_WHEEL_LINES);
+
+  assert.deepEqual([...BOLD_MODES], ["font", "bright"]);
+  assert.equal(DEFAULT_BOLD_MODE, "font", "the shipped face behaviour is the default");
+  assert.equal(normalizeBoldMode("bright"), "bright");
+  assert.equal(normalizeBoldMode("nonsense"), DEFAULT_BOLD_MODE);
+  assert.deepEqual(BOLD_MODE_OPTIONS.map((option) => option.value), [...BOLD_MODES]);
+
+  // Both switches ship off — the shipped behaviour is the explicit copy
+  // shortcut and a verbatim paste — and only an explicit `true` turns one on.
+  assert.equal(DEFAULT_SELECT_COPY, false);
+  assert.equal(DEFAULT_PASTE_SAFE, false);
+  assert.equal(normalizeSelectCopy(true), true);
+  assert.equal(normalizeSelectCopy("true"), false, "a hand-edited string is not a switch");
+  assert.equal(normalizeSelectCopy(undefined), false);
+  assert.equal(normalizePasteSafe(true), true);
+  assert.equal(normalizePasteSafe(1), false);
+});
+
+test("R43 · the packed palette colour becomes a CSS hex string", () => {
+  assert.equal(packedHex(0x000000), "#000000");
+  assert.equal(packedHex(0xffffff), "#ffffff");
+  assert.equal(packedHex(0x00ff9c), "#00ff9c");
+  assert.equal(packedHex(0x0b0d10), "#0b0d10");
+  // The mask keeps it 24-bit even if a caller passes something wider.
+  assert.equal(packedHex(0xff0b0d10), "#0b0d10");
+});
+
+test("R43 · the preview is an inline block painted from the palette, not a second terminal", async () => {
+  const source = stripJsComments(await read("src/settings/TerminalAppearance.tsx"));
+  assert.match(source, /export function TerminalPalettePreview/, "the preview is its own component");
+  // `inherit` reads the document tokens (so it follows the app's theme);
+  // an override paints its packed colours.
+  assert.match(source, /theme === "inherit" \? null : TERMINAL_PALETTES\[theme\]/);
+  assert.match(source, /background: "var\(--terminal-bg\)"/);
+  assert.match(source, /packedHex\(palette\.bg\)/);
+  assert.match(source, /--preview-cursor/);
+  // It is never positioned — the standing objection to overlays.
+  assert.doesNotMatch(source, /position:\s*["']?(absolute|fixed)/);
+  // No canvas / renderer / PTY is instantiated here.
+  assert.doesNotMatch(source, /TerminalCanvas|new .*Renderer|term_input/);
+  // The palette row is the select (nine options do not fit a segmented track).
+  assert.match(source, /<select[\s\S]{0,400}?TERMINAL_THEME_OPTIONS\.map/);
+  // The CSS is inline, scaled by `--u` / the type ladder, and spends no accent.
+  const css = stripJsComments(await read("src/styles/settings.css"));
+  const preview = /\.terminal-palette-preview\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+  assert.match(preview, /font-size:\s*var\(--text-caption\)/, "the preview text scales with the type ladder");
+  assert.match(preview, /padding:\s*calc\(var\(--u\)/, "and its box scales with the interface step");
+  assert.doesNotMatch(preview, /accent/, "the preview spends no accent budget");
+});
+
+test("R43 · the Rust domains match the frontend, with defaults and guards", async () => {
+  const rust = await read("src-tauri/src/commands/config.rs");
+  // Nine palettes, in the frontend's order.
+  const themeTable = /const TERMINAL_THEMES:\s*\[&str;\s*(\d+)\]\s*=\s*\[([\s\S]*?)\];/.exec(rust);
+  assert.ok(themeTable, "Rust declares the palette table");
+  assert.equal(Number(themeTable![1]), TERMINAL_THEMES.length, "the Rust table is the same length");
+  for (const id of TERMINAL_THEMES) {
+    assert.match(rust, new RegExp(`"${id}"`), `Rust must know the terminal theme ${id}`);
+  }
+  // The wheel band and the bold modes.
+  assert.match(rust, /const MIN_WHEEL_LINES: u32 = 1;/);
+  assert.match(rust, /const MAX_WHEEL_LINES: u32 = 8;/);
+  assert.match(rust, /const DEFAULT_WHEEL_LINES: u32 = 3;/);
+  assert.match(rust, /const BOLD_MODES: \[&str; 2\] = \["font", "bright"\];/);
+  // Every field has a serde default and a normalize guard.
+  for (const field of ["terminal_wheel_lines", "terminal_bold", "terminal_select_copy", "terminal_paste_safe"]) {
+    assert.match(rust, new RegExp(`pub ${field}:`), `AppSettings must carry ${field}`);
+  }
+  assert.match(rust, /#\[serde\(default = "default_terminal_wheel_lines"\)\]\n\s*pub terminal_wheel_lines/);
+  assert.match(rust, /#\[serde\(default = "default_terminal_bold"\)\]\n\s*pub terminal_bold/);
+  assert.match(rust, /settings\.terminal_wheel_lines = settings\s*\.terminal_wheel_lines\s*\.clamp\(MIN_WHEEL_LINES, MAX_WHEEL_LINES\)/);
+  assert.match(rust, /BOLD_MODES\.contains\(&settings\.terminal_bold\.as_str\(\)\)/);
+  assert.match(rust, /terminal_wheel_lines: DEFAULT_WHEEL_LINES/);
+  assert.match(rust, /terminal_bold: DEFAULT_BOLD_MODE\.to_string\(\)/);
+});
+
+test("R43 · the renderer reads the wheel count and the bold mode", async () => {
+  const render = stripJsComments(await read("src/terminal/render.ts"));
+  assert.match(render, /get wheelLines\(\): number/, "the renderer exposes the wheel count to the wheel math");
+  assert.match(render, /renderer\.cellHeight \* renderer\.wheelLines/, "the wheel unit is the cell height times the count");
+  assert.match(render, /boldMode === "bright"/, "the bright mode spends bold on the foreground");
+  assert.match(render, /useBoldFace = bold && !brightBold/, "the face and the colour are separate decisions");
 });

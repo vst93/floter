@@ -743,7 +743,7 @@
 }
 
 .glass-intensity__segments .settings-option {
-  min-height: calc(var(--u) * 34);
+  min-height: calc(var(--u) * 30);
   padding: 0 calc(var(--u) * 6);
   text-align: center;
   justify-items: center;
@@ -812,6 +812,61 @@
   font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+/* R43 · the palette rack and its preview.
+
+   Nine palettes do not fit a segmented track, so the theme control is the
+   settings select; beside it sits a miniature terminal painted from the chosen
+   palette (see `TerminalPalettePreview`). It is an ordinary inline block in the
+   row — never `position: absolute` — so it cannot overlap the panel, and every
+   dimension is on `--u` / the type ladder, so it scales with the interface step
+   and follows `inherit` into the app's dark/light tokens automatically. */
+.terminal-palette {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 10);
+}
+
+.terminal-palette-preview {
+  flex: 0 0 auto;
+  min-width: calc(var(--u) * 148);
+  display: grid;
+  gap: 1px;
+  padding: calc(var(--u) * 5) calc(var(--u) * 8);
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-sm);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: var(--text-caption);
+  line-height: 1.35;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.terminal-palette-preview__line {
+  display: block;
+  min-width: 0;
+}
+
+/* The prompt is a shade quieter than the output, the way a real prompt reads;
+   the middle line shows the palette's selection tint, the last the cursor. */
+.terminal-palette-preview__prompt {
+  opacity: 0.72;
+}
+
+.terminal-palette-preview__selection {
+  background: var(--preview-selection);
+}
+
+.terminal-palette-preview__cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  vertical-align: text-bottom;
+  background: var(--preview-cursor);
 }
 
 /* ── The row's boxed controls ─────────────────────────────────────────── */
@@ -916,7 +971,7 @@
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   grid-auto-flow: column;
   gap: calc(var(--u) * 2);
-  padding: calc(var(--u) * 3);
+  padding: calc(var(--u) * 2);
   /* ROUND-PASS: a segmented control is a stadium, not a rounded box. Both the
      track and the segment inside it take the pill, which is the one case
      where the concentric rule survives without arithmetic — outer and inner
@@ -929,12 +984,23 @@
 
 .settings-option {
   width: 100%;
-  min-height: calc(var(--u) * 34);
+  /* R43 · the segmented option tightens one notch (34u → 30u) and the track's
+     own inset follows (3u → 2u), so a stacked radio row — label, 8u gap,
+     track, 9px padding pair — loses 6u. The user's report was 「设置页面中一些
+     单选项按钮的高度可以稍微减小一点，现在整体感觉比例有点偏大」: the option
+     was the largest control in a settings row by a wide margin, and the four
+     stacked pickers (theme, language, interface size, cursor) read as chunky.
+     The box is still on `--u`, so the tightening scales with the interface
+     step instead of becoming a hard pixel: at `tiny` (0.8) the option is 24px,
+     at `larger` (1.25) it is 37.5px, and the touch target the H5 build wants is
+     untouched — this is the desktop launcher, where density wins. The inline
+     padding drops 10u → 9u with it so the label keeps its breathing room. */
+  min-height: calc(var(--u) * 30);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: calc(var(--u) * 10);
-  padding: 0 calc(var(--u) * 10);
+  padding: 0 calc(var(--u) * 9);
   /* ROUND-PASS: the default shape stays the ladder's control step. The pill
      below is applied *by the track* (`.settings-options--inline
      .settings-option`), because "is a pill" is a property of being a segment

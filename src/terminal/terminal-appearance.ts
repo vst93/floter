@@ -88,13 +88,23 @@ export const terminalPaddingPx = (value: string): number =>
 // R30 base.css material/glass formulas are not touched, and no global token
 // moves.
 
-export const TERMINAL_THEMES = ["inherit", "contrast", "paper"] as const;
+export const TERMINAL_THEMES = [
+  "inherit",
+  "contrast",
+  "paper",
+  "ink",
+  "fog",
+  "forest",
+  "dusk",
+  "mist",
+  "amber",
+] as const;
 export type TerminalTheme = (typeof TERMINAL_THEMES)[number];
 export const DEFAULT_TERMINAL_THEME: TerminalTheme = "inherit";
 
 export const normalizeTerminalTheme = (value: string): TerminalTheme =>
-  value === "inherit" || value === "contrast" || value === "paper"
-    ? value
+  (TERMINAL_THEMES as readonly string[]).includes(value)
+    ? (value as TerminalTheme)
     : DEFAULT_TERMINAL_THEME;
 
 /** A fixed palette a theme override paints, in the same shape `render.ts`
@@ -108,9 +118,12 @@ export interface TerminalPalette {
   scrollbar: string;
 }
 
-/** The two overrides. `contrast` is a true black/white pair with a saturated
- *  cursor; `paper` is a warm, low-glare light palette. `inherit` has no entry
- *  — it means "read the document's `--terminal-*` tokens". */
+/// The eight overrides. `contrast` is a true black/white pair with a saturated
+///  cursor; `paper` is a warm, low-glare light palette; R43 adds six more so the
+///  picker is a palette rack rather than a pair — `ink` (near-black), `fog`
+///  (cool grey), `forest` (deep green), `dusk` (violet night), `mist` (a light
+///  blue-grey) and `amber` (warm dark). `inherit` has no entry — it means "read
+///  the document's `--terminal-*` tokens".
 export const TERMINAL_PALETTES: Record<Exclude<TerminalTheme, "inherit">, TerminalPalette> = {
   contrast: {
     bg: 0x000000,
@@ -126,7 +139,55 @@ export const TERMINAL_PALETTES: Record<Exclude<TerminalTheme, "inherit">, Termin
     selection: "rgba(0, 0, 0, 0.14)",
     scrollbar: "rgba(0, 0, 0, 0.34)",
   },
+  ink: {
+    bg: 0x0b0d10,
+    fg: 0xe6e9ef,
+    cursor: 0x7dd3fc,
+    selection: "rgba(255, 255, 255, 0.24)",
+    scrollbar: "rgba(255, 255, 255, 0.48)",
+  },
+  fog: {
+    bg: 0x1b1f24,
+    fg: 0xc9d1d9,
+    cursor: 0x9ece6a,
+    selection: "rgba(255, 255, 255, 0.22)",
+    scrollbar: "rgba(255, 255, 255, 0.44)",
+  },
+  forest: {
+    bg: 0x0f1a14,
+    fg: 0xd7e4d0,
+    cursor: 0x8bd450,
+    selection: "rgba(255, 255, 255, 0.22)",
+    scrollbar: "rgba(255, 255, 255, 0.44)",
+  },
+  dusk: {
+    bg: 0x1a1526,
+    fg: 0xe2d9f3,
+    cursor: 0xc792ea,
+    selection: "rgba(255, 255, 255, 0.24)",
+    scrollbar: "rgba(255, 255, 255, 0.46)",
+  },
+  mist: {
+    bg: 0xdfe7ef,
+    fg: 0x2b3440,
+    cursor: 0x2f6f9f,
+    selection: "rgba(0, 0, 0, 0.16)",
+    scrollbar: "rgba(0, 0, 0, 0.34)",
+  },
+  amber: {
+    bg: 0x1c140a,
+    fg: 0xf0e2c8,
+    cursor: 0xffb454,
+    selection: "rgba(255, 255, 255, 0.24)",
+    scrollbar: "rgba(255, 255, 255, 0.46)",
+  },
 };
+
+/** `0xRRGGBB` -> `#rrggbb`, for the palette preview's inline styles (the
+ *  renderer's own packed integers are its business; the preview needs a CSS
+ *  string). Pure and total. */
+export const packedHex = (packed: number): string =>
+  `#${(packed & 0xffffff).toString(16).padStart(6, "0")}`;
 
 // ---- Cursor --------------------------------------------------------------
 
@@ -145,6 +206,52 @@ export const normalizeCursorBlink = (value: unknown): boolean => value !== false
 export const DEFAULT_SCROLLBAR = true;
 export const normalizeScrollbar = (value: unknown): boolean => value !== false;
 
+// ---- R43 · the interaction axes ------------------------------------------
+//
+// Four more canvas/term capabilities the renderer and the input path can
+// actually honour. Everything here is applied *live* by the running session:
+// nothing needs a new PTY, so a change repaints or re-binds rather than
+// resetting. The one capability the brief floated that is **out of reach** is
+// the shell integration / prompt marks — the emulator has no OSC 133 handling
+// on the wire, so no setting can honestly promise it.
+
+// How many lines one wheel notch scrolls. The renderer's own unit was
+// `max(24, cellHeight * 1.5)` — about a line and a half — and this multiplies
+// it, so the default 3 matches the travel a user expects from a notch while a
+// trackpad's many small deltas still accumulate (see `wheelScrollSteps`).
+export const MIN_WHEEL_LINES = 1;
+export const MAX_WHEEL_LINES = 8;
+export const DEFAULT_WHEEL_LINES = 3;
+
+export const normalizeWheelLines = (value: number): number =>
+  Math.round(
+    Math.min(
+      MAX_WHEEL_LINES,
+      Math.max(MIN_WHEEL_LINES, Number.isFinite(value) ? value : DEFAULT_WHEEL_LINES),
+    ),
+  );
+
+/** How a bold cell is drawn: with the face's bold weight (`font`, the shipped
+ *  behaviour) or with a brighter foreground (`bright`, the terminal classic).
+ *  Unknown ids fall back to the shipped `font`. */
+export const BOLD_MODES = ["font", "bright"] as const;
+export type BoldMode = (typeof BOLD_MODES)[number];
+export const DEFAULT_BOLD_MODE: BoldMode = "font";
+
+export const normalizeBoldMode = (value: string): BoldMode =>
+  value === "bright" ? "bright" : DEFAULT_BOLD_MODE;
+
+/** Whether finishing a drag-copy puts the selection on the system clipboard.
+ *  Off by default: the shipped behaviour is the explicit copy shortcut. */
+export const DEFAULT_SELECT_COPY = false;
+export const normalizeSelectCopy = (value: unknown): boolean => value === true;
+
+/** Whether a paste has one trailing newline stripped, so pasting a command
+ *  does not run it before the user has read it. Off by default — the shipped
+ *  behaviour pastes verbatim. */
+export const DEFAULT_PASTE_SAFE = false;
+export const normalizePasteSafe = (value: unknown): boolean => value === true;
+
 // ---- Option lists --------------------------------------------------------
 
 export type Choice<T extends string> = { value: T; labelKey: MessageKey };
@@ -155,15 +262,19 @@ export const CURSOR_SHAPE_OPTIONS: Choice<CursorShape>[] = [
   { value: "underline", labelKey: "settings.cursor.underline" },
 ];
 
-export const TERMINAL_THEME_OPTIONS: Choice<TerminalTheme>[] = [
-  { value: "inherit", labelKey: "settings.terminalTheme.inherit" },
-  { value: "contrast", labelKey: "settings.terminalTheme.contrast" },
-  { value: "paper", labelKey: "settings.terminalTheme.paper" },
-];
+export const TERMINAL_THEME_OPTIONS: Choice<TerminalTheme>[] = TERMINAL_THEMES.map((value) => ({
+  value,
+  labelKey: `settings.terminalTheme.${value}` as MessageKey,
+}));
 
 export const TERMINAL_PADDING_OPTIONS: Choice<TerminalPadding>[] = TERMINAL_PADDING_ORDER.map(
   (value) => ({ value, labelKey: `settings.terminalPadding.${value}` as MessageKey }),
 );
+
+export const BOLD_MODE_OPTIONS: Choice<BoldMode>[] = BOLD_MODES.map((value) => ({
+  value,
+  labelKey: `settings.terminalBold.${value}` as MessageKey,
+}));
 
 // ---- Font family ---------------------------------------------------------
 //

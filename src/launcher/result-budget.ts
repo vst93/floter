@@ -401,6 +401,77 @@ export const launcherRowHeight = (
     maxHeight,
   );
 
+/** R43 · a status note's height, in units. It is the `.launcher-status` line's
+ *  `min-height` in `styles/launcher.css`, and the same 30u `.launcher-feedback`
+ *  reserves — a note and a feedback line are the same object at two positions.
+ *  The list's height accounting reads it instead of charging a full row. */
+export const LAUNCHER_STATUS_UNITS = 30;
+
+/**
+ * R43 · the list's real content height, in units.
+ *
+ * The user's report, verbatim: 「搜索页现在这个列表高度看起来还是没有完全自适应，
+ * 在选项和底部独立的「终端运行」这个选项之间，还是会有一些空行」. The window was
+ * sized as `count × ROW_HEIGHT_TWO_LINE` — every row charged at the two-line
+ * height — while a row whose subtitle was dropped (an application, a system
+ * action, a plugin row with nothing to say; see `row-content.ts`) is drawn at
+ * the compact height. Ten compact rows therefore sat in a window 80u taller
+ * than their list, and the 34–117u of leftover landed in the gap above the
+ * pinned action bar.
+ *
+ * This is the honest number: the sum of the rows' *own* heights, so the window
+ * can be exactly the list it holds. The row count still decides the fixed
+ * chrome (the scroll-edge band, the gaps, the section title) — only the unit
+ * part is the real total.
+ */
+export const launcherListUnits = (heights: readonly number[]): number =>
+  heights.reduce((total, height) => total + Math.max(0, height), 0);
+
+/**
+ * R43 · the sticky list-unit total. The mirror of {@link resolveLauncherRows}
+ * for the *height* axis: growth is immediate (a window one row short would clip
+ * the row), and a shrink is absorbed until the content has fallen more than one
+ * worst-case row below the held total — so the 1↔2 boundary and a one-row
+ * change still never flap, exactly as the count resolver guarantees for the
+ * count.
+ */
+export const resolveLauncherUnits = (current: number, units: number): number => {
+  const target = Math.max(ROW_HEIGHT_COMPACT, Math.ceil(units));
+  const held = Math.max(ROW_HEIGHT_COMPACT, Math.ceil(current));
+  if (target >= held) return target;
+  return held - target <= ROW_HEIGHT_TWO_LINE ? held : target;
+};
+
+/**
+ * R43 · a real-content list's window height at an interface step.
+ *
+ * `listUnits` is {@link launcherListUnits}'s sum (plus one worst-case row for
+ * any chrome row the caller charges as a row); `rows` is still the rendered row
+ * count, because the fixed chrome (`launcherRowChrome`) is a function of the
+ * count and the section title, not of the unit total. The unit part scales and
+ * the chrome is added once, exactly as {@link launcherRowHeight} does.
+ */
+export const launcherContentHeight = (
+  listUnits: number,
+  rows: number,
+  scale: number,
+  maxHeight: number,
+  actionBar = true,
+  sectionTitle = false,
+  filter = false,
+): number =>
+  Math.min(
+    Math.ceil(
+      (LAUNCHER_ROW_CHROME_UNITS +
+        listUnits +
+        (actionBar ? LAUNCHER_ACTION_BAR_UNITS : 0) +
+        (filter ? LAUNCHER_FILTER_UNITS : 0)) *
+        scale +
+        launcherRowChrome(rows, sectionTitle),
+    ),
+    maxHeight,
+  );
+
 /** Whether a row is *a* clipboard row — the `system-clipboard` entry the
  *  catalog contributes like any other built-in.
  *

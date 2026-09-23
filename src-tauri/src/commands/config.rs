@@ -72,19 +72,48 @@ const DEFAULT_LINE_HEIGHT: f64 = 1.4;
 const DEFAULT_TERMINAL_PADDING: &str = "regular";
 const TERMINAL_PADDINGS: [&str; 3] = ["compact", "regular", "relaxed"];
 const DEFAULT_TERMINAL_THEME: &str = "inherit";
-const TERMINAL_THEMES: [&str; 3] = ["inherit", "contrast", "paper"];
+// R43 · the palette rack grew from three to nine (inherit plus eight overrides).
+// The ids match `TERMINAL_THEMES` in `terminal/terminal-appearance.ts`.
+const TERMINAL_THEMES: [&str; 9] = [
+    "inherit",
+    "contrast",
+    "paper",
+    "ink",
+    "fog",
+    "forest",
+    "dusk",
+    "mist",
+    "amber",
+];
+// R43 · the interaction axes. The wheel count is clamped; the bold mode is one
+// of two ids; the two switches default off (the shipped behaviour).
+const MIN_WHEEL_LINES: u32 = 1;
+const MAX_WHEEL_LINES: u32 = 8;
+const DEFAULT_WHEEL_LINES: u32 = 3;
+const DEFAULT_BOLD_MODE: &str = "font";
+const BOLD_MODES: [&str; 2] = ["font", "bright"];
 
-/// R7-13c · the three interface-size steps and the `--ui-scale` multiplier each
-/// one writes. The string domain matches `UiScale` in `src/ui-scale.ts`; the
+/// R7-13c · the interface-size steps and the `--ui-scale` multiplier each one
+/// writes. The string domain matches `UiScale` in `src/ui-scale.ts`; the
 /// numbers match `UI_SCALE_FACTORS` there. Rust cannot import TypeScript, so the
 /// two tables are pinned against each other by
 /// `tests/ui-scale-steps.test.ts`, exactly as `INPUT_WINDOW_WIDTH` is.
+///
+/// R43 · two steps below the shipped default were added (0.9 and 0.8); the
+/// three original steps are untouched. The native reset path reads only the
+/// multiplier, so the ladder's length is the frontend's business.
 ///
 /// The value the *native* reset path needs is the multiplier: the launcher's
 /// fallback height (`INPUT_WINDOW_HEIGHT`, a scale-1 measurement) is multiplied
 /// by it before the window is re-homed, so the pre-frontend frame is already
 /// the right size for the chosen step. Every other consumer is CSS.
-pub const UI_SCALE_STEPS: [(&str, f64); 3] = [("default", 1.0), ("large", 1.1), ("larger", 1.25)];
+pub const UI_SCALE_STEPS: [(&str, f64); 5] = [
+    ("tiny", 0.8),
+    ("small", 0.9),
+    ("default", 1.0),
+    ("large", 1.1),
+    ("larger", 1.25),
+];
 
 /// The shipped step when the key is absent or names something unknown. Every
 /// build before R7-13c shipped this step, so an older or hand-edited settings
@@ -134,6 +163,19 @@ pub fn default_terminal_padding() -> String {
 /// canvas reads the `--terminal-*` tokens for the app's theme).
 pub fn default_terminal_theme() -> String {
     DEFAULT_TERMINAL_THEME.to_string()
+}
+
+/// R43 · the terminal's wheel-scroll line count. `#[serde(default = ...)]` keeps
+/// a settings file written before this key at the shipped three lines rather
+/// than at `u32::default()` (0, which would make the wheel do nothing).
+pub fn default_terminal_wheel_lines() -> u32 {
+    DEFAULT_WHEEL_LINES
+}
+
+/// R43 · how a bold cell is drawn. `font` is the shipped behaviour; a
+/// pre-round file must not fall to `String::default()` (`""`, no shipped mode).
+pub fn default_terminal_bold() -> String {
+    DEFAULT_BOLD_MODE.to_string()
 }
 
 /// R35 · the page-residency window: how long a surface survives a dismissal
@@ -388,6 +430,23 @@ pub struct AppSettings {
     /// R42 · whether the scrollbar overlay may be drawn (default on).
     #[serde(default = "default_true")]
     pub terminal_scrollbar: bool,
+    /// R43 · how many lines one wheel notch scrolls (1–8, default 3). The
+    /// renderer multiplies its own pixel unit by this; the PTY is untouched.
+    #[serde(default = "default_terminal_wheel_lines")]
+    pub terminal_wheel_lines: u32,
+    /// R43 · how a bold cell is drawn: "font" (the face's bold weight, the
+    /// shipped behaviour) or "bright" (the regular face with a brighter
+    /// foreground).
+    #[serde(default = "default_terminal_bold")]
+    pub terminal_bold: String,
+    /// R43 · whether finishing a selection copies it to the system clipboard
+    /// (default off: the shipped behaviour is the explicit copy shortcut).
+    #[serde(default)]
+    pub terminal_select_copy: bool,
+    /// R43 · whether a paste has one trailing newline stripped so it is not run
+    /// before the user has read it (default off: verbatim paste).
+    #[serde(default)]
+    pub terminal_paste_safe: bool,
     /// UI language: "en" | "zh".
     pub language: String,
     /// Last user-selected terminal window dimensions, in logical pixels.
@@ -511,6 +570,10 @@ impl Default for AppSettings {
             terminal_cursor_blink: true,
             terminal_theme: DEFAULT_TERMINAL_THEME.to_string(),
             terminal_scrollbar: true,
+            terminal_wheel_lines: DEFAULT_WHEEL_LINES,
+            terminal_bold: DEFAULT_BOLD_MODE.to_string(),
+            terminal_select_copy: false,
+            terminal_paste_safe: false,
             language: "en".to_string(),
             terminal_width: DEFAULT_TERMINAL_WIDTH,
             terminal_height: DEFAULT_TERMINAL_HEIGHT,
@@ -811,6 +874,18 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         settings.terminal_theme
     } else {
         DEFAULT_TERMINAL_THEME.to_string()
+    };
+    // R43 · the interaction axes: the wheel count clamps to its band, an unknown
+    // bold mode falls back to the shipped face, and the two switches are
+    // booleans by type (a hand-edited `1`/`"true"` is rejected by serde, which
+    // is the same contract every other switch carries).
+    settings.terminal_wheel_lines = settings
+        .terminal_wheel_lines
+        .clamp(MIN_WHEEL_LINES, MAX_WHEEL_LINES);
+    settings.terminal_bold = if BOLD_MODES.contains(&settings.terminal_bold.as_str()) {
+        settings.terminal_bold
+    } else {
+        DEFAULT_BOLD_MODE.to_string()
     };
     (settings.terminal_width, settings.terminal_height) =
         normalize_terminal_size(settings.terminal_width, settings.terminal_height);
@@ -2278,6 +2353,8 @@ mod tests {
     /// the shipped behaviour: a blinking cursor, a visible scrollbar, the
     /// inherited palette and the 1.4 line height — never `Default::default()`,
     /// which would turn the first two off and collapse the rows.
+    ///
+    /// R43 extends the same contract to the four interaction axes.
     #[test]
     fn pre_round_files_get_the_shipped_terminal_appearance() {
         let mut value = serde_json::to_value(AppSettings::default()).unwrap();
@@ -2288,6 +2365,10 @@ mod tests {
             "terminal_cursor_blink",
             "terminal_theme",
             "terminal_scrollbar",
+            "terminal_wheel_lines",
+            "terminal_bold",
+            "terminal_select_copy",
+            "terminal_paste_safe",
         ] {
             object.remove(key);
         }
@@ -2297,6 +2378,62 @@ mod tests {
         assert!(recovered.terminal_cursor_blink);
         assert_eq!(recovered.terminal_theme, DEFAULT_TERMINAL_THEME);
         assert!(recovered.terminal_scrollbar);
+        assert_eq!(recovered.terminal_wheel_lines, DEFAULT_WHEEL_LINES);
+        assert_eq!(recovered.terminal_bold, DEFAULT_BOLD_MODE);
+        assert!(!recovered.terminal_select_copy);
+        assert!(!recovered.terminal_paste_safe);
+    }
+
+    /// R43 · the four interaction axes are normalized at the boundary: the
+    /// wheel count clamps to its band, an unknown bold mode falls back to the
+    /// shipped face, and the two switches are booleans by type.
+    #[test]
+    fn normalize_settings_guards_the_interaction_axes() {
+        let out_of_band = normalize_settings(AppSettings {
+            terminal_wheel_lines: 99,
+            terminal_bold: "neon".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(out_of_band.terminal_wheel_lines, MAX_WHEEL_LINES);
+        assert_eq!(out_of_band.terminal_bold, DEFAULT_BOLD_MODE);
+        let floor = normalize_settings(AppSettings {
+            terminal_wheel_lines: 0,
+            ..AppSettings::default()
+        });
+        assert_eq!(floor.terminal_wheel_lines, MIN_WHEEL_LINES);
+        // Legitimate values survive, including the non-default switch states.
+        let kept = normalize_settings(AppSettings {
+            terminal_wheel_lines: 6,
+            terminal_bold: "bright".into(),
+            terminal_select_copy: true,
+            terminal_paste_safe: true,
+            ..AppSettings::default()
+        });
+        assert_eq!(kept.terminal_wheel_lines, 6);
+        assert_eq!(kept.terminal_bold, "bright");
+        assert!(kept.terminal_select_copy);
+        assert!(kept.terminal_paste_safe);
+    }
+
+    /// R43 · every new palette id is a shipped one, and the pre-R43 three are
+    /// unchanged — an old file keeps its palette.
+    #[test]
+    fn the_palette_rack_accepts_the_new_ids_and_keeps_the_old() {
+        for id in ["ink", "fog", "forest", "dusk", "mist", "amber"] {
+            let settings = normalize_settings(AppSettings {
+                terminal_theme: id.into(),
+                ..AppSettings::default()
+            });
+            assert_eq!(settings.terminal_theme, id, "{id} must be a shipped palette");
+        }
+        for id in ["inherit", "contrast", "paper"] {
+            let settings = normalize_settings(AppSettings {
+                terminal_theme: id.into(),
+                ..AppSettings::default()
+            });
+            assert_eq!(settings.terminal_theme, id, "{id} is a pre-R43 palette and stays");
+        }
+        assert_eq!(TERMINAL_THEMES.len(), 9);
     }
 
     #[test]

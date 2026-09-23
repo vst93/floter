@@ -95,14 +95,19 @@ import { pluginFilterRowVisible } from "./launcher/filter-row";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
-  launcherRowHeight,
+  LAUNCHER_STATUS_UNITS,
+  ROW_HEIGHT_COMPACT,
+  ROW_HEIGHT_TWO_LINE,
+  launcherContentHeight,
+  launcherListUnits,
   launcherWindowHeight,
   MAX_RESULTS,
-  resolveLauncherRows,
+  resolveLauncherUnits,
   resultShortcutSlots,
   RESULTS_VIEWPORT_CHROME,
   type VisibleRowRange,
 } from "./launcher/result-budget";
+import { resultRowContent } from "./launcher/row-content";
 import type { CommandAliases } from "./command-aliases";
 import {
   BROWSER_FILTER_AXIS,
@@ -123,8 +128,10 @@ import {
 } from "./launcher";
 import {
   enabledExternalCommands,
+  externalCommandDisplayName,
   externalModeCommand,
   externalPluginModeEntry,
+  externalTriggerHint,
   splitPluginCommandArgs,
   type ExternalPluginCommand,
   type ExternalRunOutput,
@@ -156,8 +163,8 @@ export type ViewMode = "collapsed" | "terminal" | "settings";
 // R42 · the terminal's appearance vocabulary lives in a React-free module so
 // the node test runner can import it directly and both settings surfaces share
 // one schema; App re-exports it for the components.
-import type { CursorShape, TerminalPadding, TerminalTheme } from "./terminal/terminal-appearance";
-export type { CursorShape, TerminalPadding, TerminalTheme } from "./terminal/terminal-appearance";
+import type { BoldMode, CursorShape, TerminalPadding, TerminalTheme } from "./terminal/terminal-appearance";
+export type { BoldMode, CursorShape, TerminalPadding, TerminalTheme } from "./terminal/terminal-appearance";
 // The Liquid Glass vocabulary lives in its own React-free module so the node
 // test runner can import it directly; App re-exports it for the components.
 import type { GlassStep } from "./glass-material";
@@ -212,6 +219,15 @@ export type AppSettings = {
   terminal_cursor_blink: boolean;
   terminal_theme: TerminalTheme;
   terminal_scrollbar: boolean;
+  /** R43 · the interaction axes: how far a wheel notch scrolls, how a bold cell
+   *  is drawn, whether a finished selection is copied, and whether a paste has
+   *  its trailing newline stripped. All four are applied live to the running
+   *  session (no PTY restart), and all four are normalized on read and by the
+   *  backend on save. */
+  terminal_wheel_lines: number;
+  terminal_bold: BoldMode;
+  terminal_select_copy: boolean;
+  terminal_paste_safe: boolean;
   language: Language;
   main_opacity: number;
   terminal_opacity: number;
@@ -247,7 +263,8 @@ export type AppSettings = {
    * conflicts between two commands sharing one alias are resolved at search
    * time (see `resolveCommandAliases`). */
   command_aliases: CommandAliases;
-  /** R7-13c: the interface-size step (`"default"` / `"large"` / `"larger"`).
+  /** R7-13c: the interface-size step (`"tiny"` / `"small"` / `"default"` /
+   * `"large"` / `"larger"`).
    * The stored string is the vocabulary; the step's `--ui-scale` multiplier
    * lives in `ui-scale.ts` and is written onto the document root by a layout
    * effect in this file (before `useLauncherHeight` measures the card). */
@@ -772,6 +789,10 @@ export default function App() {
     cursorBlink: settings.terminal_cursor_blink,
     showScrollbar: settings.terminal_scrollbar,
     terminalTheme: settings.terminal_theme,
+    wheelLines: settings.terminal_wheel_lines,
+    boldMode: settings.terminal_bold,
+    selectCopy: settings.terminal_select_copy,
+    pasteSafe: settings.terminal_paste_safe,
     resolvedTheme,
     ptyReady,
     pinnedReady,
@@ -1185,6 +1206,20 @@ export default function App() {
     scope: launcherScope,
     configOpen: pluginConfigOpen && launcherPluginId !== null,
   });
+  // R43 · the ordinary search page's trigger hint. A typed word that is a prefix
+  // of an enabled external command's trigger word gets a muted nudge that one
+  // space enters its mode. It is the same vocabulary the transition reads
+  // (`externalPluginModeEntry`), so the hint can never name a word that does not
+  // work, and it shares the chips row's slot — the hint lives on the ordinary
+  // page, the chips inside a plugin scope, so the two are mutually exclusive by
+  // construction (see the priority note where the row renders).
+  const triggerHint =
+    launcherScope === null && mode === "collapsed"
+      ? externalTriggerHint(query, enabledExternalCommandList)
+      : null;
+  // The subline band the window charges: the plugin chips or the trigger hint,
+  // never both. One band, so the two cannot reserve the same 28u twice.
+  const launcherSubline = filterRowVisible || triggerHint !== null;
   // R33 · ref mirror for the once-registered plugin-request listener: the
   // hotkey's toggle has to know whether the overlay is already open for this
   // very plugin before deciding to close it instead of opening it again.
@@ -1643,13 +1678,40 @@ export default function App() {
         (showOnboardingTip && !launcherScope ? 1 : 0) +
         (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0),
   );
-  // R34 · the row count is sticky: growing is immediate (a height one row short
-  // would clip the row), and shrinking waits for the count to fall a row below
-  // the held count, so a query oscillating across a boundary does not resize the
-  // window. See `resolveLauncherRows`.
-  const launcherRowsRef = useRef(1);
-  const launcherHeldRows = resolveLauncherRows(launcherRowsRef.current, launcherRows);
-  launcherRowsRef.current = launcherHeldRows;
+  // R43 · the list's real content height, in units. The window used to be
+  // `count × ROW_HEIGHT_TWO_LINE` — every row charged at the two-line height —
+  // while a row whose subtitle was dropped is drawn compact (34u). The
+  // difference landed as an integer-row gap above the pinned action bar. The
+  // sum of the rows' *own* heights is the honest number; the tip, the feedback
+  // line and the config overlay stay charged as worst-case rows (they are chrome
+  // the user reads at most once, and charging them exactly would put the window
+  // at the mercy of a font landing late).
+  const launcherRowHeightUnits = (item: LauncherItem): number => {
+    if (item.type === "status") return LAUNCHER_STATUS_UNITS;
+    return resultRowContent(item, t).subtitle === null
+      ? ROW_HEIGHT_COMPACT
+      : ROW_HEIGHT_TWO_LINE;
+  };
+  const launcherChromeRows =
+    (showOnboardingTip && !launcherScope ? 1 : 0) +
+    (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0);
+  const launcherListUnitsRaw =
+    pluginConfigOpen && launcherPluginId
+      ? (1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)) * ROW_HEIGHT_TWO_LINE
+      : pluginView
+        ? pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE
+        : launcherListUnits(displayedResults.map(launcherRowHeightUnits)) +
+          launcherChromeRows * ROW_HEIGHT_TWO_LINE;
+  // R43 · the unit total is sticky, the same way the row count used to be:
+  // growing is immediate (a window one row short would clip the row) and a
+  // shrink is absorbed until the content has fallen more than one worst-case
+  // row below the held total, so the 1↔2 boundary and a one-row change never
+  // flap. The count hysteresis (`resolveLauncherRows`) is subsumed by this one —
+  // a one-row change is at most 42u — and is kept in the module for its own
+  // tests and for any caller that wants a count.
+  const launcherUnitsRef = useRef(ROW_HEIGHT_TWO_LINE);
+  const launcherHeldUnits = resolveLauncherUnits(launcherUnitsRef.current, launcherListUnitsRaw);
+  launcherUnitsRef.current = launcherHeldUnits;
   // R27 · the height charges the action bar only when the bar is drawn, and the
   // empty-query heading only when that heading is drawn. Both are visible in the
   // state the user reported: a query that matched nothing has no action bar (the
@@ -1660,21 +1722,17 @@ export default function App() {
   // scope the list is the plugin's own and the "Recently launched" label sat
   // over bookmark rows (the leak the user reported).
   const launcherSectionTitle = !launcherScope && !query.trim() && !fileRows.length;
-  const launcherHeight = launcherRowHeight(
-    launcherHeldRows,
+  const launcherHeight = launcherContentHeight(
+    launcherHeldUnits,
+    launcherRows,
     launcherScale,
     launcherMaxHeight,
     launcherHasBar,
     launcherSectionTitle,
-    // R32 · the browser scope's range-filter subline is fixed chrome; charging
-    // it here keeps the window from moving as the plugin's rows filter.
-    // R38 · the clipboard mode draws the same subline (its own six chips), so
-    // it is charged by the same constant — the window must not resize when the
-    // chips appear or when a chip switches the list under them.
-    // R41 · the charge follows the row's *visibility*, not the scope: while the
-    // plugin's configuration overlay is open the chips are not drawn, so
-    // reserving their band would leave 28u of glass under the overlay.
-    filterRowVisible,
+    // R32/R38/R43 · the subline band (the browser/clipboard chips or the
+    // trigger hint) is fixed chrome; charging it here keeps the window from
+    // moving as the list under it changes.
+    launcherSubline,
   );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
@@ -2282,6 +2340,8 @@ export default function App() {
       cursorBlink={settings.terminal_cursor_blink}
       showScrollbar={settings.terminal_scrollbar}
       terminalTheme={settings.terminal_theme}
+      wheelLines={settings.terminal_wheel_lines}
+      boldMode={settings.terminal_bold}
       theme={resolvedTheme}
       geometry={cardGeometry}
       onGeometryChange={updateCardGeometry}
@@ -2774,6 +2834,28 @@ export default function App() {
                 </>
               )}
             </div>
+            {/* R43 · the trigger hint. It shares the chips row's slot (the same
+                `.launcher-filter` band) and the priority between them is fixed
+                by scope: the hint exists only on the ordinary search page
+                (`launcherScope === null`), the chips only inside a plugin scope,
+                so at most one draws. The window charges the band once through
+                `launcherSubline`, so the hint never overlaps a row. Muted text,
+                no accent fill, `aria-live` so the nudge is announced once per
+                matched command rather than on every keystroke. */}
+            {triggerHint && (
+              <div className="launcher-filter launcher-filter--trigger-hint">
+                <span className="launcher-trigger-hint" role="status">
+                  {triggerHint.count > 1
+                    ? t("launcher.triggerHintMore", {
+                        name: externalCommandDisplayName(triggerHint.command),
+                        count: triggerHint.count - 1,
+                      })
+                    : t("launcher.triggerHint", {
+                        name: externalCommandDisplayName(triggerHint.command),
+                      })}
+                </span>
+              </div>
+            )}
             {/* R32 · the browser mode's range filter. A compact subline under
                 the field, present for the whole browser scope (including the
                 debounce before the first rows arrive) so the chips never

@@ -1,16 +1,28 @@
-// R7-13c · The user-facing interface-size vocabulary: three steps that write
+// R7-13c · The user-facing interface-size vocabulary: five steps that write
 // one CSS knob.
 //
 // R7-13b made `--ui-scale` the single truth every box dimension and type step
 // is drawn from (`--u: calc(1px * var(--ui-scale))`, `--text-*` off the same
-// knob). Leg 2 kept the value at `1`; this round is the one that lets the user
+// knob). Leg 2 kept the value at `1`; R7-13c is the one that lets the user
 // move it, so this module owns the *mapping* and nothing else:
 //
+//   tiny     -> 0.8     (-20%)
+//   small    -> 0.9     (-10%; +12.5% over tiny)
 //   default  -> 1
 //   large    -> 1.1     (+10%)
 //   larger   -> 1.25    (+13.6% over large, +25% over default)
 //
-// Why these three and not others:
+// R43 · the user asked for two steps *below* the shipped default
+// (「还可以再提供两个更小的值」). The pair is 0.9 and 0.8, not the 0.85/0.75
+// the brief floated, for one measured reason: the type ladder bottoms out at
+// `--text-caption`, 10px at the default step, and 0.75 would paint it at
+// 7.5px — under the 8px floor where a caption stops being a word and starts
+// being a smudge. 0.8 keeps it at 8px, the smallest legible step, and 0.9
+// keeps the first downward move the same ~10% the upward `large` uses, so the
+// ladder is symmetric: 0.8 → 0.9 → 1 → 1.1 → 1.25 (each adjacent pair a
+// visible 10–13% apart, every one above the "reads as a wobble" threshold).
+//
+// Why these five and not others:
 //   * **Raycast parity.** The reference ships Default / Large / Larger, and
 //     its "Larger" sits at about a quarter again over the default. 1.25 is that
 //     quarter; the round's whole point is that the setting reads the same.
@@ -35,17 +47,25 @@
 // custom property. `tests/ui-scale.test.ts` sweeps `src/` for the literal and
 // allows exactly this module to carry it.
 
-/** The three interface-size steps, smallest first. */
-export type UiScale = "default" | "large" | "larger";
+/** The five interface-size steps, smallest first. */
+export type UiScale = "tiny" | "small" | "default" | "large" | "larger";
 
 /** The steps in the order the settings picker paints them. */
-export const UI_SCALE_STEPS: readonly UiScale[] = ["default", "large", "larger"] as const;
+export const UI_SCALE_STEPS: readonly UiScale[] = [
+  "tiny",
+  "small",
+  "default",
+  "large",
+  "larger",
+] as const;
 
 /**
  * Step -> `--ui-scale` multiplier. This is the whole mapping; everything else
  * in the round derives from it.
  */
 export const UI_SCALE_FACTORS: Record<UiScale, number> = {
+  tiny: 0.8,
+  small: 0.9,
   default: 1,
   large: 1.1,
   larger: 1.25,

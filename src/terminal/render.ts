@@ -4,7 +4,9 @@ import { ALT_SCREEN } from "./keys";
 import { canvasFill } from "./canvas-fill";
 import {
   DEFAULT_TERMINAL_THEME,
+  DEFAULT_WHEEL_LINES,
   TERMINAL_PALETTES,
+  type BoldMode,
   type TerminalTheme,
 } from "./terminal-appearance";
 
@@ -86,6 +88,13 @@ export interface RendererOptions {
   /** R42 · the canvas palette. `inherit` reads the document's `--terminal-*`
    *  tokens; the two overrides paint a fixed palette inside the canvas only. */
   theme: TerminalTheme;
+  /** R43 · how many lines one wheel notch scrolls (1–8). The renderer's own
+   *  pixel unit was `max(24, cellHeight * 1.5)`; this multiplies the cell term,
+   *  so the notch travels `wheelLines` rows instead of a fixed 1.5. */
+  wheelLines: number;
+  /** R43 · how a bold cell is drawn: the face's bold weight (`font`, shipped)
+   *  or a brighter foreground (`bright`). */
+  boldMode: BoldMode;
 }
 
 export interface Layout {
@@ -139,6 +148,10 @@ export class TerminalCanvas {
   }
   get paddingY(): number {
     return this.opts.paddingY;
+  }
+  /** R43 · the wheel-scroll line count, read by `wheelScrollSteps`. */
+  get wheelLines(): number {
+    return Math.max(1, this.opts.wheelLines ?? DEFAULT_WHEEL_LINES);
   }
   private cursorCol = 0;
   private cursorRow = 0;
@@ -313,6 +326,22 @@ export class TerminalCanvas {
     return s;
   }
 
+  /**
+   * R43 · the colour a `bright` bold cell moves toward.
+   *
+   * "Bright" has to mean *more contrast against the canvas*, not "toward
+   * white": on the light palettes (`paper`, `mist`) mixing toward white would
+   * wash the glyph out instead of emphasising it. The target is chosen from the
+   * canvas background's luminance, so the same setting brightens on a dark
+   * palette and deepens on a light one.
+   */
+  private brighten(color: number): number {
+    const bg = this.bg;
+    const luminance =
+      (((bg >> 16) & 0xff) * 299 + ((bg >> 8) & 0xff) * 587 + (bg & 0xff) * 114) / 1000;
+    return mix(color, luminance < 128 ? 0xffffff : 0x000000, 0.35);
+  }
+
   private setFont(bold: boolean, italic: boolean): void {
     const f = this.fontString(bold, italic);
     if (f !== this.lastFont) {
@@ -424,12 +453,19 @@ export class TerminalCanvas {
         const dim = (flags & FLAG_DIM) !== 0;
         // Dim halves the distance to whatever is actually behind the glyph, so
         // the theme background is what a default-background cell mixes toward.
-        const effectiveFg = dim
+        const mixedFg = dim
           ? mix(cellFg, bg === WIRE_BG ? themeBg : bg, 0.5)
           : cellFg;
+        // R43 · `bright` spends the bold flag on the foreground instead of the
+        // face: the cell keeps the regular weight and is lightened toward white.
+        // The face decision and the colour decision are separate so a bold
+        // italic cell still gets its italic in both modes.
+        const brightBold = bold && this.opts.boldMode === "bright";
+        const useBoldFace = bold && !brightBold;
+        const effectiveFg = brightBold ? this.brighten(mixedFg) : mixedFg;
 
-        if (bold !== fontBold || italic !== fontItalic) {
-          fontBold = bold;
+        if (useBoldFace !== fontBold || italic !== fontItalic) {
+          fontBold = useBoldFace;
           fontItalic = italic;
           this.setFont(fontBold, fontItalic);
         }
@@ -535,7 +571,12 @@ export class TerminalCanvas {
         ctx.fillStyle = this.color(this.cursor);
         ctx.fillRect(x, y, cw, ch);
         if (!(cellFlags & FLAG_HIDDEN) && cellChar !== 0x20) {
-          ctx.fillStyle = this.color(cellFg === WIRE_FG ? this.fg : cellFg);
+          const base = cellFg === WIRE_FG ? this.fg : cellFg;
+          // R43 · a block cursor over a bold cell honours the bright mode, so
+          // the glyph under the block matches the one the cell loop would draw.
+          const brightBold =
+            (cellFlags & FLAG_BOLD) !== 0 && this.opts.boldMode === "bright";
+          ctx.fillStyle = this.color(brightBold ? this.brighten(base) : base);
           this.setFont(false, false);
           ctx.textBaseline = "top";
           ctx.fillText(String.fromCodePoint(cellChar) + combining, x, y + glyphOffset);
@@ -877,7 +918,7 @@ export function wheelScrollSteps(
       : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
         ? event.deltaY * page
         : event.deltaY;
-  const unit = Math.max(24, renderer.cellHeight * 1.5);
+  const unit = Math.max(24, renderer.cellHeight * renderer.wheelLines);
   remainder.current += pixels;
   const rawSteps = Math.trunc(remainder.current / unit);
   if (rawSteps === 0) return 0;
