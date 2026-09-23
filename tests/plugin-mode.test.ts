@@ -202,15 +202,15 @@ test("text has a floor, a ceiling, and scrolls past the ceiling", () => {
   assert.equal(long.lines, 40);
   assert.equal(long.heightUnits, PLUGIN_TEXT_MAX_UNITS, "past the ceiling the block stops growing");
   assert.equal(long.scrolls, true, "and scrolls inside itself instead");
-  assert.equal(long.rows, MAX_RESULTS, "the ceiling is the nine-row budget, like the list's");
+  assert.equal(long.rows, MAX_RESULTS, "the ceiling is the ten-row budget, like the list's");
 });
 
 test("the text form folds into the same row heights, with the same hysteresis", () => {
   const rowsFor = (lines: number) =>
     pluginTextMetrics(Array.from({ length: lines }, (_, i) => `l${i}`).join("\n")).rows;
 
-  // A short output is genuinely short; the ceiling lands on the nine-row slab,
-  // exactly as a nine-row list does.
+  // A short output is genuinely short; the ceiling lands on the ten-row slab,
+  // exactly as a ten-row list does.
   assert.ok(launcherRowUnits(rowsFor(1)) <= launcherRowUnits(rowsFor(2)));
   assert.ok(launcherRowUnits(rowsFor(1)) < launcherRowUnits(MAX_RESULTS));
   assert.equal(launcherRowUnits(rowsFor(40)), launcherRowUnits(MAX_RESULTS));

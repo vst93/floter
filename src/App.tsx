@@ -969,10 +969,10 @@ export default function App() {
     () => fileDropRows(droppedFiles, dropsExpanded, t),
     [droppedFiles, dropsExpanded, t],
   );
-  // R10-A/R19: the tail row. Eight matched results are followed by one fixed row
-  // that opens the clipboard history, in every query state — empty, matching,
-  // and (especially) matching nothing, which is when the clipboard is the
-  // useful thing left to offer. Nine rows in all, which is the whole budget.
+  // R10-A/R19/R36: the tail row. Nine matched results are followed by one fixed
+  // row that opens the clipboard history, in every query state — empty,
+  // matching, and (especially) matching nothing, which is when the clipboard is
+  // the useful thing left to offer. Ten rows in all, which is the whole budget.
   // `withClipboardResultRow` keeps a query that
   // already matched the clipboard command from growing a duplicate.
   //
@@ -1018,8 +1018,14 @@ export default function App() {
     () =>
       launcherScope
         ? [...launcherResults]
-        : withClipboardResultRow(fileRows.length ? [...fileRows, ...launcherResults] : launcherResults, t),
-    [fileRows, launcherResults, t, launcherScope],
+        : withClipboardResultRow(
+            fileRows.length ? [...fileRows, ...launcherResults] : launcherResults,
+            t,
+            // R36 · a switched-off clipboard keeps its fixed tail row (and its
+            // `⌘0`) but the row is a note, not a door.
+            settings.clipboard_history_enabled,
+          ),
+    [fileRows, launcherResults, t, launcherScope, settings.clipboard_history_enabled],
   );
 
   // While the selection is on a file row the action bar describes that file's
@@ -1064,13 +1070,13 @@ export default function App() {
     start: 0,
     end: MAX_RESULTS,
   });
-  // R10-A/R19: the fixed clipboard row is the ninth and last row, and the
-  // shortcut family is 1-9, so it carries a real `⌘9` badge — the slot map lives
-  // in `shortcutSlotsWithFixedTail` and nowhere else (the key handler asks the
-  // same map through `resultIndexForSlot`).
+  // R10-A/R19/R36: the fixed clipboard row is the tenth and last row, and the
+  // shortcut family is 1-9 plus 0, so it carries a real `⌘0` badge — the slot
+  // map lives in `shortcutSlotsWithFixedTail` and nowhere else (the key handler
+  // asks the same map through `resultIndexForSlot`).
   //
-  // R34 · `1`-`8` now number the first eight runnable rows *inside the scroll
-  // viewport*; the fixed clipboard row keeps `⌘9` outside that numbering, so
+  // R34 · `1`-`9` now number the first nine runnable rows *inside the scroll
+  // viewport*; the fixed clipboard row keeps `⌘0` outside that numbering, so
   // scrolling never moves the bottom fixed item.
   //
   // R28 · the capability layer's display tier takes every number away: a list
@@ -1370,7 +1376,7 @@ export default function App() {
   }, [displayedResults.length]);
 
   // R25/R34 · the launcher window is a **slab whose height is the row count**:
-  // the nine-row budget is the tallest, and shorter content is exactly as tall
+  // the ten-row budget is the tallest, and shorter content is exactly as tall
   // as its rows (see `resolveLauncherRows`). The step is read once here (the
   // only place that knows the interface step) and clamped to the display.
   // Nothing a keystroke does may resize it within a row count — that is the
@@ -1399,7 +1405,7 @@ export default function App() {
     1,
     // R29 · while the plugin config overlay is open, its own row budget is the
     // window's: a header plus one row per declared field. The overlay scrolls
-    // past the nine-row ceiling like every other list.
+    // past the ten-row ceiling like every other list.
     (pluginConfigOpen && launcherPluginId
       ? 1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)
       : 0) ||

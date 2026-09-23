@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createTranslator } from "../src/i18n.ts";
-import { MAX_RESULTS, RESULTS_LIST_HEIGHT, ROW_HEIGHT_TWO_LINE, shortcutSlotsWithFixedTail } from "../src/launcher/result-budget.ts";
+import { FIXED_TAIL_SLOT, MAX_RESULTS, RESULTS_LIST_HEIGHT, ROW_HEIGHT_TWO_LINE, shortcutSlotsWithFixedTail } from "../src/launcher/result-budget.ts";
 import {
   PLUGIN_INITIAL_PAGES,
   PLUGIN_LOAD_MORE_THRESHOLD,
@@ -92,7 +92,7 @@ test("the page size is one viewport and the first emission is more than one", ()
 });
 
 test("windowing is a growing prefix: cursor, hasMore and stable indices", () => {
-  const rows = Array.from({ length: 20 }, (_, i) => row(`r${i}`));
+  const rows = Array.from({ length: 60 }, (_, i) => row(`r${i}`));
 
   const first = paginatePluginRows(rows, PLUGIN_INITIAL_PAGES);
   assert.equal(first.rows.length, PLUGIN_INITIAL_PAGES * PLUGIN_PAGE_SIZE);
@@ -182,7 +182,7 @@ test("the clipboard plugin returns the whole history when the fetch allows it", 
   }));
   const full = clipboardModeRows(entries, "", en, 1_700_000_000_000, 500);
   assert.equal(full.length, entries.length);
-  // The default stays the eight-row viewport budget.
+  // The default stays the nine-row viewport budget.
   assert.equal(clipboardModeRows(entries, "", en, 1_700_000_000_000).length, MAX_RESULTS - 1);
 });
 
@@ -204,7 +204,7 @@ test("the catalog hook windows the plugin rows and resets per query", async () =
   assert.match(source, /MAX_CLIPBOARD_MAX_ITEMS/, "the clipboard fetch is the whole bounded history");
   // R30 · the browser fetch must be the pageable one. R29 raised
   // `BROWSER_FETCH_LIMIT` and left the hook calling `browserSearchRows` without
-  // it, so every browser list stayed at the default eight-row group ceiling —
+  // it, so every browser list stayed at the default nine-row group ceiling —
   // one page, no remainder, no `page` block, no scroll. This is that line.
   assert.match(
     source,
@@ -234,12 +234,12 @@ test("every loaded row is rendered, and the box is what hides the tail", () => {
     "the render count is the loaded count — nothing is sliced for the box",
   );
 
-  // …and the box really is shorter than that: the list's ceiling is nine rows,
+  // …and the box really is shorter than that: the list's ceiling is ten rows,
   // so the loaded content is taller than the viewport and the scroller can
   // actually move. This is the condition the trigger needs.
   assert.ok(
     loaded.length * ROW_HEIGHT_TWO_LINE > RESULTS_LIST_HEIGHT,
-    "the loaded content must exceed the nine-row viewport, or scrollTop can never leave 0",
+    "the loaded content must exceed the ten-row viewport, or scrollTop can never leave 0",
   );
   assert.equal(pluginViewHasMore(view), true, "and the list reports that more exist");
 });
@@ -300,8 +300,8 @@ test("the browser fetch is pageable — the R29 root cause, pinned", () => {
     profileKey: "default",
     t: en,
   };
-  // The default group ceiling is one page — eight rows (R31 removed the tab
-  // status line, so a failed tab read no longer adds a ninth) — which is
+  // The default group ceiling is one page — nine rows (R31 removed the tab
+  // status line, so a failed tab read no longer adds a tenth) — which is
   // exactly the state the user's screenshot was in: an
   // emission that never exceeded the viewport, so no `page` block was ever
   // attached and the scroll-to-load path was dead. This is the R29 root cause.
@@ -321,13 +321,14 @@ test("the browser fetch is pageable — the R29 root cause, pinned", () => {
 });
 
 test("⌘N badges stay on the first viewport, however long the list grows", () => {
-  // R19's budget is untouched: the family is 1-9 and the ninth slot is the
-  // fixed clipboard row's, so a plugin list badges its first eight rows and
-  // nothing past them — loaded or not, scrolled to or not.
+  // R36's budget: the family is 1-9 plus 0, and a plugin list has no fixed
+  // clipboard row, so the tenth viewport row takes `0` and nothing past it
+  // carries a badge — loaded or not, scrolled to or not.
   const items = pluginViewItems(
     resolvePluginView(pagePluginEmission({ output: Array.from({ length: 60 }, (_, i) => row(`r${i}`)) }, 3)),
   );
   const slots = shortcutSlotsWithFixedTail(items, items.map(() => true));
-  assert.deepEqual(slots.slice(0, 8), [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.ok(slots.slice(8).every((slot) => slot === null), "the ninth row onward carries no badge");
+  assert.deepEqual(slots.slice(0, 9), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.equal(slots[9], FIXED_TAIL_SLOT, "the tenth row spends the family's last key");
+  assert.ok(slots.slice(10).every((slot) => slot === null), "the eleventh row onward carries no badge");
 });

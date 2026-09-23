@@ -41,7 +41,7 @@ export type BrowserTabRow = {
   active: boolean;
 };
 
-/** How many browser rows to fetch. The launcher renders at most eight matched
+/** How many browser rows to fetch. The launcher numbers at most nine matched
  *  rows (`MAX_RESULTS - 1`), and the merge drops duplicate URLs, so a small
  *  over-fetch keeps the visible list full without an unbounded query.
  *
@@ -54,7 +54,7 @@ export type BrowserTabRow = {
  * R30 · and the inline mode actually passes it (see `useLauncherCatalog`). R29
  *  raised this constant and left the hook calling the function without a
  *  `limit`, so every browser list was still capped at the *default* group
- *  ceiling below — eight rows, or nine with a status line — which is one page:
+ *  ceiling below — nine rows, or ten with a status line — which is one page:
  *  the emission was never taller than the viewport, `paginatePluginRows` never
  *  found a remainder, no `page` block was attached, and the scroll-to-load-more
  *  path was dead for the plugin the round was written for.

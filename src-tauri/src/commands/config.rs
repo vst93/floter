@@ -473,8 +473,9 @@ pub fn resolve_command_aliases(aliases: &HashMap<String, String>) -> HashMap<Str
 
 /// Platform defaults for every configurable shortcut.
 ///
-/// `select_result` holds the binding for the *first* result; the digits 2-9
-/// reuse its modifiers, so recording `Cmd+1` rebinds the whole 1-9 range.
+/// `select_result` holds the binding for the *first* result; the digits 2-9 and
+/// 0 reuse its modifiers, so recording `Cmd+1` rebinds the whole 1-9-and-0
+/// range (R36 added `0` as the family's tenth key).
 pub fn default_shortcuts() -> HashMap<String, String> {
     [
         (TOGGLE_WINDOW, DEFAULT_TOGGLE_WINDOW.to_string()),
@@ -904,7 +905,7 @@ fn shortcut_conflicts(
     result_modifiers.eq_ignore_ascii_case(other_modifiers)
         && matches!(
             other_key,
-            "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
         )
 }
 
@@ -2057,7 +2058,38 @@ mod tests {
             normalize_shortcut(SELECT_RESULT, "Alt+9").as_deref(),
             Some("Alt+1")
         );
+        // R36 · `0` is the family's tenth key, so it normalizes to the head too.
+        assert_eq!(
+            normalize_shortcut(SELECT_RESULT, "Alt+0").as_deref(),
+            Some("Alt+1")
+        );
         assert_eq!(normalize_shortcut(SELECT_RESULT, "F1"), None);
+    }
+
+    #[test]
+    fn the_result_family_includes_the_ten_key() {
+        // R36 · the launcher's numbered slots run `1`-`9` plus `0`, so a `0`
+        // binding under the family's modifiers is a conflict like any other
+        // digit — otherwise `⌘0` could be handed to a second action while
+        // `⌘1` owns the family.
+        assert!(shortcut_conflicts(
+            SELECT_RESULT,
+            "Ctrl+1",
+            NEW_COMMAND,
+            "Ctrl+0"
+        ));
+        assert!(shortcut_conflicts(
+            NEW_COMMAND,
+            "Ctrl+0",
+            SELECT_RESULT,
+            "Ctrl+1"
+        ));
+        assert!(!shortcut_conflicts(
+            SELECT_RESULT,
+            "Ctrl+1",
+            NEW_COMMAND,
+            "Ctrl+Space"
+        ));
     }
 
     #[test]

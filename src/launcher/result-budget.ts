@@ -9,10 +9,18 @@
 //
 // R19 · the user re-read that same screenshot and counted the rows: "列表项也有
 // 问题，除了末尾的 cmd+回车的终端执行，上方一共有 10 项了，应该最大只能有 9
-// 项". Nine above the action bar is the whole list, so the budget is nine rows:
-// **eight matched results plus the fixed clipboard row**. The tail row keeps the
-// last number of the `1`-`9` family (`FIXED_TAIL_SLOT`), which is what finally
-// lets it carry a real `⌘9` badge instead of a blank one.
+// 项". Nine above the action bar is the whole list, so the budget became nine
+// rows: **eight matched results plus the fixed clipboard row**, with the tail
+// row carrying the last number of the `1`-`9` family.
+//
+// R36 · the user then read the numbered badges and asked why they stop at eight
+// when the keyboard has a ninth key, and a tenth one right beside it: "列表上的
+// 快捷键为什么只到 8 ，可以到 9 的，可以加上 9 后面再加上 0 ，键盘上他们挨着
+// 的". So the family grows to **ten slots**: the viewport numbers `⌘1`-`⌘9`
+// (nine runnable rows) and the tenth key, `⌘0`, is the fixed tail — the same
+// "last thing in the list" position, and the two keys really are adjacent on the
+// number row. The budget therefore grows to ten rows: **nine matched results
+// plus the fixed clipboard row**.
 //
 // This lives in its own pure module (no React, no Tauri) for the same reason
 // `file-drops.ts` does: the budget and the tail row are the two things a review
@@ -24,18 +32,26 @@
 import type { Translate } from "../i18n";
 import type { LauncherItem } from "./LauncherResults";
 
-/** Eight matched results + the one fixed clipboard row. */
-export const MAX_RESULTS = 9;
+/** Nine matched results + the one fixed clipboard row. */
+export const MAX_RESULTS = 10;
 
-/** The number the fixed clipboard row always carries: the last slot of the
- *  `1`-`9` family. It does not depend on how many rows were matched — the tail
- *  is the ninth row, so it is `⌘9` in every query state (see
- *  `shortcutSlotsWithFixedTail`). */
-export const FIXED_TAIL_SLOT = MAX_RESULTS;
+/** The last numbered slot of the viewport family: `⌘1`-`⌘9`.
+ *
+ *  R36 · the family is `1`-`9`, and the key next to `9` on the number row —
+ *  `0` — is the fixed tail's own (`FIXED_TAIL_SLOT`). The two are not
+ *  interchangeable: `1`-`9` are assigned to the runnable rows *inside the
+ *  viewport* (R34), while `0` belongs to the bottom fixed item wherever the
+ *  list is scrolled. */
+export const MAX_VIEWPORT_SLOT = MAX_RESULTS - 1;
+
+/** The number the fixed clipboard row always carries: `0`, the key beside `9`.
+ *  It does not depend on how many rows were matched — the tail is the last row,
+ *  so it is `⌘0` in every query state (see `shortcutSlotsWithFixedTail`). */
+export const FIXED_TAIL_SLOT = 0;
 
 /** Matched rows when the query also reached applications or power actions:
- *  three catalog commands, leaving five slots for those local matches — the
- *  same 3-to-5 shape the launcher showed when the budget was eight rows. */
+ *  three catalog commands, leaving six slots for those local matches — the
+ *  same 3-to-N shape the launcher showed at every earlier budget. */
 export const COMMAND_LIMIT_WITH_MATCHES = 3;
 
 /** The two heights a result row is drawn at, in `--u` units. This pair is the
@@ -54,11 +70,11 @@ export const ROW_HEIGHT_COMPACT = 34;
  *  `8 × ROW_HEIGHT_COMPACT + ROW_HEIGHT_TWO_LINE` = 314u — which is the height
  *  of the list in the state that happened to be photographed, not the height it
  *  can reach. A query that matches commands is exactly the state that breaks it:
- *  every command row carries a description, so all nine rows are two-line, the
+ *  every command row carries a description, so all ten rows are two-line, the
  *  content is 28u taller than the ceiling it was measured against, and the list
  *  scrolls inside a cap that was sized for shorter rows. The ceiling is a
  *  *ceiling*, so it is now the worst case: `MAX_RESULTS × ROW_HEIGHT_TWO_LINE`
- *  = 378u. */
+ *  = 420u (378u through R35, when the budget was nine rows). */
 export const RESULTS_LIST_HEIGHT = MAX_RESULTS * ROW_HEIGHT_TWO_LINE;
 
 /** What the ceiling adds on top of the rows: the fixed pixels that do not scale
@@ -66,12 +82,13 @@ export const RESULTS_LIST_HEIGHT = MAX_RESULTS * ROW_HEIGHT_TWO_LINE;
  *  padding (R22: 8px in the launcher, where `styles/launcher.css` overrides
  *  `--scroll-edge` locally over base.css's 14px — R24 halves that local value
  *  again, to 4px; see `--scroll-edge` in `styles/base.css`), the nine 1px grid
- *  gaps around nine rows, and the empty-query section title (a `--text-body`
+ *  gaps around ten rows, and the empty-query section title (a `--text-body`
  *  line at 1.4 plus its 6/4px padding ≈ 26px). `4 + 9 + 26 = 39`; the constant
  *  is left at 50, a ceiling that is now a whole 11px clear of what it has to
  *  cover (it was `8 + 9 + 26 = 43` from R22, itself `14 + 9 + 26 = 49` before
  *  R22 with one pixel of slack). The constant only has to *clear* the chrome
- *  it stands for, so R24 leaves it where it is. */
+ *  it stands for, so R24 leaves it where it is — R36 adds a row, and with it a
+ *  tenth gap, without moving the ceiling. */
 export const RESULTS_LIST_CHROME = 50;
 
 /** The fixed row's id. Stable across query states so a re-render keys it to
@@ -80,7 +97,7 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
 
 /** Chrome the launcher draws around the result list: the query row, the action
  *  bar and the window's shadow margin. The App's inline
- *  `--launcher-results-height` cap is `screen.availHeight - this`, so the nine
+ *  `--launcher-results-height` cap is `screen.availHeight - this`, so the ten
  *  rows still fit a short display; on an ordinary one the CSS row budget (see
  *  `.launcher-results` in `styles/launcher.css`) is the smaller cap and is what
  *  binds.
@@ -138,8 +155,8 @@ export const CLIPBOARD_RESULT_ID = "system-clipboard-fixed";
  *  round). What R20 has to check is that the cap
  *  does not bind on an ordinary display, i.e. that
  *  `availHeight - 212 ≥ RESULTS_LIST_HEIGHT × 1 + RESULTS_LIST_CHROME` — the
- *  worst-case list plus its fixed chrome, `378 + 50 = 428px`. That holds for
- *  every display taller than 640px of work area (212 + 428), and it is asserted
+ *  worst-case list plus its fixed chrome, `420 + 50 = 470px`. That holds for
+ *  every display taller than 682px of work area (212 + 470), and it is asserted
  *  in `tests/launcher-ten-rows.test.ts`. */
 export const RESULTS_VIEWPORT_CHROME = 212;
 
@@ -161,33 +178,41 @@ export const RESULTS_VIEWPORT_CHROME = 212;
  *    `.collapsed-card__input-row`     42u  (min-height, R23)
  *    the row's `margin-bottom`         4u  (R18's breath, halved in R24)
  *    `.launcher-bottom` padding-top    4u  (with the line above: the 8u breath)
- *    `.launcher-results` max-height  378u  (nine two-line rows, R20)
+ *    `.launcher-results` max-height  420u  (ten two-line rows, R20/R36)
  *    `.launcher-action-bar` margin     3u  (R18's constant gap)
  *    `.launcher-action-bar` height    42u  (a row, not a footer)
  *    `.launcher-bottom` padding-bottom 2u  (R21's tail)
  *    ────────────────────────────────────
- *                                    475u
+ *                                    517u
  *
  *  plus the pixels that do not scale with the unit: the list's own chrome
  *  (`RESULTS_LIST_CHROME`, 50px — band, gaps and the empty-query title) and the
- *  card's 1px frame top and bottom. `475u + 52px` is 527px at the default
- *  interface step, and 4px above the tallest card the sheets can actually
- *  produce (the list's real worst case is 378u + 39px, 11px under its 50px
+ *  card's 1px frame top and bottom. `517u + 52px` is 569px at the default
+ *  interface step, and 11px above the tallest card the sheets can actually
+ *  produce (the list's real worst case is 420u + 39px, 11px under its 50px
  *  ceiling) — a window never clips, and the slack lands in the gap above the
  *  pinned action bar, where nothing can see it.
+ *
+ *  R36 · the budget grew from nine rows to ten (378u → 420u of list, 475u →
+ *  517u of slab, 527px → 569px at the default step). The user's read of the old
+ *  527px slab was that it looked as if it already held ten rows; measured
+ *  against the sheet it does not — 527px is `475u + 52px`, and ten two-line
+ *  rows plus their chrome need `517u + 52px`. The window therefore grows by
+ *  exactly one row (42u), and the per-row resolver (R34) keeps every shorter
+ *  state exactly as tall as its own rows.
  *
  *  The unit split is deliberate: the budget is a layout number and has to
  *  follow the interface step, so it is written as units + fixed pixels and
  *  scaled **once**, in `launcherWindowHeight` — never by multiplying a
  *  measurement (see the note in `hooks/useLauncherHeight.ts`). */
-export const LAUNCHER_WINDOW_HEIGHT_UNITS = 475;
+export const LAUNCHER_WINDOW_HEIGHT_UNITS = 517;
 
 /** The part of {@link LAUNCHER_WINDOW_HEIGHT} that does not scale: the list's
  *  `RESULTS_LIST_CHROME` and the card's 1px frame top and bottom. */
 export const LAUNCHER_WINDOW_HEIGHT_CHROME = RESULTS_LIST_CHROME + 2;
 
-/** The launcher window's height at the default interface step: `475u + 52px`
- *  = 527px. Every state of the launcher — empty query, one result, nine, a
+/** The launcher window's height at the default interface step: `517u + 52px`
+ *  = 569px. Every state of the launcher — empty query, one result, ten, a
  *  feedback row, the first-run tip — is drawn inside this slab, so nothing a
  *  keystroke does may resize the window. */
 export const LAUNCHER_WINDOW_HEIGHT =
@@ -235,7 +260,7 @@ export const launcherWindowHeight = (scale: number): number =>
 export const LAUNCHER_ROW_HYSTERESIS = 1;
 
 /** The launcher's row count, floored at one (the fixed clipboard tail is always
- *  drawn) and capped at the nine-row budget (the list scrolls inside the slab
+ *  drawn) and capped at the ten-row budget (the list scrolls inside the slab
  *  past that, so the window never grows). */
 export const clampLauncherRows = (rows: number): number =>
   Math.max(1, Math.min(MAX_RESULTS, Math.ceil(rows)));
@@ -278,8 +303,9 @@ export const LAUNCHER_FILTER_UNITS = 28;
 
 /** The unit height of a row count, with or without its action bar and filter.
  *
- *  The top of the table is unchanged: `launcherRowUnits(9, true)` is the R25
- *  budget (`52 + 9×42 + 45 = 475u`). R27 · the bar is a parameter rather than a
+ *  The top of the table is the R25/R36 budget: `launcherRowUnits(10, true)` is
+ *  `52 + 10×42 + 45 = 517u` (475u at nine rows, through R35). R27 · the bar is a
+ *  parameter rather than a
  *  constant of every height: in the no-match state and in both plugin modes
  *  there is no bar and the height is 45u shorter, which is what stops the window
  *  from reserving a row the user never sees.
@@ -308,8 +334,8 @@ export const LAUNCHER_SECTION_TITLE_CHROME = 26;
  * frame top and bottom, the scroller's scroll-edge reservation, the 1px grid
  * gaps between the rows, and (empty query only) the section heading.
  *
- * R27 · the nine-row top keeps the R25 ceiling — `RESULTS_LIST_CHROME + 2` —
- * because that constant is what makes the full slab 527px and it is deliberately
+ * R27 · the ten-row top keeps the R25 ceiling — `RESULTS_LIST_CHROME + 2` —
+ * because that constant is what makes the full slab 569px and it is deliberately
  * a *ceiling* with slack for the list's real worst case. Shorter heights do not
  * need that slack (their content is shorter by construction), so they use the
  * honest count and the empty launcher loses the ~30px the ceiling was holding
@@ -354,25 +380,35 @@ export const isClipboardResult = (item: LauncherItem): boolean =>
 
 /** The tail row: the clipboard panel, reachable from every query state —
  *  including the query that matched nothing, which is exactly when a trip to
- *  the clipboard is the useful thing left to offer. It is the ninth and last
- *  row of the budget, so `⌘9` opens it. */
-export const clipboardResultRow = (t: Translate): LauncherItem => ({
+ *  the clipboard is the useful thing left to offer. It is the tenth and last
+ *  row of the budget, so `⌘0` opens it.
+ *
+ *  R36 · when the clipboard plugin is switched off the row stays in place — the
+ *  fixed tail is an invariant, and its `⌘0` must not move — but it becomes a
+ *  note rather than a door: the same soft-close the browser's launcher row has
+ *  had since R26-D (`disabled: true`, the off subtitle). Entering a mode that
+ *  only says "clipboard history is off" was the one live path left. */
+export const clipboardResultRow = (t: Translate, enabled = true): LauncherItem => ({
   type: "system",
   id: CLIPBOARD_RESULT_ID,
   title: t("system.clipboardHistory"),
-  subtitle: t("system.clipboardHistorySubtitle"),
+  subtitle: enabled
+    ? t("system.clipboardHistorySubtitle")
+    : t("clipboard.pageUnavailable"),
   action: "clipboard",
+  ...(enabled ? {} : { disabled: true }),
 });
 
 /** Append the fixed clipboard row to the tail, unless the query already put a
  *  clipboard row in the list (typing "clipboard" matches the same action).
  *  Idempotent: a list that already ends in the fixed row is returned as it
- *  stands. */
+ *  stands. `enabled` is the clipboard plugin's own switch (R36). */
 export const withClipboardResultRow = (
   items: readonly LauncherItem[],
   t: Translate,
+  enabled = true,
 ): LauncherItem[] =>
-  items.some(isClipboardResult) ? [...items] : [...items, clipboardResultRow(t)];
+  items.some(isClipboardResult) ? [...items] : [...items, clipboardResultRow(t, enabled)];
 
 /**
  * R34 · the half-open index range of the rows the scroller is showing. `start`
@@ -428,17 +464,22 @@ export const visibleRowRange = (
  * The numbered `select_result` slots for the visible rows — the single source
  * of the `⌘N` → row mapping, for the badges and the key handler alike.
  *
- * The family is `1`-`9` — one digit behind the modifiers, see
+ * The family is `1`-`9` plus `0` — one digit behind the modifiers, see
  * `matchesResultShortcut`. R34 · the numbers follow the **scroll viewport**:
- * `1`-`8` are the first eight runnable rows inside `visible`, so scrolling
+ * `1`-`9` are the first nine runnable rows inside `visible`, so scrolling
  * renumbers the list to what is on screen ("what you see is what you select").
  * Rows outside the range carry no badge, and `⌘N` cannot reach them.
  *
- * The fixed clipboard row is the ninth row, so R19 gives it `FIXED_TAIL_SLOT`
- * (`9`) rather than a blank badge, and R34 leaves it there **outside the
- * viewport numbering**: it is the bottom fixed item, like the terminal action
- * bar, so scrolling never moves its number. A list grown past the budget
- * (dropped files prepended) still cannot hand `⌘9` to a match.
+ * R36 · the family's tenth key, `0`, is the bottom fixed item's. The fixed
+ * clipboard row is the last row, so it owns `FIXED_TAIL_SLOT` (`0`) rather than
+ * a blank badge, **outside the viewport numbering**: like the terminal action
+ * bar, scrolling never moves its number. A list grown past the budget (dropped
+ * files prepended) still cannot hand `0` to a match.
+ *
+ * A list with **no** fixed tail (a plugin's own rows) uses `0` the other way:
+ * the tenth runnable row in the viewport takes it, so a full ten-row plugin
+ * page numbers `⌘1`-`⌘9` then `⌘0`. `0` is never handed to two rows: the tail,
+ * when it exists, is the only row that can carry it.
  *
  * Omitting `visible` numbers the whole list, which is the pre-R34 behaviour and
  * the right answer for a list that fits (no scroll, so the viewport is the
@@ -459,7 +500,10 @@ export const shortcutSlotsWithFixedTail = (
     if (!runnableFlags[index]) return null;
     if (index < start || index >= end) return null;
     next += 1;
-    return next < FIXED_TAIL_SLOT ? next : null;
+    if (next <= MAX_VIEWPORT_SLOT) return next;
+    // The tenth runnable row of the viewport takes the family's last key, `0`,
+    // but only when there is no fixed tail to own it.
+    return !tailOwnsLastSlot && next === MAX_RESULTS ? FIXED_TAIL_SLOT : null;
   });
 };
 

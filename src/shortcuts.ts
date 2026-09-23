@@ -240,8 +240,10 @@ export const matchesShortcut = (event: KeyboardEvent, value: string | undefined)
 };
 
 /**
- * The 1-9 variant used by the launcher: `value` binds the first result, and the
- * remaining digits reuse its modifiers.
+ * The 1-9-and-0 variant used by the launcher: `value` binds the first result,
+ * and the remaining digits reuse its modifiers. R36 · `0` is part of the
+ * family — the tenth slot, the key beside `9` on the number row — so a
+ * `⌘0` press resolves like any other numbered result.
  */
 export const matchesResultShortcut = (
   event: KeyboardEvent,
@@ -251,7 +253,7 @@ export const matchesResultShortcut = (
   const normalized = normalizeResultShortcut(value);
   const shortcut = normalized ? parseShortcut(normalized) : null;
   if (!shortcut || !modifiersMatch(event, shortcut)) return null;
-  const digit = keyTokensFromEvent(event).find((token) => /^[1-9]$/.test(token));
+  const digit = keyTokensFromEvent(event).find((token) => /^[0-9]$/.test(token));
   return digit ? Number(digit) : null;
 };
 

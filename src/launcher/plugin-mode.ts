@@ -160,7 +160,7 @@ export const PLUGIN_TEXT_LINE_UNITS = 24;
  *  output in a zero-height box reads as a rendering bug. */
 export const PLUGIN_TEXT_MIN_UNITS = PLUGIN_TEXT_LINE_UNITS * 3;
 
-/** R28 · the text block's maximum: the same ceiling the nine-row list has, so a
+/** R28 · the text block's maximum: the same ceiling the ten-row list has, so a
  *  long output scrolls inside the block rather than growing the window. */
 export const PLUGIN_TEXT_MAX_UNITS = MAX_RESULTS * ROW_HEIGHT_TWO_LINE;
 
@@ -386,7 +386,7 @@ export const mergePluginRows = (
  * R30 · what the returned `rows` mean, which is half of the round's fix: they
  * are the rows that have been **loaded**, not the rows that happen to fit the
  * box. The launcher renders every one of them into its internal scroller and
- * lets the scroller's own ceiling (nine rows, `RESULTS_LIST_HEIGHT`) hide the
+ * lets the scroller's own ceiling (ten rows, `RESULTS_LIST_HEIGHT`) hide the
  * rest, so `scrollHeight > clientHeight` holds from the first page on and the
  * scroll-to-bottom trigger in `LauncherResults.tsx` can actually fire. (The
  * other half is the fetch: see `BROWSER_FETCH_LIMIT`, which the inline mode now
@@ -416,8 +416,8 @@ export const paginatePluginRows = (
  *
  * This is the capability layer's answer to "how much of the plugin's output is
  * on screen right now". R29 shipped the same shape and wired it to a fetch that
- * could never fill it: the browser plugin's group ceiling is eight rows by
- * default, so an emission was one page (nine rows with a status line), the
+ * could never fill it: the browser plugin's group ceiling is nine rows by
+ * default, so an emission was one page (ten rows with a status line), the
  * "no remainder, return as-is" branch below always won, no `page` block was ever
  * attached, and `LauncherResults.tsx`'s trigger — which reads `hasMore` and
  * nothing else — was inert. The browser was the only plugin whose list could not

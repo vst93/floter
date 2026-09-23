@@ -24,9 +24,9 @@ import type { MessageKey, Translate } from "../../i18n.ts";
 import type { PluginRow } from "../../launcher/plugin-mode.ts";
 import { MAX_RESULTS } from "../../launcher/result-budget.ts";
 
-/** How many clipboard rows the mode shows. The budget is the same nine rows
- *  (`MAX_RESULTS`), and the mode's list has no fixed tail, so eight is the
- *  ceiling the launcher can draw without scrolling. */
+/** How many clipboard rows the mode shows. The budget is the same ten rows
+ *  (`MAX_RESULTS`), and the mode's list has no fixed tail, so nine is the
+ *  ceiling the launcher can number without scrolling. */
 export const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS - 1;
 
 /** The type word each clipboard entry kind prints on its row. The five keys are
@@ -85,7 +85,7 @@ export const clipboardModeRows = (
   needle: string,
   t: Translate,
   now: number,
-  /** R29 · the ceiling on the filtered rows. Defaults to the eight-row viewport
+  /** R29 · the ceiling on the filtered rows. Defaults to the nine-row viewport
    *  budget; the launcher's inline mode raises it and pages the held rows
    *  client-side (`paginatePluginRows`). */
   limit: number = CLIPBOARD_FETCH_LIMIT,

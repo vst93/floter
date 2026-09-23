@@ -5,12 +5,17 @@
 // 搜索 + 终端」. Until this round the slots were assigned to the first nine rows of
 // the list, so scrolling a long (plugin, or file-drop) list left the rows on
 // screen with no number and `⌘N` reached rows the user could not see. The fix
-// assigns `1`-`8` to the first eight runnable rows *inside the scroller's
+// assigns `1`-`9` to the first nine runnable rows *inside the scroller's
 // viewport*, so scrolling renumbers the list to what is on screen.
 //
+// R36 · the family's tenth key, `⌘0`, is the bottom fixed item's (see
+// `FIXED_TAIL_SLOT`); a plugin list with no tail spends it on its tenth
+// viewport row instead. Both readings keep the invariant that `0` belongs to
+// exactly one row.
+//
 // The two fixed bottom items are deliberately outside that numbering:
-//   · the clipboard tail row keeps `⌘9` (`FIXED_TAIL_SLOT`) wherever the list is
-//     scrolled, exactly as R19 gave it; and
+//   · the clipboard tail row keeps `⌘0` (`FIXED_TAIL_SLOT`) wherever the list is
+//     scrolled, exactly as R19 gave it a fixed number; and
 //   · the terminal action bar keeps its own `⌘↩` / hold-`⌘` binding (it is not a
 //     numbered row at all).
 // Both are the "search + terminal" concept's fixed anchors, so scrolling must
@@ -74,27 +79,27 @@ test("R34 · the visible range starts on the first fully visible row", () => {
 
 // ── 2 · the viewport → slot mapping ──────────────────────────────────────
 
-test("R34 · 1-8 number the first eight runnable rows in the viewport", () => {
-  const rows = withTail(8); // eight matches + the fixed tail = nine rows
+test("R34 · 1-9 number the first nine runnable rows in the viewport", () => {
+  const rows = withTail(9); // nine matches + the fixed tail = ten rows
   const flags = rows.map(() => true);
 
   // A list that fits: the whole list, exactly as before R34.
   assert.deepEqual(
     shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: rows.length }),
-    [1, 2, 3, 4, 5, 6, 7, 8, FIXED_TAIL_SLOT],
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, FIXED_TAIL_SLOT],
   );
 
   // Scrolled down: the numbers follow the rows on screen; the rows above lose
-  // their badges; the tail keeps `⌘9` regardless.
+  // their badges; the tail keeps `⌘0` regardless.
   assert.deepEqual(
     shortcutSlotsWithFixedTail(rows, flags, { start: 2, end: rows.length }),
-    [null, null, 1, 2, 3, 4, 5, 6, FIXED_TAIL_SLOT],
+    [null, null, 1, 2, 3, 4, 5, 6, 7, FIXED_TAIL_SLOT],
   );
 
-  // A short viewport numbers only what it can see ("视口不足 8 行时只编可见的").
+  // A short viewport numbers only what it can see ("视口不足 9 行时只编可见的").
   assert.deepEqual(
     shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: 3 }),
-    [1, 2, 3, null, null, null, null, null, FIXED_TAIL_SLOT],
+    [1, 2, 3, null, null, null, null, null, null, FIXED_TAIL_SLOT],
   );
 });
 
@@ -105,26 +110,27 @@ test("R34 · a non-runnable row is skipped and takes no number", () => {
     shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: 3 }),
     [1, null, 2],
   );
-  // …and its absence does not shift a later row out of the eight.
+  // …and its absence does not shift a later row out of the nine.
   const many = withTail(9);
   const manyFlags = many.map((_, i) => i !== 3);
   const slots = shortcutSlotsWithFixedTail(many, manyFlags, { start: 0, end: many.length });
   assert.equal(slots[3], null, "the skipped row carries no badge");
   assert.deepEqual(slots.slice(0, 3), [1, 2, 3]);
   assert.equal(slots[4], 4, "the row after the skip continues the sequence");
+  assert.equal(slots[9], FIXED_TAIL_SLOT, "and the tail still owns `0`");
 });
 
 // ── 3 · the fixed bottom items ───────────────────────────────────────────
 
-test("R34 · the fixed clipboard tail keeps ⌘9 wherever the list is scrolled", () => {
+test("R34 · the fixed clipboard tail keeps ⌘0 wherever the list is scrolled", () => {
   const rows = withTail(20); // a list longer than the slab, so it scrolls
   const flags = rows.map(() => true);
 
   const top = shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: MAX_RESULTS });
-  assert.equal(top[top.length - 1], FIXED_TAIL_SLOT, "the tail is ⌘9 at the top");
+  assert.equal(top[top.length - 1], FIXED_TAIL_SLOT, "the tail is ⌘0 at the top");
 
   const scrolled = shortcutSlotsWithFixedTail(rows, flags, { start: 10, end: 18 });
-  assert.equal(scrolled[scrolled.length - 1], FIXED_TAIL_SLOT, "and still ⌘9 after scrolling");
+  assert.equal(scrolled[scrolled.length - 1], FIXED_TAIL_SLOT, "and still ⌘0 after scrolling");
   assert.equal(
     scrolled.filter((slot) => slot === FIXED_TAIL_SLOT).length,
     1,
@@ -133,8 +139,9 @@ test("R34 · the fixed clipboard tail keeps ⌘9 wherever the list is scrolled",
   // The eight on-screen rows take 1-8; the rows above are blank.
   assert.deepEqual(scrolled.slice(10, 18), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.ok(scrolled.slice(0, 10).every((slot) => slot === null));
-  // The key handler maps `⌘9` to the tail's own index, not to a visible row.
-  assert.equal(resultIndexForSlot(scrolled, 9), rows.length - 1);
+  // The key handler maps `⌘0` to the tail's own index, not to a visible row.
+  assert.equal(resultIndexForSlot(scrolled, 0), rows.length - 1);
+  assert.equal(resultIndexForSlot(scrolled, 9), -1, "the tail is not reachable through `⌘9`");
 });
 
 test("R34 · a plugin list with no tail numbers only its viewport", () => {
@@ -142,8 +149,14 @@ test("R34 · a plugin list with no tail numbers only its viewport", () => {
   const rows = appRows(24);
   const flags = rows.map(() => true);
   const first = shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: 9 });
-  assert.deepEqual(first.slice(0, 9), [1, 2, 3, 4, 5, 6, 7, 8, null]);
+  assert.deepEqual(first.slice(0, 9), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   assert.ok(first.slice(9).every((slot) => slot === null));
+
+  // R36 · a full ten-row viewport spends the tenth key on its tenth row, since
+  // there is no fixed tail to own it.
+  const full = shortcutSlotsWithFixedTail(rows, flags, { start: 0, end: MAX_RESULTS });
+  assert.deepEqual(full.slice(0, MAX_RESULTS), [1, 2, 3, 4, 5, 6, 7, 8, 9, FIXED_TAIL_SLOT]);
+  assert.equal(resultIndexForSlot(full, 0), MAX_RESULTS - 1, "⌘0 is the tenth viewport row");
 
   // Scroll a page down: the numbers move with the viewport.
   const second = shortcutSlotsWithFixedTail(rows, flags, { start: 10, end: 18 });
@@ -154,7 +167,8 @@ test("R34 · a plugin list with no tail numbers only its viewport", () => {
   // `⌘1` runs the first row of the *current* viewport, and `⌘8` the eighth.
   assert.equal(resultIndexForSlot(second, 1), 10);
   assert.equal(resultIndexForSlot(second, 8), 17);
-  assert.equal(resultIndexForSlot(second, 9), -1, "no tail, no ninth slot");
+  assert.equal(resultIndexForSlot(second, 9), -1, "a short viewport has no ninth slot");
+  assert.equal(resultIndexForSlot(second, 0), -1, "…and no tenth row to spend `0` on");
 });
 
 test("R34 · the slot map is the key handler's one source", async () => {

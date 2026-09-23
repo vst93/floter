@@ -509,7 +509,10 @@ export function useLauncherActions(options: {
     // R33 · the clipboard row is the browser row's twin: it is the door into
     // the clipboard result mode, not a settings page. Entering the mode gives
     // the plugin's own list (and its gear opens the configuration overlay).
+    // R36 · a disabled row is a note, not a door — the same guard the browser
+    // branch above has had since R26-D.
     if (item.action === "clipboard") {
+      if (item.disabled) return;
       enterPluginMode({ scope: "clipboard" });
       return;
     }
@@ -688,7 +691,7 @@ export function useLauncherActions(options: {
     // Numbered results only: the action bar has no number, so `Cmd/Ctrl+1` can
     // never run a command by mistake. R19: the slot → row mapping is
     // `result-budget.ts`'s (`resultIndexForSlot`), the same one that prints the
-    // badges, so `⌘9` runs the fixed clipboard row like a click on it would.
+    // badges, so `⌘0` runs the fixed clipboard row like a click on it would.
     const resultNumber = matchesResultShortcut(event, shortcuts.select_result);
     if (resultNumber !== null) {
       const resultIndex = resultIndexForSlot(resultShortcutSlots, resultNumber);

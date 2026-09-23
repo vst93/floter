@@ -348,7 +348,7 @@ export function useAppKeyboard(options: {
       const inputFocused = document.activeElement === inputRef.current;
       const resultNumber = inputFocused ? null : matchesResultShortcut(event, shortcuts.select_result);
       if (resultNumber !== null) {
-        // R19: one mapping, shared with the badges — `⌘9` is the fixed
+        // R19/R36: one mapping, shared with the badges — `⌘0` is the fixed
         // clipboard row (see `resultIndexForSlot`).
         const resultIndex = resultIndexForSlot(resultShortcutSlots, resultNumber);
         if (resultIndex >= 0) {
