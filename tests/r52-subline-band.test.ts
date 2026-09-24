@@ -142,32 +142,43 @@ test("R52 · a chips-free window gives back exactly 4u + 4px", async () => {
   assert.equal(LAUNCHER_SUBLINE_INSET_UNITS, 4);
   assert.equal(LAUNCHER_SUBLINE_INSET_CHROME, 4);
 
-  // The screenshot scene: empty query, ten compact recent rows, the title. R52
-  // gives back 8px (503 → 495) — the row of blank the user read under the field.
+  // The R52 scene (empty query, ten compact recent rows, the title) now goes
+  // through R58's honest chrome: 484px with the chips row absent, 520px with it.
+  // The 8px the no-chips page gives back is still exactly the two insets.
   const withChips = launcherContentHeight(
     10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true, true,
   );
   const noChips = launcherContentHeight(
     10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true, false,
   );
-  assert.equal(noChips, 495, "the ordinary page's ten compact rows are 495px");
-  assert.equal(withChips, 531, "the chips page's are 531px");
+  assert.equal(noChips, 484, "the ordinary page's ten compact rows are 484px");
+  assert.equal(withChips, 520, "the chips page's are 520px");
   assert.equal(
     withChips - noChips,
     LAUNCHER_FILTER_UNITS + LAUNCHER_SUBLINE_INSET_UNITS + LAUNCHER_SUBLINE_INSET_CHROME,
     "the difference is the chips band plus the two insets the bare page gives back",
   );
 
-  // The full worst-case slab is unchanged when a chips row is drawn, and the
-  // no-chips page gives back exactly the two insets.
+  // The ten two-line rows: 574px with a chips row, 538px without — both under
+  // the R25 ceiling (583px), which is what a ceiling is for. R58's whole point
+  // is that these are the sheets' own sums, not the ceiling's slack.
   const slabWithChips = launcherContentHeight(
     10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, true,
   );
   const slabNoChips = launcherContentHeight(
     10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, false,
   );
-  assert.equal(slabWithChips, LAUNCHER_WINDOW_HEIGHT, "the chips slab stays 583px");
-  assert.equal(slabNoChips, LAUNCHER_WINDOW_HEIGHT - 8, "the ordinary slab is 575px");
+  assert.equal(slabWithChips, 574, "the chips page's ten two-line rows are 574px");
+  assert.equal(slabNoChips, 538, "the ordinary page's are 538px");
+  assert.equal(
+    slabWithChips - slabNoChips,
+    LAUNCHER_FILTER_UNITS + LAUNCHER_SUBLINE_INSET_UNITS + LAUNCHER_SUBLINE_INSET_CHROME,
+    "and the two pages still differ by exactly the chips band plus the two insets",
+  );
+  assert.ok(
+    slabWithChips < LAUNCHER_WINDOW_HEIGHT,
+    "the worst drawn slab stays under the R25 ceiling, so the ceiling never binds on an ordinary display",
+  );
 
   // The unit part scales and the fixed part is added once, with and without the
   // insets, at every interface step.

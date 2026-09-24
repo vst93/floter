@@ -132,8 +132,8 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   const app = (await read("src/App.tsx")).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   assert.match(
     app,
-    /const launcherMaxHeight = Math\.min\(\s*launcherWindowHeight\(launcherScale\),\s*Math\.max\(240, window\.screen\.availHeight - 24\),\s*\);/,
-    "the full slab is the budget at the current step, clamped to the work area",
+    /const launcherMaxHeight = launcherWindowCap\(\s*launcherWindowHeight\(launcherScale\),\s*launcherListCeiling,\s*launcherChromeHeight\(launcherScale, launcherHasBar, launcherSectionTitle, filterRowVisible\),\s*\);/,
+    "R58: the window's ceiling is the list's ceiling plus this state's chrome, never above the full slab",
   );
   assert.match(
     app,
@@ -165,12 +165,18 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
     /syncLauncherHeight\(collapsedCardRef\)/,
     "no collapsed path may fall back to a bare, measured sync",
   );
-  // The inline viewport cap the short-display path uses is untouched: it is a
-  // *list* cap, and it still binds inside the (smaller) window.
+  // The inline viewport cap the short-display path uses is the *list's* ceiling,
+  // and the window's ceiling is derived from it (R58) — one number, so a capped
+  // list and a capped window cannot disagree.
   assert.match(
     app,
-    /--launcher-results-height": `\$\{Math\.max\(84, window\.screen\.availHeight - RESULTS_VIEWPORT_CHROME\)\}px`/,
-    "the short-display list cap is still written from the shared chrome constant",
+    /--launcher-results-height": `\$\{launcherListCeiling\}px`/,
+    "the short-display list cap is written from the same ceiling the window's is derived from",
+  );
+  assert.match(
+    app,
+    /const launcherListCeiling = launcherResultsCeiling\(window\.screen\.availHeight\);/,
+    "…and that ceiling is the module's own helper, not a second formula in the App",
   );
 });
 
@@ -453,10 +459,16 @@ test("R34 · the window height is per-row, and the row count is sticky", async (
       );
     }
   }
-  // The top is still the R25/R36/R37 slab.
+  // The top is still the R25/R36/R37 unit budget; R58 gives it the chrome the
+  // sheet actually draws (2px frame + nine 1px gaps, no empty-query title on a
+  // query page) instead of the ceiling's 52px.
   assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 583);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 546);
+  assert.equal(
+    launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true),
+    572,
+    "the empty-query heading is the one chrome term the count cannot charge without being told",
+  );
   assert.ok(
     launcherRowHeight(8, 1, LAUNCHER_WINDOW_HEIGHT) <
       launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
@@ -519,11 +531,12 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
     MAX_RESULTS,
   } = budget;
 
-  // The full slab is unchanged while the bar is drawn — that is R25's constant,
-  // and the settings-panel/launcher-height round trip depends on it.
+  // The full slab's *unit* budget is unchanged while the bar is drawn — that is
+  // R25's constant — but its chrome is R58's honest tally (2px frame + nine
+  // gaps = 15px on a query page), so the slab is 546px, 37px under the old
+  // ceiling. `LAUNCHER_WINDOW_HEIGHT` (583) survives as the display ceiling.
   assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 583);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 546);
 
   // Without the bar, exactly the bar's own segment comes off — nothing else.
   for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
@@ -543,12 +556,13 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
   // …and the empty-query section title is chrome, not a row.
   assert.equal(launcherRowChrome(1, true), 2 + 4 + 26);
 
-  // A short count's chrome counts the gaps it really has; the ten-row top
-  // keeps the R25 ceiling so the full slab stays 583px (a ceiling, not a
-  // measurement).
+  // A short count's chrome counts the gaps it really has — and, since R58, so
+  // does the ten-row top: the ceiling was a second authority that charged the
+  // empty-query heading and 11px of slack on a query page that draws neither.
   assert.equal(launcherRowChrome(2), 2 + 4 + 1);
   assert.equal(launcherRowChrome(3), 2 + 4 + 2);
-  assert.equal(launcherRowChrome(MAX_RESULTS), 52);
+  assert.equal(launcherRowChrome(MAX_RESULTS), 2 + 4 + (MAX_RESULTS - 1));
+  assert.equal(launcherRowChrome(MAX_RESULTS, true), 2 + 4 + (MAX_RESULTS - 1) + 26);
 });
 
 // R43 · the list's real height, not `count × 42`.
@@ -595,24 +609,35 @@ test("R43 · the window follows the list's real row heights, not count × 42", a
   assert.equal(resolveLauncherUnits(34, 34), 34);
 
   // The height at an interface step. R43's row-height model is the ordinary
-  // page's, and R52 takes the two subline insets (4u + 4px) off that page, so
-  // the ten two-line rows are 575px there and ten compact rows are 80u lower.
-  // The 583px slab is the *chips* page, asserted with `filter = true`.
+  // page's, and R52 takes the two subline insets (4u + 4px) off that page. R58
+  // charges the chrome the sheet draws at *every* count, so ten two-line rows
+  // are 538px there (was 575 under the ceiling) and ten compact rows are 80u
+  // lower; the chips page adds the 28u band and its 8px of insets.
   assert.equal(
     launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
-    575,
-    "ten two-line rows on the ordinary page are the 575px slab (R52)",
+    538,
+    "ten two-line rows on the ordinary page are 538px (R52 insets, R58 chrome)",
   );
   assert.equal(
     launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, true),
-    LAUNCHER_WINDOW_HEIGHT,
-    "with a chips row the full slab is still R25/R37's 583px",
+    574,
+    "with a chips row the ten two-line rows are 574px — 9px under the R25 ceiling",
   );
   const tenCompact = launcherContentHeight(10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(tenCompact, 495, "ten compact rows are 495px, 80u under the ordinary slab");
+  assert.equal(tenCompact, 458, "ten compact rows are 458px, 80u under the two-line page");
   assert.ok(
     tenCompact < launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
-    "the compact list is genuinely shorter than the worst-case slab the old sizing charged",
+    "the compact list is genuinely shorter than the two-line slab",
+  );
+  // R58 · the height is the content the sheets draw. The row table is the
+  // *chips* page's number (the 66u it folds in includes the panel's top inset);
+  // the ordinary page gives back exactly the two subline insets, as it has
+  // since R52.
+  assert.equal(
+    launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT) -
+      launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
+    LAUNCHER_SUBLINE_INSET_UNITS + LAUNCHER_SUBLINE_INSET_CHROME,
+    "the row table and the content height are one number plus the two insets",
   );
   // The chrome is added once and unscaled, exactly as `launcherRowHeight` does.
   // R52 · with no chips row the unit part loses the panel's 4u top inset and

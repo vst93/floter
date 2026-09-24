@@ -97,7 +97,12 @@ export const RESULTS_LIST_HEIGHT = MAX_RESULTS * ROW_HEIGHT_TWO_LINE;
  *  cover (it was `8 + 9 + 26 = 43` from R22, itself `14 + 9 + 26 = 49` before
  *  R22 with one pixel of slack). The constant only has to *clear* the chrome
  *  it stands for, so R24 leaves it where it is — R36 adds a row, and with it a
- *  tenth gap, without moving the ceiling. */
+ *  tenth gap, without moving the ceiling.
+ *
+ *  R58 · it is the *sheet's* ceiling (`.launcher-results`' `min(420u + 50px,
+ *  …)`), read nowhere as a live height: the window charges the chrome the page
+ *  actually draws ({@link launcherRowChrome}) at every count, so the 11px and
+ *  the empty-query heading inside this number can never become a band. */
 export const RESULTS_LIST_CHROME = 50;
 
 /** Chrome the launcher draws around the result list: the query row, the action
@@ -208,6 +213,15 @@ export const RESULTS_VIEWPORT_CHROME = 226;
  *  ceiling) — a window never clips, and the slack lands in the gap above the
  *  pinned action bar, where nothing can see it.
  *
+ *  R58 · that last sentence describes a *ceiling*, and this constant is one
+ *  now — the cap the whole chain is clamped to (`launcherWindowCap`), never the
+ *  height a state is drawn at. Charging it as the live height at the ten-row
+ *  top is what left the 37px band the user photographed: the ceiling's 52px
+ *  includes the empty-query heading and 11px of slack that a *query* page draws
+ *  as 15px of chrome. The live height is `launcherContentHeight`'s — the page's
+ *  own sum — and the ceiling only decides what happens when a display is too
+ *  short to hold it.
+ *
  *  R36 · the budget grew from nine rows to ten (378u → 420u of list, 475u →
  *  517u of slab, 527px → 569px at the default step). The user's read of the old
  *  527px slab was that it looked as if it already held ten rows; measured
@@ -233,11 +247,18 @@ export const LAUNCHER_WINDOW_HEIGHT_UNITS = 531;
  *  `RESULTS_LIST_CHROME` and the card's 1px frame top and bottom. */
 export const LAUNCHER_WINDOW_HEIGHT_CHROME = RESULTS_LIST_CHROME + 2;
 
-/** The launcher window's height at the default interface step: `531u + 52px`
- *  = 583px. Every state of the launcher — empty query, one result, ten, a
- *  feedback row, the first-run tip — is drawn inside this slab, so nothing a
- *  keystroke does may resize the window. R37: the slab is 583px (`531u + 52px`),
- *  the field's row having grown to the settings band's 56u. */
+/** The launcher window's ceiling at the default interface step: `531u + 52px`
+ *  = 583px, the R25/R37 slab.
+ *
+ *  R58 · it is a **ceiling**, not the height of a state. R26-D made the window
+ *  a band per row count and R43 made it the rows' own height; this round made
+ *  that the rule at every count (the ten-row top was the last one still charged
+ *  the slab). What the constant still does is bound the chain from above —
+ *  {@link launcherWindowCap} takes the smaller of it and the display's own
+ *  ceiling — and it is the default for a caller with no band to hand in (a node
+ *  test, `syncLauncherHeight`'s fallback). The sheets' widest page is 574px
+ *  (ten two-line rows with a chips row and the action bar), so the ceiling still
+ *  clears everything that can be drawn. */
 export const LAUNCHER_WINDOW_HEIGHT =
   LAUNCHER_WINDOW_HEIGHT_UNITS + LAUNCHER_WINDOW_HEIGHT_CHROME;
 
@@ -353,9 +374,9 @@ export const launcherRowUnits = (
   (filter ? LAUNCHER_FILTER_UNITS : 0);
 
 /** The list's own section heading: one `--text-body` line at 1.4 plus its 6/4px
- *  padding pair (see `.launcher-section-title`). The top of the table folds this
- *  into the R25 chrome ceiling instead of adding it, so the full slab is
- *  unchanged. */
+ *  padding pair (see `.launcher-section-title`). It is charged exactly when the
+ *  sheet draws it — the empty-query page's own predicate (`launcherSectionTitle`),
+ *  the same one the modifier reads. */
 export const LAUNCHER_SECTION_TITLE_CHROME = 26;
 
 /**
@@ -363,17 +384,29 @@ export const LAUNCHER_SECTION_TITLE_CHROME = 26;
  * frame top and bottom, the scroller's scroll-edge reservation, the 1px grid
  * gaps between the rows, and (empty query only) the section heading.
  *
- * R27 · the ten-row top keeps the R25 ceiling — `RESULTS_LIST_CHROME + 2` —
- * because that constant is what makes the full slab 583px and it is deliberately
- * a *ceiling* with slack for the list's real worst case. Shorter heights do not
- * need that slack (their content is shorter by construction), so they use the
- * honest count and the empty launcher loses the ~30px the ceiling was holding
- * for rows it does not have. The honest count is why a four-row list is exactly
- * four rows tall instead of landing in a six-row band.
+ * R27 · shorter counts used the honest tally while the ten-row top took the
+ * R25 ceiling (`RESULTS_LIST_CHROME + 2`, 52px) — a *ceiling* with slack for
+ * the worst case the table was written against. The honest tally is why a
+ * four-row list is exactly four rows tall instead of landing in a six-row band.
+ *
+ * R58 · the ceiling was a second authority and it disagreed with the sheets at
+ * exactly the count the user photographed: ten matched rows. 52 = the 2px frame
+ * + the 4px scroll-edge + nine gaps + the 26px empty-query heading + 11px of
+ * slack, but a *query* page draws no heading and — with no chips row — no
+ * scroll-edge either, so its list is 2 + 9 = 15px of chrome. The window was
+ * therefore 37px taller than the page it held: the leftover landed between the
+ * last row and the pinned action bar as a band of sunken panel (the desktop
+ * read through it as ghost lines), and the 9→10 step became 35u + 37px = 72u —
+ * more than the 42u one worst-case row the R43 hysteresis is allowed to absorb,
+ * so crossing that boundary jumped the window and, coming back down, held the
+ * band until the content fell a further 42u. One formula now, for every count:
+ * what the sheet draws. The empty-query heading is a term of it, charged exactly
+ * when `sectionTitle` says it is drawn. The R25 ceiling survives where it is
+ * still true — as the *display* ceiling (`LAUNCHER_WINDOW_HEIGHT`, which clears
+ * the worst case the sheets can now produce) — never as the live height.
  */
 export const launcherRowChrome = (rows: number, sectionTitle = false): number => {
   const count = clampLauncherRows(rows);
-  if (count >= MAX_RESULTS) return LAUNCHER_WINDOW_HEIGHT_CHROME;
   return (
     2 +
     4 +
@@ -382,9 +415,16 @@ export const launcherRowChrome = (rows: number, sectionTitle = false): number =>
   );
 };
 
-/** A row count's window height at an interface step, never above the display
- *  cap. The unit part scales; the chrome is added once, unscaled, exactly as
- *  {@link launcherWindowHeight} does for the full slab. */
+/** A row count's window height from the row table, at an interface step and
+ *  never above the display cap. The unit part scales; the chrome is added once,
+ *  unscaled, exactly as {@link launcherWindowHeight} does for the full slab.
+ *
+ *  R58 · this is the **chips page's** number (the 66u it folds in includes the
+ *  panel's top inset and the scroller's scroll-edge reservation). The live
+ *  height is {@link launcherContentHeight}'s — the rows' own heights, with the
+ *  two subline insets given back when no chips row is drawn and the chrome the
+ *  sheet draws at *every* count — so this helper is the worst-case table beside
+ *  it, and the App no longer calls it. */
 export const launcherRowHeight = (
   rows: number,
   scale: number,
@@ -485,6 +525,14 @@ export const LAUNCHER_SUBLINE_INSET_CHROME = 4;
  * chips row nothing moves; without one the window gives back the 4u + 4px the
  * sheet also stops drawing, so the ordinary page's slab is exactly as tall as
  * the page it holds.
+ *
+ * R58 · "exactly as tall as the page it holds" is now the rule at every count.
+ * The ten-row top used to be charged the R25 *ceiling* instead of the chrome
+ * `launcherRowChrome` draws for ten rows — the empty-query heading plus 11px of
+ * slack a query page never paints — so the one state the launcher is in most of
+ * the time (a full budget of matches) was 37px taller than its own page. The
+ * height is the page's sum now; `maxHeight` is only the clamp on a display too
+ * short to hold it (see {@link launcherWindowCap}).
  */
 export const launcherContentHeight = (
   listUnits: number,
@@ -514,6 +562,52 @@ export const launcherContentHeight = (
     maxHeight,
   );
 };
+
+/**
+ * R58 · the chrome a state draws *around* its list, in window pixels: the field
+ * row, the breath below it, the panel's insets, the action bar, the chips row and
+ * the card's frame — everything {@link launcherContentHeight} adds to the list's
+ * own units, with no rows in it. It is defined as a zero-row list so the two can
+ * never be computed by two formulas, and it is what {@link launcherWindowCap}
+ * adds to the list's ceiling below.
+ */
+export const launcherChromeHeight = (
+  scale: number,
+  actionBar = true,
+  sectionTitle = false,
+  filter = false,
+): number =>
+  launcherContentHeight(0, 0, scale, Number.POSITIVE_INFINITY, actionBar, sectionTitle, filter);
+
+/** R58 · the list's own ceiling on a display, in pixels: what `App.tsx` writes
+ *  into `--launcher-results-height` (`.launcher-results`' `max-height` reads it,
+ *  next to its own unit-scaled ten-row ceiling). `RESULTS_VIEWPORT_CHROME` is the
+ *  chrome around the list plus the room the window's shadow needs — the R19/R37
+ *  audit. The 84px floor keeps a list on a display too short to hold one. */
+export const launcherResultsCeiling = (availHeight: number): number =>
+  Math.max(84, availHeight - RESULTS_VIEWPORT_CHROME);
+
+/**
+ * R58 · the window's ceiling, **derived from the list's**: whatever the list may
+ * draw, the window can hold it.
+ *
+ * Until this round the two were independent numbers — the list capped itself at
+ * `availHeight - 226` while the window capped itself at `availHeight - 24` — so
+ * on a display where either bound the two disagreed by ~80px: the window stayed
+ * tall with the list's last row cut off inside it (the band the user reported,
+ * with the desktop reading through the glass). Deriving the window's ceiling
+ * from the list's makes the disagreement impossible: when the list must scroll,
+ * the window is exactly `ceiling + chrome` — the list filling it edge to edge —
+ * and when the list fits, the content is the height (the ceiling is not reached).
+ *
+ * The smaller of this and the R25 slab (`launcherWindowHeight`) still wins, so on
+ * an ordinary display nothing moves: 583 < 550 + 109 for the plain page.
+ */
+export const launcherWindowCap = (
+  windowCeiling: number,
+  resultsCeiling: number,
+  chromeHeight: number,
+): number => Math.min(windowCeiling, resultsCeiling + chromeHeight);
 
 /** Whether a row is *a* clipboard row — the `system-clipboard` entry the
  *  catalog contributes like any other built-in.

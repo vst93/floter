@@ -34,6 +34,12 @@
 //     (66u + N×42u + 28u) + launcherRowChrome(N+1)
 //     = 100 + 43N  →  29px short of the content it must hold
 //
+// R58 · the slack in the second line is the R25 ceiling's (and is gone for the
+// ordinary page, which now charges the chrome the sheet draws at every count —
+// see `tests/r58-adaptive-window.test.ts`). What this file pins is unaffected:
+// the charged term exists in *every* scope, the window is never shorter than its
+// own content, and the missing term is what the report saw.
+//
 // Mutations that must turn this file red:
 //   * dropping `+ launcherChromeUnits` from the pluginView branch of the App
 //     -> "the plugin branch charges the chrome row";

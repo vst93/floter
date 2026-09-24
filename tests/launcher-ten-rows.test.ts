@@ -621,12 +621,18 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   );
 
   // The App's cap and the CSS ceiling are the same number of rows' worth: the
-  // App subtracts only the window chrome it knows about.
+  // App writes the list's ceiling through the module's helper (R58), so the two
+  // cannot be two formulas.
   const source = stripJsComments(await read("src/App.tsx"));
   assert.match(
     source,
-    /--launcher-results-height": `\$\{Math\.max\(84, window\.screen\.availHeight - RESULTS_VIEWPORT_CHROME\)\}px`/,
-    "the inline cap subtracts the shared chrome constant",
+    /--launcher-results-height": `\$\{launcherListCeiling\}px`/,
+    "the inline cap is the module's list ceiling",
+  );
+  assert.match(
+    source,
+    /const launcherListCeiling = launcherResultsCeiling\(window\.screen\.availHeight\);/,
+    "…written from `launcherResultsCeiling`, which subtracts the shared chrome constant",
   );
   // R19/R20 re-audited this chrome, and R22-R24 and R37 each moved one segment
   // of it: the R18 breath halved (8u → 4u, R24), the field's row went 56u → 48u

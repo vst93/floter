@@ -99,12 +99,14 @@ import {
   ROW_HEIGHT_COMPACT,
   ROW_HEIGHT_TWO_LINE,
   launcherContentHeight,
+  launcherChromeHeight,
   launcherListUnits,
+  launcherResultsCeiling,
+  launcherWindowCap,
   launcherWindowHeight,
   MAX_RESULTS,
   resolveLauncherUnits,
   resultShortcutSlots,
-  RESULTS_VIEWPORT_CHROME,
   type VisibleRowRange,
 } from "./launcher/result-budget";
 import { resultRowContent } from "./launcher/row-content";
@@ -1819,10 +1821,13 @@ export default function App() {
   // scaled CSS, so a measurement already carries the step and multiplying it
   // again would scale twice (see `useLauncherHeight`).
   const launcherScale = uiScaleFactor(settings.ui_scale);
-  const launcherMaxHeight = Math.min(
-    launcherWindowHeight(launcherScale),
-    Math.max(240, window.screen.availHeight - 24),
-  );
+  // R27/R58 · the window's ceiling follows the *list's* ceiling (see
+  // `launcherWindowCap`): the two used to be independent numbers that disagreed
+  // by ~80px on a display where either bound, which is a window taller than the
+  // list inside it. The R25 slab still wins on an ordinary display, so nothing
+  // there moves. A ceiling is a clamp, never the height — the live height is the
+  // content's own (see `launcherHeight` below).
+  const launcherListCeiling = launcherResultsCeiling(window.screen.availHeight);
   // R26-D · how many rows the window has to hold right now. The composed list
   // (the fixed clipboard tail included) is the row count; the first-run tip and
   // the feedback/error rows are content too, so each is charged as one row —
@@ -1858,9 +1863,19 @@ export default function App() {
       ? ROW_HEIGHT_COMPACT
       : ROW_HEIGHT_TWO_LINE;
   };
+  // R58 · the one predicate for the alert row the panel draws under the field
+  // (a feedback line, the application-scan failure, the restart/shutdown
+  // confirmation). R52 charged it as one worst-case row; the clip's own open
+  // predicate was written out separately and had drifted from it — the
+  // confirmation banner was charged and drawn but could leave the clip closed
+  // (an empty-query launcher had no results to open it for), which is the third
+  // instance of the hole R52 closed for plugin scopes. One boolean now feeds
+  // both the charge and the sheet.
+  const launcherAlertRow = Boolean(
+    launcherFeedback || (appsError && !launcherScope) || pendingSystemAction,
+  );
   const launcherChromeRows =
-    (showOnboardingTip && !launcherScope ? 1 : 0) +
-    (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0);
+    (showOnboardingTip && !launcherScope ? 1 : 0) + (launcherAlertRow ? 1 : 0);
   // R52 · the feedback / tip / confirm row is charged as a worst-case row, in
   // *every* scope. The plugin list used to price only `pluginViewRows` here
   // while still counting the feedback row in `launcherRows` above, so a plugin
@@ -1897,6 +1912,14 @@ export default function App() {
   // scope the list is the plugin's own and the "Recently launched" label sat
   // over bookmark rows (the leak the user reported).
   const launcherSectionTitle = !launcherScope && !query.trim() && !fileRows.length;
+  // R58 · the window's ceiling: the list's ceiling plus *this state's* chrome,
+  // so a capped list and a capped window are the same decision. On an ordinary
+  // display the R25 slab (583px) is the smaller number and the clamp is inert.
+  const launcherMaxHeight = launcherWindowCap(
+    launcherWindowHeight(launcherScale),
+    launcherListCeiling,
+    launcherChromeHeight(launcherScale, launcherHasBar, launcherSectionTitle, filterRowVisible),
+  );
   const launcherHeight = launcherContentHeight(
     launcherHeldUnits,
     launcherRows,
@@ -2758,7 +2781,7 @@ export default function App() {
                predicate, `filterRowVisible`, on the `launcherContentHeight`
                call below. */
             className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}${filterRowVisible ? "" : " collapsed-card--no-subline"}`}
-            style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
+            style={{ "--launcher-results-height": `${launcherListCeiling}px` } as React.CSSProperties}
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input, select, .plugin-config")) focusCollapsedInput();
             }}
@@ -3197,7 +3220,7 @@ export default function App() {
             ) : (
             <div
               className={
-                displayedResults.length > 0 || pluginText !== null || launcherFeedback || appsError
+                displayedResults.length > 0 || pluginText !== null || launcherAlertRow
                   ? "launcher-bottom-clip launcher-bottom-clip--open"
                   : "launcher-bottom-clip"
               }
