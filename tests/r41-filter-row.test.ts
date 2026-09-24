@@ -116,7 +116,7 @@ test("the App gates both chip rows and the height charge on the one predicate", 
   // field row and is not charged, so the window height is independent of it.
   assert.match(
     app,
-    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
+    /launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
     "the height charges the filter only when the row is drawn",
   );
   // The predicate lives in the launcher module, not inline in the render.

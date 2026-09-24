@@ -142,7 +142,7 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\);/,
+    /launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\);/,
     "the window height is the list's own content, never above the full slab, with the bar, the section title and the filter row charged only when they are drawn",
   );
   assert.match(

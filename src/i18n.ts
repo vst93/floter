@@ -229,6 +229,12 @@ const en = {
   "plugins.config.close": "Close plugin settings",
   "plugins.config.enabled": "Enabled",
   "plugins.config.enabledHint": "Turn this plugin's search mode on or off.",
+  // R59 · the overlay's section headings. Consecutive fields sharing one key
+  // are drawn under it in one card; the schema groups, the sheet names.
+  "plugins.config.sectionGeneral": "General",
+  "plugins.config.sectionData": "Data source",
+  "plugins.config.sectionSearch": "Search scope",
+  "plugins.config.sectionTabs": "Open tabs",
   "plugins.config.clipboardMaxItems": "History size",
   "plugins.config.clipboardMaxItemsHint": "How many clipboard entries to keep. Lowering it drops the oldest.",
   // R38 · the clipboard plugin's one destructive action, moved off the list and
@@ -1117,6 +1123,12 @@ const zh: Record<MessageKey, string> = {
   "plugins.config.close": "关闭插件设置",
   "plugins.config.enabled": "启用",
   "plugins.config.enabledHint": "开启或关闭该插件的搜索模式。",
+  // R59 · 配置浮层的分节标题。schema 中相邻且 sectionKey 相同的字段归于一节，
+  // 在同一张卡片内绘制于标题之下；分组由 schema 决定，措辞由字典给出。
+  "plugins.config.sectionGeneral": "常规",
+  "plugins.config.sectionData": "数据来源",
+  "plugins.config.sectionSearch": "搜索范围",
+  "plugins.config.sectionTabs": "已打开的标签页",
   "plugins.config.clipboardMaxItems": "历史容量",
   "plugins.config.clipboardMaxItemsHint": "保留多少条剪贴板记录。调小会丢弃最旧的记录。",
   // R38 · 剪贴板插件唯一的破坏性操作，从列表移入配置弹层。两步确认：先待命，再清空。

@@ -117,7 +117,7 @@ test("R52 · the App gates the modifier on the same `filterRowVisible` the heigh
   // …and the window height reads the same predicate, so drawn and charged agree.
   assert.match(
     app,
-    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
+    /launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
   );
 });
 

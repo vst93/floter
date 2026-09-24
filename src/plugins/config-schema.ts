@@ -67,68 +67,56 @@ export type PluginConfigOption = {
  * choice (`checkboxes`), a bounded value (`slider` / `number`) and free text
  * (`text`).
  */
-export type PluginConfigField =
-  | { key: string; type: "toggle"; labelKey: MessageKey; helpKey?: MessageKey }
-  | {
-      key: string;
-      type: "select";
-      labelKey: MessageKey;
-      helpKey?: MessageKey;
-      options: readonly PluginConfigOption[];
-    }
-  | {
-      key: string;
-      type: "radio";
-      labelKey: MessageKey;
-      helpKey?: MessageKey;
-      options: readonly PluginConfigOption[];
-    }
-  | {
-      key: string;
-      type: "checkboxes";
-      labelKey: MessageKey;
-      helpKey?: MessageKey;
-      options: readonly PluginConfigOption[];
-    }
-  | {
-      key: string;
-      type: "slider" | "number";
-      labelKey: MessageKey;
-      helpKey?: MessageKey;
-      min: number;
-      max: number;
-      /** The increment; defaults to 1. A slider with a step of 10 lands on
-       *  round numbers, which is what the clipboard capacity wants. */
-      step?: number;
-      /** A trailing unit word ("days", "items") rendered after the value. */
-      unitKey?: MessageKey;
-    }
-  | {
-      key: string;
-      type: "text";
-      labelKey: MessageKey;
-      helpKey?: MessageKey;
-      placeholderKey?: MessageKey;
-    }
-  /**
-   * R38 · a destructive command, not a value. The control is a button that arms
-   * on first press and runs on the second (the overlay's own two-step confirm —
-   * no system dialog), so a plugin can offer "clear history" without the
-   * overlay growing a plugin-specific branch. `command` is the bridge command
-   * the overlay invokes; the four keys are its label, help, confirm, cancel and
-   * failure wording. An `action` field holds no value (`normalizeConfigValue`
-   * returns `null`), so it never round-trips through the settings block.
-   */
-  | {
-      key: string;
-      type: "action";
-      labelKey: MessageKey;
-      helpKey?: MessageKey;
-      confirmKey: MessageKey;
-      cancelKey: MessageKey;
-      failedKey: MessageKey;
-      command: string;
-    };
+/** The half of a field every control kind shares. R59 lifted it out so the
+ *  `sectionKey` grouping half can be stated once: a field names the section it
+ *  belongs to, and the overlay renders consecutive fields under one heading. */
+type PluginConfigFieldBase = {
+  key: string;
+  labelKey: MessageKey;
+  helpKey?: MessageKey;
+  /** R59 · the section this field belongs to. Fields carry the same key in
+   *  schema order and the overlay renders them under one heading, inside one
+   *  `SettingsCard`; a new `sectionKey` (or the first field) starts a new
+   *  group. The key is a dictionary key, so the two languages name a group the
+   *  same way the rest of the overlay is named. Leaving it off puts the field
+   *  in the card's untitled default group. */
+  sectionKey?: MessageKey;
+};
+
+export type PluginConfigField = PluginConfigFieldBase &
+  (
+    | { type: "toggle" }
+    | { type: "select"; options: readonly PluginConfigOption[] }
+    | { type: "radio"; options: readonly PluginConfigOption[] }
+    | { type: "checkboxes"; options: readonly PluginConfigOption[] }
+    | {
+        type: "slider" | "number";
+        min: number;
+        max: number;
+        /** The increment; defaults to 1. A slider with a step of 10 lands on
+         *  round numbers, which is what the clipboard capacity wants. */
+        step?: number;
+        /** A trailing unit word ("days", "items") rendered after the value. */
+        unitKey?: MessageKey;
+      }
+    | { type: "text"; placeholderKey?: MessageKey }
+    /**
+     * R38 · a destructive command, not a value. The control is a button that arms
+     * on first press and runs on the second (the overlay's own two-step confirm —
+     * no system dialog), so a plugin can offer "clear history" without the
+     * overlay growing a plugin-specific branch. `command` is the bridge command
+     * the overlay invokes; the four keys are its label, help, confirm, cancel and
+     * failure wording. An `action` field holds no value (`normalizeConfigValue`
+     * returns `null`), so it never round-trips through the settings block.
+     */
+    | {
+        type: "action";
+        confirmKey: MessageKey;
+        cancelKey: MessageKey;
+        failedKey: MessageKey;
+        command: string;
+      }
+  );
 
 /** A field's value, as the overlay stores it. */
 export type PluginConfigValue = boolean | string | number | string[] | null;
@@ -139,6 +127,38 @@ export type PluginConfigSchema = {
   /** The overlay's title. */
   titleKey: MessageKey;
   fields: readonly PluginConfigField[];
+};
+
+/** R59 · one rendered section: a heading (when the group is named) and the
+ *  fields under it. `configSections` is the only place the grouping rule is
+ *  written down, so the overlay and the height budget cannot group a schema two
+ *  different ways. */
+export type PluginConfigSection = {
+  /** The heading's dictionary key, or `null` for the untitled default group. */
+  key: MessageKey | null;
+  fields: PluginConfigField[];
+};
+
+/**
+ * R59 · split a schema's ordered fields into sections.
+ *
+ * A new section starts at the first field and whenever `sectionKey` changes to
+ * a value not already open *adjacent* to the previous field. Two fields with
+ * the same key are one section; a field with no key joins the untitled default
+ * section. Order is schema order, so a section is always contiguous — the
+ * grouping never reorders a plugin's fields and cannot move a stored key.
+ */
+export const configSections = (
+  schema: PluginConfigSchema,
+): PluginConfigSection[] => {
+  const sections: PluginConfigSection[] = [];
+  for (const field of schema.fields) {
+    const key = field.sectionKey ?? null;
+    const last = sections[sections.length - 1];
+    if (last && last.key === key) last.fields.push(field);
+    else sections.push({ key, fields: [field] });
+  }
+  return sections;
 };
 
 /** What the schema needs to know about the machine. Only the browser target
@@ -155,7 +175,12 @@ export const CLIPBOARD_CONFIG_SCHEMA: PluginConfigSchema = {
   pluginId: CLIPBOARD_PLUGIN_ID,
   titleKey: "settings.clipboardHistory",
   fields: [
-    { key: "enabled", type: "toggle", labelKey: "plugins.config.enabled", helpKey: "plugins.config.enabledHint" },
+    {
+      key: "enabled",
+      type: "toggle",
+      labelKey: "plugins.config.enabled",
+      helpKey: "plugins.config.enabledHint",
+    },
     {
       key: "max_items",
       type: "slider",
@@ -191,12 +216,19 @@ export const browserConfigSchema = (
     pluginId: BROWSER_PLUGIN_ID,
     titleKey: "settings.browser",
     fields: [
-      { key: "enabled", type: "toggle", labelKey: "plugins.config.enabled", helpKey: "plugins.config.enabledHint" },
+      {
+        key: "enabled",
+        type: "toggle",
+        labelKey: "plugins.config.enabled",
+        helpKey: "plugins.config.enabledHint",
+        sectionKey: "plugins.config.sectionGeneral",
+      },
       {
         key: "target",
         type: "select",
         labelKey: "plugins.config.browserTarget",
         helpKey: "plugins.config.browserTargetHint",
+        sectionKey: "plugins.config.sectionData",
         options: [
           { value: "auto", labelKey: "plugins.config.browserTargetAuto" },
           ...targets.map((target) => ({
@@ -212,6 +244,7 @@ export const browserConfigSchema = (
         type: "text",
         labelKey: "plugins.config.customBaseDir",
         helpKey: "plugins.config.customBaseDirHint",
+        sectionKey: "plugins.config.sectionData",
         placeholderKey: "plugins.config.customBaseDirPlaceholder",
       },
       {
@@ -219,6 +252,7 @@ export const browserConfigSchema = (
         type: "number",
         labelKey: "plugins.config.historyDays",
         helpKey: "plugins.config.historyDaysHint",
+        sectionKey: "plugins.config.sectionSearch",
         min: 0,
         max: MAX_HISTORY_DAYS,
         step: 1,
@@ -229,6 +263,7 @@ export const browserConfigSchema = (
         type: "radio",
         labelKey: "plugins.config.sortOrder",
         helpKey: "plugins.config.sortOrderHint",
+        sectionKey: "plugins.config.sectionSearch",
         options: BROWSER_SORT_ORDERS.map((order) => ({
           value: order,
           labelKey: SORT_ORDER_KEYS[order],
@@ -241,17 +276,22 @@ export const browserConfigSchema = (
         type: "radio",
         labelKey: "plugins.config.searchFields",
         helpKey: "plugins.config.searchFieldsHint",
+        sectionKey: "plugins.config.sectionSearch",
         options: BROWSER_SEARCH_FIELDS.map((field) => ({
           value: field,
           labelKey: SEARCH_FIELD_KEYS[field],
         })),
       },
-      { key: "cdp_enabled", type: "toggle", labelKey: "plugins.config.cdpEnabled", helpKey: "plugins.config.cdpEnabledHint" },
+      {
+        key: "cdp_enabled", type: "toggle", labelKey: "plugins.config.cdpEnabled", helpKey: "plugins.config.cdpEnabledHint",
+        sectionKey: "plugins.config.sectionTabs",
+      },
       {
         key: "cdp_port",
         type: "number",
         labelKey: "plugins.config.cdpPort",
         helpKey: "plugins.config.cdpPortHint",
+        sectionKey: "plugins.config.sectionTabs",
         min: 1,
         max: 65535,
         step: 1,

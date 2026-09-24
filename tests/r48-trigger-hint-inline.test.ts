@@ -73,7 +73,7 @@ test("R48 · the hint renders inline in the field row and pays no band", async (
   // of it, so a nudge appearing or vanishing cannot move the window.
   assert.match(
     app,
-    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
+    /launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
     "the window height reads the filter-row predicate, never the hint",
   );
   assert.doesNotMatch(app, /triggerHint[^;]*launcherContentHeight/);

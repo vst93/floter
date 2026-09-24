@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import type { Translate } from "../i18n";
+import { SegmentedChoice, SettingsRow } from "../settings/SettingsRows";
 import {
   type PluginConfigField,
   type PluginConfigOption,
@@ -33,17 +34,10 @@ export type PluginControlProps = {
   onRun?: (key: string) => Promise<boolean>;
 };
 
-/** The label + help stack a control's row starts with. */
-function ControlLabel({ t, field }: { t: Translate; field: PluginConfigField }) {
-  return (
-    <span className="plugin-config-field__main">
-      <span className="plugin-config-field__label">{t(field.labelKey)}</span>
-      {field.helpKey && (
-        <span className="plugin-config-field__help">{t(field.helpKey)}</span>
-      )}
-    </span>
-  );
-}
+/** The label + help stack a control's row starts with. R59 · the overlay's
+ *  fields render the settings app's own `SettingsRow` label slot (see
+ *  `PluginConfigRow`), so this bare-label helper is retired: one row primitive,
+ *  one label face. */
 
 function ToggleControl({ t, field, value, disabled, onChange }: PluginControlProps) {
   const on = value === true;
@@ -68,7 +62,9 @@ function SelectControl({ t, field, value, disabled, onChange }: PluginControlPro
   if (field.type !== "select") return null;
   return (
     <select
-      className="plugin-config-select"
+      // R59 · the settings page's own select face: pill, `--glass-control-edge`
+      // hairline and the field's inset shadow. One select in the app.
+      className="settings-select plugin-config-select"
       aria-label={t(field.labelKey)}
       value={typeof value === "string" ? value : ""}
       disabled={disabled}
@@ -83,27 +79,22 @@ function SelectControl({ t, field, value, disabled, onChange }: PluginControlPro
   );
 }
 
-function RadioControl({ t, field, value, disabled, onChange }: PluginControlProps) {
+function RadioControl({ t, field, value, onChange }: PluginControlProps) {
   if (field.type !== "radio") return null;
   const current = typeof value === "string" ? value : "";
+  // R59 · the settings pages' segmented control (`SegmentedChoice`), reused
+  // whole: one track, pill segments, a radiogroup keyboard contract is the
+  // component's own. The plugin contributes options, not a new selection face.
   return (
-    <span className="plugin-config-radio" role="radiogroup" aria-label={t(field.labelKey)}>
-      {field.options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={current === option.value}
-          className={`plugin-config-radio__option${
-            current === option.value ? " plugin-config-radio__option--on" : ""
-          }`}
-          disabled={disabled}
-          onClick={() => onChange(field.key, option.value)}
-        >
-          {pluginOptionLabel(option, t)}
-        </button>
-      ))}
-    </span>
+    <SegmentedChoice
+      label={t(field.labelKey)}
+      options={field.options.map((option) => ({
+        value: option.value,
+        label: pluginOptionLabel(option, t),
+      }))}
+      value={current as string}
+      onChange={(next) => onChange(field.key, next)}
+    />
   );
 }
 
@@ -290,14 +281,30 @@ export function PluginConfigControl(props: PluginControlProps) {
   }
 }
 
-/** One field's whole row: its label/help and its control. */
+/** R59 · one field's whole row, on the settings app's own `SettingsRow`
+ *  primitive: label and help on the left, the control in the trailing slot.
+ *
+ *  The kinds whose control wants the row's full width — a free-text directory,
+ *  a segmented track, the range that is the capacity slider — take
+ *  `stacked`, which is the same modifier the settings pages use for their
+ *  sliders and pickers. Everything else trails right, aligned on the row's own
+ *  inset, so the right edge of a select, a number and a switch is one line. */
+const STACKED_KINDS = new Set<PluginConfigField["type"]>([
+  "text",
+  "radio",
+  "checkboxes",
+  "slider",
+]);
+
 export function PluginConfigRow(props: PluginControlProps) {
+  const { t, field } = props;
   return (
-    <div className={`plugin-config-field plugin-config-field--${props.field.type}`}>
-      <ControlLabel t={props.t} field={props.field} />
-      <span className="plugin-config-field__control">
-        <PluginConfigControl {...props} />
-      </span>
-    </div>
+    <SettingsRow
+      label={t(field.labelKey)}
+      sublabel={field.helpKey ? t(field.helpKey) : undefined}
+      stacked={STACKED_KINDS.has(field.type)}
+      className={`plugin-config-field plugin-config-field--${field.type}`}
+      control={<PluginConfigControl {...props} />}
+    />
   );
 }

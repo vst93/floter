@@ -325,7 +325,7 @@ test("R58 · the App derives the window ceiling from the list's, and one predica
   // The height still reads the drawn/chrome predicates, unchanged by this round.
   assert.match(
     app,
-    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\);/,
+    /launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\);/,
     "one predicate drives the drawing and the billing (R52's discipline)",
   );
 });

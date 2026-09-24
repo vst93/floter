@@ -99,6 +99,7 @@ import {
   ROW_HEIGHT_COMPACT,
   ROW_HEIGHT_TWO_LINE,
   launcherContentHeight,
+  pluginConfigContentHeight,
   launcherChromeHeight,
   launcherListUnits,
   launcherResultsCeiling,
@@ -1839,15 +1840,9 @@ export default function App() {
   // of that height would.
   const launcherRows = Math.max(
     1,
-    // R29 · while the plugin config overlay is open, its own row budget is the
-    // window's: a header plus one row per declared field. The overlay scrolls
-    // past the ten-row ceiling like every other list.
-    (pluginConfigOpen && launcherPluginId
-      ? 1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)
-      : 0) ||
-      (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
-        (showOnboardingTip && !launcherScope ? 1 : 0) +
-        (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0),
+    (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
+      (showOnboardingTip && !launcherScope ? 1 : 0) +
+      (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0),
   );
   // R43 · the list's real content height, in units. The window used to be
   // `count × ROW_HEIGHT_TWO_LINE` — every row charged at the two-line height —
@@ -1886,12 +1881,9 @@ export default function App() {
   // page already added `launcherChromeRows`; the plugin branch now does too, so
   // one chrome row costs the same row in place and in scope.
   const launcherChromeUnits = launcherChromeRows * ROW_HEIGHT_TWO_LINE;
-  const launcherListUnitsRaw =
-    pluginConfigOpen && launcherPluginId
-      ? (1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)) * ROW_HEIGHT_TWO_LINE
-      : pluginView
-        ? pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE + launcherChromeUnits
-        : launcherListUnits(displayedResults.map(launcherRowHeightUnits)) + launcherChromeUnits;
+  const launcherListUnitsRaw = pluginView
+    ? pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE + launcherChromeUnits
+    : launcherListUnits(displayedResults.map(launcherRowHeightUnits)) + launcherChromeUnits;
   // R43 · the unit total is sticky, the same way the row count used to be:
   // growing is immediate (a window one row short would clip the row) and a
   // shrink is absorbed until the content has fallen more than one worst-case
@@ -1920,19 +1912,32 @@ export default function App() {
     launcherListCeiling,
     launcherChromeHeight(launcherScale, launcherHasBar, launcherSectionTitle, filterRowVisible),
   );
-  const launcherHeight = launcherContentHeight(
-    launcherHeldUnits,
-    launcherRows,
-    launcherScale,
-    launcherMaxHeight,
-    launcherHasBar,
-    launcherSectionTitle,
-    // R32/R38 · the filter subline (the browser/clipboard chips) is fixed
-    // chrome; charging it here keeps the window from moving as the list under
-    // it changes. R48 · the trigger hint is inline in the field row and is not
-    // charged at all, so this predicate is the chips row's alone again.
-    filterRowVisible,
-  );
+  const launcherHeight =
+    // R59 · the plugin config overlay is its own content formula now: one
+    // `SettingsCard` per schema section, one `SettingsRow` per field, so its
+    // height is the sheet's geometry rather than a row guess. `App.tsx`'s
+    // counterpart to `launcherContentHeight` — the same "window == the content"
+    // rule R58 pinned for the list, applied to the new face. The overlay still
+    // scrolls inside the band when the browser's long form outgrows it.
+    pluginConfigOpen && launcherPluginId
+      ? pluginConfigContentHeight(
+          pluginConfigSchema(launcherPluginId)?.fields ?? [],
+          launcherScale,
+          launcherMaxHeight,
+        )
+      : launcherContentHeight(
+          launcherHeldUnits,
+          launcherRows,
+          launcherScale,
+          launcherMaxHeight,
+          launcherHasBar,
+          launcherSectionTitle,
+          // R32/R38 · the filter subline (the browser/clipboard chips) is fixed
+          // chrome; charging it here keeps the window from moving as the list under
+          // it changes. R48 · the trigger hint is inline in the field row and is not
+          // charged at all, so this predicate is the chips row's alone again.
+          filterRowVisible,
+        );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
   // to be current when they were installed.

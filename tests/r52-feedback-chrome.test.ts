@@ -78,12 +78,14 @@ test("R52 · the plugin branch charges the chrome row like the ordinary one", as
     /launcherListUnits\(displayedResults\.map\(launcherRowHeightUnits\)\) \+ launcherChromeUnits/,
     "…and the ordinary page keeps the same term",
   );
-  // The config overlay takes the list's place and draws no feedback row, so it
-  // deliberately stays without the term.
+  // The config overlay takes the list's place and draws no feedback row: its
+  // height is its own content formula (R59 — one `SettingsCard` per schema
+  // section, one `SettingsRow` per field), so it deliberately stays without the
+  // term.
   assert.match(
     app,
-    /pluginConfigOpen && launcherPluginId\s*\?\s*\(1 \+ \(pluginConfigSchema\(launcherPluginId\)\?\.fields\.length \?\? 0\)\) \* ROW_HEIGHT_TWO_LINE/,
-    "the config overlay's rows are its own budget",
+    /pluginConfigOpen && launcherPluginId\s*\?\s*pluginConfigContentHeight\(\s*pluginConfigSchema\(launcherPluginId\)\?\.fields \?\? \[\],\s*launcherScale,\s*launcherMaxHeight,\s*\)/,
+    "the config overlay's height is its own content formula",
   );
 });
 

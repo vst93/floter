@@ -37,6 +37,7 @@
 // The explicit `.ts` is what lets this module be imported by the node suite:
 // `../launcher` is a directory and node resolves the extension literally.
 import type { LauncherItem } from "./LauncherResults";
+import type { PluginConfigField } from "../plugins/config-schema.ts";
 import { SEARCH_FIELD_HEIGHT_UNITS } from "./search-field.ts";
 
 /** Ten matched results — the whole budget. R19-R36 reserved the tenth row for
@@ -586,6 +587,102 @@ export const launcherChromeHeight = (
  *  audit. The 84px floor keeps a list on a display too short to hold one. */
 export const launcherResultsCeiling = (availHeight: number): number =>
   Math.max(84, availHeight - RESULTS_VIEWPORT_CHROME);
+
+/**
+ * R59 · the plugin configuration overlay's own geometry, so its window can be
+ * "the content, not a row guess".
+ *
+ * Until this round the overlay was charged `(1 + fields) × ROW_HEIGHT_TWO_LINE`
+ * — one header plus one worst-case result row per field — and drawn as bare
+ * field lines on the card's glass. R59 gives the fields the settings app's
+ * grouped-card language (a `SettingsCard` per section, `SettingsRow` per
+ * field), which changes both the drawn height and the shape of the number: a
+ * section adds a heading, a stacked row (text / radio / slider) is taller than
+ * a trailing one, and a card adds a 1px edge top and bottom. The budget follows
+ * the sheet, field kind by field kind, exactly as `launcherContentHeight`
+ * follows the result list — so "window height == content height" survives the
+ * new face (R58's invariant) and the browser overlay (the one long form) rolls
+ * past the slab while the two short ones still land on their own height.
+ *
+ * The units are the sheet's own: `.plugin-config__header`'s 28u, the scroller's
+ * top+bottom padding (4u + 12u), each section heading's 25u (a `--text-title`
+ * line plus the 8u gap to its card), 12u between sections, and one row per
+ * field at the height its kind draws (see {@link PLUGIN_CONFIG_ROW_UNITS}). The
+ * card edges are the only unscaled pixels, exactly as a 1px hairline is in the
+ * sheet.
+ */
+export const PLUGIN_CONFIG_HEADER_UNITS = 28;
+export const PLUGIN_CONFIG_FIELDS_PADDING_UNITS = 16;
+export const PLUGIN_CONFIG_SECTION_HEADING_UNITS = 25;
+export const PLUGIN_CONFIG_SECTION_GAP_UNITS = 12;
+/** The card's two 1px edges (top and bottom), in window pixels. */
+export const PLUGIN_CONFIG_CARD_BORDER_CHROME = 2;
+
+/**
+ * The height one field's row draws, in units.
+ *
+ * A trailing row (a switch, a select, a number, an action) is the
+ * `SettingsRow` floor — the label/help stack plus the 9u padding pair, ~49u. A
+ * stacked row (the kinds whose control wants the row's full width) adds the 8u
+ * gap and its control's own box: a 28u text field, a 34u segmented track, a
+ * 16u range. These are the worst case for the kind — the row's help line may
+ * take one line, and the budget is a height the window can hold rather than one
+ * it can be clipped by.
+ */
+export const PLUGIN_CONFIG_ROW_UNITS: Record<PluginConfigField["type"], number> = {
+  toggle: 49,
+  select: 49,
+  number: 49,
+  action: 49,
+  text: 85,
+  radio: 91,
+  slider: 73,
+  checkboxes: 73,
+};
+
+/**
+ * R59 · the config overlay's content height, in window pixels, at an interface
+ * step and never above the display cap.
+ *
+ * The 60u folded in is the launcher's own band above the overlay: the 56u field
+ * row and the 4u breath under it. The rest is {@link PLUGIN_CONFIG_*}; the
+ * section count is read from the fields' own `sectionKey` runs so the budget
+ * cannot group a schema differently from `configSections` (the sheet's
+ * renderer).
+ */
+export const pluginConfigContentHeight = (
+  fields: readonly PluginConfigField[],
+  scale: number,
+  maxHeight: number,
+): number => {
+  // Two counts, because they charge different things: a *section* is one card
+  // (its edges and the gap before the next one), and only a *titled* section
+  // draws a heading line. The clipboard and calculator schemas declare no
+  // `sectionKey`, so they are one untitled card each — a light grouping that
+  // pays no heading.
+  let sections = fields.length > 0 ? 1 : 0;
+  let titled = (fields[0]?.sectionKey ?? null) !== null ? 1 : 0;
+  for (let i = 1; i < fields.length; i += 1) {
+    const key = fields[i].sectionKey ?? null;
+    if (key !== (fields[i - 1].sectionKey ?? null)) {
+      sections += 1;
+      if (key !== null) titled += 1;
+    }
+  }
+  const rowUnits = fields.reduce((sum, field) => sum + PLUGIN_CONFIG_ROW_UNITS[field.type], 0);
+  const sectionUnits =
+    titled * PLUGIN_CONFIG_SECTION_HEADING_UNITS +
+    Math.max(0, sections - 1) * PLUGIN_CONFIG_SECTION_GAP_UNITS;
+  const contentUnits =
+    /* field row + breath */ SEARCH_FIELD_HEIGHT_UNITS +
+    4 +
+    PLUGIN_CONFIG_HEADER_UNITS +
+    PLUGIN_CONFIG_FIELDS_PADDING_UNITS +
+    sectionUnits +
+    rowUnits;
+  const chrome = 2 + sections * PLUGIN_CONFIG_CARD_BORDER_CHROME;
+  return Math.min(Math.ceil(contentUnits * scale) + chrome, maxHeight);
+};
 
 /**
  * R58 · the window's ceiling, **derived from the list's**: whatever the list may

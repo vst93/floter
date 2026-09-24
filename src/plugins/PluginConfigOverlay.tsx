@@ -23,12 +23,14 @@ import {
   applyConfigChange,
   configDefaults,
   configField,
+  configSections,
   configValues,
   pluginConfigSchema,
   type PluginConfigContext,
   type PluginConfigValue,
 } from "./config-schema";
 import { PluginConfigRow } from "./controls";
+import { SettingsCard } from "../settings/SettingsRows";
 
 export type PluginConfigOverlayProps = {
   pluginId: string;
@@ -231,6 +233,13 @@ export function PluginConfigOverlay({
 
   if (!schema) return null;
 
+  // R59 · the schema's fields grouped by their own `sectionKey`. The heading is
+  // the settings app's section title and the fields under it are one
+  // `SettingsCard` — the same grouped-card language the settings pages use, so
+  // the overlay reads as a face of the app rather than bare glass with rows on
+  // it.
+  const sections = configSections(schema);
+
   return (
     <div
       className="plugin-config"
@@ -247,15 +256,28 @@ export function PluginConfigOverlay({
             title and its fields. */}
       </div>
       <div className="plugin-config__fields">
-        {schema.fields.map((field) => (
-          <PluginConfigRow
-            key={field.key}
-            t={t}
-            field={field}
-            value={values[field.key] ?? null}
-            onChange={handleChange}
-            onRun={runAction}
-          />
+        {sections.map((section, index) => (
+          <section
+            className="plugin-config__section"
+            key={section.key ?? `section-${index}`}
+            aria-label={section.key ? t(section.key) : undefined}
+          >
+            {section.key && (
+              <h2 className="plugin-config__section-title">{t(section.key)}</h2>
+            )}
+            <SettingsCard>
+              {section.fields.map((field) => (
+                <PluginConfigRow
+                  key={field.key}
+                  t={t}
+                  field={field}
+                  value={values[field.key] ?? null}
+                  onChange={handleChange}
+                  onRun={runAction}
+                />
+              ))}
+            </SettingsCard>
+          </section>
         ))}
       </div>
     </div>
