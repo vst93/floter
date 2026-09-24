@@ -7,13 +7,20 @@
 // setter and callback it touches, so the behaviour is unchanged.
 
 import { invoke } from "@tauri-apps/api/core";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Dispatch,
   RefObject,
   SetStateAction,
 } from "react";
-import { nextLauncherSelection, CLIPBOARD_FAVORITE_SHORTCUT, type ActivePluginMode, type ExecutionPlan } from "../launcher";
+import { nextLauncherSelection, CALCULATOR_FAVORITE_SHORTCUT, CLIPBOARD_FAVORITE_SHORTCUT, HISTORY_DELETE_SHORTCUT, type ActivePluginMode, type ExecutionPlan } from "../launcher";
+import {
+  HISTORY_DELETE_CONFIRM_MS,
+  reduceHistoryDelete,
+  selectionAfterRemoval,
+  type ArmedHistoryDelete,
+} from "../plugins/history-actions";
+import { calculatorCopyText, type CalculatorCopyMode, type CalculatorEntry } from "../calculator";
 import {
   fileActionKindForBar,
   fileActionRequest,
@@ -86,6 +93,18 @@ export function useLauncherActions(options: {
    *  chips (the browser rule, applied to the clipboard's six) and ⌘D favorites
    *  the selected row. */
   clipboardScope: boolean;
+  /** R50 · whether the calculator mode owns the field. Tab cycles its two
+   *  chips, ⌘D favorites and ⌘⌫ deletes; Enter evaluates a fresh expression
+   *  (`calculatorEnterEvaluates`) or copies the selected row. */
+  calculatorScope: boolean;
+  /** R50 · whether the field holds an expression that has not been evaluated
+   *  yet, so Enter should calculate rather than run the selected history row.
+   *  Computed by the App from `calculatorEnterAction`. */
+  calculatorEnterEvaluates: boolean;
+  /** R50 · evaluate the field's expression and record it. */
+  evaluateCalculator: () => void;
+  /** R50 · what Enter copies from a history row. */
+  calculatorCopyMode: CalculatorCopyMode;
   /** R39 · whether an external plugin's command mode owns the field. */
   externalScope: boolean;
   /** R39 · whether Enter should run the external command with the field's
@@ -97,10 +116,18 @@ export function useLauncherActions(options: {
   runExternalCommand: () => void;
   /** R38 · step through the clipboard filter chips (`1` forward, `-1` back). */
   cycleClipboardFilter: (direction: 1 | -1) => void;
+  /** R50 · step through the calculator filter chips (`1` forward, `-1` back). */
+  cycleCalculatorFilter: (direction: 1 | -1) => void;
   /** R38 · toggle the favorite flag of the clipboard entry with this id. The
    *  write and its optimistic paint live in the catalog hook that owns the
    *  entries; this is only the key's call into it. */
   toggleClipboardFavorite: (id: string) => void;
+  /** R50 · the calculator row's favorite toggle, the clipboard's twin. */
+  toggleCalculatorFavorite: (id: string) => void;
+  /** R50 · delete one clipboard entry (the select-then-⌘⌫ path). */
+  deleteClipboardEntry: (id: string) => void;
+  /** R50 · delete one calculator entry. */
+  deleteCalculatorEntry: (id: string) => void;
   isComposing: RefObject<boolean>;
   actionBar: ActionBar | null;
   shortcuts: ShortcutMap;
@@ -126,6 +153,33 @@ export function useLauncherActions(options: {
   setPendingSystemAction: Dispatch<SetStateAction<Extract<LauncherItem, { type: "system" }> | null>>;
 }) {
   const launcherOpening = useRef(false);
+  // R50 · the two-step inline delete: one armed row at a time, cleared by a
+  // confirming press, Esc / any other key, a focus loss or the timeout. The ref
+  // mirror lets the once-rendered key handler read the current arm without
+  // being rebuilt.
+  const [armedDelete, setArmedDelete] = useState<ArmedHistoryDelete>(null);
+  const armedDeleteRef = useRef<ArmedHistoryDelete>(null);
+  armedDeleteRef.current = armedDelete;
+  const disarmDelete = () => setArmedDelete(null);
+  // The timeout: an armed row disarms itself after a few seconds of stillness.
+  const armedId = armedDelete?.id ?? null;
+  const armedAt = armedDelete?.armedAt ?? 0;
+  useEffect(() => {
+    if (armedId === null) return;
+    const timer = window.setTimeout(() => {
+      setArmedDelete((current) =>
+        reduceHistoryDelete(current, { type: "expire", now: Date.now() }).state,
+      );
+    }, HISTORY_DELETE_CONFIRM_MS + 50);
+    return () => window.clearTimeout(timer);
+  }, [armedId, armedAt]);
+  // A focus loss (the window, or the field losing the keyboard to another
+  // surface) cancels a half-finished confirmation.
+  useEffect(() => {
+    const onBlur = () => setArmedDelete(null);
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
   const {
     query,
     resolvedTheme,
@@ -164,6 +218,14 @@ export function useLauncherActions(options: {
     clipboardScope,
     cycleClipboardFilter,
     toggleClipboardFavorite,
+    calculatorScope,
+    calculatorEnterEvaluates,
+    evaluateCalculator,
+    calculatorCopyMode,
+    cycleCalculatorFilter,
+    toggleCalculatorFavorite,
+    deleteClipboardEntry,
+    deleteCalculatorEntry,
     externalScope,
     externalEnterRunsCommand,
     runExternalCommand,
@@ -406,6 +468,30 @@ export function useLauncherActions(options: {
   };
 
   /**
+   * R50 · copy a calculator history row per the plugin's copy setting — the
+   * whole `expression = result` line or the bare result. Mirrors the clipboard
+   * copy: the launcher closes only after the write was accepted.
+   */
+  const copyCalculatorEntry = async (entry: CalculatorEntry) => {
+    if (launcherOpening.current) return;
+    launcherOpening.current = true;
+    setLauncherFeedback(null);
+    try {
+      await invoke("clipboard_write_text", {
+        text: calculatorCopyText(entry, calculatorCopyMode),
+      });
+    } catch {
+      showLauncherFeedback("launcher.error.copy");
+      return;
+    } finally {
+      launcherOpening.current = false;
+    }
+    setQuery("");
+    setHistoryIndex(-1);
+    invoke("hide_window");
+  };
+
+  /**
    * Run one of a dropped file's three actions.
    *
    * The whole point of R7-10a: these are the *only* three things a dropped file
@@ -637,6 +723,13 @@ export function useLauncherActions(options: {
       void copyClipboardEntry(item.entry.id);
       return;
     }
+    if (item.type === "calculator") {
+      // R50: a status row is not runnable; every other calculator row copies
+      // its entry per the plugin's copy setting.
+      if (item.disabled || !item.entry) return;
+      void copyCalculatorEntry(item.entry);
+      return;
+    }
     if (item.type === "plugin") {
       // R39 · an external plugin's list row. A row with no action (or one the
       // plugin marked disabled) is information; the three actions the protocol
@@ -695,6 +788,21 @@ export function useLauncherActions(options: {
       return;
     }
 
+    // R50 · an armed inline delete is cancelled by any key except the delete
+    // key itself (which confirms). Esc disarms and stops there — it must not
+    // also hide the window on the first press.
+    if (armedDeleteRef.current) {
+      const deleteKey =
+        (clipboardScope || calculatorScope) && matchesShortcut(event, HISTORY_DELETE_SHORTCUT);
+      if (!deleteKey) {
+        disarmDelete();
+        if (event.key === "Escape") {
+          event.preventDefault();
+          return;
+        }
+      }
+    }
+
     // A pending power action requires its dedicated confirmation control.
     // Input Enter cannot execute it; Escape cancels and Tab reaches controls.
     if (pendingSystemAction) {
@@ -745,6 +853,61 @@ export function useLauncherActions(options: {
         toggleClipboardFavorite(selected.entry.id);
       }
       return;
+    }
+
+    // R50 · the calculator mode's twin: Tab cycles its two chips, ⌘D favorites
+    // the selected row, and ⌘⌫ arms / confirms the inline delete of a runnable
+    // history row. The same three-block shape as the clipboard above.
+    if (calculatorScope && event.key === "Tab") {
+      event.preventDefault();
+      cycleCalculatorFilter(event.shiftKey ? -1 : 1);
+      return;
+    }
+    if (calculatorScope && matchesShortcut(event, CALCULATOR_FAVORITE_SHORTCUT)) {
+      event.preventDefault();
+      const selected = launcherResults[selectedResultIndex];
+      if (selected?.type === "calculator" && !selected.disabled && selected.entry) {
+        toggleCalculatorFavorite(selected.entry.id);
+      }
+      return;
+    }
+
+    // R50 · delete one history row, two-step, shared by both built-in history
+    // modes. The key is only claimed on a runnable history row: elsewhere it is
+    // the field's own (Ctrl+Backspace deletes a word). The first press arms the
+    // row (the renderer shows the muted "press again" note); a second press
+    // inside the window confirms; the arm is cancelled by any other key, a
+    // focus loss or the timeout.
+    if (clipboardScope || calculatorScope) {
+      if (matchesShortcut(event, HISTORY_DELETE_SHORTCUT)) {
+        const selected = launcherResults[selectedResultIndex];
+        const entry =
+          selected?.type === "clipboard" || selected?.type === "calculator"
+            ? selected.entry
+            : undefined;
+        const runnable =
+          selected !== undefined &&
+          (selected.type === "clipboard" || selected.type === "calculator") &&
+          selected.disabled !== true &&
+          entry !== undefined;
+        if (selected && entry && runnable) {
+          event.preventDefault();
+          const outcome = reduceHistoryDelete(armedDeleteRef.current, {
+            type: "press",
+            id: entry.id,
+            now: Date.now(),
+          });
+          setArmedDelete(outcome.state);
+          if (outcome.confirm) {
+            const nextIndex = selectionAfterRemoval(selectedResultIndex, launcherResults.length);
+            if (selected.type === "clipboard") deleteClipboardEntry(entry.id);
+            else deleteCalculatorEntry(entry.id);
+            setSelectedActionBar(false);
+            setSelectedResultIndex(nextIndex);
+          }
+          return;
+        }
+      }
     }
 
     // Holding the same modifier as the numbered-result shortcut highlights the
@@ -811,6 +974,14 @@ export function useLauncherActions(options: {
 
     if (event.key === "Enter") {
       event.preventDefault();
+      // R50 · the calculator mode's Enter: a fresh expression evaluates; once
+      // it has been evaluated, Enter belongs to the selected history row (the
+      // copy). The App decides which with `calculatorEnterAction`.
+      if (calculatorScope && calculatorEnterEvaluates) {
+        event.preventDefault();
+        evaluateCalculator();
+        return;
+      }
       // R39 · an external plugin mode whose view is not an interactive list has
       // no row to run: Enter is the command's own key, and the field's text is
       // its argv. When the view *is* an interactive list, its rows take Enter
@@ -923,6 +1094,7 @@ export function useLauncherActions(options: {
     runSystemAction,
     runLauncherItem,
     handleLauncherKey,
+    armedDeleteId: armedDelete?.id ?? null,
     pendingSystemAction,
     executeSystemAction,
     cancelSystemAction,

@@ -1252,6 +1252,38 @@
   color: var(--text-secondary);
 }
 
+/* R50 · the calculator row's result.
+
+   The user's rule for the row is exact: the result is shown **complete, at the
+   right**, and the expression on the left is what gives up room when the row is
+   narrow. So the expression stays in `.launcher-result__main` (already
+   `overflow: hidden` + ellipsis), and the result is `flex: 0 0 auto` with
+   `nowrap` — it can never be truncated or wrapped, and it sits to the right of
+   the expression. Tabular figures keep a column of numbers from jittering as
+   the results change. */
+.launcher-result__calculator-result {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--text-strong);
+  font-size: var(--text-body);
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+
+/* R50 · the two-step delete's armed state.
+
+   Not a dialog and not a second control: the row itself prints the muted
+   "press again to delete" note in place of its trailing chrome, exactly the
+   inline confirmation the R38 clear-history button uses. `--text-warning` is
+   the one warm token the row may spend, and only while armed. */
+.launcher-result__armed {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--text-warning);
+  font-size: var(--text-caption);
+  font-weight: 560;
+}
+
 /* R30 · a plugin's status line. It used to be an ordinary result row — the
    same 42u height, the same globe plate, the same title type — so
    「标签页不可用——请查看浏览器插件设置」 sat in the list looking exactly like the

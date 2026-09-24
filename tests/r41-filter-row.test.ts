@@ -75,10 +75,13 @@ test("the chips row shows only for a plugin list that is actually on screen", ()
   assert.equal(pluginFilterRowVisible(state({ scope: "external" })), false);
 });
 
-test("only the two built-in list plugins own a chip row", () => {
-  assert.deepEqual([...FILTER_ROW_SCOPES], ["browser", "clipboard"]);
+test("only the built-in list plugins own a chip row", () => {
+  // R50 · the calculator joined the two list plugins; the external command
+  // scope stays out because it has no chip vocabulary.
+  assert.deepEqual([...FILTER_ROW_SCOPES], ["browser", "clipboard", "calculator"]);
   assert.equal(filterRowScope("browser"), "browser");
   assert.equal(filterRowScope("clipboard"), "clipboard");
+  assert.equal(filterRowScope("calculator"), "calculator");
   assert.equal(filterRowScope("external"), null);
   assert.equal(filterRowScope(null), null);
 });
@@ -101,6 +104,11 @@ test("the App gates both chip rows and the height charge on the one predicate", 
     app,
     /filterRowVisible && launcherScope === "clipboard" && \(\s*<div className="launcher-filter">/,
     "the clipboard chips are gated on the predicate",
+  );
+  assert.match(
+    app,
+    /filterRowVisible && launcherScope === "calculator" && \(\s*<div className="launcher-filter">/,
+    "the calculator chips are gated on the predicate",
   );
   // The window height charges the filter band by the same predicate, so the
   // row's appearance and the band it occupies can never disagree. R48 · the

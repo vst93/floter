@@ -4,6 +4,8 @@ import {
   type PluginFilterAxis,
 } from "./plugins/filter-axis.ts";
 import { splitTriggerWord } from "./plugins/mode-entry.ts";
+import type { CalculatorModeFilter } from "./calculator.ts";
+export type { CalculatorModeFilter } from "./calculator.ts";
 
 export type ExecutionMode = "pty" | "external";
 
@@ -468,6 +470,74 @@ export const cycleClipboardFilter = (
 
 const CLIPBOARD_TRIGGERS = new Set(["clip", "clipboard", "剪贴板", "粘贴板"]);
 
+/**
+ * R50 · the calculator plugin's inline result mode.
+ *
+ * The clipboard mode's twin: a trigger word followed by a space puts the
+ * launcher's numbered list on the calculation history, and the input keeps the
+ * same field it always had. The field's text is the expression *and* the
+ * history's search needle — Enter evaluates a fresh expression and copies the
+ * selected history row once the expression has been evaluated (see
+ * `calculatorEnterAction`).
+ */
+export type CalculatorMode = {
+  /** The text after the trigger word, already trimmed. It is both the pending
+   *  expression and the history's needle. */
+  needle: string;
+  /** The chips' one selection: everything, or the starred entries. */
+  filter: CalculatorModeFilter;
+};
+
+/** R50 · the calculator mode's two filter chips, in the order the chips row and
+ *  Tab cycle them. `all` first because it is the shipped default. */
+export const CALCULATOR_FILTER_AXIS: PluginFilterAxis<CalculatorModeFilter> =
+  pluginFilterAxis(["all", "favorites"] as const, {
+    all: "launcher.calculatorFilterAll",
+    favorites: "launcher.calculatorFilterFavorites",
+  });
+
+/** R50 · the two filters, in display order. */
+export const CALCULATOR_FILTERS: readonly CalculatorModeFilter[] = CALCULATOR_FILTER_AXIS.values;
+
+/** R50 · move one step through {@link CALCULATOR_FILTERS}, wrapping at the ends
+ *  — the browser and clipboard cycles' contract, applied to the calculator's
+ *  two chips. */
+export const cycleCalculatorFilter = (
+  filter: CalculatorModeFilter,
+  direction: 1 | -1,
+): CalculatorModeFilter => cyclePluginFilter(CALCULATOR_FILTER_AXIS, filter, direction);
+
+/**
+ * R50 · the calculator mode's favorite key, the clipboard's twin. `CmdOrCtrl+D`
+ * resolves to ⌘D on macOS and Ctrl+D elsewhere. It is deliberately **not** a
+ * member of `ShortcutAction`: it is a mode-local key like the browser's Tab.
+ */
+export const CALCULATOR_FAVORITE_SHORTCUT = "CmdOrCtrl+D";
+
+/**
+ * R50 · the delete-one key, shared by the calculator and clipboard history
+ * lists. `CmdOrCtrl+Backspace` is ⌘⌫ on macOS and Ctrl+Backspace elsewhere.
+ *
+ * The choice and its cost are argued in `plugins/history-actions.ts`; the short
+ * version is that a bare ⌫/Delete cannot be a list gesture inside a text field
+ * (it edits the field), so the deletion carries the platform's app modifier,
+ * and it is only *claimed* while the selection is on a history row. Pinned here
+ * so the key handler and the documentation cannot drift.
+ */
+export const HISTORY_DELETE_SHORTCUT = "CmdOrCtrl+Backspace";
+
+const CALCULATOR_TRIGGERS = new Set(["calc", "calculator", "计算器", "计算", "="]);
+
+/** Parse a query into a calculator-mode request, or `null` when the query is
+ *  not in the mode. Same rule as the other modes: the trigger word must be
+ *  followed by whitespace. */
+export const parseCalculatorMode = (value: string): CalculatorMode | null => {
+  const split = splitTriggerWord(value);
+  if (!split) return null;
+  if (!CALCULATOR_TRIGGERS.has(split.word)) return null;
+  return { needle: split.rest.trim(), filter: "all" };
+};
+
 /** Parse a query into a clipboard-mode request, or `null` when the query is not
  *  in the mode. Same rule as the browser mode: the trigger word must be
  *  followed by whitespace, which is what makes entering and leaving it a single
@@ -502,6 +572,9 @@ export const parseClipboardMode = (value: string): ClipboardMode | null => {
 export type ActivePluginMode =
   | { scope: "browser"; kind: BrowserMode["kind"] }
   | { scope: "clipboard"; filter: ClipboardModeFilter }
+  /** R50 · the calculator plugin's mode. The field's text is both the pending
+   *  expression and the history filter. */
+  | { scope: "calculator"; filter: CalculatorModeFilter }
   /**
    * R39 · an *external* plugin's command mode. The plugin is not a built-in;
    * it is an integration whose provider descriptor declared this command and
@@ -535,6 +608,10 @@ export const pluginModeEntry = (
   if (clipboard) {
     return { mode: { scope: "clipboard", filter: clipboard.filter }, needle: clipboard.needle };
   }
+  const calculator = parseCalculatorMode(value);
+  if (calculator) {
+    return { mode: { scope: "calculator", filter: calculator.filter }, needle: calculator.needle };
+  }
   return null;
 };
 
@@ -554,6 +631,16 @@ export const clipboardModeFor = (
   needle: string,
 ): ClipboardMode | null =>
   mode?.scope === "clipboard"
+    ? { needle: needle.trim(), filter: mode.filter }
+    : null;
+
+/** R50 · the calculator request an active mode + the field's own text stand
+ *  for. `null` outside the calculator mode. */
+export const calculatorModeFor = (
+  mode: ActivePluginMode | null,
+  needle: string,
+): CalculatorMode | null =>
+  mode?.scope === "calculator"
     ? { needle: needle.trim(), filter: mode.filter }
     : null;
 

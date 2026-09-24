@@ -2,6 +2,8 @@
 mod clipboard_history;
 // R26-A: the built-in browser plugin's data layer (bookmarks / history search).
 mod browser_data;
+// R50 · the built-in calculator plugin's history store.
+mod calculator_history;
 mod commands;
 pub mod deep_link;
 pub mod extensions;
@@ -1659,6 +1661,13 @@ pub fn run() {
             browser_data::tabs::browser_activate_tab,
             commands::config::browser_get_settings,
             commands::config::browser_set_settings,
+            calculator_history::calculator_get_entries,
+            calculator_history::calculator_add_entry,
+            calculator_history::calculator_set_favorite,
+            calculator_history::calculator_delete,
+            calculator_history::calculator_clear_history,
+            calculator_history::calculator_get_settings,
+            calculator_history::calculator_set_settings,
             #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_get_entries,
             #[cfg(feature = "clipboard-history")]

@@ -32,7 +32,7 @@ import type { ViewMode } from "../App.tsx";
 /** The plugin scopes that draw a filter row. An external plugin command has no
  *  chip vocabulary of its own, so it is absent here by construction rather
  *  than by a runtime check at the render site. */
-export const FILTER_ROW_SCOPES = ["browser", "clipboard"] as const;
+export const FILTER_ROW_SCOPES = ["browser", "clipboard", "calculator"] as const;
 
 export type FilterRowScope = (typeof FILTER_ROW_SCOPES)[number];
 

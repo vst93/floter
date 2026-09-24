@@ -17,7 +17,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Translate } from "../i18n";
 import { browserTargets, normalizeBrowserSettings, normalizeProfiles } from "../browser-page";
 import { normalizeClipboardSettings } from "../clipboard-history";
-import { BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages";
+import { normalizeCalculatorSettings } from "../calculator";
+import { BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages";
 import {
   applyConfigChange,
   configDefaults,
@@ -43,6 +44,9 @@ export type PluginConfigOverlayProps = {
    *  on the next search, not on the next restart). Only the browser plugin
    *  calls it. */
   onBrowserSettingsChange: (settings: ReturnType<typeof normalizeBrowserSettings>) => void;
+  /** R50 · the calculator block the overlay just wrote, so the launcher's own
+   *  settings snapshot follows the copy-mode change immediately. */
+  onCalculatorSettingsChange?: (settings: ReturnType<typeof normalizeCalculatorSettings>) => void;
   /** R38 · a schema `action` field ran successfully. The clipboard plugin uses
    *  it to refetch the entries its list is holding, so clearing the history
    *  from here empties the mode behind the overlay too. */
@@ -62,6 +66,18 @@ const loadPluginValues = async (
       max_items: normalizeClipboardSettings(block).max_items,
     });
   }
+  if (pluginId === CALCULATOR_PLUGIN_ID) {
+    const block = await invoke<unknown>("calculator_get_settings").catch(() => null);
+    const schema = pluginConfigSchema(CALCULATOR_PLUGIN_ID)!;
+    const settings = normalizeCalculatorSettings(block);
+    return configValues(schema, {
+      max_items: settings.max_items,
+      // The select's values are strings; the backend parses them back to a
+      // number, so the control and the wire agree on the string domain.
+      retention_days: String(settings.retention_days),
+      copy_mode: settings.copy_mode,
+    });
+  }
   const block = await invoke<unknown>("browser_get_settings").catch(() => null);
   const schema = pluginConfigSchema(BROWSER_PLUGIN_ID)!;
   return configValues(schema, normalizeBrowserSettings(block) as unknown as Record<string, unknown>);
@@ -73,6 +89,7 @@ export function PluginConfigOverlay({
   clipboardEnabled,
   onChangeGeneralSetting,
   onBrowserSettingsChange,
+  onCalculatorSettingsChange,
   onActionComplete,
 }: PluginConfigOverlayProps) {
   const [context, setContext] = useState<PluginConfigContext>({});
@@ -137,6 +154,23 @@ export function PluginConfigOverlay({
         }).catch(() => undefined);
         return;
       }
+      if (pluginId === CALCULATOR_PLUGIN_ID) {
+        await invoke("calculator_set_settings", {
+          settings: {
+            max_items: Number(next.max_items),
+            retention_days: Number(next.retention_days),
+            copy_mode: String(next.copy_mode ?? "full"),
+          },
+        })
+          .then((stored) => {
+            // The backend has the last word on normalization; hand the launcher
+            // the block it actually stored so the next `Enter` copies the right
+            // text without waiting for a settings reload.
+            onCalculatorSettingsChange?.(normalizeCalculatorSettings(stored));
+          })
+          .catch(() => undefined);
+        return;
+      }
       await invoke("browser_set_settings", {
         settings: {
           enabled: next.enabled === true,
@@ -156,7 +190,7 @@ export function PluginConfigOverlay({
         })
         .catch(() => undefined);
     },
-    [pluginId, onChangeGeneralSetting, onBrowserSettingsChange],
+    [pluginId, onChangeGeneralSetting, onBrowserSettingsChange, onCalculatorSettingsChange],
   );
 
   const handleChange = useCallback(

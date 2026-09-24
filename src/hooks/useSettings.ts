@@ -48,6 +48,7 @@ import type { AppSettings } from "../App";
 import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassIntensity } from "../glass-material";
 import { DEFAULT_RESIDENCY_SECONDS, normalizeResidencySeconds } from "../surface-residency";
 import { withCommandAlias } from "../command-aliases";
+import { normalizeCalculatorSettings } from "../calculator";
 /** Defaults applied before the first disk read returns. */
 const SETTINGS_DEFAULTS: AppSettings = {
   hotkey: "Ctrl+Space",
@@ -120,6 +121,13 @@ const SETTINGS_DEFAULTS: AppSettings = {
     cdp_port: 9222,
     sort_order: "relevance",
     search_fields: "all",
+  },
+  // R50 · the calculator plugin ships with a 100-entry history, a 30-day
+  // window and "expression = result" copying.
+  calculator_plugin: {
+    max_items: 100,
+    retention_days: 30,
+    copy_mode: "full",
   },
   // R39 · no external plugin command is enabled until the user turns one on
   // ("absence means off"); an empty map is that state.
@@ -331,6 +339,10 @@ export function useSettings(options: {
             // the shipped behaviour (title or URL).
             search_fields: loaded.browser_plugin?.search_fields ?? "all",
           },
+          // R50 · a file written before the calculator plugin existed has no
+          // `calculator_plugin` block; the normalizer fills the shipped
+          // defaults and drops any illegal value.
+          calculator_plugin: normalizeCalculatorSettings(loaded.calculator_plugin),
         };
         const hydrated = settingsHydration.mergeLoaded(
           settingsRef.current,

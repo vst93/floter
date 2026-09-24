@@ -32,6 +32,7 @@
 // a review can silently delete, and a node test can only pin them if it can
 // import them without dragging the app's runtime in.
 
+import type { CalculatorEntry } from "../calculator.ts";
 import type { ClipboardEntry } from "../clipboard-history.ts";
 import type { LauncherItem } from "./LauncherResults.tsx";
 import { MAX_RESULTS, ROW_HEIGHT_TWO_LINE } from "./result-budget.ts";
@@ -122,6 +123,23 @@ export type PluginRow =
       kind?: "status";
       /** What Enter copies back to the system clipboard. */
       entry?: ClipboardEntry;
+    }
+  /**
+   * R50 · a calculator history row, produced by the launcher's calculator mode
+   * (`calc `). The row carries the whole entry so the renderer can print the
+   * expression on the left (ellipsised) with the full result right-aligned and
+   * the time muted at the edge. Enter copies the entry per the plugin's copy
+   * setting. A `disabled` row is a status line ("no history yet", "no
+   * matches") and is not runnable.
+   */
+  | {
+      family: "calculator";
+      id: string;
+      title: string;
+      subtitle?: string;
+      disabled?: boolean;
+      kind?: "status";
+      entry?: CalculatorEntry;
     }
   /**
    * R39 · the generic row of an *external* plugin's list output. A plugin that
@@ -285,6 +303,8 @@ const isPluginRow = (value: unknown): value is PluginRow => {
     return typeof value.url === "string" && typeof value.profileKey === "string";
   }
   if (value.family === "clipboard") return true;
+  // R50 · the calculator history family, the clipboard family's twin.
+  if (value.family === "calculator") return true;
   // R39 · a row with no `family` is a generic external plugin row. That is the
   // ergonomic default the developer doc publishes: a plugin author writes
   // `[{ id, title }]`, not `[{ family: "plugin", id, title }]`.
@@ -380,6 +400,16 @@ export const pluginRowToItem = (row: PluginRow, sourceName?: string): LauncherIt
   if (row.family === "clipboard") {
     return {
       type: "clipboard",
+      id: row.id,
+      title: row.title,
+      subtitle: row.subtitle ?? "",
+      ...(row.entry ? { entry: row.entry } : {}),
+      ...(row.disabled ? { disabled: true } : {}),
+    };
+  }
+  if (row.family === "calculator") {
+    return {
+      type: "calculator",
       id: row.id,
       title: row.title,
       subtitle: row.subtitle ?? "",

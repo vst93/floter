@@ -7,6 +7,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import {
   AlertCircle,
   Blocks,
+  Calculator as CalculatorIcon,
   Clipboard as ClipboardIcon,
   Globe as GlobeIcon,
   Info,
@@ -65,7 +66,7 @@ import {
   type DeepLinkRegisterRequest,
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
-import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
+import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import {
   formatResultShortcut,
   formatShortcut,
@@ -115,19 +116,32 @@ import {
   BROWSER_FILTER_AXIS,
   BROWSER_FILTERS,
   browserModeFor,
+  CALCULATOR_FAVORITE_SHORTCUT,
+  CALCULATOR_FILTER_AXIS,
+  CALCULATOR_FILTERS,
+  calculatorModeFor,
   CLIPBOARD_FILTER_AXIS,
   CLIPBOARD_FILTERS,
   CLIPBOARD_FAVORITE_SHORTCUT,
   clipboardModeFor,
   cycleBrowserFilter as nextBrowserFilter,
+  cycleCalculatorFilter as nextCalculatorFilter,
   cycleClipboardFilter as nextClipboardFilter,
   externalModeFor,
+  HISTORY_DELETE_SHORTCUT,
   pluginModeEntry,
   pluginModeExitOnBackspace,
   type ActivePluginMode,
   type BrowserMode,
+  type CalculatorModeFilter,
   type ClipboardModeFilter,
 } from "./launcher";
+import {
+  calculatorEnterAction,
+  evaluateExpression,
+  normalizeCalculatorSettings,
+  type CalculatorPluginSettings,
+} from "./calculator";
 import {
   enabledExternalCommands,
   externalCommandDisplayName,
@@ -279,6 +293,10 @@ export type AppSettings = {
    * settings panel's base-plugins row flips. The backend normalizes all six on
    * save. */
   browser_plugin: BrowserPluginSettings;
+  /** R50 · the built-in calculator plugin's settings block, mirroring the Rust
+   *  `CalculatorPluginSettings`: the history capacity, the age window and the
+   *  copy mode. Normalized on read and by the backend on save. */
+  calculator_plugin: CalculatorPluginSettings;
   /** R39 · the external plugins' per-command switches,
    *  `extensionId -> commandId -> enabled`. The integrations panel renders one
    *  switch per declared command; only an enabled command may be summoned as a
@@ -827,6 +845,9 @@ export default function App() {
   // starve the fetch.
   const browserMode = useMemo(() => browserModeFor(pluginMode, query), [pluginMode, query]);
   const clipboardMode = useMemo(() => clipboardModeFor(pluginMode, query), [pluginMode, query]);
+  // R50 · the calculator request the catalog hook fetches for (the field's text
+  // is the pending expression and the history's needle).
+  const calculatorMode = useMemo(() => calculatorModeFor(pluginMode, query), [pluginMode, query]);
   // R39 · the external plugin request (command + raw argument text), and the
   // enabled subset of the registry. The subset is the *gate*: a command whose
   // switch is off has no entry, so its trigger word falls through to the
@@ -917,6 +938,11 @@ export default function App() {
     loadMorePluginPage,
     toggleClipboardFavorite,
     reloadClipboardEntries,
+    deleteClipboardEntry,
+    reloadCalculatorEntries,
+    recordCalculatorEntry,
+    toggleCalculatorFavorite,
+    deleteCalculatorEntry,
     actionBar,
     firstRunnableResultIndex,
     defaultsToActionBar,
@@ -937,6 +963,7 @@ export default function App() {
     // never restarts its fetch debounce on an unrelated render.
     browserMode,
     clipboardMode,
+    calculatorMode,
     // R39 · the external plugin mode and its last run. The hook builds the
     // emission from the run state and feeds it through the *same* dual-form
     // pipeline the built-ins use.
@@ -1001,14 +1028,21 @@ export default function App() {
       notify("error", tRef.current("settings.browserDisabled"));
       return;
     }
-    if (pluginId !== BROWSER_PLUGIN_ID && pluginId !== CLIPBOARD_PLUGIN_ID) return;
+    if (
+      pluginId !== BROWSER_PLUGIN_ID &&
+      pluginId !== CLIPBOARD_PLUGIN_ID &&
+      pluginId !== CALCULATOR_PLUGIN_ID
+    )
+      return;
     suppressBlurUntil.current = Date.now() + 400;
     modeRef.current = "collapsed";
     setMode("collapsed");
     enterPluginMode(
       pluginId === BROWSER_PLUGIN_ID
         ? { scope: "browser", kind: "all" }
-        : { scope: "clipboard", filter: "all" },
+        : pluginId === CALCULATOR_PLUGIN_ID
+          ? { scope: "calculator", filter: "all" }
+          : { scope: "clipboard", filter: "all" },
     );
     setPluginConfigOpen(true);
   }, [enterPluginMode]);
@@ -1077,6 +1111,31 @@ export default function App() {
     setPluginMode((current) =>
       current?.scope === "clipboard"
         ? { scope: "clipboard", filter: nextClipboardFilter(current.filter, direction) }
+        : current,
+    );
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /** R50 · the calculator mode's filter chips, the clipboard's twin: the
+   *  mode's `filter` *is* the selection, a chip click and Tab both land here,
+   *  and a new filter is a new list (selection back to the top). */
+  const setCalculatorFilter = useCallback((filter: CalculatorModeFilter) => {
+    setPluginMode((current) =>
+      current?.scope === "calculator" ? { scope: "calculator", filter } : current,
+    );
+    setSelectedActionBar(false);
+    setSelectedResultIndex(0);
+    setHistoryIndex(-1);
+  }, []);
+
+  /** R50 · Tab / Shift+Tab through {@link CALCULATOR_FILTERS}, wrapping at both
+   *  ends. */
+  const cycleCalculatorFilter = useCallback((direction: 1 | -1) => {
+    setPluginMode((current) =>
+      current?.scope === "calculator"
+        ? { scope: "calculator", filter: nextCalculatorFilter(current.filter, direction) }
         : current,
     );
     setSelectedActionBar(false);
@@ -1197,13 +1256,18 @@ export default function App() {
    *  The mode object is the single owner (see `setClipboardFilter`). */
   const clipboardFilter: ClipboardModeFilter =
     pluginMode?.scope === "clipboard" ? pluginMode.filter : "all";
+  /** R50 · the calculator mode's active filter chip, or `all` outside it. */
+  const calculatorFilter: CalculatorModeFilter =
+    pluginMode?.scope === "calculator" ? pluginMode.filter : "all";
   // R29 · the plugin the current scope belongs to, for the config overlay.
   const launcherPluginId =
     launcherScope === "clipboard"
       ? CLIPBOARD_PLUGIN_ID
       : launcherScope === "browser"
         ? BROWSER_PLUGIN_ID
-        : null;
+        : launcherScope === "calculator"
+          ? CALCULATOR_PLUGIN_ID
+          : null;
   // R41 · whether the plugin's filter row (the browser range chips / the
   // clipboard's six) is on screen. It belongs to the plugin *list body*, so it
   // is hidden while the configuration overlay takes the list's place — and it
@@ -1213,7 +1277,34 @@ export default function App() {
     mode,
     scope: launcherScope,
     configOpen: pluginConfigOpen && launcherPluginId !== null,
-  });
+ });
+
+  // R50 · the last expression this session already evaluated. It is what lets
+  // Enter choose between calculating a fresh expression and running (copying)
+  // the selected history row — `calculatorEnterAction` is the rule, this is the
+  // one fact it reads. Leaving the mode forgets it.
+  const [calculatorLastEvaluated, setCalculatorLastEvaluated] = useState<string | null>(null);
+  useEffect(() => {
+    if (launcherScope !== "calculator") setCalculatorLastEvaluated(null);
+  }, [launcherScope]);
+  /** R50 · evaluate the field's expression: on success record it (the catalog
+   *  hook owns the stored rows) and return the selection to the top; on failure
+   *  show the reason in the launcher's feedback line and store nothing. */
+  const evaluateCalculator = useCallback(() => {
+    const expression = query.trim();
+    const evaluation = evaluateExpression(expression);
+    if (!evaluation.ok) {
+      showLauncherFeedback(evaluation.errorKey);
+      return;
+    }
+    setCalculatorLastEvaluated(expression);
+    recordCalculatorEntry(expression, evaluation.formatted);
+    setSelectedResultIndex(0);
+    setSelectedActionBar(false);
+  }, [query, recordCalculatorEntry, showLauncherFeedback]);
+  const calculatorEnterEvaluates =
+    launcherScope === "calculator" &&
+    calculatorEnterAction(query, calculatorLastEvaluated) === "evaluate";
   // R43 · the ordinary search page's trigger hint. A typed word that is a prefix
   // of an enabled external command's trigger word gets a muted nudge that one
   // space enters its mode. It is the same vocabulary the transition reads
@@ -1397,6 +1488,7 @@ export default function App() {
     executeActionBar,
     runLauncherItem,
     handleLauncherKey,
+    armedDeleteId: armedHistoryDeleteId,
     executeSystemAction,
     cancelSystemAction,
   } = useLauncherActions({
@@ -1447,6 +1539,16 @@ export default function App() {
     clipboardScope: launcherScope === "clipboard",
     cycleClipboardFilter,
     toggleClipboardFavorite,
+    /** R50 · the calculator mode's own keys and actions: Tab cycles its chips,
+     *  ⌘D favorites, ⌘⌫ deletes, and Enter evaluates or copies. */
+    calculatorScope: launcherScope === "calculator",
+    calculatorEnterEvaluates,
+    evaluateCalculator,
+    calculatorCopyMode: normalizeCalculatorSettings(settings.calculator_plugin).copy_mode,
+    cycleCalculatorFilter,
+    toggleCalculatorFavorite,
+    deleteClipboardEntry,
+    deleteCalculatorEntry,
     cycleBrowserFilter,
     isComposing,
     actionBar,
@@ -2637,13 +2739,15 @@ export default function App() {
       ? t("input.scanFailed")
       : launcherScope === "clipboard"
         ? t("input.placeholderClipboard")
-        : launcherScope === "browser"
-          ? t("input.placeholderBrowser")
-          : launcherScope === "external"
-            ? t("input.placeholderPluginArgs")
-            : appsLoading && !applications.length
-              ? t("input.scanning")
-              : t("input.placeholder");
+        : launcherScope === "calculator"
+          ? t("input.placeholderCalculator")
+          : launcherScope === "browser"
+            ? t("input.placeholderBrowser")
+            : launcherScope === "external"
+              ? t("input.placeholderPluginArgs")
+              : appsLoading && !applications.length
+                ? t("input.scanning")
+                : t("input.placeholder");
 
     return (
       <>
@@ -2692,6 +2796,8 @@ export default function App() {
                 <span className="collapsed-card__scope" aria-hidden="true">
                   {launcherScope === "clipboard" ? (
                     <ClipboardIcon size={16} strokeWidth={1.8} />
+                  ) : launcherScope === "calculator" ? (
+                    <CalculatorIcon size={16} strokeWidth={1.8} />
                   ) : launcherScope === "external" ? (
                     // R39 · an external plugin's command mode. The glyph is the
                     // launcher's own terminal mark — a plugin's own icon is not
@@ -2711,7 +2817,9 @@ export default function App() {
                       : t(
                           launcherScope === "clipboard"
                             ? "launcher.scopeClipboard"
-                            : "launcher.scopeBrowser",
+                            : launcherScope === "calculator"
+                              ? "launcher.scopeCalculator"
+                              : "launcher.scopeBrowser",
                         )}
                   </span>
                 </span>
@@ -2991,6 +3099,47 @@ export default function App() {
                 </span>
               </div>
             )}
+            {/* R50 · the calculator mode's two chips: 全部 / 收藏. The
+                clipboard row's twin — same `.launcher-filter`, same click-or-Tab
+                interaction, same muted register. The hint names the mode's two
+                keys: ⌘D favorites and ⌘⌫ deletes the selected row. */}
+            {filterRowVisible && launcherScope === "calculator" && (
+              <div className="launcher-filter">
+                <div
+                  className="launcher-filter__chips"
+                  role="tablist"
+                  aria-label={t("launcher.calculatorFilter")}
+                >
+                  {CALCULATOR_FILTERS.map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      role="tab"
+                      tabIndex={-1}
+                      aria-selected={calculatorFilter === filter}
+                      className={
+                        calculatorFilter === filter
+                          ? "launcher-filter__chip launcher-filter__chip--active"
+                          : "launcher-filter__chip"
+                      }
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setCalculatorFilter(filter);
+                      }}
+                    >
+                      {t(CALCULATOR_FILTER_AXIS.labelKey(filter))}
+                    </button>
+                  ))}
+                </div>
+                <span className="launcher-filter__hint">
+                  {t("launcher.calculatorFilterHint", {
+                    shortcut: formatShortcut(CALCULATOR_FAVORITE_SHORTCUT),
+                    delete: formatShortcut(HISTORY_DELETE_SHORTCUT),
+                  })}
+                </span>
+              </div>
+            )}
             {/* First-run onboarding tip: a small dismissible banner shown above
                 the result area the first time the user opens the launcher. */}
             {showOnboardingTip && !launcherScope && (
@@ -3030,10 +3179,24 @@ export default function App() {
                 clipboardEnabled={settings.clipboard_history_enabled}
                 onChangeGeneralSetting={(key, value) => changeGeneralSetting(key, value)}
                 onBrowserSettingsChange={(block) => changeGeneralSetting("browser_plugin", block)}
+                // R50 · the calculator overlay's copy-mode change has to reach
+                // the launcher's own snapshot so the next Enter copies the new
+                // way without a settings reload.
+                onCalculatorSettingsChange={(block) =>
+                  changeGeneralSetting("calculator_plugin", block)
+                }
                 // R38 · the overlay's "clear history" action mutated the store:
                 // refetch the mode's entries so the list behind the overlay is
                 // not left showing rows the user just deleted.
-                onActionComplete={reloadClipboardEntries}
+                onActionComplete={(key) => {
+                  // The overlay's "clear history" action mutated one of the two
+                  // history stores; refetch the mode's entries so the list
+                  // behind the overlay is not left showing rows the user just
+                  // deleted.
+                  void key;
+                  if (launcherPluginId === CALCULATOR_PLUGIN_ID) reloadCalculatorEntries();
+                  else reloadClipboardEntries();
+                }}
               />
             ) : (
             <div
@@ -3140,6 +3303,11 @@ export default function App() {
                     // R38 · the clipboard row's star. The same call the mode's
                     // `⌘D` makes, so click and key share one path.
                     onToggleClipboardFavorite={toggleClipboardFavorite}
+                    // R50 · the calculator row's star, and the id of the history
+                    // row whose inline delete confirmation is armed (both
+                    // modes share the one arm state).
+                    onToggleCalculatorFavorite={toggleCalculatorFavorite}
+                    armedDeleteId={armedHistoryDeleteId}
                     onRunActionBar={() => {
                       if (visibleActionBar) executeActionBar(visibleActionBar);
                     }}

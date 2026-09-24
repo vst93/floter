@@ -18,11 +18,17 @@ import {
   scoreApp,
   shouldDefaultToActionBar,
   type BrowserMode,
+  type CalculatorMode,
   type ClipboardMode,
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
 import { normalizeEntries, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
+import {
+  MAX_CALCULATOR_MAX_ITEMS,
+  normalizeCalculatorEntries,
+  type CalculatorEntry,
+} from "../calculator";
 import {
   PLUGIN_INITIAL_PAGES,
   pagePluginEmission,
@@ -44,6 +50,7 @@ import {
   type BrowserTabRow,
 } from "../plugins/browser/mode";
 import { clipboardModeRows, clipboardStatusRow } from "../plugins/clipboard/mode";
+import { calculatorModeRows } from "../plugins/calculator/mode";
 import { pluginStatusRow } from "../plugins/status";
 import {
   type ActionBar,
@@ -245,6 +252,9 @@ export function useLauncherCatalog(options: {
   /** R31 · the clipboard request the launcher is in, or `null` (see
    *  {@link browserMode}). */
   clipboardMode: ClipboardMode | null;
+  /** R50 · the calculator request the launcher is in, or `null`. It owns the
+   *  calculator history state and its two row actions. */
+  calculatorMode: CalculatorMode | null;
   /** R39 · the external plugin request the launcher is in, or `null`. The
    *  `args` field is the field's raw text; the hook does not split it (the run
    *  does, in the App). */
@@ -292,6 +302,7 @@ export function useLauncherCatalog(options: {
     query,
     browserMode,
     clipboardMode,
+    calculatorMode,
     externalMode,
     externalCommand,
     externalRun,
@@ -638,6 +649,104 @@ export function useLauncherCatalog(options: {
     return { output: clipboardModeRows(clipboardEntries, clipboardMode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS) };
   }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
 
+  // R50 · the calculator mode — the clipboard mode's twin, over the calculation
+  // history. The history is fetched once when the mode opens; the field's text
+  // and the chip filter in memory, so typing inside the mode costs no IPC. The
+  // evaluation itself is the App's (a pure call into `calculator.ts`); this
+  // hook owns the stored rows and the two mutations on them.
+  const calculatorActive = calculatorMode !== null;
+  const [calculatorEntries, setCalculatorEntries] = useState<CalculatorEntry[]>([]);
+  // R50 · a manual refetch trigger, the clipboard revision's twin: the config
+  // overlay's "clear history" action mutates the store behind this hook's back,
+  // so the App bumps this and the fetch below runs again.
+  const [calculatorRevision, setCalculatorRevision] = useState(0);
+  const reloadCalculatorEntries = useCallback(() => {
+    setCalculatorRevision((revision) => revision + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!calculatorActive) {
+      setCalculatorEntries([]);
+      return;
+    }
+    let cancelled = false;
+    invoke<unknown[]>("calculator_get_entries")
+      .then((rows) => {
+        if (!cancelled) setCalculatorEntries(normalizeCalculatorEntries(rows));
+      })
+      .catch(() => {
+        if (!cancelled) setCalculatorEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [calculatorActive, calculatorRevision]);
+
+  const calculatorEmission = useMemo<PluginEmission | null>(() => {
+    if (!calculatorMode) return null;
+    return {
+      output: calculatorModeRows(
+        calculatorEntries,
+        calculatorMode,
+        t,
+        Date.now(),
+        MAX_CALCULATOR_MAX_ITEMS,
+      ),
+    };
+  }, [calculatorMode, calculatorEntries, t]);
+
+  // R50 · the calculator mutations, owned here because this hook owns the
+  // entries. Favorite is optimistic (the star flips on the next paint, the
+  // write follows, a refused write rolls the one row back and the feedback line
+  // says why). Delete is optimistic too: the row leaves at once and the
+  // returned list (the backend's pruned view) reconciles it. Both commands
+  // return the new history, so no second fetch is needed on the happy path.
+  const calculatorEntriesRef = useRef<CalculatorEntry[]>([]);
+  calculatorEntriesRef.current = calculatorEntries;
+
+  const recordCalculatorEntry = useCallback(
+    (expression: string, result: string) => {
+      invoke<unknown[]>("calculator_add_entry", { expression, result })
+        .then((rows) => setCalculatorEntries(normalizeCalculatorEntries(rows)))
+        .catch(() => showLauncherFeedback("calculator.saveFailed"));
+    },
+    [showLauncherFeedback],
+  );
+
+  const toggleCalculatorFavorite = useCallback(
+    (id: string) => {
+      const current = calculatorEntriesRef.current.find((entry) => entry.id === id);
+      if (!current) return;
+      const next = !current.favorite;
+      const paint = (favorite: boolean) =>
+        setCalculatorEntries((entries) =>
+          entries.map((entry) => (entry.id === id ? { ...entry, favorite } : entry)),
+        );
+      paint(next);
+      invoke<unknown[]>("calculator_set_favorite", { id, favorite: next })
+        .then((rows) => setCalculatorEntries(normalizeCalculatorEntries(rows)))
+        .catch(() => {
+          paint(current.favorite);
+          showLauncherFeedback("calculator.favoriteFailed");
+        });
+    },
+    [showLauncherFeedback],
+  );
+
+  const deleteCalculatorEntry = useCallback(
+    (id: string) => {
+      const previous = calculatorEntriesRef.current;
+      setCalculatorEntries((entries) => entries.filter((entry) => entry.id !== id));
+      invoke<unknown[]>("calculator_delete", { id })
+        .then((rows) => setCalculatorEntries(normalizeCalculatorEntries(rows)))
+        .catch(() => {
+          setCalculatorEntries(previous);
+          showLauncherFeedback("calculator.deleteFailed");
+        });
+    },
+    [showLauncherFeedback],
+  );
+
   // R39 · the external plugin mode's emission. The command's own output is the
   // product: a conforming list (a JSON array of rows) becomes the launcher's
   // list, anything else becomes text — the *same* decision the built-ins go
@@ -699,6 +808,24 @@ export function useLauncherCatalog(options: {
     [reloadClipboardEntries, showLauncherFeedback],
   );
 
+  // R50 · delete one clipboard entry from the mode's list. Optimistic: the row
+  // leaves at once, the store write follows, and a refused write restores the
+  // previous list and says why. The store is authoritative, so a successful
+  // delete refetches (a prune may have taken neighbours with it).
+  const deleteClipboardEntry = useCallback(
+    (id: string) => {
+      const previous = clipboardEntriesRef.current;
+      setClipboardEntries((entries) => entries.filter((entry) => entry.id !== id));
+      invoke("clipboard_delete", { id })
+        .then(() => reloadClipboardEntries())
+        .catch(() => {
+          setClipboardEntries(previous);
+          showLauncherFeedback("clipboard.deleteFailed");
+        });
+    },
+    [reloadClipboardEntries, showLauncherFeedback],
+  );
+
   // R29 · client-side pagination of the inline plugin list.
   //
   // The two built-ins fetch their whole (bounded) result set in one call —
@@ -719,7 +846,7 @@ export function useLauncherCatalog(options: {
   // text.
   useEffect(() => {
     setPluginPages(PLUGIN_INITIAL_PAGES);
-  }, [browserMode, clipboardMode, externalRun]);
+  }, [browserMode, clipboardMode, calculatorMode, externalRun]);
 
   /**
    * R30 · hand the capability layer the rows this page count has *loaded*, plus
@@ -737,9 +864,10 @@ export function useLauncherCatalog(options: {
   const pluginView = useMemo<PluginView | null>(() => {
     if (browserMode) return resolvePluginView(windowedEmission(browserEmission));
     if (clipboardMode) return resolvePluginView(windowedEmission(clipboardEmission));
+    if (calculatorMode) return resolvePluginView(windowedEmission(calculatorEmission));
     if (externalMode) return resolvePluginView(windowedEmission(externalEmission));
     return null;
-  }, [browserMode, clipboardMode, externalMode, browserEmission, clipboardEmission, externalEmission, pluginPages]);
+  }, [browserMode, clipboardMode, calculatorMode, externalMode, browserEmission, clipboardEmission, calculatorEmission, externalEmission, pluginPages]);
 
   // R29 · the scroll-to-bottom trigger. `pluginHasMore` is the one bit the
   // launcher reads; the ref lets the once-created callback see the current
@@ -781,7 +909,7 @@ export function useLauncherCatalog(options: {
     // resolved contributes the rows (and nothing at all in the text form). While
     // the mode is on but its output has not arrived yet (the fetch debounce),
     // the list is empty rather than falling back to the ordinary search.
-    if (browserMode || clipboardMode || externalMode) return pluginView ? pluginViewItems(pluginView) : [];
+    if (browserMode || clipboardMode || calculatorMode || externalMode) return pluginView ? pluginViewItems(pluginView) : [];
     const command = query.trim();
     const parsedQuery = parseCommandLine(query, false, COMMAND_LINE_SYNTAX);
     if (!command) {
@@ -1005,13 +1133,13 @@ export function useLauncherCatalog(options: {
     // its own beneath the list. Keep at least one local match when applications
     // or power actions matched alongside catalog commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS);
-  }, [pluginView, browserMode, clipboardMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, t]);
+  }, [pluginView, browserMode, clipboardMode, calculatorMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,
     // so there is no shell action to offer underneath them. R27: the clipboard
     // mode is the same kind of place.
-    if (browserMode || clipboardMode || externalMode) return null;
+    if (browserMode || clipboardMode || calculatorMode || externalMode) return null;
     const value = query.trim();
     if (!value) return null;
     const type = classifyActionBar(value);
@@ -1029,7 +1157,7 @@ export function useLauncherCatalog(options: {
                 ? t("system.browserSearch")
                 : t("launcher.runInShell");
     return { type, label, value };
-  }, [browserMode, clipboardMode, externalMode, query, t]);
+  }, [browserMode, clipboardMode, calculatorMode, externalMode, query, t]);
 
   const runnableResultFlags = launcherResults.map((item) =>
     item.type === "command"
@@ -1197,6 +1325,11 @@ export function useLauncherCatalog(options: {
     loadMorePluginPage,
     toggleClipboardFavorite,
     reloadClipboardEntries,
+    deleteClipboardEntry,
+    reloadCalculatorEntries,
+    recordCalculatorEntry,
+    toggleCalculatorFavorite,
+    deleteCalculatorEntry,
     actionBar,
     runnableResultFlags,
     resultShortcutSlots,

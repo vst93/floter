@@ -60,6 +60,11 @@ export const rowTypeWord = (item: LauncherItem, t: Translate): string => {
     // the two would say the same thing (see `resultRowContent`).
     case "clipboard":
       return t("system.clipboardHistory");
+    // R50 · a calculator row's type word is the plugin's name; like the
+    // clipboard, the row itself prints no right-hand source (the field's scope
+    // glyph already says which plugin owns it).
+    case "calculator":
+      return t("system.calculator");
     case "history":
       return t("launcher.history");
     case "file":
@@ -162,7 +167,7 @@ export const resultRowContent = (item: LauncherItem, t: Translate): RowContent =
     isTranscription(item.title, subtitle);
   return {
     source:
-      item.type === "app" || item.type === "system" || item.type === "browser" || item.type === "clipboard" || item.type === "plugin"
+      item.type === "app" || item.type === "system" || item.type === "browser" || item.type === "clipboard" || item.type === "plugin" || item.type === "calculator"
         ? null
         : typeWord,
     subtitle: subtitle === typeWord || transcription ? null : subtitle,

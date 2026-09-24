@@ -26,6 +26,13 @@ export const CLIPBOARD_PLUGIN_ID = "builtin.clipboard";
 /** Stable id of the built-in browser plugin, mirroring the same registry. */
 export const BROWSER_PLUGIN_ID = "builtin.browser";
 
+/** R50 · stable id of the built-in calculator plugin. It has no plugin page
+ *  and no integrations switch (its whole surface is the launcher mode and its
+ *  schema-driven configuration overlay), so it is deliberately absent from
+ *  `BUILTIN_BASE_PLUGINS` and the backend's `DESCRIPTORS`; the id exists to
+ *  name its configuration schema and the overlay's plugin identity. */
+export const CALCULATOR_PLUGIN_ID = "builtin.calculator";
+
 /** Marker property every bridge message carries. */
 export const BRIDGE_TAG = "floter" as const;
 

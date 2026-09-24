@@ -413,6 +413,82 @@ pub fn write_clipboard_max_items(max_items: u32) -> Result<u32, String> {
     Ok(settings.clipboard_history_max_items)
 }
 
+/// R50 · the calculator plugin's own settings block: the history capacity, the
+/// age window and what Enter copies from a row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CalculatorPluginSettings {
+    /// How many non-favorite entries the history keeps (10–500).
+    pub max_items: u32,
+    /// How many days a non-favorite entry is kept; `0` means never expire.
+    /// Normalized to one of [`CALCULATOR_RETENTION_DAYS`].
+    pub retention_days: u32,
+    /// `"full"` (`expression = result`) or `"result"` (the number alone).
+    pub copy_mode: String,
+}
+
+impl Default for CalculatorPluginSettings {
+    fn default() -> Self {
+        Self {
+            max_items: DEFAULT_CALCULATOR_MAX_ITEMS,
+            retention_days: DEFAULT_CALCULATOR_RETENTION_DAYS,
+            copy_mode: DEFAULT_CALCULATOR_COPY_MODE.to_string(),
+        }
+    }
+}
+
+/// R50 · the calculator capacity, mirroring the bounds in `src/calculator.ts`.
+pub const DEFAULT_CALCULATOR_MAX_ITEMS: u32 = 100;
+pub const MIN_CALCULATOR_MAX_ITEMS: u32 = 10;
+pub const MAX_CALCULATOR_MAX_ITEMS: u32 = 500;
+
+/// R50 · the age windows the calculator offers: never, a day, a week, a month.
+/// The values match `CALCULATOR_RETENTION_DAYS` in `src/calculator.ts`; Rust
+/// cannot import TypeScript, so `tests/calculator.test.ts` pins them.
+pub const CALCULATOR_RETENTION_DAYS: [u32; 4] = [0, 1, 7, 30];
+pub const DEFAULT_CALCULATOR_RETENTION_DAYS: u32 = 30;
+
+/// R50 · what Enter copies from a history row. The two ids match
+/// `CALCULATOR_COPY_MODES` in `src/calculator.ts`.
+pub const CALCULATOR_COPY_MODES: [&str; 2] = ["full", "result"];
+pub const DEFAULT_CALCULATOR_COPY_MODE: &str = "full";
+
+/// Accept one of [`CALCULATOR_RETENTION_DAYS`]; anything else is the default.
+pub fn normalize_calculator_retention_days(value: u32) -> u32 {
+    if CALCULATOR_RETENTION_DAYS.contains(&value) {
+        value
+    } else {
+        DEFAULT_CALCULATOR_RETENTION_DAYS
+    }
+}
+
+/// Accept one of [`CALCULATOR_COPY_MODES`]; anything else is the default.
+pub fn normalize_calculator_copy_mode(value: &str) -> String {
+    let value = value.trim().to_lowercase();
+    if CALCULATOR_COPY_MODES.contains(&value.as_str()) {
+        value
+    } else {
+        DEFAULT_CALCULATOR_COPY_MODE.to_string()
+    }
+}
+
+/// R50 · persist the calculator plugin's settings and return the stored
+/// (normalized) block.
+///
+/// A function rather than a command so the history module — which owns the
+/// store and prunes with the freshly stored numbers — can write the block
+/// without reaching into the settings lock or duplicating the normalization.
+pub fn write_calculator_settings(
+    settings: CalculatorPluginSettings,
+) -> Result<CalculatorPluginSettings, String> {
+    let _guard = settings_lock()?;
+    let mut stored = load_settings();
+    stored.calculator_plugin = settings;
+    let stored = normalize_settings(stored);
+    write_settings(&stored)?;
+    Ok(stored.calculator_plugin)
+}
+
 /// Missing keys fall back to `Default`, so settings files written by older
 /// builds keep working when new fields are introduced.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -567,6 +643,12 @@ pub struct AppSettings {
     /// directory, 30-day history window).
     #[serde(default)]
     pub browser_plugin: BrowserPluginSettings,
+    /// R50 · the built-in calculator plugin's own settings block: the history
+    /// capacity, the age window and the copy mode. `#[serde(default)]` keeps
+    /// every settings file written before this key existing deserializing to
+    /// the shipped defaults.
+    #[serde(default)]
+    pub calculator_plugin: CalculatorPluginSettings,
     /// R39 · the per-command switches of external (non-built-in) plugins:
     /// `extensionId -> commandId -> enabled`.
     ///
@@ -631,6 +713,7 @@ impl Default for AppSettings {
             ui_scale: DEFAULT_UI_SCALE.to_string(),
             command_aliases: HashMap::new(),
             browser_plugin: BrowserPluginSettings::default(),
+            calculator_plugin: CalculatorPluginSettings::default(),
             plugin_command_switches: BTreeMap::new(),
         }
     }
@@ -995,6 +1078,16 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     if settings.browser_plugin.cdp_port == 0 {
         settings.browser_plugin.cdp_port = crate::browser_data::tabs::DEFAULT_CDP_PORT;
     }
+    // R50 · the calculator block: capacity clamped into range; the two
+    // enumerated fields snapped back to their legal vocabularies.
+    settings.calculator_plugin.max_items = settings
+        .calculator_plugin
+        .max_items
+        .clamp(MIN_CALCULATOR_MAX_ITEMS, MAX_CALCULATOR_MAX_ITEMS);
+    settings.calculator_plugin.retention_days =
+        normalize_calculator_retention_days(settings.calculator_plugin.retention_days);
+    settings.calculator_plugin.copy_mode =
+        normalize_calculator_copy_mode(&settings.calculator_plugin.copy_mode);
     // R39 · the external plugins' per-command switches. See
     // [`normalize_plugin_command_switches`].
     settings.plugin_command_switches =
@@ -1091,6 +1184,9 @@ fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> 
     let browser_enabled = submitted.browser_plugin.enabled;
     submitted.browser_plugin = stored.browser_plugin.clone();
     submitted.browser_plugin.enabled = browser_enabled;
+    // R50 · the calculator block is owned by the plugin's own settings overlay
+    // (`calculator_set_settings`); a whole-app save must not revert it.
+    submitted.calculator_plugin = stored.calculator_plugin.clone();
     normalize_settings(submitted)
 }
 
@@ -1731,6 +1827,83 @@ mod tests {
             !merged.browser_plugin.enabled,
             "the settings panel's own switch still lands"
         );
+    }
+
+    /// R50 · the calculator block ships with its defaults, normalizes every
+    /// illegal value, survives a settings round trip, and is owned by the
+    /// plugin's own command (a whole-app save cannot reset it).
+    #[test]
+    fn the_calculator_plugin_settings_ship_normalize_and_round_trip() {
+        assert_eq!(
+            CalculatorPluginSettings::default(),
+            CalculatorPluginSettings {
+                max_items: DEFAULT_CALCULATOR_MAX_ITEMS,
+                retention_days: DEFAULT_CALCULATOR_RETENTION_DAYS,
+                copy_mode: DEFAULT_CALCULATOR_COPY_MODE.to_string(),
+            }
+        );
+        assert_eq!(
+            AppSettings::default().calculator_plugin,
+            CalculatorPluginSettings::default()
+        );
+
+        // A settings file written before this key existed deserializes to the
+        // shipped defaults.
+        let legacy: AppSettings = serde_json::from_str("{}").expect("empty object");
+        assert_eq!(
+            legacy.calculator_plugin,
+            CalculatorPluginSettings::default()
+        );
+
+        // Illegal values snap back: the capacity is clamped, the two
+        // enumerated fields fall to their vocabulary's default.
+        let normalized = normalize_settings(AppSettings {
+            calculator_plugin: CalculatorPluginSettings {
+                max_items: 1,
+                retention_days: 5,
+                copy_mode: "EVERYTHING".into(),
+            },
+            ..AppSettings::default()
+        });
+        assert_eq!(
+            normalized.calculator_plugin.max_items,
+            MIN_CALCULATOR_MAX_ITEMS
+        );
+        assert_eq!(
+            normalized.calculator_plugin.retention_days,
+            DEFAULT_CALCULATOR_RETENTION_DAYS
+        );
+        assert_eq!(
+            normalized.calculator_plugin.copy_mode,
+            DEFAULT_CALCULATOR_COPY_MODE
+        );
+
+        // The stored block wins over a stale frontend snapshot.
+        let stored = normalize_settings(AppSettings {
+            calculator_plugin: CalculatorPluginSettings {
+                max_items: 42,
+                retention_days: 7,
+                copy_mode: "result".into(),
+            },
+            ..AppSettings::default()
+        });
+        let submitted = AppSettings {
+            calculator_plugin: CalculatorPluginSettings {
+                max_items: 100,
+                retention_days: 30,
+                copy_mode: "full".into(),
+            },
+            ..AppSettings::default()
+        };
+        let merged = merge_frontend_settings(submitted, &stored);
+        assert_eq!(merged.calculator_plugin, stored.calculator_plugin);
+
+        // A round trip through the settings file preserves the block.
+        let directory = tempfile::tempdir().expect("temp dir");
+        write_settings_to(directory.path(), &stored).expect("write settings");
+        let read_back =
+            read_settings(&directory.path().join(SETTINGS_FILE_NAME)).expect("read settings back");
+        assert_eq!(read_back.calculator_plugin, stored.calculator_plugin);
     }
 
     /// R26-B · the settings round trip the plugin page depends on: what

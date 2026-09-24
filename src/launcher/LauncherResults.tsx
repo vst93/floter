@@ -19,6 +19,7 @@ import {
   Type as TypeIcon,
   Link as LinkIcon,
   Image as ImageIcon,
+  Calculator as CalculatorIcon,
 } from "lucide-react";import type { ActionBarKind, ExecutionPlan } from "../launcher";
 import {
   PLUGIN_LOAD_MORE_THRESHOLD,
@@ -29,6 +30,7 @@ import {
 } from "./plugin-mode";
 import { clipboardKindChip } from "../plugins/clipboard/mode";
 import type { ClipboardEntry } from "../clipboard-history";
+import type { CalculatorEntry } from "../calculator";
 import type { DroppedFile } from "./file-drops";
 
 export type SystemAction = "restart" | "shutdown" | "clipboard" | "browser";
@@ -112,6 +114,20 @@ export type LauncherItem =
       title: string;
       subtitle: string;
       entry?: ClipboardEntry;
+      disabled?: boolean;
+    }
+  /**
+   * R50 · a calculator history row, the clipboard row's twin for the calculator
+   * mode (`calc `). `entry` carries the expression, the full result and the
+   * timestamp; Enter copies per the plugin's copy setting. A `disabled` row is a
+   * status line and is not runnable.
+   */
+  | {
+      type: "calculator";
+      id: string;
+      title: string;
+      subtitle: string;
+      entry?: CalculatorEntry;
       disabled?: boolean;
     }
   /**
@@ -381,6 +397,13 @@ type LauncherResultsProps = {
    *  `useLauncherActions`), so click and key land on one path. Omitted by a
    *  surface that renders rows without the action (the node tests). */
   onToggleClipboardFavorite?: (id: string) => void;
+  /** R50 · the calculator row's favorite toggle, the clipboard star's twin. */
+  onToggleCalculatorFavorite?: (id: string) => void;
+  /** R50 · the id of the history row whose inline delete confirmation is
+   *  armed, or `null`. The armed row swaps its trailing chrome for the muted
+   *  "press again" note; the key handler owns the state machine
+   *  (`plugins/history-actions.ts`). */
+  armedDeleteId?: string | null;
   /** R34 · the scroller's visible rows, reported whenever they change (scroll,
    *  resize, a new result set). App turns this into the numbered `⌘N` slots, so
    *  the badges and the key handler follow the viewport. Omitted by the node
@@ -410,6 +433,8 @@ export function LauncherResults({
   onRunResult,
   onRunActionBar,
   onToggleClipboardFavorite,
+  onToggleCalculatorFavorite,
+  armedDeleteId = null,
   onVisibleRowsChange,
 }: LauncherResultsProps) {
   // R14/R31 · the scroll-edge band is no longer painted on the launcher's
@@ -632,6 +657,7 @@ export function LauncherResults({
               (item.type === "system" && item.disabled === true) ||
               (item.type === "browser" && item.disabled === true) ||
               (item.type === "clipboard" && item.disabled === true) ||
+              (item.type === "calculator" && item.disabled === true) ||
               // R39 · an external plugin row with no action is information, not
               // a door; a `disabled` one is the plugin saying so explicitly.
               (item.type === "plugin" && (item.disabled === true || item.action === undefined));
@@ -652,7 +678,21 @@ export function LauncherResults({
             // `undefined` for a status line / any other row. Resolved once here
             // so the JSX below and the star's handler read the same value.
             const favoriteEntry =
-              item.type === "clipboard" && !item.disabled ? item.entry : undefined;
+              item.type === "clipboard" && !item.disabled
+                ? item.entry
+                : item.type === "calculator" && !item.disabled
+                  ? item.entry
+                  : undefined;
+            const onToggleFavorite =
+              item.type === "calculator" ? onToggleCalculatorFavorite : onToggleClipboardFavorite;
+            // R50 · the calculator row's full result, printed right-aligned and
+            // never truncated; the expression on the left is what absorbs a
+            // narrow row. The delete arm note replaces the trailing chrome.
+            const calculatorResult =
+              item.type === "calculator" && item.entry && !item.disabled
+                ? item.entry.result
+                : null;
+            const deleteArmed = item.id === armedDeleteId && favoriteEntry !== undefined;
             // The empty-query state stacks two sections inside a single result
             // list: recents first, then the last few typed commands. The first
             // history row gets the section title; later rows flow under it
@@ -757,6 +797,8 @@ export function LauncherResults({
                       <img src={appIconUrls[item.app.path]} alt="" />
                     ) : item.type === "system" ? (
                       <SystemActionIcon action={item.action} />
+                    ) : item.type === "calculator" ? (
+                      <CalculatorIcon size={16} strokeWidth={2} aria-hidden="true" />
                     ) : item.type === "clipboard" ? (
                       <ClipboardRowIcon
                         item={item}
@@ -783,6 +825,16 @@ export function LauncherResults({
                       <span className="launcher-result__subtitle">{subtitle}</span>
                     )}
                   </span>
+                  {calculatorResult !== null && (
+                    <span className="launcher-result__calculator-result" title={calculatorResult}>
+                      {calculatorResult}
+                    </span>
+                  )}
+                  {deleteArmed && (
+                    <span className="launcher-result__armed" aria-live="polite">
+                      {t("launcher.deleteConfirm")}
+                    </span>
+                  )}
                   {warnings.map((warning) => (
                     <span
                       key={warning}
@@ -806,20 +858,24 @@ export function LauncherResults({
                       either way so revealing it never reflows the `⌘N` badge.
                       The keyboard equivalent is the mode's `⌘D`, which is why
                       the glyph itself is `aria-hidden`. */}
-                  {favoriteEntry && onToggleClipboardFavorite && (
+                  {favoriteEntry && onToggleFavorite && !deleteArmed && (
                     <span
                       className={`launcher-result__favorite${
                         favoriteEntry.favorite ? " launcher-result__favorite--on" : ""
                       }`}
                       title={t(
-                        favoriteEntry.favorite
-                          ? "launcher.clipboardUnfavorite"
-                          : "launcher.clipboardFavorite",
+                        item.type === "calculator"
+                          ? favoriteEntry.favorite
+                            ? "launcher.calculatorUnfavorite"
+                            : "launcher.calculatorFavorite"
+                          : favoriteEntry.favorite
+                            ? "launcher.clipboardUnfavorite"
+                            : "launcher.clipboardFavorite",
                       )}
                       aria-hidden="true"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onToggleClipboardFavorite(favoriteEntry.id);
+                        onToggleFavorite(favoriteEntry.id);
                       }}
                     >
                       <StarIcon

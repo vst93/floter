@@ -30,6 +30,13 @@ import {
   DEFAULT_CLIPBOARD_MAX_ITEMS,
 } from "../clipboard-history.ts";
 import {
+  CALCULATOR_RETENTION_DAYS,
+  DEFAULT_CALCULATOR_MAX_ITEMS,
+  DEFAULT_CALCULATOR_RETENTION_DAYS,
+  MIN_CALCULATOR_MAX_ITEMS,
+  MAX_CALCULATOR_MAX_ITEMS,
+} from "../calculator.ts";
+import {
   BROWSER_SEARCH_FIELDS,
   BROWSER_SORT_ORDERS,
   DEFAULT_BROWSER_SEARCH_FIELD,
@@ -39,7 +46,7 @@ import {
   type BrowserSortOrder,
 } from "../browser-page.ts";
 import type { MessageKey } from "../i18n.ts";
-import { BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages.ts";
+import { BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages.ts";
 
 /** One choice of a `select`, `radio` or `checkboxes` field. */
 export type PluginConfigOption = {
@@ -269,6 +276,65 @@ const SEARCH_FIELD_KEYS: Record<BrowserSearchField, MessageKey> = {
   url: "plugins.config.searchFieldsUrl",
 };
 
+/** The i18n key each age window prints. */
+const CALCULATOR_RETENTION_KEYS: Record<number, MessageKey> = {
+  0: "plugins.config.calculatorRetentionNever",
+  1: "plugins.config.calculatorRetentionDay",
+  7: "plugins.config.calculatorRetentionWeek",
+  30: "plugins.config.calculatorRetentionMonth",
+};
+
+/** R50 · the calculator plugin's configuration. The capacity and the age
+ *  window are the retention axes; `copy_mode` is what Enter copies; the action
+ *  is the same two-step "clear history" control the clipboard uses (favorites
+ *  survive it). */
+export const CALCULATOR_CONFIG_SCHEMA: PluginConfigSchema = {
+  pluginId: CALCULATOR_PLUGIN_ID,
+  titleKey: "settings.calculator",
+  fields: [
+    {
+      key: "max_items",
+      type: "slider",
+      labelKey: "plugins.config.calculatorMaxItems",
+      helpKey: "plugins.config.calculatorMaxItemsHint",
+      min: MIN_CALCULATOR_MAX_ITEMS,
+      max: MAX_CALCULATOR_MAX_ITEMS,
+      step: 10,
+      unitKey: "plugins.config.unitItems",
+    },
+    {
+      key: "retention_days",
+      type: "select",
+      labelKey: "plugins.config.calculatorRetention",
+      helpKey: "plugins.config.calculatorRetentionHint",
+      options: CALCULATOR_RETENTION_DAYS.map((days) => ({
+        value: String(days),
+        labelKey: CALCULATOR_RETENTION_KEYS[days],
+      })),
+    },
+    {
+      key: "copy_mode",
+      type: "radio",
+      labelKey: "plugins.config.calculatorCopyMode",
+      helpKey: "plugins.config.calculatorCopyModeHint",
+      options: [
+        { value: "full", labelKey: "plugins.config.calculatorCopyFull" },
+        { value: "result", labelKey: "plugins.config.calculatorCopyResult" },
+      ],
+    },
+    {
+      key: "clear_history",
+      type: "action",
+      labelKey: "plugins.config.clearHistory",
+      helpKey: "plugins.config.clearHistoryHint",
+      confirmKey: "plugins.config.clearHistoryConfirm",
+      cancelKey: "plugins.config.clearHistoryCancel",
+      failedKey: "calculator.clearFailed",
+      command: "calculator_clear_history",
+    },
+  ],
+};
+
 /** Resolve a plugin id to its schema. `null` for a plugin that has no
  *  declarative configuration (there is nothing to show and no settings
  *  button). */
@@ -278,6 +344,7 @@ export const pluginConfigSchema = (
 ): PluginConfigSchema | null => {
   if (pluginId === CLIPBOARD_PLUGIN_ID) return CLIPBOARD_CONFIG_SCHEMA;
   if (pluginId === BROWSER_PLUGIN_ID) return browserConfigSchema(context);
+  if (pluginId === CALCULATOR_PLUGIN_ID) return CALCULATOR_CONFIG_SCHEMA;
   return null;
 };
 
@@ -288,6 +355,7 @@ export const pluginConfigSchemas = (
 ): readonly PluginConfigSchema[] => [
   CLIPBOARD_CONFIG_SCHEMA,
   browserConfigSchema(context),
+  CALCULATOR_CONFIG_SCHEMA,
 ];
 
 /** A display label for an option. A discovered browser carries its own `name`;
@@ -396,6 +464,13 @@ export const configDefaults = (
 ): Record<string, PluginConfigValue> => {
   if (schema.pluginId === CLIPBOARD_PLUGIN_ID) {
     return configValues(schema, { enabled: true, max_items: DEFAULT_CLIPBOARD_MAX_ITEMS });
+  }
+  if (schema.pluginId === CALCULATOR_PLUGIN_ID) {
+    return configValues(schema, {
+      max_items: DEFAULT_CALCULATOR_MAX_ITEMS,
+      retention_days: String(DEFAULT_CALCULATOR_RETENTION_DAYS),
+      copy_mode: "full",
+    });
   }
   return configValues(schema, {
     enabled: true,

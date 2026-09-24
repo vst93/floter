@@ -286,9 +286,12 @@ test("the overlay invokes the action's command and tells the launcher it ran", a
   assert.doesNotMatch(controls, /confirm\(/, "the confirmation is in the overlay, not a system dialog");
 
   // The App refetches the mode's entries after the action, so the list behind
-  // the overlay cannot keep showing rows the user just deleted.
+  // the overlay cannot keep showing rows the user just deleted. R50 · the same
+  // callback now closes over both history plugins' reloads.
   const app = stripJsComments(await read("src/App.tsx"));
-  assert.match(app, /onActionComplete=\{reloadClipboardEntries\}/);
+  assert.match(app, /onActionComplete=\{\(key\) => \{/);
+  assert.match(app, /reloadClipboardEntries\(\)/);
+  assert.match(app, /reloadCalculatorEntries\(\)/);
 });
 
 // ── F · the wiring, pinned at the source ──────────────────────────────────
@@ -324,7 +327,10 @@ test("the favorite toggle is one path: star click and ⌘D call the same handler
 
   const results = stripJsComments(await read("src/launcher/LauncherResults.tsx"));
   assert.match(results, /className=\{`launcher-result__favorite/);
-  assert.match(results, /onToggleClipboardFavorite\(favoriteEntry\.id\)/);
+  assert.match(results, /onToggleClipboardFavorite/);
+  // R50 · the row's star now goes through the per-row resolved callback so the
+  // calculator's twin can share the same element.
+  assert.match(results, /onToggleFavorite\(favoriteEntry\.id\)/);
   assert.match(results, /favoriteEntry\.favorite \? "currentColor" : "none"/);
 
   const actions = stripJsComments(await read("src/hooks/useLauncherActions.ts"));
