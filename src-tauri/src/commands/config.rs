@@ -100,25 +100,35 @@ const BOLD_MODES: [&str; 2] = ["font", "bright"];
 /// `tests/ui-scale-steps.test.ts`, exactly as `INPUT_WINDOW_WIDTH` is.
 ///
 /// R43 · two steps below the shipped default were added (0.9 and 0.8); the
-/// three original steps are untouched. The native reset path reads only the
-/// multiplier, so the ladder's length is the frontend's business.
+/// three original steps are untouched. R47 · the user asked for `small` to be
+/// the default and for `larger` to go: the ladder is now four steps, and
+/// [`DEFAULT_UI_SCALE`] moved down to `small`. The native reset path reads only
+/// the multiplier, so the ladder's length is the frontend's business.
 ///
 /// The value the *native* reset path needs is the multiplier: the launcher's
 /// fallback height (`INPUT_WINDOW_HEIGHT`, a scale-1 measurement) is multiplied
 /// by it before the window is re-homed, so the pre-frontend frame is already
 /// the right size for the chosen step. Every other consumer is CSS.
-pub const UI_SCALE_STEPS: [(&str, f64); 5] = [
+pub const UI_SCALE_STEPS: [(&str, f64); 4] = [
     ("tiny", 0.8),
     ("small", 0.9),
     ("default", 1.0),
     ("large", 1.1),
-    ("larger", 1.25),
 ];
 
+/// R47 · steps this build no longer ships, and the surviving step each maps to.
+/// A file that persisted `larger` lands on `large` (1.1), the closest step that
+/// still exists, so an explicit choice of the biggest size is honoured rather
+/// than collapsed to the new default. Mirrors `UI_SCALE_LEGACY` in
+/// `src/ui-scale.ts`.
+pub const LEGACY_UI_SCALE_STEPS: [(&str, &str); 1] = [("larger", "large")];
+
 /// The shipped step when the key is absent or names something unknown. Every
-/// build before R7-13c shipped this step, so an older or hand-edited settings
-/// file keeps the scale the user never chose — `default`.
-pub const DEFAULT_UI_SCALE: &str = "default";
+/// build through R46 shipped `default` (1); R47 moved the shipped default down
+/// to `small` (0.9) at the user's request, so a file written before R7-13c (no
+/// key at all) and a hand-edited unknown both land on `small`. A file that
+/// *explicitly* persisted `default` keeps it — see [`normalize_ui_scale`].
+pub const DEFAULT_UI_SCALE: &str = "small";
 
 /// Serde default for `ui_scale`. Named rather than a bare `#[serde(default)]`
 /// so an absent key lands on the shipped step instead of on `String::default()`
@@ -127,13 +137,32 @@ pub fn default_ui_scale() -> String {
     DEFAULT_UI_SCALE.to_string()
 }
 
-/// Map a stored step onto its multiplier. Any unknown value (an empty string, a
-/// typo, a number) falls back to `default` rather than to whichever entry sorts
-/// first: a scale the user did not pick must not be applied.
+/// Map a stored interface-size step onto a shipped one:
+///
+///   1. a shipped step passes through untouched — including `default` (1), so a
+///      file that explicitly persisted the pre-R47 default keeps that size;
+///   2. a retired step ([`LEGACY_UI_SCALE_STEPS`]) maps to its nearest survivor;
+///   3. anything else — an empty string, a typo, a future step this build does
+///      not know — resolves to [`DEFAULT_UI_SCALE`] rather than to whichever
+///      entry sorts first: a scale the user never chose must not be applied.
+pub fn normalize_ui_scale(step: &str) -> &'static str {
+    if let Some((id, _)) = UI_SCALE_STEPS.iter().find(|(id, _)| *id == step) {
+        return id;
+    }
+    if let Some((_, mapped)) = LEGACY_UI_SCALE_STEPS.iter().find(|(old, _)| *old == step) {
+        return mapped;
+    }
+    DEFAULT_UI_SCALE
+}
+
+/// Map a stored step onto its multiplier. A retired step is mapped to its
+/// survivor first ([`normalize_ui_scale`]), so a persisted `larger` still opens
+/// at 1.1 rather than at the default.
 pub fn ui_scale_factor(step: &str) -> f64 {
+    let normalized = normalize_ui_scale(step);
     UI_SCALE_STEPS
         .iter()
-        .find(|(id, _)| *id == step)
+        .find(|(id, _)| *id == normalized)
         .map(|(_, factor)| *factor)
         .unwrap_or(1.0)
 }
@@ -506,7 +535,8 @@ pub struct AppSettings {
     /// to `bool::default()`.
     #[serde(default = "default_true")]
     pub show_menubar_icon: bool,
-    /// R7-13c · the interface-size step: "default" | "large" | "larger".
+    /// R7-13c · the interface-size step: "tiny" | "small" | "default" |
+    /// "large". R47 retired "larger" and made "small" the shipped default.
     ///
     /// This is the one settings field the CSS `--ui-scale` knob reads: the
     /// frontend writes the step's multiplier onto the document root, and every
@@ -515,8 +545,9 @@ pub struct AppSettings {
     /// [`ui_scale_factor`] and `INPUT_WINDOW_HEIGHT` in `lib.rs`).
     ///
     /// `#[serde(default = "default_ui_scale")]` is what keeps every settings file
-    /// written before this round deserializing to `default` — the step those
-    /// builds shipped.
+    /// written before R7-13c deserializing to the shipped step. Since R47 that
+    /// is `small` (0.9); a file that explicitly persisted the old default
+    /// (`default`, 1) is preserved by [`normalize_ui_scale`].
     #[serde(default = "default_ui_scale")]
     pub ui_scale: String,
     /// R7-11: user-defined per-command aliases for launcher search, keyed by
@@ -913,15 +944,10 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     }
     // R7-13c: an unknown or hand-edited step falls back to the shipped one
     // rather than to whichever variant happens to sort first — a scale the user
-    // never chose must not be applied to the whole interface.
-    settings.ui_scale = if UI_SCALE_STEPS
-        .iter()
-        .any(|(id, _)| *id == settings.ui_scale)
-    {
-        settings.ui_scale
-    } else {
-        DEFAULT_UI_SCALE.to_string()
-    };
+    // never chose must not be applied to the whole interface. R47: a retired
+    // `larger` maps to `large` (its nearest survivor), an absent/unknown value
+    // lands on the new default `small`, and an explicit `default` (1) survives.
+    settings.ui_scale = normalize_ui_scale(&settings.ui_scale).to_string();
     settings.shortcuts = resolved_shortcuts(&settings);
     settings.hotkey = settings
         .shortcuts
@@ -1774,21 +1800,36 @@ mod tests {
 
     /// R7-13c · the interface-size step's migration. A file written before the
     /// round has no `ui_scale` key; `String::default()` would be `""`, which
-    /// names no shipped step. The field's bare `#[serde(default)]` plus the
-    /// default struct value must land on the shipped step (`default`), so an
-    /// upgrading user is not silently rescaled.
+    /// names no shipped step. The field's serde default plus the default struct
+    /// value must land on the shipped step.
+    ///
+    /// R47 · that shipped step is now `small` (0.9): a file with no key is a
+    /// file whose user never chose a size, so it moves to the new default. A
+    /// file that *explicitly* persisted a step — because Rust serialises every
+    /// field, any save since R7-13c writes one — keeps it, which is why the
+    /// second assertion pins a surviving explicit `default` (1) and a retired
+    /// `larger` (mapped to `large`).
     #[test]
-    fn older_settings_keep_the_default_interface_scale() {
+    fn older_settings_land_on_the_shipped_interface_scale() {
         let settings: AppSettings =
             serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
         assert_eq!(settings.ui_scale, DEFAULT_UI_SCALE);
         assert_eq!(AppSettings::default().ui_scale, DEFAULT_UI_SCALE);
-        // An explicit choice survives the round-trip intact.
-        let stored = normalize_settings(AppSettings {
+        assert_eq!(DEFAULT_UI_SCALE, "small", "R47 moved the shipped step to small");
+        // An explicit choice survives the round-trip intact, including the
+        // pre-R47 default (1) and the retired `larger` (mapped to `large`).
+        for explicit in ["default", "large", "tiny", "small"] {
+            let stored = normalize_settings(AppSettings {
+                ui_scale: explicit.into(),
+                ..AppSettings::default()
+            });
+            assert_eq!(stored.ui_scale, explicit, "{explicit:?} is an explicit choice");
+        }
+        let migrated = normalize_settings(AppSettings {
             ui_scale: "larger".into(),
             ..AppSettings::default()
         });
-        assert_eq!(stored.ui_scale, "larger");
+        assert_eq!(migrated.ui_scale, "large", "the retired larger maps to large");
     }
 
     /// A hand-edited or unknown step is normalized to the shipped one, not
@@ -1806,14 +1847,16 @@ mod tests {
                 "{unknown:?} is not a shipped step"
             );
         }
-        // The three shipped ids pass through untouched.
-        for step in ["default", "large", "larger"] {
+        // Every shipped id passes through untouched.
+        for step in ["tiny", "small", "default", "large"] {
             let settings = normalize_settings(AppSettings {
                 ui_scale: step.into(),
                 ..AppSettings::default()
             });
             assert_eq!(settings.ui_scale, step);
         }
+        // A retired id is *not* unknown: it maps to its nearest survivor.
+        assert_eq!(normalize_ui_scale("larger"), "large");
     }
 
     /// R7-13c · the step -> multiplier table. The native fallback height (see
@@ -1823,13 +1866,17 @@ mod tests {
     /// `tests/ui-scale-steps.test.ts`).
     #[test]
     fn the_interface_scale_factors_are_the_shipped_steps() {
+        assert_eq!(ui_scale_factor("tiny"), 0.8);
+        assert_eq!(ui_scale_factor("small"), 0.9);
         assert_eq!(ui_scale_factor("default"), 1.0);
         assert_eq!(ui_scale_factor("large"), 1.1);
-        assert_eq!(ui_scale_factor("larger"), 1.25);
-        // An unknown step is the default factor, never `0` (a zero-height
-        // window) and never a panic.
-        assert_eq!(ui_scale_factor(""), 1.0);
-        assert_eq!(ui_scale_factor("nonsense"), 1.0);
+        // R47 · the retired `larger` maps to `large` rather than to the default,
+        // so a file that persisted it still opens at its old 1.1, not at 0.9.
+        assert_eq!(ui_scale_factor("larger"), 1.1);
+        // An unknown step is the *shipped default's* factor (0.9, R47), never
+        // `0` (a zero-height window) and never a panic.
+        assert_eq!(ui_scale_factor(""), 0.9);
+        assert_eq!(ui_scale_factor("nonsense"), 0.9);
     }
 
     #[test]

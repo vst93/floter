@@ -1765,13 +1765,23 @@ mod interface_scale_height_tests {
             INPUT_WINDOW_HEIGHT * 1.1
         );
         assert_eq!(
-            scaled_input_window_height("larger"),
-            INPUT_WINDOW_HEIGHT * 1.25
+            scaled_input_window_height("small"),
+            INPUT_WINDOW_HEIGHT * 0.9
         );
-        // The step must only ever make the window taller, never shorter: a
-        // factor of 0 (or a negative) would collapse the launcher.
-        for step in ["default", "large", "larger", "unknown"] {
-            assert!(scaled_input_window_height(step) >= INPUT_WINDOW_HEIGHT);
+        assert_eq!(
+            scaled_input_window_height("tiny"),
+            INPUT_WINDOW_HEIGHT * 0.8
+        );
+        // R47 · a retired `larger` maps to its survivor (`large`, 1.1) rather
+        // than to the generic fallback.
+        assert_eq!(
+            scaled_input_window_height("larger"),
+            INPUT_WINDOW_HEIGHT * 1.1
+        );
+        // R47 · the shipped default is `small` (0.9), so an absent/unknown step
+        // lands there — positive, never `0` (a collapsed window).
+        for step in ["small", "unknown"] {
+            assert!(scaled_input_window_height(step) > 0.0);
         }
     }
 

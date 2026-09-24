@@ -1,10 +1,11 @@
-// R7-13c · three interface-size steps land on the `--ui-scale` knob.
+// R7-13c · four interface-size steps land on the `--ui-scale` knob.
 //
 // R7-13a converged the window-size contract, R7-13b tokenized every box and
-// type step onto `--ui-scale` and left the knob at 1. This round is the one
-// that lets the user move it: a settings field, a step -> multiplier table, the
+// type step onto `--ui-scale` and left the knob at 1. R7-13c is the one that
+// lets the user move it: a settings field, a step -> multiplier table, the
 // application of that multiplier to the document root, and the height paths
-// that have to follow.
+// that have to follow. R43 added the two steps below default; R47 retired
+// `larger` and moved the shipped default down to `small`.
 //
 // The round has one structural belief, and every assertion here serves it: the
 // scale is applied by *writing a CSS custom property* and every consumer stays
@@ -19,6 +20,10 @@
 // Mutations that must turn this file red:
 //   * `UI_SCALE_FACTORS.large` 1.1 -> 1.2 (or the Rust table to match only one
 //     side) -> the factor-table test and the cross-language test fail;
+//   * a persisted `larger` no longer mapping to `large` (dropping the legacy
+//     table on either side) -> the migration assertions fail;
+//   * `DEFAULT_UI_SCALE` drifting from `small`, or the two sides disagreeing on
+//     it -> the factor-table and cross-language tests fail;
 //   * dropping `settings.ui_scale` from `useLauncherHeight`'s dependency list
 //     -> the "re-measures on a step change" assertion fails (a switch would
 //     leave the window at the old step's height);
@@ -31,8 +36,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  DEFAULT_UI_SCALE,
   UI_SCALE_CSS_VAR,
   UI_SCALE_FACTORS,
+  UI_SCALE_LEGACY,
   UI_SCALE_STEPS,
   applyUiScale,
   normalizeUiScale,
@@ -47,19 +54,19 @@ const stripCssComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 // ── 1 · the step -> multiplier mapping ────────────────────────────────────
 
-test("the five steps map onto one multiplier each, smallest first", () => {
+test("the four steps map onto one multiplier each, smallest first", () => {
   // The round's whole vocabulary. The order is the picker's paint order, and
   // the numbers are the report's decision: tiny 0.8 / small 0.9 / default 1 /
-  // large 1.1 / larger 1.25. R43 added the two below default.
-  assert.deepEqual(UI_SCALE_STEPS, ["tiny", "small", "default", "large", "larger"]);
+  // large 1.1. R43 added the two below default; R47 retired `larger` (1.25)
+  // and moved the shipped default down to `small`.
+  assert.deepEqual(UI_SCALE_STEPS, ["tiny", "small", "default", "large"]);
   assert.deepEqual(UI_SCALE_FACTORS, {
     tiny: 0.8,
     small: 0.9,
     default: 1,
     large: 1.1,
-    larger: 1.25,
   });
-  // The steps ascend: a picker whose entries do not grow would be five labels
+  // The steps ascend: a picker whose entries do not grow would be four labels
   // for one size.
   const factors = UI_SCALE_STEPS.map((step) => UI_SCALE_FACTORS[step]);
   for (let i = 1; i < factors.length; i += 1) {
@@ -69,23 +76,33 @@ test("the five steps map onto one multiplier each, smallest first", () => {
     );
   }
   assert.equal(factors[0], 0.8, "the smallest step is R43's 0.8 — the caption's 8px floor");
-  assert.equal(UI_SCALE_FACTORS.default, 1, "the default step is the scale every earlier build shipped");
+  // R47 · the shipped default is `small` (0.9). `default` (1) survives as a
+  // *step* — the scale every build through R46 shipped — but is no longer the
+  // default, so an old file with no key is not left at 1.
+  assert.equal(DEFAULT_UI_SCALE, "small", "R47 moved the shipped step to small");
+  assert.equal(UI_SCALE_FACTORS[DEFAULT_UI_SCALE], 0.9, "the default step's multiplier is 0.9");
+  assert.equal(UI_SCALE_FACTORS.default, 1, "the pre-R47 default step still exists at 1");
 });
 
-test("an unknown or missing step resolves to default, never to a guess", () => {
+test("an unknown or missing step resolves to the default, a retired one to its survivor", () => {
   // A pre-round settings file has no key, and a hand-edited one may name a step
   // that does not ship. Both must land on the shipped default rather than on
-  // whichever entry happens to sort first.
+  // whichever entry happens to sort first. R47 · the shipped default is `small`.
   for (const unknown of [undefined, null, "", "huge", "1.1", "LARGE", {}, 0]) {
-    assert.equal(normalizeUiScale(unknown), "default", `${JSON.stringify(unknown)} is not a shipped step`);
+    assert.equal(normalizeUiScale(unknown), "small", `${JSON.stringify(unknown)} is not a shipped step`);
   }
   for (const step of UI_SCALE_STEPS) {
     assert.equal(normalizeUiScale(step), step, `${step} is a shipped step`);
   }
+  // R47 · a retired step is not *unknown*: it maps to its nearest survivor, so
+  // a file that persisted `larger` keeps the closest size instead of dropping
+  // to the default.
+  assert.deepEqual(UI_SCALE_LEGACY, { larger: "large" });
+  assert.equal(normalizeUiScale("larger"), "large", "the retired larger maps to large");
   // The factor helper normalizes first, so a stored string can be passed
-  // straight through.
-  assert.equal(uiScaleFactor("larger"), 1.25);
-  assert.equal(uiScaleFactor("nonsense"), 1);
+  // straight through — including a retired one.
+  assert.equal(uiScaleFactor("larger"), 1.1);
+  assert.equal(uiScaleFactor("nonsense"), 0.9, "an unknown step takes the shipped default's factor");
 });
 
 // ── 2 · applying the step writes the knob ─────────────────────────────────
@@ -107,16 +124,19 @@ test("applying a step writes the step's multiplier to --ui-scale", () => {
     ["small", "0.9"],
     ["default", "1"],
     ["large", "1.1"],
-    ["larger", "1.25"],
   ];
   for (const [step, value] of expected) {
     applyUiScale(rootDouble, step);
     assert.equal(written[UI_SCALE_CSS_VAR], value, `${step} must write --ui-scale: ${value}`);
     assert.deepEqual(Object.keys(written), [UI_SCALE_CSS_VAR], "the step writes the knob and nothing else");
   }
-  // An unknown step writes the default, not `undefined` or `NaN`.
+  // A retired step writes its survivor's multiplier, so a persisted `larger`
+  // still paints at 1.1.
+  applyUiScale(rootDouble, "larger");
+  assert.equal(written[UI_SCALE_CSS_VAR], "1.1");
+  // An unknown step writes the shipped default, not `undefined` or `NaN`.
   applyUiScale(rootDouble, "gigantic");
-  assert.equal(written[UI_SCALE_CSS_VAR], "1");
+  assert.equal(written[UI_SCALE_CSS_VAR], "0.9");
   assert.equal(UI_SCALE_CSS_VAR, "--ui-scale", "the property name is the one the stylesheet declares");
 });
 
@@ -347,12 +367,12 @@ test("the real measurement asks for the budget constant, and only a card taller 
 
 test("ui_scale is a persisted string field with a default-shaped fallback", async () => {
   const hook = await read("src/hooks/useSettings.ts");
-  // The frontend default must match Rust's `AppSettings::default()`: the step
-  // every earlier build shipped.
+  // The frontend default must match Rust's `AppSettings::default()`: R47's
+  // shipped step is `small` (0.9).
   assert.match(
     hook,
-    /ui_scale:\s*"default"/,
-    "the pre-hydration default must be the shipped step",
+    /ui_scale:\s*"small"/,
+    "the pre-hydration default must be the shipped step (small, R47)",
   );
   // Hydration normalizes: a pre-round file (no key) and a hand-edited step both
   // land on a shipped value rather than on `undefined`.
@@ -376,11 +396,14 @@ test("ui_scale survives the load -> pick -> persist round trip", async () => {
   const { normalizeUiScale } = await import("../src/ui-scale.ts");
 
   type Store = { ui_scale: string; theme: string };
-  const onDisk: Store = { ui_scale: "large", theme: "dark" };
+  // A file that explicitly persisted the pre-R47 default (1). Rust serialises
+  // every field, so this is the shape an upgrading user's file has — and it
+  // must keep its size.
+  const onDisk: Store = { ui_scale: "default", theme: "dark" };
   const hydration = createSettingsHydration<Store>();
 
-  // The user picks `larger` before the read lands.
-  const picked: Store = { ui_scale: "larger", theme: "dark" };
+  // The user picks `large` before the read lands.
+  const picked: Store = { ui_scale: "large", theme: "dark" };
   hydration.markChanged("ui_scale");
 
   // The load applies its normalizer (the hook's `normalizeUiScale(loaded.…)`),
@@ -392,13 +415,16 @@ test("ui_scale survives the load -> pick -> persist round trip", async () => {
   };
   const merged = hydration.mergeLoaded(picked, loaded);
   hydration.finish();
-  assert.equal(merged.ui_scale, "larger", "a pick made mid-read must survive hydration");
+  assert.equal(merged.ui_scale, "large", "a pick made mid-read must survive hydration");
 
-  // A file that predates the round (no key) normalizes to the shipped step —
-  // the value the *next* launch reads back. That is the round trip: persist
-  // `larger`, restart, and `larger` is what comes back.
-  assert.equal(normalizeUiScale((onDisk as { ui_scale?: unknown }).ui_scale), "large");
-  assert.equal(normalizeUiScale(undefined), "default", "a pre-round file keeps the default step");
+  // An explicit pre-R47 default survives the round trip untouched — R47 changes
+  // the *default*, not a value the user (or their serializer) actually wrote.
+  assert.equal(normalizeUiScale(onDisk.ui_scale), "default");
+  // A file that predates R7-13c (no key at all) normalizes to the new shipped
+  // step, and a retired `larger` maps to its survivor. Those are the two
+  // migrations this round ships.
+  assert.equal(normalizeUiScale(undefined), "small", "a keyless file takes the new default");
+  assert.equal(normalizeUiScale("larger"), "large", "the retired larger maps to large");
 });
 
 test("the settings panel height scales its base, its viewport caps do not", async () => {
@@ -423,7 +449,8 @@ test("the settings panel height scales its base, its viewport caps do not", asyn
 test("the Rust settings shape carries ui_scale with an explicit default", async () => {
   const rust = await read("src-tauri/src/commands/config.rs");
   // A bare `#[serde(default)]` would deserialize a missing key to `""`, which
-  // names no shipped step. The explicit default fn lands on `default`.
+  // names no shipped step. The explicit default fn lands on the shipped default
+  // (R47's `small`).
   assert.match(
     rust,
     /#\[serde\(default = "default_ui_scale"\)\]\s*\n\s*pub ui_scale: String,/,
@@ -442,7 +469,11 @@ test("the Rust settings shape carries ui_scale with an explicit default", async 
     "AppSettings::default must agree with the frontend default",
   );
   // Unknown values are normalized at the command boundary, not passed through.
-  assert.match(rust, /settings\.ui_scale = if UI_SCALE_STEPS/, "normalize_settings must guard the step");
+  assert.match(
+    rust,
+    /settings\.ui_scale = normalize_ui_scale\(&settings\.ui_scale\)/,
+    "normalize_settings must guard the step",
+  );
 });
 
 // ── 6 · the step is a scale axis only: the terminal font stays user-owned ──
@@ -483,14 +514,14 @@ test("the terminal canvas font is not on the knob", async () => {
 test("the frontend and Rust factor tables are the same table", async () => {
   // Rust cannot import TypeScript, so — exactly as with `INPUT_WINDOW_WIDTH` —
   // both sides declare the numbers and this test pins them. The Rust table is
-  // `pub const UI_SCALE_STEPS: [(&str, f64); 5] = [("tiny", 0.8), …]`.
+  // `pub const UI_SCALE_STEPS: [(&str, f64); 4] = [("tiny", 0.8), …]`.
   const rust = await read("src-tauri/src/commands/config.rs");
   const match = rust.match(
-    /pub const UI_SCALE_STEPS:\s*\[\(&str, f64\); 5\]\s*=\s*\[([\s\S]*?)\];/,
+    /pub const UI_SCALE_STEPS:\s*\[\(&str, f64\); 4\]\s*=\s*\[([\s\S]*?)\];/,
   );
   assert.ok(
     match,
-    "config.rs no longer declares `pub const UI_SCALE_STEPS: [(&str, f64); 5] = […];` — " +
+    "config.rs no longer declares `pub const UI_SCALE_STEPS: [(&str, f64); 4] = […];` — " +
       "the native half of this table is what the reset height reads",
   );
   const pairs = [...match![1].matchAll(/\("([a-z]+)",\s*([0-9.]+)\)/g)].map(
@@ -509,11 +540,25 @@ test("the frontend and Rust factor tables are the same table", async () => {
         "the two halves of the interface scale must be one table",
     );
   }
-  // The Rust default step string must match the frontend's.
+  // The Rust default step string must match the frontend's, and R47 moved it.
   assert.match(
     rust,
-    /pub const DEFAULT_UI_SCALE:\s*&str\s*=\s*"default"/,
-    "Rust must ship the same default step",
+    /pub const DEFAULT_UI_SCALE:\s*&str\s*=\s*"small"/,
+    "Rust must ship the same default step (small)",
+  );
+  // …and the retired-step table must be one table too, so a persisted `larger`
+  // is migrated the same way on both sides of the language boundary.
+  const legacy = rust.match(
+    /pub const LEGACY_UI_SCALE_STEPS:\s*\[\(&str, &str\); (\d+)\]\s*=\s*\[([\s\S]*?)\];/,
+  );
+  assert.ok(legacy, "config.rs must declare the retired-step migration table");
+  const legacyPairs = [...legacy![2].matchAll(/\("([a-z]+)",\s*"([a-z]+)"\)/g)].map(
+    (m) => [m[1], m[2]] as [string, string],
+  );
+  assert.deepEqual(
+    Object.fromEntries(legacyPairs),
+    UI_SCALE_LEGACY,
+    "the retired-step tables must agree",
   );
 });
 

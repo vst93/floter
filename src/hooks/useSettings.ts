@@ -103,9 +103,11 @@ const SETTINGS_DEFAULTS: AppSettings = {
   show_menubar_icon: true,
   // R7-11: no aliases until the user adds one.
   command_aliases: {},
-  // R7-13c: the shipped interface-size step is `default` (the scale every build
-  // before this round rendered), so a pre-hydration frame is pixel-identical.
-  ui_scale: "default",
+  // R7-13c: the interface-size step. R47 moved the shipped default from
+  // `default` (1) to `small` (0.9) at the user's request, so a pre-hydration
+  // frame is the small step rather than the scale every build through R46
+  // painted. Must equal Rust's `DEFAULT_UI_SCALE`.
+  ui_scale: "small",
   // R26-A: the browser plugin ships working out of the box — auto-detect the
   // browser, no custom directory, a 30-day history window. R26-B adds the
   // DevTools debug-port pair, off and on the browser's own port by default.
@@ -279,7 +281,9 @@ export function useSettings(options: {
           command_aliases: loaded.command_aliases ?? {},
           // R7-13c: a pre-round settings file has no `ui_scale` key, and a
           // hand-edited one may carry a step that no longer ships; both land on
-          // `default` (the shipped step) rather than on an unscaled guess.
+          // the shipped step. R47: a retired `larger` maps to `large` (keep the
+          // user's largest surviving size), an absent/unknown value lands on the
+          // new default `small`, and an explicit `default` (1) is preserved.
           ui_scale: normalizeUiScale(loaded.ui_scale),
           // R42 · the terminal's appearance. A pre-round file has none of these
           // keys; a hand-edited one may carry an out-of-range number or an

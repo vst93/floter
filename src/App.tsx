@@ -265,7 +265,7 @@ export type AppSettings = {
    * time (see `resolveCommandAliases`). */
   command_aliases: CommandAliases;
   /** R7-13c: the interface-size step (`"tiny"` / `"small"` / `"default"` /
-   * `"large"` / `"larger"`).
+   * `"large"`; R47 retired `"larger"` and made `"small"` the default).
    * The stored string is the vocabulary; the step's `--ui-scale` multiplier
    * lives in `ui-scale.ts` and is written onto the document root by a layout
    * effect in this file (before `useLauncherHeight` measures the card). */

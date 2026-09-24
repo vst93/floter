@@ -47,9 +47,11 @@ const THEME_OPTIONS: { value: string; labelKey: MessageKey }[] = [
   { value: "light", labelKey: "settings.theme.light" },
 ];
 
-/** R7-13c · the three interface-size steps, in the order the picker paints them
- *  (smallest first). The label keys are the step names; the multiplier each one
- *  writes lives in `ui-scale.ts`, so this list never spells a number. */
+/** R7-13c · the interface-size steps, in the order the picker paints them
+ *  (smallest first; R47 retired `larger`, leaving four). The label keys are the
+ *  step names; the multiplier each one writes lives in `ui-scale.ts`, so this
+ *  list never spells a number. R47 makes `small` the shipped default, so its
+ *  label is the one highlighted on a fresh install. */
 const UI_SCALE_OPTIONS: { value: UiScale; labelKey: MessageKey }[] = UI_SCALE_STEPS.map(
   (value) => ({ value, labelKey: `settings.uiScale.${value}` as MessageKey }),
 );
@@ -356,14 +358,16 @@ export function GeneralPage({
               />
             }
           />
-          {/* R7-13c · Interface size. Raycast parity: three steps that scale the
-              whole UI. It sits in Appearance next to theme/language because it
-              is the same kind of choice — how the interface looks — and it uses
-              the identical three-stop segmented language the glass and cursor
-              pickers already speak. The stored value is normalized on read, so
-              a settings file that predates the round (no key) or names a step
-              that no longer ships shows `default`, never an unhighlighted
-              track. */}
+          {/* R7-13c · Interface size. Four steps that scale the whole UI. It
+              sits in Appearance next to theme/language because it is the same
+              kind of choice — how the interface looks — and it uses the
+              identical segmented language the glass and cursor pickers already
+              speak. The stored value is normalized on read, so a settings file
+              that predates the round (no key) or names a step that no longer
+              ships lands on a shipped value: R47's default `small`, or `large`
+              for a retired `larger`. The pre-R47 default step (1) survives as
+              the `default` option, now labelled "Standard" so a size that is no
+              longer the default does not claim the name. */}
           <SettingsRow
             stacked
             label={t("settings.uiScale")}

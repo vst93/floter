@@ -119,8 +119,7 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   assert.equal(launcherWindowHeight(0.9), Math.ceil(531 * 0.9 + 52));
   assert.equal(launcherWindowHeight(0.8), Math.ceil(531 * 0.8 + 52));
   assert.equal(launcherWindowHeight(1.1), Math.ceil(531 * 1.1 + 52));
-  assert.equal(launcherWindowHeight(1.25), Math.ceil(531 * 1.25 + 52));
-  for (const scale of [0.8, 0.9, 1, 1.1, 1.25]) {
+  for (const scale of [0.8, 0.9, 1, 1.1]) {
     assert.equal(
       launcherWindowHeight(scale),
       Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * scale) + LAUNCHER_WINDOW_HEIGHT_CHROME,
@@ -609,7 +608,7 @@ test("R43 · the window follows the list's real row heights, not count × 42", a
     "the compact list is genuinely shorter than the worst-case slab the old sizing charged",
   );
   // The chrome is added once and unscaled, exactly as `launcherRowHeight` does.
-  for (const scale of [0.8, 0.9, 1, 1.1, 1.25]) {
+  for (const scale of [0.8, 0.9, 1, 1.1]) {
     assert.equal(
       launcherContentHeight(3 * ROW_HEIGHT_COMPACT, 3, scale, LAUNCHER_WINDOW_HEIGHT, false, false, false),
       Math.ceil((66 + 3 * ROW_HEIGHT_COMPACT) * scale + (2 + 4 + 2)),
