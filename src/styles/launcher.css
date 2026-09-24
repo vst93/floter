@@ -952,6 +952,33 @@
   padding: var(--scroll-edge) 0 0;
 }
 
+/* R52 · the empty subline band, collapsed.
+
+   The user's report, verbatim: 「现在输入框下方有一行多余的空白间隙，是 tab 进行
+   切换的公用板块吧？像这种没有切换的情况下应该隐藏」. The chips row
+   (`.launcher-filter`) is the tab band; it is only drawn inside a plugin scope,
+   so no such row exists on the ordinary search page — yet the space under the
+   field was still stacked as if one did: the field's 4u `margin-bottom`, then
+   `.launcher-bottom`'s 4u top inset, then `.launcher-results`' 4px scroll-edge
+   reservation, then the section title's 6u top padding. The middle two are the
+   only pieces whose whole job is to separate a *subline* from the list, so when
+   no subline is drawn they collapse, and the list hugs the field: the field's
+   own 4u margin + the list/title's own top (the R46 rhythm).
+
+   `App.tsx` writes `.collapsed-card--no-subline` from the same
+   `filterRowVisible` predicate the window height reads
+   (`LAUNCHER_SUBLINE_INSET_UNITS` / `LAUNCHER_SUBLINE_INSET_CHROME` in
+   `launcher/result-budget.ts`), so the drawn band and the charged band cannot
+   disagree. With a chips row present — browser / clipboard / calculator —
+   nothing here applies and the chips keep their exact geometry. */
+.collapsed-card--no-subline .launcher-bottom {
+  padding-top: 0;
+}
+
+.collapsed-card--no-subline .launcher-results {
+  padding-top: 0;
+}
+
 /* R28 · the text form of the plugin capability: a plugin whose output is not the
    standard structure is printed verbatim under the field. The user asked for
    both bounds — 「一个最小高度也要限制，一个最大高度，超过最大就自动滚动」 — and

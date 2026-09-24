@@ -1832,13 +1832,22 @@ export default function App() {
   const launcherChromeRows =
     (showOnboardingTip && !launcherScope ? 1 : 0) +
     (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0);
+  // R52 · the feedback / tip / confirm row is charged as a worst-case row, in
+  // *every* scope. The plugin list used to price only `pluginViewRows` here
+  // while still counting the feedback row in `launcherRows` above, so a plugin
+  // scope (the calculator's invalid-expression banner is the report) was a
+  // whole row short of its own glass: the banner and the chips ate into the
+  // list's box, the scroller's last row was cut by the card's bottom edge, and
+  // the translucent banner let the row behind it read as a ghost. The ordinary
+  // page already added `launcherChromeRows`; the plugin branch now does too, so
+  // one chrome row costs the same row in place and in scope.
+  const launcherChromeUnits = launcherChromeRows * ROW_HEIGHT_TWO_LINE;
   const launcherListUnitsRaw =
     pluginConfigOpen && launcherPluginId
       ? (1 + (pluginConfigSchema(launcherPluginId)?.fields.length ?? 0)) * ROW_HEIGHT_TWO_LINE
       : pluginView
-        ? pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE
-        : launcherListUnits(displayedResults.map(launcherRowHeightUnits)) +
-          launcherChromeRows * ROW_HEIGHT_TWO_LINE;
+        ? pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE + launcherChromeUnits
+        : launcherListUnits(displayedResults.map(launcherRowHeightUnits)) + launcherChromeUnits;
   // R43 · the unit total is sticky, the same way the row count used to be:
   // growing is immediate (a window one row short would clip the row) and a
   // shrink is absorbed until the content has fallen more than one worst-case
@@ -2761,7 +2770,13 @@ export default function App() {
                may take its place: gating a *layout* metric (the search
                surface's breath) on the result count is exactly the 4px jump
                R15 removed from the action bar. */
-            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}`}
+            /* R52 · no chips row on screen (the ordinary search page, an
+               external plugin mode) means no subline band: the sheet drops the
+               panel's top inset and the scroller's scroll-edge reservation so
+               the list hugs the field. The window height reads the same
+               predicate, `filterRowVisible`, on the `launcherContentHeight`
+               call below. */
+            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}${filterRowVisible ? "" : " collapsed-card--no-subline"}`}
             style={{ "--launcher-results-height": `${Math.max(84, window.screen.availHeight - RESULTS_VIEWPORT_CHROME)}px` } as React.CSSProperties}
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input, select, .plugin-config")) focusCollapsedInput();

@@ -565,6 +565,8 @@ test("R43 · the window follows the list's real row heights, not count × 42", a
   const {
     LAUNCHER_ACTION_BAR_UNITS,
     LAUNCHER_STATUS_UNITS,
+    LAUNCHER_SUBLINE_INSET_CHROME,
+    LAUNCHER_SUBLINE_INSET_UNITS,
     LAUNCHER_WINDOW_HEIGHT,
     MAX_RESULTS,
     ROW_HEIGHT_COMPACT,
@@ -592,26 +594,37 @@ test("R43 · the window follows the list's real row heights, not count × 42", a
   assert.equal(resolveLauncherUnits(168, 120), 120, "more than a row steps down");
   assert.equal(resolveLauncherUnits(34, 34), 34);
 
-  // The height at an interface step. At the full ten two-line rows the window is
-  // still R25/R37's 583px — the full state is unchanged — while ten compact rows
-  // are 80u shorter, which is exactly the blank the report is about.
+  // The height at an interface step. R43's row-height model is the ordinary
+  // page's, and R52 takes the two subline insets (4u + 4px) off that page, so
+  // the ten two-line rows are 575px there and ten compact rows are 80u lower.
+  // The 583px slab is the *chips* page, asserted with `filter = true`.
   assert.equal(
     launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
-    LAUNCHER_WINDOW_HEIGHT,
-    "ten two-line rows keep the 583px slab",
+    575,
+    "ten two-line rows on the ordinary page are the 575px slab (R52)",
   );
-  assert.equal(launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 583);
+  assert.equal(
+    launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, true),
+    LAUNCHER_WINDOW_HEIGHT,
+    "with a chips row the full slab is still R25/R37's 583px",
+  );
   const tenCompact = launcherContentHeight(10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(tenCompact, 503, "ten compact rows are 503px, 80u under the slab");
+  assert.equal(tenCompact, 495, "ten compact rows are 495px, 80u under the ordinary slab");
   assert.ok(
     tenCompact < launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
     "the compact list is genuinely shorter than the worst-case slab the old sizing charged",
   );
   // The chrome is added once and unscaled, exactly as `launcherRowHeight` does.
+  // R52 · with no chips row the unit part loses the panel's 4u top inset and
+  // the fixed part loses the scroller's 4px scroll-edge reservation.
   for (const scale of [0.8, 0.9, 1, 1.1]) {
     assert.equal(
       launcherContentHeight(3 * ROW_HEIGHT_COMPACT, 3, scale, LAUNCHER_WINDOW_HEIGHT, false, false, false),
-      Math.ceil((66 + 3 * ROW_HEIGHT_COMPACT) * scale + (2 + 4 + 2)),
+      Math.ceil(
+        (66 - LAUNCHER_SUBLINE_INSET_UNITS + 3 * ROW_HEIGHT_COMPACT) * scale +
+          (2 + 4 + 2) -
+          LAUNCHER_SUBLINE_INSET_CHROME,
+      ),
       "the unit part scales and the chrome is added once",
     );
   }

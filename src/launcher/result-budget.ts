@@ -443,6 +443,35 @@ export const resolveLauncherUnits = (current: number, units: number): number => 
 };
 
 /**
+ * R52 · the two insets that exist *only* because a subline row (the plugin
+ * chips) sits between the field and the list: the panel's own 4u top inset and
+ * the scroller's 4px scroll-edge reservation.
+ *
+ * The user's report, verbatim: 「现在输入框下方有一行多余的空白间隙，是 tab 进行
+ * 切换的公用板块吧？像这种没有切换的情况下应该隐藏」. R48 had already moved the
+ * ordinary page's trigger nudge inline and stopped billing its 28u, but the
+ * *drawn* gap under the field still stacked four decisions whose only job was
+ * to space a subline: the field's 4u margin, `.launcher-bottom`'s 4u top inset,
+ * `.launcher-results`' 4px scroll-edge reservation, and the section title's 6u
+ * top padding — 18px of blank on a page with no chips at all, which the user
+ * read as one full line left behind by the tab band.
+ *
+ * When a chips row *is* drawn (browser / clipboard / calculator) both insets
+ * stay: they are what separates the chips from the list and what keeps a
+ * selected row's tint off the panel's edge. When it is not — the ordinary
+ * search page, and an external plugin mode, whose scope draws no chips either —
+ * the list hugs the field, so the geometry is just the field's 4u margin and
+ * the list/title's own top. `styles/launcher.css` draws the same collapse with
+ * `.collapsed-card--no-subline`; these constants are what the window height
+ * subtracts so the slab shrinks by exactly the band that stopped being drawn.
+ *
+ * The predicate is the caller's `filter` flag — "a chips row is on screen" —
+ * the same one that charges {@link LAUNCHER_FILTER_UNITS}, so the drawn band
+ * and the charged band can never disagree. */
+export const LAUNCHER_SUBLINE_INSET_UNITS = 4;
+export const LAUNCHER_SUBLINE_INSET_CHROME = 4;
+
+/**
  * R43 · a real-content list's window height at an interface step.
  *
  * `listUnits` is {@link launcherListUnits}'s sum (plus one worst-case row for
@@ -450,6 +479,12 @@ export const resolveLauncherUnits = (current: number, units: number): number => 
  * count, because the fixed chrome (`launcherRowChrome`) is a function of the
  * count and the section title, not of the unit total. The unit part scales and
  * the chrome is added once, exactly as {@link launcherRowHeight} does.
+ *
+ * R52 · `filter` (a chips row is drawn) now also decides whether the two
+ * subline insets are charged — see {@link LAUNCHER_SUBLINE_INSET_UNITS}. With a
+ * chips row nothing moves; without one the window gives back the 4u + 4px the
+ * sheet also stops drawing, so the ordinary page's slab is exactly as tall as
+ * the page it holds.
  */
 export const launcherContentHeight = (
   listUnits: number,
@@ -459,18 +494,26 @@ export const launcherContentHeight = (
   actionBar = true,
   sectionTitle = false,
   filter = false,
-): number =>
-  Math.min(
+): number => {
+  // R52 · no chips row, no subline insets. When one is drawn both are charged
+  // exactly as before; when it is not, the panel top inset and the scroll-edge
+  // reservation come off the unit part and the fixed part respectively.
+  const sublineUnits = filter ? 0 : LAUNCHER_SUBLINE_INSET_UNITS;
+  const sublineChrome = filter ? 0 : LAUNCHER_SUBLINE_INSET_CHROME;
+  return Math.min(
     Math.ceil(
-      (LAUNCHER_ROW_CHROME_UNITS +
+      (LAUNCHER_ROW_CHROME_UNITS -
+        sublineUnits +
         listUnits +
         (actionBar ? LAUNCHER_ACTION_BAR_UNITS : 0) +
         (filter ? LAUNCHER_FILTER_UNITS : 0)) *
         scale +
-        launcherRowChrome(rows, sectionTitle),
+        launcherRowChrome(rows, sectionTitle) -
+        sublineChrome,
     ),
     maxHeight,
   );
+};
 
 /** Whether a row is *a* clipboard row — the `system-clipboard` entry the
  *  catalog contributes like any other built-in.
