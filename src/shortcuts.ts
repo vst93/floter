@@ -79,8 +79,12 @@ const KEY_ALIASES: Record<string, string> = {
   right: "ArrowRight",
 };
 
-/** How a key is drawn: symbols on macOS, spelled out elsewhere. */
+/** How a key is drawn: symbols on macOS, spelled out elsewhere. `Backspace`
+ *  draws as ⌫ on both platforms so the delete key reads as the gesture it is
+ *  (`⌃⌫` / `Ctrl+⌫` for R53's history delete) rather than the word the OS
+ *  happens to call it. */
 const KEY_SYMBOLS: Record<string, string> = {
+  Backspace: "⌫",
   Comma: ",",
   Period: ".",
   Slash: "/",

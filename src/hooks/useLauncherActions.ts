@@ -93,8 +93,8 @@ export function useLauncherActions(options: {
    *  chips (the browser rule, applied to the clipboard's six) and ⌘D favorites
    *  the selected row. */
   clipboardScope: boolean;
-  /** R50 · whether the calculator mode owns the field. Tab cycles its two
-   *  chips, ⌘D favorites and ⌘⌫ deletes; Enter evaluates a fresh expression
+  /** R50/R53 · whether the calculator mode owns the field. Tab cycles its two
+   *  chips, ⌘D favorites and ⌃⌫ deletes; Enter evaluates a fresh expression
    *  (`calculatorEnterEvaluates`) or copies the selected row. */
   calculatorScope: boolean;
   /** R50 · whether the field holds an expression that has not been evaluated
@@ -124,7 +124,7 @@ export function useLauncherActions(options: {
   toggleClipboardFavorite: (id: string) => void;
   /** R50 · the calculator row's favorite toggle, the clipboard's twin. */
   toggleCalculatorFavorite: (id: string) => void;
-  /** R50 · delete one clipboard entry (the select-then-⌘⌫ path). */
+  /** R50 · delete one clipboard entry (the select-then-⌃⌫ path). */
   deleteClipboardEntry: (id: string) => void;
   /** R50 · delete one calculator entry. */
   deleteCalculatorEntry: (id: string) => void;
@@ -867,9 +867,9 @@ export function useLauncherActions(options: {
       return;
     }
 
-    // R50 · the calculator mode's twin: Tab cycles its two chips, ⌘D favorites
-    // the selected row, and ⌘⌫ arms / confirms the inline delete of a runnable
-    // history row. The same three-block shape as the clipboard above.
+    // R50/R53 · the calculator mode's twin: Tab cycles its two chips, ⌘D
+    // favorites the selected row, and ⌃⌫ arms / confirms the inline delete of a
+    // runnable history row. The same three-block shape as the clipboard above.
     if (calculatorScope && event.key === "Tab") {
       event.preventDefault();
       cycleCalculatorFilter(event.shiftKey ? -1 : 1);
@@ -884,12 +884,14 @@ export function useLauncherActions(options: {
       return;
     }
 
-    // R50 · delete one history row, two-step, shared by both built-in history
-    // modes. The key is only claimed on a runnable history row: elsewhere it is
-    // the field's own (Ctrl+Backspace deletes a word). The first press arms the
-    // row (the renderer shows the muted "press again" note); a second press
-    // inside the window confirms; the arm is cancelled by any other key, a
-    // focus loss or the timeout.
+    // R50/R53 · delete one history row, two-step, shared by both built-in
+    // history modes. The key (⌃⌫ / Ctrl+⌫) is only claimed on a runnable history
+    // row: elsewhere the field's own handling runs — on Windows that is the
+    // Ctrl+⌫ delete-word, on macOS ⌃⌫ has no text role at all. So the macOS
+    // editing gesture R50 collided with (⌘⌫ = delete to line start) is free
+    // again. The first press arms the row (the renderer shows the muted "press
+    // again" note); a second press inside the window confirms; the arm is
+    // cancelled by any other key, a focus loss or the timeout.
     if (clipboardScope || calculatorScope) {
       if (matchesShortcut(event, HISTORY_DELETE_SHORTCUT)) {
         const selected = launcherResults[selectedResultIndex];

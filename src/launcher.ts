@@ -515,16 +515,17 @@ export const cycleCalculatorFilter = (
 export const CALCULATOR_FAVORITE_SHORTCUT = "CmdOrCtrl+D";
 
 /**
- * R50 · the delete-one key, shared by the calculator and clipboard history
- * lists. `CmdOrCtrl+Backspace` is ⌘⌫ on macOS and Ctrl+Backspace elsewhere.
- *
- * The choice and its cost are argued in `plugins/history-actions.ts`; the short
- * version is that a bare ⌫/Delete cannot be a list gesture inside a text field
- * (it edits the field), so the deletion carries the platform's app modifier,
- * and it is only *claimed* while the selection is on a history row. Pinned here
- * so the key handler and the documentation cannot drift.
+ * R50/R53 · the delete-one key, shared by the calculator and clipboard history
+ * lists. A literal `Ctrl+Backspace` — ⌃⌫ on macOS, Ctrl+⌫ elsewhere — not the
+ * app modifier, deliberately: R50's `CmdOrCtrl+Backspace` was ⌘⌫ on macOS, which
+ * is the system's own "delete to the start of the line" in every text field, so
+ * the muscle memory of an editing gesture armed a row instead. ⌃ is not a text
+ * editor's modifier on macOS (word-delete there is ⌥⌫, the emacs edits are ⌃H/⌃D),
+ * while non-macOS resolves to the same Ctrl+⌫ it always did. The full argument,
+ * and the cost it keeps, is in `plugins/history-actions.ts`. Pinned here so the
+ * key handler, the hint and the documentation cannot drift.
  */
-export const HISTORY_DELETE_SHORTCUT = "CmdOrCtrl+Backspace";
+export const HISTORY_DELETE_SHORTCUT = "Ctrl+Backspace";
 
 const CALCULATOR_TRIGGERS = new Set(["calc", "calculator", "计算器", "计算", "="]);
 

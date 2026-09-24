@@ -22,14 +22,26 @@
 //
 // ## The key
 //
-// `CmdOrCtrl+Backspace` (⌘⌫ / Ctrl+Backspace), declared beside the other
-// mode-local shortcuts in `launcher.ts` (`HISTORY_DELETE_SHORTCUT`). A bare
-// ⌫/Delete cannot be the list's gesture: the field is a live text input, and
-// plain Backspace must keep editing it. The modifier makes the intent
-// deliberate, and the key is only *claimed* while the selection sits on a
-// history row — elsewhere ⌫/Delete (with or without the modifier) still edits
-// the field. The cost is real and named: with a history row selected,
-// ⌘⌫ no longer deletes the word before the caret in the field. The list row is
+// `Ctrl+Backspace` (⌃⌫ / Ctrl+⌫), declared beside the other mode-local
+// shortcuts in `launcher.ts` (`HISTORY_DELETE_SHORTCUT`). A bare ⌫/Delete
+// cannot be the list's gesture: the field is a live text input, and plain
+// Backspace must keep editing it. The modifier makes the intent deliberate,
+// and the key is only *claimed* while the selection sits on a history row —
+// elsewhere the field's own handling runs untouched.
+//
+// R50 shipped this as `CmdOrCtrl+Backspace`, i.e. ⌘⌫ on macOS; the user's
+// report was exact — 「还有 cmd+空格删除这种逻辑不合适，换个快捷键」 — because ⌘⌫ is
+// macOS's own "delete to the beginning of the line". That is the gesture a hand
+// already has in a text field, so pressing ⌘⌫ to trim what was typed *armed a
+// destructive row delete*. The fix is a literal ⌃, which no macOS text field
+// reads as an edit: word-delete there is ⌥⌫, and the emacs-style edits are
+// ⌃H/⌃D/⌃K — ⌃⌫ is unbound. Everywhere else the resolved key is the same
+// Ctrl+⌫ R50 already had, so macOS changes and nothing else does. ⌫ stays on
+// the key, so the armed note (「再按一次确认删除」) still reads as a delete.
+//
+// The cost is real and named, and it is the pre-existing non-macOS one: with a
+// history row selected, the field's Ctrl+⌫ word-delete is claimed by the row
+// (Windows edit controls bind Ctrl+⌫ to delete-word-backward). The list row is
 // the more specific context, and Esc clears the field when that is what the
 // user wants.
 

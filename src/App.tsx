@@ -1539,8 +1539,8 @@ export default function App() {
     clipboardScope: launcherScope === "clipboard",
     cycleClipboardFilter,
     toggleClipboardFavorite,
-    /** R50 · the calculator mode's own keys and actions: Tab cycles its chips,
-     *  ⌘D favorites, ⌘⌫ deletes, and Enter evaluates or copies. */
+    /** R50/R53 · the calculator mode's own keys and actions: Tab cycles its
+     *  chips, ⌘D favorites, ⌃⌫ deletes, and Enter evaluates or copies. */
     calculatorScope: launcherScope === "calculator",
     calculatorEnterEvaluates,
     evaluateCalculator,
@@ -3117,7 +3117,7 @@ export default function App() {
             {/* R50 · the calculator mode's two chips: 全部 / 收藏. The
                 clipboard row's twin — same `.launcher-filter`, same click-or-Tab
                 interaction, same muted register. The hint names the mode's two
-                keys: ⌘D favorites and ⌘⌫ deletes the selected row. */}
+                keys: ⌘D favorites and ⌃⌫ (R53) deletes the selected row. */}
             {filterRowVisible && launcherScope === "calculator" && (
               <div className="launcher-filter">
                 <div
