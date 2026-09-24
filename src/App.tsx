@@ -21,6 +21,7 @@ import { useTerminalView } from "./hooks/useTerminalView";
 import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
 import { useCopyNotice } from "./hooks/useCopyNotice";
+import { useLauncherTextCopy } from "./hooks/useLauncherTextCopy";
 import { ToastHost } from "./components/ToastStack";
 import { appendToast, removeToast, type AppToast, type ToastAction, type ToastKind } from "./toast-state";
 import { useLauncherActions } from "./hooks/useLauncherActions";
@@ -617,6 +618,14 @@ export default function App() {
   // driven by this hook's timers. It lives here, not in the terminal view,
   // because the row it paints is part of the terminal panel's own layout.
   const { copyNotice, showCopyNotice } = useCopyNotice();
+
+  // R63 · the 直出 text surface's copy-on-select chokepoint. It reports through
+  // the *same* notice state the terminal's copies use (one vocabulary for
+  // 「选中即复制」 on both surfaces), and it is deliberately independent of the
+  // terminal's `terminal_select_copy` setting: the terminal's switch governs its
+  // canvas, where a copy can surprise a shell user mid-selection; the launcher's
+  // text block exists only to be read and copied, so it ships on.
+  const { copySelection: copyLauncherSelection } = useLauncherTextCopy(showCopyNotice);
 
   // App-level toast stack. Every surface (currently the integrations panel,
   // later others) pushes feedback here so it renders once, pinned to the card
@@ -3374,10 +3383,32 @@ export default function App() {
                     </button>
                   </div>
                 )}
+                {/* R63 · the 直出 surface. The text form is where a summoned
+                    command answers when its output is not a list, and selecting
+                    that text copies it — the terminal's R44 gesture on the
+                    launcher. The notice below is docked to the panel's own
+                    bottom edge (never a floating layer) and reads the same
+                    phase machine the terminal's copy row does. */}
                 {pluginText ? (
-                  // R28 · the text form: the plugin's output printed under the
-                  // field, in place of the numbered list.
-                  <PluginTextView t={t} text={pluginText.text} metrics={pluginText.metrics} />
+                  // R28 · the plugin's output printed under the field.
+                  <>
+                    <PluginTextView
+                      t={t}
+                      text={pluginText.text}
+                      metrics={pluginText.metrics}
+                      onCopySelection={copyLauncherSelection}
+                    />
+                    <div
+                      className="launcher-copy-notice"
+                      data-phase={copyNotice.phase}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {copyNotice.message && (
+                        <span className="launcher-copy-notice__text">{t(copyNotice.message)}</span>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <LauncherResults
                     t={t}

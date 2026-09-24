@@ -1003,6 +1003,12 @@
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
+  /* R63 · the card is `user-select: none` (the launcher is a control surface,
+     not a document), which used to make this block unselectable too. The text
+     form is the exception: its whole content is text the user may want, and
+     selecting it is what copies it (the R63 gesture). */
+  user-select: text;
+  cursor: text;
 }
 
 .launcher-section-title {
@@ -1040,6 +1046,61 @@
   flex: 1 1 auto;
   min-height: 0;
   gap: 0;
+}
+
+/* R63 · the 直出 text surface's copy notice: the R44 phase machine's row, on
+   the launcher's own bottom edge. It is docked inside `.launcher-bottom` (the
+   positioned ancestor), never a floating toast — the user's standing objection
+   — and it is always mounted while the text surface shows, so what moves is
+   only the message's opacity (the R54/R55 lesson: an idle row that paints
+   nothing leaves no band to notice). Being `position: absolute`, it spends no
+   layout: a copy cannot change the measured window height
+   (`launcher/result-budget.ts`) or the text block's row count, which is the R58
+   formula's invariant. */
+.launcher-copy-notice {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--u) * 30);
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--u) * 12);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1;
+  /* Idle paints nothing: the panel's own sunken material shows through
+     untouched. The 1px edge stays in the box so both states share a content
+     box and the message does not nudge the row's height. */
+  border-top: 1px solid transparent;
+  background: transparent;
+  transition: background-color var(--dur-3) ease, border-color var(--dur-3) ease;
+  /* Nothing here is interactive: the selection gesture must reach the text
+     behind the row, exactly as it does in the terminal panel. */
+  pointer-events: none;
+}
+
+/* A live message owns the row: the same material language the terminal's
+   notice uses, so a copy reads the same on both surfaces. */
+.launcher-copy-notice[data-phase="visible"],
+.launcher-copy-notice[data-phase="fade"] {
+  border-top-color: var(--glass-control-edge);
+  background-color: var(--glass-control);
+}
+
+.launcher-copy-notice__text {
+  opacity: 0;
+  transition: opacity var(--dur-2) ease;
+}
+
+.launcher-copy-notice[data-phase="visible"] .launcher-copy-notice__text {
+  opacity: 1;
+}
+
+.launcher-copy-notice[data-phase="fade"] .launcher-copy-notice__text {
+  opacity: 0;
+  transition-duration: var(--dur-3);
 }
 
 .launcher-result {

@@ -628,7 +628,11 @@ const en = {
   "settings.extensions.commands": "Commands",
   // R39 · the per-command switch. A command switched on may be summoned as a
   // launcher plugin mode; the hint is the section's one-line explanation.
-  "settings.extensions.commandsHint": "Turn a command on to summon it in the search box: type the command name and a space, then its arguments.",
+  // R63 · the user named this logic: the switch turns a command's **direct
+  // output** (「直出」) on — the command answers in the search interface itself,
+  // with no terminal page in between. The name is copy only; every identifier
+  // (`pluginCommandSwitches`, `externalPluginModeEntry`, …) keeps its word.
+  "settings.extensions.commandsHint": "Turn a command on for direct output — in the search box, type the command name and a space, then its arguments. The command runs and its output is printed right there.",
   "settings.extensions.commandTriggers": "Summon with: {words}",
   "settings.extensions.commandEnable": "Enable {command} in the launcher",
   "settings.extensions.commandAlias": "Alias",
@@ -758,10 +762,15 @@ const en = {
   "settings.extensions.customScriptPlaceholder": "Write the script Floter should run",
   "settings.extensions.customEnforcedPermissions": "Floter-enforced execution policy",
   "settings.extensions.customDeclaredPermissions": "Declared access",
-  "settings.extensions.customOutput": "Output",
+  "settings.extensions.customOutput": "Direct output",
   "settings.extensions.customOutputTerminal": "Run in terminal",
   "settings.extensions.customOutputBackground": "Run in background",
-  "settings.extensions.customOutputHint": "Background runs stay off the terminal page and report when they finish.",
+  // R63 · the section's subject is now named: a command summoned in the search
+  // box always writes **straight into the search interface** (「直出」), and the
+  // two radios below choose where a run started from Settings goes. Without
+  // this sentence the label above would read as if it also governed the
+  // launcher route, which it does not.
+  "settings.extensions.customOutputHint": "A command summoned in the search box always prints straight into the search interface — direct output. This chooses where a run started from Settings goes: the terminal page, or the background, with a completion notice.",
   "settings.extensions.customParams": "Parameters",
   "settings.extensions.customParamsHint": "Declare the inputs this integration accepts. Values are passed as separate argv entries when it runs.",
   "settings.extensions.customParamAdd": "Add parameter",
@@ -1519,7 +1528,9 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.publisherDescriptorNote": "该命令列表由发布方提供并随 Floter 版本发布，不随本地工具二进制变化。",
   "settings.extensions.commands": "命令列表",
   // R39 · 命令级开关。开启后该命令可在搜索框内呼出；下方 hint 是区块说明。
-  "settings.extensions.commandsHint": "打开开关后，可在搜索框输入命令名加空格呼出，随后输入的内容即为命令参数。",
+  // R63 · 用户把这个逻辑命名为「直出」：开关打开的是命令的**直出**——命令在搜索界面里
+  // 直接作答，中间不经过终端页。只改文案，所有标识符（pluginCommandSwitches 等）不动。
+  "settings.extensions.commandsHint": "打开开关后即为「直出」：在搜索框输入命令名加空格呼出，随后输入的内容即为命令参数，命令输出直接显示在搜索界面。",
   "settings.extensions.commandTriggers": "呼出词：{words}",
   "settings.extensions.commandEnable": "允许在搜索框呼出 {command}",
   "settings.extensions.commandAlias": "命令别名",
@@ -1649,10 +1660,13 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.customScriptPlaceholder": "编写需要由 Floter 直接运行的脚本",
   "settings.extensions.customEnforcedPermissions": "Floter 强制执行策略",
   "settings.extensions.customDeclaredPermissions": "声明与审计权限",
-  "settings.extensions.customOutput": "输出方式",
+  "settings.extensions.customOutput": "输出：直出",
   "settings.extensions.customOutputTerminal": "在终端中运行",
   "settings.extensions.customOutputBackground": "后台运行",
-  "settings.extensions.customOutputHint": "后台运行不打开终端页，完成后通知结果。",
+  // R63 · 这个区块的「主语」现在有了名字：搜索框呼出的命令一律**直出**，输出直接落进
+  // 搜索界面；下面两个单选项只决定从设置里手动运行时的走向。没有这句话，上面的标签会
+  // 被读成「连搜索框这条路也由它决定」，而事实并非如此。
+  "settings.extensions.customOutputHint": "搜索框呼出的命令一律直出，输出直接显示在搜索界面。这里选择从设置里手动运行时的走向：在终端页运行，或后台运行、完成后通知。",
   "settings.extensions.customParams": "参数",
   "settings.extensions.customParamsHint": "声明该集成接受的输入项；运行时参数值会作为独立 argv 传入。",
   "settings.extensions.customParamAdd": "添加参数",
