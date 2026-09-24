@@ -12,8 +12,7 @@ export type ShortcutAction =
   | "paste"
   | "open_settings"
   | "select_result"
-  | "pin_terminal"
-  | "clipboard_panel";
+  | "pin_terminal";
 
 export type ShortcutMap = Record<ShortcutAction, string>;
 
@@ -40,12 +39,6 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   // are Ctrl+Shift+C/V for copy/paste); verified against DEFAULT_SHORTCUTS and
   // the select_result modifier family.
   pin_terminal: IS_MAC ? "Cmd+Shift+P" : "Ctrl+Shift+P",
-  // R55 · the clipboard panel's trigger is an ordinary member of the map now
-  // (it used to be a separate `clipboard_history_hotkey` field). The default is
-  // the empty string: nothing is registered, and the panel is reached through
-  // launcher search. An empty value is the legitimate disabled state — the same
-  // meaning an empty custom binding would have.
-  clipboard_panel: "",
 };
 
 /** Display order of the shortcuts section. */
@@ -58,7 +51,6 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   "open_settings",
   "select_result",
   "pin_terminal",
-  "clipboard_panel",
 ];
 
 type Modifiers = { ctrl: boolean; alt: boolean; shift: boolean; meta: boolean };

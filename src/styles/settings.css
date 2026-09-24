@@ -546,6 +546,13 @@
   gap: calc(var(--u) * 8);
 }
 
+/* R56 · a custom-shortcut draft that is not finished (no key yet, or a command
+   line still being typed). It stays fully editable — the muting only says the
+   row is not part of the list yet, so the eye knows which halves are set. */
+.settings-row--muted {
+  opacity: 0.62;
+}
+
 .settings-row--stacked .settings-row__control {
   width: 100%;
   margin-inline-start: 0;
@@ -643,6 +650,14 @@
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   line-height: 1.5;
+}
+
+/* R56 · the optional inline entry an empty region leaves itself with (the
+   custom-shortcuts group's "Add the first one"). It sits with the copy, not
+   in a popover: an empty state is a sentence with one way out, never chrome. */
+.settings-empty__action {
+  display: inline-flex;
+  margin-top: calc(var(--u) * 2);
 }
 
 /* ── The blue text action ─────────────────────────────────────────────── */

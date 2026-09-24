@@ -166,9 +166,6 @@ struct AppState {
     /// one in the settings file: a stored binding another app owns falls back to
     /// the default, and the next rebind has to release what was really taken.
     toggle_shortcut: Mutex<String>,
-    /// Same bookkeeping for the clipboard panel's hotkey; owned by the
-    /// clipboard history module.
-    clipboard_shortcut: Mutex<String>,
     /// R55 · the custom global shortcut keys currently held with the OS. Kept
     /// apart from the settings file because the OS may refuse a key another app
     /// owns; only the keys actually registered are tracked here.
@@ -1465,7 +1462,6 @@ pub fn run() {
             tray_items: Mutex::new(None),
             toggle_shortcut: Mutex::new(String::new()),
             custom_shortcuts: Mutex::new(Vec::new()),
-            clipboard_shortcut: Mutex::new(String::new()),
             pending_plugin_open: Mutex::new(None),
             pending_deep_link: Mutex::new(None),
             pending_deep_link_register: Mutex::new(None),
@@ -1691,14 +1687,12 @@ pub fn run() {
                 }
             }
 
-            // Clipboard history monitor + panel hotkey, only when enabled
-            // (the default). Failures inside are logged, never fatal.
+            // Clipboard history monitor, only when enabled (the default).
+            // R56 · there is no panel hotkey to register any more: the panel
+            // is reached through launcher search and `floter clip`. Failures
+            // inside are logged, never fatal.
             #[cfg(feature = "clipboard-history")]
-            clipboard_history::initialize(
-                app.handle(),
-                settings.clipboard_history_enabled,
-                &settings.clipboard_history_hotkey,
-            );
+            clipboard_history::initialize(app.handle(), settings.clipboard_history_enabled);
 
             // R55 · re-claim the user's custom global shortcuts. A key another
             // application has since taken is only logged here — the settings
@@ -1811,7 +1805,6 @@ pub fn run() {
             external_plugin_commands,
             external_plugin_run,
             extensions_cancel_operation,
-            commands::config::update_clipboard_hotkey,
             browser_data::browser_discover,
             browser_data::browser_default_profile,
             browser_data::browser_search_bookmarks,

@@ -243,7 +243,7 @@ static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const SETTINGS_BACKUP_FILE_NAME: &str = "settings.json.backup";
 
-const SHORTCUT_ACTIONS: [&str; 9] = [
+const SHORTCUT_ACTIONS: [&str; 8] = [
     TOGGLE_WINDOW,
     NEW_COMMAND,
     OPEN_EXTERNAL_TERMINAL,
@@ -252,23 +252,11 @@ const SHORTCUT_ACTIONS: [&str; 9] = [
     OPEN_SETTINGS,
     SELECT_RESULT,
     PIN_TERMINAL,
-    CLIPBOARD_PANEL,
 ];
 
 /// Shortcut fallback for the window toggle, which is registered with the OS and
 /// therefore must not collide with the platform's own bindings.
 pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Space";
-
-/// Action id for the clipboard panel hotkey. R55 · it is an ordinary member of
-/// the shortcuts map now (the legacy `clipboard_history_hotkey` field is kept
-/// in sync for older readers and hand-edited files). The action is special in
-/// exactly one way: an empty value is the legitimate "disabled" state.
-pub const CLIPBOARD_PANEL: &str = "clipboard_panel";
-/// The clipboard panel ships with NO global hotkey: nothing is registered on
-/// startup and the panel stays reachable through launcher search and
-/// `floter clip`. Users may bind one in Shortcuts settings; an empty string
-/// here always means "no hotkey".
-pub const DEFAULT_CLIPBOARD_HOTKEY: &str = "";
 
 /// The modifier apps use for their own commands: Cmd on macOS, Ctrl elsewhere.
 #[cfg(target_os = "macos")]
@@ -611,8 +599,6 @@ pub struct AppSettings {
     pub show_recent_in_launcher: bool,
     /// Whether the built-in clipboard history monitor runs (default on).
     pub clipboard_history_enabled: bool,
-    /// Global hotkey that summons the clipboard panel.
-    pub clipboard_history_hotkey: String,
     /// R55 · user-defined global shortcuts. Each entry binds a key the OS
     /// delivers (via the global-shortcut plugin) to a launcher-addressable
     /// action, which the frontend executes silently — or, for a plugin, opens
@@ -735,7 +721,6 @@ impl Default for AppSettings {
             show_commands_in_search: false,
             show_recent_in_launcher: true,
             clipboard_history_enabled: true,
-            clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
             custom_shortcuts: Vec::new(),
             clipboard_history_max_items: DEFAULT_CLIPBOARD_MAX_ITEMS,
             launch_counts: HashMap::new(),
@@ -820,7 +805,6 @@ pub fn default_shortcuts() -> HashMap<String, String> {
                 "Ctrl+Shift+P".to_string()
             },
         ),
-        (CLIPBOARD_PANEL, DEFAULT_CLIPBOARD_HOTKEY.to_string()),
     ]
     .into_iter()
     .map(|(action, shortcut)| (action.to_string(), shortcut))
@@ -832,44 +816,6 @@ pub fn default_shortcuts() -> HashMap<String, String> {
 pub fn resolved_shortcuts(settings: &AppSettings) -> HashMap<String, String> {
     let mut shortcuts = default_shortcuts();
     for action in SHORTCUT_ACTIONS {
-        // R55 · the clipboard panel's map entry is the source of truth; a
-        // settings file that predates the map (or was hand-edited) still has
-        // the value in `clipboard_history_hotkey`, so that field is the
-        // fallback. An empty result is the legitimate disabled state and is
-        // inserted as such (unlike every other action, which skips an invalid
-        // value and keeps its default).
-        if action == CLIPBOARD_PANEL {
-            let from_map = settings
-                .shortcuts
-                .get(action)
-                .cloned()
-                .unwrap_or_default();
-            // R55 migration: a pre-round file has the eight-action map and the
-            // legacy field but no `clipboard_panel` key; a file whose map entry
-            // is empty but whose legacy field is set is the same case seen
-            // through a defaulted map. In both, the legacy field wins. Once the
-            // UI writes the map it keeps both in step, so this never overrides
-            // a deliberate clear (which writes "" to both).
-            let stored = if from_map.trim().is_empty()
-                && !settings.clipboard_history_hotkey.trim().is_empty()
-            {
-                settings.clipboard_history_hotkey.clone()
-            } else {
-                from_map
-            };
-            let normalized = normalize_shortcut(action, &stored)
-                .filter(|normalized| normalized.contains('+'))
-                .unwrap_or_default();
-            if normalized.is_empty() {
-                shortcuts.insert(action.to_string(), normalized);
-            } else {
-                // A hand-edited value that collides with another action is
-                // dropped, exactly as it is for every other action — the
-                // disabled state is the safe fallback.
-                insert_shortcut_if_available(&mut shortcuts, action, normalized);
-            }
-            continue;
-        }
         if let Some(shortcut) = settings.shortcuts.get(action) {
             if let Some(shortcut) = normalize_shortcut(action, shortcut) {
                 insert_shortcut_if_available(&mut shortcuts, action, shortcut);
@@ -1107,17 +1053,6 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         .get(TOGGLE_WINDOW)
         .cloned()
         .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
-    // R55 · the legacy clipboard field mirrors the map's `clipboard_panel`
-    // entry (which `resolved_shortcuts` just normalized from either source). A
-    // hand-edited or unparseable value already fell back to NO hotkey: a bare
-    // key without any modifier would swallow ordinary typing system-wide, so
-    // it does not count as valid. An empty string is the legitimate disabled
-    // state.
-    settings.clipboard_history_hotkey = settings
-        .shortcuts
-        .get(CLIPBOARD_PANEL)
-        .cloned()
-        .unwrap_or_default();
     // R27 · the clipboard capacity. The floor is what makes the setting a
     // *capacity* rather than an off switch (the switch is
     // `clipboard_history_enabled`); the ceiling keeps a hand-edited file from
@@ -1247,9 +1182,6 @@ fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> 
     // registers OS hotkeys as it writes), so a whole-app snapshot must not
     // revert it — the stored list wins, exactly like the clipboard hotkey.
     submitted.custom_shortcuts = stored.custom_shortcuts.clone();
-    // The clipboard hotkey is owned by its dedicated command; a stale frontend
-    // snapshot must not resurrect an older binding.
-    submitted.clipboard_history_hotkey = stored.clipboard_history_hotkey.clone();
     // R27 · the clipboard capacity is owned by the clipboard plugin's own
     // settings page (through `clipboard_set_settings`), the same way the
     // browser plugin's data fields are owned by its page. A whole-app save
@@ -1466,14 +1398,10 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
     // the retitle above so a language change cannot resurrect a hidden icon —
     // `apply_tray_language` only ever writes menu labels.
     crate::apply_tray_visibility(&app, settings.show_menubar_icon);
-    // Keep the monitor and its global hotkey in step with the switch. Both
-    // branches are idempotent, so this is safe on every settings save.
+    // Keep the monitor in step with the switch. Both branches are idempotent,
+    // so this is safe on every settings save.
     #[cfg(feature = "clipboard-history")]
-    crate::clipboard_history::sync_runtime(
-        &app,
-        settings.clipboard_history_enabled,
-        &settings.clipboard_history_hotkey,
-    );
+    crate::clipboard_history::sync_runtime(&app, settings.clipboard_history_enabled);
     Ok(())
 }
 
@@ -1536,12 +1464,6 @@ pub fn reset_shortcuts(app: tauri::AppHandle) -> Result<HashMap<String, String>,
     let mut settings = load_settings();
     settings.hotkey = toggle.clone();
     settings.shortcuts = shortcuts.clone();
-    settings.clipboard_history_hotkey = DEFAULT_CLIPBOARD_HOTKEY.to_string();
-    // The panel hotkey is part of the map now; resetting unregisters it too.
-    #[cfg(feature = "clipboard-history")]
-    if settings.clipboard_history_enabled {
-        crate::clipboard_history::unregister_panel_shortcut(&app);
-    }
     if let Err(error) = write_settings(&settings) {
         let previous = resolved_shortcuts(&load_settings())
             .get(TOGGLE_WINDOW)
@@ -1564,14 +1486,6 @@ pub fn update_shortcut(
     action: String,
     shortcut: String,
 ) -> Result<(), String> {
-    // R55 · the clipboard panel is an ordinary map action now, but its
-    // registration lives with the clipboard monitor rather than with the
-    // toggle. Delegate before taking the settings lock (the dedicated command
-    // takes it itself) so there is exactly one implementation of the
-    // register-before-write contract.
-    if action == CLIPBOARD_PANEL {
-        return update_clipboard_hotkey(app, shortcut);
-    }
     let _guard = settings_lock()?;
     let shortcut =
         normalize_shortcut(&action, &shortcut).ok_or_else(|| "Invalid shortcut".to_string())?;
@@ -1609,86 +1523,6 @@ pub fn update_shortcut(
     Ok(())
 }
 
-/// Rebind the clipboard panel's global hotkey and persist it.
-///
-/// The same contract as `update_shortcut` for the window toggle: the new
-/// combination is claimed from the OS before anything is written, so a
-/// conflict leaves both the file and the live registration untouched. An
-/// empty (or whitespace-only) string unregisters the hotkey and persists the
-/// disabled state — that is how the Shortcuts settings page turns it off.
-#[tauri::command]
-pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<(), String> {
-    let _guard = settings_lock()?;
-    let mut settings = load_settings();
-    let enabled = settings.clipboard_history_enabled;
-    // R55 · the shortcuts map is the source of truth; the legacy
-    // `clipboard_history_hotkey` field only mirrors it for older readers.
-    let previous = resolved_shortcuts(&settings)
-        .get(CLIPBOARD_PANEL)
-        .cloned()
-        .unwrap_or_default();
-
-    if hotkey.trim().is_empty() {
-        if previous.is_empty() {
-            return Ok(());
-        }
-        #[cfg(feature = "clipboard-history")]
-        if enabled {
-            crate::clipboard_history::unregister_panel_shortcut(&app);
-        }
-        settings
-            .shortcuts
-            .insert(CLIPBOARD_PANEL.to_string(), String::new());
-        settings.clipboard_history_hotkey = String::new();
-        #[cfg(feature = "clipboard-history")]
-        if let Err(error) = write_settings(&normalize_settings(settings)) {
-            if enabled {
-                let _ = crate::clipboard_history::rebind_panel_shortcut(&app, &previous);
-            }
-            return Err(error);
-        }
-        #[cfg(not(feature = "clipboard-history"))]
-        if let Err(error) = write_settings(&normalize_settings(settings)) {
-            return Err(error);
-        }
-        return Ok(());
-    }
-
-    let normalized = normalize_shortcut(CLIPBOARD_PANEL, &hotkey)
-        .filter(|normalized| normalized.contains('+'))
-        .ok_or_else(|| "Invalid shortcut".to_string())?;
-
-    if resolved_shortcuts(&settings).iter().any(|(action, existing)| {
-        action != CLIPBOARD_PANEL && shortcut_binding_eq(existing, &normalized)
-    }) {
-        return Err("Shortcut conflicts with another action".to_string());
-    }
-    if previous == normalized {
-        return Ok(());
-    }
-
-    #[cfg(feature = "clipboard-history")]
-    if enabled {
-        crate::clipboard_history::rebind_panel_shortcut(&app, &normalized)?;
-    }
-    settings
-        .shortcuts
-        .insert(CLIPBOARD_PANEL.to_string(), normalized.clone());
-    settings.clipboard_history_hotkey = normalized;
-    #[cfg(feature = "clipboard-history")]
-    if let Err(error) = write_settings(&normalize_settings(settings)) {
-        if enabled {
-            let _ = crate::clipboard_history::rebind_panel_shortcut(&app, &previous);
-        }
-        return Err(error);
-    }
-    #[cfg(not(feature = "clipboard-history"))]
-    if let Err(error) = write_settings(&normalize_settings(settings)) {
-        return Err(error);
-    }
-    Ok(())
-}
-
 /// Replace the user's custom global shortcuts and (re)register them with the
 /// OS.
 ///
@@ -1708,10 +1542,10 @@ pub fn set_custom_shortcuts(
     let normalized = normalize_custom_shortcuts(&list);
     let settings = load_settings();
     // Everything the rest of the app already owns, for the in-app conflict
-    // check. The clipboard panel's empty default is ignored (it is disabled).
+    // check.
     let reserved: Vec<String> = resolved_shortcuts(&settings)
         .into_iter()
-        .filter(|(action, value)| action != CLIPBOARD_PANEL && !value.is_empty())
+        .filter(|(_, value)| !value.is_empty())
         .map(|(_, value)| value)
         .collect();
 
@@ -1803,14 +1637,6 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
         }
         crate::register_toggle_shortcut(&app, &toggle)?;
     }
-    // Recording suspends every global shortcut; put the clipboard panel's back
-    // exactly as the toggle's is above.
-    #[cfg(feature = "clipboard-history")]
-    crate::clipboard_history::sync_runtime(
-        &app,
-        settings.clipboard_history_enabled,
-        &settings.clipboard_history_hotkey,
-    );
     // R55 · `suspend_shortcuts` released the custom keys too (unregister_all);
     // re-claim the ones the settings file holds.
     crate::unregister_custom_shortcuts(&app);
@@ -2366,69 +2192,89 @@ mod tests {
     }
 
     #[test]
-    fn older_settings_enable_clipboard_history_without_a_hotkey() {
+    fn older_settings_enable_clipboard_history() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.clipboard_history_enabled);
-        // The clipboard panel ships with no global hotkey at all — startup
-        // must not register anything, and an empty string means disabled.
-        assert_eq!(settings.clipboard_history_hotkey, DEFAULT_CLIPBOARD_HOTKEY);
-        assert_eq!(DEFAULT_CLIPBOARD_HOTKEY, "");
     }
 
     #[test]
-    fn an_unparseable_clipboard_hotkey_falls_back_to_no_hotkey() {
-        let settings = normalize_settings(AppSettings {
-            clipboard_history_hotkey: "not a shortcut at all".into(),
-            ..AppSettings::default()
-        });
-        assert_eq!(settings.clipboard_history_hotkey, "");
+    fn a_legacy_clipboard_hotkey_field_is_accepted_and_ignored() {
+        // R56 · the field is gone from the shape. An old file that still
+        // carries it must still deserialize (serde ignores unknown keys), and
+        // it must not seed any shortcut: the panel has no global hotkey.
+        let settings: AppSettings = serde_json::from_str(
+            "{\"clipboard_history_hotkey\":\"Ctrl+Alt+B\"}",
+        )
+        .expect("legacy settings deserialize");
+        let shortcuts = resolved_shortcuts(&settings);
+        assert!(!shortcuts.contains_key("clipboard_panel"));
+        assert!(!shortcuts.values().any(|value| value == "Ctrl+Alt+B"));
     }
 
     #[test]
-    fn frontend_snapshots_do_not_resurrect_a_stale_clipboard_hotkey() {
-        let stored = AppSettings {
-            clipboard_history_hotkey: "Ctrl+Alt+B".into(),
-            ..AppSettings::default()
-        };
-        let merged = merge_frontend_settings(AppSettings::default(), &stored);
-        assert_eq!(merged.clipboard_history_hotkey, "Ctrl+Alt+B");
-    }
-
-    // ── R55 · the clipboard panel as a shortcut-map member ────────────────
-
-    #[test]
-    fn the_clipboard_panel_is_a_shortcut_action_with_an_empty_default() {
+    fn the_shortcut_map_no_longer_carries_the_clipboard_panel() {
         let shortcuts = default_shortcuts();
-        assert_eq!(shortcuts.get(CLIPBOARD_PANEL).map(String::as_str), Some(""));
-        // It is part of the same registry, so the frontend's list and the
-        // backend's normalization cannot disagree about the set of actions.
-        assert!(SHORTCUT_ACTIONS.contains(&CLIPBOARD_PANEL));
+        assert_eq!(shortcuts.len(), SHORTCUT_ACTIONS.len());
+        assert!(!shortcuts.contains_key("clipboard_panel"));
+        assert!(!SHORTCUT_ACTIONS.contains(&"clipboard_panel"));
     }
 
     #[test]
-    fn a_legacy_clipboard_hotkey_migrates_into_the_shortcut_map() {
-        // A pre-R55 file has the eight-action map (here, the new default with an
-        // empty `clipboard_panel`) and the value in the legacy field. The legacy
-        // value must win, and both views must agree afterwards.
-        let settings = normalize_settings(AppSettings {
-            clipboard_history_hotkey: "Ctrl+Alt+B".into(),
-            ..AppSettings::default()
-        });
-        assert_eq!(
-            settings.shortcuts.get(CLIPBOARD_PANEL).map(String::as_str),
-            Some("Ctrl+Alt+B")
+    fn a_hand_edited_clipboard_panel_entry_is_dropped() {
+        let mut settings = AppSettings::default();
+        settings
+            .shortcuts
+            .insert("clipboard_panel".to_string(), "Ctrl+Alt+B".to_string());
+        let normalized = normalize_settings(settings);
+        assert!(
+            !normalized.shortcuts.contains_key("clipboard_panel"),
+            "the action is retired; a hand-edited entry must not survive"
         );
-        assert_eq!(settings.clipboard_history_hotkey, "Ctrl+Alt+B");
     }
 
     #[test]
-    fn a_disabled_clipboard_panel_stays_disabled() {
-        let settings = normalize_settings(AppSettings::default());
-        assert_eq!(
-            settings.shortcuts.get(CLIPBOARD_PANEL).map(String::as_str),
-            Some(""),
-            "empty is the legitimate off state, not a fallback"
-        );
+    fn every_remaining_shortcut_action_is_an_ordinary_binding() {
+        // R56 · the map is uniform again: each action resolves to a non-empty
+        // default, so no action carries the old "empty means disabled" meaning.
+        let shortcuts = resolved_shortcuts(&AppSettings::default());
+        for action in SHORTCUT_ACTIONS {
+            assert!(
+                !shortcuts.get(action).map(String::as_str).unwrap_or_default().is_empty(),
+                "{action} must keep a default binding"
+            );
+        }
+    }
+
+    #[test]
+    fn a_frontend_snapshot_cannot_resurrect_the_clipboard_panel() {
+        // R56 · a stale whole-app save carries the resolved map (the frontend's
+        // own eight actions). Even if the *stored* file was hand-edited to
+        // carry a clipboard entry, `merge_frontend_settings` re-resolves the
+        // map from the stored shortcuts, and `resolved_shortcuts` drops the
+        // retired action — so neither side can bring it back.
+        let mut stored = AppSettings::default();
+        stored
+            .shortcuts
+            .insert("clipboard_panel".to_string(), "Ctrl+Alt+B".to_string());
+        let submitted = AppSettings::default();
+        let merged = merge_frontend_settings(submitted, &stored);
+        assert!(!merged.shortcuts.contains_key("clipboard_panel"));
+        assert!(!merged.shortcuts.values().any(|value| value == "Ctrl+Alt+B"));
+    }
+
+    #[test]
+    fn the_stored_map_is_normalized_to_the_eight_actions() {
+        // A hand-edited file with an extra unknown action is normalized down to
+        // exactly the registry the frontend renders.
+        let mut settings = AppSettings::default();
+        settings
+            .shortcuts
+            .insert("some_future_action".to_string(), "Ctrl+Alt+Y".to_string());
+        let normalized = normalize_settings(settings);
+        assert_eq!(normalized.shortcuts.len(), SHORTCUT_ACTIONS.len());
+        for action in SHORTCUT_ACTIONS {
+            assert!(normalized.shortcuts.contains_key(action));
+        }
     }
 
     // ── R55 · custom global shortcuts ────────────────────────────────────

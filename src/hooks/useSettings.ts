@@ -93,9 +93,6 @@ const SETTINGS_DEFAULTS: AppSettings = {
   show_commands_in_search: false,
   show_recent_in_launcher: true,
   clipboard_history_enabled: true,
-  // The clipboard panel ships with NO global hotkey; users may bind one on
-  // the shortcuts settings page.
-  clipboard_history_hotkey: "",
   // R55 · custom global shortcuts: empty by default.
   custom_shortcuts: [],
   // R27 · the shipped capacity, matching `DEFAULT_CLIPBOARD_MAX_ITEMS` in Rust.
@@ -283,7 +280,6 @@ export function useSettings(options: {
           ),
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
-          clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
           custom_shortcuts: normalizeCustomShortcuts(loaded.custom_shortcuts ?? []),
           clipboard_history_max_items: loaded.clipboard_history_max_items ?? 300,
           launch_counts: loaded.launch_counts ?? {},

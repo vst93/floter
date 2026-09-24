@@ -10,10 +10,8 @@
 // App-level wiring shrinks to `const { capture, toggle, ... } =
 // useShortcutCapture({ ... })`.
 //
-// R55 · the clipboard panel is an ordinary action in the map now, so the
-// separate `clipboard_history_hotkey` capture path (and its clear plumbing) is
-// gone: every action — including clearing the clipboard panel — flows through
-// `update_shortcut`.
+// R56 · there is no clear path any more: the only action that ever shipped
+// empty was the clipboard panel, and its global hotkey is gone.
 
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -77,39 +75,6 @@ export function useShortcutCapture(options: {
     setRecordingAction(null);
     invoke("resume_shortcuts").catch(() => undefined);
   }, []);
-
-  // ---- Clear one action's binding ----------------------------------------
-  // R55 · the one action that ships empty is the clipboard panel, so the only
-  // caller is its row's X button. Optimistic like capture: persist "" (the
-  // backend treats it as unregister-and-disable for the clipboard panel) and
-  // roll back on failure. The path is generic — the map owns the meaning.
-  const clearShortcut = useCallback((action: string) => {
-    if (savingRef.current) return;
-    const previous = shortcuts[action as ShortcutAction];
-    if (!previous) return;
-    setSaving(true);
-    settingsHydration.markChanged("shortcuts");
-    setSettings((current) => {
-      const updated = {
-        ...current,
-        shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: "" },
-      };
-      settingsRef.current = updated;
-      return updated;
-    });
-    setRejectedAction(null);
-    invoke("update_shortcut", { action, shortcut: "" }).catch(() => {
-      setSettings((current) => {
-        const rolledBack = {
-          ...current,
-          shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
-        };
-        settingsRef.current = rolledBack;
-        return rolledBack;
-      });
-      setRejectedAction(action);
-    }).finally(() => setSaving(false));
-  }, [setSettings, settingsRef, settingsHydration, shortcuts]);
 
   // ---- Restore defaults ----------------------------------------------------
   const restoreDefaults = useCallback(async () => {
@@ -222,7 +187,6 @@ export function useShortcutCapture(options: {
     toggle,
     cancel,
     capture,
-    clearShortcut,
     restoreDefaults,
     reset,
     rejectedAction,

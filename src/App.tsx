@@ -256,8 +256,6 @@ export type AppSettings = {
   show_recent_in_launcher: boolean;
   /** Whether the built-in clipboard history monitor runs (default on). */
   clipboard_history_enabled: boolean;
-  /** Global hotkey that summons the clipboard panel. */
-  clipboard_history_hotkey: string;
   /** R55 · user-defined global shortcuts (key → launcher action). Owned by
    *  the dedicated `set_custom_shortcuts` command, which registers each key
    *  with the OS; a whole-app save carries the stored list back unchanged. */
@@ -594,13 +592,12 @@ export default function App() {
   // Imperative shortcut recording & capture: the row of the settings page
   // flips between idle / recording / rejected, and an in-flight capture
   // optimistically swaps the binding in `settings.shortcuts` before asking the
-  // backend to take it. R55 · every action, including the clipboard panel's
-  // clear, flows through `settings.shortcuts`.
+  // backend to take it. R56 · the clipboard panel's clear path is gone with
+  // its global hotkey; every remaining action flows through `settings.shortcuts`.
   const {
     toggle: toggleRecording,
     cancel: cancelRecording,
     capture: captureShortcut,
-    clearShortcut,
     restoreDefaults: restoreDefaultShortcuts,
     reset: resetRecording,
     rejectedAction,
@@ -2724,7 +2721,6 @@ export default function App() {
                 onCaptureShortcut={captureShortcut}
                 onCancelRecording={cancelRecording}
                 onRestoreDefaults={() => void restoreDefaultShortcuts()}
-                onClearShortcut={clearShortcut}
                 customShortcuts={settings.custom_shortcuts}
                 onCommitCustomShortcuts={commitCustomShortcuts}
                 customRejections={customRejections}

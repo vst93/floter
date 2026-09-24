@@ -228,6 +228,10 @@ type SettingsEmptyProps = {
   hint?: ReactNode;
   /** An empty state that reports a failure announces itself. */
   alert?: boolean;
+  /** R56 · an optional inline entry the empty state needs to leave itself
+   *  (the custom-shortcuts group's "Add the first one"). Inline by definition:
+   *  an empty region never opens a popover. */
+  action?: ReactNode;
 };
 
 /** PAGES-APPLY · the shared empty state.
@@ -237,7 +241,7 @@ type SettingsEmptyProps = {
  *  empty language (title in `--text-secondary` at weight 580, hint in
  *  `--text-tertiary`) lifted into a primitive so a second page cannot invent a
  *  third one. Presentation only, like the primitives above. */
-export function SettingsEmpty({ icon, title, hint, alert = false }: SettingsEmptyProps) {
+export function SettingsEmpty({ icon, title, hint, alert = false, action }: SettingsEmptyProps) {
   return (
     <div className="settings-empty" role={alert ? "alert" : undefined}>
       {icon !== undefined && (
@@ -246,6 +250,9 @@ export function SettingsEmpty({ icon, title, hint, alert = false }: SettingsEmpt
       <span className="settings-empty__title">{title}</span>
       {hint !== undefined && (
         <span className="settings-empty__hint">{hint}</span>
+      )}
+      {action !== undefined && (
+        <span className="settings-empty__action">{action}</span>
       )}
     </div>
   );

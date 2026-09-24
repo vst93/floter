@@ -10,9 +10,10 @@
 //! ship: Windows CF_HDROP, macOS NSFilenamesPboardType, and Linux X11/Wayland
 //! via `text/uri-list`. No text-sniffing heuristic is involved. Entries are
 //! stored locally under the app data directory, survive restarts, and are
-//! surfaced in a terminal-styled panel summoned from launcher search,
-//! `floter clip`, or an optional global hotkey the user binds in Shortcuts
-//! settings (disabled by default).
+//! surfaced in a terminal-styled panel summoned from launcher search or
+//! `floter clip`. R56 removed the panel's global hotkey entirely: the panel
+//! keeps its own invocation paths, and a settings-hide-only binding would have
+//! been a configuration the UI no longer shows.
 
 pub mod monitor;
 pub mod store;
@@ -23,9 +24,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-
-use crate::AppState;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClipboardEntry {
@@ -480,125 +478,26 @@ pub fn clipboard_thumbnail(
     ))
 }
 
-// ---- Global shortcut plumbing --------------------------------------------
-
-/// Register `shortcut` with the OS as the clipboard panel toggle.
-pub fn register_panel_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> {
-    app.global_shortcut()
-        .on_shortcut(shortcut, move |app_handle, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                toggle_panel(app_handle);
-            }
-        })
-        .map_err(|e| e.to_string())?;
-
-    if let Ok(mut active) = app.state::<AppState>().clipboard_shortcut.lock() {
-        *active = shortcut.to_string();
-    }
-    Ok(())
-}
-
-pub fn unregister_panel_shortcut(app: &AppHandle) {
-    let active = app
-        .state::<AppState>()
-        .clipboard_shortcut
-        .lock()
-        .ok()
-        .map(|value| value.clone())
-        .unwrap_or_default();
-    if !active.is_empty() {
-        let _ = app.global_shortcut().unregister(active.as_str());
-    }
-    if let Ok(mut slot) = app.state::<AppState>().clipboard_shortcut.lock() {
-        slot.clear();
-    }
-}
-
-/// Move the panel hotkey to `next`, restoring the previous binding when the
-/// OS refuses the new one — same contract as [`crate::rebind_toggle_shortcut`].
-pub fn rebind_panel_shortcut(app: &AppHandle, next: &str) -> Result<(), String> {
-    let previous = app
-        .state::<AppState>()
-        .clipboard_shortcut
-        .lock()
-        .ok()
-        .map(|value| value.clone())
-        .unwrap_or_default();
-
-    if !previous.is_empty() {
-        let _ = app.global_shortcut().unregister(previous.as_str());
-    }
-    if let Err(error) = register_panel_shortcut(app, next) {
-        if !previous.is_empty() {
-            let _ = register_panel_shortcut(app, previous.as_str());
-        }
-        return Err(error);
-    }
-    Ok(())
-}
-
-/// Register the hotkey unless it already matches what is live.
-fn ensure_panel_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> {
-    let active = app
-        .state::<AppState>()
-        .clipboard_shortcut
-        .lock()
-        .ok()
-        .map(|value| value.clone())
-        .unwrap_or_default();
-    if active.eq_ignore_ascii_case(shortcut) && app.global_shortcut().is_registered(shortcut) {
-        return Ok(());
-    }
-    if !active.is_empty() && app.global_shortcut().is_registered(active.as_str()) {
-        let _ = app.global_shortcut().unregister(active.as_str());
-    }
-    register_panel_shortcut(app, shortcut)
-}
-
-/// Show the window (revealing it first when hidden) and tell the frontend to
-/// flip its clipboard page. This is now a thin alias over the generic plugin-
-/// page toggle — the hotkey is just another invocation of `floter clip`, and
-/// only differs in that pressing it again while the page is up means "hide".
-fn toggle_panel(app: &AppHandle) {
-    crate::plugin_pages::toggle_plugin_page(app, crate::plugin_pages::CLIPBOARD_PLUGIN_ID);
-}
-
 // ---- Lifecycle ------------------------------------------------------------
 
-/// Called once from the setup hook: start the monitor and register the hotkey
-/// only when the setting says so. An empty hotkey means "no global shortcut"
-/// — nothing is registered and the panel stays reachable through launcher
-/// search and `floter clip`. Failures are logged, never fatal — a system
-/// that refuses the hotkey still gets the monitor.
-pub fn initialize(app: &AppHandle, enabled: bool, hotkey: &str) {
+/// Called once from the setup hook: start the monitor when the setting says
+/// so. The panel has no global hotkey of its own — it stays reachable through
+/// launcher search and `floter clip`, the two invocation paths every platform
+/// can honour.
+pub fn initialize(app: &AppHandle, enabled: bool) {
     if !enabled {
         return;
     }
     monitor::start(app);
-    if hotkey.trim().is_empty() {
-        return;
-    }
-    if let Err(error) = register_panel_shortcut(app, hotkey) {
-        eprintln!("floter: clipboard panel shortcut registration failed: {error}");
-    }
 }
 
-/// Reconcile runtime state (monitor + hotkey) with the settings after any
-/// change. Both branches are idempotent, so callers need not diff first. An
-/// empty hotkey always ends up with no shortcut registered.
-pub fn sync_runtime(app: &AppHandle, enabled: bool, hotkey: &str) {
+/// Reconcile the monitor with the settings after any change. Both branches are
+/// idempotent, so callers need not diff first.
+pub fn sync_runtime(app: &AppHandle, enabled: bool) {
     if enabled {
         monitor::start(app);
-        if hotkey.trim().is_empty() {
-            unregister_panel_shortcut(app);
-            return;
-        }
-        if let Err(error) = ensure_panel_shortcut(app, hotkey) {
-            eprintln!("floter: clipboard panel shortcut registration failed: {error}");
-        }
     } else {
         monitor::stop(app);
-        unregister_panel_shortcut(app);
     }
 }
 
