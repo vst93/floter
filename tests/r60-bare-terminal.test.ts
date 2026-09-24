@@ -8,9 +8,11 @@
 //
 //   1. a `SYSTEM_COMMANDS` row — search 「终端 / term / terminal」 and Enter opens
 //      a blank session (`ensureTerminalSession(null)`), nothing executed;
-//   2. the ⌘-held row — with a query typed on the ordinary search page, holding
-//      the app modifier appends one system row below everything else, and Enter
-//      on it is the same door;
+//   2. the ⌘-held row — on the ordinary search page with an *empty* field,
+//      holding the app modifier appends one system row at the list's end (below
+//      the recents) and preselects it, and Enter on it is the same door. R64
+//      retired the typed-query append (R60's input-state form) and R61's
+//      featured lift; the row now has one placement.
 //   3. the terminal page's inline empty state — the page can be entered with no
 //      session at all, and a blank canvas says nothing.
 //
@@ -172,20 +174,20 @@ test("the union names the action and the row gets a real glyph", async () => {
 // ── 2 · the ⌘-held row ────────────────────────────────────────────────────
 
 test("the held row's visibility is one predicate, and it is what the App reads", () => {
-  // The terms, each with its exclusion. R61 renamed the *answer* to the row's
-  // placement (see the featured test below): a typed query appends it, the empty
-  // page features it, and either way the modifier and the scope gate the row.
-  assert.equal(bareTerminalRowVisible("git", true, null), true, "a query + the modifier shows it");
-  assert.equal(bareTerminalRowVisible("git", false, null), false, "released, it is gone");
-  // R61 · the empty query is no longer a closed door: it features the row above
-  // the recents instead of appending it below the results (the user's second
-  // clarification). The placement predicate distinguishes the two forms.
-  assert.equal(bareTerminalRowVisible("", true, null), true, "the empty query features the row");
+  // The terms, each with its exclusion. R64's single placement (see the R64
+  // suite) is the append: the modifier is held, the ordinary page owns the list,
+  // and the field is empty. A typed query is no longer a door at all — R60's
+  // input-state append was retired by the user (「前面加的按住在列表额外增加终端
+  // 选项的逻辑要去掉」).
+  assert.equal(bareTerminalRowVisible("", true, null), true, "the empty field + the modifier shows it");
   assert.equal(bareTerminalRowVisible("   ", true, null), true, "whitespace is still empty");
-  assert.equal(bareTerminalRowVisible("git", true, "browser"), false, "a plugin scope owns the list");
-  assert.equal(bareTerminalRowVisible("git", true, "clipboard"), false);
-  assert.equal(bareTerminalRowVisible("git", true, "calculator"), false);
-  assert.equal(bareTerminalRowVisible("git", true, "external"), false);
+  assert.equal(bareTerminalRowVisible("git", true, null), false, "a typed query draws no row (R64)");
+  assert.equal(bareTerminalRowVisible("", false, null), false, "released, it is gone");
+  assert.equal(bareTerminalRowVisible("git", false, null), false, "released, it is gone");
+  assert.equal(bareTerminalRowVisible("", true, "browser"), false, "a plugin scope owns the list");
+  assert.equal(bareTerminalRowVisible("", true, "clipboard"), false);
+  assert.equal(bareTerminalRowVisible("", true, "calculator"), false);
+  assert.equal(bareTerminalRowVisible("", true, "external"), false);
 });
 
 test("the modifier is the app's own, platform-normalized", () => {

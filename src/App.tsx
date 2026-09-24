@@ -1380,10 +1380,10 @@ export default function App() {
   // counts it in the window's chrome. There is no second authority to drift
   // from it (R52's rule for the chips row, R58's for the list chrome).
   //
-  // R61 · the predicate names the row's *placement*, not just its existence:
-  // a typed query keeps R60's append below the results, while the empty page
-  // lifts the row above the recents as the featured lead. Both forms are the
-  // same `displayedResults` entry, so the billing stays one source.
+  // R64 · the predicate names the row's one placement: under the held modifier
+  // on the *empty* field the row is the list's last line — after the recents and
+  // any drop group — and a typed query draws nothing at all. It is the same
+  // `displayedResults` entry either way, so the billing stays one source.
   const bareTerminalMode = bareTerminalPlacement(query, appModifierDown, launcherScope);
   const showBareTerminalRow = bareTerminalMode !== null;
   const displayedResults = useMemo(() => {
@@ -1392,13 +1392,11 @@ export default function App() {
       : fileRows.length
         ? [...fileRows, ...launcherResults]
         : launcherResults;
-    // R61 · the empty page's form: above everything, the recents heading and
-    // its rows included.
-    if (bareTerminalMode === "featured") return [bareTerminalRow(t, true), ...base];
-    // The append form is R60's, verbatim: after the query's own results and any
-    // drop group, so it is the list's last line, where 「底部的终端执行项」 sits.
+    // The append is R60's, verbatim, and is now the row's only position: after
+    // the recents (or a drop group) and the query's own results, so it is the
+    // list's last line, where 「底部的终端执行项」 sits.
     return showBareTerminalRow ? [...base, bareTerminalRow(t)] : base;
-  }, [bareTerminalMode, showBareTerminalRow, fileRows, launcherResults, launcherScope, t]);
+  }, [showBareTerminalRow, fileRows, launcherResults, launcherScope, t]);
 
   // While the selection is on a file row the action bar describes that file's
   // three actions rather than the generic shell fallback. A file row's bar is
@@ -1879,35 +1877,38 @@ export default function App() {
     });
   }, [displayedResults.length]);
 
-  // R61 · the featured row's preselection.
+  // R64 · the held row's preselection.
   //
-  // On a typed query the modifier keydown already hands the selection to the
-  // action bar (`useLauncherActions`), which is R60's behaviour and stays. The
-  // empty page has no bar (`actionBar` is null for an empty query), so this is
-  // the one place that answers the modifier there: on the *press edge* the
-  // featured row — the list's first entry, which the placement above put there —
-  // becomes the selection, so Enter reaches the bare shell without a second
-  // key. The arrows can leave it and return like any other row (they run over
-  // `displayedResults`), and on the *release edge* the row is gone and the
-  // empty page's own default selection comes back.
-  const featuredBareTerminal = bareTerminalMode === "featured";
-  const featuredWasShown = useRef(false);
+  // On a typed query the modifier keydown hands the selection to the action bar
+  // (`useLauncherActions`), which is R60's behaviour and stays. The empty page
+  // has no bar (`actionBar` is null for an empty query), so this is the one
+  // place that answers the modifier there: on the *press edge* the held row —
+  // the list's **last** entry, which the placement above appended — becomes the
+  // selection, so Enter reaches the bare shell without a second key. The arrows
+  // can leave it and return like any other row (they run over
+  // `displayedResults`), and on the *release edge* the row is gone and the empty
+  // page's own default selection comes back.
+  const heldBareTerminal = bareTerminalMode !== null;
+  const heldBareTerminalWasShown = useRef(false);
+  const displayedResultsLength = displayedResults.length;
   useEffect(() => {
-    const wasShown = featuredWasShown.current;
-    featuredWasShown.current = featuredBareTerminal;
-    if (featuredBareTerminal === wasShown) return;
+    const wasShown = heldBareTerminalWasShown.current;
+    heldBareTerminalWasShown.current = heldBareTerminal;
+    if (heldBareTerminal === wasShown) return;
     // The drop owns the empty page's selection while it is still the query's own
     // empty string (the rule the default-selection effect above follows).
     const dropped = fileRows.length;
     if (!query.trim() && dropped) return;
-    if (featuredBareTerminal) {
+    if (heldBareTerminal) {
+      // The row is the list's last line, so its index is the last one. The
+      // length above is this commit's — the one the placement appended to.
       setSelectedActionBar(false);
-      setSelectedResultIndex(0);
+      setSelectedResultIndex(displayedResultsLength - 1);
     } else {
       setSelectedResultIndex(firstRunnableResultIndex < 0 ? 0 : dropped + firstRunnableResultIndex);
       setSelectedActionBar(defaultsToActionBar);
     }
-  }, [featuredBareTerminal, defaultsToActionBar, fileRows.length, firstRunnableResultIndex, query]);
+  }, [heldBareTerminal, displayedResultsLength, defaultsToActionBar, fileRows.length, firstRunnableResultIndex, query]);
 
   // R25/R34 · the launcher window is a **slab whose height is the row count**:
   // the ten-row budget is the tallest, and shorter content is exactly as tall

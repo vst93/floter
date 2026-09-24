@@ -1150,37 +1150,6 @@
   box-shadow: inset 0 0 0 1px var(--accent-edge);
 }
 
-/* R61 · the featured lead: the ⌘-held bare-terminal row on the empty page.
-
-   R60 drew that row as an ordinary result — it *was* one, appended under a
-   typed query, and the appended form keeps that exactly. R61's empty-page form
-   is the one the user asked to be 「特殊显示」: the same `system` row, lifted
-   above the recents, marked by emphasis rather than by a new object.
-
-   The mark is a 2u accent rule down the row's leading edge plus the accent on
-   its glyph. There is deliberately **no fill** — HIG's accent budget counts a
-   filled control, and `.launcher-result--selected` already spends the slot the
-   featured row most often holds (it is preselected). So the surface stays the
-   panel's; the accent is an edge and an icon, the two "marks" the budget does
-   not count. Everything here is an existing token scaled by `--u` (R46): no new
-   variable, and nothing floats — the row is a grid item in the list, exactly as
-   the appended one is. */
-.launcher-result--featured {
-  box-shadow: inset calc(var(--u) * 2) 0 0 var(--accent);
-}
-
-/* Preselected (the ordinary case): the accent edge and the selection's keyline
-   are one ring, not two declarations fighting over `box-shadow`. */
-.launcher-result--featured.launcher-result--selected {
-  box-shadow:
-    inset calc(var(--u) * 2) 0 0 var(--accent),
-    inset 0 0 0 1px var(--accent-edge);
-}
-
-.launcher-result--featured .launcher-result__icon {
-  color: var(--accent);
-}
-
 /* R12 · A row with nothing to say on a second line prints its title alone.
    The two-line stack reserved a line's worth of height for a word the row no
    longer repeats (see `row-content.ts`), which left the list reading as a

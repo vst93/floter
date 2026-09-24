@@ -77,12 +77,6 @@ export type LauncherItem =
        *  switched off). Rendered dimmed and skipped by Enter, the numbered
        *  shortcuts and the pointer, like a disabled browser row. */
       disabled?: boolean;
-      /** R61 · the ⌘-held bare-terminal row on the empty page. It is the same
-       *  `system` row R60 appends to a typed query, lifted above the recents
-       *  and drawn in the featured treatment
-       *  (`.launcher-result--featured`) — an accent edge and an accent glyph,
-       *  never a fill. Absent for every other row, and for the appended form. */
-      featured?: boolean;
     }
   /**
    * R30 · a plugin's status line — "tabs are unavailable", "nothing copied
@@ -624,15 +618,10 @@ export function LauncherResults({
     };
   }, [visibleImageIds]);
 
-  // R61 · the featured lead: the ⌘-held bare-terminal row sits at the top of the
-  // empty page (the App prepends it through `bareTerminalPlacement`). The
-  // 「最近启动」 heading belongs to the recents block *under* it, so when the row
-  // leads, the heading moves to just above the first recent row instead of the
-  // top of the list. The heading is the same one element either way — the grid
-  // still has one extra item and therefore the same number of 1px gaps, so the
-  // window accounting (`launcherRowChrome`) does not move.
-  const featuredLead =
-    results.length > 0 && results[0].type === "system" && results[0].featured === true;
+  // R64 · the ⌘-held bare-terminal row is appended to the list's end by the App
+  // (`bareTerminalPlacement`), below the recents block and its 「最近启动」
+  // heading, as an ordinary system row. The heading therefore always sits at the
+  // top of the empty page, exactly as it did before R61.
 
   // The container stays mounted even with nothing to show. Returning `null`
   // here used to unmount and rebuild every row on the keystroke that emptied
@@ -661,7 +650,7 @@ export function LauncherResults({
             if (remaining <= PLUGIN_LOAD_MORE_THRESHOLD) onLoadMore();
           }}
         >
-          {showRecentTitle && !featuredLead && (
+          {showRecentTitle && (
             <div
               className="launcher-section-title"
               role="presentation"
@@ -765,15 +754,6 @@ export function LauncherResults({
               );
             return (
               <Fragment key={item.id}>
-                {showRecentTitle && featuredLead && index === 1 && (
-                  <div
-                    className="launcher-section-title"
-                    role="presentation"
-                    title={t("launcher.recentHint")}
-                  >
-                    {t("launcher.recent")}
-                  </div>
-                )}
                 {historySectionStartsHere && (
                   <div
                     className="launcher-section-title"
@@ -813,7 +793,7 @@ export function LauncherResults({
                     unavailable ? " launcher-result--unavailable" : ""
                   }${isHistory ? " launcher-result--history" : ""}${
                     compact ? " launcher-result--compact" : ""
-                  }${item.type === "system" && item.featured ? " launcher-result--featured" : ""}`}
+                  }`}
                   role="option"
                   aria-selected={selected}
                   aria-disabled={unavailable}
