@@ -172,11 +172,16 @@ test("the union names the action and the row gets a real glyph", async () => {
 // ── 2 · the ⌘-held row ────────────────────────────────────────────────────
 
 test("the held row's visibility is one predicate, and it is what the App reads", () => {
-  // The three terms, each with its exclusion.
+  // The terms, each with its exclusion. R61 renamed the *answer* to the row's
+  // placement (see the featured test below): a typed query appends it, the empty
+  // page features it, and either way the modifier and the scope gate the row.
   assert.equal(bareTerminalRowVisible("git", true, null), true, "a query + the modifier shows it");
   assert.equal(bareTerminalRowVisible("git", false, null), false, "released, it is gone");
-  assert.equal(bareTerminalRowVisible("", true, null), false, "the empty query is the front door");
-  assert.equal(bareTerminalRowVisible("   ", true, null), false, "whitespace is still empty");
+  // R61 · the empty query is no longer a closed door: it features the row above
+  // the recents instead of appending it below the results (the user's second
+  // clarification). The placement predicate distinguishes the two forms.
+  assert.equal(bareTerminalRowVisible("", true, null), true, "the empty query features the row");
+  assert.equal(bareTerminalRowVisible("   ", true, null), true, "whitespace is still empty");
   assert.equal(bareTerminalRowVisible("git", true, "browser"), false, "a plugin scope owns the list");
   assert.equal(bareTerminalRowVisible("git", true, "clipboard"), false);
   assert.equal(bareTerminalRowVisible("git", true, "calculator"), false);
@@ -217,8 +222,13 @@ test("the App appends the row through the predicate and bills it as a row", asyn
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(
     app,
-    /const showBareTerminalRow = bareTerminalRowVisible\(query, appModifierDown, launcherScope\);/,
+    /const bareTerminalMode = bareTerminalPlacement\(query, appModifierDown, launcherScope\);/,
     "the one predicate is computed from the field, the modifier and the scope",
+  );
+  assert.match(
+    app,
+    /const showBareTerminalRow = bareTerminalMode !== null;/,
+    "and its drawn form is derived, never a second predicate",
   );
   assert.match(
     app,
