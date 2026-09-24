@@ -34,18 +34,38 @@ export const normalizeFontSize = (value: number): number =>
 
 // ---- Line height ---------------------------------------------------------
 //
-// A multiple of the font size, 1.0–2.0 in 0.05 steps. `render.ts` already
-// consumed a `lineHeight` option; R42 makes it user-owned. The floor is the
-// shipped 1.0 (a face's ink floor still wins inside `measureCell`, so a tight
-// multiple can never clip a descender), the ceiling is a genuinely airy 2.0.
+// A multiple of the font size, 0.5–2.0 in 0.05 steps. `render.ts` already
+// consumed a `lineHeight` option; R42 makes it user-owned.
+//
+// R42's floor was 1.0; R54 lowers it to 0.5 because the user asked for a
+// tighter row than 1.0 can give (「行距需要增加小于 1 的选择，比如到最小 0.5」).
+// The floor is *not* the clip guard — `measureCell` still computes the face's
+// own ink floor (`fontBoundingBoxAscent + fontBoundingBoxDescent + 1px`) and
+// takes the max of it and `ceil(fontSize * multiple)`, so a multiple below what
+// the ink needs simply saturates at the ink floor instead of slicing a
+// descender. Measured on the engine the app actually ships (WebKitGTK 2.52.3,
+// where the default stack resolves to DejaVu Sans Mono): at the default 14px
+// the ink floor is 17px, i.e. *every* multiple from 0.50 through 1.20 paints
+// the same 17px row — 0.5 is safe by construction, it just cannot go tighter.
+// The one path where the guard is inert is a face the platform cannot resolve
+// (WebKit reports `fontBoundingBox*` as 0 for a generic/fallback match, so the
+// floor collapses to its 1px minimum); there a sub-1.0 multiple really does
+// overlap rows — exactly as the shipped 1.0 already did, since that path's ink
+// is ~1.36em. See the R54 report for the full table.
+//
+// The default moves 1.4 → 1.2. At the default 14px that is 17px rows: the
+// tightest multiple the default face can take without the ink floor having to
+// save it (the floor is exactly 17px), so the new default is a real 3px
+// tightening *and* a descender-safe one. A persisted 1.4 stays 1.4 — explicit
+// values are respected and 1.4 is still a legal step, so no migration runs.
 
-export const MIN_LINE_HEIGHT = 1;
+export const MIN_LINE_HEIGHT = 0.5;
 export const MAX_LINE_HEIGHT = 2;
 export const LINE_HEIGHT_STEP = 0.05;
-export const DEFAULT_LINE_HEIGHT = 1.4;
+export const DEFAULT_LINE_HEIGHT = 1.2;
 
-/** Snap to the 0.05 grid by scaling to twentieths, so 1.4 survives as 1.4
- *  rather than as the `1.4000000000000001` a `* 0.05` would produce. */
+/** Snap to the 0.05 grid by scaling to twentieths, so 1.2 survives as 1.2
+ *  rather than as the `1.2000000000000002` a `* 0.05` would produce. */
 export const normalizeLineHeight = (value: number): number => {
   const raw = Number.isFinite(value) ? value : DEFAULT_LINE_HEIGHT;
   const clamped = Math.min(MAX_LINE_HEIGHT, Math.max(MIN_LINE_HEIGHT, raw));
@@ -188,6 +208,18 @@ export const TERMINAL_PALETTES: Record<Exclude<TerminalTheme, "inherit">, Termin
  *  string). Pure and total. */
 export const packedHex = (packed: number): string =>
   `#${(packed & 0xffffff).toString(16).padStart(6, "0")}`;
+
+/** The *base colour* the canvas paints its whole rect in, as a CSS string.
+ *
+ *  `inherit` defers to the document token (`--terminal-bg`), which base.css
+ *  maps per app theme; an override names its packed colour. R54 · the copy
+ *  notice's idle row has to *be* the canvas's bottom inset rather than a band
+ *  of its own, so it paints this through the same alpha the renderer uses
+ *  (`canvasFill`) — one table, read by the canvas, the preview and that row. */
+export const terminalCanvasFill = (theme: string): string => {
+  const resolved = normalizeTerminalTheme(theme);
+  return resolved === "inherit" ? "var(--terminal-bg)" : packedHex(TERMINAL_PALETTES[resolved].bg);
+};
 
 // ---- Cursor --------------------------------------------------------------
 

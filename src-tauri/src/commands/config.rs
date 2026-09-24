@@ -66,9 +66,9 @@ const MAX_FONT_SIZE: u32 = 48;
 // The line height is a multiple of the font size; the padding is one of three
 // named steps whose pixel values live in the frontend (the backend only has to
 // keep the id legal).
-const MIN_LINE_HEIGHT: f64 = 1.0;
+const MIN_LINE_HEIGHT: f64 = 0.5;
 const MAX_LINE_HEIGHT: f64 = 2.0;
-const DEFAULT_LINE_HEIGHT: f64 = 1.4;
+const DEFAULT_LINE_HEIGHT: f64 = 1.2;
 const DEFAULT_TERMINAL_PADDING: &str = "regular";
 const TERMINAL_PADDINGS: [&str; 3] = ["compact", "regular", "relaxed"];
 const DEFAULT_TERMINAL_THEME: &str = "inherit";
@@ -176,7 +176,7 @@ pub fn default_true() -> bool {
 }
 
 /// R42 · the terminal's line-height multiple. `#[serde(default = ...)]` keeps a
-/// settings file written before this key existing at the shipped 1.4 rather
+/// settings file written before this key existing at the shipped 1.2 rather
 /// than at `f64::default()` (`0.0`, which would collapse every row).
 pub fn default_terminal_line_height() -> f64 {
     DEFAULT_LINE_HEIGHT
@@ -514,8 +514,8 @@ pub struct AppSettings {
     pub font_family: String,
     /// Default cursor shape: "beam" | "block" | "underline".
     pub cursor_shape: String,
-    /// R42 · the terminal's line-height multiple (1.0–2.0, default 1.4). The
-    /// renderer clamps it too; this is the persisted, hand-edit-proof copy.
+    /// R42 · the terminal's line-height multiple (R54: 0.5–2.0, default 1.2).
+    /// The renderer clamps it too; this is the persisted, hand-edit-proof copy.
     #[serde(default = "default_terminal_line_height")]
     pub terminal_line_height: f64,
     /// R42 · the canvas's inner inset as a named step: "compact" | "regular"
@@ -976,7 +976,7 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         settings.font_family = settings.font_family.trim().to_string();
     }
     // R42 · the terminal's appearance. A non-finite or out-of-range line height
-    // falls back to the shipped 1.4 (the renderer would clamp anyway, but the
+    // falls back to the shipped 1.2 (the renderer would clamp anyway, but the
     // stored value has to be sane too); an unknown padding step or palette
     // falls back to the shipped one rather than to whichever variant happens
     // to sort first.
@@ -2561,6 +2561,16 @@ mod tests {
         });
         assert_eq!(nan.terminal_line_height, DEFAULT_LINE_HEIGHT);
 
+        // R54 · a sub-1.0 multiple is a legitimate value, not a mistake: 0.6
+        // has to come back as 0.6 rather than being lifted to the old 1.0
+        // floor. (Nothing clamps it up at rest — the renderer's ink floor is
+        // what decides how tight a row may actually paint.)
+        let tight = normalize_settings(AppSettings {
+            terminal_line_height: 0.6,
+            ..AppSettings::default()
+        });
+        assert_eq!(tight.terminal_line_height, 0.6);
+
         // The legitimate ids survive untouched.
         let kept = normalize_settings(AppSettings {
             terminal_line_height: 1.65,
@@ -2579,7 +2589,7 @@ mod tests {
 
     /// R42 · a settings file written before the keys existed must come back as
     /// the shipped behaviour: a blinking cursor, a visible scrollbar, the
-    /// inherited palette and the 1.4 line height — never `Default::default()`,
+    /// inherited palette and the 1.2 line height — never `Default::default()`,
     /// which would turn the first two off and collapse the rows.
     ///
     /// R43 extends the same contract to the four interaction axes.

@@ -211,24 +211,81 @@
    `--terminal-status-height`, so the canvas above it keeps its exact size and
    the PTY is never resized by a copy; only the text's opacity moves, and the
    text is dropped entirely once the fade has run. Muted type, no accent, no
-   radius, no shadow — it is a status line, not a control. */
+   radius, no shadow — it is a status line, not a control.
+
+   R54 · the row's *paint* is phase-owned now. While idle it draws nothing of
+   its own: the `::before` below paints the canvas's own colour at the canvas's
+   own alpha, so the reserved 20px is the terminal's bottom inset rather than a
+   blank bar with a hairline — which is what the user read as「没打开配置时仍有
+   一行空白 div」. The fill and the hairline move to the phases that actually
+   have something to say. The reservation itself is untouched, so the R44
+   contract (a copy never resizes the canvas/PTY) still holds. */
 .terminal-copy-notice {
+  position: relative;
   flex: 0 0 auto;
   height: var(--terminal-status-height);
   display: flex;
   align-items: center;
   padding: 0 12px;
-  border-top: 1px solid var(--glass-control-edge);
-  background: var(--glass-control);
   color: var(--text-muted);
   font-size: var(--text-caption);
   line-height: 1;
+  /* Idle by default: the row draws no pane of its own (the `::before` below
+     paints the canvas's inset) — but it keeps the 1px edge *box* either way,
+     so the two states have the same content box and nothing reflows when a
+     phase flips. The pane cross-fades with the message instead of popping
+     off at the end of the fade (see the phase rules). */
+  border-top: 1px solid transparent;
+  background: transparent;
+  transition: background-color var(--dur-3) ease, border-color var(--dur-3) ease;
   /* Nothing here is interactive: the canvas behind the panel keeps every
      pointer event. */
   pointer-events: none;
 }
 
+/* The canvas inset: the row's own bottom 20px, and nothing more. `--terminal-canvas-fill`
+   is set on the row by App.tsx from the shared palette table (`inherit` =
+   `var(--terminal-bg)`), and the alpha is the renderer's own frame alpha
+   (`canvasFill`, mirrored here in plain CSS: the transparency slider clamped
+   to the near-solid top and lifted only by the accessibility floor). Both the
+   colour and the alpha have to match the bitmap, because the bitmap's
+   translucent fill is composited over exactly the same glass this row sits
+   on — that is what makes the reserved row invisible instead of a band.
+
+   The inset is always mounted (so its opacity can transition); a live phase
+   fades it out and fades the pane in, and the strip then arrives and leaves
+   without a step.
+
+   The negative top inset is the row's own 1px edge: an absolutely positioned
+   child is laid out against its parent's *padding* box, so `inset: 0` would
+   leave the border strip showing the bare glass — a 1px lighter hairline
+   above the reserved row, which is exactly the kind of seam this rule exists
+   to remove. Reaching one pixel up covers the row's whole 20px, flush with
+   the canvas's last row. */
+.terminal-copy-notice::before {
+  content: "";
+  position: absolute;
+  inset: -1px 0 0 0;
+  background: var(--terminal-canvas-fill, var(--terminal-bg));
+  opacity: clamp(var(--glass-frame-floor, 0), var(--terminal-opacity, 0.46), var(--glass-solid-top, 0.98));
+  transition: opacity var(--dur-3) ease;
+}
+
+/* A live message owns the row: the pane's material and the hairline that
+   separates it from the canvas. */
+.terminal-copy-notice[data-phase="visible"],
+.terminal-copy-notice[data-phase="fade"] {
+  border-top-color: var(--glass-control-edge);
+  background-color: var(--glass-control);
+}
+
+.terminal-copy-notice[data-phase="visible"]::before,
+.terminal-copy-notice[data-phase="fade"]::before {
+  opacity: 0;
+}
+
 .terminal-copy-notice__text {
+  position: relative;
   opacity: 0;
   transition: opacity var(--dur-2) ease;
 }
@@ -1145,6 +1202,25 @@
   padding: 10px 12px;
   border-top: 1px solid var(--glass-control-edge);
   background: var(--glass-control);
+  /* R54 · the module carries its own close control on the right, so the grid
+     takes the remaining width instead of the full one. `align-items:
+     flex-start` keeps that control on the drawer's top line (the card's
+     top-right close position) however many rows the grid wraps to. */
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.terminal-settings-drawer > .terminal-settings {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The drawer's own dismiss: the bar's icon-button, in the corner a card's
+   close button lives in. Same glyph, same size and same 28px hit region as
+   the gear/X that opened the drawer — one control vocabulary, two entries. */
+.terminal-settings-drawer__close {
+  flex: none;
 }
 
 .terminal-settings {

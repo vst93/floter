@@ -66,6 +66,8 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // every build before this round shipped — 1.4 line height, 3px padding
   // (`regular`), a blinking cursor, the inherited palette and a visible
   // scrollbar — so a pre-round settings file renders pixel-identically.
+  // R54 moves only the line height (1.2, the tightest descender-safe row for
+  // the default face); the other five keep their shipped values.
   terminal_line_height: DEFAULT_LINE_HEIGHT,
   terminal_padding: DEFAULT_TERMINAL_PADDING,
   terminal_cursor_blink: DEFAULT_CURSOR_BLINK,

@@ -80,7 +80,7 @@ import {
 import { type SettingsPage } from "./settings-persistence";
 import { GeneralPage, normalizeFontSize } from "./settings/GeneralPage";
 import { TerminalAppearanceSettings } from "./settings/TerminalAppearance";
-import { normalizeCursorShape, terminalPaddingPx } from "./terminal/terminal-appearance";
+import { normalizeCursorShape, terminalCanvasFill, terminalPaddingPx } from "./terminal/terminal-appearance";
 import { clampWindowOpacity } from "./glass-material";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -3460,12 +3460,19 @@ export default function App() {
                 overlays) and never a row that grows with the message: it is
                 always in the layout at one fixed height, and only the text's
                 opacity moves. The PTY therefore never sees a resize because of
-                a copy, and the terminal can never jump while it is read. */}
+                a copy, and the terminal can never jump while it is read.
+
+                R54 · while idle the row *is* the canvas's bottom inset: its
+                `::before` paints the canvas's own colour at the canvas's own
+                alpha, so the reserved 20px can never read as an empty div of
+                its own — the user's「没打开配置时仍显示一行空白 div」. The
+                reservation and the state machine are untouched. */}
             <div
               className="terminal-copy-notice"
               data-phase={copyNotice.phase}
               role="status"
               aria-live="polite"
+              style={{ "--terminal-canvas-fill": terminalCanvasFill(settings.terminal_theme) } as React.CSSProperties}
             >
               {copyNotice.message && (
                 <span className="terminal-copy-notice__text">{t(copyNotice.message)}</span>
@@ -3511,7 +3518,14 @@ export default function App() {
                 ResizeObserver relayouts and resizes the PTY), while the frame
                 and the session's scrollback are untouched: the panel is a
                 sibling of the mount, not a replacement for it, so the running
-                session is never reset. */}
+                session is never reset.
+
+                R54 · the drawer carries its own close control, in the top-right
+                corner a card's close button lives in — the same
+                `.toolbar-button` the bar's gear/X uses, so the module can be
+                dismissed from where it opened or from itself. Both entries run
+                the same `terminalSettingsOpen` toggle; the state machine is
+                unchanged. */}
             {terminalSettingsOpen && (
               <div
                 className="terminal-settings-drawer"
@@ -3526,6 +3540,15 @@ export default function App() {
                   onChangeLineHeight={changeTerminalLineHeight}
                   onChange={changeGeneralSetting}
                 />
+                <button
+                  type="button"
+                  className="toolbar-button terminal-settings-drawer__close"
+                  aria-label={t("terminal.settingsClose")}
+                  title={t("terminal.settingsClose")}
+                  onClick={() => setTerminalSettingsOpen(false)}
+                >
+                  <X size={15} strokeWidth={1.8} aria-hidden="true" />
+                </button>
               </div>
             )}
           </div>

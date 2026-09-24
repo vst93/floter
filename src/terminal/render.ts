@@ -267,9 +267,21 @@ export class TerminalCanvas {
     // Several of the monospace faces that Linux actually ships (DejaVu Sans
     // Mono among them) have ascent + descent well over 1em, so at tighter line
     // heights that assumption clips descenders and stacked diacritics. The
-    // face's own bounding box is the true floor. The line-height setting still
-    // decides the row height whenever it asks for more than the ink needs,
-    // which is the case for the default 1.4 on every platform.
+    // face's own bounding box is the true floor.
+    //
+    // R54 measured this on the engine the app ships (WebKitGTK 2.52.3, the
+    // default stack resolving to DejaVu Sans Mono): at the default 14px the
+    // floor is 17px, so `ceil(14 * multiple)` loses to it for every multiple
+    // below ~1.21 — 0.5 through 1.20 all paint the same 17px row and the new
+    // 1.2 default sits exactly on the floor. Two limits worth knowing:
+    //   • WebKit reports `fontBoundingBox*` as 0 — finite, so the guard below
+    //     keeps `inkFloor = 1` — when the family is a *generic* match or an
+    //     unresolved fallback; on that path the ink floor is inert and a
+    //     sub-1.0 multiple really does overlap rows (as the old 1.0 floor
+    //     already did there, its ink being ~1.36em).
+    //   • `emHeight*` is 0 on the same path, so it is no better a fallback.
+    // The line-height setting still decides the row height whenever it asks
+    // for more than the ink needs, which is the case above ~1.21 at 14px.
     const ink = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
     const inkFloor = Number.isFinite(ink) ? Math.ceil(ink) + CELL_INK_PADDING : 0;
     this.cellHeight = Math.max(

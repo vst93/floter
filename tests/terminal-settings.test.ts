@@ -64,7 +64,7 @@ const stripJsComments = (source: string) =>
 
 // ── 1 · the domain ─────────────────────────────────────────────────────────
 
-test("line height snaps to the 0.05 grid inside 1.0–2.0", () => {
+test("line height snaps to the 0.05 grid inside 0.5–2.0", () => {
   assert.equal(normalizeLineHeight(1.4), 1.4, "the shipped value survives exactly");
   assert.equal(normalizeLineHeight(1.37), 1.35, "an off-grid value snaps to the nearest step");
   assert.equal(normalizeLineHeight(1.38), 1.4);
@@ -267,9 +267,9 @@ test("the Rust and TypeScript domains are the same table", async () => {
   for (const id of Object.keys(TERMINAL_PADDING_STEPS)) {
     assert.match(rust, new RegExp(`"${id}"`), `Rust must know the padding step ${id}`);
   }
-  assert.match(rust, /const MIN_LINE_HEIGHT: f64 = 1\.0;/);
+  assert.match(rust, /const MIN_LINE_HEIGHT: f64 = 0\.5;/);
   assert.match(rust, /const MAX_LINE_HEIGHT: f64 = 2\.0;/);
-  assert.match(rust, /const DEFAULT_LINE_HEIGHT: f64 = 1\.4;/);
+  assert.match(rust, /const DEFAULT_LINE_HEIGHT: f64 = 1\.2;/);
 });
 
 test("the cursor shape is applied live, not only at spawn", async () => {
