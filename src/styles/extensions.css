@@ -476,12 +476,17 @@
   display: block;
 }
 
-/* One framed action bar: create/connect cluster on the left, transfer
-   two zones instead of a flat strip of equal-weight buttons (G-24).
+/* One framed action bar: the authoring cluster on the left, transfer two
+   zones instead of a flat strip of equal-weight buttons (G-24).
 
    R7-3b moved the transfer pair and the blank create form into the menu, so
-   the row no longer wraps on a narrow window: two controls and one divider
-   fit the settings column at every width. */
+   the row no longer wrapped on a narrow window. R49 brought the blank create
+   form back: the row is two labelled pills plus the menu trigger, which still
+   clears the settings column by ≥64px at the widest measured font stack and
+   step, and by ≥124px at the shipped default — the full budget table lives on
+   `overflowItems` in `ExtensionsPanel.tsx`. The transfer pair stays inside
+   the menu: all four pills in one row wrap onto a second line from the
+   *default* step up, on every measured stack. */
 .extensions-sync-toolbar {
   display: flex;
   flex-wrap: wrap;

@@ -2061,26 +2061,57 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
   // The judgement per action, from the surface's own text:
   //   * Connect extension package — works on a manifest that already exists,
   //     i.e. the whole job with no authoring. It is the row's primary action.
-  //   * Create custom — a blank authoring form. Every real custom integration
-  //     starts from something on PATH, and the Detected section (R7-3a) now
-  //     opens this same form prefilled from a detection, so the blank toolbar
-  //     entry is the low-frequency duplicate. Kept, in the menu.
   //   * Export / Import — whole-collection file transfer, deliberately the
   //     rarest pair on the page ("Import and export a local JSON file"), and
   //     the only two whose captions were pure explanation. Kept, in the menu,
   //     with that one sentence as the menu's note instead of two standing
   //     caption lines.
   //
-  // Nothing is deleted: all four actions are still one click (or one
-  // keystroke) away, and the row itself drops to two controls.
+  // R49 · the blank create form came back out of the menu.
+  //
+  // R7-3b kept "Create custom" in the menu because a custom integration
+  // usually starts from a Detected row's prefill (R7-3a). The user's verdict
+  // on that — 「"创建自定义"这种按钮还是很常见或者很重要的」 — is the stronger
+  // reading of the surface: it is the row's only *authoring* entry (the other
+  // three consume a package or a whole collection), the empty state and the
+  // Detected group both point at it, and a blank form is a low-frequency
+  // *duplicate* only for someone who happens to have a detection to prefill
+  // from. It is now the leading group's secondary action, next to Connect.
+  //
+  // Width is what keeps the transfer pair where it is, and the numbers are
+  // the reason, not taste. The row's content box is 502.6px at the shipped
+  // default step (720px window − 148px sidebar − 36u page padding − 10px
+  // scrollbar) and 495.4px at `large`. Measured in the app's own CSS, in a
+  // browser, for the three stacks the font list can actually resolve to —
+  // four labelled pills (icon + 10px inset each), the two 8px gaps inside the
+  // zones, the 16px column gap and the 16px+1px divider ahead of the pair:
+  //
+  //   step     box    Arial metrics   Noto Sans   DejaVu Sans
+  //   tiny    506.2     444.8 ✓        456.6 ✓      486.7 ✓
+  //   small   502.6     473.4 ✓        486.4 ✓      520.3 ✗
+  //   default 498.9     503.1 ✗        517.7 ✗      555.4 ✗
+  //   large   495.4     532.1 ✗        548.0 ✗      589.4 ✗
+  //
+  // ✓ = one line, ✗ = `flex-wrap` drops the transfer zone onto a second line
+  // (row height 47.9px -> 85.8px), confirmed in the browser at every cell and
+  // in English — the widest language here. So the pair fits at the two small
+  // steps on the common stacks and stops fitting from the *default* step up:
+  // the wrap the R7-3b comment above was written to prevent comes back the
+  // moment the pair leaves the menu.
+  //
+  // Connect + Create custom + the trigger, by contrast, need 321.9px (tiny,
+  // Arial) to 431.2px (large, DejaVu) and 250.2–289.6px in Chinese — one line
+  // at all four steps in both languages, with ≥64px of clearance in the worst
+  // measured cell and 124–159px at the shipped default (the row leaves ~250px
+  // today, so the promotion costs it about half its slack and still leaves the
+  // widest gap on the panel).
+  //
+  // The menu therefore keeps exactly the two rarest actions, and the trigger
+  // with them. Promoting the pair as well would leave the menu empty (the
+  // "cancel the dots once 0–1 are left" contingency this round wrote for
+  // itself) — but the width table above is why that is not the answer here,
+  // not the other way round.
   const overflowItems = [
-    {
-      id: "create",
-      label: t("settings.extensions.createCustom"),
-      icon: <Plus size={14} strokeWidth={2} aria-hidden="true" />,
-      disabled: Boolean(syncOperation) || Boolean(busy) || loading,
-      onSelect: openCreateCustomIntegration,
-    },
     {
       id: "export",
       label: t("settings.extensions.export"),
@@ -2154,9 +2185,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
 
       <div className="extensions-installed">
         <div className="extensions-sync-cluster">
-          {/* The visible row is one connect action plus the overflow trigger —
-              two controls, no captions. The remaining three actions, the busy
-              spinners and the explanation all live inside the menu. */}
+          {/* R49: the visible row is the two authoring actions — connect an
+              existing package, and open the blank custom form — plus the
+              overflow trigger. No captions. The transfer pair and its one
+              sentence live inside the menu. */}
           <div className="extensions-sync-toolbar">
             <div className="extensions-sync-toolbar__group">
               <button
@@ -2168,6 +2200,19 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               >
                 <Link2 size={14} strokeWidth={2} aria-hidden="true" />
                 {t("settings.extensions.chooseManifest")}
+              </button>
+              {/* R49 · promoted out of the menu: the row's only authoring
+                  entry, and the one the user named as "common or important".
+                  Secondary weight (no `--primary`): connecting an existing
+                  package stays the row's primary action. */}
+              <button
+                type="button"
+                className="extensions-action-button"
+                disabled={Boolean(syncOperation) || Boolean(busy) || loading}
+                onClick={openCreateCustomIntegration}
+              >
+                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+                {t("settings.extensions.createCustom")}
               </button>
             </div>
             <div className="extensions-sync-toolbar__group extensions-sync-toolbar__group--overflow">

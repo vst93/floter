@@ -1,21 +1,40 @@
 // R7-3b · The toolbar's frequency split (G-24) and the overflow menu's
-// keyboard contract.
+// keyboard contract. R49 revisited the split.
 //
-// The finding this round closes: the integrations toolbar carried four
+// The finding R7-3b closed: the integrations toolbar carried four
 // equal-weight buttons and two always-on caption lines between the heading and
 // the list, so the action a user repeats (connecting something local) competed
 // with the rarest pair on the page (importing/exporting the whole collection as
 // a JSON file), and the explanations for that rare pair were permanently on
 // screen.
 //
-// Three things have to stay true, and each is asserted separately:
+// R49's finding: the split was drawn one action too far in. The user read the
+// row with the menu open and reported that the space was there and that
+// "Create custom" — 「还是很常见或者很重要的」 — did not belong inside it. The
+// measurement agrees for that one action and disagrees for the transfer pair:
 //
-//   1. the visible row is bounded — one primary action plus the overflow
-//      trigger, and no caption block (a regression that "adds one more button"
-//      has to fail, not be absorbed);
-//   2. nothing is deleted — every action the toolbar had is still reachable,
-//      from the menu, with its handler intact;
-//   3. the menu is a first-class keyboard surface — Escape closes it *without*
+//   * the row's content box is 502.6px at the shipped default step and 495.4px
+//     at `large` (720px window − 148px sidebar − 36u page padding − 10px
+//     scrollbar);
+//   * in the browser, four labelled pills in the row's two zones wrap onto a
+//     second line (row 47.9px -> 85.8px) from the *default* step up on Arial
+//     metrics and Noto Sans, and from `small` up on DejaVu Sans — in English;
+//   * Connect + Create custom + the trigger stay on one line at every step in
+//     both languages, with ≥64px of clearance in the worst measured cell.
+//
+// So the row's visible *authoring* set grew by one and its overflow kept its
+// two rare actions. Four things have to stay true, and each is asserted
+// separately:
+//
+//   1. the visible row is bounded — the two authoring actions plus the overflow
+//      trigger, no caption block, and no transfer button (a regression that
+//      "adds one more button" still has to fail, not be absorbed);
+//   2. the promoted action is a real, visible, secondary button that keeps the
+//      menu item's handler and its disabled gate — a promotion that dropped
+//      either would be a deletion dressed as a move;
+//   3. nothing is deleted — the two actions the menu still holds are reachable
+//      from it, with their handlers and their note intact;
+//   4. the menu is a first-class keyboard surface — Escape closes it *without*
 //      dismissing the settings surface underneath, and ↑/↓/Home/End move the
 //      active item.
 //
@@ -58,12 +77,30 @@ const toolbarRow = (source: string) => {
   return source.slice(at, groupEnd + 6);
 };
 
+/** One `<button>` from the row, located by a string that appears in its
+ *  children (so the slice cannot be confused with a neighbouring control). */
+const rowButton = (row: string, needle: string) => {
+  const at = row.indexOf(needle);
+  assert.notEqual(at, -1, `${needle} must be in the row`);
+  const start = row.lastIndexOf("<button", at);
+  assert.notEqual(start, -1, `${needle} must sit inside a button`);
+  const end = row.indexOf("</button>", at);
+  assert.notEqual(end, -1, `${needle}'s button must close`);
+  return row.slice(start, end + 9);
+};
+
 // ── 1. The visible row is bounded ─────────────────────────────────────────
 
-// The row's own budget, stated as a number so "visual balance" cannot drift
-// into "one more button". Two actions in the row, one of which is the overflow
-// trigger; anything beyond that is a G-24 regression.
-test("the visible toolbar row stays within its two-control budget", async () => {
+// The row's budget, stated as a number so "visual balance" cannot drift
+// into "one more button". R7-3b set the budget at one visible action (connect)
+// plus the overflow trigger; R49 raised it by exactly one, for the authoring
+// form the user asked back out of the menu. So the budget is now the two
+// actions that *author* an integration — connect an existing package, open the
+// blank custom form — plus the trigger, and every action that consumes a
+// package or a whole collection is either a menu item or the primary action.
+// Two visible actions, not three: the transfer pair is what the width budget
+// on `overflowItems` says cannot live in the row.
+test("the visible toolbar row keeps the two authoring actions and one trigger", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const row = toolbarRow(panel);
 
@@ -72,14 +109,27 @@ test("the visible toolbar row stays within its two-control budget", async () => 
   const rowButtons = [...row.matchAll(/<button/g)].length;
   const overflowTriggers = [...row.matchAll(/<OverflowMenu/g)].length;
   assert.equal(overflowTriggers, 1, "exactly one overflow trigger in the row");
-  assert.ok(
-    rowButtons <= 1,
-    `the row renders ${rowButtons} plain buttons across the whole overflow group; ` +
-      "the budget is one action plus the overflow trigger (G-24), and the trigger " +
-      "is an <OverflowMenu>, not a <button> — any extra <button> is a G-24 regression",
+  assert.equal(
+    rowButtons,
+    2,
+    `the row renders ${rowButtons} plain buttons; the budget is two authoring actions ` +
+      "(connect an existing package, open the blank custom form) plus the overflow " +
+      "trigger (G-24, raised by one in R49), and the trigger is an <OverflowMenu>, " +
+      "not a <button> — any extra <button> is a regression",
   );
   // …and the trigger really is there, immediately after.
   assert.match(panel.slice(panel.indexOf("className=\"extensions-sync-toolbar\"")), /<OverflowMenu/, "the row must carry the overflow trigger");
+
+  // The two actions that *consume* a whole collection stay out of the row.
+  // This is the R49 half of the budget: the pair lives inside the menu (section
+  // 2 asserts the handlers), so a future "promote them too" has to fail here
+  // and argue with the wrap measurements instead of slipping in.
+  for (const key of ["settings.extensions.export", "settings.extensions.import"]) {
+    assert.ok(
+      !row.includes(`t("${key}")`),
+      `${key} must not be a button in the row — the transfer pair is the overflow's content`,
+    );
+  }
 
   // The standing caption block is gone: the sentence travels with the actions
   // it describes, inside the menu.
@@ -97,26 +147,70 @@ test("the visible toolbar row stays within its two-control budget", async () => 
     "the transfer group's divider belonged to the removed second button group",
   );
 
-  // The row still reads as two zones: the action, then the menu behind a
-  // divider, so the split is visible rather than implied.
+  // The row still reads as two zones: the actions, then the menu behind a
+  // divider, so the split is visible rather than implied. The promoted button
+  // joins the *first* group (its own `gap: 8px` spaces the pair) and must not
+  // have brought a second divider or a new wrapper with it.
   const divider = rules(css).find((r) => r.selector === ".extensions-sync-toolbar__group--overflow");
   assert.ok(divider, "the overflow group must have its own rule");
   assert.match(divider!.body, /border-inline-start:/, "the overflow zone keeps its divider");
+  const group = rules(css).find((r) => r.selector === ".extensions-sync-toolbar__group");
+  assert.ok(group, "the leading group must have a rule");
+  assert.match(group!.body, /gap:/, "the promoted button reuses the group's existing gap, not a new one");
+  assert.ok(
+    !/extensions-sync-toolbar__group--(?:create|authoring)/.test(css),
+    "promotion must not invent a second leading group (the pair sits in the existing one)",
+  );
 });
 
-// The primary action is the one that works on a package that already exists.
-// "Create custom" is the blank authoring form, and after R7-3a every real
-// custom integration starts from a Detected row's prefill — which is why the
-// blank entry is the one that moved into the menu.
-test("the row leads with the existing-package connect, not the blank form", async () => {
+// The primary action is still the one that works on a package that already
+// exists: the row leads with Connect, and the blank form is its secondary
+// neighbour. R7-3b had "Create custom" in the menu, on the argument that every
+// real custom integration starts from a Detected row's prefill (R7-3a); R49
+// promoted it because it is the row's only authoring entry and the user named
+// it as common/important — but *secondary*, never a second primary.
+test("the row leads with the existing-package connect, and the blank form follows it secondary", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const row = toolbarRow(panel);
   assert.match(row, /t\("settings\.extensions\.chooseManifest"\)/, "the connect-package action stays in the row");
+  assert.match(row, /t\("settings\.extensions\.createCustom"\)/, "the blank create form is back in the row (R49)");
+
+  // Order: connect first, create second — the primary action leads — and both
+  // on the near side of the divider, i.e. in the leading group.
   assert.ok(
-    !/t\("settings\.extensions\.createCustom"\)/.test(row),
-    "the blank create form must not be in the row — it is a menu item now",
+    row.indexOf("settings.extensions.chooseManifest") < row.indexOf("settings.extensions.createCustom"),
+    "the row must lead with connect, not with the blank form",
   );
-  assert.match(row, /extensions-action-button--primary/, "the surviving action is the primary one");
+  assert.ok(
+    row.indexOf("settings.extensions.createCustom") < row.indexOf("extensions-sync-toolbar__group--overflow"),
+    "the promoted action sits in the leading group, on Connect's side of the divider",
+  );
+
+  const connectButton = rowButton(row, "settings.extensions.chooseManifest");
+  const createButton = rowButton(row, "settings.extensions.createCustom");
+  assert.match(connectButton, /extensions-action-button--primary/, "connect is the row's primary action");
+  assert.ok(
+    !/--primary/.test(createButton),
+    "the promoted action is secondary: a second accent-filled pill would also spend the " +
+      "settings view's accent budget (accent-budget.test.ts)",
+  );
+  assert.match(
+    createButton,
+    /className="extensions-action-button"/,
+    "the promoted button is the shared action pill, not a new control",
+  );
+  // The promotion is a *move*: the handler and the disabled gate come with it.
+  assert.match(createButton, /onClick=\{openCreateCustomIntegration\}/, "the promoted button keeps the menu item's handler");
+  assert.match(
+    createButton,
+    /disabled=\{Boolean\(syncOperation\) \|\| Boolean\(busy\) \|\| loading\}/,
+    "the promoted button keeps the row's disabled gate",
+  );
+  assert.match(
+    connectButton,
+    /disabled=\{Boolean\(syncOperation\) \|\| Boolean\(busy\) \|\| loading\}/,
+    "every visible action shares one gate, so none of them is clickable mid-mutation",
+  );
 });
 
 // ── 2. Nothing is deleted, only collected ─────────────────────────────────
@@ -127,15 +221,21 @@ test("every collected action is still reachable from the overflow menu", async (
     panel.indexOf("const overflowItems = ["),
     panel.indexOf("const overflowItems = [") + panel.slice(panel.indexOf("const overflowItems = [")).indexOf("];") + 2,
   );
-  // The three collected actions, each with its handler — the menu is a
+  // The two collected actions, each with its handler — the menu is a
   // relocation, never a removal.
-  assert.match(items, /id: "create"[\s\S]*?onSelect: openCreateCustomIntegration/);
   assert.match(items, /id: "export"[\s\S]*?onSelect: \(\) => void exportExtensions\(\)/);
   assert.match(items, /id: "import"[\s\S]*?onSelect: \(\) => void importExtensions\(\)/);
-  // All three keep the same disabled gate the row uses, so a menu item cannot
+  // …and the promoted action is *not* duplicated here: two entries with one
+  // handler would give the row and the menu two different disabled states for
+  // the same action (the menu item reads `loading`, the button is the row's).
+  assert.ok(
+    !/id: "create"/.test(items),
+    "the promoted action must have left the menu — one action, one control",
+  );
+  // Both keep the same disabled gate the row uses, so a menu item cannot
   // become the one clickable control during a mutation.
   const gates = [...items.matchAll(/disabled: Boolean\(syncOperation\) \|\| Boolean\(busy\) \|\| loading/g)];
-  assert.equal(gates.length, 3, "every menu item must carry the row's disabled gate");
+  assert.equal(gates.length, 2, "every menu item must carry the row's disabled gate");
 
   // The transfer pair's explanation moves into the menu rather than vanishing.
   assert.match(
