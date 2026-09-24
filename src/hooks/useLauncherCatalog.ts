@@ -264,6 +264,28 @@ const SYSTEM_COMMANDS: {
     // come first, as the clipboard and browser entries put theirs.
     initials: "cjsqjs",
   },
+  {
+    // R60 · the terminal's entry row. Enter does *not* enter a plugin mode and
+    // does *not* run a command: it opens a bare PTY session
+    // (`ensureTerminalSession(null)`) and hands the surface to the terminal
+    // page, exactly as a bare Enter on the ⌘-held row does. This is the R51
+    // pattern applied to a door whose destination is the terminal itself —
+    // search name, subtitle and initials are the plugin-row trio, so the row
+    // is reached by a *match* and never claims the action bar (the bare word
+    // `terminal` stays the shell's own command there, as `calc` does).
+    action: "terminal",
+    titleKey: "system.terminal",
+    subtitleKey: "system.terminalSubtitle",
+    searchNames: [
+      "terminal",
+      "term",
+      "终端",
+      "终端机",
+    ].map(normalizeSearch),
+    // 终端 → zd, 终端机 → zdj; the English initials (`t`) come first, as the
+    // clipboard's `ch` and the calculator's `c` do.
+    initials: "tzdzdj",
+  },
 ];
 
 export function useLauncherCatalog(options: {

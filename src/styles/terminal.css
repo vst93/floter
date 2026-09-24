@@ -314,6 +314,76 @@
   line-height: 1.25;
 }
 
+/* R60 · the terminal page's empty state. The page can be entered with no
+   session and no PTY at all (the native "show terminal" path), and a blank
+   canvas then offers neither a verb nor a way out. This block is a child of the
+   mount — so the canvas keeps its box and simply has something to say until a
+   session paints over it — and it is deliberately *inline*: muted text and two
+   key lines centered in the region, with no card, no elevation rung and no
+   accent fill. Idle nothing else is drawn here, and the block is not rendered
+   at all once a session exists. */
+.terminal-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+  user-select: none;
+}
+
+.terminal-empty__title {
+  margin: 0;
+  font-size: var(--text-emphasis);
+  line-height: 1.5;
+}
+
+/* Each hint line is the action itself: the key it names is what the page
+   answers to, and the line runs it on click. Neutral text, never accent — the
+   hint is furniture, not a primary control (the same rule R48 set for the
+   launcher's trigger nudge). */
+.terminal-empty__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition: color var(--dur-2) ease;
+}
+
+.terminal-empty__line:hover,
+.terminal-empty__line:focus-visible {
+  color: var(--text-secondary);
+}
+
+/* The keycap: the same bevel the settings recorder's keys wear (a token, not a
+   literal shadow), on a 20px chip. */
+.terminal-empty__key {
+  display: inline-flex;
+  align-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-xs);
+  background: var(--glass-control);
+  box-shadow: var(--elev-keycap);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  line-height: 1;
+}
+
 .terminal-feedback {
   position: absolute;
   z-index: 4;

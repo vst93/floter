@@ -36,6 +36,8 @@ import { useSurfaceResidency } from "./hooks/useSurfaceResidency";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
+import { useAppModifierHeld } from "./hooks/useAppModifierHeld";
+import { bareTerminalRow, bareTerminalRowVisible } from "./launcher/terminal-row";
 import { useTriggerHintFit } from "./hooks/useTriggerHintFit";
 import {
   createCollapsedFocusController,
@@ -47,6 +49,7 @@ import { useTimedReset } from "./hooks/useTimedReset";
 import {
   FOCUS_IN_OUT,
 } from "./terminal/keys";
+import { TERMINAL_EMPTY_HINT_DELAY, terminalPageEmpty } from "./terminal/empty-state";
 import {
   createTranslator,
   isMessageKey,
@@ -772,6 +775,7 @@ export default function App() {
     focusTerminalView,
     closeTerminalSession,
     ensureTerminalSession,
+    describeMainSession,
     terminalResident,
     openInTerminal,
     copySelection,
@@ -1348,15 +1352,26 @@ export default function App() {
   const externalEnterRunsCommand = externalScope && !pluginInteractive;
   // R29 · the plugin list's pagination block, or null for every other list.
   const pluginPage = pluginViewPage(pluginView);
-  const displayedResults = useMemo(
-    () =>
-      launcherScope
-        ? [...launcherResults]
-        : fileRows.length
-          ? [...fileRows, ...launcherResults]
-          : launcherResults,
-    [fileRows, launcherResults, launcherScope],
-  );
+  // R60 · the app modifier (⌘ / Ctrl, platform-normalized) being held down.
+  // It is the whole of the ⌘-held row's premise; the predicate below is the one
+  // place that turns it into a decision.
+  const appModifierDown = useAppModifierHeld();
+  // R60 · one predicate for the ⌘-held bare-terminal row: whether it is drawn
+  // here and — because the row is an ordinary `system` row in this very list —
+  // whether `launcherRowHeightUnits` charges it and `displayedResults.length`
+  // counts it in the window's chrome. There is no second authority to drift
+  // from it (R52's rule for the chips row, R58's for the list chrome).
+  const showBareTerminalRow = bareTerminalRowVisible(query, appModifierDown, launcherScope);
+  const displayedResults = useMemo(() => {
+    const base = launcherScope
+      ? [...launcherResults]
+      : fileRows.length
+        ? [...fileRows, ...launcherResults]
+        : launcherResults;
+    // The row goes after everything else — the query's own results and any
+    // drop group — so it is the list's last line, where 「底部的终端执行项」 sits.
+    return showBareTerminalRow ? [...base, bareTerminalRow(t)] : base;
+  }, [fileRows, launcherResults, launcherScope, showBareTerminalRow, t]);
 
   // While the selection is on a file row the action bar describes that file's
   // three actions rather than the generic shell fallback. A file row's bar is
@@ -1431,6 +1446,7 @@ export default function App() {
   const {
     runCommand,
     resumeTerminalSession,
+    openTerminalSession,
     executeActionBar,
     runLauncherItem,
     handleLauncherKey,
@@ -1459,6 +1475,7 @@ export default function App() {
     setSelectedResultIndex,
     setSelectedActionBar,
     ensureTerminalSession,
+    describeMainSession,
     openInTerminal,
     focusTerminalView,
     focusCollapsedInput,
@@ -1643,6 +1660,26 @@ export default function App() {
     void persistSettings().catch(() => undefined);
   };
 
+  // R60 · the terminal page's empty state (see `terminal/empty-state.ts`): the
+  // page can be revealed with no session and no PTY, and a blank canvas says
+  // nothing. "Has a session" is the two pieces of state the page publishes —
+  // the identity a spawn/attach described, and the retained frame an exited
+  // PTY left behind. The hint itself waits one idle beat, so the ordinary
+  // spawn path (identically empty until the broker answers) never flashes it.
+  const terminalHasSession = Boolean(mainSessionIdentity || terminalResident);
+  const [terminalEmptyHint, setTerminalEmptyHint] = useState(false);
+  useEffect(() => {
+    if (!terminalPageEmpty(mode, terminalHasSession)) {
+      setTerminalEmptyHint(false);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setTerminalEmptyHint(true),
+      TERMINAL_EMPTY_HINT_DELAY,
+    );
+    return () => window.clearTimeout(timer);
+  }, [mode, terminalHasSession]);
+
   useAppKeyboard({
     mode,
     shortcuts,
@@ -1659,6 +1696,11 @@ export default function App() {
     focusCollapsedInput,
     returnToInputMode,
     openInTerminal,
+    // R60 · the empty terminal page's Enter: no session is mounted, so Enter
+    // is not the shell's — it spawns the blank session the hint offers, through
+    // the very same path the launcher's terminal row uses.
+    terminalEmpty: terminalEmptyHint,
+    openBlankTerminal: () => void openTerminalSession(),
     copySelection,
     pasteClipboard,
     closeSettings,
@@ -3483,6 +3525,39 @@ export default function App() {
                   <span className="terminal-copy-notice__text">{t(copyNotice.message)}</span>
                 )}
               </div>
+              {/* R60 · the empty page's inline hint. The terminal page can be
+                  entered with nothing in it (the native "show terminal" path),
+                  and a blank canvas offers no verb and no way back. Two lines,
+                  both of them real actions, both of them the keys the page
+                  already answers: Enter — the key the window-level handler
+                  claims while empty — and the configured return key. It is a
+                  child of the mount, so the canvas keeps its box and simply has
+                  something to say until a session paints over it. */}
+              {terminalEmptyHint && (
+                <div className="terminal-empty">
+                  <p className="terminal-empty__title" role="status">
+                    {t("terminal.emptyTitle")}
+                  </p>
+                  <button
+                    type="button"
+                    className="terminal-empty__line"
+                    onClick={() => void openTerminalSession()}
+                  >
+                    <kbd className="terminal-empty__key">Enter</kbd>
+                    <span className="terminal-empty__label">{t("terminal.emptyNew")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="terminal-empty__line"
+                    onClick={() => void returnToInputMode()}
+                  >
+                    <kbd className="terminal-empty__key">
+                      {formatShortcut(shortcuts.new_command)}
+                    </kbd>
+                    <span className="terminal-empty__label">{t("terminal.emptyBack")}</span>
+                  </button>
+                </div>
+              )}
             </div>
             {/* R9-2 slice 5 · the PTY child exited and the page is being
                 *held* rather than collapsed: the final frame stays painted so

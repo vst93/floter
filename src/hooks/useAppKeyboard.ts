@@ -49,6 +49,11 @@ export function useAppKeyboard(options: {
   focusCollapsedInput: (delay?: number) => void;
   returnToInputMode: () => Promise<void>;
   openInTerminal: () => Promise<unknown>;
+  /** R60 · the terminal page has no session and no retained frame, so the
+   *  empty-state hint is on screen (see `terminal/empty-state.ts`). */
+  terminalEmpty: boolean;
+  /** R60 · the empty terminal page's only verb: start a blank session. */
+  openBlankTerminal: () => void;
   copySelection: () => void;
   pasteClipboard: () => void;
   closeSettings: () => void;
@@ -89,6 +94,8 @@ export function useAppKeyboard(options: {
     focusCollapsedInput,
     returnToInputMode,
     openInTerminal,
+    terminalEmpty,
+    openBlankTerminal,
     copySelection,
     pasteClipboard,
     closeSettings,
@@ -183,6 +190,16 @@ export function useAppKeyboard(options: {
         const dismiss = resolveDismissRule("terminal", event, shortcuts);
         if (dismiss) {
           runDismissAction(dismiss, event);
+          return;
+        }
+        // R60 · the empty page's one key. There is no PTY to receive anything,
+        // so Enter — which the forwarding path below would drop — is claimed
+        // here and starts the blank session the inline hint offers. Every other
+        // key falls through unchanged (Esc / Cmd+W were already resolved by the
+        // dismiss table above), so the page's way out is untouched.
+        if (terminalEmpty && event.key === "Enter") {
+          event.preventDefault();
+          openBlankTerminal();
           return;
         }
         if (matchesShortcut(event, shortcuts.open_external_terminal)) {

@@ -39,6 +39,7 @@ import {
   type ShortcutMap,
 } from "../shortcuts";
 import { resultIndexForSlot } from "../launcher/result-budget";
+import { isBareTerminalRow } from "../launcher/terminal-row";
 
 import type { BrokerSessionInfo, LocalApplication, ViewMode } from "../App";
 import type { MessageKey, Translate } from "../i18n";
@@ -69,6 +70,11 @@ export function useLauncherActions(options: {
     initialCommand?: string | null,
     execution?: ExecutionPlan | null,
   ) => Promise<void>;
+  /** R60 · describe an attached broker session (its command name, its exit
+   *  state) in the bar's identity zone. A fresh spawn already does this inside
+   *  `ensureTerminalSession`; the attach path above needs the same call, so the
+   *  page can tell "no session" from "a session the broker has not named yet". */
+  describeMainSession: (brokerSessionId: string, initialCommand: string | null) => Promise<void>;
   openInTerminal: () => Promise<unknown>;
   focusTerminalView: (delay?: number) => void;
   focusCollapsedInput: (delay?: number) => void;
@@ -199,6 +205,7 @@ export function useLauncherActions(options: {
     setSelectedResultIndex,
     setSelectedActionBar,
     ensureTerminalSession,
+    describeMainSession,
     openInTerminal,
     focusTerminalView,
     focusCollapsedInput,
@@ -282,6 +289,43 @@ export function useLauncherActions(options: {
     }
   };
 
+  /**
+   * R60 · open a bare terminal session.
+   *
+   * The same transition `runCommand` makes — the terminal page is entered, the
+   * field is emptied, focus moves to the canvas — with one difference: no
+   * command is handed to the PTY. `ensureTerminalSession(null)` passes
+   * `initialCommand: null`, which is the interactive shell the Rust side
+   * resolves by default, so nothing is typed, nothing is executed and nothing
+   * joins the command history. The session itself is an ordinary broker session
+   * (recorded, listed by the sessions page, resumable) because it goes through
+   * the very same spawn path a typed command does.
+   *
+   * Reached from the two R60 doors — the terminal system row's Enter and the
+   * ⌘-held row's Enter — which share the `action: "terminal"` branch in
+   * `runSystemAction`.
+   */
+  const openTerminalSession = async () => {
+    if (terminalOpening.current) return;
+    terminalOpening.current = true;
+    setLauncherFeedback(null);
+    setTerminalFeedback(null);
+    setTerminalMounted(true);
+    setMode("terminal");
+    try {
+      await ensureTerminalSession(null);
+      setQuery("");
+      focusTerminalView();
+    } catch {
+      showLauncherFeedback("launcher.error.command");
+      setTerminalMounted(false);
+      setMode("collapsed");
+      scheduleCollapsedFocusBeats();
+    } finally {
+      terminalOpening.current = false;
+    }
+  };
+
   const resumeTerminalSession = async (session: BrokerSessionInfo) => {
     if (terminalOpening.current) return;
     terminalOpening.current = true;
@@ -307,6 +351,12 @@ export function useLauncherActions(options: {
       if (terminalGeneration.current === generation) {
         ptyReady.current = true;
         mainBrokerSessionIdRef.current = brokerSessionId;
+        // R60 · fill the bar's identity from the broker, exactly as a fresh
+        // spawn does. Until this round an attach left the identity zone showing
+        // whatever the *previous* session had said (or nothing at all), and the
+        // terminal page's empty state — which is a function of "is any session
+        // attached" — would have read an attached session as an absent one.
+        void describeMainSession(brokerSessionId, null);
       }
       setQuery("");
       focusTerminalView();
@@ -620,6 +670,17 @@ export function useLauncherActions(options: {
       return;
     }
 
+    // R60 · the terminal row is the fourth door, and the only one that opens a
+    // *session* rather than a mode: Enter spawns a bare PTY (no command) and
+    // the surface flips to the terminal page. The ⌘-held row carries the same
+    // `action`, so the two entrances share this one branch — and both stop
+    // here, before the power confirmation could arm anything (a terminal is
+    // not a destructive system action and must never ask "press again").
+    if (item.action === "terminal") {
+      void openTerminalSession();
+      return;
+    }
+
     // Cancel any previously armed confirmation and dismiss this one: selecting
     // a different system action does not transfer the confirmation.
     if (pendingSystemAction) {
@@ -640,7 +701,7 @@ export function useLauncherActions(options: {
 
     setPendingSystemAction(null);
 
-    if (item.action === "clipboard" || item.action === "browser" || item.action === "calculator")
+    if (item.action === "clipboard" || item.action === "browser" || item.action === "calculator" || item.action === "terminal")
       return;
 
     if (systemPowerOpening.current) return;
@@ -963,7 +1024,16 @@ export function useLauncherActions(options: {
     if (
       event.key === "Enter" &&
       actionBar &&
-      matchesShortcutModifiers(event, shortcuts.select_result)
+      matchesShortcutModifiers(event, shortcuts.select_result) &&
+      // R60 · the one exception to "the chord runs the action bar": the held
+      // terminal row. ⌘ alone moves the highlight onto the action bar (that is
+      // what makes ⌘⏎ the advertised "run in shell"), so the bar is the default
+      // selection here — but the same key put the terminal row on screen, and ↑
+      // steps off the bar straight onto it. A row the arrows can reach and Enter
+      // cannot run would be a dead row, so the chord yields to it. Every other
+      // selection — including the paste-then-⌘⏎ flow, where the query change has
+      // re-selected a result — keeps the long-standing rule exactly as it was.
+      !isBareTerminalRow(launcherResults[selectedResultIndex])
     ) {
       event.preventDefault();
       executeActionBar(actionBar);
@@ -1086,6 +1156,7 @@ export function useLauncherActions(options: {
   return {
     runCommand,
     resumeTerminalSession,
+    openTerminalSession,
     launchApplication,
     openWithSystem,
     executeActionBar,

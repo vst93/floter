@@ -38,6 +38,11 @@ const en = {
   "launcher.historyCleared": "Command history cleared",
   "launcher.enableIntegrationsHint": "Type a command, or enable integrations in Settings",
   "launcher.runInShell": "Run in shell",
+  // R60 · the ⌘-held row. It is the same door as the terminal system row
+  // (a blank session, nothing executed), reached by *holding* the app
+  // modifier while a query is typed.
+  "launcher.terminalRow": "Open Terminal",
+  "launcher.terminalRowSubtitle": "A blank session — runs nothing",
   "launcher.openInBrowser": "Open in browser",
   "launcher.openInFiles": "Open in files",
   "launcher.error.command": "Could not start this command",
@@ -153,6 +158,11 @@ const en = {
   "terminal.newCommand": "New command",
   "terminal.newCommandHint": "New command ({shortcut})",
   "terminal.input": "Terminal input",
+  // R60 · the terminal page's empty state: the page can be revealed with no
+  // session and no PTY at all, and a blank canvas says nothing.
+  "terminal.emptyTitle": "No terminal session yet",
+  "terminal.emptyNew": "New blank session",
+  "terminal.emptyBack": "Back to search",
   "terminal.settingsOpen": "Terminal settings",
   "terminal.settingsOpenHint": "Appearance settings for this terminal",
   "terminal.settingsClose": "Close terminal settings",
@@ -867,6 +877,10 @@ const en = {
   // in the settings select; "Yesterday" is the row's age word.
   "system.calculator": "Calculator",
   "system.calculatorSubtitle": "Calculate an expression and keep a history",
+  // R60 · the terminal system row: a bare session, entered the same way the
+  // calculator's row enters its mode. Nothing is executed in it.
+  "system.terminal": "Terminal",
+  "system.terminalSubtitle": "Open a blank session and run nothing in it",
   "input.placeholderCalculator": "Type an expression, then Enter",
   "launcher.calculatorFilter": "Filter calculator history",
   "launcher.calculatorFilterAll": "All",
@@ -946,6 +960,9 @@ const zh: Record<MessageKey, string> = {
   "launcher.historyCleared": "已清空命令历史",
   "launcher.enableIntegrationsHint": "输入命令，或在设置中启用集成",
   "launcher.runInShell": "在终端中运行",
+  // R60 · 按住 ⌘ 时浮现的终端行
+  "launcher.terminalRow": "打开终端",
+  "launcher.terminalRowSubtitle": "空白会话 — 不执行命令",
   "launcher.openInBrowser": "在浏览器中打开",
   "launcher.openInFiles": "在文件管理器中打开",
   "launcher.error.command": "无法启动此命令",
@@ -1048,6 +1065,10 @@ const zh: Record<MessageKey, string> = {
   "terminal.newCommand": "新建命令",
   "terminal.newCommandHint": "新建命令（{shortcut}）",
   "terminal.input": "终端输入",
+  // R60 · 终端页空态
+  "terminal.emptyTitle": "暂无终端会话",
+  "terminal.emptyNew": "新建空白会话",
+  "terminal.emptyBack": "返回搜索",
   "terminal.settingsOpen": "终端设置",
   "terminal.settingsOpenHint": "调整此终端的外观",
   "terminal.settingsClose": "关闭终端设置",
@@ -1733,6 +1754,9 @@ const zh: Record<MessageKey, string> = {
   // R50 · 内置计算器插件
   "system.calculator": "计算器",
   "system.calculatorSubtitle": "计算表达式并保留历史",
+  // R60 · 终端系统行：裸会话，不执行任何命令
+  "system.terminal": "终端",
+  "system.terminalSubtitle": "打开空白会话，不执行任何命令",
   "input.placeholderCalculator": "输入表达式，回车计算",
   "launcher.calculatorFilter": "过滤计算历史",
   "launcher.calculatorFilterAll": "全部",

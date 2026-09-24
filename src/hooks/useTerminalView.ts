@@ -288,6 +288,11 @@ export function useTerminalView(options: {
     terminalGeneration.current = null;
     resetTerminalFrontendState();
     setTerminalResident(null);
+    // R60 · the session is gone, so the bar's identity goes with it, and the
+    // page is back to its empty state. The next spawn (or attach) describes
+    // itself again. Nothing else reads this: `describeMainSession` is the only
+    // writer on the way in, and the exit listener is the only other one.
+    setMainSessionIdentity(null);
     const closing = invoke("term_close", { id: "main" }).catch(() => undefined);
     sessionClosePromise.current = closing;
     closing.finally(() => {

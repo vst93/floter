@@ -177,16 +177,36 @@ test("the clipboard row is produced by the catalog's own system-command table", 
   );
 });
 
-test("the App renders the query's rows and keys them — it appends nothing", async () => {
+test("the App renders the query's rows and keys them — it appends nothing fixed", async () => {
   const source = stripJsComments(await read("src/App.tsx"));
   assert.match(
     source,
-    /const displayedResults = useMemo\(\s*\(\) =>\s*launcherScope\s*\?\s*\[\.\.\.launcherResults\]\s*:\s*fileRows\.length\s*\?\s*\[\.\.\.fileRows, \.\.\.launcherResults\]\s*:\s*launcherResults/,
+    /const displayedResults = useMemo\(\(\) => \{\s*const base = launcherScope\s*\?\s*\[\.\.\.launcherResults\]\s*:\s*fileRows\.length\s*\?\s*\[\.\.\.fileRows, \.\.\.launcherResults\]\s*:\s*launcherResults;/,
     "displayedResults is the query's own rows, with a drop group prepended outside a scope",
   );
   assert.ok(
     !/withClipboardResultRow/.test(source),
     "R37: the App appends no fixed tail",
+  );
+  // R60 · the one thing the App *does* append is the ⌘-held terminal row, and it
+  // is gated on the one predicate from `launcher/terminal-row.ts` — never on a
+  // hard-coded query, a scope or a mode. It is the memo's only `return` besides
+  // the base composition above, so no second tail can hide behind it.
+  assert.match(
+    source,
+    /return showBareTerminalRow \? \[\.\.\.base, bareTerminalRow\(t\)\] : base;/,
+    "R60: the only append is the modifier-held terminal row",
+  );
+  assert.equal(
+    source.split(/return showBareTerminalRow/).length - 1,
+    1,
+    "exactly one append path in the composed list",
+  );
+  const rowModule = await read("src/launcher/terminal-row.ts");
+  assert.match(
+    rowModule,
+    /export const bareTerminalRowVisible/,
+    "the visibility rule lives in `launcher/terminal-row.ts` (behaviour pinned by the R60 suite)",
   );
   assert.match(source, /results=\{displayedResults\}/, "the renderer gets the composed list");
   assert.match(source, /launcherResults: displayedResults/, "the key handler follows it");

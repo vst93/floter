@@ -34,8 +34,20 @@ import type { CalculatorEntry } from "../calculator";
 import type { DroppedFile } from "./file-drops";
 
 /** R51 · `calculator` joins the three power/plugin doors: the calculator
- *  plugin's system result row (Enter enters its launcher mode). */
-export type SystemAction = "restart" | "shutdown" | "clipboard" | "browser" | "calculator";
+ *  plugin's system result row (Enter enters its launcher mode).
+ *
+ *  R60 · `terminal` joins them as the fourth door, and it is the one that does
+ *  *not* enter a plugin mode: Enter opens a bare PTY session (no command typed
+ *  into it) and the launcher hands the surface over to the terminal page. The
+ *  same action is carried by the ⌘-held row the App appends to the list, so the
+ *  two doors and the key handler share one branch in `runSystemAction`. */
+export type SystemAction =
+  | "restart"
+  | "shutdown"
+  | "clipboard"
+  | "browser"
+  | "calculator"
+  | "terminal";
 
 /** Command-row warnings kept out of the subtitle string: they are rendered as
  *  an always-visible dot with the text as tooltip, so a narrow window can
@@ -174,9 +186,12 @@ export type LauncherItem =
 export type ActionBar = { type: ActionBarKind; label: string; value: string };
 
 /** Lucide `rotate-cw` for restart, `power` for shutdown, `clipboard` for the
- *  clipboard panel, `calculator` for the calculator panel (R51). */
+ *  clipboard panel, `calculator` for the calculator panel (R51), and the
+ *  terminal glyph for R60's two bare-session doors. */
 const SystemActionIcon = ({ action }: { action: SystemAction }) =>
-  action === "calculator" ? (
+  action === "terminal" ? (
+    <TerminalIcon size={16} />
+  ) : action === "calculator" ? (
     <CalculatorIcon size={16} />
   ) : (
     <svg
