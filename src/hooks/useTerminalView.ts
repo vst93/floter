@@ -5,8 +5,8 @@
 // setter it touches, so the behaviour is unchanged.
 //
 // Note the deliberate scope: the broker-side session bookkeeping refs
-// (`ptyReady`, `terminalGeneration`, ...) stay in `App.tsx` because the pin
-// coordinator and the session resume path share them.
+// (`ptyReady`, `terminalGeneration`, ...) stay in `App.tsx` because the
+// session resume path shares them.
 
 import {
   useEffect,
@@ -27,7 +27,6 @@ import {
 } from "../terminal/render";
 import { MOUSE_MOTION, usesMouseReporting } from "../terminal/keys";
 import { normalizeTerminalInputSpaces, stripPasteNewline } from "../terminal/inputNormalize";
-import { PINNED_SESSION_ID } from "../terminal/pinState";
 import { normalizeFontSize } from "../settings/GeneralPage";
 import { normalizeLineHeight, type BoldMode, type TerminalTheme } from "../terminal/terminal-appearance";
 import { createDeferredRepaint, type DeferredRepaint } from "../deferred-repaint";
@@ -94,18 +93,12 @@ export function useTerminalView(options: {
   pasteSafe: boolean;
   resolvedTheme: "dark" | "light";
   ptyReady: RefObject<boolean>;
-  /** Card counterpart of `ptyReady`; see `surfaceReady` below. */
-  pinnedReady: RefObject<boolean>;
   terminalGeneration: RefObject<number | null>;
   nextTerminalGeneration: RefObject<number>;
   mainBrokerSessionIdRef: RefObject<string | null>;
-  pinnedRendererRef: RefObject<TerminalCanvas | null>;
-  activeSurfaceRef: RefObject<"main" | "pinned">;
-  setActiveSurface: (surface: "main" | "pinned") => void;
   sessionClosePromise: RefObject<Promise<unknown> | null>;
   restoringMode: RefObject<ViewMode | null>;
   setMainSessionIdentity: Dispatch<SetStateAction<MainSessionIdentity | null>>;
-  setMainPinnedAway: (value: boolean) => void;
   setTerminalFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   setQuery: Dispatch<SetStateAction<string>>;
   setMode: (mode: ViewMode) => void;
@@ -135,17 +128,12 @@ export function useTerminalView(options: {
     pasteSafe,
     resolvedTheme,
     ptyReady,
-    pinnedReady,
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
-    pinnedRendererRef,
-    activeSurfaceRef,
-    setActiveSurface,
     sessionClosePromise,
     restoringMode,
     setMainSessionIdentity,
-    setMainPinnedAway,
     setTerminalFeedback,
     setQuery,
     setMode,
@@ -260,26 +248,14 @@ export function useTerminalView(options: {
     };
   }, []);
 
-  /** The frontend id keystrokes must reach right now: the main view, or the
-   * pinned card after its body was clicked. */
-  const terminalInputTarget = (): string =>
-    activeSurfaceRef.current === "pinned" ? PINNED_SESSION_ID : "main";
+  /** The frontend id keystrokes must reach: the main view's own session. */
+  const terminalInputTarget = (): string => "main";
 
-  /** The renderer whose emulator mode governs key encoding for the active
-   * surface — the two views can run programs with different modes. */
-  const activeRenderer = (): TerminalCanvas | null =>
-    activeSurfaceRef.current === "pinned" ? pinnedRendererRef.current : rendererRef.current;
+  /** The renderer whose emulator mode governs key encoding. */
+  const activeRenderer = (): TerminalCanvas | null => rendererRef.current;
 
-  /**
-   * Whether the surface that owns the keyboard has a session able to receive
-   * input. Per-surface on purpose: `ptyReady` tracks the MAIN view's slot, and
-   * pinning deliberately empties that slot (the session moved to the card), so
-   * a gate written against `ptyReady` alone drops every keystroke aimed at a
-   * pinned card — the card would draw frames and answer the mouse while
-   * silently ignoring the keyboard.
-   */
-  const surfaceReady = (): boolean =>
-    activeSurfaceRef.current === "pinned" ? pinnedReady.current : ptyReady.current;
+  /** Whether the session is able to receive input. */
+  const surfaceReady = (): boolean => ptyReady.current;
 
   const focusTerminalView = (delay = 0) => {
     window.setTimeout(() => {
@@ -337,7 +313,7 @@ export function useTerminalView(options: {
     terminalGeneration.current = generation;
     try {
       // term_spawn hands back the daemon-side session id (see the Rust
-      // command), remembered so pinning can re-attach this PTY to the card.
+      // command), remembered so a later resume can re-attach this PTY.
       const brokerSessionId = await invoke<string>("term_spawn", {
         id: "main",
         generation,
@@ -351,7 +327,6 @@ export function useTerminalView(options: {
       if (terminalGeneration.current === generation) {
         ptyReady.current = true;
         mainBrokerSessionIdRef.current = brokerSessionId;
-        setMainPinnedAway(false);
         void describeMainSession(brokerSessionId, initialCommand);
       }
     } catch (error) {
@@ -728,8 +703,6 @@ export function useTerminalView(options: {
   const onCanvasMouseDown = (e: React.MouseEvent) => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    // Clicking the main area always reclaims the keyboard from the card.
-    setActiveSurface("main");
     terminalTextInputRef.current?.focus({ preventScroll: true });
     const px = e.nativeEvent.offsetX;
     const py = e.nativeEvent.offsetY;

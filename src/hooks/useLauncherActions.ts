@@ -38,7 +38,6 @@ import {
   IS_WINDOWS,
   type ShortcutMap,
 } from "../shortcuts";
-import { PINNED_SESSION_ID, type PinEvent, type PinState } from "../terminal/pinState";
 import { resultIndexForSlot } from "../launcher/result-budget";
 
 import type { BrokerSessionInfo, LocalApplication, ViewMode } from "../App";
@@ -57,9 +56,6 @@ export function useLauncherActions(options: {
   nextTerminalGeneration: RefObject<number>;
   sessionClosePromise: RefObject<Promise<unknown> | null>;
   dimsRef: RefObject<{ cols: number; rows: number }>;
-  pinStateRef: RefObject<PinState>;
-  dispatchPinEvent: Dispatch<PinEvent>;
-  setMainPinnedAway: (value: boolean) => void;
   setLauncherFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   setTerminalFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   showLauncherFeedback: (key: MessageKey, duration?: number) => void;
@@ -193,9 +189,6 @@ export function useLauncherActions(options: {
     nextTerminalGeneration,
     sessionClosePromise,
     dimsRef,
-    pinStateRef,
-    dispatchPinEvent,
-    setMainPinnedAway,
     setLauncherFeedback,
     setTerminalFeedback,
     showLauncherFeedback,
@@ -294,18 +287,6 @@ export function useLauncherActions(options: {
     terminalOpening.current = true;
     setLauncherFeedback(null);
     setTerminalFeedback(null);
-    // Resuming the very session the card is showing would attach a second
-    // client to one PTY; hand it back to the main view instead.
-    const pinned = pinStateRef.current;
-    if (pinned.status === "pinned" && pinned.session.brokerSessionId === session.sessionId) {
-      try {
-        await invoke("term_close", { id: PINNED_SESSION_ID });
-      } catch {
-        // The card view may already be gone; either way the resume proceeds.
-      }
-      dispatchPinEvent({ type: "unpin" });
-      setMainPinnedAway(false);
-    }
     setTerminalMounted(true);
     setMode("terminal");
     try {
@@ -326,7 +307,6 @@ export function useLauncherActions(options: {
       if (terminalGeneration.current === generation) {
         ptyReady.current = true;
         mainBrokerSessionIdRef.current = brokerSessionId;
-        setMainPinnedAway(false);
       }
       setQuery("");
       focusTerminalView();

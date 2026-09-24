@@ -161,7 +161,7 @@
    it would cover the band entirely. Absolute rather than in flow because the
    card's height is measured (`syncLauncherHeight`) and the window follows it;
    a reserved 28px row would add a blank strip to the top of the launcher —
-   the very band this round is removing from the pinned card. */
+   the very band this round is removing. */
 .collapsed-card__drag-zone {
   position: absolute;
   top: 0;

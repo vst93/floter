@@ -52,7 +52,6 @@ export const CUSTOM_SHORTCUT_ACTIONS: { id: string; action: string; labelKey: Me
   { id: "toggle_window", action: "action:toggle_window", labelKey: "shortcut.toggle_window" },
   { id: "new_command", action: "action:new_command", labelKey: "shortcut.new_command" },
   { id: "open_settings", action: "action:open_settings", labelKey: "shortcut.open_settings" },
-  { id: "pin_terminal", action: "action:pin_terminal", labelKey: "shortcut.pin_terminal" },
   {
     id: "open_external_terminal",
     action: "action:open_external_terminal",

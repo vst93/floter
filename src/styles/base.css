@@ -218,16 +218,6 @@
      the window can actually resolve (the collapsed toast strip). */
   --elev-3-compact:
     0 6px 18px var(--window-shadow-ambient);
-  /* A floater the user drags, which outranks every other float: a card in the
-     hand is not the same layer as a dialog that appears and is dismissed (the
-     pinned terminal card). It is rung 3's material carried one throw further,
-     plus the same lit-side ring the glass border uses. */
-  --elev-4:
-    0 12px 34px var(--window-shadow-ambient),
-    0 2px 8px var(--window-shadow-contact),
-    inset 0 1px 0 var(--edge-highlight),
-    inset 1px 0 0 var(--edge-highlight-x),
-    inset -1px 0 0 var(--edge-highlight-x);
   /* A bar recasting its depth onto the content that scrolls under it (the
      terminal bar's hover), not a surface floating over the app. */
   --elev-bar:
@@ -694,8 +684,6 @@
   --accent-halo: rgba(143, 183, 255, 0.18);
   /* The scrim a fixed overlay lays over the floater body (drawer, dialogs). */
   --surface-scrim: rgba(0, 0, 0, 0.34);
-  /* The terminal's "this session is pinned elsewhere" veil over the canvas. */
-  --terminal-veil: rgba(26, 27, 30, 0.55);
 
   /* Warm rather than the accent blue: a power action is the one launcher entry
      that cannot be undone by closing a window. */
@@ -872,7 +860,6 @@
   --accent-ring: rgba(6, 74, 166, 0.82);
   --accent-halo: rgba(6, 74, 166, 0.24);
   --surface-scrim: rgba(0, 0, 0, 0.34);
-  --terminal-veil: rgba(250, 250, 252, 0.62);
 
   --system-icon-surface: rgba(214, 118, 44, 0.13);
   --system-icon-surface-hover: rgba(214, 118, 44, 0.21);
@@ -992,7 +979,6 @@
     --accent-ring: rgba(6, 74, 166, 0.82);
     --accent-halo: rgba(6, 74, 166, 0.24);
     --surface-scrim: rgba(0, 0, 0, 0.34);
-    --terminal-veil: rgba(250, 250, 252, 0.62);
 
     --system-icon-surface: rgba(214, 118, 44, 0.13);
     --system-icon-surface-hover: rgba(214, 118, 44, 0.21);
@@ -1146,7 +1132,6 @@ canvas {
   .terminal-resident,
   .update-banner,
   .settings-save-alert--toast,
-  .pinned-card,
   .settings-save-alert__spinner,
   .launcher-plugin-footer__spinner,
   .terminal-bar__dot,
@@ -1156,7 +1141,6 @@ canvas {
 
   .collapsed-card,
   .collapsed-card__settings,
-  .collapsed-shell [data-variant="launcher"] .pinned-card__header,
   .launcher-bottom-clip,
   .settings-option,
   .settings-switch,

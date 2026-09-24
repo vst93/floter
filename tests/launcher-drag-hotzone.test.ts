@@ -1,24 +1,17 @@
-// R10-B · The collapsed launcher's pinned card loses its header bar, and the
-// launcher gets one implicit drag handle in its place.
+// R10-B · The collapsed launcher gets one implicit drag handle in its place.
 //
 // The user's report, verbatim: 「现在简洁版头部还是有独立的头部状态栏，这个是不需要
 // 的。之前就说过要做成隐藏式的，就跟搜索和终端页面一样，鼠标悬浮到顶部才微微显示
-// 出来，然后支持拖动」. Two facts carry the round, and each is asserted from the
-// source that owns it rather than from a restatement:
+// 出来，然后支持拖动」. The fact this round is asserted from the source that owns
+// it rather than from a restatement:
 //
-//   1. the pinned card's header is an implicit band on the *launcher* only —
-//      the collapsed shell tags the instance `data-variant="launcher"` and the
-//      sheet fades that header to zero until it is hovered or focused; the
-//      terminal page's instance keeps its always-visible header;
-//   2. the card is no longer a drag surface, and the one drag surface the
-//      launcher has is a 28px band at the card's top that never covers the
-//      field or the buttons.
+//   · the card is no longer a drag surface, and the one drag surface the
+//     launcher has is a 28px band at the card's top that never covers the
+//     field or the buttons.
 //
-// Both are checked positively (the band exists and calls `startDrag`, the
-// variant is emitted, the header rule exists) *and* negatively (no
-// `onMouseDown={startDrag}` on the card, no launcher variant on the terminal
-// instance), so deleting the code is what turns the suite red — not deleting
-// the prose.
+// It is checked positively (the band exists and calls `startDrag`) *and*
+// negatively (no `onMouseDown={startDrag}` on the card), so deleting the code
+// is what turns the suite red — not deleting the prose.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -112,75 +105,4 @@ test("the hot zone is a 28px absolute band under the field, and the card is not 
   const field = rule(css, ".collapsed-card__input");
   assert.ok(field, "launcher.css must define the field");
   assert.equal(decl(field!.body, "z-index"), "1", "the field must stay above the band");
-});
-
-// ── 2 · the header goes implicit on the launcher only ──────────────────────
-
-test("R55 · the in-window pinned card is retired in favour of the native window", async () => {
-  const app = await read("src/App.tsx");
-  // The launcher no longer builds the floating card element; pinning opens a
-  // second native window instead. Deleting the card from the tree is what the
-  // round means by "retire", so it must stay deleted.
-  assert.equal(
-    app.includes("const pinnedCardElement"),
-    false,
-    "App must not build the retired in-window card",
-  );
-  const coordinator = await read("src/hooks/usePinCoordinator.ts");
-  // The session still moves through the same detach/attach handshake: detach
-  // the main view, open the pinned window, then let the backend attach.
-  assert.match(coordinator, /term_detach_view/);
-  assert.match(coordinator, /open_pinned_terminal_window/);
-  assert.match(coordinator, /close_pinned_terminal/);
-  // The main window takes the session back when the pinned window closes.
-  assert.match(app, /pinned-window:\/\/closed/);
-});
-
-test("PinnedTerminalCard emits the variant and defaults to the terminal one", async () => {
-  const card = await read("src/terminal/PinnedTerminalCard.tsx");
-  assert.match(
-    card,
-    /variant\?: "terminal" \| "launcher"/,
-    "the prop must be optional and narrow",
-  );
-  assert.match(card, /variant = "terminal"/, "the default must be the always-visible header");
-  assert.match(card, /data-variant=\{variant\}/, "the variant must reach the DOM for the sheet");
-});
-
-test("the launcher header fades in on hover/focus and is inert while hidden", async () => {
-  const css = stripComments(await read("src/styles/pinned-card.css"));
-  const hidden = rule(
-    css,
-    '.collapsed-shell [data-variant="launcher"] .pinned-card__header',
-  );
-  assert.ok(hidden, "the launcher variant's header rule must exist");
-  assert.equal(decl(hidden!.body, "opacity"), "0", "the header starts invisible");
-  assert.equal(
-    decl(hidden!.body, "transition"),
-    "opacity var(--dur-3) var(--ease-out)",
-    "it uses the shared duration token, like the terminal bar's reveal",
-  );
-
-  const revealed = rule(
-    css,
-    '.collapsed-shell [data-variant="launcher"] .pinned-card__header:hover, .collapsed-shell [data-variant="launcher"] .pinned-card__header:focus-within',
-  );
-  assert.ok(revealed, "hover and keyboard focus must both reveal the header");
-  assert.equal(decl(revealed!.body, "opacity"), "1");
-
-  // Hidden means unclickable *and* untabbable: no invisible control may sit
-  // over the terminal, and the close button must not be a keyboard trap on a
-  // band nobody can see.
-  const inert = rule(
-    css,
-    '.collapsed-shell [data-variant="launcher"] .pinned-card__header:not(:hover):not(:focus-within) > *',
-  );
-  assert.ok(inert, "the hidden header's children must be taken out of the hit-test and tab order");
-  assert.equal(decl(inert!.body, "visibility"), "hidden");
-
-  // The 28px is layout, not paint: the card must not jump when the band fades.
-  const header = rule(css, ".pinned-card__header");
-  assert.ok(header, "pinned-card.css must define the header");
-  assert.equal(decl(header!.body, "height"), "28px", "the header keeps its height");
-  assert.equal(decl(header!.body, "opacity"), null, "the base header stays visible for the terminal page");
 });

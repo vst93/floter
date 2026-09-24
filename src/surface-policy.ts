@@ -195,10 +195,9 @@ export type DismissTable = Record<
  * dismiss on this trigger" — not an omission; the `DismissTable` type makes
  * every cell mandatory.
  *
- * `terminal` is the interesting row: its Escape belongs to the running shell
- * (or to the pinned card's "return to main"), and its Cmd+W is the user's
- * configurable new-command binding, which returns to the launcher rather than
- * dismissing a window.
+ * `terminal` is the interesting row: its Escape belongs to the running shell,
+ * and its Cmd+W is the user's configurable new-command binding, which returns
+ * to the launcher rather than dismissing a window.
  */
 export const DISMISS_TABLE: DismissTable = {
   collapsed: {
@@ -208,7 +207,7 @@ export const DISMISS_TABLE: DismissTable = {
   },
   terminal: {
     "mod-w": null, // the shell's Ctrl+W; on macOS the Cmd chord is swallowed later
-    escape: null, // the shell's, or the pinned card's "return to main"
+    escape: null, // the shell's
     "new-command": { action: "return-to-input", reassertOnKeyUp: true },
   },
   settings: {

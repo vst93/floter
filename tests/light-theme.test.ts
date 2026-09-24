@@ -121,7 +121,6 @@ const MUST_COVER: { token: string; why: string }[] = [
   { token: "terminal-bar", why: "a dark bar tint" },
   { token: "terminal-bar-top", why: "a dark bar tint" },
   { token: "terminal-bar-bottom", why: "a dark bar tint" },
-  { token: "terminal-veil", why: "a near-black veil" },
   { token: "scrollbar-thumb", why: "a light scrollbar thumb" },
   { token: "stroke-contrast", why: "a white contrast stroke" },
   { token: "stroke-contrast-soft", why: "a white contrast stroke" },

@@ -12,7 +12,8 @@
 //
 //   4 · the clipboard panel's trigger stops being a bespoke settings field and
 //       becomes an ordinary `SHORTCUT_ACTIONS` member (empty = disabled);
-//       R56 then removes it entirely — the map is eight uniform actions again.
+//       R56 then removes it entirely, and R57 retires `pin_terminal` — the map
+//       is seven uniform actions again.
 //   5 · users can add N custom global shortcuts, each a key plus a launcher
 //       action, registered with the OS and executed silently (plugins open
 //       normally).
@@ -43,10 +44,13 @@ const stripJsComments = (src: string) =>
 
 // ── 4 · the clipboard panel's trigger is gone (R56) ──────────────────────
 
-test("R56 · the clipboard panel is not a shortcut action any more", () => {
+test("R56/R57 · the clipboard panel and pin_terminal are not shortcut actions any more", () => {
   assert.equal(SHORTCUT_ACTIONS.includes("clipboard_panel" as never), false);
   assert.equal("clipboard_panel" in DEFAULT_SHORTCUTS, false);
-  assert.equal(SHORTCUT_ACTIONS.length, 8, "the map is eight uniform actions again");
+  // R57 · pin_terminal retired with the pinned-terminal feature.
+  assert.equal(SHORTCUT_ACTIONS.includes("pin_terminal" as never), false);
+  assert.equal("pin_terminal" in DEFAULT_SHORTCUTS, false);
+  assert.equal(SHORTCUT_ACTIONS.length, 7, "the map is seven uniform actions again");
 });
 
 test("R56 · no shortcut row carries a bespoke clear path", async () => {

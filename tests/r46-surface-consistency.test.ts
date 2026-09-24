@@ -3,13 +3,12 @@
 // The user's report, verbatim: 「还有，我发现搜索页面、应用设置页面、窗口以及终端页
 // 面的外边距或者阴影存在不一致性。这个需要尽可能保持一致，让软件有更强的一体性」.
 //
-// The round is an audit: the launcher card, the settings card, the terminal
-// panel and the pinned card are measured against each other, and every
+// The round is an audit: the launcher card, the settings card and the terminal
+// panel are measured against each other, and every
 // difference that carries no meaning is collapsed onto one number. What the
 // numbers *are* is the sheets' business; what this file locks is that they are
 // now the same number, per axis, and that the differences that stay are the
-// ones the sheets explain (the Windows launcher's asymmetric shadow gutter, the
-// pinned card's rung-4 float).
+// ones the sheets explain (the Windows launcher's asymmetric shadow gutter).
 //
 // Mutations that must turn this red:
 //   * giving the Linux launcher shell its old 4px margin back -> "one margin";
@@ -231,7 +230,6 @@ test("every launcher block lands on the query's 16u column", async () => {
 
 test("the terminal's chrome shares one 12px inset", async () => {
   const terminal = await read("src/styles/terminal.css");
-  const pinned = await read("src/styles/pinned-card.css");
 
   // The horizontal inset of every piece of terminal chrome. The canvas's own
   // inset is the user's `terminal_padding` and is deliberately not part of this
@@ -242,27 +240,12 @@ test("the terminal's chrome shares one 12px inset", async () => {
   assert.deepEqual(comps(decl(terminal, ".terminal-resident", "left")), [12], "the exit note's left edge");
   assert.deepEqual(comps(decl(terminal, ".terminal-resident", "right")), [12], "…and its right");
   assert.deepEqual(comps(decl(terminal, ".terminal-feedback", "left")), [12], "the feedback toast");
-
-  // The pinned card is the terminal's own surface popped out, so its 28px band
-  // takes the bar's inset — and the live-session dot is the same box in both.
-  assert.deepEqual(comps(decl(pinned, ".pinned-card__header", "padding")), [0, 12], "the pinned card's band");
-  assert.deepEqual(comps(decl(pinned, ".pinned-card__header", "height")), [28], "…the bar's own height");
-  assert.deepEqual(comps(decl(terminal, ".terminal-bar", "height")), [28], "which is the terminal bar's");
-  assert.deepEqual(comps(decl(pinned, ".pinned-card__dot", "width")), comps(decl(terminal, ".terminal-bar__dot", "width")), "one live dot");
+  assert.deepEqual(comps(decl(terminal, ".terminal-bar", "height")), [28], "the terminal bar's own height");
 });
 
 // ── 5 · the floaters keep their explainable rung ─────────────────────────
 
-test("the pinned card is the one rung above the window, and it says so", async () => {
-  const pinned = await read("src/styles/pinned-card.css");
-  const base = await read("src/styles/base.css");
-  // The window-filling cards draw the material rim (the frame's cast comes from
-  // the platform block above); a card the user drags inside the window is one
-  // rung higher and uses the ladder's own token.
-  assert.match(decl(pinned, ".pinned-card", "box-shadow"), /var\(--elev-4\)/, "the dragged card is rung 4");
-  // Rung 4 is defined as the frame tint carried further, not as a second palette.
-  const root = stripComments(base).slice(stripComments(base).indexOf(":root {"));
-  assert.match(/(?:--elev-4):\s*([^;]+);/.exec(root)![1], /var\(--window-shadow-ambient\)/, "rung 4 keeps the frame's tint");
+test("the window cards draw the shared material rim", async () => {
   for (const sheet of ["launcher.css", "settings.css", "terminal.css"]) {
     const css = await read(`src/styles/${sheet}`);
     const card = sheet === "launcher.css" ? ".collapsed-card" : sheet === "settings.css" ? ".settings-card" : ".terminal-panel";

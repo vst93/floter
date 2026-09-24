@@ -413,12 +413,12 @@ test("1px hairlines stay literal: ink, not layout", async () => {
 
 // ── 4 · the deferred sheets ───────────────────────────────────────────────
 
-test("extensions / terminal / pinned-card keep box sizes for leg 3", async () => {
-  // The brief scopes this round: the three sheets leg 3's launcher/settings/
-  // base benefit from are converted; the rest wait, so a wrong conversion
-  // cannot hide in a surface nobody is looking at yet. Their type already
-  // reads the ladder (a prior round did that), so there is nothing to do here.
-  for (const file of ["src/styles/extensions.css", "src/styles/terminal.css", "src/styles/pinned-card.css"]) {
+test("extensions / terminal keep box sizes for leg 3", async () => {
+  // The brief scopes this round: the sheets leg 3's launcher/settings/base
+  // benefit from are converted; the rest wait, so a wrong conversion cannot
+  // hide in a surface nobody is looking at yet. Their type already reads the
+  // ladder (a prior round did that), so there is nothing to do here.
+  for (const file of ["src/styles/extensions.css", "src/styles/terminal.css"]) {
     assert.ok(
       !/calc\(var\(--u\)/.test(await read(file)),
       `${file} must not consume --u this round — its boxes are leg 3's`,

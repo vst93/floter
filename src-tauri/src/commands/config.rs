@@ -16,7 +16,6 @@ pub const COPY_SELECTION: &str = "copy_selection";
 pub const PASTE: &str = "paste";
 pub const OPEN_SETTINGS: &str = "open_settings";
 pub const SELECT_RESULT: &str = "select_result";
-pub const PIN_TERMINAL: &str = "pin_terminal";
 
 const DEFAULT_TERMINAL_WIDTH: f64 = 860.0;
 const DEFAULT_TERMINAL_HEIGHT: f64 = 600.0;
@@ -243,7 +242,7 @@ static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const SETTINGS_BACKUP_FILE_NAME: &str = "settings.json.backup";
 
-const SHORTCUT_ACTIONS: [&str; 8] = [
+const SHORTCUT_ACTIONS: [&str; 7] = [
     TOGGLE_WINDOW,
     NEW_COMMAND,
     OPEN_EXTERNAL_TERMINAL,
@@ -251,7 +250,6 @@ const SHORTCUT_ACTIONS: [&str; 8] = [
     PASTE,
     OPEN_SETTINGS,
     SELECT_RESULT,
-    PIN_TERMINAL,
 ];
 
 /// Shortcut fallback for the window toggle, which is registered with the OS and
@@ -797,14 +795,6 @@ pub fn default_shortcuts() -> HashMap<String, String> {
         ),
         (OPEN_SETTINGS, format!("{APP_MODIFIER}+Comma")),
         (SELECT_RESULT, format!("{APP_MODIFIER}+1")),
-        (
-            PIN_TERMINAL,
-            if cfg!(target_os = "macos") {
-                "Cmd+Shift+P".to_string()
-            } else {
-                "Ctrl+Shift+P".to_string()
-            },
-        ),
     ]
     .into_iter()
     .map(|(action, shortcut)| (action.to_string(), shortcut))
@@ -2233,6 +2223,27 @@ mod tests {
     }
 
     #[test]
+    fn a_hand_edited_pin_terminal_entry_is_dropped_without_warning() {
+        // R57 · the pinned-terminal feature is retired. A settings file that
+        // still carries its binding is normalized down to the registered
+        // actions: the entry is dropped, but nothing is logged or surfaced, so
+        // an old file loads without a notice.
+        let mut settings = AppSettings::default();
+        settings
+            .shortcuts
+            .insert("pin_terminal".to_string(), "Cmd+Shift+P".to_string());
+        let normalized = normalize_settings(settings);
+        assert!(
+            !normalized.shortcuts.contains_key("pin_terminal"),
+            "the action is retired; a hand-edited entry must be dropped"
+        );
+        assert!(
+            !normalized.shortcuts.values().any(|value| value == "Cmd+Shift+P"),
+            "the retired binding must not linger under another action"
+        );
+    }
+
+    #[test]
     fn every_remaining_shortcut_action_is_an_ordinary_binding() {
         // R56 · the map is uniform again: each action resolves to a non-empty
         // default, so no action carries the old "empty means disabled" meaning.
@@ -2248,7 +2259,7 @@ mod tests {
     #[test]
     fn a_frontend_snapshot_cannot_resurrect_the_clipboard_panel() {
         // R56 · a stale whole-app save carries the resolved map (the frontend's
-        // own eight actions). Even if the *stored* file was hand-edited to
+        // own actions). Even if the *stored* file was hand-edited to
         // carry a clipboard entry, `merge_frontend_settings` re-resolves the
         // map from the stored shortcuts, and `resolved_shortcuts` drops the
         // retired action — so neither side can bring it back.
@@ -2263,7 +2274,7 @@ mod tests {
     }
 
     #[test]
-    fn the_stored_map_is_normalized_to_the_eight_actions() {
+    fn the_stored_map_is_normalized_to_the_registered_actions() {
         // A hand-edited file with an extra unknown action is normalized down to
         // exactly the registry the frontend renders.
         let mut settings = AppSettings::default();

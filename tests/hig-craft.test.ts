@@ -615,7 +615,6 @@ test("the elevation ladder names four depths and stays a ladder", async () => {
   // terms of* a rung, or it is a fourth shadow wearing a token's name.
   assert.match(token(rootBlock, "elev-3-edge"), /var\(--elev-3\)/);
   assert.match(token(rootBlock, "elev-3-compact"), /var\(--window-shadow-ambient\)/);
-  assert.match(token(rootBlock, "elev-4"), /var\(--window-shadow-ambient\)/);
   assert.match(token(rootBlock, "elev-bar"), /var\(--elev-shadow-scale\)/);
   assert.match(token(rootBlock, "elev-track"), /var\(--glass-lens-stack-inset\)/);
   assert.match(token(rootBlock, "elev-hover"), /var\(--window-shadow-contact\)/);

@@ -133,7 +133,7 @@ test("the launcher declares a local fill floor and consumes the global one", asy
   const launcher = await launcherCss();
   const declaredIn = [...launcher.matchAll(/--launcher-(?:glass-floor|frame-alpha|tint-alpha|tint):/g)];
   assert.ok(declaredIn.length >= 4, "the launcher tokens are declared");
-  for (const file of ["settings.css", "terminal.css", "extensions.css", "pinned-card.css"]) {
+  for (const file of ["settings.css", "terminal.css", "extensions.css"]) {
     const css = stripComments(await read(`src/styles/${file}`));
     assert.ok(
       !/--launcher-(glass-floor|frame-alpha|tint-alpha|tint)/.test(css),

@@ -905,7 +905,7 @@ export interface WheelRemainder {
 
 /**
  * Wheel delta -> whole scroll steps, shared by every surface that scrolls a
- * session (the main view and the pinned card).
+ * session (the terminal view).
  *
  * Two things make this worth having in one place. `deltaMode` is not always
  * pixels: a mouse whose driver reports DOM_DELTA_LINE sends deltas of 1..3, and

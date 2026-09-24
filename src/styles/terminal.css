@@ -522,9 +522,8 @@
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     /* Transparency follows the terminal page's configured opacity — the same
        `--terminal-opacity` custom property the host window sets and the same
-       mechanism every terminal-backed surface uses (.pinned-card included).
-       No hardcoded level lives here; only this variable decides how strong
-       the glass is. */
+       mechanism the terminal-backed surfaces share. No hardcoded level lives
+       here; only this variable decides how strong the glass is. */
     var(--glass-tint-terminal);
   overflow: hidden;
 }

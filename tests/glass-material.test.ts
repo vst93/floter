@@ -163,7 +163,6 @@ test("no card, row, drawer or dialog re-blurs the shell", async () => {
     ".extension-menu__items",
     ".app-toast",
     ".clipboard-row",
-    ".pinned-card",
   ];
   const found = await filteringSelectors();
   for (const selector of contentSelectors) {

@@ -17,11 +17,8 @@ import {
   SquareTerminal,
   X,
 } from "lucide-react";
-import { TerminalCanvas } from "./terminal/render";
-import { PINNED_SESSION_ID } from "./terminal/pinState";
 import { useTerminalView } from "./hooks/useTerminalView";
 import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
-import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
 import { useCopyNotice } from "./hooks/useCopyNotice";
 import { ToastHost } from "./components/ToastStack";
@@ -162,7 +159,6 @@ import "./styles/plugin-config.css";
 import "./styles/terminal.css";
 import "./styles/settings.css";
 import "./styles/extensions.css";
-import "./styles/pinned-card.css";
 import "./styles/base.css";
 
 if (IS_WINDOWS) {
@@ -355,17 +351,11 @@ export default function App() {
   const appQuitting = useRef(false);
 
   const ptyReady = useRef(false);
-  /** The card's counterpart to `ptyReady`. Both live here, next to the other
-   * broker-side bookkeeping, because the pin coordinator writes this one and the
-   * terminal view's input gates read it. `ptyReady` describes the MAIN slot
-   * only, and pinning empties that slot by design. */
-  const pinnedReady = useRef(false);
   const terminalGeneration = useRef<number | null>(null);
   /** Daemon-side id of the PTY the main view is attached to; captured at
-   * spawn/attach so pinning can hand the session to the card without a
-   * listing round-trip. */
+   * spawn/attach so a resumed session can be re-attached without a listing
+   * round-trip. */
   const mainBrokerSessionIdRef = useRef<string | null>(null);
-  const pinnedRendererRef = useRef<TerminalCanvas | null>(null);
   const nextTerminalGeneration = useRef(Date.now());
   const sessionClosePromise = useRef<Promise<unknown> | null>(null);
   const terminalOpening = useRef(false);
@@ -480,19 +470,6 @@ export default function App() {
   /** Header identity (status dot + title) for the session in the main terminal
    * view; null until a spawn/attach has described it. */
   const [mainSessionIdentity, setMainSessionIdentity] = useState<MainSessionIdentity | null>(null);
-  // Which surface owns the keyboard: the main terminal area or the pin card.
-  // Clicking a surface claims it; Escape or an outside click returns it to the
-  // main view. Mirrored into a ref because the window keydown handler must see
-  // the current value without resubscribing.
-  const [activeSurface, setActiveSurfaceState] = useState<"main" | "pinned">("main");
-  const activeSurfaceRef = useRef<"main" | "pinned">("main");
-  const setActiveSurface = useCallback((surface: "main" | "pinned") => {
-    activeSurfaceRef.current = surface;
-    setActiveSurfaceState(surface);
-  }, []);
-  /** True while the card holds the only view of a live session (the main slot
-   * is empty); drives the placeholder in the terminal panel. */
-  const [mainPinnedAway, setMainPinnedAway] = useState(false);
   const [appVersion, setAppVersion] = useState("DEV");
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   /** Whether the action bar, rather than a row of the result list, is the thing
@@ -776,9 +753,8 @@ export default function App() {
 
 
   // ---- extracted hooks ----------------------------------------------------
-  // Terminal canvas lifecycle, input and selection; launcher data; pin card
-  // coordination. Each hook owns the code moved out of this component
-  // verbatim; see src/hooks/.
+  // Terminal canvas lifecycle, input and selection; launcher data. Each hook
+  // owns the code moved out of this component verbatim; see src/hooks/.
 
   const {
     setTerminalMounted,
@@ -793,8 +769,6 @@ export default function App() {
     focusTerminalView,
     closeTerminalSession,
     ensureTerminalSession,
-    describeMainSession,
-    resetTerminalFrontendState,
     terminalResident,
     openInTerminal,
     copySelection,
@@ -822,17 +796,12 @@ export default function App() {
     pasteSafe: settings.terminal_paste_safe,
     resolvedTheme,
     ptyReady,
-    pinnedReady,
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
-    pinnedRendererRef,
-    activeSurfaceRef,
-    setActiveSurface,
     sessionClosePromise,
     restoringMode,
     setMainSessionIdentity,
-    setMainPinnedAway,
     setTerminalFeedback,
     setQuery: setQueryExitingPlugin,
     setMode,
@@ -1457,30 +1426,6 @@ export default function App() {
   );
 
   const {
-    pinStateRef,
-    dispatchPinEvent,
-    togglePinnedTerminal,
-    handlePinnedWindowClosed,
-  } = usePinCoordinator({
-    mode,
-    resolvedTheme,
-    ptyReady,
-    pinnedReady,
-    terminalGeneration,
-    nextTerminalGeneration,
-    mainBrokerSessionIdRef,
-    dimsRef,
-    setActiveSurface,
-    setMainPinnedAway,
-    setMainSessionIdentity,
-    describeMainSession,
-    focusTerminalView,
-    resetTerminalFrontendState,
-    showTerminalFeedback,
-    refreshTerminalSessions,
-  });
-
-  const {
     runCommand,
     resumeTerminalSession,
     executeActionBar,
@@ -1501,9 +1446,6 @@ export default function App() {
     nextTerminalGeneration,
     sessionClosePromise,
     dimsRef,
-    pinStateRef,
-    dispatchPinEvent,
-    setMainPinnedAway,
     setLauncherFeedback,
     setTerminalFeedback,
     showLauncherFeedback,
@@ -1657,10 +1599,6 @@ export default function App() {
             await invoke("show_input").catch(() => undefined);
             openSettings("general");
             break;
-          case "pin_terminal":
-            await invoke("show_input").catch(() => undefined);
-            await togglePinnedTerminal();
-            break;
           case "open_external_terminal":
             await openInTerminal();
             break;
@@ -1677,7 +1615,7 @@ export default function App() {
         showLauncherFeedback("launcher.error.command");
       }
     },
-    [enterPluginMode, openInTerminal, openSettings, returnToInputMode, showLauncherFeedback, togglePinnedTerminal],
+    [enterPluginMode, openInTerminal, openSettings, returnToInputMode, showLauncherFeedback],
   );
 
   /** One listener for every custom key: the backend sends the action string. */
@@ -1690,16 +1628,6 @@ export default function App() {
     };
   }, [runCustomShortcutAction]);
 
-  /** R55 · the pinned window closed on its own (native close, or the session
-   *  exited): take the session back into the main terminal view. */
-  useEffect(() => {
-    const unlistenPromise = listen<string>("pinned-window://closed", (event) => {
-      void handlePinnedWindowClosed(event.payload);
-    });
-    return () => {
-      void unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [handlePinnedWindowClosed]);
   /** Switch pages and remember the choice for the next launch. */
   const changeSettingsPage = (page: SettingsPage) => {
     setSettingsPage(page);
@@ -1725,12 +1653,9 @@ export default function App() {
     terminalTextInputRef,
     terminalInputTarget,
     activeRenderer,
-    activeSurfaceRef,
-    setActiveSurface,
     focusCollapsedInput,
     returnToInputMode,
     openInTerminal,
-    togglePinnedTerminal,
     copySelection,
     pasteClipboard,
     closeSettings,
@@ -1836,9 +1761,6 @@ export default function App() {
       render();
       invoke("term_set_theme", { id: "main", theme: resolvedTheme }).catch(() => undefined);
     }
-    // The pinned card runs its own emulator instance against its own session;
-    // keep its palette in step too.
-    invoke("term_set_theme", { id: PINNED_SESSION_ID, theme: resolvedTheme }).catch(() => undefined);
   }, [resolvedTheme]);
 
   // R42 · the cursor shape is a terminal-side default (alacritty's
@@ -1849,7 +1771,6 @@ export default function App() {
   useEffect(() => {
     const shape = normalizeCursorShape(settings.cursor_shape);
     invoke("term_set_cursor_style", { id: "main", shape }).catch(() => undefined);
-    invoke("term_set_cursor_style", { id: PINNED_SESSION_ID, shape }).catch(() => undefined);
   }, [settings.cursor_shape]);
 
   // A new query starts from its own default: the first result for a name, the
@@ -2411,18 +2332,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // While the card owns the keyboard, any press outside it hands focus back
-  // to the main surface (Escape is handled in the keydown path).
-  useEffect(() => {
-    if (activeSurface !== "pinned") return;
-    const onPointerDown = (event: PointerEvent) => {
-      if ((event.target as Element | null)?.closest?.("[data-pinned-card]")) return;
-      setActiveSurface("main");
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [activeSurface, setActiveSurface]);
-
   useEffect(() => {
     if (!settings.hide_on_blur) return;
 
@@ -2581,12 +2490,6 @@ export default function App() {
     if (onPluginModeBackspace(event.nativeEvent)) return;
     handleLauncherKey(event.nativeEvent);
   };
-
-  // R55 · the in-window floating card is retired. Pinning now opens a second
-  // native window (`open_pinned_terminal_window`), rendered by
-  // `src/pinned-window.tsx`; the main window keeps only the placeholder that
-  // says where the session went. `pinState` survives as the main window's
-  // "a session is pinned away" flag and as the resume target.
 
   // The toast host is rendered once, as a stable sibling of the mode shell, so
   // the stack survives mode switches without unmounting: a toast raised in the
@@ -3553,16 +3456,6 @@ export default function App() {
                 )}
               </div>
             </div>
-            {mainPinnedAway && (
-              <div className="terminal-pinned-note" role="status">
-                <span className="terminal-pinned-note__title">{t("terminal.pinnedOverlay")}</span>
-                <span>
-                  {t("terminal.pinnedOverlayHint", {
-                    shortcut: formatShortcut(shortcuts.pin_terminal),
-                  })}
-                </span>
-              </div>
-            )}
             {/* R9-2 slice 5 · the PTY child exited and the page is being
                 *held* rather than collapsed: the final frame stays painted so
                 the output is readable, and this line names the exit code and

@@ -46,12 +46,9 @@ export function useAppKeyboard(options: {
   terminalTextInputRef: RefObject<HTMLTextAreaElement | null>;
   terminalInputTarget: () => string;
   activeRenderer: () => TerminalCanvas | null;
-  activeSurfaceRef: RefObject<"main" | "pinned">;
-  setActiveSurface: (surface: "main" | "pinned") => void;
   focusCollapsedInput: (delay?: number) => void;
   returnToInputMode: () => Promise<void>;
   openInTerminal: () => Promise<unknown>;
-  togglePinnedTerminal: () => Promise<unknown>;
   copySelection: () => void;
   pasteClipboard: () => void;
   closeSettings: () => void;
@@ -89,12 +86,9 @@ export function useAppKeyboard(options: {
     terminalTextInputRef,
     terminalInputTarget,
     activeRenderer,
-    activeSurfaceRef,
-    setActiveSurface,
     focusCollapsedInput,
     returnToInputMode,
     openInTerminal,
-    togglePinnedTerminal,
     copySelection,
     pasteClipboard,
     closeSettings,
@@ -184,9 +178,8 @@ export function useAppKeyboard(options: {
 
         // App shortcuts first, everything else is forwarded to the shell.
         // Escape and Cmd/Ctrl+W deliberately have no rule in the terminal row
-        // of the dismiss table: Escape belongs to the shell (or to the pinned
-        // card), and the Cmd chord is the configurable new-command binding
-        // handled right here.
+        // of the dismiss table: Escape belongs to the shell, and the Cmd chord
+        // is the configurable new-command binding handled right here.
         const dismiss = resolveDismissRule("terminal", event, shortcuts);
         if (dismiss) {
           runDismissAction(dismiss, event);
@@ -197,28 +190,9 @@ export function useAppKeyboard(options: {
           void openInTerminal();
           return;
         }
-        // Pin / unpin / move the floating card. Only meaningful while a
-        // terminal session view is open (the requirement's precondition).
-        if (matchesShortcut(event, shortcuts.pin_terminal)) {
-          event.preventDefault();
-          void togglePinnedTerminal();
-          return;
-        }
-        // While the card owns the keyboard, Escape hands it back to the main
-        // surface instead of reaching the pinned session's shell.
-        if (event.key === "Escape" && activeSurfaceRef.current === "pinned") {
-          event.preventDefault();
-          setActiveSurface("main");
-          return;
-        }
         // Copy only claims the combination when there is something to copy, so
         // a Ctrl+C binding still interrupts the foreground process otherwise.
-        // `selectionRef` and `copySelection` are both main-view-only: the card
-        // has no selection of its own, so while it owns the keyboard this must
-        // not fire — it would copy text from the other surface, and swallow the
-        // press the pinned shell was waiting for.
         if (
-          activeSurfaceRef.current === "main" &&
           selectionRef.current &&
           matchesShortcut(event, shortcuts.copy_selection)
         ) {
@@ -239,11 +213,7 @@ export function useAppKeyboard(options: {
         }
         if (event.shiftKey && (event.key === "PageUp" || event.key === "PageDown")) {
           event.preventDefault();
-          // A page is the active surface's own row count. `dimsRef` measures the
-          // main grid, and the card is typically much shorter, so using it there
-          // would scroll the pinned session past whole screens of output the
-          // user never saw. Falls back to the main dims when the card's renderer
-          // has not laid out yet.
+          // A page is the terminal grid's own row count.
           const lines = Math.max(1, activeRenderer()?.rows ?? dimsRef.current.rows);
           invoke("term_scroll", {
             id: terminalInputTarget(),

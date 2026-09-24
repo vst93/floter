@@ -52,7 +52,7 @@ use commands::extensions::{
 use commands::extensions::{external_plugin_commands, external_plugin_run};
 use commands::system::system_power;
 use commands::terminal::{
-    open_in_default_terminal, term_attach_existing, term_close, term_detach_view, term_input,
+    open_in_default_terminal, term_attach_existing, term_close, term_input,
     term_kill_session, term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to,
     term_set_cursor_style, term_set_theme, term_spawn, term_wheel, TerminalState,
 };
@@ -67,7 +67,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
-    WebviewUrl, WebviewWindow, WebviewWindowBuilder, Wry,
+    WebviewWindow, Wry,
 };
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
@@ -1245,8 +1245,7 @@ pub fn register_custom_shortcut(app: &AppHandle, key: &str, action: &str) -> Res
     app.global_shortcut()
         .on_shortcut(key, move |_app, _shortcut, event| {
             if event.state == ShortcutState::Pressed {
-                // The main window owns the launcher and the command surface; the
-                // pinned window has no business handling these.
+                // The main window owns the launcher and the command surface.
                 let _ = handle.emit_to("main", "custom-shortcut://trigger", action.clone());
             }
         })
@@ -1288,97 +1287,6 @@ pub fn set_registered_custom_shortcuts(
 fn print_toggle_hint(reason: &str) {
     tracing::warn!("{reason}");
     tracing::warn!("Bind 'floter --toggle' as a custom shortcut in your compositor settings.");
-}
-
-/// R55 · the independent pinned-terminal window.
-///
-/// The user's report, verbatim: 「当前终端页固定时逻辑不对，我想要的时独立出来并固定
-/// 住，不是只能在终端页面内小窗」. Pinning used to be a floating card inside the
-/// main window; it is now a second native window (label `pinned-terminal`),
-/// always-on-top, frameless, with no taskbar item. It loads the same frontend
-/// with `?pinned=<brokerSessionId>` and renders only the terminal, attached to
-/// the same broker session with the frontend id `pinned`.
-///
-/// The window holds no PTY of its own: frames are the manager's global
-/// `term://frame` broadcasts, so the session survives the move and nothing is
-/// reset. Closing the window detaches the view (the PTY keeps running) and
-/// tells the main window to take the session back.
-#[tauri::command]
-async fn open_pinned_terminal_window(
-    app: AppHandle,
-    broker_session_id: String,
-) -> Result<(), String> {
-    if let Some(existing) = app.get_webview_window("pinned-terminal") {
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-
-    let url = WebviewUrl::App(format!("index.html?pinned={broker_session_id}").into());
-    let session_for_close = broker_session_id.clone();
-    let emit_handle = app.clone();
-    let window = WebviewWindowBuilder::new(&app, "pinned-terminal", url)
-        .title("floter")
-        // A card-sized default; the frontend restores the user's last geometry
-        // and reports every move/resize back to the store.
-        .inner_size(640.0, 420.0)
-        .min_inner_size(320.0, 200.0)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .resizable(true)
-        .visible(true)
-        .build()
-        .map_err(|error| error.to_string())?;
-
-    // Whenever the window goes away — our close button, a platform shortcut, or
-    // the app shutting down — tell the main window so it can take the session
-    // back. The frontend detaches the view before closing (the PTY survives).
-    window.on_window_event(move |event| {
-        if matches!(event, tauri::WindowEvent::Destroyed) {
-            // The window can go away through the OS (a native close) without the
-            // frontend's detach running; drop its view here so the broker
-            // session is handed off cleanly and no orphan renderer keeps
-            // emitting frames. `close` preserves the PTY, exactly like
-            // `term_close`.
-            if let Ok(manager) = emit_handle.state::<TerminalState>().0.lock() {
-                let _ = manager.close("pinned");
-            }
-            let _ = emit_handle.emit_to(
-                "main",
-                "pinned-window://closed",
-                session_for_close.clone(),
-            );
-        }
-    });
-
-    Ok(())
-}
-
-/// R55 · close the pinned window (the frontend has already detached its view).
-#[tauri::command]
-fn close_pinned_terminal(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("pinned-terminal") {
-        window.close().map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-/// R55 · the pinned window's own geometry, persisted so it reopens where it was.
-/// Backed by the frontend's localStorage store today; this command exists so the
-/// window can be sized before the webview paints (no flash at the wrong size).
-#[tauri::command]
-fn set_pinned_terminal_geometry(
-    app: AppHandle,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-) -> Result<(), String> {
-    let Some(window) = app.get_webview_window("pinned-terminal") else {
-        return Ok(());
-    };
-    let _ = window.set_size(LogicalSize::new(width.max(240.0), height.max(160.0)));
-    let _ = window.set_position(LogicalPosition::new(x, y));
-    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1735,7 +1643,6 @@ pub fn run() {
             open_url,
             resolve_dropped_files,
             term_close,
-            term_detach_view,
             get_settings,
             save_settings,
             set_launch_at_startup,
@@ -1760,9 +1667,6 @@ pub fn run() {
             hide_window,
             quit_app,
             show_input,
-            open_pinned_terminal_window,
-            close_pinned_terminal,
-            set_pinned_terminal_geometry,
             refocus_webview,
             start_drag,
             system_power,

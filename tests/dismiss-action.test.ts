@@ -89,12 +89,9 @@ const DEP_NAMES = [
   "terminalTextInputRef",
   "terminalInputTarget",
   "activeRenderer",
-  "activeSurfaceRef",
-  "setActiveSurface",
   "focusCollapsedInput",
   "returnToInputMode",
   "openInTerminal",
-  "togglePinnedTerminal",
   "copySelection",
   "pasteClipboard",
   "closeSettings",
@@ -132,11 +129,9 @@ function compileHandler(): Function {
 
 type Recorded = {
   invoke: Array<{ cmd: string; args: unknown }>;
-  setActiveSurface: string[];
   focusCollapsedInput: unknown[];
   returnToInputMode: number[];
   openInTerminal: number[];
-  togglePinnedTerminal: number[];
   copySelection: number[];
   pasteClipboard: number[];
   closeSettings: number[];
@@ -233,11 +228,9 @@ function makeHarness(options: {
 }) {
   const calls: Recorded = {
     invoke: [],
-    setActiveSurface: [],
     focusCollapsedInput: [],
     returnToInputMode: [],
     openInTerminal: [],
-    togglePinnedTerminal: [],
     copySelection: [],
     pasteClipboard: [],
     closeSettings: [],
@@ -282,12 +275,9 @@ function makeHarness(options: {
     terminalTextInputRef: { current: null },
     terminalInputTarget: () => "main",
     activeRenderer: () => null,
-    activeSurfaceRef: { current: "main" },
-    setActiveSurface: (surface: string) => calls.setActiveSurface.push(surface),
     focusCollapsedInput: (delay: number) => calls.focusCollapsedInput.push(delay),
     returnToInputMode: () => calls.returnToInputMode.push(1),
     openInTerminal: () => calls.openInTerminal.push(1),
-    togglePinnedTerminal: () => calls.togglePinnedTerminal.push(1),
     copySelection: () => calls.copySelection.push(1),
     pasteClipboard: () => calls.pasteClipboard.push(1),
     closeSettings: () => calls.closeSettings.push(1),
