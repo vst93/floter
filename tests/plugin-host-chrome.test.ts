@@ -151,7 +151,11 @@ test("R7-4b: the page sheet only shrank — no new filter, no new blur literal",
 test("R7-4b: the plugin surface's only filter is the terminal shell's single blur", async () => {
   const host = stripComments(await read("src/styles/terminal.css"));
   // The plugin layer itself, the host, and the topbar are all material-free.
-  for (const selector of [".plugin-layer", ".plugin-page-host", ".plugin-page-host__topbar", ".plugin-page-host__topbar-title", ".plugin-page-host__button"]) {
+  // R51 · `.plugin-layer` is not in the list any more: R33 retired the layer and
+  // R51 deleted its dead rules from terminal.css, so there is nothing left to
+  // check. The remaining selectors are the host chrome the retired layer still
+  // leaves behind (see the R51 report's R-7 disposition).
+  for (const selector of [".plugin-page-host", ".plugin-page-host__topbar", ".plugin-page-host__topbar-title", ".plugin-page-host__button"]) {
     const rule = rules(host).find(({ selector: s }) => s === selector);
     if (!rule) continue;
     assert.ok(

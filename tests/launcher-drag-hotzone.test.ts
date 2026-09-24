@@ -121,11 +121,15 @@ test("the collapsed instance is tagged, the terminal instance is not", async () 
   // The card element is built once, before the mode branches, and the tag is
   // derived from the mode right there — that is what lets the same element
   // serve the terminal page (visible header) and the launcher (implicit one).
-  const element = app.slice(
-    app.indexOf("const pinnedCardElement"),
-    app.indexOf("const pluginLayer"),
-  );
-  assert.ok(element.length > 0, "App must still build the pinned card element once");
+  //
+  // R51 · the slice's end sentinel used to be `const pluginLayer`, the retired
+  // plugin page layer R33 removed from App.tsx. `indexOf` returned -1, so the
+  // slice quietly ran to the end of the file and the assertions below passed
+  // against far more source than the element. The element's own closing
+  // `) : null;` is the real end and cannot rot the same way.
+  const start = app.indexOf("const pinnedCardElement");
+  const element = app.slice(start, app.indexOf(") : null;", start));
+  assert.ok(start > -1 && element.length > 0, "App must still build the pinned card element once");
   assert.match(
     element,
     /variant=\{mode === "collapsed" \? "launcher" : "terminal"\}/,

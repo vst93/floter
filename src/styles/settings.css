@@ -445,8 +445,17 @@
 
 .settings-section__card {
   /* Where the rows' inset separator starts: the same offset the row's own
-     label starts at, so the rule lines up with the text it separates. */
-  --settings-card-inset: 14px;
+     label starts at, so the rule lines up with the text it separates.
+
+     R51 · this was a bare `14px`, and `.settings-row`'s `9px` beside it, while
+     the row's own `gap` already read `calc(var(--u) * 12)`. Two insets in one
+     box at two different scopes is the inconsistency R46 converged everywhere
+     else, and the census could not see these values at all (a literal mixed
+     with a `var()` is skipped by `isRetainedLiteral`, the R46 R-1 hole). Both
+     components now ride the `--u` knob, so the row's inner rhythm scales with
+     its gap and with every other surface's insets. At the shipped scale 1 the
+     pixels are unchanged: 14px / 9px. */
+  --settings-card-inset: calc(var(--u) * 14);
   position: relative;
   min-width: 0;
   display: grid;
@@ -457,7 +466,8 @@
   background: var(--glass-control);
   box-shadow: var(--elev-0);
   /* Clips the first/last row against the card's radius. Every focusable
-     thing inside sits at least 14px in, so no focus ring is cut. */
+     thing inside sits at least one `--settings-card-inset` in, so no focus
+     ring is cut. */
   overflow: hidden;
 }
 
@@ -477,7 +487,7 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 12);
-  padding: 9px var(--settings-card-inset);
+  padding: calc(var(--u) * 9) var(--settings-card-inset);
 }
 
 /* The leading glyph — the App Store row's app icon slot. A quiet chip, not a

@@ -83,7 +83,13 @@ export const shouldNotify = (foreground: PanelForeground, _outcome: Notification
  * Rust registry so a new plugin page cannot ship without a way to be named in
  * a notification.
  */
-export const NOTIFICATION_PLUGIN_IDS: readonly string[] = ["builtin.clipboard", "builtin.browser"];
+export const NOTIFICATION_PLUGIN_IDS: readonly string[] = [
+  "builtin.clipboard",
+  "builtin.browser",
+  // R51 · the calculator is a registered descriptor now, so a notification
+  // about it (a failed history clear) must be able to name it.
+  "builtin.calculator",
+];
 
 /** What a notification is about, mirroring `notifications::Subject`. */
 export type NotificationSubject =

@@ -240,6 +240,30 @@ const SYSTEM_COMMANDS: {
     // 浏览器 → llq, 浏览器书签 → llqsq, 书签 → sq, 历史记录 → lsjl.
     initials: "llqllqsqsqlsjl",
   },
+  {
+    // R51 · the calculator plugin's entry row. Entering it switches the
+    // launcher into the calculator's result mode (`calculator `), exactly as
+    // the clipboard/browser rows do. The search names are the mode's own
+    // trigger vocabulary minus the bare `=` (a query of punctuation is not a
+    // word, so it cannot be a search name) — see `CALCULATOR_TRIGGERS` in
+    // `launcher.ts`. The bare word `calc` stays the shell's own command on the
+    // action bar (it is calc.exe on Windows); the row here is reached by a
+    // *match*, not by a claim on the action bar.
+    action: "calculator",
+    titleKey: "system.calculator",
+    subtitleKey: "system.calculatorSubtitle",
+    searchNames: [
+      "calculator",
+      "calculate",
+      "calculation",
+      "calc",
+      "计算器",
+      "计算",
+    ].map(normalizeSearch),
+    // 计算器 → jsq, 计算 → js; the English initials (`c` for calc/calculator)
+    // come first, as the clipboard and browser entries put theirs.
+    initials: "cjsqjs",
+  },
 ];
 
 export function useLauncherCatalog(options: {

@@ -33,7 +33,9 @@ import type { ClipboardEntry } from "../clipboard-history";
 import type { CalculatorEntry } from "../calculator";
 import type { DroppedFile } from "./file-drops";
 
-export type SystemAction = "restart" | "shutdown" | "clipboard" | "browser";
+/** R51 · `calculator` joins the three power/plugin doors: the calculator
+ *  plugin's system result row (Enter enters its launcher mode). */
+export type SystemAction = "restart" | "shutdown" | "clipboard" | "browser" | "calculator";
 
 /** Command-row warnings kept out of the subtitle string: they are rendered as
  *  an always-visible dot with the text as tooltip, so a narrow window can
@@ -172,43 +174,46 @@ export type LauncherItem =
 export type ActionBar = { type: ActionBarKind; label: string; value: string };
 
 /** Lucide `rotate-cw` for restart, `power` for shutdown, `clipboard` for the
- *  clipboard panel. */
-const SystemActionIcon = ({ action }: { action: SystemAction }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width="16"
-    height="16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    {action === "restart" ? (
-      <>
-        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-        <path d="M21 3v6h-6" />
-      </>
-    ) : action === "shutdown" ? (
-      <>
-        <path d="M12 2v10" />
-        <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
-      </>
-    ) : action === "browser" ? (
-      <>
-        <circle cx="12" cy="12" r="10" />
-        <path d="M2 12h20" />
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
-      </>
-    ) : (
-      <>
-        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      </>
-    )}
-  </svg>
-);
+ *  clipboard panel, `calculator` for the calculator panel (R51). */
+const SystemActionIcon = ({ action }: { action: SystemAction }) =>
+  action === "calculator" ? (
+    <CalculatorIcon size={16} />
+  ) : (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {action === "restart" ? (
+        <>
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <path d="M21 3v6h-6" />
+        </>
+      ) : action === "shutdown" ? (
+        <>
+          <path d="M12 2v10" />
+          <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
+        </>
+      ) : action === "browser" ? (
+        <>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M2 12h20" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
+        </>
+      ) : (
+        <>
+          <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        </>
+      )}
+    </svg>
+  );
 
 /**
  * R31 · the browser list's per-type glyph.

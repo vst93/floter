@@ -628,6 +628,17 @@ export function useLauncherActions(options: {
       return;
     }
 
+    // R51 · the calculator row is the third door: Enter enters the calculator
+    // plugin's own mode (its marker-hinted history list, its chips and its
+    // gear). Like R50's every other entry path, this leaves the existing
+    // mode/chips/history/favorite/delete/settings behaviour untouched — it is
+    // one transition into `{ scope: "calculator" }`, nothing more.
+    if (item.action === "calculator") {
+      if (item.disabled) return;
+      enterPluginMode({ scope: "calculator", filter: "all" });
+      return;
+    }
+
     // Cancel any previously armed confirmation and dismiss this one: selecting
     // a different system action does not transfer the confirmation.
     if (pendingSystemAction) {
@@ -648,7 +659,8 @@ export function useLauncherActions(options: {
 
     setPendingSystemAction(null);
 
-    if (item.action === "clipboard" || item.action === "browser") return;
+    if (item.action === "clipboard" || item.action === "browser" || item.action === "calculator")
+      return;
 
     if (systemPowerOpening.current) return;
     systemPowerOpening.current = true;

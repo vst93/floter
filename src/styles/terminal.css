@@ -943,36 +943,21 @@
 
 /* ── Generic plugin pages ───────────────────────────────────────────────── */
 
-/* The plugin-page layer sits over whichever shell is showing. It is rendered
-   once, as the first child of every mode's tree, so React reuses the same
-   host/iframe instance across mode switches (see `pluginLayer` in App.tsx).
-   It stays mounted in every mode and is only painted while a plugin page is
-   open; `position: fixed` takes it out of the shells' flex flow so it does not
-   disturb their layout. z-index 30 keeps it above the panels but below the
-   toast stack (60). */
-.plugin-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: none;
-  /* Clip the page to the same rounded rectangle as the panel underneath: the
-     opaque page background would otherwise paint square corners over the
-     window's CSS-only radius (macOS/Linux) and spill into the shell padding
-     Windows reserves for the panel's drop shadow. */
-  border-radius: var(--window-radius);
-  overflow: hidden;
-}
+/* R51 · the `.plugin-layer` rules are gone. R33 retired the built-in iframe
+   pages and `App.tsx` no longer renders the layer (`{pluginLayer}` is asserted
+   absent by `plugin-config-overlay.test.ts`), so its whole block was dead CSS:
+   `position: fixed; inset: 0; z-index: 30; display: none` and, at
+   `.platform-windows .plugin-layer`, a hard `inset: 10px` that was a *second*
+   copy of the window edge R46 converged onto the `--u` knob in `base.css` — a
+   copy terminal.css could not converge because this table is the leg-3 deferral
+   which must not consume `--u` (see `ui-scale.test.ts`). Deleting the rule
+   deletes the second value.
 
-/* On Windows the shell pads the panel inward so its box-shadow has room to
-   land. `inset: 0` would stretch the layer — and the page inside it — back out
-   over that padding; match the panel's geometry instead. */
-.platform-windows .plugin-layer {
-  inset: 10px;
-}
-
-.plugin-layer[data-active="true"] {
-  display: block;
-}
+   The host chrome below (`.plugin-page-host*`) is the same retired layer and is
+   deliberately *not* deleted here: live test cases pin it (the Reduce
+   Transparency coverage in `base.css` and `plugin-host-chrome.test.ts`'s own
+   error-button contract), and this round may not drop test cases. See the R51
+   report's R-7 disposition. */
 
 .plugin-page-host {
   width: 100%;

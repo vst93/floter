@@ -36,6 +36,14 @@ pub const CLIPBOARD_PLUGIN_ID: &str = "builtin.clipboard";
 /// mechanism.
 pub const BROWSER_PLUGIN_ID: &str = "builtin.browser";
 
+/// R50 · stable id of the built-in calculator plugin.
+///
+/// R51 · it is a descriptor like the other two built-ins (the settings panel's
+/// "Base plugins" list and the launcher's search read this registry). It has no
+/// page and no on/off switch; the descriptor's whole allowlist is the calculator
+/// commands the plugin's own mode and configuration overlay already invoke.
+pub const CALCULATOR_PLUGIN_ID: &str = "builtin.calculator";
+
 /// Everything the host needs to render one plugin page.
 pub struct PluginPageDescriptor {
     pub id: &'static str,
@@ -84,6 +92,20 @@ const BROWSER_COMMANDS: &[&str] = &[
     "browser_set_settings",
 ];
 
+/// R51 · the calculator plugin's capability surface. It has no page (R33
+/// retired the built-in iframe pages), but the descriptor keeps the allowlist
+/// shape external pages will use: exactly the commands `calculator_history.rs`
+/// exposes for the plugin's launcher mode and its configuration overlay.
+const CALCULATOR_COMMANDS: &[&str] = &[
+    "calculator_get_entries",
+    "calculator_add_entry",
+    "calculator_set_favorite",
+    "calculator_delete",
+    "calculator_clear_history",
+    "calculator_get_settings",
+    "calculator_set_settings",
+];
+
 /// The registry of built-in plugin pages.
 static DESCRIPTORS: &[PluginPageDescriptor] = &[
     PluginPageDescriptor {
@@ -102,6 +124,13 @@ static DESCRIPTORS: &[PluginPageDescriptor] = &[
         description_key: "settings.browserHint",
         page: "",
         allowed_commands: BROWSER_COMMANDS,
+    },
+    PluginPageDescriptor {
+        id: CALCULATOR_PLUGIN_ID,
+        title_key: "settings.calculator",
+        description_key: "settings.calculatorHint",
+        page: "",
+        allowed_commands: CALCULATOR_COMMANDS,
     },
 ];
 
@@ -204,6 +233,13 @@ pub fn builtin_plugin_infos(
                 // field. Disabled, the launcher entry, the result list, the
                 // settings page and the notification entry all soft-close.
                 BROWSER_PLUGIN_ID => settings.browser_plugin.enabled,
+                // R51 · the calculator has no persisted switch: it is always
+                // available (the settings row is `toggleable: false` and draws
+                // no switch at all). Reported `true` rather than falling into
+                // the `_ => false` arm, which would describe an on plugin as
+                // off to any consumer that read the field without the row's
+                // toggleable flag beside it.
+                CALCULATOR_PLUGIN_ID => true,
                 _ => false,
             },
         })
@@ -351,6 +387,41 @@ mod tests {
     }
 
     #[test]
+    fn the_registry_contains_the_calculator_page_with_its_commands() {
+        // R51 · the calculator is a descriptor like the other two built-ins
+        // (see `BUILTIN_BASE_PLUGINS` in `src/plugin-pages.ts`): no page, and
+        // an allowlist of exactly the commands its mode and configuration
+        // overlay already invoke.
+        let calculator = descriptor(CALCULATOR_PLUGIN_ID).expect("calculator page");
+        assert_eq!(calculator.page, "", "the built-in pages are retired (R33)");
+        assert_eq!(calculator.title_key, "settings.calculator");
+        assert_eq!(calculator.description_key, "settings.calculatorHint");
+        for command in [
+            "calculator_get_entries",
+            "calculator_add_entry",
+            "calculator_set_favorite",
+            "calculator_delete",
+            "calculator_clear_history",
+            "calculator_get_settings",
+            "calculator_set_settings",
+        ] {
+            assert!(
+                calculator.allowed_commands.contains(&command),
+                "{command} must be allowlisted for the calculator"
+            );
+        }
+        // A page's allowlist is its whole capability surface: the calculator
+        // must not inherit another plugin's commands by being listed.
+        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
+        for command in calculator.allowed_commands {
+            assert!(
+                !clipboard.allowed_commands.contains(command),
+                "{command} is allowlisted for both the calculator and the clipboard"
+            );
+        }
+    }
+
+    #[test]
     fn every_descriptor_has_a_unique_id_and_no_registered_page() {
         let mut ids: Vec<&str> = Vec::new();
         for entry in all_descriptors() {
@@ -363,6 +434,25 @@ mod tests {
             assert!(!entry.allowed_commands.is_empty());
         }
         assert!(!ids.is_empty());
+    }
+
+    /// R51 · the calculator row is in the list the settings panel renders, and
+    /// it reports itself available: it has no persisted switch, so the frontend
+    /// renders no switch (`toggleable: false`) and the backend must not describe
+    /// an always-on plugin as off through the `_ => false` default.
+    #[test]
+    fn the_builtin_plugin_list_carries_the_calculator_descriptor() {
+        let infos = builtin_plugin_infos(&crate::commands::config::AppSettings::default());
+        let calculator = infos
+            .iter()
+            .find(|info| info.id == CALCULATOR_PLUGIN_ID)
+            .expect("calculator row");
+        assert!(calculator.enabled, "the calculator is always available");
+        assert!(!calculator.has_page, "the calculator has no page");
+        assert_eq!(calculator.title_key, "settings.calculator");
+        assert_eq!(calculator.description_key, "settings.calculatorHint");
+        // One row per descriptor, never a hand-picked subset.
+        assert_eq!(infos.len(), all_descriptors().len());
     }
 
     /// R26-C · the list the settings panel renders carries every descriptor,

@@ -26,11 +26,15 @@ export const CLIPBOARD_PLUGIN_ID = "builtin.clipboard";
 /** Stable id of the built-in browser plugin, mirroring the same registry. */
 export const BROWSER_PLUGIN_ID = "builtin.browser";
 
-/** R50 · stable id of the built-in calculator plugin. It has no plugin page
- *  and no integrations switch (its whole surface is the launcher mode and its
- *  schema-driven configuration overlay), so it is deliberately absent from
- *  `BUILTIN_BASE_PLUGINS` and the backend's `DESCRIPTORS`; the id exists to
- *  name its configuration schema and the overlay's plugin identity. */
+/** R50 · stable id of the built-in calculator plugin.
+ *
+ *  R51 · like the other two built-ins it is registered on both sides of the
+ *  plugin registry — a row in `BUILTIN_BASE_PLUGINS` and an entry in the
+ *  backend's `DESCRIPTORS` — so the settings panel's "Base plugins" list and
+ *  the launcher's search can *reach* it. The id keeps naming its configuration
+ *  schema and the overlay's plugin identity; the registry row is what makes it
+ *  discoverable. It still has no plugin page and no on/off switch: its whole
+ *  surface is the launcher mode and its schema-driven configuration overlay. */
 export const CALCULATOR_PLUGIN_ID = "builtin.calculator";
 
 /** Marker property every bridge message carries. */
@@ -520,14 +524,13 @@ export type BuiltinBasePlugin = {
   titleKey: MessageKey;
   /** i18n key for the row's one-line description. */
   descriptionKey: MessageKey;
-  /** Whether the plugin has a persisted on/off switch. Both built-in plugins
-   *  do: the clipboard switch lives in its long-standing
-   *  `clipboard_history_enabled` field and the browser's in its own
-   *  `browser_plugin.enabled`. A future always-on plugin would render no switch
-   *  rather than a dead one. */
+  /** Whether the plugin has a persisted on/off switch. The clipboard's switch
+   *  lives in its long-standing `clipboard_history_enabled` field and the
+   *  browser's in its own `browser_plugin.enabled`; the calculator (R51) has
+   *  no persisted field, so it renders no switch rather than a dead one. */
   toggleable: boolean;
   /** R33 · whether the plugin has a declarative configuration schema the row
-   *  can open in the launcher's generic overlay. Both built-ins do; a plugin
+   *  can open in the launcher's generic overlay. All three do; a plugin
    *  without one renders no Configure button. */
   configurable: boolean;
   /** Optional extra note rendered under the row (e.g. the clipboard privacy
@@ -561,6 +564,20 @@ export const BUILTIN_BASE_PLUGINS: readonly BuiltinBasePlugin[] = [
     titleKey: "settings.browser",
     descriptionKey: "settings.browserHint",
     toggleable: true,
+    configurable: true,
+  },
+  {
+    // R51 · the calculator joins the list. It has a configuration schema (the
+    // R50 overlay: history capacity, retention, copy mode) so it is
+    // `configurable`; it has no persisted on/off field, so it is deliberately
+    // *not* `toggleable` — the row renders no dead switch, exactly as
+    // `BuiltinBasePlugin.toggleable` documents. Registering it here and in
+    // `DESCRIPTORS` together is what keeps the descriptor-equality guard
+    // honest rather than deleting it.
+    id: CALCULATOR_PLUGIN_ID,
+    titleKey: "settings.calculator",
+    descriptionKey: "settings.calculatorHint",
+    toggleable: false,
     configurable: true,
   },
 ];

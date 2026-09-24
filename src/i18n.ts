@@ -844,6 +844,9 @@ const en = {
   "notification.subject.plugin": "Plugin",
   "notification.plugin.builtin.clipboard": "Clipboard History",
   "notification.plugin.builtin.browser": "Browser Bookmarks & History",
+  // R51 · the calculator's notification name so a registered descriptor can
+  // never be announced as a raw id.
+  "notification.plugin.builtin.calculator": "Calculator",
   // R50 · the built-in calculator plugin: its mode's chrome, its error and
   // empty states, and its configuration overlay. The retention windows print
   // in the settings select; "Yesterday" is the row's age word.
@@ -1695,6 +1698,8 @@ const zh: Record<MessageKey, string> = {
   "notification.subject.plugin": "插件",
   "notification.plugin.builtin.clipboard": "剪贴板历史",
   "notification.plugin.builtin.browser": "浏览器书签与历史记录",
+  // R51 · 计算器插件的通知名
+  "notification.plugin.builtin.calculator": "计算器",
   // R50 · 内置计算器插件
   "system.calculator": "计算器",
   "system.calculatorSubtitle": "计算表达式并保留历史",
