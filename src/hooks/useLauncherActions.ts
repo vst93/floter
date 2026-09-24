@@ -53,6 +53,11 @@ export function useLauncherActions(options: {
   systemPowerOpening: RefObject<boolean>;
   ptyReady: RefObject<boolean>;
   mainBrokerSessionIdRef: RefObject<string | null>;
+  /** R62 · the shared "this main PTY is a command the user launched" flag
+   *  (see `useTerminalView`). The attach path below is an explicit resume, not
+   *  a launch, so it clears the flag: quitting a resumed session returns to
+   *  the resident notice, never an automatic exit. */
+  mainSessionCommandStarted: RefObject<boolean>;
   terminalGeneration: RefObject<number | null>;
   nextTerminalGeneration: RefObject<number>;
   sessionClosePromise: RefObject<Promise<unknown> | null>;
@@ -191,6 +196,7 @@ export function useLauncherActions(options: {
     systemPowerOpening,
     ptyReady,
     mainBrokerSessionIdRef,
+    mainSessionCommandStarted,
     terminalGeneration,
     nextTerminalGeneration,
     sessionClosePromise,
@@ -329,6 +335,9 @@ export function useLauncherActions(options: {
   const resumeTerminalSession = async (session: BrokerSessionInfo) => {
     if (terminalOpening.current) return;
     terminalOpening.current = true;
+    // R62 · resuming a broker session is the user's own door, not a launch: the
+    // page must not leave on its own when that session's process ends.
+    mainSessionCommandStarted.current = false;
     setLauncherFeedback(null);
     setTerminalFeedback(null);
     setTerminalMounted(true);

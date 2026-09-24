@@ -30,6 +30,10 @@ import { normalizeTerminalInputSpaces, stripPasteNewline } from "../terminal/inp
 import { normalizeFontSize } from "../settings/GeneralPage";
 import { normalizeLineHeight, type BoldMode, type TerminalTheme } from "../terminal/terminal-appearance";
 import { createDeferredRepaint, type DeferredRepaint } from "../deferred-repaint";
+import {
+  isCommandStartedSession,
+  shouldExitWithCommandSession,
+} from "../terminal/command-session";
 import { IS_MAC } from "../shortcuts";
 import type { ExecutionPlan } from "../launcher";
 import type { BrokerSessionInfo, MainSessionIdentity, ViewMode } from "../App";
@@ -98,6 +102,16 @@ export function useTerminalView(options: {
   mainBrokerSessionIdRef: RefObject<string | null>;
   sessionClosePromise: RefObject<Promise<unknown> | null>;
   restoringMode: RefObject<ViewMode | null>;
+  /** R62 · whether the main PTY belongs to a command the user launched (a
+   *  spawn carrying an `initialCommand` or an `execution` plan) rather than a
+   *  bare interactive shell. The reference is shared with
+   *  `useLauncherActions`, which resets it on the attach path; the exit
+   *  listener reads it to decide the automatic exit. */
+  mainSessionCommandStarted: RefObject<boolean>;
+  /** R62 · the explicit way back to the launcher (`returnToInputMode`). The
+   *  automatic exit reuses it verbatim, so a command session's page leaves on
+   *  the very same path the close button takes. */
+  returnToInputMode: () => Promise<void>;
   setMainSessionIdentity: Dispatch<SetStateAction<MainSessionIdentity | null>>;
   setTerminalFeedback: Dispatch<SetStateAction<MessageKey | null>>;
   setQuery: Dispatch<SetStateAction<string>>;
@@ -133,6 +147,8 @@ export function useTerminalView(options: {
     mainBrokerSessionIdRef,
     sessionClosePromise,
     restoringMode,
+    mainSessionCommandStarted,
+    returnToInputMode,
     setMainSessionIdentity,
     setTerminalFeedback,
     setQuery,
@@ -143,6 +159,14 @@ export function useTerminalView(options: {
   } = options;
 
   const [terminalMounted, setTerminalMounted] = useState(false);
+  // R62 · the exit listener below is registered once (empty deps), so the two
+  // decisions it makes about the *current* surface have to read through refs:
+  // the explicit return-to-launcher path, and whether the terminal page is the
+  // page on screen. Both mirrors are refreshed every render.
+  const returnToInputModeRef = useRef(returnToInputMode);
+  returnToInputModeRef.current = returnToInputMode;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   /** R9-2 slice 5 · the terminal page's residency after the PTY child exits.
    *
    *  A completed run (or an exited interactive shell) must not tear the page
@@ -293,6 +317,8 @@ export function useTerminalView(options: {
     // itself again. Nothing else reads this: `describeMainSession` is the only
     // writer on the way in, and the exit listener is the only other one.
     setMainSessionIdentity(null);
+    // R62 · the session is gone, so the "this was a command" flag goes with it.
+    mainSessionCommandStarted.current = false;
     const closing = invoke("term_close", { id: "main" }).catch(() => undefined);
     sessionClosePromise.current = closing;
     closing.finally(() => {
@@ -331,6 +357,12 @@ export function useTerminalView(options: {
       });
       if (terminalGeneration.current === generation) {
         ptyReady.current = true;
+        // R62 · a spawn with a command (`initialCommand`) or a structured
+        // `execution` plan has that process as the PTY child: its exit ends the
+        // session. A bare spawn (`null`) is the user's own shell, whose exit
+        // must never take the page with it. Recorded here, the one place a
+        // spawn settles, and read on exit (see `command-session.ts`).
+        mainSessionCommandStarted.current = isCommandStartedSession(initialCommand, execution);
         mainBrokerSessionIdRef.current = brokerSessionId;
         void describeMainSession(brokerSessionId, initialCommand);
       }
@@ -434,6 +466,17 @@ export function useTerminalView(options: {
         current ? { ...current, exited: true, exitCode: event.payload.code } : current,
       );
       handleTerminalExit(event.payload.code);
+      // R62 · a command-started session exists only to carry that command: when
+      // its process ends, the page has nothing left to hold. Leave by the very
+      // path the close button takes (no overlay, no second teardown) — but only
+      // while the terminal page is the surface on screen, so an exit cannot
+      // yank the user out of settings or a plugin they moved to meanwhile. A
+      // bare shell never gets here: the predicate refuses it (see
+      // `command-session.ts`).
+      if (shouldExitWithCommandSession(mainSessionCommandStarted.current, modeRef.current)) {
+        mainSessionCommandStarted.current = false;
+        void returnToInputModeRef.current();
+      }
     });
 
     return () => {

@@ -362,6 +362,11 @@ export default function App() {
    * spawn/attach so a resumed session can be re-attached without a listing
    * round-trip. */
   const mainBrokerSessionIdRef = useRef<string | null>(null);
+  /** R62 · whether the main PTY is a command the user launched rather than a
+   *  bare shell. Written by the spawn path (`useTerminalView`) and reset by the
+   *  attach path (`useLauncherActions`); read on exit to send the page back to
+   *  the launcher only for a command session. */
+  const mainSessionCommandStarted = useRef(false);
   const nextTerminalGeneration = useRef(Date.now());
   const sessionClosePromise = useRef<Promise<unknown> | null>(null);
   const terminalOpening = useRef(false);
@@ -806,8 +811,12 @@ export default function App() {
     terminalGeneration,
     nextTerminalGeneration,
     mainBrokerSessionIdRef,
+    mainSessionCommandStarted,
     sessionClosePromise,
     restoringMode,
+    /** R62 · auto-exit reuses the explicit return path; passed here so the
+     *  exit listener can leave by the very same door the close button takes. */
+    returnToInputMode,
     setMainSessionIdentity,
     setTerminalFeedback,
     setQuery: setQueryExitingPlugin,
@@ -1470,6 +1479,7 @@ export default function App() {
     systemPowerOpening,
     ptyReady,
     mainBrokerSessionIdRef,
+    mainSessionCommandStarted,
     terminalGeneration,
     nextTerminalGeneration,
     sessionClosePromise,
