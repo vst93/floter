@@ -177,58 +177,38 @@ test("R54 · the palette helper hands the canvas's own colour to the CSS", () =>
   assert.equal(terminalCanvasFill("solarized"), "var(--terminal-bg)");
 });
 
-test("R54 · the copy-notice row is painted by phase, so a closed drawer leaves no band", async () => {
+test("R54/R55 · the closed-drawer band is gone structurally, not by colour-matching", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
-  // The row carries the canvas's colour, from the one palette table.
-  assert.match(
-    app,
-    /className="terminal-copy-notice"[\s\S]{0,260}--terminal-canvas-fill": terminalCanvasFill\(settings\.terminal_theme\)/,
+  // R55 · the notice lives *inside* the canvas mount (the mount ref wraps it),
+  // and no longer carries the canvas's colour: idle it paints nothing.
+  const mount = app.slice(app.indexOf("className=\"terminal-panel__mount\""));
+  assert.ok(
+    mount.indexOf("className=\"terminal-copy-notice\"") < mount.indexOf("</div>", mount.indexOf("className=\"terminal-copy-notice\"")),
   );
+  assert.equal(/terminalCanvasFill/.test(app), false, "no colour-matching left in the panel");
 
   const css = stripJsComments(await read("src/styles/terminal.css"));
   const base = bodyFor(css, ".terminal-copy-notice");
-  // The reservation R44 owns is untouched: the row stays in the flow at the
-  // shared height, so a copy never resizes the canvas or the PTY.
-  assert.match(base, /flex:\s*0 0 auto/);
+  // The overlay takes no layout height, so a copy never resizes the canvas/PTY.
+  assert.match(base, /position:\s*absolute/);
+  assert.match(base, /bottom:\s*0/);
   assert.match(base, /height:\s*var\(--terminal-status-height\)/);
-  assert.match(base, /position:\s*relative/, "the row is the containing block for its own paint…");
-  assert.doesNotMatch(base, /position:\s*(absolute|fixed)/, "…but it is not a layer");
-  // …and the pane it used to carry in *every* phase is gone. The 1px edge
-  // stays in the box as a transparent border so both states have the same
-  // content box, and both axes cross-fade with the phase.
+  // The idle overlay draws nothing at all: the canvas below is the only thing
+  // composited, so there is no 1-alpha seam left to see.
   assert.match(base, /border-top:\s*1px solid transparent/, "no hairline on the idle row");
   assert.match(base, /background:\s*transparent/, "the idle row draws no pane fill");
   assert.doesNotMatch(base, /glass-control/, "not even a token it could later be repainted with");
   assert.match(base, /transition:\s*background-color var\(--dur-3\) ease, border-color var\(--dur-3\) ease/);
 
-  // Idle = the canvas's bottom inset: the same colour, at the same alpha the
-  // renderer paints (`canvasFill`: the transparency slider clamped to the
-  // near-solid top and lifted only by the accessibility floor). The inset is
-  // mounted in every phase, so its own fade is what the phase rules move.
-  const inset = bodyFor(css, ".terminal-copy-notice::before");
-  assert.match(inset, /content:\s*""/);
-  // `inset: -1px …` = the row's padding box plus the 1px edge it keeps in both
-  // states, so the reserved 20px is covered edge to edge (a plain `inset: 0`
-  // leaves a 1px seam of bare glass above it).
-  assert.match(inset, /inset:\s*-1px 0 0 0/);
-  assert.match(inset, /background:\s*var\(--terminal-canvas-fill, var\(--terminal-bg\)\)/);
-  assert.match(
-    inset,
-    /opacity:\s*clamp\(var\(--glass-frame-floor, 0\), var\(--terminal-opacity, 0\.46\), var\(--glass-solid-top, 0\.98\)\)/,
-  );
-  assert.match(inset, /transition:\s*opacity var\(--dur-3\) ease/);
+  // The R54 `::before` inset is retired: there is no reserved row to paint.
+  assert.equal(bodiesFor(css, ".terminal-copy-notice::before").length, 0);
 
-  // The two live phases own the strip's material, so a message still reads as
-  // a status line rather than as bare canvas — and the canvas inset steps
-  // aside while they do.
+  // The two live phases own the band's material, so a message still reads as a
+  // status line pinned to the canvas's edge.
   for (const phase of ["visible", "fade"]) {
     const live = bodyFor(css, `.terminal-copy-notice[data-phase="${phase}"]`);
     assert.match(live, /border-top-color:\s*var\(--glass-control-edge\)/);
     assert.match(live, /background-color:\s*var\(--glass-control\)/);
-    assert.match(
-      bodyFor(css, `.terminal-copy-notice[data-phase="${phase}"]::before`),
-      /opacity:\s*0/,
-    );
   }
 
   // The notice's text still wins over the row's own paint.

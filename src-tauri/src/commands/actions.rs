@@ -123,6 +123,34 @@ fn spawn_opener(target: impl AsRef<std::ffi::OsStr>) -> Result<(), String> {
     crate::process_launch::spawn_application(opener, &[target.as_ref()]).map(|_| ())
 }
 
+/// R55 · run one launcher command line with no window, no terminal and no UI —
+/// the silent half of a custom global shortcut. The line is handed to the
+/// user's shell exactly as the launcher's own command path would, but detached
+/// and with null stdio, so nothing appears on screen and no output is kept.
+///
+/// This is deliberately the launcher's existing trust boundary (a command the
+/// user configured is a command the launcher could run anyway); what it removes
+/// is only the *visible* terminal. Plugin actions never come here — the
+/// frontend opens those normally.
+#[tauri::command]
+pub fn run_silent_command(command: String) -> Result<(), String> {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return Err("Empty command".to_string());
+    }
+    #[cfg(unix)]
+    {
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        crate::process_launch::spawn_detached(&shell, &["-c".to_string(), trimmed.to_string()])
+            .map(|_| ())
+    }
+    #[cfg(windows)]
+    {
+        crate::process_launch::spawn_detached("cmd", &["/C".to_string(), trimmed.to_string()])
+            .map(|_| ())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,7 +1,7 @@
 // Imperative shortcut recording & capture: the row of the settings page
 // flips between idle / recording / rejected, and an in-flight capture
-// optimistically swaps the binding in `settings.shortcuts` (or
-// `clipboard_history_hotkey`) before asking the backend to take it.
+// optimistically swaps the binding in `settings.shortcuts` before asking the
+// backend to take it.
 //
 // Extracted verbatim from `App.tsx`. The hook owns `recordingAction` and
 // `rejectedAction`, both pieces of UI state the surrounding tree
@@ -9,6 +9,11 @@
 // persistence and blur-suppression side-effects are kept here so the
 // App-level wiring shrinks to `const { capture, toggle, ... } =
 // useShortcutCapture({ ... })`.
+//
+// R55 · the clipboard panel is an ordinary action in the map now, so the
+// separate `clipboard_history_hotkey` capture path (and its clear plumbing) is
+// gone: every action — including clearing the clipboard panel — flows through
+// `update_shortcut`.
 
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -19,7 +24,6 @@ import {
   type ShortcutAction,
   type ShortcutMap,
 } from "../shortcuts";
-import { CLIPBOARD_HOTKEY_ACTION } from "../settings/ShortcutsPage";
 import type { AppSettings } from "../App";
 import type { SettingsHydration } from "../settings-persistence";
 import { useImmediateState } from "./useImmediateState";
@@ -74,30 +78,38 @@ export function useShortcutCapture(options: {
     invoke("resume_shortcuts").catch(() => undefined);
   }, []);
 
-  // ---- Clear clipboard hotkey ---------------------------------------------
-  // Optimistic like capture: persist "" (the backend treats an empty string
-  // as unregister-and-disable) and roll back on failure.
-  const clearClipboardHotkey = useCallback(() => {
+  // ---- Clear one action's binding ----------------------------------------
+  // R55 · the one action that ships empty is the clipboard panel, so the only
+  // caller is its row's X button. Optimistic like capture: persist "" (the
+  // backend treats it as unregister-and-disable for the clipboard panel) and
+  // roll back on failure. The path is generic — the map owns the meaning.
+  const clearShortcut = useCallback((action: string) => {
     if (savingRef.current) return;
-    const previousHotkey = settingsRef.current.clipboard_history_hotkey;
-    if (!previousHotkey) return;
+    const previous = shortcuts[action as ShortcutAction];
+    if (!previous) return;
     setSaving(true);
-    settingsHydration.markChanged("clipboard_history_hotkey");
+    settingsHydration.markChanged("shortcuts");
     setSettings((current) => {
-      const updated = { ...current, clipboard_history_hotkey: "" };
+      const updated = {
+        ...current,
+        shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: "" },
+      };
       settingsRef.current = updated;
       return updated;
     });
     setRejectedAction(null);
-    invoke("update_clipboard_hotkey", { hotkey: "" }).catch(() => {
+    invoke("update_shortcut", { action, shortcut: "" }).catch(() => {
       setSettings((current) => {
-        const rolledBack = { ...current, clipboard_history_hotkey: previousHotkey };
+        const rolledBack = {
+          ...current,
+          shortcuts: { ...withShortcutDefaults(current.shortcuts), [action]: previous },
+        };
         settingsRef.current = rolledBack;
         return rolledBack;
       });
-      setRejectedAction(CLIPBOARD_HOTKEY_ACTION);
+      setRejectedAction(action);
     }).finally(() => setSaving(false));
-  }, [setSettings, settingsRef, settingsHydration]);
+  }, [setSettings, settingsRef, settingsHydration, shortcuts]);
 
   // ---- Restore defaults ----------------------------------------------------
   const restoreDefaults = useCallback(async () => {
@@ -145,43 +157,6 @@ export function useShortcutCapture(options: {
           return;
         }
         next = normalized;
-      }
-      if (action === CLIPBOARD_HOTKEY_ACTION) {
-        const previousHotkey = settingsRef.current.clipboard_history_hotkey;
-        const conflict = SHORTCUT_ACTIONS.some(
-          (candidate) => shortcuts[candidate].toLowerCase() === next.toLowerCase(),
-        );
-        if (conflict) {
-          setRejectedAction(action);
-          invoke("resume_shortcuts").catch(() => undefined);
-          return;
-        }
-        if (next === previousHotkey) {
-          invoke("resume_shortcuts").catch(() => undefined);
-          return;
-        }
-        settingsHydration.markChanged("clipboard_history_hotkey");
-        setSettings((current) => {
-          const updated = { ...current, clipboard_history_hotkey: next };
-          settingsRef.current = updated;
-          return updated;
-        });
-        suppressBlurUntil.current = Date.now() + SETTINGS_BLUR_SUPPRESS_MS;
-        setSaving(true);
-        invoke("update_clipboard_hotkey", { hotkey: next })
-          .then(() => {
-            invoke("resume_shortcuts").catch(() => undefined);
-          })
-          .catch(() => {
-            setSettings((current) => {
-              const rolledBack = { ...current, clipboard_history_hotkey: previousHotkey };
-              settingsRef.current = rolledBack;
-              return rolledBack;
-            });
-            setRejectedAction(action);
-            invoke("resume_shortcuts").catch(() => undefined);
-          }).finally(() => setSaving(false));
-        return;
       }
       const previous = shortcuts[action as ShortcutAction];
       const conflict = SHORTCUT_ACTIONS.some(
@@ -247,7 +222,7 @@ export function useShortcutCapture(options: {
     toggle,
     cancel,
     capture,
-    clearClipboardHotkey,
+    clearShortcut,
     restoreDefaults,
     reset,
     rejectedAction,

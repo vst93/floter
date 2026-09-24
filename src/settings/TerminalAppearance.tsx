@@ -142,7 +142,19 @@ type Row = {
   /** R43 · force the full-width stacked layout without a slider readout (the
    *  palette row: a select plus the preview block under it). */
   stacked?: boolean;
+  /** R55 · which surface shows this row. The settings page (`card`) now keeps
+   *  only the few controls the user called important — font family, font size,
+   *  line height and the theme/palette — while the terminal page's own drawer
+   *  (`strip`) keeps the full set. `both` is the default so a row that does not
+   *  opt out still appears everywhere. There is still one schema and one set of
+   *  normalizers; this is presentation, not a second source of truth. The
+   *  settings-page-only hiding never touches persistence: a value set from the
+   *  strip keeps applying even while its control is not rendered on the card. */
+  page?: "both" | "card" | "strip";
 };
+
+/** Whether `row` belongs on the settings page's card (`card` surface). */
+const onCard = (row: Row) => (row.page ?? "both") !== "strip";
 
 export function TerminalAppearanceSettings({
   settings,
@@ -213,6 +225,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_padding",
+      page: "strip",
       label: t("settings.terminalPadding"),
       control: (
         <SegmentedChoice
@@ -228,6 +241,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "cursor_shape",
+      page: "strip",
       label: t("settings.cursorShape"),
       control: (
         <SegmentedChoice
@@ -243,6 +257,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_cursor_blink",
+      page: "strip",
       label: t("settings.terminalCursorBlink"),
       control: (
         <TerminalSwitch
@@ -276,6 +291,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_bold",
+      page: "strip",
       label: t("settings.terminalBold"),
       control: (
         <SegmentedChoice
@@ -291,6 +307,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_wheel_lines",
+      page: "strip",
       label: t("settings.terminalWheelLines"),
       slider: true,
       value: t("settings.terminalWheelLinesValue", { lines: wheelLines }),
@@ -309,6 +326,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_select_copy",
+      page: "strip",
       label: t("settings.terminalSelectCopy"),
       control: (
         <TerminalSwitch
@@ -320,6 +338,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_paste_safe",
+      page: "strip",
       label: t("settings.terminalPasteSafe"),
       control: (
         <TerminalSwitch
@@ -331,6 +350,7 @@ export function TerminalAppearanceSettings({
     },
     {
       key: "terminal_scrollbar",
+      page: "strip",
       label: t("settings.terminalScrollbar"),
       control: (
         <TerminalSwitch
@@ -362,7 +382,7 @@ export function TerminalAppearanceSettings({
 
   return (
     <SettingsCard label={t("settings.terminalAppearance")}>
-      {rows.map((row) => (
+      {rows.filter(onCard).map((row) => (
         <SettingsRow
           key={row.key}
           stacked={row.slider === true || row.stacked === true}

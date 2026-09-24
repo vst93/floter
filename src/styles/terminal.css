@@ -183,12 +183,10 @@
    layout height is reserved for the bar and the content is never pushed down
    (the first output line sits at the very top edge).
 
-   R44 · the body is now *always* a flex column. It carries exactly one row of
-   chrome that is not an overlay — the copy notice's status strip under the
-   canvas — and the canvas takes whatever is left. Keeping the row in the flow
-   at a fixed height (see `.terminal-copy-notice`) is what makes the notice
-   free: showing and hiding a message never resizes the canvas, so the PTY is
-   never resized and the terminal never jumps while a copy is read. */
+   R55 · the body is a flex column with exactly one flow child that matters —
+   the mount, which now takes the *whole* height the drawer leaves (there is no
+   reserved status row any more). The copy notice is an absolute overlay inside
+   the mount, so it never takes layout space. */
 .terminal-panel__body {
   position: absolute;
   top: 0;
@@ -200,29 +198,32 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  /* The one number the notice row and the notices that sit above it share,
-     so the strip's height is declared once. */
+  /* The overlay's height, shared with the resident notice that stacks above it
+     (`bottom: calc(var(--terminal-status-height) + 12px)`). */
   --terminal-status-height: 20px;
 }
 
-/* R44 · the copy notice's status strip: one docked row under the canvas, not
-   a floating toast (the user's standing objection) and not a layout that
-   appears and disappears per copy. It is always in the flow at
-   `--terminal-status-height`, so the canvas above it keeps its exact size and
-   the PTY is never resized by a copy; only the text's opacity moves, and the
-   text is dropped entirely once the fade has run. Muted type, no accent, no
-   radius, no shadow — it is a status line, not a control.
+/* R44/R55 · the copy notice's status strip. It is *inside the canvas region*,
+   anchored to the mount's bottom edge, and it takes no layout space — the
+   canvas fills the whole mount whether or not a message is on screen.
 
-   R54 · the row's *paint* is phase-owned now. While idle it draws nothing of
-   its own: the `::before` below paints the canvas's own colour at the canvas's
-   own alpha, so the reserved 20px is the terminal's bottom inset rather than a
-   blank bar with a hairline — which is what the user read as「没打开配置时仍有
-   一行空白 div」. The fill and the hairline move to the phases that actually
-   have something to say. The reservation itself is untouched, so the R44
-   contract (a copy never resizes the canvas/PTY) still holds. */
+   R54 tried to make the reserved row invisible by painting the canvas's own
+   colour at the canvas's own alpha; the user still saw a band (R55's二次反馈,
+   「非设置时底部持续有一行空白」), because a CSS alpha composite on the glass
+   is not bit-identical to the renderer's own translucent fill. R55 removes the
+   seam structurally instead of matching colours: while idle the overlay paints
+   *nothing*, and the canvas — the only thing there — is composited by the
+   renderer exactly as everywhere else.
+
+   The live phases keep the readable backing a status line needs: the glass
+   control fill, the hairline separating it from the canvas, muted type. It is
+   a status line pinned to the canvas's edge, never a floating toast. */
 .terminal-copy-notice {
-  position: relative;
-  flex: 0 0 auto;
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
   height: var(--terminal-status-height);
   display: flex;
   align-items: center;
@@ -230,11 +231,9 @@
   color: var(--text-muted);
   font-size: var(--text-caption);
   line-height: 1;
-  /* Idle by default: the row draws no pane of its own (the `::before` below
-     paints the canvas's inset) — but it keeps the 1px edge *box* either way,
-     so the two states have the same content box and nothing reflows when a
-     phase flips. The pane cross-fades with the message instead of popping
-     off at the end of the fade (see the phase rules). */
+  /* Idle by default: nothing is painted, so the last canvas row shows through
+     untouched. The 1px edge stays in the box as a transparent border so both
+     states share a content box; the pane cross-fades with the message. */
   border-top: 1px solid transparent;
   background: transparent;
   transition: background-color var(--dur-3) ease, border-color var(--dur-3) ease;
@@ -243,45 +242,12 @@
   pointer-events: none;
 }
 
-/* The canvas inset: the row's own bottom 20px, and nothing more. `--terminal-canvas-fill`
-   is set on the row by App.tsx from the shared palette table (`inherit` =
-   `var(--terminal-bg)`), and the alpha is the renderer's own frame alpha
-   (`canvasFill`, mirrored here in plain CSS: the transparency slider clamped
-   to the near-solid top and lifted only by the accessibility floor). Both the
-   colour and the alpha have to match the bitmap, because the bitmap's
-   translucent fill is composited over exactly the same glass this row sits
-   on — that is what makes the reserved row invisible instead of a band.
-
-   The inset is always mounted (so its opacity can transition); a live phase
-   fades it out and fades the pane in, and the strip then arrives and leaves
-   without a step.
-
-   The negative top inset is the row's own 1px edge: an absolutely positioned
-   child is laid out against its parent's *padding* box, so `inset: 0` would
-   leave the border strip showing the bare glass — a 1px lighter hairline
-   above the reserved row, which is exactly the kind of seam this rule exists
-   to remove. Reaching one pixel up covers the row's whole 20px, flush with
-   the canvas's last row. */
-.terminal-copy-notice::before {
-  content: "";
-  position: absolute;
-  inset: -1px 0 0 0;
-  background: var(--terminal-canvas-fill, var(--terminal-bg));
-  opacity: clamp(var(--glass-frame-floor, 0), var(--terminal-opacity, 0.46), var(--glass-solid-top, 0.98));
-  transition: opacity var(--dur-3) ease;
-}
-
 /* A live message owns the row: the pane's material and the hairline that
    separates it from the canvas. */
 .terminal-copy-notice[data-phase="visible"],
 .terminal-copy-notice[data-phase="fade"] {
   border-top-color: var(--glass-control-edge);
   background-color: var(--glass-control);
-}
-
-.terminal-copy-notice[data-phase="visible"]::before,
-.terminal-copy-notice[data-phase="fade"]::before {
-  opacity: 0;
 }
 
 .terminal-copy-notice__text {
@@ -310,9 +276,8 @@
    header's × / Escape are the only exits. Non-zero exits recolour the title
    with the warning token; the hint stays muted either way.
 
-   R44 · its "bottom edge" is the top of the copy notice's status strip (the
-   one row of the body that is in the flow), so the exit notice stacks above
-   the strip instead of being painted over it. */
+   R44/R55 · its "bottom edge" is the top of the copy notice's overlay band, so
+   the exit notice stacks above the strip instead of being painted over it. */
 .terminal-resident {
   position: absolute;
   z-index: 4;
@@ -396,8 +361,9 @@
   position: relative;
   z-index: 1;
   width: 100%;
-  /* R44 · the mount is the body's flex child now, so it takes the height the
-     copy notice's status strip leaves instead of a fixed 100%. */
+  /* R44/R55 · the mount is the body's flex child and takes the whole height
+     the drawer leaves; the copy notice is an absolute overlay inside it, so it
+     no longer carves out a reserved row. */
   flex: 1 1 auto;
   min-height: 0;
   height: auto;

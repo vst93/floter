@@ -18,9 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { TerminalCanvas } from "./terminal/render";
-import { PinnedTerminalCard } from "./terminal/PinnedTerminalCard";
 import { PINNED_SESSION_ID } from "./terminal/pinState";
-import { useTerminalView, terminalFontFamily } from "./hooks/useTerminalView";
+import { useTerminalView } from "./hooks/useTerminalView";
 import { useLauncherCatalog } from "./hooks/useLauncherCatalog";
 import { usePinCoordinator } from "./hooks/usePinCoordinator";
 import { useTimedFeedback } from "./hooks/useTimedFeedback";
@@ -78,9 +77,10 @@ import {
   type ShortcutMap,
 } from "./shortcuts";
 import { type SettingsPage } from "./settings-persistence";
-import { GeneralPage, normalizeFontSize } from "./settings/GeneralPage";
+import { classifyCustomShortcutAction, normalizeCustomShortcuts, type CustomShortcut } from "./custom-shortcuts";
+import { GeneralPage } from "./settings/GeneralPage";
 import { TerminalAppearanceSettings } from "./settings/TerminalAppearance";
-import { normalizeCursorShape, terminalCanvasFill, terminalPaddingPx } from "./terminal/terminal-appearance";
+import { normalizeCursorShape, terminalPaddingPx } from "./terminal/terminal-appearance";
 import { clampWindowOpacity } from "./glass-material";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { SessionsPage } from "./settings/SessionsPage";
@@ -258,6 +258,10 @@ export type AppSettings = {
   clipboard_history_enabled: boolean;
   /** Global hotkey that summons the clipboard panel. */
   clipboard_history_hotkey: string;
+  /** R55 · user-defined global shortcuts (key → launcher action). Owned by
+   *  the dedicated `set_custom_shortcuts` command, which registers each key
+   *  with the OS; a whole-app save carries the stored list back unchanged. */
+  custom_shortcuts: CustomShortcut[];
   /** R27 · how many non-favorite clipboard entries the history keeps (10–500,
    * default 300). The clipboard plugin's own settings page writes it through
    * `clipboard_set_settings`; the frontend carries the value so a whole-app
@@ -589,13 +593,14 @@ export default function App() {
 
   // Imperative shortcut recording & capture: the row of the settings page
   // flips between idle / recording / rejected, and an in-flight capture
-  // optimistically swaps the binding in `settings.shortcuts` (or
-  // `clipboard_history_hotkey`) before asking the backend to take it.
+  // optimistically swaps the binding in `settings.shortcuts` before asking the
+  // backend to take it. R55 · every action, including the clipboard panel's
+  // clear, flows through `settings.shortcuts`.
   const {
     toggle: toggleRecording,
     cancel: cancelRecording,
     capture: captureShortcut,
-    clearClipboardHotkey,
+    clearShortcut,
     restoreDefaults: restoreDefaultShortcuts,
     reset: resetRecording,
     rejectedAction,
@@ -1455,14 +1460,10 @@ export default function App() {
   );
 
   const {
-    pinState,
     pinStateRef,
     dispatchPinEvent,
-    cardGeometry,
-    updateCardGeometry,
     togglePinnedTerminal,
-    unpinPinnedSession,
-    handlePinnedSessionExit,
+    handlePinnedWindowClosed,
   } = usePinCoordinator({
     mode,
     resolvedTheme,
@@ -1592,6 +1593,116 @@ export default function App() {
     focusTerminalView,
     focusSettingsSidebar: focusCurrentSettingsSidebar,
   };
+
+  // ---- R55 · custom global shortcuts -------------------------------------
+  /** Keys the last registration could not claim, so the settings row can name
+   *  the reason. `conflict` is another floter shortcut; `occupied` is another
+   *  application holding the key (the OS refused the grab). */
+  const [customRejections, setCustomRejections] = useState<{ key: string; reason: string }[]>([]);
+
+  /** Persist the list through the dedicated command, which registers every key
+   *  with the OS and returns the ones it refused. The refused rows stay in the
+   *  UI so their warning is visible (they are not persisted to disk — only the
+   *  accepted keys are), and are re-submitted the next time the list changes. */
+  const commitCustomShortcuts = useCallback(
+    async (list: CustomShortcut[]) => {
+      const normalized = normalizeCustomShortcuts(list);
+      try {
+        const rejections = await invoke<{ key: string; reason: string }[]>(
+          "set_custom_shortcuts",
+          { list: normalized },
+        );
+        setCustomRejections(rejections);
+        setSettings((current) => {
+          const updated = { ...current, custom_shortcuts: normalized };
+          settingsRef.current = updated;
+          return updated;
+        });
+        return rejections;
+      } catch {
+        setCustomRejections([]);
+        showLauncherFeedback("launcher.error.session");
+        return [];
+      }
+    },
+    [setSettings, settingsRef, showLauncherFeedback],
+  );
+
+  /** Run what a custom shortcut is bound to. Plugins open normally (the window
+   *  comes forward and the mode is entered); a command line runs silently in the
+   *  backend (`run_silent_command`) — no window, no terminal, no UI. */
+  const runCustomShortcutAction = useCallback(
+    async (action: string) => {
+      const binding = classifyCustomShortcutAction(action);
+      if (binding.kind === "plugin") {
+        await invoke("show_input").catch(() => undefined);
+        setMode("collapsed");
+        setQueryExitingPlugin("");
+        if (binding.value === "clipboard") {
+          enterPluginMode({ scope: "clipboard", filter: "all" });
+        } else if (binding.value === "browser") {
+          enterPluginMode({ scope: "browser", kind: "all" });
+        } else {
+          enterPluginMode({ scope: "calculator", filter: "all" });
+        }
+        return;
+      }
+      if (binding.kind === "action") {
+        switch (binding.value) {
+          case "toggle_window":
+            await invoke("show_input").catch(() => undefined);
+            setMode("collapsed");
+            break;
+          case "new_command":
+            await returnToInputMode();
+            break;
+          case "open_settings":
+            await invoke("show_input").catch(() => undefined);
+            openSettings("general");
+            break;
+          case "pin_terminal":
+            await invoke("show_input").catch(() => undefined);
+            await togglePinnedTerminal();
+            break;
+          case "open_external_terminal":
+            await openInTerminal();
+            break;
+          default:
+            break;
+        }
+        return;
+      }
+      try {
+        await invoke("run_silent_command", { command: binding.value });
+      } catch {
+        // The command surface has no window; report the failure through the
+        // launcher's existing feedback row when the user next sees the app.
+        showLauncherFeedback("launcher.error.command");
+      }
+    },
+    [enterPluginMode, openInTerminal, openSettings, returnToInputMode, showLauncherFeedback, togglePinnedTerminal],
+  );
+
+  /** One listener for every custom key: the backend sends the action string. */
+  useEffect(() => {
+    const unlistenPromise = listen<string>("custom-shortcut://trigger", (event) => {
+      void runCustomShortcutAction(event.payload);
+    });
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [runCustomShortcutAction]);
+
+  /** R55 · the pinned window closed on its own (native close, or the session
+   *  exited): take the session back into the main terminal view. */
+  useEffect(() => {
+    const unlistenPromise = listen<string>("pinned-window://closed", (event) => {
+      void handlePinnedWindowClosed(event.payload);
+    });
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [handlePinnedWindowClosed]);
   /** Switch pages and remember the choice for the next launch. */
   const changeSettingsPage = (page: SettingsPage) => {
     setSettingsPage(page);
@@ -2474,40 +2585,11 @@ export default function App() {
     handleLauncherKey(event.nativeEvent);
   };
 
-  // The card is mounted in every mode so its frame stream and renderer stay
-  // alive across launcher ↔ terminal window transitions (nothing is missed
-  // while the window is small); it is only VISIBLE in terminal mode.
-  const pinnedCardElement = pinState.status === "pinned" ? (
-    <PinnedTerminalCard
-      session={pinState.session}
-      fontFamily={terminalFontFamily(settings.font_family)}
-      fontSize={normalizeFontSize(settings.font_size)}
-      lineHeight={settings.terminal_line_height}
-      padding={terminalPaddingPx(settings.terminal_padding)}
-      cursorBlink={settings.terminal_cursor_blink}
-      showScrollbar={settings.terminal_scrollbar}
-      terminalTheme={settings.terminal_theme}
-      wheelLines={settings.terminal_wheel_lines}
-      boldMode={settings.terminal_bold}
-      theme={resolvedTheme}
-      geometry={cardGeometry}
-      onGeometryChange={updateCardGeometry}
-      focused={activeSurface === "pinned"}
-      hidden={mode !== "terminal"}
-      // R10-B: only the collapsed launcher tags the card "launcher" — its
-      // header becomes the implicit, hover-revealed drag band there. The
-      // terminal page keeps the always-visible header it has today.
-      variant={mode === "collapsed" ? "launcher" : "terminal"}
-      onClose={() => void unpinPinnedSession()}
-      onFocusRequest={() => {
-        setActiveSurface("pinned");
-        terminalTextInputRef.current?.focus({ preventScroll: true });
-      }}
-      onSessionExit={handlePinnedSessionExit}
-      rendererRef={pinnedRendererRef}
-      t={t}
-    />
-  ) : null;
+  // R55 · the in-window floating card is retired. Pinning now opens a second
+  // native window (`open_pinned_terminal_window`), rendered by
+  // `src/pinned-window.tsx`; the main window keeps only the placeholder that
+  // says where the session went. `pinState` survives as the main window's
+  // "a session is pinned away" flag and as the resume target.
 
   // The toast host is rendered once, as a stable sibling of the mode shell, so
   // the stack survives mode switches without unmounting: a toast raised in the
@@ -2530,7 +2612,6 @@ export default function App() {
       <>
         {toastHost}
         <div className="settings-shell">
-          {pinnedCardElement}
           <div className="settings-card" onMouseDown={startDrag}>
             <header className="settings-card__header">
               <span className="settings-card__title">
@@ -2637,14 +2718,16 @@ export default function App() {
                 busy={shortcutsSaving || settingsLoading}
                 t={t}
                 shortcuts={shortcuts}
-                clipboardHotkey={settings.clipboard_history_hotkey}
                 rejectedAction={rejectedAction}
                 recordingAction={recordingAction}
                 onToggleRecording={toggleRecording}
                 onCaptureShortcut={captureShortcut}
                 onCancelRecording={cancelRecording}
                 onRestoreDefaults={() => void restoreDefaultShortcuts()}
-                onClearClipboardHotkey={clearClipboardHotkey}
+                onClearShortcut={clearShortcut}
+                customShortcuts={settings.custom_shortcuts}
+                onCommitCustomShortcuts={commitCustomShortcuts}
+                customRejections={customRejections}
               />
               )}
 
@@ -2762,7 +2845,6 @@ export default function App() {
       <>
         {toastHost}
         <div className="collapsed-shell">
-          {pinnedCardElement}
           <div
             ref={collapsedCardRef}
             /* R18: the seam's gate class is gone with the seam. It existed only
@@ -3359,7 +3441,6 @@ export default function App() {
     <>
       {toastHost}
       <div className="terminal-shell">
-        {pinnedCardElement}
         <section className="terminal-panel terminal-panel--entered">
           {/* The glass body sits under the canvas: the renderer paints its own
               pixels at `--terminal-opacity`, and this is the tint that makes
@@ -3454,29 +3535,27 @@ export default function App() {
                   queueMicrotask(() => flushTerminalTextInput());
                 }}
               />
-            </div>
-            {/* R44 · the copy notice. A docked status row under the canvas —
-                never a floating toast (the user's standing objection to
-                overlays) and never a row that grows with the message: it is
-                always in the layout at one fixed height, and only the text's
-                opacity moves. The PTY therefore never sees a resize because of
-                a copy, and the terminal can never jump while it is read.
-
-                R54 · while idle the row *is* the canvas's bottom inset: its
-                `::before` paints the canvas's own colour at the canvas's own
-                alpha, so the reserved 20px can never read as an empty div of
-                its own — the user's「没打开配置时仍显示一行空白 div」. The
-                reservation and the state machine are untouched. */}
-            <div
-              className="terminal-copy-notice"
-              data-phase={copyNotice.phase}
-              role="status"
-              aria-live="polite"
-              style={{ "--terminal-canvas-fill": terminalCanvasFill(settings.terminal_theme) } as React.CSSProperties}
-            >
-              {copyNotice.message && (
-                <span className="terminal-copy-notice__text">{t(copyNotice.message)}</span>
-              )}
+              {/* R44/R55 · the copy notice. It reports every copy without a
+                  floating toast (the user's standing objection) and without a
+                  reserved row that a closed drawer leaves as an empty band
+                  (R54's二次反馈: 「非设置时底部持续有一行空白」). R55 makes it a
+                  bottom-anchored overlay *inside the canvas region*: the
+                  canvas fills the whole mount, and the notice floats over its
+                  last 20px only while a message is live. Idle it paints
+                  nothing at all, so there is no seam to colour-match — the
+                  canvas is the only thing there. The overlay is out of the
+                  layout, so the R44 contract still holds: a copy never resizes
+                  the canvas or the PTY. */}
+              <div
+                className="terminal-copy-notice"
+                data-phase={copyNotice.phase}
+                role="status"
+                aria-live="polite"
+              >
+                {copyNotice.message && (
+                  <span className="terminal-copy-notice__text">{t(copyNotice.message)}</span>
+                )}
+              </div>
             </div>
             {mainPinnedAway && (
               <div className="terminal-pinned-note" role="status">

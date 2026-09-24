@@ -33,6 +33,7 @@ import {
   CLIPBOARD_TYPE_LABEL,
 } from "../src/clipboard-list.ts";
 import { filterClipboardEntries, type ClipboardEntry } from "../src/clipboard-history.ts";
+import { IS_MAC } from "../src/shortcuts.ts";
 
 const root = new URL("../", import.meta.url);
 
@@ -130,8 +131,13 @@ test("the row commands are Backspace/Delete delete and P pin", () => {
   for (const pin of ["p", "P", "f", "F", "*"]) {
     assert.deepEqual(key({ key: pin, focus: "row" }), { kind: "toggle-pin" }, `${pin} must pin`);
   }
-  // Cmd/Ctrl+Backspace deletes from any focus, even the filter.
-  assert.deepEqual(key({ key: "Backspace", focus: "search", metaKey: true }), { kind: "delete" });
+  // R55 · the shared history-delete key (⌘⌫ on macOS, Ctrl+⌫ elsewhere)
+  // deletes from any focus, even the filter. Recognised through the same
+  // predicate the launcher uses, so the platform modifier is ⌘ on macOS.
+  assert.deepEqual(
+    key({ key: "Backspace", focus: "search", metaKey: IS_MAC, ctrlKey: !IS_MAC }),
+    { kind: "delete" },
+  );
 });
 
 test("the filter field keeps its own typing: printable keys and Backspace pass through", () => {

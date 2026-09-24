@@ -23,7 +23,7 @@ mod terminal;
 // file), derived once so it cannot collide with another Tauri app's tray.
 mod tray_identity;
 
-use commands::actions::{open_path, open_url};
+use commands::actions::{open_path, open_url, run_silent_command};
 use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
@@ -34,6 +34,7 @@ use commands::config::{
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
+use commands::config::set_custom_shortcuts;
 use commands::drops::resolve_dropped_files;
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_cancel_operation, extensions_config_copy,
@@ -66,7 +67,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition,
-    WebviewWindow, Wry,
+    WebviewUrl, WebviewWindow, WebviewWindowBuilder, Wry,
 };
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
@@ -168,6 +169,10 @@ struct AppState {
     /// Same bookkeeping for the clipboard panel's hotkey; owned by the
     /// clipboard history module.
     clipboard_shortcut: Mutex<String>,
+    /// R55 · the custom global shortcut keys currently held with the OS. Kept
+    /// apart from the settings file because the OS may refuse a key another app
+    /// owns; only the keys actually registered are tracked here.
+    custom_shortcuts: Mutex<Vec<String>>,
     /// A plugin page requested by the launch arguments (`floter clip` on a
     /// cold start), consumed once by the frontend once its listeners are up.
     pending_plugin_open: Mutex<Option<String>>,
@@ -1233,6 +1238,48 @@ pub fn rebind_toggle_shortcut(app: &AppHandle, next: &str) -> Result<(), String>
     Ok(())
 }
 
+/// R55 · claim one user-defined global shortcut. On press the action string is
+/// delivered to the main window, which interprets it (silent command run or a
+/// plugin mode open). Any OS error (nearly always "already owned by another
+/// application") is returned so the settings page can name the row.
+pub fn register_custom_shortcut(app: &AppHandle, key: &str, action: &str) -> Result<(), String> {
+    let handle = app.clone();
+    let action = action.to_string();
+    app.global_shortcut()
+        .on_shortcut(key, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                // The main window owns the launcher and the command surface; the
+                // pinned window has no business handling these.
+                let _ = handle.emit_to("main", "custom-shortcut://trigger", action.clone());
+            }
+        })
+        .map_err(|error| error.to_string())
+}
+
+/// R55 · release every custom shortcut currently held with the OS.
+pub fn unregister_custom_shortcuts(app: &AppHandle) {
+    let keys = app
+        .state::<AppState>()
+        .custom_shortcuts
+        .lock()
+        .map(|keys| keys.clone())
+        .unwrap_or_default();
+    for key in keys {
+        let _ = app.global_shortcut().unregister(key.as_str());
+    }
+    set_registered_custom_shortcuts(app, &[]);
+}
+
+/// R55 · record which custom keys the OS actually accepted.
+pub fn set_registered_custom_shortcuts(
+    app: &AppHandle,
+    entries: &[commands::config::CustomShortcut],
+) {
+    if let Ok(mut keys) = app.state::<AppState>().custom_shortcuts.lock() {
+        *keys = entries.iter().map(|entry| entry.key.clone()).collect();
+    }
+}
+
 /// Point the user at the `--toggle` escape hatch.
 ///
 /// Wayland hands global key bindings to the compositor and to nobody else, so
@@ -1244,6 +1291,97 @@ pub fn rebind_toggle_shortcut(app: &AppHandle, next: &str) -> Result<(), String>
 fn print_toggle_hint(reason: &str) {
     tracing::warn!("{reason}");
     tracing::warn!("Bind 'floter --toggle' as a custom shortcut in your compositor settings.");
+}
+
+/// R55 · the independent pinned-terminal window.
+///
+/// The user's report, verbatim: 「当前终端页固定时逻辑不对，我想要的时独立出来并固定
+/// 住，不是只能在终端页面内小窗」. Pinning used to be a floating card inside the
+/// main window; it is now a second native window (label `pinned-terminal`),
+/// always-on-top, frameless, with no taskbar item. It loads the same frontend
+/// with `?pinned=<brokerSessionId>` and renders only the terminal, attached to
+/// the same broker session with the frontend id `pinned`.
+///
+/// The window holds no PTY of its own: frames are the manager's global
+/// `term://frame` broadcasts, so the session survives the move and nothing is
+/// reset. Closing the window detaches the view (the PTY keeps running) and
+/// tells the main window to take the session back.
+#[tauri::command]
+async fn open_pinned_terminal_window(
+    app: AppHandle,
+    broker_session_id: String,
+) -> Result<(), String> {
+    if let Some(existing) = app.get_webview_window("pinned-terminal") {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    let url = WebviewUrl::App(format!("index.html?pinned={broker_session_id}").into());
+    let session_for_close = broker_session_id.clone();
+    let emit_handle = app.clone();
+    let window = WebviewWindowBuilder::new(&app, "pinned-terminal", url)
+        .title("floter")
+        // A card-sized default; the frontend restores the user's last geometry
+        // and reports every move/resize back to the store.
+        .inner_size(640.0, 420.0)
+        .min_inner_size(320.0, 200.0)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .resizable(true)
+        .visible(true)
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    // Whenever the window goes away — our close button, a platform shortcut, or
+    // the app shutting down — tell the main window so it can take the session
+    // back. The frontend detaches the view before closing (the PTY survives).
+    window.on_window_event(move |event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            // The window can go away through the OS (a native close) without the
+            // frontend's detach running; drop its view here so the broker
+            // session is handed off cleanly and no orphan renderer keeps
+            // emitting frames. `close` preserves the PTY, exactly like
+            // `term_close`.
+            if let Ok(manager) = emit_handle.state::<TerminalState>().0.lock() {
+                let _ = manager.close("pinned");
+            }
+            let _ = emit_handle.emit_to(
+                "main",
+                "pinned-window://closed",
+                session_for_close.clone(),
+            );
+        }
+    });
+
+    Ok(())
+}
+
+/// R55 · close the pinned window (the frontend has already detached its view).
+#[tauri::command]
+fn close_pinned_terminal(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("pinned-terminal") {
+        window.close().map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+/// R55 · the pinned window's own geometry, persisted so it reopens where it was.
+/// Backed by the frontend's localStorage store today; this command exists so the
+/// window can be sized before the webview paints (no flash at the wrong size).
+#[tauri::command]
+fn set_pinned_terminal_geometry(
+    app: AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let Some(window) = app.get_webview_window("pinned-terminal") else {
+        return Ok(());
+    };
+    let _ = window.set_size(LogicalSize::new(width.max(240.0), height.max(160.0)));
+    let _ = window.set_position(LogicalPosition::new(x, y));
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1326,6 +1464,7 @@ pub fn run() {
             terminal_height: Mutex::new(saved_terminal_size().1),
             tray_items: Mutex::new(None),
             toggle_shortcut: Mutex::new(String::new()),
+            custom_shortcuts: Mutex::new(Vec::new()),
             clipboard_shortcut: Mutex::new(String::new()),
             pending_plugin_open: Mutex::new(None),
             pending_deep_link: Mutex::new(None),
@@ -1561,6 +1700,22 @@ pub fn run() {
                 &settings.clipboard_history_hotkey,
             );
 
+            // R55 · re-claim the user's custom global shortcuts. A key another
+            // application has since taken is only logged here — the settings
+            // page re-checks and reports it the next time it is opened; startup
+            // must never block on one bad binding.
+            let mut registered = Vec::new();
+            for entry in commands::config::normalize_custom_shortcuts(&settings.custom_shortcuts) {
+                match register_custom_shortcut(app.handle(), &entry.key, &entry.action) {
+                    Ok(()) => registered.push(entry),
+                    Err(error) => tracing::warn!(
+                        "custom shortcut {} could not be registered at startup: {error}",
+                        entry.key
+                    ),
+                }
+            }
+            set_registered_custom_shortcuts(app.handle(), &registered);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1594,6 +1749,8 @@ pub fn run() {
             get_shortcuts,
             reset_shortcuts,
             update_shortcut,
+            set_custom_shortcuts,
+            run_silent_command,
             suspend_shortcuts,
             resume_shortcuts,
             set_recording_flag,
@@ -1609,6 +1766,9 @@ pub fn run() {
             hide_window,
             quit_app,
             show_input,
+            open_pinned_terminal_window,
+            close_pinned_terminal,
+            set_pinned_terminal_geometry,
             refocus_webview,
             start_drag,
             system_power,

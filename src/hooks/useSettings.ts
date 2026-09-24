@@ -15,6 +15,7 @@ import {
   type SetStateAction,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { normalizeCustomShortcuts } from "../custom-shortcuts";
 import { normalizeFontSize } from "../settings/GeneralPage";
 import {
   DEFAULT_BOLD_MODE,
@@ -95,6 +96,8 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // The clipboard panel ships with NO global hotkey; users may bind one on
   // the shortcuts settings page.
   clipboard_history_hotkey: "",
+  // R55 · custom global shortcuts: empty by default.
+  custom_shortcuts: [],
   // R27 · the shipped capacity, matching `DEFAULT_CLIPBOARD_MAX_ITEMS` in Rust.
   clipboard_history_max_items: 300,
   launch_counts: {},
@@ -281,6 +284,7 @@ export function useSettings(options: {
           shortcuts: withShortcutDefaults(loaded.shortcuts),
           clipboard_history_enabled: loaded.clipboard_history_enabled ?? true,
           clipboard_history_hotkey: loaded.clipboard_history_hotkey ?? "",
+          custom_shortcuts: normalizeCustomShortcuts(loaded.custom_shortcuts ?? []),
           clipboard_history_max_items: loaded.clipboard_history_max_items ?? 300,
           launch_counts: loaded.launch_counts ?? {},
           last_settings_page: normalizeSettingsPage(loaded.last_settings_page),

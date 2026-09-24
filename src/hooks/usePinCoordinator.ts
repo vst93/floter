@@ -1,14 +1,24 @@
-// React binding for the pin-card coordination family: pin / detach /
-// attachAsPinned / resumeIntoMainView / unpin / toggle.
+// React binding for the pinned-native-window coordination family: pin /
+// detach / resumeIntoMainView / unpin / toggle.
 //
-// Extracted verbatim from `App.tsx`; the hook receives every App-owned ref and
-// setter it touches, so the behaviour is unchanged.
+// R55 · pinning opens a second native window (`open_pinned_terminal_window`)
+// instead of a card inside this one, so the reducer is used directly here —
+// there is no in-window geometry to own (the pinned window persists its own).
+//
+// Extracted from `App.tsx`; the hook receives every App-owned ref and setter it
+// touches, so the behaviour is otherwise unchanged.
 
-import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  useReducer,
+  useRef,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { PINNED_SESSION_ID, type PinEvent } from "../terminal/pinState";
-import { usePinnedTerminal } from "./usePinnedTerminal";
-import type { BrokerSessionInfo, MainSessionIdentity, ViewMode } from "../App";
+import { PINNED_SESSION_ID, pinReducer, type PinEvent, type PinState } from "../terminal/pinState";
+import type { MainSessionIdentity, ViewMode } from "../App";
 import type { MessageKey } from "../i18n";
 
 export function usePinCoordinator(options: {
@@ -52,12 +62,7 @@ export function usePinCoordinator(options: {
   } = options;
 
   const pinBusy = useRef(false);
-  const {
-    pinState,
-    dispatchPinEvent: dispatchRawPinEvent,
-    geometry: cardGeometry,
-    updateGeometry: updateCardGeometry,
-  } = usePinnedTerminal();
+  const [pinState, dispatchRawPinEvent] = useReducer(pinReducer, { status: "idle" } as PinState);
   const pinStateRef = useRef(pinState);
   pinStateRef.current = pinState;
 
@@ -85,39 +90,8 @@ export function usePinCoordinator(options: {
     [dispatchRawPinEvent, pinnedReady],
   );
 
-  /** Look up a human-readable session name for the card header. */
-  const lookupSessionLabel = async (brokerSessionId: string): Promise<string | null> => {
-    try {
-      const sessions = await invoke<BrokerSessionInfo[]>("term_list_sessions");
-      return sessions.find((entry) => entry.sessionId === brokerSessionId)?.name || null;
-    } catch {
-      return null;
-    }
-  };
-
-  /** Attach `brokerSessionId` to the card's frontend id with a fresh view
-   * generation; resolves to that generation. */
-  const attachAsPinned = async (brokerSessionId: string): Promise<number> => {
-    const generation = ++nextTerminalGeneration.current;
-    await invoke("term_attach_existing", {
-      request: {
-        id: PINNED_SESSION_ID,
-        generation,
-        brokerSessionId,
-        theme: resolvedTheme,
-        cols: dimsRef.current.cols,
-        rows: dimsRef.current.rows,
-      },
-    });
-    // The card's view is attached and can take input from here on. Set only on
-    // the success path: a throw leaves the flag alone, and the caller's error
-    // branch releases the session into the session list instead.
-    pinnedReady.current = true;
-    return generation;
-  };
-
-  /** Release the main view's session without killing its PTY, so the card can
-   * take it over. */
+  /** Release the main view's session without killing its PTY, so the pinned
+   *  window can take it over. */
   const detachMainView = async () => {
     terminalGeneration.current = null;
     ptyReady.current = false;
@@ -128,24 +102,22 @@ export function usePinCoordinator(options: {
   };
 
   /** Pin (or, when something is already pinned and a new main session is
-   * running, replace) — the current main session moves into the card. */
+   * running, replace) — the current main session moves into a second native
+   * window (`open_pinned_terminal_window`), which attaches its own view. */
   const pinCurrentMain = async () => {
     const brokerSessionId = mainBrokerSessionIdRef.current;
     const generation = terminalGeneration.current;
     if (!ptyReady.current || !brokerSessionId || generation === null) return;
     pinBusy.current = true;
     try {
-      // Detach first, then attach the same PTY under the card's id. If the
-      // attach fails the session stays alive in the daemon, resumable from the
-      // session list.
+      // Detach first, then let the pinned window attach the same PTY under its
+      // own view id. If the window never attaches, the session stays alive in
+      // the daemon and is resumable from the session list.
       await invoke("term_detach_view", { id: "main", generation });
       await detachMainView();
       setMainPinnedAway(true);
-      const pinnedGeneration = await attachAsPinned(brokerSessionId);
-      dispatchPinEvent({ type: "pin", brokerSessionId, generation: pinnedGeneration });
-      void lookupSessionLabel(brokerSessionId).then((label) => {
-        if (label) dispatchPinEvent({ type: "label", label });
-      });
+      await invoke("open_pinned_terminal_window", { brokerSessionId });
+      dispatchPinEvent({ type: "pin", brokerSessionId, generation: Date.now() });
     } catch {
       showTerminalFeedback("launcher.error.session");
       refreshTerminalSessions();
@@ -182,7 +154,7 @@ export function usePinCoordinator(options: {
     }
   };
 
-  /** Dismiss the card; the pinned session returns to the normal flow — back
+  /** Dismiss the pinned window; the session returns to the normal flow — back
    * into the main view when that is free, otherwise left detached in the
    * session list. */
   const unpinPinnedSession = async () => {
@@ -190,36 +162,34 @@ export function usePinCoordinator(options: {
     if (pinned.status !== "pinned" || pinBusy.current) return;
     pinBusy.current = true;
     try {
-      // Attached views close by detaching only — the PTY survives.
-      await invoke("term_close", { id: PINNED_SESSION_ID });
-    } catch {
-      // Already gone; still drop the card state below.
+      // Attached views close by detaching only — the PTY survives. Do it before
+      // closing the window so the view is gone whether the close is ours or the
+      // OS's.
+      await invoke("term_close", { id: PINNED_SESSION_ID }).catch(() => undefined);
+      await invoke("close_pinned_terminal").catch(() => undefined);
+      const { brokerSessionId } = pinned.session;
+      dispatchPinEvent({ type: "unpin" });
+      setMainPinnedAway(false);
+      setActiveSurface("main");
+      if (!ptyReady.current && mode === "terminal") {
+        await resumeIntoMainView(brokerSessionId);
+      }
+    } finally {
+      pinBusy.current = false;
     }
-    const { brokerSessionId } = pinned.session;
-    dispatchPinEvent({ type: "unpin" });
-    setActiveSurface("main");
-    if (!ptyReady.current && mode === "terminal") {
-      await resumeIntoMainView(brokerSessionId);
-    }
-    pinBusy.current = false;
   };
 
   /** Shortcut entry point: pin / unpin / replace, depending on what is live. */
-  const togglePinnedTerminal = async () => {
-    if (pinBusy.current) return;
+  const togglePinnedTerminal = async () => {    if (pinBusy.current) return;
     const pinned = pinStateRef.current;
     if (pinned.status === "pinned") {
       // Sampled BEFORE the unpin, because unpinning into an empty main slot
       // fills that slot: `unpinPinnedSession` resumes the session there and sets
-      // `ptyReady`. Reading the flag afterwards would therefore see the session
-      // just handed back and immediately re-pin it, and the shortcut could never
-      // unpin anything. What the re-pin is actually for is the other case — a
-      // NEWER session already running in the main area, which the card moves to.
+      // `ptyReady`. Reading the flag afterwards would see the session handed
+      // back and immediately re-pin it, and the shortcut could never unpin.
       const mainWasLive = ptyReady.current;
       await unpinPinnedSession();
       if (mainWasLive) {
-        // A newer session runs in the main area: move the card to it. The old
-        // session was released into the normal list/view flow above.
         await pinCurrentMain();
       }
       return;
@@ -227,23 +197,28 @@ export function usePinCoordinator(options: {
     await pinCurrentMain();
   };
 
-  /** The pinned PTY exited on its own: remove the card, nothing to restore. */
-  const handlePinnedSessionExit = useCallback(() => {
-    const pinned = pinStateRef.current;
-    if (pinned.status !== "pinned") return;
-    dispatchPinEvent({ type: "sessionClosed", generation: pinned.session.generation });
-    setActiveSurface("main");
-    setMainPinnedAway(false);
-  }, [dispatchPinEvent, setActiveSurface, setMainPinnedAway]);
+  /** The pinned window went away without our unpin path (the OS close button, a
+   *  session that exited and closed the window): take the session back. */
+  const handlePinnedWindowClosed = useCallback(
+    async (brokerSessionId: string) => {
+      const pinned = pinStateRef.current;
+      if (pinned.status !== "pinned") return;
+      dispatchPinEvent({ type: "unpin" });
+      setMainPinnedAway(false);
+      setActiveSurface("main");
+      if (!ptyReady.current && mode === "terminal") {
+        await resumeIntoMainView(brokerSessionId);
+      }
+    },
+    [dispatchPinEvent, mode, resumeIntoMainView, setActiveSurface, setMainPinnedAway],
+  );
 
   return {
     pinState,
     pinStateRef,
     dispatchPinEvent,
-    cardGeometry,
-    updateCardGeometry,
     togglePinnedTerminal,
     unpinPinnedSession,
-    handlePinnedSessionExit,
+    handlePinnedWindowClosed,
   };
 }

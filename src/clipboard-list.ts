@@ -18,6 +18,7 @@
 // glyph without touching the record's meaning.
 
 import { fileExtensionBadge, isFilesPreviewCandidate, looksLikeDirectoryPath, clipboardEntryType, shouldActivateClipboardEntry, type ClipboardEntry, type ClipboardEntryType } from "./clipboard-history.ts";
+import { isHistoryDeleteKey } from "./launcher.ts";
 import type { ClipboardIconName } from "./clipboard-icons.ts";
 
 // ── The two filter axes ───────────────────────────────────────────────────
@@ -335,9 +336,14 @@ export const resolveClipboardKey = (input: ClipboardKeyInput): ClipboardKeyActio
   // 5 · Cmd/Ctrl+W dismisses the page, the app-wide overlay convention.
   if (modifier && key.toLowerCase() === "w") return { kind: "close" };
 
-  // 6 · Cmd/Ctrl+Backspace deletes the selected row from ANY focus — the
-  //     collision-free escape hatch that survives even while typing.
-  if (modifier && key === "Backspace") return { kind: "delete" };
+  // 6 · The shared history-delete key (⌘⌫ / Ctrl+⌫, `HISTORY_DELETE_SHORTCUT`)
+  //     deletes the selected row from ANY focus — the collision-free escape
+  //     hatch that survives even while typing. Recognised through the same
+  //     predicate the launcher uses (`isHistoryDeleteKey`), so the page and the
+  //     launcher can never disagree about which combination this is.
+  if (isHistoryDeleteKey({ key, code: "Backspace", ctrlKey, metaKey, altKey, shiftKey: false })) {
+    return { kind: "delete" };
+  }
 
   if (key === "Escape") return { kind: "close" };
 

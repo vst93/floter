@@ -243,7 +243,7 @@ static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const SETTINGS_BACKUP_FILE_NAME: &str = "settings.json.backup";
 
-const SHORTCUT_ACTIONS: [&str; 8] = [
+const SHORTCUT_ACTIONS: [&str; 9] = [
     TOGGLE_WINDOW,
     NEW_COMMAND,
     OPEN_EXTERNAL_TERMINAL,
@@ -252,15 +252,17 @@ const SHORTCUT_ACTIONS: [&str; 8] = [
     OPEN_SETTINGS,
     SELECT_RESULT,
     PIN_TERMINAL,
+    CLIPBOARD_PANEL,
 ];
 
 /// Shortcut fallback for the window toggle, which is registered with the OS and
 /// therefore must not collide with the platform's own bindings.
 pub const DEFAULT_TOGGLE_WINDOW: &str = "Ctrl+Space";
 
-/// Action id for the clipboard panel hotkey, which is stored as its own
-/// settings field rather than in the shortcuts map (it is registered and
-/// rebound by `clipboard_history`, not by the shortcut plumbing here).
+/// Action id for the clipboard panel hotkey. R55 · it is an ordinary member of
+/// the shortcuts map now (the legacy `clipboard_history_hotkey` field is kept
+/// in sync for older readers and hand-edited files). The action is special in
+/// exactly one way: an empty value is the legitimate "disabled" state.
 pub const CLIPBOARD_PANEL: &str = "clipboard_panel";
 /// The clipboard panel ships with NO global hotkey: nothing is registered on
 /// startup and the panel stays reachable through launcher search and
@@ -489,6 +491,27 @@ pub fn write_calculator_settings(
     Ok(stored.calculator_plugin)
 }
 
+/// R55 · one user-defined global shortcut: the OS key and the launcher action
+/// it triggers. `action` is a launcher-addressable string interpreted by the
+/// frontend (`src/custom-shortcuts.ts`): a plugin trigger, an internal action
+/// id, or a shell command line.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct CustomShortcut {
+    pub key: String,
+    pub action: String,
+}
+
+/// R55 · why one custom shortcut was not accepted, so the settings page can
+/// point at the offending row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CustomShortcutRejection {
+    pub key: String,
+    /// `conflict` (collides with another app shortcut) or `occupied` (the OS
+    /// refused the grab — usually another application already owns it).
+    pub reason: String,
+}
+
 /// Missing keys fall back to `Default`, so settings files written by older
 /// builds keep working when new fields are introduced.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -590,6 +613,13 @@ pub struct AppSettings {
     pub clipboard_history_enabled: bool,
     /// Global hotkey that summons the clipboard panel.
     pub clipboard_history_hotkey: String,
+    /// R55 · user-defined global shortcuts. Each entry binds a key the OS
+    /// delivers (via the global-shortcut plugin) to a launcher-addressable
+    /// action, which the frontend executes silently — or, for a plugin, opens
+    /// normally. Normalized on read (invalid/duplicate entries are dropped) and
+    /// owned by the frontend's `set_custom_shortcuts` command.
+    #[serde(default)]
+    pub custom_shortcuts: Vec<CustomShortcut>,
     /// R27 · how many non-favorite clipboard entries the history keeps. The
     /// long-standing constant was 300; the clipboard plugin's own settings page
     /// exposes it (10–500). Favorites are exempt from the cap and from the
@@ -706,6 +736,7 @@ impl Default for AppSettings {
             show_recent_in_launcher: true,
             clipboard_history_enabled: true,
             clipboard_history_hotkey: DEFAULT_CLIPBOARD_HOTKEY.to_string(),
+            custom_shortcuts: Vec::new(),
             clipboard_history_max_items: DEFAULT_CLIPBOARD_MAX_ITEMS,
             launch_counts: HashMap::new(),
             last_settings_page: "general".to_string(),
@@ -789,6 +820,7 @@ pub fn default_shortcuts() -> HashMap<String, String> {
                 "Ctrl+Shift+P".to_string()
             },
         ),
+        (CLIPBOARD_PANEL, DEFAULT_CLIPBOARD_HOTKEY.to_string()),
     ]
     .into_iter()
     .map(|(action, shortcut)| (action.to_string(), shortcut))
@@ -800,6 +832,44 @@ pub fn default_shortcuts() -> HashMap<String, String> {
 pub fn resolved_shortcuts(settings: &AppSettings) -> HashMap<String, String> {
     let mut shortcuts = default_shortcuts();
     for action in SHORTCUT_ACTIONS {
+        // R55 · the clipboard panel's map entry is the source of truth; a
+        // settings file that predates the map (or was hand-edited) still has
+        // the value in `clipboard_history_hotkey`, so that field is the
+        // fallback. An empty result is the legitimate disabled state and is
+        // inserted as such (unlike every other action, which skips an invalid
+        // value and keeps its default).
+        if action == CLIPBOARD_PANEL {
+            let from_map = settings
+                .shortcuts
+                .get(action)
+                .cloned()
+                .unwrap_or_default();
+            // R55 migration: a pre-round file has the eight-action map and the
+            // legacy field but no `clipboard_panel` key; a file whose map entry
+            // is empty but whose legacy field is set is the same case seen
+            // through a defaulted map. In both, the legacy field wins. Once the
+            // UI writes the map it keeps both in step, so this never overrides
+            // a deliberate clear (which writes "" to both).
+            let stored = if from_map.trim().is_empty()
+                && !settings.clipboard_history_hotkey.trim().is_empty()
+            {
+                settings.clipboard_history_hotkey.clone()
+            } else {
+                from_map
+            };
+            let normalized = normalize_shortcut(action, &stored)
+                .filter(|normalized| normalized.contains('+'))
+                .unwrap_or_default();
+            if normalized.is_empty() {
+                shortcuts.insert(action.to_string(), normalized);
+            } else {
+                // A hand-edited value that collides with another action is
+                // dropped, exactly as it is for every other action — the
+                // disabled state is the safe fallback.
+                insert_shortcut_if_available(&mut shortcuts, action, normalized);
+            }
+            continue;
+        }
         if let Some(shortcut) = settings.shortcuts.get(action) {
             if let Some(shortcut) = normalize_shortcut(action, shortcut) {
                 insert_shortcut_if_available(&mut shortcuts, action, shortcut);
@@ -1037,15 +1107,17 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         .get(TOGGLE_WINDOW)
         .cloned()
         .unwrap_or_else(|| DEFAULT_TOGGLE_WINDOW.to_string());
-    // A hand-edited or unparseable clipboard hotkey falls back to NO hotkey
-    // rather than silently registering something unexpected. A bare key
-    // without any modifier would swallow ordinary typing system-wide, so it
-    // does not count as valid either. An empty string is the legitimate
-    // disabled state.
-    settings.clipboard_history_hotkey =
-        normalize_shortcut(CLIPBOARD_PANEL, &settings.clipboard_history_hotkey)
-            .filter(|normalized| normalized.contains('+'))
-            .unwrap_or_default();
+    // R55 · the legacy clipboard field mirrors the map's `clipboard_panel`
+    // entry (which `resolved_shortcuts` just normalized from either source). A
+    // hand-edited or unparseable value already fell back to NO hotkey: a bare
+    // key without any modifier would swallow ordinary typing system-wide, so
+    // it does not count as valid. An empty string is the legitimate disabled
+    // state.
+    settings.clipboard_history_hotkey = settings
+        .shortcuts
+        .get(CLIPBOARD_PANEL)
+        .cloned()
+        .unwrap_or_default();
     // R27 · the clipboard capacity. The floor is what makes the setting a
     // *capacity* rather than an off switch (the switch is
     // `clipboard_history_enabled`); the ceiling keeps a hand-edited file from
@@ -1053,6 +1125,10 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
     settings.clipboard_history_max_items = settings
         .clipboard_history_max_items
         .clamp(MIN_CLIPBOARD_MAX_ITEMS, MAX_CLIPBOARD_MAX_ITEMS);
+    // R55 · drop empty actions, invalid or modifier-less keys and duplicate
+    // keys. The normalization is pure so the command and the round-trip tests
+    // read the same contract.
+    settings.custom_shortcuts = normalize_custom_shortcuts(&settings.custom_shortcuts);
     // R27 · the browser plugin's result ordering. An unknown value falls back to
     // the launcher's own ranking, never to an unsorted list.
     settings.browser_plugin.sort_order =
@@ -1167,6 +1243,10 @@ fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> 
     submitted.terminal_height = stored.terminal_height;
     submitted.shortcuts = resolved_shortcuts(stored);
     submitted.hotkey = stored.hotkey.clone();
+    // R55 · the custom shortcut list is owned by its dedicated command (it
+    // registers OS hotkeys as it writes), so a whole-app snapshot must not
+    // revert it — the stored list wins, exactly like the clipboard hotkey.
+    submitted.custom_shortcuts = stored.custom_shortcuts.clone();
     // The clipboard hotkey is owned by its dedicated command; a stale frontend
     // snapshot must not resurrect an older binding.
     submitted.clipboard_history_hotkey = stored.clipboard_history_hotkey.clone();
@@ -1213,6 +1293,67 @@ fn modifier_name(value: &str) -> Option<&'static str> {
         }),
         _ => None,
     }
+}
+
+/// R55 · a binding's identity: its modifier set and key, independent of the
+/// order they were written in and of the key's case. `Cmd+Shift+K` and
+/// `Shift+Cmd+K` are the same binding to the OS, so conflict detection has to
+/// treat them as one.
+fn shortcut_binding(value: &str) -> Option<(bool, bool, bool, bool, String)> {
+    let (mut ctrl, mut alt, mut shift, mut meta) = (false, false, false, false);
+    let mut key: Option<String> = None;
+    for part in value.split('+').map(str::trim) {
+        if part.is_empty() {
+            return None;
+        }
+        match modifier_name(part) {
+            Some("Ctrl") => ctrl = true,
+            Some("Alt") => alt = true,
+            Some("Shift") => shift = true,
+            Some(_) => meta = true,
+            None => {
+                if key.replace(part.to_string()).is_some() {
+                    return None;
+                }
+            }
+        }
+    }
+    let key = key?;
+    Some((ctrl, alt, shift, meta, key.to_ascii_lowercase()))
+}
+
+fn shortcut_binding_eq(left: &str, right: &str) -> bool {
+    match (shortcut_binding(left), shortcut_binding(right)) {
+        (Some(a), Some(b)) => a == b,
+        _ => left.trim().eq_ignore_ascii_case(right.trim()),
+    }
+}
+
+/// R55 · sanitize the user's custom shortcut list: a non-empty action, a
+/// parseable key with at least one modifier (a bare key would swallow ordinary
+/// typing system-wide), and no duplicate key. Order is preserved and the first
+/// occurrence of a key wins, so the list the UI shows matches what runs.
+pub fn normalize_custom_shortcuts(list: &[CustomShortcut]) -> Vec<CustomShortcut> {
+    let mut out: Vec<CustomShortcut> = Vec::new();
+    for entry in list {
+        let action = entry.action.trim().to_string();
+        if action.is_empty() {
+            continue;
+        }
+        let Some(key) = normalize_shortcut("custom_shortcut", &entry.key)
+            .filter(|key| key.contains('+'))
+        else {
+            continue;
+        };
+        if out
+            .iter()
+            .any(|existing| shortcut_binding_eq(&existing.key, &key))
+        {
+            continue;
+        }
+        out.push(CustomShortcut { key, action });
+    }
+    out
 }
 
 fn normalize_shortcut(action: &str, value: &str) -> Option<String> {
@@ -1393,8 +1534,14 @@ pub fn reset_shortcuts(app: tauri::AppHandle) -> Result<HashMap<String, String>,
     crate::rebind_toggle_shortcut(&app, &toggle)?;
 
     let mut settings = load_settings();
-    settings.hotkey = toggle;
+    settings.hotkey = toggle.clone();
     settings.shortcuts = shortcuts.clone();
+    settings.clipboard_history_hotkey = DEFAULT_CLIPBOARD_HOTKEY.to_string();
+    // The panel hotkey is part of the map now; resetting unregisters it too.
+    #[cfg(feature = "clipboard-history")]
+    if settings.clipboard_history_enabled {
+        crate::clipboard_history::unregister_panel_shortcut(&app);
+    }
     if let Err(error) = write_settings(&settings) {
         let previous = resolved_shortcuts(&load_settings())
             .get(TOGGLE_WINDOW)
@@ -1417,6 +1564,14 @@ pub fn update_shortcut(
     action: String,
     shortcut: String,
 ) -> Result<(), String> {
+    // R55 · the clipboard panel is an ordinary map action now, but its
+    // registration lives with the clipboard monitor rather than with the
+    // toggle. Delegate before taking the settings lock (the dedicated command
+    // takes it itself) so there is exactly one implementation of the
+    // register-before-write contract.
+    if action == CLIPBOARD_PANEL {
+        return update_clipboard_hotkey(app, shortcut);
+    }
     let _guard = settings_lock()?;
     let shortcut =
         normalize_shortcut(&action, &shortcut).ok_or_else(|| "Invalid shortcut".to_string())?;
@@ -1466,9 +1621,14 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
     let _guard = settings_lock()?;
     let mut settings = load_settings();
     let enabled = settings.clipboard_history_enabled;
+    // R55 · the shortcuts map is the source of truth; the legacy
+    // `clipboard_history_hotkey` field only mirrors it for older readers.
+    let previous = resolved_shortcuts(&settings)
+        .get(CLIPBOARD_PANEL)
+        .cloned()
+        .unwrap_or_default();
 
     if hotkey.trim().is_empty() {
-        let previous = settings.clipboard_history_hotkey.clone();
         if previous.is_empty() {
             return Ok(());
         }
@@ -1476,6 +1636,9 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
         if enabled {
             crate::clipboard_history::unregister_panel_shortcut(&app);
         }
+        settings
+            .shortcuts
+            .insert(CLIPBOARD_PANEL.to_string(), String::new());
         settings.clipboard_history_hotkey = String::new();
         #[cfg(feature = "clipboard-history")]
         if let Err(error) = write_settings(&normalize_settings(settings)) {
@@ -1492,23 +1655,25 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
     }
 
     let normalized = normalize_shortcut(CLIPBOARD_PANEL, &hotkey)
+        .filter(|normalized| normalized.contains('+'))
         .ok_or_else(|| "Invalid shortcut".to_string())?;
 
-    if resolved_shortcuts(&settings)
-        .values()
-        .any(|existing| existing.eq_ignore_ascii_case(&normalized))
-    {
+    if resolved_shortcuts(&settings).iter().any(|(action, existing)| {
+        action != CLIPBOARD_PANEL && shortcut_binding_eq(existing, &normalized)
+    }) {
         return Err("Shortcut conflicts with another action".to_string());
     }
-    if settings.clipboard_history_hotkey == normalized {
+    if previous == normalized {
         return Ok(());
     }
 
-    let previous = settings.clipboard_history_hotkey.clone();
     #[cfg(feature = "clipboard-history")]
     if enabled {
         crate::clipboard_history::rebind_panel_shortcut(&app, &normalized)?;
     }
+    settings
+        .shortcuts
+        .insert(CLIPBOARD_PANEL.to_string(), normalized.clone());
     settings.clipboard_history_hotkey = normalized;
     #[cfg(feature = "clipboard-history")]
     if let Err(error) = write_settings(&normalize_settings(settings)) {
@@ -1522,6 +1687,73 @@ pub fn update_clipboard_hotkey(app: tauri::AppHandle, hotkey: String) -> Result<
         return Err(error);
     }
     Ok(())
+}
+
+/// Replace the user's custom global shortcuts and (re)register them with the
+/// OS.
+///
+/// R55 · the write and the registration are one transaction: the previous grabs
+/// are released, each accepted key is claimed, and only the keys the OS actually
+/// took are persisted. A key that collides with another floter shortcut is
+/// rejected as `conflict`; one the OS refuses is `occupied` (almost always
+/// another application already owns it — the global-shortcut plugin surfaces
+/// that as an error). The command is the sole owner of the list, so a whole-app
+/// `save_settings` cannot revert it.
+#[tauri::command]
+pub fn set_custom_shortcuts(
+    app: tauri::AppHandle,
+    list: Vec<CustomShortcut>,
+) -> Result<Vec<CustomShortcutRejection>, String> {
+    let _guard = settings_lock()?;
+    let normalized = normalize_custom_shortcuts(&list);
+    let settings = load_settings();
+    // Everything the rest of the app already owns, for the in-app conflict
+    // check. The clipboard panel's empty default is ignored (it is disabled).
+    let reserved: Vec<String> = resolved_shortcuts(&settings)
+        .into_iter()
+        .filter(|(action, value)| action != CLIPBOARD_PANEL && !value.is_empty())
+        .map(|(_, value)| value)
+        .collect();
+
+    let mut rejections = Vec::new();
+    let mut candidates: Vec<CustomShortcut> = Vec::new();
+    for entry in normalized {
+        let conflict = reserved
+            .iter()
+            .any(|existing| shortcut_binding_eq(existing, &entry.key))
+            || candidates
+                .iter()
+                .any(|existing| shortcut_binding_eq(&existing.key, &entry.key));
+        if conflict {
+            rejections.push(CustomShortcutRejection {
+                key: entry.key,
+                reason: "conflict".to_string(),
+            });
+            continue;
+        }
+        candidates.push(entry);
+    }
+
+    crate::unregister_custom_shortcuts(&app);
+    let mut registered: Vec<CustomShortcut> = Vec::new();
+    for entry in candidates {
+        match crate::register_custom_shortcut(&app, &entry.key, &entry.action) {
+            Ok(()) => registered.push(entry),
+            Err(error) => {
+                tracing::warn!("custom shortcut {} was refused: {error}", entry.key);
+                rejections.push(CustomShortcutRejection {
+                    key: entry.key,
+                    reason: "occupied".to_string(),
+                });
+            }
+        }
+    }
+
+    crate::set_registered_custom_shortcuts(&app, &registered);
+    let mut updated = load_settings();
+    updated.custom_shortcuts = registered;
+    write_settings(&normalize_settings(updated))?;
+    Ok(rejections)
 }
 
 /// Build version injected at compile time.
@@ -1579,6 +1811,16 @@ pub fn resume_shortcuts(app: tauri::AppHandle) -> Result<(), String> {
         settings.clipboard_history_enabled,
         &settings.clipboard_history_hotkey,
     );
+    // R55 · `suspend_shortcuts` released the custom keys too (unregister_all);
+    // re-claim the ones the settings file holds.
+    crate::unregister_custom_shortcuts(&app);
+    let mut registered = Vec::new();
+    for entry in normalize_custom_shortcuts(&settings.custom_shortcuts) {
+        if crate::register_custom_shortcut(&app, &entry.key, &entry.action).is_ok() {
+            registered.push(entry);
+        }
+    }
+    crate::set_registered_custom_shortcuts(&app, &registered);
     Ok(())
 }
 
@@ -2150,6 +2392,103 @@ mod tests {
         };
         let merged = merge_frontend_settings(AppSettings::default(), &stored);
         assert_eq!(merged.clipboard_history_hotkey, "Ctrl+Alt+B");
+    }
+
+    // ── R55 · the clipboard panel as a shortcut-map member ────────────────
+
+    #[test]
+    fn the_clipboard_panel_is_a_shortcut_action_with_an_empty_default() {
+        let shortcuts = default_shortcuts();
+        assert_eq!(shortcuts.get(CLIPBOARD_PANEL).map(String::as_str), Some(""));
+        // It is part of the same registry, so the frontend's list and the
+        // backend's normalization cannot disagree about the set of actions.
+        assert!(SHORTCUT_ACTIONS.contains(&CLIPBOARD_PANEL));
+    }
+
+    #[test]
+    fn a_legacy_clipboard_hotkey_migrates_into_the_shortcut_map() {
+        // A pre-R55 file has the eight-action map (here, the new default with an
+        // empty `clipboard_panel`) and the value in the legacy field. The legacy
+        // value must win, and both views must agree afterwards.
+        let settings = normalize_settings(AppSettings {
+            clipboard_history_hotkey: "Ctrl+Alt+B".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(
+            settings.shortcuts.get(CLIPBOARD_PANEL).map(String::as_str),
+            Some("Ctrl+Alt+B")
+        );
+        assert_eq!(settings.clipboard_history_hotkey, "Ctrl+Alt+B");
+    }
+
+    #[test]
+    fn a_disabled_clipboard_panel_stays_disabled() {
+        let settings = normalize_settings(AppSettings::default());
+        assert_eq!(
+            settings.shortcuts.get(CLIPBOARD_PANEL).map(String::as_str),
+            Some(""),
+            "empty is the legitimate off state, not a fallback"
+        );
+    }
+
+    // ── R55 · custom global shortcuts ────────────────────────────────────
+
+    #[test]
+    fn custom_shortcuts_drop_invalid_and_duplicate_entries() {
+        let normalized = normalize_custom_shortcuts(&[
+            CustomShortcut { key: "Cmd+Shift+K".into(), action: "plugin:clipboard".into() },
+            // Bare key: would swallow ordinary typing system-wide.
+            CustomShortcut { key: "K".into(), action: "plugin:browser".into() },
+            // Empty action.
+            CustomShortcut { key: "Cmd+Shift+L".into(), action: "  ".into() },
+            // Duplicate of the first (modifier order/case-insensitive).
+            CustomShortcut { key: "Shift+Cmd+K".into(), action: "action:new_command".into() },
+        ]);
+        assert_eq!(normalized.len(), 1, "only the first valid entry survives");
+        assert_eq!(normalized[0].action, "plugin:clipboard");
+        // The key is stored in the platform's own modifier spelling.
+        assert_eq!(
+            normalized[0].key,
+            normalize_shortcut("custom_shortcut", "Cmd+Shift+K").expect("parseable")
+        );
+    }
+
+    #[test]
+    fn custom_shortcuts_round_trip_through_the_settings_file() {
+        let directory = tempfile::tempdir().expect("settings directory");
+        let settings = normalize_settings(AppSettings {
+            custom_shortcuts: vec![CustomShortcut {
+                key: "Cmd+Shift+K".into(),
+                action: "plugin:calculator".into(),
+            }],
+            ..AppSettings::default()
+        });
+        write_settings_to(directory.path(), &settings).expect("write settings");
+        let read = read_settings(&directory.path().join(SETTINGS_FILE_NAME))
+            .expect("settings read back");
+        assert_eq!(read.custom_shortcuts, settings.custom_shortcuts);
+    }
+
+    #[test]
+    fn a_whole_app_save_cannot_revert_the_custom_shortcut_list() {
+        let stored = AppSettings {
+            custom_shortcuts: vec![CustomShortcut {
+                key: "Cmd+Shift+K".into(),
+                action: "plugin:calculator".into(),
+            }],
+            ..AppSettings::default()
+        };
+        // The frontend submits an empty list (a stale whole-app snapshot); the
+        // dedicated command owns the field, so the stored list must survive.
+        let merged = merge_frontend_settings(AppSettings::default(), &stored);
+        assert_eq!(merged.custom_shortcuts, normalize_custom_shortcuts(&stored.custom_shortcuts));
+    }
+
+    #[test]
+    fn an_older_settings_file_without_custom_shortcuts_reads_as_empty() {
+        let settings: AppSettings =
+            serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
+        assert!(settings.custom_shortcuts.is_empty());
     }
 
     #[test]

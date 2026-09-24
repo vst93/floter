@@ -169,7 +169,7 @@ test("R44 · every copy path reports through the one choke point", async () => {
   assert.match(app, /showCopyNotice,\n\s*t,\n\s*\}\);/);
 });
 
-test("R44 · the notice is a docked status row, never a floating overlay", async () => {
+test("R44/R55 · the notice is a status line, never a floating toast", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(app, /className="terminal-copy-notice"/);
   assert.match(app, /data-phase=\{copyNotice\.phase\}/);
@@ -183,22 +183,21 @@ test("R44 · the notice is a docked status row, never a floating overlay", async
 
   const css = stripJsComments(await read("src/styles/terminal.css"));
   const row = bodyFor(css, ".terminal-copy-notice");
-  // Not a layer: no positioning, so it cannot float over the canvas.
-  assert.doesNotMatch(row, /position:\s*(absolute|fixed)/);
-  // Fixed height, reused by every message, so a copy never resizes anything.
-  assert.match(row, /flex:\s*0 0 auto/);
+  // R55 · it *is* a layer now — but a bottom-anchored one pinned inside the
+  // canvas region, not a floating toast: no radius, no shadow, and it spends
+  // no accent budget.
+  assert.match(row, /position:\s*absolute/);
+  assert.match(row, /bottom:\s*0/);
   assert.match(row, /height:\s*var\(--terminal-status-height\)/);
-  // Muted, and it spends no accent budget.
   assert.match(row, /color:\s*var\(--text-muted\)/);
   assert.doesNotMatch(row, /accent/);
-  // A status line, not a control: no radius, no shadow.
   assert.doesNotMatch(row, /border-radius/);
   assert.doesNotMatch(row, /box-shadow/);
   // It takes no pointer events, so the canvas behind the panel is untouched.
   assert.match(row, /pointer-events:\s*none/);
 });
 
-test("R44 · the row is in the panel's flow, so the PTY is never resized by a copy", async () => {
+test("R44/R55 · the notice is out of the flow, so the PTY is never resized by a copy", async () => {
   const css = stripJsComments(await read("src/styles/terminal.css"));
   const body = bodyFor(css, ".terminal-panel__body");
   assert.match(body, /display:\s*flex/);
@@ -210,6 +209,9 @@ test("R44 · the row is in the panel's flow, so the PTY is never resized by a co
   assert.match(mount, /flex:\s*1 1 auto/);
   assert.match(mount, /min-height:\s*0/);
   assert.doesNotMatch(mount, /height:\s*100%/, "the mount takes the leftover height now");
+  // R55 · the notice has no `flex` of its own: it is absolutely positioned, so
+  // toggling a message cannot change the mount's height (the R44 contract).
+  assert.doesNotMatch(bodyFor(css, ".terminal-copy-notice"), /flex:\s*0 0 auto/);
   // The resident exit notice keeps its inset from the strip's top edge rather
   // than being painted over it.
   const resident = bodyFor(css, ".terminal-resident");

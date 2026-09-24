@@ -16,6 +16,7 @@ import type {
 import { nextLauncherSelection, CALCULATOR_FAVORITE_SHORTCUT, CLIPBOARD_FAVORITE_SHORTCUT, HISTORY_DELETE_SHORTCUT, type ActivePluginMode, type ExecutionPlan } from "../launcher";
 import {
   HISTORY_DELETE_CONFIRM_MS,
+  historyDeleteCanClaim,
   reduceHistoryDelete,
   selectionAfterRemoval,
   type ArmedHistoryDelete,
@@ -884,16 +885,19 @@ export function useLauncherActions(options: {
       return;
     }
 
-    // R50/R53 · delete one history row, two-step, shared by both built-in
-    // history modes. The key (⌃⌫ / Ctrl+⌫) is only claimed on a runnable history
-    // row: elsewhere the field's own handling runs — on Windows that is the
-    // Ctrl+⌫ delete-word, on macOS ⌃⌫ has no text role at all. So the macOS
-    // editing gesture R50 collided with (⌘⌫ = delete to line start) is free
-    // again. The first press arms the row (the renderer shows the muted "press
-    // again" note); a second press inside the window confirms; the arm is
-    // cancelled by any other key, a focus loss or the timeout.
+    // R50/R53/R55 · delete one history row, two-step, shared by both built-in
+    // history modes. The key is `CmdOrCtrl+Backspace` (⌘⌫ / Ctrl+⌫) — the app
+    // modifier, on the user's explicit R55 request. The macOS collision that made
+    // R53 avoid it (⌘⌫ = delete to the start of the line) is mitigated here
+    // rather than dodged: the key is claimed only on a runnable history row
+    // *while the field is empty*, so a hand trimming text keeps the editing
+    // gesture. `query` holds only the mode's needle, not the trigger word, so
+    // `` (browsing the history) is the only state that can arm. The first press
+    // arms the row (the renderer shows the muted "press again" note); a second
+    // press inside the window confirms; the arm is cancelled by any other key, a
+    // focus loss or the timeout.
     if (clipboardScope || calculatorScope) {
-      if (matchesShortcut(event, HISTORY_DELETE_SHORTCUT)) {
+      if (historyDeleteCanClaim(true, query) && matchesShortcut(event, HISTORY_DELETE_SHORTCUT)) {
         const selected = launcherResults[selectedResultIndex];
         const entry =
           selected?.type === "clipboard" || selected?.type === "calculator"

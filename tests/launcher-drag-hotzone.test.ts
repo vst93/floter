@@ -116,38 +116,24 @@ test("the hot zone is a 28px absolute band under the field, and the card is not 
 
 // ── 2 · the header goes implicit on the launcher only ──────────────────────
 
-test("the collapsed instance is tagged, the terminal instance is not", async () => {
+test("R55 · the in-window pinned card is retired in favour of the native window", async () => {
   const app = await read("src/App.tsx");
-  // The card element is built once, before the mode branches, and the tag is
-  // derived from the mode right there — that is what lets the same element
-  // serve the terminal page (visible header) and the launcher (implicit one).
-  //
-  // R51 · the slice's end sentinel used to be `const pluginLayer`, the retired
-  // plugin page layer R33 removed from App.tsx. `indexOf` returned -1, so the
-  // slice quietly ran to the end of the file and the assertions below passed
-  // against far more source than the element. The element's own closing
-  // `) : null;` is the real end and cannot rot the same way.
-  const start = app.indexOf("const pinnedCardElement");
-  const element = app.slice(start, app.indexOf(") : null;", start));
-  assert.ok(start > -1 && element.length > 0, "App must still build the pinned card element once");
-  assert.match(
-    element,
-    /variant=\{mode === "collapsed" \? "launcher" : "terminal"\}/,
-    "the card element must tag the collapsed instance as the launcher variant",
-  );
-  // The terminal page renders the same element and keeps the default variant:
-  // exactly one `variant=` exists in the whole file, and it is the one above.
+  // The launcher no longer builds the floating card element; pinning opens a
+  // second native window instead. Deleting the card from the tree is what the
+  // round means by "retire", so it must stay deleted.
   assert.equal(
-    (app.match(/variant=\{/g) ?? []).length,
-    1,
-    "only the one card element may pass the variant",
+    app.includes("const pinnedCardElement"),
+    false,
+    "App must not build the retired in-window card",
   );
-  // And the collapsed branch is where that element is rendered.
-  assert.match(
-    collapsedBranch(app),
-    /\{pinnedCardElement\}/,
-    "the collapsed shell must render the tagged card",
-  );
+  const coordinator = await read("src/hooks/usePinCoordinator.ts");
+  // The session still moves through the same detach/attach handshake: detach
+  // the main view, open the pinned window, then let the backend attach.
+  assert.match(coordinator, /term_detach_view/);
+  assert.match(coordinator, /open_pinned_terminal_window/);
+  assert.match(coordinator, /close_pinned_terminal/);
+  // The main window takes the session back when the pinned window closes.
+  assert.match(app, /pinned-window:\/\/closed/);
 });
 
 test("PinnedTerminalCard emits the variant and defaults to the terminal one", async () => {

@@ -4,6 +4,7 @@ import {
   type PluginFilterAxis,
 } from "./plugins/filter-axis.ts";
 import { splitTriggerWord } from "./plugins/mode-entry.ts";
+import { matchesShortcut } from "./shortcuts.ts";
 import type { CalculatorModeFilter } from "./calculator.ts";
 export type { CalculatorModeFilter } from "./calculator.ts";
 
@@ -515,17 +516,30 @@ export const cycleCalculatorFilter = (
 export const CALCULATOR_FAVORITE_SHORTCUT = "CmdOrCtrl+D";
 
 /**
- * R50/R53 · the delete-one key, shared by the calculator and clipboard history
- * lists. A literal `Ctrl+Backspace` — ⌃⌫ on macOS, Ctrl+⌫ elsewhere — not the
- * app modifier, deliberately: R50's `CmdOrCtrl+Backspace` was ⌘⌫ on macOS, which
- * is the system's own "delete to the start of the line" in every text field, so
- * the muscle memory of an editing gesture armed a row instead. ⌃ is not a text
- * editor's modifier on macOS (word-delete there is ⌥⌫, the emacs edits are ⌃H/⌃D),
- * while non-macOS resolves to the same Ctrl+⌫ it always did. The full argument,
- * and the cost it keeps, is in `plugins/history-actions.ts`. Pinned here so the
- * key handler, the hint and the documentation cannot drift.
+ * R50/R53/R55 · the delete-one key, shared by the calculator and clipboard
+ * history lists. `CmdOrCtrl+Backspace` resolves to ⌘⌫ on macOS and Ctrl+⌫
+ * elsewhere — the app modifier, the same key the rest of the launcher's
+ * commands use. R53 stepped off ⌘⌫ because macOS binds it to "delete to the
+ * start of the line" in a text field, so trimming what was typed armed a
+ * destructive row delete. R55 puts it back on the user's explicit request —
+ * 「之前改的删除快捷键改成 cmd+删除」 — and mitigates the collision structurally
+ * instead of avoiding it: the handler only claims ⌘⌫ while the field is *empty*
+ * and the selection sits on a runnable history row, so a hand deleting text
+ * (the field has characters) keeps the editing gesture and never arms a row.
+ * The full argument lives in `plugins/history-actions.ts`. Pinned here so the
+ * key handler, the hint, the clipboard page and the documentation cannot drift.
  */
-export const HISTORY_DELETE_SHORTCUT = "Ctrl+Backspace";
+export const HISTORY_DELETE_SHORTCUT = "CmdOrCtrl+Backspace";
+
+/** Whether a key event's modifier-and-key shape is {@link HISTORY_DELETE_SHORTCUT}.
+ *
+ * Exported so the clipboard plugin page (`clipboard-list.ts`) recognises the
+ * *same* binding the launcher does rather than keeping its own copy of ⌘⌫/Ctrl+⌫
+ * — one key, one definition. The input is structurally an event (the page's
+ * pure resolver never holds a real `KeyboardEvent`). */
+export const isHistoryDeleteKey = (
+  event: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
+): boolean => matchesShortcut(event as KeyboardEvent, HISTORY_DELETE_SHORTCUT);
 
 const CALCULATOR_TRIGGERS = new Set(["calc", "calculator", "计算器", "计算", "="]);
 

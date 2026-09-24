@@ -22,32 +22,60 @@
 //
 // ## The key
 //
-// `Ctrl+Backspace` (⌃⌫ / Ctrl+⌫), declared beside the other mode-local
-// shortcuts in `launcher.ts` (`HISTORY_DELETE_SHORTCUT`). A bare ⌫/Delete
-// cannot be the list's gesture: the field is a live text input, and plain
-// Backspace must keep editing it. The modifier makes the intent deliberate,
-// and the key is only *claimed* while the selection sits on a history row —
-// elsewhere the field's own handling runs untouched.
+// `CmdOrCtrl+Backspace` (⌘⌫ on macOS, Ctrl+⌫ elsewhere), declared beside the
+// other mode-local shortcuts in `launcher.ts` (`HISTORY_DELETE_SHORTCUT`). A bare
+// ⌫/Delete cannot be the list's gesture: the field is a live text input, and
+// plain Backspace must keep editing it. The modifier makes the intent
+// deliberate, and the key is only *claimed* while the field is empty and the
+// selection sits on a history row — elsewhere the field's own handling runs
+// untouched.
 //
-// R50 shipped this as `CmdOrCtrl+Backspace`, i.e. ⌘⌫ on macOS; the user's
-// report was exact — 「还有 cmd+空格删除这种逻辑不合适，换个快捷键」 — because ⌘⌫ is
-// macOS's own "delete to the beginning of the line". That is the gesture a hand
-// already has in a text field, so pressing ⌘⌫ to trim what was typed *armed a
-// destructive row delete*. The fix is a literal ⌃, which no macOS text field
-// reads as an edit: word-delete there is ⌥⌫, and the emacs-style edits are
-// ⌃H/⌃D/⌃K — ⌃⌫ is unbound. Everywhere else the resolved key is the same
-// Ctrl+⌫ R50 already had, so macOS changes and nothing else does. ⌫ stays on
-// the key, so the armed note (「再按一次确认删除」) still reads as a delete.
+// ## The ⌘⌫ round trip (R50 → R53 → R55)
 //
-// The cost is real and named, and it is the pre-existing non-macOS one: with a
-// history row selected, the field's Ctrl+⌫ word-delete is claimed by the row
-// (Windows edit controls bind Ctrl+⌫ to delete-word-backward). The list row is
-// the more specific context, and Esc clears the field when that is what the
-// user wants.
+// R50 shipped this as `CmdOrCtrl+Backspace`, i.e. ⌘⌫ on macOS, which is macOS's
+// own "delete to the beginning of the line" in a text field. The user's report
+// was exact — 「还有 cmd+空格删除这种逻辑不合适，换个快捷键」 — because a hand that
+// already has that gesture pressed ⌘⌫ to trim what it *typed* and instead armed a
+// destructive row delete. R53 moved the key to a literal `Ctrl+Backspace` (⌃⌫ on
+// macOS, unbound there; word-delete is ⌥⌫, the emacs edits are ⌃H/⌃D/⌃K).
+//
+// R55 reverses that on the user's explicit request — 「之前改的删除快捷键改成
+// cmd+删除」 — and mitigates the collision **structurally** instead of avoiding
+// the key:
+//
+//   · the handler (`useLauncherActions`) only claims ⌘⌫ when `query` is empty —
+//     it holds the mode's needle, not the trigger word — so a field with any
+//     text at all keeps ⌘⌫ as "delete to line start". A row can only be armed
+//     while the list is being *browsed*, never while something is being typed;
+//   · the claim is further gated on a runnable history row (a status line or a
+//     disabled row is not armed);
+//   · the two-step arm/confirm and Esc/timeout cancellation are unchanged, so
+//     even a mis-arm costs one Escape, not a deletion.
+//
+// The residual cost is named and accepted: on macOS, with an *empty* field and a
+// history row selected, ⌘⌫ no longer deletes text (there is none) — the field is
+// empty by construction of the guard. On Windows/Linux ⌘⌫ resolves to the same
+// Ctrl+⌫ the list always used; the field's Ctrl+⌫ delete-word is claimed only in
+// the empty-field + selected-row state, and Esc clears the field when that is
+// what the user wants.
 
 /** How long an armed row waits for its confirming press. Matches the "a few
  *  seconds" the user asked for and the overlay's own confirm dwell. */
 export const HISTORY_DELETE_CONFIRM_MS = 5000;
+
+/**
+ * Whether the history-delete key may be *claimed* right now.
+ *
+ * R55 · the structural mitigation for putting the key back on the app
+ * modifier (⌘⌫ on macOS): the key only belongs to the list while one of the
+ * history modes owns the field **and the field is empty**. `needle` is the
+ * mode's own text (App keeps the trigger word out of `query`), so any typed
+ * character stands for "the user is editing", and the field's native editing
+ * gesture — macOS's ⌘⌫ delete-to-line-start — must win. With an empty field
+ * there is no text to delete, so the row arm cannot swallow a real edit.
+ */
+export const historyDeleteCanClaim = (historyScope: boolean, needle: string): boolean =>
+  historyScope && needle.trim() === "";
 
 /** The armed row: its id plus when it was armed (for the timeout). */
 export type ArmedHistoryDelete = { readonly id: string; readonly armedAt: number } | null;
