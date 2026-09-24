@@ -224,7 +224,7 @@ test("R43 · the trigger hint is the prefix half of the entry rule", () => {
   assert.equal(externalCommandDisplayName(command("x", { name: "  " })), "x");
 });
 
-test("R43 · the App renders the hint in the shared subline slot", async () => {
+test("R48 · the App renders the hint inline in the field row", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
   // The hint is computed from the ordinary page's query and the enabled set.
   assert.match(
@@ -232,13 +232,16 @@ test("R43 · the App renders the hint in the shared subline slot", async () => {
     /const triggerHint =[\s\S]{0,120}?externalTriggerHint\(query, enabledExternalCommandList\)/,
     "the hint reads the one trigger function and the enabled command list",
   );
-  // It shares the chips row's band; the priority is by scope, so at most one
-  // draws. The window charges the band once through `launcherSubline`.
-  assert.match(app, /const launcherSubline = filterRowVisible \|\| triggerHint !== null;/);
-  assert.match(app, /launcher-filter launcher-filter--trigger-hint/);
+  // R48 · it is inline in the field row (the same 56u band as the field and
+  // the gear), not a `.launcher-filter` subline; no `role="status"` and no
+  // `aria-live` (see the App comment for the double-announcement trade-off).
+  assert.match(app, /collapsed-card__trigger-hint/);
+  assert.doesNotMatch(app, /launcher-filter--trigger-hint/);
+  assert.doesNotMatch(app, /launcher-trigger-hint/);
+  assert.match(app, /aria-hidden="true"/);
   assert.match(app, /t\("launcher\.triggerHint"/);
   assert.match(app, /t\("launcher\.triggerHintMore"/);
-  // The band's own height is the module's constant, not a second number.
+  // The filter row's own height is the module's constant, not a second number.
   const budget = stripJsComments(await read("src/launcher/result-budget.ts"));
   assert.match(budget, /LAUNCHER_FILTER_UNITS = 28/);
 });

@@ -39,6 +39,7 @@ import { useSurfaceResidency } from "./hooks/useSurfaceResidency";
 import { useSettings } from "./hooks/useSettings";
 import { useShortcutCapture } from "./hooks/useShortcutCapture";
 import { useLauncherHeight, syncLauncherHeight } from "./hooks/useLauncherHeight";
+import { useTriggerHintFit } from "./hooks/useTriggerHintFit";
 import {
   createCollapsedFocusController,
   setCollapsedFocusReassert,
@@ -1216,17 +1217,44 @@ export default function App() {
   // R43 · the ordinary search page's trigger hint. A typed word that is a prefix
   // of an enabled external command's trigger word gets a muted nudge that one
   // space enters its mode. It is the same vocabulary the transition reads
-  // (`externalPluginModeEntry`), so the hint can never name a word that does not
-  // work, and it shares the chips row's slot — the hint lives on the ordinary
-  // page, the chips inside a plugin scope, so the two are mutually exclusive by
-  // construction (see the priority note where the row renders).
+  // (`externalPluginModeEntry`), so the hint can never name a word that does
+  // not work.
+  //
+  // R48 · the nudge is *inline in the field row* now, not a subline under it
+  // (the user read the subline as a line the window should not be paying for —
+  // see `styles/launcher.css`). So the window's height charges only the plugin
+  // filter row (`filterRowVisible`); the hint never moves the window, and the
+  // hint/chips mutual exclusion is by scope: the hint exists only on the
+  // ordinary page (`launcherScope === null`), the chips only inside a plugin
+  // scope.
   const triggerHint =
     launcherScope === null && mode === "collapsed"
       ? externalTriggerHint(query, enabledExternalCommandList)
       : null;
-  // The subline band the window charges: the plugin chips or the trigger hint,
-  // never both. One band, so the two cannot reserve the same 28u twice.
-  const launcherSubline = filterRowVisible || triggerHint !== null;
+  // The rendered nudge, or null. A primitive string so the fit measurement
+  // below re-runs when the nudge's *contents* change, not on every render's
+  // fresh `externalTriggerHint` object.
+  const triggerHintText = triggerHint
+    ? triggerHint.count > 1
+      ? t("launcher.triggerHintMore", {
+          name: externalCommandDisplayName(triggerHint.command),
+          count: triggerHint.count - 1,
+        })
+      : t("launcher.triggerHint", {
+          name: externalCommandDisplayName(triggerHint.command),
+        })
+    : null;
+  const triggerHintRef = useRef<HTMLSpanElement | null>(null);
+  // R48 · the nudge is hidden rather than ellipsised to a stub when the field
+  // row is too narrow to keep even a few cells for it (see the hook: a CSS
+  // ellipsis cannot ask "is this less than a word?", so the App measures). The
+  // interface step is the third argument because it moves both the caption
+  // size and the row's insets, so a step change re-measures.
+  const triggerHintVisible = useTriggerHintFit(
+    triggerHintRef,
+    triggerHintText,
+    settings.ui_scale,
+  );
   // R33 · ref mirror for the once-registered plugin-request listener: the
   // hotkey's toggle has to know whether the overlay is already open for this
   // very plugin before deciding to close it instead of opening it again.
@@ -1736,10 +1764,11 @@ export default function App() {
     launcherMaxHeight,
     launcherHasBar,
     launcherSectionTitle,
-    // R32/R38/R43 · the subline band (the browser/clipboard chips or the
-    // trigger hint) is fixed chrome; charging it here keeps the window from
-    // moving as the list under it changes.
-    launcherSubline,
+    // R32/R38 · the filter subline (the browser/clipboard chips) is fixed
+    // chrome; charging it here keeps the window from moving as the list under
+    // it changes. R48 · the trigger hint is inline in the field row and is not
+    // charged at all, so this predicate is the chips row's alone again.
+    filterRowVisible,
   );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
@@ -2758,6 +2787,32 @@ export default function App() {
                 autoCapitalize="off"
                 autoCorrect="off"
               />
+              {/* R48 · the trigger nudge, inline in the field row's trailing
+                  space (the same 56u band as the field and the buttons), not a
+                  subline under it: the user read the subline as a row the
+                  window should not be paying for. The hint is on the ordinary
+                  page only, so it sits where a plugin scope shows its gear —
+                  one trailing slot, never two claimants. It is muted caption
+                  text, never accent: a discoverability nudge, not a control
+                  (the user presses the space bar in the field, not this text).
+                  `aria-hidden` because the combobox and its placeholder already
+                  carry the field's meaning and a live region would re-announce
+                  on every keystroke; the hint is a visual nudge only. The flex
+                  row ellipsises it, and {@link useTriggerHintFit} removes it
+                  when too little room is left to read. */}
+              {triggerHintText && (
+                <span
+                  ref={triggerHintRef}
+                  className="collapsed-card__trigger-hint"
+                  aria-hidden="true"
+                  style={triggerHintVisible ? undefined : { display: "none" }}
+                >
+                  <span className="collapsed-card__trigger-hint-key">␣</span>
+                  <span className="collapsed-card__trigger-hint-text">
+                    {triggerHintText}
+                  </span>
+                </span>
+              )}
               {launcherScope ? (
                 // R29 · in a plugin mode the field is the plugin's search box,
                 // so the row's trailing control is the *plugin's*: one gear
@@ -2841,28 +2896,6 @@ export default function App() {
                 </>
               )}
             </div>
-            {/* R43 · the trigger hint. It shares the chips row's slot (the same
-                `.launcher-filter` band) and the priority between them is fixed
-                by scope: the hint exists only on the ordinary search page
-                (`launcherScope === null`), the chips only inside a plugin scope,
-                so at most one draws. The window charges the band once through
-                `launcherSubline`, so the hint never overlaps a row. Muted text,
-                no accent fill, `aria-live` so the nudge is announced once per
-                matched command rather than on every keystroke. */}
-            {triggerHint && (
-              <div className="launcher-filter launcher-filter--trigger-hint">
-                <span className="launcher-trigger-hint" role="status">
-                  {triggerHint.count > 1
-                    ? t("launcher.triggerHintMore", {
-                        name: externalCommandDisplayName(triggerHint.command),
-                        count: triggerHint.count - 1,
-                      })
-                    : t("launcher.triggerHint", {
-                        name: externalCommandDisplayName(triggerHint.command),
-                      })}
-                </span>
-              </div>
-            )}
             {/* R32 · the browser mode's range filter. A compact subline under
                 the field, present for the whole browser scope (including the
                 debounce before the first rows arrive) so the chips never

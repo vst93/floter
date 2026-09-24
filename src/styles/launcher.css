@@ -335,7 +335,15 @@
 .collapsed-card__input {
   position: relative;
   z-index: 1;
-  width: 100%;
+  /* R48 · the field grows to fill whatever the row's fixed pieces (the scope
+     glyph, the trailing buttons) and the inline trigger hint leave. It used to
+     be `width: 100%; flex-shrink: 1`, which gave the field a basis of the whole
+     row: when R48 added a shrinkable sibling, the field's oversized basis ate
+     the flex shrink and the hint was truncated even while the field's empty
+     tail had room to spare. A zero basis with `flex-grow: 1` keeps the same
+     box — `row − glyph − buttons` (then `− hint`) — and makes the hint's shrink
+     engage only when the row genuinely cannot hold it. */
+  flex: 1 1 0;
   min-width: 0;
   min-height: calc(var(--u) * 22);
   border: none;
@@ -468,20 +476,60 @@
   white-space: nowrap;
 }
 
-/* R43 · the trigger hint. It rides the chips row's own `.launcher-filter` band
-   (same min-height and insets), so it costs the window the one 28u the band
-   table already charges. Muted, never accent: it is a discoverability nudge,
-   not a primary action, and it is not a control — the user presses the space
-   bar in the field, not this text. */
-.launcher-trigger-hint {
+/* R48 · the trigger hint, *inline in the field row*.
+
+   R43 drew the nudge (「空格进入某个插件」) on a subline of its own, sharing the
+   chips row's `.launcher-filter` band; the user read that as a line the window
+   should not be buying — 「放在输入框下占用了一行，似乎不太合适。能不能在输入框当
+   中做些标识或者提示」. So the nudge is a sibling of the field inside
+   `.collapsed-card__input-row` (the 56u band R37 pinned): it costs no band, no
+   `launcherContentHeight` term and no `setSize`, and it stands in the same
+   trailing slot a plugin scope gives its gear.
+
+   It is a *shrinkable* flex item beside the field (which is `flex: 1 1 0`, see
+   `.collapsed-card__input`), so the field keeps the row's width and the nudge
+   takes only what is left: a short trigger word leaves the field intact, a
+   long command name is capped at half the row. The caption size is
+   `--text-caption` (10px × `--ui-scale`), one step below the field, and the
+   colour is `--text-muted`, never accent: a discoverability nudge, not a
+   primary action, and not a control — the user presses the space bar in the
+   field, not this text. The `50%` cap keeps a long name from becoming the
+   row's dominant element. */
+.collapsed-card__trigger-hint {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 5);
+  flex: 0 1 auto;
   min-width: 0;
-  overflow: hidden;
+  max-width: 50%;
+  margin-left: calc(var(--u) * 8);
   color: var(--text-muted);
-  font-size: var(--text-body);
+  font-size: var(--text-caption);
   font-weight: 520;
   line-height: 1.4;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The space glyph. `--text-tertiary` is one step quieter than the name beside
+   it, so the key reads as the quiet half of the nudge rather than a second
+   label competing with the field. */
+.collapsed-card__trigger-hint-key {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-weight: 620;
+}
+
+/* The name is the one part that may be cut: it owns the ellipsis so a collision
+   trims the nudge's tail (the command name) rather than the key. The
+   `useTriggerHintFit` hook removes the whole nudge when even the floor is gone. */
+.collapsed-card__trigger-hint-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .launcher-filter__chip {

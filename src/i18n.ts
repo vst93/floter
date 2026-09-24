@@ -13,11 +13,14 @@ const en = {
   "input.placeholderBrowser": "Search bookmarks, history and tabs",
   // R39 · an external plugin's command mode: the field holds the command's argv.
   "input.placeholderPluginArgs": "Type arguments, press Enter to run",
-  // R43 · the ordinary search page's trigger hint: the typed word prefix-matches
-  // an enabled external command, and one space enters its mode. Muted, never
-  // accent — it is a discoverability nudge, not a primary action.
-  "launcher.triggerHint": "Space to enter {name}",
-  "launcher.triggerHintMore": "Space to enter {name} (+{count} more)",
+  // R43/R48 · the ordinary search page's trigger hint: the typed word
+  // prefix-matches an enabled external command, and one space enters its mode.
+  // Muted, never accent — a discoverability nudge, not a primary action. R48
+  // moved it inline into the field row, beside the `␣` key glyph the App draws,
+  // so the wording drops the redundant "Space to enter" and leads with the
+  // command name (which is what an ellipsis must never cut).
+  "launcher.triggerHint": "{name} · enter",
+  "launcher.triggerHintMore": "{name} · enter (+{count} more)",
   // R29 · the scope's name, beside its glyph in the field's left edge.
   "launcher.scopeClipboard": "Clipboard",
   "launcher.scopeBrowser": "Browser",
@@ -865,9 +868,10 @@ const zh: Record<MessageKey, string> = {
   "input.placeholderBrowser": "搜索书签、历史记录和标签页",
   // R39 · 外部插件命令模式：输入框里是该命令的参数。
   "input.placeholderPluginArgs": "输入参数，回车执行",
-  // R43 · 普通搜索页的触发词提示。
-  "launcher.triggerHint": "空格进入 {name}",
-  "launcher.triggerHintMore": "空格进入 {name}（还有 {count} 个）",
+  // R43/R48 · 普通搜索页的触发词提示。R48 收进输入框行内，空格 glyph 「␣」由 App 绘制，
+  // 文案以命令名开头，省略号不会截掉名字。
+  "launcher.triggerHint": "{name} · 进入",
+  "launcher.triggerHintMore": "{name} · 进入（还有 {count} 个）",
   // R29 · 输入框左侧的插件名。
   "launcher.scopeClipboard": "剪贴板",
   "launcher.scopeBrowser": "浏览器",

@@ -103,17 +103,12 @@ test("the App gates both chip rows and the height charge on the one predicate", 
     "the clipboard chips are gated on the predicate",
   );
   // The window height charges the filter band by the same predicate, so the
-  // row's appearance and the band it occupies can never disagree. R43 · the
-  // band is the shared subline (`launcherSubline` = the chips row or the
-  // ordinary page's trigger hint), charged through `launcherContentHeight`.
+  // row's appearance and the band it occupies can never disagree. R48 · the
+  // band is the filter row's alone again; the trigger hint is inline in the
+  // field row and is not charged, so the window height is independent of it.
   assert.match(
     app,
-    /const launcherSubline = filterRowVisible \|\| triggerHint !== null;/,
-    "the subline band is the chips row or the trigger hint, never both",
-  );
-  assert.match(
-    app,
-    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*launcherSubline,\s*\)/,
+    /const launcherHeight = launcherContentHeight\(\s*launcherHeldUnits,\s*launcherRows,\s*launcherScale,\s*launcherMaxHeight,\s*launcherHasBar,\s*launcherSectionTitle,\s*filterRowVisible,\s*\)/,
     "the height charges the filter only when the row is drawn",
   );
   // The predicate lives in the launcher module, not inline in the render.
