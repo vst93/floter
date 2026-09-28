@@ -137,8 +137,8 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherHeldUnits = resolveLauncherUnits\(launcherUnitsRef\.current, launcherListUnitsRaw\);/,
-    "R43: the list's real unit total is resolved with the sticky hysteresis",
+    /const launcherHeldUnits = launcherHasContent\s*\?\s*launcherSettled\s*\?\s*launcherListUnitsRaw\s*:\s*resolveLauncherUnits\(launcherUnitsRef\.current, launcherListUnitsRaw\)\s*:\s*0;/,
+    "R43: the list's real unit total is resolved with the sticky hysteresis while it changes (R66: exactly once it settles; a collapsed panel skips both)",
   );
   assert.match(
     app,

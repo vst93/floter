@@ -19,9 +19,10 @@
 // text. The gesture only *reports* here; the one copy chokepoint and the notice
 // live outside this view.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import type { Translate } from "../i18n.ts";
+import { ANSI_DEFAULT_STYLE, parseAnsi, type AnsiStyle } from "./ansi.ts";
 import { selectionTextIn } from "./plugin-text-copy.ts";
 import type { PluginTextMetrics } from "./plugin-mode.ts";
 
@@ -36,6 +37,35 @@ const textStyle = (metrics: PluginTextMetrics): CSSProperties =>
     "--plugin-text-min": String(metrics.minUnits),
     "--plugin-text-max": String(metrics.maxUnits),
   }) as CSSProperties;
+
+/** R65 · one run's CSS, or `undefined` when it is the surface's own default
+ *  (the common case: a plain `String` of output is one default run, and it must
+ *  not gain a wrapper's worth of inline styling). */
+const spanStyle = (style: AnsiStyle): CSSProperties | undefined => {
+  if (style === ANSI_DEFAULT_STYLE) return undefined;
+  const css: CSSProperties = {};
+  // Inverse swaps the two colours when both are named; with only one side set
+  // there is nothing to swap against, so it is read as the plain pair.
+  const invert = style.inverse;
+  const fg = invert ? style.bg : style.fg;
+  const bg = invert ? style.fg : style.bg;
+  if (fg) css.color = fg;
+  if (bg) css.backgroundColor = bg;
+  if (style.bold) css.fontWeight = 700;
+  if (style.italic) css.fontStyle = "italic";
+  if (style.underline || style.strike) {
+    css.textDecoration = [
+      style.underline ? "underline" : "",
+      style.strike ? "line-through" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+  // Dim is half-intensity text: the same colour at a lower alpha, which is
+  // what the terminal means by it and what a static block can honestly paint.
+  if (style.dim) css.opacity = 0.62;
+  return css;
+};
 
 export function PluginTextView({
   t,
@@ -53,6 +83,10 @@ export function PluginTextView({
   onCopySelection: (text: string) => void;
 }) {
   const blockRef = useRef<HTMLPreElement>(null);
+  // R65 · the escape sequences are read once per output, not once per render:
+  // a 64 KB capture can hold tens of thousands of parameters and the parse is
+  // pure, so the identity of `text` is the whole dependency.
+  const spans = useMemo(() => parseAnsi(text), [text]);
   /** Whether the gesture in flight started in this block. A ref (not state):
    *  arming it must not re-render, and the mouseup that consumes it must see
    *  the same value the mousedown wrote. */
@@ -102,7 +136,20 @@ export function PluginTextView({
         // The output is the plugin's own text; it is read, not tabbed into.
         tabIndex={-1}
       >
-        {text}
+        {/* R65 · each run carries the style in force where it was written. A
+            plain output is one run and draws as a bare text node, so the DOM
+            (and the copy the selection yields) is the text itself, escapes
+            stripped. */}
+        {spans.map((span, index) => {
+          const style = spanStyle(span.style);
+          return style ? (
+            <span key={index} style={style}>
+              {span.text}
+            </span>
+          ) : (
+            span.text
+          );
+        })}
       </pre>
     </div>
   );

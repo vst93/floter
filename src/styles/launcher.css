@@ -1286,6 +1286,31 @@
   background: var(--text-warning);
 }
 
+/* R65 · the row's direct-output nudge, final form. The first two passes tried a
+   filled chip and then a muted sentence, and the user rejected both — 「提示还是
+   很丑，就笼统点，简洁点，让用户意识到可以按空格就行了」. So it is one bare space
+   keycap and nothing else: no feature name, no phrase, no second label. It wears
+   the same keycap bevel the terminal's empty-state keys do, so it reads as a
+   keyboard key rather than a button, and the whole explanation lives in the
+   tooltip. It is a hint, not a control: the space bar is pressed in the field. */
+.launcher-result__direct {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  min-width: calc(var(--u) * 18);
+  height: calc(var(--u) * 18);
+  padding: 0 calc(var(--u) * 4);
+  border: 1px solid var(--glass-control-edge);
+  border-radius: var(--radius-xs);
+  background: var(--glass-control);
+  box-shadow: var(--elev-keycap);
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
 .launcher-result__title {
   color: var(--text-strong);
   font-size: var(--text-title);

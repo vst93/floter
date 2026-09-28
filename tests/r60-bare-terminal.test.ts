@@ -244,7 +244,7 @@ test("the App appends the row through the predicate and bills it as a row", asyn
     /launcherListUnits\(displayedResults\.map\(launcherRowHeightUnits\)\)/,
     "the list's units still come from the displayed rows",
   );
-  assert.match(app, /const launcherRows = Math\.max\(\s*1,/, "the row count still counts the list");
+  assert.match(app, /const launcherRows = launcherHasContent\s*\?\s*Math\.max\(\s*1,/, "the row count still counts the list (R66: zero when the panel is collapsed)");
   assert.ok(
     !/bareTerminal/.test(app.split("const launcherListUnitsRaw")[1] ?? ""),
     "no R60-specific term inside the height formula",
@@ -419,7 +419,7 @@ test("no key binding, no shortcut action and no subline was invented for R60", a
   // R52 · the chips-row predicate still drives the subline, untouched.
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(app, /filterRowVisible,\s*\)/, "`launcherContentHeight` still takes the chips flag");
-  assert.match(app, /const launcherSectionTitle = !launcherScope && !query\.trim\(\) && !fileRows\.length;/);
+  assert.match(app, /const launcherSectionTitle =\s*launcherPanelOpen && !launcherScope && !query\.trim\(\) && !fileRows\.length;/);
 });
 
 test("the appearance is one row and the release cannot flap the window", () => {

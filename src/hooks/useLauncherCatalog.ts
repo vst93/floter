@@ -38,6 +38,7 @@ import {
   type PluginView,
 } from "../launcher/plugin-mode";
 import {
+  directOutputCommandForRow,
   externalRunText,
   type ExternalPluginCommand,
   type ExternalRunState,
@@ -308,6 +309,11 @@ export function useLauncherCatalog(options: {
   /** R39 · the external command the mode belongs to, for the row source word
    *  and the status rows' wording. `null` outside the mode. */
   externalCommand: ExternalPluginCommand | null;
+  /** R65 · the **enabled** external commands. A catalog row whose id resolves to
+   *  one of these is a direct-output command, and earns the row's `␣` nudge (see
+   *  `directOutputCommandForRow`). The list is the same gate the mode entry
+   *  reads, so a switched-off command's row is an ordinary row. */
+  enabledExternalCommands: readonly ExternalPluginCommand[];
   /** R39 · the mode's run state. Drives the emission: idle/running/failed are
    *  status rows, a finished run's output goes through the dual-form
    *  pipeline. */
@@ -352,6 +358,7 @@ export function useLauncherCatalog(options: {
     externalMode,
     externalCommand,
     externalRun,
+    enabledExternalCommands,
     launchCounts,
     showCommandsInSearch,
     showRecentInLauncher,
@@ -1170,6 +1177,10 @@ export function useLauncherCatalog(options: {
           commandLine: rowCommandLine,
           execution,
           completion: false,
+          // R65 · the row's provider command is enabled for direct output.
+          ...(directOutputCommandForRow(entry.id, enabledExternalCommands)
+            ? { directOutput: true }
+            : {}),
         };
       });
 
@@ -1179,7 +1190,7 @@ export function useLauncherCatalog(options: {
     // its own beneath the list. Keep at least one local match when applications
     // or power actions matched alongside catalog commands.
     return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS);
-  }, [pluginView, browserMode, clipboardMode, calculatorMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, t]);
+  }, [pluginView, browserMode, clipboardMode, calculatorMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, enabledExternalCommands, t]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,

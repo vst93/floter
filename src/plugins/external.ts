@@ -216,6 +216,42 @@ export const externalModeCommand = (
 };
 
 /**
+ * R65 · the launcher catalog's id for one provider command.
+ *
+ * The Rust catalog builds a provider entry's id as
+ * `provider:{extension_id}:{descriptor.id}` (`extensions/catalog.rs`,
+ * `provider_entries`), and that id is the *only* string that ties a searchable
+ * command row back to the external command registry — the row carries the
+ * command's name and its extension's display name, never the extension's id.
+ * The format is written once here so the launcher's "is this row a direct-output
+ * command?" question and the test that pins the two sides to each other read the
+ * same literal.
+ */
+export const providerCommandRowId = (extensionId: string, commandId: string): string =>
+  `provider:${extensionId}:${commandId}`;
+
+/**
+ * R65 · the enabled direct-output command a launcher command row stands for, or
+ * `null` for an ordinary command.
+ *
+ * The user's ask, verbatim: 「搜索已配置直出的命令时，列表上对于项需要增加相关提示来
+ * 提醒用户空格可以直接进入该命令」. A command whose per-command switch is on is
+ * *summonable* — its name plus a space opens the direct-output mode — and the same
+ * command is also an ordinary, shell-runnable catalog row. This is the one link
+ * between the two surfaces: the row's id resolves to a command that is in the
+ * enabled registry, and only then does the row earn the 「␣ 在此运行」 nudge.
+ * `commands` must already be the enabled subset, exactly as the mode entry's
+ * gate is; a switched-off command's row stays an ordinary row.
+ */
+export const directOutputCommandForRow = (
+  rowId: string,
+  commands: readonly ExternalPluginCommand[],
+): ExternalPluginCommand | null =>
+  commands.find(
+    (command) => providerCommandRowId(command.extensionId, command.commandId) === rowId,
+  ) ?? null;
+
+/**
  * R39 · split the field's text into argv items.
  *
  * Whitespace separates arguments; a single or double quote groups a run that

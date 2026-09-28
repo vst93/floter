@@ -304,6 +304,26 @@ export const launcherWindowHeight = (scale: number): number =>
  *  genuinely shorter list wait for a second row to disappear. */
 export const LAUNCHER_ROW_HYSTERESIS = 1;
 
+/**
+ * R66 · how long the content must sit still before the window drops the sticky
+ * absorber and takes the content's exact height.
+ *
+ * R43's shrink absorber ({@link resolveLauncherUnits}) exists to stop the window
+ * flapping while a query is being typed — the R25 report, 「输入进行过滤时页面整体
+ * 有抖动」. But it outlived the typing: a query that matched *fewer*, slightly
+ * shorter rows than the state before it held the taller window for the rest of
+ * that query, which is the 40px band the user photographed and read as 「还是会有
+ * 多余空白」 (the empty-query recents and the typed page can differ by under one
+ * worst-case row: 404u → 372u is a 32u hold). So the absorber applies only while
+ * the content is *changing*; once it has been still for this long, the window
+ * snaps to the content's own height — flicker while typing, exact at rest.
+ *
+ * 160ms is under the ~200ms the catalog debounce already spends before a query
+ * becomes a result list, so the snap lands as the list does rather than as a
+ * second, later move.
+ */
+export const LAUNCHER_SHRINK_SETTLE_MS = 160;
+
 /** The launcher's row count, floored at one (an empty query still draws the
  *  recents, and the launcher is never a zero-row card) and capped at the
  *  ten-row budget (the list scrolls inside the slab past that, so the window

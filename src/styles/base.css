@@ -709,6 +709,29 @@
   --terminal-bar-top: rgba(41, 42, 46, 0.74);
   --terminal-bar-bottom: rgba(23, 24, 27, 0.52);
 
+  /* R65 · the direct-output text palette. These are the very colours the
+     terminal canvas paints for the 16 named ANSI slots (the Catppuccin-derived
+     defaults in `src-tauri/src/terminal/color.rs`), so a transcribed escape
+     sequence in the launcher reads in the panel's own colours rather than a
+     second, drifting set. `launcher/ansi.ts` refers to them by name; the light
+     block restates them from the terminal's light palette. */
+  --ansi-black: #4b5563;
+  --ansi-red: #f38ba8;
+  --ansi-green: #a6e3a1;
+  --ansi-yellow: #f9e2af;
+  --ansi-blue: #89b4fa;
+  --ansi-magenta: #f5c2e7;
+  --ansi-cyan: #94e2d5;
+  --ansi-white: #cdd6f4;
+  --ansi-bright-black: #6b7280;
+  --ansi-bright-red: #f38ba8;
+  --ansi-bright-green: #a6e3a1;
+  --ansi-bright-yellow: #f9e2af;
+  --ansi-bright-blue: #89b4fa;
+  --ansi-bright-magenta: #f5c2e7;
+  --ansi-bright-cyan: #94e2d5;
+  --ansi-bright-white: #eef2ff;
+
   /* The thumb only paints while the pointer is over the scrolling element
      (see the overlay-scrollbar block below), so this is the hover value: a
      translucent glass bar, never a solid one. */
@@ -882,6 +905,26 @@
   --terminal-bar-top: rgba(252, 252, 254, 0.86);
   --terminal-bar-bottom: rgba(236, 237, 241, 0.6);
 
+  /* R65 · the light ANSI palette is the terminal's own `LIGHT_ANSI`
+     (`src-tauri/src/terminal/session.rs`): darker, less saturated hues chosen
+     to keep the same legibility on a near-white field. */
+  --ansi-black: #1d1f21;
+  --ansi-red: #c72e3c;
+  --ansi-green: #19733a;
+  --ansi-yellow: #7a5c00;
+  --ansi-blue: #1659b7;
+  --ansi-magenta: #9c2ca0;
+  --ansi-cyan: #007c86;
+  --ansi-white: #535762;
+  --ansi-bright-black: #767b86;
+  --ansi-bright-red: #d63d4b;
+  --ansi-bright-green: #1a6e38;
+  --ansi-bright-yellow: #7a5900;
+  --ansi-bright-blue: #246fd1;
+  --ansi-bright-magenta: #ac38a9;
+  --ansi-bright-cyan: #006e7a;
+  --ansi-bright-white: #2c3037;
+
   --scrollbar-thumb: rgba(60, 60, 67, 0.24);
 
   --stroke-contrast: rgba(0, 0, 0, 0.5);
@@ -993,6 +1036,22 @@
     --terminal-bar: rgba(238, 239, 243, 0.78);
     --terminal-bar-top: rgba(252, 252, 254, 0.86);
     --terminal-bar-bottom: rgba(236, 237, 241, 0.6);
+    --ansi-black: #1d1f21;
+    --ansi-red: #c72e3c;
+    --ansi-green: #19733a;
+    --ansi-yellow: #7a5c00;
+    --ansi-blue: #1659b7;
+    --ansi-magenta: #9c2ca0;
+    --ansi-cyan: #007c86;
+    --ansi-white: #535762;
+    --ansi-bright-black: #767b86;
+    --ansi-bright-red: #d63d4b;
+    --ansi-bright-green: #1a6e38;
+    --ansi-bright-yellow: #7a5900;
+    --ansi-bright-blue: #246fd1;
+    --ansi-bright-magenta: #ac38a9;
+    --ansi-bright-cyan: #006e7a;
+    --ansi-bright-white: #2c3037;
 
     --scrollbar-thumb: rgba(60, 60, 67, 0.24);
 

@@ -450,7 +450,7 @@ test("the launcher draws the text form under the field and sizes the band from t
   assert.match(app, /interactive=\{pluginInteractive\}/, "the list tier reaches the row renderer");
   assert.match(
     app,
-    /pluginView \? pluginViewRows\(pluginView\) : displayedResults\.length/,
+    /const launcherListRows = launcherPanelOpen\s*\?\s*pluginView\s*\?\s*pluginViewRows\(pluginView\)\s*:\s*displayedResults\.length\s*:\s*0;/,
     "the band table reads the view's row count, text included",
   );
   assert.match(

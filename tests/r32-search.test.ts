@@ -218,8 +218,8 @@ test("the browser scope draws the chips and never the recent heading", async () 
   assert.match(app, /setBrowserFilter\(kind\)/, "a click sets the filter");
   assert.match(
     app,
-    /const launcherSectionTitle = !launcherScope && !query\.trim\(\) && !fileRows\.length;/,
-    "the empty-query heading is the ordinary search page's, never a plugin's",
+    /const launcherSectionTitle =\s*launcherPanelOpen && !launcherScope && !query\.trim\(\) && !fileRows\.length;/,
+    "the empty-query heading is the ordinary search page's, never a plugin's — and only when the panel is drawn",
   );
   // The other ordinary-search-only system rows are gated on the scope too.
   assert.match(app, /!launcherScope &&\s*!settings\.show_commands_in_search && \(/);

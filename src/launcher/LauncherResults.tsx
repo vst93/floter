@@ -66,6 +66,12 @@ export type LauncherItem =
       commandLine: string;
       execution: ExecutionPlan | null;
       completion: boolean;
+      /** R65 · the row's command is one the user turned on for **direct
+       *  output** (`settings.extensions.commandsHint`): typing its name and a
+       *  space summons it into the search interface itself. The row earns the
+       *  `␣ 在此运行` nudge so the gesture is discoverable from the list as well as
+       *  from the field (see `plugins/external.ts`, `directOutputCommandForRow`). */
+      directOutput?: boolean;
     }
   | {
       type: "system";
@@ -869,6 +875,24 @@ export function LauncherResults({
                         : "extensions.conflict")}
                     />
                   ))}
+                  {/* R65 · the direct-output nudge on the row itself. A command
+                      enabled for direct output is reachable two ways — Enter runs
+                      the shell plan, its name + a space opens the direct-output
+                      mode. The nudge is deliberately generic: one space keycap,
+                      no feature name and no sentence (the user asked for it three
+                      times — 「就笼统点，简洁点，让用户意识到可以按空格就行了」). It is
+                      a *visual* one — the space bar is pressed in the field, never
+                      here — so it is `aria-hidden`, non-interactive and carries
+                      the whole explanation in its tooltip. */}
+                  {item.type === "command" && item.directOutput && (
+                    <span
+                      className="launcher-result__direct"
+                      aria-hidden="true"
+                      title={t("launcher.directOutputHintTitle")}
+                    >
+                      ␣
+                    </span>
+                  )}
                   {source !== null && (
                     <span className="launcher-result__source" title={source}>
                       {source}

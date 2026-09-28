@@ -99,6 +99,7 @@ import { pluginFilterRowVisible } from "./launcher/filter-row";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
+  LAUNCHER_SHRINK_SETTLE_MS,
   LAUNCHER_STATUS_UNITS,
   ROW_HEIGHT_COMPACT,
   ROW_HEIGHT_TWO_LINE,
@@ -966,6 +967,9 @@ export default function App() {
     externalMode,
     externalCommand,
     externalRun,
+    // R65 · the enabled subset, so a catalog row that is one of these commands
+    // carries the direct-output nudge (the row's provider id resolves here).
+    enabledExternalCommands: enabledExternalCommandList,
     launchCounts: settings.launch_counts,
     showCommandsInSearch: settings.show_commands_in_search,
     showRecentInLauncher: settings.show_recent_in_launcher,
@@ -1930,6 +1934,28 @@ export default function App() {
   // there moves. A ceiling is a clamp, never the height — the live height is the
   // content's own (see `launcherHeight` below).
   const launcherListCeiling = launcherResultsCeiling(window.screen.availHeight);
+  // R58 · the one predicate for the alert row the panel draws under the field
+  // (a feedback line, the application-scan failure, the restart/shutdown
+  // confirmation). R52 charged it as one worst-case row; the clip's own open
+  // predicate was written out separately and had drifted from it — the
+  // confirmation banner was charged and drawn but could leave the clip closed
+  // (an empty-query launcher had no results to open it for), which is the third
+  // instance of the hole R52 closed for plugin scopes. One boolean now feeds
+  // both the charge and the sheet.
+  const launcherAlertRow = Boolean(
+    launcherFeedback || (appsError && !launcherScope) || pendingSystemAction,
+  );
+  // R66 · the panel is open exactly when the clip's own ternary opens it. When
+  // it is closed nothing is drawn below the field, so the window must charge no
+  // list at all — but R43's floor (`Math.max(1, …)` here and the 34u minimum in
+  // `resolveLauncherUnits`) billed a phantom row for every unmatched query, and
+  // the empty-query heading was charged on top of it even though the collapsed
+  // clip never paints it. That was the band of sunken panel under the field the
+  // user reported again (「还是会有多余空白的情况」). The list count and the
+  // heading now follow where the panel is actually drawn, and the clip's own
+  // predicate is read here rather than spelled a second time.
+  const launcherPanelOpen =
+    displayedResults.length > 0 || pluginText !== null || launcherAlertRow;
   // R26-D · how many rows the window has to hold right now. The composed list
   // (the fixed clipboard tail included) is the row count; the first-run tip and
   // the feedback/error rows are content too, so each is charged as one row —
@@ -1939,12 +1965,20 @@ export default function App() {
   // occupies band rows: the capability layer reports how many
   // (`pluginViewRows`), so a long output lands in the same discrete band a list
   // of that height would.
-  const launcherRows = Math.max(
-    1,
-    (pluginView ? pluginViewRows(pluginView) : displayedResults.length) +
-      (showOnboardingTip && !launcherScope ? 1 : 0) +
-      (launcherFeedback || (appsError && !launcherScope) || pendingSystemAction ? 1 : 0),
-  );
+  const launcherListRows = launcherPanelOpen
+    ? pluginView
+      ? pluginViewRows(pluginView)
+      : displayedResults.length
+    : 0;
+  const launcherChromeRows =
+    (showOnboardingTip && !launcherScope ? 1 : 0) + (launcherAlertRow ? 1 : 0);
+  // The tip is drawn *outside* the clip (see the JSX below), so it can be on
+  // screen while the panel is closed: the row count and the unit total exist
+  // then, they are just the chrome row's.
+  const launcherHasContent = launcherPanelOpen || launcherChromeRows > 0;
+  const launcherRows = launcherHasContent
+    ? Math.max(1, launcherListRows + launcherChromeRows)
+    : 0;
   // R43 · the list's real content height, in units. The window used to be
   // `count × ROW_HEIGHT_TWO_LINE` — every row charged at the two-line height —
   // while a row whose subtitle was dropped is drawn compact (34u). The
@@ -1959,19 +1993,6 @@ export default function App() {
       ? ROW_HEIGHT_COMPACT
       : ROW_HEIGHT_TWO_LINE;
   };
-  // R58 · the one predicate for the alert row the panel draws under the field
-  // (a feedback line, the application-scan failure, the restart/shutdown
-  // confirmation). R52 charged it as one worst-case row; the clip's own open
-  // predicate was written out separately and had drifted from it — the
-  // confirmation banner was charged and drawn but could leave the clip closed
-  // (an empty-query launcher had no results to open it for), which is the third
-  // instance of the hole R52 closed for plugin scopes. One boolean now feeds
-  // both the charge and the sheet.
-  const launcherAlertRow = Boolean(
-    launcherFeedback || (appsError && !launcherScope) || pendingSystemAction,
-  );
-  const launcherChromeRows =
-    (showOnboardingTip && !launcherScope ? 1 : 0) + (launcherAlertRow ? 1 : 0);
   // R52 · the feedback / tip / confirm row is charged as a worst-case row, in
   // *every* scope. The plugin list used to price only `pluginViewRows` here
   // while still counting the feedback row in `launcherRows` above, so a plugin
@@ -1982,18 +2003,52 @@ export default function App() {
   // page already added `launcherChromeRows`; the plugin branch now does too, so
   // one chrome row costs the same row in place and in scope.
   const launcherChromeUnits = launcherChromeRows * ROW_HEIGHT_TWO_LINE;
-  const launcherListUnitsRaw = pluginView
-    ? pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE + launcherChromeUnits
-    : launcherListUnits(displayedResults.map(launcherRowHeightUnits)) + launcherChromeUnits;
-  // R43 · the unit total is sticky, the same way the row count used to be:
-  // growing is immediate (a window one row short would clip the row) and a
-  // shrink is absorbed until the content has fallen more than one worst-case
-  // row below the held total, so the 1↔2 boundary and a one-row change never
-  // flap. The count hysteresis (`resolveLauncherRows`) is subsumed by this one —
-  // a one-row change is at most 42u — and is kept in the module for its own
-  // tests and for any caller that wants a count.
+  // R65/R66 · a plugin **list** prices its rows exactly as the ordinary page
+  // does — each item at its own drawn height (two-line 42u, compact 34u, status
+  // 30u) — instead of charging every row the worst-case 42u. R43 fixed the
+  // ordinary branch and left this one on `pluginViewRows × 42u`, so a list of
+  // compact rows — the shape an external command's `{ id, title }` direct output
+  // takes — sat in a window 8u per row taller than its glass (and 12u per status
+  // row). The text form keeps its band price: it is one block, not rows.
+  const launcherListContentUnits = pluginView
+    ? pluginView.form === "list"
+      ? launcherListUnits(pluginView.items.map(launcherRowHeightUnits))
+      : pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE
+    : launcherListUnits(displayedResults.map(launcherRowHeightUnits));
+  const launcherListUnitsRaw =
+    (launcherPanelOpen ? launcherListContentUnits : 0) + launcherChromeUnits;
+  // R43 · the unit total is sticky while the content is *changing*, the same way
+  // the row count used to be: growing is immediate (a window one row short would
+  // clip the row) and a shrink is absorbed until the content has fallen more
+  // than one worst-case row below the held total, so a keystroke cannot flap the
+  // window (R25's 「抖动」).
+  //
+  // R66 · but the absorber must not outlive the typing. It used to be the resting
+  // height too, so a query that matched fewer, slightly shorter rows than the
+  // state before it kept the taller window for the whole query — the band of
+  // sunken panel above the action bar the user photographed again (「还是会有多余
+  // 空白的情况」). The settle is stored as *the total it settled at* rather than a
+  // boolean, so `launcherSettled` is false on the same render the content changes
+  // (a boolean would still read true for one render, and that render's exact
+  // height would flicker). Once the content has been still for
+  // `LAUNCHER_SHRINK_SETTLE_MS` the window snaps to the content's own height, so
+  // flicker while typing and an exact rest are one behaviour. A collapsed panel
+  // skips both (see `launcherPanelOpen`).
+  const [launcherSettledUnits, setLauncherSettledUnits] = useState<number | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setLauncherSettledUnits(launcherListUnitsRaw),
+      LAUNCHER_SHRINK_SETTLE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [launcherListUnitsRaw]);
+  const launcherSettled = launcherSettledUnits === launcherListUnitsRaw;
   const launcherUnitsRef = useRef(ROW_HEIGHT_TWO_LINE);
-  const launcherHeldUnits = resolveLauncherUnits(launcherUnitsRef.current, launcherListUnitsRaw);
+  const launcherHeldUnits = launcherHasContent
+    ? launcherSettled
+      ? launcherListUnitsRaw
+      : resolveLauncherUnits(launcherUnitsRef.current, launcherListUnitsRaw)
+    : 0;
   launcherUnitsRef.current = launcherHeldUnits;
   // R27 · the height charges the action bar only when the bar is drawn, and the
   // empty-query heading only when that heading is drawn. Both are visible in the
@@ -2004,7 +2059,10 @@ export default function App() {
   // R32 · the heading is the ordinary search page's, and only its: in a plugin
   // scope the list is the plugin's own and the "Recently launched" label sat
   // over bookmark rows (the leak the user reported).
-  const launcherSectionTitle = !launcherScope && !query.trim() && !fileRows.length;
+  // R66 · and it is drawn inside the panel, so a collapsed panel charges none of
+  // it either.
+  const launcherSectionTitle =
+    launcherPanelOpen && !launcherScope && !query.trim() && !fileRows.length;
   // R58 · the window's ceiling: the list's ceiling plus *this state's* chrome,
   // so a capped list and a capped window are the same decision. On an ordinary
   // display the R25 slab (583px) is the smaller number and the clamp is inert.

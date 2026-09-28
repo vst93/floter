@@ -21,6 +21,11 @@ const en = {
   // command name (which is what an ellipsis must never cut).
   "launcher.triggerHint": "{name} · enter",
   "launcher.triggerHintMore": "{name} · enter (+{count} more)",
+  // R65 · the same nudge on the *row*: a search result for a command whose
+  // per-command switch is on wears one bare space keycap. Generic on purpose —
+  // the user asked for it (「笼统点，简洁点，让用户意识到可以按空格就行了」) — so
+  // the key carries no text and this tooltip is the whole explanation.
+  "launcher.directOutputHintTitle": "Press space to run this command in the search box",
   // R29 · the scope's name, beside its glyph in the field's left edge.
   "launcher.scopeClipboard": "Clipboard",
   "launcher.scopeCalculator": "Calculator",
@@ -953,6 +958,9 @@ const zh: Record<MessageKey, string> = {
   // 文案以命令名开头，省略号不会截掉名字。
   "launcher.triggerHint": "{name} · 进入",
   "launcher.triggerHintMore": "{name} · 进入（还有 {count} 个）",
+  // R65 · 同样的提示也落在列表行上：开启直出的命令，行上只戴一个空格键帽，
+  // 不带任何文字（用户要求笼统、简洁），完整说明放在 tooltip。
+  "launcher.directOutputHintTitle": "按空格直接运行，输出显示在搜索界面",
   // R29 · 输入框左侧的插件名。
   "launcher.scopeClipboard": "剪贴板",
   "launcher.scopeCalculator": "计算器",

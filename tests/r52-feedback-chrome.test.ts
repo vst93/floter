@@ -62,7 +62,11 @@ const stripJsComments = (src: string) =>
 test("R52 · the plugin branch charges the chrome row like the ordinary one", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
 
-  // One term, so the two branches cannot drift apart again.
+  // R66 · the term is one expression, so the two branches cannot drift apart
+  // again: every list — ordinary or plugin — prices its items' own heights, and
+  // the chrome row is added once, in every scope. (Before R66 the plugin branch
+  // charged `pluginViewRows × 42u`; a compact direct-output list was 8u per row
+  // taller than its glass.)
   assert.match(
     app,
     /const launcherChromeUnits = launcherChromeRows \* ROW_HEIGHT_TWO_LINE;/,
@@ -70,13 +74,18 @@ test("R52 · the plugin branch charges the chrome row like the ordinary one", as
   );
   assert.match(
     app,
-    /pluginView\s*\?\s*pluginViewRows\(pluginView\) \* ROW_HEIGHT_TWO_LINE \+ launcherChromeUnits/,
-    "a plugin scope's list units include the feedback / tip row",
+    /pluginView\.form === "list"[\s\S]{0,90}launcherListUnits\(pluginView\.items\.map\(launcherRowHeightUnits\)\)/,
+    "a plugin list prices each row at its own height",
   );
   assert.match(
     app,
-    /launcherListUnits\(displayedResults\.map\(launcherRowHeightUnits\)\) \+ launcherChromeUnits/,
-    "…and the ordinary page keeps the same term",
+    /const launcherListUnitsRaw =\s*\(launcherPanelOpen \? launcherListContentUnits : 0\) \+ launcherChromeUnits;/,
+    "the list's units include the feedback / tip row, and collapse with the panel",
+  );
+  assert.match(
+    app,
+    /launcherListUnits\(displayedResults\.map\(launcherRowHeightUnits\)\)/,
+    "…and the ordinary page keeps the same per-row pricing",
   );
   // The config overlay takes the list's place and draws no feedback row: its
   // height is its own content formula (R59 — one `SettingsCard` per schema
