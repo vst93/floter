@@ -156,8 +156,8 @@ test("R52 · a plugin scope with feedback is never shorter than its content", as
     false,
     true,
   );
-  assert.equal(content, 258, "the calculator scene draws 258px");
-  assert.equal(window, 271, "…and the window is the 271px slab that holds it");
+  assert.equal(content, 252, "the calculator scene draws 252px");
+  assert.equal(window, 263, "…and the window is the 263px slab that holds it");
 
   // The old formula — only the plugin's own rows — is what the report saw: a
   // window 29px short, which is the clipped row and the ghost band.
@@ -170,8 +170,8 @@ test("R52 · a plugin scope with feedback is never shorter than its content", as
     false,
     true,
   );
-  assert.equal(buggy, 229, "the pre-R52 window was 229px");
-  assert.ok(buggy < content, "…which is 29px short of the 258px it had to hold");
+  assert.equal(buggy, 223, "the pre-R52 window was 223px");
+  assert.ok(buggy < content, "…which is 29px short of the 252px it had to hold");
 });
 
 // ── 3 · the ordinary page's feedback accounting is untouched ──────────────

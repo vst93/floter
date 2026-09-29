@@ -41,7 +41,6 @@ const en = {
   "launcher.pluginLoadingMore": "Loading more…",
   "launcher.pluginEnd": "No more results",
   "launcher.historyCleared": "Command history cleared",
-  "launcher.enableIntegrationsHint": "Type a command, or enable integrations in Settings",
   "launcher.runInShell": "Run in shell",
   // R60 · the ⌘-held row. It is the same door as the terminal system row
   // (a blank session, nothing executed), reached by *holding* the app
@@ -975,7 +974,6 @@ const zh: Record<MessageKey, string> = {
   "launcher.pluginLoadingMore": "正在加载…",
   "launcher.pluginEnd": "没有更多结果",
   "launcher.historyCleared": "已清空命令历史",
-  "launcher.enableIntegrationsHint": "输入命令，或在设置中启用集成",
   "launcher.runInShell": "在终端中运行",
   // R60 · 按住 ⌘ 时浮现的终端行
   "launcher.terminalRow": "打开终端",

@@ -546,11 +546,9 @@ test("the renderer prints the subtitle and source only when they exist", async (
     /source !== null && \(\s*<span className="launcher-result__source"/,
     "the source span is behind the null guard",
   );
-  assert.match(
-    results,
-    /compact \? " launcher-result--compact" : ""/,
-    "a one-line row takes the compact height",
-  );
+  // R70 · and every row takes the same height: the compact variant is gone
+  // (「列表选择项的高度和样式得统一啊，现在感觉应用比命令要矮一些」).
+  assert.doesNotMatch(results, /launcher-result--compact/, "no compact row variant");
 });
 
 // ── 6 · the height the ten rows need ────────────────────────────────────
@@ -566,15 +564,14 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
     return Number(rule![1]);
   };
   const rowHeight = rowHeightOf(".launcher-result");
-  const compactHeight = rowHeightOf(".launcher-result--compact");
-  assert.ok(
-    compactHeight < rowHeight,
-    `a one-line row (${compactHeight}) must be shorter than a two-line row (${rowHeight})`,
-  );
-  // R20: the sheets and the budget module are one decision written three times
-  // (the two row heights here, the ceiling below, the constants there).
-  assert.equal(rowHeight, ROW_HEIGHT_TWO_LINE, "the sheet and the module share the two-line height");
-  assert.equal(compactHeight, ROW_HEIGHT_COMPACT, "…and the compact height");
+  // R70 · one row height for every result. The compact variant R12 added is
+  // gone: an application whose second line was dropped sat shorter than the
+  // command beside it, and the user read the two heights as one list of two
+  // kinds.
+  assert.doesNotMatch(launcher, /\.launcher-result--compact/, "no compact row variant");
+  // R20: the sheets and the budget module are one decision written twice (the
+  // row height here, the ceiling below, the constants there).
+  assert.equal(rowHeight, ROW_HEIGHT_TWO_LINE, "the sheet and the module share the row height");
 
   const results = /\.launcher-results\s*\{[^}]*max-height:\s*([^;]+);/s.exec(launcher);
   assert.ok(results, ".launcher-results must declare a max-height");
@@ -583,10 +580,10 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   // query that matched commands is exactly a list of two-line rows — each
   // command carries a description. R19 sized the ceiling from the compact
   // height (`8 x 34 + 42` = 314u), which is only the height of a query whose
-  // matches were all apps; ten two-line rows are 420u and scrolled inside it.
+  // matches were all apps; ten two-line rows are 400u and scrolled inside it.
   const budget = RESULTS_LIST_HEIGHT;
   assert.equal(budget, MAX_RESULTS * ROW_HEIGHT_TWO_LINE, "the budget is ten two-line rows");
-  assert.equal(budget, 420, "ten two-line rows are 420u");
+  assert.equal(budget, 400, "ten two-line rows are 400u (R70: 40u each)");
   assert.match(
     ceiling,
     new RegExp(`calc\\(var\\(--u\\)\\s*\\*\\s*${budget}\\s*\\+\\s*(\\d+)px\\)`),
@@ -630,7 +627,7 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
     `ten two-line rows with a ${band}px band, ${MAX_RESULTS} gaps and a ${titleLine}px title need ${content}px, but the ceiling is ${budget + chrome}px`,
   );
   assert.ok(
-    content > (MAX_RESULTS - 1) * compactHeight + rowHeight + chrome,
+    content > (MAX_RESULTS - 1) * ROW_HEIGHT_COMPACT + rowHeight + chrome,
     "a ceiling sized from the compact height cannot hold the worst case — that is the bug R20 fixes",
   );
 
@@ -660,13 +657,13 @@ test("the results ceiling is every row at its tallest, not the shortest state", 
   // (216 → 212 → 226). It is a floor for a short display and only has to be *at
   // least* the chrome it stands for — 226u ≥ 143u by 83u of slack. What matters
   // is that it does not bind on an ordinary one, i.e. that the work area is at
-  // least `RESULTS_VIEWPORT_CHROME + the worst-case list` = 226 + 470 = 696px.
+  // least `RESULTS_VIEWPORT_CHROME + the worst-case list` = 226 + 450 = 676px.
   // Every display a launcher is used on clears that (a 1280x800 work area is
   // 768px), and on a shorter one the cap binds *deliberately*: the list scrolls
   // rather than the card overflowing its window.
   assert.equal(RESULTS_VIEWPORT_CHROME, 226);
   const shortestWorkAreaTheCapDoesNotBind = RESULTS_VIEWPORT_CHROME + budget + chrome;
-  assert.equal(shortestWorkAreaTheCapDoesNotBind, 696);
+  assert.equal(shortestWorkAreaTheCapDoesNotBind, 676);
   assert.ok(
     shortestWorkAreaTheCapDoesNotBind < 768,
     "the App's cap must not bind on the shortest ordinary work area (1280x800)",

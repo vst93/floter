@@ -71,11 +71,29 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   const panelTop = insets[0];
   const panelBottom = insets[insets.length - 1];
   const list = rule(launcher, ".launcher-results");
-  const ceiling = /max-height:\s*min\(\s*([^,]+),/.exec(list)![1].trim();
-  const ceilingParts = /calc\(var\(--u\)\s*\*\s*(\d+)\s*\+\s*(\d+)px\)/.exec(ceiling);
-  assert.ok(ceilingParts, `the ceiling must be units + fixed chrome, got "${ceiling}"`);
-  const listUnits = Number(ceilingParts![1]);
-  const listChrome = Number(ceilingParts![2]);
+  // The first argument of `min(` — balanced, because the row count is a `var()`
+  // with its own fallback and a comma inside.
+  const ceiling = (() => {
+    const open = list.indexOf("min(");
+    let depth = 0;
+    for (let i = open + 4; i < list.length; i += 1) {
+      if (list[i] === "(") depth += 1;
+      else if (list[i] === ")") {
+        if (depth === 0) return list.slice(open + 4, i).trim();
+        depth -= 1;
+      }
+    }
+    assert.fail(".launcher-results' max-height must be a min() of two ceilings");
+  })();
+  // R70 · the ceiling is `rows × row height + chrome`, and the row count is the
+  // App's own `--launcher-results-rows` (the count the window was sized for), so
+  // the appended ⌘-held row cannot overflow the scroller by a row.
+  const ceilingParts =
+    /calc\(var\(--u\)\s*\*\s*var\(--launcher-results-rows,\s*(\d+)\)\s*\*\s*(\d+)\s*\+\s*(\d+)px\)/.exec(ceiling);
+  assert.ok(ceilingParts, `the ceiling must be rows × row height + fixed chrome, got "${ceiling}"`);
+  const listUnits = Number(ceilingParts![1]) * Number(ceilingParts![2]);
+  assert.equal(Number(ceilingParts![2]), 40, "the row height the ceiling multiplies is the sheet's own row");
+  const listChrome = Number(ceilingParts![3]);
   const bar = rule(launcher, ".launcher-action-bar");
   const barGap = units(/margin-top:\s*([^;]+);/.exec(bar)![1], "action bar margin-top");
   const barHeight = units(/height:\s*([^;]+);/.exec(bar)![1], "action bar height");
@@ -83,7 +101,7 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   assert.equal(field, 56, "the field's row is R37's 56u — the settings band's height");
   assert.equal(breath, 4, "R24's breath is 4u below the field…");
   assert.equal(panelTop, 4, "…plus the panel's own 4u inset");
-  assert.equal(listUnits, 420, "the list's ceiling is R20/R36's ten two-line rows");
+  assert.equal(listUnits, 400, "the list's ceiling is R20/R36's ten two-line rows (R70: 40u each)");
   assert.equal(listChrome, RESULTS_LIST_CHROME, "with the module's own fixed chrome");
   assert.equal(barGap, 3, "the action bar keeps R18's constant 3u gap");
   assert.equal(barHeight, 42, "the action bar is a row");
@@ -99,7 +117,7 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
     RESULTS_LIST_CHROME + 2,
     "the fixed part is the list's own chrome plus the card's 1px frame top and bottom",
   );
-  assert.equal(LAUNCHER_WINDOW_HEIGHT, 583, "531u + 52px at the default interface step");
+  assert.equal(LAUNCHER_WINDOW_HEIGHT, 563, "511u + 52px at the default interface step");
 
   // …and it clears the tallest card the sheets can actually produce. The list's
   // real chrome is 11px under its own 50px ceiling (4px band + nine 1px gaps +
@@ -116,9 +134,9 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   // short of its card is a clipped card. The fixed chrome does not scale, which
   // is exactly how `calc(var(--u) * N + Mpx)` behaves in the sheet.
   assert.equal(launcherWindowHeight(1), LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(launcherWindowHeight(0.9), Math.ceil(531 * 0.9 + 52));
-  assert.equal(launcherWindowHeight(0.8), Math.ceil(531 * 0.8 + 52));
-  assert.equal(launcherWindowHeight(1.1), Math.ceil(531 * 1.1 + 52));
+  assert.equal(launcherWindowHeight(0.9), Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * 0.9 + 52));
+  assert.equal(launcherWindowHeight(0.8), Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * 0.8 + 52));
+  assert.equal(launcherWindowHeight(1.1), Math.ceil(LAUNCHER_WINDOW_HEIGHT_UNITS * 1.1 + 52));
   for (const scale of [0.8, 0.9, 1, 1.1]) {
     assert.equal(
       launcherWindowHeight(scale),
@@ -137,8 +155,8 @@ test("the App hands the band height to every collapsed sync, clamped to the disp
   );
   assert.match(
     app,
-    /const launcherHeldUnits = launcherHasContent\s*\?\s*launcherSettled\s*\?\s*launcherListUnitsRaw\s*:\s*resolveLauncherUnits\(launcherUnitsRef\.current, launcherListUnitsRaw\)\s*:\s*0;/,
-    "R43: the list's real unit total is resolved with the sticky hysteresis while it changes (R66: exactly once it settles; a collapsed panel skips both)",
+    /const launcherHeldUnits = launcherHasContent \? launcherListUnitsRaw : 0;/,
+    "R43/R66: the list's real unit total is the window's height at every instant (a collapsed panel is zero)",
   );
   assert.match(
     app,
@@ -448,13 +466,13 @@ test("R34 · the window height is per-row, and the row count is sticky", async (
   for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
     assert.equal(clampLauncherRows(rows), rows);
     assert.ok(
-      launcherRowUnits(rows) >= 111 + rows * 42,
+      launcherRowUnits(rows) >= 111 + rows * 40,
       `${rows} rows must hold their rows without scrolling`,
     );
     if (rows > 1) {
       assert.equal(
         launcherRowUnits(rows) - launcherRowUnits(rows - 1),
-        42,
+        40,
         "each extra row adds exactly one worst-case row",
       );
     }
@@ -462,11 +480,11 @@ test("R34 · the window height is per-row, and the row count is sticky", async (
   // The top is still the R25/R36/R37 unit budget; R58 gives it the chrome the
   // sheet actually draws (2px frame + nine 1px gaps, no empty-query title on a
   // query page) instead of the ceiling's 52px.
-  assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 546);
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 511);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 526);
   assert.equal(
     launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true),
-    572,
+    552,
     "the empty-query heading is the one chrome term the count cannot charge without being told",
   );
   assert.ok(
@@ -534,9 +552,9 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
   // The full slab's *unit* budget is unchanged while the bar is drawn — that is
   // R25's constant — but its chrome is R58's honest tally (2px frame + nine
   // gaps = 15px on a query page), so the slab is 546px, 37px under the old
-  // ceiling. `LAUNCHER_WINDOW_HEIGHT` (583) survives as the display ceiling.
-  assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
-  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 546);
+  // ceiling. `LAUNCHER_WINDOW_HEIGHT` (563) survives as the display ceiling.
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 511);
+  assert.equal(launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT), 526);
 
   // Without the bar, exactly the bar's own segment comes off — nothing else.
   for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
@@ -548,11 +566,11 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
   }
 
   // The one-row launcher is the empty launcher: field 56 + breath 4 + panel top
-  // 4 + one 42u row + tail 2 = 108u, plus the 1px frame top and bottom and the
+  // 4 + one 40u row + tail 2 = 106u, plus the 1px frame top and bottom and the
   // scroller's 4px reservation — no bar, no section title, no row gaps.
-  assert.equal(launcherRowUnits(1, false), 108);
+  assert.equal(launcherRowUnits(1, false), 106);
   assert.equal(launcherRowChrome(1), 2 + 4);
-  assert.equal(launcherRowHeight(1, 1, LAUNCHER_WINDOW_HEIGHT, false), 114);
+  assert.equal(launcherRowHeight(1, 1, LAUNCHER_WINDOW_HEIGHT, false), 112);
   // …and the empty-query section title is chrome, not a row.
   assert.equal(launcherRowChrome(1, true), 2 + 4 + 26);
 
@@ -572,8 +590,11 @@ test("R27 · a row count charges the action bar only when the bar is drawn", asy
 // as every row at its two-line height while a row whose subtitle was dropped is
 // drawn compact (34u), so a compact list sat in a window up to 80u taller than
 // its content and the leftover landed in the gap above the pinned action bar.
-// R43 sizes the window from the sum of the rows' own heights, with the same
-// grow-now / shrink-once-it-is-a-whole-row-lower hysteresis the count had.
+// R43 sizes the window from the sum of the rows' own heights. R66 retires the
+// shrink absorber that ran alongside it: the window is the sum at every instant
+// (the absorber held a taller window — the band — and then dropped in one step,
+// which the user read as 「不够丝滑」; the smoothness lives in the resize
+// animation now).
 test("R43 · the window follows the list's real row heights, not count × 42", async () => {
   const budget = await import("../src/launcher/result-budget.ts");
   const {
@@ -588,43 +609,42 @@ test("R43 · the window follows the list's real row heights, not count × 42", a
     launcherContentHeight,
     launcherListUnits,
     launcherRowHeight,
-    resolveLauncherUnits,
   } = budget;
 
   // The sum is the rows' own heights: a compact row is shorter than a two-line
   // row, and a status note is shorter still (its own `.launcher-status` 30u).
   assert.equal(ROW_HEIGHT_COMPACT, 34);
-  assert.equal(ROW_HEIGHT_TWO_LINE, 42);
+  assert.equal(ROW_HEIGHT_TWO_LINE, 40);
   assert.equal(LAUNCHER_STATUS_UNITS, 30);
-  assert.equal(launcherListUnits([42, 42, 42]), 126);
+  assert.equal(launcherListUnits([40, 40, 40]), 120);
   assert.equal(launcherListUnits([34, 34, 34]), 102);
-  assert.equal(launcherListUnits([42, 34, 30]), 106);
+  assert.equal(launcherListUnits([40, 34, 30]), 104);
   assert.equal(launcherListUnits([]), 0, "an empty list is zero units");
 
-  // Sticky: growth immediate, a shrink absorbed until it is a whole worst-case
-  // row, larger drops land immediately.
-  assert.equal(resolveLauncherUnits(126, 168), 168, "growth is immediate");
-  assert.equal(resolveLauncherUnits(168, 126), 168, "a one-row shrink is absorbed");
-  assert.equal(resolveLauncherUnits(168, 120), 120, "more than a row steps down");
-  assert.equal(resolveLauncherUnits(34, 34), 34);
+  // The sum is the height — there is no resolver on top of it any more (R66).
+  assert.equal(
+    budget.resolveLauncherUnits,
+    undefined,
+    "the sticky list-unit absorber is gone; the App charges `launcherListUnits` directly",
+  );
 
   // The height at an interface step. R43's row-height model is the ordinary
   // page's, and R52 takes the two subline insets (4u + 4px) off that page. R58
   // charges the chrome the sheet draws at *every* count, so ten two-line rows
-  // are 538px there (was 575 under the ceiling) and ten compact rows are 80u
+  // are 520px there (was 575 under the ceiling) and ten compact rows are 80u
   // lower; the chips page adds the 28u band and its 8px of insets.
   assert.equal(
     launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
-    538,
-    "ten two-line rows on the ordinary page are 538px (R52 insets, R58 chrome)",
+    520,
+    "ten two-line rows on the ordinary page are 520px (R52 insets, R58 chrome)",
   );
   assert.equal(
     launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, true),
-    574,
-    "with a chips row the ten two-line rows are 574px — 9px under the R25 ceiling",
+    554,
+    "with a chips row the ten two-line rows are 554px — 9px under the R25 ceiling",
   );
   const tenCompact = launcherContentHeight(10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT);
-  assert.equal(tenCompact, 458, "ten compact rows are 458px, 80u under the two-line page");
+  assert.equal(tenCompact, 460, "ten compact rows are 460px, 80u under the two-line page");
   assert.ok(
     tenCompact < launcherRowHeight(MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT),
     "the compact list is genuinely shorter than the two-line slab",

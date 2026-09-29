@@ -207,7 +207,7 @@ const SAMPLES: [string, string, string, string][] = [
   ["src/styles/launcher.css", ".collapsed-card__input-row", "min-height", "56px"],
   ["src/styles/launcher.css", ".collapsed-card__input", "min-height", "22px"],
   ["src/styles/launcher.css", ".collapsed-card__settings", "width", "28px"],
-  ["src/styles/launcher.css", ".launcher-result", "height", "42px"],
+  ["src/styles/launcher.css", ".launcher-result", "height", "40px"],
   // R46 · the row family's inner box moved onto the launcher's 16u text column
   // (the panel's own 4u + this 12u); the row/status/action-bar trio and the
   // group title all carry one inset now. The pinned pixels below are the new

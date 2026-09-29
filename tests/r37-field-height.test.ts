@@ -113,15 +113,15 @@ test("the window budget's first segment is the shared field height", () => {
     "the field row is the first segment of every row count's height",
   );
   assert.equal(LAUNCHER_ROW_CHROME_UNITS, 66);
-  // The full slab: 66 + 10×42 + 45 (action bar) = 531u.
-  assert.equal(launcherRowUnits(MAX_RESULTS, true), 531);
-  assert.equal(LAUNCHER_WINDOW_HEIGHT_UNITS, 531);
+  // The full slab: 66 + 10×40 + 45 (action bar) = 511u.
+  assert.equal(launcherRowUnits(MAX_RESULTS, true), 511);
+  assert.equal(LAUNCHER_WINDOW_HEIGHT_UNITS, 511);
   assert.equal(
     LAUNCHER_WINDOW_HEIGHT_UNITS,
     LAUNCHER_ROW_CHROME_UNITS + MAX_RESULTS * ROW_HEIGHT_TWO_LINE + 45,
     "the slab is the row-count table's top, segment for segment",
   );
-  assert.equal(LAUNCHER_WINDOW_HEIGHT, 583, "531u + 52px at the default interface step");
+  assert.equal(LAUNCHER_WINDOW_HEIGHT, 563, "511u + 52px at the default interface step");
 });
 
 test("a field that grows without the slab would be a card taller than its window", () => {
@@ -131,7 +131,7 @@ test("a field that grows without the slab would be a card taller than its window
   const withR37Field = SEARCH_FIELD_HEIGHT_UNITS + 10 + MAX_RESULTS * ROW_HEIGHT_TWO_LINE + 45;
   assert.equal(withR37Field, LAUNCHER_WINDOW_HEIGHT_UNITS);
   const withR23Field = 42 + 10 + MAX_RESULTS * ROW_HEIGHT_TWO_LINE + 45;
-  assert.equal(withR23Field, 517, "R23-R36's slab — the 14u R37 adds is exactly the field's growth");
+  assert.equal(withR23Field, 497, "R23-R36's slab — the 14u R37 adds is exactly the field's growth");
 });
 
 // ── 3 · one field for the ordinary page and every plugin mode ─────────────

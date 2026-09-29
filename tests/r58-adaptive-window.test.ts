@@ -82,11 +82,14 @@ const SCROLL_EDGE = 4;
 const GAP = 1;
 const TITLE = 26;
 const BAR = 3 + 42;
+// R69 · with no chips row the field's breath and the two insets below it all
+// collapse, and the list draws this much of its own top padding instead.
+const LIST_TOP = 6;
 
 const drawn = ({ rows, rowHeight, bar, title, chips }: Page): number =>
   FRAME +
   FIELD +
-  BREATH +
+  (chips ? BREATH : LIST_TOP) +
   (chips ? CHIPS : 0) +
   (chips ? PANEL_TOP : 0) +
   (chips ? SCROLL_EDGE : 0) +
@@ -113,7 +116,7 @@ test("R58 · the ten-row chrome is the sheet's own tally, not the R25 ceiling", 
   // is a real ceiling: 2px frame + the 4px band + nine gaps + the title + 11px.
   assert.equal(RESULTS_LIST_CHROME, 50);
   assert.equal(LAUNCHER_WINDOW_HEIGHT_CHROME, 52);
-  assert.equal(LAUNCHER_WINDOW_HEIGHT, 583);
+  assert.equal(LAUNCHER_WINDOW_HEIGHT, 563);
 
   // The chrome is the same function at every count: frame + scroll-edge +
   // (count - 1) gaps, plus the heading only when the page draws one.
@@ -134,8 +137,8 @@ test("R58 · the ten-row chrome is the sheet's own tally, not the R25 ceiling", 
 
   // The ceiling is still a ceiling: the worst page the sheets can draw is 9px
   // under it, so it never binds on an ordinary display.
-  const widest = drawn({ rows: MAX_RESULTS, rowHeight: 42, bar: true, title: false, chips: true });
-  assert.equal(widest, 574);
+  const widest = drawn({ rows: MAX_RESULTS, rowHeight: 40, bar: true, title: false, chips: true });
+  assert.equal(widest, 554);
   assert.ok(widest < LAUNCHER_WINDOW_HEIGHT, "the display ceiling clears the widest page");
 });
 
@@ -158,25 +161,25 @@ test("R58 · the window height is the page's own height, never a band", async ()
 
   // The screenshot scene: query `a`, ten compact applications, the shell row.
   const screenshot: Page = { rows: 10, rowHeight: 34, bar: true, title: false, chips: false };
-  assert.equal(drawn(screenshot), 458, "the sheets draw a 458px card");
-  assert.equal(heightOf(screenshot), 458, "…and the window is that card");
+  assert.equal(drawn(screenshot), 460, "the sheets draw a 460px card");
+  assert.equal(heightOf(screenshot), 460, "…and the window is that card");
 
   // The empty launcher's own state (the title, no bar) and every count around
   // the budget, with and without the bar: the two numbers are one number.
   const pages: Page[] = [];
   for (let rows = 1; rows <= MAX_RESULTS; rows += 1) {
     for (const bar of [true, false]) {
-      for (const rowHeight of [34, 42]) {
+      for (const rowHeight of [34, 40]) {
         pages.push({ rows, rowHeight, bar, title: false, chips: false });
       }
     }
   }
   pages.push({ rows: 10, rowHeight: 34, bar: false, title: true, chips: false });
   pages.push({ rows: 3, rowHeight: 34, bar: true, title: false, chips: true });
-  pages.push({ rows: 10, rowHeight: 42, bar: true, title: false, chips: true });
+  pages.push({ rows: 10, rowHeight: 40, bar: true, title: false, chips: true });
   pages.push({ rows: 1, rowHeight: LAUNCHER_STATUS_UNITS, bar: true, title: false, chips: false });
   // …and the R52 report's scene (a banner row above the plugin rows) still holds.
-  pages.push({ rows: 4, rowHeight: 42, bar: false, title: false, chips: true });
+  pages.push({ rows: 4, rowHeight: 40, bar: false, title: false, chips: true });
 
   for (const page of pages) {
     assert.equal(
@@ -187,9 +190,9 @@ test("R58 · the window height is the page's own height, never a band", async ()
   }
 });
 
-// ── 3 · the 9→10 boundary stays inside the hysteresis' own budget ─────────
+// ── 3 · the 9→10 boundary is one row, and nothing absorbs it ─────────────
 
-test("R58 · crossing the ten-row budget is one row, so it cannot jump the window", async () => {
+test("R58 · crossing the ten-row budget is one row, and the window is the content", async () => {
   const budget = await import("../src/launcher/result-budget.ts");
   const {
     LAUNCHER_WINDOW_HEIGHT,
@@ -197,7 +200,6 @@ test("R58 · crossing the ten-row budget is one row, so it cannot jump the windo
     ROW_HEIGHT_COMPACT,
     ROW_HEIGHT_TWO_LINE,
     launcherContentHeight,
-    resolveLauncherUnits,
   } = budget;
 
   const windowAt = (rows: number) =>
@@ -209,29 +211,24 @@ test("R58 · crossing the ten-row budget is one row, so it cannot jump the windo
     ROW_HEIGHT_COMPACT + 1,
     "the tenth row costs one compact row and the 1px grid gap it brings",
   );
+  // The pre-R58 numbers, for the record: the ceiling's 37px made the step 72u.
+  // R58 made the chrome honest, and R66 removed the shrink absorber that used to
+  // sit on top — the window is the content's height at every instant, so a
+  // one-row change is exactly one row (animated by `useLauncherHeight`, not
+  // held).
+  assert.equal(
+    budget.resolveLauncherUnits,
+    undefined,
+    "the sticky list-unit absorber is retired (R66)",
+  );
   assert.ok(
     step <= ROW_HEIGHT_TWO_LINE,
-    `a ${step}u step must fit the hysteresis' ${ROW_HEIGHT_TWO_LINE}u worst-case row, or crossing the boundary moves the window`,
-  );
-
-  // The pre-R58 numbers, for the record: the ceiling's 37px made it 72u, which is
-  // why the shrink was never absorbed and the band stayed held.
-  const heldAtNine = resolveLauncherUnits(9 * ROW_HEIGHT_COMPACT, 9 * ROW_HEIGHT_COMPACT);
-  const heldAfterTen = resolveLauncherUnits(heldAtNine, 10 * ROW_HEIGHT_COMPACT);
-  const heldBackAtNine = resolveLauncherUnits(heldAfterTen, 9 * ROW_HEIGHT_COMPACT);
-  assert.equal(heldAfterTen, 10 * ROW_HEIGHT_COMPACT, "the tenth row grows the held total immediately");
-  assert.equal(
-    heldBackAtNine,
-    heldAfterTen,
-    "…and dropping it is absorbed — the one-row hysteresis, unchanged",
+    `a ${step}u step is one worst-case row, so crossing the boundary moves the window by one row and no more`,
   );
   assert.equal(
-    launcherContentHeight(heldAtNine, MAX_RESULTS - 1, 1, LAUNCHER_WINDOW_HEIGHT, true, false, false),
     windowAt(MAX_RESULTS - 1),
+    launcherContentHeight(9 * ROW_HEIGHT_COMPACT, MAX_RESULTS - 1, 1, LAUNCHER_WINDOW_HEIGHT, true, false, false),
   );
-  // The held total is at most one worst-case row above the content, so the
-  // absorber can never leave a band wider than the row it is designed to hold.
-  assert.ok(heldBackAtNine - 9 * ROW_HEIGHT_COMPACT <= ROW_HEIGHT_TWO_LINE);
 });
 
 // ── 4 · the list's ceiling and the window's ceiling are one number ────────
@@ -258,14 +255,14 @@ test("R58 · a capped list and a capped window cannot disagree", async () => {
   // The window's ceiling is the list's ceiling plus this state's chrome, and the
   // R25 slab still wins when it is smaller — an ordinary display, unchanged.
   const chrome = launcherChromeHeight(1, true, false, false);
-  assert.equal(chrome, 109, "field 56 + breath 4 + bar 45 + tail 2 + frame 2");
+  assert.equal(chrome, 111, "field 56 + list top 6 + bar 45 + tail 2 + frame 2");
   assert.equal(launcherWindowCap(LAUNCHER_WINDOW_HEIGHT, 574, chrome), LAUNCHER_WINDOW_HEIGHT);
 
   // On a display where the list's ceiling binds, the window is exactly the
   // ceiling plus the chrome, so the list fills the panel edge to edge: no band,
   // and the list scrolls instead of the card overflowing.
   const shortCap = launcherWindowCap(LAUNCHER_WINDOW_HEIGHT, launcherResultsCeiling(500), chrome);
-  assert.equal(shortCap, 274 + 109);
+  assert.equal(shortCap, 274 + 111);
   const cappedWindow = launcherContentHeight(10 * 34, 10, 1, shortCap, true, false, false);
   assert.equal(cappedWindow, shortCap, "a capped window is its cap, never shorter");
   assert.equal(
@@ -274,9 +271,9 @@ test("R58 · a capped list and a capped window cannot disagree", async () => {
     "…which leaves the list exactly its own ceiling — the two numbers are one decision",
   );
   // The band the old pair left: the window capped itself at `availHeight - 24`
-  // (476 here) while the list capped itself at 274, so 93px of panel sat empty
+  // (476 here) while the list capped itself at 274, so 91px of panel sat empty
   // below a list that was already cutting its last row.
-  assert.equal((500 - 24) - (274 + chrome), 93, "the pre-R58 disagreement, in pixels");
+  assert.equal((500 - 24) - (274 + chrome), 91, "the pre-R58 disagreement, in pixels");
 });
 
 // ── 5 · the App's own wiring ─────────────────────────────────────────────

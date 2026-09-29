@@ -58,6 +58,8 @@ use commands::terminal::{
 };
 use extensions::ExtensionState;
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(target_os = "macos")]
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "windows")]
 use tauri::webview::Color;
@@ -883,6 +885,40 @@ fn refresh_macos_shadow(window: &WebviewWindow) {
     }
 }
 
+/// How long a resize burst must be quiet before the shadow is recomputed.
+///
+/// R67 · longer than one frame of the launcher's height walk (~16ms) and shorter
+/// than the eye's patience, so a walk draws its shadow once at the end.
+#[cfg(target_os = "macos")]
+const SHADOW_SETTLE_MS: u64 = 80;
+
+/// The resize generation the pending shadow refresh belongs to. Every
+/// [`refresh_macos_shadow_debounced`] bumps it, and a refresh only runs when its
+/// own generation is still current after the quiet window.
+#[cfg(target_os = "macos")]
+static SHADOW_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Recompute the panel's shadow once a burst of resizes has settled.
+///
+/// R67 · the user's report, verbatim: 「还是抖动」 while the launcher walked its
+/// height. The walk resizes the window once per painted frame, and the resize
+/// handler below used to call `invalidateShadow` on every one of those events —
+/// the window server recomputed (and redrew) the shadow nine times in 150ms, and
+/// a shadow that is recomputed from a shape that is still moving is the flicker
+/// the user read as the list moving. The generation check collapses the burst:
+/// only the last resize of a walk reaches [`refresh_macos_shadow`].
+#[cfg(target_os = "macos")]
+fn refresh_macos_shadow_debounced(window: &WebviewWindow) {
+    let generation = SHADOW_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let window = window.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(SHADOW_SETTLE_MS)).await;
+        if SHADOW_GENERATION.load(Ordering::SeqCst) == generation {
+            refresh_macos_shadow(&window);
+        }
+    });
+}
+
 fn reveal_window(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     show_macos_panel(window)?;
@@ -1549,9 +1585,11 @@ pub fn run() {
                     tauri::WindowEvent::CloseRequested { api, .. } => api.prevent_close(),
                     // Every resize the panel goes through — the frontend sizing
                     // the launcher to its rows, an edge drag on the terminal,
-                    // the settings panel opening.
+                    // the settings panel opening. R67 · debounced, because the
+                    // launcher's height walk resizes once per painted frame and
+                    // a shadow recomputed per frame is the flicker the user saw.
                     #[cfg(target_os = "macos")]
-                    tauri::WindowEvent::Resized(_) => refresh_macos_shadow(&shadow_window),
+                    tauri::WindowEvent::Resized(_) => refresh_macos_shadow_debounced(&shadow_window),
                     _ => {}
                 }
             });

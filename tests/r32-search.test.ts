@@ -218,11 +218,12 @@ test("the browser scope draws the chips and never the recent heading", async () 
   assert.match(app, /setBrowserFilter\(kind\)/, "a click sets the filter");
   assert.match(
     app,
-    /const launcherSectionTitle =\s*launcherPanelOpen && !launcherScope && !query\.trim\(\) && !fileRows\.length;/,
-    "the empty-query heading is the ordinary search page's, never a plugin's — and only when the panel is drawn",
+    /const launcherSectionTitle =\s*launcherPanelOpen &&\s*!launcherScope &&\s*!query\.trim\(\) &&\s*!fileRows\.length &&\s*settings\.show_recent_in_launcher;/,
+    "the empty-query heading is the ordinary search page's, never a plugin's — and it goes with the recents it labels",
   );
-  // The other ordinary-search-only system rows are gated on the scope too.
-  assert.match(app, /!launcherScope &&\s*!settings\.show_commands_in_search && \(/);
+  // The other ordinary-search-only rows are gated on the scope too. (The
+  // empty-page integrations hint that used to sit beside them is gone — the user
+  // asked for it to go: 「不要那个欢迎使用的提示」.)
   assert.match(app, /\{showOnboardingTip && !launcherScope && \(/);
   assert.match(app, /\{appsError && !launcherScope && \(/);
 });

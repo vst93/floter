@@ -35,7 +35,7 @@ import {
 } from "../src/launcher/terminal-row.ts";
 import { TERMINAL_EMPTY_HINT_DELAY, terminalPageEmpty } from "../src/terminal/empty-state.ts";
 import { resultRowContent } from "../src/launcher/row-content.ts";
-import { ROW_HEIGHT_TWO_LINE, launcherContentHeight, launcherListUnits, resolveLauncherUnits } from "../src/launcher/result-budget.ts";
+import { ROW_HEIGHT_TWO_LINE, launcherContentHeight, launcherListUnits } from "../src/launcher/result-budget.ts";
 import { createTranslator } from "../src/i18n.ts";
 
 const root = new URL("../", import.meta.url);
@@ -419,30 +419,25 @@ test("no key binding, no shortcut action and no subline was invented for R60", a
   // R52 · the chips-row predicate still drives the subline, untouched.
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(app, /filterRowVisible,\s*\)/, "`launcherContentHeight` still takes the chips flag");
-  assert.match(app, /const launcherSectionTitle =\s*launcherPanelOpen && !launcherScope && !query\.trim\(\) && !fileRows\.length;/);
+  assert.match(app, /const launcherSectionTitle =\s*launcherPanelOpen &&\s*!launcherScope &&\s*!query\.trim\(\) &&\s*!fileRows\.length &&\s*settings\.show_recent_in_launcher;/);
 });
 
-test("the appearance is one row and the release cannot flap the window", () => {
-  // The window height is the sum of the rows it holds (R58), so the held row
-  // costs exactly one row plus the grid gap it adds — and the release is a
-  // one-row shrink, which is the case R43's hysteresis was written for: the
-  // window holds the taller band instead of snapping back, so hold/release
-  // cannot flap it.
+test("the appearance is one row, and the release takes exactly that row back", () => {
+  // The window height is the sum of the rows it holds (R58/R66), so the held row
+  // costs exactly one row plus the grid gap it adds — and the release, being a
+  // one-row shrink, takes exactly that back. There is no absorber on top any more
+  // (the user read its held band as 「不够丝滑」), so hold and release are the same
+  // number in either direction: the window is the content.
   const rows = [ROW_HEIGHT_TWO_LINE, ROW_HEIGHT_TWO_LINE, ROW_HEIGHT_TWO_LINE];
   const held = [...rows, ROW_HEIGHT_TWO_LINE];
   const height = (units: number[], count: number) =>
     launcherContentHeight(launcherListUnits(units), count, 1, Number.POSITIVE_INFINITY, true, false, false);
-  assert.equal(height(held, held.length) - height(rows, rows.length), ROW_HEIGHT_TWO_LINE + 1);
-  const heldUnits = launcherListUnits(held);
-  assert.equal(
-    resolveLauncherUnits(heldUnits, launcherListUnits(rows)),
-    heldUnits,
-    "one row back is absorbed, exactly as any other row leaving the list",
-  );
-  assert.ok(
-    resolveLauncherUnits(heldUnits, launcherListUnits(rows) - ROW_HEIGHT_TWO_LINE - 1) < heldUnits,
-    "and the hold is not permanent: a real collapse still takes the window down",
-  );
+  const delta = height(held, held.length) - height(rows, rows.length);
+  assert.equal(delta, ROW_HEIGHT_TWO_LINE + 1, "the held row costs one row and its 1px grid gap");
+  // Exact tracking: the released page is the three-row height, and the held page
+  // is that plus the delta — no state is remembered between them.
+  assert.equal(height(rows, rows.length), launcherContentHeight(launcherListUnits(rows), rows.length, 1, Number.POSITIVE_INFINITY, true, false, false));
+  assert.equal(height(held, held.length) - height(rows, rows.length), delta);
 });
 
 test("the launcher still accounts for the row through the shared row heights", () => {
@@ -451,7 +446,7 @@ test("the launcher still accounts for the row through the shared row heights", (
   // because the window height is now the sum of these.
   const row = bareTerminalRow(en);
   assert.notEqual(resultRowContent(row, en).subtitle, null);
-  assert.equal(ROW_HEIGHT_TWO_LINE, 42);
+  assert.equal(ROW_HEIGHT_TWO_LINE, 40);
   // And the matched query keeps its default selection with the row present: the
   // row is appended *after* the default-selection decision, which reads the
   // query's own matches (`shouldDefaultToActionBar`), so an empty list stays on

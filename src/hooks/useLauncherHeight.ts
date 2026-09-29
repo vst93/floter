@@ -72,6 +72,14 @@ export function useLauncherHeight(
     const observer = new ResizeObserver(() => {
       const current = collapsedCardRef.current;
       if (!current) return;
+      // R68 · while the walk owns the edge, the observer must not join in. The
+      // walk resizes the card every frame, so the observer fires every frame;
+      // without this guard each of those fires starts a *second* walk to the
+      // same target, cancelling the one in flight and restarting it from the
+      // mid-way height. The walk's own landing brings the observer back (the
+      // last frame clears `tweenFrame` before the resize lands), so a genuine
+      // overflow is still caught.
+      if (tweenFrame) return;
       const target = launcherTargetHeight(current, windowHeight);
       if (!target) return;
       if (Math.abs(target - window.innerHeight) <= 1) return;
@@ -246,6 +254,133 @@ function shellPaddingHeight(card: HTMLElement): number {
 }
 
 /**
+ * R68 · how long one window height change takes, in milliseconds.
+ *
+ * A native window resize teleports: the bottom edge is at the old height this
+ * frame and at the new one the next. R67 removed a walk because the walk itself
+ * was the flicker — every `setSize` repainted the WebView and made the window
+ * server recompute the panel's shadow — but both of those have since been dealt
+ * with (the shadow is debounced in `src-tauri`, and the walk marks the card so
+ * the sheets freeze the material for its duration), and the list no longer
+ * fights it (the ⌘-held row is never scrolled into view against a stale box). So
+ * the edge walks again, and now the motion is the only thing left to see.
+ *
+ * It is a *visual* constant like the `--dur-*` steps (a duration), not a layout
+ * one, and it is deliberately under the ~200ms the catalog search already spends
+ * before a query becomes a list.
+ */
+export const RESIZE_TWEEN_MS = 150;
+
+/** The tween's clock. `performance.now()` where it exists, `Date.now()` where it
+ *  does not (the node suite), so the beat is drivable either way. */
+const nowMs = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+
+/** The height the tween last painted. A retarget starts from here rather than
+ *  from `window.innerHeight`, which only catches up when the platform lands the
+ *  previous frame's resize — starting from it would make a mid-walk change jump
+ *  back to where the edge was two frames ago. */
+let tweenHeight = Number.NaN;
+let tweenFrame = 0;
+let tweenGeneration = 0;
+let tweenDone: (() => void) | null = null;
+
+/** Stop the walk in flight, if any. The pending promise is resolved (not
+ *  dropped) so its `.then` still runs the focus reassert; the caller that
+ *  retargeted starts its own walk immediately after. */
+const cancelTween = () => {
+  // The generation makes a cancelled walk's callbacks inert: its pending
+  // `setSize` may still resolve after the next walk has been armed.
+  tweenGeneration += 1;
+  if (tweenFrame) {
+    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(tweenFrame);
+    tweenFrame = 0;
+  }
+  const done = tweenDone;
+  tweenDone = null;
+  done?.();
+};
+
+/**
+ * R68 · the card's "an edge walk is in flight" marker, and what it buys.
+ *
+ * A window mid-walk is smaller than the content it is growing into, so the
+ * result scroller would overflow for a frame and paint its bar, and the card's
+ * `backdrop-filter` would re-sample the desktop behind it every frame. So while
+ * the walk owns the edge the card carries this class and the sheets (a) keep the
+ * scrollers from painting a bar and (b) take the reduced-transparency block's own
+ * swap — the blur goes, the card and its panel go near-solid — leaving nothing
+ * behind the content to re-sample. It is a *visual* marker like the tween's
+ * duration, never a layout one: nothing it does changes a height.
+ */
+const RESIZING_CLASS = "launcher-resizing";
+
+const markResizing = (card: HTMLElement, on: boolean) => {
+  card.classList.toggle(RESIZING_CLASS, on);
+};
+
+/**
+ * Land a window height, walking the edge there over {@link RESIZE_TWEEN_MS} with
+ * an ease-out curve (`1 - (1-t)³`: quick off the mark, soft at the landing).
+ *
+ * The walk needs a document to paint in; where there is none (the node suite) or
+ * `requestAnimationFrame` is missing, the height lands in one call — the
+ * function's contract is the same either way: the window ends at `height`.
+ */
+function tweenLauncherHeight(card: HTMLElement, height: number): Promise<void> {
+  const platform = getCurrentWindow();
+  const from = Number.isFinite(tweenHeight) ? tweenHeight : currentWindowHeight();
+  const land = () => {
+    tweenHeight = height;
+    return platform.setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height));
+  };
+  if (
+    typeof document === "undefined" ||
+    typeof requestAnimationFrame !== "function" ||
+    !Number.isFinite(from) ||
+    Math.abs(height - from) <= 1
+  ) {
+    cancelTween();
+    return land();
+  }
+  cancelTween();
+  const generation = tweenGeneration;
+  markResizing(card, true);
+  return new Promise<void>((resolve) => {
+    const start = nowMs();
+    tweenDone = resolve;
+    const step = () => {
+      const t = Math.min(1, (nowMs() - start) / RESIZE_TWEEN_MS);
+      const eased = 1 - (1 - t) ** 3;
+      const next = Math.round(from + (height - from) * eased);
+      tweenHeight = next;
+      // Wait for each resize to land before painting the next: the platform
+      // posts `setContentSize` to the main queue, so two frames in flight at
+      // once can land out of order and the edge bounces.
+      void platform.setSize(new LogicalSize(INPUT_WINDOW_WIDTH, next)).then(() => {
+        if (generation !== tweenGeneration) return;
+        if (t < 1) {
+          tweenFrame = requestAnimationFrame(step);
+        } else {
+          tweenFrame = 0;
+          tweenHeight = height;
+          tweenDone = null;
+          resolve();
+        }
+      });
+    };
+    tweenFrame = requestAnimationFrame(step);
+  }).finally(() => {
+    // Only the walk that owns the edge drops the marker: a retarget resolves the
+    // old promise on a microtask *after* the new walk is armed, so `tweenFrame`
+    // tells the two apart.
+    if (!tweenFrame) markResizing(card, false);
+  });
+}
+
+/**
  * Ask the native window for `height` and, once that has landed, re-check it.
  *
  * R15 · the resize is asynchronous and the card is `overflow: hidden`, so
@@ -265,8 +400,12 @@ function shellPaddingHeight(card: HTMLElement): number {
  * intact on the one path where a non-constant height is still possible.
  */
 function resizeLauncherWindow(card: HTMLElement, height: number, passes: number): Promise<void> {
-  return getCurrentWindow()
-    .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+  // R68 · a short walk, not a jump. R67 had this as one `setSize` because the
+  // walk was the flicker; both flicker sources are gone now (the shadow is
+  // debounced in `src-tauri`, the material is frozen for the walk, and the list
+  // no longer scrolls against a stale box), so the motion is the only thing left
+  // to see and a jump reads as a glitch rather than as the panel resizing.
+  return tweenLauncherHeight(card, height)
     // A native resize can move WebView keyboard focus to the document body as
     // it settles. The resize is the last thing to land when returning to the
     // launcher, so the focus collector is re-run the instant it completes —

@@ -448,6 +448,17 @@ button {
   cursor: pointer;
   text-align: left;
   transition: background-color 110ms ease-out, border-color 110ms ease-out, color 110ms ease-out;
+  /* R70 · the history holds up to 300 rows, all of them in the DOM (the list is
+     reconciled in place so a reload touches one node, not the whole list — see
+     `reconcileList`). That is the right shape for *updates* and the wrong one for
+     *scrolling*: every row's subtree — the chip, three inline action buttons and
+     its preview — was laid out and painted on every frame the scroller moved.
+     `content-visibility: auto` is the browser's own windowing: a row outside the
+     scroller's viewport skips layout and paint, and `contain-intrinsic-size`
+     keeps its 48px slot so the scroll height (and therefore the scrollbar) is
+     unchanged. Rows the user can see render exactly as before. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
 }
 
 @media (hover: hover) {
@@ -490,7 +501,13 @@ button {
   overflow: hidden;
   border-radius: 7px;
   background: var(--surface-control);
-  box-shadow: var(--control-lens);
+  /* No `--control-lens` here. The clipboard history is the one list in the app
+     that routinely holds hundreds of rows (the default ceiling is 300), and a
+     box-shadow on every row's icon is a per-row paint the compositor has to
+     redo as the list scrolls — the user read it back as 「加载项比较多好像影响到了
+     滚动性能」. The 7px radius and the `--surface-control` fill still read as a
+     chip on their own; the flat edge is simply cheaper to scroll. */
+  box-shadow: none;
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 650;

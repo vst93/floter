@@ -31,7 +31,6 @@ import {
   ROW_HEIGHT_TWO_LINE,
   launcherContentHeight,
   launcherListUnits,
-  resolveLauncherUnits,
   resultIndexForSlot,
   resultShortcutSlots,
 } from "../src/launcher/result-budget.ts";
@@ -196,18 +195,45 @@ test("the appended row costs exactly one row plus the 1px grid gap", () => {
   const height = (units: number[], count: number) =>
     launcherContentHeight(launcherListUnits(units), count, 1, Number.POSITIVE_INFINITY, true, true, false);
   assert.equal(height(held, held.length) - height(rows, rows.length), ROW_HEIGHT_TWO_LINE + 1);
-  // The release is a one-row shrink: R43's hysteresis absorbs it, so hold/release
-  // cannot flap — position on screen does not change the billing.
-  const heldUnits = launcherListUnits(held);
+  // R66 · the release is a one-row shrink and the window is the content, so it
+  // gives exactly that row back — no absorber remembers the taller page. Position
+  // on screen does not change the billing either way.
   assert.equal(
-    resolveLauncherUnits(heldUnits, launcherListUnits(rows)),
-    heldUnits,
-    "one row back is absorbed",
+    height(rows, rows.length),
+    launcherContentHeight(launcherListUnits(rows), rows.length, 1, Number.POSITIVE_INFINITY, true, true, false),
+    "the released page is its own height",
   );
-  assert.ok(
-    resolveLauncherUnits(heldUnits, launcherListUnits(rows) - ROW_HEIGHT_TWO_LINE - 1) < heldUnits,
-    "and a real collapse still takes the window down",
+});
+
+test("the held terminal row carries a key hint the numbered family cannot give it", async () => {
+  // The user asked for one: 「按住 super 键动态添加的打开终端项也要有快捷键提示」.
+  // R67 · the row is appended *below* the recents, past the tenth slot, so the
+  // ⌘1-⌘9/⌘0 family never reaches it — it would be the only row on the page with
+  // no key hint. It wears the action bar's own chord: ⌘ put the row on screen and
+  // ⌘↩ opens it (the R60 exception that lets that chord yield to this row).
+  const row = stripJsComments(await read("src/launcher/LauncherResults.tsx"));
+  assert.match(
+    row,
+    /isBareTerminalRow\(item\)\s*\?\s*actionBarShortcut\s*:\s*shortcutSlot === null\s*\?\s*""\s*:\s*formatResultShortcut\(selectResultShortcut, shortcutSlot\)/,
+    "the bare terminal row shows the chord; every ordinary row keeps its number",
   );
+  assert.match(
+    row,
+    /import \{ isBareTerminalRow \} from "\.\/terminal-row"/,
+    "the renderer tells the row apart by the one predicate that owns it",
+  );
+  // …and that same predicate keeps the into-view scroll off the row: the window
+  // grows for it, so scrolling it in against the old, shorter list is what made
+  // the list slide up and back down (see the R67 note in the scroll effect).
+  assert.match(
+    row,
+    /if \(isBareTerminalRow\(results\[selectedResultIndex\]\)\) return;/,
+    "the terminal row is never scrolled into view",
+  );
+  // The chord is the App's own, so the hint and the action bar cannot drift.
+  const app = stripJsComments(await read("src/App.tsx"));
+  assert.match(app, /const actionBarShortcut = useMemo\(\s*\(\) => formatResultShortcut\(shortcuts\.select_result, "Enter"\),/);
+  assert.match(app, /actionBarShortcut=\{actionBarShortcut\}/, "…and it reaches the renderer");
 });
 
 // ── 5 · the featured treatment is gone ────────────────────────────────────
@@ -239,11 +265,12 @@ test("the featured CSS is deleted, so the row is a plain system row", async () =
 
 test("no accent was bought for the row: the ordinary result surface is untouched", async () => {
   const css = await read("src/styles/launcher.css");
-  // The selected rule is still the plain tint + keyline, with no featured
-  // composition left dangling after the deletion.
+  // The selected rule is the plain accent tint and nothing else, with no featured
+  // composition left dangling after the deletion. R70 · the ring that used to
+  // ride beside the tint is gone too (「现在的圆角线框有点别扭」).
   assert.match(
     css.slice(css.indexOf(".launcher-result--selected {")),
-    /background: var\(--glass-raised\);\s*box-shadow: inset 0 0 0 1px var\(--accent-edge\);/,
-    "the selected row keeps the ordinary R15 treatment",
+    /background: var\(--glass-raised\);\s*box-shadow: none;/,
+    "the selected row is the ordinary tint, with no ring",
   );
 });

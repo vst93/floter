@@ -99,23 +99,20 @@ import { pluginFilterRowVisible } from "./launcher/filter-row";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
-  LAUNCHER_SHRINK_SETTLE_MS,
   LAUNCHER_STATUS_UNITS,
-  ROW_HEIGHT_COMPACT,
   ROW_HEIGHT_TWO_LINE,
   launcherContentHeight,
   pluginConfigContentHeight,
   launcherChromeHeight,
+  launcherClosedHeight,
   launcherListUnits,
   launcherResultsCeiling,
   launcherWindowCap,
   launcherWindowHeight,
   MAX_RESULTS,
-  resolveLauncherUnits,
   resultShortcutSlots,
   type VisibleRowRange,
 } from "./launcher/result-budget";
-import { resultRowContent } from "./launcher/row-content";
 import type { CommandAliases } from "./command-aliases";
 import {
   BROWSER_FILTER_AXIS,
@@ -1398,7 +1395,13 @@ export default function App() {
         : launcherResults;
     // The append is R60's, verbatim, and is now the row's only position: after
     // the recents (or a drop group) and the query's own results, so it is the
-    // list's last line, where 「底部的终端执行项」 sits.
+    // list's last line, where 「底部的终端执行项」 sits. It is a genuine append:
+    // the recents above it keep every slot they had (including the `⌘0` one),
+    // because the user holds the modifier to *reach* a recent as much as to reach
+    // the row. The bounce that an eleventh row used to cause is fixed at its
+    // source — the into-view scroll (see `LauncherResults`), which scrolled the
+    // row in against the old, shorter list and then had the scroll clamped back
+    // when the window grew.
     return showBareTerminalRow ? [...base, bareTerminalRow(t)] : base;
   }, [showBareTerminalRow, fileRows, launcherResults, launcherScope, t]);
 
@@ -1987,12 +1990,15 @@ export default function App() {
   // line and the config overlay stay charged as worst-case rows (they are chrome
   // the user reads at most once, and charging them exactly would put the window
   // at the mercy of a font landing late).
-  const launcherRowHeightUnits = (item: LauncherItem): number => {
-    if (item.type === "status") return LAUNCHER_STATUS_UNITS;
-    return resultRowContent(item, t).subtitle === null
-      ? ROW_HEIGHT_COMPACT
-      : ROW_HEIGHT_TWO_LINE;
-  };
+  const launcherRowHeightUnits = (item: LauncherItem): number =>
+    // R70 · every result row is the same height. R12 made a row that prints no
+    // subtitle compact (34u) so the list read tighter, but the user read the
+    // result as one list of two kinds: 「列表选择项的高度和样式得统一啊，现在感觉应用
+    // 比命令要矮一些」 — an application whose second line was dropped sat shorter
+    // than the command beside it. A row without a subtitle keeps its full 42u
+    // box and simply centres its single line (the box's own leading is what the
+    // compact height was saving). Only a plugin *status* note is its own 30u.
+    item.type === "status" ? LAUNCHER_STATUS_UNITS : ROW_HEIGHT_TWO_LINE;
   // R52 · the feedback / tip / confirm row is charged as a worst-case row, in
   // *every* scope. The plugin list used to price only `pluginViewRows` here
   // while still counting the feedback row in `launcherRows` above, so a plugin
@@ -2017,39 +2023,15 @@ export default function App() {
     : launcherListUnits(displayedResults.map(launcherRowHeightUnits));
   const launcherListUnitsRaw =
     (launcherPanelOpen ? launcherListContentUnits : 0) + launcherChromeUnits;
-  // R43 · the unit total is sticky while the content is *changing*, the same way
-  // the row count used to be: growing is immediate (a window one row short would
-  // clip the row) and a shrink is absorbed until the content has fallen more
-  // than one worst-case row below the held total, so a keystroke cannot flap the
-  // window (R25's 「抖动」).
-  //
-  // R66 · but the absorber must not outlive the typing. It used to be the resting
-  // height too, so a query that matched fewer, slightly shorter rows than the
-  // state before it kept the taller window for the whole query — the band of
-  // sunken panel above the action bar the user photographed again (「还是会有多余
-  // 空白的情况」). The settle is stored as *the total it settled at* rather than a
-  // boolean, so `launcherSettled` is false on the same render the content changes
-  // (a boolean would still read true for one render, and that render's exact
-  // height would flicker). Once the content has been still for
-  // `LAUNCHER_SHRINK_SETTLE_MS` the window snaps to the content's own height, so
-  // flicker while typing and an exact rest are one behaviour. A collapsed panel
-  // skips both (see `launcherPanelOpen`).
-  const [launcherSettledUnits, setLauncherSettledUnits] = useState<number | null>(null);
-  useEffect(() => {
-    const timer = window.setTimeout(
-      () => setLauncherSettledUnits(launcherListUnitsRaw),
-      LAUNCHER_SHRINK_SETTLE_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, [launcherListUnitsRaw]);
-  const launcherSettled = launcherSettledUnits === launcherListUnitsRaw;
-  const launcherUnitsRef = useRef(ROW_HEIGHT_TWO_LINE);
-  const launcherHeldUnits = launcherHasContent
-    ? launcherSettled
-      ? launcherListUnitsRaw
-      : resolveLauncherUnits(launcherUnitsRef.current, launcherListUnitsRaw)
-    : 0;
-  launcherUnitsRef.current = launcherHeldUnits;
+  // R43/R66 · the unit total is the content's own, at every instant. R43's
+  // shrink absorber held a *taller* window while the content shrank (the band
+  // the user reported), and R66's settle on top of it meant the window held that
+  // taller height for a beat and then dropped in one step — which the user read
+  // as 「高度变动不够丝滑」. The window tracks the content exactly now; the
+  // smoothness is the resize animation in `useLauncherHeight`, not a held height
+  // or a delayed snap. A collapsed panel contributes no list at all (see
+  // `launcherPanelOpen`).
+  const launcherHeldUnits = launcherHasContent ? launcherListUnitsRaw : 0;
   // R27 · the height charges the action bar only when the bar is drawn, and the
   // empty-query heading only when that heading is drawn. Both are visible in the
   // state the user reported: a query that matched nothing has no action bar (the
@@ -2062,7 +2044,14 @@ export default function App() {
   // R66 · and it is drawn inside the panel, so a collapsed panel charges none of
   // it either.
   const launcherSectionTitle =
-    launcherPanelOpen && !launcherScope && !query.trim() && !fileRows.length;
+    launcherPanelOpen &&
+    !launcherScope &&
+    !query.trim() &&
+    !fileRows.length &&
+    // R69 · the heading names the recents, so it goes away with them. With the
+    // recents off an empty page is the hint alone — a 「最近启动」 over nothing was
+    // the heading the user's screenshot showed above a single terminal row.
+    settings.show_recent_in_launcher;
   // R58 · the window's ceiling: the list's ceiling plus *this state's* chrome,
   // so a capped list and a capped window are the same decision. On an ordinary
   // display the R25 slab (583px) is the smaller number and the clamp is inert.
@@ -2084,19 +2073,24 @@ export default function App() {
           launcherScale,
           launcherMaxHeight,
         )
-      : launcherContentHeight(
-          launcherHeldUnits,
-          launcherRows,
-          launcherScale,
-          launcherMaxHeight,
-          launcherHasBar,
-          launcherSectionTitle,
-          // R32/R38 · the filter subline (the browser/clipboard chips) is fixed
-          // chrome; charging it here keeps the window from moving as the list under
-          // it changes. R48 · the trigger hint is inline in the field row and is not
-          // charged at all, so this predicate is the chips row's alone again.
-          filterRowVisible,
-        );
+      : !launcherHasContent
+        ? // R69 · nothing below the field: the card is the field band and its
+          // frame, with the breath and the panel's tail given back (see
+          // `launcherClosedHeight`).
+          launcherClosedHeight(launcherScale)
+        : launcherContentHeight(
+            launcherHeldUnits,
+            launcherRows,
+            launcherScale,
+            launcherMaxHeight,
+            launcherHasBar,
+            launcherSectionTitle,
+            // R32/R38 · the filter subline (the browser/clipboard chips) is fixed
+            // chrome; charging it here keeps the window from moving as the list under
+            // it changes. R48 · the trigger hint is inline in the field row and is not
+            // charged at all, so this predicate is the chips row's alone again.
+            filterRowVisible,
+          );
   // The same number, readable by the listeners registered once for the app's
   // lifetime (the reveal path): they must not close over the step that happened
   // to be current when they were installed.
@@ -2944,8 +2938,20 @@ export default function App() {
                the list hugs the field. The window height reads the same
                predicate, `filterRowVisible`, on the `launcherContentHeight`
                call below. */
-            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}${filterRowVisible ? "" : " collapsed-card--no-subline"}`}
-            style={{ "--launcher-results-height": `${launcherListCeiling}px` } as React.CSSProperties}
+            className={`collapsed-card${hasQuery ? " collapsed-card--filled" : ""}${filterRowVisible ? "" : " collapsed-card--no-subline"}${launcherHasContent ? "" : " collapsed-card--panel-closed"}`}
+            style={
+              {
+                "--launcher-results-height": `${launcherListCeiling}px`,
+                // R70 · the scroller's *own* ceiling, in rows. The window is sized
+                // for `launcherRows` rows; the sheet's list ceiling used to be the
+                // fixed `MAX_RESULTS` rows, so the appended ⌘-held row (the one
+                // state that runs one row past the budget) overflowed the scroller
+                // by a row and left its top third showing under the last number —
+                // the sliver the user photographed. Charging the ceiling the row
+                // count the window is drawn for makes the two one decision again.
+                "--launcher-results-rows": String(launcherRows),
+              } as React.CSSProperties
+            }
             onClick={(event) => {
               if (!(event.target as HTMLElement).closest("button, input, select, .plugin-config")) focusCollapsedInput();
             }}
@@ -3518,16 +3524,6 @@ export default function App() {
                     }}
                   />
                 )}
-                {launcherResults.length === 0 &&
-                  fileRows.length === 0 &&
-                  !actionBar &&
-                  !query.trim() &&
-                  !launcherScope &&
-                  !settings.show_commands_in_search && (
-                    <div className="launcher-hint" role="status">
-                      {t("launcher.enableIntegrationsHint")}
-                    </div>
-                  )}
               </div>
             </div>
             )}

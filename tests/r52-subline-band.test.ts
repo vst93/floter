@@ -64,9 +64,16 @@ test("R52 · the no-subline card drops the panel inset and the scroll-edge", asy
     "only the top collapses — the sides and the 2u tail are untouched",
   );
 
-  // The scroller's scroll-edge reservation collapses with it.
+  // The scroller's scroll-edge reservation collapses with it. R69 · the list then
+  // draws its own 4u of top padding in its place, so the selection's tint does
+  // not sit flush against the field — the user asked for exactly that room
+  // (「列表顶部还是需要一点内边距的，否则选择框紧挨着输入框了」, then 「间距再大点」).
   const results = rule(css, ".collapsed-card--no-subline .launcher-results");
-  assert.match(results, /padding-top:\s*0;/, "the scroll-edge reservation collapses (was 4px)");
+  assert.match(
+    results,
+    /padding-top:\s*calc\(var\(--u\)\s*\*\s*6\);/,
+    "the scroll-edge reservation goes; the list's own 6u top padding takes its place",
+  );
 
   // The base rules — the ones a *chips* page draws — are unchanged, so the band
   // is only ever removed, never re-derived.
@@ -137,21 +144,21 @@ test("R52 · a chips-free window gives back exactly 4u + 4px", async () => {
     launcherRowChrome,
   } = budget;
 
-  // The insets are the sheet's own two numbers: the panel's 4u inset and the
-  // scroller's 4px reservation.
-  assert.equal(LAUNCHER_SUBLINE_INSET_UNITS, 4);
+  // The insets are the sheet's own numbers: the panel's 4u top inset and the
+  // scroller's 4px reservation, less (R69) the list's own 6u top padding.
+  assert.equal(LAUNCHER_SUBLINE_INSET_UNITS, 2);
   assert.equal(LAUNCHER_SUBLINE_INSET_CHROME, 4);
 
   // The R52 scene (empty query, ten compact recent rows, the title) now goes
-  // through R58's honest chrome: 484px with the chips row absent, 520px with it.
-  // The 8px the no-chips page gives back is still exactly the two insets.
+  // through R58's honest chrome: 486px with the chips row absent, 520px with it.
+  // What the no-chips page gives back is the chips band plus the insets.
   const withChips = launcherContentHeight(
     10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true, true,
   );
   const noChips = launcherContentHeight(
     10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true, false,
   );
-  assert.equal(noChips, 484, "the ordinary page's ten compact rows are 484px");
+  assert.equal(noChips, 486, "the ordinary page's ten compact rows are 486px");
   assert.equal(withChips, 520, "the chips page's are 520px");
   assert.equal(
     withChips - noChips,
@@ -159,8 +166,8 @@ test("R52 · a chips-free window gives back exactly 4u + 4px", async () => {
     "the difference is the chips band plus the two insets the bare page gives back",
   );
 
-  // The ten two-line rows: 574px with a chips row, 538px without — both under
-  // the R25 ceiling (583px), which is what a ceiling is for. R58's whole point
+  // The ten two-line rows: 554px with a chips row, 520px without — both under
+  // the R25 ceiling (563px), which is what a ceiling is for. R58's whole point
   // is that these are the sheets' own sums, not the ceiling's slack.
   const slabWithChips = launcherContentHeight(
     10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, true,
@@ -168,8 +175,8 @@ test("R52 · a chips-free window gives back exactly 4u + 4px", async () => {
   const slabNoChips = launcherContentHeight(
     10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, false,
   );
-  assert.equal(slabWithChips, 574, "the chips page's ten two-line rows are 574px");
-  assert.equal(slabNoChips, 538, "the ordinary page's are 538px");
+  assert.equal(slabWithChips, 554, "the chips page's ten two-line rows are 554px");
+  assert.equal(slabNoChips, 520, "the ordinary page's are 520px");
   assert.equal(
     slabWithChips - slabNoChips,
     LAUNCHER_FILTER_UNITS + LAUNCHER_SUBLINE_INSET_UNITS + LAUNCHER_SUBLINE_INSET_CHROME,

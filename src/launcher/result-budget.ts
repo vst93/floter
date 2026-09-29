@@ -71,7 +71,7 @@ export const COMMAND_LIMIT_WITH_MATCHES = 3;
  *
  *  A row that prints a subtitle is two-line and takes the first; a row whose
  *  title stands alone (see `row-content.ts`) collapses to the second. */
-export const ROW_HEIGHT_TWO_LINE = 42;
+export const ROW_HEIGHT_TWO_LINE = 40;
 export const ROW_HEIGHT_COMPACT = 34;
 
 /** The list's ceiling in `--u` units: **every** row at its tallest height.
@@ -242,7 +242,7 @@ export const RESULTS_VIEWPORT_CHROME = 226;
  *  follow the interface step, so it is written as units + fixed pixels and
  *  scaled **once**, in `launcherWindowHeight` — never by multiplying a
  *  measurement (see the note in `hooks/useLauncherHeight.ts`). */
-export const LAUNCHER_WINDOW_HEIGHT_UNITS = 531;
+export const LAUNCHER_WINDOW_HEIGHT_UNITS = 511;
 
 /** The part of {@link LAUNCHER_WINDOW_HEIGHT} that does not scale: the list's
  *  `RESULTS_LIST_CHROME` and the card's 1px frame top and bottom. */
@@ -303,26 +303,6 @@ export const launcherWindowHeight = (scale: number): number =>
  *  requiring a row of margin on the way out kills the flap without making a
  *  genuinely shorter list wait for a second row to disappear. */
 export const LAUNCHER_ROW_HYSTERESIS = 1;
-
-/**
- * R66 · how long the content must sit still before the window drops the sticky
- * absorber and takes the content's exact height.
- *
- * R43's shrink absorber ({@link resolveLauncherUnits}) exists to stop the window
- * flapping while a query is being typed — the R25 report, 「输入进行过滤时页面整体
- * 有抖动」. But it outlived the typing: a query that matched *fewer*, slightly
- * shorter rows than the state before it held the taller window for the rest of
- * that query, which is the 40px band the user photographed and read as 「还是会有
- * 多余空白」 (the empty-query recents and the typed page can differ by under one
- * worst-case row: 404u → 372u is a 32u hold). So the absorber applies only while
- * the content is *changing*; once it has been still for this long, the window
- * snaps to the content's own height — flicker while typing, exact at rest.
- *
- * 160ms is under the ~200ms the catalog debounce already spends before a query
- * becomes a result list, so the snap lands as the list does rather than as a
- * second, later move.
- */
-export const LAUNCHER_SHRINK_SETTLE_MS = 160;
 
 /** The launcher's row count, floored at one (an empty query still draws the
  *  recents, and the launcher is never a zero-row card) and capped at the
@@ -489,21 +469,6 @@ export const launcherListUnits = (heights: readonly number[]): number =>
   heights.reduce((total, height) => total + Math.max(0, height), 0);
 
 /**
- * R43 · the sticky list-unit total. The mirror of {@link resolveLauncherRows}
- * for the *height* axis: growth is immediate (a window one row short would clip
- * the row), and a shrink is absorbed until the content has fallen more than one
- * worst-case row below the held total — so the 1↔2 boundary and a one-row
- * change still never flap, exactly as the count resolver guarantees for the
- * count.
- */
-export const resolveLauncherUnits = (current: number, units: number): number => {
-  const target = Math.max(ROW_HEIGHT_COMPACT, Math.ceil(units));
-  const held = Math.max(ROW_HEIGHT_COMPACT, Math.ceil(current));
-  if (target >= held) return target;
-  return held - target <= ROW_HEIGHT_TWO_LINE ? held : target;
-};
-
-/**
  * R52 · the two insets that exist *only* because a subline row (the plugin
  * chips) sits between the field and the list: the panel's own 4u top inset and
  * the scroller's 4px scroll-edge reservation.
@@ -528,8 +493,23 @@ export const resolveLauncherUnits = (current: number, units: number): number => 
  *
  * The predicate is the caller's `filter` flag — "a chips row is on screen" —
  * the same one that charges {@link LAUNCHER_FILTER_UNITS}, so the drawn band
- * and the charged band can never disagree. */
-export const LAUNCHER_SUBLINE_INSET_UNITS = 4;
+ * and the charged band can never disagree.
+ *
+ * R69 · the constant is 2, and it stands for the panel's 4u top inset *less the
+ * list's own 6u top padding*: with no chips row the insets below the field all
+ * collapse (4u + 4px) and the list draws 6u of its own instead, so the net the
+ * window gives back is `66 - 4 - 4 - 2 = 56` units — the field band and the
+ * panel's tail, and the list's padding on top of that.
+ *
+ * The user's three asks, in order: the gap between the query and the first row
+ * gone （「搜索时为什么输入框和列表中间还是有个空白空隙」）, a little room so the selection
+ * is not flush with the field （「列表顶部还是需要一点内边距的，否则选择框紧挨着输入框了」）,
+ * then larger （「间距再大点」, 「再大一点点」）. The field row's `breath` retires with
+ * the no-chips page's other two insets; the list draws 6u itself
+ * (`styles/launcher.css`'s `.collapsed-card--no-subline .launcher-results`) — a
+ * padding the selection starts inside, not a gap above it. With a chips row the
+ * field keeps its breath and this constant is not read. */
+export const LAUNCHER_SUBLINE_INSET_UNITS = 2;
 export const LAUNCHER_SUBLINE_INSET_CHROME = 4;
 
 /**
@@ -583,6 +563,24 @@ export const launcherContentHeight = (
     maxHeight,
   );
 };
+
+/**
+ * R69 · the collapsed card when there is **nothing below the field**: no list,
+ * no onboarding tip, no feedback row.
+ *
+ * The user's question, verbatim: 「什么都不搜时为什么输入框下方还是有个对应的空隙」.
+ * The breath under the field (its 4u `margin-bottom`) and the panel's 2u tail are
+ * the *panel's* insets — they separate the field from the list and the last row
+ * from the card's edge — so when no panel is drawn they are a band of glass under
+ * the query and nothing else. With the recents turned away the empty page is
+ * exactly that state, so the card is the field band and its 1px frame, no more.
+ *
+ * `styles/launcher.css` drops the same two with the same class the App writes
+ * (`.collapsed-card--panel-closed`, see the input row's margin), so the drawn
+ * band and the charged band stay one decision.
+ */
+export const launcherClosedHeight = (scale: number): number =>
+  Math.ceil(SEARCH_FIELD_HEIGHT_UNITS * scale + 2);
 
 /**
  * R58 · the chrome a state draws *around* its list, in window pixels: the field

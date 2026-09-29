@@ -708,20 +708,6 @@
   outline-offset: 1px;
 }
 
-/* A one-line greyed suggestion shown when the launcher is empty because
-   show_commands_in_search is off — points users toward integrations. */
-.launcher-hint {
-  min-height: calc(var(--u) * 30);
-  display: flex;
-  align-items: center;
-  /* R46 · the same 4u + 12u = 16u column as every other panel block. */
-  padding: 0 calc(var(--u) * 12);
-  color: var(--text-muted);
-  font-size: var(--text-body);
-  font-weight: 500;
-  line-height: 1.2;
-}
-
 /* First-run onboarding tip: a small dismissible callout shown above the
    launcher's result area the first time the user opens the launcher. */
 .launcher-tip {
@@ -905,7 +891,7 @@
      launcher's ten rows (R36: nine matched results above one fixed clipboard
      row) at its *tallest*, because a query that matches commands is exactly a
      list of two-line rows — every command carries a description. So the ceiling
-     is `calc(var(--u) * (10 * 42))` = `calc(var(--u) * 420)`. R19 sized it for
+     is `calc(var(--u) * (10 * 40))` = `calc(var(--u) * 400)`. R19 sized it for
      eight compact rows plus the clipboard row (`calc(var(--u) * 314)`), which is
      the height of the list in one particular state: a query whose matches were
      all apps. With ten two-line rows the content would be 28u taller than a
@@ -915,7 +901,7 @@
 
      The same two row heights are the exported `ROW_HEIGHT_TWO_LINE` /
      `ROW_HEIGHT_COMPACT` in `launcher/result-budget.ts`, which also owns
-     `RESULTS_LIST_HEIGHT` (420) and `RESULTS_LIST_CHROME` (50) below;
+     `RESULTS_LIST_HEIGHT` (400) and `RESULTS_LIST_CHROME` (50) below;
      `tests/launcher-ten-rows.test.ts` asserts this declaration still spells
      those numbers.
 
@@ -931,8 +917,8 @@
      `--launcher-results-height` is the viewport cap the App writes on a short
      display and is the smaller of the two there. */
   max-height: min(
-    calc(var(--u) * 420 + 50px),
-    var(--launcher-results-height, calc(var(--u) * 420 + 50px))
+    calc(var(--u) * var(--launcher-results-rows, 10) * 40 + 50px),
+    var(--launcher-results-height, calc(var(--u) * 400 + 50px))
   );
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -975,8 +961,51 @@
   padding-top: 0;
 }
 
+/* R69 · with no chips row the field is followed by the list itself, and the 4u
+   breath that separated them was the last 「空白」 between the query and the first
+   row. R24 halved it to 4u, R52 took the two insets below it, and the user read
+   the remainder again: 「搜索时为什么输入框和列表中间还是有个空白空隙」. The list
+   hugs the field; the row's own leading is what separates them. The window gives
+   the same 4u back — the breath is folded into `LAUNCHER_SUBLINE_INSET_UNITS`,
+   which `launcherContentHeight` subtracts when no chips row is drawn. */
+.collapsed-card--no-subline .collapsed-card__input-row {
+  margin-bottom: 0;
+}
+
+/* R69 · nothing below the field (no list, no tip, no feedback): the breath under
+   the input row goes with the panel it was separating the field from. The user's
+   question — 「什么都不搜时为什么输入框下方还是有个对应的空隙」 — was the last 4u of
+   glass under the query on an empty page with the recents turned away. The App
+   gives the same band back in the window height (`launcherClosedHeight`), so the
+   drawn card and the charged window stay one decision. */
+.collapsed-card--panel-closed .collapsed-card__input-row {
+  margin-bottom: 0;
+}
+
 .collapsed-card--no-subline .launcher-results {
-  padding-top: 0;
+  /* R69 · the list's own top padding, now that the field row no longer carries
+     one: the user first asked for the gap gone
+     （「搜索时为什么输入框和列表中间还是有个空白空隙」）, then for a *little* room so the
+     selection is not flush with the field
+     （「列表顶部还是需要一点内边距的，否则选择框紧挨着输入框了」）, and then for it to be
+     larger again twice （「间距再大点」, 「再大一点点」）. 6u is that room — the
+     field row's old breath (4u) plus a step — moved onto the list so the
+     selection's tint and its accent keyline start inside the list's own top. The
+     window charges it with `LAUNCHER_SUBLINE_INSET_UNITS` (the panel's 4u top
+     inset and the scroller's 4px scroll-edge, both still collapsed, less these
+     6u). */
+  padding-top: calc(var(--u) * 6);
+}
+
+/* R68 · while `useLauncherHeight`'s walk is moving the window's bottom edge, the
+   card carries `.launcher-resizing` and the scrollers stop painting their bars: a
+   window mid-walk is smaller than the content it is growing into, so the list
+   would flash a scrollbar — and, where a bar takes layout space, reflow every
+   row's text width under it. The rows are revealed as the edge passes them
+   instead, and the class leaves with the walk. */
+.launcher-resizing .launcher-results,
+.launcher-resizing .launcher-plugin-text {
+  overflow-y: hidden;
 }
 
 /* R28 · the text form of the plugin capability: a plugin whose output is not the
@@ -1105,7 +1134,7 @@
 
 .launcher-result {
   width: 100%;
-  height: calc(var(--u) * 42);
+  height: calc(var(--u) * 40);
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 10);
@@ -1141,24 +1170,17 @@
      and the selection is a state, not a raised pane: it does not need to
      detach from the surface to be found.
 
-     So the outer shadow goes and the inset keyline stays, at the same
-     `--accent-edge` strength. The action bar's own selection keeps
-     `--glass-raised-quiet` (it is the only row that is *not* a result, and a
-     neutral rim is what distinguishes it); the result rows take no shadow at
-     all. */
+     So the outer shadow goes. R70 · and now the inset keyline goes too: the user
+     read the remaining ring back on the row they selected — 「选中项的样式得优化下，
+     现在的圆角线框有点别扭」 — a 12u-radius accent outline around a content-width
+     row reads as a control's focus ring rather than as the lit row a result
+     selection is. The tint alone carries it, exactly as it does in every plugin
+     list (a browser/clipboard/calculator row has never carried a ring). The
+     action bar's own selection keeps `--glass-raised-quiet` plus its rim — it is
+     the one row that is *not* a result, and the neutral rim is what
+     distinguishes it. */
   background: var(--glass-raised);
-  box-shadow: inset 0 0 0 1px var(--accent-edge);
-}
-
-/* R12 · A row with nothing to say on a second line prints its title alone.
-   The two-line stack reserved a line's worth of height for a word the row no
-   longer repeats (see `row-content.ts`), which left the list reading as a
-   column of half-empty 42px slots. Compact rows are shorter, so ten of them
-   read as a tight Raycast-style stack; a row that keeps a subtitle — an
-   application's real name, the clipboard row — keeps the full height. The
-   row's `align-items: center` already centres the single line. */
-.launcher-result--compact {
-  height: calc(var(--u) * 34);
+  box-shadow: none;
 }
 
 .launcher-result--unavailable {
@@ -1196,11 +1218,30 @@
   box-shadow: var(--elev-0);
 }
 
+/* R70 · every row's icon wears the same plate. The user first asked the app icon
+   to sit on none of it (「不要加背景，直接把应用图标按统一大小展示就可以了」) and then,
+   seeing the bare mark beside the plated command/system glyphs, for the plate on
+   all of them — 「给每项图标都加上相同的带阴影的背景」. So the base rule is the whole
+   story: the neutral `--icon-surface`, the `--elev-0` edge, the same radius, on
+   every row kind. (The command icon is still the `$`-shaped glyph on that plate,
+   the system action still the warm one, and the browser list still drops the
+   plate — that R30 reduction is a different decision, one row *family* at a
+   time.) */
 .launcher-result__icon img {
-  width: 100%;
-  height: 100%;
+  /* R70c · inset in the plate, not on top of it. `cover` at 100% + the 1.42 scale
+     made the artwork reach the cell's edges, so the plate the user had just asked
+     for was hidden behind the icon and the app rows read 「很单薄」 — a bare square
+     beside the plated command glyphs. 23u in the 28u cell leaves the plate's own
+     edge and shadow showing as a border; `place-items: center` centres it, and
+     the 1.42 scale still pulls the `.icns` margin out so the mark fills *that*. */
+  width: calc(var(--u) * 23);
+  height: calc(var(--u) * 23);
   object-fit: cover;
+  transform: scale(1.42);
 }
+
+/* R70 · the plate is on every row kind now (see the base rule above), so the app
+   row carries no override: no `--app` selector, no transparent background. */
 
 /* The same neutral surface an application's placeholder gets, because the two
    carry the same `$` glyph and mean the same thing — "run this". A tint of the

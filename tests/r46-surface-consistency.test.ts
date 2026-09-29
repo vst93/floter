@@ -208,7 +208,6 @@ test("every launcher block lands on the query's 16u column", async () => {
     ".launcher-status",
     ".launcher-action-bar",
     ".launcher-feedback",
-    ".launcher-hint",
     ".launcher-system-confirm",
     ".launcher-plugin-footer",
   ]) {

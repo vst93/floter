@@ -29,6 +29,7 @@ import {
   type PluginRowIcon,
 } from "./plugin-mode";
 import { clipboardKindChip } from "../plugins/clipboard/mode";
+import { isBareTerminalRow } from "./terminal-row";
 import type { ClipboardEntry } from "../clipboard-history";
 import type { CalculatorEntry } from "../calculator";
 import type { DroppedFile } from "./file-drops";
@@ -486,9 +487,31 @@ export function LauncherResults({
   // DOM. The report is deduplicated against the last one, so an App re-render
   // triggered by a range change cannot loop back into another report.
   const reportedRange = useRef<VisibleRowRange | null>(null);
+  // One report per frame, at most: a scroll is a stream of events and the
+  // badges only have to keep up with the paint. The fallback keeps the helper
+  // drivable outside a WebView (the node suite has no `requestAnimationFrame`).
+  const visibleReportFrame = useRef(0);
   const measureVisibleRows = useCallback(() => {
     const list = resultsRef.current;
     if (!list || !onVisibleRowsChange) return;
+    // R68 · the walk moves the scroller's box every frame. Measuring mid-walk
+    // would report a *transient* viewport, and the numbered `⌘N` slots follow
+    // that report — so the badges (and the key map the handler reads) renumbered
+    // while the edge moved and a numbered shortcut could land on nothing
+    // (`列表项的快捷选择失效`). Wait the walk out and measure the still box.
+    if (list.closest(".launcher-resizing")) {
+      if (!visibleReportFrame.current) {
+        const retry = () => {
+          visibleReportFrame.current = 0;
+          measureVisibleRows();
+        };
+        visibleReportFrame.current =
+          typeof requestAnimationFrame === "function"
+            ? requestAnimationFrame(retry)
+            : (setTimeout(retry, 16) as unknown as number);
+      }
+      return;
+    }
     const listRect = list.getBoundingClientRect();
     const spans: Array<RowSpan | null> = results.map(() => null);
     list.querySelectorAll<HTMLElement>('button[id^="launcher-option-"]').forEach((row) => {
@@ -506,10 +529,6 @@ export function LauncherResults({
     reportedRange.current = range;
     onVisibleRowsChange(range);
   }, [results, onVisibleRowsChange]);
-  // One report per frame, at most: a scroll is a stream of events and the
-  // badges only have to keep up with the paint. The fallback keeps the helper
-  // drivable outside a WebView (the node suite has no `requestAnimationFrame`).
-  const visibleReportFrame = useRef(0);
   const scheduleVisibleRows = useCallback(() => {
     if (visibleReportFrame.current) return;
     const run = () => {
@@ -564,6 +583,14 @@ export function LauncherResults({
     previousLength.current = results.length;
     const moved = selectedResultIndex !== scrolledToIndex.current;
     if (!list || selectedActionBar || (!moved && !shrank)) return;
+    // R67 · the ⌘-held bare-terminal row is the one row the window *grows* for:
+    // the App sizes the list to include it, so it is visible as soon as the
+    // native resize lands. Scrolling it in first — while the list is still the
+    // old, shorter box — scrolls the list, and the resize landing then makes the
+    // list fit again and the browser clamps `scrollTop` back to zero: the list
+    // slid up and back down on the modifier's press edge (「先上移然后再下移
+    // 恢复」). The row is never scrolled into view; it is simply given the room.
+    if (isBareTerminalRow(results[selectedResultIndex])) return;
     scrolledToIndex.current = selectedResultIndex;
     const row = list.querySelector<HTMLElement>(`#launcher-option-${selectedResultIndex}`);
     if (!row) return;
@@ -698,12 +725,12 @@ export function LauncherResults({
             // the heading sits above the first file and the expander does not
             // look like the start of a second group.
             const isFileGroup = item.type === "file" || item.type === "file-more";
-            // R12: which of the two optional strings this row actually earns.
+            // R12/R70: which of the two optional strings this row actually earns.
             // An application drops the right-hand type word entirely, and any
             // row whose subtitle is only its type word drops that too, so the
-            // row collapses to one line (see `row-content.ts`).
+            // row prints one line — but it keeps the full 42u box (see
+            // `row-content.ts` and `App.tsx`'s `launcherRowHeightUnits`).
             const { source, subtitle } = resultRowContent(item, t);
-            const compact = subtitle === null;
             const shortcutSlot = resultShortcutSlots[index];
             // R38 · the entry a clipboard row's favorite star acts on, or
             // `undefined` for a status line / any other row. Resolved once here
@@ -797,9 +824,7 @@ export function LauncherResults({
                   type="button"
                   className={`launcher-result${selected ? " launcher-result--selected" : ""}${
                     unavailable ? " launcher-result--unavailable" : ""
-                  }${isHistory ? " launcher-result--history" : ""}${
-                    compact ? " launcher-result--compact" : ""
-                  }`}
+                  }${isHistory ? " launcher-result--history" : ""}`}
                   role="option"
                   aria-selected={selected}
                   aria-disabled={unavailable}
@@ -935,9 +960,20 @@ export function LauncherResults({
                     </span>
                   )}
                   <span className="launcher-result__action">
-                    {shortcutSlot === null
-                      ? ""
-                      : formatResultShortcut(selectResultShortcut, shortcutSlot)}
+                    {/* R67 · the ⌘-held bare-terminal row carries the `⌘↩` hint.
+                        It is the one row the numbered family cannot reach — the
+                        App appends it below the recents, past the tenth slot —
+                        so without this it is the only row on the page with no key
+                        hint at all, and the user asked for it
+                        (「按住 super 键动态添加的打开终端项也要有快捷键提示」). The
+                        hint is the action bar's own chord: ⌘ put the row on
+                        screen, and ⌘↩ opens it (the R60 exception that lets the
+                        bar's chord yield to this row). */}
+                    {isBareTerminalRow(item)
+                      ? actionBarShortcut
+                      : shortcutSlot === null
+                        ? ""
+                        : formatResultShortcut(selectResultShortcut, shortcutSlot)}
                   </span>
                 </button>
               </Fragment>
