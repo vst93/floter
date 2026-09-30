@@ -75,7 +75,10 @@ type Page = {
 const FRAME = 2;
 const FIELD = 56;
 const BREATH = 4;
-const CHIPS = 24 + 4;
+// R72 · the chips band: the 22u row (its underline is gone, so is the 2u the
+// chip spent on it) plus the 2u breath below it. `LAUNCHER_FILTER_UNITS` is the
+// module's twin of this number.
+const CHIPS = 18 + 2;
 const PANEL_TOP = 4;
 const PANEL_TAIL = 2;
 const SCROLL_EDGE = 4;
@@ -138,7 +141,7 @@ test("R58 · the ten-row chrome is the sheet's own tally, not the R25 ceiling", 
   // The ceiling is still a ceiling: the worst page the sheets can draw is 9px
   // under it, so it never binds on an ordinary display.
   const widest = drawn({ rows: MAX_RESULTS, rowHeight: 40, bar: true, title: false, chips: true });
-  assert.equal(widest, 554);
+  assert.equal(widest, 546);
   assert.ok(widest < LAUNCHER_WINDOW_HEIGHT, "the display ceiling clears the widest page");
 });
 
@@ -308,9 +311,13 @@ test("R58 · the App derives the window ceiling from the list's, and one predica
     /const launcherAlertRow = Boolean\(\s*launcherFeedback \|\| \(appsError && !launcherScope\) \|\| pendingSystemAction,\s*\);/,
     "the alert row is declared once",
   );
+  // R73 · the alert row is the only chrome row left: the first-run onboarding
+  // tip that used to be charged beside it is gone (「搜索框下方的 欢迎使用的提醒去掉，
+  // 它在一些场景下影响到了布局」). The charge and the sheet still read the one
+  // predicate above, which is what this pair of assertions has always pinned.
   assert.match(
     app,
-    /const launcherChromeRows =\s*\(showOnboardingTip && !launcherScope \? 1 : 0\) \+ \(launcherAlertRow \? 1 : 0\);/,
+    /const launcherChromeRows = launcherAlertRow \? 1 : 0;/,
     "…and is what the chrome row is charged for",
   );
   assert.match(

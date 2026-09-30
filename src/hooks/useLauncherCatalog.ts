@@ -560,13 +560,20 @@ export function useLauncherCatalog(options: {
     }
     const kind = browserMode.kind;
     let cancelled = false;
+    const stale = () => cancelled || generation !== browserRequest.current;
     // The same debounce the catalog search uses: one fetch per filter, and a
     // stale response is dropped by the generation check.
     const timer = window.setTimeout(() => {
       invoke<string | null>("browser_default_profile")
-        .then(async (profileKey): Promise<BrowserFetchResult> => {
+        .then((profileKey) => {
+          if (stale()) return;
           if (!profileKey) {
-            return { ok: false, statusId: "browser-no-profile", statusKey: "launcher.browserNoProfile" };
+            setBrowserFetch({
+              ok: false,
+              statusId: "browser-no-profile",
+              statusKey: "launcher.browserNoProfile",
+            });
+            return;
           }
           const fetch = (command: string): Promise<BrowserSearchRow[]> =>
             invoke<BrowserSearchRow[]>(command, {
@@ -577,38 +584,45 @@ export function useLauncherCatalog(options: {
               query: "",
               limit: BROWSER_FETCH_LIMIT,
             }).catch(() => []);
-          const tabRead =
-            kind === "bookmarks" || kind === "history"
-              ? Promise.resolve<BrowserTabRow[]>([])
-              : invoke<BrowserTabRow[]>("browser_list_tabs", {
-                  profileKeyOrBrowser: profileKey,
-                  limit: BROWSER_FETCH_LIMIT,
-                }).catch(
-                  // R26-B · the fetch that is *expected* to fail (no debug port,
-                  // browser not running) reports itself as an empty group rather
-                  // than throwing: the two lists above must never be held up by
-                  // it. R31 · it no longer emits a note into the list either —
-                  // the guidance lives on the settings field that fixes it (see
-                  // `browserSearchRows`).
-                  () => [] as BrowserTabRow[],
-                );
-          const [bookmarks, history, tabs] = await Promise.all([
+          // R71 · the two *file* reads are published the moment they are in.
+          // The live-tab read is the one that can be slow (AppleScript against
+          // a busy browser, up to its own three-second deadline) and it is the
+          // one the user does not need in order to search bookmarks and
+          // history — R26-B's rule ("a tab read never blocks the bookmark or
+          // history read") was held by the backend and broken here, where a
+          // single `Promise.all` published nothing until the slowest source
+          // answered. A plugin list that arrives a second late reads as a
+          // plugin list that does not work.
+          void Promise.all([
             kind === "history" || kind === "tabs"
-              ? Promise.resolve([])
+              ? Promise.resolve<BrowserSearchRow[]>([])
               : fetch("browser_search_bookmarks"),
             kind === "bookmarks" || kind === "tabs"
-              ? Promise.resolve([])
+              ? Promise.resolve<BrowserSearchRow[]>([])
               : fetch("browser_search_history"),
-            tabRead,
-          ]);
-          return { ok: true, profileKey, bookmarks, history, tabs };
-        })
-        .then((result) => {
-          if (cancelled || generation !== browserRequest.current) return;
-          setBrowserFetch(result);
+          ]).then(([bookmarks, history]) => {
+            if (stale()) return;
+            setBrowserFetch({ ok: true, profileKey, bookmarks, history, tabs: [] });
+          });
+          if (kind === "bookmarks" || kind === "history") return;
+          // …and the tabs fill their own group in when they land. A read that
+          // fails is an empty group, exactly as before: R26-B's expected
+          // failure (no debug port, browser not running) and R31's silence
+          // about it (the guidance lives on the settings field) are unchanged.
+          void invoke<BrowserTabRow[]>("browser_list_tabs", {
+            profileKeyOrBrowser: profileKey,
+            limit: BROWSER_FETCH_LIMIT,
+          })
+            .catch(() => [] as BrowserTabRow[])
+            .then((tabs) => {
+              if (stale()) return;
+              setBrowserFetch((current) =>
+                current && current.ok ? { ...current, tabs } : current,
+              );
+            });
         })
         .catch(() => {
-          if (cancelled || generation !== browserRequest.current) return;
+          if (stale()) return;
           setBrowserFetch({ ok: false, statusId: "browser-empty", statusKey: "launcher.browserEmpty" });
         });
     }, CATALOG_SEARCH_DELAY);

@@ -96,13 +96,13 @@ test("R52 · the chips row itself does not move", async () => {
   const filter = rule(css, ".launcher-filter");
   assert.equal(
     units(/min-height:\s*([^;]+);/.exec(filter)![1], "filter min-height"),
-    24,
-    "the chips row is still its 24u band",
+    18,
+    "the chips row is its 18u band (R72: the underline is gone, and so is its padding)",
   );
   assert.equal(
     units(/margin-bottom:\s*([^;]+);/.exec(filter)![1], "filter margin-bottom"),
-    4,
-    "and its 4u breath below",
+    2,
+    "and its 2u breath below",
   );
   // No rule anywhere in the no-subline block may target the chips row: the
   // three plugin modes are byte-identical to their pre-R52 geometry.
@@ -159,14 +159,14 @@ test("R52 · a chips-free window gives back exactly 4u + 4px", async () => {
     10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, true, false,
   );
   assert.equal(noChips, 486, "the ordinary page's ten compact rows are 486px");
-  assert.equal(withChips, 520, "the chips page's are 520px");
+  assert.equal(withChips, 512, "the chips page's are 512px");
   assert.equal(
     withChips - noChips,
     LAUNCHER_FILTER_UNITS + LAUNCHER_SUBLINE_INSET_UNITS + LAUNCHER_SUBLINE_INSET_CHROME,
     "the difference is the chips band plus the two insets the bare page gives back",
   );
 
-  // The ten two-line rows: 554px with a chips row, 520px without — both under
+  // The ten two-line rows: 546px with a chips row, 512px without — both under
   // the R25 ceiling (563px), which is what a ceiling is for. R58's whole point
   // is that these are the sheets' own sums, not the ceiling's slack.
   const slabWithChips = launcherContentHeight(
@@ -175,7 +175,7 @@ test("R52 · a chips-free window gives back exactly 4u + 4px", async () => {
   const slabNoChips = launcherContentHeight(
     10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, false,
   );
-  assert.equal(slabWithChips, 554, "the chips page's ten two-line rows are 554px");
+  assert.equal(slabWithChips, 546, "the chips page's ten two-line rows are 546px");
   assert.equal(slabNoChips, 520, "the ordinary page's are 520px");
   assert.equal(
     slabWithChips - slabNoChips,

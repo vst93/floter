@@ -221,8 +221,9 @@ test("every launcher block lands on the query's 16u column", async () => {
   // step). Its box is still its own line box plus one padding pair.
   assert.deepEqual(units(decl(launcher, ".launcher-section-title", "padding")), [6, 12, 4], "group title");
 
-  // The two card-level blocks are full-bleed, so they carry the whole 16u.
-  assert.deepEqual(units(decl(launcher, ".launcher-tip", "padding")), [4, 16], "first-run tip");
+  // R73 · the card-level onboarding tip was the other full-bleed block; it is
+  // gone (「搜索框下方的 欢迎使用的提醒去掉，它在一些场景下影响到了布局」), so every
+  // launcher block is a panel block on the 16u column now.
 });
 
 // ── 4 · the terminal surface's chrome: one inset ─────────────────────────

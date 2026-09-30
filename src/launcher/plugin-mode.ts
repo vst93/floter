@@ -625,10 +625,30 @@ export const pluginFooterState = (
   return page.hasMore ? "more" : "end";
 };
 
-/** The rows a view stands for, for the band table. A text block stands for the
- *  band rows its clamped height occupies; a list for its own row count. */
-export const pluginViewRows = (view: PluginView | null): number =>
-  view === null ? 0 : view.form === "list" ? view.items.length : view.metrics.rows;
+/**
+ * The rows a view stands for, for the band table. A text block stands for the
+ * band rows its clamped height occupies; a list for **the numbered viewport** —
+ * never every row the emission may be holding.
+ *
+ * R72 · the user's report, verbatim: 「list 在渲染时默认最大 10 行，正好 1 到 9 加上
+ * 0。同时不超过时要都渲染完，不能出现图中两种情况，没有 super+n 快捷键可分配或没分配」.
+ *
+ * R29/R30's pagination deliberately keeps more than one page of rows in the DOM
+ * so the scroller has something to scroll and the load-more trigger can fire.
+ * That buffer is not the window's business: the window is the size of the list
+ * the numbered family can address, which is `MAX_RESULTS` rows — ten, `⌘1`-`⌘9`
+ * and `⌘0`. Sized from the held rows instead, a plugin list drew a window twenty
+ * rows tall: twelve rows were on screen at once, the family ran out of digits at
+ * the tenth, and the eleventh and twelfth sat there visible with no `⌘N` at all
+ * (the first state in the screenshots). A view with fewer rows than the budget
+ * is charged exactly its own rows, so a four-row list is four rows tall — the
+ * second half of the report (「不超过时要都渲染完」).
+ */
+export const pluginViewRows = (view: PluginView | null): number => {
+  if (view === null) return 0;
+  if (view.form === "text") return view.metrics.rows;
+  return Math.min(view.items.length, MAX_RESULTS);
+};
 
 /** The `LauncherItem`s a view contributes to the numbered list. Text
  *  contributes none — it is drawn by its own block, not as rows. */

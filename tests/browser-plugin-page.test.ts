@@ -411,6 +411,27 @@ test("a failed tab read is absorbed, and the guidance lives on the settings fiel
   assert.match(catalog, /\(\) => \[\] as BrowserTabRow\[\]/);
   assert.doesNotMatch(mode, /browser-tabs-unavailable/);
   assert.doesNotMatch(mode, /tabsFailed/);
+  // R71 · “absorbs its own failure” was only half of R26-B's rule; the other
+  // half is that it must not *hold up* the two file lists either. The hook used
+  // to publish all three sources from one `Promise.all`, so a slow AppleScript
+  // read (or a cold browser) delayed every bookmark and history row — the
+  // plugin list that appeared seconds late, or not at all. The file reads are
+  // published on their own now and the tab group merges in behind them.
+  assert.match(
+    catalog,
+    /setBrowserFetch\(\{ ok: true, profileKey, bookmarks, history, tabs: \[\] \}\)/,
+    "the file lists are published without waiting for the tab read",
+  );
+  assert.match(
+    catalog,
+    /current && current\.ok \? \{ \.\.\.current, tabs \} : current/,
+    "the tab group fills itself in when it lands",
+  );
+  assert.doesNotMatch(
+    catalog,
+    /const \[bookmarks, history, tabs\] = await Promise\.all/,
+    "the three sources are no longer one all-or-nothing await",
+  );
   // …the field exists in the schema and its help carries the two mechanisms.
   assert.match(schema, /key: "cdp_enabled", type: "toggle", labelKey: "plugins\.config\.cdpEnabled", helpKey: "plugins\.config\.cdpEnabledHint"/);
   // …and the help is translated, in both languages, with the macOS path named.

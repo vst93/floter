@@ -344,13 +344,20 @@ export const LAUNCHER_ACTION_BAR_UNITS = 45;
 
 /**
  * R32 · the browser mode's range-filter subline, in units: the chip row's own
- * 24u plus the 4u breath below it (see `.launcher-filter`). It is charged by
- * every row count while the browser scope is open — the chips row is fixed
- * chrome that is always drawn there, so it can never resize the window as the
- * list under it grows or filters. The 4u gap above it is the field row's own
- * `margin-bottom`, already inside {@link LAUNCHER_ROW_CHROME_UNITS}.
+ * 24u plus the breath below it (see `.launcher-filter`). It is charged by every
+ * row count while a plugin scope is open — the chips row is fixed chrome that is
+ * always drawn there, so it can never resize the window as the list under it
+ * grows or filters. The 4u gap above it is the field row's own `margin-bottom`,
+ * already inside {@link LAUNCHER_ROW_CHROME_UNITS}.
+ *
+ * R72 · the band shrank with the sheet, twice in one round: the user read the gap
+ * under the chips as slack (「tab 切换项底部 padding 稍微小点」) and then asked for
+ * the band itself to be lighter (「可以整体再高度小一点，再轻一些，比如删掉选中项的
+ * 底部下划线」). The chip row is 18u — its own body line box, no padding — and its
+ * breath 2u (28 → 20): the underline that needed the extra height is gone, and
+ * charged and drawn move together, as always.
  */
-export const LAUNCHER_FILTER_UNITS = 28;
+export const LAUNCHER_FILTER_UNITS = 20;
 
 /** The unit height of a row count, with or without its action bar and filter.
  *
@@ -379,6 +386,27 @@ export const launcherRowUnits = (
  *  sheet draws it — the empty-query page's own predicate (`launcherSectionTitle`),
  *  the same one the modifier reads. */
 export const LAUNCHER_SECTION_TITLE_CHROME = 26;
+
+/**
+ * R72 · the same heading, in `--u` units, for the headings a **list prints above
+ * its own rows** — the history group, a dropped file's group, an external
+ * plugin's `group` (see `launcher/list-sections.ts`).
+ *
+ * The two constants are the same 26 for the same element because the two
+ * headings sit in different places in the layout. The page-level heading (the
+ * empty query's 「最近启动」) is chrome *above* the list: it does not scroll, so
+ * it is charged as fixed pixels beside the frame and the chips. A block heading
+ * is list **content** — it lives inside the scroller, in the same coordinate
+ * space as the rows — so it is charged with them, in units, and the list's own
+ * ceiling covers it.
+ *
+ * It was charged nowhere at all until this round, which is how a list came to be
+ * drawn a heading taller than the window holding it: the browser's 标签页 view
+ * printed 「打开的标签页」 above three rows and the fourth was cut in half (the
+ * user's screenshot — the heading itself is gone now, at their request), and the
+ * ordinary page did the same to a query that reached history.
+ */
+export const LAUNCHER_SECTION_TITLE_UNITS = 26;
 
 /**
  * The fixed pixels a row count's window adds to its unit part: the card's 1px

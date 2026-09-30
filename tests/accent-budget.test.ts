@@ -61,7 +61,7 @@ const RULES = (css: string) => {
 
 // A counted face: a background in the accent-fill family.
 const ACCENT_FILL =
-  /var\(--(accent|accent-tint|accent-tint-hover|accent-wash|glass-raised|glass-raised-hover|ext-bg-selected)\)/;
+  /var\(--(accent|accent-tint|accent-tint-quiet|accent-tint-hover|accent-wash|glass-raised|glass-raised-hover|ext-bg-selected)\)/;
 // A warm-branch fill (power/destructive), not the brand accent.
 const WARM_FILL = /var\(--(glass-raised-warm|glass-raised-warm-hover|system-icon-surface|system-icon-surface-hover|action-shell-tint)\)/;
 
@@ -121,7 +121,6 @@ const VIEWS: { name: string; mode: string; selectors: string[] }[] = [
   // this ledger. If a later round tints it again the complement assertion names
   // it as an orphan, instead of a ledger entry quietly absorbing it.
   { name: "collapsed · results", mode: "collapsed", selectors: [".launcher-result--selected"] },
-  { name: "collapsed · onboarding tip", mode: "collapsed", selectors: [".launcher-tip"] },
   { name: "collapsed · feedback toast", mode: "collapsed", selectors: [".launcher-feedback", ".launcher-feedback--warning"] },
   { name: "collapsed · system confirm", mode: "collapsed", selectors: [".launcher-system-confirm", ".launcher-system-confirm__execute"] },
   { name: "terminal · clipboard list", mode: "terminal", selectors: [".clipboard-row--selected", ".clipboard-panel__tab--active"] },
@@ -136,7 +135,6 @@ const VIEWS: { name: string; mode: string; selectors: string[] }[] = [
 
 const FILE_FOR: Record<string, string> = {
   "collapsed · results": "src/styles/launcher.css",
-  "collapsed · onboarding tip": "src/styles/launcher.css",
   "collapsed · feedback toast": "src/styles/launcher.css",
   "collapsed · system confirm": "src/styles/launcher.css",
   "terminal · clipboard list": "src/styles/terminal.css",
@@ -234,7 +232,6 @@ test("every view stays within the accent-fill budget (full-table census)", async
   // anchor views each resolve to their expected one.
   const collapsed = stripComments(await read("src/styles/launcher.css"));
   assert.ok(isFill(RULES(collapsed).find((r) => r.selector === ".launcher-result--selected")!.body, ACCENT_FILL));
-  assert.ok(!isFill(RULES(collapsed).find((r) => r.selector === ".launcher-tip")!.body, ACCENT_FILL), "the tip is neutral now");
   assert.ok(!isFill(RULES(collapsed).find((r) => r.selector === ".launcher-feedback")!.body, ACCENT_FILL), "the feedback toast is warm, not accent");
   // The primary action slot is the one solid-accent button per surface.
   const ext = stripComments(await read("src/styles/extensions.css"));

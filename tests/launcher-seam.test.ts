@@ -244,12 +244,17 @@ test("focus is still unmistakable without the seam", async () => {
   );
   // Focus stays legible through the card's own edge and the caret, which is
   // what makes the removal safe (WCAG 2.4.7).
+  // R72 · the cue is the card's own *rim* now, not a border: the card draws one
+  // edge instead of two (the user: 「搜索的输入框和浮窗边框是不是有两层边框叠在一起
+  // 了？」), and the focused variant of that rim — accent glow at the top, brighter
+  // strokes around it — is what paints focus. The assertion keeps its job: focus
+  // must be unmistakable without the seam.
   const focused = rule(css, ".collapsed-card:focus-within");
   assert.ok(focused, "the card's focus state must survive the seams");
   assert.equal(
-    decl(focused!.body, "border-color"),
-    "var(--input-stroke-active)",
-    "focus still paints the card's own edge",
+    decl(focused!.body, "box-shadow"),
+    "var(--glass-rim-shadow-active)",
+    "focus still paints the card's own edge (the active rim)",
   );
   const field = rule(css, ".collapsed-card__input");
   assert.ok(field, "the field must still exist");
@@ -359,13 +364,26 @@ test("the window is re-measured after the resize settles, so the card is never l
   );
   // The correction: after the resize resolves, re-measure on the next frame and
   // resize again only if the content really did move.
-  // R26-D · the re-measure feeds the same target rule the first resize used,
-  // so the ordinary card settles back onto the height that was asked for and
-  // the pass ends without a second `setSize`.
+  //
+  // R71 · the pass must also belong to the walk that asked for it, and the
+  // measurement must come from a window that really is that height. Without
+  // both, the pass re-targets a *transient* number: the plugin mode resizes
+  // twice (the empty list's height, then the rows' 563), and the first walk's
+  // delayed pass measured the still-empty card, walked the window to 90 and
+  // cancelled the walk already carrying the list to 563 — the user's 「窗口高度没
+  // 能有自动化」, with nothing left to ask because the sample and the window now
+  // agreed. The generation check is what a superseded pass stands down on; the
+  // at-the-height check is what keeps a mid-flight measurement out of the
+  // decision.
   assert.match(
     hook,
-    /\.then\(\(\) => \{[\s\S]*?reassertCollapsedFocus\(\);[\s\S]*?afterPaint\(\(\) => \{[\s\S]*?launcherTargetHeight\(card, height\)[\s\S]*?settled !== height[\s\S]*?resizeLauncherWindow\(card, settled/,
-    "the settle pass must re-measure after the resize lands and re-apply only a real difference",
+    /afterPaint\(\(\) => \{[\s\S]*?if \(generation !== tweenGeneration\) return;[\s\S]*?Math\.abs\(current - height\) > HEIGHT_TOLERANCE\) return;[\s\S]*?measureCardHeight\(card\)[\s\S]*?measured > height \+ 1[\s\S]*?resizeLauncherWindow\(card, measured/,
+    "the settle pass must re-measure after the resize lands, and only when its own walk is still current",
+  );
+  assert.match(
+    hook,
+    /const walk = tweenLauncherHeight\(card, height\);[\s\S]{0,900}?const generation = tweenGeneration;/,
+    "the pass captures its walk's generation before it awaits",
   );
   assert.match(
     hook,
@@ -374,8 +392,13 @@ test("the window is re-measured after the resize settles, so the card is never l
   );
   assert.match(
     hook,
-    /measured > current \+ 1/,
-    "…and only a card that overflows the current window may raise it",
+    /const atBand = Number\.isFinite\(current\) && Math\.abs\(current - base\) <= HEIGHT_TOLERANCE;/,
+    "R71: the overflow guard only speaks for a window that is already at the band",
+  );
+  assert.match(
+    hook,
+    /atBand && measured > current \+ 1/,
+    "…and only a card that overflows that window may raise it",
   );
   // …and it waits for the next paint, with a timer fallback so the helper stays
   // drivable where `requestAnimationFrame` does not exist (the node suite).

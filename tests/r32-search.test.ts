@@ -224,7 +224,9 @@ test("the browser scope draws the chips and never the recent heading", async () 
   // The other ordinary-search-only rows are gated on the scope too. (The
   // empty-page integrations hint that used to sit beside them is gone — the user
   // asked for it to go: 「不要那个欢迎使用的提示」.)
-  assert.match(app, /\{showOnboardingTip && !launcherScope && \(/);
+  // R73 · the first-run tip is gone entirely (the user: 「搜索框下方的 欢迎使用的提醒
+  // 去掉，它在一些场景下影响到了布局」), so the scan-error row is the only remaining
+  // ordinary-search-only one to pin here.
   assert.match(app, /\{appsError && !launcherScope && \(/);
 });
 

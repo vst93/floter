@@ -210,10 +210,19 @@ test("the App renders the query's rows and keys them — it appends nothing fixe
   );
   assert.match(source, /results=\{displayedResults\}/, "the renderer gets the composed list");
   assert.match(source, /launcherResults: displayedResults/, "the key handler follows it");
+  // R72 · the same list, and the scroll viewport — but consulted only when the
+  // list overflows the ten-slot budget: a list that fits is numbered in order off
+  // its own rows, because a viewport *report* can be stale (the user's ten-row
+  // list showed one badge) while a list that fits cannot be scrolled at all.
   assert.match(
     source,
-    /resultShortcutSlots\(displayedResults, displayedRunnableFlags, visibleResultRange\)/,
-    "the numbered slots follow the same list, renumbered to the scroll viewport (R34/R37)",
+    /resultShortcutSlots\(\s*displayedResults,\s*displayedRunnableFlags,\s*listOverflowsBudget \? visibleResultRange : undefined,\s*\)/,
+    "the numbered slots follow the same list, renumbered to the scroll viewport (R34/R37/R72)",
+  );
+  assert.match(
+    source,
+    /const listOverflowsBudget = displayedResults\.length > MAX_RESULTS;/,
+    "…and the viewport is consulted only past the budget",
   );
 });
 
@@ -682,20 +691,23 @@ test("the height sync follows the card's box, not just the row count", async () 
   assert.match(hook, /new ResizeObserver\(/, "the card's own box is observed");
   assert.match(hook, /observer\.observe\(card\)/, "…and the card is what is observed");
   assert.match(hook, /observer\.disconnect\(\)/, "the observer does not outlive the surface");
+  // R71 · it settles through the *one* height policy rather than a private copy
+  // of the rules: the policy re-uses the one resize path (bounded by the same
+  // settle passes), and the observer's old `applied` / `launcherHeightNeedsResize`
+  // pair is gone — a second set of answers to the same question is what let the
+  // observer refuse to restore a height the window had lost (「书签插件就有问题」).
   assert.match(
     hook,
-    /resizeLauncherWindow\(current, target, SETTLE_PASSES\)/,
-    "it re-uses the one resize path, bounded by the same settle passes",
+    /applyLauncherHeight\(current, launcherTargetHeight\(current, windowHeight\)\)/,
+    "the observer runs the one policy",
   );
-  // Self-limiting, both ways: a target the window already carries is a no-op,
-  // and a target already asked for is never asked for twice — so an observer
-  // that fires on the resize it caused terminates rather than oscillating.
   assert.match(
     hook,
-    /Math\.abs\(target - window\.innerHeight\) <= 1/,
-    "a target the window already has is a no-op",
+    /resizeLauncherWindow\(card, height, SETTLE_PASSES\)/,
+    "…which re-uses the one resize path, bounded by the same settle passes",
   );
-  assert.match(hook, /target === applied\.current/, "a repeated target must not resize twice");
+  assert.doesNotMatch(hook, /applied\.current/, "the observer keeps no memory of its own");
+  assert.doesNotMatch(hook, /launcherHeightNeedsResize/, "…and no rulebook of its own");
 });
 
 test("the field's text sits on the field's own inset", async () => {

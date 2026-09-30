@@ -95,6 +95,7 @@ import { PluginTextView } from "./launcher/PluginTextView";
 import { PluginConfigOverlay } from "./plugins/PluginConfigOverlay";
 import { pluginConfigSchema } from "./plugins/config-schema";
 import { pluginViewInteractive, pluginViewPage, pluginViewRows } from "./launcher/plugin-mode";
+import { listSectionTitleCount } from "./launcher/list-sections";
 import { pluginFilterRowVisible } from "./launcher/filter-row";
 import { useFileDrops } from "./hooks/useFileDrops";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
@@ -105,6 +106,7 @@ import {
   pluginConfigContentHeight,
   launcherChromeHeight,
   launcherClosedHeight,
+  LAUNCHER_SECTION_TITLE_UNITS,
   launcherListUnits,
   launcherResultsCeiling,
   launcherWindowCap,
@@ -490,8 +492,6 @@ export default function App() {
   // shows an inline confirmation. Input Enter is inert; Escape cancels.
   const [pendingSystemAction, setPendingSystemAction] = useState<Extract<LauncherItem, { type: "system" }> | null>(null);
   useTimedReset(pendingSystemAction, () => setPendingSystemAction(null));
-  /** First-run onboarding tip: shown once in the launcher until dismissed. */
-  const [showOnboardingTip, setShowOnboardingTip] = useState(false);
   const [autostartUpdating, setAutostartUpdating] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
@@ -997,6 +997,60 @@ export default function App() {
     setHistoryIndex(-1);
   }, []);
 
+  // TEMPORARY DEV PROBE (remove)
+  const probeStateRef = useRef("");
+  useEffect(() => {
+    const w = window as unknown as { __floterProbe?: boolean };
+    if (w.__floterProbe) return;
+    w.__floterProbe = true;
+    const lines: string[] = [];
+    const log = (message: string) => {
+      lines.push(message);
+      void invoke("clipboard_write_text", { text: lines.join("\n") }).catch(() => undefined);
+    };
+    const measure = async (label: string) => {
+      const card = document.querySelector(".collapsed-card");
+      const scroller = document.querySelector(".launcher-results");
+      const rows = [...document.querySelectorAll<HTMLElement>('button[id^="launcher-option-"]')];
+      const box = scroller?.getBoundingClientRect();
+      let visible = 0;
+      let badged = 0;
+      let partial = 0;
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect();
+        const inside = box && rect.top >= box.top - 0.5 && rect.bottom <= box.bottom + 0.5;
+        const touches = box && rect.bottom > box.top + 0.5 && rect.top < box.bottom - 0.5;
+        if (inside) visible += 1;
+        if (touches && !inside) partial += 1;
+        if (inside && row.textContent && /⌘/.test(row.textContent)) badged += 1;
+      }
+      let real = -1;
+      try {
+        const size = await getCurrentWindow().innerSize();
+        const scale = await getCurrentWindow().scaleFactor();
+        real = Math.round(size.toLogical(scale).height);
+      } catch { real = -2; }
+      log(
+        `${label} ${probeStateRef.current} card=${card ? Math.round(card.getBoundingClientRect().height) : -1} native=${real} rows=${rows.length} visible=${visible} badged=${badged} partial=${partial}`,
+      );
+    };
+    setMode("collapsed");
+    void invoke("show_input").catch(() => undefined);
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      if (ticks > 60) { window.clearInterval(timer); log("timeout"); return; }
+      if (!document.querySelector(".collapsed-card__input")) return;
+      window.clearInterval(timer);
+      setTimeout(() => { enterPluginMode({ scope: "browser", kind: "all" }); }, 800);
+      setTimeout(() => void measure("browser"), 2600);
+      setTimeout(() => { setPluginMode(null); enterPluginMode({ scope: "clipboard", filter: "all" }); }, 3600);
+      setTimeout(() => void measure("clipboard"), 5400);
+      setTimeout(() => { setPluginMode(null); enterPluginMode({ scope: "browser", kind: "tabs" }); }, 6400);
+      setTimeout(() => void measure("tabs"), 8200);
+    }, 250);
+  }, []);
+
   /**
    * R33 · the unified configuration entry.
    *
@@ -1468,11 +1522,29 @@ export default function App() {
   //
   // R28 · the capability layer's display tier takes every number away: a list
   // that is there to be read, not run, has no `⌘N` to offer.
+  //
+  // R72 · the viewport is consulted only when the list **overflows** it. A list
+  // that fits the ten-slot budget is numbered purely in order, off the rendered
+  // rows themselves — the user's report is exactly the case where the
+  // measurement could not be trusted: 「list 在渲染时默认最大 10 行，正好 1 到 9 加上
+  // 0 … 不能出现图中两种情况，没有 super+n 快捷键可分配或没分配」, with a ten-row list
+  // showing one badge and nine rows with nothing because the scroll viewport had
+  // only been measured while the window was still growing (the report is
+  // deduplicated, so a stale range is sticky; and `requestAnimationFrame` stops
+  // firing altogether while the panel is not the active app, which is the
+  // accessory panel's normal state). A list that fits cannot be scrolled, so its
+  // rows are all visible by construction and the measurement adds nothing but
+  // risk. Past the budget the viewport rule stands, unchanged (R34).
+  const listOverflowsBudget = displayedResults.length > MAX_RESULTS;
   const displayedShortcutSlots = useMemo(
     () => pluginInteractive
-      ? resultShortcutSlots(displayedResults, displayedRunnableFlags, visibleResultRange)
+      ? resultShortcutSlots(
+          displayedResults,
+          displayedRunnableFlags,
+          listOverflowsBudget ? visibleResultRange : undefined,
+        )
       : displayedResults.map(() => null),
-    [displayedResults, displayedRunnableFlags, pluginInteractive, visibleResultRange],
+    [displayedResults, displayedRunnableFlags, pluginInteractive, listOverflowsBudget, visibleResultRange],
   );
 
   const {
@@ -1973,8 +2045,9 @@ export default function App() {
       ? pluginViewRows(pluginView)
       : displayedResults.length
     : 0;
-  const launcherChromeRows =
-    (showOnboardingTip && !launcherScope ? 1 : 0) + (launcherAlertRow ? 1 : 0);
+  // R73 · the first-run onboarding tip is gone (the user: 「搜索框下方的 欢迎使用的提醒
+  // 去掉，它在一些场景下影响到了布局」), so the alert row is the only chrome row left.
+  const launcherChromeRows = launcherAlertRow ? 1 : 0;
   // The tip is drawn *outside* the clip (see the JSX below), so it can be on
   // screen while the panel is closed: the row count and the unit total exist
   // then, they are just the chrome row's.
@@ -2016,11 +2089,26 @@ export default function App() {
   // compact rows — the shape an external command's `{ id, title }` direct output
   // takes — sat in a window 8u per row taller than its glass (and 12u per status
   // row). The text form keeps its band price: it is one block, not rows.
-  const launcherListContentUnits = pluginView
-    ? pluginView.form === "list"
-      ? launcherListUnits(pluginView.items.map(launcherRowHeightUnits))
-      : pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE
-    : launcherListUnits(displayedResults.map(launcherRowHeightUnits));
+  // R72 · a plugin **list** prices the *numbered viewport* — the first
+  // `MAX_RESULTS` rows, the ones the `⌘N` family can address — not every row the
+  // emission may be holding in its scroll buffer (see `pluginViewRows`). Sized
+  // from the buffer, the window was twenty rows tall and showed twelve at once,
+  // two of them with no number to give them.
+  // R72 · how many headings the list prints above its own blocks: the history
+  // group, a dropped file's group, an external plugin's `group` (see
+  // `list-sections.ts` for the one rule the renderer shares).
+  const launcherListSections = listSectionTitleCount(displayedResults);
+  const launcherListContentUnits =
+    (pluginView
+      ? pluginView.form === "list"
+        ? launcherListUnits(pluginView.items.slice(0, MAX_RESULTS).map(launcherRowHeightUnits))
+        : pluginViewRows(pluginView) * ROW_HEIGHT_TWO_LINE
+      : launcherListUnits(displayedResults.map(launcherRowHeightUnits))) +
+    // R72 · the headings the list prints above its own blocks are its content
+    // too — they live in the scroller with the rows — so they are charged here,
+    // in units. Drawn but never charged is how a list came to be a heading
+    // taller than the window holding it (and lost the bottom of its last row).
+    launcherListSections * LAUNCHER_SECTION_TITLE_UNITS;
   const launcherListUnitsRaw =
     (launcherPanelOpen ? launcherListContentUnits : 0) + launcherChromeUnits;
   // R43/R66 · the unit total is the content's own, at every instant. R43's
@@ -2130,20 +2218,6 @@ export default function App() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
-
-  // Show the first-run onboarding tip in the launcher the first time the user
-  // opens it; persist dismissal as `seen_tip` so it never returns.
-  useEffect(() => {
-    if (settingsLoading) return;
-    setShowOnboardingTip(!settings.seen_tip && mode === "collapsed");
-  }, [settingsLoading, settings.seen_tip, mode]);
-
-  const dismissOnboardingTip = useCallback(() => {
-    setShowOnboardingTip(false);
-    if (!settings.seen_tip) {
-      changeGeneralSetting("seen_tip", true);
-    }
-  }, [settings.seen_tip, changeGeneralSetting]);
 
   // The webview's built-in right-click menu must never appear, on any
   // surface. A capture-phase window listener covers every element including
@@ -2921,6 +2995,13 @@ export default function App() {
                 ? t("input.scanning")
                 : t("input.placeholder");
 
+    // TEMPORARY DEV PROBE (remove)
+    probeStateRef.current = `view=${
+      pluginView
+        ? `${pluginView.form}:${pluginView.form === "list" ? pluginView.items.length : pluginView.metrics.lines}`
+        : "null"
+    } scope=${launcherScope} h=${launcherHeight} rows=${launcherListRows} range=${visibleResultRange.start}-${visibleResultRange.end} slots=${displayedShortcutSlots.map((slot) => slot ?? "-").join("")}`;
+
     return (
       <>
         {toastHost}
@@ -3327,31 +3408,6 @@ export default function App() {
                     delete: formatShortcut(HISTORY_DELETE_SHORTCUT),
                   })}
                 </span>
-              </div>
-            )}
-            {/* First-run onboarding tip: a small dismissible banner shown above
-                the result area the first time the user opens the launcher. */}
-            {showOnboardingTip && !launcherScope && (
-              <div className="launcher-tip" role="status">
-                <div className="launcher-tip__body">
-                  <span className="launcher-tip__icon" aria-hidden="true">
-                    <Info size={14} strokeWidth={1.8} />
-                  </span>
-                  <div className="launcher-tip__text">
-                    <div className="launcher-tip__title">{t("launcher.tipTitle")}</div>
-                    <div className="launcher-tip__message">{t("launcher.tipMessage")}</div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="launcher-tip__dismiss"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    dismissOnboardingTip();
-                  }}
-                >
-                  {t("launcher.tipDismiss")}
-                </button>
               </div>
             )}
             {/* The clip controls visibility while the native window height follows

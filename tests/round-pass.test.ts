@@ -178,8 +178,6 @@ test("nested and inline shapes keep the ladder instead of the pill", async () =>
     // Content rows that scroll with their list.
     ["src/styles/launcher.css", ".launcher-result", /var\(--radius-md\)/, "result rows are content"],
     ["src/styles/launcher.css", ".launcher-action-bar", /var\(--radius-md\)/, "the action bar welds to the list above it"],
-    // Message surfaces, not controls.
-    ["src/styles/launcher.css", ".launcher-tip", /var\(--radius-sm\)/, "a dismissible callout is a message"],
     // Under the 28px pill threshold.
     ["src/styles/extensions.css", ".extension-discard-bar .extensions-action-button", /var\(--radius-xs\)/, "24px inline pair inside a notice bar"],
     ["src/styles/settings.css", ".shortcut-recorder", /var\(--radius-sm\)/, "27px recorder key sitting in a table row"],

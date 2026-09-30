@@ -5,6 +5,7 @@ import type { LocalApplication } from "../App";
 import { formatResultShortcut } from "../shortcuts";
 import { resultRowContent } from "./row-content";
 import { visibleRowRange, type RowSpan, type VisibleRowRange } from "./result-budget";
+import { listSectionStarts } from "./list-sections";
 import {
   Terminal as TerminalIcon,
   History as HistoryIcon,
@@ -491,6 +492,28 @@ export function LauncherResults({
   // badges only have to keep up with the paint. The fallback keeps the helper
   // drivable outside a WebView (the node suite has no `requestAnimationFrame`).
   const visibleReportFrame = useRef(0);
+  // R72 · a beat a throttled `requestAnimationFrame` cannot stall.
+  //
+  // The user's report, verbatim: 「list 在渲染时默认最大 10 行，正好 1 到 9 加上 0 …
+  // 不能出现图中两种情况，没有 super+n 快捷键可分配或没分配」. The measure below is
+  // what turns the visible rows into the `⌘N` slots, and it is scheduled on a
+  // frame — but a WebView whose panel is not the active app stops firing
+  // `requestAnimationFrame` altogether (the normal state of this accessory
+  // panel), so a measure armed mid-walk simply never ran: the family stayed
+  // mapped to the *previous* viewport, and a ten-row list showed one badge and
+  // nine rows with nothing. Every beat is armed on both clocks now — the frame
+  // where frames run, a short timer where they do not — and the double fire is
+  // harmless: the report is deduplicated against the last one.
+  const armMeasureBeat = (run: () => void) => {
+    const fire = () => {
+      visibleReportFrame.current = 0;
+      run();
+    };
+    if (typeof requestAnimationFrame === "function") {
+      visibleReportFrame.current = requestAnimationFrame(fire);
+    }
+    window.setTimeout(fire, 48);
+  };
   const measureVisibleRows = useCallback(() => {
     const list = resultsRef.current;
     if (!list || !onVisibleRowsChange) return;
@@ -500,16 +523,7 @@ export function LauncherResults({
     // while the edge moved and a numbered shortcut could land on nothing
     // (`列表项的快捷选择失效`). Wait the walk out and measure the still box.
     if (list.closest(".launcher-resizing")) {
-      if (!visibleReportFrame.current) {
-        const retry = () => {
-          visibleReportFrame.current = 0;
-          measureVisibleRows();
-        };
-        visibleReportFrame.current =
-          typeof requestAnimationFrame === "function"
-            ? requestAnimationFrame(retry)
-            : (setTimeout(retry, 16) as unknown as number);
-      }
+      if (!visibleReportFrame.current) armMeasureBeat(measureVisibleRows);
       return;
     }
     const listRect = list.getBoundingClientRect();
@@ -531,14 +545,8 @@ export function LauncherResults({
   }, [results, onVisibleRowsChange]);
   const scheduleVisibleRows = useCallback(() => {
     if (visibleReportFrame.current) return;
-    const run = () => {
-      visibleReportFrame.current = 0;
-      measureVisibleRows();
-    };
-    visibleReportFrame.current =
-      typeof requestAnimationFrame === "function"
-        ? requestAnimationFrame(run)
-        : (setTimeout(run, 16) as unknown as number);
+    armMeasureBeat(measureVisibleRows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [measureVisibleRows]);
   // Measure once per result set, in the layout pass, so the badges are correct
   // before the frame that first shows the new list paints.
@@ -610,6 +618,10 @@ export function LauncherResults({
   // read), so a 200-entry history never decodes 200 images. An id already
   // fetched or already in flight is skipped; the result is merged in one write
   // so a batch of thumbnails costs one repaint.
+  // R72 · which rows print a section heading above themselves, from the one
+  // shared rule (`list-sections.ts`) the App's band table charges from as well.
+  const sectionStarts = useMemo(() => listSectionStarts(results), [results]);
+
   const [clipboardThumbnails, setClipboardThumbnails] = useState<Record<string, string>>({});
   const thumbnailsRef = useRef(clipboardThumbnails);
   thumbnailsRef.current = clipboardThumbnails;
@@ -721,10 +733,6 @@ export function LauncherResults({
               (item.type === "plugin" && (item.disabled === true || item.action === undefined));
             const warnings = item.type === "command" ? item.warnings : [];
             const isHistory = item.type === "history";
-            // R7-10a: the dropped-file group. Both of its row kinds count, so
-            // the heading sits above the first file and the expander does not
-            // look like the start of a second group.
-            const isFileGroup = item.type === "file" || item.type === "file-more";
             // R12/R70: which of the two optional strings this row actually earns.
             // An application drops the right-hand type word entirely, and any
             // row whose subtitle is only its type word drops that too, so the
@@ -751,40 +759,16 @@ export function LauncherResults({
                 ? item.entry.result
                 : null;
             const deleteArmed = item.id === armedDeleteId && favoriteEntry !== undefined;
-            // The empty-query state stacks two sections inside a single result
-            // list: recents first, then the last few typed commands. The first
-            // history row gets the section title; later rows flow under it
-            // without their own heading.
-            const historySectionStartsHere =
-              isHistory && (index === 0 || results[index - 1].type !== "history");
-            // A drop prepends one section of its own. Only when it is the first
-            // row, so a future composition that puts recents above the drop
-            // does not print two headings in a row.
-            const filesSectionStartsHere =
-              isFileGroup && (index === 0 || !["file", "file-more"].includes(results[index - 1].type));
-            // R26-B · the Tabs group sits below bookmarks and history and gets
-            // its own heading; the heading is printed once, above the first tab
-            // row, so the group reads as one block rather than three.
-            const browserTabsSectionStartsHere =
-              item.type === "browser" &&
-              Boolean(item.tab) &&
-              !(
-                index > 0 &&
-                results[index - 1].type === "browser" &&
-                Boolean((results[index - 1] as Extract<LauncherItem, { type: "browser" }>).tab)
-              );
-            // R39 · an external plugin may group its rows: the first row of a
-            // `group` prints the group's name as a section heading, exactly the
-            // way the tabs group above does. Consecutive rows sharing a group
-            // print it once.
-            const pluginGroupStartsHere =
-              item.type === "plugin" &&
-              Boolean(item.group) &&
-              !(
-                index > 0 &&
-                results[index - 1].type === "plugin" &&
-                (results[index - 1] as Extract<LauncherItem, { type: "plugin" }>).group === item.group
-              );
+            // R72 · the heading above this row, if it starts a block. The four
+            // rules (history / dropped files / the browser's tabs / an external
+            // plugin's `group`) live in `list-sections.ts` now, shared with the
+            // band table that has to charge each heading's height — they used to
+            // live here alone, which is how a list came to be drawn a heading
+            // taller than the window holding it (`App.tsx`'s `launcherListSections`).
+            const section = sectionStarts[index] ?? null;
+            const historySectionStartsHere = section === "history";
+            const filesSectionStartsHere = section === "files";
+            const pluginGroupStartsHere = section === "pluginGroup";
             return (
               <Fragment key={item.id}>
                 {historySectionStartsHere && (
@@ -803,15 +787,6 @@ export function LauncherResults({
                     title={t("launcher.filesHint")}
                   >
                     {t("launcher.files")}
-                  </div>
-                )}
-                {browserTabsSectionStartsHere && (
-                  <div
-                    className="launcher-section-title"
-                    role="presentation"
-                    title={t("browserPage.tabsHint")}
-                  >
-                    {t("browserPage.tabs")}
                   </div>
                 )}
                 {pluginGroupStartsHere && item.type === "plugin" && (

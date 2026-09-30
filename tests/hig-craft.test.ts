@@ -420,7 +420,9 @@ test("the action bar's selection is the neutral raised pane, not an accent block
   // The row above it keeps the accent, so the panel still says which row is
   // chosen with the one colour it is allowed.
   const row = rules(launcher).find(({ selector }) => selector === ".launcher-result--selected");
-  assert.match(row!.body, /background:\s*var\(--glass-raised\)/);
+  // R72 · the row's fill is `--accent-tint-quiet` now — the same accent family,
+  // one rung down, with the 700-weight title carrying the emphasis.
+  assert.match(row!.body, /background:\s*var\(--accent-tint-quiet\)/);
   // …and the `⌘↩` badge that says "this runs on Enter" is untouched.
   assert.ok(
     rules(launcher).some(({ selector }) => selector === ".launcher-action-bar__hint"),

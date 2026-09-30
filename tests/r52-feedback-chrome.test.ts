@@ -74,8 +74,8 @@ test("R52 · the plugin branch charges the chrome row like the ordinary one", as
   );
   assert.match(
     app,
-    /pluginView\.form === "list"[\s\S]{0,90}launcherListUnits\(pluginView\.items\.map\(launcherRowHeightUnits\)\)/,
-    "a plugin list prices each row at its own height",
+    /pluginView\.form === "list"[\s\S]{0,140}launcherListUnits\(pluginView\.items\.slice\(0, MAX_RESULTS\)\.map\(launcherRowHeightUnits\)\)/,
+    "a plugin list prices each row at its own height — over its numbered viewport (R72)",
   );
   assert.match(
     app,
@@ -156,8 +156,8 @@ test("R52 · a plugin scope with feedback is never shorter than its content", as
     false,
     true,
   );
-  assert.equal(content, 252, "the calculator scene draws 252px");
-  assert.equal(window, 263, "…and the window is the 263px slab that holds it");
+  assert.equal(content, 244, "the calculator scene draws 244px");
+  assert.equal(window, 255, "…and the window is the 255px slab that holds it");
 
   // The old formula — only the plugin's own rows — is what the report saw: a
   // window 29px short, which is the clipped row and the ghost band.
@@ -170,7 +170,7 @@ test("R52 · a plugin scope with feedback is never shorter than its content", as
     false,
     true,
   );
-  assert.equal(buggy, 223, "the pre-R52 window was 223px");
+  assert.equal(buggy, 215, "the pre-R52 window was 215px");
   assert.ok(buggy < content, "…which is 29px short of the 252px it had to hold");
 });
 

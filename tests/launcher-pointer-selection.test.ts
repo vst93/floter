@@ -123,8 +123,10 @@ test("one highlight: no pointer-only pane survives on a row", async () => {
     "a hover-only background is a second highlight: the hovered row is the selected row now",
   );
   // …and the selected row is still the one thing that says "this runs on Enter".
+  // R72 · its fill is the quiet accent rung; the row's 700-weight title is the
+  // louder half of the same signal.
   const selected = rule(css, ".launcher-result--selected");
-  assert.match(selected!.body, /background:\s*var\(--glass-raised\)/);
+  assert.match(selected!.body, /background:\s*var\(--accent-tint-quiet\)/);
 });
 
 test("the keyboard and the pointer write the same selection, and nothing else holds one", async () => {

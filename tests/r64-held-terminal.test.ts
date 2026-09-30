@@ -265,12 +265,14 @@ test("the featured CSS is deleted, so the row is a plain system row", async () =
 
 test("no accent was bought for the row: the ordinary result surface is untouched", async () => {
   const css = await read("src/styles/launcher.css");
-  // The selected rule is the plain accent tint and nothing else, with no featured
+  // The selected rule is one plain accent tint and nothing else, with no featured
   // composition left dangling after the deletion. R70 · the ring that used to
-  // ride beside the tint is gone too (「现在的圆角线框有点别扭」).
+  // ride beside the tint is gone too (「现在的圆角线框有点别扭」). R72 · the tint is
+  // the quiet rung (`--accent-tint-quiet`) because the row's own 700-weight title
+  // carries the selection now.
   assert.match(
     css.slice(css.indexOf(".launcher-result--selected {")),
-    /background: var\(--glass-raised\);\s*box-shadow: none;/,
-    "the selected row is the ordinary tint, with no ring",
+    /background: var\(--accent-tint-quiet\);\s*box-shadow: none;/,
+    "the selected row is the ordinary tint, one rung down, with no ring",
   );
 });

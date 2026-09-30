@@ -97,6 +97,18 @@
   flex-direction: column;
   align-items: stretch;
   padding: 0;
+  /* R72 · **one** edge: this border, and nothing else.
+     The card used to draw two — this 1px stroke and then `--glass-rim-shadow`'s
+     inset rim (a 15% lit top, a 28% dark bottom, 4% sides) just inside it: one
+     line inside the other, which the user read twice — first as 「两层边框叠在一
+     起」, then, when the border was hidden and only the rim was left, as
+     「输入框和 tab 选择部分都多了一层边框」 (the rim's highlight and its side
+     whispers run right beside the field and the chips, where they read as a frame
+     around *them* rather than around the window). So the border stays — a plain
+     1px stroke, the same one the field's own inset uses — and the rim is gone
+     from this card. Its lit top edge is not missed: the card is its own floating
+     window and its fill is what separates it from the desktop; the rim belongs to
+     the sheets that sit *on* a surface. */
   border: 1px solid var(--input-stroke);
   border-radius: var(--window-radius);
   /* One sheet of glass: the top-down rim highlight, then the tinted fill
@@ -107,9 +119,6 @@
   background:
     linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
     var(--launcher-tint);
-  /* One token carries the whole border: lit top, dark bottom, faint sides.
-     See `--glass-rim-shadow` in base.css. */
-  box-shadow: var(--glass-rim-shadow);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   user-select: none;
@@ -118,13 +127,11 @@
 }
 
 .collapsed-card:focus-within {
+  /* Focus is the same single edge, one step lit. */
   border-color: var(--input-stroke-active);
   background:
     linear-gradient(180deg, var(--sheen-top-active), var(--sheen-bottom-active)),
     var(--launcher-tint);
-  /* Inward, like every other edge here: a ring drawn outside the card lands
-     outside the window and is clipped away, corners first. */
-  box-shadow: var(--glass-rim-shadow-active);
 }
 
 .collapsed-card:active {
@@ -448,11 +455,17 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 14);
-  min-height: calc(var(--u) * 24);
+  min-height: calc(var(--u) * 18);
   padding: 0 calc(var(--u) * 16);
   /* The breath below the subline; the 4u above it is the field row's own
-     `margin-bottom` (see `.collapsed-card__input-row`). */
-  margin-bottom: calc(var(--u) * 4);
+     `margin-bottom` (see `.collapsed-card__input-row`).
+     R72 · halved to 2u: the user read the band under the chips as slack —
+     「搜索框下方的 tab 切换项底部 padding 稍微小点，感觉整体空白多了些」. What sits
+     below it is the scroller's own 4px scroll-edge plus the first row's leading,
+     so 4u here read as a full extra gap rather than as the seam between the
+     chips and the list. `LAUNCHER_FILTER_UNITS` charges the same 2u less, so the
+     drawn band and the window band stay one decision (see `result-budget.ts`). */
+  margin-bottom: calc(var(--u) * 2);
   user-select: none;
 }
 
@@ -474,6 +487,31 @@
   line-height: 1.4;
   color: var(--text-tertiary);
   white-space: nowrap;
+}
+
+/* R72 · the launcher's list has **no scrollbar at all**.
+   The user's decision, after two rounds of the bar refusing to sit flush: 「A」 —
+   「启动器列表不要滚动条（列表仍可用滚轮/触控板/↑↓ 滚动），视觉上彻底没有'贴不贴边'
+   的问题」. It is the direction this surface was already walking — the bar only
+   ever appeared on hover, and the list is driven by the keyboard (↑/↓ move the
+   selection, the selection scrolls itself into view) and by the wheel/trackpad.
+   Nothing is lost, and the card's edge stays one clean line.
+
+   `scrollbar-width: none` is the standard property (Firefox, and WebKit honours
+   it in recent versions); the `::-webkit-scrollbar` rule covers the rest. The
+   scroller keeps `overflow-y: auto` — scrolling still works, it is only the bar
+   that is gone. */
+/* R72 · the bar is back (「没有滚动条还是不行」) and it hugs the card's edge:
+   base.css's global thumb is a *pill* centred in its 6u track, which reads as a
+   capsule floating just inside the frame here — the scroller is the card's full
+   width, so the thumb keeps the 6u, drops the rounding on the edge the window's
+   own border closes, and its track stays transparent (base.css). */
+.launcher-results::-webkit-scrollbar {
+  width: calc(var(--u) * 6);
+}
+
+.launcher-results::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-xs) 0 0 var(--radius-xs);
 }
 
 /* R48 · the trigger hint, *inline in the field row*.
@@ -532,17 +570,23 @@
   text-overflow: ellipsis;
 }
 
+/* R72 · no underline under the active chip. The user: 「可以整体再高度小一点，再轻
+   一些，比如删掉选中项的底部下划线」. A 1px `--text-primary` rule under an
+   already-bolder, already-primary label was the heaviest mark in the band, and
+   it cost the chip a 2u bottom padding plus a min-height of its own: the state is
+   carried by colour and weight alone now, exactly as the result rows' selection
+   is by weight (R72's own step, one band up). The row is 18u — the chips' own
+   body line box, no padding — and the chip sits on its centre. */
 .launcher-filter__chip {
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 0 0 calc(var(--u) * 2);
+  padding: 0;
   font: inherit;
   font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.4;
   color: var(--text-muted);
-  border-bottom: 1px solid transparent;
   cursor: pointer;
 }
 
@@ -553,7 +597,6 @@
 .launcher-filter__chip--active {
   color: var(--text-primary);
   font-weight: 640;
-  border-bottom-color: var(--text-primary);
 }
 
 .launcher-filter__chip:focus-visible {
@@ -583,7 +626,13 @@
      on the R20 build (714x475 window): 12px of card below the last glyph; with
      the tail at 2u it is 10px, and what is left is the row's own leading — a
      property of the row, not of the panel. */
-  padding: calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 2);
+  /* R72 · no horizontal inset of its own: the scroller inside is the card's full
+     width, so its scrollbar can hug the window's edge (「滚动条贴边」). The 4u the
+     panel used to give every block lives on the blocks themselves now — the rows
+     (inside the scroller) and the bar/status/footer/alert rows beside it — which
+     keeps the text column exactly where it was (4u + the block's own 12u = 16u)
+     and keeps a selected row's tint off the card's edge. */
+  padding: calc(var(--u) * 4) 0 calc(var(--u) * 2);
   background: var(--surface-sunken);
 }
 
@@ -708,105 +757,6 @@
   outline-offset: 1px;
 }
 
-/* First-run onboarding tip: a small dismissible callout shown above the
-   launcher's result area the first time the user opens the launcher. */
-.launcher-tip {
-  min-height: calc(var(--u) * 34);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--u) * 8);
-  padding: calc(var(--u) * 4) calc(var(--u) * 16);
-  /* ROUND-PASS exception: a dismissible first-run callout is a message
-     surface, not a control, and its height is content-driven. It keeps the
-     ladder's control step (raised to 9px this round). */
-  border-radius: var(--radius-sm);
-  /* A first-run hint the user dismisses, not a primary action: a neutral
-     raised pane, edge and all. R18 takes the last accent off it (the keyline
-     used to be `--accent-edge`) so the panel's colour budget is exactly two
-     marks — the selected row's tint + keyline, and the caret — as the
-     reference's palette is. */
-  background: var(--glass-raised-quiet);
-  border: 1px solid var(--glass-control-edge);
-  box-shadow: var(--elev-0);
-  color: var(--text-secondary);
-  font-size: var(--text-body);
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.launcher-tip__body {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 8);
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.launcher-tip__icon {
-  flex: 0 0 auto;
-  width: calc(var(--u) * 18);
-  height: calc(var(--u) * 18);
-  display: grid;
-  place-items: center;
-  /* The glyph is a mark on a message, not an action: strong, not accent. */
-  color: var(--text-strong);
-}
-
-.launcher-tip__text {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.launcher-tip__title {
-  color: var(--text-strong);
-  font-size: var(--text-body);
-  font-weight: 600;
-}
-
-.launcher-tip__message {
-  color: var(--text-muted);
-  font-size: var(--text-caption);
-  font-weight: 450;
-}
-
-.launcher-tip__dismiss {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: calc(var(--u) * 22);
-  padding: 0 calc(var(--u) * 10);
-  border: 1px solid var(--stroke-control, var(--hairline));
-  border-radius: var(--radius-xs);
-  background: var(--glass-control);
-  color: var(--text-secondary);
-  font-size: var(--text-caption);
-  font-weight: 600;
-  cursor: pointer;
-  transition: color var(--dur-2) ease, background var(--dur-2) ease, border-color var(--dur-2) ease;
-}
-
-@media (hover: hover) {
-
-.launcher-tip__dismiss:hover {
-  background: var(--glass-control-hover);
-  color: var(--text-primary);
-  border-color: var(--glass-control-edge);
-}
-}
-
-.launcher-tip__dismiss:active {
-  background: var(--glass-control-press);
-}
-
-.launcher-tip__dismiss:focus-visible {
-  outline: var(--focus-ring-width) solid var(--accent-ring);
-  outline-offset: 1px;
-}
-
 .launcher-system-confirm {
   min-height: calc(var(--u) * 30);
   display: flex;
@@ -879,6 +829,24 @@
 }
 }
 
+/* R72 · the panel's 4u inset, one level down: the blocks beside the scroller
+   carry it as a margin, and the scroller's own children are *narrowed and
+   centred* instead — a grid item with a margin is wider than its track and makes
+   the scroller overflow sideways (the user's 「列表页怎么还出现了横向滚动条，这太离
+   谱了」: `margin` on a `1fr` track = a horizontal bar across the list). A width of
+   `100% - 8u` centred in the track gives the same 4u a side without ever
+   exceeding it. The scroller itself stays edge to edge, so its scrollbar hugs the
+   card. */
+.launcher-bottom > :not(.launcher-results) {
+  margin-left: calc(var(--u) * 4);
+  margin-right: calc(var(--u) * 4);
+}
+
+.launcher-results > * {
+  width: calc(100% - calc(var(--u) * 8));
+  justify-self: center;
+}
+
 .launcher-results {
   display: grid;
   gap: 1px;
@@ -922,6 +890,7 @@
   );
   overflow-y: auto;
   overscroll-behavior: contain;
+
   scrollbar-color: var(--scrollbar-thumb) transparent;
   /* R31 · the scroller reserves the band's own height as top padding, but paints
      no band.
@@ -1178,8 +1147,19 @@
      list (a browser/clipboard/calculator row has never carried a ring). The
      action bar's own selection keeps `--glass-raised-quiet` plus its rim — it is
      the one row that is *not* a result, and the neutral rim is what
-     distinguishes it. */
-  background: var(--glass-raised);
+     distinguishes it.
+
+     R72 · and the tint steps down one rung: `--glass-raised` *is* `--accent-tint`
+     (13% accent), which was carrying the selection on its own. Now that the row's
+     own type does it — the title at 700 (「选中项再加粗些」) — the tint only has to
+     *place* the row, not announce it, so it is `--accent-tint-quiet` — a third of
+     a rung below `--accent-tint`, named in base.css for exactly this job (the
+     retired `--accent-wash` is banned from this sheet, see the seam suite). Same
+     hue, same family (the accent census still counts it as this view's one tinted
+     face), less fill: the emphasis is the weight and the fill
+     is the pointer's echo, which is the balance the action bar has had since
+     R14. The one edge that remains on the row is still nothing at all. */
+  background: var(--accent-tint-quiet);
   box-shadow: none;
 }
 
@@ -1359,6 +1339,24 @@
   line-height: 1.2;
 }
 
+/* R72 · the selected row is *bolder* — not outlined, not lifted. The user:
+   「再美化下，比如选中项加粗」. R70 had taken the ring off the selection and left
+   the tint to carry it alone; against ten rows of the same weight that read as a
+   hover rather than as the row Enter is about to run. The emphasis is the weight
+   step every other chosen thing in the app already uses (640 — the active chip's
+   own), on the two text registers and the key hint, so the selection is legible
+   from the type instead of from a third line or a second shadow. The row's box is
+   unchanged: the title's line box is fixed, so the list cannot resize on arrow
+   keys. */
+.launcher-result--selected .launcher-result__title {
+  font-weight: 700;
+}
+
+.launcher-result--selected .launcher-result__subtitle {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
 .launcher-result__subtitle {
   color: var(--text-muted);
   font-size: var(--text-body);
@@ -1489,7 +1487,7 @@
 }
 
 .launcher-result--selected .launcher-result__action {
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .launcher-result:not(.launcher-result--unavailable):active {

@@ -72,10 +72,73 @@ pub fn query_history_file(
     if !source.is_file() {
         return Err(format!("no history file at {source:?}"));
     }
+    // R72 · the copy is cached per source, keyed on the source's own signature —
+    // its length and mtime, plus the `-wal`\'s, since that is where the browser
+    // writes commits between checkpoints. The user\'s report: 「书签插件是不是很吃
+    // 内存，打开后突出出现明显的短暂卡顿」. It is not memory, it is this copy: a
+    // History database is tens to hundreds of megabytes (34 MB on the machine the
+    // report came from) and every fetch — opening the plugin, every chip switch —
+    // copied it into a temp directory before it could run one query. One copy per
+    // *signature* is enough: the browser holds the write lock, so the bytes only
+    // change when it checkpoints or writes, and either moves the mtime.
+    let signature = history_signature(source);
+    if let Ok(guard) = HISTORY_COPY.lock() {
+        if let Some(entry) = guard.as_ref() {
+            if entry.source == source && entry.signature == signature {
+                let copy = entry.copy.clone();
+                drop(guard);
+                return query_history_database(&copy, query, limit, days);
+            }
+        }
+    }
     let temp = tempfile::tempdir().map_err(|error| format!("no temp dir: {error}"))?;
     let copy = temp.path().join("History");
     copy_database(source, &copy)?;
+    // The `TempDir` rides in the cache so the copy it made stays on disk; a
+    // later signature replaces it and the old directory deletes itself.
+    if let Ok(mut cache) = HISTORY_COPY.lock() {
+        *cache = Some(HistoryCopy {
+            source: source.to_path_buf(),
+            signature,
+            copy: copy.clone(),
+            _temp: temp,
+        });
+    }
     query_history_database(&copy, query, limit, days)
+}
+
+/// One source\'s `(length, mtime)` pair — the main database and its `-wal`.
+type HistorySignature = ((u64, Option<std::time::SystemTime>), (u64, Option<std::time::SystemTime>));
+
+fn history_signature(source: &Path) -> HistorySignature {
+    let stat = |path: PathBuf| {
+        std::fs::metadata(path)
+            .map(|meta| (meta.len(), meta.modified().ok()))
+            .unwrap_or((0, None))
+    };
+    let wal = PathBuf::from(format!("{}-wal", source.display()));
+    (stat(source.to_path_buf()), stat(wal))
+}
+
+/// The one cached copy. A single slot: the launcher reads one profile\'s history
+/// at a time, so an LRU would only ever hold one live entry anyway.
+static HISTORY_COPY: std::sync::Mutex<Option<HistoryCopy>> = std::sync::Mutex::new(None);
+
+struct HistoryCopy {
+    source: PathBuf,
+    signature: HistorySignature,
+    copy: PathBuf,
+    /// Held for the cache\'s lifetime: dropping a `TempDir` deletes the copy.
+    _temp: tempfile::TempDir,
+}
+
+/// Drop the cached copy. The node-less test suite drives this module over
+/// fixtures it edits in place, so a test asks for a clean slate explicitly.
+#[cfg(test)]
+pub fn clear_history_copy_cache() {
+    if let Ok(mut cache) = HISTORY_COPY.lock() {
+        *cache = None;
+    }
 }
 
 /// Query an already-copied database. Kept separate from

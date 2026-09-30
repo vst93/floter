@@ -44,7 +44,10 @@ const stripJsComments = (src: string) =>
 const FRAME = 2;
 const FIELD = 56;
 const BREATH = 4;
-const CHIPS = 24 + 4;
+// R72 · the chips band: the 22u row (its underline is gone, so is the 2u the
+// chip spent on it) plus the 2u breath below it. `LAUNCHER_FILTER_UNITS` is the
+// module's twin of this number.
+const CHIPS = 18 + 2;
 const PANEL_TOP = 4;
 const PANEL_TAIL = 2;
 const SCROLL_EDGE = 4;
@@ -339,7 +342,11 @@ test("R68 · the numbered slots are not renumbered from a mid-walk viewport", as
     /if \(list\.closest\("\.launcher-resizing"\)\) \{[\s\S]{0,600}?return;/,
     "the visible-range measure waits the walk out",
   );
-  assert.match(row, /measureVisibleRows\(\);\s*\};/, "…by retrying it once the walk has ended");
+  assert.match(
+    row,
+    /if \(!visibleReportFrame\.current\) armMeasureBeat\(measureVisibleRows\);/,
+    "…by retrying it once the walk has ended",
+  );
 });
 
 test("R69 · an empty page with nothing below the field is the field band alone", async () => {

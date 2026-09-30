@@ -672,6 +672,12 @@
   --accent: #8fb7ff;
   --accent-contrast: #15171b;
   --accent-tint: rgba(143, 183, 255, 0.13);
+  /* R72 · one rung below `--accent-tint`, for a selection whose emphasis is the
+     type rather than the fill (the launcher's rows: a 700-weight title says
+     "this runs on Enter" and the fill only has to *place* the row). Named rather
+     than reusing the retired `--accent-wash`, which read as a smear and is banned
+     from the launcher sheet by its own tests. */
+  --accent-tint-quiet: rgba(143, 183, 255, 0.085);
   --accent-tint-hover: rgba(143, 183, 255, 0.19);
   --accent-edge: rgba(143, 183, 255, 0.3);
   --accent-edge-strong: rgba(143, 183, 255, 0.72);
@@ -869,6 +875,7 @@
   --accent: #064aa6;
   --accent-contrast: #f7f9ff;
   --accent-tint: rgba(6, 74, 166, 0.1);
+  --accent-tint-quiet: rgba(6, 74, 166, 0.065);
   --accent-tint-hover: rgba(6, 74, 166, 0.16);
   --accent-edge: rgba(6, 74, 166, 0.36);
   --accent-edge-strong: rgba(6, 74, 166, 0.68);

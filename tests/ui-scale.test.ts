@@ -214,7 +214,6 @@ const SAMPLES: [string, string, string, string][] = [
   // value, and the height above is unchanged — this round moves insets only.
   ["src/styles/launcher.css", ".launcher-action-bar", "padding", "0 12px"],
   ["src/styles/launcher.css", ".launcher-action-bar", "margin-top", "3px"],
-  ["src/styles/launcher.css", ".launcher-tip", "padding", "4px 16px"],
   ["src/styles/launcher.css", ".launcher-action-bar__hint", "padding", "2px 6px"],
   // settings.css
   ["src/styles/settings.css", ".settings-card__header", "height", "56px"],

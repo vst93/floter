@@ -243,5 +243,5 @@ test("R48 · the App renders the hint inline in the field row", async () => {
   assert.match(app, /t\("launcher\.triggerHintMore"/);
   // The filter row's own height is the module's constant, not a second number.
   const budget = stripJsComments(await read("src/launcher/result-budget.ts"));
-  assert.match(budget, /LAUNCHER_FILTER_UNITS = 28/);
+  assert.match(budget, /LAUNCHER_FILTER_UNITS = 20/);
 });

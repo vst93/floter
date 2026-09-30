@@ -78,6 +78,24 @@ pub fn mac_app_name(browser_id: &str) -> Option<&'static str> {
 /// for the window's active tab. Titles may themselves contain a tab (they come
 /// from page markup), so the reader splits on the first four separators only —
 /// the title keeps the rest of the line verbatim.
+///
+/// Two things about this source are load-bearing and were both wrong:
+///
+/// * **no reserved word as a variable name.** The script used to hold the
+///   window's active tab index in a variable called `at` — and `at` is one of
+///   AppleScript's prepositions (a *parameter name*, the same class as `from`,
+///   `of`, `in`), so the compiler rejected the whole file:
+///   `syntax error: expected expression but found parameter name (-2741)`. The
+///   command therefore failed on every macOS machine, every time: the 标签页
+///   group was never populated, and the failure was invisible because the
+///   reader is soft-failing by design. `R71` renamed it; the index is only ever
+///   compared with a tab number, so the name is local and unobservable.
+/// * **no `tell application "X"` without a running check.** Sending an Apple
+///   Event to a quit application *launches it*: summoning the launcher's browser
+///   plugin (whose default view reads live tabs) opened the user's browser as a
+///   side effect, and a cold launch is also what made the read slow enough to
+///   matter. `application "X" is running` asks the same question without an
+///   event, and the sentinel tells the caller why the payload is empty.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn applescript_list_tabs(app_name: &str) -> String {
     let sep = "(ASCII character 9)";
@@ -87,16 +105,17 @@ pub fn applescript_list_tabs(app_name: &str) -> String {
             "set sep to {sep}\n",
             "set eol to {eol}\n",
             "set out to \"\"\n",
+            "if not (application \"{app}\" is running) then return \"{sentinel}\"\n",
             "tell application \"{app}\"\n",
             "  set wi to 0\n",
             "  repeat with w in windows\n",
             "    set wi to wi + 1\n",
-            "    set at to active tab index of w\n",
+            "    set activeIndex to active tab index of w\n",
             "    set ti to 0\n",
             "    repeat with t in tabs of w\n",
             "      set ti to ti + 1\n",
             "      set flag to \"0\"\n",
-            "      if ti is at then set flag to \"1\"\n",
+            "      if ti is activeIndex then set flag to \"1\"\n",
             "      set out to out & wi & sep & ti & sep & flag & sep & (URL of t) & sep & (title of t) & eol\n",
             "    end repeat\n",
             "  end repeat\n",
@@ -106,8 +125,17 @@ pub fn applescript_list_tabs(app_name: &str) -> String {
         sep = sep,
         eol = eol,
         app = app_name,
+        sentinel = APPLESCRIPT_NOT_RUNNING,
     )
 }
+
+/// What [`applescript_list_tabs`] returns when the browser is not running.
+///
+/// A single line with no separators, so [`parse_applescript_tabs`] reads it as
+/// no tabs whatever happens; [`fetch_tabs_macos`] checks for it to report *why*
+/// the tab group is empty ("not running" rather than "no open windows").
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub const APPLESCRIPT_NOT_RUNNING: &str = "__floter_browser_not_running__";
 
 /// The AppleScript that focuses one tab.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -393,6 +421,12 @@ fn fetch_tabs_macos(browser_id: &str) -> Result<Vec<BrowserTab>, String> {
         .ok_or_else(|| format!("no AppleScript reader for browser {browser_id}"))?;
     let source = applescript_list_tabs(app);
     let output = run_with_timeout("osascript", &["-e", &source], FETCH_TIMEOUT)?;
+    // R71 · the script answers with a sentinel when the browser is not running,
+    // so an empty tab group can say *why* it is empty — and, more importantly,
+    // so reading tabs never launches the browser (see `applescript_list_tabs`).
+    if output.trim() == APPLESCRIPT_NOT_RUNNING {
+        return Err(format!("{app} is not running"));
+    }
     let tabs = parse_applescript_tabs(browser_id, &output);
     if tabs.is_empty() {
         return Err(format!("{app} has no open windows"));
@@ -556,6 +590,35 @@ mod tests {
         assert!(source.contains("tell application \"Google Chrome\""));
         assert!(source.contains("active tab index of w"));
         assert!(source.contains("(ASCII character 9)"));
+    }
+
+    /// R71 · the two defects that made the macOS tab read fail on every machine:
+    /// a reserved word used as a variable name, and a `tell application "X"`
+    /// that launches the browser to ask it a question.
+    #[test]
+    fn the_applescript_source_avoids_reserved_words_and_running_apps() {
+        let source = applescript_list_tabs("Google Chrome");
+        // `at` is an AppleScript *parameter name* (a preposition), so
+        // `set at to …` is a compile error: the whole script was rejected and
+        // the tab group was never populated. The index lives in a plain name.
+        assert!(
+            !source.contains("set at to") && !source.contains("is at then"),
+            "`at` is reserved: AppleScript refuses the whole script"
+        );
+        assert!(source.contains("set activeIndex to active tab index of w"));
+        assert!(source.contains("if ti is activeIndex then"));
+        // `tell application "X"` to a quit app launches it; the running check
+        // asks the same question by name and answers with the sentinel.
+        assert!(source.contains("application \"Google Chrome\" is running"));
+        assert!(source.contains(APPLESCRIPT_NOT_RUNNING));
+    }
+
+    #[test]
+    fn the_not_running_sentinel_is_not_a_tab() {
+        // The sentinel has no separators, so it can never be parsed into a row
+        // — a payload of it is an empty list, and `fetch_tabs_macos` reads it
+        // as "not running" rather than "no open windows".
+        assert!(parse_applescript_tabs("chrome", APPLESCRIPT_NOT_RUNNING).is_empty());
     }
 
     #[test]

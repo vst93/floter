@@ -206,7 +206,15 @@ test("R34 · the scroller re-measures on scroll and App feeds the slots from it"
     "the component measures the scroller and hands it to the pure range function",
   );
   assert.match(renderer, /onScroll=\{\(event\) => \{[\s\S]*?scheduleVisibleRows\(\)/, "every scroll re-measures");
-  assert.match(renderer, /requestAnimationFrame\(run\)/, "the re-measure is frame-throttled");
+  // R72 · a *beat*, not a frame alone: `requestAnimationFrame` stops firing
+  // while the panel is not the active app, and a measure that never runs leaves
+  // the `⌘N` family on the previous viewport (one badge on a ten-row list).
+  assert.match(renderer, /armMeasureBeat\(measureVisibleRows\)/, "the re-measure goes through the shared beat");
+  assert.match(
+    renderer,
+    /visibleReportFrame\.current = requestAnimationFrame\(fire\);\s*\}\s*window\.setTimeout\(fire, 48\)/,
+    "…armed on the frame clock and on a timer",
+  );
   assert.match(
     renderer,
     /onVisibleRowsChange\(range\)/,
@@ -220,10 +228,13 @@ test("R34 · the scroller re-measures on scroll and App feeds the slots from it"
     /const \[visibleResultRange, setVisibleResultRange\] = useState<VisibleRowRange>/,
     "App holds the reported viewport",
   );
+  // R72 · from the viewport *when the list overflows it*: a list that fits the
+  // ten-slot budget is numbered in order off its own rows, since a viewport
+  // report can be stale and a list that fits cannot be scrolled.
   assert.match(
     app,
-    /resultShortcutSlots\(displayedResults, displayedRunnableFlags, visibleResultRange\)/,
-    "the slots are computed from the viewport",
+    /resultShortcutSlots\(\s*displayedResults,\s*displayedRunnableFlags,\s*listOverflowsBudget \? visibleResultRange : undefined,\s*\)/,
+    "the slots are computed from the viewport (past the budget)",
   );
   assert.match(app, /onVisibleRowsChange=\{setVisibleResultRange\}/, "and the scroller feeds it");
 });

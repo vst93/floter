@@ -640,8 +640,8 @@ test("R43 · the window follows the list's real row heights, not count × 42", a
   );
   assert.equal(
     launcherContentHeight(10 * ROW_HEIGHT_TWO_LINE, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT, true, false, true),
-    554,
-    "with a chips row the ten two-line rows are 554px — 9px under the R25 ceiling",
+    546,
+    "with a chips row the ten two-line rows are 546px — 17px under the R25 ceiling",
   );
   const tenCompact = launcherContentHeight(10 * ROW_HEIGHT_COMPACT, MAX_RESULTS, 1, LAUNCHER_WINDOW_HEIGHT);
   assert.equal(tenCompact, 460, "ten compact rows are 460px, 80u under the two-line page");

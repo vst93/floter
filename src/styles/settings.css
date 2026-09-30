@@ -222,7 +222,10 @@
 .settings-content {
   min-width: 0;
   min-height: 0;
-  padding: 16px calc(var(--u) * 18) calc(var(--u) * 22);
+  /* R72 · the horizontal padding lives on the blocks, not on the scroller, so the
+     scrollbar hugs the panel's edge (「设置页面的滚动条也还是没有贴边」). The
+     content column is unchanged: each block carries the 18u the scroller used to. */
+  padding: 16px 0 calc(var(--u) * 22);
   display: grid;
   align-content: start;
   gap: calc(var(--u) * 18);
@@ -243,6 +246,12 @@
      reserved for surfaces that appear over other content (`motion.md`:
      brief and precise feedback). */
   animation: settings-page-enter var(--dur-3) var(--ease-out);
+}
+
+/* R72 · the scroller's own horizontal inset, on its blocks. */
+.settings-content > * {
+  padding-left: calc(var(--u) * 18);
+  padding-right: calc(var(--u) * 18);
 }
 
 @keyframes settings-page-enter {

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { reassertCollapsedFocus } from "../collapsed-focus.ts";
 import { INPUT_WINDOW_WIDTH } from "../window-contract.ts";
@@ -42,10 +42,6 @@ export function useLauncherHeight(
   windowHeight: number,
   dependencies: React.DependencyList,
 ) {
-  // The height this hook last asked the window for. Only the observer reads it
-  // (see below); the effect's own sync goes through the shared pending guard.
-  const applied = useRef(0);
-
   useLayoutEffect(() => {
     if (mode !== "collapsed") return;
     const card = collapsedCardRef.current;
@@ -57,35 +53,27 @@ export function useLauncherHeight(
     // height while the count stands still (a compact row gaining a subtitle
     // because the query reached a command, a font landing late and reflowing
     // the list). Watching the card's own box is what keeps the window's content
-    // from being clipped in those states — and it costs nothing now: the target
-    // it computes is the same constant the window already carries, so the
-    // callback returns before it reaches `setSize` (R25).
+    // from being clipped in those states.
     //
-    // Two guards, both about not resizing the window against itself:
-    //   * the target is compared with the window's *current* height rather than
-    //     with a remembered number, so the very first callback after a sync is a
-    //     no-op and a genuine external resize (the native reveal path sets a
-    //     baseline of its own) is still corrected; and
-    //   * a target we have already asked for is never asked for twice, so an
-    //     observer that fires on the resize it caused terminates instead of
-    //     oscillating against a platform that lands a pixel or two away.
+    // R71 · the callback is one call into the *one* height policy — the same
+    // call the layout effect above makes. It used to carry duplicate guards of
+    // its own (`applied`, `launcherHeightNeedsResize`), and a second set of
+    // rules about the same question is how the observer's memory and the
+    // platform's number drift apart: after a resize the frontend never saw, the
+    // observer could refuse to restore a height it *had* already asked for, and
+    // the surface that needed it stayed clipped (「书签插件就有问题」). The
+    // policy's own audit against the platform (see `confirmLauncherHeight`) is
+    // the only judgement now.
     const observer = new ResizeObserver(() => {
       const current = collapsedCardRef.current;
       if (!current) return;
-      // R68 · while the walk owns the edge, the observer must not join in. The
-      // walk resizes the card every frame, so the observer fires every frame;
-      // without this guard each of those fires starts a *second* walk to the
-      // same target, cancelling the one in flight and restarting it from the
-      // mid-way height. The walk's own landing brings the observer back (the
-      // last frame clears `tweenFrame` before the resize lands), so a genuine
-      // overflow is still caught.
+      // R68 · while the walk owns the edge, the observer must not join in: the
+      // walk resizes the card every frame, and each fire would start a *second*
+      // walk to the same target, cancelling the one in flight and restarting it
+      // from the mid-way height. The walk's own landing brings the observer
+      // back, and R71 guarantees it always lands (see `tweenLauncherHeight`).
       if (tweenFrame) return;
-      const target = launcherTargetHeight(current, windowHeight);
-      if (!target) return;
-      if (Math.abs(target - window.innerHeight) <= 1) return;
-      if (target === applied.current) return;
-      applied.current = target;
-      resizeLauncherWindow(current, target, SETTLE_PASSES);
+      applyLauncherHeight(current, launcherTargetHeight(current, windowHeight));
     });
     observer.observe(card);
     return () => observer.disconnect();
@@ -147,7 +135,18 @@ const launcherTargetHeight = (card: HTMLElement, windowHeight: number): number =
   const base = windowHeight + shellPaddingHeight(card);
   const measured = measureCardHeight(card);
   const current = currentWindowHeight();
-  if (Number.isFinite(current) && measured > current + 1) {
+  // R71 · the overflow guard only speaks for a window that *is* the height it
+  // was sized for. Mid-flight — a walk is moving the edge, the WebView is still
+  // reporting the previous surface's height, the card is reflowing in between —
+  // `measured` and `current` are both transient, and reading an overflow out of
+  // two transient numbers is what the user reported as 「窗口高度没有能自动化」:
+  // the settle pass below re-targeted whatever the card happened to measure
+  // (86 while shrinking, then 90 while growing), the window came to rest at
+  // that mid-flight number instead of the plugin list's 563, and *nothing asked
+  // again* — the sample and the window now agreed. The band is the answer; the
+  // measurement may only raise it once the window is really at the band.
+  const atBand = Number.isFinite(current) && Math.abs(current - base) <= HEIGHT_TOLERANCE;
+  if (atBand && measured > current + 1) {
     return Math.max(base, measured);
   }
   return base;
@@ -161,24 +160,61 @@ const launcherTargetHeight = (card: HTMLElement, windowHeight: number): number =
  * leave behind is the height the second one is asking for. Cleared when the
  * resize lands, so a *later* ask — a display change, a settings round trip that
  * resized the window behind the launcher — is never mistaken for a duplicate.
+ *
+ * R71 · and it must *always* be released. Entering a plugin mode asks for the
+ * list's height while a walk is often already in flight (the mode entry, the
+ * reveal, the previous surface), and a walk whose `setSize` never came back — a
+ * throttled frame in a panel that is not the active app, a rejected platform
+ * call — used to leave this claim set forever. Every later ask for that same
+ * height was then silently dropped (the guard below), which is one more way for
+ * the window to end up at a surface's height instead of the content's. The walk
+ * now always settles — see [`tweenLauncherHeight`] — and the claim is released
+ * on the same path that satisfies it.
  */
 let pendingLauncherHeight = 0;
+
+/**
+ * How close two heights count as the same height.
+ *
+ * A native resize can land a logical pixel away from the value it was asked for
+ * (the platform rounds between physical and logical units), so equality is never
+ * exact. Two pixels is under a tenth of a row: it can never hide a real
+ * difference between two surfaces' heights (a plugin list against a bare field
+ * is tens to hundreds of pixels), and it is enough that the same honest answer
+ * never has to be re-derived.
+ */
+const HEIGHT_TOLERANCE = 2;
 
 /**
  * Land one launcher height, or return without touching the window.
  *
  * This is the R25 guard, and it is where the shake dies: the window already
  * carries the height (the constant, and the card is drawn inside it), so a
- * keystroke's call returns here instead of calling `setSize`. A native window
- * height cannot be read synchronously from the WebView without a round trip,
- * so the check is against `window.innerHeight`, which is updated by the
- * platform when a resize lands.
+ * keystroke's call returns here instead of calling `setSize`.
+ *
+ * R71 · the "already carries it" answer is *audited* rather than believed —
+ * see [`confirmLauncherHeight`]. It is the one branch where a wrong answer costs
+ * the user the height they asked for, and `window.innerHeight` is not the window
+ * (it is the WebView's viewport, which lags a native resize and can miss one
+ * altogether).
  */
 function applyLauncherHeight(card: HTMLElement, height: number) {
-  if (Math.abs(height - currentWindowHeight()) <= 1) return;
+  if (!Number.isFinite(height) || height <= 0) return;
+  if (Math.abs(height - currentWindowHeight()) <= HEIGHT_TOLERANCE) {
+    // R72 · the WebView says the window is already there, and that is where the
+    // decision ends. R71 audited this branch against the platform (`innerSize()`
+    // + `scaleFactor()`) and corrected a disagreement — two IPC round trips on
+    // every check, and a correction that walks the window, which re-enters this
+    // function through the card observer. On a fast typist that is a feedback
+    // loop: the user reported it as 「搜索键入时非常卡…甚至都卡住了」. The audit is
+    // out; the stale-report case it was written for is handled where it actually
+    // bites — the settle pass (`resizeLauncherWindow`) and the viewport cap
+    // (`pluginViewRows`) — without a platform round trip.
+    return;
+  }
   if (height === pendingLauncherHeight) return;
   pendingLauncherHeight = height;
-  void resizeLauncherWindow(card, height, SETTLE_PASSES).then(() => {
+  void resizeLauncherWindow(card, height, SETTLE_PASSES).finally(() => {
     if (pendingLauncherHeight === height) pendingLauncherHeight = 0;
   });
 }
@@ -286,6 +322,24 @@ let tweenHeight = Number.NaN;
 let tweenFrame = 0;
 let tweenGeneration = 0;
 let tweenDone: (() => void) | null = null;
+let tweenWatchdog = 0;
+
+/**
+ * R71 · how long a walk may stay in flight before it is declared stuck.
+ *
+ * The walk is `RESIZE_TWEEN_MS` long and each frame waits for its own
+ * `setSize` to land, so a healthy walk finishes in about half this window and
+ * the ceiling is only ever reached by a walk that is *stuck*: frames that stop
+ * arriving (a WebView that throttles `requestAnimationFrame` because its panel
+ * is not the active app) or a `setSize` that is refused. An unsettled walk is
+ * not a cosmetic stall. It keeps `tweenFrame` set (which
+ * mutes the card's ResizeObserver, the one thing that corrects a height the
+ * window missed) and it keeps [`pendingLauncherHeight`] claimed, so every later
+ * ask for that same height is dropped. That is the wedge behind the user's
+ * report — a plugin list whose window never grew to hold it. The watchdog ends
+ * the walk at its target and hands the edge back.
+ */
+const RESIZE_WATCHDOG_MS = RESIZE_TWEEN_MS * 2 + 100;
 
 /** Stop the walk in flight, if any. The pending promise is resolved (not
  *  dropped) so its `.then` still runs the focus reassert; the caller that
@@ -294,6 +348,10 @@ const cancelTween = () => {
   // The generation makes a cancelled walk's callbacks inert: its pending
   // `setSize` may still resolve after the next walk has been armed.
   tweenGeneration += 1;
+  if (tweenWatchdog) {
+    clearTimeout(tweenWatchdog);
+    tweenWatchdog = 0;
+  }
   if (tweenFrame) {
     if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(tweenFrame);
     tweenFrame = 0;
@@ -350,7 +408,38 @@ function tweenLauncherHeight(card: HTMLElement, height: number): Promise<void> {
   markResizing(card, true);
   return new Promise<void>((resolve) => {
     const start = nowMs();
+    // R71 · the walk's one exit. Every path that ends it — the last frame, a
+    // refused `setSize`, the watchdog — lands the height, releases the frame
+    // slot and settles the promise, so `resizeLauncherWindow`'s `.then` (and
+    // with it the `pendingLauncherHeight` release) always runs.
+    const settle = () => {
+      if (tweenWatchdog) {
+        clearTimeout(tweenWatchdog);
+        tweenWatchdog = 0;
+      }
+      tweenFrame = 0;
+      tweenHeight = height;
+      tweenDone = null;
+      resolve();
+    };
     tweenDone = resolve;
+    // R71 · the watchdog does not merely *declare* the walk over: it lands the
+    // height. A walk whose frames stop arriving — a WebView that throttles
+    // `requestAnimationFrame` because its panel is not the active app, which is
+    // the normal state of this accessory panel — used to leave the window at
+    // whatever height the last painted frame reached, and nothing else in the
+    // module retries a height that is already "asked for". The result is the
+    // user's report: the plugin list rendered inside a card that was never
+    // grown to hold it, invisible until some other surface asked for a
+    // different height. So the stall resolves by asking the platform for the
+    // *target* directly: one `setSize`, no animation, and the edge is where the
+    // content needs it.
+    tweenWatchdog = setTimeout(() => {
+      void platform
+        .setSize(new LogicalSize(INPUT_WINDOW_WIDTH, height))
+        .catch(() => undefined);
+      settle();
+    }, RESIZE_WATCHDOG_MS);
     const step = () => {
       const t = Math.min(1, (nowMs() - start) / RESIZE_TWEEN_MS);
       const eased = 1 - (1 - t) ** 3;
@@ -359,17 +448,22 @@ function tweenLauncherHeight(card: HTMLElement, height: number): Promise<void> {
       // Wait for each resize to land before painting the next: the platform
       // posts `setContentSize` to the main queue, so two frames in flight at
       // once can land out of order and the edge bounces.
-      void platform.setSize(new LogicalSize(INPUT_WINDOW_WIDTH, next)).then(() => {
-        if (generation !== tweenGeneration) return;
-        if (t < 1) {
-          tweenFrame = requestAnimationFrame(step);
-        } else {
-          tweenFrame = 0;
-          tweenHeight = height;
-          tweenDone = null;
-          resolve();
-        }
-      });
+      void platform.setSize(new LogicalSize(INPUT_WINDOW_WIDTH, next)).then(
+        () => {
+          if (generation !== tweenGeneration) return;
+          if (t < 1) {
+            tweenFrame = requestAnimationFrame(step);
+          } else {
+            settle();
+          }
+        },
+        // R71 · a refused frame ends the walk instead of stranding it: the
+        // window keeps whatever height it has, and the caller is told the walk
+        // is over so the next ask is not mistaken for a duplicate of this one.
+        () => {
+          if (generation === tweenGeneration) settle();
+        },
+      );
     };
     tweenFrame = requestAnimationFrame(step);
   }).finally(() => {
@@ -405,7 +499,17 @@ function resizeLauncherWindow(card: HTMLElement, height: number, passes: number)
   // debounced in `src-tauri`, the material is frozen for the walk, and the list
   // no longer scrolls against a stale box), so the motion is the only thing left
   // to see and a jump reads as a glitch rather than as the panel resizing.
-  return tweenLauncherHeight(card, height)
+  const walk = tweenLauncherHeight(card, height);
+  // R71 · the walk's own generation, read while it is the newest one. The
+  // corrective pass below belongs to *this* ask, and a pass that outlives it is
+  // not a correction but a cancellation: the plugin mode resizes twice in a row
+  // (the empty list's own height, then the rows' 563), and the first walk's
+  // delayed pass re-measured the *empty* card and walked the window to that
+  // number — cancelling the walk that was already carrying the list to 563 and
+  // leaving the window at 90 with nothing left to ask, which is exactly the
+  // user's report (「窗口高度没有能自动化」). A superseded walk's pass stands down.
+  const generation = tweenGeneration;
+  return walk
     // A native resize can move WebView keyboard focus to the document body as
     // it settles. The resize is the last thing to land when returning to the
     // launcher, so the focus collector is re-run the instant it completes —
@@ -415,8 +519,18 @@ function resizeLauncherWindow(card: HTMLElement, height: number, passes: number)
       reassertCollapsedFocus();
       if (passes <= 0) return;
       afterPaint(() => {
-        const settled = launcherTargetHeight(card, height);
-        if (settled && settled !== height) resizeLauncherWindow(card, settled, passes - 1);
+        // R71 · and the pass is a re-*measure*, not a prediction: it may only
+        // speak for a window that really is the height it was given. Mid-flight
+        // the card measures whatever the transition happens to be at (86 while
+        // the edge shrinks), and both numbers have to agree before an overflow
+        // means anything. `height` is already a *window* height, so the measured
+        // card — which carries the shell's padding too — is compared with it
+        // directly.
+        if (generation !== tweenGeneration) return;
+        const current = currentWindowHeight();
+        if (!Number.isFinite(current) || Math.abs(current - height) > HEIGHT_TOLERANCE) return;
+        const measured = measureCardHeight(card);
+        if (measured > height + 1) resizeLauncherWindow(card, measured, passes - 1);
       });
     })
     .catch(() => undefined);
