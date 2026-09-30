@@ -29,12 +29,12 @@ use commands::apps::{
 };
 use commands::autostart::{ensure_launch_at_startup, set_launch_at_startup};
 use commands::clipboard::{clipboard_read_text, clipboard_write_text};
+use commands::config::set_custom_shortcuts;
 use commands::config::{
     app_version, get_settings, get_shortcuts, load_settings, reset_shortcuts, resolved_shortcuts,
     resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
     saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
-use commands::config::set_custom_shortcuts;
 use commands::drops::resolve_dropped_files;
 use commands::extensions::{
     catalog_complete, catalog_search, extensions_cancel_operation, extensions_config_copy,
@@ -52,14 +52,14 @@ use commands::extensions::{
 use commands::extensions::{external_plugin_commands, external_plugin_run};
 use commands::system::system_power;
 use commands::terminal::{
-    open_in_default_terminal, term_attach_existing, term_close, term_input,
-    term_kill_session, term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to,
+    open_in_default_terminal, term_attach_existing, term_close, term_input, term_kill_session,
+    term_list_sessions, term_mouse, term_resize, term_scroll, term_scroll_to,
     term_set_cursor_style, term_set_theme, term_spawn, term_wheel, TerminalState,
 };
 use extensions::ExtensionState;
-use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(target_os = "macos")]
 use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "windows")]
 use tauri::webview::Color;

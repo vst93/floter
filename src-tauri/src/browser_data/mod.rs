@@ -250,7 +250,11 @@ pub fn sort_browser_items(items: &mut [BrowserItem], order: &str) {
 fn sort_order_and_fetch_limit(limit: Option<usize>, order: Option<&str>) -> (String, usize) {
     let order = match order {
         Some(value) => crate::commands::config::normalize_browser_sort_order(value),
-        None => crate::commands::config::load_settings().browser_plugin.sort_order,
+        None => {
+            crate::commands::config::load_settings()
+                .browser_plugin
+                .sort_order
+        }
     };
     let fetch = if order == crate::commands::config::DEFAULT_BROWSER_SORT_ORDER {
         normalize_limit(limit)
@@ -302,7 +306,11 @@ pub fn browser_search_history(
     sort_order: Option<String>,
 ) -> Result<Vec<BrowserItem>, String> {
     let files = profile_files(&profile_key)?;
-    let days = days.unwrap_or_else(|| crate::commands::config::load_settings().browser_plugin.history_days);
+    let days = days.unwrap_or_else(|| {
+        crate::commands::config::load_settings()
+            .browser_plugin
+            .history_days
+    });
     let (order, fetch) = sort_order_and_fetch_limit(limit, sort_order.as_deref());
     let entries = history::query_history_file(&files.history, &query, fetch, days)?;
     let mut items: Vec<BrowserItem> = entries
@@ -520,16 +528,19 @@ mod tests {
     /// bug this round exists to avoid.
     #[test]
     fn the_result_orders_sort_by_the_fact_they_name() {
-        let item = |title: &str, url: &str, added: Option<i64>, visits: Option<u32>, last: Option<i64>| BrowserItem {
-            id: url.to_string(),
-            title: title.to_string(),
-            url: url.to_string(),
-            profile_key: "chrome/Default".to_string(),
-            folder_path: None,
-            date_added: added,
-            visit_count: visits,
-            last_visit: last,
-        };
+        let item =
+            |title: &str, url: &str, added: Option<i64>, visits: Option<u32>, last: Option<i64>| {
+                BrowserItem {
+                    id: url.to_string(),
+                    title: title.to_string(),
+                    url: url.to_string(),
+                    profile_key: "chrome/Default".to_string(),
+                    folder_path: None,
+                    date_added: added,
+                    visit_count: visits,
+                    last_visit: last,
+                }
+            };
         let fixture = || {
             vec![
                 item("Zeta", "https://z.example", Some(300), Some(2), Some(100)),
@@ -541,7 +552,10 @@ mod tests {
         // `relevance` is a no-op: the caller's order *is* the ranking.
         let mut items = fixture();
         sort_browser_items(&mut items, "relevance");
-        assert_eq!(items[0].title, "Zeta", "relevance leaves the input order alone");
+        assert_eq!(
+            items[0].title, "Zeta",
+            "relevance leaves the input order alone"
+        );
 
         // Alphabetical is case-insensitive, so `alpha` leads.
         let mut items = fixture();

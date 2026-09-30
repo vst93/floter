@@ -201,7 +201,9 @@ pub struct BuiltinPluginInfo {
 
 #[tauri::command]
 pub fn builtin_plugins_list() -> Result<Vec<BuiltinPluginInfo>, String> {
-    Ok(builtin_plugin_infos(&crate::commands::config::load_settings()))
+    Ok(builtin_plugin_infos(
+        &crate::commands::config::load_settings(),
+    ))
 }
 
 /// The registry projected through one settings snapshot.
@@ -474,10 +476,7 @@ mod tests {
             .iter()
             .find(|info| info.id == BROWSER_PLUGIN_ID)
             .expect("browser row");
-        assert!(
-            browser.enabled,
-            "the browser plugin ships switched on"
-        );
+        assert!(browser.enabled, "the browser plugin ships switched on");
         assert!(
             !browser.has_page,
             "R33 · the built-in pages are retired; the row opens the overlay instead"

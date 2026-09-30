@@ -108,7 +108,10 @@ pub fn query_history_file(
 }
 
 /// One source\'s `(length, mtime)` pair — the main database and its `-wal`.
-type HistorySignature = ((u64, Option<std::time::SystemTime>), (u64, Option<std::time::SystemTime>));
+type HistorySignature = (
+    (u64, Option<std::time::SystemTime>),
+    (u64, Option<std::time::SystemTime>),
+);
 
 fn history_signature(source: &Path) -> HistorySignature {
     let stat = |path: PathBuf| {
@@ -227,9 +230,27 @@ mod tests {
         // Microseconds since 1601. 13317004800000000 == 2023-01-01T00:00:00Z.
         let base = 13_317_004_800_000_000_i64;
         let rows = [
-            (1, "https://www.rust-lang.org/", "Rust Programming Language", 12, base),
-            (2, "https://doc.rust-lang.org/book/", "The Rust Book", 3, base - 3_600_000_000),
-            (3, "https://example.com/", "Example Domain", 1, base - 86_400_000_000),
+            (
+                1,
+                "https://www.rust-lang.org/",
+                "Rust Programming Language",
+                12,
+                base,
+            ),
+            (
+                2,
+                "https://doc.rust-lang.org/book/",
+                "The Rust Book",
+                3,
+                base - 3_600_000_000,
+            ),
+            (
+                3,
+                "https://example.com/",
+                "Example Domain",
+                1,
+                base - 86_400_000_000,
+            ),
         ];
         for (id, url, title, visits, last_visit) in rows {
             connection
@@ -276,8 +297,12 @@ mod tests {
         let database = temp.path().join("History");
         fixture_database(&database);
         // `%` would otherwise match every row.
-        assert!(query_history_database(&database, "%", 10, 0).unwrap().is_empty());
-        assert!(query_history_database(&database, "_", 10, 0).unwrap().is_empty());
+        assert!(query_history_database(&database, "%", 10, 0)
+            .unwrap()
+            .is_empty());
+        assert!(query_history_database(&database, "_", 10, 0)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -285,7 +310,10 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let database = temp.path().join("History");
         fixture_database(&database);
-        assert_eq!(query_history_database(&database, "", 2, 0).unwrap().len(), 2);
+        assert_eq!(
+            query_history_database(&database, "", 2, 0).unwrap().len(),
+            2
+        );
     }
 
     #[test]

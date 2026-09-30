@@ -56,10 +56,7 @@ pub fn appindicator_clean_id() -> String {
 /// The StatusNotifierItem object path this app registers.
 #[cfg(any(target_os = "linux", test))]
 pub fn sni_object_path() -> String {
-    format!(
-        "/org/ayatana/NotificationItem/{}",
-        appindicator_clean_id()
-    )
+    format!("/org/ayatana/NotificationItem/{}", appindicator_clean_id())
 }
 
 /// The dbusmenu object path the SNI `Menu` property points at.
@@ -147,7 +144,10 @@ mod tests {
     #[test]
     fn the_registered_names_are_the_ones_floter_owns() {
         assert_eq!(appindicator_id(), "tray-icon tray app com.v.floter.tray");
-        assert_eq!(appindicator_clean_id(), "tray_icon_tray_app_com_v_floter_tray");
+        assert_eq!(
+            appindicator_clean_id(),
+            "tray_icon_tray_app_com_v_floter_tray"
+        );
         assert_eq!(
             sni_object_path(),
             "/org/ayatana/NotificationItem/tray_icon_tray_app_com_v_floter_tray"

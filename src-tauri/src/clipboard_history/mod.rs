@@ -469,8 +469,7 @@ pub fn clipboard_thumbnail(
     let bytes = store::read_image(&paths, &file)?;
     let (width, height, rgba) = monitor::decode_png(&bytes)?;
     let side = thumbnail_side(size);
-    let (small_width, small_height, small) =
-        monitor::downscale_rgba(width, height, &rgba, side);
+    let (small_width, small_height, small) = monitor::downscale_rgba(width, height, &rgba, side);
     let png = monitor::encode_png(small_width, small_height, &small)?;
     Ok(format!(
         "data:image/png;base64,{}",

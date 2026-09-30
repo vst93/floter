@@ -218,7 +218,10 @@ pub(crate) fn spawn_in_own_scope<S: AsRef<OsStr>>(
     program: &str,
     args: &[S],
 ) -> Result<u32, String> {
-    let unit = scope_unit_name(std::process::id(), SCOPE_SEQ.fetch_add(1, Ordering::Relaxed));
+    let unit = scope_unit_name(
+        std::process::id(),
+        SCOPE_SEQ.fetch_add(1, Ordering::Relaxed),
+    );
     let argv = systemd_run_args(&unit, program, args);
     let mut child = spawn_detached_child("systemd-run", &argv)?;
     let pid = child.id();
@@ -267,10 +270,7 @@ pub(crate) fn spawn_in_own_scope<S: AsRef<OsStr>>(
 /// R43 · [`spawn_in_own_scope`] on Linux, [`spawn_detached`] everywhere else.
 /// The single entry point every app-open path calls, so "is the child really its
 /// own process?" has one answer per platform.
-pub(crate) fn spawn_application<S: AsRef<OsStr>>(
-    program: &str,
-    args: &[S],
-) -> Result<u32, String> {
+pub(crate) fn spawn_application<S: AsRef<OsStr>>(program: &str, args: &[S]) -> Result<u32, String> {
     #[cfg(target_os = "linux")]
     {
         spawn_in_own_scope(program, args)

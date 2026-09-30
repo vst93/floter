@@ -867,11 +867,7 @@ mod tests {
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("echoer.sh");
-        std::fs::write(
-            &executable,
-            "#!/bin/sh\nprintf 'args:%s\\n' \"$*\"\n",
-        )
-        .unwrap();
+        std::fs::write(&executable, "#!/bin/sh\nprintf 'args:%s\\n' \"$*\"\n").unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
 
         let id = "local.echoer";

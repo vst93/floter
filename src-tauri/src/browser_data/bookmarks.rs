@@ -37,8 +37,8 @@ pub fn parse_bookmarks_file(path: &Path) -> Result<Vec<BrowserBookmark>, String>
 
 /// Flatten a `Bookmarks` document.
 pub fn parse_bookmarks_json(bytes: &[u8]) -> Result<Vec<BrowserBookmark>, String> {
-    let value: serde_json::Value =
-        serde_json::from_slice(bytes).map_err(|error| format!("invalid bookmarks JSON: {error}"))?;
+    let value: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|error| format!("invalid bookmarks JSON: {error}"))?;
     let mut out = Vec::new();
     if let Some(roots) = value.get("roots").and_then(|roots| roots.as_object()) {
         for (_root_key, root) in roots {
@@ -52,10 +52,16 @@ pub fn parse_bookmarks_json(bytes: &[u8]) -> Result<Vec<BrowserBookmark>, String
 }
 
 fn walk_node(node: &serde_json::Value, folder_path: &str, out: &mut Vec<BrowserBookmark>) {
-    let kind = node.get("type").and_then(|kind| kind.as_str()).unwrap_or("");
+    let kind = node
+        .get("type")
+        .and_then(|kind| kind.as_str())
+        .unwrap_or("");
     match kind {
         "folder" => {
-            let name = node.get("name").and_then(|name| name.as_str()).unwrap_or("");
+            let name = node
+                .get("name")
+                .and_then(|name| name.as_str())
+                .unwrap_or("");
             let child_path = if folder_path.is_empty() {
                 name.to_string()
             } else if name.is_empty() {
@@ -63,7 +69,10 @@ fn walk_node(node: &serde_json::Value, folder_path: &str, out: &mut Vec<BrowserB
             } else {
                 format!("{folder_path} / {name}")
             };
-            if let Some(children) = node.get("children").and_then(|children| children.as_array()) {
+            if let Some(children) = node
+                .get("children")
+                .and_then(|children| children.as_array())
+            {
                 for child in children {
                     walk_node(child, &child_path, out);
                 }
@@ -188,7 +197,10 @@ mod tests {
             .unwrap();
         // 13317004800000000 µs since 1601 → 1672531200 (2023-01-01T00:00:00Z).
         assert_eq!(rust.date_added, Some(1_672_531_200));
-        assert_eq!(CHROMIUM_2023.parse::<i64>().unwrap() / 1_000_000 - 11_644_473_600, 1_672_531_200);
+        assert_eq!(
+            CHROMIUM_2023.parse::<i64>().unwrap() / 1_000_000 - 11_644_473_600,
+            1_672_531_200
+        );
     }
 
     #[test]

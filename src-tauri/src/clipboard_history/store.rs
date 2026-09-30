@@ -175,9 +175,7 @@ pub fn prune_entries(
         .map(|(index, _)| index)
         .collect();
     non_favorite_indices.sort_by_key(|&index| kept[index].created_at);
-    let excess = non_favorite_indices
-        .len()
-        .saturating_sub(max_non_favorite);
+    let excess = non_favorite_indices.len().saturating_sub(max_non_favorite);
     let doomed: HashSet<usize> = non_favorite_indices.into_iter().take(excess).collect();
 
     let mut survivors = Vec::with_capacity(kept.len());
@@ -527,7 +525,12 @@ mod tests {
         let mut entries = vec![text_entry("fav", now, true, "hf")];
         for index in 0..40 {
             // Newest first, so the tail of the list is what a small cap drops.
-            entries.push(text_entry(&format!("e{index}"), now - index as i64 * 1000, false, "h"));
+            entries.push(text_entry(
+                &format!("e{index}"),
+                now - index as i64 * 1000,
+                false,
+                "h",
+            ));
         }
 
         let (kept, dropped) = prune_entries(entries, now, 10);

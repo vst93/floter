@@ -74,15 +74,7 @@ const DEFAULT_TERMINAL_THEME: &str = "inherit";
 // R43 · the palette rack grew from three to nine (inherit plus eight overrides).
 // The ids match `TERMINAL_THEMES` in `terminal/terminal-appearance.ts`.
 const TERMINAL_THEMES: [&str; 9] = [
-    "inherit",
-    "contrast",
-    "paper",
-    "ink",
-    "fog",
-    "forest",
-    "dusk",
-    "mist",
-    "amber",
+    "inherit", "contrast", "paper", "ink", "fog", "forest", "dusk", "mist", "amber",
 ];
 // R43 · the interaction axes. The wheel count is clamped; the bold mode is one
 // of two ids; the two switches default off (the shipped behaviour).
@@ -349,8 +341,7 @@ pub fn normalize_browser_search_fields(value: &str) -> String {
 /// settings card lists them. `relevance` is the launcher's own ranking (the
 /// backend's match score); the other three are explicit orderings a bookmark
 /// tool is expected to offer.
-pub const BROWSER_SORT_ORDERS: [&str; 4] =
-    ["relevance", "recent", "alphabetical", "visits"];
+pub const BROWSER_SORT_ORDERS: [&str; 4] = ["relevance", "recent", "alphabetical", "visits"];
 
 /// Accept one of {@link BROWSER_SORT_ORDERS}; anything else is `relevance`.
 pub fn normalize_browser_sort_order(value: &str) -> String {
@@ -1073,7 +1064,8 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         .custom_base_dir
         .map(|dir| dir.trim().to_string())
         .filter(|dir| !dir.is_empty());
-    settings.browser_plugin.history_days = settings.browser_plugin.history_days.min(MAX_HISTORY_DAYS);
+    settings.browser_plugin.history_days =
+        settings.browser_plugin.history_days.min(MAX_HISTORY_DAYS);
     // R26-B: a debug port of 0 is not a port; fall back to the browser's own
     // default rather than writing a value the connect call can never use.
     if settings.browser_plugin.cdp_port == 0 {
@@ -1262,8 +1254,8 @@ pub fn normalize_custom_shortcuts(list: &[CustomShortcut]) -> Vec<CustomShortcut
         if action.is_empty() {
             continue;
         }
-        let Some(key) = normalize_shortcut("custom_shortcut", &entry.key)
-            .filter(|key| key.contains('+'))
+        let Some(key) =
+            normalize_shortcut("custom_shortcut", &entry.key).filter(|key| key.contains('+'))
         else {
             continue;
         };
@@ -1418,7 +1410,9 @@ pub fn browser_get_settings() -> BrowserPluginSettings {
 /// to nothing, so the explicit clear is what makes "point it at a new folder"
 /// take effect on the very next scan rather than the next restart.
 #[tauri::command]
-pub fn browser_set_settings(settings: BrowserPluginSettings) -> Result<BrowserPluginSettings, String> {
+pub fn browser_set_settings(
+    settings: BrowserPluginSettings,
+) -> Result<BrowserPluginSettings, String> {
     let _guard = settings_lock()?;
     let mut stored = load_settings();
     // The page's settings card owns the five data fields, not the on/off
@@ -1663,18 +1657,16 @@ mod tests {
     /// builds shipped), and an explicit `false` must survive.
     #[test]
     fn the_browser_plugin_switch_defaults_on_and_round_trips_off() {
-        let shipped: AppSettings = serde_json::from_str(
-            "{\"browser_plugin\":{\"target\":\"edge\",\"history_days\":9}}",
-        )
-        .expect("R26-A settings deserialize");
+        let shipped: AppSettings =
+            serde_json::from_str("{\"browser_plugin\":{\"target\":\"edge\",\"history_days\":9}}")
+                .expect("R26-A settings deserialize");
         assert!(
             shipped.browser_plugin.enabled,
             "a settings file without the switch deserializes to the shipped state (on)"
         );
 
-        let off: AppSettings =
-            serde_json::from_str("{\"browser_plugin\":{\"enabled\":false}}")
-                .expect("disabled settings deserialize");
+        let off: AppSettings = serde_json::from_str("{\"browser_plugin\":{\"enabled\":false}}")
+            .expect("disabled settings deserialize");
         assert!(!off.browser_plugin.enabled, "an explicit off is honoured");
     }
 
@@ -1984,8 +1976,8 @@ mod tests {
             ..AppSettings::default()
         });
         write_settings_to(directory.path(), &settings).expect("write settings");
-        let read_back = read_settings(&directory.path().join(SETTINGS_FILE_NAME))
-            .expect("read settings back");
+        let read_back =
+            read_settings(&directory.path().join(SETTINGS_FILE_NAME)).expect("read settings back");
         assert_eq!(read_back.browser_plugin, settings.browser_plugin);
         assert_eq!(read_back.browser_plugin.target, "brave");
         assert_eq!(
@@ -2004,10 +1996,9 @@ mod tests {
         // A settings file written by R26-A has a `browser_plugin` block without
         // the R26-B keys. The plugin must open with tab capture off and the
         // browser's own port, not with a zeroed port it could never connect to.
-        let settings: AppSettings = serde_json::from_str(
-            "{\"browser_plugin\":{\"target\":\"chrome\",\"history_days\":9}}",
-        )
-        .expect("R26-A settings deserialize");
+        let settings: AppSettings =
+            serde_json::from_str("{\"browser_plugin\":{\"target\":\"chrome\",\"history_days\":9}}")
+                .expect("R26-A settings deserialize");
         assert_eq!(settings.browser_plugin.target, "chrome");
         assert_eq!(settings.browser_plugin.history_days, 9);
         assert!(!settings.browser_plugin.cdp_enabled);
@@ -2046,7 +2037,10 @@ mod tests {
             serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
         assert_eq!(settings.ui_scale, DEFAULT_UI_SCALE);
         assert_eq!(AppSettings::default().ui_scale, DEFAULT_UI_SCALE);
-        assert_eq!(DEFAULT_UI_SCALE, "small", "R47 moved the shipped step to small");
+        assert_eq!(
+            DEFAULT_UI_SCALE, "small",
+            "R47 moved the shipped step to small"
+        );
         // An explicit choice survives the round-trip intact, including the
         // pre-R47 default (1) and the retired `larger` (mapped to `large`).
         for explicit in ["default", "large", "tiny", "small"] {
@@ -2054,13 +2048,19 @@ mod tests {
                 ui_scale: explicit.into(),
                 ..AppSettings::default()
             });
-            assert_eq!(stored.ui_scale, explicit, "{explicit:?} is an explicit choice");
+            assert_eq!(
+                stored.ui_scale, explicit,
+                "{explicit:?} is an explicit choice"
+            );
         }
         let migrated = normalize_settings(AppSettings {
             ui_scale: "larger".into(),
             ..AppSettings::default()
         });
-        assert_eq!(migrated.ui_scale, "large", "the retired larger maps to large");
+        assert_eq!(
+            migrated.ui_scale, "large",
+            "the retired larger maps to large"
+        );
     }
 
     /// A hand-edited or unknown step is normalized to the shipped one, not
@@ -2192,10 +2192,9 @@ mod tests {
         // R56 · the field is gone from the shape. An old file that still
         // carries it must still deserialize (serde ignores unknown keys), and
         // it must not seed any shortcut: the panel has no global hotkey.
-        let settings: AppSettings = serde_json::from_str(
-            "{\"clipboard_history_hotkey\":\"Ctrl+Alt+B\"}",
-        )
-        .expect("legacy settings deserialize");
+        let settings: AppSettings =
+            serde_json::from_str("{\"clipboard_history_hotkey\":\"Ctrl+Alt+B\"}")
+                .expect("legacy settings deserialize");
         let shortcuts = resolved_shortcuts(&settings);
         assert!(!shortcuts.contains_key("clipboard_panel"));
         assert!(!shortcuts.values().any(|value| value == "Ctrl+Alt+B"));
@@ -2238,7 +2237,10 @@ mod tests {
             "the action is retired; a hand-edited entry must be dropped"
         );
         assert!(
-            !normalized.shortcuts.values().any(|value| value == "Cmd+Shift+P"),
+            !normalized
+                .shortcuts
+                .values()
+                .any(|value| value == "Cmd+Shift+P"),
             "the retired binding must not linger under another action"
         );
     }
@@ -2250,7 +2252,11 @@ mod tests {
         let shortcuts = resolved_shortcuts(&AppSettings::default());
         for action in SHORTCUT_ACTIONS {
             assert!(
-                !shortcuts.get(action).map(String::as_str).unwrap_or_default().is_empty(),
+                !shortcuts
+                    .get(action)
+                    .map(String::as_str)
+                    .unwrap_or_default()
+                    .is_empty(),
                 "{action} must keep a default binding"
             );
         }
@@ -2293,13 +2299,25 @@ mod tests {
     #[test]
     fn custom_shortcuts_drop_invalid_and_duplicate_entries() {
         let normalized = normalize_custom_shortcuts(&[
-            CustomShortcut { key: "Cmd+Shift+K".into(), action: "plugin:clipboard".into() },
+            CustomShortcut {
+                key: "Cmd+Shift+K".into(),
+                action: "plugin:clipboard".into(),
+            },
             // Bare key: would swallow ordinary typing system-wide.
-            CustomShortcut { key: "K".into(), action: "plugin:browser".into() },
+            CustomShortcut {
+                key: "K".into(),
+                action: "plugin:browser".into(),
+            },
             // Empty action.
-            CustomShortcut { key: "Cmd+Shift+L".into(), action: "  ".into() },
+            CustomShortcut {
+                key: "Cmd+Shift+L".into(),
+                action: "  ".into(),
+            },
             // Duplicate of the first (modifier order/case-insensitive).
-            CustomShortcut { key: "Shift+Cmd+K".into(), action: "action:new_command".into() },
+            CustomShortcut {
+                key: "Shift+Cmd+K".into(),
+                action: "action:new_command".into(),
+            },
         ]);
         assert_eq!(normalized.len(), 1, "only the first valid entry survives");
         assert_eq!(normalized[0].action, "plugin:clipboard");
@@ -2321,8 +2339,8 @@ mod tests {
             ..AppSettings::default()
         });
         write_settings_to(directory.path(), &settings).expect("write settings");
-        let read = read_settings(&directory.path().join(SETTINGS_FILE_NAME))
-            .expect("settings read back");
+        let read =
+            read_settings(&directory.path().join(SETTINGS_FILE_NAME)).expect("settings read back");
         assert_eq!(read.custom_shortcuts, settings.custom_shortcuts);
     }
 
@@ -2338,7 +2356,10 @@ mod tests {
         // The frontend submits an empty list (a stale whole-app snapshot); the
         // dedicated command owns the field, so the stored list must survive.
         let merged = merge_frontend_settings(AppSettings::default(), &stored);
-        assert_eq!(merged.custom_shortcuts, normalize_custom_shortcuts(&stored.custom_shortcuts));
+        assert_eq!(
+            merged.custom_shortcuts,
+            normalize_custom_shortcuts(&stored.custom_shortcuts)
+        );
     }
 
     #[test]
@@ -2838,7 +2859,10 @@ mod tests {
 
         // Absence -> the new default (the serde path, not `Default::default()`).
         let mut value = serde_json::to_value(AppSettings::default()).unwrap();
-        value.as_object_mut().unwrap().remove("terminal_select_copy");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("terminal_select_copy");
         let recovered: AppSettings = serde_json::from_value(value).unwrap();
         assert!(recovered.terminal_select_copy);
 
@@ -2893,14 +2917,20 @@ mod tests {
                 terminal_theme: id.into(),
                 ..AppSettings::default()
             });
-            assert_eq!(settings.terminal_theme, id, "{id} must be a shipped palette");
+            assert_eq!(
+                settings.terminal_theme, id,
+                "{id} must be a shipped palette"
+            );
         }
         for id in ["inherit", "contrast", "paper"] {
             let settings = normalize_settings(AppSettings {
                 terminal_theme: id.into(),
                 ..AppSettings::default()
             });
-            assert_eq!(settings.terminal_theme, id, "{id} is a pre-R43 palette and stays");
+            assert_eq!(
+                settings.terminal_theme, id,
+                "{id} is a pre-R43 palette and stays"
+            );
         }
         assert_eq!(TERMINAL_THEMES.len(), 9);
     }
@@ -3090,10 +3120,7 @@ mod tests {
         let settings = AppSettings {
             plugin_command_switches: BTreeMap::from([(
                 "local.tool".to_string(),
-                BTreeMap::from([
-                    ("search".to_string(), true),
-                    ("index".to_string(), false),
-                ]),
+                BTreeMap::from([("search".to_string(), true), ("index".to_string(), false)]),
             )]),
             ..AppSettings::default()
         };
@@ -3119,10 +3146,7 @@ mod tests {
                 ),
                 (
                     "local.tool".to_string(),
-                    BTreeMap::from([
-                        ("".to_string(), true),
-                        ("  index  ".to_string(), false),
-                    ]),
+                    BTreeMap::from([("".to_string(), true), ("  index  ".to_string(), false)]),
                 ),
                 (
                     "local.empty".to_string(),

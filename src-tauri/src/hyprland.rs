@@ -42,10 +42,8 @@ pub const HYPRLAND_SIGNATURE_ENV: &str = "HYPRLAND_INSTANCE_SIGNATURE";
 /// The `hyprctl` dispatches that float and centre the active window, in order.
 /// `setfloating` is a *set* (not a toggle), so a reveal that lands on an already
 /// floating window is a no-op rather than a flip back to tiling.
-pub const FLOATING_DISPATCHES: [&[&str]; 2] = [
-    &["dispatch", "setfloating"],
-    &["dispatch", "centerwindow"],
-];
+pub const FLOATING_DISPATCHES: [&[&str]; 2] =
+    [&["dispatch", "setfloating"], &["dispatch", "centerwindow"]];
 
 /// Whether a signature value means "this is a Hyprland session". A missing or
 /// blank value is not a Hyprland session: the variable exists only when

@@ -371,12 +371,7 @@ pub fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
 /// ceiling is returned untouched — a thumbnail never upscales. The caller
 /// decodes the stored PNG once; this is the only per-pixel pass, and at icon
 /// sizes it is a few hundred additions.
-pub fn downscale_rgba(
-    width: u32,
-    height: u32,
-    rgba: &[u8],
-    max_side: u32,
-) -> (u32, u32, Vec<u8>) {
+pub fn downscale_rgba(width: u32, height: u32, rgba: &[u8], max_side: u32) -> (u32, u32, Vec<u8>) {
     if width == 0 || height == 0 {
         return (0, 0, Vec::new());
     }
@@ -532,7 +527,9 @@ mod tests {
         // A 100x50 opaque red image at a 32px ceiling becomes 32x16, all red.
         let width = 100u32;
         let height = 50u32;
-        let rgba: Vec<u8> = (0..width * height).flat_map(|_| [200u8, 10, 10, 255]).collect();
+        let rgba: Vec<u8> = (0..width * height)
+            .flat_map(|_| [200u8, 10, 10, 255])
+            .collect();
         let (tw, th, small) = downscale_rgba(width, height, &rgba, 32);
         assert_eq!((tw, th), (32, 16));
         assert_eq!(small.len(), (tw * th * 4) as usize);
@@ -545,7 +542,15 @@ mod tests {
 
         // The box mean is a real average, not a sample: half black, half white
         // over the two source rows lands on the midpoint.
-        let stripes: Vec<u8> = (0..2 * 2).flat_map(|index| if index < 2 { [0u8, 0, 0, 255] } else { [255u8, 255, 255, 255] }).collect();
+        let stripes: Vec<u8> = (0..2 * 2)
+            .flat_map(|index| {
+                if index < 2 {
+                    [0u8, 0, 0, 255]
+                } else {
+                    [255u8, 255, 255, 255]
+                }
+            })
+            .collect();
         let (_, _, averaged) = downscale_rgba(2, 2, &stripes, 1);
         assert_eq!(averaged, vec![128, 128, 128, 255]);
     }
