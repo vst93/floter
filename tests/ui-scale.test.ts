@@ -223,7 +223,7 @@ const SAMPLES: [string, string, string, string][] = [
   ["src/styles/settings.css", ".settings-switch", "width", "34px"],
   ["src/styles/settings.css", ".settings-switch__thumb", "width", "14px"],
   ["src/styles/settings.css", ".settings-page", "gap", "22px"],
-  ["src/styles/settings.css", ".settings-content", "padding", "16px 18px 22px"],
+  ["src/styles/settings.css", ".settings-content", "padding", "16px 0 22px"],
   ["src/styles/settings.css", ".shortcut-recorder", "min-width", "82px"],
   ["src/styles/settings.css", ".update-banner__progress", "min-width", "180px"],
 ];
@@ -259,7 +259,7 @@ const DEFERRED: [string, string, string, string, string][] = [
 // The one partially converted declaration: `.settings-content`'s padding keeps
 // its top value (the scroll-edge reservation) while the other two scale.
 const DEFERRED_PARTIAL: [string, string, string, string][] = [
-  ["src/styles/settings.css", ".settings-content", "padding", "16px 18px 22px"],
+  ["src/styles/settings.css", ".settings-content", "padding", "16px 0 22px"],
 ];
 
 // Every box property this round's transform could reach. The scan below uses

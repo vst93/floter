@@ -218,8 +218,8 @@ test("the breath between the two faces is transparent card, not a painted line",
   );
   assert.equal(
     decl(bottom!.body, "padding"),
-    "calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 2)",
-    "and the panel's own 4u completes the 8u breath — the two faces never touch",
+    "calc(var(--u) * 4) 0 calc(var(--u) * 2)",
+    "and the panel's own top 4u completes the 8u breath — the two faces never touch (R72: the sides are 0, that inset is a margin on the blocks now)",
   );
   // A transparent gap, not a painted one: no border and no pseudo-element may
   // turn the breath back into a line.
@@ -249,12 +249,21 @@ test("focus is still unmistakable without the seam", async () => {
   // 了？」), and the focused variant of that rim — accent glow at the top, brighter
   // strokes around it — is what paints focus. The assertion keeps its job: focus
   // must be unmistakable without the seam.
+  // R72 · one edge, and it is the border: the card's rim shadow is gone (it sat
+  // just inside the border — two lines, 「两层边框叠在一起」 — and once the border
+  // was hidden its highlight and side whispers read as a frame around the *field
+  // and chips*: 「都多了一层边框」). Focus lights that same single stroke.
   const focused = rule(css, ".collapsed-card:focus-within");
   assert.ok(focused, "the card's focus state must survive the seams");
   assert.equal(
-    decl(focused!.body, "box-shadow"),
-    "var(--glass-rim-shadow-active)",
-    "focus still paints the card's own edge (the active rim)",
+    decl(focused!.body, "border-color"),
+    "var(--input-stroke-active)",
+    "focus paints the card's one edge",
+  );
+  assert.ok(
+    // A *declaration*: the rule's `transition` list names the property too.
+    !/box-shadow\s*:/.test(rule(css, ".collapsed-card").body),
+    "…with no second edge stacked on it",
   );
   const field = rule(css, ".collapsed-card__input");
   assert.ok(field, "the field must still exist");

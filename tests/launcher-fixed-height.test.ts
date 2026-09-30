@@ -67,7 +67,11 @@ test("the launcher's window height is the ten-row budget, segment by segment", a
   const bottom = rule(launcher, ".launcher-bottom");
   const padding = /padding:\s*([^;]+);/.exec(bottom)![1];
   const insets = [...padding.matchAll(/calc\(var\(--u\)\s*\*\s*(\d+)\)/g)].map((m) => Number(m[1]));
-  assert.equal(insets.length, 3, ".launcher-bottom's padding is three unit insets");
+  // R72 · two unit insets, not three: the sides are 0 — the panel's horizontal
+  // inset is a margin on the blocks now, so the scroller (and the scrollbar in
+  // it) reach the card's edge.
+  assert.equal(insets.length, 2, ".launcher-bottom's padding is the top and the tail in units");
+  assert.match(padding, /\s0\s/, "…and no horizontal inset of its own");
   const panelTop = insets[0];
   const panelBottom = insets[insets.length - 1];
   const list = rule(launcher, ".launcher-results");

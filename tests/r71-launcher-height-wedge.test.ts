@@ -68,49 +68,21 @@ const stripJsComments = (src: string) =>
 
 // ── A · the window's height is the content's, verified ──────────────────────
 
-test("a height the WebView claims is audited against the platform", async () => {
+test("a height the WebView claims is taken at its word (no platform round trip)", async () => {
   const source = stripJsComments(await read("src/hooks/useLauncherHeight.ts"));
-
-  // The fast path hands off to the audit instead of returning on its own.
+  // R72 · the reverse of the audit this round first shipped: two IPC round trips
+  // per height check, plus a correction that re-enters through the card observer,
+  // is a feedback loop on a fast typist (「搜索键入时非常卡…甚至都卡住了」). The
+  // synchronous answer is final again — and there is no platform read left to
+  // oscillate with.
   assert.match(
     source,
-    /if \(Math\.abs\(height - currentWindowHeight\(\)\) <= HEIGHT_TOLERANCE\) \{\s*void confirmLauncherHeight\(card, height\);\s*return;\s*\}/,
-    "the 'already there' answer must be confirmed, not believed",
+    /if \(Math\.abs\(height - currentWindowHeight\(\)\) <= HEIGHT_TOLERANCE\) \{\s*return;\s*\}/,
+    "the 'already there' branch returns without asking anything",
   );
-
-  // The audit asks the *window*, not the viewport.
-  assert.match(source, /const size = await platform\.innerSize\(\);/, "the audit reads the window's own size");
-  assert.match(source, /const scale = await platform\.scaleFactor\(\);/, "…and converts it through the display scale");
-  assert.match(source, /real = size\.toLogical\(scale\)\.height;/, "…to logical pixels");
-  assert.match(
-    source,
-    /if \(Math\.abs\(real - height\) <= HEIGHT_TOLERANCE\) return;/,
-    "a disagreement inside the platform's own rounding is not a disagreement",
-  );
-  assert.match(
-    source,
-    /if \(request !== heightRequest\) return;/,
-    "a stale audit must not resize over a newer ask",
-  );
-
-  // The audit corrects through the one resize path.
-  const audit = /async function confirmLauncherHeight\([\s\S]*?\n\}/.exec(source);
-  assert.ok(audit, "the audit exists");
-  assert.match(audit![0], /resizeLauncherWindow\(card, height, SETTLE_PASSES\)/, "the correction re-uses the one path");
-  assert.match(audit![0], /pendingLauncherHeight = 0;/, "a claim left on the height is released before the correction");
-});
-
-test("every ask takes a number, so two asks cannot fight", async () => {
-  const source = stripJsComments(await read("src/hooks/useLauncherHeight.ts"));
-  assert.match(source, /let heightRequest = 0;/, "the ask counter exists");
-  // Both the resize branch and the correction take a number…
-  const counterBumps = [...source.matchAll(/(?:\+\+heightRequest|heightRequest \+= 1)/g)];
-  assert.ok(counterBumps.length >= 3, "the resize, the audit and the correction each take one");
-  // …and the audit (which is async) reads it *after* the round trip.
-  const audit = /async function confirmLauncherHeight\([\s\S]*?\n\}/.exec(source)![0];
-  const awaitIndex = audit.indexOf("await platform.innerSize()");
-  const guardIndex = audit.indexOf("request !== heightRequest");
-  assert.ok(awaitIndex >= 0 && guardIndex > awaitIndex, "the stale check happens after the awaits");
+  assert.doesNotMatch(source, /innerSize\(\)/, "no platform size read");
+  assert.doesNotMatch(source, /scaleFactor\(\)/, "no display-scale read");
+  assert.doesNotMatch(source, /heightRequest/, "and no ask counter to keep in step");
 });
 
 // ── B · the observer has no rules of its own ────────────────────────────────
@@ -206,5 +178,5 @@ test("a settled height is never left claimed", async () => {
   const source = stripJsComments(await read("src/hooks/useLauncherHeight.ts"));
   // The ask is released on every outcome of the walk, not only a landing.
   const releases = [...source.matchAll(/\.finally\(\(\) => \{\s*if \(pendingLauncherHeight === height\) pendingLauncherHeight = 0;/g)];
-  assert.ok(releases.length >= 2, "both the resize and the correction release their claim");
+  assert.ok(releases.length >= 1, "the walk releases its claim however it ends");
 });

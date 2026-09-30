@@ -198,8 +198,22 @@ test("the 56u window band carries one inset on each side", async () => {
 test("every launcher block lands on the query's 16u column", async () => {
   const launcher = await read("src/styles/launcher.css");
   // The sunken panel's own inset, which is what the blocks below sit in.
-  const panel = units(decl(launcher, ".launcher-bottom", "padding"))[1];
-  assert.equal(panel, 4, "the panel keeps its 4u inset (a selected row's tint stays off its edge)");
+  // R72 · the panel has no horizontal inset of its own any more: the 4u it gave
+  // every block is a margin on the block now (and on every row inside the
+  // scroller), so the scroller — and the scrollbar in it — reach the card's edge.
+  assert.match(
+    decl(launcher, ".launcher-bottom", "padding"),
+    /\s0\s/,
+    "the panel keeps no horizontal inset",
+  );
+  // …and the scroller's children keep the same 4u a side by being narrowed and
+  // centred (a margin on a grid item would overflow the scroller sideways).
+  assert.match(
+    decl(launcher, ".launcher-results > *", "width"),
+    /calc\(100% - calc\(var\(--u\) \* 8\)\)/,
+    "…and the rows are narrowed by 8u instead",
+  );
+  assert.equal(decl(launcher, ".launcher-results > *", "justify-self"), "center", "…and centred");
 
   // The row family and every other panel block pad 12u, so 4 + 12 is the 16u
   // column the query text and the chips start on.
@@ -246,9 +260,19 @@ test("the terminal's chrome shares one 12px inset", async () => {
 // ── 5 · the floaters keep their explainable rung ─────────────────────────
 
 test("the window cards draw the shared material rim", async () => {
-  for (const sheet of ["launcher.css", "settings.css", "terminal.css"]) {
+  // R72 · the launcher card is the exception, deliberately: its rim stacked on
+  // its own 1px border (two lines — 「两层边框叠在一起」 / 「都多了一层边框」), so it
+  // draws the border alone. The two shells that sit *on* a surface keep the rim.
+  for (const sheet of ["settings.css", "terminal.css"]) {
     const css = await read(`src/styles/${sheet}`);
-    const card = sheet === "launcher.css" ? ".collapsed-card" : sheet === "settings.css" ? ".settings-card" : ".terminal-panel";
+    const card = sheet === "settings.css" ? ".settings-card" : ".terminal-panel";
     assert.match(decl(css, card, "box-shadow"), /var\(--glass-rim-shadow\)/, `${card} draws the shared rim`);
   }
+  const launcher = await read("src/styles/launcher.css");
+  assert.match(decl(launcher, ".collapsed-card", "border"), /var\(--input-stroke\)/, "the launcher's edge is its border");
+  assert.deepEqual(
+    declarations(rule(launcher, ".collapsed-card").body, "box-shadow"),
+    [],
+    "…and nothing is stacked under it",
+  );
 });

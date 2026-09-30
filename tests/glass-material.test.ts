@@ -480,10 +480,14 @@ test("the shell border is a lit top, a dark bottom and a full ring of glass", as
   }
   // The shells consume the token instead of restating the strokes, which is
   // what makes "the rim" one thing to tune.
-  for (const file of ["launcher.css", "settings.css", "terminal.css"]) {
+  // R72 · the launcher's card is not in this list: it drew the rim just inside its
+  // 1px border — two lines, reported twice (「两层边框叠在一起」, then 「多了一层边框」
+  // once the border was hidden). Its edge is the border alone; the shells that sit
+  // *on* a surface keep the rim.
+  for (const file of ["settings.css", "terminal.css"]) {
     const css = stripComments(await read(`src/styles/${file}`));
     const shell = rules(css).find(({ selector }) =>
-      selector === ".collapsed-card" || selector === ".settings-card" || selector === ".terminal-panel",
+      selector === ".settings-card" || selector === ".terminal-panel",
     );
     assert.ok(shell, `${file}: the surface shell rule must exist`);
     assert.match(shell!.body, /box-shadow:\s*var\(--glass-rim-shadow\)/, `${file}: the shell must use --glass-rim-shadow`);

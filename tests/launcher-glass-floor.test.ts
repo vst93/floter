@@ -177,7 +177,8 @@ test("the floor deepens the fill without turning the card into a board", async (
   // shared rim.
   const cardBody = ruleFor(await launcherCss(), ".collapsed-card");
   assert.match(cardBody, /backdrop-filter:\s*blur\(var\(--glass-blur\)\)\s*saturate\(var\(--glass-saturate\)\)/);
-  assert.match(cardBody, /box-shadow:\s*var\(--glass-rim-shadow\)/);
+  // R72 · one edge: the card's 1px border, no rim stacked on it.
+  assert.equal(/box-shadow:\s*var\(--glass-rim-shadow\)/.test(cardBody), false);
 });
 
 test("the light palette keeps the launcher's fill light", async () => {
