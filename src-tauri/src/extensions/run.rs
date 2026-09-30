@@ -1565,48 +1565,17 @@ mod tests {
     /// A toolchain that is not installed must name the language, the binary it
     /// looked for and the directories it searched — the facts a user needs to
     /// tell "not installed" from "installed somewhere Floter cannot see".
+    ///
+    /// The scan is driven over an explicit empty directory list, not the host
+    /// `PATH`: a CI runner ships `ruby`, so "this machine has no ruby" is not a
+    /// fact the test may rely on. Empty directories are guaranteed to miss, and
+    /// the message still carries the `searched` payload.
     #[cfg(unix)]
-    #[tokio::test]
-    async fn a_missing_interpreter_is_reported_with_the_directories_searched() {
-        let directory = tempfile::tempdir().unwrap();
-        let state = test_state(directory.path());
-        let id = "local.no-interpreter";
-        crate::extensions::install::create_custom_integration_for_test(
-            &state,
-            id,
-            crate::extensions::install::CustomIntegrationRequest {
-                id: id.into(),
-                name: "Script".into(),
-                command: "script".into(),
-                version: "1.0.0".into(),
-                executable_path: String::new(),
-                mode: "script".into(),
-                // A language this machine is extremely unlikely to have, so the
-                // test does not depend on the host's installed toolchains. The
-                // resolver is driven directly for the positive case below.
-                script_language: Some(crate::extensions::manifest::ScriptLanguage::Ruby),
-                script_content: Some("puts 1".into()),
-                args_prefix: Vec::new(),
-                version_args: Vec::new(),
-                description: None,
-                permissions: vec![crate::extensions::manifest::Permission::Environment],
-                platforms: vec![
-                    crate::extensions::manifest::PlatformTarget::current()
-                        .unwrap()
-                        .os,
-                ],
-                output: OutputMode::Background,
-                params: Vec::new(),
-            },
-        )
-        .await
-        .unwrap_err();
-        // The connect path refuses a missing toolchain up front (the save is
-        // allowed by the *drawer*, which warns instead), so the keyed message
-        // is produced by the resolver itself. Drive it directly: the payload is
-        // what the run path surfaces when the toolchain disappears later.
-        let error = crate::extensions::install::resolve_script_interpreter(
+    #[test]
+    fn a_missing_interpreter_is_reported_with_the_directories_searched() {
+        let error = crate::extensions::install::resolve_script_interpreter_in(
             crate::extensions::manifest::ScriptLanguage::Ruby,
+            &[],
         )
         .unwrap_err();
         assert_eq!(

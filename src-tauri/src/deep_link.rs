@@ -977,6 +977,19 @@ pub(crate) fn plan_register_cli(
     state: &ExtensionState,
     args: &[String],
 ) -> Option<RegisterCliPlan> {
+    let directories = crate::extensions::runtime_path::search_directories();
+    plan_register_cli_in(state, args, &directories)
+}
+
+/// [`plan_register_cli`] with the discovery `PATH` list injected. The refusal
+/// branch resolves the name against the inventory, and a not-found name forces
+/// a refresh — so the answer depends on the host `PATH` unless the caller pins
+/// it. A test asserting a name is absent passes an empty list.
+pub(crate) fn plan_register_cli_in(
+    state: &ExtensionState,
+    args: &[String],
+    directories: &[PathBuf],
+) -> Option<RegisterCliPlan> {
     if !wants_register(args) {
         return None;
     }
@@ -1009,7 +1022,7 @@ pub(crate) fn plan_register_cli(
             ),
         });
     }
-    let resolved = resolve_registered_command(state, &request);
+    let resolved = resolve_registered_command_in(state, &request, directories);
     let Some(candidate) = resolved.candidate.filter(|found| found.available) else {
         return Some(RegisterCliPlan::Refused {
             message: format!(
@@ -1123,6 +1136,20 @@ pub(crate) fn resolve_registered_command(
     state: &ExtensionState,
     request: &CommandRequest,
 ) -> RegisterRequest {
+    let directories = crate::extensions::runtime_path::search_directories();
+    resolve_registered_command_in(state, request, &directories)
+}
+
+/// [`resolve_registered_command`] with the discovery `PATH` list injected.
+///
+/// The forced refresh below reads the host `PATH`; a test that asserts a name
+/// is *absent* cannot use it, because the CI runner ships tools the developer
+/// machine does not. Production passes [`runtime_path::search_directories`].
+pub(crate) fn resolve_registered_command_in(
+    state: &ExtensionState,
+    request: &CommandRequest,
+    directories: &[PathBuf],
+) -> RegisterRequest {
     let names = [request.command.clone()];
     let query = ResolveRequest {
         tool: request.command.clone(),
@@ -1136,7 +1163,7 @@ pub(crate) fn resolve_registered_command(
                 break;
             };
             if attempt == 1 {
-                inventory.refresh();
+                inventory.refresh_in(directories);
             }
             inventory.candidates()
         };
@@ -2388,9 +2415,14 @@ mod tests {
                 .map(|value| (*value).to_string())
                 .collect::<Vec<_>>()
         };
+        // The plan resolves against the inventory, and a miss forces a refresh
+        // of the host `PATH` — so pin the discovery list to an empty one. A CI
+        // runner ships `hg`, which would otherwise turn the refusal below into
+        // a bind.
+        let plan = |list: &[&str]| plan_register_cli_in(&fixture.state, &args(list), &[]);
 
         // A curated name on this device: the terminal path may bind.
-        match plan_register_cli(&fixture.state, &args(&["floter", "register", "git"])) {
+        match plan(&["floter", "register", "git"]) {
             Some(RegisterCliPlan::Bind {
                 request,
                 url,
@@ -2406,10 +2438,7 @@ mod tests {
 
         // Not curated, no `--yes`: an offer, and the offer is a *link* (the
         // `confirm` parameter is dropped, so the review surface cannot bind).
-        match plan_register_cli(
-            &fixture.state,
-            &args(&["floter", "register", "my-own-tool"]),
-        ) {
+        match plan(&["floter", "register", "my-own-tool"]) {
             Some(RegisterCliPlan::Offer { url, message }) => {
                 assert_eq!(url, "floter://register?cmd=my-own-tool");
                 assert!(message.contains("--yes"), "{message} must say how to bind");
@@ -2420,10 +2449,7 @@ mod tests {
 
         // `--yes` turns the same name into a bind, and the URL records the
         // confirmation for the instance that receives it.
-        match plan_register_cli(
-            &fixture.state,
-            &args(&["floter", "register", "my-own-tool", "--yes"]),
-        ) {
+        match plan(&["floter", "register", "my-own-tool", "--yes"]) {
             Some(RegisterCliPlan::Bind { url, .. }) => {
                 assert_eq!(url, "floter://register?cmd=my-own-tool&confirm=1");
             }
@@ -2432,11 +2458,11 @@ mod tests {
 
         // A curated name this device does not have: refused, non-zero, and the
         // sentence names the command. Nothing falls back to a window.
-        match plan_register_cli(&fixture.state, &args(&["floter", "register", "hg"])) {
+        match plan(&["floter", "register", "hg"]) {
             Some(RegisterCliPlan::Refused { message }) => {
                 assert!(message.contains("hg"), "{message}");
                 assert_eq!(
-                    plan_register_cli(&fixture.state, &args(&["floter", "register", "hg"]))
+                    plan(&["floter", "register", "hg"])
                         .expect("a refusal")
                         .exit_code(),
                     1
@@ -2446,10 +2472,7 @@ mod tests {
         }
         // A malformed name is refused by the router, and the message carries
         // the router's own reason.
-        match plan_register_cli(
-            &fixture.state,
-            &args(&["floter", "register", "/usr/bin/rg"]),
-        ) {
+        match plan(&["floter", "register", "/usr/bin/rg"]) {
             Some(RegisterCliPlan::Refused { message }) => {
                 assert!(message.contains("not a bare command name"), "{message}");
             }
@@ -2457,12 +2480,12 @@ mod tests {
         }
         // A bare `register` has no command to resolve.
         assert!(matches!(
-            plan_register_cli(&fixture.state, &args(&["floter", "register"])),
+            plan(&["floter", "register"]),
             Some(RegisterCliPlan::Refused { .. })
         ));
         // Not a register invocation at all: the caller falls through to the GUI.
-        assert!(plan_register_cli(&fixture.state, &args(&["floter", "--toggle"])).is_none());
-        assert!(plan_register_cli(&fixture.state, &args(&["floter"])).is_none());
+        assert!(plan(&["floter", "--toggle"]).is_none());
+        assert!(plan(&["floter"]).is_none());
     }
 
     /// Planning never writes: the lock is untouched by every branch, including
@@ -2484,7 +2507,7 @@ mod tests {
             &["floter", "register", "git", "--yes"][..],
             &["floter", "register", "nothing-here"][..],
         ] {
-            let _ = plan_register_cli(&fixture.state, &args(spelling));
+            let _ = plan_register_cli_in(&fixture.state, &args(spelling), &[]);
             assert!(!fixture.lock_path().exists(), "{spelling:?}");
             assert!(!fixture.repository_path().exists(), "{spelling:?}");
         }

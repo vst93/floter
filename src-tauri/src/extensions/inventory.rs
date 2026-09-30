@@ -184,7 +184,17 @@ impl ToolInventory {
     }
 
     pub fn refresh(&mut self) -> &ToolInventorySnapshot {
-        self.snapshot = discover_snapshot();
+        self.refresh_in(&path_directories())
+    }
+
+    /// [`refresh`] over an explicit `PATH` directory list.
+    ///
+    /// The `_in` variant exists so a test can force a refresh without reading
+    /// the host `PATH`: the CI runner ships tools the developer machine does
+    /// not, and a "the name is absent" assertion must not depend on that.
+    /// Production keeps calling `refresh`, which delegates here.
+    pub(crate) fn refresh_in(&mut self, directories: &[PathBuf]) -> &ToolInventorySnapshot {
+        self.snapshot = discover_snapshot_in(directories);
         self.last_environment = environment_signature();
         self.refreshed_at = Instant::now();
         &self.snapshot
@@ -233,8 +243,16 @@ impl Default for ToolInventory {
 }
 
 pub fn discover_snapshot() -> ToolInventorySnapshot {
+    discover_snapshot_in(&path_directories())
+}
+
+/// [`discover_snapshot`] over an explicit `PATH` directory list. The fixed
+/// OS-specific roots (desktop entries, flatpak/snap/nix exports) are unchanged:
+/// only the process `PATH` walk is parameterized, because that is the part a
+/// test cannot pin. Production delegates with [`path_directories`].
+pub(crate) fn discover_snapshot_in(path_directories: &[PathBuf]) -> ToolInventorySnapshot {
     let mut candidates = BTreeMap::new();
-    discover_path(&mut candidates);
+    discover_path(&mut candidates, path_directories);
     #[cfg(target_os = "linux")]
     discover_linux(&mut candidates);
     #[cfg(target_os = "macos")]
@@ -390,11 +408,11 @@ fn is_user_owned_directory(path: &Path) -> bool {
         || path.starts_with(home.join("bin"))
 }
 
-fn discover_path(candidates: &mut BTreeMap<String, ToolCandidate>) {
-    for directory in path_directories() {
+fn discover_path(candidates: &mut BTreeMap<String, ToolCandidate>, directories: &[PathBuf]) {
+    for directory in directories {
         discover_executable_directory(
             candidates,
-            &directory,
+            directory,
             DiscoverySource::Path,
             DiscoveryQuality::AutoDetected,
         );

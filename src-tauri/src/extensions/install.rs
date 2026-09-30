@@ -1693,10 +1693,24 @@ pub(crate) fn find_script_interpreter(language: ScriptLanguage) -> Result<PathBu
 /// Mutation: return the plain string above and the run's keyed-error test
 /// (`a_missing_interpreter_is_reported_with_the_directories_searched`) goes red.
 pub(crate) fn resolve_script_interpreter(language: ScriptLanguage) -> Result<PathBuf, String> {
-    let names = script_interpreter_names(language);
     let directories = crate::extensions::runtime_path::search_directories();
-    scan_directories_for_toolchain(&directories, &names).ok_or_else(|| {
-        crate::extensions::run_error::interpreter_missing(language.as_str(), &names, &directories)
+    resolve_script_interpreter_in(language, &directories)
+}
+
+/// [`resolve_script_interpreter`] over an explicit directory list.
+///
+/// The host `PATH` is the production answer, but a test that needs "no
+/// interpreter anywhere" must not depend on the machine it runs on: the CI
+/// runner ships `ruby`, so an empty directory list is the only way to assert
+/// the keyed error deterministically. Production keeps calling the plain
+/// resolver, which delegates here.
+pub(crate) fn resolve_script_interpreter_in(
+    language: ScriptLanguage,
+    directories: &[PathBuf],
+) -> Result<PathBuf, String> {
+    let names = script_interpreter_names(language);
+    scan_directories_for_toolchain(directories, &names).ok_or_else(|| {
+        crate::extensions::run_error::interpreter_missing(language.as_str(), &names, directories)
     })
 }
 
@@ -7746,6 +7760,37 @@ mod tests {
             )
             .unwrap(),
             third_python3
+        );
+    }
+
+    /// The keyed resolver reads the directory list it is handed, so "no
+    /// interpreter anywhere" is a fact a test can create instead of one it
+    /// hopes for on the host. An empty list misses and the payload still names
+    /// the directories searched; a fixture directory holding the binary hits.
+    ///
+    /// Mutation: drop the injected `directories` from the error payload and the
+    /// `searched` assertion goes red.
+    #[cfg(unix)]
+    #[test]
+    fn the_keyed_resolver_reads_the_injected_directory_list() {
+        clear_script_scan_cache();
+        let error = resolve_script_interpreter_in(ScriptLanguage::Ruby, &[]).unwrap_err();
+        assert_eq!(
+            crate::extensions::run_error::message_key(&error),
+            Some(crate::extensions::run_error::RUN_INTERPRETER_MISSING),
+            "{error}"
+        );
+        assert!(error.contains("\"language\":\"ruby\""), "{error}");
+        assert!(error.contains("\"names\":[\"ruby\"]"), "{error}");
+        assert!(error.contains("\"searched\":[]"), "{error}");
+
+        let directory = tempfile::tempdir().unwrap();
+        let ruby = write_fake_tool(directory.path(), "ruby");
+        clear_script_scan_cache();
+        assert_eq!(
+            resolve_script_interpreter_in(ScriptLanguage::Ruby, &[directory.path().to_path_buf()])
+                .unwrap(),
+            ruby
         );
     }
 
