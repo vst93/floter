@@ -267,15 +267,52 @@ pub(crate) fn spawn_in_own_scope<S: AsRef<OsStr>>(
     Ok(pid)
 }
 
+/// R74 · a Windows `.cmd` / `.bat` shim is not an executable image: `CreateProcess`
+/// refuses it, and the child has to be handed to the command interpreter instead
+/// (`cmd /c <shim> <args…>`). The discovery layer does offer such shims —
+/// `linked_candidate_names` probes `.exe`, `.cmd` and `.bat` — so a tool whose
+/// only Windows entry point is a batch wrapper would otherwise be listed as
+/// runnable and then fail to start. The suffix decides, case-insensitively, and
+/// only the *program* is inspected: `mycmd` and `tool.cmd.exe` are not shims.
+///
+/// Pure, and deliberately **not** `cfg`-gated, so the truth table below runs on
+/// every platform; only the call site is Windows-only.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn windows_cmd_shim_wrap<S: AsRef<OsStr>>(
+    program: &str,
+    args: &[S],
+) -> Option<(String, Vec<std::ffi::OsString>)> {
+    let lower = program.to_ascii_lowercase();
+    if !(lower.ends_with(".cmd") || lower.ends_with(".bat")) {
+        return None;
+    }
+    let mut wrapped: Vec<std::ffi::OsString> = Vec::with_capacity(args.len() + 2);
+    wrapped.push("/c".into());
+    wrapped.push(program.into());
+    wrapped.extend(args.iter().map(|arg| arg.as_ref().to_os_string()));
+    Some(("cmd".to_string(), wrapped))
+}
+
 /// R43 · [`spawn_in_own_scope`] on Linux, [`spawn_detached`] everywhere else.
 /// The single entry point every app-open path calls, so "is the child really its
 /// own process?" has one answer per platform.
+///
+/// R74 · on Windows a `.cmd` / `.bat` program is re-pointed at `cmd /c` first
+/// (see [`windows_cmd_shim_wrap`]), which is the one thing `CreateProcess` cannot
+/// do for itself.
 pub(crate) fn spawn_application<S: AsRef<OsStr>>(program: &str, args: &[S]) -> Result<u32, String> {
     #[cfg(target_os = "linux")]
     {
         spawn_in_own_scope(program, args)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(windows)]
+    {
+        match windows_cmd_shim_wrap(program, args) {
+            Some((shell, wrapped)) => spawn_detached(&shell, &wrapped),
+            None => spawn_detached(program, args),
+        }
+    }
+    #[cfg(all(not(target_os = "linux"), not(windows)))]
     {
         spawn_detached(program, args)
     }
@@ -327,6 +364,45 @@ mod tests {
         // After `)` the first field is the state (field 3); session is field 6,
         // i.e. index 3 here.
         fields.get(3)?.parse().ok()
+    }
+
+    /// R74 · the truth table for the Windows shim wrap. The two positives carry
+    /// the interpreter hop and forward the caller's argv verbatim; everything
+    /// else is left alone. Runs on Linux because the rule is a string suffix.
+    #[test]
+    fn only_cmd_and_bat_programs_are_wrapped_for_the_command_interpreter() {
+        fn rendered(argv: Vec<std::ffi::OsString>) -> Vec<String> {
+            argv.iter()
+                .map(|item| item.to_string_lossy().into_owned())
+                .collect()
+        }
+
+        // An ordinary executable is not touched.
+        assert!(windows_cmd_shim_wrap("C:\\tools\\flameshot.exe", &["--clipboard"]).is_none());
+        // A name that merely *contains* the suffix is not a shim either.
+        assert!(windows_cmd_shim_wrap("mycmd", &[] as &[&str]).is_none());
+        assert!(windows_cmd_shim_wrap("tool.cmd.exe", &[] as &[&str]).is_none());
+
+        // `.cmd` gets `cmd /c`, with the arguments passed through unchanged and
+        // in order — nothing added, nothing dropped.
+        let (shell, argv) =
+            windows_cmd_shim_wrap("C:\\tools\\flameshot.cmd", &["--clipboard", "a b"])
+                .expect("a .cmd shim must be wrapped");
+        assert_eq!(shell, "cmd");
+        assert_eq!(
+            rendered(argv),
+            vec!["/c", "C:\\tools\\flameshot.cmd", "--clipboard", "a b"]
+        );
+
+        // The suffix match is case-insensitive: an upper-case `.CMD` is a shim.
+        let (shell, argv) =
+            windows_cmd_shim_wrap("Tool.CMD", &[] as &[&str]).expect("upper-case .CMD");
+        assert_eq!(shell, "cmd");
+        assert_eq!(rendered(argv), vec!["/c", "Tool.CMD"]);
+
+        let (shell, argv) = windows_cmd_shim_wrap("Legacy.Bat", &["1"]).expect("mixed-case .Bat");
+        assert_eq!(shell, "cmd");
+        assert_eq!(rendered(argv), vec!["/c", "Legacy.Bat", "1"]);
     }
 
     #[test]

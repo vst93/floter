@@ -135,15 +135,6 @@ struct HistoryCopy {
     _temp: tempfile::TempDir,
 }
 
-/// Drop the cached copy. The node-less test suite drives this module over
-/// fixtures it edits in place, so a test asks for a clean slate explicitly.
-#[cfg(test)]
-pub fn clear_history_copy_cache() {
-    if let Ok(mut cache) = HISTORY_COPY.lock() {
-        *cache = None;
-    }
-}
-
 /// Query an already-copied database. Kept separate from
 /// [`query_history_file`] so the SQL can be tested against a fixture database
 /// without a browser's lock in the way.

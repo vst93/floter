@@ -726,6 +726,15 @@ export default function App() {
   }, [collapsedFocus]);
 
   const returnToInputMode = async () => {
+    // R74 · the launcher surface is about to become visible again. The catalog
+    // memo is refreshed on a native window reveal, but the install row's own
+    // door into the terminal page never hides the window (unlike every other
+    // launch branch), so a tool installed while the user watched that session
+    // would still be offered as an install row on the way back. The reveal
+    // listener cannot see this return, so the explicit way back asks for one
+    // refresh: a refresh already in flight is shared, and a failed read is the
+    // store's existing soft landing.
+    void refreshToolCatalog();
     // Resizing a native window can temporarily move keyboard focus back to the
     // webview itself. Mark this as an explicit restoration so the mode effect
     // does not race a second `show_input` call, then focus only after the native
