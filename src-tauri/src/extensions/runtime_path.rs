@@ -231,6 +231,35 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn the_baseline_appends_the_per_user_tool_directories() {
+        // The append *is* the fix: a Finder launch's `PATH` is the launchd
+        // baseline, and these are the directories the user's own installers put
+        // tools in. A `baseline_path_dirs` that stopped producing them would
+        // silently hand discovery the same broken answer as the bare `PATH`,
+        // while every containment test above still passed.
+        let Some(home) = dirs::home_dir() else {
+            return;
+        };
+        let baseline = baseline_path_dirs();
+        for name in HOME_BASELINE_PATH_DIRS {
+            assert!(
+                baseline.contains(&home.join(name)),
+                "{name} must be appended to the search path"
+            );
+        }
+        // And they survive the merge behind whatever was inherited.
+        let merged = merge_path_entries(Some(OsStr::new("/usr/bin")), &baseline);
+        let entries: Vec<_> = merged
+            .to_string_lossy()
+            .split(':')
+            .map(str::to_string)
+            .collect();
+        assert_eq!(entries.first().map(String::as_str), Some("/usr/bin"));
+        assert!(entries.contains(&home.join(".cargo/bin").to_string_lossy().into_owned()));
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn the_search_path_is_a_superset_of_the_process_path() {
         // The whole point of the module: whatever the process had stays, and
         // the conventional tool dirs are reachable on top of it.

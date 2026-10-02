@@ -184,7 +184,12 @@ impl ToolInventory {
     }
 
     pub fn refresh(&mut self) -> &ToolInventorySnapshot {
-        self.refresh_in(&path_directories())
+        // The search path, not the bare process `PATH`: a Finder/Dock launch is
+        // handed the launchd baseline and never sees the directories a version
+        // manager (`~/.nvm/...`, pyenv shims) or rustup added. See
+        // [`crate::extensions::runtime_path`] for the single answer every
+        // discovery/execution path shares.
+        self.refresh_in(&crate::extensions::runtime_path::search_directories())
     }
 
     /// [`refresh`] over an explicit `PATH` directory list.
@@ -243,13 +248,14 @@ impl Default for ToolInventory {
 }
 
 pub fn discover_snapshot() -> ToolInventorySnapshot {
-    discover_snapshot_in(&path_directories())
+    discover_snapshot_in(&crate::extensions::runtime_path::search_directories())
 }
 
 /// [`discover_snapshot`] over an explicit `PATH` directory list. The fixed
 /// OS-specific roots (desktop entries, flatpak/snap/nix exports) are unchanged:
 /// only the process `PATH` walk is parameterized, because that is the part a
-/// test cannot pin. Production delegates with [`path_directories`].
+/// test cannot pin. Production delegates with
+/// [`crate::extensions::runtime_path::search_directories`].
 pub(crate) fn discover_snapshot_in(path_directories: &[PathBuf]) -> ToolInventorySnapshot {
     let mut candidates = BTreeMap::new();
     discover_path(&mut candidates, path_directories);
@@ -834,7 +840,7 @@ fn resolve_program(program: &str) -> Option<PathBuf> {
         let path = absolute_path(program);
         return is_executable(&path).then_some(path);
     }
-    path_directories()
+    crate::extensions::runtime_path::search_directories()
         .into_iter()
         .map(|directory| directory.join(program))
         .find(|candidate| is_executable(candidate))
@@ -1036,12 +1042,6 @@ fn is_subsequence(candidate: &str, query: &str) -> bool {
         }
     }
     false
-}
-
-fn path_directories() -> Vec<PathBuf> {
-    std::env::var_os("PATH")
-        .map(|path| std::env::split_paths(&path).collect())
-        .unwrap_or_default()
 }
 
 fn absolute_path(path: &Path) -> PathBuf {
@@ -1578,5 +1578,62 @@ mod tests {
             candidate_priority(&path_candidate("git", "/usr/bin/git")) > candidate_priority(&local),
             "a curated system tool still outranks a user-local stranger"
         );
+    }
+
+    /// The discovery root is the shared search path, not the bare process
+    /// `PATH` (R71). A Finder/Dock launch inherits only the launchd baseline,
+    /// so a version-managed toolchain (`~/.nvm/...`, pyenv shims, rustup) would
+    /// be invisible if discovery walked `std::env::var_os("PATH")` itself.
+    ///
+    /// The fix has no observable seam on a developer machine whose `PATH`
+    /// already contains those directories, so the assertion is pinned to the
+    /// *source*: the bare helper is gone, nothing reads the process `PATH`
+    /// directly, and every discovery root goes through the one resolver.
+    #[test]
+    fn discovery_walks_the_shared_search_path_not_the_bare_process_path() {
+        let source = include_str!("inventory.rs");
+        let code = source
+            .split("mod tests")
+            .next()
+            .expect("the module has a code section");
+        assert!(
+            !code.contains("fn path_directories"),
+            "the bare-PATH helper must stay deleted: discovery has one path source"
+        );
+        assert!(
+            !code.contains("env::var_os(\"PATH\")"),
+            "discovery must not read the process PATH directly"
+        );
+        assert_eq!(
+            code.matches("runtime_path::search_directories()").count(),
+            3,
+            "refresh, discover_snapshot and the desktop Exec resolver all share the one source"
+        );
+    }
+
+    /// The behavioral half of the pin above: whatever the process inherited is
+    /// still reachable, and the shared resolver widens it with the baseline
+    /// tool directories rather than replacing it. `runtime_path` owns the
+    /// widening itself; this proves discovery now consumes the widened answer
+    /// — including the `$HOME` entries a bare `PATH` walk would never see.
+    #[cfg(unix)]
+    #[test]
+    fn the_discovery_root_is_a_superset_of_the_process_path() {
+        let process = std::env::var_os("PATH").unwrap_or_default();
+        let search = crate::extensions::runtime_path::search_directories();
+        for entry in std::env::split_paths(&process) {
+            assert!(
+                search.contains(&entry),
+                "{} was dropped from the discovery root",
+                entry.display()
+            );
+        }
+        for baseline in crate::extensions::runtime_path::baseline_path_dirs() {
+            assert!(
+                search.contains(&baseline),
+                "{} was not appended to the discovery root",
+                baseline.display()
+            );
+        }
     }
 }
