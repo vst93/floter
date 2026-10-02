@@ -47,7 +47,7 @@ use commands::extensions::{
     extensions_pick_local_package, extensions_recommended_permissions, extensions_reconnect_system,
     extensions_repair, extensions_reprobe, extensions_reprobe_commands, extensions_run,
     extensions_run_output, extensions_script_runtime_check, extensions_search_tools,
-    extensions_uninstall, extensions_uninstall_componentized,
+    extensions_tool_catalog, extensions_uninstall, extensions_uninstall_componentized,
 };
 use commands::extensions::{external_plugin_commands, external_plugin_run};
 use commands::system::system_power;
@@ -1718,6 +1718,7 @@ pub fn run() {
             extensions_custom_update,
             extensions_script_runtime_check,
             extensions_search_tools,
+            extensions_tool_catalog,
             extensions_recommended_permissions,
             extensions_connect_recommended,
             extensions_reconnect_system,

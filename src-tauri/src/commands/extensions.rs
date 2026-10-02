@@ -19,6 +19,7 @@ use crate::extensions::manifest::{
 use crate::extensions::probe_executor;
 use crate::extensions::provider::{DiagnoseCheck, DiagnoseResponse, ProviderResponse};
 use crate::extensions::sync::{self, ExtensionsExportResult, ExtensionsImportReport};
+use crate::extensions::tool_catalog;
 use crate::extensions::tool_manifests;
 use crate::extensions::{
     resolver, ExtensionState, LockState, ResolveRequest, ResolveResult, ToolLockEntry,
@@ -1296,6 +1297,19 @@ pub async fn extensions_search_tools(
     })
     .await
     .map_err(|error| format!("Tool discovery task failed: {error}"))?
+}
+
+/// R67 · the static install catalog plus this machine's detection result.
+///
+/// Read-only and side-effect free: the catalog is a compile-time table and the
+/// detection is a `stat` scan of the host search path (no process is spawned,
+/// no network is touched, no version is claimed). The frontend renders the
+/// install command from the returned data; the command itself is only ever
+/// typed into the user's own shell.
+#[tauri::command]
+pub fn extensions_tool_catalog() -> tool_catalog::ToolCatalogReport {
+    let directories = crate::extensions::runtime_path::search_directories();
+    tool_catalog::build_report(&directories)
 }
 
 /// One-click connection of an auto-discovered PATH tool. The candidate comes

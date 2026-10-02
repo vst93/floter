@@ -40,6 +40,9 @@ pub mod sync;
 #[cfg(test)]
 mod sync_tests_phase5;
 pub mod terminal_capability;
+/// R67 · the static install catalog + package-manager detection. See the
+/// module docs for why install data cannot ride a provider descriptor.
+pub mod tool_catalog;
 pub mod tool_lock;
 pub mod tool_manifests;
 pub(crate) mod transaction;
