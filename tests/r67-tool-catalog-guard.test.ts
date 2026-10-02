@@ -18,7 +18,8 @@
 //
 // The remaining cases pin the architecture red lines: detection is a `stat` of
 // the host search path (never the bare process `PATH`, never a spawned
-// process), and the terminal hand-off is not wired to any surface this round.
+// process), and the terminal hand-off is wired to the launcher row and the
+// settings install button (R68).
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -141,44 +142,48 @@ test("the IPC command scans the shared search path", async () => {
   assert.match(handler, /extensions_tool_catalog,/);
 });
 
-// ── 5 · the hand-off is internal this round ───────────────────────────────
+// ── 5 · the hand-off is wired this round (R68) ─────────────────────────────
 
-test("openInstallSession is not wired to any existing surface", async () => {
-  // The R68 red line: this round ships the mechanism, not a button. A wiring
-  // that landed here would also change the settings install button's behaviour
-  // (today it opens the homepage), which is the user's call to make.
-  const surfaces = [
-    "src/App.tsx",
-    "src/ExtensionsPanel.tsx",
-    "src/extensions/ExtensionRow.tsx",
-    "src/hooks/useLauncherActions.ts",
-    "src/hooks/useLauncherCatalog.ts",
-    "src/hooks/useTerminalView.ts",
-  ];
-  for (const path of surfaces) {
-    const source = stripJsComments(await read(path));
-    assert.ok(
-      !source.includes("openInstallSession"),
-      `${path} must not call openInstallSession yet`,
-    );
-  }
-  // The mechanism is exported from its own module, ready for R68.
+test("openInstallSession is wired to the launcher row and the panel button", async () => {
+  // R67 shipped the mechanism and pinned it *unwired*; R68 is the round that
+  // turns it on. The launcher's install branch reads the row's `installCommand`
+  // and the settings panel routes its install button through
+  // `onInstallInTerminal` (which `App.tsx` wires to the R60 open path). The
+  // mechanism itself is unchanged: a bare session, then the keystrokes.
+  const actions = stripJsComments(await read("src/hooks/useLauncherActions.ts"));
+  assert.match(actions, /openInstallSession\(/, "the launcher reaches the hand-off");
+  assert.match(actions, /item\.installCommand/, "it keys off the row's own field");
+
+  const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
+  assert.match(panel, /installCommandForId\(/, "the button asks the catalog");
+  assert.match(panel, /onInstallInTerminal\(/, "and hands the command to the app");
+
+  const app = stripJsComments(await read("src/App.tsx"));
+  assert.match(
+    app,
+    /onInstallInTerminal=\{\(commandLine: string\) => openTerminalSession\(commandLine\)\}/,
+    "the one R60 open path carries the install command",
+  );
+
+  // The mechanism is still exported from its own module, still bare-spawn.
   const module = await read("src/extensions/tool-install.ts");
   assert.match(module, /export const openInstallSession = async/);
   assert.match(module, /deps\.ensureTerminalSession\(null\)/);
 });
 
-test("the install button still opens the homepage, untouched", async () => {
-  // The R67 boundary in one assertion: the settings row's install action is
-  // still `open_url` on the manifest homepage (the R68 round decides whether
-  // it becomes a terminal hand-off), and the row still asks the panel to
-  // repair rather than opening a session itself.
+test("the install button prefers the terminal hand-off and falls back to the homepage", async () => {
+  // R68 flips the R67 boundary: the homepage open is still present — it is the
+  // fallback when the catalog has no recipe — but the terminal hand-off is the
+  // preferred branch, and the row's label changes with it.
   const panel = await read("src/ExtensionsPanel.tsx");
   assert.match(
     panel,
     /invoke\("open_url", \{ url: extension\.homepage \}\)/,
-    "the install action must still open the homepage",
+    "the homepage remains the fallback",
   );
+  assert.match(panel, /const installLine = toolCatalog/);
+  assert.match(panel, /onInstallInTerminal\(installLine\)/);
   const row = await read("src/extensions/ExtensionRow.tsx");
-  assert.match(row, /onRepair\b/, "the row delegates the install to the panel");
+  assert.match(row, /installInTerminal/, "the row carries the new behavior");
+  assert.match(row, /settings\.extensions\.installInTerminal/);
 });

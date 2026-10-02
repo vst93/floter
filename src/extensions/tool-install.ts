@@ -76,6 +76,11 @@ export type ToolCatalogEntry = {
   id: string;
   displayName: string;
   homepage: string;
+  /** R68 · launcher search vocabulary, a pure data addition to the Rust table
+   *  (`tool_catalog.rs`). The row builder matches a needle against the id, the
+   *  display name and these; no i18n key exists for them, exactly as none
+   *  exists for the rest of the catalog. */
+  keywords: string[];
   probeCandidates: PlatformTable<string[]>;
   recipes: PlatformTable<ToolRecipe[]>;
   launch: { argv: string[]; description: string } | null;
@@ -117,6 +122,25 @@ export const MANAGER_INSTALL_COMMANDS: Record<
 };
 
 /**
+ * The recipe `installCommand` would render: the first whose manager is present
+ * on the machine, else the table's first. Split out so a caller can also name
+ * the manager (the install row's right-hand source) without re-implementing the
+ * preference order in a second place.
+ */
+export const chosenRecipe = (
+  entry: Pick<ToolCatalogEntry, "recipes">,
+  detectedManagers: readonly string[],
+  platform: InstallPlatform,
+): ToolRecipe | null => {
+  const recipes = entry.recipes[platform];
+  if (!recipes || recipes.length === 0) return null;
+  return (
+    recipes.find((candidate) => detectedManagers.includes(candidate.manager)) ??
+    recipes[0]
+  );
+};
+
+/**
  * The install command for `entry` on `platform`, or `null` when the catalog has
  * no recipe there.
  *
@@ -135,11 +159,8 @@ export const installCommand = (
   detectedManagers: readonly string[],
   platform: InstallPlatform,
 ): string | null => {
-  const recipes = entry.recipes[platform];
-  if (!recipes || recipes.length === 0) return null;
-  const recipe =
-    recipes.find((candidate) => detectedManagers.includes(candidate.manager)) ??
-    recipes[0];
+  const recipe = chosenRecipe(entry, detectedManagers, platform);
+  if (!recipe) return null;
   const render = MANAGER_INSTALL_COMMANDS[recipe.manager];
   // A manager the frontend does not know (a backend table that grew ahead of
   // this one) yields no command rather than a half-built one.

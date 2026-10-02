@@ -39,6 +39,11 @@ type Props = {
   /** Connected-only recheck; for a detected row this is the "install tool
    *  first" guidance (opens the publisher homepage), not a disk write. */
   onRepair?: () => void;
+  /** R68 · this row's install click is a terminal hand-off (the catalog has a
+   *  recipe for the tool on this platform), not the homepage fallback. It
+   *  changes the button's label and lets the button stay enabled when there is
+   *  no homepage to open — the terminal command is the way in. */
+  installInTerminal?: boolean;
   /** Connected-only: inventory re-discovery + tool-lock write (R3/G3).
    *  Detected rows must not wire this. */
   onReconnect?: () => void;
@@ -103,6 +108,7 @@ export function ExtensionRow({
   onConnect,
   highlighted,
   onRepair,
+  installInTerminal,
   onReconnect,
   onToggle,
   onEdit,
@@ -289,10 +295,10 @@ export function ExtensionRow({
           <button
             type="button"
             className="extensions-icon-button extensions-icon-button--row extensions-icon-button--primary"
-            aria-label={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
-            title={t(extension.runtimeAvailable ? "settings.extensions.connect" : "settings.extensions.installTool")}
+            aria-label={t(extension.runtimeAvailable ? "settings.extensions.connect" : installInTerminal ? "settings.extensions.installInTerminal" : "settings.extensions.installTool")}
+            title={t(extension.runtimeAvailable ? "settings.extensions.connect" : installInTerminal ? "settings.extensions.installInTerminal" : "settings.extensions.installTool")}
             aria-busy={rowInstallBusy}
-            disabled={busy || (!extension.runtimeAvailable && !extension.homepage)}
+            disabled={busy || (!extension.runtimeAvailable && !extension.homepage && !installInTerminal)}
             onClick={extension.runtimeAvailable ? onConnect : onRepair}
           >
             {rowInstallBusy ? (

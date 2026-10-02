@@ -123,6 +123,14 @@ pub struct ToolCatalogEntry {
     pub id: &'static str,
     pub display_name: &'static str,
     pub homepage: &'static str,
+    /// R68 · words a launcher query may be matched against, beyond the id and
+    /// the display name. They are search vocabulary, not metadata: the
+    /// frontend's `tool-rows.ts` does a case-insensitive substring test over
+    /// them, so a Chinese speaker can reach `flameshot` by typing 截图 and a
+    /// Latin keyboard can reach it through the pinyin initials (the R51
+    /// precedent for names the frontend owns). Two to five per tool, all
+    /// untranslated data like the rest of the table.
+    pub keywords: &'static [&'static str],
     pub probe_candidates: ProbeCandidates,
     pub recipes: RecipeTable,
     pub launch: Option<LaunchHint>,
@@ -218,6 +226,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "flameshot",
         display_name: "Flameshot",
         homepage: "https://flameshot.org",
+        keywords: &["截图", "screenshot", "screen", "jietu"],
         probe_candidates: ProbeCandidates {
             macos: &["flameshot"],
             linux: &["flameshot"],
@@ -238,6 +247,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "yt-dlp",
         display_name: "yt-dlp",
         homepage: "https://github.com/yt-dlp/yt-dlp",
+        keywords: &["下载", "download", "video", "youtube", "xiazai"],
         probe_candidates: ProbeCandidates {
             macos: &["yt-dlp"],
             linux: &["yt-dlp"],
@@ -259,6 +269,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "jq",
         display_name: "jq",
         homepage: "https://jqlang.github.io/jq/",
+        keywords: &["json", "解析", "parse", "jiexi"],
         probe_candidates: ProbeCandidates {
             macos: &["jq"],
             linux: &["jq"],
@@ -279,6 +290,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "fd",
         display_name: "fd",
         homepage: "https://github.com/sharkdp/fd",
+        keywords: &["查找", "search", "files", "chazhao"],
         probe_candidates: ProbeCandidates {
             macos: &["fd"],
             // Debian/Ubuntu install the binary as `fdfind` to avoid a clash.
@@ -301,6 +313,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "ripgrep",
         display_name: "ripgrep",
         homepage: "https://github.com/BurntSushi/ripgrep",
+        keywords: &["搜索", "search", "grep", "sousuo"],
         probe_candidates: ProbeCandidates {
             macos: &["rg"],
             linux: &["rg"],
@@ -325,6 +338,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "fzf",
         display_name: "fzf",
         homepage: "https://github.com/junegunn/fzf",
+        keywords: &["模糊查找", "fuzzy", "search", "mohuchazhao"],
         probe_candidates: ProbeCandidates {
             macos: &["fzf"],
             linux: &["fzf"],
@@ -345,6 +359,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "bat",
         display_name: "bat",
         homepage: "https://github.com/sharkdp/bat",
+        keywords: &["高亮", "highlight", "cat", "gaoliang"],
         probe_candidates: ProbeCandidates {
             macos: &["bat"],
             // Debian/Ubuntu install the binary as `batcat`.
@@ -367,6 +382,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "eza",
         display_name: "eza",
         homepage: "https://github.com/eza-community/eza",
+        keywords: &["列表", "list", "ls", "liebiao"],
         probe_candidates: ProbeCandidates {
             macos: &["eza"],
             linux: &["eza"],
@@ -391,6 +407,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "tldr",
         display_name: "tldr",
         homepage: "https://github.com/tldr-pages/tldr",
+        keywords: &["帮助", "examples", "man", "bangzhu"],
         probe_candidates: ProbeCandidates {
             macos: &["tldr"],
             linux: &["tldr"],
@@ -412,6 +429,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "httpie",
         display_name: "HTTPie",
         homepage: "https://httpie.io",
+        keywords: &["http", "api", "请求", "qingqiu"],
         probe_candidates: ProbeCandidates {
             // The CLI installs as `http` (and `https`), not `httpie`.
             macos: &["http", "https"],
@@ -434,6 +452,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "gh",
         display_name: "GitHub CLI",
         homepage: "https://cli.github.com",
+        keywords: &["github", "pull request", "pr", "issues"],
         probe_candidates: ProbeCandidates {
             macos: &["gh"],
             linux: &["gh"],
@@ -455,6 +474,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
         id: "lazygit",
         display_name: "lazygit",
         homepage: "https://github.com/jesseduffield/lazygit",
+        keywords: &["git", "tui", "版本控制", "banbenkongzhi"],
         probe_candidates: ProbeCandidates {
             macos: &["lazygit"],
             linux: &["lazygit"],
@@ -745,6 +765,8 @@ mod tests {
         assert_eq!(tool["detected"], false);
         assert!(tool["recipes"]["macos"].is_array());
         assert!(tool["probeCandidates"]["linux"].is_array());
+        // R68 · the search vocabulary rides the same flattened entry.
+        assert!(tool["keywords"].is_array());
         let manager = &value["managers"][0];
         assert!(manager["id"].is_string());
         assert!(manager["displayName"].is_string());
@@ -755,6 +777,32 @@ mod tests {
     fn r67_platform_keys_are_exactly_the_frontend_vocabulary() {
         assert_eq!(PLATFORM_KEYS, &["macos", "linux", "windows"]);
         assert!(PLATFORM_KEYS.contains(&current_platform()));
+    }
+
+    #[test]
+    fn r68_keywords_are_two_to_five_unique_and_non_empty() {
+        for entry in TOOL_CATALOG {
+            assert!(
+                (2..=5).contains(&entry.keywords.len()),
+                "{} has {} keywords, outside the 2..=5 budget",
+                entry.id,
+                entry.keywords.len(),
+            );
+            let unique: std::collections::BTreeSet<&str> = entry.keywords.iter().copied().collect();
+            assert_eq!(
+                unique.len(),
+                entry.keywords.len(),
+                "{} repeats a keyword",
+                entry.id,
+            );
+            for keyword in entry.keywords {
+                assert!(
+                    !keyword.trim().is_empty(),
+                    "{} has a blank keyword",
+                    entry.id,
+                );
+            }
+        }
     }
 
     #[test]

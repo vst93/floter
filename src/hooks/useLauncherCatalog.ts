@@ -65,6 +65,8 @@ import { createSettingsHydration } from "../settings-persistence";
 import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandAlias, rebaseAliasCommandLine, resolveCommandAliases, MATCH_EXACT, type CommandAliases } from "../command-aliases";
 import { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS } from "../launcher/result-budget";
 import { IS_WINDOWS } from "../shortcuts";
+import { useToolCatalog } from "../extensions/tool-catalog-store";
+import { toolInstallRows } from "../extensions/tool-rows";
 import type { AppSettings, LocalApplication } from "../App";
 import type { MessageKey, Translate } from "../i18n";
 
@@ -373,6 +375,11 @@ export function useLauncherCatalog(options: {
     setSettings,
     persistSettings,
   } = options;
+
+  // R68 · the install catalog (module-memoized; refreshed once per window
+  // reveal by `App.tsx`). `null` before the first answer and after a failed
+  // read — both render as "no install rows", never as an error.
+  const toolCatalog = useToolCatalog();
 
   /** Guards against two scans overlapping: a cold cache reads as out of date, so
    * a summon during the very first scan would otherwise start a second one. */
@@ -1203,8 +1210,15 @@ export function useLauncherCatalog(options: {
     // ceiling to eight, R36 to nine, R37 to ten), and the action bar is a row of
     // its own beneath the list. Keep at least one local match when applications
     // or power actions matched alongside catalog commands.
-    return [...commandItems, ...rankedMatches].slice(0, MAX_RESULTS);
-  }, [pluginView, browserMode, clipboardMode, calculatorMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, enabledExternalCommands, t]);
+    // R68 · install rows come last: a tool the user does not have is a
+    // discovery line, not the main match, so it yields to every real result
+    // when the budget is tight. The rows carry no execution plan; Enter opens
+    // a bare terminal and types their command (`useLauncherActions`).
+    const installRows = toolCatalog
+      ? toolInstallRows(toolCatalog, needle, toolCatalog.platform)
+      : [];
+    return [...commandItems, ...rankedMatches, ...installRows].slice(0, MAX_RESULTS);
+  }, [pluginView, browserMode, clipboardMode, calculatorMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, enabledExternalCommands, t, toolCatalog]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
     // R26-A: the browser mode is a place of its own; its rows are run by Enter,
@@ -1232,7 +1246,10 @@ export function useLauncherCatalog(options: {
 
   const runnableResultFlags = launcherResults.map((item) =>
     item.type === "command"
-      ? Boolean(item.execution)
+      ? // R68 · an install row is runnable too: its Enter opens the terminal
+        // hand-off. The existing shortcut/selection logic then numbers and
+        // steps it exactly like any other runnable result, unchanged.
+        Boolean(item.execution) || Boolean(item.installCommand)
       : !(
           // R30 · a plugin status line is never a result: the renderer draws it
           // as a note, so it must not take a numbered slot, a selection step or

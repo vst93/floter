@@ -56,6 +56,9 @@ const en = {
   "launcher.error.path": "Could not open this path",
   "launcher.error.session": "Could not resume this terminal session",
   "launcher.error.externalTerminal": "Could not continue in the system terminal",
+  // R68 · the install hand-off could not open its terminal (or the command was
+  // blank). The launcher's own feedback line, not a toast.
+  "launcher.installFailed": "Could not open a terminal for this install",
   "launcher.error.restart": "Could not restart this computer",
   "launcher.error.shutdown": "Could not shut down this computer",
   "launcher.application": "Application",
@@ -543,6 +546,10 @@ const en = {
   "settings.extensions.chooseSystemTool": "Choose a runtime for {name}",
   "settings.extensions.chooseSystemToolHint": "Multiple matching executables were discovered. Choose the exact path Floter should bind to.",
   "settings.extensions.installTool": "Install tool first",
+  // R68 · the install button when the catalog has a recipe for this tool on
+  // this platform: the click opens a terminal and types the command.
+  "settings.extensions.installInTerminal": "Install in terminal",
+  "settings.extensions.installInTerminalFailed": "Could not open the install terminal",
   "settings.extensions.status": "Status",
   "settings.extensions.signature": "Publisher signature",
   "settings.extensions.signatureVerified": "Verified",
@@ -984,6 +991,7 @@ const zh: Record<MessageKey, string> = {
   "launcher.error.path": "无法打开此路径",
   "launcher.error.session": "无法恢复此终端会话",
   "launcher.error.externalTerminal": "无法在系统终端中继续",
+  "launcher.installFailed": "无法为这次安装打开终端",
   "launcher.error.restart": "无法重启此电脑",
   "launcher.error.shutdown": "无法关闭此电脑",
   "launcher.application": "应用程序",
@@ -1443,6 +1451,8 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.chooseSystemTool": "为 {name} 选择运行工具",
   "settings.extensions.chooseSystemToolHint": "发现了多个匹配的可执行文件，请明确选择 Floter 要绑定的路径。",
   "settings.extensions.installTool": "请先安装工具",
+  "settings.extensions.installInTerminal": "在终端中安装",
+  "settings.extensions.installInTerminalFailed": "无法打开安装终端",
   "settings.extensions.status": "状态",
   "settings.extensions.signature": "发布者签名",
   "settings.extensions.signatureVerified": "已验证",

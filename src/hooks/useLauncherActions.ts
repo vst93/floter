@@ -40,6 +40,7 @@ import {
 } from "../shortcuts";
 import { resultIndexForSlot } from "../launcher/result-budget";
 import { isBareTerminalRow } from "../launcher/terminal-row";
+import { openInstallSession } from "../extensions/tool-install";
 
 import type { BrokerSessionInfo, LocalApplication, ViewMode } from "../App";
 import type { MessageKey, Translate } from "../i18n";
@@ -310,23 +311,43 @@ export function useLauncherActions(options: {
    * Reached from the two R60 doors — the terminal system row's Enter and the
    * ⌘-held row's Enter — which share the `action: "terminal"` branch in
    * `runSystemAction`.
+   *
+   * R68 · the same door also carries an install command. When `installCommand`
+   * is given, the session is still opened **bare** (R62's predicate must stay
+   * false: the install is the user's own shell, and the page must not leave
+   * when it finishes) and R67's `openInstallSession` types the command into it
+   * afterwards. The mode transition, the mount flag, the focus and the failure
+   * handling are the one path above — an install is not a second way to open a
+   * terminal. Returns `true` when the session was opened, `false` on failure,
+   * so the settings panel can report a refused hand-off through its own notify
+   * channel.
    */
-  const openTerminalSession = async () => {
-    if (terminalOpening.current) return;
+  const openTerminalSession = async (installCommand?: string): Promise<boolean> => {
+    if (terminalOpening.current) return false;
     terminalOpening.current = true;
     setLauncherFeedback(null);
     setTerminalFeedback(null);
     setTerminalMounted(true);
     setMode("terminal");
     try {
-      await ensureTerminalSession(null);
+      if (installCommand) {
+        const opened = await openInstallSession(installCommand, {
+          ensureTerminalSession: (initialCommand) => ensureTerminalSession(initialCommand),
+          invoke: (command, args) => invoke(command, args),
+        });
+        if (!opened) throw new Error("empty install command");
+      } else {
+        await ensureTerminalSession(null);
+      }
       setQuery("");
       focusTerminalView();
+      return true;
     } catch {
-      showLauncherFeedback("launcher.error.command");
+      showLauncherFeedback(installCommand ? "launcher.installFailed" : "launcher.error.command");
       setTerminalMounted(false);
       setMode("collapsed");
       scheduleCollapsedFocusBeats();
+      return false;
     } finally {
       terminalOpening.current = false;
     }
@@ -820,6 +841,14 @@ export function useLauncherActions(options: {
       setQuery(item.commandLine);
       setHistoryIndex(-1);
       focusCollapsedInput();
+      return;
+    }
+    if (item.type === "command" && !item.execution && item.installCommand) {
+      // R68 · an install row. The terminal page opens bare and the command is
+      // typed into it, so R62's predicate stays false — the shell is the
+      // user's and must outlive the install. `openTerminalSession` is R60's one
+      // open path, not a parallel one.
+      void openTerminalSession(item.installCommand);
       return;
     }
     if (item.type === "command" && item.execution && item.sourceName) {

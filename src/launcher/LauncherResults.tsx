@@ -68,6 +68,12 @@ export type LauncherItem =
       commandLine: string;
       execution: ExecutionPlan | null;
       completion: boolean;
+      /** R68 · an install row: the command R67's `openInstallSession` types
+       *  into a bare PTY. The row deliberately carries no `execution` — an
+       *  install never enters the provider run path — and this string is what
+       *  `useLauncherActions` reads to open the terminal hand-off instead of
+       *  falling through to the runtime-unavailable feedback. */
+      installCommand?: string;
       /** R65 · the row's command is one the user turned on for **direct
        *  output** (`settings.extensions.commandsHint`): typing its name and a
        *  space summons it into the search interface itself. The row earns the
@@ -723,7 +729,9 @@ export function LauncherResults({
             }
             const selected = interactive && !selectedActionBar && index === selectedResultIndex;
             const unavailable =
-              (item.type === "command" && !item.execution) ||
+              // R68 · an install row also has no execution plan, but it is not
+              // unavailable: its Enter opens a terminal and types its command.
+              (item.type === "command" && !item.execution && !item.installCommand) ||
               (item.type === "system" && item.disabled === true) ||
               (item.type === "browser" && item.disabled === true) ||
               (item.type === "clipboard" && item.disabled === true) ||

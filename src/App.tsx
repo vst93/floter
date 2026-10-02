@@ -66,6 +66,7 @@ import {
   type DeepLinkRegisterRequest,
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
+import { refreshToolCatalog } from "./extensions/tool-catalog-store";
 import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
 import {
   formatResultShortcut,
@@ -2365,6 +2366,11 @@ export default function App() {
     });
 
     const unlistenRevealPromise = listen<string>("floter://revealed", (event) => {
+      // R68 · one catalog refresh per reveal. A tool installed in the user's
+      // own shell while the window was hidden must stop being offered as an
+      // install row on the next summon; between reveals the module memo serves
+      // every query. No polling, no timer.
+      void refreshToolCatalog();
       if (modeRef.current === "settings") {
         // The native toggle only remembers terminal/launcher geometry. Keep
         // the mounted editor and its draft, then restore the settings height.
@@ -2905,6 +2911,7 @@ export default function App() {
                 t={t}
                 locale={language}
                 onOpenCommand={(plan: ExtensionExecutionPlan, label: string) => runCommand(plan, label)}
+                onInstallInTerminal={(commandLine: string) => openTerminalSession(commandLine)}
                 showCommandsInSearch={settings.show_commands_in_search}
                 onToggleCommandsInSearch={toggleCommandsInSearch}
                 commandAliases={settings.command_aliases}

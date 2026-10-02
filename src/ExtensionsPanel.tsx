@@ -72,6 +72,8 @@ import { SettingsEmpty } from "./settings/SettingsRows";
 import { useImmediateState } from "./hooks/useImmediateState";
 import { useTimedReset } from "./hooks/useTimedReset";
 import { isDismissKey } from "./surface-policy";
+import { useToolCatalog } from "./extensions/tool-catalog-store";
+import { installCommandForId } from "./extensions/tool-rows";
 
 type ExtensionDistributionSource = "npm" | "local" | "built-in";
 type ExtensionRuntimeOwnership = "bundled" | "system";
@@ -537,6 +539,11 @@ type ExtensionsPanelProps = {
   t: Translate;
   locale: "en" | "zh";
   onOpenCommand: (plan: ExtensionExecutionPlan, label: string) => void | Promise<void>;
+  /** R68 · open a terminal session and type an install command into it (the
+   *  extensions panel's install button, when the catalog has a recipe for this
+   *  tool). Resolves `true` when the session opened and `false` when it did
+   *  not, so the panel can report a refused hand-off through `onNotify`. */
+  onInstallInTerminal: (commandLine: string) => Promise<boolean>;
   /** Whether extension commands currently appear in launcher search results. */
   showCommandsInSearch: boolean;
   /** Flip the launcher command-discovery setting and persist it. */
@@ -671,8 +678,13 @@ const displayJson = (value: JsonValue): string => {
   return JSON.stringify(value);
 };
 
-export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginConfig, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed, pluginCommandSwitches, onTogglePluginCommand, externalCommands, onRefreshExternalCommands }: ExtensionsPanelProps) {
+export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInstallInTerminal, showCommandsInSearch, onToggleCommandsInSearch, commandAliases, onChangeCommandAlias, basePlugins, onToggleBasePlugin, onOpenPluginConfig, onNotify, pendingDeepLink, onDeepLinkConsumed, pendingDeepLinkRegister, onDeepLinkRegisterConsumed, pluginCommandSwitches, onTogglePluginCommand, externalCommands, onRefreshExternalCommands }: ExtensionsPanelProps) {
   const [extensions, setExtensions] = useState<Extension[]>([]);
+  // R68 · the install catalog (module-memoized; refreshed once per reveal by
+  // `App.tsx`). Drives the install button: a catalog hit with a recipe for this
+  // platform becomes a terminal hand-off, everything else keeps the homepage
+  // fallback. `null` (not yet read, or read failed) is the fallback too.
+  const toolCatalog = useToolCatalog();
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderResponse | null>(null);
@@ -2435,7 +2447,14 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
               </div>
             )}
             <div className="extensions-list extensions-list--installed" ref={detectedListRef}>
-              {suggestedExtensions.map((extension) => (
+              {suggestedExtensions.map((extension) => {
+                // R68 · one lookup per row. A catalog hit whose platform has a
+                // recipe turns the install button into a terminal hand-off;
+                // anything else keeps the long-standing homepage fallback.
+                const installLine = toolCatalog
+                  ? installCommandForId(toolCatalog, extension.id, toolCatalog.platform)
+                  : null;
+                return (
                 <Fragment key={extension.id}>
                 <ExtensionRowComponent
                   extension={extension}
@@ -2444,9 +2463,20 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                   t={t}
                   highlighted={registerTarget?.id === extension.id}
                   onConnect={() => connectDetected(extension)}
-                  onRepair={() => extension.homepage ? void invoke("open_url", { url: extension.homepage }).catch((error) => {
-                    onNotify("error", String(error));
-                  }) : undefined}
+                  installInTerminal={Boolean(installLine)}
+                  onRepair={() => {
+                    if (installLine) {
+                      void onInstallInTerminal(installLine).then((opened) => {
+                        if (!opened) onNotify("error", t("settings.extensions.installInTerminalFailed"));
+                      });
+                      return;
+                    }
+                    if (extension.homepage) {
+                      void invoke("open_url", { url: extension.homepage }).catch((error) => {
+                        onNotify("error", String(error));
+                      });
+                    }
+                  }}
                 />
                 {/* The link's argument hint, shown as context only. The
                     backend never runs it; it is here so the user can see what
@@ -2459,7 +2489,8 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, showCo
                   </p>
                 )}
                 </Fragment>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
