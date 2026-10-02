@@ -609,6 +609,35 @@ export function useLauncherActions(options: {
     void runFileAction(fileActionRequest(kind, actionValue(file, kind), IS_WINDOWS));
   };
 
+  /**
+   * R69 · call out an installed GUI/TUI tool from its invoke row.
+   *
+   * The row's `launchArgv` is handed to the detached spawn as a bare
+   * `program` + `args` pair — the first element is the program, the rest is its
+   * argv, and nothing is ever joined into a shell string (the Rust command
+   * takes `Vec<String>` and calls `spawn_application` directly). The call does
+   * not wait: the spawned tool is its own process, and the launcher gets out of
+   * its way the way `launchApplication` does. A refusal keeps the launcher up
+   * with a feedback line so the row can be retried.
+   */
+  const invokeToolLaunch = async (argv: string[]) => {
+    const [program, ...args] = argv;
+    if (!program || launcherOpening.current) return;
+    launcherOpening.current = true;
+    setLauncherFeedback(null);
+    try {
+      await invoke("system_spawn_detached", { program, args });
+    } catch {
+      showLauncherFeedback("launcher.invokeFailed");
+      return;
+    } finally {
+      launcherOpening.current = false;
+    }
+    setQuery("");
+    setHistoryIndex(-1);
+    invoke("hide_window");
+  };
+
   const executeActionBar = (action: ActionBar) => {
     // A dropped file's bar is a different control wearing the same row shape:
     // it acts on the file under the selection, not on the query text.
@@ -849,6 +878,13 @@ export function useLauncherActions(options: {
       // user's and must outlive the install. `openTerminalSession` is R60's one
       // open path, not a parallel one.
       void openTerminalSession(item.installCommand);
+      return;
+    }
+    if (item.type === "command" && !item.execution && item.launchArgv) {
+      // R69 · an invoke row, the install row's other half: the tool is already
+      // here and the row calls it out. It spawns the program detached — no
+      // terminal page, no R62 flag, no provider run path.
+      void invokeToolLaunch(item.launchArgv);
       return;
     }
     if (item.type === "command" && item.execution && item.sourceName) {

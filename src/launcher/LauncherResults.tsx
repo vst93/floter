@@ -74,6 +74,12 @@ export type LauncherItem =
        *  `useLauncherActions` reads to open the terminal hand-off instead of
        *  falling through to the runtime-unavailable feedback. */
       installCommand?: string;
+      /** R69 · an invoke row: the argv of a detected GUI/TUI tool the user can
+       *  call out. Like `installCommand` it is mutually exclusive with it, the
+       *  row carries no `execution`, and `useLauncherActions` reads this field
+       *  to reach `system_spawn_detached` — never the provider run path. The
+       *  renderer only has to know it makes the row runnable and not dimmed. */
+      launchArgv?: string[];
       /** R65 · the row's command is one the user turned on for **direct
        *  output** (`settings.extensions.commandsHint`): typing its name and a
        *  space summons it into the search interface itself. The row earns the
@@ -731,7 +737,9 @@ export function LauncherResults({
             const unavailable =
               // R68 · an install row also has no execution plan, but it is not
               // unavailable: its Enter opens a terminal and types its command.
-              (item.type === "command" && !item.execution && !item.installCommand) ||
+              // R69 · an invoke row is the same kind of exception: its Enter
+              // spawns the tool detached.
+              (item.type === "command" && !item.execution && !item.installCommand && !item.launchArgv) ||
               (item.type === "system" && item.disabled === true) ||
               (item.type === "browser" && item.disabled === true) ||
               (item.type === "clipboard" && item.disabled === true) ||

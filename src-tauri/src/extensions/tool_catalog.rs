@@ -105,8 +105,16 @@ impl RecipeTable {
     }
 }
 
-/// How R68 may call the tool out. Reserved this round: the data ships, nothing
-/// reads it yet.
+/// How R69 may call the tool out: the argv of the GUI/TUI program to spawn,
+/// and a human-readable description of what the call does. The launcher's
+/// invoke row renders the argv as its subtitle and hands it to the detached
+/// spawn ([`crate::commands::actions::system_spawn_detached`]) — no shell, no
+/// terminal, no provider run path.
+///
+/// Only tools with a GUI or TUI action carry a hint. A pure CLI filter — `jq`,
+/// `fd`, `rg` — has nothing sensible to start detached (it reads standard
+/// input), and its honest home is the user's own shell, so it stays `None` and
+/// earns no invoke row.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchHint {
@@ -241,7 +249,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "Flameshot.Flameshot")],
         },
-        launch: Some(launch(&["flameshot"], "Take a screenshot")),
+        launch: Some(launch(&["flameshot", "gui"], "Take a screenshot")),
     },
     ToolCatalogEntry {
         id: "yt-dlp",
@@ -263,7 +271,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "yt-dlp.yt-dlp"), recipe("pipx", "yt-dlp")],
         },
-        launch: Some(launch(&["yt-dlp"], "Download media from a URL")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "jq",
@@ -284,7 +292,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "jqlang.jq")],
         },
-        launch: Some(launch(&["jq"], "Process JSON from standard input")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "fd",
@@ -307,7 +315,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "sharkdp.fd"), recipe("cargo", "fd-find")],
         },
-        launch: Some(launch(&["fd"], "Find files by name")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "ripgrep",
@@ -332,7 +340,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
                 recipe("cargo", "ripgrep"),
             ],
         },
-        launch: Some(launch(&["rg"], "Search file contents")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "fzf",
@@ -353,7 +361,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "junegunn.fzf")],
         },
-        launch: Some(launch(&["fzf"], "Fuzzy-find from standard input")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "bat",
@@ -376,7 +384,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "sharkdp.bat"), recipe("cargo", "bat")],
         },
-        launch: Some(launch(&["bat"], "Print a file with syntax highlighting")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "eza",
@@ -401,7 +409,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
                 recipe("cargo", "eza"),
             ],
         },
-        launch: Some(launch(&["eza"], "List directory contents")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "tldr",
@@ -423,7 +431,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("npm", "tldr")],
         },
-        launch: Some(launch(&["tldr"], "Show example usage for a command")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "httpie",
@@ -446,7 +454,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("pipx", "httpie")],
         },
-        launch: Some(launch(&["http"], "Send an HTTP request")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "gh",
@@ -468,7 +476,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "GitHub.cli")],
         },
-        launch: Some(launch(&["gh"], "Run the GitHub CLI")),
+        launch: None,
     },
     ToolCatalogEntry {
         id: "lazygit",
@@ -813,5 +821,52 @@ mod tests {
                 assert!(!hint.description.is_empty(), "{}", entry.id);
             }
         }
+    }
+
+    /// R69 · the launch hints are the GUI/TUI subset, not every tool. A pure CLI
+    /// filter (`jq`, `fd`, `rg`, …) reads standard input and has nothing to
+    /// start detached, so it carries no hint and earns no launcher invoke row.
+    /// Only `flameshot` (a GUI) and `lazygit` (a TUI) qualify, and their argv is
+    /// the exact program the invoke row hands to the detached spawn.
+    #[test]
+    fn r69_only_gui_and_tui_tools_carry_a_launch_hint() {
+        let launched: Vec<&str> = TOOL_CATALOG
+            .iter()
+            .filter(|entry| entry.launch.is_some())
+            .map(|entry| entry.id)
+            .collect();
+        assert_eq!(launched, vec!["flameshot", "lazygit"]);
+
+        let argv = |id: &str| -> &'static [&'static str] {
+            TOOL_CATALOG
+                .iter()
+                .find(|entry| entry.id == id)
+                .and_then(|entry| entry.launch)
+                .unwrap_or_else(|| panic!("{id} must carry a launch hint"))
+                .argv
+        };
+        assert_eq!(argv("flameshot"), &["flameshot", "gui"]);
+        assert_eq!(argv("lazygit"), &["lazygit"]);
+    }
+
+    /// R69 · the launch payload serializes as camelCase with the argv as a JSON
+    /// array, which is what the frontend's invoke row reads.
+    #[test]
+    fn r69_the_launch_hint_serializes_with_its_argv() {
+        let temp = tempfile::tempdir().unwrap();
+        let value = serde_json::to_value(build_report(&directories(&temp))).unwrap();
+        let tools = value["tools"].as_array().unwrap();
+        let find = |id: &str| {
+            tools
+                .iter()
+                .find(|tool| tool["id"] == id)
+                .unwrap_or_else(|| panic!("{id} must be in the report"))
+        };
+        assert_eq!(find("flameshot")["launch"]["argv"][0], "flameshot");
+        assert_eq!(find("flameshot")["launch"]["argv"][1], "gui");
+        assert!(find("lazygit")["launch"]["argv"].is_array());
+        // A CLI tool's hint is `null`, which is what makes the invoke row absent.
+        assert!(find("jq")["launch"].is_null());
+        assert!(find("fd")["launch"].is_null());
     }
 }

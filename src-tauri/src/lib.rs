@@ -23,7 +23,7 @@ mod terminal;
 // file), derived once so it cannot collide with another Tauri app's tray.
 mod tray_identity;
 
-use commands::actions::{open_path, open_url, run_silent_command};
+use commands::actions::{open_path, open_url, run_silent_command, system_spawn_detached};
 use commands::apps::{
     application_icon, check_applications, list_applications, open_application, ApplicationState,
 };
@@ -1708,6 +1708,8 @@ pub fn run() {
             refocus_webview,
             start_drag,
             system_power,
+            // R69 · the invoke row's detached spawn (bare argv, no shell).
+            system_spawn_detached,
             extensions_list,
             extensions_export,
             extensions_import,

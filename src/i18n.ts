@@ -59,6 +59,9 @@ const en = {
   // R68 · the install hand-off could not open its terminal (or the command was
   // blank). The launcher's own feedback line, not a toast.
   "launcher.installFailed": "Could not open a terminal for this install",
+  // R69 · the invoke row's detached spawn was refused. The launcher's own
+  // feedback line, like the install hand-off's.
+  "launcher.invokeFailed": "Could not start this tool",
   "launcher.error.restart": "Could not restart this computer",
   "launcher.error.shutdown": "Could not shut down this computer",
   "launcher.application": "Application",
@@ -992,6 +995,7 @@ const zh: Record<MessageKey, string> = {
   "launcher.error.session": "无法恢复此终端会话",
   "launcher.error.externalTerminal": "无法在系统终端中继续",
   "launcher.installFailed": "无法为这次安装打开终端",
+  "launcher.invokeFailed": "无法启动此工具",
   "launcher.error.restart": "无法重启此电脑",
   "launcher.error.shutdown": "无法关闭此电脑",
   "launcher.application": "应用程序",

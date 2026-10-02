@@ -66,7 +66,7 @@ import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandA
 import { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS } from "../launcher/result-budget";
 import { IS_WINDOWS } from "../shortcuts";
 import { useToolCatalog } from "../extensions/tool-catalog-store";
-import { toolInstallRows } from "../extensions/tool-rows";
+import { toolInstallRows, toolInvokeRows } from "../extensions/tool-rows";
 import type { AppSettings, LocalApplication } from "../App";
 import type { MessageKey, Translate } from "../i18n";
 
@@ -1217,7 +1217,11 @@ export function useLauncherCatalog(options: {
     const installRows = toolCatalog
       ? toolInstallRows(toolCatalog, needle, toolCatalog.platform)
       : [];
-    return [...commandItems, ...rankedMatches, ...installRows].slice(0, MAX_RESULTS);
+    // R69 · invoke rows follow the install rows: a detected GUI/TUI tool the
+    // query names is offered a way to be called out. The two are mutually
+    // exclusive per tool (detected vs not), so a tool can never appear twice.
+    const invokeRows = toolCatalog ? toolInvokeRows(toolCatalog, needle) : [];
+    return [...commandItems, ...rankedMatches, ...installRows, ...invokeRows].slice(0, MAX_RESULTS);
   }, [pluginView, browserMode, clipboardMode, calculatorMode, externalMode, catalogSuggestions, query, searchableApps, launchCounts, showRecentInLauncher, commandAliases, browserEnabled, clipboardEnabled, enabledExternalCommands, t, toolCatalog]);
 
   const actionBar = useMemo<ActionBar | null>(() => {
@@ -1247,9 +1251,11 @@ export function useLauncherCatalog(options: {
   const runnableResultFlags = launcherResults.map((item) =>
     item.type === "command"
       ? // R68 · an install row is runnable too: its Enter opens the terminal
-        // hand-off. The existing shortcut/selection logic then numbers and
-        // steps it exactly like any other runnable result, unchanged.
-        Boolean(item.execution) || Boolean(item.installCommand)
+        // hand-off. R69 · an invoke row is runnable for the same reason — its
+        // Enter spawns the tool detached. The existing shortcut/selection logic
+        // then numbers and steps both exactly like any other runnable result,
+        // unchanged.
+        Boolean(item.execution) || Boolean(item.installCommand) || Boolean(item.launchArgv)
       : !(
           // R30 · a plugin status line is never a result: the renderer draws it
           // as a note, so it must not take a numbered slot, a selection step or

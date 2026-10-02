@@ -151,6 +151,31 @@ pub fn run_silent_command(command: String) -> Result<(), String> {
     }
 }
 
+/// R69 · start a program the launcher's invoke row asked for, from a bare
+/// `program` + `args` pair — the last link of the graft layer's
+/// discover → install → **invoke** loop.
+///
+/// The row is built from the catalog's own `launch.argv`, so `program` is the
+/// first element and `args` the rest; there is no shell anywhere on the path and
+/// no string is re-parsed. `spawn_application` is the one launch entry point
+/// (R41/R43), so the child is detached, in its own session and — on Linux — in
+/// its own transient systemd scope, exactly as an application opened from the
+/// list is. The call does not wait: a GUI that outlives the webview is the
+/// point, and a synchronous `.status()` here would freeze the event loop the
+/// way the R41 incident did.
+///
+/// A blank program is refused (there is nothing to start); everything else is
+/// reported as the spawn's own success or failure, and the frontend turns a
+/// failure into the launcher's feedback line.
+#[tauri::command]
+pub fn system_spawn_detached(program: String, args: Vec<String>) -> Result<(), String> {
+    let program = program.trim();
+    if program.is_empty() {
+        return Err("Empty program".to_string());
+    }
+    crate::process_launch::spawn_application(program, &args).map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +188,15 @@ mod tests {
         assert_eq!(resolve_path("../Shared", home), home.join("../Shared"));
         assert_eq!(resolve_path("~/Downloads", home), home.join("Downloads"));
         assert_eq!(resolve_path("/tmp/file", home), Path::new("/tmp/file"));
+    }
+
+    /// R69 · the detached spawn refuses a blank program before it reaches the
+    /// launch path. A whitespace-only argv[0] is the only thing the frontend
+    /// could send that has nothing to start, and it must be an error rather
+    /// than a spawn of the empty string.
+    #[test]
+    fn r69_the_detached_spawn_refuses_a_blank_program() {
+        assert!(system_spawn_detached("   ".to_string(), vec![]).is_err());
+        assert!(system_spawn_detached(String::new(), vec!["gui".to_string()]).is_err());
     }
 }
