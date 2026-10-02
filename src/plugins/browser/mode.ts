@@ -63,7 +63,14 @@ export type BrowserTabRow = {
  * R32 · the inline mode fetches this many rows **once** per filter and applies
  *  the needle in memory (`plugins/search.ts`), so this is the depth a search can
  *  look into. 500 is the backend's own `MAX_LIMIT`; it is also the number the
- *  round's own note names (「500 条内存过滤，无压力」). */
+ *  round's own note names (「500 条内存过滤，无压力」).
+ *
+ * R75 · for history the number is no longer the depth a search can reach. The
+ *  inline mode re-reads history per needle with the tokens pushed into SQL, so
+ *  the 500-row window is the empty-query page size, not a search ceiling: a
+ *  match older than the newest 500 is found. Bookmarks are still fetched once
+ *  and filtered in memory (their file is read whole), so for them this remains
+ *  both the fetch and the search depth. */
 export const BROWSER_FETCH_LIMIT = 500;
 
 /** The ceiling on one browser group. Bookmarks and history share the first
@@ -111,17 +118,19 @@ export const browserStatusRow = (id: string, key: MessageKey, t: Translate): Plu
  * configuration nag. The `kind: "status"` capability itself is untouched; the
  * browser simply does not emit one for this case any more.
  *
- * R32 · the three sources are filtered here, in memory, by the needle's AND
- * tokens (`plugins/search.ts`) against the configured search field. The hook
- * fetches each source once per filter and hands the whole group over, so typing
- * inside the mode costs no IPC. The rule is the same for a bookmark, a history
- * entry and a live tab; only the fields the tokens may hit differ, and that is
- * what `searchField` chooses.
+ * R32 · the sources are filtered by the needle's AND tokens
+ * (`plugins/search.ts`) against the configured search field. R75 · the history
+ * source arrives already filtered: the backend applies the same token rule in
+ * SQL *before* its `LIMIT`, which is what lets a match older than the fetch
+ * window be found at all. The rule here is therefore the bookmark and live-tab
+ * one; history is trusted as the backend's answer (see {@link browserSearchRows}).
  */
-/** R32 · whether one browser row (bookmark, history entry or live tab) matches
- *  the needle's tokens under the configured field. `title`/`url` narrow the
- *  haystacks; `all` is their OR. The two row shapes share `title` and `url`, so
- *  one function serves all three sources. */
+/** R32 · whether one browser row (bookmark or live tab) matches the needle's
+ *  tokens under the configured field. `title`/`url` narrow the haystacks; `all`
+ *  is their OR. The two row shapes share `title` and `url`, so one function
+ *  serves both sources. R75 · history is deliberately absent: the backend owns
+ *  that rule now, so this stays the one *memory* rule without a second copy of
+ *  it fighting the SQL one. */
 export const browserRowMatches = (
   row: { title: string; url: string },
   tokens: readonly string[],
@@ -134,6 +143,8 @@ export const browserRowMatches = (
 
 export const browserSearchRows = (options: {
   bookmarks: readonly BrowserSearchRow[];
+  /** R75 · already filtered by the backend's token SQL (see
+   *  {@link browserSearchRows}); the memory rule is not applied to it. */
   history: readonly BrowserSearchRow[];
   tabs: readonly BrowserTabRow[];
   profileKey: string;
@@ -143,9 +154,12 @@ export const browserSearchRows = (options: {
    *  pages the result client-side (`paginatePluginRows`), so the fetch is one
    *  call while the *display* stays windowed. */
   limit?: number;
-  /** R32 · the field's own text. Split into AND tokens; empty matches all. */
+  /** R32 · the field's own text, split into AND tokens; empty matches all.
+   *  R75 · applied to the bookmark and tab sources only — history is filtered by
+   *  the backend. */
   needle?: string;
-  /** R32 · which fields the tokens may hit. Defaults to `all` (title or URL). */
+  /** R32 · which fields the tokens may hit. Defaults to `all` (title or URL).
+   *  R75 · the same value is sent to the backend for the history source. */
   searchField?: BrowserSearchField;
 }): PluginRow[] => {
   const { profileKey, t } = options;
@@ -153,7 +167,12 @@ export const browserSearchRows = (options: {
   const tokens = searchTokens(options.needle ?? "");
   const field = options.searchField ?? DEFAULT_BROWSER_SEARCH_FIELD;
   const bookmarks = options.bookmarks.filter((row) => browserRowMatches(row, tokens, field));
-  const history = options.history.filter((row) => browserRowMatches(row, tokens, field));
+  // R75 · history is *not* filtered here. It is the backend's answer: the same
+  // token AND rule ran in SQL before the `LIMIT`, so a match older than the
+  // fetch window can reach this list at all. Re-applying the rule in memory
+  // would be a second, silently different ranking — and it could only ever drop
+  // rows the backend already approved.
+  const history = options.history;
   const tabs = options.tabs.filter((tab) => browserRowMatches(tab, tokens, field));
   const seen = new Set<string>();
   const rows: PluginRow[] = [];

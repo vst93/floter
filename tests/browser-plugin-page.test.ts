@@ -419,8 +419,8 @@ test("a failed tab read is absorbed, and the guidance lives on the settings fiel
   // published on their own now and the tab group merges in behind them.
   assert.match(
     catalog,
-    /setBrowserFetch\(\{ ok: true, profileKey, bookmarks, history, tabs: \[\] \}\)/,
-    "the file lists are published without waiting for the tab read",
+    /setBrowserFetch\(\{ ok: true, profileKey, bookmarks, tabs: \[\] \}\)/,
+    "the bookmark list is published without waiting for the tab read (R75 · history is its own needle-keyed read)",
   );
   assert.match(
     catalog,

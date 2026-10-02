@@ -61,11 +61,14 @@ fn escape_like(query: &str) -> String {
 /// Query a `History` file.
 ///
 /// `days` of `0` disables the recency filter; otherwise only rows visited within
-/// the last `days` days are returned. An empty `query` returns the most recently
-/// visited URLs, which is the launcher's empty-state view.
+/// the last `days` days are returned. No `tokens` returns the most recently
+/// visited URLs, which is the launcher's empty-state view. `tokens` are the
+/// launcher's AND rule (see [`query_history_database`]) and `search_field`
+/// narrows where each one may land.
 pub fn query_history_file(
     source: &Path,
-    query: &str,
+    tokens: &[String],
+    search_field: &str,
     limit: usize,
     days: u32,
 ) -> Result<Vec<BrowserHistoryEntry>, String> {
@@ -87,7 +90,7 @@ pub fn query_history_file(
             if entry.source == source && entry.signature == signature {
                 let copy = entry.copy.clone();
                 drop(guard);
-                return query_history_database(&copy, query, limit, days);
+                return query_history_database(&copy, tokens, search_field, limit, days);
             }
         }
     }
@@ -104,7 +107,7 @@ pub fn query_history_file(
             _temp: temp,
         });
     }
-    query_history_database(&copy, query, limit, days)
+    query_history_database(&copy, tokens, search_field, limit, days)
 }
 
 /// One source\'s `(length, mtime)` pair — the main database and its `-wal`.
@@ -138,56 +141,92 @@ struct HistoryCopy {
 /// Query an already-copied database. Kept separate from
 /// [`query_history_file`] so the SQL can be tested against a fixture database
 /// without a browser's lock in the way.
+///
+/// `tokens` is the launcher's own AND rule (`plugins/search.ts`), pushed down
+/// into SQL: every token must be found, a token is a case-insensitive substring,
+/// and `search_field` (`all` / `title` / `url`) narrows which column it may hit.
+/// R32 kept that rule in the launcher's memory and fetched a fixed 500 rows; a
+/// match outside that window was unreachable. See the WHERE note below.
 pub fn query_history_database(
     database: &Path,
-    query: &str,
+    tokens: &[String],
+    search_field: &str,
     limit: usize,
     days: u32,
 ) -> Result<Vec<BrowserHistoryEntry>, String> {
     let connection = Connection::open_with_flags(database, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|error| format!("could not open history: {error}"))?;
 
-    // A fixed statement with the two optional filters expressed as
-    // "parameter is empty / zero, so this clause passes" rather than a
-    // dynamically built WHERE. The empty-query and no-recency-filter cases
-    // then take the same code path as the filtered ones.
-    const SQL: &str = "SELECT id, url, title, visit_count, last_visit_time FROM urls \
-         WHERE (:needle = '' OR url LIKE :needle ESCAPE '\\' OR title LIKE :needle ESCAPE '\\') \
-           AND (:days = 0 OR last_visit_time >= :cutoff) \
-         ORDER BY last_visit_time DESC LIMIT :limit";
+    // R75 · the WHERE is built per token. Through R32 this was a fixed statement
+    // with one `:needle` substring — deliberately, so the empty-query and the
+    // filtered cases shared one code path — while the launcher applied the real
+    // AND rule in memory over the 500 rows `LIMIT` had already chosen. That is
+    // the bug this round fixes: `LIMIT` runs *after* the filters, so with the
+    // filter pushed down a token the user typed can reach a row older than the
+    // newest 500. The fixed statement is gone because avoiding a dynamic WHERE
+    // was its whole point, and the dynamic WHERE is now the point.
+    //
+    // Only the clause *shape* is built from the field and the token count —
+    // never from the token text. Every token is a bound parameter, so a token
+    // containing `'`, `%`, `_` or a SQL fragment is a literal pattern, not code.
+    let field = match search_field {
+        "title" => "title",
+        "url" => "url",
+        _ => "all",
+    };
+    let mut clauses: Vec<&str> = Vec::new();
+    let mut values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    for token in tokens {
+        let token = token.trim().to_lowercase();
+        if token.is_empty() {
+            continue;
+        }
+        let pattern = format!("%{}%", escape_like(&token));
+        match field {
+            "title" => clauses.push("title LIKE ? ESCAPE '\\'"),
+            "url" => clauses.push("url LIKE ? ESCAPE '\\'"),
+            _ => clauses.push("(url LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\')"),
+        }
+        values.push(Box::new(pattern.clone()));
+        // `all` tests the one pattern against both columns, so it binds twice.
+        if field == "all" {
+            values.push(Box::new(pattern));
+        }
+    }
+    // No tokens is no filter; `1` keeps the days/cutoff/limit parameters in the
+    // same positions whether or not the needle contributed a clause.
+    let token_clause = if clauses.is_empty() {
+        "1".to_string()
+    } else {
+        clauses.join(" AND ")
+    };
+    let sql = format!(
+        "SELECT id, url, title, visit_count, last_visit_time FROM urls \
+         WHERE ({token_clause}) \
+           AND (? = 0 OR last_visit_time >= ?) \
+         ORDER BY last_visit_time DESC LIMIT ?"
+    );
+
+    let cutoff = super::chromium_now_micros() - i64::from(days) * 86_400 * 1_000_000;
+    values.push(Box::new(i64::from(days)));
+    values.push(Box::new(cutoff));
+    values.push(Box::new(limit.min(i64::MAX as usize) as i64));
 
     let mut statement = connection
-        .prepare(SQL)
+        .prepare(&sql)
         .map_err(|error| format!("could not read history: {error}"))?;
 
-    let trimmed = query.trim();
-    let needle = if trimmed.is_empty() {
-        String::new()
-    } else {
-        format!("%{}%", escape_like(&trimmed.to_lowercase()))
-    };
-    let cutoff = super::chromium_now_micros() - i64::from(days) * 86_400 * 1_000_000;
-    let limit = limit.min(i64::MAX as usize) as i64;
-
     let rows = statement
-        .query_map(
-            rusqlite::named_params! {
-                ":needle": needle,
-                ":days": i64::from(days),
-                ":cutoff": cutoff,
-                ":limit": limit,
-            },
-            |row| {
-                let last_visit_time: i64 = row.get(4)?;
-                Ok(BrowserHistoryEntry {
-                    id: row.get(0)?,
-                    url: row.get(1)?,
-                    title: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                    visit_count: row.get::<_, Option<i64>>(3)?.unwrap_or(0).max(0) as u32,
-                    last_visit: chromium_time_to_unix(last_visit_time),
-                })
-            },
-        )
+        .query_map(rusqlite::params_from_iter(values), |row| {
+            let last_visit_time: i64 = row.get(4)?;
+            Ok(BrowserHistoryEntry {
+                id: row.get(0)?,
+                url: row.get(1)?,
+                title: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                visit_count: row.get::<_, Option<i64>>(3)?.unwrap_or(0).max(0) as u32,
+                last_visit: chromium_time_to_unix(last_visit_time),
+            })
+        })
         .map_err(|error| format!("could not query history: {error}"))?;
 
     let mut entries = Vec::new();
@@ -259,7 +298,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let database = temp.path().join("History");
         fixture_database(&database);
-        let entries = query_history_database(&database, "", 10, 0).unwrap();
+        let entries = query_history_database(&database, &[], "all", 10, 0).unwrap();
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].url, "https://www.rust-lang.org/");
         assert_eq!(entries[0].visit_count, 12);
@@ -273,13 +312,193 @@ mod tests {
         let database = temp.path().join("History");
         fixture_database(&database);
 
-        let by_title = query_history_database(&database, "book", 10, 0).unwrap();
+        let by_title =
+            query_history_database(&database, &["book".to_string()], "all", 10, 0).unwrap();
         assert_eq!(by_title.len(), 1);
         assert_eq!(by_title[0].title, "The Rust Book");
 
-        let by_url = query_history_database(&database, "example.com", 10, 0).unwrap();
+        let by_url =
+            query_history_database(&database, &["example.com".to_string()], "all", 10, 0).unwrap();
         assert_eq!(by_url.len(), 1);
         assert_eq!(by_url[0].id, 3);
+    }
+
+    /// R75 · the launcher's AND rule, in SQL: every token must be found, a token
+    /// is a substring, and a token may land in either column under `all`.
+    #[test]
+    fn every_token_must_match_and_each_is_a_substring() {
+        let temp = tempfile::tempdir().unwrap();
+        let database = temp.path().join("History");
+        fixture_database(&database);
+
+        // Both tokens land in row 2's title.
+        let both = query_history_database(
+            &database,
+            &["rust".to_string(), "book".to_string()],
+            "all",
+            10,
+            0,
+        )
+        .unwrap();
+        assert_eq!(both.len(), 1);
+        assert_eq!(both[0].id, 2);
+
+        // One token in the title, the other in the URL: still an AND across the
+        // row's fields, exactly like `matchesTokens`.
+        let split = query_history_database(
+            &database,
+            &["example".to_string(), "domain".to_string()],
+            "all",
+            10,
+            0,
+        )
+        .unwrap();
+        assert_eq!(split.len(), 1);
+        assert_eq!(split[0].id, 3);
+
+        // A token no row carries drops the whole result, not just its clause.
+        assert!(query_history_database(
+            &database,
+            &["rust".to_string(), "python".to_string()],
+            "all",
+            10,
+            0,
+        )
+        .unwrap()
+        .is_empty());
+
+        // Whitespace-only and empty tokens are no filter, not an AND with "".
+        assert_eq!(
+            query_history_database(&database, &["  ".to_string(), "".to_string()], "all", 10, 0)
+                .unwrap()
+                .len(),
+            3,
+        );
+    }
+
+    /// R75 · `search_field` chooses which column a token may hit: `url` and
+    /// `title` each see one column, `all` sees both.
+    #[test]
+    fn the_search_field_narrows_where_a_token_may_land() {
+        let temp = tempfile::tempdir().unwrap();
+        let database = temp.path().join("History");
+        fixture_database(&database);
+
+        // `example.com` is in row 3's URL, and its title ("Example Domain")
+        // does not carry the dotted host.
+        assert_eq!(
+            query_history_database(&database, &["example.com".to_string()], "url", 10, 0)
+                .unwrap()
+                .len(),
+            1,
+        );
+        assert!(
+            query_history_database(&database, &["example.com".to_string()], "title", 10, 0)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            query_history_database(&database, &["example.com".to_string()], "all", 10, 0)
+                .unwrap()
+                .len(),
+            1,
+        );
+
+        // `domain` is in row 3's title only.
+        assert_eq!(
+            query_history_database(&database, &["domain".to_string()], "title", 10, 0)
+                .unwrap()
+                .len(),
+            1,
+        );
+        assert!(
+            query_history_database(&database, &["domain".to_string()], "url", 10, 0)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    /// R75 · a token is data, never SQL. A quote-and-DROP attempt matches
+    /// nothing and leaves the table intact — the proof that the pattern went in
+    /// as a bound parameter.
+    #[test]
+    fn a_sql_fragment_in_a_token_is_a_literal_pattern() {
+        let temp = tempfile::tempdir().unwrap();
+        let database = temp.path().join("History");
+        fixture_database(&database);
+        let attack = "x'; DROP TABLE urls; --".to_string();
+        assert!(query_history_database(&database, &[attack], "all", 10, 0)
+            .unwrap()
+            .is_empty());
+        // The table survived, so the next query still reads all three rows.
+        assert_eq!(
+            query_history_database(&database, &[], "all", 10, 0)
+                .unwrap()
+                .len(),
+            3,
+        );
+    }
+
+    /// R75 · the row this round exists for: a match older than the newest
+    /// `LIMIT` rows. The filter runs before `LIMIT`, so the 501st-oldest row is
+    /// reachable; the old fixed-query shape returned the newest 500 and then
+    /// filtered them in memory, which could never see it.
+    #[test]
+    fn a_match_older_than_the_fetch_limit_is_reachable() {
+        let temp = tempfile::tempdir().unwrap();
+        let database = temp.path().join("History");
+        let connection = Connection::open(&database).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE urls (
+                    id INTEGER PRIMARY KEY,
+                    url LONGVARCHAR,
+                    title LONGVARCHAR,
+                    visit_count INTEGER DEFAULT 0 NOT NULL,
+                    last_visit_time INTEGER NOT NULL
+                );",
+            )
+            .unwrap();
+        // 510 rows, oldest first: row 9 is the 10th oldest, i.e. outside the
+        // newest 500 (rows 10..=509). Only it carries the needle.
+        let base = 13_317_004_800_000_000_i64;
+        for index in 0..510_i64 {
+            let (url, title) = if index == 9 {
+                (
+                    "https://buried.example/".to_string(),
+                    "Buried Entry".to_string(),
+                )
+            } else {
+                (
+                    format!("https://site{index}.example/{index}"),
+                    format!("Row {index}"),
+                )
+            };
+            connection
+                .execute(
+                    "INSERT INTO urls (id, url, title, visit_count, last_visit_time) \
+                     VALUES (?1, ?2, ?3, 1, ?4)",
+                    rusqlite::params![index, url, title, base + index],
+                )
+                .unwrap();
+        }
+        drop(connection);
+
+        // The unfiltered view is still the newest `limit` rows and does not
+        // contain the buried row.
+        let newest = query_history_database(&database, &[], "all", 500, 0).unwrap();
+        assert_eq!(newest.len(), 500);
+        assert!(newest.iter().all(|entry| entry.id != 9));
+
+        let buried =
+            query_history_database(&database, &["buried".to_string()], "all", 500, 0).unwrap();
+        assert_eq!(
+            buried.len(),
+            1,
+            "a match beyond the newest 500 must be found"
+        );
+        assert_eq!(buried[0].id, 9);
+        assert_eq!(buried[0].title, "Buried Entry");
     }
 
     #[test]
@@ -288,12 +507,16 @@ mod tests {
         let database = temp.path().join("History");
         fixture_database(&database);
         // `%` would otherwise match every row.
-        assert!(query_history_database(&database, "%", 10, 0)
-            .unwrap()
-            .is_empty());
-        assert!(query_history_database(&database, "_", 10, 0)
-            .unwrap()
-            .is_empty());
+        assert!(
+            query_history_database(&database, &["%".to_string()], "all", 10, 0)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            query_history_database(&database, &["_".to_string()], "all", 10, 0)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -302,7 +525,9 @@ mod tests {
         let database = temp.path().join("History");
         fixture_database(&database);
         assert_eq!(
-            query_history_database(&database, "", 2, 0).unwrap().len(),
+            query_history_database(&database, &[], "all", 2, 0)
+                .unwrap()
+                .len(),
             2
         );
     }
@@ -315,14 +540,15 @@ mod tests {
         // The fixture rows are from 2023; a one-day window from *now* must drop
         // all of them (this also proves the cutoff is not compared in Unix
         // seconds against a 1601-epoch column).
-        let recent = query_history_database(&database, "", 10, 1).unwrap();
+        let recent = query_history_database(&database, &[], "all", 10, 1).unwrap();
         assert!(recent.is_empty());
     }
 
     #[test]
     fn a_missing_file_is_a_soft_failure() {
         let temp = tempfile::tempdir().unwrap();
-        let error = query_history_file(&temp.path().join("History"), "", 10, 30).unwrap_err();
+        let error =
+            query_history_file(&temp.path().join("History"), &[], "all", 10, 30).unwrap_err();
         assert!(error.contains("no history file"));
     }
 
@@ -331,7 +557,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let database = temp.path().join("History");
         std::fs::write(&database, b"not a database at all").unwrap();
-        assert!(query_history_database(&database, "", 10, 0).is_err());
+        assert!(query_history_database(&database, &[], "all", 10, 0).is_err());
     }
 
     #[test]
@@ -341,7 +567,7 @@ mod tests {
         fixture_database(&database);
         // A `-wal` sidecar is copied alongside the main file.
         std::fs::write(temp.path().join("History-wal"), b"").unwrap();
-        let entries = query_history_file(&database, "rust", 10, 0).unwrap();
+        let entries = query_history_file(&database, &["rust".to_string()], "all", 10, 0).unwrap();
         assert_eq!(entries.len(), 2);
         // The source file is untouched.
         assert!(database.is_file());

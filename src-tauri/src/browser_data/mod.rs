@@ -297,10 +297,20 @@ pub fn browser_search_bookmarks(
 /// `browser_plugin.history_days` setting applies. R27 · `sort_order` overrides
 /// the stored ordering for one call; omitted, `browser_plugin.sort_order`
 /// applies.
+///
+/// R75 · `tokens` + `search_field` are the launcher's AND search pushed down
+/// into SQL (`plugins/search.ts`): every token must be found, a token is a
+/// substring, and the field (`all` / `title` / `url`) narrows where it may land.
+/// Omitted, `search_field` falls back to `browser_plugin.search_fields` and
+/// `tokens` is no filter — the empty-state view. The filter runs before `LIMIT`,
+/// which is the whole point: a match older than the newest `MAX_LIMIT` rows is
+/// now reachable (through R32 the launcher fetched the newest 500 with an empty
+/// query and applied the needle in memory, so it never could).
 #[tauri::command]
 pub fn browser_search_history(
     profile_key: String,
-    query: String,
+    tokens: Option<Vec<String>>,
+    search_field: Option<String>,
     limit: Option<usize>,
     days: Option<u32>,
     sort_order: Option<String>,
@@ -311,8 +321,17 @@ pub fn browser_search_history(
             .browser_plugin
             .history_days
     });
+    let field = match search_field {
+        Some(value) => crate::commands::config::normalize_browser_search_fields(&value),
+        None => crate::commands::config::normalize_browser_search_fields(
+            &crate::commands::config::load_settings()
+                .browser_plugin
+                .search_fields,
+        ),
+    };
+    let tokens = tokens.unwrap_or_default();
     let (order, fetch) = sort_order_and_fetch_limit(limit, sort_order.as_deref());
-    let entries = history::query_history_file(&files.history, &query, fetch, days)?;
+    let entries = history::query_history_file(&files.history, &tokens, &field, fetch, days)?;
     let mut items: Vec<BrowserItem> = entries
         .into_iter()
         .map(|entry| BrowserItem::from_history(&profile_key, entry))
@@ -599,5 +618,65 @@ mod tests {
         let (order, fetch) = sort_order_and_fetch_limit(Some(24), Some("sideways"));
         assert_eq!(order, crate::commands::config::DEFAULT_BROWSER_SORT_ORDER);
         assert_eq!(fetch, 24);
+    }
+
+    /// R75 · the two halves of `browser_search_history` compose: the SQL applies
+    /// the tokens *before* `LIMIT`, and the Rust sort reorders exactly the
+    /// matching rows. Through R32 a non-relevance order could only reorder the
+    /// newest 500 rows overall — matching or not — because the needle lived in
+    /// the launcher's memory.
+    #[test]
+    fn tokens_and_a_sort_order_compose_over_the_matching_rows() {
+        let temp = tempfile::tempdir().unwrap();
+        let database = temp.path().join("History");
+        let connection = rusqlite::Connection::open(&database).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE urls (
+                    id INTEGER PRIMARY KEY,
+                    url LONGVARCHAR,
+                    title LONGVARCHAR,
+                    visit_count INTEGER DEFAULT 0 NOT NULL,
+                    last_visit_time INTEGER NOT NULL
+                );",
+            )
+            .unwrap();
+        // Three matching rows (all "Zebra") and one newer non-match: the
+        // non-match must never reach the sort, whatever the order.
+        let base = 13_317_004_800_000_000_i64;
+        for (id, title, visits, stamp) in [
+            (1, "Zebra alpha", 5, base),
+            (2, "Zebra beta", 1, base + 1_000_000),
+            (3, "Zebra gamma", 9, base + 2_000_000),
+            (4, "Unrelated", 99, base + 3_000_000),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO urls (id, url, title, visit_count, last_visit_time) \
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    rusqlite::params![id, format!("https://s{id}.example/"), title, visits, stamp],
+                )
+                .unwrap();
+        }
+        drop(connection);
+
+        let entries =
+            history::query_history_database(&database, &["zebra".to_string()], "all", MAX_LIMIT, 0)
+                .unwrap();
+        let mut items: Vec<BrowserItem> = entries
+            .into_iter()
+            .map(|entry| BrowserItem::from_history("chrome/Default", entry))
+            .collect();
+        assert_eq!(items.len(), 3, "only the matching rows reach the sort");
+
+        // Relevance is the SQL's own newest-first order.
+        sort_browser_items(&mut items, "relevance");
+        assert_eq!(items[0].id, "history:3");
+
+        // Visits reorders the matching set — the non-match is not in it.
+        sort_browser_items(&mut items, "visits");
+        assert_eq!(items[0].id, "history:3");
+        assert_eq!(items[1].id, "history:1");
+        assert_eq!(items[2].id, "history:2");
     }
 }

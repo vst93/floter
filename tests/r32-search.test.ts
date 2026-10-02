@@ -76,13 +76,17 @@ const bookmark = (id: string, title: string, url: string): BrowserSearchRow => (
 const rowsFor = (options: {
   needle?: string;
   searchField?: "all" | "title" | "url";
+  /** R75 · history is the backend's filtered answer now, so a test passes
+   *  whatever the backend would have returned for the needle — the memory rule
+   *  is not applied to it. */
+  history?: BrowserSearchRow[];
 }) =>
   browserSearchRows({
     bookmarks: [
       bookmark("b1", "Async Rust", "https://rust-lang.example/one"),
       bookmark("b2", "Python Docs", "https://beta.example/two"),
     ],
-    history: [bookmark("h1", "Rust Book", "https://gamma.example/three")],
+    history: options.history ?? [],
     tabs: [
       {
         browser_id: "chrome",
@@ -101,9 +105,25 @@ const rowsFor = (options: {
 
 test("a multi-word browser query is an AND, not a literal phrase", () => {
   const rows = rowsFor({ needle: "rust async" });
-  // Only b1's title carries both tokens; h1 has "rust" alone, the tab "async"
-  // alone, and no URL carries either.
+  // Only b1's title carries both tokens; no URL carries either and the tab
+  // carries "async" alone. History is not in this list: it is the backend's
+  // own filtered answer (pinned below), so the memory AND does not touch it.
   assert.deepEqual(rows.map((row) => row.id), ["b1"]);
+});
+
+test("history is the backend's answer and is not filtered again in memory", () => {
+  // R75 · the backend applies the token AND *before* its SQL `LIMIT`, which is
+  // what makes a match older than the fetch window reachable. Re-applying the
+  // rule here would be a second, silently different ranking — and it could only
+  // ever drop rows the backend already approved.
+  const history = [bookmark("h1", "Rust Book", "https://gamma.example/three")];
+  assert.deepEqual(
+    rowsFor({ needle: "python docs", history }).map((row) => row.id),
+    ["b2", "h1"],
+    "h1 survives although the memory rule would drop it; b2 is the memory-filtered bookmark",
+  );
+  // …while the bookmark source is still filtered in memory, unchanged.
+  assert.deepEqual(rowsFor({ needle: "python docs" }).map((row) => row.id), ["b2"]);
 });
 
 test("the search field narrows where a token may land", () => {
@@ -137,7 +157,7 @@ test("a live tab obeys the same rule as a bookmark", () => {
   assert.deepEqual(rows.map((row) => row.id), ["tab:chrome:0:0"]);
 });
 
-test("browserRowMatches is the one rule the three sources share", () => {
+test("browserRowMatches is the memory rule for bookmarks and live tabs", () => {
   const row = { title: "Async Rust", url: "https://rust-lang.org" };
   assert.equal(browserRowMatches(row, ["async", "rust"], "all"), true);
   assert.equal(browserRowMatches(row, ["async", "rust"], "title"), true);
@@ -255,14 +275,27 @@ test("an empty field's Backspace is resolved on both keyboard paths", async () =
   );
 });
 
-test("the launcher reads the search field from settings and applies it in memory", async () => {
+test("the launcher reads the search field from settings, in memory and in SQL", async () => {
   const app = stripJsComments(await read("src/App.tsx"));
   assert.match(app, /browserSearchField: settings\.browser_plugin\.search_fields,/);
   assert.match(app, /onBrowserSettingsChange=\{\(block\) => changeGeneralSetting\("browser_plugin", block\)\}/);
   const catalog = stripJsComments(await read("src/hooks/useLauncherCatalog.ts"));
+  // R75 · the history read carries the needle's tokens and the configured
+  // field into the backend, keyed on the needle (not just the range filter).
+  assert.match(catalog, /invoke<BrowserSearchRow\[\]>\("browser_search_history", \{/);
+  assert.match(catalog, /tokens: searchTokens\(browserNeedle\),/);
   assert.match(catalog, /searchField: browserSearchField,/);
-  // The fetch no longer carries the needle: it is applied in the memo, so a
-  // keystroke costs no IPC.
+  assert.match(catalog, /const browserNeedle = browserMode\?\.needle \?\? "";/);
+  assert.match(catalog, /browserNeedle, browserSearchField, t\]/);
+  // …debounced on the catalog's own window, not a new mechanism.
+  assert.match(
+    catalog,
+    /searchTokens\(browserNeedle\),[\s\S]{0,500}?\}, CATALOG_SEARCH_DELAY\)/,
+    "the history read reuses the catalog debounce",
+  );
+  // …while the bookmark read still fetches once with an empty query and is
+  // filtered in memory by the memo.
+  assert.match(catalog, /invoke<BrowserSearchRow\[\]>\("browser_search_bookmarks", \{/);
   assert.match(catalog, /query: "",/);
 });
 

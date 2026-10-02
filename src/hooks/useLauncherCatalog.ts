@@ -53,6 +53,7 @@ import {
 import { clipboardModeRows, clipboardStatusRow } from "../plugins/clipboard/mode";
 import { calculatorModeRows } from "../plugins/calculator/mode";
 import { pluginStatusRow } from "../plugins/status";
+import { searchTokens } from "../plugins/search";
 import {
   type ActionBar,
   type CommandWarning,
@@ -151,7 +152,6 @@ type BrowserFetchResult =
       ok: true;
       profileKey: string;
       bookmarks: BrowserSearchRow[];
-      history: BrowserSearchRow[];
       tabs: BrowserTabRow[];
     }
   | { ok: false; statusId: string; statusKey: MessageKey };
@@ -546,16 +546,24 @@ export function useLauncherCatalog(options: {
   // vocabulary that enters a mode lives in exactly one place (`pluginModeEntry`)
   // and the hook only fetches.
   //
-  // R32 · the three sources are fetched **once per range filter**, with an
-  // empty backend query, and the needle is applied in memory
-  // (`browserSearchRows`). That is what lets a multi-word query mean "all of
-  // these tokens" instead of the literal phrase, and it is why typing inside
-  // the mode now costs no IPC at all — the same shape the clipboard mode has
-  // had since R27. The fetch is keyed on the filter (`kind`), never on the
-  // needle, so a keystroke cannot re-read a 500-row history.
+  // R32 · the sources are fetched with an empty backend query and the needle is
+  // applied in memory (`browserSearchRows`), which is what lets a multi-word
+  // query mean "all of these tokens" instead of the literal phrase.
+  //
+  // R75 · history is the exception, and this round's whole point. The empty
+  // query was the bug: the SQL `LIMIT` chose the newest 500 rows and only then
+  // did the memory rule see them, so a match older than that window was
+  // unreachable. History is now re-read **per needle**, debounced on the same
+  // window as the catalog search, with the tokens pushed into the backend's
+  // `WHERE`. Bookmarks and live tabs keep the R32 shape (one read per range
+  // filter, filtered in memory) — their fetch is keyed on `kind`, never on the
+  // needle.
   const [browserFetch, setBrowserFetch] = useState<BrowserFetchResult | null>(null);
+  const [browserHistory, setBrowserHistory] = useState<BrowserSearchRow[] | null>(null);
   const browserRequest = useRef(0);
+  const browserHistoryRequest = useRef(0);
   const browserKind = browserMode?.kind ?? null;
+  const browserNeedle = browserMode?.needle ?? "";
 
   useEffect(() => {
     const generation = ++browserRequest.current;
@@ -582,34 +590,27 @@ export function useLauncherCatalog(options: {
             });
             return;
           }
-          const fetch = (command: string): Promise<BrowserSearchRow[]> =>
-            invoke<BrowserSearchRow[]>(command, {
-              profileKey,
-              // R32 · an empty query fetches the whole (bounded) group; the
-              // needle's AND tokens are applied in memory, where all four
-              // sources can share one rule.
-              query: "",
-              limit: BROWSER_FETCH_LIMIT,
-            }).catch(() => []);
-          // R71 · the two *file* reads are published the moment they are in.
-          // The live-tab read is the one that can be slow (AppleScript against
-          // a busy browser, up to its own three-second deadline) and it is the
-          // one the user does not need in order to search bookmarks and
-          // history — R26-B's rule ("a tab read never blocks the bookmark or
-          // history read") was held by the backend and broken here, where a
-          // single `Promise.all` published nothing until the slowest source
-          // answered. A plugin list that arrives a second late reads as a
-          // plugin list that does not work.
-          void Promise.all([
-            kind === "history" || kind === "tabs"
-              ? Promise.resolve<BrowserSearchRow[]>([])
-              : fetch("browser_search_bookmarks"),
-            kind === "bookmarks" || kind === "tabs"
-              ? Promise.resolve<BrowserSearchRow[]>([])
-              : fetch("browser_search_history"),
-          ]).then(([bookmarks, history]) => {
+          // R71 · the file read is published the moment it is in. The live-tab
+          // read is the one that can be slow (AppleScript against a busy
+          // browser, up to its own three-second deadline) and it is the one the
+          // user does not need in order to search bookmarks — R26-B's rule ("a
+          // tab read never blocks the bookmark or history read") was held by the
+          // backend and broken here, where a single `Promise.all` published
+          // nothing until the slowest source answered. A plugin list that
+          // arrives a second late reads as a plugin list that does not work.
+          void (kind === "history" || kind === "tabs"
+            ? Promise.resolve<BrowserSearchRow[]>([])
+            : invoke<BrowserSearchRow[]>("browser_search_bookmarks", {
+                profileKey,
+                // R32 · an empty query fetches the whole (bounded) group; the
+                // needle's AND tokens are applied in memory (R75 · history is
+                // read by the effect below instead).
+                query: "",
+                limit: BROWSER_FETCH_LIMIT,
+              }).catch(() => [])
+          ).then((bookmarks) => {
             if (stale()) return;
-            setBrowserFetch({ ok: true, profileKey, bookmarks, history, tabs: [] });
+            setBrowserFetch({ ok: true, profileKey, bookmarks, tabs: [] });
           });
           if (kind === "bookmarks" || kind === "history") return;
           // …and the tabs fill their own group in when they land. A read that
@@ -638,13 +639,57 @@ export function useLauncherCatalog(options: {
       window.clearTimeout(timer);
     };
     // The filter, the switch and the language own the fetch; the needle does
-    // not — it is applied in the memo below.
+    // not — bookmarks are filtered in the memo below.
   }, [browserKind, browserEnabled, t]);
+
+  // R75 · the history source, keyed on the needle. `searchTokens` is the very
+  // split the memory rule uses, so a query means the same thing whether SQL or
+  // `matchesTokens` answers it; the backend applies the AND before its `LIMIT`,
+  // which is what makes an old match reachable. Debounced on the catalog window
+  // and dropped by its own generation check, so a fast typist produces one read
+  // per pause. The held rows are kept while a later read is in flight (the state
+  // is only replaced when an answer lands), so typing never blanks the list.
+  useEffect(() => {
+    const generation = ++browserHistoryRequest.current;
+    if (!browserMode || !browserEnabled || (browserKind !== "all" && browserKind !== "history")) {
+      // No history group to fill; the memo falls back to the bookmarks alone.
+      setBrowserHistory(null);
+      return;
+    }
+    let cancelled = false;
+    const stale = () => cancelled || generation !== browserHistoryRequest.current;
+    const timer = window.setTimeout(() => {
+      invoke<string | null>("browser_default_profile")
+        .then((profileKey) => {
+          if (stale() || !profileKey) return;
+          return invoke<BrowserSearchRow[]>("browser_search_history", {
+            profileKey,
+            tokens: searchTokens(browserNeedle),
+            searchField: browserSearchField,
+            limit: BROWSER_FETCH_LIMIT,
+          })
+            .catch(() => [] as BrowserSearchRow[])
+            .then((rows) => {
+              if (stale()) return;
+              setBrowserHistory(rows);
+            });
+        })
+        .catch(() => {
+          if (stale()) return;
+          setBrowserHistory([]);
+        });
+    }, CATALOG_SEARCH_DELAY);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [browserKind, browserEnabled, browserNeedle, browserSearchField, t]);
 
   // R28 · the merge, the group ceilings and the soft landings are the plugin's
   // own output rules (see `plugins/browser/mode.ts`); this hook hands the three
   // fetched sources over and reads back a view. R32 · the needle and the
-  // configured search field are applied here, in memory.
+  // configured search field are applied here, in memory. R75 · only to the
+  // bookmarks: history arrives already filtered by the backend.
   const browserEmission = useMemo<PluginEmission | null>(() => {
     if (!browserMode) return null;
     if (!browserEnabled) {
@@ -659,10 +704,21 @@ export function useLauncherCatalog(options: {
     if (!browserFetch.ok) {
       return { output: [browserStatusRow(browserFetch.statusId, browserFetch.statusKey, t)] };
     }
+    // R75 · the history read is the slow half of the first paint (a SQL query
+    // against a copied database). Until it lands there is nothing to show yet —
+    // the same "no rows yet" the R32 `Promise.all` produced — but once it has
+    // landed the held rows stay put while a later read is in flight, so a
+    // keystroke never blanks the list.
+    if (
+      (browserMode.kind === "all" || browserMode.kind === "history") &&
+      browserHistory === null
+    ) {
+      return null;
+    }
     return {
       output: browserSearchRows({
         bookmarks: browserFetch.bookmarks,
-        history: browserFetch.history,
+        history: browserHistory ?? [],
         tabs: browserFetch.tabs,
         profileKey: browserFetch.profileKey,
         t,
@@ -671,7 +727,7 @@ export function useLauncherCatalog(options: {
         searchField: browserSearchField,
       }),
     };
-  }, [browserMode, browserEnabled, browserFetch, browserSearchField, t]);
+  }, [browserMode, browserEnabled, browserFetch, browserHistory, browserSearchField, t]);
 
   // R27 · clipboard result mode — the browser mode's twin, over the clipboard
   // history the panel shows. R31 · like the browser mode, the request arrives

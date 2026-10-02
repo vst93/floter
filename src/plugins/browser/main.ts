@@ -282,7 +282,10 @@ async function loadAll(): Promise<void> {
     profileKey
       ? invokeCommand<unknown>("browser_search_history", {
           profileKey,
-          query: trimmed,
+          // R75 · the search is the launcher's AND tokens, pushed down into the
+          // backend's SQL so a match older than the newest 500 rows is reachable.
+          tokens: trimmed ? trimmed.split(/\s+/) : [],
+          searchField: settings.search_fields,
           limit: FETCH_LIMIT,
           days: settings.history_days,
         }).catch(() => [])
