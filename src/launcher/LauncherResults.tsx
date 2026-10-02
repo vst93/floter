@@ -80,6 +80,14 @@ export type LauncherItem =
        *  to reach `system_spawn_detached` — never the provider run path. The
        *  renderer only has to know it makes the row runnable and not dimmed. */
       launchArgv?: string[];
+      /** R70 · how the invoke row calls the tool out. `true` means the program
+       *  is a full-screen TUI that needs a real PTY: `useLauncherActions` opens
+       *  a terminal page and types the argv in (R68's hand-off), because a
+       *  detached spawn with null stdio would exit at once. `false`/absent is a
+       *  GUI that survives detachment and goes to `system_spawn_detached`. The
+       *  value is catalog data mirrored from the Rust `LaunchHint` — never a
+       *  test of the program name. */
+      launchNeedsTerminal?: boolean;
       /** R65 · the row's command is one the user turned on for **direct
        *  output** (`settings.extensions.commandsHint`): typing its name and a
        *  space summons it into the search interface itself. The row earns the

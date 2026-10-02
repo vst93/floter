@@ -48,7 +48,7 @@ const tool = (
   displayName: string,
   keywords: string[],
   detected: boolean,
-  launch: { argv: string[]; description: string } | null,
+  launch: { argv: string[]; description: string; needsTerminal: boolean } | null,
 ): ToolCatalogEntry => ({
   id,
   displayName,
@@ -69,6 +69,7 @@ const flame = (detected = true) =>
   tool("flameshot", "Flameshot", ["截图", "screenshot", "jietu"], detected, {
     argv: ["flameshot", "gui"],
     description: "Take a screenshot",
+    needsTerminal: false,
   });
 
 /** A detected pure CLI tool: no hint, so no invoke row. */
@@ -138,10 +139,10 @@ test("a null report is a soft landing, not an error", () => {
 
 test("rows follow catalog order and share the documented budget", () => {
   const many = report([
-    tool("a1", "Alpha", ["needle"], true, { argv: ["a1"], description: "d" }),
-    tool("a2", "Alpha Two", ["needle"], true, { argv: ["a2"], description: "d" }),
-    tool("a3", "Alpha Three", ["needle"], true, { argv: ["a3"], description: "d" }),
-    tool("a4", "Alpha Four", ["needle"], true, { argv: ["a4"], description: "d" }),
+    tool("a1", "Alpha", ["needle"], true, { argv: ["a1"], description: "d", needsTerminal: false }),
+    tool("a2", "Alpha Two", ["needle"], true, { argv: ["a2"], description: "d", needsTerminal: false }),
+    tool("a3", "Alpha Three", ["needle"], true, { argv: ["a3"], description: "d", needsTerminal: false }),
+    tool("a4", "Alpha Four", ["needle"], true, { argv: ["a4"], description: "d", needsTerminal: false }),
   ]);
   const rows = toolInvokeRows(many, "needle");
   assert.equal(rows.length, TOOL_INVOKE_ROW_LIMIT);

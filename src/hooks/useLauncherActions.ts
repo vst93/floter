@@ -882,8 +882,21 @@ export function useLauncherActions(options: {
     }
     if (item.type === "command" && !item.execution && item.launchArgv) {
       // R69 · an invoke row, the install row's other half: the tool is already
-      // here and the row calls it out. It spawns the program detached — no
-      // terminal page, no R62 flag, no provider run path.
+      // here and the row calls it out.
+      //
+      // R70 · how it is called out is the catalog's `needsTerminal` bit, not a
+      // guess about the program name. A full-screen TUI (`lazygit`) needs a
+      // real PTY: spawning it detached gives it null stdio and it exits at once,
+      // which reads to the user as "nothing happened". So a TUI goes through
+      // R68's terminal hand-off — open a bare session, type the argv in — and a
+      // refused hand-off reports through the existing `launcher.installFailed`
+      // key. A GUI (`flameshot`) owns its window and survives detachment, so it
+      // keeps R69's `system_spawn_detached` path and its `launcher.invokeFailed`
+      // feedback, unchanged.
+      if (item.launchNeedsTerminal) {
+        void openTerminalSession(item.launchArgv.join(" "));
+        return;
+      }
       void invokeToolLaunch(item.launchArgv);
       return;
     }

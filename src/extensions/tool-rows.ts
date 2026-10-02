@@ -137,12 +137,17 @@ export const toolInstallRows = (
  * an install row mutually exclusive: a tool the user already has is offered a
  * way to call it out, never a way to install it again.
  *
- * The subtitle is the argv joined by spaces — the very bytes the detached spawn
- * will receive, shown to the user verbatim. Like the install command it is data
+ * The subtitle is the argv joined by spaces — the very bytes the call-out will
+ * receive, shown to the user verbatim. Like the install command it is data
  * from the catalog, never an i18n string. The row carries no `execution` (it
  * must never enter the provider run path) and no `installCommand`; its
- * `launchArgv` is what `useLauncherActions` reads to call
- * `system_spawn_detached`.
+ * `launchArgv` is what `useLauncherActions` reads to call the tool out.
+ *
+ * R70 · the row also carries the catalog's `needsTerminal` bit, copied through
+ * untouched. It is the one thing that decides *how* the call-out happens: a GUI
+ * (`false`) goes to `system_spawn_detached`, a full-screen TUI (`true`) opens a
+ * terminal page and types the argv in. The builder makes no judgement of its
+ * own — the data is the whole answer — so no tool name is ever tested.
  *
  * `report` is `null` when the catalog could not be read — a soft landing, the
  * same as the install rows — and the answer is then empty, silently.
@@ -177,6 +182,7 @@ export const toolInvokeRows = (
       execution: null,
       completion: false,
       launchArgv: argv,
+      launchNeedsTerminal: entry.launch.needsTerminal,
     });
     if (rows.length >= TOOL_INVOKE_ROW_LIMIT) break;
   }

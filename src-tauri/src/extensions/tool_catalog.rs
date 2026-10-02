@@ -115,11 +115,22 @@ impl RecipeTable {
 /// `fd`, `rg` — has nothing sensible to start detached (it reads standard
 /// input), and its honest home is the user's own shell, so it stays `None` and
 /// earns no invoke row.
+///
+/// R70 · `needs_terminal` is the one bit that separates the two kinds of hint.
+/// A GUI program (`flameshot`) owns a window of its own and survives a detached
+/// spawn with no controlling terminal, so the row hands it straight to
+/// [`crate::commands::actions::system_spawn_detached`]. A full-screen TUI
+/// (`lazygit`) needs a real PTY or it exits the moment it starts — a detached
+/// spawn with null stdio is a silent no-op. For those the row opens a terminal
+/// page instead and types the argv into the user's own shell (R68's hand-off),
+/// which is the only place a TUI can live. The bit is data, never a name test:
+/// the frontend reads it off the row and never inspects the program string.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchHint {
     pub argv: &'static [&'static str],
     pub description: &'static str,
+    pub needs_terminal: bool,
 }
 
 /// One catalog entry. Every string is a proper noun and stays untranslated, so
@@ -164,8 +175,16 @@ const fn recipe(manager: &'static str, package: &'static str) -> ToolRecipe {
     ToolRecipe { manager, package }
 }
 
-const fn launch(argv: &'static [&'static str], description: &'static str) -> LaunchHint {
-    LaunchHint { argv, description }
+const fn launch(
+    argv: &'static [&'static str],
+    description: &'static str,
+    needs_terminal: bool,
+) -> LaunchHint {
+    LaunchHint {
+        argv,
+        description,
+        needs_terminal,
+    }
 }
 
 /// The one package-manager table. Order is presentation order, not preference.
@@ -249,7 +268,8 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             ],
             windows: &[recipe("winget", "Flameshot.Flameshot")],
         },
-        launch: Some(launch(&["flameshot", "gui"], "Take a screenshot")),
+        // A GUI program: it owns its window and needs no terminal.
+        launch: Some(launch(&["flameshot", "gui"], "Take a screenshot", false)),
     },
     ToolCatalogEntry {
         id: "yt-dlp",
@@ -495,7 +515,8 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             linux: &[recipe("pacman", "lazygit"), recipe("dnf", "lazygit")],
             windows: &[recipe("winget", "JesseDuffield.lazygit")],
         },
-        launch: Some(launch(&["lazygit"], "Open the lazygit TUI")),
+        // A full-screen TUI: it needs a real terminal or it exits at once.
+        launch: Some(launch(&["lazygit"], "Open the lazygit TUI", true)),
     },
 ];
 
@@ -868,5 +889,38 @@ mod tests {
         // A CLI tool's hint is `null`, which is what makes the invoke row absent.
         assert!(find("jq")["launch"].is_null());
         assert!(find("fd")["launch"].is_null());
+    }
+
+    /// R70 · `needs_terminal` is the bit that routes a call-out. `flameshot` is
+    /// a GUI and can be spawned detached; `lazygit` is a full-screen TUI and
+    /// must be handed a real terminal, so its hint says so. The frontend reads
+    /// this field off the row — it never tests the program name — so the field
+    /// has to be present, correctly typed and correctly valued in the payload.
+    #[test]
+    fn r70_needs_terminal_separates_gui_from_tui() {
+        let needs_terminal = |id: &str| -> bool {
+            TOOL_CATALOG
+                .iter()
+                .find(|entry| entry.id == id)
+                .and_then(|entry| entry.launch)
+                .unwrap_or_else(|| panic!("{id} must carry a launch hint"))
+                .needs_terminal
+        };
+        assert!(!needs_terminal("flameshot"), "a GUI spawns detached");
+        assert!(needs_terminal("lazygit"), "a TUI needs a real terminal");
+
+        // And the bit survives serialization as camelCase `needsTerminal`,
+        // which is the name the TS mirror reads.
+        let temp = tempfile::tempdir().unwrap();
+        let value = serde_json::to_value(build_report(&directories(&temp))).unwrap();
+        let tools = value["tools"].as_array().unwrap();
+        let find = |id: &str| {
+            tools
+                .iter()
+                .find(|tool| tool["id"] == id)
+                .unwrap_or_else(|| panic!("{id} must be in the report"))
+        };
+        assert_eq!(find("flameshot")["launch"]["needsTerminal"], false);
+        assert_eq!(find("lazygit")["launch"]["needsTerminal"], true);
     }
 }

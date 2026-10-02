@@ -83,7 +83,7 @@ export type ToolCatalogEntry = {
   keywords: string[];
   probeCandidates: PlatformTable<string[]>;
   recipes: PlatformTable<ToolRecipe[]>;
-  launch: { argv: string[]; description: string } | null;
+  launch: { argv: string[]; description: string; needsTerminal: boolean } | null;
   detected: boolean;
 };
 
