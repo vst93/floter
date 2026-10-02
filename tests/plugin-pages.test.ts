@@ -8,6 +8,8 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
+import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
+
 import {
   BRIDGE_TAG,
   BROWSER_PLUGIN_ID,
@@ -221,14 +223,16 @@ test("glass-step messages are recognized with the shipped stop ids only", () => 
   }
 });
 
-// F6 (R8 microfix): the glass step has to reach the plugin page. Before this
+// F6 (R8 microfix): the glass step has to reach a plugin page. Before this
 // the page's own stylesheet hardcoded the Regular step's fill/top, so a user
 // on Clear or Regular-max still saw a Regular clipboard panel — the one
-// surface in the same shell that ignored the material control.
-test("the plugin host hands the glass step to the page, and the page stops hardcoding it", async () => {
+// surface in the same shell that ignored the material control. The built-in
+// host and page that carried the hand-off were retired (R33) and deleted
+// (R76); what stays is the token bag the published protocol hands across.
+test("the glass-step token bag stays derived from the one table", async () => {
   const { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, glassStepStyle } = await import("../src/glass-material.ts");
 
-  // The bag the host injects is derived from the one token table — no literals
+  // The bag a host injects is derived from the one token table — no literals
   // at the call site, and it changes with the step.
   const frosted = glassStepStyle("frosted");
   const liquid = glassStepStyle("liquid");
@@ -236,28 +240,8 @@ test("the plugin host hands the glass step to the page, and the page stops hardc
   assert.equal(frosted["--glass-solid-top"], String(GLASS_SOLID_TOP));
   assert.notEqual(frosted["--glass-step-dim"], liquid["--glass-step-dim"], "the injected haze must track the step");
 
-  // The host spreads that bag onto its container and appends the step to the
-  // bootstrap URL, so the page sees it before its first paint even if the
-  // bridge message races the load.
-  const host = await readFile(new URL("src/plugins/PluginPageHost.tsx", root), "utf8");
-  assert.match(host, /glassStepStyle\(glassStep\)/, "the host must inject the step tokens");
-  assert.match(host, /data-glass-step=\{glassStep\}/, "the host must mark the step on the container");
-  assert.match(host, /"glass-step": glassStep/, "the host must pass the step as a bootstrap param");
-
-  // The page stylesheet mirrors the transparency control but must not restate
-  // the step's numbers: those now arrive at runtime.
-  const page = await readFile(new URL("src/plugins/clipboard/page.css", root), "utf8");
-  assert.ok(
-    !/--glass-step-dim\s*:/.test(page) && !/--glass-solid-top\s*:/.test(page) && !/--glass-frame-floor\s*:/.test(page),
-    "clipboard/page.css must not hardcode the glass step — the host injects it",
-  );
-
-  // …and the page consumes both channels, with a Regular fallback for an
-  // older host that sends neither param nor message.
-  const main = await readFile(new URL("src/plugins/clipboard/main.ts", root), "utf8");
-  assert.match(main, /isBridgeGlass\(data\)/, "the page must handle a live step change");
-  assert.match(main, /normalizeGlassStep\(params\.get\("glass-step"\)\)/, "the page must read the bootstrap param");
-  assert.match(main, /GLASS_STEP_TOKENS\[step\]/, "the page must resolve the step from the shared table");
+  // The retired built-in page and host must stay gone.
+  await assertRetiredPageLayerIsGone(root);
 });
 
 // R26-C · the settings panel's base-plugins list must carry every registered
@@ -318,24 +302,17 @@ test("the base-plugin list carries builtin.browser and mirrors the Rust registry
 // the general one: whatever the registry lists, its entry module must send the
 // handshake. It is driven off the Rust registry, so a new descriptor cannot
 // ship a page that never announces itself.
-test("no built-in page is registered, and the retained entries still handshake", async () => {
+test("no built-in page is registered, and the retired entries stay deleted", async () => {
   const rust = await readFile(new URL("src-tauri/src/plugin_pages.rs", root), "utf8");
   const descriptorsAt = rust.indexOf("static DESCRIPTORS");
   assert.notEqual(descriptorsAt, -1, "the Rust descriptor registry must exist");
   const pages = [...rust.slice(descriptorsAt).matchAll(/page: "([^"]*)"/g)].map((m) => m[1]);
   assert.ok(pages.length >= 2, `expected the registry to list both descriptors, saw ${pages.length}`);
   // R33 · the built-in iframe pages are retired, so no descriptor names a
-  // document. The entry modules stay for the retained protocol and must keep
-  // sending the handshake if a future loader mounts them.
+  // document. R76 · the entry modules that used to keep sending the handshake
+  // are deleted with the rest of the layer.
   for (const page of pages) assert.equal(page, "", "no built-in page path may be registered");
-  for (const entryPath of ["src/plugins/clipboard/main.ts", "src/plugins/browser/main.ts"]) {
-    const entry = await readFile(new URL(entryPath, root), "utf8");
-    assert.match(
-      entry,
-      /\{ \[BRIDGE_TAG\]: "frame-ready", protocol: PLUGIN_PAGE_PROTOCOL \}/,
-      `${entryPath} must keep sending the frame-ready handshake`,
-    );
-  }
+  await assertRetiredPageLayerIsGone(root);
 });
 
 // R26-D · the sandbox exception is a *set*, not a clipboard-only special case.

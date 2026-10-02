@@ -1777,13 +1777,7 @@ pub fn run() {
             #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_clear_history,
             #[cfg(feature = "clipboard-history")]
-            clipboard_history::clipboard_read_image,
-            #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_thumbnail,
-            #[cfg(feature = "clipboard-history")]
-            clipboard_history::clipboard_entry_statuses,
-            #[cfg(feature = "clipboard-history")]
-            clipboard_history::clipboard_read_file_preview,
             #[cfg(feature = "clipboard-history")]
             clipboard_history::clipboard_get_settings,
             #[cfg(feature = "clipboard-history")]

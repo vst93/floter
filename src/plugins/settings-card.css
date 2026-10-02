@@ -3,9 +3,13 @@
  * Before this round each plugin page owned its own card: the browser page had
  * `.browser-page__settings` and a `browser-field` family, and the clipboard
  * page had no settings card at all. The user's ask is that the plugin system
- * read as one thing (「要整体性更强」), so the card is now a *shared sheet*:
- * both `plugins/browser/page.css` and `plugins/clipboard/page.css` `@import`
- * this file, and both pages' scripts use these class names.
+ * read as one thing (「要整体性更强」), so the card became a *shared sheet* that
+ * both retired pages' stylesheets `@import`ed.
+ *
+ * R33 retired the built-in iframe pages and R76 deleted their source, so the
+ * two importers are gone and this sheet is no longer loaded by the app. It is
+ * kept as part of the published plugin-page contract (a third-party page may
+ * copy or import it); nothing in the host bundle depends on it.
  *
  * The classes are deliberately neutral (`plugin-*`) rather than prefixed per
  * page — the point is that a plugin page's settings look the same wherever they

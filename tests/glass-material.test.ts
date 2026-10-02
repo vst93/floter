@@ -26,6 +26,8 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
+
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -162,7 +164,6 @@ test("no card, row, drawer or dialog re-blurs the shell", async () => {
     ".extension-removal-dialog",
     ".extension-menu__items",
     ".app-toast",
-    ".clipboard-row",
   ];
   const found = await filteringSelectors();
   for (const selector of contentSelectors) {
@@ -561,7 +562,7 @@ test("reduced transparency turns the shells into near-solid panels", async () =>
       for (const part of selector.split(",")) opaque.add(part.trim());
     }
   }
-  for (const shell of [...GLASS_SHELLS, ".clipboard-panel"]) {
+  for (const shell of [...GLASS_SHELLS]) {
     assert.ok(
       covered.has(shell),
       `prefers-reduced-transparency must drop the blur on ${shell}`,
@@ -598,25 +599,14 @@ test("reduced transparency turns the shells into near-solid panels", async () =>
   );
 });
 
-test("R7-4b: the plugin page declares no blur, and the host shell is the sole provider", async () => {
-  // The clipboard page runs in a sandboxed iframe. Its backdrop is its OWN
-  // document's background, not the host's desktop — WebKitGTK will not let a
-  // frame filter content across the frame boundary. That makes a
-  // `backdrop-filter` on `.clipboard-panel` inert: it spends a slot of the
-  // same-screen filter budget and blurs a flat fill. R7-4b removed it, so the
-  // page's sheet owns zero filters and the one real blur is the shell's.
-  const page = stripComments(await read("src/plugins/clipboard/page.css"));
-  const carriers = rules(page).filter(({ body }) => /(?:^|;)\s*(?:-webkit-)?backdrop-filter\s*:/.test(body));
-  assert.deepEqual(carriers, [], "clipboard/page.css must not declare a backdrop-filter (R7-4b)");
-  // The material the page paints is still host-supplied: the page consumes the
-  // injected `--page-fill` / `--panel-bg`, which main.ts derives from the
-  // step tokens the host hands across the bridge. The subtraction must not
-  // turn the page into a flat hole, so the tint has to still be there.
-  const panel = rules(page).find(({ selector }) => selector === ".clipboard-panel");
-  assert.ok(panel, "clipboard/page.css must still define .clipboard-panel's material");
-  assert.match(panel!.body, /var\(--panel-bg\)/, "the page still paints the host-injected fill");
-  // The shell it sits in keeps exactly one blur — that is the filter the page
-  // consumes. If this ever disappears, the page has no glass at all.
+test("R7-4b: the retired plugin page declares no blur — because it is gone", async () => {
+  // The clipboard page ran in a sandboxed iframe, where a `backdrop-filter`
+  // samples the frame's own document rather than the host's desktop: it was
+  // inert and spent a same-screen filter slot for nothing. R7-4b removed it;
+  // R33 retired the page and R76 deleted its stylesheet, so there is no page
+  // filter to police any more. The shell it used to sit in keeps exactly one
+  // blur, which is the filter the page consumed.
+  await assertRetiredPageLayerIsGone(root);
   const host = stripComments(await read("src/styles/terminal.css"));
   const shell = rules(host).find(({ selector }) => selector === ".terminal-panel");
   assert.ok(shell, "terminal.css must define .terminal-panel");

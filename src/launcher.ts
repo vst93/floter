@@ -533,10 +533,10 @@ export const HISTORY_DELETE_SHORTCUT = "CmdOrCtrl+Backspace";
 
 /** Whether a key event's modifier-and-key shape is {@link HISTORY_DELETE_SHORTCUT}.
  *
- * Exported so the clipboard plugin page (`clipboard-list.ts`) recognises the
- * *same* binding the launcher does rather than keeping its own copy of ⌘⌫/Ctrl+⌫
- * — one key, one definition. The input is structurally an event (the page's
- * pure resolver never holds a real `KeyboardEvent`). */
+ * The shared predicate the launcher's key handler and the retired clipboard
+ * page both read, so the key, the hint and the documentation cannot drift —
+ * one key, one definition. The input is structurally an event (the launcher's
+ * pure resolvers never hold a real `KeyboardEvent`). */
 export const isHistoryDeleteKey = (
   event: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
 ): boolean => matchesShortcut(event as KeyboardEvent, HISTORY_DELETE_SHORTCUT);

@@ -123,8 +123,6 @@ const VIEWS: { name: string; mode: string; selectors: string[] }[] = [
   { name: "collapsed · results", mode: "collapsed", selectors: [".launcher-result--selected"] },
   { name: "collapsed · feedback toast", mode: "collapsed", selectors: [".launcher-feedback", ".launcher-feedback--warning"] },
   { name: "collapsed · system confirm", mode: "collapsed", selectors: [".launcher-system-confirm", ".launcher-system-confirm__execute"] },
-  { name: "terminal · clipboard list", mode: "terminal", selectors: [".clipboard-row--selected", ".clipboard-panel__tab--active"] },
-  { name: "plugin · clipboard page", mode: "plugin", selectors: [".clipboard-row--selected", ".clipboard-panel__tab--active"] },
   { name: "settings · page shell", mode: "settings", selectors: [".settings-sidebar__item--active", ".settings-option--active", ".shortcut-recorder--recording", ".settings-switch--active .settings-switch__thumb"] },
   { name: "settings · integrations", mode: "settings", selectors: [".extensions-action-button--primary", ".extensions-icon-button--primary", ".extension-row--selected", ".extension-tool-results button.extension-tool-result--active", ".extension-custom-mode__item--active", ".extension-health__tag", ".extension-status--recommended", ".extension-row__progress"] },
   // SETTINGS-APPLE: the update banner became a row of the shared grouped card
@@ -137,8 +135,6 @@ const FILE_FOR: Record<string, string> = {
   "collapsed · results": "src/styles/launcher.css",
   "collapsed · feedback toast": "src/styles/launcher.css",
   "collapsed · system confirm": "src/styles/launcher.css",
-  "terminal · clipboard list": "src/styles/terminal.css",
-  "plugin · clipboard page": "src/styles/terminal.css",
   "settings · page shell": "src/styles/settings.css",
   "settings · integrations": "src/styles/extensions.css",
   "settings · about": "src/styles/settings.css",
@@ -251,7 +247,6 @@ test("a chosen state is a lit pane, never an accent fill", async () => {
   // accent keyline and label stay, the tinted fill does not.
   const cases: [string, string][] = [
     ["src/styles/settings.css", ".settings-option--active"],
-    ["src/styles/terminal.css", ".clipboard-panel__tab--active"],
     ["src/styles/extensions.css", ".extension-custom-mode__item--active"],
     ["src/styles/extensions.css", ".extension-tool-results button.extension-tool-result--active"],
     ["src/styles/extensions.css", ".extension-row__progress"],

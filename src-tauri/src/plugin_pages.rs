@@ -60,17 +60,22 @@ pub struct PluginPageDescriptor {
     pub allowed_commands: &'static [&'static str],
 }
 
+/// R76 · the allowlist shrank with the retired iframe page. The three commands
+/// the clipboard page used to read images, file previews and file-existence
+/// statuses with (`clipboard_read_image`, `clipboard_read_file_preview`,
+/// `clipboard_entry_statuses`) had no live caller once the page's source was
+/// deleted, so they were removed from the registry and the command table
+/// rather than left advertising a capability with no implementation. What
+/// remains is exactly what the live launcher mode and the plugin's settings
+/// card call.
 const CLIPBOARD_COMMANDS: &[&str] = &[
     "clipboard_get_entries",
     "clipboard_set_favorite",
     "clipboard_delete",
     "clipboard_copy_entry",
     "clipboard_clear_history",
-    "clipboard_read_image",
     // R38 · the row-icon thumbnail the launcher's inline mode reads.
     "clipboard_thumbnail",
-    "clipboard_entry_statuses",
-    "clipboard_read_file_preview",
     // R27 · the plugin's own settings card writes through this narrow pair,
     // exactly as the browser page's card does through `browser_set_settings`.
     "clipboard_get_settings",
@@ -326,9 +331,10 @@ mod tests {
         assert!(clipboard
             .allowed_commands
             .contains(&"clipboard_get_entries"));
-        assert!(clipboard
-            .allowed_commands
-            .contains(&"clipboard_read_file_preview"));
+        // R76 · the allowlist shrank with the retired iframe page: the read
+        // commands it pinned are gone from the registry and the command table.
+        // The pin now holds a command the live launcher mode actually calls.
+        assert!(clipboard.allowed_commands.contains(&"clipboard_delete"));
         // An unknown plugin has no page and no permissions.
         assert!(descriptor("builtin.nope").is_none());
         assert!(descriptor("../../etc/passwd").is_none());

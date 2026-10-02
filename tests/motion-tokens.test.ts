@@ -24,8 +24,6 @@ const stylesDir = new URL("src/styles/", root);
 // belongs to R7-4/R7-6 (clipboard) and R26-B (browser).
 const OUT_OF_SCOPE = [
   "src/extensions/ComponentizedUninstallDialog.css",
-  "src/plugins/clipboard/page.css",
-  "src/plugins/browser/page.css",
   // R27 · the shared plugin-settings card sheet both plugin pages import. It
   // is a plugin-page document (loaded inside the sandboxed iframe), so it keeps
   // the pages' own motion vocabulary for now rather than converging on the

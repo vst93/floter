@@ -38,6 +38,7 @@ import {
   formatShortcut,
   matchesShortcut,
 } from "../src/shortcuts.ts";
+import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -76,7 +77,6 @@ test("R55 · the delete key is CmdOrCtrl+⌫, declared once", async () => {
     read("src/hooks/useLauncherActions.ts"),
     read("src/App.tsx"),
     read("src/plugins/history-actions.ts"),
-    read("src/clipboard-list.ts"),
   ]);
   for (const src of sources) {
     assert.equal(
@@ -191,17 +191,15 @@ test("R55 · the handler claims the key on both history modes, two-step, empty f
   assert.match(actions, /deleteCalculatorEntry\(entry\.id\)/);
 });
 
-test("R55 · the clipboard page recognises the same key through the shared predicate", async () => {
-  const list = stripJsComments(await read("src/clipboard-list.ts"));
-  assert.match(list, /isHistoryDeleteKey\(/);
-  // No independent `key === "Backspace"` + modifier spelling survives.
-  assert.equal(
-    /modifier && key === "Backspace"/.test(list),
-    false,
-    "the clipboard page must not keep its own ⌘⌫",
-  );
-  // The predicate itself is the one in launcher.ts.
+test("R55 · the live history handler is the one source for the key", async () => {
+  // R53 unified the key behind `HISTORY_DELETE_SHORTCUT` and `isHistoryDeleteKey`
+  // in `src/launcher.ts`. The clipboard page that used to consume the shared
+  // predicate was retired (R33) and its pure-logic module deleted (R76); the
+  // live consumer is the launcher's own key handler, asserted in full above.
+  // What is pinned here is that no *page-local* ⌘⌫ spelling survives in the
+  // tree: the predicate is the one in launcher.ts and nothing restates it.
   assert.equal(isHistoryDeleteKey({ key: "Backspace", code: "Backspace", ctrlKey: !IS_MAC, metaKey: IS_MAC, altKey: false, shiftKey: false }), true);
+  await assertRetiredPageLayerIsGone(root);
 });
 
 test("R55 · the hint names the key through formatShortcut, not a literal", async () => {

@@ -15,7 +15,7 @@ export type ClipboardEntry = {
    * or shipped over IPC, only the path strings themselves. */
   paths?: string[] | null;
   /** File name inside the backend's history store; opaque to the frontend,
-   * which reads pixels through `clipboard_read_image` by id instead. */
+   * which reads a scaled thumbnail through `clipboard_thumbnail` by id. */
   image_file?: string | null;
   width?: number | null;
   height?: number | null;

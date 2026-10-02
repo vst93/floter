@@ -154,6 +154,10 @@ page → host: {floter:"close"}                        // 关闭页面回到记�
 每插件命令白名单后才执行调用；现有权限模型日后可在同一接缝上继续收紧。启动参数（语言、主题、
 透明度）通过 URL query 传入——沙箱页无法读取存储或宿主文档。
 
+> 2026-10-02（R76）注：内置 iframe 宿主与内置插件页已随 R33 退役、R76 物理删除；
+> 上面的白名单/来源校验仍是对外发布协议（`src/plugin-pages.ts` + `docs/extensions/plugin-page-protocol.md`）
+> 要求宿主实现的行为，只是今天没有内置宿主。
+
 ### 生命周期与调用路径
 
 - **一条内部路径，多个触发源**：`plugin_pages::open_plugin_page`（总是打开）与
@@ -167,4 +171,6 @@ page → host: {floter:"close"}                        // 关闭页面回到记�
 - 第一个用户：剪贴板历史（`plugins/clipboard/index.html` +
   `src/plugins/clipboard/main.ts`），已从 React 面板提取为独立 HTML+JS，经 Vite 多入口
   构建（`vite.config.ts` rollupOptions.input），复用共享样式表与纯逻辑模块。
+  **（2026-10-02 / R76：该页与宿主已物理删除；剪贴板现在是 launcher 内联模式
+  `src/plugins/clipboard/mode.ts`，插件页机制只剩对外发布的协议与示例页。）**
 - CSP 相应放宽了一处：`img-src` 增加 `blob:`（缩略图字节过桥后在沙箱页内转 blob URL 渲染）。

@@ -27,6 +27,7 @@ import {
   DEFAULT_BROWSER_SORT_ORDER,
   normalizeBrowserSortOrder,
 } from "../src/browser-page.ts";
+import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -216,59 +217,42 @@ test("the clipboard capacity clamps to the range the backend honours", () => {
   assert.deepEqual(normalizeClipboardSettings({ max_items: "80" }), { max_items: 300 });
 });
 
-test("the clipboard page owns its settings card, on the shared sheet", async () => {
-  const page = stripJsComments(await read("src/plugins/clipboard/main.ts"));
-  // The narrow pair, not the whole-app settings object: the page has no
-  // business rewriting fields it does not own.
-  assert.match(page, /invokeCommand<unknown>\("clipboard_get_settings"\)/);
-  assert.match(
-    page,
-    /invokeCommand<unknown>\("clipboard_set_settings", \{ settings: next \}\)/,
-  );
-  // The card is the shared `.plugin-settings` design, not a second lookalike.
-  assert.match(page, /card\.className = "plugin-settings";/);
-  assert.match(page, /"plugin-field__control plugin-field__control--number"/);
-  assert.match(page, /input\.min = String\(MIN_CLIPBOARD_MAX_ITEMS\)/);
-  assert.match(page, /input\.max = String\(MAX_CLIPBOARD_MAX_ITEMS\)/);
-  // The toggle lives in the topbar beside the field, like the browser page's.
-  assert.match(page, /class="clipboard-panel__settings"/);
-  assert.match(page, /settingsToggle\.classList\.toggle\("clipboard-panel__settings--on", settingsOpen\)/);
+test("the clipboard's settings live in the launcher's configuration schema, not a page card", async () => {
+  // R33 retired the built-in iframe pages onto the launcher's generic
+  // configuration overlay; R76 deleted the page source. The schema
+  // (`src/plugins/config-schema.ts`) is the plugin's live settings surface,
+  // rendered by `PluginConfigOverlay`.
+  const { CLIPBOARD_CONFIG_SCHEMA } = await import("../src/plugins/config-schema.ts");
+  assert.equal(CLIPBOARD_CONFIG_SCHEMA.pluginId, "builtin.clipboard");
+  assert.equal(CLIPBOARD_CONFIG_SCHEMA.titleKey, "settings.clipboardHistory");
+  const maxItems = CLIPBOARD_CONFIG_SCHEMA.fields.find((field) => field.key === "max_items");
+  assert.ok(maxItems, "the clipboard schema must carry the capacity field");
+  assert.equal(maxItems.type, "slider");
+  assert.equal(maxItems.min, MIN_CLIPBOARD_MAX_ITEMS);
+  assert.equal(maxItems.max, MAX_CLIPBOARD_MAX_ITEMS);
+  // The destructive action is the schema's, and it names a live command.
+  const clear = CLIPBOARD_CONFIG_SCHEMA.fields.find((field) => field.key === "clear_history");
+  assert.ok(clear && clear.type === "action" && clear.command === "clipboard_clear_history");
 
-  const browser = stripJsComments(await read("src/plugins/browser/main.ts"));
-  // The browser card is the same sheet after this round — its old per-page
-  // class names are gone, not kept as aliases.
-  assert.match(browser, /el\("div", "plugin-settings"\)/);
-  assert.match(browser, /el\("label", "plugin-field"\)/);
-  assert.equal(
-    /browser-page__settings|browser-field/.test(browser),
-    false,
-    "the browser card must use the shared class names, not its own",
-  );
-  // …and it now offers the sort order the launcher reads from the stored
-  // settings.
-  assert.match(browser, /for \(const order of BROWSER_SORT_ORDERS\)/);
-  assert.match(browser, /sort_order: sort\.value as BrowserSortOrder/);
+  // The retired page's card and its two page stylesheets must stay deleted.
+  await assertRetiredPageLayerIsGone(root);
 });
 
-test("both plugin sheets import the one card stylesheet", async () => {
-  const shared = stripComments(await read("src/plugins/settings-card.css"));
-  assert.match(shared, /\.plugin-settings\s*\{/);
-  assert.match(shared, /\.plugin-field__control\s*\{/);
-  assert.match(shared, /\.plugin-settings__notice--error\s*\{/);
-  for (const page of ["src/plugins/browser/page.css", "src/plugins/clipboard/page.css"]) {
-    const css = await read(page);
-    assert.match(
-      css,
-      /@import "\.\.\/settings-card\.css";/,
-      `${page} must import the shared card sheet`,
-    );
-    // The card's rules must not be restated locally: one source, two pages.
-    assert.equal(
-      /\.plugin-settings\s*\{/.test(stripComments(css)),
-      false,
-      `${page} must not redeclare the shared card`,
-    );
-  }
+test("the browser's settings live in the launcher's configuration schema", async () => {
+  // The browser page's own card was deleted with the page; the live surface is
+  // the schema-driven overlay, which carries the sort order the launcher reads.
+  const { browserConfigSchema } = await import("../src/plugins/config-schema.ts");
+  const schema = browserConfigSchema({
+    browserTargets: [{ id: "chrome", name: "Google Chrome" }],
+  });
+  assert.equal(schema.pluginId, "builtin.browser");
+  const sort = schema.fields.find((field) => field.key === "sort_order");
+  assert.ok(sort, "the browser schema must carry the sort order the launcher reads");
+  assert.equal(sort.type, "radio");
+  assert.deepEqual(
+    sort.type === "radio" ? sort.options.map((option) => option.value) : [],
+    [...BROWSER_SORT_ORDERS],
+  );
 });
 
 test("the browser sort orders are the four the settings file accepts", () => {

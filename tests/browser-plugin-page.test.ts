@@ -144,16 +144,17 @@ test("the frontend's plugin id mirrors the backend's literal", async () => {
   );
 });
 
-// ── 2 · the page ───────────────────────────────────────────────────────────
+// ── 2 · the page (retired and deleted) ────────────────────────────────────
 
-test("the browser page document is retired; its logic module is retained", async () => {
-  // R33 · the iframe document and its Vite entry are gone, so nothing can load
-  // the built-in page. The page's own source stays in the tree because the
-  // published bridge protocol (and its tests) still exercise it; a future
-  // external page loader would mount the same host.
+test("the browser page document and source are deleted; the logic module is retained", async () => {
+  // R33 · the iframe document and its Vite entry are gone, so nothing could
+  // load the built-in page. R76 · the page's own source is gone too; the
+  // decisions it used to make live in `src/browser-page.ts`, which is retained
+  // and covered by the pure-logic half of this file.
   assert.equal(await exists(PAGE_HTML), false, "the retired document must be gone");
-  assert.ok(await exists(PAGE_MAIN), "the retained page source must stay");
-  assert.ok(await exists(PAGE_CSS), "the retained page stylesheet must stay");
+  assert.equal(await exists(PAGE_MAIN), false, "the retired page source must stay deleted");
+  assert.equal(await exists(PAGE_CSS), false, "the retired page stylesheet must stay deleted");
+  assert.ok(await exists("src/browser-page.ts"), "the retained logic module must stay");
 });
 
 test("the build carries no iframe page entry point", async () => {
@@ -166,63 +167,6 @@ test("the build carries no iframe page entry point", async () => {
     !config.includes("rollupOptions"),
     "there is one entry point again: the app document",
   );
-});
-
-test("the page goes through the bridge and touches no Tauri API", async () => {
-  const main = await read(PAGE_MAIN);
-  assert.match(main, /import "\.\/page\.css";/);
-  assert.match(main, /PLUGIN_PAGE_PROTOCOL/, "the handshake must name the protocol");
-  assert.match(main, /\{ \[BRIDGE_TAG\]: "frame-ready", protocol: PLUGIN_PAGE_PROTOCOL \}/);
-  assert.match(main, /\{ \[BRIDGE_TAG\]: "invoke"/);
-  // The plugin-page red line: a sandboxed page has no Tauri surface, and a page
-  // that reached for one would be a capability the allowlist never granted.
-  assert.ok(
-    !main.includes("@tauri-apps"),
-    "the browser page must not import a Tauri API",
-  );
-  // Every command the page runs is one of the allowlisted eight.
-  const invoked = [...main.matchAll(/invokeCommand<[^>]*>\(\s*"([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(invoked.length >= 5, `expected the page to invoke commands, saw ${invoked.length}`);
-  for (const command of invoked) {
-    assert.ok(
-      REQUIRED_COMMANDS.includes(command),
-      `${command} is invoked by the page but not allowlisted`,
-    );
-  }
-  // The settings card is on the page, and it writes through the narrow pair.
-  assert.match(main, /"browser_get_settings"/);
-  assert.match(main, /"browser_set_settings"/);
-});
-
-test("the page renders the three groups and the settings card", async () => {
-  const main = await read(PAGE_MAIN);
-  assert.match(main, /t\("launcher\.browserBookmarks"\)/);
-  assert.match(main, /t\("launcher\.browserHistory"\)/);
-  assert.match(main, /t\("browserPage\.tabs"\)/);
-  assert.match(main, /t\("browserPage\.settings"\)/);
-  // The debug-port block is Windows/Linux only; macOS reads tabs natively.
-  assert.match(main, /if \(!isMac\)/);
-  assert.match(main, /t\("browserPage\.cdp"\)/);
-  // No native directory picker: the iframe has no Tauri dialog, so the custom
-  // directory is a text path plus a reset button.
-  assert.match(main, /t\("browserPage\.useDefaultDir"\)/);
-});
-
-test("every string the page asks for exists in both dictionaries", async () => {
-  const main = await read(PAGE_MAIN);
-  const en = createTranslator("en");
-  const zh = createTranslator("zh");
-  // `(?<![\w.$])` keeps `params.get("lang")` out of the key set — the only
-  // `t("…")` shapes that count are calls to the page's own translator.
-  const keys = [...main.matchAll(/(?<![\w.$])t\("([^"]+)"\)/g)].map((match) => match[1]);
-  assert.ok(keys.length > 0);
-  for (const key of new Set(keys)) {
-    const english = en(key as never);
-    const chinese = zh(key as never);
-    assert.notEqual(english, key, `${key} is missing from the English dictionary`);
-    assert.notEqual(chinese, key, `${key} is missing from the Chinese dictionary`);
-    assert.ok(english.length > 0 && chinese.length > 0, `${key} must not be blank`);
-  }
 });
 
 // ── 3 · the pure logic ─────────────────────────────────────────────────────

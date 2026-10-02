@@ -585,14 +585,16 @@ export const BUILTIN_BASE_PLUGINS: readonly BuiltinBasePlugin[] = [
 /**
  * The built-in pages that must be sandboxed with `allow-same-origin`.
  *
- * Both built-ins ship as bundled assets on the app's own origin, and WebKit
+ * Both built-ins shipped as bundled assets on the app's own origin, and WebKit
  * refuses to load a bundled stylesheet (and, for an ES module entry, the module
  * itself) from an opaque-origin frame. R26-B gave the browser plugin a page but
- * only the clipboard id was special-cased in `PluginPageHost`, so on macOS the
- * browser page's module never ran — and a page whose script never runs never
- * sends its `frame-ready`, which is exactly the “此页面未声明插件页协议版本”
- * the user saw. This list is the one place that decides the exception; a page
- * not named here keeps the opaque-origin sandbox.
+ * only the clipboard id was special-cased in the (since-retired) host, so on
+ * macOS the browser page's module never ran — and a page whose script never
+ * runs never sends its `frame-ready`, which is exactly the “此页面未声明插件页
+ * 协议版本” the user saw. This list is the one place that decides the exception;
+ * a page not named here keeps the opaque-origin sandbox. R33 retired the
+ * built-in pages and R76 deleted their source; the list is retained as part of
+ * the published protocol's shape.
  */
 export const SAME_ORIGIN_PLUGIN_PAGES: readonly string[] = [
   CLIPBOARD_PLUGIN_ID,

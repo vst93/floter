@@ -20,7 +20,6 @@ pub mod store;
 
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager};
@@ -324,105 +323,6 @@ pub fn clipboard_copy_entry(app: AppHandle, id: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Existence map for files entries: `true` = every stored path still exists.
-/// Called once per panel load; each check is a bare `metadata()` stat, cheap
-/// enough to run for the whole visible history.
-#[tauri::command]
-pub fn clipboard_entry_statuses(
-    app: AppHandle,
-    ids: Vec<String>,
-) -> Result<HashMap<String, bool>, String> {
-    let entries = read_history(&app)?;
-    let mut statuses = HashMap::with_capacity(ids.len());
-    for id in ids {
-        let complete = entries
-            .iter()
-            .find(|entry| entry.id == id)
-            .and_then(|entry| entry.paths.as_ref())
-            .map(|paths| {
-                !paths.is_empty() && paths.iter().all(|path| std::fs::metadata(path).is_ok())
-            })
-            // Non-files entries have nothing to go missing.
-            .unwrap_or(true);
-        statuses.insert(id, complete);
-    }
-    Ok(statuses)
-}
-
-/// Extensions whose bytes the webview can render directly in a row thumbnail.
-pub const PREVIEW_IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
-/// Hard ceiling for preview reads (10 MB).
-pub const MAX_PREVIEW_BYTES: u64 = 10 * 1024 * 1024;
-
-/// Whether `path` names a file of a previewable raster-image format, judged by
-/// extension alone. Aware of both separators so a Windows-style stored path
-/// behaves identically to a POSIX one.
-pub fn is_image_file_path(path: &str) -> bool {
-    let name = match path.rfind(|c| c == '/' || c == '\\') {
-        Some(index) => &path[index + 1..],
-        None => path,
-    };
-    let Some(dot) = name.rfind('.') else {
-        return false;
-    };
-    if dot + 1 >= name.len() {
-        return false;
-    }
-    let extension = name[dot + 1..].to_ascii_lowercase();
-    PREVIEW_IMAGE_EXTENSIONS.contains(&extension.as_str())
-}
-
-/// Whether a files entry qualifies for an in-panel pixel preview: exactly one
-/// path whose extension names a renderable format. Size is gated at read time
-/// in [`clipboard_read_file_preview`] — stat-ing here would defeat the point
-/// of a pure predicate.
-pub fn is_files_preview_candidate(paths: Option<&[String]>) -> bool {
-    match paths {
-        Some([single]) => is_image_file_path(single),
-        _ => false,
-    }
-}
-
-/// Bytes of the single image file a files entry points at, for rendering the
-/// row thumbnail straight from disk. Strictly gated: known id, exactly one
-/// path, an existing regular file, an image extension, and the size cap.
-/// Stored paths are our own data, but they still refuse NUL bytes.
-#[tauri::command]
-pub fn clipboard_read_file_preview(app: AppHandle, id: String) -> Result<Vec<u8>, String> {
-    let entry = read_history(&app)?
-        .into_iter()
-        .find(|entry| entry.id == id)
-        .ok_or_else(|| format!("Unknown clipboard entry: {id}"))?;
-    let paths = entry.paths.as_deref().ok_or("Entry has no file paths")?;
-    if !is_files_preview_candidate(Some(paths)) {
-        return Err("Entry has no previewable image file".to_string());
-    }
-    let path = &paths[0];
-    if path.contains('\0') {
-        return Err("Invalid file path".to_string());
-    }
-    let metadata = std::fs::metadata(path).map_err(|error| error.to_string())?;
-    if !metadata.is_file() {
-        return Err("Not a regular file".to_string());
-    }
-    if metadata.len() > MAX_PREVIEW_BYTES {
-        return Err("File too large for preview".to_string());
-    }
-    std::fs::read(path).map_err(|error| error.to_string())
-}
-
-/// PNG bytes of a stored image entry, for thumbnail rendering in the panel.
-#[tauri::command]
-pub fn clipboard_read_image(app: AppHandle, id: String) -> Result<Vec<u8>, String> {
-    let paths = store::app_store_paths().ok_or("No app data directory")?;
-    let entry = read_history(&app)?
-        .into_iter()
-        .find(|entry| entry.id == id)
-        .ok_or_else(|| format!("Unknown clipboard entry: {id}"))?;
-    let file = entry.image_file.ok_or("Entry is not an image")?;
-    store::read_image(&paths, &file)
-}
-
 /// R38 · the default ceiling for a row thumbnail, in pixels on the long side.
 /// The launcher's icon plate is 28u, so 32 gives the browser a hair of source
 /// to scale without handing it a full-resolution capture.
@@ -583,30 +483,6 @@ mod tests {
         assert!(!serialized.contains("image_file"));
         let back: ClipboardEntry = serde_json::from_str(&serialized).expect("deserialize");
         assert_eq!(back, entry);
-    }
-
-    #[test]
-    fn preview_candidates_need_exactly_one_image_extension_path() {
-        let one = vec!["/x/pic.PNG".to_string()];
-        assert!(is_files_preview_candidate(Some(one.as_slice())));
-
-        let two = vec!["/x/pic.png".to_string(), "/y/pic.jpg".to_string()];
-        assert!(!is_files_preview_candidate(Some(two.as_slice())));
-
-        let text = vec!["/x/notes.txt".to_string()];
-        assert!(!is_files_preview_candidate(Some(text.as_slice())));
-        assert!(!is_files_preview_candidate(None));
-    }
-
-    #[test]
-    fn image_extension_check_understands_both_path_styles() {
-        assert!(is_image_file_path("/a/b/c.png"));
-        assert!(is_image_file_path("C:\\a\\b\\c.JPG"));
-        // A dot earlier in the path does not make an extension.
-        assert!(is_image_file_path("/a/b.d/c.webp"));
-        assert!(!is_image_file_path("/a/b/c.txt"));
-        assert!(!is_image_file_path("/a/b/c"));
-        assert!(!is_image_file_path("/a/b/c."));
     }
 
     /// R38 · the thumbnail size is bounded on both ends: no size means the

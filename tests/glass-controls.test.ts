@@ -499,10 +499,10 @@ test("the content layer never collapses into the standard-material band", async 
 
 // TODO(F12): this scan guards the *stylesheets* (a literal blur in any sheet
 // fails). It cannot see a step value written by runtime JavaScript or an
-// inline style, which is exactly how the plugin page receives its step (the
-// host injects `--glass-step-*` onto the container, see PluginPageHost).
-// tests/plugin-pages.test.ts now pins that hand-off, but a broader runtime
-// scan remains future work.
+// inline style, which is how an external plugin page would receive its step
+// (a host injects `--glass-step-*` onto the container). The built-in host that
+// did that was retired (R33) and deleted (R76); a broader runtime scan remains
+// future work for the published protocol.
 test("the step reaches every surface but is never branched on in a surface file", async () => {
   const base = stripComments(await read("src/styles/base.css"));
   // Exactly three blocks, one per effect step.

@@ -186,24 +186,18 @@ test("SessionsPage's empty/loading/failure region is the shared primitive", asyn
   }
 });
 
-test("the shared empty state speaks the clipboard page's empty language", async () => {
+test("the shared empty state keeps one title/hint language", async () => {
   const css = await settings();
   const title = ruleFor(css, ".settings-empty__title");
   const hint = ruleFor(css, ".settings-empty__hint");
-  // The clipboard page is where this language was first written down: a title
-  // one step brighter than the body, and a quieter hint capped to a 320px
-  // measure. The host-side primitive is that language, not a new one.
-  const clipboard = stripCssComments(await read("src/plugins/clipboard/page.css"));
-  const clipboardTitle = ruleFor(clipboard, ".clipboard-panel__empty-title");
-  const clipboardHint = ruleFor(clipboard, ".clipboard-panel__empty-hint");
-  assert.equal(decl(title, "color"), decl(clipboardTitle, "color"), "the same title colour");
-  assert.equal(decl(title, "font-weight"), decl(clipboardTitle, "font-weight"), "the same title weight");
-  assert.equal(decl(hint, "color"), decl(clipboardHint, "color"), "the same hint colour");
-  assert.equal(
-    decl(hint, "max-width"),
-    decl(clipboardHint, "max-width"),
-    "the same 320px measure on the hint",
-  );
+  // The language the clipboard page first wrote down, now owned by the shared
+  // primitive: a title one step brighter than the body, and a quieter hint
+  // capped to a 320px measure. The clipboard page itself was retired (R33) and
+  // its source deleted (R76); the primitive is the live carrier.
+  assert.equal(decl(title, "color"), "var(--text-secondary)", "the title colour");
+  assert.equal(decl(title, "font-weight"), "580", "the title weight");
+  assert.equal(decl(hint, "color"), "var(--text-tertiary)", "the hint colour");
+  assert.equal(decl(hint, "max-width"), "320px", "the 320px measure on the hint");
   // Chrome-free: an empty region is a sentence, not a card.
   const empty = ruleFor(css, ".settings-empty");
   assert.ok(!/border|background|box-shadow|border-radius/.test(empty), "the empty region paints no chrome");
@@ -305,28 +299,17 @@ test("the integrations section headings are titles, not uppercase captions", asy
   assert.match(chip, /height:\s*18px/, "and stays pinned to the heading line box");
 });
 
-test("every shell header speaks the one title language", async () => {
-  // Priority 2 of the round: the shells' title bars. They were already one
-  // language — the terminal bar and the plugin host's chrome share the exact
-  // same title ramp — so the round's job is to *keep* it that way while the
-  // pages move, and to say so. The terminal's canvas, its input semantics and
-  // the bar's drag behaviour are untouched: this is a type comparison, not a
-  // restyle.
+test("the shell title is the secondary type step", async () => {
+  // The shells' title bars were already one language; the round's job is to
+  // *keep* it that way while the pages move, and to say so. The terminal's
+  // canvas, its input semantics and the bar's drag behaviour are untouched:
+  // this is a type comparison, not a restyle. The retired plugin chrome that
+  // shared the ramp was deleted with the iframe layer (R76).
   const terminal = stripCssComments(await read("src/styles/terminal.css"));
   const bar = ruleFor(terminal, ".terminal-bar__title");
-  const host = ruleFor(terminal, ".plugin-page-host__topbar-title");
-  const ramp = (body: string) =>
-    ["color", "font-size", "font-weight", "line-height"]
-      .map((property) => decl(body, property))
-      .join("|");
-  assert.equal(ramp(host), ramp(bar), "the plugin chrome's title is the terminal bar's title");
-  // Both are the *secondary* step: a shell title names the window, it is not
-  // the page's heading (which is `--text-strong` at the display step).
+  // A shell title names the window, it is not the page's heading (which is
+  // `--text-strong` at the display step).
   assert.equal(decl(bar, "color"), "var(--text-secondary)", "a shell title is secondary text");
-  // The plugin bar stays material-free: the shell behind it owns the one blur,
-  // so the chrome must not pick up a filter or a fill of its own.
-  const topbar = ruleFor(terminal, ".plugin-page-host__topbar");
-  assert.ok(!/backdrop-filter|background\s*:/.test(topbar), "the plugin chrome paints no material");
 });
 
 // ── 5 · the shell card the round deliberately left alone ───────────────────

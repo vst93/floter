@@ -94,23 +94,10 @@ test("integrations panel does not scroll the page on feedback", async () => {
 
 // The clipboard page's empty/failure state must not reuse the generic
 // "Plugin failed to load" copy: when the backend is unavailable (feature off)
-// the page has to say so and how to turn it back on, rather than implying the
-// page itself failed to load.
-test("clipboard page reports an unavailable backend distinctly", async () => {
-  const page = await read("src/plugins/clipboard/main.ts");
-  assert.ok(
-    page.includes("clipboard.pageUnavailable"),
-    "clipboard page must use the backend-unavailable message",
-  );
-  assert.ok(
-    page.includes("clipboard.loadFailed"),
-    "clipboard page must use the load-failed message",
-  );
-  assert.ok(
-    !page.includes('t("plugin.pageError")'),
-    "clipboard page must not claim the whole plugin failed to load",
-  );
-});
+// the page had to say so and how to turn it back on. That page was retired
+// (R33) and deleted (R76); the live clipboard surface reports its own
+// unavailable state through the launcher mode's status row
+// (`clipboard.pageUnavailable`, asserted in `plugin-fusion.test.ts`).
 
 // The integrations list must stay mounted across a background refresh. Every
 // mutation calls `refresh()`, which flips `loading`; rendering the one-line

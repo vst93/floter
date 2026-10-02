@@ -280,6 +280,10 @@ panel.addEventListener("mousedown", (event) => {
 | 位置 | 内容 |
 | --- | --- |
 | `src/plugin-pages.ts` | 协议常量、消息类型、校验谓词、握手判定、URL 构造（纯逻辑，可被 node 测试直接驱动） |
-| `src/plugins/PluginPageHost.tsx` | 宿主侧：iframe 挂载、消息路由、握手状态机、错误态 |
-| `src/plugins/clipboard/main.ts` | 第一个消费者：内置剪贴板页的完整客户端用法 |
+| `docs/extensions/examples/hello-page/` | 协议的可运行示例：握手、透明度带、拖拽豁免、`host-notify`、`close` |
 | `tests/plugin-page-protocol.test.ts` | 握手三态、消息表一致性、示例 payload 的结构测试 |
+
+> 注：内置 iframe 宿主与内置剪贴板页（旧表里的
+> `src/plugins/PluginPageHost.tsx` / `src/plugins/clipboard/main.ts`）已随 R33
+> 退役、R76 物理删除；本协议仍是对外发布的契约，但今天没有内置消费者，
+> 示例页是唯一的对照实现。

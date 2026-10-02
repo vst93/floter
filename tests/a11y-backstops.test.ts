@@ -74,28 +74,21 @@ test("RT: every surface shell goes near-solid and drops its blur", async () => {
     ".collapsed-card:focus-within",
     ".settings-card",
     ".terminal-panel",
-    ".clipboard-panel",
   ]) {
     assert.ok(opaque.has(shell), `RT must make ${shell} near-solid`);
-  }
-  // …plus the post-R8 surfaces HIG-2 added.
-  for (const shell of [".plugin-page-host__frame", ".plugin-page-host__topbar", ".plugin-page-host__loading", ".plugin-page-host__error"]) {
-    assert.ok(opaque.has(shell), `RT must make the post-R8 surface ${shell} near-solid`);
   }
   // The two floaters and the content recesses.
   for (const surface of [".app-toast", ".settings-save-alert--toast", ".launcher-bottom", ".settings-content", ".extension-tool-results"]) {
     assert.ok(opaque.has(surface), `RT must make ${surface} near-solid`);
   }
-  // The blur must be dropped wherever a blur existed. `.plugin-page-host__frame`
-  // and `.plugin-page-host__topbar` are claimed to have no blur of their own
-  // (the frame is opaque), so the assertion is that no RT-covered surface is
-  // left with a live filter.
+  // The blur must be dropped wherever a blur existed. No RT-covered surface
+  // may be left with a live filter.
   const noBlur = new Set<string>();
   for (const { selector, body } of RULES(block)) {
     if (!/(?:^|;)\s*(?:-webkit-)?backdrop-filter\s*:\s*none/.test(body)) continue;
     for (const part of selector.split(",")) noBlur.add(part.trim());
   }
-  for (const shell of [".collapsed-card", ".settings-card", ".terminal-panel", ".clipboard-panel", ".plugin-page-host__frame"]) {
+  for (const shell of [".collapsed-card", ".settings-card", ".terminal-panel"]) {
     assert.ok(noBlur.has(shell), `RT must drop the blur on ${shell}`);
   }
   // The near-solid stand-in is genuinely near-solid, not a token that could
@@ -121,7 +114,6 @@ test("IC: the material floor is raised and the new chrome gets the stroke", asyn
   for (const selector of [
     ".settings-option",
     ".settings-option--active",
-    ".clipboard-panel__tab--active",
     ".extension-row--selected",
     ".extension-health__tag",
   ]) {
@@ -129,7 +121,7 @@ test("IC: the material floor is raised and the new chrome gets the stroke", asyn
   }
   // The floating chrome takes a stronger border instead.
   const bordered = selectorsDeclaring(block, "border-color", /var\(--stroke-contrast\)/);
-  for (const selector of [".collapsed-card", ".settings-card", ".terminal-panel", ".plugin-page-host__topbar", ".plugin-page-host__button", ".app-toast", ".extension-drawer"]) {
+  for (const selector of [".collapsed-card", ".settings-card", ".terminal-panel", ".app-toast", ".extension-drawer"]) {
     assert.ok(bordered.has(selector), `IC must strengthen the border on ${selector}`);
   }
 });
@@ -184,10 +176,6 @@ test("RM: the host scan reaches the extension's private sheet", async () => {
   assert.ok(
     hostFiles.includes("src/extensions/ComponentizedUninstallDialog.css"),
     `the host scan must include the extension sheet, got:\n  ${hostFiles.join("\n  ")}`,
-  );
-  assert.ok(
-    !hostFiles.includes("src/plugins/clipboard/page.css"),
-    "the clipboard plugin page is a page boundary and must stay out of the host scan",
   );
 });
 

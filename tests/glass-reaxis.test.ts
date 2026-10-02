@@ -60,7 +60,6 @@ test("every named control draws a lens rung, not a bare ring", async () => {
     // Buttons (raised lens).
     ["src/styles/extensions.css", ".extensions-action-button"],
     ["src/styles/extensions.css", ".app-toast__action"],
-    ["src/styles/terminal.css", ".plugin-page-host__button"],
     ["src/styles/settings.css", ".settings-save-alert button"],
     ["src/styles/settings.css", ".settings-option--active"],
     ["src/styles/settings.css", ".settings-sidebar__item:hover"],
@@ -73,7 +72,6 @@ test("every named control draws a lens rung, not a bare ring", async () => {
     // Segmented controls (recessed track + raised chosen slot).
     ["src/styles/settings.css", ".settings-options--inline"],
     ["src/styles/extensions.css", ".extension-custom-mode"],
-    ["src/styles/terminal.css", ".clipboard-panel__tabs"],
     // Switch track (recessed lens).
     ["src/styles/settings.css", ".settings-switch"],
   ];
@@ -88,8 +86,8 @@ test("every named control draws a lens rung, not a bare ring", async () => {
 
   // Two controls are deliberately transparent at rest and light their lens
   // only under the pointer: the icon chip (a bare glyph on the surface) and the
-  // clipboard row. Their *hover* rule must carry the lens rung, or the lens
-  // never reaches them.
+  // terminal bar's own icon button. Their *hover* rule must carry the lens
+  // rung, or the lens never reaches them.
   //
   // R21: the launcher's result row left this list. Its pointer state is now the
   // *selection* state — `onPointerEnter` moves the selection onto the row (see
@@ -98,7 +96,6 @@ test("every named control draws a lens rung, not a bare ring", async () => {
   // accent tint plus keyline are the two marks the accent budget allows it.
   for (const [file, selector] of [
     ["src/styles/extensions.css", ".extensions-icon-button:hover:not(:disabled):not(.extensions-icon-button--disabled)"],
-    ["src/styles/terminal.css", ".clipboard-row:hover"],
     ["src/styles/terminal.css", ".toolbar-button:hover:not(:disabled)"],
   ] as [string, string][]) {
     const body = ruleBody(await read(file), selector);

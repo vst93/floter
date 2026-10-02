@@ -158,8 +158,7 @@
 
    The card used to be a drag surface from end to end, so a press anywhere — a
    result row, a hint, the empty space around the field — could move the
-   window. The handle is now one blank 28px band across the card's top, the
-   same implicit one the clipboard page uses (`.clipboard-panel__topbar`).
+   window. The handle is now one blank 28px band across the card's top.
 
    It is the input row's first child, absolutely positioned, and it paints
    *under* the field and the two buttons — both already `z-index: 1`, the field

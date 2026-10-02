@@ -1,11 +1,11 @@
-// Pure logic behind the browser plugin's own page (`src/plugins/browser/`).
+// Pure logic behind the browser plugin's own settings and search decisions.
 //
-// The page itself owns a DOM and imports CSS, so nothing in the node suite can
-// import it. Everything that is a *decision* rather than a paint lives here
-// instead: the shape the Rust commands actually send, the choice of which
+// The plugin's retired iframe page used to own a DOM and import CSS, so nothing
+// in the node suite could import it; every *decision* rather than a paint lived
+// here instead: the shape the Rust commands actually send, the choice of which
 // profile a search runs against, and the two small normalizers the settings
-// card writes back. `src/plugins/browser/main.ts` only executes what this file
-// decides — the same split `src/clipboard-list.ts` gives the clipboard page.
+// card writes back. R33 retired that page and R76 deleted its source; this
+// module is the live half the launcher mode and the configuration schema read.
 
 /** One browser/profile pair, mirroring `BrowserProfileInfo` in Rust. */
 export type BrowserProfile = {

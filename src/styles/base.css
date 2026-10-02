@@ -1229,9 +1229,6 @@ canvas {
   .session-manager__sort-toggle,
   .session-manager__kill-confirm,
   .settings-row[role="button"],
-  .clipboard-panel__tab,
-  .clipboard-panel__filter-clear,
-  .clipboard-row,
   .launcher-action-bar,
   .launcher-result,
   .launcher-result__favorite {
@@ -1250,10 +1247,7 @@ canvas {
      so switching transparency off is one declaration each: the blur goes and
      the glass tint is replaced by the near-solid stand-in. `.terminal-panel`
      keeps its canvas on top, and the canvas is what makes the terminal read
-     as an opaque panel rather than a hole. `.clipboard-panel` is the
-     host-side material for the plugin page's surface (the page itself owns
-     its sheet); it gets the same fallback so the host half of that glass
-     never disagrees with the rest.
+     as an opaque panel rather than a hole.
 
      `.collapsed-card:focus-within` is listed because its own rule is more
      specific than the plain selector and would otherwise win the cascade: the
@@ -1263,16 +1257,7 @@ canvas {
   .collapsed-card,
   .collapsed-card:focus-within,
   .settings-card,
-  .terminal-panel,
-  .clipboard-panel,
-  /* HIG-2: the R7-4/R7-5 surfaces joined the material after R8's RT block was
-     written. The plugin page's host frame and loading state are opaque already
-     (`--surface-opaque`), so they need no blur drop — but the plugin page's
-     *tri-state surface* (the `.plugin-page-host__topbar` sits on the frame,
-     and the frame's own `backdrop-filter` is what blurs for it) is covered by
-     the `.plugin-page-host__frame` entry below. */
-  .plugin-page-host__frame,
-  .plugin-page-host__topbar {
+  .terminal-panel {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: var(--surface-opaque);
@@ -1287,9 +1272,7 @@ canvas {
      desktop as well. */
   .launcher-bottom,
   .settings-content,
-  .extension-tool-results,
-  .plugin-page-host__loading,
-  .plugin-page-host__error {
+  .extension-tool-results {
     background: var(--surface-opaque);
   }
 
@@ -1359,7 +1342,6 @@ canvas {
      the high-contrast stroke; the neutral raised pane keeps its rim so the
      pane still reads as raised rather than as a flat rectangle. */
   .settings-option--active,
-  .clipboard-panel__tab--active,
   .extension-custom-mode__item--active,
   .extension-tool-results button.extension-tool-result--active,
   .extension-health__tag,
@@ -1367,11 +1349,9 @@ canvas {
     box-shadow: inset 0 0 0 1px var(--stroke-contrast);
   }
 
-  /* The new host chrome (the plugin-page topbar and the toast) and the
-     floating drawers/dialogs: a stronger edge is what makes them separable
-     from the content under them when contrast is the user's ask. */
-  .plugin-page-host__topbar,
-  .plugin-page-host__button,
+  /* The floating chrome (the toast) and the drawers/dialogs: a stronger edge
+     is what makes them separable from the content under them when contrast is
+     the user's ask. */
   .app-toast,
   .settings-save-alert--toast,
   .extension-drawer,
@@ -1388,8 +1368,7 @@ canvas {
      readable secondary rather than the muted step. */
   .app-toast,
   .settings-save-alert,
-  .extensions-notice,
-  .plugin-page-host__error-title {
+  .extensions-notice {
     color: var(--text-primary);
   }
 }

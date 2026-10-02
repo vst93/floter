@@ -89,9 +89,10 @@ python3 -m http.server 8080
 
 - 完整协议：`../plugin-page-protocol.md`
 - 协议实现（纯逻辑，node 可直接驱动）：`src/plugin-pages.ts`
-- 宿主侧：`src/plugins/PluginPageHost.tsx`
-- 第一个真实消费者（比本示例多得多）：`src/plugins/clipboard/main.ts`
 - 协议测试：`tests/plugin-page-protocol.test.ts`
+
+> 内置 iframe 宿主与内置剪贴板页已随 R33 退役、R76 物理删除；本示例页是
+> 协议今天唯一的对照实现。
 
 ## 常见错误
 

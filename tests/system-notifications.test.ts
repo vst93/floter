@@ -402,7 +402,6 @@ test("the round adds no Tauri command and no JS notification package", async () 
       "src/notifications.ts",
       "src/App.tsx",
       "src/ExtensionsPanel.tsx",
-      "src/plugins/PluginPageHost.tsx",
     ].map(async (file) => stripJsComments(await read(file))),
   );
   for (const source of sources) {

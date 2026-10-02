@@ -38,7 +38,6 @@ const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 // plugin page is outside all of them (R7-4's page boundary).
 const OUT_OF_SCOPE = new Set([
   "src/extensions/ComponentizedUninstallDialog.css",
-  "src/plugins/clipboard/page.css",
 ]);
 
 // Both directories that hold host CSS. `src/styles/` is the shared sheets;
@@ -265,11 +264,8 @@ test("the focus ring has one width and one offset across every sheet", async () 
   }
   // The exception that is allowed to keep its own offset is a *negative*
   // offset on a segment inside a track, where an outside ring would be
-  // clipped; the width still comes from the token.
-  const terminal = stripComments(await read("src/styles/terminal.css"));
-  const tab = rules(terminal).find(({ selector }) => selector === ".clipboard-panel__tab:focus-visible");
-  assert.ok(tab, "the clipboard tab keeps its inset focus ring");
-  assert.match(tab!.body, /outline-offset:\s*-1px/);
+  // clipped; the width still comes from the token. The retired clipboard
+  // page's own tab was that exception; it left with the page (R76).
 });
 
 // ── Scroll edge effect ────────────────────────────────────────────────────
@@ -344,7 +340,6 @@ test("the resting state starts below the scroll edge band", async () => {
   const cases: [string, string][] = [
     ["src/styles/launcher.css", ".launcher-results"],
     ["src/styles/settings.css", ".settings-content"],
-    ["src/styles/terminal.css", ".clipboard-panel__list"],
   ];
   for (const [file, selector] of cases) {
     const css = stripComments(await read(file));
@@ -442,8 +437,6 @@ test("the bar/content separators are gradient hairlines, not solid rules", async
   const cases: [string, string, string][] = [
     ["src/styles/settings.css", ".settings-card__header::after", "var(--hairline-fade)"],
     ["src/styles/settings.css", ".settings-sidebar::after", "var(--hairline-fade-vertical)"],
-    ["src/styles/terminal.css", ".clipboard-panel__topbar::after", "var(--hairline-fade)"],
-    ["src/styles/terminal.css", ".clipboard-panel__footer::before", "var(--hairline-fade)"],
     ["src/styles/extensions.css", ".extensions-list--installed::before", "var(--hairline-fade)"],
   ];
   for (const [file, selector, expected] of cases) {
@@ -517,7 +510,7 @@ test("reduce-transparency still covers every shell after the craft pass", async 
     if (!/(?:^|;)\s*backdrop-filter\s*:\s*none/.test(body)) continue;
     for (const part of selector.split(",")) covered.add(part.trim());
   }
-  for (const shell of [".collapsed-card", ".settings-card", ".terminal-panel", ".clipboard-panel"]) {
+  for (const shell of [".collapsed-card", ".settings-card", ".terminal-panel"]) {
     assert.ok(covered.has(shell), `prefers-reduced-transparency must drop the blur on ${shell}`);
   }
 });
@@ -537,7 +530,6 @@ test("the craft pass did not break reduce-motion coverage", async () => {
     ".session-manager__icon-button",
     ".session-manager__sort-toggle",
     ".session-manager__kill-confirm",
-    ".clipboard-panel__tab",
     ".launcher-action-bar",
     ".launcher-result",
   ]) {
@@ -824,7 +816,6 @@ test("the content layer's background-image is tokenized, not a raw gradient", as
   // divider is the input row's hairline.
   const banded: [string, string][] = [
     ["src/styles/settings.css", ".settings-content"],
-    ["src/styles/terminal.css", ".clipboard-panel__list"],
   ];
   for (const [file, selector] of banded) {
     const css = stripComments(await read(file));

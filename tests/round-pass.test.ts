@@ -113,8 +113,6 @@ test("every floating control takes the pill", async () => {
     ["src/styles/settings.css", ".settings-options--inline .settings-option"],
     ["src/styles/extensions.css", ".extension-custom-mode"],
     ["src/styles/extensions.css", ".extension-custom-mode__item"],
-    ["src/styles/terminal.css", ".clipboard-panel__tabs"],
-    ["src/styles/terminal.css", ".clipboard-panel__tab"],
     // Action buttons.
     ["src/styles/settings.css", ".settings-save-alert button"],
     ["src/styles/settings.css", ".update-banner__button"],
@@ -182,8 +180,6 @@ test("nested and inline shapes keep the ladder instead of the pill", async () =>
     ["src/styles/extensions.css", ".extension-discard-bar .extensions-action-button", /var\(--radius-xs\)/, "24px inline pair inside a notice bar"],
     ["src/styles/settings.css", ".shortcut-recorder", /var\(--radius-sm\)/, "27px recorder key sitting in a table row"],
 
-    ["src/styles/terminal.css", ".plugin-page-host__button", /var\(--radius-sm\)/, "~23px retry affordance inside a panel"],
-    ["src/styles/terminal.css", ".clipboard-panel__clear", /var\(--radius-sm\)/, "~22px inline footer action"],
     // Transparent icon button inside a bar: a pill would round nothing visible.
     ["src/styles/terminal.css", ".toolbar-button", /var\(--radius-sm\)/, "transparent icon button in the terminal bar"],
     // Multi-line boxes and panels are containers, not fields.

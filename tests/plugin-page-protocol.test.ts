@@ -1,10 +1,13 @@
 // R7-12 · the plugin-page protocol as a *published* contract.
 //
-// Until this round the bridge was an implicit agreement between
-// `PluginPageHost.tsx` and `clipboard/main.ts`: the message names lived in
-// `src/plugin-pages.ts`, the documentation lived in code comments, and there
-// was no version on the wire — so a third-party page author had nothing to
-// read and no way to find out they had guessed wrong.
+// The bridge began as an implicit agreement between the built-in host and the
+// built-in clipboard page: the message names lived in `src/plugin-pages.ts`,
+// the documentation lived in code comments, and there was no version on the
+// wire — so a third-party page author had nothing to read and no way to find
+// out they had guessed wrong. R33 retired the built-in pages onto the
+// launcher's configuration overlay; R76 deleted the retired host and page
+// source. The *protocol* is what remains published, and it is what this suite
+// pins.
 //
 // This suite pins the four pieces that make the contract real:
 //
@@ -40,6 +43,7 @@ import {
   pluginPageHandshake,
 } from "../src/plugin-pages.ts";
 import { createTranslator } from "../src/i18n.ts";
+import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 // The example's own vocabulary module — the same file a page author copies.
 import * as example from "../docs/extensions/examples/hello-page/protocol.js";
@@ -132,20 +136,13 @@ test("a refused handshake names both protocol numbers, and its copy lives in the
     assert.ok(!/\{\w+\}/.test(mismatchText + missingText), `${language}: no unresolved placeholders`);
   }
 
-  // A host that paints a bare "failed to load" is not enough: the detail line
-  // is what a page author debugs from.
-  const host = await read("src/plugins/PluginPageHost.tsx");
-  assert.match(host, /handshakeErrorDetail\(handshake!, PLUGIN_PAGE_PROTOCOL\)/);
-  assert.match(host, /plugin-page-host__error-detail/);
-  // The refused branch has to be *reachable*. It cannot sit after the
-  // `src ? <iframe>` arm: a loaded-but-refused page has a truthy `src` (the
-  // frame stays mounted, hidden), so an `if/else` chain would never get there
-  // and the user would see a blank iframe with no explanation. The verdict
-  // therefore renders as its own sibling arm, and the frame is hidden by
-  // `refused` rather than by being absent.
-  assert.match(host, /const refused = handshake !== null && handshake\.status !== "accepted";/);
-  assert.match(host, /\{refused && src \? \(/, "the refusal must render outside the src conditional");
-  assert.match(host, /style=\{refused \? \{ display: "none" \} : undefined\}/, "the refused frame must be hidden, not left painting");
+  // The refused branch is documented as a page author's contract: the detail
+  // line names both protocol numbers. The built-in host that rendered it was
+  // retired with the iframe pages (R33/R76); the *document* still specifies the
+  // shape a host must render.
+  const doc = await read(DOC);
+  assert.match(doc, /page=X host=1/, "the document must name both protocol numbers in the refusal");
+  assert.match(doc, /错误态/, "and describe the visible refusal state");
 });
 
 // ── 2 · the document's message table ──────────────────────────────────────
@@ -323,64 +320,15 @@ test("the example is loadable with no build step and demonstrates the four dutie
   assert.match(readme, /DESCRIPTORS|plugin_pages\.rs/, "…including the host registry entry");
 });
 
-// ── 4 · the built-in page is the protocol's first consumer ─────────────────
+// ── 4 · the built-in page was the protocol's first consumer (now retired) ──
 
-test("the built-in clipboard page sends the same handshake, from the shared constant", async () => {
-  const page = await read("src/plugins/clipboard/main.ts");
-  assert.match(
-    page,
-    /\{ \[BRIDGE_TAG\]: "frame-ready", protocol: PLUGIN_PAGE_PROTOCOL \}/,
-    "the first consumer must announce the protocol like any other page",
-  );
-  assert.match(
-    page,
-    /import \{[^}]*PLUGIN_PAGE_PROTOCOL[^}]*\} from "\.\.\/\.\.\/plugin-pages"/,
-    "and read the version from the shared constant, never a literal 1",
-  );
-  assert.ok(
-    !/protocol: 1/.test(page),
-    "a literal version in the page is how the two sides drift apart",
-  );
-});
-
-test("the host gates the bridge on the handshake, and paints a refused one", async () => {
-  const host = await read("src/plugins/PluginPageHost.tsx");
-  // The handshake is recognized, decided once per document, and every message
-  // after it is gated on the verdict.
-  assert.match(host, /if \(isBridgeFrameReady\(data\)\)/);
-  assert.match(host, /pluginPageHandshake\(data, PLUGIN_PAGE_PROTOCOL\)/);
-  assert.match(host, /setHandshake\(\(current\) => current \?\?/);
-  assert.match(host, /handshakeRef\.current\?\.status !== "accepted"\) return;/);
-  assert.match(host, /HANDSHAKE_TIMEOUT_MS/);
-  // Settings are only pushed into an accepted page: the three bootstrap
-  // pushes (opacity/theme/glass) and the visibility push all start with it.
-  const readyGates = host.match(/if \(!ready\) return;/g) ?? [];
-  assert.ok(readyGates.length >= 5, `expected the ready gate across the push effects, saw ${readyGates.length}`);
-  assert.match(host, /const ready = handshake\?\.status === "accepted";/);
-  // A refused page is never left as a blank iframe: it gets the retry state.
-  assert.match(host, /plugin\.pageError/);
-  assert.match(host, /onClick=\{\(\) => \{ setDescriptor\(null\); setReloadNonce/);
-
-  // The document-change reset must happen during *render*, in the same commit
-  // that changes the iframe's `src`, and never inside `onLoad`: a page's own
-  // script runs before the iframe's `load` event, so its `frame-ready` can
-  // already have been processed by then. Resetting in `handleFrameLoad` wipes
-  // that verdict and the document then times out looking like it never spoke.
-  assert.match(
-    host,
-    /if \(handshakeSrc !== src\) \{\s*\n\s*setHandshakeSrc\(src\);\s*\n\s*setHandshake\(null\);/,
-    "a new src must invalidate the verdict during render",
-  );
-  const loadStart = host.indexOf("const handleFrameLoad");
-  const loadBody = host.slice(loadStart, host.indexOf("}, []);", loadStart));
-  assert.ok(loadStart > -1 && loadBody.length > 0, "handleFrameLoad must exist");
-  assert.ok(
-    !/setHandshake\(null\)/.test(loadBody),
-    "onLoad must not clear the verdict — the page may already have handshaken",
-  );
-  // It may only *arm* the missing-verdict deadline, and only in a form that
-  // cannot overwrite a verdict that already exists.
-  assert.match(loadBody, /setHandshake\(\(current\) => current \?\? \{ status: "missing" \}\)/);
+test("the retired built-in page source stays deleted", async () => {
+  // R76 · the built-in clipboard page used to be the protocol's first
+  // consumer, sending the same handshake from the shared constant. It was
+  // unreachable since R33; R76 deleted it. The example page
+  // (`docs/extensions/examples/hello-page/`) is now the protocol's only
+  // worked consumer, and the tests above drive it directly.
+  await assertRetiredPageLayerIsGone(root);
 });
 
 // ── 5 · mutation locks ────────────────────────────────────────────────────
