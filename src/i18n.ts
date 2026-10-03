@@ -136,8 +136,8 @@ const en = {
   "browserPage.tabs": "Open tabs",
   "browserPage.open": "Open",
   // R27 · the clipboard plugin's own settings card. It shares the browser
-  // page's card layout (`.plugin-settings`, `src/plugins/settings-card.css`),
-  // so the two pages read as one plugin system rather than two panels.
+  // page's card layout (`.plugin-settings`), so the two pages read as one
+  // plugin system rather than two panels.
   "clipboardPage.settings": "Plugin settings",
   "clipboardPage.settingsSaved": "Plugin settings saved",
   "clipboardPage.settingsFailed": "Could not save the plugin settings",

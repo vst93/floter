@@ -45,7 +45,6 @@ const LIVE_SOURCES = [
   "src/styles/launcher.css",
   "src/styles/settings.css",
   "src/styles/extensions.css",
-  "src/plugins/settings-card.css",
 ];
 
 const FORBIDDEN: readonly [string, string][] = [

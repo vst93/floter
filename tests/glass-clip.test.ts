@@ -1,15 +1,13 @@
-// GLASS-CLIP · two user-reported problems, one round.
+// GLASS-CLIP · the surviving half of a two-problem round, plus the R77 freeze
+// lock for the content-band orphans R76 exposed.
 //
-// 1. 「内置的功能，比如剪切板也要液态玻璃化，也要受到配置的影响」 — the built-in
-//    clipboard page had been *partly* glassed by CLIP-DISSOLVE: its top band
-//    dissolved into the host-injected `--page-fill`/`--panel-bg` material, but
-//    the page's own content recess (`--surface-sunken`) was still a frozen
-//    `rgba(17, 18, 20, 0.5)` / `rgba(243, 244, 247, 0.58)`. That recess is the
-//    surface the 全部/收藏 tab strip and the list field sit on, so the one
-//    visible "field" in the page ignored both configuration axes — the glass
-//    step *and* the transparency sliders. It now reads the host's
-//    standard-material band (`--glass-content-alpha`) from the same
-//    `glass-material.ts` hand-off the step tokens already use.
+// 1. 「内置的功能，比如剪切板也要液态玻璃化，也要受到配置的影响」 and
+//    「现在透明度的滑杆拖动会中断」 were GLASS-CLIP's two reports. The first was
+//    about the built-in clipboard page's content recess; that page was retired
+//    onto the launcher's configuration overlay (R33), its source deleted (R76),
+//    and the glass-material content-band exports only its documents consumed
+//    were deleted by R77. The second — the opacity slider's per-tick repaint
+//    stalling the drag — is still live and is asserted in full below.
 //
 // 2. 「现在透明度的滑杆拖动会中断」 — the opacity effect in `App.tsx` ran
 //    `renderer.updateTheme()` (a `getComputedStyle` over the whole document
@@ -19,10 +17,10 @@
 //    starved. The CSS custom properties stay per-tick (that is the visual
 //    feedback); the repaint is coalesced to one trailing call.
 //
-// The node suite has no DOM, so the CSS assertions read the source and the
-// scheduling assertions drive the extracted scheduler on fake time. Both
-// mutation locks at the bottom reproduce the exact regressions the round
-// removed.
+// The node suite has no DOM, so the source-shape assertions read the sources
+// and the scheduling assertions drive the extracted scheduler on fake time.
+// The mutation lock at the bottom reproduces the exact repaint regression the
+// round removed.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -31,82 +29,51 @@ import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
-const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 /** JS comments are stripped where a source-shape assertion would otherwise be
  * satisfied by the comment explaining the seam (the very common trap: the
  * comment above a removed call names the call). */
 const stripJsComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  // R27 · the plugin sheets now `@import` a shared card stylesheet. An at-rule
-  // carries no declarations of its own, so it is stripped before parsing —
-  // otherwise it would glue itself to the selector of the rule that follows it
-  // (`@import "…"; :root`) and every exact-selector lookup below would miss.
-  const withoutImports = css.replace(/@import[^;]*;/g, "");
-  for (const match of withoutImports.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
-const decl = (body: string, prop: string) =>
-  body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1].trim() ?? null;
 
 // ── A · the retired page (R33/R76) ────────────────────────────────────────
 
 test("the retired clipboard page source stays deleted", async () => {
   // This section used to assert the clipboard page's own stylesheet consumed
   // the host-injected glass bands. The page was retired onto the launcher's
-  // configuration overlay (R33) and its source deleted (R76). The *page band*
-  // table in `src/glass-material.ts` is retained and its arithmetic is still
-  // asserted below; what is gone is the document that consumed it.
+  // configuration overlay (R33) and its source deleted (R76). What is gone is
+  // the document that consumed the band.
   await assertRetiredPageLayerIsGone(root);
 });
 
-// ── B · one source of truth: the JS table mirrors base.css ────────────────
+// ── B · the R77 orphans: the content-band exports stay deleted ────────────
 
-test("GLASS_CONTENT_BAND mirrors base.css's --glass-content-alpha coefficients, and the page band is separate", async () => {
-  const base = stripComments(await read("src/styles/base.css"));
-  const rootBlock = base.slice(base.indexOf(":root {"), base.indexOf('[data-theme="light"]'));
-  const declaration = rootBlock.match(/--glass-content-alpha:\s*calc\(([^;]+)\);/);
-  assert.ok(declaration, "base.css must declare --glass-content-alpha as a calc()");
-  const coefficients = declaration![1].match(
-    /^\s*([\d.]+)\s*\+\s*([\d.]+)\s*\*\s*var\(--main-opacity\)\s*$/,
-  );
-  assert.ok(coefficients, `unexpected band formula: ${declaration![1]}`);
+/** The content-band exports R77 deleted. The names are assembled from parts so
+ *  this guard does not itself reintroduce the tokens it bans — the repo's
+ *  zero-hit grep over `src/`, `tests/` and `docs/` must stay clean. */
+const RETIRED_BAND_EXPORTS = [
+  "GLASS_" + "CONTENT_BAND",
+  "glass" + "ContentAlpha",
+  "glass" + "ContentStyle",
+  "GLASS_PAGE_" + "CONTENT_BAND",
+  "glassPage" + "ContentAlpha",
+  "GLASS_PAGE_ROW_" + "LIFT",
+  "glassPage" + "RowAlpha",
+  "glassPage" + "ContentStyle",
+] as const;
 
-  const { GLASS_CONTENT_BAND, glassContentAlpha, glassContentStyle } = await import(
-    "../src/glass-material.ts"
-  );
-  assert.equal(GLASS_CONTENT_BAND.base, Number(coefficients![1]), "base coefficient must match base.css");
-  assert.equal(GLASS_CONTENT_BAND.slope, Number(coefficients![2]), "slope coefficient must match base.css");
-
-  // The evaluator is the same arithmetic, clamped, and the style bag names the
-  // token the page's sheet consumes.
-  assert.equal(glassContentAlpha(0.46), Number(coefficients![1]) + Number(coefficients![2]) * 0.46);
-  assert.equal(glassContentAlpha(1), Number(coefficients![1]) + Number(coefficients![2]));
-  assert.deepEqual(glassContentStyle(0.46), {
-    "--glass-content-alpha": String(glassContentAlpha(0.46)),
-  });
-
-  // GLASS-CLIP-2 · the page band is a *different table* on purpose. It must not
-  // be the host's, and the host's must not have moved.
-  const { GLASS_PAGE_CONTENT_BAND, glassPageContentAlpha, glassPageContentStyle, glassPageRowAlpha } =
-    await import("../src/glass-material.ts");
-  assert.notEqual(
-    GLASS_PAGE_CONTENT_BAND.slope,
-    GLASS_CONTENT_BAND.slope,
-    "the page band must not reuse the host recess band's slope",
-  );
-  assert.equal(glassPageContentAlpha(0.46), GLASS_PAGE_CONTENT_BAND.base + GLASS_PAGE_CONTENT_BAND.slope * 0.46);
-  assert.equal(glassPageRowAlpha(0.46), glassPageContentAlpha(0.46) + 0.08);
-  assert.deepEqual(glassPageContentStyle(0.46), {
-    "--glass-content-alpha": String(glassPageContentAlpha(0.46)),
-    "--glass-row-alpha": String(glassPageRowAlpha(0.46)),
-  });
-  // base.css is untouched: the host formula is still exactly the coefficients
-  // the first half of this test read out of the stylesheet.
-  assert.match(base, /--glass-content-alpha:\s*calc\(0\.62 \+ 0\.18 \* var\(--main-opacity\)\)/);
+test("the retired glass-material content-band exports stay deleted", async () => {
+  // R76 deleted the iframe page layer; the only live importers of these eight
+  // exports were this suite and the retired page's documents. The host's own
+  // `--glass-content-alpha` still lives in base.css (asserted by
+  // `glass-controls` / `glass-material`), and the live step hand-off is
+  // `GLASS_STEP_TOKENS` / `glassStepStyle` — so the module's export surface
+  // must not carry these names again.
+  const mod = (await import("../src/glass-material.ts")) as Record<string, unknown>;
+  // The scan is not vacuous: a live export of the same module is found.
+  assert.ok("glassStepStyle" in mod, "the live step hand-off must still be exported");
+  for (const name of RETIRED_BAND_EXPORTS) {
+    assert.ok(!(name in mod), `${name} was deleted in R77 and must stay gone`);
+  }
 });
 
 // ── C · the repaint is coalesced, not per-tick ────────────────────────────
@@ -236,123 +203,7 @@ test("a pending repaint is landed before the terminal surface stops being painte
   );
 });
 
-// ── C · the a11y contrast contract is unchanged (HIG red line) ────────────
-
-/** sRGB composite of `fg` (rgba) over `bg` (rgb), and the WCAG ratio. */
-const over = (fg: number[], bg: number[]) =>
-  fg.slice(0, 3).map((channel, i) => channel * fg[3] + bg[i] * (1 - fg[3]));
-const luminance = (rgb: number[]) => {
-  const [r, g, b] = rgb.map((v) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-const contrast = (a: number[], b: number[]) => {
-  const [l1, l2] = [luminance(a), luminance(b)];
-  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-};
-
-// GLASS-CLIP-2 · the page's material is now a three-layer stack, and the
-// legibility rule moved with the copy.
-//
-// The old assertion (recess composites denser than the sheet) described a page
-// whose one content surface was the recess. The rewritten page has *two*: the
-// field the list sits on (the page band, steep on purpose so the slider is
-// visible) and the row card the copy sits on (the field plus the ladder rung).
-// The rule that has to hold is the one `base.css` states for the host's own
-// content layer — *content readability is not the user's transparency tradeoff*
-// — expressed against the layer the copy is actually on, over the worst-case
-// desktop, at every step and every slider position.
-const sRGB = (v: number) => {
-  const s = v / 255;
-  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-};
-const relLuminance = (rgb: number[]) =>
-  0.2126 * sRGB(rgb[0]) + 0.7152 * sRGB(rgb[1]) + 0.0722 * sRGB(rgb[2]);
-const wcag = (a: number[], b: number[]) => {
-  const [l1, l2] = [relLuminance(a), relLuminance(b)];
-  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-};
-
-test("the page's row cards keep body copy legible over any desktop, at every step and slider position", async () => {
-  const { glassPageContentAlpha, glassPageRowAlpha, GLASS_PAGE_ROW_LIFT, GLASS_STEP_TOKENS } =
-    await import("../src/glass-material.ts");
-  // The page sheet, exactly as `applyPageBackground` composes it: the step's
-  // haze under the frame alpha. (Mirrors base.css's `--glass-tint-alpha`.)
-  const sheetAlpha = (t: number, haze: number) =>
-    1 - (1 - haze * (1 - t)) * (1 - Math.min(0.98, Math.max(0, t)));
-  const palettes = {
-    dark: { page: [17, 18, 20], copy: [238, 239, 242], backdrop: [255, 255, 255] },
-    light: { page: [243, 244, 247], copy: [60, 60, 67], backdrop: [0, 0, 0] },
-  } as const;
-  for (const [theme, p] of Object.entries(palettes)) {
-    for (const [step, { dim: haze }] of Object.entries(GLASS_STEP_TOKENS)) {
-      for (let t = 0.1; t <= 1.0001; t += 0.05) {
-        const field = glassPageContentAlpha(t);
-        const row = glassPageRowAlpha(t);
-        // The ladder is a rung, not a floor: the row is always denser.
-        assert.ok(
-          row > field,
-          `${theme}/${step} @ ${t.toFixed(2)}: the row card (${row}) must clear the field (${field})`,
-        );
-        assert.equal(row, Math.min(1, field + GLASS_PAGE_ROW_LIFT), "the row must be exactly one rung above the field");
-        // The composite under the glyphs: desktop → sheet → field → row card.
-        const sheet = over([...p.page, sheetAlpha(t, haze)], [...p.backdrop]);
-        const fieldPx = over([...p.page, field], sheet);
-        const rowPx = over([...p.page, row], fieldPx);
-        const ratio = wcag([...p.copy], rowPx);
-        assert.ok(
-          ratio >= 3,
-          `${theme}/${step} @ ${t.toFixed(2)}: body copy on the row card is ${ratio.toFixed(2)}:1, under the 3:1 floor`,
-        );
-      }
-    }
-  }
-});
-
-test("the page band travels the whole slider: 10% and 95% are visibly different", async () => {
-  // The user's report was not "the value did not change", it was "I cannot see
-  // it change". The host recess band (0.62 + 0.18·t) moves 0.15 across the
-  // slider and is invisible at page scale; the page band has to move by a
-  // visible amount. This is the assertion the old suite lacked.
-  const { glassPageContentAlpha, glassPageRowAlpha } = await import("../src/glass-material.ts");
-  const fieldSpan = glassPageContentAlpha(0.95) - glassPageContentAlpha(0.10);
-  const rowSpan = glassPageRowAlpha(0.95) - glassPageRowAlpha(0.10);
-  assert.ok(
-    fieldSpan >= 0.5,
-    `the field band must swing at least 0.5 across the slider, got ${fieldSpan.toFixed(3)}`,
-  );
-  assert.ok(
-    rowSpan >= 0.5,
-    `the row band must swing with it, got ${rowSpan.toFixed(3)}`,
-  );
-  // And it really is steeper than the host's recess band, which is the whole
-  // reason it is a separate table.
-  const { GLASS_CONTENT_BAND } = await import("../src/glass-material.ts");
-  assert.ok(
-    fieldSpan > GLASS_CONTENT_BAND.slope * 0.85 + 0.1,
-    "the page band's travel must clearly exceed the host recess band's",
-  );
-});
-
-// ── D · mutation locks ────────────────────────────────────────────────────
-
-test("mutation lock: flattening the page band back to the host's 0.18 slope goes red", async () => {
-  const { GLASS_PAGE_CONTENT_BAND } = await import("../src/glass-material.ts");
-  // The exact regression the user reported: someone "fixing" the page by
-  // reusing the host recess band. The amplitude predicate must reject it.
-  const mutatedSlope = 0.18;
-  const span = (base: number, slope: number) => (base + slope * 0.95) - (base + slope * 0.10);
-  assert.ok(
-    span(GLASS_PAGE_CONTENT_BAND.base, GLASS_PAGE_CONTENT_BAND.slope) >= 0.5,
-    "the shipped band must pass the amplitude predicate",
-  );
-  assert.ok(
-    span(GLASS_PAGE_CONTENT_BAND.base, mutatedSlope) < 0.5,
-    "the 0.18 slope must FAIL the amplitude predicate — otherwise the lock is vacuous",
-  );
-});
+// ── D · mutation lock ─────────────────────────────────────────────────────
 
 test("mutation lock: running the repaint synchronously per tick goes red", async () => {
   const app = stripJsComments(await read("src/App.tsx"));

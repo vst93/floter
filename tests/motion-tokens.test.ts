@@ -20,15 +20,11 @@ const stylesDir = new URL("src/styles/", root);
 // Every CSS file the app ships. R7-1's convergence covers `src/styles/*.css`
 // (the four surfaces' shared sheet). Files deliberately outside that boundary
 // are listed here so the exception is visible rather than a silent gap: the
-// uninstall dialog's own sheet, and the two plugin pages, whose token pass
-// belongs to R7-4/R7-6 (clipboard) and R26-B (browser).
+// uninstall dialog's own sheet, whose token pass belongs to R7-4. (The two
+// plugin pages that used to sit beside it were retired in R33/R76 and their
+// sheets deleted.)
 const OUT_OF_SCOPE = [
   "src/extensions/ComponentizedUninstallDialog.css",
-  // R27 · the shared plugin-settings card sheet both plugin pages import. It
-  // is a plugin-page document (loaded inside the sandboxed iframe), so it keeps
-  // the pages' own motion vocabulary for now rather than converging on the
-  // host's tokens.
-  "src/plugins/settings-card.css",
 ];
 
 // Animations that must not run under `prefers-reduced-motion` (G-12). The
@@ -78,8 +74,9 @@ const styleFiles = async () => {
 // The out-of-scope files are the whole exception, and the exception is the
 // whole list: any other CSS file in `src/` is either a surface sheet (checked
 // by the tests below) or an unnoticed new one. `ComponentizedUninstallDialog`
-// is a dialog's own sheet and `clipboard/page.css` is a plugin page, whose
-// token pass belongs to R7-4/R7-6 — both keep raw values this round on purpose.
+// is a dialog's own sheet, whose token pass belongs to R7-4 — it keeps raw
+// values this round on purpose. (The retired plugin pages' own sheets, which
+// used to sit beside it here, were deleted by R76/R77.)
 test("the token convergence's file boundary is exactly the declared set", async () => {
   const all: string[] = [];
   const walk = async (dir: URL, prefix: string) => {
@@ -96,7 +93,7 @@ test("the token convergence's file boundary is exactly the declared set", async 
     [...OUT_OF_SCOPE].sort(),
     "a CSS file outside src/styles must be added to OUT_OF_SCOPE with its round, or converged",
   );
-  // Both exceptions are genuinely unconverged, which is why they are listed.
+  // The exception is genuinely unconverged, which is why it is listed.
   for (const path of OUT_OF_SCOPE) {
     const css = stripComments(await read(path));
     assert.ok(

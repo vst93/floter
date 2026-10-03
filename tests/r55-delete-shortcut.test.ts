@@ -14,8 +14,9 @@
 //   * dropping the empty-field gate (the `historyDeleteCanClaim` unit block);
 //   * a key handler that stops routing through `HISTORY_DELETE_SHORTCUT` or the
 //     claim helper (the wiring assertions);
-//   * the clipboard page keeping its own ⌘⌫ spelling instead of the shared
-//     `isHistoryDeleteKey` predicate (the one-source assertion).
+//   * the live handler restating the ⌘⌫ shape instead of routing through the
+//     shared `HISTORY_DELETE_SHORTCUT` + `matchesShortcut` grammar (the
+//     one-source assertion).
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -25,7 +26,6 @@ import {
   CALCULATOR_FAVORITE_SHORTCUT,
   CLIPBOARD_FAVORITE_SHORTCUT,
   HISTORY_DELETE_SHORTCUT,
-  isHistoryDeleteKey,
 } from "../src/launcher.ts";
 import {
   HISTORY_DELETE_CONFIRM_MS,
@@ -191,14 +191,21 @@ test("R55 · the handler claims the key on both history modes, two-step, empty f
   assert.match(actions, /deleteCalculatorEntry\(entry\.id\)/);
 });
 
-test("R55 · the live history handler is the one source for the key", async () => {
-  // R53 unified the key behind `HISTORY_DELETE_SHORTCUT` and `isHistoryDeleteKey`
-  // in `src/launcher.ts`. The clipboard page that used to consume the shared
-  // predicate was retired (R33) and its pure-logic module deleted (R76); the
-  // live consumer is the launcher's own key handler, asserted in full above.
-  // What is pinned here is that no *page-local* ⌘⌫ spelling survives in the
-  // tree: the predicate is the one in launcher.ts and nothing restates it.
-  assert.equal(isHistoryDeleteKey({ key: "Backspace", code: "Backspace", ctrlKey: !IS_MAC, metaKey: IS_MAC, altKey: false, shiftKey: false }), true);
+test("R55 · the live history handler resolves ⌘⌫ through the shared grammar", async () => {
+  // R53 unified the key behind `HISTORY_DELETE_SHORTCUT`; the clipboard page
+  // that used to consume a shared predicate was retired (R33), its pure-logic
+  // module deleted (R76) and the predicate itself deleted in R77 with its last
+  // caller. The live consumer is the launcher's own key handler, so what is
+  // pinned here is that its ⌘⌫ resolution is the shared `matchesShortcut`
+  // grammar — not a hand-rolled modifier test, and not a second spelling of the
+  // key. The launcher's handler wiring is asserted in full above.
+  assert.ok(matchesShortcut(appModifierBackspace, HISTORY_DELETE_SHORTCUT));
+  const actions = stripJsComments(await read("src/hooks/useLauncherActions.ts"));
+  assert.match(actions, /matchesShortcut\(event, HISTORY_DELETE_SHORTCUT\)/);
+  assert.ok(
+    !/event\.(metaKey|ctrlKey)\s*&&\s*event\.key\s*===\s*"Backspace"/.test(actions),
+    "the handler must not hand-roll the ⌘⌫ shape",
+  );
   await assertRetiredPageLayerIsGone(root);
 });
 

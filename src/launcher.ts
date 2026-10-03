@@ -4,7 +4,6 @@ import {
   type PluginFilterAxis,
 } from "./plugins/filter-axis.ts";
 import { splitTriggerWord } from "./plugins/mode-entry.ts";
-import { matchesShortcut } from "./shortcuts.ts";
 import type { CalculatorModeFilter } from "./calculator.ts";
 export type { CalculatorModeFilter } from "./calculator.ts";
 
@@ -530,16 +529,6 @@ export const CALCULATOR_FAVORITE_SHORTCUT = "CmdOrCtrl+D";
  * key handler, the hint, the clipboard page and the documentation cannot drift.
  */
 export const HISTORY_DELETE_SHORTCUT = "CmdOrCtrl+Backspace";
-
-/** Whether a key event's modifier-and-key shape is {@link HISTORY_DELETE_SHORTCUT}.
- *
- * The shared predicate the launcher's key handler and the retired clipboard
- * page both read, so the key, the hint and the documentation cannot drift —
- * one key, one definition. The input is structurally an event (the launcher's
- * pure resolvers never hold a real `KeyboardEvent`). */
-export const isHistoryDeleteKey = (
-  event: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
-): boolean => matchesShortcut(event as KeyboardEvent, HISTORY_DELETE_SHORTCUT);
 
 const CALCULATOR_TRIGGERS = new Set(["calc", "calculator", "计算器", "计算", "="]);
 
