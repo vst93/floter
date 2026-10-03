@@ -61,6 +61,7 @@ import {
   type SystemAction,
 } from "../launcher/LauncherResults";
 import { appSubtitleKey } from "../launcher/row-content";
+import { commandRow } from "../launcher/command-row.ts";
 import type { BrowserSearchField } from "../browser-page";
 import { createSettingsHydration } from "../settings-persistence";
 import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandAlias, rebaseAliasCommandLine, resolveCommandAliases, MATCH_EXACT, type CommandAliases } from "../command-aliases";
@@ -1200,8 +1201,7 @@ export function useLauncherCatalog(options: {
           const dynamic = suggestion.dynamic
             ? ` · ${t("extensions.dynamicCompletion")}`
             : "";
-          return {
-            type: "command",
+          return commandRow({
             id: `${entry.id}:completion:${suggestion.completion.value}`,
             title: suggestion.completion.label,
             subtitle: `${suggestion.completion.description}${dynamic}`,
@@ -1210,7 +1210,7 @@ export function useLauncherCatalog(options: {
             commandLine: suggestion.commandLine,
             execution: suggestion.execution,
             completion: true,
-          };
+          });
         }
         // When the user types parameters after the command name, update the
         // execution plan to include them. Without this, "git status" would match
@@ -1245,15 +1245,16 @@ export function useLauncherCatalog(options: {
           ? t("launcher.aliasMatch", { alias: matchedAlias })
           : "";
         return {
-          type: "command",
-          id: entry.id,
-          title: entry.command,
-          subtitle: aliasHint ? `${aliasHint} · ${entry.description}` : entry.description,
-          warnings,
-          sourceName: entry.sourceName,
-          commandLine: rowCommandLine,
-          execution,
-          completion: false,
+          ...commandRow({
+            id: entry.id,
+            title: entry.command,
+            subtitle: aliasHint ? `${aliasHint} · ${entry.description}` : entry.description,
+            warnings,
+            sourceName: entry.sourceName,
+            commandLine: rowCommandLine,
+            execution,
+            completion: false,
+          }),
           // R65 · the row's provider command is enabled for direct output.
           ...(directOutputCommandForRow(entry.id, enabledExternalCommands)
             ? { directOutput: true }

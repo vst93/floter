@@ -20,6 +20,7 @@
 
 import type { ActionBarKind } from "../launcher";
 import type { ActionBar, LauncherItem } from "./LauncherResults";
+import { wrapIndex } from "../wrap-index.ts";
 import type { MessageKey, Translate } from "../i18n";
 
 /** The window label the drop listener is allowed to act on. Mirrors
@@ -162,15 +163,12 @@ export const fileDropRows = (
   return rows;
 };
 
-export const clampActionIndex = (index: number): number => {
-  const count = FILE_DROP_ACTIONS.length;
-  if (!Number.isFinite(index)) return 0;
-  return ((Math.trunc(index) % count) + count) % count;
-};
+export const clampActionIndex = (index: number): number =>
+  wrapIndex(index, 0, FILE_DROP_ACTIONS.length);
 
 /** Move the active action one step, wrapping at both ends. */
 export const nextFileActionIndex = (index: number, direction: -1 | 1): number =>
-  clampActionIndex(clampActionIndex(index) + direction);
+  wrapIndex(index, direction, FILE_DROP_ACTIONS.length);
 
 /** The action the switcher is showing, and therefore the one Enter runs. */
 export const activeFileDropAction = (index: number): FileDropAction =>

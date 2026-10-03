@@ -3,6 +3,7 @@
 // window-level key handler in `useAppKeyboard` is the only caller.
 
 import { SETTINGS_PAGES, type SettingsPage } from "./settings-persistence.ts";
+import { wrapIndex } from "./wrap-index.ts";
 
 /**
  * Whether an event target owns its arrow keys and must not have them hijacked.
@@ -33,7 +34,7 @@ export function nextSettingsPage(
   current: SettingsPage,
   direction: "up" | "down",
 ): SettingsPage {
-  const delta = direction === "down" ? 1 : SETTINGS_PAGES.length - 1;
+  const delta = direction === "down" ? 1 : -1;
   const index = SETTINGS_PAGES.indexOf(current);
-  return SETTINGS_PAGES[(index + delta) % SETTINGS_PAGES.length];
+  return SETTINGS_PAGES[wrapIndex(index, delta, SETTINGS_PAGES.length)];
 }

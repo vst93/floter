@@ -20,6 +20,7 @@
 // pin it if it can import it without the app runtime.
 
 import type { MessageKey } from "../i18n.ts";
+import { wrapIndex } from "../wrap-index.ts";
 
 /**
  * One dimension a plugin's list mode can be filtered by: the values the chips
@@ -65,5 +66,5 @@ export const cyclePluginFilter = <F extends string>(
 ): F => {
   const index = axis.values.indexOf(current);
   const length = axis.values.length;
-  return axis.values[(index + direction + length) % length];
+  return axis.values[wrapIndex(index, direction, length)];
 };

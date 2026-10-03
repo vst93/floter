@@ -4,6 +4,7 @@ import {
   type PluginFilterAxis,
 } from "./plugins/filter-axis.ts";
 import { splitTriggerWord } from "./plugins/mode-entry.ts";
+import { wrapIndex } from "./wrap-index.ts";
 import type { CalculatorModeFilter } from "./calculator.ts";
 export type { CalculatorModeFilter } from "./calculator.ts";
 
@@ -700,7 +701,7 @@ export const nextLauncherSelection = (
     (target.actionBar || target.resultIndex === selectedResultIndex),
   );
   if (currentIndex >= 0) {
-    return targets[(currentIndex + direction + targets.length) % targets.length];
+    return targets[wrapIndex(currentIndex, direction, targets.length)];
   }
 
   // A result may have become unavailable between renders, or the pointer may

@@ -22,6 +22,7 @@ import {
 } from "../shortcuts";
 import { type SettingsPage } from "../settings-persistence";
 import { isArrowKeyEditableTarget, nextSettingsPage } from "../settings-nav";
+import { wrapIndex } from "../wrap-index.ts";
 import {
   resolveDismissRule,
   surfaceYieldsToModal,
@@ -168,7 +169,7 @@ export function useAppKeyboard(options: {
         const radios = Array.from(radio.closest('[role="radiogroup"]')?.querySelectorAll<HTMLButtonElement>('button[role="radio"]:not(:disabled)') ?? []);
         const index = radios.indexOf(radio);
         const next = event.key === "Home" ? 0 : event.key === "End" ? radios.length - 1
-          : (index + (["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 1) + radios.length) % radios.length;
+          : wrapIndex(index, ["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 1, radios.length);
         event.preventDefault();
         radios[next]?.focus();
         radios[next]?.click();

@@ -168,6 +168,59 @@ export type PluginConfigContext = {
   browserTargets?: readonly { id: string; name: string }[];
 };
 
+/**
+ * R80 · the three field shapes two plugins each declare.
+ *
+ * The clipboard and browser plugins both open with the same `enabled` toggle;
+ * the clipboard and calculator plugins both carry the same capacity slider and
+ * the same two-step "clear history" action. Each pair was written out by hand,
+ * so a change to one half (a new help line, a different step) could silently
+ * leave the other behind. These builders state each shape once; the parts a
+ * plugin names for itself — the browser's section, the capacity's words and
+ * bounds, the action's failure key and bridge command — are arguments.
+ */
+export const enabledField = (sectionKey?: MessageKey): PluginConfigField => ({
+  key: "enabled",
+  type: "toggle",
+  labelKey: "plugins.config.enabled",
+  helpKey: "plugins.config.enabledHint",
+  ...(sectionKey ? { sectionKey } : {}),
+});
+
+/** The `max_items` slider both history plugins bound the same way (step 10,
+ *  unit "items"); the words and the bounds are the plugin's arguments. */
+export const capacitySliderField = (fields: {
+  labelKey: MessageKey;
+  helpKey: MessageKey;
+  min: number;
+  max: number;
+}): PluginConfigField => ({
+  key: "max_items",
+  type: "slider",
+  labelKey: fields.labelKey,
+  helpKey: fields.helpKey,
+  min: fields.min,
+  max: fields.max,
+  step: 10,
+  unitKey: "plugins.config.unitItems",
+});
+
+/** The `clear_history` action both history plugins offer; only the failure
+ *  wording and the bridge command are the plugin's own. */
+export const clearHistoryActionField = (fields: {
+  failedKey: MessageKey;
+  command: string;
+}): PluginConfigField => ({
+  key: "clear_history",
+  type: "action",
+  labelKey: "plugins.config.clearHistory",
+  helpKey: "plugins.config.clearHistoryHint",
+  confirmKey: "plugins.config.clearHistoryConfirm",
+  cancelKey: "plugins.config.clearHistoryCancel",
+  failedKey: fields.failedKey,
+  command: fields.command,
+});
+
 /** The clipboard plugin's configuration. `enabled` is the long-standing
  *  `clipboard_history_enabled` field; `max_items` is the plugin block's one
  *  value. */
@@ -175,33 +228,18 @@ export const CLIPBOARD_CONFIG_SCHEMA: PluginConfigSchema = {
   pluginId: CLIPBOARD_PLUGIN_ID,
   titleKey: "settings.clipboardHistory",
   fields: [
-    {
-      key: "enabled",
-      type: "toggle",
-      labelKey: "plugins.config.enabled",
-      helpKey: "plugins.config.enabledHint",
-    },
-    {
-      key: "max_items",
-      type: "slider",
+    enabledField(),
+    capacitySliderField({
       labelKey: "plugins.config.clipboardMaxItems",
       helpKey: "plugins.config.clipboardMaxItemsHint",
       min: MIN_CLIPBOARD_MAX_ITEMS,
       max: MAX_CLIPBOARD_MAX_ITEMS,
-      step: 10,
-      unitKey: "plugins.config.unitItems",
-    },
+    }),
     // R38 · the plugin's one destructive action lives here, not on the list.
-    {
-      key: "clear_history",
-      type: "action",
-      labelKey: "plugins.config.clearHistory",
-      helpKey: "plugins.config.clearHistoryHint",
-      confirmKey: "plugins.config.clearHistoryConfirm",
-      cancelKey: "plugins.config.clearHistoryCancel",
+    clearHistoryActionField({
       failedKey: "clipboard.clearFailed",
       command: "clipboard_clear_history",
-    },
+    }),
   ],
 };
 
@@ -216,13 +254,7 @@ export const browserConfigSchema = (
     pluginId: BROWSER_PLUGIN_ID,
     titleKey: "settings.browser",
     fields: [
-      {
-        key: "enabled",
-        type: "toggle",
-        labelKey: "plugins.config.enabled",
-        helpKey: "plugins.config.enabledHint",
-        sectionKey: "plugins.config.sectionGeneral",
-      },
+      enabledField("plugins.config.sectionGeneral"),
       {
         key: "target",
         type: "select",
@@ -332,16 +364,12 @@ export const CALCULATOR_CONFIG_SCHEMA: PluginConfigSchema = {
   pluginId: CALCULATOR_PLUGIN_ID,
   titleKey: "settings.calculator",
   fields: [
-    {
-      key: "max_items",
-      type: "slider",
+    capacitySliderField({
       labelKey: "plugins.config.calculatorMaxItems",
       helpKey: "plugins.config.calculatorMaxItemsHint",
       min: MIN_CALCULATOR_MAX_ITEMS,
       max: MAX_CALCULATOR_MAX_ITEMS,
-      step: 10,
-      unitKey: "plugins.config.unitItems",
-    },
+    }),
     {
       key: "retention_days",
       type: "select",
@@ -362,16 +390,10 @@ export const CALCULATOR_CONFIG_SCHEMA: PluginConfigSchema = {
         { value: "result", labelKey: "plugins.config.calculatorCopyResult" },
       ],
     },
-    {
-      key: "clear_history",
-      type: "action",
-      labelKey: "plugins.config.clearHistory",
-      helpKey: "plugins.config.clearHistoryHint",
-      confirmKey: "plugins.config.clearHistoryConfirm",
-      cancelKey: "plugins.config.clearHistoryCancel",
+    clearHistoryActionField({
       failedKey: "calculator.clearFailed",
       command: "calculator_clear_history",
-    },
+    }),
   ],
 };
 

@@ -38,6 +38,7 @@
 
 import { normalizeSearch } from "../launcher.ts";
 import type { LauncherItem } from "../launcher/LauncherResults";
+import { commandRow } from "../launcher/command-row.ts";
 import {
   chosenRecipe,
   installCommand,
@@ -108,18 +109,19 @@ export const toolInstallRows = (
     const sourceName =
       report.managers.find((candidate) => candidate.id === manager)?.displayName ?? "";
     rows.push({
-      type: "command",
-      id: `tool-install:${entry.id}`,
-      title: entry.displayName,
-      // The command string itself, verbatim: the user reads what their shell
-      // will receive. Deliberately not translated.
-      subtitle: command,
-      warnings: [],
-      sourceName,
-      commandLine: command,
-      // No execution plan: this row must never enter the provider run path.
-      execution: null,
-      completion: false,
+      ...commandRow({
+        id: `tool-install:${entry.id}`,
+        title: entry.displayName,
+        // The command string itself, verbatim: the user reads what their shell
+        // will receive. Deliberately not translated.
+        subtitle: command,
+        warnings: [],
+        sourceName,
+        commandLine: command,
+        // No execution plan: this row must never enter the provider run path.
+        execution: null,
+        completion: false,
+      }),
       installCommand: command,
     });
     if (rows.length >= TOOL_INSTALL_ROW_LIMIT) break;
@@ -168,19 +170,20 @@ export const toolInvokeRows = (
     if (!toolEntryMatches(entry, needle)) continue;
     const argv = [...entry.launch.argv];
     rows.push({
-      type: "command",
-      id: `tool-invoke:${entry.id}`,
-      title: entry.displayName,
-      // The argv the spawn will receive, verbatim and untranslated.
-      subtitle: argv.join(" "),
-      warnings: [],
-      // No extension contributed this row; an empty source prints nothing (see
-      // `row-content.ts`), so the row is title + argv alone.
-      sourceName: "",
-      commandLine: argv.join(" "),
-      // No execution plan: this row never enters the provider run path.
-      execution: null,
-      completion: false,
+      ...commandRow({
+        id: `tool-invoke:${entry.id}`,
+        title: entry.displayName,
+        // The argv the spawn will receive, verbatim and untranslated.
+        subtitle: argv.join(" "),
+        warnings: [],
+        // No extension contributed this row; an empty source prints nothing (see
+        // `row-content.ts`), so the row is title + argv alone.
+        sourceName: "",
+        commandLine: argv.join(" "),
+        // No execution plan: this row never enters the provider run path.
+        execution: null,
+        completion: false,
+      }),
       launchArgv: argv,
       launchNeedsTerminal: entry.launch.needsTerminal,
     });
