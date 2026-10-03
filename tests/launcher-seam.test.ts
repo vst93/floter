@@ -62,9 +62,14 @@ const stops = (value: string) => {
 
 const LAUNCHER = "src/styles/launcher.css";
 const APP = "src/App.tsx";
+// R79 · the aura guard used to scan only `launcher.css` + `App.tsx`, and the
+// RM `transition: none` group had kept a `.collapsed-card__aura` member alive
+// in `base.css` — a blind spot this scan now closes.
+const BASE = "src/styles/base.css";
 
 test("the aura is gone: no wash node, no wash rule, no wash token in the sheet", async () => {
   const css = stripComments(await read(LAUNCHER));
+  const base = stripComments(await read(BASE));
   const app = await read(APP);
   assert.equal(
     rule(css, ".collapsed-card__aura"),
@@ -74,6 +79,10 @@ test("the aura is gone: no wash node, no wash rule, no wash token in the sheet",
   assert.ok(
     !/\.collapsed-card__aura\b/.test(css),
     "no selector may survive the rule: a leftover gate would resurrect the wash",
+  );
+  assert.ok(
+    !/\.collapsed-card__aura\b/.test(base),
+    "base.css must not keep the aura either — a group-selector member outlives its node in silence",
   );
   assert.ok(
     !/collapsed-card__aura/.test(app),

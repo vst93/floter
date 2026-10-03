@@ -55,8 +55,3 @@ export function detectMonospaceFonts(): string[] {
 
   return (cache = detected);
 }
-
-/** Test hook: forget the memoised probe (a font installed mid-session). */
-export function resetMonospaceFontCache(): void {
-  cache = null;
-}

@@ -25,7 +25,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createDeferredRepaint, TERMINAL_REPAINT_DEBOUNCE_MS } from "../src/deferred-repaint.ts";
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -34,16 +33,6 @@ const read = (path: string) => readFile(new URL(path, root), "utf8");
  * comment above a removed call names the call). */
 const stripJsComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-
-// ── A · the retired page (R33/R76) ────────────────────────────────────────
-
-test("the retired clipboard page source stays deleted", async () => {
-  // This section used to assert the clipboard page's own stylesheet consumed
-  // the host-injected glass bands. The page was retired onto the launcher's
-  // configuration overlay (R33) and its source deleted (R76). What is gone is
-  // the document that consumed the band.
-  await assertRetiredPageLayerIsGone(root);
-});
 
 // ── B · the R77 orphans: the content-band exports stay deleted ────────────
 

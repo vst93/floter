@@ -38,7 +38,6 @@ import {
   formatShortcut,
   matchesShortcut,
 } from "../src/shortcuts.ts";
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -206,7 +205,6 @@ test("R55 · the live history handler resolves ⌘⌫ through the shared grammar
     !/event\.(metaKey|ctrlKey)\s*&&\s*event\.key\s*===\s*"Backspace"/.test(actions),
     "the handler must not hand-roll the ⌘⌫ shape",
   );
-  await assertRetiredPageLayerIsGone(root);
 });
 
 test("R55 · the hint names the key through formatShortcut, not a literal", async () => {

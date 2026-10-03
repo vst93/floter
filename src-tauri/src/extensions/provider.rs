@@ -866,6 +866,7 @@ mod tests {
         executable: PathBuf,
         complete_timeout_ms: u64,
         environment: BTreeMap<String, String>,
+        describe_timeout_ms: u64,
     ) -> ProviderInvocation {
         ProviderInvocation {
             extension_id: "dev.floter.mock".into(),
@@ -879,7 +880,7 @@ mod tests {
                 kind: crate::extensions::manifest::ProviderKind::Executable,
                 descriptor: None,
                 args_prefix: vec!["--floter".into()],
-                describe_timeout_ms: 5_000,
+                describe_timeout_ms,
                 complete_timeout_ms,
                 environment,
             },
@@ -956,7 +957,7 @@ printf '%s' '{"completions":[{"label":"-file","kind":"flag","detail":"Read from 
                 request_path.to_string_lossy().into_owned(),
             ),
         ]);
-        let invocation = mock_invocation(executable, 800, environment);
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
         let request = serde_json::json!({
             "command": "jv",
@@ -993,6 +994,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             executable,
             800,
             BTreeMap::from([("EXPLICIT_VALUE".into(), "configured".into())]),
+            5_000,
         );
         let manager = ProviderManager::new(directory.path().join("cache"));
 
@@ -1012,7 +1014,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
         let executable = mock_provider(directory.path(), "exit 0");
         let child = directory.path().join("child");
         std::fs::write(&child, "child").unwrap();
-        let mut invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let mut invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         invocation.runtime_root = Some(directory.path().to_path_buf());
         let command = CommandDescriptor {
             id: "child".into(),
@@ -1051,7 +1053,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     async fn complete_honors_the_configured_timeout() {
         let directory = tempfile::tempdir().unwrap();
         let executable = mock_provider(directory.path(), "cat >/dev/null\nsleep 1");
-        let invocation = mock_invocation(executable, 50, BTreeMap::new());
+        let invocation = mock_invocation(executable, 50, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager
@@ -1073,7 +1075,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             directory.path(),
             "cat >/dev/null\necho 'complete unsupported' >&2\nexit 7",
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager
@@ -1094,8 +1096,13 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn describe_returns_timeout_error_code() {
         let directory = tempfile::tempdir().unwrap();
+        // The child sleeps far longer than the injected timeout, so the test
+        // ends at 50 ms rather than the 5 s production cap. The message carries
+        // the number back, which is what proves the injected value reached the
+        // timeout path (a silent fall-back to 5_000 would slow the suite and
+        // turn this assertion red instead).
         let executable = mock_provider(directory.path(), "sleep 10");
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 50);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1106,7 +1113,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             code,
             Some(crate::extensions::error_codes::ProviderErrorCode::Timeout)
         );
-        assert!(error.contains("timed out"), "{error}");
+        assert!(error.contains("timed out after 50 ms"), "{error}");
     }
 
     #[cfg(unix)]
@@ -1117,7 +1124,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             directory.path(),
             "echo 'Protocol version not supported' >&2\nexit 2",
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1136,7 +1143,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     async fn describe_returns_tool_error_code_on_nonzero_exit() {
         let directory = tempfile::tempdir().unwrap();
         let executable = mock_provider(directory.path(), "echo 'Tool internal error' >&2\nexit 5");
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1159,7 +1166,7 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             r#"echo "This is plain text, not JSON"
 exit 0"#,
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1182,7 +1189,7 @@ exit 0"#,
             r#"printf '{"invalid": json}'
 exit 0"#,
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1201,7 +1208,7 @@ exit 0"#,
     async fn describe_returns_binding_missing_error_code_for_nonexistent_executable() {
         let directory = tempfile::tempdir().unwrap();
         let nonexistent = directory.path().join("does-not-exist");
-        let invocation = mock_invocation(nonexistent, 800, BTreeMap::new());
+        let invocation = mock_invocation(nonexistent, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1262,7 +1269,7 @@ exit 0"#,
             r#"printf '{"protocolVersion":"1.0","provider":{"id":"wrong.id","name":"Test","version":"1.0.0"},"commands":[]}'
 exit 0"#,
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new());
+        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();

@@ -27,14 +27,11 @@ const OUT_OF_SCOPE = [
   "src/extensions/ComponentizedUninstallDialog.css",
 ];
 
-// Animations that must not run under `prefers-reduced-motion` (G-12). The
-// spinner's `@keyframes` is a dead reference today, but it is listed because the
-// declaration exists and would animate the moment the keyframes land.
+// Animations that must not run under `prefers-reduced-motion` (G-12).
 const REDUCED_MOTION_ANIMATIONS = [
   "app-toast-in",
   "feedback-enter",
   "settings-page-enter",
-  "extensions-spin",
   "shortcut-recording",
   "terminal-bar-dot",
 ];

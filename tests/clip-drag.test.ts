@@ -18,15 +18,10 @@ import {
   isBridgeDrag,
   shouldStartWindowDrag,
 } from "../src/plugin-pages.ts";
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-
-test("the retired clipboard page source stays deleted", async () => {
-  await assertRetiredPageLayerIsGone(root);
-});
 
 // ── 1 · the wire message ──────────────────────────────────────────────────
 

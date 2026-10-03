@@ -7,8 +7,11 @@
 // freeze lock, in the shape the R-FREEZE-2 round established: scan the real
 // sources and turn red if any removed name comes back.
 //
-// The per-suite guards (`tests/retired-page-layer.ts`) prove the *files* are
-// gone; this file proves no *live source* reintroduces a symbol from them.
+// The guard (`tests/retired-page-layer.ts`) proves the *files* are gone; the
+// scans below prove no *live source* reintroduces a symbol from them.
+//
+// R79 · the fourteen suites that used to each call the guard now leave the
+// freeze lock to this one test — their narratives moved here with the call.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -63,6 +66,36 @@ const FORBIDDEN: readonly [string, string][] = [
 ];
 
 test("the retired page layer's files are physically gone", async () => {
+  // R79 · the per-suite guards converged here. The narratives that used to sit
+  // beside the call in each suite, verbatim:
+  //
+  // · the clipboard page's incremental row reconciler (rows keyed by
+  //   `data-row-id`, patched instead of rebuilt, thumbnails gated on scrolling
+  //   into view) lived in `src/plugins/clipboard/main.ts` — an iframe document
+  //   R33 retired; R76 deleted its source, so there is nothing left to
+  //   reconcile.
+  // · the page's behaviour suites (type chips, the keyboard resolver, the
+  //   row-action trio, the filter tabs, pin persistence) lived in
+  //   `src/clipboard-list.ts`; R76 deleted the page's source and its
+  //   pure-logic module, and R77 deleted the inlined icon module that drift
+  //   check read.
+  // · CLIP-DISSOLVE removed the page's 56px status-bar band and CLIP-DRAG took
+  //   the last band-shaped thing on the header; both lived in the retired page
+  //   (`page.css` + `main.ts`), so the launcher's own clipboard mode has no
+  //   page-local band to dissolve.
+  // · the page's prompt-label wrap fix and its single 置顶 scope toggle lived
+  //   in `src/plugins/clipboard/page.css` and `main.ts`.
+  // · the page's own stylesheet consumed the host-injected glass bands; what is
+  //   gone is the document that consumed the band.
+  // · the retired page-side drag guard and the page's stylesheet are gone.
+  // · `PluginPageHost.tsx`, the topbar's rules in `terminal.css`, and the
+  //   plugin page stylesheets are deleted — there is no host chrome left.
+  // · the built-in clipboard page was the protocol's first consumer, sending
+  //   the same handshake from the shared constant; the example page is now the
+  //   protocol's only worked consumer.
+  // · the retired page's card and its two page stylesheets must stay deleted.
+  //
+  // The negative guard is the point: a revived page source turns this red.
   await assertRetiredPageLayerIsGone(root);
   // The guard is not vacuous: at least one of the paths resolves today, so a
   // typo in the list would not silently pass.

@@ -253,29 +253,6 @@ impl ExtensionsLock {
         Ok(())
     }
 
-    pub fn set_release_policy(
-        &mut self,
-        id: &str,
-        pinned: Option<bool>,
-        channel: Option<&str>,
-    ) -> Result<(), String> {
-        let entry = self
-            .extensions
-            .get_mut(id)
-            .ok_or_else(|| format!("Extension is not installed: {id}"))?;
-        if entry.distribution_source != ExtensionDistributionSource::Npm {
-            return Err("Release policy is only available for NPM integrations".to_string());
-        }
-        if let Some(channel) = channel {
-            entry.channel = normalize_release_channel(channel)?.to_string();
-        }
-        if let Some(pinned) = pinned {
-            entry.pinned = pinned;
-        }
-        entry.updated_at = unix_now();
-        Ok(())
-    }
-
     /// Record a failed verify/describe/probe as the structured `broken` state.
     /// Idempotent for an already-broken extension: the first failure wins so
     /// the stored reason stays the one that broke it, and repeated failures

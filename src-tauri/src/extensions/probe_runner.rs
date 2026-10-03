@@ -1,60 +1,9 @@
-use crate::extensions::capability_probe::{CapabilityProbe, CapabilityReport, ProbeResult};
-use crate::extensions::health::HealthReport;
+use crate::extensions::capability_probe::{CapabilityProbe, ProbeResult};
 use crate::extensions::process_cleanup::{configure_command, ChildCleanup};
-use crate::extensions::ExtensionState;
 use std::path::Path;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_OUTPUT_BYTES: usize = 64 * 1024;
-
-/// Runs capability probes against a tool and produces a health report.
-pub async fn run_probes(
-    _state: &ExtensionState,
-    _tool_id: &str,
-    executable: &Path,
-    probe_args: &[Vec<String>],
-    required_probes: &[bool],
-) -> Result<HealthReport, String> {
-    let mut report = HealthReport::new(CapabilityReport::default());
-
-    for (i, args) in probe_args.iter().enumerate() {
-        let required = required_probes.get(i).copied().unwrap_or(false);
-        let start = Instant::now();
-
-        match run_single_probe(executable, args, PROBE_TIMEOUT).await {
-            Ok(result) => {
-                let duration = start.elapsed();
-                if result.passed {
-                    report.record_pass(&format!("probe-{i}"), duration, result.exit_code);
-                } else {
-                    let stderr = result.stderr.clone();
-                    report.record_failure(
-                        &format!("probe-{i}"),
-                        duration,
-                        result.exit_code,
-                        stderr,
-                        !required,
-                    );
-                }
-            }
-            Err(error) => {
-                let duration = start.elapsed();
-                report.record_failure(&format!("probe-{i}"), duration, None, error, !required);
-            }
-        }
-    }
-
-    let required_ids: Vec<String> = required_probes
-        .iter()
-        .enumerate()
-        .filter(|(_, required)| **required)
-        .map(|(i, _)| format!("probe-{i}"))
-        .collect();
-    report.finalize(&required_ids);
-
-    Ok(report)
-}
 
 pub async fn run_single_probe(
     executable: &Path,

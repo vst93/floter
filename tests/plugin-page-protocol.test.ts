@@ -43,7 +43,6 @@ import {
   pluginPageHandshake,
 } from "../src/plugin-pages.ts";
 import { createTranslator } from "../src/i18n.ts";
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 // The example's own vocabulary module — the same file a page author copies.
 import * as example from "../docs/extensions/examples/hello-page/protocol.js";
@@ -318,17 +317,6 @@ test("the example is loadable with no build step and demonstrates the four dutie
   assert.match(readme, /mock-host\.html/, "the browser-only path must be documented");
   assert.match(readme, /rollupOptions|vite\.config\.ts/, "the in-app path must be documented");
   assert.match(readme, /DESCRIPTORS|plugin_pages\.rs/, "…including the host registry entry");
-});
-
-// ── 4 · the built-in page was the protocol's first consumer (now retired) ──
-
-test("the retired built-in page source stays deleted", async () => {
-  // R76 · the built-in clipboard page used to be the protocol's first
-  // consumer, sending the same handshake from the shared constant. It was
-  // unreachable since R33; R76 deleted it. The example page
-  // (`docs/extensions/examples/hello-page/`) is now the protocol's only
-  // worked consumer, and the tests above drive it directly.
-  await assertRetiredPageLayerIsGone(root);
 });
 
 // ── 5 · mutation locks ────────────────────────────────────────────────────

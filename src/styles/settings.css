@@ -331,10 +331,6 @@
   cursor: default;
 }
 
-.settings-save-alert__spinner {
-  animation: extensions-spin 0.8s linear infinite;
-}
-
 /* Narrower than the document default, which is sized for a page: this bar sits
    14px from the panel's own edge and reads as part of the card. */
 .settings-content::-webkit-scrollbar {

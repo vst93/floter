@@ -365,26 +365,6 @@ pub async fn activate(
     Ok(report)
 }
 
-pub fn deactivate(paths: &ExtensionPaths, extension_id: &str) -> Result<(), String> {
-    validate_id(extension_id)?;
-    let data_root = paths.data.join(extension_id);
-    let receipt_path = data_root.join("lifecycle.json");
-    let mut receipt = load_receipt(&receipt_path)?;
-    let completions = data_root.join("completions");
-    if completions.exists() {
-        reject_symlink_path(&paths.data, &completions)?;
-        std::fs::remove_dir_all(&completions)
-            .map_err(|error| format!("Cannot remove shell completions: {error}"))?;
-        sync_directory(&data_root)
-            .map_err(|error| format!("Cannot sync lifecycle data directory: {error}"))?;
-    }
-    if !receipt.completion_files.is_empty() {
-        receipt.completion_files.clear();
-        save_receipt(&receipt_path, &receipt)?;
-    }
-    Ok(())
-}
-
 fn reconcile_templates(
     package_root: &Path,
     tool_data_root: &Path,

@@ -122,10 +122,6 @@ export const reduceHistoryDelete = (
   }
 };
 
-/** Whether the row with `id` is the armed one. */
-export const historyDeleteArmed = (state: ArmedHistoryDelete, id: string): boolean =>
-  state !== null && state.id === id;
-
 /**
  * Where the selection lands after the row at `index` is removed from a list
  * that had `length` rows: the neighbour takes the slot, and removing the last

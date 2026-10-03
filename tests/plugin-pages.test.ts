@@ -8,8 +8,6 @@ import { test } from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
-
 import {
   BRIDGE_TAG,
   BROWSER_PLUGIN_ID,
@@ -239,9 +237,6 @@ test("the glass-step token bag stays derived from the one table", async () => {
   assert.equal(frosted["--glass-step-dim"], String(GLASS_STEP_TOKENS.frosted.dim));
   assert.equal(frosted["--glass-solid-top"], String(GLASS_SOLID_TOP));
   assert.notEqual(frosted["--glass-step-dim"], liquid["--glass-step-dim"], "the injected haze must track the step");
-
-  // The retired built-in page and host must stay gone.
-  await assertRetiredPageLayerIsGone(root);
 });
 
 // R26-C · the settings panel's base-plugins list must carry every registered
@@ -312,7 +307,6 @@ test("no built-in page is registered, and the retired entries stay deleted", asy
   // document. R76 · the entry modules that used to keep sending the handshake
   // are deleted with the rest of the layer.
   for (const page of pages) assert.equal(page, "", "no built-in page path may be registered");
-  await assertRetiredPageLayerIsGone(root);
 });
 
 // R26-D · the sandbox exception is a *set*, not a clipboard-only special case.

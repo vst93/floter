@@ -121,19 +121,6 @@ export const DEFAULT_CDP_PORT = 9222;
 /** The largest history window the backend honours (ten years). */
 export const MAX_HISTORY_DAYS = 3650;
 
-/** The shipped settings, used until the backend answers and when an answer is
- * unreadable. Identical to `BrowserPluginSettings::default()` in Rust. */
-export const defaultBrowserSettings = (): BrowserPluginSettings => ({
-  enabled: true,
-  target: "auto",
-  custom_base_dir: null,
-  history_days: 30,
-  cdp_enabled: false,
-  cdp_port: DEFAULT_CDP_PORT,
-  sort_order: DEFAULT_BROWSER_SORT_ORDER,
-  search_fields: DEFAULT_BROWSER_SEARCH_FIELD,
-});
-
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 

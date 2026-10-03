@@ -29,6 +29,7 @@ import {
   clampCalculatorMaxItems,
   evaluateExpression,
   formatCalculatorResult,
+  hardenedParser,
   normalizeCalculatorCopyMode,
   normalizeCalculatorEntries,
   normalizeCalculatorRetentionDays,
@@ -109,6 +110,42 @@ test("the hardened parser cannot assign, compare or reach a property", () => {
     const result = evaluateExpression(expression);
     assert.equal(result.ok, false, expression);
   }
+});
+
+test("the hardened parser's mitigation is pinned (expr-eval ships no fix)", () => {
+  // expr-eval is locked at 2.0.2, the last 2.x, and has no patched release, so
+  // this configuration *is* the whole defence against the member-access and
+  // function-construction advisories. The behavioural tests above would catch a
+  // reopened hole only if they happened to spell the exploit; this one pins the
+  // configuration itself, so a refactor that relaxes an option turns red before
+  // any expression is evaluated.
+  const parser = hardenedParser as unknown as {
+    options: { allowMemberAccess?: boolean; operators?: Record<string, boolean> };
+    isOperatorEnabled: (op: string) => boolean;
+    functions: Record<string, unknown>;
+  };
+  assert.equal(
+    parser.options.allowMemberAccess,
+    false,
+    "member access is the reach vector and must stay off",
+  );
+  // The nine writing / reaching operators `src/calculator.ts` disables by name.
+  for (const operator of [
+    "assignment",
+    "fndef",
+    "in",
+    "random",
+    "length",
+    "concatenate",
+    "conditional",
+    "logical",
+    "comparison",
+  ]) {
+    assert.equal(parser.options.operators?.[operator], false, `${operator} must stay declared off`);
+    assert.equal(parser.isOperatorEnabled(operator), false, `${operator} must stay disabled at runtime`);
+  }
+  // `random` is also an enabled-by-default function; it is deleted outright.
+  assert.equal("random" in parser.functions, false, "the random function must stay deleted");
 });
 
 test("results print integers bare, round float fuzz, and leave the band for scientific notation", () => {

@@ -26,8 +26,6 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
-
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -606,7 +604,6 @@ test("R7-4b: the retired plugin page declares no blur — because it is gone", a
   // R33 retired the page and R76 deleted its stylesheet, so there is no page
   // filter to police any more. The shell it used to sit in keeps exactly one
   // blur, which is the filter the page consumed.
-  await assertRetiredPageLayerIsGone(root);
   const host = stripComments(await read("src/styles/terminal.css"));
   const shell = rules(host).find(({ selector }) => selector === ".terminal-panel");
   assert.ok(shell, "terminal.css must define .terminal-panel");

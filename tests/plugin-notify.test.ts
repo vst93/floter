@@ -24,15 +24,10 @@ import {
 } from "../src/plugin-pages.ts";
 import { isMessageKey } from "../src/i18n.ts";
 import { MAX_TOASTS } from "../src/toast-state.ts";
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
-
-test("the retired clipboard page source stays deleted", async () => {
-  await assertRetiredPageLayerIsGone(root);
-});
 
 // ── 1 · the bridge message ────────────────────────────────────────────────
 

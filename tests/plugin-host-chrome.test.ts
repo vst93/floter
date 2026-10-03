@@ -13,8 +13,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
-
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -25,10 +23,6 @@ const rules = (css: string) => {
   }
   return out;
 };
-
-test("the retired plugin host and its page sheets stay deleted", async () => {
-  await assertRetiredPageLayerIsGone(root);
-});
 
 test("the terminal shell owns the surface's single blur, with no literal", async () => {
   const host = stripComments(await read("src/styles/terminal.css"));

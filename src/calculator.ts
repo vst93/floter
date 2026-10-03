@@ -101,8 +101,12 @@ export const CALCULATOR_MAX_EXPRESSION_LENGTH = 256;
  * The hardened parser. Built once (parsing options are fixed) and reused: the
  * instance holds no per-expression state, because every writing operator is
  * off and `evaluate` is called with no scope.
+ *
+ * Exported so `tests/r50-calculator.test.ts` can pin the mitigation directly:
+ * expr-eval has no fixed release, so this configuration *is* the defence and a
+ * refactor that quietly relaxes it must turn a test red.
  */
-const hardenedParser = new Parser({
+export const hardenedParser = new Parser({
   allowMemberAccess: false,
   operators: {
     assignment: false,

@@ -297,29 +297,6 @@ pub fn open_plugin_page(app: &AppHandle, id: &str) {
     );
 }
 
-/// The hotkey path: summon when hidden or showing something else, hide when
-/// the very same page is already up. The payload records whether the window
-/// was visible so the frontend can tell those apart.
-pub fn toggle_plugin_page(app: &AppHandle, id: &str) {
-    let Some(window) = app.get_webview_window("main") else {
-        return;
-    };
-    let state = app.state::<AppState>();
-    let was_visible = state
-        .window_visible
-        .load(std::sync::atomic::Ordering::SeqCst);
-    if !was_visible {
-        let _ = crate::reveal_saved_mode(&window, &state);
-    }
-    let _ = window.emit(
-        "floter://plugin-config",
-        PluginPageEvent {
-            id: id.to_string(),
-            toggle: was_visible,
-        },
-    );
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

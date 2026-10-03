@@ -27,7 +27,6 @@ import {
   DEFAULT_BROWSER_SORT_ORDER,
   normalizeBrowserSortOrder,
 } from "../src/browser-page.ts";
-import { assertRetiredPageLayerIsGone } from "./retired-page-layer.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -233,9 +232,6 @@ test("the clipboard's settings live in the launcher's configuration schema, not 
   // The destructive action is the schema's, and it names a live command.
   const clear = CLIPBOARD_CONFIG_SCHEMA.fields.find((field) => field.key === "clear_history");
   assert.ok(clear && clear.type === "action" && clear.command === "clipboard_clear_history");
-
-  // The retired page's card and its two page stylesheets must stay deleted.
-  await assertRetiredPageLayerIsGone(root);
 });
 
 test("the browser's settings live in the launcher's configuration schema", async () => {

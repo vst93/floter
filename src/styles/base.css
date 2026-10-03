@@ -1198,7 +1198,6 @@ canvas {
   .terminal-resident,
   .update-banner,
   .settings-save-alert--toast,
-  .settings-save-alert__spinner,
   .launcher-plugin-footer__spinner,
   .terminal-bar__dot,
   .extensions-overflow__items {
@@ -1220,7 +1219,6 @@ canvas {
   .extensions-overflow__item,
   .extension-drawer-backdrop,
   .extension-drawer,
-  .collapsed-card__aura,
   .terminal-bar,
   .terminal-panel__actions,
   .terminal-bar__frost,

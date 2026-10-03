@@ -62,9 +62,6 @@ export const FILE_DROP_ACTIONS: readonly FileDropAction[] = [
 /** How many dropped files are listed before the list collapses into an expander. */
 export const MAX_VISIBLE_DROPPED_FILES = 5;
 
-/** The group heading the file rows sit under. */
-export const FILE_DROP_SOURCE_KEY: MessageKey = "launcher.files";
-
 /**
  * Whether a drop that landed on `windowLabel` while the app was in `mode` may
  * become launcher results.
@@ -215,10 +212,6 @@ export const selectedDroppedFile = (
   return item?.type === "file" ? item.file : null;
 };
 
-/** The action bar's label for a file action, translated. */
-export const fileDropActionLabel = (index: number, t: Translate): string =>
-  t(activeFileDropAction(index).labelKey);
-
 /**
  * What an action actually asks the host to do.
  *
@@ -249,16 +242,6 @@ export const fileActionRequest = (
     : action === "cd"
       ? { kind: "cd", commandLine: cdCommandForPath(value, windows) }
       : { kind: "copy", path: value };
-
-/** The request for the action the switcher is currently showing. */
-export const requestForActionIndex = (
-  index: number,
-  file: DroppedFile,
-  windows = false,
-): FileActionRequest => {
-  const action = activeFileDropAction(index);
-  return fileActionRequest(action.kind, actionValue(file, action.kind), windows);
-};
 
 /** Whether an action bar is describing a dropped file rather than the query.
  *  Only these three kinds claim Enter on the bar and the ←/→ switcher. */
