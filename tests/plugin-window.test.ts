@@ -117,3 +117,26 @@ test("the detached window's chrome keys exist and translate in both languages", 
   }
   assert.equal(createTranslator("zh")("pluginWindow.detach" as never), "固定到独立窗口");
 });
+
+test("every plugin-window class the detached view names has a rule in launcher.css", async () => {
+  // R85 · `plugin-window__bar-button--icon` shipped in R84 with no rule behind
+  // it: a dead class that read as styling and did nothing. The class was
+  // removed; this guard holds the TSX and the stylesheet in step so the next
+  // one fails here instead of surviving to a review.
+  const tsx = await readFile(
+    new URL("../src/plugin-window/DetachedPluginApp.tsx", import.meta.url),
+    "utf8",
+  );
+  const css = await readFile(
+    new URL("../src/styles/launcher.css", import.meta.url),
+    "utf8",
+  );
+  const named = new Set(tsx.match(/plugin-window__[a-z-]+/g) ?? []);
+  assert.ok(named.size > 0, "the detached view names plugin-window classes");
+  for (const className of named) {
+    assert.ok(
+      css.includes(`.${className}`),
+      `${className} is named by DetachedPluginApp.tsx but has no rule in launcher.css`,
+    );
+  }
+});

@@ -13,6 +13,8 @@ pub mod ipc;
 mod linux_render;
 mod notifications;
 pub mod plugin_pages;
+// R85 · the detached plugin window's remembered geometry.
+mod plugin_window_geometry;
 // R41 · Hyprland (Wayland) window shaping: float the panel instead of letting
 // the tiling compositor fill the screen.
 mod hyprland;
@@ -1248,19 +1250,106 @@ fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), St
         .ok()
         .and_then(|slot| slot.as_ref().map(|pending| pending.command_label.clone()))
         .unwrap_or_else(|| "floter plugin".to_string());
-    tauri::WebviewWindowBuilder::new(
+    // R85 · open where the user left it. The stored geometry is resolved
+    // against the displays that exist *now*: a size the current primary can
+    // hold, and a position only if it still lands on a screen (a saved spot on
+    // an unplugged monitor falls back to the system's default placement).
+    let placement = plugin_window_geometry::resolve_placement(
+        plugin_window_geometry::load_geometry(),
+        primary_display_area(&app),
+        &display_areas(&app),
+    );
+    let mut builder = tauri::WebviewWindowBuilder::new(
         &app,
         PLUGIN_WINDOW_LABEL,
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title(title)
-    .inner_size(720.0, 480.0)
-    .min_inner_size(360.0, 240.0)
+    .inner_size(placement.width, placement.height)
+    .min_inner_size(
+        plugin_window_geometry::MIN_WIDTH,
+        plugin_window_geometry::MIN_HEIGHT,
+    )
     .resizable(true)
-    .skip_taskbar(false)
-    .build()
-    .map_err(|error| error.to_string())?;
+    .skip_taskbar(false);
+    if let Some((x, y)) = placement.position {
+        builder = builder.position(x, y);
+    }
+    let window = builder.build().map_err(|error| error.to_string())?;
+    watch_plugin_window_geometry(&window);
     Ok(())
+}
+
+/// Every monitor, in the logical space [`plugin_window_geometry`] works in.
+fn display_areas(app: &AppHandle) -> Vec<plugin_window_geometry::DisplayArea> {
+    app.available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(display_area)
+        .collect()
+}
+
+/// The primary monitor's bounds, or `None` when the platform will not name
+/// one — in which case the size clamp keeps its floor and skips the ceiling.
+fn primary_display_area(app: &AppHandle) -> Option<plugin_window_geometry::DisplayArea> {
+    app.primary_monitor()
+        .ok()
+        .flatten()
+        .as_ref()
+        .map(display_area)
+}
+
+/// A monitor's bounds converted from the physical pixels Tauri reports to the
+/// logical points a window geometry is quoted in. A monitor with a scale
+/// factor of zero (a broken reading) is treated as 1:1 rather than dividing by
+/// it.
+fn display_area(monitor: &tauri::Monitor) -> plugin_window_geometry::DisplayArea {
+    let scale = monitor.scale_factor();
+    let scale = if scale > 0.0 { scale } else { 1.0 };
+    let position = monitor.position();
+    let size = monitor.size();
+    plugin_window_geometry::DisplayArea {
+        x: f64::from(position.x) / scale,
+        y: f64::from(position.y) / scale,
+        width: f64::from(size.width) / scale,
+        height: f64::from(size.height) / scale,
+    }
+}
+
+/// Follow the detached window's own moves and resizes and record each one for
+/// persistence. Attached to the window rather than the page on purpose: the
+/// user can drag the native frame while the webview is busy or gone, and the
+/// OS keeps delivering these events either way.
+fn watch_plugin_window_geometry(window: &WebviewWindow) {
+    let watched = window.clone();
+    window.on_window_event(move |event| {
+        if matches!(
+            event,
+            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+        ) {
+            if let Some(geometry) = current_geometry(&watched) {
+                plugin_window_geometry::note_geometry(geometry);
+            }
+        }
+    });
+}
+
+/// The window's placement right now, in logical coordinates. `None` when the
+/// platform will not report it — nothing to save is better than saving a
+/// wrong value.
+fn current_geometry(window: &WebviewWindow) -> Option<plugin_window_geometry::WindowGeometry> {
+    let scale = window.scale_factor().ok()?;
+    if scale <= 0.0 {
+        return None;
+    }
+    let position = window.outer_position().ok()?;
+    let size = window.inner_size().ok()?;
+    Some(plugin_window_geometry::WindowGeometry {
+        width: f64::from(size.width) / scale,
+        height: f64::from(size.height) / scale,
+        x: f64::from(position.x) / scale,
+        y: f64::from(position.y) / scale,
+    })
 }
 
 /// The detached page pulls its run request here (mount, and again whenever a

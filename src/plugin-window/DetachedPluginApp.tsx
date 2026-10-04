@@ -212,7 +212,7 @@ export default function DetachedPluginApp() {
             </button>
             <button
               type="button"
-              className="plugin-window__bar-button plugin-window__bar-button--icon"
+              className="plugin-window__bar-button"
               onClick={close}
               title={t("pluginWindow.close")}
               aria-label={t("pluginWindow.close")}
