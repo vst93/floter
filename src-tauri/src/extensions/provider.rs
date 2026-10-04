@@ -888,16 +888,33 @@ mod tests {
         }
     }
 
+    /// The configured-environment key that carries the snippet's path to the
+    /// committed `mock-provider.sh` fixture.
     #[cfg(unix)]
-    fn mock_provider(directory: &Path, body: &str) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt;
+    const MOCK_PROVIDER_BODY_ENV: &str = "FLOTER_MOCK_PROVIDER_BODY";
 
-        let executable = directory.join("mock-provider");
-        std::fs::write(&executable, format!("#!/bin/sh\n{body}\n")).unwrap();
-        let mut permissions = executable.metadata().unwrap().permissions();
-        permissions.set_mode(0o755);
-        std::fs::set_permissions(&executable, permissions).unwrap();
-        executable
+    /// A committed, never-written provider fixture plus the environment that
+    /// points it at the per-test snippet.
+    ///
+    /// The fixture is exec'd from `tests/fixtures/` and is never written at
+    /// run time, so it cannot hit the ETXTBSY race `3ace35b` fixed (a child
+    /// forked by another test inherits a freshly written inode's write fd and
+    /// holds it until its own exec). The snippet is data: it is written to a
+    /// file the fixture *sources*, never exec'd.
+    #[cfg(unix)]
+    fn mock_provider(directory: &Path, body: &str) -> (PathBuf, BTreeMap<String, String>) {
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mock-provider.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
+        let body_path = directory.join("mock-provider-body.sh");
+        std::fs::write(&body_path, format!("{body}\n")).unwrap();
+        (
+            executable,
+            BTreeMap::from([(
+                MOCK_PROVIDER_BODY_ENV.to_string(),
+                body_path.to_string_lossy().into_owned(),
+            )]),
+        )
     }
 
     #[test]
@@ -944,19 +961,17 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let args_path = directory.path().join("args");
         let request_path = directory.path().join("request.json");
-        let executable = mock_provider(
+        let (executable, mut environment) = mock_provider(
             directory.path(),
             r#"printf '%s\n' "$@" > "$ARGS_PATH"
 cat > "$REQUEST_PATH"
 printf '%s' '{"completions":[{"label":"-file","kind":"flag","detail":"Read from file"}]}'"#,
         );
-        let environment = BTreeMap::from([
-            ("ARGS_PATH".into(), args_path.to_string_lossy().into_owned()),
-            (
-                "REQUEST_PATH".into(),
-                request_path.to_string_lossy().into_owned(),
-            ),
-        ]);
+        environment.insert("ARGS_PATH".into(), args_path.to_string_lossy().into_owned());
+        environment.insert(
+            "REQUEST_PATH".into(),
+            request_path.to_string_lossy().into_owned(),
+        );
         let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
         let request = serde_json::json!({
@@ -984,18 +999,14 @@ printf '%s' '{"completions":[{"label":"-file","kind":"flag","detail":"Read from 
     #[tokio::test]
     async fn provider_without_environment_permission_does_not_inherit_host_variables() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
+        let (executable, mut environment) = mock_provider(
             directory.path(),
             r#"cat >/dev/null
 printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_PERMISSION_PARENT-unset}"':'"$EXPLICIT_VALUE"'"}]}'"#,
         );
         std::env::set_var("FLOTER_PERMISSION_PARENT", "host-secret");
-        let invocation = mock_invocation(
-            executable,
-            800,
-            BTreeMap::from([("EXPLICIT_VALUE".into(), "configured".into())]),
-            5_000,
-        );
+        environment.insert("EXPLICIT_VALUE".into(), "configured".into());
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let response = manager
@@ -1011,10 +1022,10 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[test]
     fn external_execution_program_requires_process_spawn_permission() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(directory.path(), "exit 0");
+        let (executable, environment) = mock_provider(directory.path(), "exit 0");
         let child = directory.path().join("child");
         std::fs::write(&child, "child").unwrap();
-        let mut invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let mut invocation = mock_invocation(executable, 800, environment, 5_000);
         invocation.runtime_root = Some(directory.path().to_path_buf());
         let command = CommandDescriptor {
             id: "child".into(),
@@ -1052,8 +1063,8 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn complete_honors_the_configured_timeout() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(directory.path(), "cat >/dev/null\nsleep 1");
-        let invocation = mock_invocation(executable, 50, BTreeMap::new(), 5_000);
+        let (executable, environment) = mock_provider(directory.path(), "cat >/dev/null\nsleep 1");
+        let invocation = mock_invocation(executable, 50, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager
@@ -1071,11 +1082,11 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn complete_reports_a_nonzero_provider_exit() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
+        let (executable, environment) = mock_provider(
             directory.path(),
             "cat >/dev/null\necho 'complete unsupported' >&2\nexit 7",
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager
@@ -1101,8 +1112,8 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
         // the number back, which is what proves the injected value reached the
         // timeout path (a silent fall-back to 5_000 would slow the suite and
         // turn this assertion red instead).
-        let executable = mock_provider(directory.path(), "sleep 10");
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 50);
+        let (executable, environment) = mock_provider(directory.path(), "sleep 10");
+        let invocation = mock_invocation(executable, 800, environment, 50);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1120,11 +1131,11 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn describe_returns_protocol_error_code_on_exit_2() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
+        let (executable, environment) = mock_provider(
             directory.path(),
             "echo 'Protocol version not supported' >&2\nexit 2",
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1142,8 +1153,9 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn describe_returns_tool_error_code_on_nonzero_exit() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(directory.path(), "echo 'Tool internal error' >&2\nexit 5");
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let (executable, environment) =
+            mock_provider(directory.path(), "echo 'Tool internal error' >&2\nexit 5");
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1161,12 +1173,12 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
     #[tokio::test]
     async fn describe_returns_stdout_contaminated_error_code() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
+        let (executable, environment) = mock_provider(
             directory.path(),
             r#"echo "This is plain text, not JSON"
 exit 0"#,
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1184,12 +1196,12 @@ exit 0"#,
     #[tokio::test]
     async fn describe_returns_describe_parse_failed_error_code() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
+        let (executable, environment) = mock_provider(
             directory.path(),
             r#"printf '{"invalid": json}'
 exit 0"#,
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();
@@ -1264,12 +1276,12 @@ exit 0"#,
     #[tokio::test]
     async fn describe_returns_identity_mismatch_error_code() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = mock_provider(
+        let (executable, environment) = mock_provider(
             directory.path(),
             r#"printf '{"protocolVersion":"1.0","provider":{"id":"wrong.id","name":"Test","version":"1.0.0"},"commands":[]}'
 exit 0"#,
         );
-        let invocation = mock_invocation(executable, 800, BTreeMap::new(), 5_000);
+        let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
 
         let error = manager.describe(&invocation, false).await.unwrap_err();

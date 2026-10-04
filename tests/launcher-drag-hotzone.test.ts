@@ -16,21 +16,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { decl, rules, stripComments } from "./css.ts";
+
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
-const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
 const rule = (css: string, selector: string) =>
   rules(css).find((r) => r.selector === selector);
-const decl = (body: string, prop: string) =>
-  body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1].trim() ?? null;
 
 // The collapsed shell's rendered branch: from the last `if (mode === "collapsed")`
 // (the render branch; the mode effect above it uses the same test) to the

@@ -2573,6 +2573,25 @@ mod tests {
     /// this guard, never a `--test-threads=1` run parameter.
     static DRIFT_GATE_TEST: Mutex<()> = Mutex::new(());
 
+    /// Stage a committed, read-only fixture at `destination`.
+    ///
+    /// `3ace35b` fixed an ETXTBSY flake whose cause was exec'ing a file the
+    /// test had just written: a child forked by another test inherits the
+    /// write fd and holds it until its own exec, so exec'ing a freshly written
+    /// inode races. Every executable these tests need is now a committed
+    /// fixture under `tests/fixtures/` — the test stages those bytes and
+    /// chmods them, and never authors the script text itself.
+    #[cfg(unix)]
+    fn stage_fixture(fixture: &str, destination: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(fixture);
+        std::fs::copy(&source, destination).unwrap();
+        std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
     /// R9-3 · the discovery suggestion row's key is *not* an extension id. It
     /// exists only to give an uninstalled suggestion a React key; a real id is
     /// minted by `install::create_custom_integration`. The `:` in the key makes
@@ -2676,14 +2695,11 @@ mod tests {
 
     #[cfg(unix)]
     fn write_demo_tools_dir(root: &Path) -> std::path::PathBuf {
-        use std::os::unix::fs::PermissionsExt;
-
         let tools = tool_manifests::directory_for_root(root);
         std::fs::create_dir_all(&tools).unwrap();
         std::fs::write(tools.join("demo.json"), MANIFEST_JSON).unwrap();
         let executable = root.join("demo-tool");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("tool-exit-zero.sh", &executable);
         tools
     }
 
@@ -2772,12 +2788,10 @@ mod tests {
     async fn list_path_rebinds_changed_fingerprint_and_reports_runtime_available() {
         use crate::extensions::ExtensionPaths;
         use crate::extensions::ToolLock;
-        use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("tool-exit-zero.sh", &executable);
         let executable_path = executable.to_string_lossy().into_owned();
 
         let state =
@@ -2851,8 +2865,7 @@ mod tests {
             tool_lock.bind(&entry.id, &candidate);
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
-        std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("tool-rebuilt.sh", &executable);
 
         let items = list_extensions(&state).await.unwrap().0;
         let listed = items
@@ -2938,12 +2951,10 @@ mod tests {
     async fn list_path_rebinds_an_executable_provider_on_fingerprint_change() {
         use crate::extensions::ExtensionPaths;
         use crate::extensions::ToolLock;
-        use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("tool-exit-zero.sh", &executable);
         let executable_path = executable.to_string_lossy().into_owned();
 
         let state =
@@ -3010,8 +3021,7 @@ mod tests {
             tool_lock.bind(&entry.id, &candidate);
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
-        std::fs::write(&executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("tool-rebuilt.sh", &executable);
 
         let items = list_extensions(&state).await.unwrap().0;
         let listed = items
@@ -3056,12 +3066,10 @@ mod tests {
     #[cfg(unix)]
     fn list_binding_fixture() -> ListBindingFixture {
         use crate::extensions::ExtensionPaths;
-        use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("tool-exit-zero.sh", &executable);
 
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
@@ -3154,8 +3162,6 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn list_suggestions_rank_curated_tools_inside_the_first_twelve() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let bin = directory.path().join("bin");
         std::fs::create_dir_all(&bin).unwrap();
@@ -3181,8 +3187,7 @@ mod tests {
         let mut injected = Vec::new();
         for name in names {
             let path = bin.join(name);
-            std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+            stage_fixture("tool-exit-zero.sh", &path);
             injected.push(inventory::executable_candidate(&path, name));
         }
 
@@ -3228,12 +3233,7 @@ mod tests {
         ))
         .unwrap();
         let executable = directory.path().join("omitted-tool");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+        stage_fixture("tool-exit-zero.sh", &executable);
 
         let approved = install::approved_tool_binding_permissions(None);
         install::validate_tool_binding_approval(&approved).unwrap();
@@ -3489,22 +3489,6 @@ mod tests {
         assert!(listed.runtime_available);
     }
 
-    #[cfg(unix)]
-    const LIST_DRIFTER_V1: &str = concat!(
-        "#!/bin/sh\n",
-        "if [ \"$1\" = \"--version\" ]; then echo 'lister 1.0.0'; exit 0; fi\n",
-        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n'; exit 0; fi\n",
-        "echo done\n",
-    );
-
-    #[cfg(unix)]
-    const LIST_DRIFTER_V2: &str = concat!(
-        "#!/bin/sh\n",
-        "if [ \"$1\" = \"--version\" ]; then echo 'lister 2.0.0'; exit 0; fi\n",
-        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
-        "echo done\n",
-    );
-
     /// `extensions_list` is the drift collection point: a generated custom
     /// integration whose executable version moved past the recorded
     /// `tool_version` is *collected* by the read path (which returns the
@@ -3514,13 +3498,11 @@ mod tests {
     #[tokio::test]
     async fn list_reprobes_a_generated_integration_on_tool_version_change() {
         use crate::extensions::ExtensionPaths;
-        use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
         let scripts = tempfile::tempdir().unwrap();
         let executable = scripts.path().join("lister.sh");
-        std::fs::write(&executable, LIST_DRIFTER_V1).unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("lister-v1.sh", &executable);
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
@@ -3568,8 +3550,7 @@ mod tests {
         }
 
         // Upstream upgrade in place.
-        std::fs::write(&executable, LIST_DRIFTER_V2).unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("lister-v2.sh", &executable);
 
         // The listing returns the *previous* inventory without awaiting the
         // re-probe, and hands the drifted integration to the caller as a
@@ -3648,7 +3629,6 @@ mod tests {
     #[tokio::test]
     async fn drift_reprobe_gate_serializes_loops_and_resets() {
         use crate::extensions::ExtensionPaths;
-        use std::os::unix::fs::PermissionsExt;
         use std::sync::atomic::Ordering;
 
         // Hold the per-test serial guard for the whole test so a future
@@ -3659,8 +3639,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let scripts = tempfile::tempdir().unwrap();
         let executable = scripts.path().join("lister.sh");
-        std::fs::write(&executable, LIST_DRIFTER_V1).unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("lister-v1.sh", &executable);
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
@@ -3695,8 +3674,7 @@ mod tests {
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
         // Upstream upgrade in place, so the next listing finds drift.
-        std::fs::write(&executable, LIST_DRIFTER_V2).unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("lister-v2.sh", &executable);
 
         // The gate starts clear.
         assert!(!super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire));
@@ -3754,7 +3732,6 @@ mod tests {
     #[tokio::test]
     async fn list_flags_a_publisher_descriptor_and_never_reprobes_it() {
         use crate::extensions::ExtensionPaths;
-        use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
         let state =
@@ -3763,12 +3740,7 @@ mod tests {
         let root = directory.path().join("vendor").join("integration");
         std::fs::create_dir_all(&root).unwrap();
         let executable = directory.path().join("vendor-tool");
-        std::fs::write(
-            &executable,
-            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'vendor 9.9.9'; exit 0; fi\nif [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -shouldNotBeDerived   Nope\\n'; exit 0; fi\nexit 0\n",
-        )
-        .unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        stage_fixture("vendor-tool.sh", &executable);
         let manifest = r#"{
             "schemaVersion": "2.0",
             "id": "com.vendor.tool",

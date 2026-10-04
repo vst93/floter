@@ -24,25 +24,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { decl, rules, stripComments } from "./css.ts";
+
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
-const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 /** TSX/TS has two comment shapes; the round's own notes name the events it
  *  removed, so the scan has to read code and not prose. */
 const stripJsComments = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
 const rule = (css: string, selector: string) =>
   rules(css).find((r) => r.selector === selector);
-const decl = (body: string, prop: string) =>
-  body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1].trim() ?? null;
 
 const LAUNCHER = "src/styles/launcher.css";
 const RESULTS = "src/launcher/LauncherResults.tsx";

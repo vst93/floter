@@ -19,17 +19,10 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { rules, stripComments } from "./css.ts";
+
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
-const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
-
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
 
 const radius = (body: string) => {
   const match = body.match(/(?:^|;)\s*border-radius\s*:\s*([^;]+)/);

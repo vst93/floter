@@ -20,19 +20,12 @@ import test from "node:test";
 
 import { selectionTextIn } from "../src/launcher/plugin-text-copy.ts";
 import { createTranslator } from "../src/i18n.ts";
+import { rules } from "./css.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripJsComments = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
 
 /** Every rule body in one sheet whose selector is exactly `selector`. */
 const bodiesFor = (css: string, selector: string) =>

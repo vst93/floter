@@ -34,19 +34,12 @@ import {
   packedHex,
   terminalCanvasFill,
 } from "../src/terminal/terminal-appearance.ts";
+import { rules } from "./css.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripJsComments = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
 
 /** Every rule body whose selector list contains `selector` as one part. */
 const bodiesFor = (css: string, selector: string) =>

@@ -33,28 +33,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { decl, ruleFor, rules } from "./css.ts";
+
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 const stripCssComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 const stripJsComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-
-const rules = (css: string) => {
-  const out: { selector: string; body: string }[] = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    out.push({ selector: match[1].trim().replace(/\s+/g, " "), body: match[2] });
-  }
-  return out;
-};
-
-const ruleFor = (css: string, selector: string) => {
-  const rule = rules(css).find(({ selector: s }) => s.split(",").map((p) => p.trim()).includes(selector));
-  assert.ok(rule, `${selector} must be defined`);
-  return rule!.body;
-};
-
-const decl = (body: string, property: string) =>
-  body.match(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`))?.[1].trim() ?? null;
 
 const settings = async () => stripCssComments(await read("src/styles/settings.css"));
 const sessionsPage = async () => stripJsComments(await read("src/settings/SessionsPage.tsx"));
