@@ -184,6 +184,10 @@ struct AppState {
     /// cold-start contract as `pending_deep_link`, with its own cell because
     /// the payload shape differs (a resolved candidate, not a manifest path).
     pending_deep_link_register: Mutex<Option<deep_link::RegisterRequest>>,
+    /// R84 · the plugin run the detached window should show, parked before the
+    /// window exists (the pull-slot contract `pending_plugin_open` and
+    /// `pending_deep_link` already use) and taken by the page on mount.
+    pending_plugin_window_request: Mutex<Option<DetachRequest>>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
     /// no cursor position at all, so remembering where the panel was dismissed
@@ -1183,6 +1187,109 @@ fn refocus_webview(window: WebviewWindow) -> Result<(), String> {
     webview.set_focus().map_err(|error| error.to_string())
 }
 
+/// R84 · the detached plugin window.
+///
+/// The user's ask: 「插件页面可以独立固定在界面上而不自动消失……脱离原来的整个
+/// 软件主体，不再跟随呼出和隐藏」— a real second window a plugin page can be
+/// pinned into, which the launcher's summon/hide lifecycle never touches.
+///
+/// Delivery uses the established pull-slot contract (`pending_plugin_open`,
+/// `pending_deep_link`): the request is parked in `AppState` *before* the
+/// window exists, the detached page pulls it on mount. A live window gets the
+/// `plugin-detach-request` emit on top, so a second detach replaces its
+/// content without rebuilding anything. The emit alone could race the
+/// window's first listener; the slot cannot, and the slot is the truth.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetachRequest {
+    pub extension_id: String,
+    pub command_id: String,
+    pub command_label: String,
+    pub args: Vec<String>,
+}
+
+impl DetachRequest {
+    /// A request is only as good as its routing truth: the command id. Empty
+    /// ids and labels are refused here as well as in the frontend's
+    /// `validateDetachRequest` — the two sides share the convention, neither
+    /// trusts the other.
+    fn valid(&self) -> bool {
+        !self.extension_id.trim().is_empty()
+            && !self.command_id.trim().is_empty()
+            && !self.command_label.trim().is_empty()
+    }
+}
+
+/// The detached window's label. The capability file
+/// (`capabilities/plugin-detached.json`), the frontend branch in `main.tsx`
+/// (via its own `PLUGIN_WINDOW_LABEL`) and this builder all name it; a rename
+/// must touch all three and the tests pin two of them.
+pub const PLUGIN_WINDOW_LABEL: &str = "plugin-detached";
+
+/// Park the request and open (or refresh) the detached window. Idempotent on
+/// purpose: detaching while the window is already up replaces the content.
+#[tauri::command]
+fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), String> {
+    if !request.valid() {
+        return Err("detach request: missing extension, command or label".into());
+    }
+    let state = app.state::<AppState>();
+    if let Ok(mut slot) = state.pending_plugin_window_request.lock() {
+        *slot = Some(request);
+    }
+    if let Some(existing) = app.get_webview_window(PLUGIN_WINDOW_LABEL) {
+        let _ = existing.emit("plugin-detach-request", ());
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    let title = state
+        .pending_plugin_window_request
+        .lock()
+        .ok()
+        .and_then(|slot| slot.as_ref().map(|pending| pending.command_label.clone()))
+        .unwrap_or_else(|| "floter plugin".to_string());
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        PLUGIN_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title(title)
+    .inner_size(720.0, 480.0)
+    .min_inner_size(360.0, 240.0)
+    .resizable(true)
+    .skip_taskbar(false)
+    .build()
+    .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// The detached page pulls its run request here (mount, and again whenever a
+/// `plugin-detach-request` emit nudges it). Read-and-clear: a remount never
+/// re-runs a command the user already consumed.
+#[tauri::command]
+fn take_plugin_window_request(
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<DetachRequest>, String> {
+    let mut slot = state
+        .pending_plugin_window_request
+        .lock()
+        .map_err(|error| error.to_string())?;
+    Ok(slot.take())
+}
+
+/// Close the detached window and drop any request still parked. Called by the
+/// window's own close button; the launcher's lifecycle never calls this.
+#[tauri::command]
+fn close_plugin_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(PLUGIN_WINDOW_LABEL) {
+        let _ = window.close();
+    }
+    if let Ok(mut slot) = app.state::<AppState>().pending_plugin_window_request.lock() {
+        *slot = None;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn show_input(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
@@ -1409,6 +1516,7 @@ pub fn run() {
             pending_plugin_open: Mutex::new(None),
             pending_deep_link: Mutex::new(None),
             pending_deep_link_register: Mutex::new(None),
+            pending_plugin_window_request: Mutex::new(None),
             last_monitor: Mutex::new(None),
         });
     #[cfg(feature = "clipboard-history")]
@@ -1705,6 +1813,9 @@ pub fn run() {
             hide_window,
             quit_app,
             show_input,
+            detach_plugin_window,
+            take_plugin_window_request,
+            close_plugin_window,
             refocus_webview,
             start_drag,
             system_power,
@@ -1904,5 +2015,94 @@ mod interface_scale_height_tests {
             !function.contains("INPUT_WINDOW_WIDTH"),
             "the fallback *height* must not read the width constant"
         );
+    }
+}
+
+#[cfg(test)]
+mod detach_plugin_window_tests {
+    use std::sync::Mutex;
+
+    use super::{AppState, DetachRequest, PLUGIN_WINDOW_LABEL};
+
+    /// R84 · the same request the frontend's `validateDetachRequest` accepts is
+    /// the one the backend's own gate lets through, and anything with an empty
+    /// routing truth is refused on both sides. Pinned here so the window cannot
+    /// be opened into a state it cannot run.
+    #[test]
+    fn a_request_without_its_routing_truth_is_refused() {
+        let base = |command_id: &str| DetachRequest {
+            extension_id: "local.tool".into(),
+            command_id: command_id.into(),
+            command_label: "My Tool".into(),
+            args: vec!["--flag".into()],
+        };
+        assert!(base("run").valid());
+        assert!(!base("").valid());
+        assert!(!base("   ").valid());
+        let mut no_label = base("run");
+        no_label.command_label = String::new();
+        assert!(!no_label.valid());
+        let mut no_extension = base("run");
+        no_extension.extension_id = String::new();
+        assert!(!no_extension.valid());
+    }
+
+    /// R84 · the pull-slot contract: the parked request is handed over exactly
+    /// once, a second read sees `None`, a replacement overwrites the old one,
+    /// and a clear empties it. These are the exact semantics the detached
+    /// page's mount pull and the close command rely on.
+    #[test]
+    fn the_pending_request_slot_hands_over_exactly_once() {
+        let state = AppState {
+            window_visible: std::sync::atomic::AtomicBool::new(false),
+            terminal_mode: std::sync::atomic::AtomicBool::new(false),
+            terminal_height: Mutex::new(0.0),
+            tray_items: Mutex::new(None),
+            toggle_shortcut: Mutex::new(String::new()),
+            custom_shortcuts: Mutex::new(Vec::new()),
+            pending_plugin_open: Mutex::new(None),
+            pending_deep_link: Mutex::new(None),
+            pending_deep_link_register: Mutex::new(None),
+            pending_plugin_window_request: Mutex::new(None),
+            last_monitor: Mutex::new(None),
+        };
+        let parked = DetachRequest {
+            extension_id: "local.tool".into(),
+            command_id: "run".into(),
+            command_label: "My Tool".into(),
+            args: vec![],
+        };
+        {
+            let mut slot = state.pending_plugin_window_request.lock().unwrap();
+            *slot = Some(parked.clone());
+        }
+        {
+            let mut slot = state.pending_plugin_window_request.lock().unwrap();
+            assert_eq!(slot.take().as_ref(), Some(&parked));
+            assert!(slot.take().is_none());
+            *slot = Some(DetachRequest {
+                extension_id: "local.other".into(),
+                command_id: "again".into(),
+                command_label: "Other".into(),
+                args: vec!["x".into()],
+            });
+        }
+        {
+            let mut slot = state.pending_plugin_window_request.lock().unwrap();
+            let replaced = slot.take().unwrap();
+            assert_eq!(replaced.command_id, "again");
+            *slot = None;
+            assert!(slot.take().is_none());
+        }
+    }
+
+    /// R84 · the label is the branch three sides name (the Rust builder here,
+    /// the capability file, the frontend's render switch in `main.tsx`). The
+    /// builder's constant is pinned to the same literal the frontend's
+    /// `PLUGIN_WINDOW_LABEL` test pins, so a one-sided rename cannot compile
+    /// its half green.
+    #[test]
+    fn the_detached_label_is_the_literal_every_side_names() {
+        assert_eq!(PLUGIN_WINDOW_LABEL, "plugin-detached");
     }
 }

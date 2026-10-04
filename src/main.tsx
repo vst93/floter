@@ -1,4 +1,19 @@
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />);
+import App from "./App";
+import DetachedPluginApp from "./plugin-window/DetachedPluginApp";
+import { PLUGIN_WINDOW_LABEL } from "./plugin-window/detach";
+
+// R84 · one bundle, two windows. The launcher card (`main`) keeps the whole
+// App; the detached plugin window (`plugin-detached`, built by
+// `detach_plugin_window` in lib.rs) renders only the pinned run's view. The
+// label is the branch the Rust side names when it builds the window, so the
+// two sides cannot disagree without a test noticing (see plugin-window.test.ts
+// and the capability file).
+const label = getCurrentWindow().label;
+
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  label === PLUGIN_WINDOW_LABEL ? <DetachedPluginApp /> : <App />,
+);
+

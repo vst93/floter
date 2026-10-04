@@ -37,6 +37,15 @@ const en = {
   "launcher.externalRunning": "Running…",
   "launcher.externalFailed": "The command could not run",
   "launcher.externalEmpty": "The command produced no output",
+  // R84 · the detached plugin window. The pin button rides the plugin page
+  // (title tooltip), the rest are the second window's own chrome.
+  "pluginWindow.detach": "Pin to its own window",
+  "pluginWindow.detachHint": "Open this output in a window that stays put",
+  "pluginWindow.rerun": "Rerun",
+  "pluginWindow.close": "Close",
+  "pluginWindow.idle": "No command pinned yet",
+  "pluginWindow.copied": "Copied",
+  "pluginWindow.fallbackTitle": "floter plugin",
   // R29 · the plugin list's pagination footer.
   "launcher.pluginLoadingMore": "Loading more…",
   "launcher.pluginEnd": "No more results",
@@ -892,6 +901,14 @@ const zh: Record<MessageKey, string> = {
   "launcher.externalRunning": "正在执行…",
   "launcher.externalFailed": "命令无法执行",
   "launcher.externalEmpty": "命令没有输出",
+  // R84 · 插件独立子窗口：钉住按钮的提示与第二窗口自身的界面文案。
+  "pluginWindow.detach": "固定到独立窗口",
+  "pluginWindow.detachHint": "在独立窗口中打开这份输出，不再随主面板消失",
+  "pluginWindow.rerun": "重新执行",
+  "pluginWindow.close": "关闭",
+  "pluginWindow.idle": "尚未固定任何命令",
+  "pluginWindow.copied": "已复制",
+  "pluginWindow.fallbackTitle": "floter 插件",
   // R29 · 插件列表底部的分页状态。
   "launcher.pluginLoadingMore": "正在加载…",
   "launcher.pluginEnd": "没有更多结果",

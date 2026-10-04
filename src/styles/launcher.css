@@ -1684,3 +1684,131 @@
     transform: rotate(360deg);
   }
 }
+
+/* ── R84 · the detached plugin window ────────────────────────────────────
+   The pinned window's chrome: an opaque glass panel (it is a real window, not
+   the launcher's floating card, so it carries its own background instead of
+   letting the desktop through), a slim header bar with the command's name and
+   its two controls, and the dual-form body. Sits in launcher.css because the
+   bundle-level import reaches both windows (App.tsx imports it for `main`,
+   and the detached window is the same bundle). */
+
+.plugin-window {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  background: var(--surface-opaque);
+  color: var(--text-primary);
+}
+
+.plugin-window__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 8);
+  padding: calc(var(--u) * 10) calc(var(--u) * 14);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.plugin-window__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.plugin-window__bar-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 6);
+}
+
+.plugin-window__bar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--u) * 4) calc(var(--u) * 10);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-caption);
+  font-family: inherit;
+  cursor: pointer;
+  transition: color var(--dur-2) ease, background var(--dur-2) ease;
+}
+
+.plugin-window__bar-button:hover:not(:disabled) {
+  color: var(--text-secondary);
+  background: var(--glass-control-hover);
+}
+
+.plugin-window__bar-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plugin-window__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: calc(var(--u) * 14);
+}
+
+.plugin-window__status {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.plugin-window__status--failed {
+  color: var(--text-warning);
+}
+
+.plugin-window__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 4);
+}
+
+.plugin-window__row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 8) calc(var(--u) * 10);
+  border-radius: var(--radius-sm);
+  /* Neutral control fill, not an accent wash: the pinned list is content, not
+     a tinted action (the accent-budget census counts resting fills). */
+  background: var(--glass-control);
+}
+
+.plugin-window__row-title {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--text-strong);
+}
+
+.plugin-window__row-subtitle {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.plugin-window__notice {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: calc(var(--u) * 6) calc(var(--u) * 14);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  background: var(--surface-scrim);
+}

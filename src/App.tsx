@@ -99,6 +99,13 @@ import { pluginViewInteractive, pluginViewPage, pluginViewRows } from "./launche
 import { listSectionTitleCount } from "./launcher/list-sections";
 import { pluginFilterRowVisible } from "./launcher/filter-row";
 import { useFileDrops } from "./hooks/useFileDrops";
+// R84 · the pin (detach) affordance and its pure rules. The validate call
+// guards the invoke; the blur rule refactor lands in the focus effect below.
+import {
+  hideOnBlurApplies,
+  validateDetachRequest,
+} from "./plugin-window/detach";
+import { Pin } from "lucide-react";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
   LAUNCHER_STATUS_UNITS,
@@ -914,6 +921,25 @@ export default function App() {
         setExternalRun({ status: "failed", message: String(error) });
       });
   }, [externalMode]);
+
+  /**
+   * R84 · pin (detach) the current plugin page into its own window. The
+   * request is the command + the field's argv as-is — the detached window
+   * runs its own copy, so the launcher field keeps its state and the pin
+   * never disturbs the page it came from. Validation failure is silent by
+   * design: the button only renders where a real command backs the page.
+   */
+  const detachPluginWindow = useCallback(() => {
+    if (!externalMode || !externalCommand) return;
+    const request = validateDetachRequest({
+      extensionId: externalMode.extensionId,
+      commandId: externalMode.commandId,
+      commandLabel: externalCommand.name,
+      args: splitPluginCommandArgs(externalMode.args),
+    });
+    if (!request) return;
+    invoke("detach_plugin_window", { request }).catch(() => undefined);
+  }, [externalMode, externalCommand]);
 
   // R35 · the page-residency clock. It is the one place that answers "may the
   // app throw this surface away on its own?". Entering a surface (a plugin
@@ -2603,7 +2629,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!settings.hide_on_blur) return;
+    if (!hideOnBlurApplies(getCurrentWindow().label, settings.hide_on_blur)) return;
 
     const currentWindow = getCurrentWindow();
     let mounted = true;
@@ -3288,6 +3314,29 @@ export default function App() {
                 </svg>
               </button>
                 </>
+              )}
+              {launcherScope === "external" && externalCommand && (
+                // R84 · the pin. Puts the plugin page's command + current argv
+                // into its own window that never follows the launcher's
+                // summon/hide — the user's 「独立固定、不自动消失」. Sits inside
+                // the field row, after the ternary, so both branches keep their
+                // original trailing sets and the pin is additive only.
+                <button
+                  type="button"
+                  className="collapsed-card__settings"
+                  aria-label={t("pluginWindow.detach")}
+                  title={t("pluginWindow.detachHint")}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    detachPluginWindow();
+                  }}
+                >
+                  <Pin size={16} strokeWidth={1.8} aria-hidden="true" />
+                </button>
               )}
             </div>
             {/* R32 · the browser mode's range filter. A compact subline under
