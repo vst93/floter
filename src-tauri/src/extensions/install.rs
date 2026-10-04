@@ -3947,7 +3947,7 @@ mod tests {
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("reprober.sh");
-            crate::extensions::test_support::stage_fixture("reprober-tool.sh", &path);
+            crate::extensions::test_support::stage_fixture("reprober-tool-v1.sh", &path);
             path
         };
         create_custom_integration(
@@ -3992,22 +3992,7 @@ mod tests {
         );
 
         // The tool upgrade: its subcommand help now exposes an extra flag.
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "if [ \"$1\" = \"--help\" ]; then\n",
-                "printf 'Available Plugins\\nalpha 1.0.0 (aliases: al)\\n    First gadget\\n'\n",
-                "exit 0\n",
-                "fi\n",
-                "if [ \"$1\" = \"alpha\" ]; then\n",
-                "printf 'Options:\\n  -f         Format output\\n  -x, --extra   Extra thing\\n'\n",
-                "exit 0\n",
-                "fi\n",
-                "echo done\n"
-            ),
-        )
-        .unwrap();
+        crate::extensions::test_support::stage_fixture("reprober-tool-v2.sh", &executable);
 
         let report = super::reprobe_tool_commands(&state, "local.reprober-test")
             .await
@@ -4056,7 +4041,7 @@ mod tests {
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("enabler.sh");
-            crate::extensions::test_support::stage_fixture("enabler-tool.sh", &path);
+            crate::extensions::test_support::stage_fixture("enabler-tool-v1.sh", &path);
             path
         };
         create_custom_integration(
@@ -4089,18 +4074,7 @@ mod tests {
             .join("provider-description.json");
 
         set_enabled_for_test(&state, "local.enabler-test", false).await;
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "if [ \"$1\" = \"--help\" ]; then\n",
-                "printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'\n",
-                "exit 0\n",
-                "fi\n",
-                "echo done\n"
-            ),
-        )
-        .unwrap();
+        crate::extensions::test_support::stage_fixture("enabler-tool-v2.sh", &executable);
         set_enabled_for_test(&state, "local.enabler-test", true).await;
         let entry = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
