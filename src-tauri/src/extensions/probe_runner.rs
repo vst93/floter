@@ -152,7 +152,6 @@ async fn read_output(
 mod cleanup_tests {
     use super::*;
     use std::fs;
-    use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
 
@@ -169,14 +168,7 @@ mod cleanup_tests {
             let executable = directory.path().join("provider-cleanup.sh");
             let parent_pid = directory.path().join("parent.pid");
             let child_pid = directory.path().join("child.pid");
-            fs::write(
-                &executable,
-                "#!/bin/sh\n\nif [ \"$1\" = immediate ]; then exit 0; fi\nprintf '%s\\n' \"$$\" > \"$1\"\n(sleep 30) &\nprintf '%s\\n' \"$!\" > \"$2\"\ntrap '' TERM INT\nwhile :; do sleep 1; done\n",
-            )
-            .unwrap();
-            let mut permissions = fs::metadata(&executable).unwrap().permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(&executable, permissions).unwrap();
+            crate::extensions::test_support::stage_fixture("provider-cleanup.sh", &executable);
             Self {
                 _directory: directory,
                 executable,

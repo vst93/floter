@@ -792,23 +792,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn background_run_captures_both_streams_and_records_the_output() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("runner.sh");
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "echo 'hello from stdout'\n",
-                "echo 'and stderr' >&2\n",
-                "exit 3\n"
-            ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-capture.sh", &executable);
 
         let id = "local.runner";
         let entry = crate::extensions::install::create_custom_integration_for_test(
@@ -861,14 +849,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn plugin_command_registry_and_runner_read_the_provider_table() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("echoer.sh");
-        std::fs::write(&executable, "#!/bin/sh\nprintf 'args:%s\\n' \"$*\"\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-args.sh", &executable);
 
         let id = "local.echoer";
         let entry = crate::extensions::install::create_custom_integration_for_test(
@@ -988,8 +973,6 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn terminal_run_stacks_prefix_then_parameters_in_one_argv() {
-        use std::os::unix::fs::PermissionsExt;
-
         // The one argv shape the run can produce, end to end:
         // `executable_prefix ++ args_prefix ++ <param flag> ++ <param value>`.
         // Every element is a separate item and the params land AFTER the
@@ -998,8 +981,7 @@ mod tests {
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("order.sh");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         let mut target = param("target", ParamKind::Text);
         target.flag = Some("--target".into());
@@ -1056,14 +1038,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn terminal_run_returns_a_resolvable_protected_plan_without_argv() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("term.sh");
-        std::fs::write(&executable, "#!/bin/sh\necho terminal\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-terminal.sh", &executable);
 
         let id = "local.terminal";
         crate::extensions::install::create_custom_integration_for_test(
@@ -1308,8 +1287,6 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn background_run_passes_arguments_as_separate_argv_items_not_a_shell_string() {
-        use std::os::unix::fs::PermissionsExt;
-
         // The injection defense. Every argument below is a shell word that
         // WOULD change meaning if the argv were ever joined into one string:
         // a space-separated pair, a command substitution, and a `;` chain.
@@ -1327,15 +1304,7 @@ mod tests {
             .path()
             .join("shell-would-have-touched-this");
         let executable = script_directory.path().join("argv.sh");
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "for arg in \"$@\"; do printf '[%s]\\n' \"$arg\"; done\n"
-            ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-argv.sh", &executable);
 
         let hostile = vec![
             "a b".to_string(),
@@ -1399,8 +1368,6 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn background_run_passes_parameter_values_as_separate_argv_items() {
-        use std::os::unix::fs::PermissionsExt;
-
         // The run-time half of the injection defense: a value a user typed into
         // the parameter form is a single argv item, even when it is a shell
         // word. The declared parameter has a flag, so the process must receive
@@ -1415,15 +1382,7 @@ mod tests {
         let script_directory = tempfile::tempdir().unwrap();
         let marker = script_directory.path().join("param-shell-marker");
         let executable = script_directory.path().join("params.sh");
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "for arg in \"$@\"; do printf '[%s]\\n' \"$arg\"; done\n"
-            ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-argv.sh", &executable);
 
         let hostile_value = format!("$(touch {}) ; rm -rf / with spaces", marker.display());
         let mut target = param("target", ParamKind::Text);
@@ -1629,14 +1588,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn a_run_hands_the_child_the_shared_search_path() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("env.sh");
-        std::fs::write(&executable, "#!/bin/sh\nprintf '%s' \"$PATH\"\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-env.sh", &executable);
 
         let id = "local.env";
         crate::extensions::install::create_custom_integration_for_test(
@@ -1761,8 +1717,6 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn a_second_concurrent_run_of_the_same_integration_is_refused() {
-        use std::os::unix::fs::PermissionsExt;
-
         // End to end: the first run is still executing (it sleeps) when the
         // second request arrives for the same id, so the second is refused
         // with the stable key. Mutation: drop the `begin_run` call in `run`
@@ -1771,8 +1725,7 @@ mod tests {
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("slow.sh");
-        std::fs::write(&executable, "#!/bin/sh\nsleep 1\necho done\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("run-slow.sh", &executable);
 
         let id = "local.slow";
         crate::extensions::install::create_custom_integration_for_test(

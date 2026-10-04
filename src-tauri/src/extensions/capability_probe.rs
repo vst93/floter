@@ -304,20 +304,7 @@ mod tests {
 
     #[cfg(not(windows))]
     fn write_fixture_script(path: &Path) {
-        use std::os::unix::fs::PermissionsExt;
-        let script = r#"#!/bin/sh
-case "$1" in
-  --version)  echo "floter-tool 1.2.3"; exit 0 ;;
-  --help)     echo "Usage: floter-tool [options]"; exit 0 ;;
-  --features) echo "json markdown"; exit 0 ;;
-  --defunct)  echo "not supported"; exit 3 ;;
-  *) echo "unknown flag: $1" >&2; exit 1 ;;
-esac
-"#;
-        fs::write(path, script).unwrap();
-        let mut permissions = fs::metadata(path).unwrap().permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(path, permissions).unwrap();
+        crate::extensions::test_support::stage_fixture("capability-probe-tool.sh", path);
     }
 
     #[cfg(windows)]
@@ -447,18 +434,10 @@ exit /b 1
     #[cfg(unix)]
     #[tokio::test]
     async fn scan_timeout_kills_the_real_probe_process() {
-        use std::os::unix::fs::PermissionsExt;
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("capability-timeout.sh");
         let pid_file = directory.path().join("probe.pid");
-        fs::write(
-            &executable,
-            "#!/bin/sh\nprintf '%s\\n' \"$$\" > \"$1\"\ntrap '' TERM\nwhile :; do sleep 1; done\n",
-        )
-        .unwrap();
-        let mut permissions = fs::metadata(&executable).unwrap().permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(&executable, permissions).unwrap();
+        crate::extensions::test_support::stage_fixture("capability-timeout.sh", &executable);
 
         let scanner = CapabilityScanner::new(&executable);
         let result = scanner

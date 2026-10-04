@@ -709,6 +709,31 @@ impl ExecutionPlanCache {
     }
 }
 
+/// Shared test-only helpers for the `extensions` module tree.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::path::Path;
+
+    /// Stage a committed, read-only fixture at `destination`.
+    ///
+    /// `3ace35b` fixed an ETXTBSY flake whose cause was exec'ing a file the
+    /// test had just written: a child forked by another test inherits the
+    /// write fd and holds it until its own exec, so exec'ing a freshly written
+    /// inode races. Every executable these tests need is a committed fixture
+    /// under `tests/fixtures/` — the test stages those bytes and chmods them,
+    /// and never authors the script text itself.
+    #[cfg(unix)]
+    pub(crate) fn stage_fixture(fixture: &str, destination: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(fixture);
+        std::fs::copy(&source, destination).unwrap();
+        std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

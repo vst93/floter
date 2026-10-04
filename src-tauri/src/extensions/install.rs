@@ -3213,12 +3213,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let executable = directory.path().join("findable");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         connect_tool(&state, discovered_candidate(&executable, "Findable"))
             .await
@@ -3244,12 +3239,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let executable = directory.path().join("mytool");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         let entry = connect_tool(&state, discovered_candidate(&executable, "MyTool"))
             .await
@@ -3282,12 +3272,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let executable = directory.path().join("v");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         let tools = crate::extensions::recommendations::load_recommended().unwrap();
         let tool = &tools[0];
@@ -3346,13 +3331,7 @@ mod tests {
         let first_bin = first;
         let second_bin = second.join("dup");
         for executable in [&first_bin, &second_bin] {
-            std::fs::write(executable, "#!/bin/sh\nexit 0\n").unwrap();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(executable, std::fs::Permissions::from_mode(0o755))
-                    .unwrap();
-            }
+            crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", executable);
         }
         let first_entry = connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
             .await
@@ -3385,22 +3364,14 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn a_path_connected_tool_is_eligible_for_version_drift_reprobe() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("drifting.sh");
-        let write = |payload: &str| {
-            std::fs::write(&executable, payload).unwrap();
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let write = |fixture: &str| {
+            crate::extensions::test_support::stage_fixture(fixture, &executable);
         };
-        write(concat!(
-            "#!/bin/sh\n",
-            "if [ \"$1\" = \"--version\" ]; then echo 'drifting 1.0.0'; exit 0; fi\n",
-            "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n'; exit 0; fi\n",
-            "exit 0\n"
-        ));
+        write("drifting-v1.sh");
 
         let entry = connect_tool(&state, discovered_candidate(&executable, "Drifting"))
             .await
@@ -3413,12 +3384,7 @@ mod tests {
         ));
 
         // Upstream upgrade: the same path now reports 2.0.0.
-        write(concat!(
-            "#!/bin/sh\n",
-            "if [ \"$1\" = \"--version\" ]; then echo 'drifting 2.0.0'; exit 0; fi\n",
-            "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
-            "exit 0\n"
-        ));
+        write("drifting-v2.sh");
 
         let changed =
             reprobe_on_tool_version_change(&state, &entry, &manifest_of(&state, &entry.id)).await;
@@ -3521,22 +3487,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn connecting_a_tool_records_its_real_version() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("versioned.sh");
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "if [ \"$1\" = \"--version\" ]; then echo 'versioned 4.2.0'; exit 0; fi\n",
-                "exit 0\n"
-            ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("versioned-tool.sh", &executable);
 
         let entry = create_custom_integration(
             &state,
@@ -3579,22 +3534,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn connecting_a_tool_without_a_parseable_version_keeps_the_fallback() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("unversioned.sh");
-        std::fs::write(
-            &executable,
-            concat!(
-                "#!/bin/sh\n",
-                "if [ \"$1\" = \"--version\" ]; then echo 'no version here'; exit 0; fi\n",
-                "exit 0\n"
-            ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("unversioned-tool.sh", &executable);
 
         let entry = create_custom_integration(
             &state,
@@ -3629,14 +3573,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn connecting_a_tool_uses_the_inferred_description() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("described.sh");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         let entry = create_custom_integration(
             &state,
@@ -3688,14 +3629,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn connecting_a_tool_without_a_description_keeps_the_fallback() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("plain.sh");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         let entry = create_custom_integration(
             &state,
@@ -3801,30 +3739,8 @@ mod tests {
         // the exclusion logic is exercised through the real pipeline.
         #[cfg(not(windows))]
         let executable = {
-            use std::os::unix::fs::PermissionsExt;
             let path = script_directory.path().join("demo-tool.sh");
-            std::fs::write(
-                &path,
-                concat!(
-                    "#!/bin/sh\n",
-                    "if [ \"$1\" = \"--help\" ]; then\n",
-                    "cat <<'EOF'\n",
-                    "Usage: demo-tool [options]\n",
-                    "\n",
-                    "Options:\n",
-                    "  -o, --output <FILE>    Write result to FILE\n",
-                    "      --verbose          Enable verbose logging\n",
-                    "  -h, --help             Show this help\n",
-                    "EOF\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "echo done\n"
-                ),
-            )
-            .unwrap();
-            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
-            permissions.set_mode(0o755);
-            std::fs::set_permissions(&path, permissions).unwrap();
+            crate::extensions::test_support::stage_fixture("demo-tool-help.sh", &path);
             path
         };
         #[cfg(windows)]
@@ -3894,48 +3810,12 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn connected_tool_exposes_subcommands_with_aliases_and_probed_flags() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("subber.sh");
-            std::fs::write(
-                &path,
-                concat!(
-                    "#!/bin/sh\n",
-                    "if [ \"$1\" = \"--help\" ]; then\n",
-                    "cat <<'EOF'\n",
-                    "subber - Gadgets under the terminal\n",
-                    "Version: dev  🏠 https://example.com/subber\n",
-                    "\n",
-                    "Available Plugins\n",
-                    "==================================================\n",
-                    "📦 alpha 1.0.0 👤 vst  (aliases: al)\n",
-                    "  First gadget does things\n",
-                    "📦 beta 0.2.0 👤 vst\n",
-                    "  Second gadget does other things\n",
-                    "\n",
-                    "Run subber <command> -h for detailed help.\n",
-                    "EOF\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "if [ \"$1\" = \"alpha\" ]; then\n",
-                    "printf 'Modes:\\n  -f         Format (pretty-print)\\nOptions:\\n  -sort   Sort object keys alphabetically\\n'\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "if [ \"$1\" = \"beta\" ]; then\n",
-                    "printf 'Options:\\n  -raw   Disable colored output\\n'\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "echo done\n"
-                ),
-            )
-            .unwrap();
-            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
-            permissions.set_mode(0o755);
-            std::fs::set_permissions(&path, permissions).unwrap();
+            crate::extensions::test_support::stage_fixture("subber-tool.sh", &path);
             path
         };
         create_custom_integration(
@@ -4062,32 +3942,12 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn reprobe_picks_up_modified_subcommand_help_and_refreshes_the_sidecar() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("reprober.sh");
-            std::fs::write(
-                &path,
-                concat!(
-                    "#!/bin/sh\n",
-                    "if [ \"$1\" = \"--help\" ]; then\n",
-                    "printf 'Available Plugins\\nalpha 1.0.0 (aliases: al)\\n    First gadget\\n'\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "if [ \"$1\" = \"alpha\" ]; then\n",
-                    "printf 'Options:\\n  -f         Format output\\n'\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "echo done\n"
-                ),
-            )
-            .unwrap();
-            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
-            permissions.set_mode(0o755);
-            std::fs::set_permissions(&path, permissions).unwrap();
+            crate::extensions::test_support::stage_fixture("reprober-tool.sh", &path);
             path
         };
         create_custom_integration(
@@ -4191,28 +4051,12 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn enable_reprobe_picks_up_new_flags_and_survives_a_deleted_executable() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("enabler.sh");
-            std::fs::write(
-                &path,
-                concat!(
-                    "#!/bin/sh\n",
-                    "if [ \"$1\" = \"--help\" ]; then\n",
-                    "printf 'Options:\\n  -old   Old flag\\n'\n",
-                    "exit 0\n",
-                    "fi\n",
-                    "echo done\n"
-                ),
-            )
-            .unwrap();
-            let mut permissions = std::fs::metadata(&path).unwrap().permissions();
-            permissions.set_mode(0o755);
-            std::fs::set_permissions(&path, permissions).unwrap();
+            crate::extensions::test_support::stage_fixture("enabler-tool.sh", &path);
             path
         };
         create_custom_integration(
@@ -4326,31 +4170,28 @@ mod tests {
                 "Drifter Test",
                 "drifter-test",
                 "drifter.sh",
-                DRIFTER_V1,
+                "drifter-v1.sh",
                 recorded_version,
             )
             .await
         }
 
-        /// Same fixture with a caller-chosen payload, for tests that need the
-        /// upstream help to change *shape* (not just flags) so the derived
-        /// command count moves.
+        /// Same fixture with a caller-chosen committed payload, for tests that
+        /// need the upstream help to change *shape* (not just flags) so the
+        /// derived command count moves.
         async fn with_payload(
             id: &str,
             name: &str,
             command: &str,
             script: &str,
-            v1: &str,
+            fixture: &str,
             recorded_version: Option<&str>,
         ) -> Self {
-            use std::os::unix::fs::PermissionsExt;
-
             let directory = tempfile::tempdir().unwrap();
             let state = test_state(directory.path());
             let script_directory = tempfile::tempdir().unwrap();
             let executable = script_directory.path().join(script);
-            std::fs::write(&executable, v1).unwrap();
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+            crate::extensions::test_support::stage_fixture(fixture, &executable);
             create_custom_integration(
                 &state,
                 CustomIntegrationRequest {
@@ -4394,19 +4235,16 @@ mod tests {
             }
         }
 
-        /// Overwrite the bound executable with an arbitrary payload — the
+        /// Overwrite the bound executable with a committed payload — the
         /// upstream upgrade the list must notice.
-        fn upgrade_to(&self, payload: &str) {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::write(&self.executable, payload).unwrap();
-            std::fs::set_permissions(&self.executable, std::fs::Permissions::from_mode(0o755))
-                .unwrap();
+        fn upgrade_to(&self, fixture: &str) {
+            crate::extensions::test_support::stage_fixture(fixture, &self.executable);
         }
 
         /// Overwrite the bound executable with the v2 payload (version 2.0.0,
         /// extra `-new` flag) — the upstream upgrade the list must notice.
         fn upgrade_to_v2(&self) {
-            self.upgrade_to(DRIFTER_V2);
+            self.upgrade_to("drifter-v2.sh");
         }
 
         fn entry(&self) -> ExtensionLockEntry {
@@ -4433,42 +4271,6 @@ mod tests {
             assert!(self.state.provider_commands.has_cached_entry().await);
         }
     }
-
-    #[cfg(unix)]
-    const DRIFTER_V1: &str = concat!(
-        "#!/bin/sh\n",
-        "if [ \"$1\" = \"--version\" ]; then echo 'drifter 1.0.0'; exit 0; fi\n",
-        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n'; exit 0; fi\n",
-        "echo done\n",
-    );
-
-    #[cfg(unix)]
-    const DRIFTER_V2: &str = concat!(
-        "#!/bin/sh\n",
-        "if [ \"$1\" = \"--version\" ]; then echo 'drifter 2.0.0'; exit 0; fi\n",
-        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -old   Old flag\\n  -new   New flag\\n'; exit 0; fi\n",
-        "echo done\n",
-    );
-
-    /// v1 of a tool whose help lists *no* subcommands: one root command.
-    #[cfg(unix)]
-    const SUBCOMMAND_DRIFTER_V1: &str = concat!(
-        "#!/bin/sh\n",
-        "if [ \"$1\" = \"--version\" ]; then echo 'subber 1.0.0'; exit 0; fi\n",
-        "if [ \"$1\" = \"--help\" ]; then printf 'Options:\\n  -v   Verbose\\n'; exit 0; fi\n",
-        "echo done\n",
-    );
-
-    /// v2 of the same tool: its help now advertises one subcommand, so the
-    /// regenerated descriptor grows from one command to two — the "+1" the
-    /// one-shot notice exists to announce.
-    #[cfg(unix)]
-    const SUBCOMMAND_DRIFTER_V2: &str = concat!(
-        "#!/bin/sh\n",
-        "if [ \"$1\" = \"--version\" ]; then echo 'subber 2.0.0'; exit 0; fi\n",
-        "if [ \"$1\" = \"--help\" ]; then printf 'Available Plugins\\n==================================================\\n📦 alpha 1.0.0 👤 vst\\n  Alpha thing\\n'; exit 0; fi\n",
-        "echo done\n",
-    );
 
     /// The core G2 rule: a generated custom integration whose `tool_version`
     /// disagrees with the executable's current version is re-probed (descriptor
@@ -4566,24 +4368,15 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn failed_drift_reprobe_keeps_the_old_descriptor_and_never_breaks() {
-        use std::os::unix::fs::PermissionsExt;
-
         let fixture = DriftFixture::new(Some("drifter 1.0.0")).await;
         let before = std::fs::read(&fixture.descriptor_path).unwrap();
         // Upstream now reports 2.0.0 but its `--help` fails (non-zero, no
         // output): the file stays executable, so the version is still read and
         // the drift is detected — the re-probe itself is what fails.
-        std::fs::write(
+        crate::extensions::test_support::stage_fixture(
+            "drifter-failing-help.sh",
             &fixture.executable,
-            concat!(
-                "#!/bin/sh\n",
-                "if [ \"$1\" = \"--version\" ]; then echo 'drifter 2.0.0'; exit 0; fi\n",
-                "exit 2\n",
-            ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&fixture.executable, std::fs::Permissions::from_mode(0o755))
-            .unwrap();
+        );
 
         // The executable is still considered available, so the failure really
         // comes from the re-probe and not from an early `is_linked_executable`
@@ -4722,13 +4515,10 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn verify_installed_rejects_missing_static_runtime() {
-        use std::os::unix::fs::PermissionsExt;
-
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let executable = directory.path().join("verify-tool");
-        std::fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
         let entry = create_custom_integration(
             &state,
             CustomIntegrationRequest {
@@ -7315,7 +7105,7 @@ mod tests {
 
         let first = super::read_help_probe_record(&package_root).expect("sidecar exists");
         assert!(first.probed_at > 0, "a probe records its timestamp");
-        // DRIFTER_V1's help yields no subcommands, so the descriptor holds the
+        // drifter-v1.sh's help yields no subcommands, so the descriptor holds the
         // single root command.
         assert_eq!(first.command_count, Some(1));
         assert_eq!(
@@ -7426,7 +7216,7 @@ mod tests {
             "Subber Test",
             "subber-test",
             "subber.sh",
-            SUBCOMMAND_DRIFTER_V1,
+            "subcommand-drifter-v1.sh",
             Some("subber 1.0.0"),
         )
         .await;
@@ -7438,7 +7228,7 @@ mod tests {
                 sink.lock().unwrap().push(event.clone());
             }
         }));
-        fixture.upgrade_to(SUBCOMMAND_DRIFTER_V2);
+        fixture.upgrade_to("subcommand-drifter-v2.sh");
         assert!(
             super::reprobe_on_tool_version_change(
                 &fixture.state,
@@ -7474,7 +7264,7 @@ mod tests {
                 sink.lock().unwrap().push(event.clone());
             }
         }));
-        // DRIFTER_V2 only adds a flag: one command before, one after.
+        // drifter-v2.sh only adds a flag: one command before, one after.
         fixture.upgrade_to_v2();
         assert!(
             super::reprobe_on_tool_version_change(
