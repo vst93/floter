@@ -51,3 +51,10 @@
 4. **a11y 三兜底必须覆盖新表面**。`.app-toast`、`.settings-save-alert--toast` 等宿主表面已补进 RT（`--surface-opaque` + 去 blur）、IC（`--stroke-contrast` 描边/边框）、RM（`animation: none`）三个块；`tests/a11y-backstops.test.ts` 逐一断言 + 「宿主表里每个带 animation 的选择器都要在 RM 块里被 neutralize」的结构断言。**扫描范围是宿主目录 `src/styles/` + `src/extensions/`**（`ComponentizedUninstallDialog.css` 这类组件私有但消费宿主 token 的表也在内）。R76 删除了退役插件页及其宿主 chrome（`.plugin-page-host*` / `.clipboard-panel*`），扫描范围不再需要页边界例外。新增动画表面时必须同步三块。
 5. **浅色主题是「起步」不是完整设计**。真实调色板在 `[data-theme="light"]`（App.tsx 写入）；`@media (prefers-color-scheme: light) { html:not([data-theme]) { … } }` 是首帧兜底（`auto` 为默认，属性落盘前不能闪深色）。两个块的取值由 `tests/light-theme.test.ts` 钉死一致；MUST_COVER 清单（文字/表面/描边/accent/terminal 五组）必须全覆盖，palette-independent 清单（radius/type/duration/elev/step）不得重复。**可读性红线一句话**：light 下 primary/secondary/muted/accent 全部 ≥4.5:1（muted 本轮从 0.74 提到 0.78，复算 4.98:1 on recess、4.57:1 on hover 面，不再是 AA 正文边缘）。**未覆盖**：完整浅色设计、第三方案例、plugin page 自己的 light 媒体查询（其 `[data-theme="light"]` 已存在，只是没有 media-query 首帧兜底；页面自带 bootstrap 参数，首帧风险低）、窗台平台阴影的浅色微调。列为后续独立轮。
 6. **`--glass-raised-quiet` 是中性 raised pane**（暗= `--glass-control-hover`，亮同左），用于所有「选中/激活状态」以及同类状态/通知面（`.extension-status--recommended`、`.extension-health__tag`、`.extension-row__progress` 等）。`--glass-raised`（= accent tint）从此只留给真正的 accent pane（launcher 选中行、clipboard 选中行、sidebar 当前页）。旧的 `--glass-raised-quiet-rim` 因全仓零消费已删。
+
+## 独立窗口（detached plugin window）路线裁决（2026-10，R84-R86）
+
+- R84 `19acc29`：external 插件输出可钉独立窗口（label `plugin-detached`，二次 Pin 替换内容）；R85 `bdddb2b`：几何/位置持久化（拔副屏回退默认位、size 仍恢复）。
+- **内建模式 Pin 明确不做**：内建 iframe 页 R33 已退役（`plugin_pages.rs` 三处 `page:""` 且测试锁死），内建模式是交互式搜索 UI 非答案面；snapshot 便宜但无用（动作全丢），live 需为三数据源新建变更事件通道（触碰「不为边际功能新开通道」边界）。**Pin 保持 external-only。**
+- 多实例、设置广播：暂缓，触发条件见 R86 报告（`/tmp/floter-r86-report.md`）。
+- 若未来需要「钉住单条内容」：snapshot-text 最小切法（复用 `PluginTextView`，~80-120 行 / 3 文件，无新命令无事件，退役干净）。

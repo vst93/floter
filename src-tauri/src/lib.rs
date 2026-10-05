@@ -1082,54 +1082,6 @@ fn save_terminal_size(
     Ok(())
 }
 
-/// Geometry for a plugin HTML page.
-///
-/// A plugin page IS a terminal page: it occupies the very same window, sized
-/// by the exact same saved `terminal_width`/`terminal_height` pair the
-/// terminal mode uses, through the same clamp-and-resize machinery. One
-/// command serves every plugin — nothing here knows which page is showing.
-///
-/// Sizing ownership on this path lives entirely HERE. Entering plugin-page
-/// mode makes the frontend call this command and it never resizes the window
-/// itself while the page is up (see the `mode === "plugin"` branch of the
-/// mode effect in `App.tsx`); leaving goes back through the existing
-/// `show_input` / `show_terminal` restore paths. That single rule is what
-/// killed an old race where a stale `show_input` completion could shrink
-/// the window back to the launcher's height after the panel had sized up,
-/// leaving a long list unable to scroll inside a clipped corner.
-///
-/// The `terminal_mode` flag is deliberately left untouched: a plugin page is
-/// an overlay on whatever surface is underneath, so a later
-/// [`reveal_saved_mode`] still reopens that surface's dimensions.
-#[tauri::command]
-fn show_plugin_page(
-    window: WebviewWindow,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
-    let preserve_anchor = state.window_visible.load(Ordering::SeqCst);
-    let (width, height) = saved_terminal_size();
-    let (width, height) = terminal_size_for_monitor(&window, &state, width, height);
-    if let Ok(mut current) = state.terminal_height.lock() {
-        *current = height;
-    }
-    // Not edge-resizable while the page is up: there is no terminal grid to
-    // reflow, and the saved terminal size must stay exactly what the terminal
-    // mode left it at. On Wayland the lock has to come AFTER the resize (see
-    // [`set_panel_resizable`] — a locked window cannot be resized there at
-    // all), so the unlock happens first and the lock is restored below.
-    set_panel_resizable(&window, false)?;
-    resize_window(&window, width, height, preserve_anchor)?;
-    #[cfg(target_os = "linux")]
-    if on_wayland() {
-        let _ = window.set_resizable(false);
-    };
-    reveal_window(&window)?;
-    if !preserve_anchor {
-        let _ = move_to_default_position(&window, width, &state);
-    }
-    Ok(())
-}
-
 #[tauri::command]
 fn hide_window(window: WebviewWindow, state: tauri::State<'_, AppState>) -> Result<(), String> {
     remember_monitor(&window, &state);
@@ -1893,8 +1845,6 @@ pub fn run() {
             clipboard_write_text,
             clipboard_read_text,
             show_terminal,
-            show_plugin_page,
-            plugin_pages::plugin_page_descriptor,
             plugin_pages::builtin_plugins_list,
             plugin_pages::take_pending_plugin_page,
             deep_link::take_pending_deep_link,

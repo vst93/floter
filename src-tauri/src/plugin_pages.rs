@@ -155,38 +155,6 @@ pub(crate) fn descriptors() -> &'static [PluginPageDescriptor] {
     DESCRIPTORS
 }
 
-/// Wire shape returned to the frontend.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginPageInfo {
-    pub id: String,
-    pub title_key: String,
-    pub page: String,
-    pub allowed_commands: Vec<String>,
-}
-
-impl From<&'static PluginPageDescriptor> for PluginPageInfo {
-    fn from(descriptor: &'static PluginPageDescriptor) -> Self {
-        Self {
-            id: descriptor.id.to_string(),
-            title_key: descriptor.title_key.to_string(),
-            page: descriptor.page.to_string(),
-            allowed_commands: descriptor
-                .allowed_commands
-                .iter()
-                .map(|command| (*command).to_string())
-                .collect(),
-        }
-    }
-}
-
-#[tauri::command]
-pub fn plugin_page_descriptor(id: String) -> Result<PluginPageInfo, String> {
-    descriptor(&id)
-        .map(PluginPageInfo::from)
-        .ok_or_else(|| format!("Unknown plugin page: {id}"))
-}
-
 /// A registered base plugin as the extensions ecosystem shows it. `enabled`
 /// is the plugin's persisted state — for now one honest match arm per builtin
 /// plugin reading its settings field; external integrations would read their
