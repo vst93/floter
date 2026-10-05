@@ -2541,15 +2541,19 @@ pub async fn external_plugin_commands(
 /// `run::execute_plan_background`), so IPC never carries a shell string and no
 /// allowlist is extended. A command whose switch is off never reaches this
 /// call (the frontend gate); a command that does not exist is refused here.
+///
+/// R97 · the command takes no `cwd`: the working directory is a property of the
+/// manifest's `cwd_policy`, resolved in `launch`, never a caller-supplied string
+/// threaded straight to the spawn. Neither frontend call site passed one, so
+/// dropping the parameter closes the bypass without changing the wire shape.
 #[tauri::command]
 pub async fn external_plugin_run(
     state: State<'_, ExtensionState>,
     extension_id: String,
     command_id: String,
     args: Vec<String>,
-    cwd: Option<String>,
 ) -> Result<catalog::PluginCommandOutput, String> {
-    catalog::run_plugin_command(&state, &extension_id, &command_id, args, cwd.as_deref()).await
+    catalog::run_plugin_command(&state, &extension_id, &command_id, args).await
 }
 
 #[tauri::command]
@@ -2608,6 +2612,36 @@ mod tests {
         assert!(
             validate_id(&row.entry.id).is_err(),
             "the synthetic row key must never validate as an extension id"
+        );
+    }
+
+    /// R97 · `external_plugin_run` used to accept a caller-supplied `cwd` and
+    /// hand it straight to `catalog::run_plugin_command`, bypassing
+    /// `cwd_policy`. Neither frontend call site ever passed one, so the
+    /// parameter is gone and the command builds its plan with no override. This
+    /// pins the signature against its silent return: a `cwd` anywhere between
+    /// the function name and its return type fails.
+    #[test]
+    fn external_plugin_run_takes_no_caller_supplied_cwd() {
+        let source = include_str!("extensions.rs");
+        let code = source
+            .split("mod tests")
+            .next()
+            .expect("the module has a code section");
+        let start = code
+            .find("pub async fn external_plugin_run")
+            .expect("the command exists");
+        let signature = &code[start..];
+        let signature = &signature[..signature
+            .find("-> Result")
+            .expect("the command has a return type")];
+        assert!(
+            !signature.contains("cwd"),
+            "the command must not accept a cwd: the working directory is the manifest's cwd_policy"
+        );
+        assert!(
+            code.contains("catalog::run_plugin_command(&state, &extension_id, &command_id, args)"),
+            "the command calls run_plugin_command without a working directory"
         );
     }
 

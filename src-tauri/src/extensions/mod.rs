@@ -372,8 +372,33 @@ pub struct ExtensionState {
     /// Cancel token for the currently running long operation, if any.
     pub(crate) active_cancel: std::sync::Mutex<Option<operation::CancelToken>>,
     /// In-process progress listener used by unit tests (no AppHandle there).
-    progress_listener:
-        std::sync::Mutex<Option<Box<dyn Fn(operation::OperationProgress) + Send + 'static>>>,
+    /// Held behind an `Arc` so `emit_progress` can clone it out, drop the lock
+    /// guard, and only then run it: a listener that panics must not poison the
+    /// lock for every later `emit_progress`/`start_operation` call.
+    progress_listener: std::sync::Mutex<
+        Option<std::sync::Arc<dyn Fn(operation::OperationProgress) + Send + Sync + 'static>>,
+    >,
+}
+
+/// Lock one of [`ExtensionState`]'s operation mutexes, recovering the guard if
+/// a previous holder panicked (a `PoisonError`).
+///
+/// The guarded values are plain `Option`s and a `Box`-free listener handle, so
+/// the data is structurally sound after a panic; refusing every later call
+/// would turn one failure into a cascade. This is the same graceful-degradation
+/// stance as [`ExtensionState::check_cancelled`], which reports poisoning as an
+/// error instead of panicking.
+fn lock_or_recover<'a, T>(
+    lock: &'a std::sync::Mutex<T>,
+    what: &str,
+) -> std::sync::MutexGuard<'a, T> {
+    match lock.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::warn!("{what} lock poisoned; continuing with the last known value");
+            poisoned.into_inner()
+        }
+    }
 }
 
 #[derive(Default)]
@@ -542,12 +567,12 @@ impl ExtensionState {
         if let Some(app) = self.app_handle.get() {
             let _ = app.emit("extension-op-progress", &progress);
         }
-        if let Some(listener) = self
-            .progress_listener
-            .lock()
-            .expect("Progress lock poisoned")
-            .as_ref()
-        {
+        // Clone the listener out and release the lock *before* running it. The
+        // listener is caller code: if it panicked while we held the guard, the
+        // mutex would be poisoned and every later progress/cancel call would
+        // cascade the panic.
+        let listener = lock_or_recover(&self.progress_listener, "Progress").clone();
+        if let Some(listener) = listener {
             listener(progress);
         }
     }
@@ -576,26 +601,20 @@ impl ExtensionState {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(1);
         let id = format!("op-{}", COUNTER.fetch_add(1, Ordering::Relaxed));
-        *self.active_cancel.lock().expect("Cancel lock poisoned") =
-            Some(operation::CancelToken::new());
+        *lock_or_recover(&self.active_cancel, "Cancel") = Some(operation::CancelToken::new());
         id
     }
 
     /// Clear the active cancel token when an operation finishes (success,
     /// error, or cancellation).
     pub(crate) fn end_operation(&self, _operation_id: &str) {
-        *self.active_cancel.lock().expect("Cancel lock poisoned") = None;
+        *lock_or_recover(&self.active_cancel, "Cancel") = None;
     }
 
     /// Flip the active cancel token (if any) so the running operation stops
     /// at its next cancellation checkpoint.
     pub(crate) fn cancel_operation(&self, _operation_id: &str) {
-        if let Some(token) = self
-            .active_cancel
-            .lock()
-            .expect("Cancel lock poisoned")
-            .as_ref()
-        {
+        if let Some(token) = lock_or_recover(&self.active_cancel, "Cancel").as_ref() {
             token.cancel();
         }
     }
@@ -605,12 +624,10 @@ impl ExtensionState {
     #[cfg(test)]
     pub(crate) fn set_progress_listener(
         &self,
-        listener: Box<dyn Fn(operation::OperationProgress) + Send + 'static>,
+        listener: Box<dyn Fn(operation::OperationProgress) + Send + Sync + 'static>,
     ) {
-        *self
-            .progress_listener
-            .lock()
-            .expect("Progress lock poisoned") = Some(listener);
+        *lock_or_recover(&self.progress_listener, "Progress") =
+            Some(std::sync::Arc::from(listener));
     }
 
     /// Resolve (and persist) an executable binding, refreshing a same-path
@@ -963,6 +980,57 @@ mod tests {
         assert!(state.tool_lock.lock().unwrap().tools.is_empty());
         assert!(!root.join("tool-lock.json").exists());
         assert!(root.join("tool-lock.json.corrupt").exists());
+    }
+
+    /// R97 · `emit_progress` must run the listener with the listener lock
+    /// **released**. The listener is caller code; if it ran while the guard was
+    /// held, a panicking listener would poison the mutex and every later
+    /// progress/cancel call would cascade the panic. The guard watches the lock
+    /// from inside the listener: a failed `try_lock` there means the guard was
+    /// still held across the call. It also pins the ordinary contract — a
+    /// normal listener receives every frame, in order.
+    #[test]
+    fn emit_progress_runs_the_listener_with_the_lock_released() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{Arc, Mutex};
+
+        let directory = tempfile::tempdir().unwrap();
+        let state = Arc::new(
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
+                .unwrap(),
+        );
+
+        let held_during_call = Arc::new(AtomicBool::new(false));
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let observed = Arc::clone(&state);
+        let held = Arc::clone(&held_during_call);
+        let sink = Arc::clone(&received);
+        state.set_progress_listener(Box::new(move |progress| {
+            if observed.progress_listener.try_lock().is_err() {
+                held.store(true, Ordering::SeqCst);
+            }
+            sink.lock().unwrap().push(progress.extension_id);
+        }));
+
+        let frame = |extension_id: &str, phase: &str| operation::OperationProgress {
+            extension_id: extension_id.into(),
+            kind: "install".into(),
+            phase: phase.into(),
+            percent: None,
+            notice: None,
+        };
+        state.emit_progress(frame("first", "Validating"));
+        state.emit_progress(frame("second", "Installing"));
+
+        assert!(
+            !held_during_call.load(Ordering::SeqCst),
+            "the listener must run with the progress lock released"
+        );
+        assert_eq!(
+            *received.lock().unwrap(),
+            vec!["first".to_string(), "second".to_string()],
+            "a normal listener loses no notification"
+        );
     }
 
     #[test]

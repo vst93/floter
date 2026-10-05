@@ -270,17 +270,14 @@ test("the browser sort orders are the four the settings file accepts", () => {
 
 // ── The i18n keys the two surfaces need ───────────────────────────────────
 
+// R97 · the six `clipboardPage.*` keys are gone: the clipboard settings card is
+// the schema-driven `PluginConfigOverlay` now, and nothing referenced them any
+// more (the removals are pinned in `r97-i18n-dead-keys.test.ts`).
 test("the new keys exist in both dictionaries", async () => {
   const i18n = stripJsComments(await read("src/i18n.ts"));
   const keys = [
     "input.placeholderClipboard",
     "input.placeholderBrowser",
-    "clipboardPage.settings",
-    "clipboardPage.settingsSaved",
-    "clipboardPage.settingsFailed",
-    "clipboardPage.maxItems",
-    "clipboardPage.maxItemsHint",
-    "clipboardPage.maxItemsValue",
     "settings.browserSort",
     "settings.browserSortHint",
     "settings.browserSortRelevance",

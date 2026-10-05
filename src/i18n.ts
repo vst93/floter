@@ -139,20 +139,11 @@ const en = {
   // is not a door share it. `{name}` is the entry title (`system.browserSearch`
   // / `system.clipboardHistory`).
   "launcher.browserDisabledRow": "{name} · plugin is off — enable it in Settings",
-  "launcher.clipboardDisabledRow": "{name} · plugin is off",
+  "launcher.clipboardDisabledRow": "{name} · plugin is off — enable it in Settings",
   "launcher.error.browser": "Could not open this link",
   // R26-B · the browser plugin's own page: its search field, its three lists
   // and its settings card.
   "browserPage.tabs": "Open tabs",
-  // R27 · the clipboard plugin's own settings card. It shares the browser
-  // page's card layout (`.plugin-settings`), so the two pages read as one
-  // plugin system rather than two panels.
-  "clipboardPage.settings": "Plugin settings",
-  "clipboardPage.settingsSaved": "Plugin settings saved",
-  "clipboardPage.settingsFailed": "Could not save the plugin settings",
-  "clipboardPage.maxItems": "Items kept",
-  "clipboardPage.maxItemsHint": "Older copies beyond this count are dropped. Pinned entries never expire and are not counted.",
-  "clipboardPage.maxItemsValue": "{count} items",
   "launcher.browserTabsUnavailable": "Tabs are unavailable — check the browser plugin settings",
   "terminal.openInTerminal": "Continue in System Terminal",
   "terminal.openInTerminalHint": "Continue in System Terminal ({shortcut})",
@@ -993,15 +984,9 @@ const zh: Record<MessageKey, string> = {
   // R88 · 停用插件的搜索行现在就是启动器的状态注记，注记只有一个文本槽：
   // 条目的名字和它为什么不是一扇门共用这一行。`{name}` 是条目标题。
   "launcher.browserDisabledRow": "{name} · 插件已停用——可在设置中启用",
-  "launcher.clipboardDisabledRow": "{name} · 插件已停用",
+  "launcher.clipboardDisabledRow": "{name} · 插件已停用——可在设置中启用",
   "launcher.error.browser": "无法打开此链接",
   "browserPage.tabs": "打开的标签页",
-  "clipboardPage.settings": "插件设置",
-  "clipboardPage.settingsSaved": "插件设置已保存",
-  "clipboardPage.settingsFailed": "无法保存插件设置",
-  "clipboardPage.maxItems": "保留条数",
-  "clipboardPage.maxItemsHint": "超出条数的旧记录会被丢弃。置顶记录永不过期，也不计入条数。",
-  "clipboardPage.maxItemsValue": "{count} 条",
   "launcher.browserTabsUnavailable": "标签页不可用——请查看浏览器插件设置",
   "terminal.openInTerminal": "在系统终端中继续",
   "terminal.openInTerminalHint": "在系统终端中继续（{shortcut}）",

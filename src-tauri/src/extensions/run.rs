@@ -937,7 +937,6 @@ mod tests {
             id,
             "echo",
             vec!["hello world".into(), "--flag".into()],
-            None,
         )
         .await
         .unwrap();
@@ -947,27 +946,18 @@ mod tests {
         assert_eq!(output.stderr, "");
 
         // An alias resolves to the same command…
-        let aliased = crate::extensions::catalog::run_plugin_command(
-            &state,
-            id,
-            "say",
-            vec!["x".into()],
-            None,
-        )
-        .await
-        .unwrap();
+        let aliased =
+            crate::extensions::catalog::run_plugin_command(&state, id, "say", vec!["x".into()])
+                .await
+                .unwrap();
         assert_eq!(aliased.stdout, "args:x\n");
 
         // …and a command nobody declared is refused rather than reinterpreted.
-        assert!(crate::extensions::catalog::run_plugin_command(
-            &state,
-            id,
-            "nope",
-            Vec::new(),
-            None,
-        )
-        .await
-        .is_err());
+        assert!(
+            crate::extensions::catalog::run_plugin_command(&state, id, "nope", Vec::new(),)
+                .await
+                .is_err()
+        );
     }
 
     #[cfg(unix)]

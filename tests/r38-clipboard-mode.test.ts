@@ -352,9 +352,13 @@ test("thumbnails are asked for only for visible image rows, and only once", asyn
   );
   assert.match(results, /invoke<string>\("clipboard_thumbnail", \{ id, size: 32 \}\)/);
   // The session memo: an id already fetched or in flight is skipped, and the
-  // batch merges in one write.
+  // batch merges in one write — R97 prunes that write against the visible set
+  // once the memo passes the history's ceiling (see `pruneThumbnailCache`).
   assert.match(results, /thumbnailPending\.current\.has\(id\)/);
-  assert.match(results, /setClipboardThumbnails\(\(previous\) => \(\{ \.\.\.previous, \.\.\.next \}\)\)/);
+  assert.match(
+    results,
+    /setClipboardThumbnails\(\(previous\) =>\s*\n?\s*pruneThumbnailCache\(\{ \.\.\.previous, \.\.\.next \}, visibleImageIds\)/,
+  );
   // The payload is a data URL, never the full image: the row reads the small
   // string, and the full-resolution read command is not called from the list.
   assert.doesNotMatch(results, /clipboard_read_image/);

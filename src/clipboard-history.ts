@@ -447,6 +447,30 @@ export const clampClipboardMaxItems = (value: number): number => {
   return Math.min(MAX_CLIPBOARD_MAX_ITEMS, Math.max(MIN_CLIPBOARD_MAX_ITEMS, Math.trunc(value)));
 };
 
+/** R97 · bound the session thumbnail memo.
+ *
+ *  The launcher keeps a `Record<entryId, dataUrl>` of the image thumbnails it
+ *  has fetched (`clipboard_thumbnail`); it only ever added keys, so a long
+ *  session accumulated one data URL per image ever scrolled past, even though
+ *  the history itself is capped. The history is the natural eviction source:
+ *  once the memo passes the history's ceiling, keep only the keys the current
+ *  render still references — a row that needs one again refetches it. Below the
+ *  ceiling the same object is returned, so the common case costs no copy.
+ *  (No LRU bookkeeping: the list is the order.) */
+export const pruneThumbnailCache = (
+  thumbnails: Record<string, string>,
+  visibleIds: readonly string[],
+  maxItems: number = MAX_CLIPBOARD_MAX_ITEMS,
+): Record<string, string> => {
+  if (Object.keys(thumbnails).length <= maxItems) return thumbnails;
+  const keep = new Set(visibleIds);
+  const next: Record<string, string> = {};
+  for (const [id, url] of Object.entries(thumbnails)) {
+    if (keep.has(id)) next[id] = url;
+  }
+  return next;
+};
+
 /** Coerce whatever the bridge returned into the trusted shape. The backend's
  *  `normalize_settings` is the authority; this is the same rule on the page
  *  side, so the card shows the value that was actually stored. */

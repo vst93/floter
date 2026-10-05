@@ -479,7 +479,6 @@ pub async fn run_plugin_command(
     extension_id: &str,
     command_id: &str,
     args: Vec<String>,
-    cwd: Option<&str>,
 ) -> Result<PluginCommandOutput, String> {
     let providers = loaded_provider_commands(state).await?;
     let provider = providers
@@ -501,12 +500,7 @@ pub async fn run_plugin_command(
     }
     let mut argv = provider.configured_args.clone();
     argv.extend(args);
-    let plan = execution_plan(
-        &provider.descriptor,
-        &provider.invocation,
-        argv,
-        cwd.map(Path::new),
-    )?;
+    let plan = execution_plan(&provider.descriptor, &provider.invocation, argv, None)?;
     let started = Instant::now();
     let (success, exit_code, output) =
         crate::extensions::run::execute_plan_background(plan).await?;

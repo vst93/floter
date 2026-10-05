@@ -243,9 +243,16 @@ test("the merged note exists in both dictionaries and names the entry", () => {
     assert.ok(zh(key, { name }).includes(name), `${key} interpolates the entry's name in zh too`);
   }
   // The catalog's title is the entry's own name plus the note, both translated.
+  // R97 · the clipboard note carries the same "enable it in Settings" guidance
+  // the browser note does, so the two switched-off entries read alike.
   assert.equal(
     zh("launcher.clipboardDisabledRow", { name: zh("system.clipboardHistory") }),
-    `${zh("system.clipboardHistory")} · 插件已停用`,
+    `${zh("system.clipboardHistory")} · 插件已停用——可在设置中启用`,
+  );
+  assert.match(
+    en("launcher.clipboardDisabledRow", { name: "Clipboard History" }),
+    /enable it in Settings/,
+    "the clipboard note points at Settings, like the browser note",
   );
 });
 

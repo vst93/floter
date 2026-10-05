@@ -34,6 +34,7 @@ import { clipboardKindChip } from "../plugins/clipboard/mode";
 import { pinTextApplies } from "../plugin-window/pin-entry";
 import { isBareTerminalRow } from "./terminal-row";
 import type { ClipboardEntry } from "../clipboard-history";
+import { pruneThumbnailCache } from "../clipboard-history";
 import type { CalculatorEntry } from "../calculator";
 import type { DroppedFile } from "./file-drops";
 
@@ -685,7 +686,13 @@ export function LauncherResults({
       const next: Record<string, string> = {};
       for (const row of rows) if (row) next[row[0]] = row[1];
       if (Object.keys(next).length) {
-        setClipboardThumbnails((previous) => ({ ...previous, ...next }));
+        // R97 · the memo is capped against the history's ceiling; once past it
+        // only the keys this render still references survive (see
+        // `pruneThumbnailCache`). The list, not an LRU list, is the eviction
+        // order.
+        setClipboardThumbnails((previous) =>
+          pruneThumbnailCache({ ...previous, ...next }, visibleImageIds),
+        );
       }
     });
     return () => {
