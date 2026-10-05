@@ -1459,7 +1459,16 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       // Detected list itself — a plain `scrollIntoView` walks up every
       // scrollable ancestor and would reset `.settings-content` to the top
       // (the reported jump-to-top the suggestions list already avoids).
-      window.requestAnimationFrame(() => {
+      // R103 · every beat is armed on both clocks — the launcher's R72 pattern.
+      // The frame is still the right first clock: the row was just rendered and
+      // one frame lets the layout settle before it is measured. But this panel
+      // is an accessory window, and one that is not the active app stops firing
+      // `requestAnimationFrame` altogether, so a beat armed only on a frame can
+      // simply never run and the Detected row stays below the fold. The short
+      // timer is the fallback. The scroll is idempotent — a second measure finds
+      // the row already inside the list and moves nothing — so the double fire
+      // needs no separate guard.
+      const fire = () => {
         const list = detectedListRef.current;
         const active = list?.querySelector<HTMLElement>(".extension-row--register");
         if (!list || !active) return;
@@ -1467,7 +1476,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
         const activeRect = active.getBoundingClientRect();
         if (activeRect.top < listRect.top) list.scrollTop -= listRect.top - activeRect.top;
         else if (activeRect.bottom > listRect.bottom) list.scrollTop += activeRect.bottom - listRect.bottom;
-      });
+      };
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(fire);
+      window.setTimeout(fire, 48);
       return;
     }
     // A tool the backend resolved but that is already connected has no

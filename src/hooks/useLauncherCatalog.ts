@@ -1087,19 +1087,34 @@ export function useLauncherCatalog(options: {
   const pluginHasMoreRef = useRef(pluginHasMore);
   pluginHasMoreRef.current = pluginHasMore;
 
+  // R103 · the append is synchronous — the detached window's mechanism, not a
+  // second one.
+  //
+  // R95 made the detached window's identical trigger synchronous after R72
+  // recorded that a panel which is not the active app stops firing
+  // `requestAnimationFrame` altogether (the normal state of this accessory
+  // panel). The launcher's copy was left on a frame, and the frame never came:
+  // the ref stayed `true`, the scroller was refused every later page, and the
+  // footer stayed on its loading line — a permanent wedge, not a missed scroll.
+  // Nothing here waits on a fetch: the built-ins page in memory, so the append
+  // is done in the same beat the trigger arrived in. There is no clock to arm,
+  // and therefore no clock to stall on.
   const loadMorePluginPage = useCallback(() => {
     if (pluginLoadingRef.current || !pluginHasMoreRef.current) return;
     pluginLoadingRef.current = true;
     setPluginLoadingMore(true);
-    // The built-ins page in memory, so the append lands on the next frame —
-    // which is exactly where an async plugin's fetch would resolve. The footer
-    // reads `pluginLoadingMore` for its loading line.
-    window.requestAnimationFrame(() => {
-      setPluginPages((pages) => pages + 1);
-      pluginLoadingRef.current = false;
-      setPluginLoadingMore(false);
-    });
+    setPluginPages((pages) => pages + 1);
   }, []);
+
+  // R103 · the in-flight ref is released by the render the increment causes —
+  // the same release the detached window uses, so the two lists cannot drift.
+  // The footer's loading line drops with it: the append is a memory step, so
+  // the line lives for exactly the commit the increment paints, never for a
+  // frame that may never fire.
+  useEffect(() => {
+    pluginLoadingRef.current = false;
+    setPluginLoadingMore(false);
+  }, [pluginPages]);
 
   /**
    * The numbered result list: applications and the built-in system actions.
