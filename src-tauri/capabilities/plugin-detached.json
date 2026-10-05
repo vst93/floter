@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "plugin-detached",
-  "description": "R84 capability for the detached plugin window: the pinned view needs the event API (listen for a replacement run) and its own window controls; app commands (take/close/detach) are the app's own and need no permission.",
-  "windows": ["plugin-detached"],
+  "description": "R84 capability for detached plugin windows: the pinned view needs the event API (listen for a replacement run) and its own window controls; app commands (take/close/detach) are the app's own and need no permission. R91 · every instance is covered — the exact `plugin-detached` (instance one, unchanged from R84) plus the `plugin-detached-*` glob for instances two and up.",
+  "windows": ["plugin-detached", "plugin-detached-*"],
   "permissions": [
     "core:default",
     "core:event:default",

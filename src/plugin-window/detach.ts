@@ -15,12 +15,21 @@
 // `DetachedPluginApp.tsx`; the Rust half is `detach_plugin_window` et al. in
 // `src-tauri/src/lib.rs`.
 
-/** The label of the second window every detached plugin run lives in. One
- *  window, many runs: a second detach while it is open replaces the content
- *  (the backend hands the new request over on the same label). Spelled once so
- *  the Rust builder, the capability file and the frontend branch cannot drift
- *  apart — the tests read this constant against `capabilities/`. */
+/** The label of the **first** detached plugin window. R84-R90 had a single
+ *  second window under this literal; R91 gives every pinned content its own
+ *  window, of which this is instance one. Spelled once so the Rust builder, the
+ *  capability file and the frontend branch cannot drift apart — the tests read
+ *  this constant against `capabilities/`. */
 export const PLUGIN_WINDOW_LABEL = "plugin-detached";
+
+/** R91 · whether a window label belongs to a detached plugin window. The first
+ *  instance is the bare `PLUGIN_WINDOW_LABEL` (kept exactly as R84-R90 named
+ *  it); every later instance is `PLUGIN_WINDOW_LABEL-N`. The render branch in
+ *  `main.tsx` uses this rather than an equality, so window two does not fall
+ *  through to the full launcher. */
+export const isPluginWindowLabel = (windowLabel: string): boolean =>
+  windowLabel === PLUGIN_WINDOW_LABEL ||
+  windowLabel.startsWith(`${PLUGIN_WINDOW_LABEL}-`);
 
 /** The launcher card's own label — the only window hide-on-blur has ever
  *  governed. Read from here rather than inlined so the blur rule below can

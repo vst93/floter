@@ -63,10 +63,12 @@ type DetachedState = {
   failure: string | null;
 };
 
-/** Pull the pending request exactly once. The backend clears its slot on read,
- *  so a remount does not re-run an old command against the user's intent. */
+/** Pull the pending request exactly once. The backend keys the slot by the
+ *  window's own label and marks it delivered on read, so a remount does not
+ *  re-run an old command against the user's intent. */
 const takePendingRequest = async (): Promise<DetachRequest | null> => {
-  const raw = await invoke<unknown>("take_plugin_window_request");
+  const label = getCurrentWindow().label;
+  const raw = await invoke<unknown>("take_plugin_window_request", { label });
   return validateDetachRequest(raw);
 };
 
@@ -194,7 +196,9 @@ export default function DetachedPluginApp() {
   }, [run, state.request]);
 
   const close = useCallback(() => {
-    void invoke("close_plugin_window").catch(() => undefined);
+    void invoke("close_plugin_window", { label: getCurrentWindow().label }).catch(
+      () => undefined,
+    );
   }, []);
 
   // The same dual-form resolve the launcher's catalog hook feeds. R90 · the

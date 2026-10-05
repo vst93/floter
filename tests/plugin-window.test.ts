@@ -7,7 +7,9 @@
 //   builder, the capability file and the render branch in `main.tsx` all name.
 //   A one-sided rename breaks the feature at runtime (the window opens onto
 //   the full launcher, or the capability misses the window), so the label and
-//   the capability file's own window list are read and pinned here.
+//   the capability file's own window list are read and pinned here. R91 · the
+//   first instance keeps that literal; later instances are suffixed and the
+//   capability covers them with a glob, which the same tests read.
 // * the *validation* contract — `validateDetachRequest` refuses anything
 //   without the routing truth (a non-empty command id) and anything whose
 //   args are not a string list. The backend's `DetachRequest::valid` mirrors
@@ -27,6 +29,7 @@ import test from "node:test";
 import { createTranslator, isMessageKey } from "../src/i18n.ts";
 import {
   hideOnBlurApplies,
+  isPluginWindowLabel,
   MAIN_WINDOW_LABEL,
   PLUGIN_WINDOW_LABEL,
   validateDetachRequest,
@@ -48,18 +51,56 @@ test("the detached window label is the literal every side names", () => {
   assert.notEqual(PLUGIN_WINDOW_LABEL, MAIN_WINDOW_LABEL);
 });
 
-test("the capability file governs exactly the detached window", async () => {
+test("the capability file governs exactly the detached windows", async () => {
   const capability = JSON.parse(
     await readFile(
       new URL("../src-tauri/capabilities/plugin-detached.json", import.meta.url),
       "utf8",
     ),
   );
-  assert.deepEqual(capability.windows, [PLUGIN_WINDOW_LABEL]);
+  // R91 · the capability governs the first instance by its exact literal and
+  // every later instance by the `plugin-detached-*` glob. Set-equal, not
+  // order-equal: the list is a set of matchers.
+  assert.deepEqual(
+    new Set(capability.windows),
+    new Set([PLUGIN_WINDOW_LABEL, `${PLUGIN_WINDOW_LABEL}-*`]),
+  );
   // The window's own close button and its event listener are the two powers
   // it needs; `core:default` carries the rest of the core surface.
   assert.ok(capability.permissions.includes("core:event:default"));
   assert.ok(capability.permissions.includes("core:window:allow-close"));
+});
+
+test("the render branch recognises every detached instance label", async () => {
+  // The first instance is the R84 literal; instances two and up are suffixed.
+  assert.equal(isPluginWindowLabel(PLUGIN_WINDOW_LABEL), true);
+  assert.equal(isPluginWindowLabel(`${PLUGIN_WINDOW_LABEL}-2`), true);
+  assert.equal(isPluginWindowLabel(`${PLUGIN_WINDOW_LABEL}-17`), true);
+  // The launcher and anything else stay on the App branch.
+  assert.equal(isPluginWindowLabel(MAIN_WINDOW_LABEL), false);
+  assert.equal(isPluginWindowLabel("something-else"), false);
+  assert.equal(isPluginWindowLabel(""), false);
+
+  // The wiring: main.tsx branches on the helper, not on a bare equality that
+  // window two would fail.
+  const main = await readFile(new URL("../src/main.tsx", import.meta.url), "utf8");
+  assert.match(main, /isPluginWindowLabel\(label\)/);
+  assert.doesNotMatch(main, /label === PLUGIN_WINDOW_LABEL/);
+});
+
+test("the detached view names its own label when it pulls and closes", async () => {
+  // R91 · the slot and the close are per label now, so the page has to say
+  // which window it is. A call that forgets `label` would read (or drop) the
+  // wrong window's request.
+  const view = await readFile(
+    new URL("../src/plugin-window/DetachedPluginApp.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(view, /invoke<unknown>\("take_plugin_window_request", \{ label \}\)/);
+  assert.match(
+    view,
+    /invoke\("close_plugin_window", \{ label: getCurrentWindow\(\)\.label \}\)/,
+  );
 });
 
 test("validateDetachRequest accepts the launcher's well-formed request", () => {

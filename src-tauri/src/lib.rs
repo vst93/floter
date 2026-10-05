@@ -15,6 +15,10 @@ mod notifications;
 pub mod plugin_pages;
 // R85 · the detached plugin window's remembered geometry.
 mod plugin_window_geometry;
+// R91 · more than one detached plugin window: the label allocator and the
+// content identity a window is keyed by (pure, unit-tested there).
+mod plugin_windows;
+pub use plugin_windows::PLUGIN_WINDOW_LABEL;
 // R41 · Hyprland (Wayland) window shaping: float the panel instead of letting
 // the tiling compositor fill the screen.
 mod hyprland;
@@ -59,6 +63,7 @@ use commands::terminal::{
     term_set_cursor_style, term_set_theme, term_spawn, term_wheel, TerminalState,
 };
 use extensions::ExtensionState;
+use std::collections::HashMap;
 #[cfg(target_os = "macos")]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -186,10 +191,17 @@ struct AppState {
     /// cold-start contract as `pending_deep_link`, with its own cell because
     /// the payload shape differs (a resolved candidate, not a manifest path).
     pending_deep_link_register: Mutex<Option<deep_link::RegisterRequest>>,
-    /// R84 · the plugin run the detached window should show, parked before the
-    /// window exists (the pull-slot contract `pending_plugin_open` and
-    /// `pending_deep_link` already use) and taken by the page on mount.
-    pending_plugin_window_request: Mutex<Option<DetachRequest>>,
+    /// R91 · one parked request per detached window label (it was a single
+    /// `Option` through R84-R90). A detach parks the request under the label it
+    /// belongs to; the window's own page pulls it once and marks it delivered.
+    pending_plugin_window_requests: Mutex<HashMap<String, plugin_windows::PendingSlot>>,
+    /// R91 · the content key each live detached label is showing, so the
+    /// geometry watcher can persist a move under the right key. Written when a
+    /// window is (re)parked; deliberately **left behind on close** — the map
+    /// only grows, and a reused label is overwritten before it is read again.
+    /// The tolerance is a registered decision (R91 report, residual note), not
+    /// an oversight.
+    plugin_window_keys: Mutex<HashMap<String, String>>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
     /// no cursor position at all, so remembering where the panel was dismissed
@@ -213,6 +225,16 @@ impl AppState {
         if let Ok(mut last) = self.last_monitor.lock() {
             *last = origin;
         }
+    }
+
+    /// R91 · the content key a detached label is currently showing, for the
+    /// geometry watcher. `None` while the label has no entry (already closed
+    /// and its slot removed before the map's tolerated residue is read).
+    fn plugin_window_key(&self, label: &str) -> Option<String> {
+        self.plugin_window_keys
+            .lock()
+            .ok()
+            .and_then(|keys| keys.get(label).cloned())
     }
 }
 
@@ -1142,7 +1164,9 @@ fn refocus_webview(window: WebviewWindow) -> Result<(), String> {
 }
 
 /// R84 · the detached plugin window. R90 · the request is a discriminated
-/// union now, one arm per kind of thing a window can be pinned to.
+/// union now, one arm per kind of thing a window can be pinned to. R91 · there
+/// can be more than one window: the request's content identity decides whether
+/// it replaces an open window or opens another (see `detach_plugin_window`).
 ///
 /// The user's ask: 「插件页面可以独立固定在界面上而不自动消失……脱离原来的整个
 /// 软件主体，不再跟随呼出和隐藏」— a real second window a plugin page can be
@@ -1153,9 +1177,10 @@ fn refocus_webview(window: WebviewWindow) -> Result<(), String> {
 /// Delivery uses the established pull-slot contract (`pending_plugin_open`,
 /// `pending_deep_link`): the request is parked in `AppState` *before* the
 /// window exists, the detached page pulls it on mount. A live window gets the
-/// `plugin-detach-request` emit on top, so a second detach replaces its
-/// content without rebuilding anything. The emit alone could race the
-/// window's first listener; the slot cannot, and the slot is the truth.
+/// `plugin-detach-request` emit on top, so a second detach of the *same*
+/// content replaces its run without rebuilding anything. The emit alone could
+/// race the window's first listener; the slot cannot, and the slot is the
+/// truth.
 ///
 /// `external` is R84's arm, field for field unchanged; `text` is R90's. The
 /// `kind` tag is the same discriminator the frontend's `DetachRequest` union
@@ -1210,49 +1235,91 @@ impl DetachRequest {
     }
 }
 
-/// The detached window's label. The capability file
-/// (`capabilities/plugin-detached.json`), the frontend branch in `main.tsx`
-/// (via its own `PLUGIN_WINDOW_LABEL`) and this builder all name it; a rename
-/// must touch all three and the tests pin two of them.
-pub const PLUGIN_WINDOW_LABEL: &str = "plugin-detached";
-
-/// Park the request and open (or refresh) the detached window. Idempotent on
-/// purpose: detaching while the window is already up replaces the content.
+/// Park a request and open the detached window that should show it.
+///
+/// R91 · the single-window assumption is retired: a request whose content is
+/// **already** shown by an open window replaces that window's content (the
+/// R84-R90 behaviour, kept for the case it was written for), while a request
+/// for *different* content opens another window. The new window's label is the
+/// lowest free instance label
+/// ([`plugin_windows::next_plugin_window_label`]); there is no instance
+/// ceiling — the user's desktop is theirs to manage, taskbar entries and all.
+///
+/// The request is parked *before* the window exists (the pull-slot contract
+/// `pending_plugin_open` and `pending_deep_link` use); a live window also gets
+/// the `plugin-detach-request` emit, because the emit alone could race its
+/// first listener. The slot is the truth.
 #[tauri::command]
 fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), String> {
     if !request.valid() {
         return Err("detach request: missing its title or routing truth".into());
     }
     let state = app.state::<AppState>();
-    if let Ok(mut slot) = state.pending_plugin_window_request.lock() {
-        *slot = Some(request);
-    }
-    if let Some(existing) = app.get_webview_window(PLUGIN_WINDOW_LABEL) {
-        let _ = existing.emit("plugin-detach-request", ());
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-    let title = state
-        .pending_plugin_window_request
+    let key = plugin_windows::content_key(&request);
+    let live = app.webview_windows();
+
+    // Same content already pinned → reuse its window: overwrite the request,
+    // park it undelivered, nudge the page and raise the window.
+    let same_content = state
+        .pending_plugin_window_requests
         .lock()
         .ok()
-        .and_then(|slot| {
-            slot.as_ref()
-                .map(|pending| pending.window_title().to_string())
-        })
-        .unwrap_or_else(|| "floter plugin".to_string());
-    // R85 · open where the user left it. The stored geometry is resolved
-    // against the displays that exist *now*: a size the current primary can
-    // hold, and a position only if it still lands on a screen (a saved spot on
-    // an unplugged monitor falls back to the system's default placement).
+        .and_then(|slots| {
+            slots
+                .iter()
+                .find(|(label, slot)| {
+                    plugin_windows::content_key(&slot.request) == key
+                        && live.contains_key(label.as_str())
+                })
+                .map(|(label, _)| label.clone())
+        });
+    if let Some(label) = same_content {
+        if let Ok(mut slots) = state.pending_plugin_window_requests.lock() {
+            slots.insert(
+                label.clone(),
+                plugin_windows::PendingSlot {
+                    request,
+                    delivered: false,
+                },
+            );
+        }
+        if let Some(existing) = app.get_webview_window(&label) {
+            let _ = existing.emit("plugin-detach-request", ());
+            let _ = existing.set_focus();
+        }
+        return Ok(());
+    }
+
+    // Different content → a new window at the lowest free label.
+    let open_labels: Vec<String> = live.keys().cloned().collect();
+    let label = plugin_windows::next_plugin_window_label(&open_labels);
+    if let Ok(mut slots) = state.pending_plugin_window_requests.lock() {
+        slots.insert(
+            label.clone(),
+            plugin_windows::PendingSlot {
+                request: request.clone(),
+                delivered: false,
+            },
+        );
+    }
+    if let Ok(mut keys) = state.plugin_window_keys.lock() {
+        keys.insert(label.clone(), key.clone());
+    }
+    let title = request.window_title().to_string();
+    // R85 · open where the user left *this content*. The stored geometry is
+    // resolved against the displays that exist *now*: a size the current
+    // primary can hold, and a position only if it still lands on a screen (a
+    // saved spot on an unplugged monitor falls back to the system's default
+    // placement). R91 · the lookup is keyed by content, so two windows no
+    // longer fight over one remembered rectangle.
     let placement = plugin_window_geometry::resolve_placement(
-        plugin_window_geometry::load_geometry(),
+        plugin_window_geometry::load_geometry_for(&key),
         primary_display_area(&app),
         &display_areas(&app),
     );
     let mut builder = tauri::WebviewWindowBuilder::new(
         &app,
-        PLUGIN_WINDOW_LABEL,
+        label.as_str(),
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title(title)
@@ -1267,7 +1334,7 @@ fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), St
         builder = builder.position(x, y);
     }
     let window = builder.build().map_err(|error| error.to_string())?;
-    watch_plugin_window_geometry(&window);
+    watch_plugin_window_geometry(&app, &window);
     Ok(())
 }
 
@@ -1310,16 +1377,22 @@ fn display_area(monitor: &tauri::Monitor) -> plugin_window_geometry::DisplayArea
 /// Follow the detached window's own moves and resizes and record each one for
 /// persistence. Attached to the window rather than the page on purpose: the
 /// user can drag the native frame while the webview is busy or gone, and the
-/// OS keeps delivering these events either way.
-fn watch_plugin_window_geometry(window: &WebviewWindow) {
+/// OS keeps delivering these events either way. R91 · the geometry is stored
+/// per content key, so the watcher resolves its label's current key at event
+/// time (`plugin_window_keys`).
+fn watch_plugin_window_geometry(app: &AppHandle, window: &WebviewWindow) {
     let watched = window.clone();
+    let state_app = app.clone();
+    let label = window.label().to_string();
     window.on_window_event(move |event| {
         if matches!(
             event,
             tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
         ) {
             if let Some(geometry) = current_geometry(&watched) {
-                plugin_window_geometry::note_geometry(geometry);
+                if let Some(key) = state_app.state::<AppState>().plugin_window_key(&label) {
+                    plugin_window_geometry::note_geometry(key, geometry);
+                }
             }
         }
     });
@@ -1343,29 +1416,39 @@ fn current_geometry(window: &WebviewWindow) -> Option<plugin_window_geometry::Wi
     })
 }
 
-/// The detached page pulls its run request here (mount, and again whenever a
-/// `plugin-detach-request` emit nudges it). Read-and-clear: a remount never
-/// re-runs a command the user already consumed.
+/// The detached page pulls its run request here, naming itself by label (on
+/// mount, and again whenever a `plugin-detach-request` emit nudges it).
+/// Read-once per label: the slot's `delivered` flag flips on the first pull, so
+/// a remount never re-runs a command the user already consumed.
 #[tauri::command]
 fn take_plugin_window_request(
     state: tauri::State<'_, AppState>,
+    label: String,
 ) -> Result<Option<DetachRequest>, String> {
-    let mut slot = state
-        .pending_plugin_window_request
+    let mut slots = state
+        .pending_plugin_window_requests
         .lock()
         .map_err(|error| error.to_string())?;
-    Ok(slot.take())
+    Ok(slots
+        .get_mut(&label)
+        .and_then(plugin_windows::PendingSlot::take))
 }
 
-/// Close the detached window and drop any request still parked. Called by the
-/// window's own close button; the launcher's lifecycle never calls this.
+/// Close one detached window and drop its parked request. Called by the
+/// window's own close button, which names itself by label; the launcher's
+/// lifecycle never calls this. The label → key map entry is deliberately left
+/// behind (see `AppState::plugin_window_keys`).
 #[tauri::command]
-fn close_plugin_window(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window(PLUGIN_WINDOW_LABEL) {
+fn close_plugin_window(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(&label) {
         let _ = window.close();
     }
-    if let Ok(mut slot) = app.state::<AppState>().pending_plugin_window_request.lock() {
-        *slot = None;
+    if let Ok(mut slots) = app
+        .state::<AppState>()
+        .pending_plugin_window_requests
+        .lock()
+    {
+        slots.remove(&label);
     }
     Ok(())
 }
@@ -1596,7 +1679,8 @@ pub fn run() {
             pending_plugin_open: Mutex::new(None),
             pending_deep_link: Mutex::new(None),
             pending_deep_link_register: Mutex::new(None),
-            pending_plugin_window_request: Mutex::new(None),
+            pending_plugin_window_requests: Mutex::new(HashMap::new()),
+            plugin_window_keys: Mutex::new(HashMap::new()),
             last_monitor: Mutex::new(None),
         });
     #[cfg(feature = "clipboard-history")]
@@ -2098,8 +2182,10 @@ mod interface_scale_height_tests {
 
 #[cfg(test)]
 mod detach_plugin_window_tests {
+    use std::collections::HashMap;
     use std::sync::Mutex;
 
+    use super::plugin_windows::PendingSlot;
     use super::{AppState, DetachRequest, PLUGIN_WINDOW_LABEL};
 
     /// R84's arm, built once. R90 · the tag aside, its fields are unchanged.
@@ -2221,12 +2307,12 @@ mod detach_plugin_window_tests {
         assert_eq!(text("Note", "hello").window_title(), "Note");
     }
 
-    /// R84/R90 · the pull-slot contract: the parked request is handed over
-    /// exactly once, a second read sees `None`, a replacement overwrites the
-    /// old one, and a clear empties it — the same semantics whichever arm is
-    /// parked, because the slot holds the whole union.
+    /// R84/R90 · the pull-slot contract; R91 · the slots are per label now. A
+    /// parked request is handed over exactly once (a second read sees `None`),
+    /// each label keeps its own request — the union included — and dropping a
+    /// label's entry drops only that label's slot.
     #[test]
-    fn the_pending_request_slot_hands_over_exactly_once() {
+    fn the_pending_request_slots_hand_over_exactly_once_per_label() {
         let state = AppState {
             window_visible: std::sync::atomic::AtomicBool::new(false),
             terminal_mode: std::sync::atomic::AtomicBool::new(false),
@@ -2237,28 +2323,42 @@ mod detach_plugin_window_tests {
             pending_plugin_open: Mutex::new(None),
             pending_deep_link: Mutex::new(None),
             pending_deep_link_register: Mutex::new(None),
-            pending_plugin_window_request: Mutex::new(None),
+            pending_plugin_window_requests: Mutex::new(HashMap::new()),
+            plugin_window_keys: Mutex::new(HashMap::new()),
             last_monitor: Mutex::new(None),
         };
-        let parked = external("run");
+        let first = external("run");
+        let second = text("Note", "hello");
         {
-            let mut slot = state.pending_plugin_window_request.lock().unwrap();
-            *slot = Some(parked.clone());
+            let mut slots = state.pending_plugin_window_requests.lock().unwrap();
+            slots.insert(
+                PLUGIN_WINDOW_LABEL.to_string(),
+                PendingSlot {
+                    request: first.clone(),
+                    delivered: false,
+                },
+            );
+            slots.insert(
+                "plugin-detached-2".to_string(),
+                PendingSlot {
+                    request: second.clone(),
+                    delivered: false,
+                },
+            );
         }
         {
-            let mut slot = state.pending_plugin_window_request.lock().unwrap();
-            assert_eq!(slot.take().as_ref(), Some(&parked));
-            assert!(slot.take().is_none());
-            // R90 · the second arm parks just as well: the slot is the union.
-            *slot = Some(text("Note", "hello"));
-        }
-        {
-            let mut slot = state.pending_plugin_window_request.lock().unwrap();
-            let replaced = slot.take().unwrap();
-            assert_eq!(replaced, text("Note", "hello"));
-            assert!(matches!(replaced, DetachRequest::Text { .. }));
-            *slot = None;
-            assert!(slot.take().is_none());
+            let mut slots = state.pending_plugin_window_requests.lock().unwrap();
+            // Each label hands over its own request exactly once.
+            let taken = slots.get_mut(PLUGIN_WINDOW_LABEL).unwrap().take();
+            assert_eq!(taken.as_ref(), Some(&first));
+            assert!(slots.get_mut(PLUGIN_WINDOW_LABEL).unwrap().take().is_none());
+            let taken = slots.get_mut("plugin-detached-2").unwrap().take();
+            assert_eq!(taken, Some(second));
+            assert!(matches!(taken, Some(DetachRequest::Text { .. })));
+            // Closing one label drops only that label's slot.
+            slots.remove("plugin-detached-2");
+            assert!(!slots.contains_key("plugin-detached-2"));
+            assert!(slots.contains_key(PLUGIN_WINDOW_LABEL));
         }
     }
 

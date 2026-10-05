@@ -1,4 +1,6 @@
 //! R85 · the detached plugin window's geometry, remembered across sessions.
+//! R91 · remembered **per content**, so two detached windows no longer fight
+//! over one rectangle.
 //!
 //! R84 shipped the second window at a hard 720×480 in the system's default
 //! spot, so every pin after a drag or a move to the second monitor started
@@ -9,6 +11,25 @@
 //! back before the builder runs. A corrupt or missing file recovers as "no
 //! geometry" — the window opens at the defaults rather than taking the
 //! launcher down with it.
+//!
+//! ## v2 · keyed by content, LRU-capped (R91)
+//!
+//! R85's file was one bare `{width,height,x,y}`. R91's multi-window world keys
+//! each remembered placement by the window's *content identity* (see
+//! `plugin_windows::content_key`) and keeps the R85 shape as the `default`
+//! fallback:
+//!
+//! ```json
+//! { "version": 2,
+//!   "windows": { "<key>": { "geometry": {…}, "last_used": 17 } },
+//!   "default": { "width": 720, "height": 480, "x": 0, "y": 0 } }
+//! ```
+//!
+//! A v1 file is upgraded in place: its single geometry becomes `default`, so a
+//! window whose key has never been seen opens where the single-window era left
+//! it, and the next write persists the v2 shape. At most
+//! [`MAX_REMEMBERED_WINDOWS`] keys are kept; beyond that the least recently
+//! written entry is evicted, so the file cannot grow without bound.
 //!
 //! ## Why Rust owns the listener
 //!
@@ -39,11 +60,12 @@
 //!   dropped and the system picks the spot, while the size still restores.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::OnceLock;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// The minimum inner size, matching the builder's `min_inner_size`.
 pub const MIN_WIDTH: f64 = 360.0;
@@ -54,6 +76,15 @@ pub const DEFAULT_HEIGHT: f64 = 480.0;
 
 /// How long a burst of move/resize events must go quiet before it is written.
 const DEBOUNCE: Duration = Duration::from_millis(400);
+
+/// The on-disk store version. v1 was a bare [`WindowGeometry`]; v2 keys
+/// geometries by content identity and keeps a `default` fallback.
+const STORE_VERSION: u32 = 2;
+
+/// How many per-content geometries are kept. Beyond this the least recently
+/// written entry is evicted (LRU by `last_used`), so pinning many commands
+/// cannot grow the file without bound.
+pub const MAX_REMEMBERED_WINDOWS: usize = 16;
 
 /// The file name inside the app data dir; the reader and the writer both go
 /// through it so a rename cannot split the pair.
@@ -66,6 +97,48 @@ pub struct WindowGeometry {
     pub height: f64,
     pub x: f64,
     pub y: f64,
+}
+
+/// One content key's remembered placement plus when it was last written, so
+/// the store can evict the least recently used entries.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct StoredGeometry {
+    pub geometry: WindowGeometry,
+    pub last_used: u64,
+}
+
+/// R91 · the v2 on-disk store: a geometry per content key, plus the `default`
+/// a v1 file migrates into (and the fallback when a key has no entry of its
+/// own). R85's single-geometry file is the v1 shape this upgrades in place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GeometryStore {
+    pub version: u32,
+    #[serde(default)]
+    pub windows: HashMap<String, StoredGeometry>,
+    #[serde(default)]
+    pub default: Option<WindowGeometry>,
+}
+
+impl GeometryStore {
+    fn empty() -> Self {
+        GeometryStore {
+            version: STORE_VERSION,
+            windows: HashMap::new(),
+            default: None,
+        }
+    }
+}
+
+/// The geometry to open `key` with: its own remembered entry if there is one,
+/// else the `default` (the v1 migration target) — and `None` when neither
+/// exists, which the builder turns into the 720×480 defaults. Pure, so the
+/// key-hit / fallback rule is a unit test rather than a window drag.
+pub fn geometry_for(store: &GeometryStore, key: &str) -> Option<WindowGeometry> {
+    store
+        .windows
+        .get(key)
+        .map(|entry| entry.geometry)
+        .or(store.default)
 }
 
 /// A monitor's bounds in logical coordinates — the space [`WindowGeometry`]
@@ -179,34 +252,89 @@ fn geometry_file() -> Option<PathBuf> {
     store_dir().map(|dir| dir.join(GEOMETRY_FILE))
 }
 
-/// Read the remembered geometry. A missing, unreadable, truncated or
-/// type-mismatched file is "nothing remembered", never an error the caller has
-/// to handle.
-pub fn load_geometry() -> Option<WindowGeometry> {
-    geometry_file().and_then(|path| load_from(&path))
+/// Read the remembered geometry for one content key. A missing, unreadable,
+/// truncated or type-mismatched file is "nothing remembered", never an error
+/// the caller has to handle.
+pub fn load_geometry_for(key: &str) -> Option<WindowGeometry> {
+    let store = geometry_file().map(|path| load_store_from(&path))?;
+    geometry_for(&store, key)
 }
 
-fn load_from(path: &Path) -> Option<WindowGeometry> {
-    std::fs::read(path)
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<WindowGeometry>(&bytes).ok())
+/// Parse the store, upgrading a v1 file in memory. Anything unreadable or
+/// malformed is the empty store.
+fn load_store_from(path: &Path) -> GeometryStore {
+    let Some(bytes) = std::fs::read(path).ok() else {
+        return GeometryStore::empty();
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return GeometryStore::empty();
+    };
+    // v2 carries a `version` (and a `windows`/`default` map); v1 was a bare
+    // geometry. Anything else shaped like neither is dropped whole.
+    if value.get("version").is_some()
+        || value.get("windows").is_some()
+        || value.get("default").is_some()
+    {
+        serde_json::from_value::<GeometryStore>(value).unwrap_or_else(|_| GeometryStore::empty())
+    } else {
+        match serde_json::from_value::<WindowGeometry>(value) {
+            Ok(geometry) => GeometryStore {
+                version: STORE_VERSION,
+                windows: HashMap::new(),
+                default: Some(geometry),
+            },
+            Err(_) => GeometryStore::empty(),
+        }
+    }
 }
 
-/// Replace the geometry atomically. A crash mid-write leaves the previous
-/// file intact.
-fn save_geometry(geometry: &WindowGeometry) -> Result<(), String> {
+/// Fold one window's geometry into the store, then evict the least recently
+/// used entries beyond [`MAX_REMEMBERED_WINDOWS`]. `now` is passed in so the
+/// LRU rule is a deterministic unit test rather than a race with the clock.
+fn record_geometry(store: &mut GeometryStore, key: &str, geometry: WindowGeometry, now: u64) {
+    store.version = STORE_VERSION;
+    store.windows.insert(
+        key.to_string(),
+        StoredGeometry {
+            geometry,
+            last_used: now,
+        },
+    );
+    while store.windows.len() > MAX_REMEMBERED_WINDOWS {
+        let Some(oldest) = store
+            .windows
+            .iter()
+            .min_by_key(|(_, entry)| entry.last_used)
+            .map(|(key, _)| key.clone())
+        else {
+            break;
+        };
+        store.windows.remove(&oldest);
+    }
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// Replace the store atomically. A crash mid-write leaves the previous file
+/// intact.
+fn save_store(store: &GeometryStore) -> Result<(), String> {
     let Some(path) = geometry_file() else {
         return Err("No app data directory".to_string());
     };
-    save_to(&path, geometry)
+    save_store_to(&path, store)
 }
 
-fn save_to(path: &Path, geometry: &WindowGeometry) -> Result<(), String> {
+fn save_store_to(path: &Path, store: &GeometryStore) -> Result<(), String> {
     let Some(dir) = path.parent() else {
         return Err("No parent directory".to_string());
     };
     std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
-    let content = serde_json::to_vec_pretty(geometry).map_err(|error| error.to_string())?;
+    let content = serde_json::to_vec_pretty(store).map_err(|error| error.to_string())?;
 
     let mut temporary = tempfile::NamedTempFile::new_in(dir).map_err(|error| error.to_string())?;
     temporary
@@ -220,9 +348,9 @@ fn save_to(path: &Path, geometry: &WindowGeometry) -> Result<(), String> {
 
 /// The coalescing writer, started once and shared by every window that ever
 /// needs to record a geometry.
-static GEOMETRY_SENDER: OnceLock<Sender<WindowGeometry>> = OnceLock::new();
+static GEOMETRY_SENDER: OnceLock<Sender<(String, WindowGeometry)>> = OnceLock::new();
 
-fn sender() -> &'static Sender<WindowGeometry> {
+fn sender() -> &'static Sender<(String, WindowGeometry)> {
     GEOMETRY_SENDER.get_or_init(|| {
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || drain(rx));
@@ -230,31 +358,52 @@ fn sender() -> &'static Sender<WindowGeometry> {
     })
 }
 
-/// Record a geometry for persistence. Non-blocking: the caller (a window event
-/// handler) hands the value over and returns; the worker decides when the burst
-/// has settled.
-pub fn note_geometry(geometry: WindowGeometry) {
-    let _ = sender().send(geometry);
+/// Record a geometry for persistence, under its content key. Non-blocking: the
+/// caller (a window event handler) hands the value over and returns; the worker
+/// decides when the burst has settled.
+pub fn note_geometry(key: String, geometry: WindowGeometry) {
+    let _ = sender().send((key, geometry));
 }
 
-/// Absorb every geometry that arrives within one debounce window and write the
-/// last one. A send that lands while a write is in flight simply starts the
-/// next window, so the newest value is never lost to a race.
-fn drain(rx: Receiver<WindowGeometry>) {
-    while let Ok(mut latest) = rx.recv() {
+/// Absorb every geometry that arrives within one debounce window and write
+/// them once. Coalescing is per key, so two windows dragged in the same burst
+/// each keep their own newest value. A send that lands while a write is in
+/// flight simply starts the next window.
+fn drain(rx: Receiver<(String, WindowGeometry)>) {
+    while let Ok((key, geometry)) = rx.recv() {
+        let mut pending: HashMap<String, WindowGeometry> = HashMap::new();
+        pending.insert(key, geometry);
         loop {
             match rx.recv_timeout(DEBOUNCE) {
-                Ok(newer) => latest = newer,
+                Ok((key, geometry)) => {
+                    pending.insert(key, geometry);
+                }
                 Err(RecvTimeoutError::Timeout) => break,
                 Err(RecvTimeoutError::Disconnected) => {
-                    let _ = save_geometry(&latest);
+                    persist(&pending);
                     return;
                 }
             }
         }
-        if let Err(error) = save_geometry(&latest) {
-            tracing::warn!("failed to persist plugin window geometry: {error}");
-        }
+        persist(&pending);
+    }
+}
+
+/// Write one debounce burst: load the store, fold in each key's newest
+/// geometry, save. A failure is logged, never propagated — the caller is a
+/// window event handler.
+fn persist(pending: &HashMap<String, WindowGeometry>) {
+    let Some(path) = geometry_file() else {
+        return;
+    };
+    let mut store = load_store_from(&path);
+    let mut now = now_millis();
+    for (key, geometry) in pending {
+        record_geometry(&mut store, key, *geometry, now);
+        now = now.saturating_add(1);
+    }
+    if let Err(error) = save_store(&store) {
+        tracing::warn!("failed to persist plugin window geometry: {error}");
     }
 }
 
@@ -385,7 +534,8 @@ mod tests {
     }
 
     /// A corrupt file (truncated, wrong types, missing fields) reads back as
-    /// "nothing remembered" instead of panicking or erroring the detach path.
+    /// "nothing remembered" instead of panicking or erroring the detach path —
+    /// in either shape: a broken v1 geometry or a broken v2 store.
     #[test]
     fn a_corrupt_file_recovers_as_no_geometry() {
         let dir = tempfile::tempdir().unwrap();
@@ -396,9 +546,15 @@ mod tests {
             "{\"width\": \"wide\", \"height\": 600, \"x\": 10, \"y\": 10}",
             "{\"width\": 800, \"height\": 600}",
             "not json at all",
+            // A v2-shaped file whose entry is malformed is dropped whole.
+            "{\"version\": 2, \"windows\": {\"k\": {\"geometry\": 3}}}",
         ] {
             std::fs::write(&path, content).unwrap();
-            assert_eq!(load_from(&path), None, "content: {content:?}");
+            assert_eq!(
+                load_store_from(&path),
+                GeometryStore::empty(),
+                "content: {content:?}"
+            );
         }
     }
 
@@ -408,11 +564,106 @@ mod tests {
     fn a_saved_geometry_round_trips() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(GEOMETRY_FILE);
-        assert_eq!(load_from(&path), None);
+        assert_eq!(load_store_from(&path), GeometryStore::empty());
 
         let geometry = stored(1024.0, 768.0, 128.0, 96.0);
-        save_to(&path, &geometry).unwrap();
-        assert_eq!(load_from(&path), Some(geometry));
+        let mut store = GeometryStore::empty();
+        record_geometry(&mut store, "key", geometry, 1);
+        save_store_to(&path, &store).unwrap();
+        assert_eq!(load_store_from(&path), store);
+        assert_eq!(geometry_for(&load_store_from(&path), "key"), Some(geometry));
+    }
+
+    /// R91 · a v1 file (R85's bare geometry) is upgraded in place: its single
+    /// geometry becomes the `default` seed, so a window whose key has no entry
+    /// of its own opens where the single-window era left it — and the next
+    /// write persists the v2 shape.
+    #[test]
+    fn a_v1_file_migrates_into_the_default_slot() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(GEOMETRY_FILE);
+        std::fs::write(
+            &path,
+            "{\"width\": 900, \"height\": 700, \"x\": 40, \"y\": 60}",
+        )
+        .unwrap();
+
+        let store = load_store_from(&path);
+        assert_eq!(store.version, STORE_VERSION);
+        assert_eq!(store.default, Some(stored(900.0, 700.0, 40.0, 60.0)));
+        assert!(store.windows.is_empty());
+        // The migrated default is what an unknown key falls back to.
+        assert_eq!(
+            geometry_for(&store, "never-seen"),
+            Some(stored(900.0, 700.0, 40.0, 60.0))
+        );
+
+        // A later write persists the upgrade as v2, losslessly.
+        save_store_to(&path, &store).unwrap();
+        let reloaded = load_store_from(&path);
+        assert_eq!(reloaded.version, STORE_VERSION);
+        assert_eq!(reloaded.default, Some(stored(900.0, 700.0, 40.0, 60.0)));
+    }
+
+    /// R91 · the key is looked up before the default: a remembered key wins, an
+    /// unknown key falls back to the v1/default geometry, and with neither
+    /// there is nothing to restore.
+    #[test]
+    fn a_key_hit_wins_over_the_default() {
+        let mut store = GeometryStore::empty();
+        store.default = Some(stored(720.0, 480.0, 0.0, 0.0));
+        record_geometry(&mut store, "key", stored(1024.0, 768.0, 10.0, 20.0), 1);
+
+        assert_eq!(
+            geometry_for(&store, "key"),
+            Some(stored(1024.0, 768.0, 10.0, 20.0))
+        );
+        assert_eq!(
+            geometry_for(&store, "other"),
+            Some(stored(720.0, 480.0, 0.0, 0.0))
+        );
+        assert_eq!(geometry_for(&GeometryStore::empty(), "key"), None);
+    }
+
+    /// R91 · the store keeps at most [`MAX_REMEMBERED_WINDOWS`] keys; the least
+    /// recently written is evicted, and rewriting a key refreshes its `last_used`
+    /// so it is no longer the eviction candidate.
+    #[test]
+    fn the_store_evicts_the_least_recently_used_beyond_the_cap() {
+        let mut store = GeometryStore::empty();
+        for index in 0..MAX_REMEMBERED_WINDOWS {
+            record_geometry(
+                &mut store,
+                &format!("key-{index}"),
+                stored(600.0, 400.0, 0.0, 0.0),
+                index as u64 + 1,
+            );
+        }
+        assert_eq!(store.windows.len(), MAX_REMEMBERED_WINDOWS);
+
+        // The next write evicts the oldest (key-0, last_used 1), not the
+        // newest — and not the key just written.
+        record_geometry(&mut store, "key-new", stored(600.0, 400.0, 0.0, 0.0), 100);
+        assert_eq!(store.windows.len(), MAX_REMEMBERED_WINDOWS);
+        assert!(!store.windows.contains_key("key-0"));
+        assert!(store.windows.contains_key("key-new"));
+        assert!(store
+            .windows
+            .contains_key(&format!("key-{}", MAX_REMEMBERED_WINDOWS - 1)));
+
+        // Rewriting key-1 moves it to the front: key-2 (untouched) is now the
+        // oldest and is the one the next write evicts.
+        record_geometry(&mut store, "key-1", stored(640.0, 480.0, 0.0, 0.0), 200);
+        record_geometry(
+            &mut store,
+            "key-newest",
+            stored(600.0, 400.0, 0.0, 0.0),
+            201,
+        );
+        assert_eq!(store.windows.len(), MAX_REMEMBERED_WINDOWS);
+        assert!(store.windows.contains_key("key-1"));
+        assert!(!store.windows.contains_key("key-2"));
+        assert!(store.windows.contains_key("key-newest"));
     }
 
     /// A half-open seam belongs to exactly one display, so a window parked on
