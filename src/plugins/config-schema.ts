@@ -46,7 +46,7 @@ import {
   type BrowserSortOrder,
 } from "../browser-page.ts";
 import type { MessageKey } from "../i18n.ts";
-import { BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages.ts";
+import { BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../builtin-plugins.ts";
 
 /** One choice of a `select`, `radio` or `checkboxes` field. */
 export type PluginConfigOption = {

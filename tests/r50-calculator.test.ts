@@ -52,7 +52,7 @@ import {
   selectionAfterRemoval,
 } from "../src/plugins/history-actions.ts";
 import { CALCULATOR_CONFIG_SCHEMA, configDefaults, pluginConfigSchema } from "../src/plugins/config-schema.ts";
-import { CALCULATOR_PLUGIN_ID } from "../src/plugin-pages.ts";
+import { CALCULATOR_PLUGIN_ID } from "../src/builtin-plugins.ts";
 
 const t = ((key: string) => key) as unknown as (key: never) => string;
 const DAY = 24 * 60 * 60 * 1000;

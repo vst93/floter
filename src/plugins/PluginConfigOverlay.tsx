@@ -18,7 +18,7 @@ import type { Translate } from "../i18n";
 import { browserTargets, normalizeBrowserSettings, normalizeProfiles } from "../browser-page";
 import { normalizeClipboardSettings } from "../clipboard-history";
 import { normalizeCalculatorSettings } from "../calculator";
-import { BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../plugin-pages";
+import { BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../builtin-plugins";
 import {
   applyConfigChange,
   configDefaults,

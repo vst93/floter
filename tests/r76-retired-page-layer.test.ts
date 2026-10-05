@@ -32,7 +32,8 @@ const stripComments = (source: string) =>
 const LIVE_SOURCES = [
   "src/App.tsx",
   "src/main.tsx",
-  "src/plugin-pages.ts",
+  "src/builtin-plugins.ts",
+  "src/failure-deduper.ts",
   "src/browser-page.ts",
   "src/launcher.ts",
   "src/glass-material.ts",

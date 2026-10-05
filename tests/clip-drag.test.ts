@@ -48,7 +48,10 @@ test("App keeps one shared OS-drag body the shells funnel through", async () => 
 });
 
 test("the retired drag bridge message stays deleted", async () => {
-  const pluginPages = await read("src/plugin-pages.ts");
+  const pluginPages = [
+    await read("src/builtin-plugins.ts"),
+    await read("src/failure-deduper.ts"),
+  ].join("\n");
   // The `drag` message, its recognizer and its routing predicate went with the
   // rest of the bridge in R96. Assembled from parts so the round's zero-hit
   // grep stays clean.

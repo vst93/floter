@@ -10,7 +10,7 @@
 //
 // What stays is the host's own stack: the `notify` call shape and the single
 // toast placement. The failure dedupe policy that used to be pinned here now
-// lives with its implementation in `tests/plugin-pages.test.ts`.
+// lives with its implementation in `tests/failure-deduper.test.ts`.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -55,7 +55,10 @@ test("the surface reuses the default toast placement — no second stack", async
 });
 
 test("the retired bridge notification surface stays deleted", async () => {
-  const pluginPages = await read("src/plugin-pages.ts");
+  const pluginPages = [
+    await read("src/builtin-plugins.ts"),
+    await read("src/failure-deduper.ts"),
+  ].join("\n");
   // The `host-notify` / `notify-retry` messages and the page-side retry
   // registry were the bridge's feedback path. Assembled from parts so the
   // round's zero-hit grep stays clean.

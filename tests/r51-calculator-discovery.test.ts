@@ -35,7 +35,7 @@ import {
   BUILTIN_BASE_PLUGINS,
   CALCULATOR_PLUGIN_ID,
   CLIPBOARD_PLUGIN_ID,
-} from "../src/plugin-pages.ts";
+} from "../src/builtin-plugins.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -65,7 +65,7 @@ test("the Rust descriptor table registers the calculator with the same id", asyn
   const rust = await read("src-tauri/src/plugin_pages.rs");
   // The id constant exists and the registry references it — the same shape the
   // other two descriptors use, which is what the descriptor-equality guard in
-  // `plugin-pages.test.ts` reads in both directions.
+  // `builtin-plugins.test.ts` reads in both directions.
   assert.match(
     rust,
     /pub const CALCULATOR_PLUGIN_ID: &str = "builtin\.calculator";/,

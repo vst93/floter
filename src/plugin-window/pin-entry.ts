@@ -18,7 +18,9 @@
 //                   entry's body; a files entry has none and is not pinnable);
 //   · `plugin`    → the row's own text, resolved through the same
 //                   `resolvePluginView` the capability layer uses — a row whose
-//                   content does not read as text has nothing to pin.
+//                   content does not read as text has nothing to pin. R101 ·
+//                   the row's `subtitle` is its body, but an empty subtitle
+//                   falls back to `title` rather than losing the pin.
 //
 // browser / calculator / app / system / command / file rows carry no single
 // text body and are deliberately absent: pinning a URL's label or a power
@@ -48,11 +50,22 @@ export const pinTextFor = (item: LauncherItem): PinTextSnapshot | null => {
     return typeof text === "string" ? { title: item.title, text } : null;
   }
   if (item.type === "plugin") {
-    // The row's own text is the only string it carries, so the same
-    // `resolvePluginView` that decided it was a row decides whether it reads
-    // as text here. A row with nothing to say resolves to `null` and earns no
-    // pin.
-    const view = resolvePluginView({ output: item.subtitle });
+    // R101 · the row's body is its `subtitle`, but a plugin is free to put its
+    // whole content in `title` and leave `subtitle` empty — `pluginRowToItem`
+    // builds `subtitle: row.subtitle ?? ""`, so an empty subtitle is ordinary,
+    // not exceptional. The row still draws that title, so the pin must be able
+    // to carry it: when the subtitle has nothing, fall back to the title. The
+    // fallback is *either/or*, never `title + subtitle` — the window's own
+    // title is already the row's title, so concatenating would repeat the body
+    // under itself. A row with neither string has nothing to pin.
+    //
+    // The same `resolvePluginView` that decided the row reads as text decides
+    // it here; a row whose content is a list (or empty) resolves to `null` and
+    // earns no pin.
+    const subtitle = item.subtitle;
+    const body = subtitle.trim() === "" ? item.title : subtitle;
+    if (body.trim() === "") return null;
+    const view = resolvePluginView({ output: body });
     if (view === null || view.form !== "text") return null;
     return { title: item.title, text: view.text };
   }

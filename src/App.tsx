@@ -67,7 +67,7 @@ import {
 } from "./deep-link";
 import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { refreshToolCatalog } from "./extensions/tool-catalog-store";
-import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./plugin-pages";
+import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./builtin-plugins";
 import {
   formatResultShortcut,
   formatShortcut,

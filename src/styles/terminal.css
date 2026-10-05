@@ -593,8 +593,8 @@
    host chrome are gone too. R51 had kept the host chrome because live test
    cases pinned it; R76 rewrote those cases into negative guards and deleted
    the whole retired layer, so no rule here styles a surface nothing mounts.
-   The published external-page protocol (`src/plugin-pages.ts` and
-   `plugin_pages.rs`) is unaffected — it never used these classes. */
+   The retired external-page protocol (its frontend module was split and
+   deleted in R101) never used these classes either. */
 
 /* ── R42 · the terminal page's own settings panel ──────────────────────────
    The gear in the terminal bar toggles this. It is a *docked strip* at the

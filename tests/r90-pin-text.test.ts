@@ -151,8 +151,62 @@ test("a plugin row is pinnable only when its own content reads as text", () => {
     sourceName: "My Plugin",
   });
   assert.equal(pinTextApplies(row("the plugin's own text")), true);
-  // Nothing to say → `resolvePluginView` returns null → no pin.
-  assert.equal(pinTextApplies(row("")), false);
+  // R101 · an empty subtitle no longer means "no pin": the row's title is the
+  // fallback body, so a titled row is still pinnable. Only a row with neither
+  // string (the R101 test below) has nothing to pin.
+  assert.equal(pinTextApplies(row("")), true);
+});
+
+// R101 · the pin text contract for a plugin row, in four quadrants: the body
+// is the row's `subtitle`, but `pluginRowToItem` builds `subtitle: row.subtitle
+// ?? ""`, so an empty subtitle is ordinary. A row that draws its whole content
+// in `title` must still be pinnable.
+test("a plugin row's body falls back to the title when the subtitle is blank (R101)", () => {
+  const row = (title: string, subtitle: string): LauncherItem => ({
+    type: "plugin",
+    id: "p1",
+    title,
+    subtitle,
+    sourceName: "My Plugin",
+  });
+  // subtitle carries the body → exactly R90's behaviour, unchanged.
+  assert.deepEqual(pinTextFor(row("Row title", "the body")), {
+    title: "Row title",
+    text: "the body",
+  });
+  // subtitle empty and title carries the body → the title becomes the *text*,
+  // and the window title stays the row's title (they are the same string).
+  assert.deepEqual(pinTextFor(row("the body", "")), { title: "the body", text: "the body" });
+  // Whitespace is as blank as empty: the fallback fires too.
+  assert.deepEqual(pinTextFor(row("the body", "   ")), { title: "the body", text: "the body" });
+  assert.equal(pinTextApplies(row("the body", "")), true);
+  assert.equal(pinTextApplies(row("the body", "  ")), true);
+  // Both blank → there is no text to pin, and the row earns no pin.
+  assert.equal(pinTextFor(row("", "")), null);
+  assert.equal(pinTextFor(row("   ", "  ")), null);
+  assert.equal(pinTextApplies(row("", "")), false);
+  assert.equal(pinTextApplies(row("  ", " ")), false);
+});
+
+test("the R101 fallback still respects the view form: a list body earns no pin", () => {
+  const row = (title: string, subtitle: string): LauncherItem => ({
+    type: "plugin",
+    id: "p1",
+    title,
+    subtitle,
+    sourceName: "My Plugin",
+  });
+  // A title that resolves to a *list* is not a text body, so the fallback does
+  // not pin it — the form check is the same `resolvePluginView` as ever.
+  assert.equal(pinTextFor(row('[{"id":"a","title":"A"}]', "")), null);
+  // A subtitle that resolves to a list is likewise not pinnable (unchanged).
+  assert.equal(pinTextFor(row("Row title", '[{"id":"a","title":"A"}]')), null);
+  // A JSON array that is *not* a row list — an empty one — is printed as its
+  // own literal text by `resolvePluginView`. That is pre-existing R28
+  // behaviour and the R101 fallback does not change it: the string is still a
+  // text body, so it is pinned verbatim.
+  assert.deepEqual(pinTextFor(row("[]", "")), { title: "[]", text: "[]" });
+  assert.deepEqual(pinTextFor(row("Row title", "[]")), { title: "Row title", text: "[]" });
 });
 
 // ── B · the snapshot the row hands over ───────────────────────────────────
@@ -186,6 +240,17 @@ test("the snapshot is the row's own title and text, never a re-run", () => {
       sourceName: "My Plugin",
     }),
     { title: "Result", text: "the plugin's own text" },
+  );
+  // R101 · the empty-subtitle row pins its title as the body.
+  assert.deepEqual(
+    pinTextFor({
+      type: "plugin",
+      id: "p1",
+      title: "the plugin's own text",
+      subtitle: "",
+      sourceName: "My Plugin",
+    }),
+    { title: "the plugin's own text", text: "the plugin's own text" },
   );
 });
 

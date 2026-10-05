@@ -19,7 +19,7 @@
 // `src/i18n.ts` as `settings.deepLinkRejected`, and the backend sends that key
 // rather than a sentence (the host owns the words).
 
-import { createFailureDeduper, FAILURE_NOTIFY_DEDUP_MS } from "./plugin-pages.ts";
+import { createFailureDeduper, FAILURE_NOTIFY_DEDUP_MS } from "./failure-deduper.ts";
 
 /** Emitted once a `connect` manifest has been validated and staged. */
 export const DEEP_LINK_CONNECT_EVENT = "floter://deep-link-connect";

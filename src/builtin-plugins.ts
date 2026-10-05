@@ -1,17 +1,19 @@
-// Pure logic behind floter's plugin surfaces: the base-plugin registry the
-// settings panel renders, and the per-key failure deduper the app's automatic
-// triggers coalesce through. Kept free of React and Tauri so the node test
-// suite can exercise it directly.
+// The base-plugin registry the settings panel renders.
 //
 // R33 · the built-in iframe pages were retired; their configuration is now the
 // launcher's `PluginConfigOverlay`, driven by the schema in
 // `src/plugins/config-schema.ts`, and nothing in the app opens an iframe any
-// more. R96 · the generic postMessage bridge that used to sit here — page URL
-// building, the command allowlist, the handshake, the message types and their
-// guards — was deleted with the rest of the page layer: it had no producer
-// (the manifest declares no page) and no consumer (no built-in page, no host).
-// What remains is the registry the settings panel renders and the deduper the
-// deep-link refusals share.
+// more. R96 · the generic postMessage bridge that used to sit beside this
+// registry — page URL building, the command allowlist, the handshake, the
+// message types and their guards — was deleted with the rest of the page layer:
+// it had no producer (the manifest declares no page) and no consumer (no
+// built-in page, no host).
+//
+// R101 · the module that carried this registry next to an unrelated per-key
+// failure deduper was split in two, so each file now names one thing. This is
+// the registry; the deduper moved to `src/failure-deduper.ts`.
+//
+// Kept free of React and Tauri so the node test suite can exercise it directly.
 
 import type { MessageKey } from "./i18n";
 
@@ -32,52 +34,6 @@ export const BROWSER_PLUGIN_ID = "builtin.browser";
  *  discoverable. It still has no plugin page and no on/off switch: its whole
  *  surface is the launcher mode and its schema-driven configuration overlay. */
 export const CALCULATOR_PLUGIN_ID = "builtin.calculator";
-
-/**
- * How long a key stays quiet after it has been raised once. Long enough that a
- * 2s background poll cannot fill the stack (fifteen failures per toast), short
- * enough that the same failure coming back later is announced again. */
-export const FAILURE_NOTIFY_DEDUP_MS = 30_000;
-
-export type FailureDeduper = {
-  /**
-   * Whether `key` may be raised now, and if so, mark it as raised. The second
-   * and later calls inside the window return false; the first call after it
-   * elapses returns true again. `now` is injectable so the node suite can
-   * drive a 5-failure burst without waiting wall-clock time.
-   */
-  allow: (key: string, now?: number) => boolean;
-  /** Re-arm a key: the failure that comes after this is news again. */
-  clear: (key: string) => void;
-};
-
-/**
- * Deduper for failures raised by an automatic trigger.
- *
- * Why this exists: an automatic failure — a 2s poll against a backend that
- * stays down, a `floter://` link a hostile page retries in a loop — would
- * otherwise raise one toast per attempt forever, three toasts churning on
- * screen, none readable. Why it is scoped per key rather than wrapping every
- * failure report: a failure caused by a *user gesture* (a copy, a delete) must
- * still report each time the user asks, or the second click fails silently.
- * Only the automatic triggers need coalescing, and each names one key.
- */
-export const createFailureDeduper = (
-  windowMs: number = FAILURE_NOTIFY_DEDUP_MS,
-): FailureDeduper => {
-  const raisedAt = new Map<string, number>();
-  return {
-    allow: (key, now = Date.now()) => {
-      const last = raisedAt.get(key);
-      if (last !== undefined && now - last < windowMs) return false;
-      raisedAt.set(key, now);
-      return true;
-    },
-    clear: (key) => {
-      raisedAt.delete(key);
-    },
-  };
-};
 
 /**
  * One row in the settings panel's base-plugins list (the extensions ecosystem's
@@ -111,7 +67,7 @@ export type BuiltinBasePlugin = {
  * in `App.tsx` any more. R26-B registered `builtin.browser` in Rust and gave it
  * a settings page, but the panel still rendered a clipboard-only array, so the
  * new plugin never appeared (and there was no way to open its page).
- * `tests/plugin-pages.test.ts` asserts this list and the Rust descriptor table
+ * `tests/builtin-plugins.test.ts` asserts this list and the Rust descriptor table
  * contain the *same* ids in both directions, so a new descriptor cannot ship
  * without a row, and a row cannot name an unregistered plugin.
  */

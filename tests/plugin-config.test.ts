@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createTranslator } from "../src/i18n.ts";
-import { BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../src/plugin-pages.ts";
+import { BROWSER_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "../src/builtin-plugins.ts";
 import {
   MAX_CLIPBOARD_MAX_ITEMS,
   MIN_CLIPBOARD_MAX_ITEMS,

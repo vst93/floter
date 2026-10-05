@@ -1,19 +1,24 @@
-// The surviving spine of floter's plugin surfaces (src/plugin-pages.ts): the
-// base-plugin registry the settings panel renders and the per-key failure
-// deduper the app's automatic triggers share.
+// The base-plugin registry the settings panel renders (src/builtin-plugins.ts).
 //
-// R96 deleted the generic postMessage bridge that used to live beside them —
-// page URL building, the command allowlist, the handshake, the message types
-// and every `isBridge*` guard. It had no producer (the manifest declares no
-// page) and no consumer (no built-in page, no host), so it was not a published
-// contract but dead code. This suite pins the live half and, at the bottom,
+// R101 · the module this suite used to read — a name that named neither of
+// its two subjects — was split: the registry is now
+// `src/builtin-plugins.ts` and the per-key failure deduper is
+// `src/failure-deduper.ts`. The deduper's cases moved to
+// `tests/failure-deduper.test.ts`; this file keeps the registry, the freeze
+// lock on the R96-deleted bridge, and the Rust descriptor mirror.
+//
+// R96 deleted the generic postMessage bridge that used to live beside the
+// registry — page URL building, the command allowlist, the handshake, the
+// message types and every `isBridge*` guard. It had no producer (the manifest
+// declares no page) and no consumer (no built-in page, no host), so it was not
+// a published contract but dead code. This suite pins the live half and, below,
 // turns red if any deleted export, field, document or dictionary key comes
 // back.
 //
 // Retired names are assembled from parts so this file does not itself
 // reintroduce a token the round's zero-hit grep bans.
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -21,9 +26,8 @@ import {
   BUILTIN_BASE_PLUGINS,
   CALCULATOR_PLUGIN_ID,
   CLIPBOARD_PLUGIN_ID,
-  FAILURE_NOTIFY_DEDUP_MS,
-  createFailureDeduper,
-} from "../src/plugin-pages.ts";
+} from "../src/builtin-plugins.ts";
+import { FAILURE_NOTIFY_DEDUP_MS, createFailureDeduper } from "../src/failure-deduper.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -44,7 +48,7 @@ const exists = async (path: string) => {
 // The bug: `App.tsx` assembled the list by hand and only ever named
 // `builtin.clipboard`, so when R26-B registered `builtin.browser` the settings
 // panel never showed it — the plugin had no entry. The list now lives in
-// `BUILTIN_BASE_PLUGINS` (src/plugin-pages.ts), and this guard pins it to the
+// `BUILTIN_BASE_PLUGINS` (src/builtin-plugins.ts), and this guard pins it to the
 // Rust registry in BOTH directions: a descriptor without a row fails, and a row
 // naming an unregistered plugin fails.
 test("the base-plugin list carries builtin.browser and mirrors the Rust registry", async () => {
@@ -94,41 +98,54 @@ test("every base-plugin row opens the generic configuration overlay", () => {
   }
 });
 
-// ── 2 · the failure deduper ───────────────────────────────────────────────
+// ── 2 · the R101 split, and the old module path stays retired ─────────────
 
-test("five consecutive automatic failures raise exactly one toast (30s dedupe per key)", () => {
-  // Drive the shared dedupe policy directly: an automatic trigger calls this
-  // once per failed attempt, and the burst below is 20s. Only the first may
-  // paint; the others must be swallowed.
-  assert.ok(
-    FAILURE_NOTIFY_DEDUP_MS >= 30_000,
-    "the window must dwarf a 2s poll — at 30s an automatic failure can earn at most one toast",
-  );
-  const deduper = createFailureDeduper();
-  const raised: number[] = [];
-  let now = 1_000_000;
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    if (deduper.allow("some.loadFailed", now)) raised.push(now);
-    now += 2000; // the poll interval
+test("the two split modules each export only their own subject", async () => {
+  // Non-vacuity: the live spine is still exported, from the file that names it.
+  const registry = (await import("../src/builtin-plugins.ts")) as Record<string, unknown>;
+  const deduper = (await import("../src/failure-deduper.ts")) as Record<string, unknown>;
+  for (const live of ["BUILTIN_BASE_PLUGINS", "CLIPBOARD_PLUGIN_ID", "BROWSER_PLUGIN_ID", "CALCULATOR_PLUGIN_ID"]) {
+    assert.ok(live in registry, `${live} must stay exported by builtin-plugins.ts`);
   }
-  assert.deepEqual(raised, [1_000_000], "the outage must be one toast, not five");
-  // The window is per key: a *different* failure in the middle of the outage
-  // is still news and is not swallowed by the first key.
-  assert.equal(deduper.allow("some.copyFailed", now), true, "dedupe must be per message key");
-  // Recovery re-arms: failure → success → failure is two toasts, not one.
-  deduper.clear("some.loadFailed");
-  assert.equal(deduper.allow("some.loadFailed", now), true, "a success in between makes the relapse news again");
-  // And the window really elapses: the next failure after it is announced.
-  const later = createFailureDeduper();
-  assert.equal(later.allow("k", 0), true);
-  assert.equal(later.allow("k", FAILURE_NOTIFY_DEDUP_MS - 1), false);
-  assert.equal(later.allow("k", FAILURE_NOTIFY_DEDUP_MS), true);
+  for (const live of ["createFailureDeduper", "FAILURE_NOTIFY_DEDUP_MS"]) {
+    assert.ok(live in deduper, `${live} must stay exported by failure-deduper.ts`);
+  }
+  // And neither half grew the other's subject back.
+  assert.ok(!("createFailureDeduper" in registry), "the registry module must not carry the deduper");
+  assert.ok(!("BUILTIN_BASE_PLUGINS" in deduper), "the deduper module must not carry the registry");
+});
+
+test("no live source imports the deleted module path again", async () => {
+  // R101 · the old module was split into `builtin-plugins.ts` and
+  // `failure-deduper.ts` and deleted. This is the negative guard: scan every
+  // TypeScript source under `src/` and `tests/` and turn red if the old path
+  // reappears as an import (or, indeed, as any mention).
+  const OLD_MODULE = "plugin" + "-pages";
+  const collect = async (dir: string): Promise<string[]> => {
+    const entries = await readdir(new URL(dir, root), { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) files.push(...(await collect(path)));
+      else if (/\.tsx?$/.test(entry.name)) files.push(path);
+    }
+    return files;
+  };
+  const files = [...(await collect("src")), ...(await collect("tests"))];
+  assert.ok(files.length > 100, "the scan must cover the real source trees");
+  for (const file of files) {
+    const source = await read(file);
+    assert.ok(
+      !source.includes(OLD_MODULE),
+      `${file} must not reference the deleted \`${OLD_MODULE}\` module`,
+    );
+  }
 });
 
 // ── 3 · the retired bridge stays retired ──────────────────────────────────
 
-/** Value exports R96 deleted from `src/plugin-pages.ts`, assembled so the
- *  zero-hit grep stays clean. */
+/** Value exports R96 deleted from the old module, assembled so the zero-hit
+ *  grep stays clean. */
 const RETIRED_VALUE_EXPORTS = [
   "BRIDGE" + "_TAG",
   "PLUGIN_PAGE" + "_PROTOCOL",
@@ -144,28 +161,30 @@ const RETIRED_VALUE_EXPORTS = [
   "MESSAGE_KEY" + "_SHAPE",
 ] as const;
 
-test("the retired bridge value exports are gone from the module", async () => {
-  const mod = (await import("../src/plugin-pages.ts")) as Record<string, unknown>;
-  // Non-vacuity: the live spine is still exported, so an emptied module could
-  // not pass as "already gone".
-  for (const live of ["BUILTIN_BASE_PLUGINS", "createFailureDeduper", "FAILURE_NOTIFY_DEDUP_MS"]) {
-    assert.ok(live in mod, `${live} must stay exported`);
-  }
+test("the retired bridge value exports are gone from both split modules", async () => {
+  const modules = [
+    (await import("../src/builtin-plugins.ts")) as Record<string, unknown>,
+    (await import("../src/failure-deduper.ts")) as Record<string, unknown>,
+  ];
   for (const name of RETIRED_VALUE_EXPORTS) {
-    assert.ok(!(name in mod), `${name} was deleted in R96 and must stay gone`);
+    for (const mod of modules) {
+      assert.ok(!(name in mod), `${name} was deleted in R96 and must stay gone`);
+    }
   }
 });
 
-test("no bridge message type or guard survives in the module source", async () => {
-  const source = await read("src/plugin-pages.ts");
-  // The whole `isBridge*` family, the `Bridge*` payload types and the page →
-  // host union. These are compile-time names, so the scan is over the source
-  // rather than the runtime export object.
-  assert.ok(!/\bisBridge[A-Z]/.test(source), "no isBridge* guard may come back");
-  assert.ok(!/export type Bridge[A-Z]/.test(source), "no Bridge* payload type may come back");
-  assert.ok(!/\bBridgeFromPage\b/.test(source), "the page → host union must stay gone");
-  // And the module still declares the live spine.
-  assert.match(source, /export const BUILTIN_BASE_PLUGINS/);
+test("no bridge message type or guard survives in the split module sources", async () => {
+  for (const path of ["src/builtin-plugins.ts", "src/failure-deduper.ts"]) {
+    const source = await read(path);
+    // The whole `isBridge*` family, the `Bridge*` payload types and the page →
+    // host union. These are compile-time names, so the scan is over the source
+    // rather than the runtime export object.
+    assert.ok(!/\bisBridge[A-Z]/.test(source), `no isBridge* guard may come back in ${path}`);
+    assert.ok(!/export type Bridge[A-Z]/.test(source), `no Bridge* payload type may come back in ${path}`);
+    assert.ok(!/\bBridgeFromPage\b/.test(source), `the page → host union must stay gone in ${path}`);
+  }
+  // And the registry module still declares the live spine.
+  assert.match(await read("src/builtin-plugins.ts"), /export const BUILTIN_BASE_PLUGINS/);
 });
 
 test("the retired bridge dictionary keys are gone from the i18n table", async () => {

@@ -142,8 +142,8 @@ Updates tab 及 update/rollback/reinstall/pin/channel 命令链。
 
 ### Bridge
 
-**已退役。** 页面与宿主之间那条 postMessage 桥（`src/plugin-pages.ts` 的
-`invoke`/`result`/`close` 协议、白名单与来源校验）随内置 iframe 页（R33 退役、R76 物理删除）
+**已退役。** 页面与宿主之间那条 postMessage 桥（`invoke`/`result`/`close`
+协议、白名单与来源校验；承载它的前端模块已在 R101 拆分时删除）随内置 iframe 页（R33 退役、R76 物理删除）
 一并物理删除（R96）：manifest 从无 page 声明字段，没有生产者；内置页已删，没有消费者。
 插件配置现在走 launcher 的 declarative config overlay（`src/plugins/config-schema.ts`）。
 

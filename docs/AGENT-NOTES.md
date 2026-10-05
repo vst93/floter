@@ -27,7 +27,7 @@
 
 **唯一反馈面**是宿主 toast（`src/components/ToastStack.tsx` + `src/toast-state.ts`）。任何表面——包括沙箱 iframe 里的插件页——都只发消息、不画自己的提示条。时长、位置、视觉只有一份来源：`TOAST_DISMISS_MS`（error 8s / success 4s）与 `#floter-app-toasts`。
 
-1. **插件页不得自绘任何 notice/toast/banner**。页内提示条（如已删除的 `.clipboard-panel__notice`）与自有 dismiss 定时器都不再有位置；失败一律走 bridge 的 `host-notify` 消息（`src/plugin-pages.ts`）。
+1. **插件页不得自绘任何 notice/toast/banner**。页内提示条（如已删除的 `.clipboard-panel__notice`）与自有 dismiss 定时器都不再有位置；失败一律走 bridge 的 `host-notify` 消息（该 bridge 已于 R96 删除）。
 2. **线上只传字典 key，不传文案**。`host-notify` 的 `messageKey` 由宿主用 `src/i18n.ts` 自己解析，未知 key 直接丢弃（`isMessageKey`）。宿主侧调用 `notify(kind, text, action?)` 时已是译文；插件页侧永远不持有宿主文案，也不增加宿主字典的耦合面。
 3. **重试语义单向**：页说「这个失败了，可以重试」→ 宿主 toast 出一个动作按钮 → 用户按下 → 宿主回发 `notify-retry` → 页自己重跑。宿主绝不替页重放命令（它不知道页失败的是哪一次动作、也不持有页的状态）。**重试带关联 id**（2026-09-17 微修）：`host-notify` 由页生成 `id`，宿主的 `notify-retry` 原样回传；页内用 `createRetryRegistry()`（容量 = `MAX_TOASTS`）按 id 找 thunk，过期/未注册/已消费的 id 静默丢弃。此前单槽 `pendingRetry` 会让旧 toast 的 Retry 执行最新动作。
 4. **位置按表面归属，不按表面另起一套**。`#floter-app-toasts[data-surface=…]` 只做「在这个窗口里落哪」的修正，不做第二套栈：全高窗口（settings / terminal / plugin）共用默认 `top:64px; right:16px`（插件页 28px 顶栏之下仍余 36px）；只有 ~58px 的 collapsed 需要专门规则。**新增表面默认复用默认值，除非实测遮挡**。

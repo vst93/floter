@@ -223,7 +223,10 @@ test("the stop value domain is three ids in both the stylesheet and the loader",
   // R96 · the plugin-page bridge that used to be the third side of this
   // hand-off is deleted, so the token table plus the loader are the whole
   // domain.
-  const pluginPages = await read("src/plugin-pages.ts");
+  const pluginPages = [
+    await read("src/builtin-plugins.ts"),
+    await read("src/failure-deduper.ts"),
+  ].join("\n");
   for (const step of GLASS_STEPS) {
     assert.ok(
       !pluginPages.includes(`"${step}"`),

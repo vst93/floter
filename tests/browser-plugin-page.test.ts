@@ -69,7 +69,7 @@ test("the backend registers the browser descriptor with the shared id", async ()
 
 test("the frontend's plugin id mirrors the backend's literal", async () => {
   const rust = await read("src-tauri/src/plugin_pages.rs");
-  const frontend = await read("src/plugin-pages.ts");
+  const frontend = await read("src/builtin-plugins.ts");
   const id = rust.match(/pub const BROWSER_PLUGIN_ID: &str = "([^"]+)";/);
   assert.ok(id);
   assert.ok(

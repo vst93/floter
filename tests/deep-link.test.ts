@@ -27,7 +27,7 @@ import {
   DEEP_LINK_REJECT_KEY,
   deepLinkRejectGate,
 } from "../src/deep-link.ts";
-import { FAILURE_NOTIFY_DEDUP_MS, createFailureDeduper } from "../src/plugin-pages.ts";
+import { FAILURE_NOTIFY_DEDUP_MS, createFailureDeduper } from "../src/failure-deduper.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
