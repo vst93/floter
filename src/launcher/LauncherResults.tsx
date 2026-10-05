@@ -101,10 +101,11 @@ export type LauncherItem =
       title: string;
       subtitle: string;
       action: SystemAction;
-      /** R26-D · a status row rather than a runnable action (the browser plugin
-       *  switched off). Rendered dimmed and skipped by Enter, the numbered
-       *  shortcuts and the pointer, like a disabled browser row. */
-      disabled?: boolean;
+      /** R26-D · a switched-off browser plugin, and R36 the clipboard's twin,
+       *  used to be a `system` row carrying `disabled: true`. R88 · they are the
+       *  launcher's own `status` item now (see `plugins/status.ts`), so a
+       *  `system` row is always a door and this variant has no disabled state to
+       *  carry. */
     }
   /**
    * R30 · a plugin's status line — "tabs are unavailable", "nothing copied
@@ -748,7 +749,6 @@ export function LauncherResults({
               // R69 · an invoke row is the same kind of exception: its Enter
               // spawns the tool detached.
               (item.type === "command" && !item.execution && !item.installCommand && !item.launchArgv) ||
-              (item.type === "system" && item.disabled === true) ||
               (item.type === "browser" && item.disabled === true) ||
               (item.type === "clipboard" && item.disabled === true) ||
               (item.type === "calculator" && item.disabled === true) ||

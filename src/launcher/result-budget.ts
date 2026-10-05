@@ -814,6 +814,45 @@ export const visibleRowRange = (
 };
 
 /**
+ * R88 · which results the numbered `⌘N` family may reach.
+ *
+ * The launcher's own list is a mix of doors and notes, and only a door earns a
+ * number: a `command` with a plan (or R68/R69's install / invoke hand-offs) is
+ * runnable, and so is every ordinary row. A **status** note is not — it is
+ * information *about* the list, drawn in the list's own column, so it takes no
+ * numbered slot, no selection step and no Enter. The same goes for a plugin row
+ * the plugin itself marked disabled or left without an action (R39), and for a
+ * built-in plugin's disabled row (a status line in the browser / clipboard /
+ * calculator families, R26-D/R27/R50).
+ *
+ * R88 · the rule moved here from the catalog hook, and the switched-off
+ * plugin's search row is now a `status` item, so the `system && disabled`
+ * clause it used to need is gone: the note is out of the sequence by *shape*,
+ * not by a flag. Pure, so a node test can feed it a list with the note in the
+ * middle and prove the runnable rows after it number as if it were not there.
+ */
+export const resultRunnableFlags = (items: readonly LauncherItem[]): boolean[] =>
+  items.map((item) =>
+    item.type === "command"
+      ? // R68 · an install row is runnable too: its Enter opens the terminal
+        // hand-off. R69 · an invoke row is runnable for the same reason — its
+        // Enter spawns the tool detached. The existing shortcut/selection logic
+        // then numbers and steps both exactly like any other runnable result,
+        // unchanged.
+        Boolean(item.execution) || Boolean(item.installCommand) || Boolean(item.launchArgv)
+      : !(
+          // R30 · a plugin status line is never a result: the renderer draws it
+          // as a note, so it must not take a numbered slot, a selection step or
+          // Enter either.
+          item.type === "status" ||
+          (item.type === "browser" && item.disabled === true) ||
+          (item.type === "clipboard" && item.disabled === true) ||
+          // R39 · an external plugin row with no action is information only.
+          (item.type === "plugin" && (item.disabled === true || item.action === undefined))
+        ),
+  );
+
+/**
  * The numbered `select_result` slots for the visible rows — the single source
  * of the `⌘N` → row mapping, for the badges and the key handler alike.
  *

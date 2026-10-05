@@ -202,10 +202,18 @@ test("the catalog appends the invoke rows after the install rows and marks them 
     /\[\.\.\.commandItems, \.\.\.rankedMatches, \.\.\.installRows, \.\.\.invokeRows\]\.slice\(0, MAX_RESULTS\)/,
     "invoke rows come after the install rows and the ordinary matches",
   );
+  // R88 · the runnable rule moved to `launcher/result-budget.ts`; the catalog
+  // hook delegates to `resultRunnableFlags`, so the clause is asserted there.
+  const budget = stripJsComments(await read("src/launcher/result-budget.ts"));
   assert.match(
-    catalog,
+    budget,
     /Boolean\(item\.execution\) \|\| Boolean\(item\.installCommand\) \|\| Boolean\(item\.launchArgv\)/,
     "an invoke row is runnable",
+  );
+  assert.match(
+    catalog,
+    /const runnableResultFlags = resultRunnableFlags\(launcherResults\);/,
+    "the catalog asks the shared rule",
   );
 });
 

@@ -62,6 +62,7 @@ import {
 } from "../src/launcher/result-budget.ts";
 import { launcherShortcutSlots } from "../src/launcher.ts";
 import { appSubtitleKey, isTranscription, resultRowContent } from "../src/launcher/row-content.ts";
+import { statusItem } from "../src/plugins/status.ts";
 import type { LauncherItem } from "../src/launcher/LauncherResults.tsx";
 
 const root = new URL("../", import.meta.url);
@@ -88,17 +89,23 @@ const appRow = (id: string, path: string, subtitle: string): LauncherItem => ({
   app: { path } as never,
 });
 /** The clipboard row exactly as the catalog's `SYSTEM_COMMANDS` builds it: a
- *  `system` row with the `system-clipboard` id, produced by a match. */
-const catalogClipboardRow = (enabled = true): LauncherItem => ({
-  type: "system",
-  id: "system-clipboard",
-  title: t("system.clipboardHistory"),
-  subtitle: enabled
-    ? t("system.clipboardHistorySubtitle")
-    : t("clipboard.pageUnavailable"),
-  action: "clipboard",
-  ...(enabled ? {} : { disabled: true }),
-});
+ *  `system` row with the `system-clipboard` id, produced by a match. R88 · a
+ *  switched-off plugin's entry is no longer that row at all: the catalog builds
+ *  the launcher's `status` item for it, with the disabled sentence merged into
+ *  the one text slot beside the name. */
+const catalogClipboardRow = (enabled = true): LauncherItem =>
+  enabled
+    ? {
+        type: "system",
+        id: "system-clipboard",
+        title: t("system.clipboardHistory"),
+        subtitle: t("system.clipboardHistorySubtitle"),
+        action: "clipboard",
+      }
+    : statusItem(
+        "system-clipboard",
+        t("launcher.clipboardDisabledRow", { name: t("system.clipboardHistory") }),
+      );
 
 // ── 1 · the budget ────────────────────────────────────────────────────────
 
@@ -370,33 +377,42 @@ test("⌘0 is a result shortcut like the rest of the family", async () => {
   assert.equal(normalizeResultShortcut("Cmd+0"), normalizeResultShortcut("Cmd+1"));
 });
 
-// R37 · a switched-off clipboard keeps its matched row but closes the door.
+// R37 · a switched-off clipboard keeps its matched entry but closes the door.
 //
 // R26-D gave the browser row this treatment; the clipboard's `system-clipboard`
 // entry follows the same rule (R36). With the fixed tail gone, this entry is
 // the *only* clipboard row, so it is the whole of the plugin's presence in the
-// list — and it soft-closes when the plugin is off.
-test("R37 · a switched-off clipboard keeps its row but closes the door", async () => {
+// list — and it soft-closes when the plugin is off. R88 · the soft-close is the
+// launcher's `status` note now, the same shape a plugin mode's note has had
+// since R30, so the entry stops being a result row altogether.
+test("R37/R88 · a switched-off clipboard keeps its entry but closes the door", async () => {
   const off = catalogClipboardRow(false);
-  assert.equal(off.type, "system");
-  assert.equal(off.action, "clipboard");
-  assert.equal(off.disabled, true, "the row is a note, not a door");
-  assert.equal(off.title, t("system.clipboardHistory"), "the name stays; the subtitle says why");
-  assert.equal(off.subtitle, t("clipboard.pageUnavailable"));
+  // R88 · the entry is the launcher's `status` note now, not a `system` row:
+  // it keeps its identity and its name, and the reason it is not a door shares
+  // the note's one text slot with that name.
+  assert.equal(off.type, "status");
+  assert.equal(off.id, "system-clipboard", "the entry's identity is unchanged");
+  assert.equal(
+    off.title,
+    t("launcher.clipboardDisabledRow", { name: t("system.clipboardHistory") }),
+    "the name stays; the note says why",
+  );
 
   const on = catalogClipboardRow(true);
-  assert.equal(on.disabled, undefined, "switched on, the row is a door again");
+  assert.equal(on.type, "system", "switched on, the entry is a door again");
   assert.equal(on.subtitle, t("system.clipboardHistorySubtitle"));
 
-  // The catalog's entry row soft-closes off the plugin's own switch, and the
-  // action handler refuses a disabled clipboard row.
+  // The catalog's entry soft-closes off the plugin's own switch. R88 · the door
+  // is closed by the row's *shape* now — the `system` row the action handler
+  // runs always carries a door — so the handler has no `disabled` state to read.
   const catalog = stripJsComments(await read("src/hooks/useLauncherCatalog.ts"));
   assert.match(catalog, /entry\.action === "clipboard" && !clipboardEnabled/);
   const actions = stripJsComments(await read("src/hooks/useLauncherActions.ts"));
-  assert.match(
-    actions,
-    /if \(item\.action === "clipboard"\) \{\s*if \(item\.disabled\) return;/,
-    "a disabled clipboard row is not a door",
+  const systemHandler = /const runSystemAction[\s\S]*?\n  };/.exec(actions);
+  assert.ok(systemHandler, "the system handler must exist");
+  assert.ok(
+    !/item\.disabled/.test(systemHandler[0]),
+    "R88: a system row has no disabled state — the switched-off entry never reaches this handler",
   );
   // The App no longer reads the clipboard switch for a tail it does not append.
   const app = stripJsComments(await read("src/App.tsx"));

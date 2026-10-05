@@ -132,6 +132,12 @@ const en = {
   "launcher.browserEmpty": "No matching bookmarks or history",
   "launcher.browserNoProfile": "No supported browser was found on this computer",
   "launcher.browserDisabled": "Browser Bookmarks & History is turned off — enable it in Settings › Integrations",
+  // R88 · the switched-off plugin's *search* row is the launcher's status note
+  // now, and a note has one text slot: the entry's own name and the reason it
+  // is not a door share it. `{name}` is the entry title (`system.browserSearch`
+  // / `system.clipboardHistory`).
+  "launcher.browserDisabledRow": "{name} · plugin is off — enable it in Settings",
+  "launcher.clipboardDisabledRow": "{name} · plugin is off",
   "launcher.error.browser": "Could not open this link",
   // R26-B · the browser plugin's own page: its search field, its three lists
   // and its settings card.
@@ -981,6 +987,10 @@ const zh: Record<MessageKey, string> = {
   "launcher.browserEmpty": "没有匹配的书签或历史记录",
   "launcher.browserNoProfile": "此电脑上未找到受支持的浏览器",
   "launcher.browserDisabled": "浏览器书签与历史记录已停用——可在“设置 › 集成”中启用",
+  // R88 · 停用插件的搜索行现在就是启动器的状态注记，注记只有一个文本槽：
+  // 条目的名字和它为什么不是一扇门共用这一行。`{name}` 是条目标题。
+  "launcher.browserDisabledRow": "{name} · 插件已停用——可在设置中启用",
+  "launcher.clipboardDisabledRow": "{name} · 插件已停用",
   "launcher.error.browser": "无法打开此链接",
   "browserPage.tabs": "打开的标签页",
   "clipboardPage.settings": "插件设置",

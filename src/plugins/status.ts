@@ -19,6 +19,7 @@
 //
 // Pure: no React, no Tauri, no DOM.
 
+import type { LauncherItem } from "../launcher/LauncherResults.tsx";
 import type { PluginRow } from "../launcher/plugin-mode.ts";
 
 /**
@@ -45,3 +46,18 @@ export const pluginStatusRow = (id: string, title: string): PluginRow => ({
   family: "plugin",
   ...statusRowBase(id, title),
 });
+
+/**
+ * R88 · the same status core, projected onto the launcher's own item union.
+ *
+ * The status line was born inside a plugin mode (R30), so it entered the list
+ * through `pluginRowToItem`. R88 brings the switched-off plugin's *search row*
+ * — a `system` entry the catalog matched — into the same shape, and it is not a
+ * plugin emission: the catalog builds the item directly. This is the one
+ * projection that keeps it on the shared core rather than spelling a third
+ * hand-written status row.
+ */
+export const statusItem = (id: string, title: string): LauncherItem => {
+  const base = statusRowBase(id, title);
+  return { type: "status", id: base.id, title: base.title };
+};

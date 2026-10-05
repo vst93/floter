@@ -202,7 +202,15 @@ test("openTerminalSession carries the install command into the one R60 open path
 
 test("the row is runnable and not dimmed, without touching the command geometry", async () => {
   const catalog = stripJsComments(await read("src/hooks/useLauncherCatalog.ts"));
-  assert.match(catalog, /Boolean\(item\.execution\) \|\| Boolean\(item\.installCommand\)/);
+  // R88 · the runnable rule lives in `launcher/result-budget.ts` now (the
+  // catalog hook delegates to it); the install clause is asserted where it is.
+  const budget = stripJsComments(await read("src/launcher/result-budget.ts"));
+  assert.match(budget, /Boolean\(item\.execution\) \|\| Boolean\(item\.installCommand\)/);
+  assert.match(
+    catalog,
+    /const runnableResultFlags = resultRunnableFlags\(launcherResults\);/,
+    "the catalog asks the shared rule",
+  );
   assert.match(catalog, /toolInstallRows\(toolCatalog, needle, toolCatalog\.platform\)/);
   const renderer = stripJsComments(await read("src/launcher/LauncherResults.tsx"));
   assert.match(

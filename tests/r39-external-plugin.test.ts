@@ -300,10 +300,19 @@ test("the catalog hook builds the external emission and gates the mode", async (
     /if \(externalMode\) return resolvePluginView\(windowedEmission\(externalEmission\)\)/,
     "the external view goes through the same resolver as the built-ins",
   );
+  // R88 · the runnable rule moved to `launcher/result-budget.ts`; the catalog
+  // hook delegates to `resultRunnableFlags`, so the plugin clause is asserted
+  // where it now lives.
+  const budget = stripJsComments(await read("src/launcher/result-budget.ts"));
   assert.match(
-    catalog,
+    budget,
     /\(item\.type === "plugin" && \(item\.disabled === true \|\| item\.action === undefined\)\)/,
     "a row without an action is not a runnable result",
+  );
+  assert.match(
+    catalog,
+    /const runnableResultFlags = resultRunnableFlags\(launcherResults\);/,
+    "the catalog asks the shared rule",
   );
 });
 

@@ -52,7 +52,7 @@ import {
 } from "../plugins/browser/mode";
 import { clipboardModeRows, clipboardStatusRow } from "../plugins/clipboard/mode";
 import { calculatorModeRows } from "../plugins/calculator/mode";
-import { pluginStatusRow } from "../plugins/status";
+import { pluginStatusRow, statusItem } from "../plugins/status";
 import { searchTokens } from "../plugins/search";
 import {
   type ActionBar,
@@ -65,7 +65,7 @@ import { commandRow } from "../launcher/command-row.ts";
 import type { BrowserSearchField } from "../browser-page";
 import { createSettingsHydration } from "../settings-persistence";
 import { aliasToCommand, candidateMatchScore, commandMatchScore, matchedCommandAlias, rebaseAliasCommandLine, resolveCommandAliases, MATCH_EXACT, type CommandAliases } from "../command-aliases";
-import { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS } from "../launcher/result-budget";
+import { COMMAND_LIMIT_WITH_MATCHES, MAX_RESULTS, resultRunnableFlags } from "../launcher/result-budget";
 import { IS_WINDOWS } from "../shortcuts";
 import { useToolCatalog } from "../extensions/tool-catalog-store";
 import { toolInstallRows, toolInvokeRows } from "../extensions/tool-rows";
@@ -1120,29 +1120,40 @@ export function useLauncherCatalog(options: {
         [],
       );
       if (!score) continue;
-      // R26-D · a switched-off browser plugin keeps its entry row but marks
-      // it: the row is a note (“the plugin is turned off”), not a door.
-      // R36 · the clipboard's launcher row follows the same rule. R37 · it is
+      // R26-D · a switched-off browser plugin keeps its entry in the list but
+      // marks it: the entry is a note (“the plugin is turned off”), not a door.
+      // R36 · the clipboard's launcher entry follows the same rule. R37 · it is
       // now the *only* clipboard row — the fixed tail that carried the same
       // soft-close is gone, so this entry is the whole of the clipboard's
       // presence in the list.
+      //
+      // R88 · the note is the launcher's own `status` item now — the same muted
+      // line the plugin modes have drawn since R30: one text slot, no icon
+      // plate, no `⌘N`, no pointer state, no Enter. The disabled sentence moves
+      // into that one slot beside the entry's name. Being no longer a result
+      // row at all is what keeps the entry out of the numbered sequence by
+      // construction, instead of the slot rule having to remember to honour a
+      // `disabled` flag.
       const pluginOff =
         (entry.action === "browser" && !browserEnabled) ||
         (entry.action === "clipboard" && !clipboardEnabled);
+      if (pluginOff) {
+        const note = t(
+          entry.action === "browser"
+            ? "launcher.browserDisabledRow"
+            : "launcher.clipboardDisabledRow",
+          { name: title },
+        );
+        matches.push({ item: statusItem(`system-${entry.action}`, note), score });
+        continue;
+      }
       matches.push({
         item: {
           type: "system",
           id: `system-${entry.action}`,
           title,
-          subtitle: pluginOff
-            ? t(
-                entry.action === "browser"
-                  ? "launcher.browserDisabled"
-                  : "clipboard.pageUnavailable",
-              )
-            : t(entry.subtitleKey),
+          subtitle: t(entry.subtitleKey),
           action: entry.action,
-          ...(pluginOff ? { disabled: true } : {}),
         },
         score,
       });
@@ -1305,26 +1316,10 @@ export function useLauncherCatalog(options: {
     return { type, label, value };
   }, [browserMode, clipboardMode, calculatorMode, externalMode, query, t]);
 
-  const runnableResultFlags = launcherResults.map((item) =>
-    item.type === "command"
-      ? // R68 · an install row is runnable too: its Enter opens the terminal
-        // hand-off. R69 · an invoke row is runnable for the same reason — its
-        // Enter spawns the tool detached. The existing shortcut/selection logic
-        // then numbers and steps both exactly like any other runnable result,
-        // unchanged.
-        Boolean(item.execution) || Boolean(item.installCommand) || Boolean(item.launchArgv)
-      : !(
-          // R30 · a plugin status line is never a result: the renderer draws it
-          // as a note, so it must not take a numbered slot, a selection step or
-          // Enter either.
-          item.type === "status" ||
-          (item.type === "browser" && item.disabled === true) ||
-          (item.type === "clipboard" && item.disabled === true) ||
-          // R39 · an external plugin row with no action is information only.
-          (item.type === "plugin" && (item.disabled === true || item.action === undefined)) ||
-          (item.type === "system" && item.disabled === true)
-        ),
-  );
+  // R88 · the rule lives in `launcher/result-budget.ts` beside the slot map it
+  // feeds, so the node suite can pin it without a DOM: a status note never
+  // takes a number, and the rows after it number as if it were not there.
+  const runnableResultFlags = resultRunnableFlags(launcherResults);
   const resultShortcutSlots = launcherShortcutSlots(runnableResultFlags);
   const runnableResultCount = runnableResultFlags.filter(Boolean).length;
   const hasRunnableCommandResult = launcherResults.some(

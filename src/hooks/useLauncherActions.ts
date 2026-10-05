@@ -700,9 +700,9 @@ export function useLauncherActions(options: {
     // and the trigger vocabulary lives in `pluginModeEntry` rather than being
     // reconstructed here. The field is emptied by the entry.
     if (item.action === "browser") {
-      // R26-D · a disabled row is a note, not a door: pressing Enter on it must
-      // not open the mode the plugin is switched out of.
-      if (item.disabled) return;
+      // R26-D · a switched-off browser plugin's entry is not a door. R88 · that
+      // entry is the launcher's `status` item now, so it never reaches this
+      // handler at all — the `system` row this branch runs is always a door.
       enterPluginMode({ scope: "browser", kind: "all" });
       return;
     }
@@ -710,10 +710,9 @@ export function useLauncherActions(options: {
     // R33 · the clipboard row is the browser row's twin: it is the door into
     // the clipboard result mode, not a settings page. Entering the mode gives
     // the plugin's own list (and its gear opens the configuration overlay).
-    // R36 · a disabled row is a note, not a door — the same guard the browser
-    // branch above has had since R26-D.
+    // R36 · a switched-off clipboard is not a door either. R88 · as with the
+    // browser, that entry is a `status` item and stops before this branch.
     if (item.action === "clipboard") {
-      if (item.disabled) return;
       enterPluginMode({ scope: "clipboard", filter: "all" });
       return;
     }
@@ -724,7 +723,6 @@ export function useLauncherActions(options: {
     // mode/chips/history/favorite/delete/settings behaviour untouched — it is
     // one transition into `{ scope: "calculator" }`, nothing more.
     if (item.action === "calculator") {
-      if (item.disabled) return;
       enterPluginMode({ scope: "calculator", filter: "all" });
       return;
     }
