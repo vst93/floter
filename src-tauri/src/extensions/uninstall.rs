@@ -72,6 +72,10 @@ pub async fn uninstall_componentized(
     validate_id(&request.extension_id)?;
     state.check_cancelled()?;
     state.provider.cancel_completions();
+    // R98 · an uninstall must not keep the removed integration's run alive.
+    // Abort it before any file is staged or removed; each aborted run reports
+    // the keyed `run_killed` failure.
+    state.kill_extension_runs(&request.extension_id);
 
     state.emit_progress(OperationProgress {
         extension_id: request.extension_id.clone(),

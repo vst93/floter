@@ -118,7 +118,7 @@ test("an unrecognised or malformed message is not swallowed", () => {
 // ── 3 · both languages, same placeholders ──────────────────────────────────
 
 test("every run-error key is translated in both dictionaries", () => {
-  assert.equal(RUN_ERROR_MESSAGE_KEYS.length, 6);
+  assert.equal(RUN_ERROR_MESSAGE_KEYS.length, 7);
   for (const key of RUN_ERROR_MESSAGE_KEYS) {
     const english = en(key);
     const chinese = zh(key);

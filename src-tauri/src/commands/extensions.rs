@@ -1959,6 +1959,10 @@ async fn set_enabled(
     let _guard = state.mutation_lock.lock().await;
     if !enabled {
         state.provider.cancel_completions();
+        // R98 · a disabled integration must not keep running. Abort every
+        // in-flight run now rather than letting it finish for up to the run
+        // timeout; each aborted run reports the keyed `run_killed` failure.
+        state.kill_extension_runs(id);
     }
     let mut lock = ExtensionsLock::load(&state.paths.repository_file)?;
     lock.set_enabled(id, enabled)?;
@@ -2705,6 +2709,67 @@ mod tests {
             assert!(!state.paths.legacy_lock_file.exists());
             assert_eq!(std::fs::read(&archive).unwrap(), legacy_bytes);
         }
+    }
+
+    /// R98 · the disable branch of `set_enabled` aborts in-flight runs.
+    ///
+    /// Mutation: drop the `kill_extension_runs` call from `set_enabled` and the
+    /// stand-in run below is never cancelled — the registry still holds its
+    /// handle and `task.await` never returns a cancellation.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn disabling_an_integration_aborts_its_in_flight_run() {
+        use crate::extensions::manifest::ScriptLanguage;
+        use crate::extensions::ExtensionPaths;
+
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().to_path_buf()))
+                .unwrap();
+        let entry = install::create_custom_integration_for_test(
+            &state,
+            "local.busy",
+            install::CustomIntegrationRequest {
+                id: "local.busy".into(),
+                name: "Busy".into(),
+                command: "busy".into(),
+                version: "1.0.0".into(),
+                executable_path: String::new(),
+                mode: "script".into(),
+                script_language: Some(ScriptLanguage::Shell),
+                script_content: Some("printf test".into()),
+                args_prefix: Vec::new(),
+                version_args: Vec::new(),
+                description: None,
+                permissions: Vec::new(),
+                platforms: vec![crate::extensions::PlatformTarget::current().unwrap().os],
+                output: crate::extensions::manifest::OutputMode::default(),
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+        // A stand-in for a run: a task that would otherwise sleep well past
+        // the test's deadline.
+        let task = tokio::spawn(async {
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+        });
+        let _guard = state.register_run_abort(&entry.id, task.abort_handle());
+        assert_eq!(state.runs_registered(&entry.id), 1);
+
+        // Exercise the exact handler shared by the enable/disable IPC commands.
+        let updated = set_enabled(&state, &entry.id, false).await.unwrap();
+        assert!(!updated.enabled);
+
+        // The run is cancelled at once, not left sleeping. A mutation that
+        // drops the kill would blow the deadline and fail here rather than
+        // hanging the suite.
+        let join = tokio::time::timeout(std::time::Duration::from_secs(5), task)
+            .await
+            .expect("the disabled run must be aborted at once");
+        assert!(join.unwrap_err().is_cancelled());
+        assert_eq!(state.runs_registered(&entry.id), 0);
     }
 
     const MANIFEST_JSON: &str = r#"{

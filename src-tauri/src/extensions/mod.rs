@@ -367,6 +367,10 @@ pub struct ExtensionState {
     /// scoped and in memory: a second concurrent run of the same integration is
     /// refused rather than racing the first one's argv/output state.
     runs_in_flight: run::RunInFlight,
+    /// Abort handles for the runs currently executing (R98). A disable or
+    /// uninstall aborts them so the process group dies at once instead of
+    /// waiting out the run timeout.
+    runs_abortable: run::RunAbortRegistry,
     /// AppHandle used to emit operation progress events; absent in unit tests.
     pub(crate) app_handle: std::sync::OnceLock<tauri::AppHandle>,
     /// Cancel token for the currently running long operation, if any.
@@ -439,6 +443,7 @@ impl ExtensionState {
             execution_plans: ExecutionPlanCache::default(),
             run_outputs: run::RunOutputStore::default(),
             runs_in_flight: run::RunInFlight::default(),
+            runs_abortable: run::RunAbortRegistry::default(),
             app_handle: std::sync::OnceLock::new(),
             active_cancel: std::sync::Mutex::new(None),
             progress_listener: std::sync::Mutex::new(None),
@@ -555,6 +560,28 @@ impl ExtensionState {
     #[cfg(test)]
     pub(crate) fn run_in_flight(&self, id: &str) -> bool {
         self.runs_in_flight.is_active(id)
+    }
+
+    /// Register a running task's abort handle under its integration id. The
+    /// returned guard unregisters it on every exit path (R98).
+    pub(crate) fn register_run_abort(
+        &self,
+        id: &str,
+        handle: tokio::task::AbortHandle,
+    ) -> run::RunAbortGuard<'_> {
+        self.runs_abortable.register(id, handle)
+    }
+
+    /// Abort every run currently in flight for `id` (R98), returning how many
+    /// were aborted. Called when an integration is disabled or uninstalled so a
+    /// long script is not left running for up to the run timeout.
+    pub(crate) fn kill_extension_runs(&self, id: &str) -> usize {
+        self.runs_abortable.kill(id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn runs_registered(&self, id: &str) -> usize {
+        self.runs_abortable.registered(id)
     }
 
     pub async fn invalidate_provider_commands(&self) {

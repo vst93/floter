@@ -35,10 +35,11 @@ use super::registry;
 use super::run_error;
 use super::ExtensionState;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
+use tokio::task::{AbortHandle, Id};
 
 /// Upper bound on the bytes retained per stream in the "last output" record.
 /// Matches the probe cap (`capability_probe::MAX_PROBE_OUTPUT_BYTES`): a
@@ -109,6 +110,111 @@ impl Drop for RunInFlightGuard<'_> {
     fn drop(&mut self) {
         if let Ok(mut active) = self.registry.active.lock() {
             active.remove(&self.id);
+        }
+    }
+}
+
+/// Per-integration abort handles for the runs currently executing (R98).
+///
+/// A manual or external run spawns its own task so a disable/uninstall can
+/// **abort** it: aborting drops that task's future, which drops the child's
+/// `kill_on_drop` guard and [`ChildCleanup`](super::process_cleanup::ChildCleanup),
+/// so the whole process group dies at once instead of waiting out
+/// [`RUN_TIMEOUT`]. Deliberately separate from [`RunInFlight`] — that one
+/// refuses a second run, this one only holds kill permissions.
+///
+/// One id maps to a `Vec` of handles rather than a single one: the external
+/// plugin route has no single-slot guard (only [`RunInFlight`] refuses a
+/// duplicate, and only the manual route claims it), so a launcher run and a
+/// detached-window run of the same integration can genuinely overlap.
+#[derive(Default)]
+pub(crate) struct RunAbortRegistry {
+    active: std::sync::Mutex<HashMap<String, Vec<AbortHandle>>>,
+}
+
+impl RunAbortRegistry {
+    /// Register `handle` under `id` and return the guard that unregisters it on
+    /// every exit path — success, failure, timeout, abort, panic unwind.
+    pub(crate) fn register(&self, id: &str, handle: AbortHandle) -> RunAbortGuard<'_> {
+        let task_id = handle.id();
+        if let Ok(mut active) = self.active.lock() {
+            active.entry(id.to_string()).or_default().push(handle);
+        }
+        RunAbortGuard {
+            registry: self,
+            id: id.to_string(),
+            task_id,
+        }
+    }
+
+    /// Abort every run registered for `id`, returning how many were aborted.
+    /// Each `abort()` drops that run's future, which tears its process group
+    /// down through the existing cleanup primitives.
+    pub(crate) fn kill(&self, id: &str) -> usize {
+        let handles = self
+            .active
+            .lock()
+            .ok()
+            .and_then(|mut active| active.remove(id))
+            .unwrap_or_default();
+        let killed = handles.len();
+        for handle in handles {
+            handle.abort();
+        }
+        killed
+    }
+
+    /// How many runs are currently registered for `id`.
+    #[cfg(test)]
+    pub(crate) fn registered(&self, id: &str) -> usize {
+        self.active
+            .lock()
+            .map(|active| active.get(id).map(Vec::len).unwrap_or(0))
+            .unwrap_or(0)
+    }
+
+    /// Whether the registry holds no run at all.
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.active
+            .lock()
+            .map(|active| active.is_empty())
+            .unwrap_or(true)
+    }
+}
+
+/// RAII release of one [`RunAbortRegistry`] registration.
+///
+/// Mutation: make `Drop` a no-op and the "registry is empty after the run"
+/// assertion goes red (a finished run would keep its abort handle registered,
+/// so a later kill would abort an unrelated task that reused the id).
+pub(crate) struct RunAbortGuard<'a> {
+    registry: &'a RunAbortRegistry,
+    id: String,
+    /// The task this guard registered. Removal is by task id, not by id alone,
+    /// so two overlapping runs of one integration each release only their own
+    /// handle.
+    task_id: Id,
+}
+
+impl std::fmt::Debug for RunAbortGuard<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RunAbortGuard")
+            .field("id", &self.id)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for RunAbortGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut active) = self.registry.active.lock() {
+            if let Some(handles) = active.get_mut(&self.id) {
+                handles.retain(|handle| handle.id() != self.task_id);
+                if handles.is_empty() {
+                    active.remove(&self.id);
+                }
+            }
         }
     }
 }
@@ -544,7 +650,7 @@ pub async fn run(
         }
         RunRoute::Background => {
             let started = Instant::now();
-            let outcome = execute_background(plan).await;
+            let outcome = execute_background(state, id, plan).await;
             let duration_ms = started.elapsed().as_millis() as u64;
             match outcome {
                 Ok((success, exit_code, output)) => {
@@ -569,16 +675,47 @@ pub async fn run(
 /// mode. The plan is built by the *caller* through `provider::execution_plan`,
 /// so this exposes no authority of its own: it is the same spawn
 /// `execute_background` performs for a manual run, with the same timeout and
-/// the same no-shell rule.
+/// the same no-shell rule. `extension_id` only names the integration so the
+/// run can be aborted by a disable/uninstall (R98).
 pub(crate) async fn execute_plan_background(
+    state: &ExtensionState,
+    extension_id: &str,
     plan: ExecutionPlan,
 ) -> Result<(bool, Option<i32>, RunOutput), String> {
-    execute_background(plan).await
+    execute_background(state, extension_id, plan).await
 }
 
 /// Spawn the plan directly (`program` + structured `args`) and capture both
 /// streams under a timeout. No shell is involved at any point.
-async fn execute_background(plan: ExecutionPlan) -> Result<(bool, Option<i32>, RunOutput), String> {
+///
+/// The spawn runs in its own task so [`ExtensionState::kill_extension_runs`]
+/// can abort it (R98): an abort drops the task's future, which drops the child
+/// cleanup guard and kills the process group at once. The registry guard is
+/// held by this frame, so every exit path unregisters the handle.
+async fn execute_background(
+    state: &ExtensionState,
+    extension_id: &str,
+    plan: ExecutionPlan,
+) -> Result<(bool, Option<i32>, RunOutput), String> {
+    let task = tokio::spawn(run_plan_background(plan));
+    let _abort_guard = state.register_run_abort(extension_id, task.abort_handle());
+    match task.await {
+        Ok(result) => result,
+        // A disable/uninstall aborted the run (R98). Same keyed shape the
+        // timeout uses, on the same channel (the command's `Result`), so both
+        // the launcher and the detached window localise it through
+        // `runErrorMessage`.
+        Err(error) if error.is_cancelled() => Err(run_error::killed(extension_id)),
+        Err(error) => Err(format!("Run task failed: {error}")),
+    }
+}
+
+/// The spawned half of [`execute_background`]: build the command and capture
+/// both streams under [`RUN_TIMEOUT`]. Split out so the parent frame can hold
+/// an abort handle for it (R98).
+async fn run_plan_background(
+    plan: ExecutionPlan,
+) -> Result<(bool, Option<i32>, RunOutput), String> {
     let mut command = tokio::process::Command::new(&plan.program);
     command
         .args(&plan.args)
@@ -1766,5 +1903,197 @@ mod tests {
         // run is not blocked by a stale mark.
         assert!(!state.run_in_flight(id));
         assert!(run(&state, id, None).await.is_ok());
+    }
+
+    // ── R98 · a disable/uninstall kills an in-flight run ─────────────────
+
+    /// Await a spawned task that must have been cancelled, failing on a short
+    /// deadline instead of hanging. A mutation that skips the abort would
+    /// otherwise block the suite rather than report a red.
+    async fn expect_cancelled(task: tokio::task::JoinHandle<()>) {
+        let join = tokio::time::timeout(Duration::from_secs(5), task)
+            .await
+            .expect("the aborted task must settle at once");
+        assert!(
+            join.unwrap_err().is_cancelled(),
+            "the task must be cancelled"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_abort_registry_registers_aborts_and_unregisters_runs() {
+        // Mutation: make `RunAbortGuard::drop` a no-op and the final
+        // `is_empty` assertion goes red — a finished run would keep its abort
+        // handle registered, so a later kill could abort an unrelated task
+        // that reused the id.
+        let registry = RunAbortRegistry::default();
+        assert!(registry.is_empty());
+
+        // Two runs of one integration (the external route allows overlap) plus
+        // one of another, each registered with its own guard.
+        let first = tokio::spawn(std::future::pending::<()>());
+        let second = tokio::spawn(std::future::pending::<()>());
+        let unrelated = tokio::spawn(std::future::pending::<()>());
+        let first_guard = registry.register("local.a", first.abort_handle());
+        let second_guard = registry.register("local.a", second.abort_handle());
+        let unrelated_guard = registry.register("local.b", unrelated.abort_handle());
+        assert_eq!(registry.registered("local.a"), 2);
+        assert_eq!(registry.registered("local.b"), 1);
+
+        // kill aborts exactly the addressed integration's runs…
+        assert_eq!(registry.kill("local.a"), 2);
+        expect_cancelled(first).await;
+        expect_cancelled(second).await;
+        // …removes their entries immediately…
+        assert_eq!(registry.registered("local.a"), 0);
+        // …leaves the unrelated run running…
+        assert_eq!(registry.registered("local.b"), 1);
+        assert!(!unrelated.is_finished());
+        // …and a second kill of the same id is a no-op.
+        assert_eq!(registry.kill("local.a"), 0);
+
+        // Dropping a killed run's guard must not remove another integration's
+        // entry: removal is by task id, not by id alone.
+        drop(first_guard);
+        drop(second_guard);
+        assert_eq!(registry.registered("local.b"), 1);
+
+        // The ordinary exit path unregisters too: finish the unrelated run,
+        // drop its guard, and the registry is empty again.
+        unrelated.abort();
+        let _ = unrelated.await;
+        drop(unrelated_guard);
+        assert!(registry.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_finished_run_unregisters_its_abort_handle() {
+        // The success path releases the handle: a later disable must not abort
+        // a task that already finished.
+        let registry = RunAbortRegistry::default();
+        let task = tokio::spawn(async { 1u8 });
+        {
+            let _guard = registry.register("local.a", task.abort_handle());
+            assert_eq!(registry.registered("local.a"), 1);
+            assert_eq!(task.await.unwrap(), 1);
+        }
+        assert_eq!(registry.registered("local.a"), 0);
+        assert!(registry.is_empty());
+    }
+
+    /// Wait for a fixture to publish a PID, then return it.
+    #[cfg(unix)]
+    async fn wait_for_pid(path: &Path) -> u32 {
+        for _ in 0..200 {
+            if let Ok(value) = std::fs::read_to_string(path) {
+                if let Ok(pid) = value.trim().parse() {
+                    return pid;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        panic!("fixture did not write PID file {}", path.display());
+    }
+
+    /// Poll `/proc` until the PID is gone. On a platform without `/proc` this
+    /// cannot observe anything, which is the same stance the probe runner's
+    /// own cleanup tests take.
+    #[cfg(unix)]
+    async fn assert_gone(pid: u32) {
+        for _ in 0..250 {
+            if !Path::new(&format!("/proc/{pid}")).exists() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!("process {pid} survived the run kill");
+    }
+
+    /// R98 · the whole kill path, end to end: a long-running run is registered,
+    /// `kill_extension_runs` aborts it, the caller gets the keyed `run_killed`
+    /// failure, the single-run slot is released, and the fixture's process
+    /// group (parent *and* grandchild) is dead well before `RUN_TIMEOUT`.
+    ///
+    /// Mutation: drop the abort registration in `execute_background` and
+    /// `kill_extension_runs` returns 0, the run keeps sleeping, and the PIDs
+    /// stay alive.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn killing_an_extension_aborts_its_run_and_its_process_group() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(test_state(directory.path()));
+        let fixture_directory = tempfile::tempdir().unwrap();
+        let executable = fixture_directory.path().join("run-kill.sh");
+        crate::extensions::test_support::stage_fixture("run-kill.sh", &executable);
+        let parent_pid = fixture_directory.path().join("parent.pid");
+        let child_pid = fixture_directory.path().join("child.pid");
+
+        let id = "local.longrun";
+        crate::extensions::install::create_custom_integration_for_test(
+            &state,
+            id,
+            crate::extensions::install::CustomIntegrationRequest {
+                id: id.into(),
+                name: "Long run".into(),
+                command: "long-run".into(),
+                version: "1.0.0".into(),
+                executable_path: executable.to_string_lossy().into_owned(),
+                mode: "executable".into(),
+                script_language: None,
+                script_content: None,
+                args_prefix: vec![
+                    parent_pid.to_string_lossy().into_owned(),
+                    child_pid.to_string_lossy().into_owned(),
+                ],
+                version_args: Vec::new(),
+                description: None,
+                permissions: vec![
+                    crate::extensions::manifest::Permission::Environment,
+                    crate::extensions::manifest::Permission::ProcessSpawn,
+                ],
+                platforms: vec![
+                    crate::extensions::manifest::PlatformTarget::current()
+                        .unwrap()
+                        .os,
+                ],
+                output: OutputMode::Background,
+                params: Vec::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let run_state = std::sync::Arc::clone(&state);
+        let runner = tokio::spawn(async move { run(&run_state, id, None).await });
+        let parent = wait_for_pid(&parent_pid).await;
+        let child = wait_for_pid(&child_pid).await;
+        // The run is registered and holds the single-run slot.
+        assert_eq!(state.runs_registered(id), 1);
+        assert!(state.run_in_flight(id));
+
+        // A disable/uninstall aborts it at once.
+        assert_eq!(state.kill_extension_runs(id), 1);
+
+        let error = tokio::time::timeout(Duration::from_secs(10), runner)
+            .await
+            .expect("the killed run must settle at once")
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(
+            run_error::message_key(&error),
+            Some(run_error::RUN_KILLED),
+            "{error}"
+        );
+        assert!(
+            error.contains(id),
+            "the killed payload names the id: {error}"
+        );
+        // The registry and the single-run slot are both released, so the next
+        // run (or a reinstall) is not blocked by a stale mark.
+        assert_eq!(state.runs_registered(id), 0);
+        assert!(!state.run_in_flight(id));
+        // The process group is gone — the point of the abort.
+        assert_gone(parent).await;
+        assert_gone(child).await;
     }
 }

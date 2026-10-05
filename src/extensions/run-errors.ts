@@ -21,7 +21,8 @@ export type RunErrorKey =
   | "run_program_not_executable"
   | "run_interpreter_missing"
   | "run_spawn_failed"
-  | "run_timeout";
+  | "run_timeout"
+  | "run_killed";
 
 /** The payload shapes the backend emits, per key. Only the fields that key
  *  actually carries are declared; an absent field degrades to a blank rather
@@ -33,6 +34,7 @@ type RunErrorPayload = {
   searched?: unknown;
   detail?: unknown;
   seconds?: unknown;
+  extension_id?: unknown;
 };
 
 const asString = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -72,6 +74,7 @@ export const parseRunError = (
     "run_interpreter_missing",
     "run_spawn_failed",
     "run_timeout",
+    "run_killed",
   ];
   if (!known.includes(key as RunErrorKey)) return null;
   return { key: key as RunErrorKey, payload: payload as RunErrorPayload };
@@ -110,6 +113,12 @@ export const runErrorMessage = (message: string, t: Translate): string | null =>
       const seconds = typeof payload.seconds === "number" ? payload.seconds : 0;
       return t("settings.extensions.runErrorTimeout", { seconds });
     }
+    case "run_killed":
+      // R98 · a disable/uninstall aborts an in-flight run; the user is told
+      // which integration stopped rather than watching the run hang.
+      return t("settings.extensions.runErrorKilled", {
+        id: asString(payload.extension_id),
+      });
     default:
       return null;
   }
@@ -123,4 +132,5 @@ export const RUN_ERROR_MESSAGE_KEYS: MessageKey[] = [
   "settings.extensions.runErrorInterpreterMissing",
   "settings.extensions.runErrorSpawnFailed",
   "settings.extensions.runErrorTimeout",
+  "settings.extensions.runErrorKilled",
 ];

@@ -2270,6 +2270,9 @@ pub async fn uninstall(
     let _guard = state.mutation_lock.lock().await;
     validate_id(extension_id)?;
     state.provider.cancel_completions();
+    // R98 · the legacy uninstall path kills in-flight runs before it touches
+    // any file, mirroring `uninstall_componentized`.
+    state.kill_extension_runs(extension_id);
     state.emit_progress(crate::extensions::operation::OperationProgress {
         extension_id: extension_id.to_string(),
         kind: "uninstall".to_string(),

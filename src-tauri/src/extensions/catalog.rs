@@ -503,7 +503,7 @@ pub async fn run_plugin_command(
     let plan = execution_plan(&provider.descriptor, &provider.invocation, argv, None)?;
     let started = Instant::now();
     let (success, exit_code, output) =
-        crate::extensions::run::execute_plan_background(plan).await?;
+        crate::extensions::run::execute_plan_background(state, extension_id, plan).await?;
     Ok(PluginCommandOutput {
         success,
         exit_code,

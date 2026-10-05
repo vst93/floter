@@ -31,6 +31,10 @@ pub const RUN_INTERPRETER_MISSING: &str = "run_interpreter_missing";
 pub const RUN_SPAWN_FAILED: &str = "run_spawn_failed";
 /// The run exceeded its budget and was killed.
 pub const RUN_TIMEOUT: &str = "run_timeout";
+/// The run was stopped because its integration was disabled or uninstalled
+/// (R98). The user asked for this: a disable/uninstall kills an in-flight run
+/// at once rather than letting it finish for up to the timeout.
+pub const RUN_KILLED: &str = "run_killed";
 
 #[derive(Serialize)]
 struct InterpreterMissing<'a> {
@@ -58,6 +62,11 @@ struct SpawnFailed<'a> {
 #[derive(Serialize)]
 struct TimeoutPayload {
     seconds: u64,
+}
+
+#[derive(Serialize)]
+struct KilledPayload<'a> {
+    extension_id: &'a str,
 }
 
 /// Serialize a keyed payload. A `serde_json` failure cannot happen for these
@@ -138,6 +147,12 @@ pub fn timed_out(timeout: std::time::Duration) -> String {
             seconds: timeout.as_secs(),
         },
     )
+}
+
+/// The run was aborted because its integration was disabled or uninstalled
+/// (R98). Carries the id the frontend names in the localised sentence.
+pub fn killed(extension_id: &str) -> String {
+    keyed(RUN_KILLED, &KilledPayload { extension_id })
 }
 
 /// The key of a keyed message, or `None` when it is a plain string. The
@@ -236,6 +251,13 @@ mod tests {
         let message = timed_out(std::time::Duration::from_secs(300));
         assert_eq!(message_key(&message), Some(RUN_TIMEOUT));
         assert_eq!(payload(&message)["seconds"], 300);
+    }
+
+    #[test]
+    fn a_killed_run_names_the_integration_it_belonged_to() {
+        let message = killed("local.a");
+        assert_eq!(message_key(&message), Some(RUN_KILLED));
+        assert_eq!(payload(&message)["extension_id"], "local.a");
     }
 
     #[test]
