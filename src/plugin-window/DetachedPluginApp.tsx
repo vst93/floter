@@ -17,7 +17,7 @@
 // reported to the copy chokepoint, exactly as `PluginTextView` does inside the
 // launcher.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { X } from "lucide-react";
@@ -26,7 +26,14 @@ import { createTranslator, normalizeLanguage, type Translate } from "../i18n.ts"
 import type { AppSettings } from "../App";
 import type { ExternalRunOutput } from "../plugins/external.ts";
 import { externalRunText } from "../plugins/external.ts";
-import { resolvePluginView, pluginTextMetrics, type PluginView } from "../launcher/plugin-mode.ts";
+import {
+  PLUGIN_INITIAL_PAGES,
+  PLUGIN_LOAD_MORE_THRESHOLD,
+  pagePluginEmission,
+  resolvePluginView,
+  pluginTextMetrics,
+  type PluginView,
+} from "../launcher/plugin-mode.ts";
 import { PluginTextView } from "../launcher/PluginTextView.tsx";
 import { selectionTextIn } from "../launcher/plugin-text-copy.ts";
 import { runErrorMessage } from "../extensions/run-errors.ts";
@@ -99,8 +106,24 @@ export default function DetachedPluginApp() {
   // the same generation guard `runExternalCommand` uses in the launcher.
   const runGeneration = useRef(0);
 
+  // R95 · the list arm pages exactly as the launcher's does: the shared protocol
+  // rule (`pagePluginEmission`), the shared page size and the shared first
+  // window (`PLUGIN_INITIAL_PAGES`). A new request is a new result set, so the
+  // window resets to the first pages in `run` below.
+  const [pluginPages, setPluginPages] = useState(PLUGIN_INITIAL_PAGES);
+  // One append in flight at a time. The append is synchronous — there is no
+  // fetch to wait for — so the guard is released by the render the increment
+  // causes, never by a frame (R72 recorded that an inactive WebView stops
+  // firing `requestAnimationFrame`; a list that appends from memory has nothing
+  // to defer).
+  const pluginLoadingRef = useRef(false);
+  useEffect(() => {
+    pluginLoadingRef.current = false;
+  }, [pluginPages]);
+
   const run = useCallback((request: DetachRequest) => {
     const generation = ++runGeneration.current;
+    setPluginPages(PLUGIN_INITIAL_PAGES);
     // The window title follows the request, so the taskbar entry names what
     // is pinned (the Rust builder sets the same title for the first paint).
     // Both arms have a title: the external arm's command label, the text
@@ -210,8 +233,41 @@ export default function DetachedPluginApp() {
     if (state.status !== "done" || !state.output) return null;
     const text = externalRunText(state.output);
     if (text === null) return null;
-    return resolvePluginView({ output: text });
-  }, [state.status, state.output, state.request]);
+    // R95 · the list arm windows the same way the launcher's catalog hook does.
+    // `pagePluginEmission` returns a list that fits the window untouched — a
+    // non-list body (text) and a list of at most one page are byte-identical to
+    // the pre-R95 resolve, which is the regression the ≤-page-size guard pins.
+    return resolvePluginView(pagePluginEmission({ output: text }, pluginPages));
+  }, [state.status, state.output, state.request, pluginPages]);
+
+  // R95 · the scroll-to-bottom trigger, the launcher's own rule: only a list
+  // that actually has another page reacts, and the trigger reads the scroller's
+  // geometry against the shared threshold, so a window resize needs no second
+  // budget. The ref lets the once-created handler see the current bit without
+  // being rebuilt.
+  const pluginHasMore =
+    view !== null &&
+    view.form === "list" &&
+    view.page !== null &&
+    view.page.hasMore;
+  const pluginHasMoreRef = useRef(pluginHasMore);
+  pluginHasMoreRef.current = pluginHasMore;
+
+  const loadMorePluginPage = useCallback(() => {
+    if (pluginLoadingRef.current || !pluginHasMoreRef.current) return;
+    pluginLoadingRef.current = true;
+    setPluginPages((pages) => pages + 1);
+  }, []);
+
+  const onBodyScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (!pluginHasMoreRef.current) return;
+      const node = event.currentTarget;
+      const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
+      if (remaining <= PLUGIN_LOAD_MORE_THRESHOLD) loadMorePluginPage();
+    },
+    [loadMorePluginPage],
+  );
 
   // R65 · the list arm's copy-on-select. The text arm renders `PluginTextView`,
   // which owns the identical gesture for its own block (armed by a mousedown
@@ -270,7 +326,7 @@ export default function DetachedPluginApp() {
           </div>
         )}
       </header>
-      <div className="plugin-window__body" ref={outputRef}>
+      <div className="plugin-window__body" ref={outputRef} onScroll={onBodyScroll}>
         {state.status === "running" && (
           <div className="plugin-window__status">{t("launcher.externalRunning")}</div>
         )}
@@ -300,14 +356,27 @@ export default function DetachedPluginApp() {
             />
           ) : (
             <ul className="plugin-window__list">
-              {view.items.map((item) => (
-                <li key={item.id} className="plugin-window__row">
-                  <span className="plugin-window__row-title">{item.title}</span>
-                  {"subtitle" in item && item.subtitle && (
-                    <span className="plugin-window__row-subtitle">{item.subtitle}</span>
-                  )}
-                </li>
-              ))}
+              {view.items.map((item) =>
+                // R95 · a status row is information *about* the list, not an
+                // entry in it, so it wears the muted note the launcher draws
+                // for the same row (`launcher-status`) instead of the row plate.
+                // Everything else in the detached list is read-only by
+                // construction, so the launcher's other row chrome — selection,
+                // `⌘N`, the source word — has no counterpart here (see the R95
+                // report's row-by-row evaluation).
+                item.type === "status" ? (
+                  <li key={item.id} className="plugin-window__status" title={item.title}>
+                    {item.title}
+                  </li>
+                ) : (
+                  <li key={item.id} className="plugin-window__row">
+                    <span className="plugin-window__row-title">{item.title}</span>
+                    {"subtitle" in item && item.subtitle && (
+                      <span className="plugin-window__row-subtitle">{item.subtitle}</span>
+                    )}
+                  </li>
+                ),
+              )}
             </ul>
           ))}
         {/* R93 · the notice is the detached window's own status line (not a
