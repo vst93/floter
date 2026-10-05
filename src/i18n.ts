@@ -41,6 +41,9 @@ const en = {
   // (title tooltip), the rest are the second window's own chrome.
   "pluginWindow.detach": "Pin to its own window",
   "pluginWindow.detachHint": "Open this output in a window that stays put",
+  // R90 · the row-level pin: pin *this one result's text* into the detached
+  // window (the field pin above pins the whole plugin page's run).
+  "pluginWindow.pinText": "Pin as text window",
   "pluginWindow.rerun": "Rerun",
   "pluginWindow.close": "Close",
   "pluginWindow.idle": "No command pinned yet",
@@ -910,6 +913,8 @@ const zh: Record<MessageKey, string> = {
   // R84 · 插件独立子窗口：钉住按钮的提示与第二窗口自身的界面文案。
   "pluginWindow.detach": "固定到独立窗口",
   "pluginWindow.detachHint": "在独立窗口中打开这份输出，不再随主面板消失",
+  // R90 · 行级钉按钮：把「这一条结果」的文本钉进独立窗口（上面的字段钉按钮钉的是整个插件页）。
+  "pluginWindow.pinText": "钉为文本窗口",
   "pluginWindow.rerun": "重新执行",
   "pluginWindow.close": "关闭",
   "pluginWindow.idle": "尚未固定任何命令",

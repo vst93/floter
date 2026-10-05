@@ -33,6 +33,7 @@ import {
 } from "../src/plugin-window/detach.ts";
 
 const validRequest = {
+  kind: "external",
   extensionId: "local.tool",
   commandId: "run",
   commandLabel: "My Tool",
@@ -74,12 +75,43 @@ test("validateDetachRequest refuses anything without its routing truth", () => {
   assert.equal(validateDetachRequest(null), null);
   assert.equal(validateDetachRequest("run"), null);
   assert.equal(validateDetachRequest({}), null);
+  // R90 · the shape is a discriminated union now: an untagged payload — the
+  // pre-R90 external request — is no arm at all, and an unknown kind is
+  // refused rather than guessed at.
+  const { kind: _kind, ...untagged } = validRequest;
+  assert.equal(validateDetachRequest(untagged), null);
+  assert.equal(validateDetachRequest({ ...validRequest, kind: "nope" }), null);
   assert.equal(validateDetachRequest({ ...validRequest, commandId: "" }), null);
   assert.equal(validateDetachRequest({ ...validRequest, commandId: "   " }), null);
   assert.equal(validateDetachRequest({ ...validRequest, extensionId: "" }), null);
   assert.equal(validateDetachRequest({ ...validRequest, commandLabel: "" }), null);
   assert.equal(validateDetachRequest({ ...validRequest, args: ["ok", 3] }), null);
   assert.equal(validateDetachRequest({ ...validRequest, args: "--flag" }), null);
+});
+
+test("validateDetachRequest accepts the text arm, an empty body included", () => {
+  // R90 · a single snapshot of text: the title names the window, the body is
+  // the content. An empty body is a legitimate snapshot — a command that
+  // printed nothing is still content the user pinned — so it is accepted, not
+  // treated as malformed.
+  assert.deepEqual(validateDetachRequest({ kind: "text", title: "Note", text: "hello" }), {
+    kind: "text",
+    title: "Note",
+    text: "hello",
+  });
+  assert.deepEqual(validateDetachRequest({ kind: "text", title: "Note", text: "" }), {
+    kind: "text",
+    title: "Note",
+    text: "",
+  });
+});
+
+test("validateDetachRequest refuses a text arm without a title or a body", () => {
+  assert.equal(validateDetachRequest({ kind: "text", title: "", text: "hello" }), null);
+  assert.equal(validateDetachRequest({ kind: "text", title: "   ", text: "hello" }), null);
+  assert.equal(validateDetachRequest({ kind: "text", title: "Note" }), null);
+  assert.equal(validateDetachRequest({ kind: "text", title: "Note", text: 3 }), null);
+  assert.equal(validateDetachRequest({ kind: "text", title: "Note", text: null }), null);
 });
 
 test("hide on blur keeps governing the launcher card exactly when the setting is on", () => {
@@ -104,6 +136,7 @@ test("the detached window's chrome keys exist and translate in both languages", 
   const keys = [
     "pluginWindow.detach",
     "pluginWindow.detachHint",
+    "pluginWindow.pinText",
     "pluginWindow.rerun",
     "pluginWindow.close",
     "pluginWindow.idle",

@@ -17,6 +17,7 @@ import {
   Clock as ClockIcon,
   AppWindow as AppWindowIcon,
   Star as StarIcon,
+  Pin as PinIcon,
   Type as TypeIcon,
   Link as LinkIcon,
   Image as ImageIcon,
@@ -30,6 +31,7 @@ import {
   type PluginRowIcon,
 } from "./plugin-mode";
 import { clipboardKindChip } from "../plugins/clipboard/mode";
+import { pinTextApplies } from "../plugin-window/pin-entry";
 import { isBareTerminalRow } from "./terminal-row";
 import type { ClipboardEntry } from "../clipboard-history";
 import type { CalculatorEntry } from "../calculator";
@@ -448,6 +450,12 @@ type LauncherResultsProps = {
   onToggleClipboardFavorite?: (id: string) => void;
   /** R50 · the calculator row's favorite toggle, the clipboard star's twin. */
   onToggleCalculatorFavorite?: (id: string) => void;
+  /** R90 · pin a row's single piece of text into the detached text window.
+   *  Rendered only on the row types `pinTextApplies` accepts (history, a
+   *  clipboard entry with text, a plugin row whose content reads as text).
+   *  Omitted by a surface that renders rows without the action (the node
+   *  tests). */
+  onPinText?: (item: LauncherItem) => void;
   /** R50 · the id of the history row whose inline delete confirmation is
    *  armed, or `null`. The armed row swaps its trailing chrome for the muted
    *  "press again" note; the key handler owns the state machine
@@ -483,6 +491,7 @@ export function LauncherResults({
   onRunActionBar,
   onToggleClipboardFavorite,
   onToggleCalculatorFavorite,
+  onPinText,
   armedDeleteId = null,
   onVisibleRowsChange,
 }: LauncherResultsProps) {
@@ -775,6 +784,10 @@ export function LauncherResults({
                   : undefined;
             const onToggleFavorite =
               item.type === "calculator" ? onToggleCalculatorFavorite : onToggleClipboardFavorite;
+            // R90 · the row's own pin, resolved once here so the JSX and the
+            // handler read the same decision. Only the row types that carry a
+            // single text body earn it (see `pin-entry.ts`).
+            const pinnable = onPinText !== undefined && pinTextApplies(item);
             // R50 · the calculator row's full result, printed right-aligned and
             // never truncated; the expression on the left is what absorbs a
             // narrow row. The delete arm note replaces the trailing chrome.
@@ -956,6 +969,29 @@ export function LauncherResults({
                         strokeWidth={2}
                         fill={favoriteEntry.favorite ? "currentColor" : "none"}
                       />
+                    </span>
+                  )}
+                  {/* R90 · the row's pin, in the R38 star's slot. Like the star
+                      it is a click region inside the row's own `<button>` — the
+                      row stays the one interactive element, and the click stops
+                      there so the run action never fires. It fades in on
+                      hover/selection, and reuses the field pin's button class
+                      so the two pins read as one control. There is deliberately
+                      no keyboard shortcut this round (⌘P collides with the
+                      editor's print/command-palette habit — registered as a
+                      boundary in the R90 report), which is why the glyph is
+                      `aria-hidden` exactly as the star is. */}
+                  {pinnable && (
+                    <span
+                      className="launcher-result__pin collapsed-card__settings"
+                      title={t("pluginWindow.pinText")}
+                      aria-hidden="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onPinText?.(item);
+                      }}
+                    >
+                      <PinIcon size={13} strokeWidth={2} />
                     </span>
                   )}
                   <span className="launcher-result__action">

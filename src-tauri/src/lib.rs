@@ -1141,11 +1141,14 @@ fn refocus_webview(window: WebviewWindow) -> Result<(), String> {
     webview.set_focus().map_err(|error| error.to_string())
 }
 
-/// R84 · the detached plugin window.
+/// R84 · the detached plugin window. R90 · the request is a discriminated
+/// union now, one arm per kind of thing a window can be pinned to.
 ///
 /// The user's ask: 「插件页面可以独立固定在界面上而不自动消失……脱离原来的整个
 /// 软件主体，不再跟随呼出和隐藏」— a real second window a plugin page can be
-/// pinned into, which the launcher's summon/hide lifecycle never touches.
+/// pinned into, which the launcher's summon/hide lifecycle never touches. R90
+/// extended it to 「钉住单条内容」: one selected result's text becomes its own
+/// window, no command to run.
 ///
 /// Delivery uses the established pull-slot contract (`pending_plugin_open`,
 /// `pending_deep_link`): the request is parked in `AppState` *before* the
@@ -1153,24 +1156,57 @@ fn refocus_webview(window: WebviewWindow) -> Result<(), String> {
 /// `plugin-detach-request` emit on top, so a second detach replaces its
 /// content without rebuilding anything. The emit alone could race the
 /// window's first listener; the slot cannot, and the slot is the truth.
+///
+/// `external` is R84's arm, field for field unchanged; `text` is R90's. The
+/// `kind` tag is the same discriminator the frontend's `DetachRequest` union
+/// uses (`src/plugin-window/detach.ts`), and the two sides share the JSON
+/// shape — a rename on one side is a silent deserialisation failure on the
+/// other, which the round-trip tests pin.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DetachRequest {
-    pub extension_id: String,
-    pub command_id: String,
-    pub command_label: String,
-    pub args: Vec<String>,
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum DetachRequest {
+    #[serde(rename_all = "camelCase")]
+    External {
+        extension_id: String,
+        command_id: String,
+        command_label: String,
+        args: Vec<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Text { title: String, text: String },
 }
 
 impl DetachRequest {
-    /// A request is only as good as its routing truth: the command id. Empty
-    /// ids and labels are refused here as well as in the frontend's
-    /// `validateDetachRequest` — the two sides share the convention, neither
-    /// trusts the other.
+    /// A request is only as good as its routing truth. The external arm needs
+    /// its command id and labels (empty ids and labels are refused here as
+    /// well as in the frontend's `validateDetachRequest` — the two sides share
+    /// the convention, neither trusts the other). The text arm needs only its
+    /// title: the body may be the empty string, because a command that printed
+    /// nothing is still content the user pinned.
     fn valid(&self) -> bool {
-        !self.extension_id.trim().is_empty()
-            && !self.command_id.trim().is_empty()
-            && !self.command_label.trim().is_empty()
+        match self {
+            DetachRequest::External {
+                extension_id,
+                command_id,
+                command_label,
+                ..
+            } => {
+                !extension_id.trim().is_empty()
+                    && !command_id.trim().is_empty()
+                    && !command_label.trim().is_empty()
+            }
+            DetachRequest::Text { title, .. } => !title.trim().is_empty(),
+        }
+    }
+
+    /// The window title this request wants, before the window exists. Both
+    /// arms carry one: the external arm's command label, the text arm's own
+    /// row title.
+    fn window_title(&self) -> &str {
+        match self {
+            DetachRequest::External { command_label, .. } => command_label,
+            DetachRequest::Text { title, .. } => title,
+        }
     }
 }
 
@@ -1185,7 +1221,7 @@ pub const PLUGIN_WINDOW_LABEL: &str = "plugin-detached";
 #[tauri::command]
 fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), String> {
     if !request.valid() {
-        return Err("detach request: missing extension, command or label".into());
+        return Err("detach request: missing its title or routing truth".into());
     }
     let state = app.state::<AppState>();
     if let Ok(mut slot) = state.pending_plugin_window_request.lock() {
@@ -1200,7 +1236,10 @@ fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), St
         .pending_plugin_window_request
         .lock()
         .ok()
-        .and_then(|slot| slot.as_ref().map(|pending| pending.command_label.clone()))
+        .and_then(|slot| {
+            slot.as_ref()
+                .map(|pending| pending.window_title().to_string())
+        })
         .unwrap_or_else(|| "floter plugin".to_string());
     // R85 · open where the user left it. The stored geometry is resolved
     // against the displays that exist *now*: a size the current primary can
@@ -2063,33 +2102,129 @@ mod detach_plugin_window_tests {
 
     use super::{AppState, DetachRequest, PLUGIN_WINDOW_LABEL};
 
-    /// R84 · the same request the frontend's `validateDetachRequest` accepts is
-    /// the one the backend's own gate lets through, and anything with an empty
-    /// routing truth is refused on both sides. Pinned here so the window cannot
-    /// be opened into a state it cannot run.
-    #[test]
-    fn a_request_without_its_routing_truth_is_refused() {
-        let base = |command_id: &str| DetachRequest {
+    /// R84's arm, built once. R90 · the tag aside, its fields are unchanged.
+    fn external(command_id: &str) -> DetachRequest {
+        DetachRequest::External {
             extension_id: "local.tool".into(),
             command_id: command_id.into(),
             command_label: "My Tool".into(),
             args: vec!["--flag".into()],
-        };
-        assert!(base("run").valid());
-        assert!(!base("").valid());
-        assert!(!base("   ").valid());
-        let mut no_label = base("run");
-        no_label.command_label = String::new();
-        assert!(!no_label.valid());
-        let mut no_extension = base("run");
-        no_extension.extension_id = String::new();
-        assert!(!no_extension.valid());
+        }
     }
 
-    /// R84 · the pull-slot contract: the parked request is handed over exactly
-    /// once, a second read sees `None`, a replacement overwrites the old one,
-    /// and a clear empties it. These are the exact semantics the detached
-    /// page's mount pull and the close command rely on.
+    /// R90's arm: one snapshot of text, no command.
+    fn text(title: &str, body: &str) -> DetachRequest {
+        DetachRequest::Text {
+            title: title.into(),
+            text: body.into(),
+        }
+    }
+
+    /// R84/R90 · the same request the frontend's `validateDetachRequest`
+    /// accepts is the one the backend's own gate lets through, and anything
+    /// with an empty routing truth is refused on both sides. The text arm's
+    /// body may be empty — a command that printed nothing is still content the
+    /// user pinned — but its title may not be.
+    #[test]
+    fn a_request_without_its_routing_truth_is_refused() {
+        assert!(external("run").valid());
+        assert!(!external("").valid());
+        assert!(!external("   ").valid());
+        assert!(!DetachRequest::External {
+            extension_id: String::new(),
+            command_id: "run".into(),
+            command_label: "My Tool".into(),
+            args: vec![],
+        }
+        .valid());
+        assert!(!DetachRequest::External {
+            extension_id: "local.tool".into(),
+            command_id: "run".into(),
+            command_label: String::new(),
+            args: vec![],
+        }
+        .valid());
+        // R90 · the text arm's own gate.
+        assert!(text("Note", "hello").valid());
+        assert!(text("Note", "").valid());
+        assert!(!text("", "hello").valid());
+        assert!(!text("   ", "hello").valid());
+    }
+
+    /// R90 · the wire shape both sides share. The `kind` tag is the
+    /// discriminator the frontend's `validateDetachRequest` reads; the fields
+    /// keep the external arm's R84 camelCase names byte for byte (the tag
+    /// aside) and the text arm's two keys. Round-tripped through the real
+    /// serializer, so a missing tag, a wrong `kind`, or a renamed field fails
+    /// here rather than at a window that opens onto nothing.
+    #[test]
+    fn both_arms_round_trip_through_the_wire_shape() {
+        let external = DetachRequest::External {
+            extension_id: "local.tool".into(),
+            command_id: "run".into(),
+            command_label: "My Tool".into(),
+            args: vec!["--flag".into(), "value".into()],
+        };
+        let json = serde_json::to_value(&external).unwrap();
+        assert_eq!(json["kind"], "external");
+        assert_eq!(json["extensionId"], "local.tool");
+        assert_eq!(json["commandId"], "run");
+        assert_eq!(json["commandLabel"], "My Tool");
+        assert_eq!(json["args"][0], "--flag");
+        assert_eq!(json["args"][1], "value");
+        assert_eq!(
+            serde_json::from_value::<DetachRequest>(json).unwrap(),
+            external
+        );
+
+        let text_arm = text("Note", "hello");
+        let json = serde_json::to_value(&text_arm).unwrap();
+        assert_eq!(json["kind"], "text");
+        assert_eq!(json["title"], "Note");
+        assert_eq!(json["text"], "hello");
+        assert_eq!(
+            serde_json::from_value::<DetachRequest>(json).unwrap(),
+            text_arm
+        );
+
+        // The empty body is a legitimate arm and survives the wire.
+        let empty = text("Empty", "");
+        let json = serde_json::to_value(&empty).unwrap();
+        assert_eq!(json["text"], "");
+        assert_eq!(
+            serde_json::from_value::<DetachRequest>(json).unwrap(),
+            empty
+        );
+
+        // A payload with no tag — the pre-R90 shape — is not a request any
+        // more, and neither is an unknown kind.
+        assert!(serde_json::from_value::<DetachRequest>(serde_json::json!({
+            "extensionId": "local.tool",
+            "commandId": "run",
+            "commandLabel": "My Tool",
+            "args": [],
+        }))
+        .is_err());
+        assert!(serde_json::from_value::<DetachRequest>(serde_json::json!({
+            "kind": "nope",
+            "title": "Note",
+            "text": "hello",
+        }))
+        .is_err());
+    }
+
+    /// R90 · the window title both arms carry before the window exists: the
+    /// external arm names its command, the text arm its own row.
+    #[test]
+    fn both_arms_name_their_window() {
+        assert_eq!(external("run").window_title(), "My Tool");
+        assert_eq!(text("Note", "hello").window_title(), "Note");
+    }
+
+    /// R84/R90 · the pull-slot contract: the parked request is handed over
+    /// exactly once, a second read sees `None`, a replacement overwrites the
+    /// old one, and a clear empties it — the same semantics whichever arm is
+    /// parked, because the slot holds the whole union.
     #[test]
     fn the_pending_request_slot_hands_over_exactly_once() {
         let state = AppState {
@@ -2105,12 +2240,7 @@ mod detach_plugin_window_tests {
             pending_plugin_window_request: Mutex::new(None),
             last_monitor: Mutex::new(None),
         };
-        let parked = DetachRequest {
-            extension_id: "local.tool".into(),
-            command_id: "run".into(),
-            command_label: "My Tool".into(),
-            args: vec![],
-        };
+        let parked = external("run");
         {
             let mut slot = state.pending_plugin_window_request.lock().unwrap();
             *slot = Some(parked.clone());
@@ -2119,17 +2249,14 @@ mod detach_plugin_window_tests {
             let mut slot = state.pending_plugin_window_request.lock().unwrap();
             assert_eq!(slot.take().as_ref(), Some(&parked));
             assert!(slot.take().is_none());
-            *slot = Some(DetachRequest {
-                extension_id: "local.other".into(),
-                command_id: "again".into(),
-                command_label: "Other".into(),
-                args: vec!["x".into()],
-            });
+            // R90 · the second arm parks just as well: the slot is the union.
+            *slot = Some(text("Note", "hello"));
         }
         {
             let mut slot = state.pending_plugin_window_request.lock().unwrap();
             let replaced = slot.take().unwrap();
-            assert_eq!(replaced.command_id, "again");
+            assert_eq!(replaced, text("Note", "hello"));
+            assert!(matches!(replaced, DetachRequest::Text { .. }));
             *slot = None;
             assert!(slot.take().is_none());
         }

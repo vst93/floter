@@ -27,35 +27,80 @@ export const PLUGIN_WINDOW_LABEL = "plugin-detached";
  *  name its subject. */
 export const MAIN_WINDOW_LABEL = "main";
 
-/** What a detach hands across the process boundary. `extension_id` +
- *  `command_id` pick the command; `command_label` is the human name for the
- *  window title and the view's header; `args` is the field's text already
- *  split into argv items by the external protocol's own splitter. Plain data —
- *  the window shows one run, so the request is one value. */
-export type DetachRequest = {
+/**
+ * What a detach hands across the process boundary — a discriminated union,
+ * one arm per kind of thing a window can be pinned to. R90 split R84's single
+ * shape into two; the `kind` tag is the discriminator the Rust mirror
+ * (`DetachRequest` in `src-tauri/src/lib.rs`) serialises with
+ * `#[serde(tag = "kind")]`.
+ *
+ * `external` is R84's arm, **field for field unchanged** — the tag aside, the
+ * JSON the launcher has always sent is the JSON it still sends. `extensionId`
+ * + `commandId` pick the command; `commandLabel` is the human name for the
+ * window title and the view's header; `args` is the field's text already split
+ * into argv items by the external protocol's own splitter.
+ *
+ * `text` is R90's arm: a single snapshot of text with nothing to run. A history
+ * line, a clipboard entry, a plugin row's own text — the window is a viewer, so
+ * the request is the content itself. `text` may be the empty string: a command
+ * that printed nothing is still content the user pinned, and the window must
+ * show it rather than refuse it.
+ */
+export type ExternalDetachRequest = {
+  readonly kind: "external";
   readonly extensionId: string;
   readonly commandId: string;
   readonly commandLabel: string;
   readonly args: readonly string[];
 };
 
+export type TextDetachRequest = {
+  readonly kind: "text";
+  readonly title: string;
+  readonly text: string;
+};
+
+export type DetachRequest = ExternalDetachRequest | TextDetachRequest;
+
 /** Validate the raw payload the launcher assembles before it crosses into the
- *  backend. A command id is the routing truth — without one the window would
- *  run nothing — and ids are non-empty by the same convention the install
- *  path's `validate_id` enforces. Returns `null` for anything malformed; the
- *  caller treats that as "no request", never as an error surface. */
+ *  backend, arm by arm. For `external`, a command id is the routing truth —
+ *  without one the window would run nothing — and ids are non-empty by the same
+ *  convention the install path's `validate_id` enforces. For `text`, the title
+ *  is the routing truth (it names the window) and the body only has to be a
+ *  string, empty included. Returns `null` for anything malformed — including an
+ *  absent or unknown `kind`, since the old untagged shape is not a valid arm
+ *  any more; the caller treats that as "no request", never as an error
+ *  surface. */
 export const validateDetachRequest = (input: unknown): DetachRequest | null => {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as Record<string, unknown>;
-  const extensionId = candidate.extensionId;
-  const commandId = candidate.commandId;
-  const commandLabel = candidate.commandLabel;
-  const args = candidate.args;
-  if (typeof extensionId !== "string" || extensionId.trim().length === 0) return null;
-  if (typeof commandId !== "string" || commandId.trim().length === 0) return null;
-  if (typeof commandLabel !== "string" || commandLabel.trim().length === 0) return null;
-  if (!Array.isArray(args) || args.some((item) => typeof item !== "string")) return null;
-  return { extensionId, commandId, commandLabel, args: args as readonly string[] };
+  if (candidate.kind === "external") {
+    const extensionId = candidate.extensionId;
+    const commandId = candidate.commandId;
+    const commandLabel = candidate.commandLabel;
+    const args = candidate.args;
+    if (typeof extensionId !== "string" || extensionId.trim().length === 0) return null;
+    if (typeof commandId !== "string" || commandId.trim().length === 0) return null;
+    if (typeof commandLabel !== "string" || commandLabel.trim().length === 0) return null;
+    if (!Array.isArray(args) || args.some((item) => typeof item !== "string")) return null;
+    return {
+      kind: "external",
+      extensionId,
+      commandId,
+      commandLabel,
+      args: args as readonly string[],
+    };
+  }
+  if (candidate.kind === "text") {
+    const title = candidate.title;
+    const text = candidate.text;
+    if (typeof title !== "string" || title.trim().length === 0) return null;
+    // The empty string is a legitimate body (see the arm's doc above): only a
+    // non-string is malformed.
+    if (typeof text !== "string") return null;
+    return { kind: "text", title, text };
+  }
+  return null;
 };
 
 /**

@@ -1403,6 +1403,32 @@
   color: var(--text-secondary);
 }
 
+/* R90 · the row's pin-to-text-window toggle.
+
+   The same click region the R38 star is, one slot over: inside the row's own
+   `<button>`, revealed on hover/selection, holding its width so nothing shifts
+   when it appears. It reuses `.collapsed-card__settings` for the shared pin
+   look (the field's R84 pin), and this rule only re-sizes that button to the
+   row's 20u rhythm and folds in the star's fade — the later rule wins on the
+   shared properties. Muted `--text-tertiary` → `--text-secondary` at most, so
+   the pin spends no accent budget. */
+.launcher-result__pin {
+  width: calc(var(--u) * 20);
+  height: calc(var(--u) * 20);
+  margin-left: 0;
+  opacity: 0;
+  transition: opacity var(--dur-2) ease, color var(--dur-2) ease;
+}
+
+.launcher-result:hover .launcher-result__pin,
+.launcher-result--selected .launcher-result__pin {
+  opacity: 1;
+}
+
+.launcher-result__pin:hover {
+  color: var(--text-secondary);
+}
+
 /* R50 · the calculator row's result.
 
    The user's rule for the row is exact: the result is shown **complete, at the

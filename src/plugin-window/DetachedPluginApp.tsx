@@ -1,12 +1,15 @@
 // R84 · the detached plugin window's React surface.
 //
-// One run per mount cycle: the backend parks a `DetachRequest` in a pull slot
-// before this window even exists, the view pulls it on mount (and again on
-// every `plugin-detach-request` emit while it is open), runs the command
-// through the same `external_plugin_run` the launcher field uses, and renders
-// the output through the same dual-form pipeline the launcher's plugin page
-// uses (text verbatim under a header, or standard rows as a plain list). What
-// it deliberately does NOT have: hide-on-blur, an Esc handler, a summon
+// One request per mount cycle: the backend parks a `DetachRequest` in a pull
+// slot before this window even exists, the view pulls it on mount (and again on
+// every `plugin-detach-request` emit while it is open), and renders it. R90
+// split the request into two arms: an `external` one runs the command through
+// the same `external_plugin_run` the launcher field uses and renders the output
+// through the same dual-form pipeline the launcher's plugin page uses (text
+// verbatim under a header, or standard rows as a plain list); a `text` one is a
+// frozen snapshot — a history line, a clipboard entry, a plugin row's text —
+// with no command to run, drawn through the same `PluginTextView`. What the
+// window deliberately does NOT have: hide-on-blur, an Esc handler, a summon
 // lifecycle — the user pinned this window so it would stay put while the
 // launcher card comes and goes.
 //
@@ -23,11 +26,12 @@ import { createTranslator, normalizeLanguage, type Translate } from "../i18n.ts"
 import type { AppSettings } from "../App";
 import type { ExternalRunOutput } from "../plugins/external.ts";
 import { externalRunText } from "../plugins/external.ts";
-import { resolvePluginView, type PluginView } from "../launcher/plugin-mode.ts";
+import { resolvePluginView, pluginTextMetrics, type PluginView } from "../launcher/plugin-mode.ts";
 import { PluginTextView } from "../launcher/PluginTextView.tsx";
 import {
   validateDetachRequest,
   type DetachRequest,
+  type ExternalDetachRequest,
 } from "./detach.ts";
 
 /** One window, one language decision: read the persisted language once at
@@ -67,8 +71,9 @@ const takePendingRequest = async (): Promise<DetachRequest | null> => {
 };
 
 /** Run the request's command. Same command, same contract as the field:
- *  argv in, one `ExternalRunOutput` out, no shell. */
-const runRequest = async (request: DetachRequest): Promise<ExternalRunOutput> =>
+ *  argv in, one `ExternalRunOutput` out, no shell. Only the `external` arm has
+ *  a command to run; a `text` request is a snapshot and never reaches here. */
+const runRequest = async (request: ExternalDetachRequest): Promise<ExternalRunOutput> =>
   invoke<ExternalRunOutput>("external_plugin_run", {
     extensionId: request.extensionId,
     commandId: request.commandId,
@@ -90,12 +95,23 @@ export default function DetachedPluginApp() {
 
   const run = useCallback((request: DetachRequest) => {
     const generation = ++runGeneration.current;
-    setState({ request, status: "running", output: null, failure: null });
-    // The window title follows the command, so the taskbar entry names what
+    // The window title follows the request, so the taskbar entry names what
     // is pinned (the Rust builder sets the same title for the first paint).
+    // Both arms have a title: the external arm's command label, the text
+    // arm's own row title.
+    const windowTitle = request.kind === "text" ? request.title : request.commandLabel;
     void getCurrentWindow()
-      .setTitle(`${request.commandLabel} · floter`)
+      .setTitle(`${windowTitle} · floter`)
       .catch(() => undefined);
+    // R90 · the `text` arm has no run state machine: the content *is* the
+    // request, so it goes straight to `done` and the view below renders it
+    // through `PluginTextView`. Nothing is invoked; a remount cannot re-run
+    // anything because there is nothing to run.
+    if (request.kind === "text") {
+      setState({ request, status: "done", output: null, failure: null });
+      return;
+    }
+    setState({ request, status: "running", output: null, failure: null });
     runRequest(request)
       .then((output) => {
         if (runGeneration.current !== generation) return;
@@ -172,25 +188,41 @@ export default function DetachedPluginApp() {
   }, [t]);
 
   const rerun = useCallback(() => {
-    if (state.request) run(state.request);
+    // R90 · only the external arm has a command to re-run; a text snapshot is
+    // static by definition (the button is not even drawn for it).
+    if (state.request?.kind === "external") run(state.request);
   }, [run, state.request]);
 
   const close = useCallback(() => {
     void invoke("close_plugin_window").catch(() => undefined);
   }, []);
 
-  // The same dual-form resolve the launcher's catalog hook feeds. The text
-  // form reuses `PluginTextView` verbatim (its metrics band the height); the
-  // list form renders the standard rows as a plain, non-interactive list — a
-  // pinned window shows an answer, not a second search page.
+  // The same dual-form resolve the launcher's catalog hook feeds. R90 · the
+  // text arm bypasses it: the request's own string is the content, and it is
+  // measured with the same `pluginTextMetrics` the resolve would use — an empty
+  // snapshot included (it is still a window with a body, not an empty state).
+  // The external arm keeps its run pipeline untouched.
   const view: PluginView | null = useMemo(() => {
+    if (state.request?.kind === "text" && state.status === "done") {
+      return {
+        form: "text",
+        tier: "display",
+        text: state.request.text,
+        metrics: pluginTextMetrics(state.request.text),
+      };
+    }
     if (state.status !== "done" || !state.output) return null;
     const text = externalRunText(state.output);
     if (text === null) return null;
     return resolvePluginView({ output: text });
-  }, [state.status, state.output]);
+  }, [state.status, state.output, state.request]);
 
-  const headerLabel = state.request?.commandLabel ?? t("pluginWindow.fallbackTitle");
+  const headerLabel =
+    state.request === null
+      ? t("pluginWindow.fallbackTitle")
+      : state.request.kind === "text"
+        ? state.request.title
+        : state.request.commandLabel;
 
   return (
     <div className="plugin-window">
@@ -200,16 +232,20 @@ export default function DetachedPluginApp() {
         </span>
         {state.request && (
           <div className="plugin-window__bar-actions">
-            <button
-              type="button"
-              className="plugin-window__bar-button"
-              onClick={rerun}
-              disabled={state.status === "running"}
-              title={t("pluginWindow.rerun")}
-              aria-label={t("pluginWindow.rerun")}
-            >
-              {t("pluginWindow.rerun")}
-            </button>
+            {/* R90 · a text snapshot has no command to re-run, so the bar shows
+                only Close. The external arm keeps its Rerun button. */}
+            {state.request.kind === "external" && (
+              <button
+                type="button"
+                className="plugin-window__bar-button"
+                onClick={rerun}
+                disabled={state.status === "running"}
+                title={t("pluginWindow.rerun")}
+                aria-label={t("pluginWindow.rerun")}
+              >
+                {t("pluginWindow.rerun")}
+              </button>
+            )}
             <button
               type="button"
               className="plugin-window__bar-button"

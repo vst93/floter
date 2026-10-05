@@ -105,6 +105,7 @@ import {
   hideOnBlurApplies,
   validateDetachRequest,
 } from "./plugin-window/detach";
+import { pinTextFor } from "./plugin-window/pin-entry";
 import { Pin } from "lucide-react";
 import { fileDropActionBar, fileDropRows, selectedDroppedFile as droppedFileAt } from "./launcher/file-drops";
 import {
@@ -932,6 +933,7 @@ export default function App() {
   const detachPluginWindow = useCallback(() => {
     if (!externalMode || !externalCommand) return;
     const request = validateDetachRequest({
+      kind: "external",
       extensionId: externalMode.extensionId,
       commandId: externalMode.commandId,
       commandLabel: externalCommand.name,
@@ -940,6 +942,28 @@ export default function App() {
     if (!request) return;
     invoke("detach_plugin_window", { request }).catch(() => undefined);
   }, [externalMode, externalCommand]);
+
+  /**
+   * R90 · pin one selected result's text into the same detached window. The
+   * row's own snapshot (`pinTextFor`) is what crosses the boundary — no re-run,
+   * no new command — so the window shows exactly what the user was looking at.
+   * The snapshot's `title` is the row title and becomes the window title; the
+   * body is the row's text (a history line, a clipboard entry, a plugin row's
+   * text). Rows without a single text body never reach here (the button is only
+   * rendered where `pinTextApplies` says so), and the validate call guards the
+   * invoke the same way the field pin's does.
+   */
+  const pinTextWindow = useCallback((item: LauncherItem) => {
+    const snapshot = pinTextFor(item);
+    if (!snapshot) return;
+    const request = validateDetachRequest({
+      kind: "text",
+      title: snapshot.title,
+      text: snapshot.text,
+    });
+    if (!request) return;
+    invoke("detach_plugin_window", { request }).catch(() => undefined);
+  }, []);
 
   // R35 · the page-residency clock. It is the one place that answers "may the
   // app throw this surface away on its own?". Entering a surface (a plugin
@@ -3639,6 +3663,9 @@ export default function App() {
                     // row whose inline delete confirmation is armed (both
                     // modes share the one arm state).
                     onToggleCalculatorFavorite={toggleCalculatorFavorite}
+                    // R90 · the row's pin: one result's text into the detached
+                    // window, the same window the field pin uses.
+                    onPinText={pinTextWindow}
                     armedDeleteId={armedHistoryDeleteId}
                     onRunActionBar={() => {
                       if (visibleActionBar) executeActionBar(visibleActionBar);
