@@ -17,13 +17,19 @@
 //! path (present = connected, gone = reconnect), never migrated in place.
 
 use super::inventory::{ToolCandidate, ToolLocator};
+use super::lock::sync_directory;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const SCHEMA_VERSION: u32 = 1;
+
+/// Where an undecodable `tool-lock.json` is moved aside. The name is fixed so
+/// the archive is discoverable from the data directory alone, matching the
+/// `extension-repository.json.corrupt` precedent.
+const CORRUPT_LOCK_FILE_NAME: &str = "tool-lock.json.corrupt";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,13 +67,44 @@ impl Default for ToolLock {
 }
 
 impl ToolLock {
+    /// Load the persisted lock, keeping three failure classes distinct because
+    /// they mean different things:
+    ///
+    /// * **Missing file** — a first start. `Default` is returned and nothing is
+    ///   written; this is not damage.
+    /// * **Undecodable file** (malformed JSON, a field of the wrong type, or a
+    ///   schema version this build cannot interpret) — evidence of prior state,
+    ///   so it is quarantined as `tool-lock.json.corrupt` and startup continues
+    ///   from `Default`. This follows the repository precedent
+    ///   (`repository.rs::archive_file`): a damaged lock must never brick the
+    ///   app. A failed quarantine does not fail the load either — startup wins
+    ///   — and the failure is logged.
+    /// * **Read failure** (permissions, IO) — a different fault class. The
+    ///   bytes were never seen, so nothing is quarantined and the error is
+    ///   returned.
     pub fn load(path: &Path) -> Result<Self, String> {
         if !path.exists() {
             return Ok(Self::default());
         }
         let bytes = std::fs::read(path).map_err(|e| format!("Cannot read tool lock: {e}"))?;
+        match Self::decode(&bytes) {
+            Ok(lock) => Ok(lock),
+            Err(error) => {
+                tracing::warn!("Tool lock is invalid; archiving it: {error}");
+                if let Err(archive_error) = quarantine_corrupt_lock(path) {
+                    tracing::warn!("Cannot archive invalid tool lock: {archive_error}");
+                }
+                Ok(Self::default())
+            }
+        }
+    }
+
+    /// Decode bytes that were read successfully. The schema-version check is
+    /// part of decoding: an uninterpretable version is damage the same way a
+    /// malformed body is.
+    fn decode(bytes: &[u8]) -> Result<Self, String> {
         let lock: Self =
-            serde_json::from_slice(&bytes).map_err(|e| format!("Invalid tool lock: {e}"))?;
+            serde_json::from_slice(bytes).map_err(|e| format!("Invalid tool lock: {e}"))?;
         if lock.schema_version != SCHEMA_VERSION {
             return Err(format!(
                 "Unsupported tool lock schema version {}",
@@ -460,6 +497,39 @@ fn resolve_executable_binding_impl(
     Ok((state, changed))
 }
 
+fn corrupt_lock_path(path: &Path) -> PathBuf {
+    path.with_file_name(CORRUPT_LOCK_FILE_NAME)
+}
+
+/// Quarantine a lock file that exists but cannot be decoded, mirroring the
+/// repository precedent: an existing `.corrupt` archive is replaced, the
+/// damaged file is renamed onto it, and the directory is synced so the rename
+/// is durable. The caller only ever calls this after a successful read.
+fn quarantine_corrupt_lock(path: &Path) -> Result<(), String> {
+    let archive = corrupt_lock_path(path);
+    if archive.exists() {
+        std::fs::remove_file(&archive).map_err(|error| {
+            format!(
+                "Cannot replace corrupt tool lock archive {}: {error}",
+                archive.display()
+            )
+        })?;
+    }
+    crate::extensions::commit_point("tool-lock-archive-rename");
+    std::fs::rename(path, &archive).map_err(|error| {
+        format!(
+            "Cannot archive corrupt tool lock {}: {error}",
+            path.display()
+        )
+    })?;
+    if let Some(parent) = archive.parent() {
+        crate::extensions::commit_point("tool-lock-archive-directory-sync");
+        sync_directory(parent)
+            .map_err(|error| format!("Cannot sync corrupt tool lock archive directory: {error}"))?;
+    }
+    Ok(())
+}
+
 fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -523,6 +593,129 @@ mod tests {
 
         assert_eq!(loaded.tools["tool"].locator, candidate.locator);
         assert_eq!(loaded.tools["tool"].state, LockState::Connected);
+    }
+
+    // ── R94 · a damaged tool lock is quarantined, never fatal ──────────────
+
+    fn corrupt_archive(directory: &std::path::Path) -> std::path::PathBuf {
+        directory.join(CORRUPT_LOCK_FILE_NAME)
+    }
+
+    /// A missing file is a first start, not damage: `Default`, no archive, and
+    /// nothing written to disk.
+    #[test]
+    fn a_missing_lock_file_is_default_without_quarantine() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+
+        let lock = ToolLock::load(&path).unwrap();
+
+        assert!(lock.tools.is_empty());
+        assert_eq!(lock.schema_version, SCHEMA_VERSION);
+        assert!(!path.exists());
+        assert!(!corrupt_archive(temporary.path()).exists());
+    }
+
+    /// ① Malformed JSON: startup continues from `Default` and the damaged file
+    /// is moved aside byte-for-byte rather than deleted or reused.
+    #[test]
+    fn a_malformed_lock_file_is_quarantined_and_loads_as_default() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+        let damage = b"{ this is not json".to_vec();
+        std::fs::write(&path, &damage).unwrap();
+
+        let lock = ToolLock::load(&path).unwrap();
+
+        assert!(lock.tools.is_empty());
+        assert_eq!(lock.schema_version, SCHEMA_VERSION);
+        assert!(
+            !path.exists(),
+            "the damaged file is moved aside, not reused"
+        );
+        assert_eq!(
+            std::fs::read(corrupt_archive(temporary.path())).unwrap(),
+            damage
+        );
+    }
+
+    /// ② Valid JSON whose fields do not match the schema (here `tools` is an
+    /// array, not a map) takes the same quarantine path.
+    #[test]
+    fn a_schema_mismatched_lock_file_is_quarantined_and_loads_as_default() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+        std::fs::write(&path, br#"{"schemaVersion":1,"tools":[]}"#).unwrap();
+
+        let lock = ToolLock::load(&path).unwrap();
+
+        assert!(lock.tools.is_empty());
+        assert!(!path.exists());
+        assert!(corrupt_archive(temporary.path()).exists());
+    }
+
+    /// A schema version this build cannot interpret is the same kind of damage
+    /// and is quarantined too, instead of bricking startup.
+    #[test]
+    fn an_uninterpretable_schema_version_is_quarantined_and_loads_as_default() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+        std::fs::write(&path, br#"{"schemaVersion":99,"tools":{}}"#).unwrap();
+
+        let lock = ToolLock::load(&path).unwrap();
+
+        assert!(lock.tools.is_empty());
+        assert!(!path.exists());
+        assert!(corrupt_archive(temporary.path()).exists());
+    }
+
+    /// ③ A stale `.corrupt` archive is replaced (not appended to), and the load
+    /// still succeeds. This matches `repository.rs::archive_file` exactly.
+    #[test]
+    fn an_existing_corrupt_archive_is_replaced_and_load_still_succeeds() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+        let archive = corrupt_archive(temporary.path());
+        std::fs::write(&archive, b"older damage").unwrap();
+        std::fs::write(&path, b"newer damage").unwrap();
+
+        let lock = ToolLock::load(&path).unwrap();
+
+        assert!(lock.tools.is_empty());
+        assert_eq!(std::fs::read(&archive).unwrap(), b"newer damage");
+        assert!(!path.exists());
+    }
+
+    /// ④ Regression: a valid file loads unchanged and is never quarantined.
+    #[test]
+    fn a_valid_lock_file_is_loaded_without_quarantine() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+        let mut lock = ToolLock::default();
+        lock.bind_interpreter("example.tool", "php");
+        lock.save(&path).unwrap();
+
+        let loaded = ToolLock::load(&path).unwrap();
+
+        assert_eq!(loaded.tools["example.tool"].tool, "example.tool");
+        assert!(path.exists(), "a valid lock is left in place");
+        assert!(!corrupt_archive(temporary.path()).exists());
+    }
+
+    /// ⑤ An IO read failure is a different fault class: nothing was read, so
+    /// nothing is quarantined and the error is still returned. A directory
+    /// where the file is expected is the smallest portable stand-in.
+    #[test]
+    fn an_unreadable_lock_path_is_still_an_error() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("tool-lock.json");
+        std::fs::create_dir(&path).unwrap();
+
+        let error = ToolLock::load(&path).unwrap_err();
+
+        assert!(error.starts_with("Cannot read tool lock:"), "{error}");
+        assert!(path.is_dir(), "an IO fault is never quarantined");
+        assert!(!corrupt_archive(temporary.path()).exists());
     }
 
     #[test]

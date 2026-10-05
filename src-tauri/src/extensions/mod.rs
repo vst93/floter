@@ -947,6 +947,24 @@ mod tests {
         assert!(!state.paths.root.join("official-index-state.json").exists());
     }
 
+    /// R94 · a damaged `tool-lock.json` must not brick startup: `from_paths`
+    /// succeeds, quarantines the file, and starts from an empty lock instead
+    /// of propagating the decode error to the app's `setup`.
+    #[test]
+    fn startup_recovers_from_a_corrupt_tool_lock_instead_of_failing() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("config");
+        let paths = ExtensionPaths::from_root(root.clone());
+        paths.ensure().unwrap();
+        std::fs::write(&paths.tool_lock_file, b"{ not a tool lock").unwrap();
+
+        let state = ExtensionState::from_paths(paths).unwrap();
+
+        assert!(state.tool_lock.lock().unwrap().tools.is_empty());
+        assert!(!root.join("tool-lock.json").exists());
+        assert!(root.join("tool-lock.json.corrupt").exists());
+    }
+
     #[test]
     fn protected_execution_plans_keep_secrets_out_of_ipc_and_are_single_use() {
         let cache = ExecutionPlanCache::default();
