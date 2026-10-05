@@ -23,7 +23,7 @@ import {
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
-import { normalizeEntries, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
+import { normalizeEntries, shouldSearchFullText, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
 import {
   MAX_CALCULATOR_MAX_ITEMS,
   normalizeCalculatorEntries,
@@ -50,7 +50,7 @@ import {
   type BrowserSearchRow,
   type BrowserTabRow,
 } from "../plugins/browser/mode";
-import { clipboardModeRows, clipboardStatusRow } from "../plugins/clipboard/mode";
+import { clipboardModeRows, clipboardSearchRows, clipboardStatusRow } from "../plugins/clipboard/mode";
 import { calculatorModeRows } from "../plugins/calculator/mode";
 import { pluginStatusRow, statusItem } from "../plugins/status";
 import { searchTokens } from "../plugins/search";
@@ -767,6 +767,42 @@ export function useLauncherCatalog(options: {
     };
   }, [clipboardActive, clipboardEnabled, clipboardRevision]);
 
+  // R89 · the zero-result fallback. The list above carries only a prefix of each
+  // text entry, so the in-memory filter can miss a match that lives past that
+  // prefix. When the query is non-empty and the memory filter found nothing,
+  // the backend is asked to run the same token rule over the full text — one
+  // read per pause, debounced like every other search, and dropped by its own
+  // cancellation flag. A query the memory filter *did* answer costs no IPC, so
+  // typing inside the mode stays local.
+  const clipboardNeedle = clipboardMode?.needle ?? "";
+  const [clipboardFallback, setClipboardFallback] = useState<
+    { needle: string; entries: ClipboardEntry[] } | null
+  >(null);
+  const clipboardNeedsFullText =
+    clipboardActive && shouldSearchFullText(clipboardEntries, clipboardNeedle);
+  useEffect(() => {
+    if (!clipboardActive || !clipboardEnabled || !clipboardNeedsFullText) {
+      setClipboardFallback(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      invoke<unknown[]>("clipboard_get_entries", { filter: clipboardNeedle })
+        .then((rows) => {
+          if (!cancelled) {
+            setClipboardFallback({ needle: clipboardNeedle, entries: normalizeEntries(rows) });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setClipboardFallback({ needle: clipboardNeedle, entries: [] });
+        });
+    }, CATALOG_SEARCH_DELAY);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [clipboardActive, clipboardEnabled, clipboardNeedsFullText, clipboardNeedle, clipboardRevision]);
+
   const clipboardEmission = useMemo<PluginEmission | null>(() => {
     if (!clipboardMode) return null;
     if (!clipboardEnabled) {
@@ -777,8 +813,21 @@ export function useLauncherCatalog(options: {
     // The entries are fetched once and filtered in memory, so typing inside the
     // mode costs no IPC. R28 · the rows are the plugin's *output*; the
     // capability layer decides they are a list and how tall the window is.
-    return { output: clipboardModeRows(clipboardEntries, clipboardMode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS) };
-  }, [clipboardMode, clipboardEnabled, clipboardEntries, t]);
+    // R89 · the one exception is the zero-result fallback above: when the
+    // memory filter came up empty, the backend's full-text answer stands in for
+    // that empty result. It is trusted as-is (`clipboardSearchRows`, the same
+    // rule R75's browser history read gets), and a fallback keyed to a previous
+    // needle is never shown — the query and the answer must agree.
+    const fallback =
+      clipboardNeedsFullText && clipboardFallback?.needle === clipboardNeedle
+        ? clipboardFallback.entries
+        : null;
+    return {
+      output: fallback
+        ? clipboardSearchRows(fallback, clipboardMode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS)
+        : clipboardModeRows(clipboardEntries, clipboardMode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS),
+    };
+  }, [clipboardMode, clipboardEnabled, clipboardEntries, clipboardFallback, clipboardNeedsFullText, clipboardNeedle, t]);
 
   // R50 · the calculator mode — the clipboard mode's twin, over the calculation
   // history. The history is fetched once when the mode opens; the field's text

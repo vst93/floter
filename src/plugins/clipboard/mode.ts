@@ -126,6 +126,44 @@ export const clipboardModeRows = (
   const matched = filterClipboardEntries([...entries], mode.needle).filter((entry) =>
     clipboardEntryMatchesFilter(entry, mode.filter),
   );
+  return clipboardMatchedRows(matched, mode, t, now, limit);
+};
+
+/**
+ * R89 · the mode's rows for entries the **backend** already narrowed to the
+ * needle. The memory rule is deliberately not re-applied, the same trust R75's
+ * browser history read gets: the backend ran the identical token rule against
+ * the untruncated text, and the rows it returns carry only a prefix — re-running
+ * the in-memory filter here could only ever drop a row the backend had already
+ * approved, and would drop exactly the deep matches the fallback exists to find.
+ * The chip filter still applies: it is orthogonal to the search, and the backend
+ * knows nothing about it.
+ */
+export const clipboardSearchRows = (
+  entries: readonly ClipboardEntry[],
+  mode: ClipboardMode,
+  t: Translate,
+  now: number,
+  limit: number = CLIPBOARD_FETCH_LIMIT,
+): PluginRow[] =>
+  clipboardMatchedRows(
+    [...entries].filter((entry) => clipboardEntryMatchesFilter(entry, mode.filter)),
+    mode,
+    t,
+    now,
+    limit,
+  );
+
+/** The tail both entry points share: cap the already-narrowed rows and fall to
+ *  the one status line when there are none. The empty-state key is the query's
+ *  own (a search that found nothing) and never claims an empty history. */
+const clipboardMatchedRows = (
+  matched: readonly ClipboardEntry[],
+  mode: ClipboardMode,
+  t: Translate,
+  now: number,
+  limit: number,
+): PluginRow[] => {
   const matches = matched.slice(0, limit);
   if (matches.length) return matches.map((entry) => clipboardRow(entry, t, now));
   return [

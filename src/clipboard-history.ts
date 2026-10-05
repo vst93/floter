@@ -101,6 +101,25 @@ export const filterClipboardEntries = (
   );
 };
 
+/**
+ * R89 · whether the launcher's clipboard mode should ask the backend to search
+ * the **full** history for this query.
+ *
+ * The list IPC carries only a prefix of each text entry
+ * (`LIST_TEXT_PREFIX_BYTES` in Rust), so the in-memory rule above can miss a
+ * match that lives past an entry's prefix. When the query is non-empty and that
+ * in-memory filter found nothing, the backend is asked to run the same token
+ * rule over the untruncated text; its answer stands in for the empty result.
+ *
+ * The zero-result gate is the whole point: a query the memory filter already
+ * answered costs no IPC, so typing inside the mode stays local (and the list
+ * stays on the in-memory path that has no round-trip latency). The known
+ * bounded gap this leaves is registered in the R89 report: a query with *some*
+ * local hits never reaches a second entry whose only match is past its prefix.
+ */
+export const shouldSearchFullText = (entries: ClipboardEntry[], query: string): boolean =>
+  searchTokens(query).length > 0 && filterClipboardEntries(entries, query).length === 0;
+
 const IMAGE_PREVIEW_MAX = 60;
 
 /** Split a stored path into directory prefix and final segment, aware of both

@@ -16,6 +16,7 @@
 //! been a configuration the UI no longer shows.
 
 pub mod monitor;
+pub mod search;
 pub mod store;
 
 use serde::{Deserialize, Serialize};
@@ -170,34 +171,71 @@ pub fn clipboard_set_settings(
     Ok(crate::commands::config::ClipboardPluginSettings { max_items })
 }
 
+/// R89 · how much of a text entry's content the **list** IPC carries.
+///
+/// The launcher's clipboard mode reads the whole history in one call, and every
+/// entry could be a full 512 KB (`monitor::MAX_TEXT_BYTES`) — 300 of those is a
+/// ~150 MB payload for a list that paints one line per row. The list therefore
+/// ships only this prefix; the disk history, the monitor's in-memory copy, and
+/// `clipboard_copy_entry` all keep the full text, so copying a row is unchanged.
+/// The byte is the ceiling, not a guarantee: the prefix always ends on a UTF-8
+/// character boundary (see [`text_prefix`]).
+pub const LIST_TEXT_PREFIX_BYTES: usize = 8192;
+
+/// R89 · the longest prefix of `text` that fits in `max_bytes` without splitting
+/// a UTF-8 character.
+///
+/// `std`'s `floor_char_boundary` is not stable, so the walk back to a boundary is
+/// written here rather than pulled in. A byte index that is already a boundary
+/// (the ASCII case, and any multibyte text whose characters happen to line up)
+/// is returned untouched.
+pub fn text_prefix(text: &str, max_bytes: usize) -> &str {
+    if text.len() <= max_bytes {
+        return text;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
+/// R89 · the list's view of one entry: everything, with `text` cut to
+/// [`LIST_TEXT_PREFIX_BYTES`]. Only the read path calls this — disk and the
+/// monitor keep the full text, and `paths` is left alone (a path list is small
+/// and every element is a search target).
+pub fn entry_for_list(mut entry: ClipboardEntry) -> ClipboardEntry {
+    if let Some(text) = entry.text.as_mut() {
+        if text.len() > LIST_TEXT_PREFIX_BYTES {
+            *text = text_prefix(text, LIST_TEXT_PREFIX_BYTES).to_string();
+        }
+    }
+    entry
+}
+
+/// R89 · read the history for the list.
+///
+/// `filter` is the launcher's clipboard needle: whitespace-split AND tokens,
+/// each of which must hit one of the entry's search fields — the same rule the
+/// frontend applies in memory (`search::entry_matches`, the Rust twin of
+/// `plugins/search.ts` + `clipboardEntrySearchFields`). It is applied to the
+/// **full** text read off disk, so a match past an entry's prefix is still
+/// reachable; the rows that come back are then cut to the list prefix. `None` (or
+/// a blank string) is no filter at all.
 #[tauri::command]
 pub fn clipboard_get_entries(
     app: AppHandle,
     filter: Option<String>,
 ) -> Result<Vec<ClipboardEntry>, String> {
-    let needle = filter.unwrap_or_default().trim().to_lowercase();
+    let tokens = search::search_tokens(filter.as_deref().unwrap_or_default());
     let entries = read_history(&app)?;
-    if needle.is_empty() {
-        return Ok(entries);
+    if tokens.is_empty() {
+        return Ok(entries.into_iter().map(entry_for_list).collect());
     }
     Ok(entries
         .into_iter()
-        .filter(|entry| match (&entry.text, &entry.paths) {
-            // Text entries match on content; image entries carrying a caption
-            // (a simultaneous image+text copy stores one image entry whose
-            // `text` is the caption) match on it too. The arm only decides
-            // *whether* a row is kept — the kind is never touched here, so a
-            // captioned image still renders as an image row.
-            (Some(text), _) => text.to_lowercase().contains(&needle),
-            // Files entries answer to any stored path; a basename is a
-            // substring of its own full path, so both come free.
-            (None, Some(paths)) => paths
-                .iter()
-                .any(|path| path.to_lowercase().contains(&needle)),
-            (None, None) => ["image", "img", "图片"]
-                .iter()
-                .any(|word| word.contains(&needle)),
-        })
+        .filter(|entry| search::entry_matches(entry, &tokens))
+        .map(entry_for_list)
         .collect())
 }
 
@@ -495,5 +533,77 @@ mod tests {
         assert_eq!(thumbnail_side(Some(1)), THUMBNAIL_MIN_SIDE);
         assert_eq!(thumbnail_side(Some(0)), THUMBNAIL_MIN_SIDE);
         assert_eq!(thumbnail_side(Some(u32::MAX)), THUMBNAIL_MAX_REQUEST);
+    }
+
+    // ── R89 · the list text prefix ────────────────────────────────────────
+
+    /// The prefix is a byte ceiling that never lands inside a character. Each
+    /// case puts the 8192-byte line just before, on, and inside a 3-byte CJK
+    /// character; the result must stay a valid `&str` (the compiler enforces it)
+    /// and must be the last boundary at or before the ceiling.
+    #[test]
+    fn the_list_prefix_never_splits_a_utf8_character() {
+        // '剪' is 3 bytes (E5 89 AA).
+        let cjk = '剪';
+        let max = LIST_TEXT_PREFIX_BYTES;
+
+        // The ceiling falls one byte *past* the last character: back up to its
+        // start (8191 a's, then the character).
+        let past = format!("{}{cjk}", "a".repeat(max - 1));
+        assert_eq!(past.len(), max + 2);
+        let cut = text_prefix(&past, max);
+        assert_eq!(cut.len(), max - 1);
+        assert!(past.is_char_boundary(cut.len()));
+        assert_eq!(cut, "a".repeat(max - 1));
+
+        // The ceiling falls *inside* the character (its second byte): the cut
+        // backs all the way up to its start, two bytes short.
+        let inside = format!("{}{cjk}", "a".repeat(max - 2));
+        let cut = text_prefix(&inside, max);
+        assert_eq!(cut.len(), max - 2);
+        assert!(inside.is_char_boundary(cut.len()));
+
+        // The ceiling falls exactly on a boundary: nothing is given back.
+        let on_boundary = format!("{}{cjk}", "a".repeat(max));
+        assert_eq!(text_prefix(&on_boundary, max).len(), max);
+
+        // A text that already fits is returned whole, byte for byte.
+        let short = "a".repeat(max);
+        assert_eq!(text_prefix(&short, max), short);
+        assert_eq!(text_prefix("", max), "");
+    }
+
+    /// The read path applies that prefix to `text` only, and leaves a short text
+    /// and the `paths` field untouched.
+    #[test]
+    fn entry_for_list_truncates_text_and_leaves_paths_alone() {
+        let long = "a".repeat(LIST_TEXT_PREFIX_BYTES + 10);
+        let cut = entry_for_list(ClipboardEntry {
+            text: Some(long.clone()),
+            ..entry("h", 1)
+        });
+        assert_eq!(
+            cut.text.as_deref().map(str::len),
+            Some(LIST_TEXT_PREFIX_BYTES)
+        );
+        assert_eq!(cut.text.as_deref(), Some(&long[..LIST_TEXT_PREFIX_BYTES]));
+
+        let short = entry_for_list(entry("h", 1));
+        assert_eq!(short.text.as_deref(), Some("content-h"));
+
+        let files = entry_for_list(ClipboardEntry {
+            kind: "files".to_string(),
+            text: Some(long.clone()),
+            paths: Some(vec!["/tmp/".to_string() + &long]),
+            ..entry("h", 1)
+        });
+        assert_eq!(
+            files.text.as_deref().map(str::len),
+            Some(LIST_TEXT_PREFIX_BYTES)
+        );
+        assert_eq!(
+            files.paths.as_ref().map(|paths| paths[0].len()),
+            Some(5 + long.len())
+        );
     }
 }
