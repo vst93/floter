@@ -47,7 +47,6 @@ const en = {
   "pluginWindow.rerun": "Rerun",
   "pluginWindow.close": "Close",
   "pluginWindow.idle": "No command pinned yet",
-  "pluginWindow.copied": "Copied",
   "pluginWindow.fallbackTitle": "floter plugin",
   // R29 · the plugin list's pagination footer.
   "launcher.pluginLoadingMore": "Loading more…",
@@ -918,7 +917,6 @@ const zh: Record<MessageKey, string> = {
   "pluginWindow.rerun": "重新执行",
   "pluginWindow.close": "关闭",
   "pluginWindow.idle": "尚未固定任何命令",
-  "pluginWindow.copied": "已复制",
   "pluginWindow.fallbackTitle": "floter 插件",
   // R29 · 插件列表底部的分页状态。
   "launcher.pluginLoadingMore": "正在加载…",

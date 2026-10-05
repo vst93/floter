@@ -28,6 +28,10 @@ import type { ExternalRunOutput } from "../plugins/external.ts";
 import { externalRunText } from "../plugins/external.ts";
 import { resolvePluginView, pluginTextMetrics, type PluginView } from "../launcher/plugin-mode.ts";
 import { PluginTextView } from "../launcher/PluginTextView.tsx";
+import { selectionTextIn } from "../launcher/plugin-text-copy.ts";
+import { runErrorMessage } from "../extensions/run-errors.ts";
+import { useCopyNotice } from "../hooks/useCopyNotice.ts";
+import { useLauncherTextCopy } from "../hooks/useLauncherTextCopy.ts";
 import {
   validateDetachRequest,
   type DetachRequest,
@@ -166,28 +170,16 @@ export default function DetachedPluginApp() {
     };
   }, [run]);
 
-  // R65 · the copy gesture: selection inside the output copies. The chokepoint
-  // and the notice are this view's own (the launcher's notice is inside the
-  // card, which this window is not).
-  const [copyNotice, setCopyNotice] = useState<string | null>(null);
-  useEffect(() => {
-    const onMouseUp = () => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) return;
-      const container = outputRef.current;
-      if (!container || !container.contains(selection.anchorNode)) return;
-      const text = selection.toString();
-      if (text.length === 0) return;
-      void navigator.clipboard
-        .writeText(text)
-        .then(() => {
-          setCopyNotice(t("pluginWindow.copied"));
-        })
-        .catch(() => undefined);
-    };
-    document.addEventListener("mouseup", onMouseUp);
-    return () => document.removeEventListener("mouseup", onMouseUp);
-  }, [t]);
+  // R65 · the copy gesture: selection inside the output copies. R93 · this view
+  // reuses the launcher's own pieces instead of a second implementation — the
+  // pure `selectionTextIn` rule for "is this selection ours?", the shared
+  // `useCopyNotice` phase machine, and the one copy chokepoint
+  // `useLauncherTextCopy` (the backend write the launcher's other copies use,
+  // and the only one that works where `navigator.clipboard` is absent). The
+  // notice is the detached window's own status line; only the vocabulary is
+  // shared with the launcher.
+  const { copyNotice, showCopyNotice } = useCopyNotice();
+  const { copySelection } = useLauncherTextCopy(showCopyNotice);
 
   const rerun = useCallback(() => {
     // R90 · only the external arm has a command to re-run; a text snapshot is
@@ -220,6 +212,22 @@ export default function DetachedPluginApp() {
     if (text === null) return null;
     return resolvePluginView({ output: text });
   }, [state.status, state.output, state.request]);
+
+  // R65 · the list arm's copy-on-select. The text arm renders `PluginTextView`,
+  // which owns the identical gesture for its own block (armed by a mousedown
+  // inside it and consumed through `selectionTextIn`), so a body-wide listener
+  // there too would write the clipboard twice; this one is therefore scoped to
+  // the list arm. Its container is the body itself, the same one the old
+  // hand-written check used.
+  useEffect(() => {
+    if (view?.form === "text") return;
+    const onMouseUp = () => {
+      const selected = selectionTextIn(outputRef.current, window.getSelection());
+      if (selected !== null) void copySelection(selected);
+    };
+    document.addEventListener("mouseup", onMouseUp);
+    return () => document.removeEventListener("mouseup", onMouseUp);
+  }, [copySelection, view?.form]);
 
   const headerLabel =
     state.request === null
@@ -268,7 +276,13 @@ export default function DetachedPluginApp() {
         )}
         {state.status === "failed" && (
           <div className="plugin-window__status plugin-window__status--failed">
-            {state.failure || t("launcher.externalFailed")}
+            {/* R93 · the backend answers a failed run with a stable key plus a
+                JSON payload, never a sentence; `runErrorMessage` localises it
+                exactly as the settings panel does. A message it does not
+                recognise keeps the old `failure || generic` fallback. */}
+            {runErrorMessage(state.failure ?? "", t) ||
+              state.failure ||
+              t("launcher.externalFailed")}
           </div>
         )}
         {state.status === "idle" && !state.request && (
@@ -282,7 +296,7 @@ export default function DetachedPluginApp() {
               t={t}
               text={view.text}
               metrics={view.metrics}
-              onCopySelection={() => setCopyNotice(t("pluginWindow.copied"))}
+              onCopySelection={copySelection}
             />
           ) : (
             <ul className="plugin-window__list">
@@ -296,12 +310,15 @@ export default function DetachedPluginApp() {
               ))}
             </ul>
           ))}
+        {/* R93 · the notice is the detached window's own status line (not a
+            floating layer), driven by the shared phase machine — it clears
+            itself after the visible/fade window. */}
+        {copyNotice.message && (
+          <div className="plugin-window__status" role="status" aria-live="polite">
+            {t(copyNotice.message)}
+          </div>
+        )}
       </div>
-      {copyNotice && (
-        <div className="plugin-window__notice" role="status" aria-live="polite">
-          {copyNotice}
-        </div>
-      )}
     </div>
   );
 }

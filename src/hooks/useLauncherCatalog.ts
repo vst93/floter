@@ -23,7 +23,8 @@ import {
   type CompletionItem,
   type ExecutionPlan,
 } from "../launcher";
-import { normalizeEntries, shouldSearchFullText, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
+import { runErrorMessage } from "../extensions/run-errors";
+import { normalizeEntries, restoreDeletedEntry, shouldSearchFullText, MAX_CLIPBOARD_MAX_ITEMS, type ClipboardEntry } from "../clipboard-history";
 import {
   MAX_CALCULATOR_MAX_ITEMS,
   normalizeCalculatorEntries,
@@ -737,6 +738,11 @@ export function useLauncherCatalog(options: {
   // arrives in one call); the needle filters in memory, so typing inside the mode
   // costs no IPC and no window resize.
   const clipboardActive = clipboardMode !== null;
+  // R93 · the delete rollback has to know, at failure time, whether the mode is
+  // still open — a ref is read when the refused write lands, unlike the
+  // `clipboardActive` the callback closed over. Mirrors `clipboardEntriesRef`.
+  const clipboardActiveRef = useRef(false);
+  clipboardActiveRef.current = clipboardActive;
   const [clipboardEntries, setClipboardEntries] = useState<ClipboardEntry[]>([]);
   // R38 · a manual refetch trigger. The config overlay's "clear history"
   // action mutates the store behind this hook's back, so the App bumps this
@@ -945,7 +951,17 @@ export function useLauncherCatalog(options: {
       return status("external-running", t("launcher.externalRunning"));
     }
     if (externalRun.status === "failed") {
-      return status("external-failed", externalRun.message || t("launcher.externalFailed"));
+      // R93 · the same localisation the settings panel has always had
+      // (`ExtensionsPanel.tsx`). The backend answers a failed run with a stable
+      // key plus a JSON payload, never a sentence; printing that raw key was the
+      // launcher-only hole this closes. A message `runErrorMessage` does not
+      // recognise keeps the old `message || generic` fallback.
+      return status(
+        "external-failed",
+        runErrorMessage(externalRun.message, t) ||
+          externalRun.message ||
+          t("launcher.externalFailed"),
+      );
     }
     const text = externalRunText(externalRun.output);
     if (text === null) return status("external-empty", t("launcher.externalEmpty"));
@@ -990,16 +1006,27 @@ export function useLauncherCatalog(options: {
 
   // R50 · delete one clipboard entry from the mode's list. Optimistic: the row
   // leaves at once, the store write follows, and a refused write restores the
-  // previous list and says why. The store is authoritative, so a successful
+  // deleted row and says why. The store is authoritative, so a successful
   // delete refetches (a prune may have taken neighbours with it).
+  // R93 · the rollback restores **only the deleted entry**, and only while the
+  // mode is still open — never the whole snapshot (the old rule could resurrect
+  // a table the mode's exit effect had already cleared). The pure rule is
+  // `restoreDeletedEntry`; a reload that already put the row back is a no-op.
   const deleteClipboardEntry = useCallback(
     (id: string) => {
-      const previous = clipboardEntriesRef.current;
+      const index = clipboardEntriesRef.current.findIndex((entry) => entry.id === id);
+      const removed = index >= 0 ? clipboardEntriesRef.current[index] : null;
       setClipboardEntries((entries) => entries.filter((entry) => entry.id !== id));
       invoke("clipboard_delete", { id })
         .then(() => reloadClipboardEntries())
         .catch(() => {
-          setClipboardEntries(previous);
+          setClipboardEntries((entries) =>
+            restoreDeletedEntry(entries, {
+              active: clipboardActiveRef.current,
+              removed,
+              index,
+            }),
+          );
           showLauncherFeedback("clipboard.deleteFailed");
         });
     },

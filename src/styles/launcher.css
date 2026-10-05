@@ -1828,13 +1828,3 @@
   color: var(--text-muted);
 }
 
-.plugin-window__notice {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: calc(var(--u) * 6) calc(var(--u) * 14);
-  font-size: var(--text-caption);
-  color: var(--text-secondary);
-  background: var(--surface-scrim);
-}

@@ -181,7 +181,6 @@ test("the detached window's chrome keys exist and translate in both languages", 
     "pluginWindow.rerun",
     "pluginWindow.close",
     "pluginWindow.idle",
-    "pluginWindow.copied",
     "pluginWindow.fallbackTitle",
   ];
   for (const key of keys) {

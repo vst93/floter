@@ -247,6 +247,37 @@ export const sameClipboardSnapshot = (left: ClipboardEntry[], right: ClipboardEn
       && entry.created_at === next.created_at && entry.favorite === next.favorite;
   });
 
+/**
+ * R93 · what an optimistic clipboard delete leaves behind when its write is
+ * refused.
+ *
+ * The old rule put a whole *snapshot* of the list back, which resurrected the
+ * entire table if the mode had been left in the meantime (the mode's exit
+ * effect clears the list). The corrected rule is deliberately narrow:
+ *
+ *   * `active` is read at failure time, not at call time — a delete that fails
+ *     after the user left the mode restores nothing, because there is no list
+ *     to restore into;
+ *   * only the one deleted entry comes back, at the index it left, so a list
+ *     that changed while the write was in flight keeps those changes;
+ *   * an entry already present (a reload landed it) is left alone — the list
+ *     is the authority and must not gain a duplicate.
+ *
+ * Pure and React-free so the node suite drives the exact table the hook uses;
+ * the hook only supplies `active`, the removed entry and its index.
+ */
+export const restoreDeletedEntry = (
+  entries: ClipboardEntry[],
+  failure: { active: boolean; removed: ClipboardEntry | null; index: number },
+): ClipboardEntry[] => {
+  const { active, removed, index } = failure;
+  if (!active || removed === null) return entries;
+  if (entries.some((entry) => entry.id === removed.id)) return entries;
+  const next = entries.slice();
+  next.splice(Math.min(Math.max(index, 0), next.length), 0, removed);
+  return next;
+};
+
 export type ClipboardSession = {
   filterText: string;
   view: "all" | "favorites";
