@@ -421,13 +421,6 @@ const en = {
   "settings.deepLinkCopy": "Copy link",
   "settings.deepLinkCopied": "Link copied",
   "settings.deepLinkRejected": "That link could not be opened",
-  "plugin.protocolMissing": "This page did not announce a plugin-page protocol version. This build speaks protocol {host}. Update the page to send the frame-ready handshake.",
-  "plugin.protocolMismatch": "This page speaks plugin-page protocol {page}; this build speaks {host}. Update whichever side is older.",
-  "plugin.retry": "Retry",
-  // The shipped hello-page example's one toast (docs/extensions/examples/hello-page).
-  // A page can only name a key the host actually has, so the example's message
-  // lives here rather than in the page.
-  "plugin.exampleNotify": "Hello from the plugin page example",
   "settings.extensions.title": "Integrations",
   "settings.extensions.hint": "Manage commands provided by Floter and system tools.",
   "settings.extensions.showInSearch": "Discover system commands in search",
@@ -867,9 +860,9 @@ export type MessageKey = keyof typeof en;
 
 /**
  * Whether a string names a real dictionary key. Keys can arrive from outside
- * the app document — a sandboxed plugin page names a feedback key over the
- * postMessage bridge — and the host is the side that owns the words, so an
- * unknown key is dropped rather than painted raw.
+ * the app document (a backend payload, an extension descriptor) and the host
+ * is the side that owns the words, so an unknown key is dropped rather than
+ * painted raw.
  */
 export const isMessageKey = (key: string): key is MessageKey =>
   // `hasOwnProperty`, not `in`: `in` would accept `constructor`, `toString`
@@ -1256,10 +1249,6 @@ const zh: Record<MessageKey, string> = {
   "settings.deepLinkCopy": "复制链接",
   "settings.deepLinkCopied": "已复制链接",
   "settings.deepLinkRejected": "无法打开该链接",
-  "plugin.protocolMissing": "此页面未声明插件页协议版本。本版本支持协议 {host}。请更新页面以发送 frame-ready 握手。",
-  "plugin.protocolMismatch": "此页面使用插件页协议 {page}；本版本支持 {host}。请更新较旧的一方。",
-  "plugin.retry": "重试",
-  "plugin.exampleNotify": "来自插件页示例的问候",
   "settings.extensions.title": "集成",
   "settings.extensions.hint": "统一管理 Floter 和系统工具提供的命令。",
   "settings.extensions.showInSearch": "发现系统命令",

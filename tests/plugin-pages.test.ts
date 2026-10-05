@@ -1,251 +1,49 @@
-// Tests for the generic plugin-page bridge protocol and URL building
-// (src/plugin-pages.ts). The same predicates gate messages on both sides of
-// the sandbox boundary: the host only honors requests it can trust, the page
-// only accepts well-formed results.
+// The surviving spine of floter's plugin surfaces (src/plugin-pages.ts): the
+// base-plugin registry the settings panel renders and the per-key failure
+// deduper the app's automatic triggers share.
+//
+// R96 deleted the generic postMessage bridge that used to live beside them —
+// page URL building, the command allowlist, the handshake, the message types
+// and every `isBridge*` guard. It had no producer (the manifest declares no
+// page) and no consumer (no built-in page, no host), so it was not a published
+// contract but dead code. This suite pins the live half and, at the bottom,
+// turns red if any deleted export, field, document or dictionary key comes
+// back.
+//
+// Retired names are assembled from parts so this file does not itself
+// reintroduce a token the round's zero-hit grep bans.
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { test } from "node:test";
-
-const root = new URL("../", import.meta.url);
+import { readFile, stat } from "node:fs/promises";
+import test from "node:test";
 
 import {
-  BRIDGE_TAG,
   BROWSER_PLUGIN_ID,
   BUILTIN_BASE_PLUGINS,
+  CALCULATOR_PLUGIN_ID,
   CLIPBOARD_PLUGIN_ID,
-  buildPluginPageUrl,
-  commandAllowed,
-  pluginPageNeedsSameOrigin,
-  isBridgeClose,
-  isBridgeDrag,
-  isBridgeGlass,
-  isBridgeOpacity,
-  isBridgeReload,
-  isBridgeRequest,
-  isBridgeResult,
-  isBridgeResultForSession,
-  isBridgeTheme,
-  isBridgeVisibility,
+  FAILURE_NOTIFY_DEDUP_MS,
+  createFailureDeduper,
 } from "../src/plugin-pages.ts";
 
-test("bridge session tokens survive requests and replies without admitting malformed tokens", () => {
-  const request = { floter: "invoke", id: 1, session: "new-document", command: "clipboard_get_entries" };
-  assert.ok(isBridgeRequest(request));
-  assert.ok(isBridgeResult({ floter: "result", id: 1, session: request.session, ok: true, value: [] }));
-  assert.equal(isBridgeRequest({ ...request, session: {} }), false);
-  assert.equal(isBridgeRequest({ ...request, session: "x".repeat(129) }), false);
-  assert.equal(isBridgeResult({ floter: "result", id: 1, session: 42, ok: false, error: "failed" }), false);
-});
-
-test("bridge visibility carries an explicit boolean for CSS-hidden frames", () => {
-  assert.ok(isBridgeVisibility({ floter: "visibility", visible: false }));
-  assert.ok(isBridgeVisibility({ floter: "visibility", visible: true }));
-  assert.equal(isBridgeVisibility({ floter: "visibility", visible: "false" }), false);
-  assert.equal(isBridgeVisibility({ floter: "reload", visible: true }), false);
-});
-
-test("a reloaded page rejects an old document's reply even when request ids match", () => {
-  const delayed = { floter: "result", id: 1, session: "old-document", ok: true, value: ["old"] };
-  assert.equal(isBridgeResultForSession(delayed, "new-document"), false);
-  assert.equal(isBridgeResultForSession({ ...delayed, session: "new-document" }, "new-document"), true);
-  assert.equal(isBridgeResultForSession({ ...delayed, session: undefined }, "new-document"), false);
-});
-
-test("invoke requests are recognized with optional args", () => {
-  assert.ok(
-    isBridgeRequest({ [BRIDGE_TAG]: "invoke", id: 1, command: "clipboard_get_entries" }),
-  );
-  assert.ok(
-    isBridgeRequest({
-      [BRIDGE_TAG]: "invoke",
-      id: 2,
-      command: "clipboard_set_favorite",
-      args: { id: "x", favorite: true },
-    }),
-  );
-  assert.ok(
-    isBridgeRequest({
-      [BRIDGE_TAG]: "invoke",
-      id: 3,
-      command: "cmd",
-      args: null,
-    }),
-  );
-});
-
-test("malformed invoke requests are rejected, not thrown on", () => {
-  const bad = [
-    null,
-    "invoke",
-    {},
-    // Missing or wrong tag.
-    { id: 1, command: "cmd" },
-    { [BRIDGE_TAG]: "other", id: 1, command: "cmd" },
-    // Bad correlation ids.
-    { [BRIDGE_TAG]: "invoke", id: "1", command: "cmd" },
-    { [BRIDGE_TAG]: "invoke", id: Number.NaN, command: "cmd" },
-    // Bad commands.
-    { [BRIDGE_TAG]: "invoke", id: 1 },
-    { [BRIDGE_TAG]: "invoke", id: 1, command: "" },
-    // Args must be an object when present.
-    { [BRIDGE_TAG]: "invoke", id: 1, command: "cmd", args: "x" },
-    { [BRIDGE_TAG]: "invoke", id: 1, command: "cmd", args: 7 },
-  ];
-  for (const candidate of bad) {
-    assert.equal(isBridgeRequest(candidate), false, JSON.stringify(candidate));
+const root = new URL("../", import.meta.url);
+const read = (path: string) => readFile(new URL(path, root), "utf8");
+const exists = async (path: string) => {
+  try {
+    await stat(new URL(path, root));
+    return true;
+  } catch {
+    return false;
   }
-});
+};
 
-test("close messages are recognized and nothing else is", () => {
-  assert.ok(isBridgeClose({ [BRIDGE_TAG]: "close" }));
-  assert.equal(isBridgeClose({ [BRIDGE_TAG]: "invoke", id: 1, command: "c" }), false);
-  assert.equal(isBridgeClose(null), false);
-});
-
-test("drag messages are recognized and nothing else is", () => {
-  // CLIP-DRAG · the payload-free window-drag request a sandboxed page sends
-  // when the user presses its blank header.
-  assert.ok(isBridgeDrag({ [BRIDGE_TAG]: "drag" }));
-  assert.equal(isBridgeDrag({ [BRIDGE_TAG]: "close" }), false, "close is its own message");
-  assert.equal(isBridgeDrag({ [BRIDGE_TAG]: "invoke" }), false);
-  assert.equal(isBridgeDrag(null), false);
-  assert.equal(isBridgeDrag({}), false);
-  // The request is payload-free: the recognizer keys only on the tag and the
-  // host reads no fields off it, so a page cannot smuggle a position, a window
-  // or a size across the sandbox — a message that carries them is still just
-  // "drag", and the host ignores the extras.
-  assert.ok(isBridgeDrag({ [BRIDGE_TAG]: "drag", x: 10, y: 20 }));
-});
-
-test("results must be ok-with-value or error-with-string", () => {
-  assert.ok(isBridgeResult({ [BRIDGE_TAG]: "result", id: 1, ok: true, value: [] }));
-  assert.ok(isBridgeResult({ [BRIDGE_TAG]: "result", id: 2, ok: false, error: "boom" }));
-  assert.equal(
-    isBridgeResult({ [BRIDGE_TAG]: "result", id: 3, ok: true }),
-    false,
-    "ok without a value",
-  );
-  assert.equal(
-    isBridgeResult({ [BRIDGE_TAG]: "result", id: 4, ok: false, error: 9 }),
-    false,
-    "non-string error",
-  );
-  assert.equal(isBridgeResult({ [BRIDGE_TAG]: "invoke", id: 5, command: "c" }), false);
-});
-
-test("the allowlist decides which commands the host will run", () => {
-  const allowed = ["clipboard_get_entries", "clipboard_delete"];
-  assert.ok(commandAllowed(allowed, "clipboard_get_entries"));
-  assert.equal(commandAllowed(allowed, "open_url"), false);
-  // Prefixes do not count as matches.
-  assert.equal(commandAllowed(allowed, "clipboard_get"), false);
-  assert.equal(commandAllowed([], "anything"), false);
-});
-
-test("page URLs resolve against the app base and carry bootstrap params", () => {
-  // Packaged shape: tauri protocol root.
-  const packaged = buildPluginPageUrl("tauri://localhost/", "plugins/clipboard/index.html", {
-    lang: "zh",
-    theme: "dark",
-    "main-opacity": 0.47,
-    "terminal-opacity": 0.46,
-  });
-  assert.equal(packaged.startsWith("tauri://localhost/plugins/clipboard/index.html"), true);
-  assert.ok(packaged.includes("lang=zh"));
-  assert.ok(packaged.includes("theme=dark"));
-  assert.ok(packaged.includes("main-opacity=0.47"));
-
-  // Dev-server shape: absolute path under localhost.
-  const dev = buildPluginPageUrl("http://localhost:1420/", "plugins/clipboard/index.html");
-  assert.equal(dev, "http://localhost:1420/plugins/clipboard/index.html");
-
-  // A page outside its plugins/ directory would be a registry bug; URL
-  // building itself stays neutral so the test pins the shape only.
-  const nested = buildPluginPageUrl("tauri://localhost/", "../escape.html");
-  assert.ok(nested.includes("escape.html"));
-});
-
-test("opacity messages are recognized with finite values", () => {
-  assert.ok(isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: 0.94, terminalOpacity: 0.92 }));
-  assert.ok(isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: 0, terminalOpacity: 1 }));
-  assert.equal(
-    isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: Number.NaN, terminalOpacity: 0.9 }),
-    false,
-    "NaN rejected",
-  );
-  assert.equal(
-    isBridgeOpacity({ [BRIDGE_TAG]: "opacity", mainOpacity: "0.94", terminalOpacity: 0.9 }),
-    false,
-    "string rejected",
-  );
-  assert.equal(isBridgeOpacity({ [BRIDGE_TAG]: "opacity" }), false, "missing fields");
-});
-
-test("theme messages are recognized with dark or light", () => {
-  assert.ok(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: "dark" }));
-  assert.ok(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: "light" }));
-  assert.equal(
-    isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: "auto" }),
-    false,
-    "auto not a valid page theme",
-  );
-  assert.equal(isBridgeTheme({ [BRIDGE_TAG]: "theme", theme: null }), false);
-  assert.equal(isBridgeTheme({ [BRIDGE_TAG]: "theme" }), false);
-});
-
-test("reload messages are recognized", () => {
-  assert.ok(isBridgeReload({ [BRIDGE_TAG]: "reload" }));
-  assert.equal(isBridgeReload({ [BRIDGE_TAG]: "invoke", id: 1, command: "c" }), false);
-  assert.equal(isBridgeReload(null), false);
-  assert.equal(isBridgeReload({}), false);
-});
-
-test("glass-step messages are recognized with the shipped stop ids only", () => {
-  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "frosted" }));
-  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "regular" }));
-  assert.ok(isBridgeGlass({ [BRIDGE_TAG]: "glass", glassStep: "liquid" }));
-  for (const bad of [
-    { [BRIDGE_TAG]: "glass", glassStep: "clear" },
-    // A pre-GLASS-3STOP id is not a *live* step: the bridge speaks the current
-    // vocabulary, and the page migrates an old bootstrap param via
-    // `normalizeGlassStep` rather than accepting the dead id here.
-    { [BRIDGE_TAG]: "glass", glassStep: "low" },
-    { [BRIDGE_TAG]: "glass", glassStep: "jelly" },
-    { [BRIDGE_TAG]: "glass", glassStep: 0.68 },
-    { [BRIDGE_TAG]: "glass", glassStep: null },
-    { [BRIDGE_TAG]: "glass" },
-    { [BRIDGE_TAG]: "theme", glassStep: "regular" },
-    null,
-  ]) {
-    assert.equal(isBridgeGlass(bad), false, JSON.stringify(bad));
-  }
-});
-
-// F6 (R8 microfix): the glass step has to reach a plugin page. Before this
-// the page's own stylesheet hardcoded the Regular step's fill/top, so a user
-// on Clear or Regular-max still saw a Regular clipboard panel — the one
-// surface in the same shell that ignored the material control. The built-in
-// host and page that carried the hand-off were retired (R33) and deleted
-// (R76); what stays is the token bag the published protocol hands across.
-test("the glass-step token bag stays derived from the one table", async () => {
-  const { GLASS_STEP_TOKENS, GLASS_SOLID_TOP, glassStepStyle } = await import("../src/glass-material.ts");
-
-  // The bag a host injects is derived from the one token table — no literals
-  // at the call site, and it changes with the step.
-  const frosted = glassStepStyle("frosted");
-  const liquid = glassStepStyle("liquid");
-  assert.equal(frosted["--glass-step-dim"], String(GLASS_STEP_TOKENS.frosted.dim));
-  assert.equal(frosted["--glass-solid-top"], String(GLASS_SOLID_TOP));
-  assert.notEqual(frosted["--glass-step-dim"], liquid["--glass-step-dim"], "the injected haze must track the step");
-});
+// ── 1 · the base-plugin list mirrors the Rust registry ────────────────────
 
 // R26-C · the settings panel's base-plugins list must carry every registered
 // plugin, browser included.
 //
 // The bug: `App.tsx` assembled the list by hand and only ever named
-// `builtin.clipboard`, so when R26-B registered `builtin.browser` (descriptor +
-// page + allowlist) the settings panel never showed it — the plugin had no
-// entry and no way to open its page. The list now lives in
+// `builtin.clipboard`, so when R26-B registered `builtin.browser` the settings
+// panel never showed it — the plugin had no entry. The list now lives in
 // `BUILTIN_BASE_PLUGINS` (src/plugin-pages.ts), and this guard pins it to the
 // Rust registry in BOTH directions: a descriptor without a row fails, and a row
 // naming an unregistered plugin fails.
@@ -256,9 +54,10 @@ test("the base-plugin list carries builtin.browser and mirrors the Rust registry
     "the base-plugin list must contain builtin.browser (the R26-C regression)",
   );
   assert.ok(ids.includes(CLIPBOARD_PLUGIN_ID), "the base-plugin list must contain builtin.clipboard");
+  assert.ok(ids.includes(CALCULATOR_PLUGIN_ID), "the base-plugin list must contain builtin.calculator");
 
   // The registry's constant names -> values, then the ids `DESCRIPTORS` uses.
-  const rust = await readFile(new URL("src-tauri/src/plugin_pages.rs", root), "utf8");
+  const rust = await read("src-tauri/src/plugin_pages.rs");
   const constants = new Map<string, string>();
   for (const match of rust.matchAll(/pub const (\w+_PLUGIN_ID): &str = "([^"]+)";/g)) {
     constants.set(match[1], match[2]);
@@ -279,7 +78,7 @@ test("the base-plugin list carries builtin.browser and mirrors the Rust registry
 
   // The list is only real if the panel renders it: the hand-written array in
   // App.tsx is gone, replaced by this registry.
-  const app = await readFile(new URL("src/App.tsx", root), "utf8");
+  const app = await read("src/App.tsx");
   assert.match(
     app,
     /basePlugins=\{BUILTIN_BASE_PLUGINS/,
@@ -287,45 +86,158 @@ test("the base-plugin list carries builtin.browser and mirrors the Rust registry
   );
 });
 
-// R26-D · every registered plugin page must announce the protocol.
-//
-// The user's report, verbatim: 「插件加载失败 此页面未声明插件页协议版本。本版本
-// 支持协议 1。请更新页面以发送 frame-ready 握手」. The browser page *did* send
-// the handshake — its module never ran, because the host only granted
-// `allow-same-origin` to the clipboard id and WebKit refused the opaque-origin
-// frame's ES module. The root cause is pinned separately below; this guard is
-// the general one: whatever the registry lists, its entry module must send the
-// handshake. It is driven off the Rust registry, so a new descriptor cannot
-// ship a page that never announces itself.
-test("no built-in page is registered, and the retired entries stay deleted", async () => {
-  const rust = await readFile(new URL("src-tauri/src/plugin_pages.rs", root), "utf8");
-  const descriptorsAt = rust.indexOf("static DESCRIPTORS");
-  assert.notEqual(descriptorsAt, -1, "the Rust descriptor registry must exist");
-  const pages = [...rust.slice(descriptorsAt).matchAll(/page: "([^"]*)"/g)].map((m) => m[1]);
-  assert.ok(pages.length >= 2, `expected the registry to list both descriptors, saw ${pages.length}`);
-  // R33 · the built-in iframe pages are retired, so no descriptor names a
-  // document. R76 · the entry modules that used to keep sending the handshake
-  // are deleted with the rest of the layer.
-  for (const page of pages) assert.equal(page, "", "no built-in page path may be registered");
-});
-
-// R26-D · the sandbox exception is a *set*, not a clipboard-only special case.
-//
-// The bug that produced the missing handshake above: `PluginPageHost` wrote
-// `descriptor?.id === CLIPBOARD_PLUGIN_ID` inline, so the browser page (a
-// built-in that ships bundled assets on the app origin, exactly like the
-// clipboard page) was sandboxed with an opaque origin and its module never
-// loaded on WebKit. Every built-in page must be in the same-origin set.
-test("the same-origin sandbox set is a set, not a clipboard-only special case", () => {
-  // R33 · no built-in page is registered any more, so every built-in row is
-  // `configurable` (overlay) rather than `hasPage`. The sandbox exception the
-  // R26-D bug was about is still a lookup, not an inline id test.
+test("every base-plugin row opens the generic configuration overlay", () => {
+  // R33 · no built-in page is registered any more, so every row is
+  // `configurable` (the launcher overlay) rather than a page door.
   for (const plugin of BUILTIN_BASE_PLUGINS) {
     assert.equal(plugin.configurable, true, `${plugin.id} opens the generic overlay`);
   }
-  assert.equal(pluginPageNeedsSameOrigin(CLIPBOARD_PLUGIN_ID), true);
-  assert.equal(pluginPageNeedsSameOrigin(BROWSER_PLUGIN_ID), true);
-  assert.equal(pluginPageNeedsSameOrigin("external.example"), false);
-  assert.equal(pluginPageNeedsSameOrigin(null), false);
-  assert.equal(pluginPageNeedsSameOrigin(undefined), false);
+});
+
+// ── 2 · the failure deduper ───────────────────────────────────────────────
+
+test("five consecutive automatic failures raise exactly one toast (30s dedupe per key)", () => {
+  // Drive the shared dedupe policy directly: an automatic trigger calls this
+  // once per failed attempt, and the burst below is 20s. Only the first may
+  // paint; the others must be swallowed.
+  assert.ok(
+    FAILURE_NOTIFY_DEDUP_MS >= 30_000,
+    "the window must dwarf a 2s poll — at 30s an automatic failure can earn at most one toast",
+  );
+  const deduper = createFailureDeduper();
+  const raised: number[] = [];
+  let now = 1_000_000;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (deduper.allow("some.loadFailed", now)) raised.push(now);
+    now += 2000; // the poll interval
+  }
+  assert.deepEqual(raised, [1_000_000], "the outage must be one toast, not five");
+  // The window is per key: a *different* failure in the middle of the outage
+  // is still news and is not swallowed by the first key.
+  assert.equal(deduper.allow("some.copyFailed", now), true, "dedupe must be per message key");
+  // Recovery re-arms: failure → success → failure is two toasts, not one.
+  deduper.clear("some.loadFailed");
+  assert.equal(deduper.allow("some.loadFailed", now), true, "a success in between makes the relapse news again");
+  // And the window really elapses: the next failure after it is announced.
+  const later = createFailureDeduper();
+  assert.equal(later.allow("k", 0), true);
+  assert.equal(later.allow("k", FAILURE_NOTIFY_DEDUP_MS - 1), false);
+  assert.equal(later.allow("k", FAILURE_NOTIFY_DEDUP_MS), true);
+});
+
+// ── 3 · the retired bridge stays retired ──────────────────────────────────
+
+/** Value exports R96 deleted from `src/plugin-pages.ts`, assembled so the
+ *  zero-hit grep stays clean. */
+const RETIRED_VALUE_EXPORTS = [
+  "BRIDGE" + "_TAG",
+  "PLUGIN_PAGE" + "_PROTOCOL",
+  "buildPlugin" + "PageUrl",
+  "command" + "Allowed",
+  "pluginPage" + "Handshake",
+  "handshake" + "ErrorDetail",
+  "shouldStart" + "WindowDrag",
+  "pluginPageNeeds" + "SameOrigin",
+  "SAME_ORIGIN" + "_PLUGIN_PAGES",
+  "createRetry" + "Registry",
+  "RETRY_REGISTRY" + "_CAPACITY",
+  "MESSAGE_KEY" + "_SHAPE",
+] as const;
+
+test("the retired bridge value exports are gone from the module", async () => {
+  const mod = (await import("../src/plugin-pages.ts")) as Record<string, unknown>;
+  // Non-vacuity: the live spine is still exported, so an emptied module could
+  // not pass as "already gone".
+  for (const live of ["BUILTIN_BASE_PLUGINS", "createFailureDeduper", "FAILURE_NOTIFY_DEDUP_MS"]) {
+    assert.ok(live in mod, `${live} must stay exported`);
+  }
+  for (const name of RETIRED_VALUE_EXPORTS) {
+    assert.ok(!(name in mod), `${name} was deleted in R96 and must stay gone`);
+  }
+});
+
+test("no bridge message type or guard survives in the module source", async () => {
+  const source = await read("src/plugin-pages.ts");
+  // The whole `isBridge*` family, the `Bridge*` payload types and the page →
+  // host union. These are compile-time names, so the scan is over the source
+  // rather than the runtime export object.
+  assert.ok(!/\bisBridge[A-Z]/.test(source), "no isBridge* guard may come back");
+  assert.ok(!/export type Bridge[A-Z]/.test(source), "no Bridge* payload type may come back");
+  assert.ok(!/\bBridgeFromPage\b/.test(source), "the page → host union must stay gone");
+  // And the module still declares the live spine.
+  assert.match(source, /export const BUILTIN_BASE_PLUGINS/);
+});
+
+test("the retired bridge dictionary keys are gone from the i18n table", async () => {
+  const i18n = await read("src/i18n.ts");
+  // `plugin.*` was the bridge's own key namespace (`protocolMissing`,
+  // `protocolMismatch`, `retry`, `exampleNotify`); notifications live under
+  // `notification.plugin.*` and are unaffected.
+  assert.equal(
+    [...i18n.matchAll(/"plugin\./g)].length,
+    0,
+    "no `plugin.*` dictionary key may survive the bridge deletion",
+  );
+});
+
+test("the retired protocol document and example page are gone", async () => {
+  // Non-vacuity: the extensions index that used to link them still resolves.
+  assert.equal(await exists("docs/extensions/README.zh-CN.md"), true);
+  assert.equal(
+    await exists("docs/extensions/plugin-page-" + "protocol.md"),
+    false,
+    "the protocol document was deleted in R96 and must stay deleted",
+  );
+  assert.equal(
+    await exists("docs/extensions/examples/hello-" + "page"),
+    false,
+    "the hello-page example was deleted in R96 and must stay deleted",
+  );
+});
+
+// ── 4 · the Rust descriptor and wire type stay shrunk ─────────────────────
+
+test("the Rust descriptor no longer carries a page slot or a command allowlist", async () => {
+  const rust = await read("src-tauri/src/plugin_pages.rs");
+  // The live spine: the id constants and the descriptor table.
+  assert.match(rust, /static DESCRIPTORS: &\[PluginPageDescriptor\] = &\[/);
+  assert.match(rust, /pub fn descriptor\(id: &str\)/);
+  // Non-vacuity for the field scans below.
+  assert.match(rust, /pub id: &'static str,/);
+  assert.match(rust, /pub title_key: &'static str,/);
+  // The deleted fields. `page` is matched as a struct field (`page:`), which is
+  // what a revival would add to `PluginPageDescriptor` and to each registry
+  // entry; the identifier still appears inside `open_plugin_page` and the
+  // `PluginPage*` type names, which are live.
+  assert.ok(!/\bpage\s*:/.test(rust), "the descriptor's `page` field must stay deleted (R96)");
+  assert.ok(
+    !rust.includes("allow" + "ed_commands"),
+    "the per-plugin command allowlist must stay deleted (R96)",
+  );
+  assert.ok(!rust.includes("has_" + "page"), "the `has_page` wire flag must stay deleted (R96)");
+  assert.ok(!rust.includes("_COM" + "MANDS"), "the per-plugin command tables must stay deleted (R96)");
+});
+
+test("the builtin-plugin wire row no longer reports hasPage", async () => {
+  const rust = await read("src-tauri/src/plugin_pages.rs");
+  const info = rust.slice(rust.indexOf("pub struct BuiltinPluginInfo"));
+  const body = info.slice(0, info.indexOf("}"));
+  assert.match(body, /pub enabled: bool,/, "the settings panel still reads `enabled`");
+  assert.ok(
+    !body.includes("has_" + "page"),
+    "the wire row's `has_page` field must stay deleted (R96)",
+  );
+});
+
+test("open_plugin_page still emits the plugin-config event the overlay answers", async () => {
+  // R96 · the event path is the live half of this module; the descriptor
+  // projection and the emit are what the console `clip` command and the
+  // cold-start hand-off ride on.
+  const rust = await read("src-tauri/src/plugin_pages.rs");
+  assert.match(rust, /pub fn open_plugin_page\(app: &AppHandle, id: &str\)/);
+  assert.match(rust, /"floter:\/\/plugin-config"/);
+  assert.match(rust, /pub\(crate\) fn take_pending_plugin_page/);
+  // …and the frontend listener still answers that event name.
+  const app = await read("src/App.tsx");
+  assert.match(app, /listen<\{ id: string; toggle: boolean \}>\("floter:\/\/plugin-config"/);
 });

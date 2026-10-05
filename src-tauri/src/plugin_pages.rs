@@ -1,141 +1,67 @@
-//! Generic plugin HTML pages.
+//! The built-in base-plugin registry and the plugin-surface event path.
 //!
-//! A plugin (a built-in base plugin today, an external integration tomorrow)
-//! may declare an HTML page. Opening it swaps the panel's whole canvas — the
-//! same shell and window geometry the terminal page uses — for that page,
-//! rendered inside a sandboxed iframe. Exactly one plugin page is open at a
-//! time; Esc / Cmd+W / Ctrl+W / re-invoke closes back onto the remembered
-//! surface, and any PTY underneath keeps running untouched.
+//! R33 retired the built-in iframe plugin pages and R76 deleted their source,
+//! so there is no HTML page layer left: a plugin's whole surface is the
+//! launcher's inline mode plus the schema-driven configuration overlay. R96
+//! deleted the last of the page machinery — the descriptor's `page` slot, its
+//! per-plugin command allowlist and the has-page flag on the wire — because
+//! nothing could produce or consume them any more.
 //!
-//! Pages never touch Tauri APIs themselves. They talk to the host through a
-//! minimal postMessage bridge; the host performs `invoke()` on the page's
-//! behalf and enforces a per-plugin command allowlist (see
-//! [`PluginPageDescriptor::allowed_commands`]). For built-in plugins the
-//! allowlist is this static registry; for external integrations it will come
-//! from their descriptor (`page.html` in the integration dir, commands listed
-//! beside it) through the same shape — the mechanism is deliberately not
-//! clipboard-specific.
+//! What this module still owns:
 //!
-//! Why an iframe rather than injecting the HTML into the app document:
-//! external plugin HTML is less trusted than our own. External pages use a
-//! sandboxed opaque origin — no DOM access to the host app, no Tauri IPC
-//! surface at all. The trusted built-in clipboard page is the one exception:
-//! WebKit needs same-origin enabled there to load its bundled stylesheet. Its
-//! only host capability remains the allowlisted bridge.
+//! * the stable ids and the descriptor table the settings panel renders
+//!   ([`DESCRIPTORS`] → [`builtin_plugin_infos`]);
+//! * [`open_plugin_page`], the one internal path the console's `clip` command
+//!   (and the cold-start hand-off) uses to reveal the panel and emit
+//!   `floter://plugin-config`, which the launcher's `PluginConfigOverlay`
+//!   answers.
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::AppState;
 
-/// Stable id of the built-in clipboard base plugin, the first user of this
-/// mechanism.
+/// Stable id of the built-in clipboard base plugin.
 pub const CLIPBOARD_PLUGIN_ID: &str = "builtin.clipboard";
 
-/// Stable id of the built-in browser plugin, the second user of this
-/// mechanism.
+/// Stable id of the built-in browser plugin.
 pub const BROWSER_PLUGIN_ID: &str = "builtin.browser";
 
 /// R50 · stable id of the built-in calculator plugin.
 ///
 /// R51 · it is a descriptor like the other two built-ins (the settings panel's
 /// "Base plugins" list and the launcher's search read this registry). It has no
-/// page and no on/off switch; the descriptor's whole allowlist is the calculator
-/// commands the plugin's own mode and configuration overlay already invoke.
+/// page and no on/off switch; its whole surface is the launcher mode and its
+/// configuration overlay.
 pub const CALCULATOR_PLUGIN_ID: &str = "builtin.calculator";
 
-/// Everything the host needs to render one plugin page.
+/// One row of the built-in plugin registry: the identity and the two i18n keys
+/// the settings panel renders. The command allowlist and the page slot that
+/// used to live here were deleted in R96 with the retired page layer.
 pub struct PluginPageDescriptor {
     pub id: &'static str,
     /// i18n key for the human name, resolved by the frontend dictionaries.
     pub title_key: &'static str,
     /// i18n key for the one-line description.
     pub description_key: &'static str,
-    /// Page asset path relative to the frontend root, or `""` when the plugin
-    /// has no page. R33 retired every built-in page onto the launcher's generic
-    /// configuration overlay, so the built-in slots are empty; a future
-    /// external integration would point this at a `page.html` in its own dir.
-    pub page: &'static str,
-    /// The only commands the bridge will invoke on this page's behalf.
-    pub allowed_commands: &'static [&'static str],
 }
 
-/// R76 · the allowlist shrank with the retired iframe page. The three commands
-/// the clipboard page used to read images, file previews and file-existence
-/// statuses with (`clipboard_read_image`, `clipboard_read_file_preview`,
-/// `clipboard_entry_statuses`) had no live caller once the page's source was
-/// deleted, so they were removed from the registry and the command table
-/// rather than left advertising a capability with no implementation. What
-/// remains is exactly what the live launcher mode and the plugin's settings
-/// card call.
-const CLIPBOARD_COMMANDS: &[&str] = &[
-    "clipboard_get_entries",
-    "clipboard_set_favorite",
-    "clipboard_delete",
-    "clipboard_copy_entry",
-    "clipboard_clear_history",
-    // R38 · the row-icon thumbnail the launcher's inline mode reads.
-    "clipboard_thumbnail",
-    // R27 · the plugin's own settings card writes through this narrow pair,
-    // exactly as the browser page's card does through `browser_set_settings`.
-    "clipboard_get_settings",
-    "clipboard_set_settings",
-];
-
-/// R26-B · the browser plugin's own page. Its settings card writes through
-/// `browser_get_settings`/`browser_set_settings`, which touch only the plugin's
-/// settings block; the three read commands and the two tab commands are the
-/// same ones the launcher's inline mode uses.
-const BROWSER_COMMANDS: &[&str] = &[
-    "browser_discover",
-    "browser_search_bookmarks",
-    "browser_search_history",
-    "browser_list_tabs",
-    "browser_activate_tab",
-    "browser_open_url",
-    "browser_get_settings",
-    "browser_set_settings",
-];
-
-/// R51 · the calculator plugin's capability surface. It has no page (R33
-/// retired the built-in iframe pages), but the descriptor keeps the allowlist
-/// shape external pages will use: exactly the commands `calculator_history.rs`
-/// exposes for the plugin's launcher mode and its configuration overlay.
-const CALCULATOR_COMMANDS: &[&str] = &[
-    "calculator_get_entries",
-    "calculator_add_entry",
-    "calculator_set_favorite",
-    "calculator_delete",
-    "calculator_clear_history",
-    "calculator_get_settings",
-    "calculator_set_settings",
-];
-
-/// The registry of built-in plugin pages.
+/// The registry of built-in plugins.
 static DESCRIPTORS: &[PluginPageDescriptor] = &[
     PluginPageDescriptor {
         id: CLIPBOARD_PLUGIN_ID,
         title_key: "settings.clipboardHistory",
         description_key: "settings.clipboardHistoryHint",
-        // R33 · the built-in iframe pages are retired. The descriptor keeps
-        // its empty page slot (and its whole allowlist) so the registry shape
-        // external plugin pages will use is already here; nothing opens it.
-        page: "",
-        allowed_commands: CLIPBOARD_COMMANDS,
     },
     PluginPageDescriptor {
         id: BROWSER_PLUGIN_ID,
         title_key: "settings.browser",
         description_key: "settings.browserHint",
-        page: "",
-        allowed_commands: BROWSER_COMMANDS,
     },
     PluginPageDescriptor {
         id: CALCULATOR_PLUGIN_ID,
         title_key: "settings.calculator",
         description_key: "settings.calculatorHint",
-        page: "",
-        allowed_commands: CALCULATOR_COMMANDS,
     },
 ];
 
@@ -147,9 +73,9 @@ fn all_descriptors() -> &'static [PluginPageDescriptor] {
     DESCRIPTORS
 }
 
-/// Every registered page, for callers that have to cover the whole registry
+/// Every registered plugin, for callers that have to cover the whole registry
 /// rather than resolve one id — the notification copy table is checked against
-/// it so a plugin page cannot exist without a bilingual name.
+/// it so a plugin cannot exist without a bilingual name.
 #[cfg(test)]
 pub(crate) fn descriptors() -> &'static [PluginPageDescriptor] {
     DESCRIPTORS
@@ -165,10 +91,6 @@ pub struct BuiltinPluginInfo {
     pub id: String,
     pub title_key: String,
     pub description_key: String,
-    /// R33 · whether the plugin declares an HTML page. Both built-ins were
-    /// retired onto the launcher's generic configuration overlay, so this is
-    /// false for every descriptor today; the field stays for external pages.
-    pub has_page: bool,
     pub enabled: bool,
 }
 
@@ -196,7 +118,6 @@ pub fn builtin_plugin_infos(
             id: descriptor.id.to_string(),
             title_key: descriptor.title_key.to_string(),
             description_key: descriptor.description_key.to_string(),
-            has_page: false,
             // The persisted state of the clipboard base plugin lives in its
             // long-standing settings field; there is exactly one switch, and
             // this is where it reads from.
@@ -221,7 +142,7 @@ pub fn builtin_plugin_infos(
         .collect()
 }
 
-/// The plugin page a cold start should open, consumed once by the frontend
+/// The plugin a cold start should open, consumed once by the frontend
 /// (`floter clip` on a fresh launch). Stored rather than emitted because the
 /// webview may not have mounted its listeners yet during setup.
 #[tauri::command]
@@ -233,18 +154,18 @@ pub(crate) fn take_pending_plugin_page(state: tauri::State<'_, AppState>) -> Opt
         .and_then(|mut slot| slot.take())
 }
 
-/// Event payload announcing a plugin-page request to the frontend.
+/// Event payload announcing a plugin request to the frontend.
 #[derive(Debug, Clone, Serialize)]
 pub struct PluginPageEvent {
     pub id: String,
     /// True when the trigger is the toggle hotkey, which means "close" if the
-    /// very same page is already showing; CLI invocations always open.
+    /// very same plugin is already showing; CLI invocations always open.
     pub toggle: bool,
 }
 
-/// Open a plugin page over whatever surface is showing, revealing the hidden
-/// panel first. The single internal path shared by the `floter clip` CLI, the
-/// global hotkey and the launcher entry.
+/// Open a plugin's surface over whatever is showing, revealing the hidden panel
+/// first. The single internal path shared by the `floter clip` CLI, the global
+/// hotkey and the launcher entry.
 pub fn open_plugin_page(app: &AppHandle, id: &str) {
     let Some(window) = app.get_webview_window("main") else {
         return;
@@ -270,121 +191,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_registry_contains_the_clipboard_page_with_its_commands() {
-        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
-        assert_eq!(clipboard.page, "", "the clipboard page is retired (R33)");
-        assert!(clipboard
-            .allowed_commands
-            .contains(&"clipboard_get_entries"));
-        // R76 · the allowlist shrank with the retired iframe page: the read
-        // commands it pinned are gone from the registry and the command table.
-        // The pin now holds a command the live launcher mode actually calls.
-        assert!(clipboard.allowed_commands.contains(&"clipboard_delete"));
-        // An unknown plugin has no page and no permissions.
+    fn the_registry_contains_the_clipboard_descriptor() {
+        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard descriptor");
+        assert_eq!(clipboard.title_key, "settings.clipboardHistory");
+        assert_eq!(clipboard.description_key, "settings.clipboardHistoryHint");
+        // An unknown plugin has no descriptor.
         assert!(descriptor("builtin.nope").is_none());
         assert!(descriptor("../../etc/passwd").is_none());
     }
 
-    /// R27 · the clipboard page's own settings card writes through a narrow
-    /// pair, exactly as the browser page's does — and the pair is on the
-    /// clipboard page's allowlist, not the browser's.
     #[test]
-    fn the_clipboard_page_can_read_and_write_its_own_settings() {
-        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
-        for command in ["clipboard_get_settings", "clipboard_set_settings"] {
-            assert!(
-                clipboard.allowed_commands.contains(&command),
-                "{command} must be allowlisted for the clipboard page"
-            );
-        }
-        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
-        assert!(
-            !browser.allowed_commands.contains(&"clipboard_set_settings"),
-            "a page's allowlist is its whole capability surface"
-        );
+    fn the_registry_contains_the_browser_descriptor() {
+        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser descriptor");
+        assert_eq!(browser.title_key, "settings.browser");
+        assert_eq!(browser.description_key, "settings.browserHint");
     }
 
     #[test]
-    fn the_registry_contains_the_browser_page_with_its_commands() {
-        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
-        assert_eq!(browser.page, "", "the browser page is retired (R33)");
-        for command in [
-            "browser_search_bookmarks",
-            "browser_search_history",
-            "browser_list_tabs",
-            "browser_activate_tab",
-            "browser_open_url",
-            "browser_get_settings",
-            "browser_set_settings",
-        ] {
-            assert!(
-                browser.allowed_commands.contains(&command),
-                "{command} must be allowlisted for the browser page"
-            );
-        }
-    }
-
-    #[test]
-    fn the_two_builtin_pages_share_no_command() {
-        // A page's allowlist is its whole capability surface, so the browser
-        // page must not inherit a clipboard command (or the reverse) by being
-        // listed twice.
-        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
-        let browser = descriptor(BROWSER_PLUGIN_ID).expect("browser page");
-        for command in browser.allowed_commands {
-            assert!(
-                !clipboard.allowed_commands.contains(command),
-                "{command} is allowlisted for both pages"
-            );
-        }
-    }
-
-    #[test]
-    fn the_registry_contains_the_calculator_page_with_its_commands() {
+    fn the_registry_contains_the_calculator_descriptor() {
         // R51 · the calculator is a descriptor like the other two built-ins
-        // (see `BUILTIN_BASE_PLUGINS` in `src/plugin-pages.ts`): no page, and
-        // an allowlist of exactly the commands its mode and configuration
-        // overlay already invoke.
-        let calculator = descriptor(CALCULATOR_PLUGIN_ID).expect("calculator page");
-        assert_eq!(calculator.page, "", "the built-in pages are retired (R33)");
+        // (see `BUILTIN_BASE_PLUGINS` in `src/plugin-pages.ts`).
+        let calculator = descriptor(CALCULATOR_PLUGIN_ID).expect("calculator descriptor");
         assert_eq!(calculator.title_key, "settings.calculator");
         assert_eq!(calculator.description_key, "settings.calculatorHint");
-        for command in [
-            "calculator_get_entries",
-            "calculator_add_entry",
-            "calculator_set_favorite",
-            "calculator_delete",
-            "calculator_clear_history",
-            "calculator_get_settings",
-            "calculator_set_settings",
-        ] {
-            assert!(
-                calculator.allowed_commands.contains(&command),
-                "{command} must be allowlisted for the calculator"
-            );
-        }
-        // A page's allowlist is its whole capability surface: the calculator
-        // must not inherit another plugin's commands by being listed.
-        let clipboard = descriptor(CLIPBOARD_PLUGIN_ID).expect("clipboard page");
-        for command in calculator.allowed_commands {
-            assert!(
-                !clipboard.allowed_commands.contains(command),
-                "{command} is allowlisted for both the calculator and the clipboard"
-            );
-        }
     }
 
     #[test]
-    fn every_descriptor_has_a_unique_id_and_no_registered_page() {
+    fn every_descriptor_has_a_unique_id() {
         let mut ids: Vec<&str> = Vec::new();
         for entry in all_descriptors() {
             assert!(!ids.contains(&entry.id), "duplicate plugin id {}", entry.id);
             ids.push(entry.id);
-            // R33 · the built-in iframe pages are retired: a registered path
-            // would be a page nothing is allowed to open. A future external
-            // page may set one; today the slot is empty for everyone.
-            assert!(entry.page.is_empty(), "no built-in page may be registered");
-            assert!(!entry.allowed_commands.is_empty());
         }
         assert!(!ids.is_empty());
     }
@@ -401,7 +238,6 @@ mod tests {
             .find(|info| info.id == CALCULATOR_PLUGIN_ID)
             .expect("calculator row");
         assert!(calculator.enabled, "the calculator is always available");
-        assert!(!calculator.has_page, "the calculator has no page");
         assert_eq!(calculator.title_key, "settings.calculator");
         assert_eq!(calculator.description_key, "settings.calculatorHint");
         // One row per descriptor, never a hand-picked subset.
@@ -428,10 +264,6 @@ mod tests {
             .find(|info| info.id == BROWSER_PLUGIN_ID)
             .expect("browser row");
         assert!(browser.enabled, "the browser plugin ships switched on");
-        assert!(
-            !browser.has_page,
-            "R33 · the built-in pages are retired; the row opens the overlay instead"
-        );
         assert_eq!(browser.title_key, "settings.browser");
         assert_eq!(browser.description_key, "settings.browserHint");
     }

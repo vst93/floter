@@ -78,9 +78,9 @@ export const shouldNotify = (foreground: PanelForeground, _outcome: Notification
   foreground === "hidden";
 
 /**
- * The built-in plugin-page ids this module has a notification name for,
+ * The built-in plugin ids this module has a notification name for,
  * mirroring `plugin_pages.rs`' registry. The node suite checks it against the
- * Rust registry so a new plugin page cannot ship without a way to be named in
+ * Rust registry so a new plugin cannot ship without a way to be named in
  * a notification.
  */
 export const NOTIFICATION_PLUGIN_IDS: readonly string[] = [
@@ -114,8 +114,9 @@ export const notificationTemplate = (
   language: string,
 ): string => createTranslator(isChinese(language) ? "zh" : "en")(notificationBodyKey(action, outcome));
 
-/** The dictionary key naming a subject: the plural kind, or a plugin page's
- * registered name. An integration carries its own name and needs no key. */
+/** The dictionary key naming a subject: the plural kind, or a built-in
+ * plugin's registered name. An integration carries its own name and needs no
+ * key. */
 export const notificationSubjectKey = (subject: NotificationSubject): MessageKey | null => {
   switch (subject.kind) {
     case "integration":
@@ -130,7 +131,7 @@ export const notificationSubjectKey = (subject: NotificationSubject): MessageKey
 };
 
 /** The name to print for a subject: the integration's own name, the plural
- * kind, or the plugin page's bilingual name. */
+ * kind, or the built-in plugin's bilingual name. */
 export const subjectName = (subject: NotificationSubject, language: string): string => {
   const translate = createTranslator(isChinese(language) ? "zh" : "en");
   if (subject.kind === "integration") {

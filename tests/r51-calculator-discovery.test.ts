@@ -78,22 +78,13 @@ test("the Rust descriptor table registers the calculator with the same id", asyn
   assert.match(registry, /title_key: "settings\.calculator"/);
   assert.match(registry, /description_key: "settings\.calculatorHint"/);
 
-  // Its allowlist is exactly the calculator commands the plugin already invokes
-  // (the mode + the configuration overlay), and it is not empty — the registry's
-  // own test forbids an empty allowlist.
-  const commands = /const CALCULATOR_COMMANDS: &\[&str\] = &\[([\s\S]*?)\];/.exec(rust);
-  assert.ok(commands, "the calculator's command allowlist must exist");
-  for (const command of [
-    "calculator_get_entries",
-    "calculator_add_entry",
-    "calculator_set_favorite",
-    "calculator_delete",
-    "calculator_clear_history",
-    "calculator_get_settings",
-    "calculator_set_settings",
-  ]) {
-    assert.match(commands![1], new RegExp(`"${command}"`), `${command} must be allowlisted`);
-  }
+  // R96 · the descriptor's per-plugin command allowlist went with the retired
+  // page layer; the calculator's commands are invoked directly by its launcher
+  // mode and configuration overlay. The table must stay deleted.
+  assert.ok(
+    !rust.includes("CALCULATOR_" + "COMMANDS"),
+    "the calculator's command allowlist must stay deleted (R96)",
+  );
 });
 
 test("the backend reports the calculator available, since it has no switch", async () => {

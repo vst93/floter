@@ -19,6 +19,12 @@
 
 ## 反馈通道（全应用一套 Toast，2026-09-17 / R7-5 起约束）
 
+> **2026-10 / R96 退役注记**：本节下面的 1-4 条描述的是已删除的插件页 bridge
+> （`host-notify` / `notify-retry` / `createRetryRegistry`）。内置 iframe 页 R33 退役、
+> R76 物理删除，对外协议与 hello-page 示例 R96 物理删除；今天没有任何页面侧生产者，
+> 宿主 toast 只由宿主自身的代码调用。保留这些历史条目只为解释 `notify(kind, text, action?)`
+> 的 action 槽与 `#floter-app-toasts` 单栈约束的来源。
+
 **唯一反馈面**是宿主 toast（`src/components/ToastStack.tsx` + `src/toast-state.ts`）。任何表面——包括沙箱 iframe 里的插件页——都只发消息、不画自己的提示条。时长、位置、视觉只有一份来源：`TOAST_DISMISS_MS`（error 8s / success 4s）与 `#floter-app-toasts`。
 
 1. **插件页不得自绘任何 notice/toast/banner**。页内提示条（如已删除的 `.clipboard-panel__notice`）与自有 dismiss 定时器都不再有位置；失败一律走 bridge 的 `host-notify` 消息（`src/plugin-pages.ts`）。
@@ -49,12 +55,12 @@
 2. **accent 预算 = `--accent-budget: 2`**，单位是「accent 色**填充**的面」（background 为 `--accent`/`--accent-tint`/`--glass-raised` 家族）。文字/描边/焦点环/状态点/进度条不算填充，不耗预算。「选中的分段控件」（theme/language/cursor/glass step）是**状态不是主操作**，一律走 `--glass-raised-quiet`（中性 raised pane + accent 1px keyline）；同一个视图可能有 4 个选中态，若都给 tint 就爆预算。**计数按选择器计，不按实例计**（同一选择器可多实例同屏，如 6 个 switch 可同时 on；实例级由像素面积取证兜底）。`tests/accent-budget.test.ts` 做**全表扫描**：解析 `src/styles/*.css` 全部规则体、按 file→view 映射聚合，除逐视图 ≤ budget 的正面断言外，还有**补集断言**——凡命中 accent 填充家族、非 hover/active/focus、非伪元素、非状态点/进度条的选择器，若不在任何 view 的清单里即红。所以「新增一个 accent 面」会直接红，而不是被封闭清单漏掉。新增任何 accent 填充前先跑该测试。
 3. **层纪律的真断言**。`tests/hig-craft.test.ts` 的 `the material stays on the functional layer` 现在断言**内容面画的是 standard material**（`--surface-*`/控件阶梯或 transparent），且内容面规则体不得出现 `backdrop-filter` 或 `--glass-tint*`/`--glass-float`（frame/floater 的 tint）；**`background-image` 一并解析**——内容面只允许 `var(--scroll-edge-band*)` 这类 token 化值，raw 色/hex/inline gradient → 红。同一选择器的**每条**规则都检查（后置重复规则不能绕）。这取代了旧版「规则体不含 backdrop-filter 字样」的同义反复断言——旧版对几乎任何规则都成立，无法因它声称的原因变红。
 4. **a11y 三兜底必须覆盖新表面**。`.app-toast`、`.settings-save-alert--toast` 等宿主表面已补进 RT（`--surface-opaque` + 去 blur）、IC（`--stroke-contrast` 描边/边框）、RM（`animation: none`）三个块；`tests/a11y-backstops.test.ts` 逐一断言 + 「宿主表里每个带 animation 的选择器都要在 RM 块里被 neutralize」的结构断言。**扫描范围是宿主目录 `src/styles/` + `src/extensions/`**（`ComponentizedUninstallDialog.css` 这类组件私有但消费宿主 token 的表也在内）。R76 删除了退役插件页及其宿主 chrome（`.plugin-page-host*` / `.clipboard-panel*`），扫描范围不再需要页边界例外。新增动画表面时必须同步三块。
-5. **浅色主题是「起步」不是完整设计**。真实调色板在 `[data-theme="light"]`（App.tsx 写入）；`@media (prefers-color-scheme: light) { html:not([data-theme]) { … } }` 是首帧兜底（`auto` 为默认，属性落盘前不能闪深色）。两个块的取值由 `tests/light-theme.test.ts` 钉死一致；MUST_COVER 清单（文字/表面/描边/accent/terminal 五组）必须全覆盖，palette-independent 清单（radius/type/duration/elev/step）不得重复。**可读性红线一句话**：light 下 primary/secondary/muted/accent 全部 ≥4.5:1（muted 本轮从 0.74 提到 0.78，复算 4.98:1 on recess、4.57:1 on hover 面，不再是 AA 正文边缘）。**未覆盖**：完整浅色设计、第三方案例、plugin page 自己的 light 媒体查询（其 `[data-theme="light"]` 已存在，只是没有 media-query 首帧兜底；页面自带 bootstrap 参数，首帧风险低）、窗台平台阴影的浅色微调。列为后续独立轮。
+5. **浅色主题是「起步」不是完整设计**。真实调色板在 `[data-theme="light"]`（App.tsx 写入）；`@media (prefers-color-scheme: light) { html:not([data-theme]) { … } }` 是首帧兜底（`auto` 为默认，属性落盘前不能闪深色）。两个块的取值由 `tests/light-theme.test.ts` 钉死一致；MUST_COVER 清单（文字/表面/描边/accent/terminal 五组）必须全覆盖，palette-independent 清单（radius/type/duration/elev/step）不得重复。**可读性红线一句话**：light 下 primary/secondary/muted/accent 全部 ≥4.5:1（muted 本轮从 0.74 提到 0.78，复算 4.98:1 on recess、4.57:1 on hover 面，不再是 AA 正文边缘）。**未覆盖**：完整浅色设计、第三方案例、窗台平台阴影的浅色微调。列为后续独立轮。
 6. **`--glass-raised-quiet` 是中性 raised pane**（暗= `--glass-control-hover`，亮同左），用于所有「选中/激活状态」以及同类状态/通知面（`.extension-status--recommended`、`.extension-health__tag`、`.extension-row__progress` 等）。`--glass-raised`（= accent tint）从此只留给真正的 accent pane（launcher 选中行、clipboard 选中行、sidebar 当前页）。旧的 `--glass-raised-quiet-rim` 因全仓零消费已删。
 
 ## 独立窗口（detached plugin window）路线裁决（2026-10，R84-R86）
 
 - R84 `19acc29`：external 插件输出可钉独立窗口（label `plugin-detached`，二次 Pin 替换内容）；R85 `bdddb2b`：几何/位置持久化（拔副屏回退默认位、size 仍恢复）。
-- **内建模式 Pin 明确不做**：内建 iframe 页 R33 已退役（`plugin_pages.rs` 三处 `page:""` 且测试锁死），内建模式是交互式搜索 UI 非答案面；snapshot 便宜但无用（动作全丢），live 需为三数据源新建变更事件通道（触碰「不为边际功能新开通道」边界）。**Pin 保持 external-only。**
+- **内建模式 Pin 明确不做**：内建 iframe 页 R33 已退役，descriptor 的 `page` 字段与测试锁在 R96 一并物理删除，内建模式是交互式搜索 UI 非答案面；snapshot 便宜但无用（动作全丢），live 需为三数据源新建变更事件通道（触碰「不为边际功能新开通道」边界）。**Pin 保持 external-only。**
 - 多实例、设置广播：暂缓，触发条件见 R86 报告（`/tmp/floter-r86-report.md`）。
 - 若未来需要「钉住单条内容」：snapshot-text 最小切法（复用 `PluginTextView`，~80-120 行 / 3 文件，无新命令无事件，退役干净）。

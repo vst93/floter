@@ -119,8 +119,9 @@ Updates tab 及 update/rollback/reinstall/pin/channel 命令链。
 ### 声明
 
 - 内置插件：注册在 `src-tauri/src/plugin_pages.rs` 的静态 registry 中——每条
-  `PluginPageDescriptor` 含稳定 id、i18n 标题/描述 key、页面资源路径
-  （如 `plugins/clipboard/index.html`，随前端 dist 打包）与 **命令白名单**。
+  `PluginPageDescriptor` 含稳定 id 与 i18n 标题/描述 key。
+  **（2026-10 / R96：descriptor 的页面资源路径与命令白名单字段已随页面层物理删除；
+  插件配置走 launcher 的 declarative config overlay。）**
 - 外部集成（远期）：在其集成目录放置 `page.html`，由 descriptor 引用；白名单随 descriptor
   一并声明。机制本身不感知剪贴板。
 - 扩展生态可见性：`builtin_plugins_list` 命令把基础插件列进 Installed 页，开关就在那里
@@ -141,22 +142,10 @@ Updates tab 及 update/rollback/reinstall/pin/channel 命令链。
 
 ### Bridge
 
-页面与宿主之间的全部通信是一条极简 postMessage 协议（`src/plugin-pages.ts`，纯逻辑、有
-node 测试）：
-
-```
-page → host: {floter:"invoke", id, command, args?}   // 白名单校验后由宿主 invoke()
-host → page: {floter:"result", id, ok:true, value} | {…ok:false, error}
-page → host: {floter:"close"}                        // 关闭页面回到记忆表面
-```
-
-宿主侧 `src/plugins/PluginPageHost.tsx` 校验 `event.source === iframe.contentWindow` 与
-每插件命令白名单后才执行调用；现有权限模型日后可在同一接缝上继续收紧。启动参数（语言、主题、
-透明度）通过 URL query 传入——沙箱页无法读取存储或宿主文档。
-
-> 2026-10-02（R76）注：内置 iframe 宿主与内置插件页已随 R33 退役、R76 物理删除；
-> 上面的白名单/来源校验仍是对外发布协议（`src/plugin-pages.ts` + `docs/extensions/plugin-page-protocol.md`）
-> 要求宿主实现的行为，只是今天没有内置宿主。
+**已退役。** 页面与宿主之间那条 postMessage 桥（`src/plugin-pages.ts` 的
+`invoke`/`result`/`close` 协议、白名单与来源校验）随内置 iframe 页（R33 退役、R76 物理删除）
+一并物理删除（R96）：manifest 从无 page 声明字段，没有生产者；内置页已删，没有消费者。
+插件配置现在走 launcher 的 declarative config overlay（`src/plugins/config-schema.ts`）。
 
 ### 生命周期与调用路径
 
@@ -172,5 +161,6 @@ page → host: {floter:"close"}                        // 关闭页面回到记�
   `src/plugins/clipboard/main.ts`），已从 React 面板提取为独立 HTML+JS，经 Vite 多入口
   构建（`vite.config.ts` rollupOptions.input），复用共享样式表与纯逻辑模块。
   **（2026-10-02 / R76：该页与宿主已物理删除；剪贴板现在是 launcher 内联模式
-  `src/plugins/clipboard/mode.ts`，插件页机制只剩对外发布的协议与示例页。）**
+  `src/plugins/clipboard/mode.ts`。2026-10 / R96：对外发布的协议与 hello-page 示例也已
+  物理删除，插件页机制整体不存在了。）**
 - CSP 相应放宽了一处：`img-src` 增加 `blob:`（缩略图字节过桥后在沙箱页内转 blob URL 渲染）。

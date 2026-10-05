@@ -105,7 +105,7 @@ PluginCommandOutput { success, exitCode, stdout, stderr, truncated }
 2. **provider descriptor**（`description.json`，或由 `describe` 子进程返回）——命令清单。
 
 manifest 与 descriptor 的完整 schema 见 `docs/extensions/`（FEP 系列与
-`plugin-page-protocol.md`）。本文只重复与搜索框插件模式相关的部分。
+`schemas/`）。本文只重复与搜索框插件模式相关的部分。
 
 ### 2.1 命令清单：`provider.commands[]`
 

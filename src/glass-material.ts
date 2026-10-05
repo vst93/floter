@@ -101,7 +101,7 @@ export const normalizeGlassStep = (value: unknown): GlassStep => {
  * `[data-glass]` blocks). A sandboxed plugin page is a separate document and
  * cannot read them, so the host has to hand the values across — this table is
  * that hand-off's source, kept next to the step ids so a new step cannot be
- * added without its haze. `tests/plugin-pages.test.ts` asserts these equal the
+ * added without its haze. `tests/glass-controls.test.ts` asserts these equal the
  * `[data-glass]` blocks, so this mirror can never drift from the stylesheet.
  *
  * `dim` is the step's **haze** layer: the frosted end carries a strong veil so

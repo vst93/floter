@@ -127,7 +127,9 @@ test("the Rust registry and command table dropped the dead page commands", async
     assert.ok(!clipboard.includes(token), `clipboard_history must not implement ${what}`);
     assert.ok(!pluginPages.includes(token), `plugin_pages.rs must not allowlist ${what}`);
   }
-  // The live commands are still there: this is a shrink, not an amputation.
+  // The live commands are still there in the command table: this is a shrink,
+  // not an amputation. R96 deleted the descriptor's per-plugin allowlist, so
+  // plugin_pages.rs no longer names them at all.
   for (const command of [
     "clipboard_get_entries",
     "clipboard_set_favorite",
@@ -139,15 +141,27 @@ test("the Rust registry and command table dropped the dead page commands", async
     "clipboard_set_settings",
   ]) {
     assert.ok(lib.includes(command), `${command} must stay registered`);
-    assert.ok(pluginPages.includes(command), `${command} must stay allowlisted`);
+    assert.ok(
+      !pluginPages.includes(command),
+      `${command} must not come back to a deleted allowlist (R96)`,
+    );
   }
 });
 
 test("no built-in plugin page is registered", async () => {
   const rust = stripComments(await read("src-tauri/src/plugin_pages.rs"));
-  const pages = [...rust.matchAll(/page: "([^"]*)"/g)].map((match) => match[1]);
-  assert.ok(pages.length >= 3, "every built-in descriptor must still exist");
-  for (const page of pages) {
-    assert.equal(page, "", "no built-in page path may be registered");
-  }
+  // R96 · the descriptor's `page` slot itself is gone, so there is no path a
+  // built-in page could be registered at. The registry still lists every
+  // built-in descriptor.
+  const descriptorsAt = rust.indexOf("static DESCRIPTORS");
+  assert.notEqual(descriptorsAt, -1, "the descriptor registry must exist");
+  const registry = rust.slice(descriptorsAt);
+  assert.ok(
+    (registry.match(/id: [A-Z_]+_PLUGIN_ID,/g) ?? []).length >= 3,
+    "every built-in descriptor must still exist",
+  );
+  assert.ok(
+    !/\bpage\s*:/.test(rust),
+    "the descriptor's page slot must stay deleted (R96)",
+  );
 });

@@ -1,18 +1,13 @@
-// R26-B · the browser plugin's page, its registry entry, and the pure logic
-// behind it.
+// R26-B · the browser plugin's registry entry and the pure logic behind it.
 //
-// Three halves, one file:
+// Two halves, one file:
 //
 // * the *registry* contract — `plugin_pages.rs` registers `builtin.browser`
-//   with a page that exists on disk and an allowlist whose every command the
-//   backend actually exposes. This is the failure mode that breaks the plugin:
-//   a descriptor naming a command nobody registered, or a page that 404s
-//   inside the sandbox.
-// * the *page* contract — the document exists, loads its entry point, goes
-//   through the bridge and never touches a Tauri API (the plugin-page red
-//   line).
+//   with the same id the frontend names. R33 retired the built-in pages and
+//   R96 deleted the descriptor's page slot and command allowlist, so the
+//   registry row is identity plus the two i18n keys the settings panel renders.
 // * the *logic* contract — `src/browser-page.ts`'s normalizers, which is where
-//   every decision the page makes actually lives.
+//   every decision the launcher mode makes actually lives.
 
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
@@ -54,83 +49,22 @@ const PAGE_HTML = "plugins/browser/page.html";
 const PAGE_MAIN = "src/plugins/browser/main.ts";
 const PAGE_CSS = "src/plugins/browser/page.css";
 
-/** The commands the descriptor must grant, exactly the task's list. */
-const REQUIRED_COMMANDS = [
-  "browser_discover",
-  "browser_search_bookmarks",
-  "browser_search_history",
-  "browser_list_tabs",
-  "browser_activate_tab",
-  "browser_open_url",
-  "browser_get_settings",
-  "browser_set_settings",
-];
-
 // ── 1 · the registry ───────────────────────────────────────────────────────
 
-test("the backend registers the browser page with exactly its allowlist", async () => {
+test("the backend registers the browser descriptor with the shared id", async () => {
   const rust = await read("src-tauri/src/plugin_pages.rs");
   assert.match(
     rust,
     /pub const BROWSER_PLUGIN_ID: &str = "builtin\.browser";/,
     "the browser plugin id is a literal constant",
   );
-  assert.match(rust, /id: BROWSER_PLUGIN_ID,/);
-  // R33 · the built-in page path is retired; the allowlist stays (the overlay
-  // and the launcher mode invoke these commands directly).
-  assert.match(rust, /page: "",/, "no built-in page path may be registered");
-
-  // The allowlist literal, read from the file rather than re-derived, so a
-  // command added in one place and not the other fails here.
-  const block = rust.match(/const BROWSER_COMMANDS: &\[&str\] = &\[([\s\S]*?)\];/);
-  assert.ok(block, "BROWSER_COMMANDS must be declared");
-  const allowed = [...block![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(allowed.sort(), [...REQUIRED_COMMANDS].sort());
-});
-
-test("every allowlisted browser command is registered with the backend", async () => {
-  const rust = await read("src-tauri/src/plugin_pages.rs");
-  const lib = await read("src-tauri/src/lib.rs");
-  const block = rust.match(/const BROWSER_COMMANDS: &\[&str\] = &\[([\s\S]*?)\];/);
-  const allowed = [...block![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
-  // The invoke handler lists them by their Rust paths; a command the handler
-  // never sees would be an "unknown command" at runtime.
-  for (const command of allowed) {
-    assert.ok(
-      lib.includes(`::${command},`),
-      `${command} is allowlisted but never registered in lib.rs`,
-    );
-  }
-  // The two R26-B commands are the tab pair, and they live in the tabs module.
-  assert.match(lib, /browser_data::tabs::browser_list_tabs,/);
-  assert.match(lib, /browser_data::tabs::browser_activate_tab,/);
-  assert.match(lib, /commands::config::browser_get_settings,/);
-  assert.match(lib, /commands::config::browser_set_settings,/);
-});
-
-test("the two plugin pages never share a command", async () => {
-  const rust = await read("src-tauri/src/plugin_pages.rs");
-  const commandsOf = (name: string) => {
-    const block = rust.match(new RegExp(`const ${name}: &\\[&str\\] = &\\[([\\s\\S]*?)\\];`));
-    assert.ok(block, `${name} must be declared`);
-    return [...block![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
-  };
-  const clipboard = new Set(commandsOf("CLIPBOARD_COMMANDS"));
-  for (const command of commandsOf("BROWSER_COMMANDS")) {
-    assert.ok(!clipboard.has(command), `${command} is granted to both pages`);
-  }
-});
-
-test("no built-in page path is registered any more", async () => {
-  const rust = await read("src-tauri/src/plugin_pages.rs");
-  const pages = [...rust.matchAll(/page: "([^"]*)"/g)].map((match) => match[1]);
-  assert.ok(pages.length >= 2, "both descriptors must still exist");
-  for (const page of pages) {
-    assert.equal(page, "", "R33 · every built-in page slot must be empty");
-  }
-  // And the documents the slots used to name are gone from the tree.
-  assert.equal(await exists("plugins/browser/page.html"), false);
-  assert.equal(await exists("plugins/clipboard/index.html"), false);
+  const descriptorsAt = rust.indexOf("static DESCRIPTORS");
+  assert.notEqual(descriptorsAt, -1, "the descriptor registry must exist");
+  assert.match(
+    rust.slice(descriptorsAt),
+    /id: BROWSER_PLUGIN_ID,/,
+    "the registry must list the browser descriptor",
+  );
 });
 
 test("the frontend's plugin id mirrors the backend's literal", async () => {
@@ -145,7 +79,6 @@ test("the frontend's plugin id mirrors the backend's literal", async () => {
 });
 
 // ── 2 · the page (retired and deleted) ────────────────────────────────────
-
 test("the browser page document and source are deleted; the logic module is retained", async () => {
   // R33 · the iframe document and its Vite entry are gone, so nothing could
   // load the built-in page. R76 · the page's own source is gone too; the

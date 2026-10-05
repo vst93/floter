@@ -212,7 +212,7 @@ test("a GLASS-UNIFY (step, tint) pair loses no information", async () => {
   assert.equal(GLASS_INTENSITY[3].step, "liquid", "the top stop is the liquid material");
 });
 
-test("the stop value domain is three ids on both sides of the bridge", async () => {
+test("the stop value domain is three ids in both the stylesheet and the loader", async () => {
   const { GLASS_STEPS } = await import("../src/glass-material.ts");
   assert.deepEqual([...GLASS_STEPS], ["frosted", "regular", "liquid"]);
   // The Rust loader accepts all three (and migrates the old five).
@@ -220,10 +220,15 @@ test("the stop value domain is three ids on both sides of the bridge", async () 
   for (const step of GLASS_STEPS) {
     assert.ok(rust.includes(`"${step}"`), `Rust must know the ${step} step`);
   }
-  // The plugin bridge accepts all three, so a page on any stop gets its step.
-  const bridge = await read("src/plugin-pages.ts");
+  // R96 · the plugin-page bridge that used to be the third side of this
+  // hand-off is deleted, so the token table plus the loader are the whole
+  // domain.
+  const pluginPages = await read("src/plugin-pages.ts");
   for (const step of GLASS_STEPS) {
-    assert.ok(bridge.includes(`"${step}"`), `the bridge must accept the ${step} step`);
+    assert.ok(
+      !pluginPages.includes(`"${step}"`),
+      `the deleted bridge must not name the ${step} step again`,
+    );
   }
 });
 

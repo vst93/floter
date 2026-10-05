@@ -17,8 +17,7 @@
 //
 // The one user-visible string the *scheme itself* contributes lives in
 // `src/i18n.ts` as `settings.deepLinkRejected`, and the backend sends that key
-// rather than a sentence (the same "host owns the words" rule the plugin-page
-// bridge follows).
+// rather than a sentence (the host owns the words).
 
 import { createFailureDeduper, FAILURE_NOTIFY_DEDUP_MS } from "./plugin-pages.ts";
 
@@ -88,7 +87,7 @@ export type DeepLinkRegisterCandidate = {
 /**
  * How long a refusal stays quiet after it has been raised once.
  *
- * Reuses the plugin-page failure window (`FAILURE_NOTIFY_DEDUP_MS`, 30s)
+ * Reuses the app's shared failure window (`FAILURE_NOTIFY_DEDUP_MS`, 30s)
  * rather than defining a second number: both are "an automatic, externally
  * triggered failure must not fill the stack", and two constants would drift.
  */
@@ -99,8 +98,8 @@ export const DEEP_LINK_REJECT_DEDUP_MS = FAILURE_NOTIFY_DEDUP_MS;
  *
  * The trigger is external and can repeat without anybody pressing anything —
  * a page that retries a broken link, a shell loop — so one bad link must not
- * produce one toast per attempt. It is the *same* deduper the clipboard page's
- * 2s poll uses, so "an automatic failure is coalesced per key" has one
- * implementation in the app.
+ * produce one toast per attempt. It is the *same* deduper the app's other
+ * automatic triggers use, so "an automatic failure is coalesced per key" has
+ * one implementation in the app.
  */
 export const deepLinkRejectGate = createFailureDeduper(DEEP_LINK_REJECT_DEDUP_MS);
