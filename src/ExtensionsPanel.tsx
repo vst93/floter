@@ -67,6 +67,8 @@ import {
   type Freshness,
 } from "./extensions/freshness";
 import { RemovalConfirmation } from "./extensions/RemovalConfirmation";
+import { DisableConfirmation } from "./extensions/DisableConfirmation";
+import { toggleIntent } from "./extensions/toggle-intent";
 import { ComponentizedUninstallDialog } from "./extensions/ComponentizedUninstallDialog";
 import { SettingsEmpty } from "./settings/SettingsRows";
 import { useImmediateState } from "./hooks/useImmediateState";
@@ -782,6 +784,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
   const runtimeChecksEpoch = useRef(0);
   const suppressToolSearch = useRef(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget>(null);
+  /** R100 · the pending *disable* (a reversible mark), kept apart from
+   *  `removalTarget` so the two confirmations can never be confused: one
+   *  deletes files, the other writes a flag. Same lifecycle as the removal
+   *  target (timed reset, Escape/outside dismiss, one at a time). */
+  const [disableTarget, setDisableTarget] = useState<RemovalTarget>(null);
   const [uninstallDialogTarget, setUninstallDialogTarget] = useState<Extension | null>(null);
   const detailGeneration = useRef(0);
   const localDialogRef = useRef<HTMLElement | null>(null);
@@ -811,6 +818,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
   const setBusy = extensionActions.setBusy;
   const busyRef = extensionActions.busyRef;
   useTimedReset(removalTarget, () => setRemovalTarget(null));
+  useTimedReset(disableTarget, () => setDisableTarget(null));
   useTimedReset(detailsDiscardArmed, () => setDetailsDiscardArmed(false));
   // R9-4 · the custom drawer's discard bar is NOT on a timer. It used to
   // disarm itself after 3s: the user pressed close, a bar appeared, and by the
@@ -1185,11 +1193,18 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
     }
   };
 
-  const toggleExtension = (extension: Extension) => runMutation(
-    extension.id,
-    extension.enabled ? "disable" : "enable",
-    () => invoke(extension.enabled ? "extensions_disable" : "extensions_enable", { id: extension.id }),
-  );
+  // R100 · the switch's two directions are not the same act. Turning an
+  // integration off is a reversible *mark* that also stops an in-flight run
+  // (R98), so it asks first; turning it back on destroys nothing and stays
+  // instant. `toggleIntent` owns that split (see `extensions/toggle-intent`).
+  const toggleExtension = (extension: Extension) => {
+    const intent = toggleIntent(extension);
+    if (intent.kind === "confirm-disable") {
+      setDisableTarget(intent.extension);
+      return;
+    }
+    return runMutation(intent.extension.id, "enable", () => invoke("extensions_enable", { id: intent.extension.id }));
+  };
 
   // Re-check verifies the installed extension and repairs it when needed;
   // the toast reports which of the two happened.
@@ -1208,6 +1223,20 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
   };
 
   const uninstallExtension = (extension: Extension) => setRemovalTarget(extension);
+
+  // R100 · the confirmed disable. It reuses the removal path's mutation
+  // machinery (`runMutation` → busy/toast/refresh) and only differs in that no
+  // file is touched — the backend writes the `enabled` flag and kills runs.
+  const confirmDisable = async () => {
+    if (!disableTarget || busyRef.current) return;
+    const extension = disableTarget;
+    const disabled = await runMutation(
+      extension.id,
+      "disable",
+      () => invoke("extensions_disable", { id: extension.id }),
+    );
+    if (disabled) setDisableTarget(null);
+  };
 
   const confirmRemoval = async () => {
     if (!removalTarget || busyRef.current) return;
@@ -1956,6 +1985,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
 
   const closeDetails = () => {
     if (removalTarget) { setRemovalTarget(null); return; }
+    if (disableTarget) { setDisableTarget(null); return; }
     if (uninstallDialogTarget) { setUninstallDialogTarget(null); return; }
     if (detailsDiscardArmed) { setDetailsDiscardArmed(false); return; }
     if (configDirty) {
@@ -2053,6 +2083,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
 
   const stopRowClick = (event: MouseEvent) => event.stopPropagation();
   const removalConfirmation = removalTarget && <RemovalConfirmation extension={removalTarget} busy={Boolean(busy)} t={t} textKey={removalTextKey} onCancel={() => setRemovalTarget(null)} onConfirm={() => void confirmRemoval()} />;
+  // R100 · the disable bar mirrors the removal bar's placement (inline after
+  // the row, or inside the drawer) but asks the reversible question.
+  const disableConfirmation = disableTarget && <DisableConfirmation extension={disableTarget} busy={Boolean(busy)} t={t} onCancel={() => setDisableTarget(null)} onConfirm={() => void confirmDisable()} />;
   const uninstallDialog = uninstallDialogTarget && (
     <ComponentizedUninstallDialog
       extension={uninstallDialogTarget}
@@ -2395,6 +2428,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
                 }).catch((err) => showError(localErrorMessage(err, t)))}
               />
               {!selected && removalTarget?.id === extension.id && removalConfirmation}
+              {!selected && disableTarget?.id === extension.id && disableConfirmation}
               </Fragment>
             ))}
           </div>
@@ -2933,6 +2967,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
               </div>
             )}
             {removalConfirmation}
+            {disableConfirmation}
             <footer className="extension-drawer__footer">
               {selected.generatedCustom && <button type="button" className="extensions-action-button" disabled={Boolean(busy)} onClick={() => void runMutation(selected.id, "repair", () => invoke("open_path", { path: selected.manifestPath.replace(/[\\/]floter\.extension\.json$/, "") }))}>
                 <ExternalLink size={14} strokeWidth={2} />{t("settings.extensions.openGeneratedLocation")}
