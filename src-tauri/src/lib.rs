@@ -197,10 +197,11 @@ struct AppState {
     pending_plugin_window_requests: Mutex<HashMap<String, plugin_windows::PendingSlot>>,
     /// R91 · the content key each live detached label is showing, so the
     /// geometry watcher can persist a move under the right key. Written when a
-    /// window is (re)parked; deliberately **left behind on close** — the map
-    /// only grows, and a reused label is overwritten before it is read again.
-    /// The tolerance is a registered decision (R91 report, residual note), not
-    /// an oversight.
+    /// window is (re)parked. R91 left the entry behind on close (the map only
+    /// grew, and a reused label was overwritten before it was read again);
+    /// R99 retires that tolerance — a native close drops the label's entry
+    /// through `AppState::forget_plugin_window`, so a long session of
+    /// pin/close cycles cannot leak one pair per window.
     plugin_window_keys: Mutex<HashMap<String, String>>,
     /// Physical origin of the monitor the panel was last seen on, used to
     /// identify that monitor again in `available_monitors()`. Wayland hands out
@@ -235,6 +236,31 @@ impl AppState {
             .lock()
             .ok()
             .and_then(|keys| keys.get(label).cloned())
+    }
+
+    /// R99 · drop everything a detached label held in memory once its window
+    /// is gone: the content key the geometry watcher would resolve (R91) and
+    /// the parked request slot the page pulls from (R91's per-label slots).
+    /// Called from the `Destroyed` arm of the window watcher, so a native
+    /// close (title-bar X, system close) leaves neither behind and a long
+    /// session of pin/close cycles cannot leak one pair per window.
+    ///
+    /// The remembered geometry **file** is deliberately not touched: R85's
+    /// contract is that pinning the same content again returns to where the
+    /// user last left that window, so the on-disk store has to outlive the
+    /// window.
+    ///
+    /// Idempotent: a label with no entry — one already forgotten, or one this
+    /// state never saw — is a no-op rather than a panic, because the event
+    /// handler cannot know how many times it will be called. A poisoned lock
+    /// is skipped, the same way the rest of this file treats one.
+    fn forget_plugin_window(&self, label: &str) {
+        if let Ok(mut keys) = self.plugin_window_keys.lock() {
+            keys.remove(label);
+        }
+        if let Ok(mut slots) = self.pending_plugin_window_requests.lock() {
+            slots.remove(label);
+        }
     }
 }
 
@@ -1379,22 +1405,28 @@ fn display_area(monitor: &tauri::Monitor) -> plugin_window_geometry::DisplayArea
 /// user can drag the native frame while the webview is busy or gone, and the
 /// OS keeps delivering these events either way. R91 · the geometry is stored
 /// per content key, so the watcher resolves its label's current key at event
-/// time (`plugin_window_keys`).
+/// time (`plugin_window_keys`). R99 · the same handler also learns when the
+/// window is destroyed, which is the one moment the label's in-memory entries
+/// can be dropped without racing a reopen.
 fn watch_plugin_window_geometry(app: &AppHandle, window: &WebviewWindow) {
     let watched = window.clone();
     let state_app = app.clone();
     let label = window.label().to_string();
-    window.on_window_event(move |event| {
-        if matches!(
-            event,
-            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
-        ) {
+    window.on_window_event(move |event| match event {
+        tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
             if let Some(geometry) = current_geometry(&watched) {
                 if let Some(key) = state_app.state::<AppState>().plugin_window_key(&label) {
                     plugin_window_geometry::note_geometry(key, geometry);
                 }
             }
         }
+        // R99 · the window is gone for good (title-bar X / system close), so
+        // its key and parked slot are dropped. The geometry file stays (R85).
+        // The main window never goes through this function, so it is untouched.
+        tauri::WindowEvent::Destroyed => {
+            state_app.state::<AppState>().forget_plugin_window(&label);
+        }
+        _ => {}
     });
 }
 
@@ -2360,6 +2392,165 @@ mod detach_plugin_window_tests {
             assert!(!slots.contains_key("plugin-detached-2"));
             assert!(slots.contains_key(PLUGIN_WINDOW_LABEL));
         }
+    }
+
+    /// R99 · an empty `AppState` for the cleanup tests, built exactly the way
+    /// the pull-slot test above builds its own. The fields no cleanup test
+    /// touches stay at the defaults the app's own constructor gives them.
+    fn empty_state() -> AppState {
+        AppState {
+            window_visible: std::sync::atomic::AtomicBool::new(false),
+            terminal_mode: std::sync::atomic::AtomicBool::new(false),
+            terminal_height: Mutex::new(0.0),
+            tray_items: Mutex::new(None),
+            toggle_shortcut: Mutex::new(String::new()),
+            custom_shortcuts: Mutex::new(Vec::new()),
+            pending_plugin_open: Mutex::new(None),
+            pending_deep_link: Mutex::new(None),
+            pending_deep_link_register: Mutex::new(None),
+            pending_plugin_window_requests: Mutex::new(HashMap::new()),
+            plugin_window_keys: Mutex::new(HashMap::new()),
+            last_monitor: Mutex::new(None),
+        }
+    }
+
+    /// Park a label the way `detach_plugin_window` does: a content key for the
+    /// geometry watcher and an undelivered slot for the page to pull.
+    fn park_label(state: &AppState, label: &str, key: &str) {
+        state
+            .plugin_window_keys
+            .lock()
+            .unwrap()
+            .insert(label.to_string(), key.to_string());
+        state.pending_plugin_window_requests.lock().unwrap().insert(
+            label.to_string(),
+            PendingSlot {
+                request: text("Note", "hello"),
+                delivered: false,
+            },
+        );
+    }
+
+    /// R99 · a native close drops **both** in-memory traces of the label: the
+    /// `plugin_window_keys` entry the geometry watcher resolves, and the
+    /// `pending_plugin_window_requests` slot the page pulls from. Either one
+    /// left behind leaks a pair per pin/close cycle over a long session.
+    #[test]
+    fn forgetting_a_label_drops_its_key_and_its_parked_slot() {
+        let state = empty_state();
+        park_label(&state, PLUGIN_WINDOW_LABEL, "local.tool\u{0}run");
+        assert_eq!(
+            state.plugin_window_key(PLUGIN_WINDOW_LABEL).as_deref(),
+            Some("local.tool\u{0}run")
+        );
+
+        state.forget_plugin_window(PLUGIN_WINDOW_LABEL);
+
+        assert!(state.plugin_window_keys.lock().unwrap().is_empty());
+        assert!(state
+            .pending_plugin_window_requests
+            .lock()
+            .unwrap()
+            .is_empty());
+    }
+
+    /// R99 · the cleanup is idempotent. A window event handler cannot know how
+    /// many times it will fire, so a label that is already gone (or was never
+    /// parked) must be a silent no-op rather than a panic.
+    #[test]
+    fn forgetting_a_label_twice_is_a_no_op() {
+        let state = empty_state();
+        park_label(&state, PLUGIN_WINDOW_LABEL, "key");
+        park_label(&state, "plugin-detached-2", "other-key");
+
+        state.forget_plugin_window(PLUGIN_WINDOW_LABEL);
+        state.forget_plugin_window(PLUGIN_WINDOW_LABEL);
+        state.forget_plugin_window("plugin-detached-9");
+
+        assert!(state.plugin_window_keys.lock().unwrap().len() == 1);
+        assert!(state.pending_plugin_window_requests.lock().unwrap().len() == 1);
+        assert_eq!(
+            state.plugin_window_key("plugin-detached-2").as_deref(),
+            Some("other-key")
+        );
+    }
+
+    /// R99 · closing one window must not touch its siblings. The labels are
+    /// independent instances (R91), so forgetting one is scoped to that label
+    /// and nothing else — a map-wide `clear()` would pass a single-window test
+    /// and silently break every other pinned window.
+    #[test]
+    fn forgetting_a_label_leaves_its_siblings_alone() {
+        let state = empty_state();
+        park_label(&state, PLUGIN_WINDOW_LABEL, "first");
+        park_label(&state, "plugin-detached-2", "second");
+
+        state.forget_plugin_window(PLUGIN_WINDOW_LABEL);
+
+        assert_eq!(state.plugin_window_key(PLUGIN_WINDOW_LABEL), None);
+        assert_eq!(
+            state.plugin_window_key("plugin-detached-2").as_deref(),
+            Some("second")
+        );
+        let slots = state.pending_plugin_window_requests.lock().unwrap();
+        assert!(!slots.contains_key(PLUGIN_WINDOW_LABEL));
+        assert!(slots.contains_key("plugin-detached-2"));
+    }
+
+    /// R99 · the on-disk geometry outlives the window. R85's contract is that
+    /// pinning the same content again returns to where the user last left it,
+    /// so the close path may drop the two in-memory entries and nothing else.
+    ///
+    /// The file is created at the exact path the geometry module resolves
+    /// (`dirs::config_dir()/floter/…`), reached through the env var `dirs`
+    /// reads — the same temp-dir isolation the geometry module's own tests get
+    /// by injecting a path. A close path that deleted (or rewrote) the store
+    /// fails here instead of only after a user's pinned window forgot where it
+    /// was. Linux only: that is the platform where the XDG variable, and only
+    /// it, moves `config_dir()`.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn forgetting_a_label_leaves_the_geometry_file_alone() {
+        // Mirrors `plugin_window_geometry::GEOMETRY_FILE`, which is private to
+        // its module; a rename on one side is caught by the path no longer
+        // existing, which fails the survival assertion below.
+        const GEOMETRY_FILE_NAME: &str = "plugin-window-geometry.json";
+
+        let dir = tempfile::tempdir().unwrap();
+        let previous = std::env::var_os("XDG_CONFIG_HOME");
+        std::env::set_var("XDG_CONFIG_HOME", dir.path());
+        // Restore the variable on every exit path, panics included, so a
+        // failing run cannot leak the temp dir into the rest of the suite.
+        struct RestoreEnv(Option<std::ffi::OsString>);
+        impl Drop for RestoreEnv {
+            fn drop(&mut self) {
+                match self.0.take() {
+                    Some(value) => std::env::set_var("XDG_CONFIG_HOME", value),
+                    None => std::env::remove_var("XDG_CONFIG_HOME"),
+                }
+            }
+        }
+        let _restore = RestoreEnv(previous);
+
+        let config = dirs::config_dir().expect("a config dir");
+        assert!(
+            config.starts_with(dir.path()),
+            "the test must resolve inside its own temp dir, got {config:?}"
+        );
+        let file = config.join("floter").join(GEOMETRY_FILE_NAME);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        let content = "{\"version\":2,\"windows\":{},\"default\":{\"width\":800,\"height\":600,\"x\":10,\"y\":20}}";
+        std::fs::write(&file, content).unwrap();
+
+        let state = empty_state();
+        park_label(&state, PLUGIN_WINDOW_LABEL, "local.tool\u{0}run");
+        state.forget_plugin_window(PLUGIN_WINDOW_LABEL);
+
+        assert!(
+            file.exists(),
+            "the remembered geometry must survive the close (R85)"
+        );
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
     }
 
     /// R84 · the label is the branch three sides name (the Rust builder here,
