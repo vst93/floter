@@ -13,6 +13,7 @@
 //! delimited commands, of which only `toggle` is understood.
 
 use std::io::{BufRead, BufReader, Error, ErrorKind, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -197,9 +198,16 @@ pub fn serve(app: &AppHandle) {
 /// them apart: a refused connection is a stale node and may be replaced, while
 /// a successful one means a live instance owns the binding and this process must
 /// keep its hands off.
+///
+/// Both success paths end in [`restrict_to_owner`]. The `$XDG_RUNTIME_DIR`
+/// directory is already per-user `0700`, but the `/tmp` fallback is world
+/// writable and there the node's own mode is the only thing between another
+/// local user and the panel — and the socket is not harmless: `terminal-link`
+/// can finish a `register` (`RegisterOrigin::Terminal`). One rule on both paths
+/// beats a rule that depends on which path was taken.
 fn bind(path: &Path) -> std::io::Result<UnixListener> {
-    match UnixListener::bind(path) {
-        Ok(listener) => Ok(listener),
+    let listener = match UnixListener::bind(path) {
+        Ok(listener) => listener,
         Err(error) if error.kind() == ErrorKind::AddrInUse => {
             if UnixStream::connect(path).is_ok() {
                 return Err(Error::new(
@@ -208,10 +216,24 @@ fn bind(path: &Path) -> std::io::Result<UnixListener> {
                 ));
             }
             std::fs::remove_file(path)?;
-            UnixListener::bind(path)
+            UnixListener::bind(path)?
         }
-        Err(error) => Err(error),
-    }
+        Err(error) => return Err(error),
+    };
+    restrict_to_owner(path)?;
+    Ok(listener)
+}
+
+/// Drop the socket node to owner-only access.
+///
+/// `UnixListener::bind` creates the node with `0777 & ~umask`, so a fallback
+/// session under a permissive umask (the default is often `022`) leaves it
+/// world reachable. `chmod` after bind is deliberate rather than wrapping the
+/// bind in `umask(0o077)`: `umask` is process-global and would race every other
+/// thread that creates a file, while this touches exactly the one node that was
+/// just created.
+fn restrict_to_owner(path: &Path) -> std::io::Result<()> {
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
 }
 
 /// Read newline-delimited commands off one connection.
@@ -455,6 +477,53 @@ mod tests {
         let error = bind(&path).expect_err("second bind should fail");
 
         assert_eq!(error.kind(), ErrorKind::AddrInUse);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The socket accepts `terminal-link`, which can finish a `register`, so
+    /// the node must not be reachable by another local user. `UnixListener::bind`
+    /// leaves it at `0777 & ~umask`; the helper has to pull it down to `0600`
+    /// itself.
+    #[test]
+    fn the_socket_node_is_owner_only() {
+        use std::os::unix::fs::MetadataExt;
+
+        let path = scratch_path("owner-only");
+        let _listener = bind(&path).expect("bind");
+
+        let mode = std::fs::metadata(&path).expect("metadata").mode() & 0o777;
+        assert_eq!(
+            mode, 0o600,
+            "another local user could reach the control socket at {mode:o}"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The reclaim branch (`AddrInUse` → unlink → bind again) creates its own
+    /// node, so it needs the same `0600` — a rule that only covered the first
+    /// bind would leave the crashed-instance path open.
+    #[test]
+    fn a_reclaimed_socket_node_is_owner_only_too() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let path = scratch_path("reclaim-perms");
+        // Dropping a listener leaves its node behind, which is the stale state
+        // a crashed instance leaves. Give it a wide mode first, so the assert
+        // cannot pass by inheriting the original bind's `0600`.
+        drop(bind(&path).expect("first bind"));
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666))
+            .expect("widen the stale node");
+
+        let reclaimed = bind(&path).expect("reclaim");
+
+        let mode = std::fs::metadata(&path).expect("metadata").mode() & 0o777;
+        assert_eq!(
+            mode, 0o600,
+            "the reclaimed node is reachable by another local user at {mode:o}"
+        );
+
+        drop(reclaimed);
         let _ = std::fs::remove_file(&path);
     }
 

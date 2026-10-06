@@ -39,15 +39,11 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2.4.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.8"
-shlex = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 dirs = "5"
 tokio = { version = "1", features = ["full"] }
 alacritty_terminal = "0.26"
-parking_lot = "0.12"
 base64 = "0.22"
-ed25519-dalek = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
@@ -62,8 +58,6 @@ crossterm = "0.28"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
 semver = { version = "1.0.28", features = ["serde"] }
 sha2 = "0.10.9"
-tar = "0.4.46"
-flate2 = "1.1.9"
 jsonschema = { version = "0.33", default-features = false }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
