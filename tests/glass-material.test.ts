@@ -548,55 +548,14 @@ test("no transition or animation ever names a filter", async () => {
   }
 });
 
-test("reduced transparency turns the shells into near-solid panels", async () => {
-  const base = stripComments(await read("src/styles/base.css"));
-  const block = mediaBlock(base, "(prefers-reduced-transparency: reduce)");
-  const covered = new Set<string>();
-  const opaque = new Set<string>();
-  for (const { selector, body } of rules(block)) {
-    if (!/(?:^|;)\s*backdrop-filter\s*:\s*none/.test(body)) continue;
-    for (const part of selector.split(",")) covered.add(part.trim());
-    if (/(?:^|;)\s*background\s*:\s*var\(--surface-opaque\)/.test(body)) {
-      for (const part of selector.split(",")) opaque.add(part.trim());
-    }
-  }
-  for (const shell of [...GLASS_SHELLS]) {
-    assert.ok(
-      covered.has(shell),
-      `prefers-reduced-transparency must drop the blur on ${shell}`,
-    );
-    // The fill has to be swapped too, or a shell with the blur removed would
-    // show the desktop through a barely-there tint.
-    assert.ok(
-      opaque.has(shell),
-      `prefers-reduced-transparency must fall back to --surface-opaque on ${shell}`,
-    );
-  }
-  // The fallback has to actually be near-solid. Now that the glass tint is much
-  // lighter, a fallback that tracked it would leave a translucent panel with no
-  // blur behind it — the worst of both.
-  const opaqueToken = token(await rootTokens(), "surface-opaque");
-  const alpha = opaqueToken.match(/rgba\([^)]*,\s*([\d.]+)\)/);
-  assert.ok(alpha, "--surface-opaque must be an rgba");
-  assert.ok(Number(alpha![1]) >= 0.97, `--surface-opaque must be near-solid, got ${alpha![1]}`);
-  // The focused card's own rule is more specific than the plain selector, so
-  // without this the launcher the user is typing into would keep its glass
-  // while every other shell went opaque. The assertion is only meaningful if
-  // that more-specific rule really exists.
-  const launcher = (await styleFiles()).find((f) => f.name.endsWith("launcher.css"))!;
-  const focusedRule = rules(launcher.css).find((r) => r.selector === ".collapsed-card:focus-within");
-  assert.ok(focusedRule, "sanity: launcher.css still has a .collapsed-card:focus-within rule");
-  assert.match(
-    focusedRule!.body,
-    /background:/,
-    "sanity: the focused rule still sets a background, which is why the fallback must name it",
-  );
-  assert.ok(
-    opaque.has(".collapsed-card:focus-within"),
-    "the focused collapsed card must fall back too — its rule outranks the plain selector",
-  );
-});
-
+// R104 · the reduce-transparency case that used to sit here is retired with
+// the block it asserted. The OS media feature is a dead hook on WebKit
+// (bugzilla 175497, still NEW), so the shells' near-solid fallback could never
+// run; the block was deleted rather than left as a tombstone. The lock that
+// keeps it deleted lives in `tests/a11y-backstops.test.ts` ("RT: no live
+// source re-plants the retired reduce-transparency block"). The
+// `--surface-opaque` near-solid invariant it also checked is still pinned by
+// `tests/launcher-pointer-selection.test.ts` for both palettes.
 test("R7-4b: the retired plugin page declares no blur — because it is gone", async () => {
   // The clipboard page ran in a sandboxed iframe, where a `backdrop-filter`
   // samples the frame's own document rather than the host's desktop: it was

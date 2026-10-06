@@ -1,19 +1,20 @@
-// HIG-2 · the three accessibility backstops: reduce-transparency, increase-
-// contrast, reduce-motion. R8 wrote the material blocks, but R7-4a/b (the
-// plugin page host + topbar) and R7-5 (the unified toast) added surfaces after
-// those blocks were written, and nothing asserted the new surfaces were
-// covered. This file is that assertion.
+// HIG-2 · the accessibility backstops: increase-contrast and reduce-motion —
+// plus the R104 lock that keeps the retired reduce-transparency block retired.
+// R8 wrote the material blocks, but R7-4a/b (the plugin page host + topbar) and
+// R7-5 (the unified toast) added surfaces after those blocks were written, and
+// nothing asserted the new surfaces were covered. This file is that assertion.
 //
 // One media-block reader, walked by its own braces (never a fixed-width window,
 // which silently goes vacuous when the file around it moves), plus the
 // structural scans that make each backstop mean something:
 //
-//   * RT: an opaque fallback is not enough — the surface must also have dropped
-//     its blur, or the "opaque" claim is just a background over a live filter;
 //   * IC: the stronger stroke has to reach the states and the new chrome, not
 //     only the two shells;
 //   * RM: every selector that carries an `animation` anywhere in the host
-//     sheets has to be neutralized in the reduced-motion block.
+//     sheets has to be neutralized in the reduced-motion block;
+//   * RT: retired, not re-planted. The OS reduce-transparency media feature is
+//     a dead hook on WebKit, so the block R8 wrote was deleted in R104 and the
+//     scan below turns red if any live source reintroduces it.
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
@@ -63,40 +64,58 @@ const selectorsDeclaring = (block: string, property: string, value: RegExp) => {
   return found;
 };
 
-// ── Reduce transparency ───────────────────────────────────────────────────
+// ── Reduce transparency: retired, not re-planted ──────────────────────────
+//
+// R104 · the OS reduce-transparency media feature is a dead hook. WebKit has
+// never implemented it (bugzilla 175497, opened 2007, still NEW), so on every
+// platform Floter ships the query never matched and R8's block was a
+// tombstone, not a backstop — the kind of thing that makes every later reader
+// believe a system-level switch exists. R104 deleted it; reduce-transparency
+// is owned by the app's own opacity sliders (`--main-opacity` /
+// `--terminal-opacity`).
+//
+// This is the lock that keeps a live block from being re-planted, in the shape
+// R76/R87/R96 established. The feature name is assembled from parts, and the
+// scan reads every live source *including this file*, so a literal here would
+// make the guard fail itself — which is exactly the property being asserted.
+const RETIRED_RT_FEATURE = "prefers-reduced" + "-transparency";
 
-test("RT: every surface shell goes near-solid and drops its blur", async () => {
-  const block = mediaBlock(await base(), "(prefers-reduced-transparency: reduce)");
-  const opaque = selectorsDeclaring(block, "background", /var\(--surface-opaque\)/);
-  // The shells R8 covered…
-  for (const shell of [
-    ".collapsed-card",
-    ".collapsed-card:focus-within",
-    ".settings-card",
-    ".terminal-panel",
-  ]) {
-    assert.ok(opaque.has(shell), `RT must make ${shell} near-solid`);
-  }
-  // The two floaters and the content recesses.
-  for (const surface of [".app-toast", ".settings-save-alert--toast", ".launcher-bottom", ".settings-content", ".extension-tool-results"]) {
-    assert.ok(opaque.has(surface), `RT must make ${surface} near-solid`);
-  }
-  // The blur must be dropped wherever a blur existed. No RT-covered surface
-  // may be left with a live filter.
-  const noBlur = new Set<string>();
-  for (const { selector, body } of RULES(block)) {
-    if (!/(?:^|;)\s*(?:-webkit-)?backdrop-filter\s*:\s*none/.test(body)) continue;
-    for (const part of selector.split(",")) noBlur.add(part.trim());
-  }
-  for (const shell of [".collapsed-card", ".settings-card", ".terminal-panel"]) {
-    assert.ok(noBlur.has(shell), `RT must drop the blur on ${shell}`);
-  }
-  // The near-solid stand-in is genuinely near-solid, not a token that could
-  // drift translucently.
+/** Strip block and line comments so a comment that merely names the retired
+ *  feature cannot trip — or satisfy — the scan. `terminal.css` names it in a
+ *  comment on purpose: the note there is why re-planting it would be wrong. */
+const stripAllComments = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+test("RT: no live source re-plants the retired reduce-transparency block", async () => {
+  // Non-vacuity: the two sibling backstops this suite still asserts are live,
+  // so a wrong path or an emptied read cannot pass as "already gone".
   const css = await base();
-  const opaqueValue = css.match(/--surface-opaque:\s*rgba\(\s*[\d.]+,\s*[\d.]+,\s*[\d.]+,\s*([\d.]+)\s*\)/);
-  assert.ok(opaqueValue, "--surface-opaque must be an explicit rgba");
-  assert.ok(Number(opaqueValue![1]) >= 0.98, `--surface-opaque must be near-solid, got ${opaqueValue![1]}`);
+  assert.ok(css.includes("@media (prefers-contrast: more)"), "the increase-contrast block must stay");
+  assert.ok(
+    css.includes("@media (prefers-reduced-motion: reduce)"),
+    "the reduce-motion block must stay",
+  );
+  const collect = async (dir: string): Promise<string[]> => {
+    const entries = await readdir(new URL(dir, root), { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) files.push(...(await collect(path)));
+      else if (/\.(?:css|tsx?)$/.test(entry.name)) files.push(path);
+    }
+    return files;
+  };
+  const files = [...(await collect("src")), ...(await collect("tests"))];
+  assert.ok(files.length > 100, "the scan must cover the real source trees");
+  assert.ok(files.includes("src/styles/base.css"), "the file the block lived in must be scanned");
+  assert.ok(files.includes("tests/a11y-backstops.test.ts"), "the guard scans itself too");
+  for (const file of files) {
+    const source = stripAllComments(await read(file));
+    assert.ok(
+      !source.includes(RETIRED_RT_FEATURE),
+      `${file} carries a live \`${RETIRED_RT_FEATURE}\` reference; R104 deleted the block because WebKit never implements that feature`,
+    );
+  }
 });
 
 // ── Increase contrast ─────────────────────────────────────────────────────

@@ -431,7 +431,12 @@ exit /b 1
         assert!(CapabilityProbe::version().probe(&missing).await.is_err());
     }
 
-    #[cfg(unix)]
+    // R104 · Linux-gated, not `unix`: this assertion polls `/proc/{pid}`, which
+    // only exists on Linux. Under `#[cfg(unix)]` it compiled and ran on macOS
+    // too, where `/proc` never exists, so the loop's first iteration always
+    // "passed" — a vacuous green. CI is Linux-only, so the assertion keeps its
+    // full meaning where it actually runs (see `docs/AGENT-NOTES.md`).
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn scan_timeout_kills_the_real_probe_process() {
         let directory = tempfile::tempdir().unwrap();

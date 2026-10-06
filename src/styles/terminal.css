@@ -106,9 +106,16 @@
 }
 
 /* The frosted band is retired: the header is transparent now, so it renders
-   no material. The node is kept purely as a minimal-diff / semantic placeholder
-   — `display: none` already wins over any `prefers-reduced-transparency`
-   override, so those overrides no longer take effect on it. */
+   no material. The node is kept purely as a minimal-diff / semantic
+   placeholder, and `display: none` is what keeps it out of layout.
+
+   R104: the block that used to override this node under the OS
+   `prefers-reduced-transparency` preference is gone. It could never run —
+   WebKit has never implemented that media feature (bugzilla 175497, opened
+   2007, still NEW), so on every platform Floter ships the query never
+   matched and the block was a tombstone. Reduce-transparency in this app is
+   owned by the opacity sliders (`--main-opacity` / `--terminal-opacity`); do
+   not re-plant a `prefers-reduced-transparency` block. */
 .terminal-bar__frost {
   display: none;
 }

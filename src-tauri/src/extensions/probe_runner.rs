@@ -152,32 +152,39 @@ async fn read_output(
 mod cleanup_tests {
     use super::*;
     use std::fs;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::time::Duration;
 
     struct CleanupFixture {
         _directory: tempfile::TempDir,
         executable: PathBuf,
-        parent_pid: PathBuf,
-        child_pid: PathBuf,
     }
 
     impl CleanupFixture {
         fn new() -> Self {
             let directory = tempfile::tempdir().unwrap();
             let executable = directory.path().join("provider-cleanup.sh");
-            let parent_pid = directory.path().join("parent.pid");
-            let child_pid = directory.path().join("child.pid");
             crate::extensions::test_support::stage_fixture("provider-cleanup.sh", &executable);
             Self {
                 _directory: directory,
                 executable,
-                parent_pid,
-                child_pid,
             }
         }
 
-        async fn wait_for_pid(path: &Path) -> u32 {
+        /// The PID files the fixture script publishes. Built on demand rather
+        /// than stored as fields: only the Linux-gated `/proc` assertions below
+        /// read them, and stored fields would be dead code on macOS.
+        #[cfg(target_os = "linux")]
+        fn pid_files(&self) -> (PathBuf, PathBuf) {
+            (
+                self._directory.path().join("parent.pid"),
+                self._directory.path().join("child.pid"),
+            )
+        }
+
+        /// Wait for a fixture to publish a PID, then return it.
+        #[cfg(target_os = "linux")]
+        async fn wait_for_pid(path: &std::path::Path) -> u32 {
             for _ in 0..100 {
                 if let Ok(value) = fs::read_to_string(path) {
                     if let Ok(pid) = value.trim().parse() {
@@ -190,6 +197,13 @@ mod cleanup_tests {
         }
     }
 
+    /// Poll `/proc` until the PID is gone. R104 · Linux-gated, not `unix`:
+    /// `/proc` only exists on Linux, so under the module's `#[cfg(all(test,
+    /// unix))]` this compiled and ran on macOS too, where the path never exists
+    /// and the first iteration always "passed" — a vacuous green. CI is
+    /// Linux-only, so the assertion keeps its full meaning where it actually
+    /// runs (see `docs/AGENT-NOTES.md`).
+    #[cfg(target_os = "linux")]
     async fn assert_gone(pid: u32) {
         for _ in 0..150 {
             if !Path::new(&format!("/proc/{pid}")).exists() {
@@ -200,39 +214,43 @@ mod cleanup_tests {
         panic!("process {pid} survived cleanup");
     }
 
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn timeout_kills_parent_and_grandchild_process_group() {
         let fixture = CleanupFixture::new();
+        let (parent_pid, child_pid) = fixture.pid_files();
         let result = run_single_probe(
             &fixture.executable,
             &[
-                fixture.parent_pid.to_string_lossy().into_owned(),
-                fixture.child_pid.to_string_lossy().into_owned(),
+                parent_pid.to_string_lossy().into_owned(),
+                child_pid.to_string_lossy().into_owned(),
             ],
             Duration::from_millis(100),
         )
         .await;
-        let parent = CleanupFixture::wait_for_pid(&fixture.parent_pid).await;
-        let child = CleanupFixture::wait_for_pid(&fixture.child_pid).await;
+        let parent = CleanupFixture::wait_for_pid(&parent_pid).await;
+        let child = CleanupFixture::wait_for_pid(&child_pid).await;
         let error = result.unwrap_err();
         assert!(error.contains("timed out"), "{error}");
         assert_gone(parent).await;
         assert_gone(child).await;
     }
 
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn aborting_probe_future_kills_the_process_group() {
         let fixture = CleanupFixture::new();
         let executable = fixture.executable.clone();
+        let (parent_pid, child_pid) = fixture.pid_files();
         let args = vec![
-            fixture.parent_pid.to_string_lossy().into_owned(),
-            fixture.child_pid.to_string_lossy().into_owned(),
+            parent_pid.to_string_lossy().into_owned(),
+            child_pid.to_string_lossy().into_owned(),
         ];
         let handle = tokio::spawn(async move {
             run_single_probe(&executable, &args, Duration::from_secs(30)).await
         });
-        let parent = CleanupFixture::wait_for_pid(&fixture.parent_pid).await;
-        let child = CleanupFixture::wait_for_pid(&fixture.child_pid).await;
+        let parent = CleanupFixture::wait_for_pid(&parent_pid).await;
+        let child = CleanupFixture::wait_for_pid(&child_pid).await;
         handle.abort();
         assert!(handle.await.unwrap_err().is_cancelled());
         assert_gone(parent).await;
@@ -253,6 +271,7 @@ mod cleanup_tests {
         assert_eq!(result.exit_code, Some(0));
     }
 
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn repeated_timeouts_leave_no_fixture_children_or_zombies() {
         let fixture = CleanupFixture::new();

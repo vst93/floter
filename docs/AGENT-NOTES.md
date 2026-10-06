@@ -17,6 +17,13 @@
 - 2026-09-15：`docs/plugin-system-audit.md` 已在顶部标注 Phase 3-8 为历史参考，并新增「能力矩阵校准 / 冻结区/待删区 / 已知缺口索引（G1-G7）」三节；方向仍以本文件与 `docs/tool-binding-design.md` 为准。
 - 每次改动后：`git pull --rebase origin main` → 验证管线全绿 → commit → push。
 
+## 测试门控规则：CI 只有 Linux，平台相关断言必须 Linux 门控（2026-10 / R104）
+
+1. **CI 只有 Linux**。`.github/workflows/pull-request.yml` 的两个 job（`frontend` / `rust`）都跑在 `ubuntu-latest` / `ubuntu-22.04`；**macOS 没有任何自动化测试覆盖**。macOS 上「本机绿」不代表任何东西——没有 CI 跑它。
+2. **`#[cfg(unix)]` 不是平台门控，是平台假设**。凡断言依赖 `/proc`（`/proc/<pid>`、`/proc/<pid>/task/<pid>/children`）的测试，必须写 `#[cfg(target_os = "linux")]`，不得写 `#[cfg(unix)]`。在 macOS 上 `/proc` 恒不存在，`#[cfg(unix)]` 的测试会照常编译、照常运行、并**恒真通过**——这是假绿，比没有测试更糟，因为它让人以为有覆盖。先例：`src-tauri/src/process_launch.rs` 的 `/proc` 测试用 `#[cfg(target_os = "linux")]`；R104 修掉了 `extensions/probe_runner.rs`、`extensions/capability_probe.rs`、`extensions/run.rs` 三处。
+3. **两种修法择一，优先门控**。要么给该断言/测试加 `#[cfg(target_os = "linux")]`，要么改用平台无关探测（如 `kill(pid, 0)`）。选门控的理由：CI 只在 Linux 跑，平台无关探测在 macOS 上无人验证，等于用一个未测代码路径换掉一个恒真断言。**不为测试新增依赖**（`sysinfo` 不在依赖树里，别加；`libc` 有，但别只为测试用它）。
+4. **门控只动测试**。门控的是断言 / 测试函数 / 测试专用 helper，不是被测的生产代码；若门控会让某个 helper 在 macOS 上变成死代码，就把它的平台专属部分也一并门控（别留 `dead_code` 警告）。
+
 ## 反馈通道（全应用一套 Toast，2026-09-17 / R7-5 起约束）
 
 > **2026-10 / R96 退役注记**：本节下面的 1-4 条描述的是已删除的插件页 bridge

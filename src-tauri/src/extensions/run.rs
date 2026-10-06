@@ -1982,7 +1982,7 @@ mod tests {
     }
 
     /// Wait for a fixture to publish a PID, then return it.
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     async fn wait_for_pid(path: &Path) -> u32 {
         for _ in 0..200 {
             if let Ok(value) = std::fs::read_to_string(path) {
@@ -1995,10 +1995,13 @@ mod tests {
         panic!("fixture did not write PID file {}", path.display());
     }
 
-    /// Poll `/proc` until the PID is gone. On a platform without `/proc` this
-    /// cannot observe anything, which is the same stance the probe runner's
-    /// own cleanup tests take.
-    #[cfg(unix)]
+    /// Poll `/proc` until the PID is gone. R104 · Linux-gated, not `unix`:
+    /// `/proc` only exists on Linux, so under `#[cfg(unix)]` this ran on macOS
+    /// too and its first iteration always "passed" — it could not observe
+    /// anything, which is a vacuous green, not a backstop. CI is Linux-only, so
+    /// the assertion keeps its full meaning where it actually runs (see
+    /// `docs/AGENT-NOTES.md`).
+    #[cfg(target_os = "linux")]
     async fn assert_gone(pid: u32) {
         for _ in 0..250 {
             if !Path::new(&format!("/proc/{pid}")).exists() {
@@ -2017,7 +2020,7 @@ mod tests {
     /// Mutation: drop the abort registration in `execute_background` and
     /// `kill_extension_runs` returns 0, the run keeps sleeping, and the PIDs
     /// stay alive.
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn killing_an_extension_aborts_its_run_and_its_process_group() {
         let directory = tempfile::tempdir().unwrap();

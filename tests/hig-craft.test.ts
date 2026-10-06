@@ -501,20 +501,12 @@ test("the terminal toolbar clears the desktop hit-target minimum", async () => {
 });
 
 // ── Accessibility states ──────────────────────────────────────────────────
-
-test("reduce-transparency still covers every shell after the craft pass", async () => {
-  const base = stripComments(await read("src/styles/base.css"));
-  const block = mediaBlock(base, "(prefers-reduced-transparency: reduce)");
-  const covered = new Set<string>();
-  for (const { selector, body } of rules(block)) {
-    if (!/(?:^|;)\s*backdrop-filter\s*:\s*none/.test(body)) continue;
-    for (const part of selector.split(",")) covered.add(part.trim());
-  }
-  for (const shell of [".collapsed-card", ".settings-card", ".terminal-panel"]) {
-    assert.ok(covered.has(shell), `prefers-reduced-transparency must drop the blur on ${shell}`);
-  }
-});
-
+//
+// R104 · "reduce-transparency still covers every shell after the craft pass"
+// was retired with the block it asserted: the OS reduce-transparency media
+// feature is a dead hook on WebKit (bugzilla 175497, still NEW), so the block
+// was deleted instead of kept as a tombstone. The lock that keeps it deleted
+// lives in `tests/a11y-backstops.test.ts`.
 test("the craft pass did not break reduce-motion coverage", async () => {
   const base = stripComments(await read("src/styles/base.css"));
   const block = mediaBlock(base, "(prefers-reduced-motion: reduce)");

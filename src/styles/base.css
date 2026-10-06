@@ -1240,50 +1240,6 @@ canvas {
   }
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  /* The shells are the only elements in the app that carry a backdrop-filter,
-     so switching transparency off is one declaration each: the blur goes and
-     the glass tint is replaced by the near-solid stand-in. `.terminal-panel`
-     keeps its canvas on top, and the canvas is what makes the terminal read
-     as an opaque panel rather than a hole.
-
-     `.collapsed-card:focus-within` is listed because its own rule is more
-     specific than the plain selector and would otherwise win the cascade: the
-     card the user is typing into would keep its translucent fill — the one
-     state where a see-through surface is most distracting — while every other
-     shell went opaque. */
-  .collapsed-card,
-  .collapsed-card:focus-within,
-  .settings-card,
-  .terminal-panel {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    background: var(--surface-opaque);
-  }
-
-  /* The content layer is a standard material, not glass, so the blur was
-     never its problem — but it still rides the frame's slide and at the low
-     end of the slider it, too, sits over a see-through surface. A user who
-     has turned transparency off wants one answer everywhere: the recess goes
-     near-solid with the frame, so the result list, the settings body, the
-     tool-result scroll and the plugin page's list stop being windows onto the
-     desktop as well. */
-  .launcher-bottom,
-  .settings-content,
-  .extension-tool-results {
-    background: var(--surface-opaque);
-  }
-
-  /* Floaters ride `--glass-float`, which is derived from the frame's tint, so
-     they too go near-solid rather than leaving a translucent toast over an
-     opaque app. This is the "one answer everywhere" rule applied to the two
-     floating surfaces HIG-2 touched: the host toast and the settings toast. */
-  .app-toast,
-  .settings-save-alert--toast {
-    background: var(--surface-opaque);
-  }
-}
-
 @media (prefers-contrast: more) {
   /* "Increase contrast" has to mean the material, not only the borders. At
      the low end of the transparency slider the frame is genuinely
