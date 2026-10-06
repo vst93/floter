@@ -1,24 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capability for the main window. R133 · pruned to the five permissions the frontend actually calls: the event/read-only window surface arrives through `core:default`, `updater:default` and `process:allow-restart` carry the update path, and the two window writes the app performs are `setSize` (launcher height) and `scaleFactor` (PTY cell metrics). The zero-call grants this file used to hand the webview are gone — every window show/hide/minimize/close/focus/position/drag action is either Rust-owned (its own command) or already inside `core:window:default`, and the removed plugin sets had no frontend caller at all.",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "global-shortcut:default",
     "updater:default",
     "process:allow-restart",
-    "notification:allow-notify",
-    "core:window:allow-show",
-    "core:window:allow-hide",
-    "core:window:allow-minimize",
-    "core:window:allow-close",
-    "core:window:allow-set-focus",
     "core:window:allow-set-size",
-    "core:window:allow-set-position",
-    "core:window:allow-start-dragging",
-    "core:window:allow-outer-position",
-    "core:window:allow-outer-size",
     "core:window:allow-scale-factor"
   ]
 }

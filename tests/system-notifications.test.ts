@@ -410,7 +410,10 @@ test("the round adds no Tauri command and no JS notification package", async () 
       "no frontend invoke of the notification plugin",
     );
   }
-  // And the capability is the single minimal `allow-notify` permission.
+  // R133 · and the capability grants no notification permission at all. The
+  // delivery path is entirely Rust-side (`NotificationExt`), so a guest grant
+  // is a power with no caller — the census just above is the evidence, and
+  // R133 removed the `allow-notify` string it used to pin here.
   const capability = JSON.parse(await read("src-tauri/capabilities/default.json")) as {
     permissions: string[];
   };
@@ -419,12 +422,8 @@ test("the round adds no Tauri command and no JS notification package", async () 
   );
   assert.deepEqual(
     notificationPermissions,
-    ["notification:allow-notify"],
-    "the minimal notification capability is allow-notify and nothing else",
-  );
-  assert.ok(
-    !capability.permissions.includes("notification:default"),
-    "the full default bundle is deliberately not granted",
+    [],
+    "no notification permission is granted: Rust owns delivery",
   );
 });
 

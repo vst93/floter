@@ -1,0 +1,274 @@
+// R133 · the render-hygiene round's guard.
+//
+// R132 surveyed the render surface and found no structural waste, then left a
+// three-candidate short list. R133 lands all three:
+//
+//   C1  capabilities pruning — `default.json` and `plugin-detached.json` were
+//       handing the webview eleven grants nothing in the frontend ever calls
+//       (the global-shortcut set expands to the empty set; the window
+//       show/hide/minimize/close/set-focus/set-position/start-dragging family
+//       and the two redundant outer-geometry reads are all Rust-owned or
+//       already inside `core:window:default`). The census standard is the one
+//       R132 set: a grant goes only when the *frontend* calls no plugin JS API
+//       — Rust-side use is irrelevant, because Rust never needs a capability.
+//       The pinned sets below are the surviving five and two.
+//
+//   C2  blink-timer hygiene — the 530ms interval repainted the whole grid
+//       (1.89 Hz of full-canvas `fillText`) even when the blink veto was
+//       set, a setting whose whole meaning is that the cursor does not blink.
+//       The callback now reads the renderer's live options and returns before
+//       any `render()` when the veto is on.
+//
+//   C3  sessions-poll hygiene — the 5s re-list wrote `loading` twice and
+//       `sessions` once unconditionally, so the settings surface re-rendered
+//       0.2 times a second with identical content and the refresh button
+//       flickered to `disabled`. The poll now runs silent (no `loading`, no
+//       `error`) and compares content before writing `sessions`.
+//
+// Every load-bearing literal is assembled from fragments so this guard does not
+// spell the very strings it scans for — the last test proves that.
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const root = new URL("../", import.meta.url);
+const read = (path: string) => readFile(new URL(path, root), "utf8");
+const count = (haystack: string, needle: string) => haystack.split(needle).length - 1;
+
+const DEFAULT_CAP = "src-tauri/capabilities/" + "default.json";
+const DETACHED_CAP = "src-tauri/capabilities/" + "plugin-detached.json";
+const SCHEMA = "src-tauri/gen/schemas/" + "desktop-schema.json";
+const TERMINAL_VIEW = "src/hooks/" + "useTerminalView.ts";
+const SESSIONS_HOOK = "src/hooks/" + "useSessionManagement.ts";
+const SESSIONS_PAGE = "src/settings/" + "SessionsPage.tsx";
+const OVERLAY = "src/plugins/" + "PluginConfigOverlay.tsx";
+const APP = "src/App.tsx";
+
+// Assembled permission vocabulary. The census standard is the frontend call
+// site, so the names are the only thing pinned; a fragment join keeps the guard
+// from spelling any of them.
+const CORE = "core" + ":";
+const WINDOW = CORE + "window:" + "allow-";
+const CORE_DEFAULT = CORE + "default";
+const UPDATER_DEFAULT = "updater:" + "default";
+const PROCESS_RESTART = "process:" + "allow-restart";
+
+/** The five grants `default.json` keeps: the event/read-only core surface, the
+ *  update path, and the two window calls the frontend actually makes
+ *  (`setSize` from the launcher height, `scaleFactor` from the PTY cell
+ *  metrics). `allow-scale-factor` is redundant under `core:window:default` but
+ *  is called for real, so it stays as readable intent. */
+const KEPT_DEFAULT = [
+  CORE_DEFAULT,
+  UPDATER_DEFAULT,
+  PROCESS_RESTART,
+  WINDOW + "set-size",
+  WINDOW + "scale-factor",
+];
+/** The two grants `plugin-detached.json` keeps: the core set (which already
+ *  carries `core:event:default` for the replacement-run listener) and the one
+ *  window write the detached view performs. */
+const KEPT_DETACHED = [CORE_DEFAULT, WINDOW + "set-title"];
+
+/** Every grant R133 removed, across both files — the anti-regression list. A
+ *  revival of any of these is a red guard. */
+const REMOVED = [
+  "global-shortcut:" + "default",
+  "notification:" + "allow-notify",
+  WINDOW + "show",
+  WINDOW + "hide",
+  WINDOW + "minimize",
+  WINDOW + "close",
+  WINDOW + "set-focus",
+  WINDOW + "set-position",
+  WINDOW + "start-dragging",
+  WINDOW + "outer-position",
+  WINDOW + "outer-size",
+];
+
+// Blink anchors.
+const BLINK_TIMER = "const blink = window." + "setInterval(";
+const CURSOR_BLINK = "cursor" + "Blink";
+const BLINK_GUARD = "if (blinkOptions && !blinkOptions." + CURSOR_BLINK + ")";
+const BLINK_READ = "blinkOptions = (renderer as unknown as { opts?: { " + CURSOR_BLINK + "?: boolean } }).opts";
+const BLINK_PIN = "blinkRef.current = " + "true;";
+const BLINK_FLIP = "blinkRef.current = " + "!blinkRef.current;";
+const BLINK_RENDER = "render" + "();";
+const BLINK_CLOSE = "}, 530);";
+
+// Sessions anchors.
+const SILENT_PARAM = "useCallback((silent = " + "false) => {";
+const SILENT_LOADING = "if (!silent) " + "{";
+const SILENT_CATCH = "if (silent) " + "return;";
+const SAME_FN = "function same" + "Sessions(";
+const SET_GUARDED =
+  "setSessions((current) => (same" + "Sessions(current, sessions) ? current : sessions))";
+const POLL_SILENT = "onRefreshRef.current(" + "true)";
+const VISIBILITY = "visibilityState === " + '"visible"';
+
+// Anchors this round must not hollow out: R126's overlay read-failure state and
+// the R119/R120 event wiring.
+const LOAD_STATE = "const [loadFailed, " + "setLoadFailed] = useState(false)";
+const SHORTCUT_EVENT = "custom-shortcut://" + "trigger";
+const SHORTCUT_REF = "customShortcutAction" + "Ref";
+const FOCUS_CHANGED = "onFocus" + "Changed";
+const GHOST_EVENT = "floter://" + "mode";
+
+const parseCapability = async (path: string) => {
+  const raw = await read(path);
+  const parsed = JSON.parse(raw) as { identifier?: string; permissions?: unknown };
+  assert.ok(Array.isArray(parsed.permissions), `${path} must carry a permissions array`);
+  for (const permission of parsed.permissions as unknown[]) {
+    assert.equal(typeof permission, "string", `${path} permissions must be plain identifiers`);
+  }
+  return { identifier: parsed.identifier, permissions: parsed.permissions as string[] };
+};
+
+test("default.json keeps exactly the five grants the frontend calls", async () => {
+  const { permissions } = await parseCapability(DEFAULT_CAP);
+  assert.deepEqual(
+    [...permissions].sort(),
+    [...KEPT_DEFAULT].sort(),
+    "the capability must hold the in-use set, nothing more",
+  );
+  // No duplicates: a repeated identifier would let a removed grant hide behind
+  // a length check.
+  assert.equal(new Set(permissions).size, permissions.length, "no identifier may repeat");
+});
+
+test("plugin-detached.json keeps exactly two grants", async () => {
+  const { permissions } = await parseCapability(DETACHED_CAP);
+  assert.deepEqual([...permissions].sort(), [...KEPT_DETACHED].sort());
+  assert.equal(new Set(permissions).size, permissions.length, "no identifier may repeat");
+});
+
+test("every removed grant stays out of both capabilities", async () => {
+  const defaultCap = await parseCapability(DEFAULT_CAP);
+  const detachedCap = await parseCapability(DETACHED_CAP);
+  for (const grant of REMOVED) {
+    assert.ok(
+      !defaultCap.permissions.includes(grant),
+      `default.json must not grant ${grant}: no frontend call site exists`,
+    );
+    assert.ok(
+      !detachedCap.permissions.includes(grant),
+      `plugin-detached.json must not grant ${grant}: no frontend call site exists`,
+    );
+  }
+});
+
+test("every pinned identifier is real, so the sets cannot drift into typos", async () => {
+  // The desktop schema carries the full identifier enum tauri-build generated
+  // from the installed plugin set. A pinned name that is not in it would make
+  // the "kept" assertion meaningless (a typo would be "absent" from both
+  // sides); a removed name that is not in it would make the ban vacuous.
+  const schema = JSON.parse(await read(SCHEMA)) as {
+    definitions: { Identifier: { oneOf: { const?: unknown }[] } };
+  };
+  const known = new Set(
+    schema.definitions.Identifier.oneOf
+      .map((entry) => entry.const)
+      .filter((value): value is string => typeof value === "string"),
+  );
+  assert.ok(known.size > 100, "the identifier enum must be the live generated one");
+  for (const grant of [...KEPT_DEFAULT, ...KEPT_DETACHED, ...REMOVED]) {
+    assert.ok(known.has(grant), `${grant} must be a declared identifier in the desktop schema`);
+  }
+});
+
+test("the blink timer guards on the blink veto before it draws", async () => {
+  const source = await read(TERMINAL_VIEW);
+  const start = source.indexOf(BLINK_TIMER);
+  assert.ok(start >= 0, "the blink interval must still exist (non-hollow)");
+  const end = source.indexOf(BLINK_CLOSE, start);
+  assert.ok(end > start, "the blink callback must still close on its 530ms tick");
+  const region = source.slice(start, end);
+
+  assert.ok(region.includes(BLINK_GUARD), "the callback must read the renderer's live blink option");
+  assert.ok(region.includes(BLINK_PIN), "the skipped tick must pin the cursor visible");
+  assert.ok(region.includes("return" + ";"), "the veto branch must return before painting");
+  assert.ok(region.includes(BLINK_FLIP), "the non-vetoed tick must still flip the blink phase");
+
+  const guardAt = region.indexOf(BLINK_GUARD);
+  const pinAt = region.indexOf(BLINK_PIN);
+  const flipAt = region.indexOf(BLINK_FLIP);
+  const drawAt = region.indexOf(BLINK_RENDER);
+  assert.ok(drawAt > guardAt, "the blink guard must precede the render() call");
+  assert.ok(pinAt > guardAt && pinAt < drawAt, "the pin must sit inside the veto branch");
+  assert.ok(flipAt > guardAt, "the flip must run only after the guard lets the tick through");
+  assert.ok(region.includes(BLINK_READ), "the tick must read the renderer's options, not a mount-time closure");
+});
+
+test("the sessions refresh splits a silent path and compares before writing", async () => {
+  const source = await read(SESSIONS_HOOK);
+  assert.ok(source.includes(SILENT_PARAM), "refresh must take a silent flag");
+  assert.ok(source.includes(SILENT_LOADING), "the non-silent path must still raise loading");
+  assert.ok(source.includes(SILENT_CATCH), "a silent failure must return before touching error");
+  assert.ok(source.includes(SAME_FN), "the shallow comparison must be a named step");
+  assert.ok(
+    source.includes(SET_GUARDED),
+    "setSessions must write only when the content changed",
+  );
+
+  // The comparison runs before the write: the guarded call is the only
+  // setSessions inside the success handler.
+  const successAt = source.indexOf(".then((sessions) => {");
+  assert.ok(successAt >= 0, "the success handler must survive");
+  const handler = source.slice(successAt, source.indexOf(".catch(", successAt));
+  assert.equal(count(handler, "setSessions("), 1, "the success handler writes sessions once");
+  assert.ok(handler.includes(SET_GUARDED), "and that one write must be the compared one");
+});
+
+test("the poll path is silent and stays behind the visibility gate", async () => {
+  const page = await read(SESSIONS_PAGE);
+  assert.ok(page.includes(POLL_SILENT), "the 5s poll must call refresh in silent mode");
+  assert.ok(page.includes(VISIBILITY), "the poll must keep its visibility gate");
+  // The button must not forward its click event as the silent flag: with
+  // `onClick={onRefresh}` React would pass the MouseEvent as `silent`, and the
+  // manual refresh would silently become the silent one.
+  assert.ok(
+    page.includes("onClick={() => onRefresh()}"),
+    "the button must call refresh bare, never with its event",
+  );
+});
+
+test("the R126 and R119 anchors this round sits beside are still live", async () => {
+  const overlay = await read(OVERLAY);
+  assert.ok(overlay.includes(LOAD_STATE), "the R126 loadFailed state must remain");
+  assert.ok(overlay.includes("loadFailed"), "the R126 failure line must remain");
+
+  const app = await read(APP);
+  assert.ok(app.includes(SHORTCUT_EVENT), "the custom-shortcut listener must remain");
+  assert.ok(app.includes(SHORTCUT_REF), "the shortcut action ref must remain");
+  assert.ok(app.includes(FOCUS_CHANGED), "the focus listener must remain");
+  assert.equal(count(app, GHOST_EVENT), 0, "the R120 ghost subscription must stay gone");
+});
+
+test("this guard assembles its tokens, it does not spell them", async () => {
+  const self = await read("tests/r133-render-hygiene.test.ts");
+  for (const token of [
+    ...KEPT_DEFAULT,
+    ...KEPT_DETACHED,
+    ...REMOVED,
+    CURSOR_BLINK,
+    BLINK_GUARD,
+    BLINK_READ,
+    BLINK_PIN,
+    BLINK_FLIP,
+    BLINK_RENDER,
+    SILENT_PARAM,
+    SILENT_LOADING,
+    SILENT_CATCH,
+    SAME_FN,
+    SET_GUARDED,
+    POLL_SILENT,
+    VISIBILITY,
+    LOAD_STATE,
+    SHORTCUT_EVENT,
+    SHORTCUT_REF,
+    FOCUS_CHANGED,
+    GHOST_EVENT,
+  ]) {
+    assert.ok(!self.includes(token), `the guard must not spell ${token}`);
+  }
+});

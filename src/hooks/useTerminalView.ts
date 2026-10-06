@@ -553,7 +553,28 @@ export function useTerminalView(options: {
     wheelRemainder.current = 0;
     canvasRef.current.addEventListener("wheel", onWheelNative, { passive: false });
 
+    // R133 · blink hygiene. `cursorBlink=false` pins the cursor visible
+    // (`render.ts:497-501`), so flipping `blinkRef` and repainting the whole
+    // grid is work the setting already vetoes — 1.89 Hz of full-canvas
+    // `fillText` on every mounted terminal, for a cursor that never blinks.
+    //
+    // The flag is read off the renderer's *live* options each tick, not off
+    // this render's closure: this effect keys on `[terminalMounted, mode]`
+    // below, so `cursorBlink` would be frozen at mount, and adding it to the
+    // deps would rebuild the renderer (taking the running session's scroll
+    // position with it). `setOptions` merges the new value into the same
+    // object, so the tick sees the setting move without a rebuild. Leaving
+    // `blinkRef` at `true` on the skipped tick matches the paint the
+    // `cursorBlink`-keyed effect below just landed, so a cursor pinned visible
+    // stays visible. The optional read is deliberate: if the options shape
+    // ever moves, this degrades to the pre-R133 behaviour (repaint every
+    // tick) rather than freezing a blinking cursor.
     const blink = window.setInterval(() => {
+      const blinkOptions = (renderer as unknown as { opts?: { cursorBlink?: boolean } }).opts;
+      if (blinkOptions && !blinkOptions.cursorBlink) {
+        blinkRef.current = true;
+        return;
+      }
       blinkRef.current = !blinkRef.current;
       render();
     }, 530);

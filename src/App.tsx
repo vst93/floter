@@ -2908,7 +2908,7 @@ export default function App() {
                 dateFormatter={sessionDateFormatter}
                 onResume={(session) => void resumeTerminalSession(session)}
                 onKill={(session) => void killTerminalSession(session)}
-                onRefresh={() => void refreshTerminalSessions()}
+                onRefresh={(silent) => void refreshTerminalSessions(silent)}
               />
               )}
 

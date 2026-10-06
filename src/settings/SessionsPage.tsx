@@ -24,7 +24,10 @@ type SessionsPageProps = {
   dateFormatter: Intl.DateTimeFormat;
   onResume: (session: BrokerSessionInfo) => void;
   onKill: (session: BrokerSessionInfo) => void;
-  onRefresh: () => void;
+  /** R133 · `silent` marks the 5s poll: the re-list runs without touching
+   *  `loading` (so the button no longer flickers to `disabled` every 5s) and
+   *  without touching `error`. The button calls it bare, i.e. non-silent. */
+  onRefresh: (silent?: boolean) => void;
 };
 
 /** The sessions settings page: one row per daemon terminal session. All state
@@ -82,7 +85,7 @@ export function SessionsPage({
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") onRefreshRef.current();
+      if (document.visibilityState === "visible") onRefreshRef.current(true);
     }, SESSIONS_POLL_INTERVAL);
     return () => window.clearInterval(interval);
   }, []);
@@ -129,7 +132,7 @@ export function SessionsPage({
           aria-label={t("terminal.sessionsRefresh")}
           title={t("terminal.sessionsRefresh")}
           disabled={loading}
-          onClick={onRefresh}
+          onClick={() => onRefresh()}
         >
           <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />
         </button>

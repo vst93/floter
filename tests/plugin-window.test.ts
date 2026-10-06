@@ -65,10 +65,15 @@ test("the capability file governs exactly the detached windows", async () => {
     new Set(capability.windows),
     new Set([PLUGIN_WINDOW_LABEL, `${PLUGIN_WINDOW_LABEL}-*`]),
   );
-  // The window's own close button and its event listener are the two powers
-  // it needs; `core:default` carries the rest of the core surface.
-  assert.ok(capability.permissions.includes("core:event:default"));
-  assert.ok(capability.permissions.includes("core:window:allow-close"));
+  // R133 · the two powers the detached view actually exercises: the event
+  // listener and its own title. The listener arrives through `core:default`
+  // (which already carries `core:event:default`), and closing goes through the
+  // `close_plugin_window` command — the app's own, so it needs no permission.
+  assert.deepEqual(
+    new Set(capability.permissions),
+    new Set(["core:default", "core:window:allow-set-title"]),
+    "R133 pruned the capability to the two grants the detached view calls",
+  );
 });
 
 test("the render branch recognises every detached instance label", async () => {
