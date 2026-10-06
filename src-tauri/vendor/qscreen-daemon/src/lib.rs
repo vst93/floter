@@ -13,6 +13,8 @@ use qscreen_protocol::{
 #[cfg(unix)]
 use qscreen_shared::daemon_lock_path;
 use qscreen_shared::pipe_name;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use session::{Session, SessionEvent, SessionEventQueue, SpawnCommand};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::{oneshot, watch};
@@ -146,6 +148,26 @@ fn session_info(s: &Session) -> SessionInfo {
 
 // ── Entry point: daemon main loop ─────────────────────────────────────────────
 
+/// Bind the daemon's Unix socket and drop its node to owner-only access.
+///
+/// `UnixListener::bind` creates the node at `0777 & ~umask`. This socket is not
+/// harmless: the protocol accepts `SpawnCommand` (spawn an arbitrary program as
+/// this user), `Attach` and `Input` (write into a PTY), and there is no
+/// peer-credential check on any of it. The node's own mode is the only line
+/// between another local user and the daemon, so the chmod sits on the one path
+/// every successful bind funnels through — a fresh bind and the reclaim
+/// (`remove_file` then bind) both end here, the same convergence
+/// `restrict_to_owner` gives the app's own control socket. A chmod failure fails
+/// startup loudly instead of leaving the hole behind.
+#[cfg(unix)]
+fn bind_socket(pipe: &str) -> anyhow::Result<tokio::net::UnixListener> {
+    let listener = tokio::net::UnixListener::bind(pipe)
+        .with_context(|| format!("bind unix socket {}", pipe))?;
+    std::fs::set_permissions(pipe, std::fs::Permissions::from_mode(0o600))
+        .with_context(|| format!("restrict unix socket {}", pipe))?;
+    Ok(listener)
+}
+
 /// Run the daemon on the current thread (must be called within a tokio runtime)
 pub async fn run() -> anyhow::Result<()> {
     let pipe = pipe_name();
@@ -199,8 +221,7 @@ pub async fn run() -> anyhow::Result<()> {
     {
         let _lock_guard = DaemonLockGuard::acquire()?;
         let _ = std::fs::remove_file(&pipe);
-        let listener = tokio::net::UnixListener::bind(&pipe)
-            .with_context(|| format!("bind unix socket {}", pipe))?;
+        let listener = bind_socket(&pipe)?;
 
         loop {
             tokio::select! {
@@ -1551,5 +1572,68 @@ mod tests {
         drop(reader);
         handle.await.unwrap();
         session.close();
+    }
+
+    #[cfg(unix)]
+    fn scratch_socket_path(name: &str) -> String {
+        let path = std::env::temp_dir().join(format!(
+            "qscreen-r130-test-{}-{name}.sock",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        path.to_string_lossy().into_owned()
+    }
+
+    /// The daemon's socket accepts `SpawnCommand` (spawn an arbitrary program as
+    /// this user), `Attach` and `Input` (write into a PTY), with no
+    /// peer-credential check, so the node must not be reachable by another local
+    /// user. `UnixListener::bind` leaves it at `0777 & ~umask`; `bind_socket`
+    /// has to pull it down to `0600` itself.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn the_daemon_socket_node_is_owner_only() {
+        use std::os::unix::fs::MetadataExt;
+
+        let path = scratch_socket_path("owner-only");
+        let _listener = bind_socket(&path).expect("bind");
+
+        let mode = std::fs::metadata(&path).expect("metadata").mode() & 0o777;
+        assert_eq!(
+            mode, 0o600,
+            "another local user could reach the daemon socket at {mode:o}"
+        );
+
+        drop(_listener);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The reclaim path (`remove_file` then bind again) creates its own node, so
+    /// it needs the same `0600` — a rule that only covered the first bind would
+    /// leave the crashed-daemon path open.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_reclaimed_socket_node_is_owner_only_too() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let path = scratch_socket_path("reclaim-perms");
+        // Dropping a listener leaves its node behind, which is the stale state a
+        // crashed daemon leaves. Give it a wide mode first, so the assert cannot
+        // pass by inheriting the original bind's `0600`.
+        drop(bind_socket(&path).expect("first bind"));
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666))
+            .expect("widen the stale node");
+        // The daemon reclaims by unlinking the stale node, then binding afresh.
+        std::fs::remove_file(&path).expect("reclaim unlink");
+
+        let reclaimed = bind_socket(&path).expect("reclaim");
+
+        let mode = std::fs::metadata(&path).expect("metadata").mode() & 0o777;
+        assert_eq!(
+            mode, 0o600,
+            "the reclaimed node is reachable by another local user at {mode:o}"
+        );
+
+        drop(reclaimed);
+        let _ = std::fs::remove_file(&path);
     }
 }
