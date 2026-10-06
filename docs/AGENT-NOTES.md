@@ -71,3 +71,41 @@
 - **内建模式 Pin 明确不做**：内建 iframe 页 R33 已退役，descriptor 的 `page` 字段与测试锁在 R96 一并物理删除，内建模式是交互式搜索 UI 非答案面；snapshot 便宜但无用（动作全丢），live 需为三数据源新建变更事件通道（触碰「不为边际功能新开通道」边界）。**Pin 保持 external-only。**
 - 多实例、设置广播：暂缓，触发条件见 R86 报告（`/tmp/floter-r86-report.md`）。
 - 若未来需要「钉住单条内容」：snapshot-text 最小切法（复用 `PluginTextView`，~80-120 行 / 3 文件，无新命令无事件，退役干净）。
+
+## 依赖政策：声明宽度、收紧判定、豁免与 npm 侧纪律（2026-10 / R110）
+
+R105→R109 把供应链的**现状**清完了（rustls patch、6 个死依赖出清、rusqlite 0.40、audit 归零），
+留下的是**政策债**：`src-tauri/Cargo.toml` 的声明面普遍是裸 major（`"1"`/`"3"`/`"5"`）或裸 minor
+（`"0.4"`/`"0.28"`），`cargo update` 没有任何「已审计下限」挡着。R110 把高风险声明收到 patch 位并
+落成守卫 `tests/r110-deps-policy.test.ts`。以下是此后新增/修改依赖时的规则。
+
+1. **新依赖默认宽度 = 带 patch 位的 caret**（`"0.28.1"`、`"1.53.1"`），不写裸 major/minor。
+   理由不是「更安全」，是**把已审计的版本记进声明**：裸 `"1"` 让 `cargo update` 的下限是 1.0.0，
+   一次 update 可以把整条 1.x 线拉走；带 patch 位后下限就是我们编译并跑过测试的那个版本。
+   **禁止**默认写 `=X.Y.Z`——等号 pin 是维护税，不是安全；只在下面第 2 条命中且确有需要时才用。
+   **Cargo caret 语义要点**（决定「收紧」到底收什么）：`^1.53.1` = `>=1.53.1, <2.0.0`（1.x 的
+   ceiling 挡不住跨 minor，只有 `=` 或显式范围能挡）；`^0.28.1` = `>=0.28.1, <0.29.0`（0.x 的
+   ceiling 本来就把 minor 钉住了，加 patch 位只抬下限）。所以对 1.x crate，「收紧」的实际效果是
+   **抬下限 + 记录审计版本**，不是封 minor；报告里必须如实这么写，不要假装封住了。
+2. **收紧判定 = 命中以下任一条**，否则不动（避免把全表升级成 `=X.Y.Z`）：
+   - **传递依赖树大**：tokio、serde、alacritty_terminal、reqwest 这类一次 update 能牵动几十个
+     `[[package]]` 的；
+   - **历史上有破坏性 minor**：chrono 0.4 线、crossterm 0.26→0.28、base64 0.21→0.22 这类
+     0.x 上真发生过 breaking 的；
+   - **安全敏感**：`libc`（unsafe FFI）、`png`（解码剪贴板里的不可信图像）、`jsonschema`
+     （解析不可信插件 manifest）、`serde_json`（IPC/配置的不可信输入）、reqwest/rusqlite
+     （TLS 栈 / 解析不可信数据库）。
+   R110 实际收紧 8 条：serde、serde_json、chrono、tokio、crossterm、jsonschema、libc、png
+   （≤8 是当轮预算，守卫把条数钉住）。
+3. **豁免：tauri 家族（`tauri`、`tauri-build`、`tauri-plugin-*`、`tauri-nspanel`）一律不 pin**。
+   理由：Tauri 自己的 release train 背 semver，官方 pin 会与未来 C3 升级轮直接冲突；`tauri-nspanel`
+   等 git 依赖已用 `rev` 钉死（比任何 caret 都紧）。守卫**反向**断言这族不得出现 `=` 等号 pin，
+   npm 侧 `@tauri-apps/*` 同样保持 `^`/`~` 范围、不得精确 pin。**`portable-pty` 同理零触碰**
+   （它是 vendored `qscreen-daemon` 的依赖，不在本仓声明面）。rusqlite 保持 `"0.40"` 不加等号
+   （0.x 已锁 minor，加 patch 位只抬下限，不值得动；R109 守卫已钉死这一行）。
+4. **npm 侧：`npm update` 必须限定到 dev 闭包**（R106 教训）。裸 `npm update` 实测会同时升
+   `react`/`react-dom`/`lucide-react`/`@tauri-apps/api` 四个**运行时**依赖，vite 产物从 671,272 B
+   涨到 704,492 B（+33 KB），直接撞「前端零改动 / js/css 逐字节不变」红线。修补 dev advisory 时
+   把包名逐个列出来（`npm update vite esbuild postcss …`），**永不**裸跑 `npm update`，也**不**跑
+   `npm audit fix`（它会顺手动 lock 的运行时边）。判据：`git diff package.json` 必须为空、
+   `dist/assets/*` 必须逐字节不变。
