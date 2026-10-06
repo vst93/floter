@@ -55,13 +55,20 @@ const TIGHTENED: ReadonlyArray<{
   { crate: "jsonschema", parts: ["0", "33", "0"], wide: "0.33" },
   { crate: "libc", parts: ["0", "2", "189"], wide: "0.2" },
   { crate: "png", parts: ["0", "17", "16"], wide: "0.17" },
+  // R112 extended the same policy to three more A-class declarations: the
+  // terminal emulator core (large transitive tree), tempfile (filesystem
+  // boundary) and arboard (system clipboard / untrusted image data).
+  { crate: "alacritty_terminal", parts: ["0", "26", "0"], wide: "0.26" },
+  { crate: "tempfile", parts: ["3", "27", "0"], wide: "3" },
+  { crate: "arboard", parts: ["3", "6", "1"], wide: "3" },
 ];
 
 /**
- * R110's budget is "≤ 8 declaration changes". The guard pins the size so a
- * later round cannot quietly widen the policy into a mass re-pin.
+ * R110's budget was "≤ 8 declaration changes"; R112 raised it to 11 by adding
+ * the three crates above. The guard pins the size so a later round cannot
+ * quietly widen the policy into a mass re-pin.
  */
-const TIGHTENED_BUDGET = 8;
+const TIGHTENED_BUDGET = 11;
 
 const escapeRegExp = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -120,11 +127,11 @@ const requirementOf = (rhs: string): string | null =>
   rhs.match(/^"([^"]+)"/)?.[1] ??
   null;
 
-test("the tightened set is the eight R110 chose, and no more", () => {
+test("the tightened set is the eleven R110/R112 chose, and no more", () => {
   assert.equal(
     TIGHTENED.length,
     TIGHTENED_BUDGET,
-    "R110 tightened eight declarations; keep the budget and the list in step",
+    "R110 tightened eight declarations and R112 three; keep the budget and the list in step",
   );
   assert.equal(
     new Set(TIGHTENED.map((entry) => entry.crate)).size,

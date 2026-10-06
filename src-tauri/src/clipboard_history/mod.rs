@@ -131,7 +131,11 @@ fn mutate_history<T>(
         ensure_loaded(&mut loaded)?;
         *cache = Some(loaded);
     }
-    let entries = cache.as_mut().expect("just initialized");
+    // Same-frame invariant — `cache` was filled just above — but a sync
+    // command must not carry an abort point: a panic here escapes the
+    // webkit2gtk `extern "C"` trampoline and aborts the process instead of
+    // unwinding (R111/R112, docs/AGENT-NOTES.md). Return an error instead.
+    let entries = cache.as_mut().ok_or("History cache unavailable")?;
     store::update_entries(entries, f)
 }
 

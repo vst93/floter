@@ -39,17 +39,18 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2.4.0"
 # R110: the high-risk declarations below carry the audited floor (a patch
 # position) instead of a bare major/minor. Tightened by R110: serde,
-# serde_json, chrono, tokio, crossterm, jsonschema, libc (unix) and png. The
-# policy and the per-crate rationale live in docs/AGENT-NOTES.md ("依赖政策"),
-# and tests/r110-deps-policy.test.ts refuses a fallback to the wide pin.
+# serde_json, chrono, tokio, crossterm, jsonschema, libc (unix) and png;
+# R112 added alacritty_terminal, tempfile and arboard. The policy and the
+# per-crate rationale live in docs/AGENT-NOTES.md ("依赖政策"), and
+# tests/r110-deps-policy.test.ts refuses a fallback to the wide pin.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 dirs = "5"
 tokio = { version = "1.53.1", features = ["full"] }
-alacritty_terminal = "0.26"
+alacritty_terminal = "0.26.0"
 base64 = "0.22"
-tempfile = "3"
+tempfile = "3.27.0"
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 # R26-A: the browser plugin reads Chromium's `History` SQLite database. It is
@@ -77,7 +78,7 @@ qscreen-shared = { path = "vendor/qscreen-shared" }
 # X11 support is compiled in by default on Linux; `wayland-data-control` adds the
 # Wayland data-control protocol so captures work on both session types.
 # Made optional to reduce binary size and memory usage when history is disabled.
-arboard = { version = "3", default-features = false, features = ["wayland-data-control", "image-data"], optional = true }
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control", "image-data"], optional = true }
 png = { version = "0.17.16", optional = true }
 
 # Pinyin initials for the launcher: a Chinese application name is unreachable

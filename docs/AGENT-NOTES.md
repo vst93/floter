@@ -109,3 +109,30 @@ R105→R109 把供应链的**现状**清完了（rustls patch、6 个死依赖�
    把包名逐个列出来（`npm update vite esbuild postcss …`），**永不**裸跑 `npm update`，也**不**跑
    `npm audit fix`（它会顺手动 lock 的运行时边）。判据：`git diff package.json` 必须为空、
    `dist/assets/*` 必须逐字节不变。
+
+## Tauri 2 命令 panic 传播语义（R111/R112）
+
+R111 只读普查了生产代码的 panic 面（10 处），结论是全部落在 S5「合同式」上，唯一例外风险是
+`clipboard_history/mod.rs` 的 `mutate_history`——那里的 `expect` 落在**同步命令链**上，R112 已
+消除。以下是为什么「同步命令链上的 panic」比普通 panic 严重，以及此后写命令的规则。
+
+1. **同步命令（79 个）panic ⇒ 进程 abort**。证据链（tauri 2.11.5 / tauri-macros 2.6.3 /
+   wry 0.55.1 / webkit2gtk 2.0.2，即 lock 现值）：
+   - `tauri-macros` 的 `wrapper.rs:404-433` `body_blocking` 直接调用命令函数并
+     `kind.block(result, resolver)`，没有任务边界；
+   - 这个 wrapper 由 `Webview::on_message`（`tauri/src/webview/mod.rs:1742`，
+     `manager/mod.rs:471` 的 `run_invoke_handler`）在**同步**路径上执行；
+   - 入口是自定义协议处理器 `tauri/src/ipc/protocol.rs:75` 的 `webview.on_message(...)`；
+   - 它在 Linux 上最终落到 webkit2gtk 的 `unsafe extern "C" fn callback_func`
+     （`webkit2gtk-2.0.2/src/auto/web_context.rs:534`，`register_uri_scheme` 的 C 回调）。
+   panic 从 `extern "C"` 帧里逃逸**不能 unwind**，只能 abort；R111 已实测进程 `exit 134`
+   （SIGABRT）。前端拿到的是连接断开，不是错误。
+2. **异步命令（38 个）panic ⇒ 该命令 promise 永久挂起**。`wrapper.rs:361-395` 的 `body_async`
+   走 `respond_async_serialized`（`tauri/src/ipc/mod.rs:343-380`），最终
+   `async_runtime::spawn`（`ipc/mod.rs:375`）把 future 交给 tokio；panic 在 tokio task 边界被
+   吞掉，`return_result` 永不执行——前端 `invoke` 既不 resolve 也不 reject，**连错误提示都没有**。
+3. **规则**：**同步命令链上禁止新增 `expect`/`unwrap`**（要么 `ok_or`/`?` 返回 `Err`，要么用
+   `lock_or_recover` 这类 S5 兜底）；**异步命令优先返回 `Err`，不要用 panic 把 promise 挂死**。
+   `clippy::unreachable` 在 `src-tauri/src/commands/*` 上的命中是 `tauri-macros`
+   `wrapper.rs:221-229` 里 `if false` 类型检查宏的 span 错位，不是本仓代码，别照着它改。
+   源码级守卫：`tests/r112-panic-surface.test.ts`（同步链唯一 abort 点零出现 + 本节锚点在场）。
