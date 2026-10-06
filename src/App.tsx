@@ -1057,60 +1057,6 @@ export default function App() {
     setHistoryIndex(-1);
   }, []);
 
-  // TEMPORARY DEV PROBE (remove)
-  const probeStateRef = useRef("");
-  useEffect(() => {
-    const w = window as unknown as { __floterProbe?: boolean };
-    if (w.__floterProbe) return;
-    w.__floterProbe = true;
-    const lines: string[] = [];
-    const log = (message: string) => {
-      lines.push(message);
-      void invoke("clipboard_write_text", { text: lines.join("\n") }).catch(() => undefined);
-    };
-    const measure = async (label: string) => {
-      const card = document.querySelector(".collapsed-card");
-      const scroller = document.querySelector(".launcher-results");
-      const rows = [...document.querySelectorAll<HTMLElement>('button[id^="launcher-option-"]')];
-      const box = scroller?.getBoundingClientRect();
-      let visible = 0;
-      let badged = 0;
-      let partial = 0;
-      for (const row of rows) {
-        const rect = row.getBoundingClientRect();
-        const inside = box && rect.top >= box.top - 0.5 && rect.bottom <= box.bottom + 0.5;
-        const touches = box && rect.bottom > box.top + 0.5 && rect.top < box.bottom - 0.5;
-        if (inside) visible += 1;
-        if (touches && !inside) partial += 1;
-        if (inside && row.textContent && /⌘/.test(row.textContent)) badged += 1;
-      }
-      let real = -1;
-      try {
-        const size = await getCurrentWindow().innerSize();
-        const scale = await getCurrentWindow().scaleFactor();
-        real = Math.round(size.toLogical(scale).height);
-      } catch { real = -2; }
-      log(
-        `${label} ${probeStateRef.current} card=${card ? Math.round(card.getBoundingClientRect().height) : -1} native=${real} rows=${rows.length} visible=${visible} badged=${badged} partial=${partial}`,
-      );
-    };
-    setMode("collapsed");
-    void invoke("show_input").catch(() => undefined);
-    let ticks = 0;
-    const timer = window.setInterval(() => {
-      ticks += 1;
-      if (ticks > 60) { window.clearInterval(timer); log("timeout"); return; }
-      if (!document.querySelector(".collapsed-card__input")) return;
-      window.clearInterval(timer);
-      setTimeout(() => { enterPluginMode({ scope: "browser", kind: "all" }); }, 800);
-      setTimeout(() => void measure("browser"), 2600);
-      setTimeout(() => { setPluginMode(null); enterPluginMode({ scope: "clipboard", filter: "all" }); }, 3600);
-      setTimeout(() => void measure("clipboard"), 5400);
-      setTimeout(() => { setPluginMode(null); enterPluginMode({ scope: "browser", kind: "tabs" }); }, 6400);
-      setTimeout(() => void measure("tabs"), 8200);
-    }, 250);
-  }, []);
-
   /**
    * R33 · the unified configuration entry.
    *
@@ -1803,15 +1749,22 @@ export default function App() {
     [enterPluginMode, openInTerminal, openSettings, returnToInputMode, showLauncherFeedback],
   );
 
-  /** One listener for every custom key: the backend sends the action string. */
+  /** One listener for every custom key: the backend sends the action string.
+   *  The action is read through a ref so the listener is registered once for
+   *  the app's lifetime. `runCustomShortcutAction` closes over four ordinary
+   *  callbacks that are rebuilt on every render; depending on it would tear
+   *  the listener down and re-register it on every render, leaving a window
+   *  in which a keypress is dropped — and paying two IPC invokes per render. */
+  const customShortcutActionRef = useRef(runCustomShortcutAction);
+  customShortcutActionRef.current = runCustomShortcutAction;
   useEffect(() => {
     const unlistenPromise = listen<string>("custom-shortcut://trigger", (event) => {
-      void runCustomShortcutAction(event.payload);
+      void customShortcutActionRef.current(event.payload);
     });
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [runCustomShortcutAction]);
+  }, []);
 
   /** Switch pages and remember the choice for the next launch. */
   const changeSettingsPage = (page: SettingsPage) => {
@@ -2414,16 +2367,6 @@ export default function App() {
   useEffect(() => collapsedFocus.attach(), [collapsedFocus]);
 
   useEffect(() => {
-    const unlistenModePromise = listen<string>("floter://mode", (event) => {
-      if (event.payload === "collapsed") {
-        closeTerminalSession();
-        setQueryExitingPlugin("");
-        clearDrops();
-        setTerminalMounted(false);
-        setMode("collapsed");
-      }
-    });
-
     const unlistenRevealPromise = listen<string>("floter://revealed", (event) => {
       // R68 · one catalog refresh per reveal. A tool installed in the user's
       // own shell while the window was hidden must stop being offered as an
@@ -2543,7 +2486,6 @@ export default function App() {
     });
 
     return () => {
-      unlistenModePromise.then((unlisten) => unlisten());
       unlistenRevealPromise.then((unlisten) => unlisten());
     };
   }, []);
@@ -2656,11 +2598,11 @@ export default function App() {
     if (!hideOnBlurApplies(getCurrentWindow().label, settings.hide_on_blur)) return;
 
     const currentWindow = getCurrentWindow();
-    let mounted = true;
+    let disposed = false;
     let unlisten: (() => void) | undefined;
 
     currentWindow.onFocusChanged(({ payload: focused }) => {
-      if (!mounted) return;
+      if (disposed) return;
       if (focused) {
         windowFocusedRef.current = true;
         if (mode === "collapsed") {
@@ -2688,11 +2630,15 @@ export default function App() {
       }
       invoke("hide_window");
     }).then((dispose) => {
-      unlisten = dispose;
+      // The promise may resolve after the effect has already been torn down
+      // (a mode or setting change re-runs it): registering the disposer then
+      // would leave the listener attached forever, so dispose immediately.
+      if (disposed) dispose();
+      else unlisten = dispose;
     });
 
     return () => {
-      mounted = false;
+      disposed = true;
       unlisten?.();
     };
   }, [mode, settings.hide_on_blur]);
@@ -2707,7 +2653,9 @@ export default function App() {
    */
   const beginDrag = useCallback(() => {
     if (!IS_WINDOWS) {
-      void invoke("start_drag");
+      // A failed drag is silent on both platforms: there is no drag surface to
+      // report on, and the Windows branch below has always swallowed it.
+      void invoke("start_drag").catch(() => undefined);
       return;
     }
     // `start_dragging()` on Windows opens a modal move loop the webview spends
@@ -3060,13 +3008,6 @@ export default function App() {
               : appsLoading && !applications.length
                 ? t("input.scanning")
                 : t("input.placeholder");
-
-    // TEMPORARY DEV PROBE (remove)
-    probeStateRef.current = `view=${
-      pluginView
-        ? `${pluginView.form}:${pluginView.form === "list" ? pluginView.items.length : pluginView.metrics.lines}`
-        : "null"
-    } scope=${launcherScope} h=${launcherHeight} rows=${launcherListRows} range=${visibleResultRange.start}-${visibleResultRange.end} slots=${displayedShortcutSlots.map((slot) => slot ?? "-").join("")}`;
 
     return (
       <>
