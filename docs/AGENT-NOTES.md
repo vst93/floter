@@ -136,3 +136,9 @@ R111 只读普查了生产代码的 panic 面（10 处），结论是全部落�
    `clippy::unreachable` 在 `src-tauri/src/commands/*` 上的命中是 `tauri-macros`
    `wrapper.rs:221-229` 里 `if false` 类型检查宏的 span 错位，不是本仓代码，别照着它改。
    源码级守卫：`tests/r112-panic-surface.test.ts`（同步链唯一 abort 点零出现 + 本节锚点在场）。
+
+## 事件契约：两端成对（R121）
+
+事件必须两端成对：删前端订阅时同步删后端 emit；新事件先有订阅方再发。`extensions-changed`
+曾 5 发 0 收（前端靠 invoke 返回值刷新，R121 删，git 历史 `6ff82aa..`）。源码级守卫：
+`tests/r121-dead-event.test.ts`（被禁字面在 `src-tauri/src` 零出现 + 真实事件仍在）。

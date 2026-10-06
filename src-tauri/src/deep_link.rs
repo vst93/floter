@@ -829,9 +829,6 @@ fn register(app: &AppHandle, request: CommandRequest, delivery: Delivery) {
             entry.id,
             permission_disclosure()
         );
-        // Same event as every other mutating extension command, so a window
-        // that is already showing the list refreshes instead of going stale.
-        let _ = app.emit("extensions-changed", ());
     }
     if let Some(reason) = resolved.bind_error.as_deref() {
         tracing::warn!("register could not connect {}: {reason}", request.command);

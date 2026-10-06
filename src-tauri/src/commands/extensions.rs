@@ -31,7 +31,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 /// Resolve a system entry's executable binding for the list view **without
@@ -1225,7 +1225,6 @@ pub async fn extensions_install(
     );
     let entry = result?;
     state.invalidate_provider_commands().await;
-    app.emit("extensions-changed", ()).ok();
     Ok(entry)
 }
 
@@ -1325,7 +1324,7 @@ pub fn extensions_tool_catalog() -> tool_catalog::ToolCatalogReport {
 /// supported and is still validated exactly ([`install::validate_tool_binding_approval`]).
 #[tauri::command]
 pub async fn extensions_connect_tool(
-    app: AppHandle,
+    _app: AppHandle,
     state: State<'_, ExtensionState>,
     candidate: ToolCandidate,
     approved_permissions: Option<Vec<crate::extensions::manifest::Permission>>,
@@ -1337,10 +1336,6 @@ pub async fn extensions_connect_tool(
     install::validate_tool_binding_approval(&approved)?;
     let entry = install::connect_tool(&state, candidate).await?;
     state.invalidate_provider_commands().await;
-    // Same event as every other mutating extension command: the panel's list is
-    // refreshed by whoever is listening, so a connect that skipped this would
-    // leave a second window (or the settings card) showing the old list.
-    app.emit("extensions-changed", ()).ok();
     Ok(entry)
 }
 
@@ -1890,7 +1885,6 @@ pub async fn extensions_uninstall(
     );
     result?;
     state.invalidate_provider_commands().await;
-    app.emit("extensions-changed", ()).ok();
     Ok(())
 }
 
@@ -1931,7 +1925,6 @@ pub async fn extensions_uninstall_componentized(
     );
     let uninstall_result = result?;
     state.invalidate_provider_commands().await;
-    app.emit("extensions-changed", ()).ok();
     Ok(uninstall_result)
 }
 
