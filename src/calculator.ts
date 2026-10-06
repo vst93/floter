@@ -8,18 +8,22 @@
 // `plugins/calculator/mode.ts`, on top of this module, exactly as the
 // clipboard's do.
 //
-// ## Why `expr-eval`
+// ## Why a mature evaluator core
 //
 // The user asked for a mature open-source evaluation core rather than a
-// hand-written parser (「核心逻辑和计算逻辑最好复用成熟的开源包」). `expr-eval`
-// is a small, dependency-free, pure-JS expression evaluator: four rules, powers,
-// parentheses, factorials and the usual `sqrt`/`sin`/`cos`/`log`/`abs` family,
-// with `PI`/`E` constants. It ships no transitive dependencies and no I/O.
+// hand-written parser (「核心逻辑和计算逻辑最好复用成熟的开源包」). `expr-eval-fork`
+// is the maintained continuation of that same small, dependency-free, pure-JS
+// expression evaluator: four rules, powers, parentheses, factorials and the
+// usual `sqrt`/`sin`/`cos`/`log`/`abs` family, with `PI`/`E` constants. It still
+// ships no transitive dependencies and no I/O — R107 confirmed `npm ls` prints
+// only its own line.
 //
-// Its published advisories concern callers that hand *attacker-controlled*
-// scopes or functions to `evaluate` (and the `toJSFunction` code-generator,
-// which this module never touches). This module closes that door by
-// construction:
+// Upstream 2.0.2 carried three advisories — member access, function construction
+// and the `toJSFunction` code-generator, which this module never touches — and
+// fork 3.0.3 fixes all three. The construction-level mitigation below is
+// unchanged: closing the door on attacker-controlled scopes or functions never
+// depended on an upstream patch, so it remains as defence in depth. This module
+// closes that door by construction:
 //
 //   · a **hardened parser instance** with member access and the assignment /
 //     function-definition / comparison / logical / concatenation / random
@@ -102,8 +106,9 @@ export const CALCULATOR_MAX_EXPRESSION_LENGTH = 256;
  * instance holds no per-expression state, because every writing operator is
  * off and `evaluate` is called with no scope.
  *
- * Exported so `tests/r50-calculator.test.ts` can pin the mitigation directly:
- * expr-eval has no fixed release, so this configuration *is* the defence and a
+ * Exported so `tests/r50-calculator.test.ts` can pin the mitigation directly.
+ * Fork 3.0.3 has fixed the upstream advisories, so this configuration is
+ * defence in depth rather than the whole of it — but it is pinned, and a
  * refactor that quietly relaxes it must turn a test red.
  */
 export const hardenedParser = new Parser({

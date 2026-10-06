@@ -105,3 +105,36 @@ test("this guard assembles the retired name, it does not spell it out", async ()
     "the guard must build the retired name from parts, not write it as a literal",
   );
 });
+
+test("the retired upstream's stale claims are not re-planted", async () => {
+  // R107 replaced the package, but the prose it left behind in
+  // `src/calculator.ts` and `tests/r50-calculator.test.ts` still argued from
+  // "upstream never shipped a fix". That reasoning is retired: the fork fixes
+  // the advisories, and the mitigation stands as defence in depth. The claims
+  // below are assembled from parts on purpose — the scan includes this file, so
+  // a complete literal here would make the guard fail on itself, the same
+  // self-poisoning shape as the test above and
+  // `tests/r106-retired-dependencies.test.ts`.
+  const STALE_CLAIMS = [
+    "ships no" + " fix",
+    "no fixed " + "release",
+    "locked at 2." + "0.2",
+  ];
+  // The comments are *not* stripped: the stale claims lived in prose, so a scan
+  // of code alone would miss exactly the text this guard exists to ban.
+  const SOURCES: Array<[string, URL]> = [
+    ["src/calculator.ts", new URL("src/calculator.ts", root)],
+    ["tests/r50-calculator.test.ts", new URL("tests/r50-calculator.test.ts", root)],
+    ["this guard", new URL(import.meta.url)],
+  ];
+
+  for (const [label, url] of SOURCES) {
+    const raw = await readFile(url, "utf8");
+    for (const claim of STALE_CLAIMS) {
+      assert.ok(
+        !raw.includes(claim),
+        `${label} repeats "${claim}" — the retired upstream's stale claims must not be re-planted`,
+      );
+    }
+  }
+});
