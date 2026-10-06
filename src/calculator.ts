@@ -46,7 +46,7 @@
 // shrunk below; the point is that the *policy* is here and testable, not
 // scattered through a renderer.
 
-import { Parser } from "expr-eval";
+import { Parser } from "expr-eval-fork";
 import type { MessageKey } from "./i18n.ts";
 
 // ── the result printing policy ──────────────────────────────────────────────
