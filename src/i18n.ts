@@ -781,6 +781,14 @@ const en = {
   "settings.extensions.errorCode.identity-mismatch": "Provider identity mismatch",
   "settings.extensions.errorCode.manifest-missing": "Manifest missing or invalid",
   "settings.extensions.errorCode.invalid-descriptor": "Invalid provider descriptor",
+  // R125 · the five codes `classify_verify_error` writes into the lock file
+  // (install.rs) beyond the ProviderErrorCode set above. Same shape as the
+  // rest: a short noun phrase, no full stop.
+  "settings.extensions.errorCode.integrity-mismatch": "Integrity check failed",
+  "settings.extensions.errorCode.runtime-unavailable": "Runtime unavailable",
+  "settings.extensions.errorCode.manifest-unreadable": "Manifest unreadable",
+  "settings.extensions.errorCode.provider-failed": "Provider failed",
+  "settings.extensions.errorCode.verification-failed": "Verification failed",
   // R11 · the binding-failure *detail* sentence. The backend records the fact
   // as a keyed payload (`binding-changed:{"path":…}`); these are the words.
   "settings.extensions.bindingChangedDetail": "Executable changed: {path} — possibly a tool upgrade; click Re-check to recover",
@@ -1607,6 +1615,11 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.errorCode.identity-mismatch": "Provider 身份不匹配",
   "settings.extensions.errorCode.manifest-missing": "清单缺失或无效",
   "settings.extensions.errorCode.invalid-descriptor": "Provider 描述符无效",
+  "settings.extensions.errorCode.integrity-mismatch": "完整性校验未通过",
+  "settings.extensions.errorCode.runtime-unavailable": "运行时不可用",
+  "settings.extensions.errorCode.manifest-unreadable": "清单无法读取",
+  "settings.extensions.errorCode.provider-failed": "提供方执行失败",
+  "settings.extensions.errorCode.verification-failed": "校验失败",
   "settings.extensions.bindingChangedDetail": "可执行文件已变更：{path}（可能是工具升级所致，点「重新检测」即可恢复）",
   "settings.extensions.bindingMissingDetail": "可执行文件不存在：{path}",
   "notification.title": "floter",
