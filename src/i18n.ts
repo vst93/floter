@@ -196,6 +196,11 @@ const en = {
   "settings.quitHint": "Exit the application completely",
   "settings.saveFailed": "Changes could not be applied. Check your settings and try again.",
   "settings.loadFailed": "Settings could not be loaded. Changes are paused to protect your saved configuration.",
+  // R126 · the plugin configuration overlay's read-failure caption. Same shape
+  // as `settings.loadFailed`, scoped to one plugin's block: the overlay shows
+  // it and refuses to persist until a reload succeeds, so a read that failed
+  // cannot be papered over by the next edit.
+  "settings.pluginConfigLoadFailed": "This plugin's saved configuration could not be read. Changes are paused to protect it.",
   "settings.page.general": "Appearance, startup and how the windows behave.",
   "settings.page.sessions": "Terminal sessions still running in the background.",
   "settings.page.shortcuts": "Every global shortcut floter answers.",
@@ -1046,6 +1051,7 @@ const zh: Record<MessageKey, string> = {
   "settings.quitHint": "完全退出应用程序",
   "settings.saveFailed": "无法应用更改，请检查设置后重试。",
   "settings.loadFailed": "设置加载失败。为保护已有配置，新的更改已暂停保存。",
+  "settings.pluginConfigLoadFailed": "无法读取该插件已保存的配置。为保护现有配置，更改已暂停保存。",
   "settings.page.general": "外观、启动方式与窗口行为。",
   "settings.page.sessions": "仍在后台运行的终端会话。",
   "settings.page.shortcuts": "floter 响应的全部全局快捷键。",

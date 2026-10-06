@@ -54,13 +54,15 @@ const INSTALL_SITES: number[] = [];
 const RUN_SITES: number[] = [];
 // 12 − 5 B = 7 survivors: 4 C + 3 D. The C/D sites carry the exemption comment
 // asserted below; no B site stages here any more. (R121 deleted four emits above
-// these lines, so every pin here moved up by 7 from the R118 numbering.)
-const COMMANDS_SITES = [2791, 2884, 2959, 3049, 3117, 3287, 3846];
+// these lines, so every pin here moved up by 7 from the R118 numbering; R126
+// grew the connect-package picker above them by 24 lines, moving every pin here
+// down by 24 from the R121 numbering.)
+const COMMANDS_SITES = [2815, 2908, 2983, 3073, 3141, 3311, 3870];
 // The B-class upgrade path: one `link_fixture` call per former B site in
-// install.rs, and per former B site plus the `:3512` rebuild rewrite in
+// install.rs, and per former B site plus the `:3536` rebuild rewrite in
 // commands/extensions.rs (which may no longer write through the link).
 const INSTALL_LINK_SITES = [3351, 3392, 3972, 4020, 4072, 4108, 4202, 4250, 4388, 4533];
-const COMMANDS_LINK_SITES = [3165, 3518, 3607, 3655, 3744, 3779];
+const COMMANDS_LINK_SITES = [3189, 3542, 3631, 3679, 3768, 3803];
 // The A-class targets: five new fixtures (same bytes, basename-load-bearing)
 // plus the external-tool fixture that replaced the last run-time `fs::write`.
 const SH = "." + "sh";

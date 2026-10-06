@@ -62,7 +62,11 @@ const loadPluginValues = async (
   clipboardEnabled: boolean,
 ): Promise<Record<string, PluginConfigValue>> => {
   if (pluginId === CLIPBOARD_PLUGIN_ID) {
-    const block = await invoke<unknown>("clipboard_get_settings").catch(() => null);
+    // R126 · the read is not swallowed here any more. A failed `get_settings`
+    // has to reach the caller's `catch`, which pauses persistence; turning it
+    // into `null` here would silently paint defaults and the next edit would
+    // write them over the real block.
+    const block = await invoke<unknown>("clipboard_get_settings");
     const schema = pluginConfigSchema(CLIPBOARD_PLUGIN_ID)!;
     return configValues(schema, {
       enabled: clipboardEnabled,
@@ -70,7 +74,7 @@ const loadPluginValues = async (
     });
   }
   if (pluginId === CALCULATOR_PLUGIN_ID) {
-    const block = await invoke<unknown>("calculator_get_settings").catch(() => null);
+    const block = await invoke<unknown>("calculator_get_settings");
     const schema = pluginConfigSchema(CALCULATOR_PLUGIN_ID)!;
     const settings = normalizeCalculatorSettings(block);
     return configValues(schema, {
@@ -81,7 +85,7 @@ const loadPluginValues = async (
       copy_mode: settings.copy_mode,
     });
   }
-  const block = await invoke<unknown>("browser_get_settings").catch(() => null);
+  const block = await invoke<unknown>("browser_get_settings");
   const schema = pluginConfigSchema(BROWSER_PLUGIN_ID)!;
   return configValues(schema, normalizeBrowserSettings(block) as unknown as Record<string, unknown>);
 };
@@ -105,6 +109,11 @@ export function PluginConfigOverlay({
   // and holds it until the next change, so a control can never look saved when
   // it is not.
   const [persistFailed, setPersistFailed] = useState(false);
+  // R126 · the stored block could not be read. The overlay paints the defaults
+  // it starts with, but refuses to persist and says so, so a failed read plus
+  // one edit cannot overwrite the real configuration (R113 only treated the
+  // write path). Cleared by a read that answers.
+  const [loadFailed, setLoadFailed] = useState(false);
   // The values as the backend last confirmed them; a change that fails to write
   // rolls the control back to this snapshot.
   const committed = useRef<Record<string, PluginConfigValue>>(values);
@@ -139,12 +148,22 @@ export function PluginConfigOverlay({
     loadPluginValues(pluginId, clipboardEnabled)
       .then((loaded) => {
         if (cancelled) return;
+        // R126 · a read that answered clears both failure lines: the pause a
+        // previous failure set, and a write line left over from it.
+        setLoadFailed(false);
+        setPersistFailed(false);
         // The discovered-target fetch may have landed first; keep the schema
         // it produced by loading values through the same schema the render uses.
         setValues(configValues(schema, loaded));
         committed.current = configValues(schema, loaded);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // R126 · a failed read is not a set of defaults. Keep the painted
+        // values untouched, report it, and let `persist` refuse until a reload
+        // succeeds — otherwise the next edit would write defaults over the
+        // real block.
+        if (!cancelled) setLoadFailed(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -154,6 +173,10 @@ export function PluginConfigOverlay({
 
   const persist = useCallback(
     async (next: Record<string, PluginConfigValue>): Promise<boolean> => {
+      // R126 · while the stored block could not be read, a write would replace
+      // it with values the overlay never confirmed. Refuse, the same way R113
+      // refuses a write the backend rejected.
+      if (loadFailed) return false;
       if (pluginId === CLIPBOARD_PLUGIN_ID) {
         onChangeGeneralSetting("clipboard_history_enabled", next.enabled === true);
         return writeConfigChange(() =>
@@ -199,7 +222,7 @@ export function PluginConfigOverlay({
         }),
       );
     },
-    [pluginId, onChangeGeneralSetting, onBrowserSettingsChange, onCalculatorSettingsChange],
+    [pluginId, loadFailed, onChangeGeneralSetting, onBrowserSettingsChange, onCalculatorSettingsChange],
   );
 
   const handleChange = useCallback(
@@ -277,10 +300,12 @@ export function PluginConfigOverlay({
         {/* R113 · the refused write's one line, the overlay's own failure
             caption (R38's action status). The launcher's feedback row is
             deliberately not used: it renders in the branch the overlay
-            replaces, so it is not visible while the overlay is open. */}
-        {persistFailed && (
+            replaces, so it is not visible while the overlay is open. R126 ·
+            a failed *read* takes the line instead: persistence is paused, so
+            a write failure cannot be the more useful message. */}
+        {(loadFailed || persistFailed) && (
           <span className="plugin-config-action__status" role="status">
-            {t("settings.saveFailed")}
+            {t(loadFailed ? "settings.pluginConfigLoadFailed" : "settings.saveFailed")}
           </span>
         )}
         {sections.map((section, index) => (

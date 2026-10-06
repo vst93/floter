@@ -1368,13 +1368,37 @@ pub async fn extensions_pick_local_package(
     app: AppHandle,
     state: State<'_, ExtensionState>,
 ) -> Result<Option<String>, String> {
+    // R126 · the same-file bilingual precedent as the import permission review
+    // below (`extensions_import`): the picker's title, prompt and both buttons
+    // follow the UI language instead of shipping English to a Chinese session.
+    // The command takes no `locale` argument (its frontend caller passes none),
+    // so the language is read the way the rest of the backend reads it.
+    let is_zh = crate::commands::config::load_settings()
+        .language
+        .to_ascii_lowercase()
+        .starts_with("zh");
+    let (title, message, approve, cancel) = if is_zh {
+        (
+            "连接扩展包",
+            "选择一个包文件夹（确定）或一个 floter.extension.json 文件（取消）。",
+            "选择文件夹",
+            "选择文件",
+        )
+    } else {
+        (
+            "Connect extension package",
+            "Choose a package folder (OK) or a floter.extension.json file (Cancel).",
+            "Choose folder",
+            "Choose file",
+        )
+    };
     let (sender, receiver) = tokio::sync::oneshot::channel();
     app.dialog()
-        .message("Choose a package folder (OK) or a floter.extension.json file (Cancel).")
-        .title("Connect extension package")
+        .message(message)
+        .title(title)
         .buttons(MessageDialogButtons::OkCancelCustom(
-            "Choose folder".to_string(),
-            "Choose file".to_string(),
+            approve.to_string(),
+            cancel.to_string(),
         ))
         .show(move |folder| {
             let _ = sender.send(folder);
