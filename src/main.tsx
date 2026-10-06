@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./App";
 import DetachedPluginApp from "./plugin-window/DetachedPluginApp";
 import { isPluginWindowLabel } from "./plugin-window/detach";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // R84 · one bundle, two kinds of window. The launcher card (`main`) keeps the
 // whole App; a detached plugin window (`plugin-detached`, `plugin-detached-2`,
@@ -13,7 +14,12 @@ import { isPluginWindowLabel } from "./plugin-window/detach";
 // plugin-window.test.ts and the capability file).
 const label = getCurrentWindow().label;
 
+// R113 · one boundary at the one mount point. A render-time throw in either
+// window kind lands on the fallback row instead of a blank window; the retry
+// re-renders the same subtree. See `components/ErrorBoundary.tsx`.
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  isPluginWindowLabel(label) ? <DetachedPluginApp /> : <App />,
+  <ErrorBoundary>
+    {isPluginWindowLabel(label) ? <DetachedPluginApp /> : <App />}
+  </ErrorBoundary>,
 );
 

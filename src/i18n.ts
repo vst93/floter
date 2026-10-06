@@ -854,6 +854,11 @@ const en = {
   "plugins.config.calculatorCopyModeHint": "What a history row puts on the clipboard",
   "plugins.config.calculatorCopyFull": "Expression and result",
   "plugins.config.calculatorCopyResult": "Result only",
+  // R113 · the root render backstop's one line and its retry. The launcher's
+  // error-row language, kept to two keys: what happened, and the verb that
+  // re-renders the subtree. No panel and no reload.
+  "render.failed": "The interface hit a problem",
+  "render.retry": "Retry",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -1660,6 +1665,8 @@ const zh: Record<MessageKey, string> = {
   "plugins.config.calculatorCopyModeHint": "回车历史记录时复制的内容",
   "plugins.config.calculatorCopyFull": "表达式与结果",
   "plugins.config.calculatorCopyResult": "仅结果",
+  "render.failed": "界面遇到一个问题",
+  "render.retry": "重试",
 };
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, zh };

@@ -30,6 +30,7 @@ import {
   type PluginConfigValue,
 } from "./config-schema";
 import { PluginConfigRow } from "./controls";
+import { configChangeOutcome, writeConfigChange } from "./config-persist";
 import { SettingsCard } from "../settings/SettingsRows";
 
 export type PluginConfigOverlayProps = {
@@ -100,6 +101,10 @@ export function PluginConfigOverlay({
   const [values, setValues] = useState<Record<string, PluginConfigValue>>(() =>
     schema ? configDefaults(schema) : {},
   );
+  // R113 · a write the backend refused. The overlay prints one failure line
+  // and holds it until the next change, so a control can never look saved when
+  // it is not.
+  const [persistFailed, setPersistFailed] = useState(false);
   // The values as the backend last confirmed them; a change that fails to write
   // rolls the control back to this snapshot.
   const committed = useRef<Record<string, PluginConfigValue>>(values);
@@ -148,49 +153,51 @@ export function PluginConfigOverlay({
   }, [pluginId, schema, clipboardEnabled]);
 
   const persist = useCallback(
-    async (next: Record<string, PluginConfigValue>) => {
+    async (next: Record<string, PluginConfigValue>): Promise<boolean> => {
       if (pluginId === CLIPBOARD_PLUGIN_ID) {
         onChangeGeneralSetting("clipboard_history_enabled", next.enabled === true);
-        await invoke("clipboard_set_settings", {
-          settings: { max_items: Number(next.max_items) },
-        }).catch(() => undefined);
-        return;
+        return writeConfigChange(() =>
+          invoke("clipboard_set_settings", {
+            settings: { max_items: Number(next.max_items) },
+          }),
+        );
       }
       if (pluginId === CALCULATOR_PLUGIN_ID) {
-        await invoke("calculator_set_settings", {
-          settings: {
-            max_items: Number(next.max_items),
-            retention_days: Number(next.retention_days),
-            copy_mode: String(next.copy_mode ?? "full"),
-          },
-        })
-          .then((stored) => {
+        return writeConfigChange(() =>
+          invoke("calculator_set_settings", {
+            settings: {
+              max_items: Number(next.max_items),
+              retention_days: Number(next.retention_days),
+              copy_mode: String(next.copy_mode ?? "full"),
+            },
+          }).then((stored) => {
             // The backend has the last word on normalization; hand the launcher
             // the block it actually stored so the next `Enter` copies the right
-            // text without waiting for a settings reload.
+            // text without waiting for a settings reload. Only on success — a
+            // refused write must not overwrite the launcher's snapshot with a
+            // value that was never stored.
             onCalculatorSettingsChange?.(normalizeCalculatorSettings(stored));
-          })
-          .catch(() => undefined);
-        return;
+          }),
+        );
       }
-      await invoke("browser_set_settings", {
-        settings: {
-          enabled: next.enabled === true,
-          target: String(next.target ?? "auto"),
-          custom_base_dir: typeof next.custom_base_dir === "string" ? next.custom_base_dir : null,
-          history_days: Number(next.history_days),
-          cdp_enabled: next.cdp_enabled === true,
-          cdp_port: Number(next.cdp_port),
-          sort_order: String(next.sort_order ?? "relevance"),
-          search_fields: String(next.search_fields ?? "all"),
-        },
-      })
-        .then((stored) => {
-          // The backend has the last word on normalization; hand the launcher
-          // the block it actually stored so its next search uses it.
+      return writeConfigChange(() =>
+        invoke("browser_set_settings", {
+          settings: {
+            enabled: next.enabled === true,
+            target: String(next.target ?? "auto"),
+            custom_base_dir: typeof next.custom_base_dir === "string" ? next.custom_base_dir : null,
+            history_days: Number(next.history_days),
+            cdp_enabled: next.cdp_enabled === true,
+            cdp_port: Number(next.cdp_port),
+            sort_order: String(next.sort_order ?? "relevance"),
+            search_fields: String(next.search_fields ?? "all"),
+          },
+        }).then((stored) => {
+          // Same success-only hand-off as the calculator: the launcher's own
+          // snapshot follows the block the backend confirmed.
           onBrowserSettingsChange(normalizeBrowserSettings(stored));
-        })
-        .catch(() => undefined);
+        }),
+      );
     },
     [pluginId, onChangeGeneralSetting, onBrowserSettingsChange, onCalculatorSettingsChange],
   );
@@ -199,12 +206,23 @@ export function PluginConfigOverlay({
     (key: string, raw: unknown) => {
       if (!schema) return;
       const next = applyConfigChange(schema, valuesRef.current, key, raw);
-      // The control paints immediately; the write is fire-and-forget and the
-      // committed snapshot advances only once the backend has accepted it.
+      // The control paints immediately; the write answers later, and only an
+      // accepted write advances the committed snapshot (R29's optimistic
+      // paint). R113 · a refused write rolls the control back to the last value
+      // the backend confirmed and reports it, instead of silently keeping a
+      // value that was never stored.
       valuesRef.current = next;
       setValues(next);
-      void persist(next).then(() => {
-        committed.current = next;
+      setPersistFailed(false);
+      void persist(next).then((accepted) => {
+        const outcome = configChangeOutcome(next, committed.current, accepted);
+        if (outcome.kind === "commit") {
+          committed.current = outcome.committed;
+          return;
+        }
+        valuesRef.current = outcome.values;
+        setValues(outcome.values);
+        setPersistFailed(true);
       });
     },
     [schema, persist],
@@ -256,6 +274,15 @@ export function PluginConfigOverlay({
             title and its fields. */}
       </div>
       <div className="plugin-config__fields">
+        {/* R113 · the refused write's one line, the overlay's own failure
+            caption (R38's action status). The launcher's feedback row is
+            deliberately not used: it renders in the branch the overlay
+            replaces, so it is not visible while the overlay is open. */}
+        {persistFailed && (
+          <span className="plugin-config-action__status" role="status">
+            {t("settings.saveFailed")}
+          </span>
+        )}
         {sections.map((section, index) => (
           <section
             className="plugin-config__section"
