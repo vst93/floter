@@ -53,7 +53,7 @@ anyhow = "1"
 # from source instead of linking the system library, which keeps the schema
 # reader identical on every platform we ship and avoids the version skew
 # between a distro's sqlite and the file the browser wrote.
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 crossterm = "0.28"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "query", "rustls"] }
 semver = { version = "1.0.28", features = ["serde"] }
