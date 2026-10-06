@@ -1041,7 +1041,7 @@ pub async fn extensions_export(
         });
     let selection = receiver
         .await
-        .map_err(|_| "Extension export picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.export".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };
@@ -1072,7 +1072,7 @@ pub async fn extensions_import(
         });
     let selection = receiver
         .await
-        .map_err(|_| "Extension import picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.import".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };
@@ -1350,7 +1350,7 @@ pub async fn extensions_pick_local_manifest(app: AppHandle) -> Result<Option<Str
         });
     let selection = receiver
         .await
-        .map_err(|_| "Local manifest picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.localManifest".to_string())?;
     selection
         .map(|path| {
             path.into_path()
@@ -1512,7 +1512,7 @@ pub async fn extensions_custom_export_script(
         });
     let selection = receiver
         .await
-        .map_err(|_| "Script export picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.scriptExport".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };
@@ -2500,7 +2500,7 @@ pub async fn extensions_config_export(
         });
     let selection = receiver
         .await
-        .map_err(|_| "Configuration export picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.configurationExport".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };

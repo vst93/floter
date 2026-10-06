@@ -404,7 +404,10 @@ pub fn application_icon(
 pub fn open_application(path: String) -> Result<(), String> {
     let path = PathBuf::from(path);
     if !path.exists() {
-        return Err("Application not found".to_string());
+        return Err(format!(
+            "Application not found: {path}",
+            path = path.display()
+        ));
     }
     platform::open(&path)
 }

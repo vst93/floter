@@ -1191,7 +1191,7 @@ fn merge_frontend_settings(mut submitted: AppSettings, stored: &AppSettings) -> 
 fn settings_lock() -> Result<std::sync::MutexGuard<'static, ()>, String> {
     SETTINGS_LOCK
         .lock()
-        .map_err(|_| "Settings lock is poisoned".to_string())
+        .map_err(|error| format!("Settings lock is poisoned: {error}"))
 }
 
 fn modifier_name(value: &str) -> Option<&'static str> {

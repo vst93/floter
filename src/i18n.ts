@@ -798,6 +798,16 @@ const en = {
   // as a keyed payload (`binding-changed:{"path":…}`); these are the words.
   "settings.extensions.bindingChangedDetail": "Executable changed: {path} — possibly a tool upgrade; click Re-check to recover",
   "settings.extensions.bindingMissingDetail": "Executable not found: {path}",
+  // R127 · the picker-closed family. When a native file picker's channel drops,
+  // `commands/extensions.rs` sends one of these keys rather than a sentence, so
+  // the panel says it in the session's language (`isMessageKey` gates the
+  // translation; an unknown string stays raw). The English values are the
+  // sentences that used to be hardcoded there.
+  "settings.extensions.pickerClosed.export": "Extension export picker closed unexpectedly",
+  "settings.extensions.pickerClosed.import": "Extension import picker closed unexpectedly",
+  "settings.extensions.pickerClosed.localManifest": "Local manifest picker closed unexpectedly",
+  "settings.extensions.pickerClosed.scriptExport": "Script export picker closed unexpectedly",
+  "settings.extensions.pickerClosed.configurationExport": "Configuration export picker closed unexpectedly",
   // R7-10b · the system-notification copy. A notification is OS chrome, so it
   // is not part of any in-app surface — but its words are still the app's
   // words, and they live here so both languages sit side by side and a key
@@ -1628,6 +1638,12 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.errorCode.verification-failed": "校验失败",
   "settings.extensions.bindingChangedDetail": "可执行文件已变更：{path}（可能是工具升级所致，点「重新检测」即可恢复）",
   "settings.extensions.bindingMissingDetail": "可执行文件不存在：{path}",
+  // R127 · 选择器通道断开：动词 + 宾语 + 简短原因
+  "settings.extensions.pickerClosed.export": "导出扩展时文件选择器意外关闭",
+  "settings.extensions.pickerClosed.import": "导入扩展时文件选择器意外关闭",
+  "settings.extensions.pickerClosed.localManifest": "选择本地清单时文件选择器意外关闭",
+  "settings.extensions.pickerClosed.scriptExport": "导出脚本时文件选择器意外关闭",
+  "settings.extensions.pickerClosed.configurationExport": "导出配置时文件选择器意外关闭",
   "notification.title": "floter",
   "notification.install.success": "{name} 已安装",
   "notification.install.failure": "{name} 安装失败",

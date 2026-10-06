@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { OverflowMenu } from "./components/OverflowMenu";
 import type { DeepLinkRegisterRequest } from "./deep-link";
-import type { Translate } from "./i18n";
+import { isMessageKey, type Translate } from "./i18n";
 import type { CommandAliases } from "./command-aliases";
 import { resolveCommandAliases } from "./command-aliases";
 import {
@@ -662,8 +662,14 @@ export type InstallRequest = {
   approvedPermissions?: PermissionName[];
 };
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+const errorMessage = (error: unknown, t?: Translate): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  // R127 · the picker-closed family arrives from the backend as a dictionary
+  // key (`settings.extensions.pickerClosed.*`), not a sentence — the host owns
+  // the words, the same contract `floter://` refusals use. Anything else is
+  // already a message and passes through untouched.
+  return t && isMessageKey(message) ? t(message) : message;
+};
 
 const localErrorMessage = (error: unknown, t: Translate): string => {
   const message = errorMessage(error);
@@ -1170,7 +1176,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
         showSuccess(t("settings.extensions.exportedNotice", { count: result.extensionCount }));
       }
     } catch (nextError) {
-      showError(errorMessage(nextError));
+      showError(errorMessage(nextError, t));
     } finally {
       setSyncOperation(null);
     }
@@ -1187,7 +1193,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
         await refreshAfterMutation();
       }
     } catch (nextError) {
-      showError(errorMessage(nextError));
+      showError(errorMessage(nextError, t));
     } finally {
       setSyncOperation(null);
     }
@@ -1900,7 +1906,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       const path = await invoke<string | null>("extensions_custom_export_script", { id: editingCustomId ?? customIntegration.command, content: customIntegration.scriptContent, extension });
       if (path) showSuccess(t("settings.extensions.customScriptExported"));
     } catch (nextError) {
-      setCustomIntegrationError(errorMessage(nextError));
+      setCustomIntegrationError(errorMessage(nextError, t));
     } finally {
       setCustomContentOperation(null);
     }
@@ -1986,7 +1992,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
         showSuccess(t("settings.extensions.configExported"));
       }
     } catch (nextError) {
-      const message = errorMessage(nextError);
+      const message = errorMessage(nextError, t);
       setDetailError(message);
       showError(message);
     } finally {

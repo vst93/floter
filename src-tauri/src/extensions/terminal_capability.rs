@@ -472,7 +472,10 @@ mod tests {
 
         fn write(&self, data: &[u8]) -> Result<(), String> {
             if self.fail_write {
-                return Err("write failed".to_string());
+                return Err(format!(
+                    "write failed: {bytes} bytes rejected",
+                    bytes = data.len()
+                ));
             }
             if let Some(chunks) = self.script.get(data) {
                 self.pending.borrow_mut().extend(chunks.iter().cloned());
@@ -483,7 +486,10 @@ mod tests {
 
         fn read(&self, buf: &mut [u8], _timeout: Duration) -> Result<usize, String> {
             if self.fail_read {
-                return Err("read failed".to_string());
+                return Err(format!(
+                    "read failed: {bytes} bytes unavailable",
+                    bytes = buf.len()
+                ));
             }
             match self.pending.borrow_mut().pop_front() {
                 Some(chunk) => {

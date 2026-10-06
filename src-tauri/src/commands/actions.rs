@@ -136,7 +136,7 @@ fn spawn_opener(target: impl AsRef<std::ffi::OsStr>) -> Result<(), String> {
 pub fn run_silent_command(command: String) -> Result<(), String> {
     let trimmed = command.trim();
     if trimmed.is_empty() {
-        return Err("Empty command".to_string());
+        return Err(format!("Empty command: {command:?}"));
     }
     #[cfg(unix)]
     {
@@ -169,10 +169,10 @@ pub fn run_silent_command(command: String) -> Result<(), String> {
 /// failure into the launcher's feedback line.
 #[tauri::command]
 pub fn system_spawn_detached(program: String, args: Vec<String>) -> Result<(), String> {
-    let program = program.trim();
-    if program.is_empty() {
-        return Err("Empty program".to_string());
+    if program.trim().is_empty() {
+        return Err(format!("Empty program: {program:?}"));
     }
+    let program = program.trim();
     crate::process_launch::spawn_application(program, &args).map(|_| ())
 }
 
