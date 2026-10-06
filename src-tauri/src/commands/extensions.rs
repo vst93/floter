@@ -2587,6 +2587,15 @@ mod tests {
     // copy on purpose (they rewrite a file the list path never execs), and the
     // node guard `tests/r117-fixture-hygiene.test.ts` pins them.
 
+    /// R118 · a committed fixture that `build.rs` pre-staged into
+    /// `OUT_DIR/fixtures/` (see `preset_test_fixtures`). The B-class tests here
+    /// point a symlink at it and "upgrade" by repointing the link, so the bytes
+    /// being exec'd were written once, at build time — never by the test.
+    #[cfg(unix)]
+    fn preset_fixture(name: &str) -> std::path::PathBuf {
+        Path::new(env!("OUT_DIR")).join("fixtures").join(name)
+    }
+
     /// R9-3 · the discovery suggestion row's key is *not* an extension id. It
     /// exists only to give an uninstalled suggestion a React key; a real id is
     /// minted by `install::create_custom_integration`. The `:` in the key makes
@@ -3160,7 +3169,10 @@ mod tests {
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        crate::extensions::test_support::link_fixture(
+            &preset_fixture("tool-exit-zero.sh"),
+            &executable,
+        );
 
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
@@ -3507,9 +3519,13 @@ mod tests {
             .fingerprint
             .clone();
 
-        // Upstream rebuild in place: the list reports Connected, drops the
-        // stale cache, and writes nothing.
-        std::fs::write(&fixture.executable, "#!/bin/sh\nprintf rebuilt\n").unwrap();
+        // Upstream rebuild: the executable path is repointed at another
+        // build-time preset, so the fingerprint moves while the path — and the
+        // bytes any earlier exec already saw — stay untouched.
+        crate::extensions::test_support::link_fixture(
+            &preset_fixture("tool-rebuilt.sh"),
+            &fixture.executable,
+        );
         let listed = list_item(&fixture.state, &fixture.entry.id).await;
         assert_eq!(listed.tool_lock_state, Some(LockState::Connected));
 
@@ -3595,7 +3611,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let scripts = tempfile::tempdir().unwrap();
         let executable = scripts.path().join("lister.sh");
-        crate::extensions::test_support::stage_fixture("lister-v1.sh", &executable);
+        crate::extensions::test_support::link_fixture(&preset_fixture("lister-v1.sh"), &executable);
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
@@ -3642,8 +3658,8 @@ mod tests {
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
 
-        // Upstream upgrade in place.
-        crate::extensions::test_support::stage_fixture("lister-v2.sh", &executable);
+        // Upstream upgrade: repoint the link at the v2 preset.
+        crate::extensions::test_support::link_fixture(&preset_fixture("lister-v2.sh"), &executable);
 
         // The listing returns the *previous* inventory without awaiting the
         // re-probe, and hands the drifted integration to the caller as a
@@ -3732,7 +3748,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let scripts = tempfile::tempdir().unwrap();
         let executable = scripts.path().join("lister.sh");
-        crate::extensions::test_support::stage_fixture("lister-v1.sh", &executable);
+        crate::extensions::test_support::link_fixture(&preset_fixture("lister-v1.sh"), &executable);
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
@@ -3766,8 +3782,8 @@ mod tests {
             tool_lock.bind(id, &candidate);
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
-        // Upstream upgrade in place, so the next listing finds drift.
-        crate::extensions::test_support::stage_fixture("lister-v2.sh", &executable);
+        // Upstream upgrade: repoint the link, so the next listing finds drift.
+        crate::extensions::test_support::link_fixture(&preset_fixture("lister-v2.sh"), &executable);
 
         // The gate starts clear.
         assert!(!super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire));

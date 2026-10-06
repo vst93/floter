@@ -1,15 +1,20 @@
-// R117 · `stage_fixture` census — the A-class migration left no run-time
-// staging behind, and the surviving call sites are pinned.
+// R118 · `stage_fixture` census, part two — the B-class migration.
 //
-// R116 classified the 41 remaining staging call sites into A (a fixed fixture
-// is exec'd and never rewritten → migrate to exec the committed fixture in
-// place), B (the test needs a per-test writable path: in-place upgrade, delete,
-// or two same-basename copies), C (rewritten but never exec'd) and D (never
-// exec'd). R117 migrated all 19 A sites, converged the two `stage_fixture`
-// bodies into one, and left B/C/D alone. This guard pins the survivors as exact
-// line lists: any new run-time staging call — or any moved one — must be
-// re-registered here first. B is out of scope this round, so its sites are
-// pinned by position only, never re-interpreted.
+// R116 classified the remaining staging call sites into A (a fixed fixture is
+// exec'd and never rewritten → exec the committed fixture in place), B (the
+// test needs a per-test writable path: in-place upgrade, delete, or two
+// same-basename copies), C (rewritten but never exec'd) and D (never exec'd).
+// R117 migrated the 19 A sites and pinned the survivors. R118 migrates the 15
+// B sites: `build.rs` now pre-stages every committed fixture into
+// `OUT_DIR/fixtures/`, and a B-class test points a **symlink** at one of those
+// presets and "upgrades" by repointing the link (an atomic rename of a fresh
+// link). No run-time write ever touches an inode a child may be about to exec,
+// which is the ETXTBSY window R114 measured.
+//
+// This guard pins both censuses by exact line list: any new run-time staging
+// call, any moved one, or any B-class site that slips back to a run-time write
+// must be re-registered here first. C and D stay out of scope — they stage a
+// writable copy the list path never execs — and are pinned by position only.
 //
 // Every banned/expected token is assembled from fragments so this guard does
 // not spell the very tokens it scans for — its own last test proves that.
@@ -23,11 +28,17 @@ const count = (haystack: string, needle: string) => haystack.split(needle).lengt
 
 const STAGE_FIXTURE = "stage_" + "fixture(";
 const STAGE_FIXTURE_DEF = "fn " + STAGE_FIXTURE;
+const LINK_FIXTURE = "link_" + "fixture(";
+const LINK_FIXTURE_DEF = "fn " + LINK_FIXTURE;
 const EXEMPTION = "R117 " + "exemption:";
+const OUT_DIR = "OUT_" + "DIR";
+const WRITE_THROUGH = "fs::write(&fixture." + "executable";
 
 const INSTALL = "src-tauri/src/extensions/install.rs";
 const RUN = "src-tauri/src/extensions/run.rs";
 const COMMANDS = "src-tauri/src/commands/extensions.rs";
+const BUILD = "src-tauri/build.rs";
+const MOD = "src-tauri/src/extensions/mod.rs";
 
 /** The 1-based line numbers carrying `needle`, in file order. */
 const sites = (source: string, needle: string) =>
@@ -35,26 +46,30 @@ const sites = (source: string, needle: string) =>
     .split("\n")
     .flatMap((line, index) => (line.includes(needle) ? [index + 1] : []));
 
-// Measured after the R117 landing (19 − 9 A = 10). Every survivor is B-class:
-// the test rewrites or deletes the staged inode (in-place upgrade / drift /
-// removal), which a single committed fixture cannot express.
-const INSTALL_SITES = [3342, 3380, 3960, 4005, 4054, 4087, 4178, 4225, 4360, 4505];
+// Measured after the R118 landing. R117 pinned 10 B-class survivors here; every
+// one now links a build-time preset instead, so the run-time staging list is
+// empty. A revival of any of them — or a new one — is a red guard.
+const INSTALL_SITES: number[] = [];
 // All nine run.rs sites were A-class, so none may stage at run time again.
 const RUN_SITES: number[] = [];
-// 13 − 1 A = 12 survivors: 5 B + 4 C + 3 D. The C/D sites carry the exemption
-// comment asserted below; the B sites are pinned by position only.
-const COMMANDS_SITES = [
-  2789, 2882, 2957, 3047, 3115, 3163, 3282, 3598, 3646, 3735, 3770, 3837,
-];
+// 12 − 5 B = 7 survivors: 4 C + 3 D. The C/D sites carry the exemption comment
+// asserted below; no B site stages here any more.
+const COMMANDS_SITES = [2798, 2891, 2966, 3056, 3124, 3294, 3853];
+// The B-class upgrade path: one `link_fixture` call per former B site in
+// install.rs, and per former B site plus the `:3512` rebuild rewrite in
+// commands/extensions.rs (which may no longer write through the link).
+const INSTALL_LINK_SITES = [3351, 3392, 3972, 4020, 4072, 4108, 4202, 4250, 4388, 4533];
+const COMMANDS_LINK_SITES = [3172, 3525, 3614, 3662, 3751, 3786];
 // The A-class targets: five new fixtures (same bytes, basename-load-bearing)
 // plus the external-tool fixture that replaced the last run-time `fs::write`.
 const SH = "." + "sh";
 const NEW_FIXTURES = ["findable", "mytool", "plain" + SH, "order" + SH, "term" + SH, "external-tool" + SH];
 
-test("install.rs stages only its registered B-class sites", async () => {
+test("install.rs stages nothing at run time: every B-class site links a preset", async () => {
   const source = await read(INSTALL);
   assert.ok(source.includes("mod tests"), "the guard must scan a live file");
   assert.deepEqual(sites(source, STAGE_FIXTURE), INSTALL_SITES);
+  assert.deepEqual(sites(source, LINK_FIXTURE), INSTALL_LINK_SITES);
 });
 
 test("run.rs stages nothing: every A-class site execs a committed fixture", async () => {
@@ -79,10 +94,11 @@ test("run.rs stages nothing: every A-class site execs a committed fixture", asyn
   }
 });
 
-test("commands/extensions.rs stages only its registered B/C/D sites", async () => {
+test("commands/extensions.rs stages only its registered C/D sites", async () => {
   const source = await read(COMMANDS);
   assert.ok(source.includes("mod tests"), "the guard must scan a live file");
   assert.deepEqual(sites(source, STAGE_FIXTURE), COMMANDS_SITES);
+  assert.deepEqual(sites(source, LINK_FIXTURE), COMMANDS_LINK_SITES);
 });
 
 test("the C/D exemptions are registered, one per non-B survivor", async () => {
@@ -98,6 +114,48 @@ test("the C/D exemptions are registered, one per non-B survivor", async () => {
   }
 });
 
+test("build.rs pre-stages the committed fixtures into OUT_DIR", async () => {
+  const source = await read(BUILD);
+  assert.ok(source.includes(OUT_DIR), "build.rs must resolve the crate's OUT_DIR");
+  assert.ok(source.includes("fixtures"), "the presets must live under a fixtures/ directory");
+  assert.ok(source.includes("rerun-if-changed"), "the presets must be re-staged when a fixture moves");
+  assert.ok(
+    source.includes("preset_test_fixtures"),
+    "the preset logic must be one named step, not inlined into main",
+  );
+});
+
+test("the two migrated files resolve their presets through OUT_DIR", async () => {
+  // The executable wiring lives in `test_support::link_fixture`; each file
+  // declares the preset root it links into, so a revert to a run-time copy has
+  // to delete a live OUT_DIR reference, not just move a call.
+  for (const path of [INSTALL, COMMANDS]) {
+    const source = await read(path);
+    assert.ok(source.includes(OUT_DIR), `${path} must resolve its presets from OUT_DIR`);
+  }
+});
+
+test("one link body survives, in extensions/mod.rs", async () => {
+  const canonical = await read(MOD);
+  assert.equal(count(canonical, LINK_FIXTURE_DEF), 1, "the shared link helper must exist once");
+  for (const path of [INSTALL, COMMANDS]) {
+    const source = await read(path);
+    assert.equal(count(source, LINK_FIXTURE_DEF), 0, `${path} must not re-define the helper`);
+  }
+});
+
+test("no B-class destination is the target of an fs::write", async () => {
+  // A symlinked destination points at a build-time preset shared by every test
+  // in the run: writing through it would corrupt that preset for everyone. The
+  // pre-R118 rebuild form (a direct `fs::write` onto the fixture link) is banned
+  // outright, so the write-through mutation is a red guard even though the
+  // write itself is otherwise invisible.
+  for (const path of [INSTALL, COMMANDS]) {
+    const source = await read(path);
+    assert.equal(count(source, WRITE_THROUGH), 0, `${path} must not write through a fixture link`);
+  }
+});
+
 test("the new fixtures are committed and executable", async () => {
   for (const name of NEW_FIXTURES) {
     const info = await stat(new URL("src-tauri/tests/fixtures/" + name, root));
@@ -107,7 +165,7 @@ test("the new fixtures are committed and executable", async () => {
 });
 
 test("one staging body survives, in extensions/mod.rs", async () => {
-  const canonical = await read("src-tauri/src/extensions/mod.rs");
+  const canonical = await read(MOD);
   assert.equal(count(canonical, STAGE_FIXTURE_DEF), 1, "the shared helper must exist once");
   const commands = await read(COMMANDS);
   assert.equal(count(commands, STAGE_FIXTURE_DEF), 0, "the local duplicate must be gone");
@@ -126,7 +184,7 @@ test("capability_probe and probe_runner keep zero run-time staging (R115 stays g
 
 test("this guard assembles its banned tokens, it does not spell them", async () => {
   const self = await read("tests/r117-fixture-hygiene.test.ts");
-  for (const token of [STAGE_FIXTURE, STAGE_FIXTURE_DEF, EXEMPTION]) {
+  for (const token of [STAGE_FIXTURE, STAGE_FIXTURE_DEF, LINK_FIXTURE, LINK_FIXTURE_DEF, EXEMPTION, WRITE_THROUGH]) {
     assert.ok(!self.includes(token), `the guard must not spell ${token}`);
   }
 });

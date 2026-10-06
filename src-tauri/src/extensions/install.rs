@@ -2893,6 +2893,15 @@ mod tests {
         ExtensionState::from_paths(ExtensionPaths::from_root(root.to_path_buf())).unwrap()
     }
 
+    /// R118 · a committed fixture that `build.rs` pre-staged into
+    /// `OUT_DIR/fixtures/` (see `preset_test_fixtures`). The B-class tests point
+    /// a symlink at it instead of copying it at run time, so no write fd ever
+    /// touches an inode a child process is about to exec.
+    #[cfg(unix)]
+    fn preset_fixture(name: &str) -> PathBuf {
+        Path::new(env!("OUT_DIR")).join("fixtures").join(name)
+    }
+
     fn journal_entry(state: &ExtensionState, version: &str) -> ExtensionLockEntry {
         let root = state
             .paths
@@ -3339,7 +3348,10 @@ mod tests {
         let first_bin = first;
         let second_bin = second.join("dup");
         for executable in [&first_bin, &second_bin] {
-            crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", executable);
+            crate::extensions::test_support::link_fixture(
+                &preset_fixture("tool-exit-zero.sh"),
+                executable,
+            );
         }
         let first_entry = connect_tool(&state, discovered_candidate(&first_bin, "Dup"))
             .await
@@ -3376,10 +3388,10 @@ mod tests {
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let executable = script_directory.path().join("drifting.sh");
-        let write = |fixture: &str| {
-            crate::extensions::test_support::stage_fixture(fixture, &executable);
+        let link = |fixture: &str| {
+            crate::extensions::test_support::link_fixture(&preset_fixture(fixture), &executable);
         };
-        write("drifting-v1.sh");
+        link("drifting-v1.sh");
 
         let entry = connect_tool(&state, discovered_candidate(&executable, "Drifting"))
             .await
@@ -3392,7 +3404,7 @@ mod tests {
         ));
 
         // Upstream upgrade: the same path now reports 2.0.0.
-        write("drifting-v2.sh");
+        link("drifting-v2.sh");
 
         let changed =
             reprobe_on_tool_version_change(&state, &entry, &manifest_of(&state, &entry.id)).await;
@@ -3957,7 +3969,10 @@ mod tests {
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("reprober.sh");
-            crate::extensions::test_support::stage_fixture("reprober-tool-v1.sh", &path);
+            crate::extensions::test_support::link_fixture(
+                &preset_fixture("reprober-tool-v1.sh"),
+                &path,
+            );
             path
         };
         create_custom_integration(
@@ -4002,7 +4017,10 @@ mod tests {
         );
 
         // The tool upgrade: its subcommand help now exposes an extra flag.
-        crate::extensions::test_support::stage_fixture("reprober-tool-v2.sh", &executable);
+        crate::extensions::test_support::link_fixture(
+            &preset_fixture("reprober-tool-v2.sh"),
+            &executable,
+        );
 
         let report = super::reprobe_tool_commands(&state, "local.reprober-test")
             .await
@@ -4051,7 +4069,10 @@ mod tests {
         let script_directory = tempfile::tempdir().unwrap();
         let executable = {
             let path = script_directory.path().join("enabler.sh");
-            crate::extensions::test_support::stage_fixture("enabler-tool-v1.sh", &path);
+            crate::extensions::test_support::link_fixture(
+                &preset_fixture("enabler-tool-v1.sh"),
+                &path,
+            );
             path
         };
         create_custom_integration(
@@ -4084,7 +4105,10 @@ mod tests {
             .join("provider-description.json");
 
         set_enabled_for_test(&state, "local.enabler-test", false).await;
-        crate::extensions::test_support::stage_fixture("enabler-tool-v2.sh", &executable);
+        crate::extensions::test_support::link_fixture(
+            &preset_fixture("enabler-tool-v2.sh"),
+            &executable,
+        );
         set_enabled_for_test(&state, "local.enabler-test", true).await;
         let entry = ExtensionsLock::load(&state.paths.repository_file)
             .unwrap()
@@ -4175,7 +4199,7 @@ mod tests {
             let state = test_state(directory.path());
             let script_directory = tempfile::tempdir().unwrap();
             let executable = script_directory.path().join(script);
-            crate::extensions::test_support::stage_fixture(fixture, &executable);
+            crate::extensions::test_support::link_fixture(&preset_fixture(fixture), &executable);
             create_custom_integration(
                 &state,
                 CustomIntegrationRequest {
@@ -4219,13 +4243,17 @@ mod tests {
             }
         }
 
-        /// Overwrite the bound executable with a committed payload — the
-        /// upstream upgrade the list must notice.
+        /// Point the bound executable at a committed payload — the upstream
+        /// upgrade the list must notice. The path is a symlink, so this is a
+        /// metadata-only repoint: the previous inode is never rewritten.
         fn upgrade_to(&self, fixture: &str) {
-            crate::extensions::test_support::stage_fixture(fixture, &self.executable);
+            crate::extensions::test_support::link_fixture(
+                &preset_fixture(fixture),
+                &self.executable,
+            );
         }
 
-        /// Overwrite the bound executable with the v2 payload (version 2.0.0,
+        /// Repoint the bound executable at the v2 payload (version 2.0.0,
         /// extra `-new` flag) — the upstream upgrade the list must notice.
         fn upgrade_to_v2(&self) {
             self.upgrade_to("drifter-v2.sh");
@@ -4357,8 +4385,8 @@ mod tests {
         // Upstream now reports 2.0.0 but its `--help` fails (non-zero, no
         // output): the file stays executable, so the version is still read and
         // the drift is detected — the re-probe itself is what fails.
-        crate::extensions::test_support::stage_fixture(
-            "drifter-failing-help.sh",
+        crate::extensions::test_support::link_fixture(
+            &preset_fixture("drifter-failing-help.sh"),
             &fixture.executable,
         );
 
@@ -4502,7 +4530,10 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         let executable = directory.path().join("verify-tool");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        crate::extensions::test_support::link_fixture(
+            &preset_fixture("tool-exit-zero.sh"),
+            &executable,
+        );
         let entry = create_custom_integration(
             &state,
             CustomIntegrationRequest {

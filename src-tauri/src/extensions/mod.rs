@@ -776,6 +776,39 @@ pub(crate) mod test_support {
         std::fs::copy(&source, destination).unwrap();
         std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
+
+    /// R118 · point `destination` at the build-time preset `preset`, replacing
+    /// whatever was there before.
+    ///
+    /// `preset` is one of the copies `build.rs` staged into `OUT_DIR/fixtures/`
+    /// (see `preset_test_fixtures`). The B-class tests need a per-test
+    /// executable path they can upgrade in place or delete; they get it as a
+    /// **symlink** whose target is swapped by an atomic rename of a fresh link.
+    /// Nothing opens the preset for writing at run time, so the ETXTBSY window
+    /// that a run-time `fs::copy` opened on a to-be-exec'd inode is gone, and a
+    /// repoint is safe across filesystems (a symlink needs no `EXDEV` handling).
+    ///
+    /// `std::fs::remove_file` on `destination` deletes only the link — the
+    /// preset survives for every other test in the same run.
+    #[cfg(unix)]
+    pub(crate) fn link_fixture(preset: &Path, destination: &Path) {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+        let name = destination
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "fixture".to_string());
+        // The fresh link is created beside the destination, so the rename that
+        // swaps it in stays inside one directory (and one filesystem).
+        let staged = destination.with_file_name(format!(
+            ".{name}.r118-{}-{}",
+            std::process::id(),
+            SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::os::unix::fs::symlink(preset, &staged).unwrap();
+        std::fs::rename(&staged, destination).unwrap();
+    }
 }
 
 #[cfg(test)]
