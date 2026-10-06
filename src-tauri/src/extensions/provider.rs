@@ -1005,6 +1005,16 @@ printf '%s' '{"completions":[{"label":"-file","kind":"flag","detail":"Read from 
 printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_PERMISSION_PARENT-unset}"':'"$EXPLICIT_VALUE"'"}]}'"#,
         );
         std::env::set_var("FLOTER_PERMISSION_PARENT", "host-secret");
+        // Restore the host environment on every exit path, panics included: the
+        // assertions below can panic, and a leaked `host-secret` would follow
+        // the rest of the suite (R115).
+        struct RestorePermissionParent;
+        impl Drop for RestorePermissionParent {
+            fn drop(&mut self) {
+                std::env::remove_var("FLOTER_PERMISSION_PARENT");
+            }
+        }
+        let _restore = RestorePermissionParent;
         environment.insert("EXPLICIT_VALUE".into(), "configured".into());
         let invocation = mock_invocation(executable, 800, environment, 5_000);
         let manager = ProviderManager::new(directory.path().join("cache"));
@@ -1013,7 +1023,6 @@ printf '%s' '{"completions":[{"label":"env","kind":"value","detail":"'"${FLOTER_
             .complete(&invocation, &serde_json::json!({"command": "env"}))
             .await
             .unwrap();
-        std::env::remove_var("FLOTER_PERMISSION_PARENT");
 
         assert_eq!(response.completions[0].detail, "unset:configured");
     }

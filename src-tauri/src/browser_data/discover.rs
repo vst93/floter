@@ -329,7 +329,6 @@ fn custom_profiles(custom: &Path) -> Vec<BrowserProfileInfo> {
 /// inside a profile is irrelevant here (the per-query readers open those
 /// files directly).
 fn discovery_signature(custom_base_dir: Option<&Path>) -> u64 {
-    let mut hasher = DefaultHasher::new();
     let mut dirs: Vec<PathBuf> = candidate_browsers()
         .into_iter()
         .map(|candidate| candidate.base_dir)
@@ -337,9 +336,21 @@ fn discovery_signature(custom_base_dir: Option<&Path>) -> u64 {
     if let Some(custom) = custom_base_dir {
         dirs.push(custom.to_path_buf());
     }
+    signature_of(&dirs)
+}
+
+/// The signature over an explicit directory list.
+///
+/// Split out from [`discovery_signature`] so a test can hash a fixture tree it
+/// owns: the real candidate list reads `$HOME`, and a background browser
+/// rewriting its profile between two reads of the *same* fixture tree would
+/// otherwise change the signature and turn the no-op invariance assertion red
+/// (R115). Production always passes `candidate_browsers()`.
+fn signature_of(dirs: &[PathBuf]) -> u64 {
+    let mut hasher = DefaultHasher::new();
     for dir in dirs {
         dir.hash(&mut hasher);
-        if let Ok(metadata) = std::fs::metadata(&dir) {
+        if let Ok(metadata) = std::fs::metadata(dir) {
             if let Ok(modified) = metadata.modified() {
                 if let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH) {
                     duration.as_nanos().hash(&mut hasher);
@@ -521,12 +532,16 @@ mod tests {
     fn the_signature_changes_when_a_profile_is_added() {
         let temp = tempfile::tempdir().unwrap();
         let base = fixture_base_dir(temp.path());
-        let before = discovery_signature(Some(&base));
+        // R115: hash an injected list, not `candidate_browsers()`. The real
+        // list reads `$HOME`, so a background browser rewriting its own profile
+        // between the two reads below would change the signature and fail the
+        // no-op invariance assertion.
+        let dirs = [base.clone()];
+        let before = signature_of(&dirs);
         // Same tree, same signature: the cache is not invalidated by a no-op.
-        assert_eq!(before, discovery_signature(Some(&base)));
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        assert_eq!(before, signature_of(&dirs));
         write(&base.join("Profile 3").join("Preferences"), "{}");
-        assert_ne!(before, discovery_signature(Some(&base)));
+        assert_ne!(before, signature_of(&dirs));
     }
 
     /// The host platform's table points at the paths the real browsers use.

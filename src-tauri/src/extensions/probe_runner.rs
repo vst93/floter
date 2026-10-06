@@ -156,17 +156,24 @@ mod cleanup_tests {
     use std::time::Duration;
 
     struct CleanupFixture {
+        /// Per-test scratch space for *data* only: the PID files the script
+        /// writes through argv. The executable itself is never written here.
         _directory: tempfile::TempDir,
         executable: PathBuf,
     }
 
     impl CleanupFixture {
         fn new() -> Self {
-            let directory = tempfile::tempdir().unwrap();
-            let executable = directory.path().join("provider-cleanup.sh");
-            crate::extensions::test_support::stage_fixture("provider-cleanup.sh", &executable);
+            // R115: exec the committed fixture in place. Staging a copy at run
+            // time opened a fresh inode for writing, and a sibling test's fork
+            // inherited that write fd until its own exec — Linux then refused
+            // the exec with ETXTBSY (`3ace35b`). The script takes its PID paths
+            // through argv, so only the data directory is per-test.
+            let executable =
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/provider-cleanup.sh");
+            crate::extensions::install::make_executable(&executable).unwrap();
             Self {
-                _directory: directory,
+                _directory: tempfile::tempdir().unwrap(),
                 executable,
             }
         }

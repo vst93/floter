@@ -300,53 +300,31 @@ impl CapabilityScanner {
 mod tests {
     use super::*;
     use std::fs;
-    use std::sync::OnceLock;
 
+    /// A committed executable that mimics a tool supporting `--version`,
+    /// `--help` and `--features`, and rejecting `--defunct` with exit code 3.
+    ///
+    /// R115: this used to stage a per-process copy into a `OnceLock`-held
+    /// tempdir. R114 measured that the `OnceLock` only *reduced* the number of
+    /// run-time writes — it never closed the ETXTBSY window (19/200 red under a
+    /// parallel `cargo test`), because the race is a sibling test's fork
+    /// inheriting the write fd while the copy is in flight; keeping the
+    /// directory alive afterwards cannot prevent that. The fixture is now
+    /// committed under `tests/fixtures/` and exec'd in place, so no test ever
+    /// opens an executable inode for writing.
     #[cfg(not(windows))]
-    fn write_fixture_script(path: &Path) {
-        crate::extensions::test_support::stage_fixture("capability-probe-tool.sh", path);
-    }
-
-    #[cfg(windows)]
-    fn write_fixture_script(path: &Path) {
-        let script = r#"@echo off
-if "%1"=="--version" (echo floter-tool 1.2.3 & exit /b 0)
-if "%1"=="--help" (echo Usage: floter-tool [options] & exit /b 0)
-if "%1"=="--features" (echo json markdown & exit /b 0)
-if "%1"=="--defunct" (echo not supported & exit /b 3)
-echo unknown flag: %1 1>&2
-exit /b 1
-"#;
-        fs::write(path, script).unwrap();
-    }
-
-    /// A tiny executable that mimics a tool supporting `--version`, `--help`
-    /// and `--features`, and rejecting `--defunct` with exit code 3. Written
-    /// once in a unique, process-owned directory. Keeping the TempDir alive
-    /// prevents parallel test processes from replacing an executable while a
-    /// probe is running, which Linux rejects with ETXTBSY.
     fn fixture_script() -> PathBuf {
-        struct Fixture {
-            _directory: tempfile::TempDir,
-            path: PathBuf,
-        }
+        let fixture =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/capability-probe-tool.sh");
+        crate::extensions::install::make_executable(&fixture).unwrap();
+        fixture
+    }
 
-        static FIXTURE: OnceLock<Fixture> = OnceLock::new();
-        FIXTURE
-            .get_or_init(|| {
-                let directory = tempfile::tempdir().unwrap();
-                #[cfg(windows)]
-                let path = directory.path().join("capability-probe.cmd");
-                #[cfg(not(windows))]
-                let path = directory.path().join("capability-probe.sh");
-                write_fixture_script(&path);
-                Fixture {
-                    _directory: directory,
-                    path,
-                }
-            })
-            .path
-            .clone()
+    /// The committed Windows twin of [`fixture_script`], same `--version` /
+    /// `--help` / `--features` / `--defunct` contract.
+    #[cfg(windows)]
+    fn fixture_script() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/capability-probe-tool.cmd")
     }
 
     #[test]
@@ -440,9 +418,12 @@ exit /b 1
     #[tokio::test]
     async fn scan_timeout_kills_the_real_probe_process() {
         let directory = tempfile::tempdir().unwrap();
-        let executable = directory.path().join("capability-timeout.sh");
+        // R115: exec the committed fixture in place; only the PID file it is
+        // told to write lives in the per-test directory.
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/capability-timeout.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
         let pid_file = directory.path().join("probe.pid");
-        crate::extensions::test_support::stage_fixture("capability-timeout.sh", &executable);
 
         let scanner = CapabilityScanner::new(&executable);
         let result = scanner
