@@ -750,6 +750,13 @@ const en = {
   "settings.extensions.runErrorSpawnFailed": "Could not start {path}: {detail}",
   "settings.extensions.runErrorTimeout": "The run did not finish within {seconds} seconds and was stopped.",
   "settings.extensions.runErrorKilled": "The run was stopped because {id} was disabled or uninstalled.",
+  // R128 · the three run failures that reach the launcher's external-run row
+  // (`run.rs`). Same keyed shape as the family above; each names the one fact
+  // the user can act on — which integration, and why it is not runnable — and
+  // the task-failure case keeps the runtime's own words after the sentence.
+  "settings.extensions.runErrorIntegrationDisabled": "Integration {id} is disabled",
+  "settings.extensions.runErrorIntegrationBroken": "Integration {id} is broken: {reason}",
+  "settings.extensions.runErrorTaskFailed": "Run task failed: {error}",
   "settings.extensions.customRunOutputHintTerminal": "Runs on the terminal page with live output.",
   "settings.extensions.customRunOutputHintBackground": "Runs in the background and notifies you when it finishes.",
   "settings.extensions.customParamRequiredMissing": "Required: fill in {label} before running",
@@ -808,6 +815,24 @@ const en = {
   "settings.extensions.pickerClosed.localManifest": "Local manifest picker closed unexpectedly",
   "settings.extensions.pickerClosed.scriptExport": "Script export picker closed unexpectedly",
   "settings.extensions.pickerClosed.configurationExport": "Configuration export picker closed unexpectedly",
+  // R128 · the custom-integration / local-connection form's validation
+  // sentences (`install.rs`). The backend answers with a dictionary key, the
+  // panel translates it (`isMessageKey` gates it); the two that carry a value
+  // arrive as `key:<value>` and the value fills the `{stem}`/`{url}` slot.
+  // The English values are the sentences that used to be hardcoded there.
+  "settings.extensions.form.nameLength": "Custom integration name must contain 1 to 80 characters",
+  "settings.extensions.form.commandShape": "Command must start with a letter or number and contain only lowercase letters, numbers, hyphens, or underscores",
+  "settings.extensions.form.platformRequired": "Select at least one supported platform",
+  "settings.extensions.form.modeInvalid": "Custom integration mode must be executable or script",
+  "settings.extensions.form.scriptEmpty": "Custom provider script cannot be empty",
+  "settings.extensions.form.scriptLanguageInvalid": "Script language is only valid for script integrations",
+  "settings.extensions.form.discoveredNameLength": "Discovered tool name must contain 1 to 80 characters",
+  "settings.extensions.form.cannotDeriveCommand": "Cannot derive a Floter command from \"{stem}\"",
+  "settings.extensions.form.singleCommandOnly": "Only single-command custom integrations can be edited visually",
+  "settings.extensions.form.packageKeywordMissing": "package.json is missing the floter-extension keyword",
+  "settings.extensions.form.localDistributionRequired": "Local connections must declare distribution.type = local",
+  "settings.extensions.form.localRuntimeRequired": "Local connection requires a system or script runtime manifest",
+  "settings.extensions.openNonWebUrl": "Refusing to open a non-web URL: {url}",
   // R7-10b · the system-notification copy. A notification is OS chrome, so it
   // is not part of any in-app surface — but its words are still the app's
   // words, and they live here so both languages sit side by side and a key
@@ -1595,6 +1620,9 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.runErrorSpawnFailed": "无法启动 {path}：{detail}",
   "settings.extensions.runErrorTimeout": "运行在 {seconds} 秒内没有完成，已停止。",
   "settings.extensions.runErrorKilled": "{id} 已停用或卸载，运行已终止。",
+  "settings.extensions.runErrorIntegrationDisabled": "集成 {id} 已停用",
+  "settings.extensions.runErrorIntegrationBroken": "集成 {id} 已损坏：{reason}",
+  "settings.extensions.runErrorTaskFailed": "运行任务失败：{error}",
   "settings.extensions.customRunOutputHintTerminal": "将在终端页执行并实时输出。",
   "settings.extensions.customRunOutputHintBackground": "将在后台执行，完成后通知。",
   "settings.extensions.customParamRequiredMissing": "必填：运行前请填写 {label}",
@@ -1644,6 +1672,20 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.pickerClosed.localManifest": "选择本地清单时文件选择器意外关闭",
   "settings.extensions.pickerClosed.scriptExport": "导出脚本时文件选择器意外关闭",
   "settings.extensions.pickerClosed.configurationExport": "导出配置时文件选择器意外关闭",
+  // R128 · 自定义集成 / 本地连接表单的校验文案（动词 + 宾语）
+  "settings.extensions.form.nameLength": "自定义集成名称必须为 1 到 80 个字符",
+  "settings.extensions.form.commandShape": "命令必须以字母或数字开头，且只能包含小写字母、数字、连字符或下划线",
+  "settings.extensions.form.platformRequired": "请至少选择一个支持的平台",
+  "settings.extensions.form.modeInvalid": "自定义集成模式必须是可执行文件或脚本",
+  "settings.extensions.form.scriptEmpty": "自定义提供程序脚本不能为空",
+  "settings.extensions.form.scriptLanguageInvalid": "脚本语言只适用于脚本类型的集成",
+  "settings.extensions.form.discoveredNameLength": "发现的工具名称必须为 1 到 80 个字符",
+  "settings.extensions.form.cannotDeriveCommand": "无法从“{stem}”推导出 Floter 命令",
+  "settings.extensions.form.singleCommandOnly": "只有单命令的自定义集成才能可视化编辑",
+  "settings.extensions.form.packageKeywordMissing": "package.json 缺少 floter-extension 关键字",
+  "settings.extensions.form.localDistributionRequired": "本地连接必须声明 distribution.type = local",
+  "settings.extensions.form.localRuntimeRequired": "本地连接需要 system 或 script 运行时的清单",
+  "settings.extensions.openNonWebUrl": "拒绝打开非网页 URL：{url}",
   "notification.title": "floter",
   "notification.install.success": "{name} 已安装",
   "notification.install.failure": "{name} 安装失败",

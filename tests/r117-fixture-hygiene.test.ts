@@ -61,7 +61,9 @@ const COMMANDS_SITES = [2815, 2908, 2983, 3073, 3141, 3311, 3870];
 // The B-class upgrade path: one `link_fixture` call per former B site in
 // install.rs, and per former B site plus the `:3536` rebuild rewrite in
 // commands/extensions.rs (which may no longer write through the link).
-const INSTALL_LINK_SITES = [3351, 3392, 3972, 4020, 4072, 4108, 4202, 4250, 4388, 4533];
+// R128 grew the `cannotDeriveCommand` refusal from one line to a four-line
+// `format!` above every one of these, moving each pin down by 2.
+const INSTALL_LINK_SITES = [3353, 3394, 3974, 4022, 4074, 4110, 4204, 4252, 4390, 4535];
 const COMMANDS_LINK_SITES = [3189, 3542, 3631, 3679, 3768, 3803];
 // The A-class targets: five new fixtures (same bytes, basename-load-bearing)
 // plus the external-tool fixture that replaced the last run-time `fs::write`.

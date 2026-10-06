@@ -43,7 +43,7 @@ const OPENER: Option<&str> = None;
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
     if !is_web_url(&url) {
-        return Err(format!("Refusing to open a non-web URL: {url}"));
+        return Err(format!("settings.extensions.openNonWebUrl:{url}"));
     }
     spawn_opener(&url)
 }

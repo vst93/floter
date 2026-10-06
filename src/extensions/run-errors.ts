@@ -22,7 +22,10 @@ export type RunErrorKey =
   | "run_interpreter_missing"
   | "run_spawn_failed"
   | "run_timeout"
-  | "run_killed";
+  | "run_killed"
+  | "run_integration_disabled"
+  | "run_integration_broken"
+  | "run_task_failed";
 
 /** The payload shapes the backend emits, per key. Only the fields that key
  *  actually carries are declared; an absent field degrades to a blank rather
@@ -35,6 +38,8 @@ type RunErrorPayload = {
   detail?: unknown;
   seconds?: unknown;
   extension_id?: unknown;
+  reason?: unknown;
+  error?: unknown;
 };
 
 const asString = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -75,6 +80,9 @@ export const parseRunError = (
     "run_spawn_failed",
     "run_timeout",
     "run_killed",
+    "run_integration_disabled",
+    "run_integration_broken",
+    "run_task_failed",
   ];
   if (!known.includes(key as RunErrorKey)) return null;
   return { key: key as RunErrorKey, payload: payload as RunErrorPayload };
@@ -119,6 +127,24 @@ export const runErrorMessage = (message: string, t: Translate): string | null =>
       return t("settings.extensions.runErrorKilled", {
         id: asString(payload.extension_id),
       });
+    case "run_integration_disabled":
+      // R128 · the row was asked to run while the integration is switched off.
+      return t("settings.extensions.runErrorIntegrationDisabled", {
+        id: asString(payload.extension_id),
+      });
+    case "run_integration_broken":
+      // R128 · the row was asked to run while the integration is broken; the
+      // recorded reason is what makes the refusal actionable.
+      return t("settings.extensions.runErrorIntegrationBroken", {
+        id: asString(payload.extension_id),
+        reason: asString(payload.reason),
+      });
+    case "run_task_failed":
+      // R128 · the background task itself failed; the runtime's words follow
+      // the sentence, they are not part of the dictionary.
+      return t("settings.extensions.runErrorTaskFailed", {
+        error: asString(payload.error),
+      });
     default:
       return null;
   }
@@ -133,4 +159,7 @@ export const RUN_ERROR_MESSAGE_KEYS: MessageKey[] = [
   "settings.extensions.runErrorSpawnFailed",
   "settings.extensions.runErrorTimeout",
   "settings.extensions.runErrorKilled",
+  "settings.extensions.runErrorIntegrationDisabled",
+  "settings.extensions.runErrorIntegrationBroken",
+  "settings.extensions.runErrorTaskFailed",
 ];

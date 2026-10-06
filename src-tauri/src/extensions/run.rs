@@ -427,12 +427,12 @@ fn runnable_entry(
     let repository = ExtensionsLock::load(&state.paths.repository_file)?;
     let entry = repository.get(id)?.clone();
     if !entry.enabled {
-        return Err(format!("Integration {id} is disabled"));
+        return Err(run_error::integration_disabled(id));
     }
     if entry.state == crate::extensions::lock::ExtensionStateKind::Broken {
-        return Err(format!(
-            "Integration {id} is broken: {}",
-            entry.broken_reason.as_deref().unwrap_or("repair it first")
+        return Err(run_error::integration_broken(
+            id,
+            entry.broken_reason.as_deref().unwrap_or("repair it first"),
         ));
     }
     let manifest = ExtensionManifest::load(Path::new(&entry.manifest_path))?;
@@ -706,7 +706,7 @@ async fn execute_background(
         // the launcher and the detached window localise it through
         // `runErrorMessage`.
         Err(error) if error.is_cancelled() => Err(run_error::killed(extension_id)),
-        Err(error) => Err(format!("Run task failed: {error}")),
+        Err(error) => Err(run_error::task_failed(&error.to_string())),
     }
 }
 

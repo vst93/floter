@@ -155,11 +155,13 @@ test("the panel translates the keyed family instead of painting the key", async 
   const panel = await read(PANEL);
   assert.ok(panel.includes("isMessageKey(message)"), "the panel must gate on a real key");
   assert.ok(panel.includes("t(message)"), "the panel must translate the key");
-  // All four display points hand the translator to the error reader.
+  // Every display point hands the translator to the error reader. R127 wired
+  // four; R128 added the custom-integration / local-connection form paths
+  // (L1-L12), so the count is re-registered here rather than left stale.
   assert.equal(
     count(panel, "errorMessage(nextError, t)"),
-    4,
-    "each of the four raw display points must pass the translator",
+    8,
+    "each wired display point must pass the translator",
   );
 });
 

@@ -94,7 +94,9 @@ test("R98 · every backend run_error key is claimed by the frontend mapper", asy
   const keys = [...rust.matchAll(/pub const RUN_[A-Z_]+: &str = "([a-z_]+)";/g)].map(
     (match) => match[1],
   );
-  assert.equal(keys.length, 7, `unexpected backend key set: ${keys.join(", ")}`);
+  // R128 grew the family from 7 to 10: the disabled/broken refusals and the
+  // task-failure sentence are keyed the same way and must be claimed here too.
+  assert.equal(keys.length, 10, `unexpected backend key set: ${keys.join(", ")}`);
   assert.ok(keys.includes("run_killed"), "the R98 key must exist in the backend");
   for (const key of keys) {
     assert.notEqual(parseRunError(`${key}:{}`), null, `${key} must parse on the frontend`);

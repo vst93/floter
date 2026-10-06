@@ -240,7 +240,7 @@ async fn create_custom_integration_locked(
     validate_id(&id)?;
     let name = request.name.trim();
     if name.is_empty() || name.chars().count() > 80 {
-        return Err("Custom integration name must contain 1 to 80 characters".to_string());
+        return Err("settings.extensions.form.nameLength".to_string());
     }
     let command = request.command.trim().to_ascii_lowercase();
     if command.is_empty()
@@ -253,17 +253,17 @@ async fn create_custom_integration_locked(
             .next()
             .is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
     {
-        return Err("Command must start with a letter or number and contain only lowercase letters, numbers, hyphens, or underscores".to_string());
+        return Err("settings.extensions.form.commandShape".to_string());
     }
     Version::parse(request.version.trim())
         .map_err(|error| format!("Invalid custom integration version: {error}"))?;
     if request.platforms.is_empty() {
-        return Err("Select at least one supported platform".to_string());
+        return Err("settings.extensions.form.platformRequired".to_string());
     }
     validate_param_definitions(&request.params)?;
     let script_mode = request.mode == "script";
     if request.mode != "script" && request.mode != "executable" {
-        return Err("Custom integration mode must be executable or script".to_string());
+        return Err("settings.extensions.form.modeInvalid".to_string());
     }
     let script_language = request.script_language.unwrap_or(ScriptLanguage::Shell);
     let executable = if script_mode {
@@ -297,10 +297,10 @@ async fn create_custom_integration_locked(
             .trim()
             .is_empty()
     {
-        return Err("Custom provider script cannot be empty".to_string());
+        return Err("settings.extensions.form.scriptEmpty".to_string());
     }
     if !script_mode && request.script_language.is_some() {
-        return Err("Script language is only valid for script integrations".to_string());
+        return Err("settings.extensions.form.scriptLanguageInvalid".to_string());
     }
     // Best-effort real version: run the requested version probe and, when the
     // output carries a semver, store that as the manifest/descriptor version
@@ -1163,7 +1163,7 @@ pub fn tool_binding_request(
     }
     let name = candidate.name.trim();
     if name.is_empty() || name.chars().count() > 80 {
-        return Err("Discovered tool name must contain 1 to 80 characters".to_string());
+        return Err("settings.extensions.form.discoveredNameLength".to_string());
     }
     let stem = path
         .file_stem()
@@ -1171,7 +1171,9 @@ pub fn tool_binding_request(
         .unwrap_or(name);
     let command = sanitized_command_from_executable(stem);
     if command.is_empty() {
-        return Err(format!("Cannot derive a Floter command from \"{stem}\""));
+        return Err(format!(
+            "settings.extensions.form.cannotDeriveCommand:{stem}"
+        ));
     }
     Ok(CustomIntegrationRequest {
         // R9-3 · the id is not derived here either: `create_custom_integration`
@@ -1250,7 +1252,7 @@ pub fn custom_integration_definition(
         .first()
         .ok_or("Custom integration descriptor has no command")?;
     if description.commands.len() != 1 {
-        return Err("Only single-command custom integrations can be edited visually".to_string());
+        return Err("settings.extensions.form.singleCommandOnly".to_string());
     }
     let (mode, executable_path, script_language, script_content, version_args) = match &manifest
         .runtime
@@ -2468,7 +2470,7 @@ pub(crate) async fn install_linked(
             .iter()
             .any(|keyword| keyword == "floter-extension")
         {
-            return Err("package.json is missing the floter-extension keyword".to_string());
+            return Err("settings.extensions.form.packageKeywordMissing".to_string());
         }
         let (manifest, digest) = ExtensionManifest::load_with_digest(&actual_manifest_path)?;
         (manifest, digest, package_json.version, actual_manifest_path)
@@ -2489,13 +2491,13 @@ pub(crate) async fn install_linked(
         request.approved_permissions.as_deref(),
     )?;
     if manifest.distribution != crate::extensions::manifest::Distribution::Local {
-        return Err("Local connections must declare distribution.type = local".to_string());
+        return Err("settings.extensions.form.localDistributionRequired".to_string());
     }
     if !matches!(
         manifest.runtime,
         Runtime::System { .. } | Runtime::Script { .. }
     ) {
-        return Err("Local connection requires a system or script runtime manifest".to_string());
+        return Err("settings.extensions.form.localRuntimeRequired".to_string());
     }
     manifest.validate_compatibility(env!("CARGO_PKG_VERSION"))?;
     let resolved = manifest.clone().resolve(PlatformTarget::current()?)?;

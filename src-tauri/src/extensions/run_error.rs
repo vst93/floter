@@ -35,6 +35,16 @@ pub const RUN_TIMEOUT: &str = "run_timeout";
 /// (R98). The user asked for this: a disable/uninstall kills an in-flight run
 /// at once rather than letting it finish for up to the timeout.
 pub const RUN_KILLED: &str = "run_killed";
+/// The integration a run was requested for is disabled (R128). Distinct from
+/// [`RUN_KILLED`], which is a *started* run stopped on purpose.
+pub const RUN_INTEGRATION_DISABLED: &str = "run_integration_disabled";
+/// The integration a run was requested for is broken (R128). Carries the
+/// recorded reason, so the refusal names what to repair.
+pub const RUN_INTEGRATION_BROKEN: &str = "run_integration_broken";
+/// The background task failed to complete at all (R128) — a panic or a
+/// cancelled join, not a run the plan refused. The runtime's own words are the
+/// root cause and are kept verbatim; only the fixed sentence is keyed.
+pub const RUN_TASK_FAILED: &str = "run_task_failed";
 
 #[derive(Serialize)]
 struct InterpreterMissing<'a> {
@@ -67,6 +77,22 @@ struct TimeoutPayload {
 #[derive(Serialize)]
 struct KilledPayload<'a> {
     extension_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct IntegrationPayload<'a> {
+    extension_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct IntegrationBrokenPayload<'a> {
+    extension_id: &'a str,
+    reason: &'a str,
+}
+
+#[derive(Serialize)]
+struct TaskFailedPayload<'a> {
+    error: &'a str,
 }
 
 /// Serialize a keyed payload. A `serde_json` failure cannot happen for these
@@ -153,6 +179,33 @@ pub fn timed_out(timeout: std::time::Duration) -> String {
 /// (R98). Carries the id the frontend names in the localised sentence.
 pub fn killed(extension_id: &str) -> String {
     keyed(RUN_KILLED, &KilledPayload { extension_id })
+}
+
+/// The run was refused because the integration is disabled (R128). Names the
+/// integration so the launcher row says *which* one is off.
+pub fn integration_disabled(extension_id: &str) -> String {
+    keyed(
+        RUN_INTEGRATION_DISABLED,
+        &IntegrationPayload { extension_id },
+    )
+}
+
+/// The run was refused because the integration is broken (R128). Carries the
+/// recorded reason, so the refusal is actionable rather than just "broken".
+pub fn integration_broken(extension_id: &str, reason: &str) -> String {
+    keyed(
+        RUN_INTEGRATION_BROKEN,
+        &IntegrationBrokenPayload {
+            extension_id,
+            reason,
+        },
+    )
+}
+
+/// The background task failed (R128). The runtime's message is the root cause
+/// and is kept verbatim; only the fixed sentence is the dictionary's.
+pub fn task_failed(error: &str) -> String {
+    keyed(RUN_TASK_FAILED, &TaskFailedPayload { error })
 }
 
 /// The key of a keyed message, or `None` when it is a plain string. The

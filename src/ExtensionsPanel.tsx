@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { OverflowMenu } from "./components/OverflowMenu";
 import type { DeepLinkRegisterRequest } from "./deep-link";
-import { isMessageKey, type Translate } from "./i18n";
+import { isMessageKey, type MessageKey, type Translate } from "./i18n";
 import type { CommandAliases } from "./command-aliases";
 import { resolveCommandAliases } from "./command-aliases";
 import {
@@ -662,13 +662,38 @@ export type InstallRequest = {
   approvedPermissions?: PermissionName[];
 };
 
+/**
+ * R128 · the one-value keyed sentences: a backend `key:<value>` whose value
+ * fills the named placeholder. The plain `prefix:value` shape is the one
+ * `localErrorMessage` already slices (`manifest_invalid:`), so the value may
+ * contain any character a first-`:` split leaves intact.
+ */
+const KEYED_VALUE_PARAMS: Partial<Record<MessageKey, string>> = {
+  "settings.extensions.form.cannotDeriveCommand": "stem",
+  "settings.extensions.openNonWebUrl": "url",
+};
+
 const errorMessage = (error: unknown, t?: Translate): string => {
   const message = error instanceof Error ? error.message : String(error);
+  if (!t) return message;
   // R127 · the picker-closed family arrives from the backend as a dictionary
   // key (`settings.extensions.pickerClosed.*`), not a sentence — the host owns
   // the words, the same contract `floter://` refusals use. Anything else is
   // already a message and passes through untouched.
-  return t && isMessageKey(message) ? t(message) : message;
+  if (isMessageKey(message)) return t(message);
+  // R128 · a keyed sentence that carries one value. The backend sends
+  // `settings.extensions.form.cannotDeriveCommand:<stem>` (or the open-URL
+  // refusal); the fixed sentence is the dictionary's and the value fills its
+  // placeholder instead of arriving glued to a raw key.
+  const separator = message.indexOf(":");
+  if (separator > 0) {
+    const key = message.slice(0, separator);
+    if (isMessageKey(key)) {
+      const placeholder = KEYED_VALUE_PARAMS[key];
+      if (placeholder) return t(key, { [placeholder]: message.slice(separator + 1) });
+    }
+  }
+  return message;
 };
 
 const localErrorMessage = (error: unknown, t: Translate): string => {
@@ -1513,7 +1538,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       await refreshAfterMutation();
       setPendingLocal(null);
       showSuccess(t("settings.extensions.connectedNotice", { name: pending.name }));
-    } catch (nextError) { showError(errorMessage(nextError)); }
+    } catch (nextError) { showError(errorMessage(nextError, t)); }
     finally { setBusy(null); }
   };
 
@@ -1579,7 +1604,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       customSavedRef.current = loaded;
       setCustomDirty(false);
     } catch (nextError) {
-      if (generation === customGeneration.current) setCustomIntegrationError(errorMessage(nextError));
+      if (generation === customGeneration.current) setCustomIntegrationError(errorMessage(nextError, t));
     } finally {
       if (generation === customGeneration.current) setCustomIntegrationLoading(false);
     }
@@ -1640,8 +1665,9 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       // Inline, on the section — not only a toast. A connect that fails must
       // leave a visible reason next to the row that failed, or the click looks
       // like it did nothing.
-      setDetectedError({ id: extension.id, message: errorMessage(nextError) });
-      showError(errorMessage(nextError));
+      const message = errorMessage(nextError, t);
+      setDetectedError({ id: extension.id, message });
+      showError(message);
     } finally {
       setBusy(null);
     }
@@ -1872,7 +1898,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       showSuccess(notice);
       await refreshAfterMutation();
     } catch (nextError) {
-      const message = errorMessage(nextError);
+      const message = errorMessage(nextError, t);
       if (generation === customGeneration.current) setCustomIntegrationError(message);
       showError(message);
     } finally {
@@ -2524,7 +2550,7 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
                     }
                     if (extension.homepage) {
                       void invoke("open_url", { url: extension.homepage }).catch((error) => {
-                        onNotify("error", String(error));
+                        onNotify("error", errorMessage(error, t));
                       });
                     }
                   }}

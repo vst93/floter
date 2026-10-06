@@ -113,7 +113,12 @@ test("a successful connect refreshes the list and announces it", async () => {
 test("a failed connect records an inline error and renders it in the section", async () => {
   const panel = stripJsComments(await read("src/ExtensionsPanel.tsx"));
   const entry = functionBody(panel, "const connectDetected = async (extension: Extension)");
-  assert.match(entry, /setDetectedError\(\{ id: extension\.id, message: errorMessage\(nextError\) \}\)/);
+  // R128 · the inline reason now goes through the panel's translator, so the
+  // keyed form sentences (install.rs) reach the user in the session's language.
+  assert.match(
+    entry,
+    /const message = errorMessage\(nextError, t\);[\s\S]{0,120}setDetectedError\(\{ id: extension\.id, message \}\)/,
+  );
 
   const sectionAt = panel.indexOf("extensions-section--detected");
   assert.notEqual(sectionAt, -1, "the Detected section must exist");

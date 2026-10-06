@@ -118,7 +118,9 @@ test("an unrecognised or malformed message is not swallowed", () => {
 // ── 3 · both languages, same placeholders ──────────────────────────────────
 
 test("every run-error key is translated in both dictionaries", () => {
-  assert.equal(RUN_ERROR_MESSAGE_KEYS.length, 7);
+  // R128 extended the family with the disabled/broken refusals and the
+  // task-failure sentence, all of which must be translated in both tables.
+  assert.equal(RUN_ERROR_MESSAGE_KEYS.length, 10);
   for (const key of RUN_ERROR_MESSAGE_KEYS) {
     const english = en(key);
     const chinese = zh(key);
