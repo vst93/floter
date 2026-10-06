@@ -931,9 +931,11 @@ mod tests {
     async fn background_run_captures_both_streams_and_records_the_output() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("runner.sh");
-        crate::extensions::test_support::stage_fixture("run-capture.sh", &executable);
+        // R117 · exec the committed fixture in place. The test never writes
+        // this inode, so no sibling fork can inherit a write fd (ETXTBSY).
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-capture.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let id = "local.runner";
         let entry = crate::extensions::install::create_custom_integration_for_test(
@@ -988,9 +990,8 @@ mod tests {
     async fn plugin_command_registry_and_runner_read_the_provider_table() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("echoer.sh");
-        crate::extensions::test_support::stage_fixture("run-args.sh", &executable);
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-args.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let id = "local.echoer";
         let entry = crate::extensions::install::create_custom_integration_for_test(
@@ -1106,9 +1107,10 @@ mod tests {
         // descriptor prefix, which is the order the research report fixes.
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("order.sh");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        // The `ends_with("order.sh")` assertion below is load-bearing, so the
+        // committed fixture carries that exact basename.
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/order.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let mut target = param("target", ParamKind::Text);
         target.flag = Some("--target".into());
@@ -1167,9 +1169,10 @@ mod tests {
     async fn terminal_run_returns_a_resolvable_protected_plan_without_argv() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("term.sh");
-        crate::extensions::test_support::stage_fixture("run-terminal.sh", &executable);
+        // Same as `order.sh`: the `ends_with("term.sh")` assertion is
+        // load-bearing, so the fixture is committed under that basename.
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/term.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let id = "local.terminal";
         crate::extensions::install::create_custom_integration_for_test(
@@ -1430,8 +1433,8 @@ mod tests {
         let marker = script_directory
             .path()
             .join("shell-would-have-touched-this");
-        let executable = script_directory.path().join("argv.sh");
-        crate::extensions::test_support::stage_fixture("run-argv.sh", &executable);
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-argv.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let hostile = vec![
             "a b".to_string(),
@@ -1508,8 +1511,8 @@ mod tests {
         let state = test_state(directory.path());
         let script_directory = tempfile::tempdir().unwrap();
         let marker = script_directory.path().join("param-shell-marker");
-        let executable = script_directory.path().join("params.sh");
-        crate::extensions::test_support::stage_fixture("run-argv.sh", &executable);
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-argv.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let hostile_value = format!("$(touch {}) ; rm -rf / with spaces", marker.display());
         let mut target = param("target", ParamKind::Text);
@@ -1717,9 +1720,8 @@ mod tests {
     async fn a_run_hands_the_child_the_shared_search_path() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("env.sh");
-        crate::extensions::test_support::stage_fixture("run-env.sh", &executable);
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-env.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let id = "local.env";
         crate::extensions::install::create_custom_integration_for_test(
@@ -1850,9 +1852,8 @@ mod tests {
         // and both futures succeed instead of one failing.
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("slow.sh");
-        crate::extensions::test_support::stage_fixture("run-slow.sh", &executable);
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-slow.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
 
         let id = "local.slow";
         crate::extensions::install::create_custom_integration_for_test(
@@ -2026,8 +2027,8 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let state = std::sync::Arc::new(test_state(directory.path()));
         let fixture_directory = tempfile::tempdir().unwrap();
-        let executable = fixture_directory.path().join("run-kill.sh");
-        crate::extensions::test_support::stage_fixture("run-kill.sh", &executable);
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/run-kill.sh");
+        crate::extensions::install::make_executable(&executable).unwrap();
         let parent_pid = fixture_directory.path().join("parent.pid");
         let child_pid = fixture_directory.path().join("child.pid");
 

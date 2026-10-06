@@ -2581,24 +2581,11 @@ mod tests {
     /// this guard, never a `--test-threads=1` run parameter.
     static DRIFT_GATE_TEST: Mutex<()> = Mutex::new(());
 
-    /// Stage a committed, read-only fixture at `destination`.
-    ///
-    /// `3ace35b` fixed an ETXTBSY flake whose cause was exec'ing a file the
-    /// test had just written: a child forked by another test inherits the
-    /// write fd and holds it until its own exec, so exec'ing a freshly written
-    /// inode races. Every executable these tests need is now a committed
-    /// fixture under `tests/fixtures/` — the test stages those bytes and
-    /// chmods them, and never authors the script text itself.
-    #[cfg(unix)]
-    fn stage_fixture(fixture: &str, destination: &Path) {
-        use std::os::unix::fs::PermissionsExt;
-
-        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures")
-            .join(fixture);
-        std::fs::copy(&source, destination).unwrap();
-        std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    // R117 · the local `stage_fixture` copy is gone: every remaining call site
+    // uses `crate::extensions::test_support::stage_fixture` so the primitive
+    // has exactly one body. The C/D call sites below still stage a writable
+    // copy on purpose (they rewrite a file the list path never execs), and the
+    // node guard `tests/r117-fixture-hygiene.test.ts` pins them.
 
     /// R9-3 · the discovery suggestion row's key is *not* an extension id. It
     /// exists only to give an uninstalled suggestion a React key; a real id is
@@ -2798,7 +2785,8 @@ mod tests {
         std::fs::create_dir_all(&tools).unwrap();
         std::fs::write(tools.join("demo.json"), MANIFEST_JSON).unwrap();
         let executable = root.join("demo-tool");
-        stage_fixture("tool-exit-zero.sh", &executable);
+        // R117 exemption: staged but never exec'd — the manifest scan reads it.
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
         tools
     }
 
@@ -2890,7 +2878,8 @@ mod tests {
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        stage_fixture("tool-exit-zero.sh", &executable);
+        // R117 exemption: rewritten but never exec'd — the rebuild is the tested variable.
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
         let executable_path = executable.to_string_lossy().into_owned();
 
         let state =
@@ -2964,7 +2953,8 @@ mod tests {
             tool_lock.bind(&entry.id, &candidate);
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
-        stage_fixture("tool-rebuilt.sh", &executable);
+        // R117 exemption: rewritten but never exec'd — the rebuild is the tested variable.
+        crate::extensions::test_support::stage_fixture("tool-rebuilt.sh", &executable);
 
         let items = list_extensions(&state).await.unwrap().0;
         let listed = items
@@ -3053,7 +3043,8 @@ mod tests {
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        stage_fixture("tool-exit-zero.sh", &executable);
+        // R117 exemption: rewritten but never exec'd — the rebuild is the tested variable.
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
         let executable_path = executable.to_string_lossy().into_owned();
 
         let state =
@@ -3120,7 +3111,8 @@ mod tests {
             tool_lock.bind(&entry.id, &candidate);
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
-        stage_fixture("tool-rebuilt.sh", &executable);
+        // R117 exemption: rewritten but never exec'd — the rebuild is the tested variable.
+        crate::extensions::test_support::stage_fixture("tool-rebuilt.sh", &executable);
 
         let items = list_extensions(&state).await.unwrap().0;
         let listed = items
@@ -3168,7 +3160,7 @@ mod tests {
 
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("v");
-        stage_fixture("tool-exit-zero.sh", &executable);
+        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
 
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
@@ -3286,7 +3278,8 @@ mod tests {
         let mut injected = Vec::new();
         for name in names {
             let path = bin.join(name);
-            stage_fixture("tool-exit-zero.sh", &path);
+            // R117 exemption: staged but never exec'd — candidates feed the list only.
+            crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &path);
             injected.push(inventory::executable_candidate(&path, name));
         }
 
@@ -3331,8 +3324,9 @@ mod tests {
             directory.path().join("config"),
         ))
         .unwrap();
-        let executable = directory.path().join("omitted-tool");
-        stage_fixture("tool-exit-zero.sh", &executable);
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tool-exit-zero.sh");
+        install::make_executable(&executable).unwrap();
 
         let approved = install::approved_tool_binding_permissions(None);
         install::validate_tool_binding_approval(&approved).unwrap();
@@ -3601,7 +3595,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let scripts = tempfile::tempdir().unwrap();
         let executable = scripts.path().join("lister.sh");
-        stage_fixture("lister-v1.sh", &executable);
+        crate::extensions::test_support::stage_fixture("lister-v1.sh", &executable);
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
@@ -3649,7 +3643,7 @@ mod tests {
         }
 
         // Upstream upgrade in place.
-        stage_fixture("lister-v2.sh", &executable);
+        crate::extensions::test_support::stage_fixture("lister-v2.sh", &executable);
 
         // The listing returns the *previous* inventory without awaiting the
         // re-probe, and hands the drifted integration to the caller as a
@@ -3738,7 +3732,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let scripts = tempfile::tempdir().unwrap();
         let executable = scripts.path().join("lister.sh");
-        stage_fixture("lister-v1.sh", &executable);
+        crate::extensions::test_support::stage_fixture("lister-v1.sh", &executable);
         let state =
             ExtensionState::from_paths(ExtensionPaths::from_root(directory.path().join("config")))
                 .unwrap();
@@ -3773,7 +3767,7 @@ mod tests {
             tool_lock.save(&state.paths.tool_lock_file).unwrap();
         }
         // Upstream upgrade in place, so the next listing finds drift.
-        stage_fixture("lister-v2.sh", &executable);
+        crate::extensions::test_support::stage_fixture("lister-v2.sh", &executable);
 
         // The gate starts clear.
         assert!(!super::DRIFT_REPROBE_ACTIVE.load(Ordering::Acquire));
@@ -3839,7 +3833,8 @@ mod tests {
         let root = directory.path().join("vendor").join("integration");
         std::fs::create_dir_all(&root).unwrap();
         let executable = directory.path().join("vendor-tool");
-        stage_fixture("vendor-tool.sh", &executable);
+        // R117 exemption: staged but never exec'd — the list path never execs it.
+        crate::extensions::test_support::stage_fixture("vendor-tool.sh", &executable);
         let manifest = r#"{
             "schemaVersion": "2.0",
             "id": "com.vendor.tool",

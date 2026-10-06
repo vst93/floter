@@ -3215,8 +3215,10 @@ mod tests {
     async fn connected_tool_is_immediately_searchable_in_the_catalog() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let executable = directory.path().join("findable");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        // The Floter command is derived from the executable's file stem, so
+        // the committed fixture carries the exact basename the assertion wants.
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/findable");
+        make_executable(&executable).unwrap();
 
         connect_tool(&state, discovered_candidate(&executable, "Findable"))
             .await
@@ -3241,8 +3243,10 @@ mod tests {
     async fn connect_tool_binds_a_discovered_executable_like_a_custom_integration() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let executable = directory.path().join("mytool");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        // Same reason as `findable`: `catalog_contains(…, "mytool")` reads the
+        // command derived from this basename.
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mytool");
+        make_executable(&executable).unwrap();
 
         let entry = connect_tool(&state, discovered_candidate(&executable, "MyTool"))
             .await
@@ -3274,8 +3278,9 @@ mod tests {
     async fn connect_recommended_tool_yields_a_local_static_integration_with_catalog_visibility() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let executable = directory.path().join("v");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tool-exit-zero.sh");
+        make_executable(&executable).unwrap();
 
         let tools = crate::extensions::recommendations::load_recommended().unwrap();
         let tool = &tools[0];
@@ -3492,9 +3497,9 @@ mod tests {
     async fn connecting_a_tool_records_its_real_version() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("versioned.sh");
-        crate::extensions::test_support::stage_fixture("versioned-tool.sh", &executable);
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/versioned-tool.sh");
+        make_executable(&executable).unwrap();
 
         let entry = create_custom_integration(
             &state,
@@ -3539,9 +3544,9 @@ mod tests {
     async fn connecting_a_tool_without_a_parseable_version_keeps_the_fallback() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("unversioned.sh");
-        crate::extensions::test_support::stage_fixture("unversioned-tool.sh", &executable);
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/unversioned-tool.sh");
+        make_executable(&executable).unwrap();
 
         let entry = create_custom_integration(
             &state,
@@ -3578,9 +3583,9 @@ mod tests {
     async fn connecting_a_tool_uses_the_inferred_description() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("described.sh");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tool-exit-zero.sh");
+        make_executable(&executable).unwrap();
 
         let entry = create_custom_integration(
             &state,
@@ -3634,9 +3639,10 @@ mod tests {
     async fn connecting_a_tool_without_a_description_keeps_the_fallback() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
-        let executable = script_directory.path().join("plain.sh");
-        crate::extensions::test_support::stage_fixture("tool-exit-zero.sh", &executable);
+        // The fallback description embeds the executable's file name, so the
+        // committed fixture is named `plain.sh` (assertion below).
+        let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plain.sh");
+        make_executable(&executable).unwrap();
 
         let entry = create_custom_integration(
             &state,
@@ -3737,15 +3743,17 @@ mod tests {
     async fn connected_tool_completions_include_help_derived_flags() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
         // The help text intentionally mixes styles and includes -h/--help so
         // the exclusion logic is exercised through the real pipeline.
         #[cfg(not(windows))]
         let executable = {
-            let path = script_directory.path().join("demo-tool.sh");
-            crate::extensions::test_support::stage_fixture("demo-tool-help.sh", &path);
+            let path =
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/demo-tool-help.sh");
+            make_executable(&path).unwrap();
             path
         };
+        #[cfg(windows)]
+        let script_directory = tempfile::tempdir().unwrap();
         #[cfg(windows)]
         let executable = {
             let path = script_directory.path().join("demo-tool.cmd");
@@ -3815,10 +3823,9 @@ mod tests {
     async fn connected_tool_exposes_subcommands_with_aliases_and_probed_flags() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let script_directory = tempfile::tempdir().unwrap();
         let executable = {
-            let path = script_directory.path().join("subber.sh");
-            crate::extensions::test_support::stage_fixture("subber-tool.sh", &path);
+            let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/subber-tool.sh");
+            make_executable(&path).unwrap();
             path
         };
         create_custom_integration(
@@ -6030,8 +6037,8 @@ mod tests {
     async fn uninstalling_a_system_integration_keeps_external_files() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        let executable = directory.path().join("external-tool");
-        std::fs::write(&executable, "#!/bin/sh\nprintf external\n").unwrap();
+        let executable =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/external-tool.sh");
         make_executable(&executable).unwrap();
 
         let generated = create_custom_integration(
