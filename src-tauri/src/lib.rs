@@ -37,9 +37,10 @@ use commands::autostart::{ensure_launch_at_startup, set_launch_at_startup};
 use commands::clipboard::{clipboard_read_text, clipboard_write_text};
 use commands::config::set_custom_shortcuts;
 use commands::config::{
-    app_version, get_settings, get_shortcuts, load_settings, reset_shortcuts, resolved_shortcuts,
-    resume_shortcuts, save_settings, save_terminal_size as persist_terminal_size,
-    saved_terminal_size, suspend_shortcuts, update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
+    app_version, get_settings, get_shortcuts, load_settings, normalize_terminal_size,
+    reset_shortcuts, resolved_shortcuts, resume_shortcuts, save_settings,
+    save_terminal_size as persist_terminal_size, saved_terminal_size, suspend_shortcuts,
+    update_shortcut, DEFAULT_TOGGLE_WINDOW, TOGGLE_WINDOW,
 };
 use commands::drops::resolve_dropped_files;
 use commands::extensions::{
@@ -1704,7 +1705,12 @@ pub fn run() {
         .manage(AppState {
             window_visible: AtomicBool::new(false),
             terminal_mode: AtomicBool::new(false),
-            terminal_height: Mutex::new(saved_terminal_size().1),
+            // R123 · the constructor no longer reads the settings file. The
+            // centering target is filled from the one startup read inside
+            // `setup` below; until then it holds the same fallback the getter
+            // uses for an unreadable slot, so a read that somehow never lands
+            // degrades to the documented 600pt instead of a 0pt anchor.
+            terminal_height: Mutex::new(TERMINAL_WINDOW_HEIGHT),
             tray_items: Mutex::new(None),
             toggle_shortcut: Mutex::new(String::new()),
             custom_shortcuts: Mutex::new(Vec::new()),
@@ -1777,6 +1783,18 @@ pub fn run() {
             app.set_activation_policy(ActivationPolicy::Accessory);
 
             let settings = load_settings();
+            // R123 · the startup path reads the file exactly once, so the
+            // terminal height the collapsed panel centers against is installed
+            // from the same value `saved_terminal_size()` used to compute at
+            // build time — same normalization, placed after the read instead
+            // of before it. Nothing reads this slot before `setup` returns:
+            // every `reveal_saved_mode` / `default_position` caller is a
+            // command, a tray/menu event, or a deep link, and all of those run
+            // on the event loop `setup` precedes.
+            if let Ok(mut current) = app.state::<AppState>().terminal_height.lock() {
+                *current =
+                    normalize_terminal_size(settings.terminal_width, settings.terminal_height).1;
+            }
             if let Err(error) = ensure_launch_at_startup(settings.launch_at_startup) {
                 tracing::error!("failed to reconcile launch-at-startup registration: {error}");
             }

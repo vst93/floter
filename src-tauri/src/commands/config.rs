@@ -939,7 +939,11 @@ fn normalize_window_opacity(value: u8, default: u8) -> u8 {
     }
 }
 
-fn normalize_terminal_size(width: f64, height: f64) -> (f64, f64) {
+/// R123 · exposed to `lib.rs`: the startup path reads the settings file once
+/// and installs the terminal height from that same value, so the defensive
+/// clamp has to be reachable from the caller that used to get it through
+/// `saved_terminal_size()`. Semantics are unchanged.
+pub fn normalize_terminal_size(width: f64, height: f64) -> (f64, f64) {
     let width = if width.is_finite() {
         width.clamp(MIN_TERMINAL_WIDTH, MAX_TERMINAL_WIDTH)
     } else {

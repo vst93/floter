@@ -32,6 +32,9 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
 
         let data =
             unsafe { std::slice::from_raw_parts(command.as_ptr().cast::<u8>(), command.len() * 2) };
+        // R123 · read-compare-write is a file rule: this branch goes through
+        // the registry API, where `RegSetValueExW` is the only handle on the
+        // existing value. Left as it is (registered in the R123 report).
         let status = unsafe { RegSetValueExW(key, w!("floter"), None, REG_SZ, Some(data)) };
         unsafe {
             let _ = RegCloseKey(key);
@@ -84,7 +87,6 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
     let executable = executable
         .to_str()
         .ok_or("Application path is not valid Unicode")?;
-    std::fs::create_dir_all(&launch_agents).map_err(|error| error.to_string())?;
 
     // A per-user LaunchAgent avoids the helper bundle required by
     // SMLoginItemSetEnabled while retaining normal non-sandboxed app behavior.
@@ -105,7 +107,21 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
         "LimitLoadToSessionType".to_string(),
         Value::String("Aqua".to_string()),
     );
-    plist::to_file_xml(path, &Value::Dictionary(document)).map_err(|error| error.to_string())
+    let document = Value::Dictionary(document);
+    // R123 · steady state writes nothing, the same read-compare-write as the
+    // Linux branch. The entry is a plist, so the comparison is on the parsed
+    // value rather than on raw bytes (the serializer's own whitespace is not
+    // part of the entry) — a file whose parsed value already equals this one
+    // returns before `create_dir_all` and the write. An absent, unreadable, or
+    // foreign file falls through and is overwritten, which is also what creates
+    // the LaunchAgents directory the first time.
+    if let Ok(existing) = Value::from_file(&path) {
+        if existing == document {
+            return Ok(());
+        }
+    }
+    std::fs::create_dir_all(&launch_agents).map_err(|error| error.to_string())?;
+    plist::to_file_xml(path, &document).map_err(|error| error.to_string())
 }
 
 #[cfg(target_os = "linux")]
@@ -136,6 +152,16 @@ fn apply_launch_at_startup(enabled: bool) -> Result<(), String> {
     let entry = format!(
         "[Desktop Entry]\nType=Application\nName=floter\nExec=\"{escaped}\" --background\nTerminal=false\nHidden=false\nX-GNOME-Autostart-enabled=true\n"
     );
+    // R123 · steady state writes nothing: the entry is read back first and a
+    // byte-identical file ends the call before the directory is touched. A
+    // missing file reads as `Err(NotFound)`, and any other read error falls
+    // through too — both take the write below, which is also what creates the
+    // `autostart` directory on the first enable.
+    if let Ok(existing) = std::fs::read(&path) {
+        if existing == entry.as_bytes() {
+            return Ok(());
+        }
+    }
     std::fs::create_dir_all(&autostart_dir).map_err(|error| error.to_string())?;
     std::fs::write(path, entry).map_err(|error| error.to_string())
 }
