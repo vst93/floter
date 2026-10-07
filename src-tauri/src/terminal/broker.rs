@@ -6,7 +6,7 @@
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command as ProcessCommand, Stdio};
+use std::process::Command as ProcessCommand;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
@@ -657,22 +657,19 @@ fn spawn_daemon_process() -> Result<()> {
         );
         command.env("PATH", merged);
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        const DETACHED_PROCESS: u32 = 0x0000_0008;
-        command.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
-    }
-    #[cfg(not(windows))]
-    {
-        command
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-    }
-    command.spawn().context("start terminal daemon")?;
-    Ok(())
+    // R139 · the daemon used to be a bare `.spawn()` whose `Child` was dropped:
+    // on Unix it stayed in Floter's session and process group (no `setsid`) and
+    // became a zombie the moment it exited, and it inherited Floter's stdio.
+    // It now goes through the one detachment helper every launch path uses
+    // (null stdio, a fresh session on Unix, `DETACHED_PROCESS |
+    // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW` on Windows) and its `Child`
+    // is reaped on the shared detached-reaper thread. `spawn_detached_command`
+    // takes the already-built command, so the `QSCREEN_NAMESPACE` env and the
+    // macOS `PATH` merge above are preserved verbatim.
+    crate::process_launch::spawn_detached_command(&mut command)
+        .map(|_| ())
+        .map_err(anyhow::Error::msg)
+        .context("start terminal daemon")
 }
 
 fn run_daemon() -> Result<()> {

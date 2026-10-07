@@ -24,6 +24,12 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
+/** Drop `//` comment lines, so a comment *describing* the old bare spawn is not read as code. */
+const withoutComments = (source: string) =>
+  source
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("//"))
+    .join("\n");
 
 test("R43 · the launch helper detaches a session AND leaves the caller's cgroup", async () => {
   const launch = await read("src-tauri/src/process_launch.rs");
@@ -57,6 +63,9 @@ test("R43 · every app-launch path goes through the one helper", async () => {
     "src-tauri/src/commands/apps/macos.rs",
     "src-tauri/src/commands/actions.rs",
     "src-tauri/src/browser_data/mod.rs",
+    // R139 · the terminal hand-off spawns a *user-facing* emulator; it must be
+    // detached for the same reason every app launch is.
+    "src-tauri/src/terminal/session.rs",
   ];
   for (const path of paths) {
     const source = await read(path);
@@ -77,4 +86,50 @@ test("R43 · every app-launch path goes through the one helper", async () => {
   const linux = await read("src-tauri/src/commands/apps/linux.rs");
   assert.match(linux, /dbus_activatable/, "the D-Bus-activatable flag is parsed");
   assert.match(linux, /spawn_application\(program, arguments\)/, "the Exec argv is the launch");
+});
+
+// R139 · two terminal spawns the R138 census found outside the detach channel:
+// the qscreen PTY daemon and the macOS terminal hand-off. Both were bare
+// `.spawn()` calls whose `Child` was dropped, so the child stayed in Floter's
+// session and process group (no `setsid`), held Floter's stdio, and became a
+// zombie the moment it exited. The daemon is the worse of the two: it is
+// supposed to outlive Floter.
+test("R139 · the PTY daemon and the macOS hand-off detach through the one helper", async () => {
+  const broker = await read("src-tauri/src/terminal/broker.rs");
+  const daemonStart = broker.indexOf("fn spawn_daemon_process");
+  assert.notEqual(daemonStart, -1, "the daemon spawn function must exist");
+  const daemon = broker.slice(daemonStart);
+  const daemonBody = daemon.slice(0, daemon.indexOf("\nfn "));
+  // Comments may *describe* the old bare spawn; only real code counts.
+  const daemonCode = withoutComments(daemonBody);
+  assert.match(
+    daemonCode,
+    /process_launch::spawn_detached_command\(/,
+    "the terminal daemon must detach through process_launch",
+  );
+  assert.doesNotMatch(
+    daemonCode,
+    /\.spawn\(\)/,
+    "the daemon must not be a bare spawn whose Child is dropped",
+  );
+  // The existing semantics ride along: the namespace env and the macOS PATH
+  // merge are set on the same command the helper detaches.
+  assert.match(daemonBody, /env\(NAMESPACE_ENV, NAMESPACE\)/, "the daemon keeps its namespace");
+  assert.match(daemonBody, /merge_path_entries\(/, "the macOS PATH merge is preserved");
+
+  const session = await read("src-tauri/src/terminal/session.rs");
+  const handoffStart = session.indexOf("fn open_named_terminal_at");
+  assert.notEqual(handoffStart, -1, "the macOS hand-off function must exist");
+  const handoff = session.slice(handoffStart);
+  const handoffBody = withoutComments(handoff.slice(0, handoff.indexOf("\n}\n")));
+  assert.match(
+    handoffBody,
+    /process_launch::spawn_detached_command\(/,
+    "the macOS terminal hand-off must detach through process_launch",
+  );
+  assert.doesNotMatch(
+    handoffBody,
+    /\.spawn\(\)/,
+    "the macOS hand-off must not be a bare spawn whose Child is dropped",
+  );
 });

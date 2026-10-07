@@ -969,7 +969,7 @@ Options:
 
         for garbage in [
             "",
-            "\u{fffd}\u{0} \n",
+            "\u{fffd}\u{0}\n",
             "---- ==== <<<>>>",
             "-",
             "random text",

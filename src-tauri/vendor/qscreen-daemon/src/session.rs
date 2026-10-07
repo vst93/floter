@@ -8,7 +8,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use portable_pty::{ChildKiller, CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
+use portable_pty::{
+    Child, ChildKiller, CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem,
+};
 use qscreen_protocol::{
     AttachMode, FRAME_FLAG_BLINK, FRAME_FLAG_BOLD, FRAME_FLAG_DIM, FRAME_FLAG_HIDDEN,
     FRAME_FLAG_INVERSE, FRAME_FLAG_ITALIC, FRAME_FLAG_STRIKETHROUGH, FRAME_FLAG_UNDERLINE,
@@ -32,6 +34,20 @@ const DEFAULT_WINDOWS_SHELL: &str = r"C:\Windows\System32\WindowsPowerShell\v1.0
 const CMD_WINDOWS_SHELL: &str = r"C:\Windows\System32\cmd.exe";
 const TERM_XTERM_256COLOR: &str = "xterm-256color";
 const COLOR_TERM_TRUECOLOR: &str = "truecolor";
+
+// R139 · `close()` only *asks* the PTY child to leave: portable-pty 0.8's
+// `ProcessSignaller::kill` sends a bare `SIGHUP`, and a program that ignores
+// `SIGHUP` simply survives it. A blocking `child.wait()` then never returned, so
+// the session was never removed, the daemon never went idle and its Stop was
+// never emitted. The exit waiter polls instead and, once `close()` has been
+// observed, gives the child this long to clean up before killing it outright.
+// One second: a shell that traps `SIGHUP` (to flush history, kill its jobs) is
+// exactly the case the grace is for, and that work is fast; anything longer
+// would make the user's Stop feel stuck.
+const CLOSE_GRACE: Duration = Duration::from_millis(1000);
+// How often the waiter re-checks a still-running child. It also bounds how
+// late the escalation lands (grace + one poll).
+const EXIT_POLL: Duration = Duration::from_millis(50);
 
 pub type ClientId = u64;
 type OutputDrain = Arc<(Mutex<bool>, Condvar)>;
@@ -387,12 +403,10 @@ impl Session {
             let exit_code_e = exit_code.clone();
             let exit_tx_e = exit_tx.clone();
             let name_e = name.clone();
+            let closed_e = closed.clone();
             tokio::task::spawn_blocking(move || {
                 let mut child = child;
-                let code = match child.wait() {
-                    Ok(status) => status.exit_code() as i32,
-                    Err(_) => -1,
-                };
+                let code = wait_for_exit(&mut *child, &closed_e);
                 let (drained, ready) = &*output_drain;
                 if let Ok(mut drained) = drained.lock() {
                     while !*drained {
@@ -651,6 +665,43 @@ impl Session {
             .unwrap()
             .values()
             .any(|client| client.attached)
+    }
+}
+
+/// R139 · wait for the PTY child, escalating when it will not leave.
+///
+/// `close()` only asks: portable-pty 0.8's `ProcessSignaller::kill` sends a bare
+/// `SIGHUP`, and a program that ignores `SIGHUP` simply survives it. A blocking
+/// `child.wait()` then never returned, the session was never removed, and the
+/// daemon never went idle — the failure a Stop that never lands exposes. So the
+/// wait is a poll: as soon as `close()` has been observed the child gets
+/// [`CLOSE_GRACE`] to exit on its own, and is then killed outright.
+///
+/// The escalation goes through the child handle this waiter owns, never through
+/// a pid cached on the session: a child that has been reaped can have its pid
+/// reused, and a late `kill` would then hit an unrelated process. On Unix
+/// portable-pty's `Child::kill` re-sends `SIGHUP`, waits out its own short grace
+/// and then `SIGKILL`s; on Windows it is already `TerminateProcess`. R139
+/// deliberately does not add a `libc` dependency for the signal: this vendored
+/// crate is not in `Cargo.lock`'s patch set and a new declaration would move the
+/// lock, so the escalation stays on the dependency the crate already has.
+fn wait_for_exit(child: &mut dyn Child, closed: &AtomicBool) -> i32 {
+    let mut closed_at: Option<Instant> = None;
+    let mut escalated = false;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.exit_code() as i32,
+            Ok(None) => {}
+            Err(_) => return -1,
+        }
+        if !escalated && closed.load(Ordering::SeqCst) {
+            let started = *closed_at.get_or_insert_with(Instant::now);
+            if started.elapsed() >= CLOSE_GRACE {
+                escalated = true;
+                let _ = child.kill();
+            }
+        }
+        thread::sleep(EXIT_POLL);
     }
 }
 
@@ -1609,6 +1660,94 @@ mod tests {
         assert_eq!(recv_exit(&queue2), -1);
         assert!(!session.is_attached());
         assert_eq!(*session.active_client_id.lock().unwrap(), None);
+    }
+
+    /// R139 · `close()` must not stop at a bare `SIGHUP`.
+    ///
+    /// A child that ignores `SIGHUP` used to survive it, the blocking exit
+    /// waiter never returned, and the session was never reaped — so the daemon
+    /// never went idle and its Stop was never emitted. The waiter now escalates
+    /// after [`CLOSE_GRACE`], so a stubborn child must still be reaped.
+    ///
+    /// The session runs on its own runtime inside a helper thread and the test
+    /// only waits on a channel with a timeout: if the escalation regresses, the
+    /// waiter polls forever, and the *test* must still fail cleanly instead of
+    /// wedging the harness in runtime shutdown. Linux-gated: it needs a real PTY
+    /// and a Unix signal, and the CI runs on Linux.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn close_escalates_past_sighup_for_a_stubborn_child() {
+        let (reaped_tx, reaped_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            runtime.block_on(async move {
+                let command = SpawnCommand {
+                    program: "/bin/sh".to_string(),
+                    args: vec![
+                        "-c".to_string(),
+                        // Ignore SIGHUP, announce that the trap is installed,
+                        // then stay alive on our own: nothing here exits by
+                        // itself.
+                        "trap '' HUP; echo READY; while :; do sleep 1; done".to_string(),
+                    ],
+                    environment: HashMap::new(),
+                    inherit_environment: true,
+                };
+                let session = Session::new_with_cwd_and_command(
+                    "1".to_string(),
+                    "stubborn".to_string(),
+                    80,
+                    24,
+                    None,
+                    None,
+                    Some(command),
+                )
+                .unwrap();
+
+                // Close only once the trap is installed, so the SIGHUP below is
+                // genuinely ignored rather than racing the shell's startup.
+                let ready_deadline = Instant::now() + Duration::from_secs(5);
+                loop {
+                    let ready = session
+                        .scrollback
+                        .lock()
+                        .unwrap()
+                        .snapshot()
+                        .windows(5)
+                        .any(|window| window == b"READY");
+                    if ready {
+                        break;
+                    }
+                    assert!(
+                        Instant::now() < ready_deadline,
+                        "the stubborn shell never reported READY"
+                    );
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+
+                session.close();
+
+                // The waiter sets `exited` only after `try_wait` reports the
+                // child gone, so this is the same "the process died and was
+                // reaped" fact a pid probe would report.
+                let deadline = Instant::now() + Duration::from_secs(5);
+                while !session.exited.load(Ordering::SeqCst) && Instant::now() < deadline {
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+                let _ = reaped_tx.send(session.exited.load(Ordering::SeqCst));
+            });
+        });
+
+        let reaped = reaped_rx
+            .recv_timeout(Duration::from_secs(15))
+            .unwrap_or(false);
+        assert!(
+            reaped,
+            "close() must escalate past SIGHUP so the exit waiter is not blocked forever"
+        );
     }
 
     #[tokio::test]

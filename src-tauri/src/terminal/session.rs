@@ -1225,8 +1225,11 @@ fn open_named_terminal_at(name: &str, dir: &Path, resume_command: &str) -> Resul
             command.args(["-e", &shell, "-lc", &script]);
         }
     }
-    strip_herdr_vars(&mut command)
-        .spawn()
+    // R139 · detached, exactly like the Linux hand-off below: a terminal
+    // emulator started for a hand-off must not be in Floter's session/process
+    // group, must not hold Floter's stdio, and must not become a zombie when it
+    // exits. This used to be a bare `.spawn()` whose `Child` was dropped.
+    crate::process_launch::spawn_detached_command(strip_herdr_vars(&mut command))
         .map(|_| true)
         .map_err(|error| format!("failed to start terminal emulator '{name}': {error}"))
 }
