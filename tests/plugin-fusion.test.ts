@@ -278,8 +278,6 @@ test("the new keys exist in both dictionaries", async () => {
   const keys = [
     "input.placeholderClipboard",
     "input.placeholderBrowser",
-    "settings.browserSort",
-    "settings.browserSortHint",
     "settings.browserSortRelevance",
     "settings.browserSortRecent",
     "settings.browserSortAlphabetical",

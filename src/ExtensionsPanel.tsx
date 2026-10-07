@@ -671,6 +671,13 @@ export type InstallRequest = {
 const KEYED_VALUE_PARAMS: Partial<Record<MessageKey, string>> = {
   "settings.extensions.form.cannotDeriveCommand": "stem",
   "settings.extensions.openNonWebUrl": "url",
+  // R141 · the export family's join failure. R135 moved the blocking write off
+  // the async worker and the join error reached the toast in English; the
+  // backend now sends `settings.extensions.exportTaskFailed.<what>:<error>` and
+  // the value fills the dictionary's `{error}` slot.
+  "settings.extensions.exportTaskFailed.extension": "error",
+  "settings.extensions.exportTaskFailed.script": "error",
+  "settings.extensions.exportTaskFailed.config": "error",
 };
 
 const errorMessage = (error: unknown, t?: Translate): string => {

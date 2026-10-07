@@ -109,10 +109,6 @@ test("the two new i18n keys carry a translation in both languages", () => {
     "launcher.browserHistory",
     "settings.browser",
     "settings.browserHint",
-    "settings.browserTarget",
-    "settings.browserTargetAuto",
-    "settings.browserCustomDir",
-    "settings.browserHistoryDays",
   ] as const) {
     assert.notEqual(en(key), key, `${key} is translated in en`);
     assert.notEqual(zh(key), key, `${key} is translated in zh`);

@@ -289,7 +289,6 @@ test("every new key is declared in both dictionaries and is real Chinese", () =>
     "settings.group.shortcuts",
     "settings.group.sessions",
     "settings.group.update",
-    "settings.group.link",
     "settings.scale.small",
     "settings.scale.large",
     "settings.transparency.scaleLow",

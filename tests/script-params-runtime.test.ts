@@ -220,7 +220,6 @@ test("every new run-parameter key exists in both dictionaries with matching plac
     "settings.extensions.customRunValuesHint",
     "settings.extensions.customRunConfirm",
     "settings.extensions.customRunCancel",
-    "settings.extensions.customRunRememberHint",
   ];
   for (const key of keys) {
     assert.equal(i18n.split(`"${key}"`).length - 1, 2, `${key} must be declared once per language`);

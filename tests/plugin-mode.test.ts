@@ -173,7 +173,7 @@ test("a list of only status rows is display-only", () => {
 // ── A2 · R30 · a status row is a note, not a result ───────────────────────
 
 test("a status row downgrades to the launcher's own note", () => {
-  const statusRow = browserStatusRow("tabs-unavailable", "launcher.browserTabsUnavailable", en);
+  const statusRow = browserStatusRow("browser-no-profile", "launcher.browserNoProfile", en);
   assert.equal(statusRow.kind, "status", "the plugin's word is what the layer reads");
   assert.equal(statusRow.disabled, true, "and the tier rule still reads the flag");
 
@@ -183,7 +183,7 @@ test("a status row downgrades to the launcher's own note", () => {
   const items = pluginViewItems(view);
   assert.deepEqual(items.map((item) => item.type), ["browser", "status"]);
   const note = items[1];
-  assert.equal(note.type === "status" ? note.title : "", en("launcher.browserTabsUnavailable"));
+  assert.equal(note.type === "status" ? note.title : "", en("launcher.browserNoProfile"));
 
   // The note is not a row with metadata and it takes no numbered slot: the
   // first row keeps `⌘1` and the note gets nothing.
@@ -465,7 +465,6 @@ test("the keys the two producers print exist in both dictionaries", async () => 
   for (const key of [
     "launcher.browserEmpty",
     "launcher.browserNoProfile",
-    "launcher.browserTabsUnavailable",
     "launcher.browserDisabled",
     "clipboard.pageUnavailable",
     "clipboard.empty",

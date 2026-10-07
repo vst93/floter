@@ -142,3 +142,23 @@ R111 只读普查了生产代码的 panic 面（10 处），结论是全部落�
 事件必须两端成对：删前端订阅时同步删后端 emit；新事件先有订阅方再发。`extensions-changed`
 曾 5 发 0 收（前端靠 invoke 返回值刷新，R121 删，git 历史 `6ff82aa..`）。源码级守卫：
 `tests/r121-dead-event.test.ts`（被禁字面在 `src-tauri/src` 零出现 + 真实事件仍在）。
+
+## 退役 key 登记（R141）
+
+R140 普查判定 19 个 i18n key 无生产消费，R141 物理删除（`src/i18n.ts` 两侧各 −19 行）：
+
+- `extensions.source`（残留；活键是 `settings.extensions.source`）
+- `launcher.browserTabsUnavailable`（生产只发 `browserNoProfile`/`browserEmpty`）
+- `settings.group.link`（设置分组未使用；活键是 `settings.deepLink*`）
+- `settings.language.en/zh`（`LANGUAGE_OPTIONS[].descriptionKey` 字段无人读取，随键一并删除）
+- `settings.browserTarget/Auto/CustomDir/HistoryDays/Sort/SortHint`
+  —— **`settings.browser*` 退役页双写随 `plugins.config.*` 重写（R140）删除**；
+  `settings.browser`/`settings.browserHint` 仍活，`settings.browserSortRelevance…` 四值键仍活
+- `clipboard.title/filter/clear/loadFailed/typeColor`（R33/R76 退役剪贴板页）
+- `settings.shortcuts`（页面用 `settings.group.shortcuts`/`settings.shortcutsHint`）
+- `settings.extensions.customRunning`（生产用 `customRun`/`customRunUnavailable`）
+- `settings.extensions.customRunRememberHint`（生产用 `customRunValuesHint`）
+
+防复活守卫：`tests/r141-export-task-failed-keyed.test.ts`（第 3 条，`src/**` + `src-tauri/src/**`
+去注释后三种引号字面量零出现）。同轮把 export 家族的 join 失败句 keyed 化
+（`settings.extensions.exportTaskFailed.<extension|script|config>`）。

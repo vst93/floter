@@ -257,7 +257,6 @@ test("every new run/output key exists in both dictionaries with the same placeho
     "settings.extensions.customOutputBackground",
     "settings.extensions.customOutputHint",
     "settings.extensions.customRun",
-    "settings.extensions.customRunning",
     "settings.extensions.customRunUnavailable",
     "settings.extensions.customRunSucceeded",
     "settings.extensions.customRunFailedToast",

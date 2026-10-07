@@ -1067,7 +1067,7 @@ pub async fn extensions_export(
         ))
     })
     .await
-    .map_err(|error| format!("Extension export task failed: {error}"))??;
+    .map_err(|error| format!("settings.extensions.exportTaskFailed.extension:{error}"))??;
     Ok(Some(ExtensionsExportResult {
         path: path_label,
         extension_count,
@@ -1545,7 +1545,7 @@ pub async fn extensions_custom_export_script(
         Ok::<_, String>(path.to_string_lossy().into_owned())
     })
     .await
-    .map_err(|error| format!("Script export task failed: {error}"))??;
+    .map_err(|error| format!("settings.extensions.exportTaskFailed.script:{error}"))??;
     Ok(Some(path_label))
 }
 
@@ -2539,7 +2539,7 @@ pub async fn extensions_config_export(
         Ok::<_, String>(path.to_string_lossy().into_owned())
     })
     .await
-    .map_err(|error| format!("Configuration export task failed: {error}"))??;
+    .map_err(|error| format!("settings.extensions.exportTaskFailed.config:{error}"))??;
     Ok(Some(path_label))
 }
 
