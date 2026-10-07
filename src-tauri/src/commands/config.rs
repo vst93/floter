@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
-use std::path::Path;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::SystemTime;
 use tauri::Manager;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
@@ -828,6 +829,79 @@ fn insert_shortcut_if_available(
     }
 }
 
+/// R136 · the process-wide settings snapshot.
+///
+/// `load_settings` used to be a disk read plus a JSON parse on every call, and
+/// the command layer calls it on hot paths — one summon, and ≥3 reads per
+/// browser search. The snapshot below holds the last read together with the
+/// file it came from and that file's mtime, so a hit costs one `stat` instead
+/// of a read plus a parse.
+///
+/// The slot is keyed on the settings path (the tests read from per-test temp
+/// dirs) and every hit re-checks the mtime, so a hand-edit or a second process
+/// is picked up without a watch thread. The lock only ever guards the in-memory
+/// compare/swap: the `stat` that validates a hit happens after the read guard
+/// is dropped, and the disk read that fills a miss happens with no lock held.
+struct SettingsSnapshot {
+    /// The `settings.json` the snapshot was read from.
+    path: PathBuf,
+    /// That file's mtime at read time, captured *before* the read so a write
+    /// that lands during the parse leaves a mismatch behind instead of a
+    /// snapshot wearing the new file's timestamp.
+    modified: SystemTime,
+    settings: Arc<AppSettings>,
+}
+
+static SETTINGS_SNAPSHOT: RwLock<Option<SettingsSnapshot>> = RwLock::new(None);
+
+/// The file's mtime, or `None` when it cannot be read (missing file, a
+/// transient permission error, a filesystem without timestamps). `None` is a
+/// miss by construction, so the caller re-reads rather than serving a snapshot
+/// it can no longer vouch for.
+fn settings_mtime(path: &Path) -> Option<SystemTime> {
+    std::fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+}
+
+/// The cached snapshot for `path`, when one is present, keyed on the same path
+/// and still matching the file's mtime. `None` means "read the disk".
+///
+/// The path comparison is the only thing done under the read guard; the `stat`
+/// that validates the hit runs after the guard is dropped, so the cache lock
+/// never spans disk IO (see the lock-order note on [`load_settings_from`]).
+fn cached_settings(path: &Path) -> Option<Arc<AppSettings>> {
+    let (modified, settings) = {
+        let slot = SETTINGS_SNAPSHOT.read().ok()?;
+        let snapshot = slot.as_ref()?;
+        if snapshot.path != path {
+            return None;
+        }
+        (snapshot.modified, Arc::clone(&snapshot.settings))
+    };
+    if settings_mtime(path) != Some(modified) {
+        return None;
+    }
+    Some(settings)
+}
+
+/// Drop the snapshot. Every successful settings write calls this, so the next
+/// read re-reads the file the write just replaced. The slot is cleared rather
+/// than refilled with the writer's value: a writer may hold a pre-normalization
+/// `AppSettings`, and serving that back would skip the read path's
+/// normalization and migration. `None` forces the same fresh read the pre-R136
+/// code always did.
+///
+/// Lock order: `SETTINGS_LOCK` → `SETTINGS_SNAPSHOT`. A write path already
+/// holds the settings lock when it lands here, and this guard is released
+/// before the function returns; nothing takes the two in the other order
+/// (`load_settings` never takes `SETTINGS_LOCK`), so the pair is acyclic.
+fn invalidate_settings_snapshot() {
+    if let Ok(mut slot) = SETTINGS_SNAPSHOT.write() {
+        *slot = None;
+    }
+}
+
 /// Load settings from disk, falling back to defaults when missing or invalid.
 pub fn load_settings() -> AppSettings {
     let Some(config_dir) = dirs::config_dir().map(|directory| directory.join("floter")) else {
@@ -836,10 +910,38 @@ pub fn load_settings() -> AppSettings {
     load_settings_from(&config_dir)
 }
 
+/// The cache-aware read: a hit is one `stat` plus an `Arc` clone, a miss is the
+/// old read-then-parse with the result installed in the snapshot slot.
+///
+/// Lock order: the snapshot guard is taken alone and released before any disk
+/// IO; `SETTINGS_LOCK` is never held here. The only pairing in the tree is the
+/// write side's `SETTINGS_LOCK` → `SETTINGS_SNAPSHOT` (see
+/// [`invalidate_settings_snapshot`]), so the two locks cannot deadlock.
 fn load_settings_from(config_dir: &Path) -> AppSettings {
-    read_settings(&config_dir.join(SETTINGS_FILE_NAME))
-        .or_else(|| read_settings(&config_dir.join(SETTINGS_BACKUP_FILE_NAME)))
-        .unwrap_or_default()
+    let primary = config_dir.join(SETTINGS_FILE_NAME);
+    if let Some(settings) = cached_settings(&primary) {
+        return (*settings).clone();
+    }
+    // Capture the mtime *before* the read. If the file changes while it is
+    // being parsed, the recorded stamp is the pre-change one and the next call
+    // sees a mismatch and re-reads, instead of caching torn bytes under the new
+    // file's timestamp.
+    let modified = settings_mtime(&primary);
+    let settings = Arc::new(
+        read_settings(&primary)
+            .or_else(|| read_settings(&config_dir.join(SETTINGS_BACKUP_FILE_NAME)))
+            .unwrap_or_default(),
+    );
+    if let Some(modified) = modified {
+        if let Ok(mut slot) = SETTINGS_SNAPSHOT.write() {
+            *slot = Some(SettingsSnapshot {
+                path: primary,
+                modified,
+                settings: Arc::clone(&settings),
+            });
+        }
+    }
+    (*settings).clone()
 }
 
 fn read_settings(path: &Path) -> Option<AppSettings> {
@@ -1350,7 +1452,13 @@ fn write_settings_to(config_dir: &Path, settings: &AppSettings) -> Result<(), St
     crate::extensions::lock::sync_directory(config_dir).map_err(|error| error.to_string())?;
 
     write_settings_file(&config_dir.join(SETTINGS_FILE_NAME), &content)?;
-    crate::extensions::lock::sync_directory(config_dir).map_err(|error| error.to_string())
+    crate::extensions::lock::sync_directory(config_dir).map_err(|error| error.to_string())?;
+    // R136 · the snapshot slot now describes the file this write replaced. The
+    // single funnel is deliberate: every production writer goes through
+    // `write_settings`, which delegates here, so one invalidation covers all of
+    // them (`tests/r136-settings-cache.test.ts` pins the count).
+    invalidate_settings_snapshot();
+    Ok(())
 }
 
 fn write_settings_file(path: &Path, content: &[u8]) -> Result<(), String> {
@@ -2609,7 +2717,11 @@ mod tests {
     /// write the dead id onto <html>.
     #[test]
     fn reading_a_file_with_an_old_step_migrates_it() {
-        let config_dir = tempfile::tempdir().expect("tempdir");
+        // R136 · one temp dir per step. The read path now caches by
+        // (path, mtime), and rewriting the same path five times inside one
+        // filesystem timestamp tick would legitimately hit the snapshot — a
+        // property of the cache, not of the migration. A fresh path per step
+        // keeps the assertion "a stored old id reads back migrated" exact.
         for (old, expected) in [
             ("low", "frosted"),
             ("mid", "regular"),
@@ -2617,6 +2729,7 @@ mod tests {
             ("deep", "liquid"),
             ("jelly", "liquid"),
         ] {
+            let config_dir = tempfile::tempdir().expect("tempdir");
             let file = format!(r#"{{ "glass_step": "{old}" }}"#);
             std::fs::write(config_dir.path().join(SETTINGS_FILE_NAME), file).expect("write");
             let settings = load_settings_from(config_dir.path());
@@ -3191,5 +3304,91 @@ mod tests {
         assert_eq!(settings.font_family, "monospace");
         assert_eq!(settings.terminal_width, DEFAULT_TERMINAL_WIDTH);
         assert_eq!(settings.terminal_height, DEFAULT_TERMINAL_HEIGHT);
+    }
+
+    /// R136 · a successful write drops the cached snapshot, so the next read
+    /// reflects the value the write put on disk. The mtime is deliberately
+    /// pinned back to the value the snapshot recorded: this test is about the
+    /// write path's invalidation, not the external-edit mtime check, and
+    /// without the pin the mtime check would mask a missing invalidation on a
+    /// filesystem whose timestamps move between the two writes.
+    #[test]
+    fn a_write_invalidates_the_cached_snapshot() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join(SETTINGS_FILE_NAME);
+
+        let first = AppSettings {
+            font_size: 12,
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &first).expect("write settings");
+        assert_eq!(load_settings_from(directory.path()).font_size, 12);
+
+        let stamp = std::fs::metadata(&path)
+            .and_then(|metadata| metadata.modified())
+            .expect("settings mtime");
+
+        let second = AppSettings {
+            font_size: 33,
+            ..AppSettings::default()
+        };
+        write_settings_to(directory.path(), &second).expect("write settings");
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .expect("open settings")
+            .set_modified(stamp)
+            .expect("restore mtime");
+
+        assert_eq!(
+            load_settings_from(directory.path()).font_size,
+            33,
+            "a write must drop the snapshot even when the file's mtime did not move"
+        );
+    }
+
+    /// R136 · a settings file changed behind the process's back is picked up:
+    /// every hit re-checks the mtime, so an external writer that never went
+    /// through `write_settings` still forces a re-read.
+    #[test]
+    fn an_external_mtime_bump_rereads_the_file() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join(SETTINGS_FILE_NAME);
+
+        write_settings_to(
+            directory.path(),
+            &AppSettings {
+                font_size: 12,
+                ..AppSettings::default()
+            },
+        )
+        .expect("write settings");
+        assert_eq!(load_settings_from(directory.path()).font_size, 12);
+
+        // An external writer replaces the bytes without going through
+        // `write_settings`, so nothing invalidates the snapshot; only the mtime
+        // check can notice.
+        let external = AppSettings {
+            font_size: 40,
+            ..AppSettings::default()
+        };
+        let bytes = serde_json::to_vec_pretty(&external).expect("serialize settings");
+        std::fs::write(&path, &bytes).expect("external write");
+        // `std::fs::write` can land inside the same timestamp tick as the write
+        // above; bump the mtime explicitly so the test measures the check and
+        // not the filesystem's timestamp granularity.
+        let later = SystemTime::now() + std::time::Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .expect("open settings")
+            .set_modified(later)
+            .expect("bump mtime");
+
+        assert_eq!(
+            load_settings_from(directory.path()).font_size,
+            40,
+            "a changed mtime must force a re-read"
+        );
     }
 }

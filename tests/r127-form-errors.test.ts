@@ -80,14 +80,20 @@ const PICKER_REGIONS: Array<[string, string, string]> = [
   ],
 ];
 
-/** The six P1-D rewrites, pinned by file, 1-based line and expected content. */
+/**
+ * The six P1-D rewrites, pinned by file, 1-based line and expected content.
+ *
+ * R136 added the process-wide settings snapshot above `load_settings` in
+ * config.rs, so the CONFIG pin moved from 1194 to 1296. The other five files
+ * are untouched by that round and keep their R127 lines.
+ */
 const P1D_SITES: Array<[string, number, string, string]> = [
   [TERMINAL, 476, N_WRITE, "write failed"],
   [TERMINAL, 490, N_READ, "read failed"],
   [ACTIONS, 139, N_COMMAND, "Empty command"],
   [ACTIONS, 173, N_PROGRAM, "Empty program"],
   [APPS, 408, N_APPLICATION, "Application not found"],
-  [CONFIG, 1194, N_LOCK, "Settings lock is poisoned"],
+  [CONFIG, 1296, N_LOCK, "Settings lock is poisoned"],
 ];
 
 test("the five picker messages are keyed, not spelled in English", async () => {
