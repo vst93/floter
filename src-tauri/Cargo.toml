@@ -34,8 +34,9 @@ tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
 # R7-10b: background-completion notifications only (see src/notifications.rs).
-# Pinned to the 2.4 line on purpose: this is the release that matches the
-# `tauri` 2.11 in Cargo.lock, and 3.x is an alpha for the next major.
+# The declaration stays on the 2.4 line on purpose: it is a caret, so it already
+# covers the 2.5.1 the lock resolves (moved up with the R131 framework family),
+# and 3.x is still an alpha for the next major.
 tauri-plugin-notification = "2.4.0"
 # R110: the high-risk declarations below carry the audited floor (a patch
 # position) instead of a bare major/minor. Tightened by R110: serde,

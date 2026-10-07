@@ -116,8 +116,8 @@ R111 只读普查了生产代码的 panic 面（10 处），结论是全部落�
 `clipboard_history/mod.rs` 的 `mutate_history`——那里的 `expect` 落在**同步命令链**上，R112 已
 消除。以下是为什么「同步命令链上的 panic」比普通 panic 严重，以及此后写命令的规则。
 
-1. **同步命令（79 个）panic ⇒ 进程 abort**。证据链（tauri 2.11.5 / tauri-macros 2.6.3 /
-   wry 0.55.1 / webkit2gtk 2.0.2，即 lock 现值）：
+1. **同步命令（79 个）panic ⇒ 进程 abort**。证据链（tauri 2.12.1 / tauri-macros 2.7.1 /
+   wry 0.57.0 / webkit2gtk 2.0.2，即 lock 现值）：
    - `tauri-macros` 的 `wrapper.rs:404-433` `body_blocking` 直接调用命令函数并
      `kind.block(result, resolver)`，没有任务边界；
    - 这个 wrapper 由 `Webview::on_message`（`tauri/src/webview/mod.rs:1742`，
