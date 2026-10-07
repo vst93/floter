@@ -37,7 +37,7 @@ export const CLIPBOARD_FETCH_LIMIT = MAX_RESULTS;
  *  clipboard panel's own type labels, and the *four-way split is the chips'
  *  one* (`clipboardKindChip`): a colour literal is a `text` entry and its row
  *  says 文字, so the row's word, its icon and the chip that reveals it always
- *  agree. `clipboard.typeColor` remains the retired page's own label. */
+ *  agree. The retired page's own colour label left with the page. */
 const CLIPBOARD_KIND_KEYS: Record<ClipboardKindChip, MessageKey> = {
   text: "clipboard.typeText",
   link: "clipboard.typeLink",

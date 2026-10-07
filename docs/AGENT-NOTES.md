@@ -118,7 +118,7 @@ R111 只读普查了生产代码的 panic 面（10 处），结论是全部落�
 
 1. **同步命令（79 个）panic ⇒ 进程 abort**。证据链（tauri 2.12.1 / tauri-macros 2.7.1 /
    wry 0.57.0 / webkit2gtk 2.0.2，即 lock 现值）：
-   - `tauri-macros` 的 `wrapper.rs:404-433` `body_blocking` 直接调用命令函数并
+   - `tauri-macros` 的 `src/command/wrapper.rs:398` `body_blocking` 直接调用命令函数并
      `kind.block(result, resolver)`，没有任务边界；
    - 这个 wrapper 由 `Webview::on_message`（`tauri/src/webview/mod.rs:1742`，
      `manager/mod.rs:471` 的 `run_invoke_handler`）在**同步**路径上执行；
@@ -127,7 +127,7 @@ R111 只读普查了生产代码的 panic 面（10 处），结论是全部落�
      （`webkit2gtk-2.0.2/src/auto/web_context.rs:534`，`register_uri_scheme` 的 C 回调）。
    panic 从 `extern "C"` 帧里逃逸**不能 unwind**，只能 abort；R111 已实测进程 `exit 134`
    （SIGABRT）。前端拿到的是连接断开，不是错误。
-2. **异步命令（38 个）panic ⇒ 该命令 promise 永久挂起**。`wrapper.rs:361-395` 的 `body_async`
+2. **异步命令（38 个）panic ⇒ 该命令 promise 永久挂起**。`src/command/wrapper.rs:355` 的 `body_async`
    走 `respond_async_serialized`（`tauri/src/ipc/mod.rs:343-380`），最终
    `async_runtime::spawn`（`ipc/mod.rs:375`）把 future 交给 tokio；panic 在 tokio task 边界被
    吞掉，`return_result` 永不执行——前端 `invoke` 既不 resolve 也不 reject，**连错误提示都没有**。

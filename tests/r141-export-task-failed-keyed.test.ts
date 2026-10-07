@@ -134,3 +134,215 @@ test("this guard assembles its literals, it does not spell them", async () => {
     assert.ok(!self.includes(literal), `the guard must not spell: ${literal}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// R142 · the generic hygiene sweep this file's third test only sampled.
+//
+// G2 — R141 proved nineteen keys dead by hand, and a guard that remembers only
+// those nineteen cannot see the twentieth. This sweep takes the whole
+// dictionary and asks of every key: is it spelled somewhere a reader can see
+// (`src/**` + `src-tauri/src/**`, comments stripped), or is it built by one of
+// the dynamic sites R140 §1.2.2 catalogued? A key that is neither is dead, and
+// the assertion is that no such key exists — so the dead set stays a subset of
+// what R141 deleted.
+//
+// G3 — the same idea on the other half of the i18n contract: a tsx file may not
+// carry user-visible English of its own. The scan covers the three surfaces
+// R140 §1.3 measured — visible attributes, JSX text nodes, Chinese literals —
+// and stays deliberately narrow, because a false positive costs more than a
+// missed string (the guard only earns its keep while it stays trustworthy).
+
+/** Every comment form the three languages use, removed so a key named only in
+ *  prose cannot pass for a consumer. `[^:]` keeps `https://` intact. */
+const stripCommentsDeep = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
+/** Every key declared at the two-space indent both dictionaries use. */
+const declaredKeys = (body: string) =>
+  [...body.matchAll(/^ {2}"((?:[^"\\]|\\.)*)":/gm)].map((match) => match[1]);
+
+/** The union of the two dictionaries' key sets, sliced by the same markers
+ *  `i18n-symmetry` uses so the guard cannot read the wrong body. */
+const dictionaryKeySet = async () => {
+  const source = await read(I18N);
+  const enStart = source.indexOf("const en = {");
+  const enEnd = source.indexOf("export type MessageKey");
+  const zhStart = source.indexOf("const zh: Record<MessageKey, string> = {");
+  const zhEnd = source.indexOf("const messages: Record<Language");
+  assert.ok(enStart >= 0 && enEnd > enStart, "the en dictionary is declared before MessageKey");
+  assert.ok(zhStart >= 0 && zhEnd > zhStart, "the zh dictionary is declared before `messages`");
+  return [
+    ...new Set([
+      ...declaredKeys(source.slice(enStart, enEnd)),
+      ...declaredKeys(source.slice(zhStart, zhEnd)),
+    ]),
+  ];
+};
+
+// The dynamic producers, assembled from fragments so this guard never spells a
+// full pattern. Each anchor names the site R140 §1.2.2 catalogued.
+const SETTINGS_PREFIX = "settings" + ".";
+const EXTENSIONS_PREFIX = SETTINGS_PREFIX + "extensions" + ".";
+const DYNAMIC_PREFIXES = [
+  EXTENSIONS_PREFIX + "errorCode.", // ExtensionRow.tsx:258, binding-errors.ts:117
+  EXTENSIONS_PREFIX + "pickerClosed.", // ExtensionsPanel.tsx:690 (isMessageKey channel)
+  EXTENSIONS_PREFIX + "form.", // ExtensionsPanel.tsx:690 (isMessageKey channel)
+  SETTINGS_PREFIX + "terminalTheme.", // terminal-appearance.ts:306
+  SETTINGS_PREFIX + "terminalPadding.", // terminal-appearance.ts:310
+  SETTINGS_PREFIX + "terminalBold.", // terminal-appearance.ts:315
+  EXTENSIONS_PREFIX + "customParamType.", // CustomIntegrationDrawer.tsx:78
+  EXTENSIONS_PREFIX + "freshnessResult.", // ExtensionsPanel.tsx:3135
+  SETTINGS_PREFIX + "uiScale.", // GeneralPage.tsx:56
+  EXTENSIONS_PREFIX + "healthStatus.", // ExtensionsPanel.tsx:2909
+  EXTENSIONS_PREFIX + "runtimeSource.", // ExtensionRow.tsx:233
+  EXTENSIONS_PREFIX + "status.", // ExtensionRow.tsx:159
+  EXTENSIONS_PREFIX + "freshnessDot.", // ExtensionRow.tsx:174
+  SETTINGS_PREFIX + "menu.", // App.tsx:2840
+  "notification" + ".", // notifications.ts:108
+  "shortcut" + ".", // ShortcutsPage.tsx:398
+];
+// `removalTextKey` (ExtensionsPanel.tsx:2135) builds the family from this cross
+// product of stems and suffixes.
+const REMOVAL_KEYS = new Set(
+  ["deleteCustom", "uninstall", "disconnect", "removePackage"].flatMap((stem) =>
+    ["", "Title", "Description"].map((suffix) => EXTENSIONS_PREFIX + stem + suffix),
+  ),
+);
+// CustomIntegrationDrawer.tsx:150 builds the two permission legends from this
+// pair of names.
+const CUSTOM_PERMISSION_KEYS = new Set([
+  EXTENSIONS_PREFIX + "customEnforcedPermissions",
+  EXTENSIONS_PREFIX + "customDeclaredPermissions",
+]);
+const isDynamicKey = (key: string) =>
+  DYNAMIC_PREFIXES.some((prefix) => key.startsWith(prefix)) ||
+  REMOVAL_KEYS.has(key) ||
+  CUSTOM_PERMISSION_KEYS.has(key);
+
+test("every dictionary key is spelled statically or built by a dynamic producer", async () => {
+  const keys = await dictionaryKeySet();
+  assert.ok(keys.length > 700, `the dictionaries are still the full set (${keys.length})`);
+  const files = [...(await sourcesUnder("src")), ...(await sourcesUnder("src-tauri/src"))].filter(
+    (file) => file !== I18N,
+  );
+  assert.ok(files.length > 100, `the scan must cover both trees (${files.length} files)`);
+  const scanned = await Promise.all(
+    files.map(async (file) => ({ file, text: stripCommentsDeep(await read(file)) })),
+  );
+  const dead = keys.filter((key) => {
+    const literals = quoted(key);
+    if (scanned.some(({ text }) => literals.some((literal) => text.includes(literal)))) return false;
+    return !isDynamicKey(key);
+  });
+  assert.deepEqual(dead, [], "a key with no static consumer and no dynamic producer is dead");
+});
+
+/** Remove balanced `<…>` type-argument spans — the `<` that follows an
+ *  identifier or `)` is a generic, never a JSX tag. This is what turns the six
+ *  `Promise<`/`Parameters<`/`RefObject<` pseudo text-nodes R140 §1.3 saw into
+ *  the zero text nodes they really are. */
+const stripTypeArguments = (source: string) => {
+  let out = "";
+  let index = 0;
+  while (index < source.length) {
+    if (source[index] === "<" && index > 0 && /[A-Za-z0-9_$)]/.test(source[index - 1])) {
+      let depth = 0;
+      let cursor = index;
+      let balanced = true;
+      while (cursor < source.length) {
+        const char = source[cursor];
+        if (char === "<") depth += 1;
+        else if (char === ">") {
+          depth -= 1;
+          if (depth === 0) break;
+        } else if (char === "\n" || char === ";" || char === "{" || char === "}") {
+          balanced = false;
+          break;
+        }
+        cursor += 1;
+      }
+      if (balanced && cursor < source.length && source[cursor] === ">") {
+        index = cursor + 1;
+        continue;
+      }
+    }
+    out += source[index];
+    index += 1;
+  }
+  return out;
+};
+
+// A JSX attribute, not a property write: `document.title = "Floter"` must not
+// read as an attribute, so the name may not follow a `.` or a word character.
+const VISIBLE_ATTRIBUTE =
+  /(?<![\w.$])(placeholder|title|aria-label|alt)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*"([^"]*)"\s*\}|\{\s*'([^']*)'\s*\}|\{\s*`([^`]*)`\s*\})/g;
+// CustomIntegrationDrawer.tsx:93 shows the CLI flag a custom argument looks
+// like as a technical example, not prose. Assembled so this guard does not
+// spell it. The two template interpolations R140 §1.3 listed never reach the
+// scan: a template with `${…}` is dynamic and the scanner skips it.
+const TECHNICAL_EXAMPLE = "--" + "target";
+const VISIBLE_ATTRIBUTE_ALLOWED = new Set([TECHNICAL_EXAMPLE]);
+
+test("no tsx visible attribute hardcodes English prose", async () => {
+  const files = (await sourcesUnder("src")).filter((file) => file.endsWith(".tsx"));
+  assert.ok(files.length > 20, `the scan must cover the tsx tree (${files.length} files)`);
+  const offenders: string[] = [];
+  for (const file of files) {
+    const text = stripCommentsDeep(await read(file));
+    for (const match of text.matchAll(VISIBLE_ATTRIBUTE)) {
+      const value = match[2] ?? match[3] ?? match[4] ?? match[5] ?? match[6] ?? "";
+      if (value === "") continue; // `alt=""` is the decorative-image convention
+      if (match[6] !== undefined && match[6].includes("${")) continue; // dynamic template
+      if (VISIBLE_ATTRIBUTE_ALLOWED.has(value)) continue;
+      offenders.push(`${file}: [${match[1]}] ${JSON.stringify(value)}`);
+    }
+  }
+  assert.deepEqual(offenders, [], "a visible attribute may not carry an English literal");
+});
+
+// A JSX text node: content between `>` and `<` with no tag or brace. Two or
+// more English words, and no code punctuation. The one structural false
+// positive the generic strip leaves behind is JSX nested in a ternary
+// expression container (`… </span> : integration.x.trim() ? <span>`); its
+// text carries `:`/`(`, so it fails the sentence shape.
+const JSX_TEXT = />([^<>{}]+)</g;
+const SENTENCE_SHAPE = /^[A-Za-z][A-Za-z0-9 ,.'’!?-]*$/;
+const ENGLISH_WORD = /[A-Za-z][A-Za-z'’-]*/g;
+
+test("no tsx JSX text node carries a bare English sentence", async () => {
+  const files = (await sourcesUnder("src")).filter((file) => file.endsWith(".tsx"));
+  const offenders: string[] = [];
+  for (const file of files) {
+    const text = stripTypeArguments(stripCommentsDeep(await read(file)));
+    for (const match of text.matchAll(JSX_TEXT)) {
+      const content = match[1].trim();
+      if ((content.match(ENGLISH_WORD) ?? []).length < 2) continue;
+      if (!SENTENCE_SHAPE.test(content)) continue;
+      offenders.push(`${file}: ${JSON.stringify(content)}`);
+    }
+  }
+  assert.deepEqual(offenders, [], "a JSX text node may not carry a bare English sentence");
+});
+
+test("no tsx file carries a Chinese literal outside a comment", async () => {
+  const files = (await sourcesUnder("src")).filter((file) => file.endsWith(".tsx"));
+  const offenders: string[] = [];
+  for (const file of files) {
+    if (/[\u4e00-\u9fff]/.test(stripCommentsDeep(await read(file)))) offenders.push(file);
+  }
+  assert.deepEqual(offenders, [], "Chinese belongs in the dictionary, not in a tsx literal");
+});
+
+test("the hygiene sweep assembles its keys, patterns and example", async () => {
+  const self = await read("tests/r141-export-task-failed-keyed.test.ts");
+  for (const key of await dictionaryKeySet()) {
+    assert.ok(!self.includes(`"${key}"`), `the guard must not spell: ${key}`);
+  }
+  for (const prefix of DYNAMIC_PREFIXES) {
+    assert.ok(!self.includes(prefix), `the guard must not spell the pattern: ${prefix}`);
+  }
+  for (const key of [...REMOVAL_KEYS, ...CUSTOM_PERMISSION_KEYS]) {
+    assert.ok(!self.includes(`"${key}"`), `the guard must not spell: ${key}`);
+  }
+  assert.ok(!self.includes(TECHNICAL_EXAMPLE), "the guard must not spell its whitelisted example");
+});
