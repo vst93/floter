@@ -157,10 +157,12 @@ test("the panel translates the keyed family instead of painting the key", async 
   assert.ok(panel.includes("t(message)"), "the panel must translate the key");
   // Every display point hands the translator to the error reader. R127 wired
   // four; R128 added the custom-integration / local-connection form paths
-  // (L1-L12), so the count is re-registered here rather than left stale.
+  // (L1-L12), so the count is re-registered here rather than left stale. R135
+  // keyed the connect-package picker (`pickerClosed.localPackage`) whose sole
+  // consumer is `connectLocal`, so the count moved to nine.
   assert.equal(
     count(panel, "errorMessage(nextError, t)"),
-    8,
+    9,
     "each wired display point must pass the translator",
   );
 });

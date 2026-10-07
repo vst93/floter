@@ -1394,7 +1394,11 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
       if (!manifestPath) return;
       await reviewLocalManifest(manifestPath);
     } catch (nextError) {
-      showError(errorMessage(nextError));
+      // R135 · the picker-closed family now reaches this catch too
+      // (`settings.extensions.pickerClosed.localPackage`), so the translator
+      // must be handed in — otherwise the raw key would be painted into the
+      // toast.
+      showError(errorMessage(nextError, t));
     } finally {
       setBusy(null);
     }

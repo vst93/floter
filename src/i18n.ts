@@ -815,6 +815,12 @@ const en = {
   "settings.extensions.pickerClosed.localManifest": "Local manifest picker closed unexpectedly",
   "settings.extensions.pickerClosed.scriptExport": "Script export picker closed unexpectedly",
   "settings.extensions.pickerClosed.configurationExport": "Configuration export picker closed unexpectedly",
+  // R135 · two more channel-drop sentences, same family and same shape: the
+  // permission-review dialog behind `extensions_import`, and the
+  // connect-package picker (`extensions_pick_local_package`, both its folder
+  // prompt and its file picker share the one key).
+  "settings.extensions.pickerClosed.permissionReview": "Permission review dialog closed unexpectedly",
+  "settings.extensions.pickerClosed.localPackage": "Local package picker closed unexpectedly",
   // R128 · the custom-integration / local-connection form's validation
   // sentences (`install.rs`). The backend answers with a dictionary key, the
   // panel translates it (`isMessageKey` gates it); the two that carry a value
@@ -1672,6 +1678,9 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.pickerClosed.localManifest": "选择本地清单时文件选择器意外关闭",
   "settings.extensions.pickerClosed.scriptExport": "导出脚本时文件选择器意外关闭",
   "settings.extensions.pickerClosed.configurationExport": "导出配置时文件选择器意外关闭",
+  // R135 · 确认权限对话框与连接扩展包选择器：同一族的另两句
+  "settings.extensions.pickerClosed.permissionReview": "确认插件权限时对话框意外关闭",
+  "settings.extensions.pickerClosed.localPackage": "选择本地扩展包时对话框意外关闭",
   // R128 · 自定义集成 / 本地连接表单的校验文案（动词 + 宾语）
   "settings.extensions.form.nameLength": "自定义集成名称必须为 1 到 80 个字符",
   "settings.extensions.form.commandShape": "命令必须以字母或数字开头，且只能包含小写字母、数字、连字符或下划线",

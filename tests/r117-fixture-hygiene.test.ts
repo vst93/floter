@@ -56,15 +56,19 @@ const RUN_SITES: number[] = [];
 // asserted below; no B site stages here any more. (R121 deleted four emits above
 // these lines, so every pin here moved up by 7 from the R118 numbering; R126
 // grew the connect-package picker above them by 24 lines, moving every pin here
-// down by 24 from the R121 numbering.)
-const COMMANDS_SITES = [2815, 2908, 2983, 3073, 3141, 3311, 3870];
+// down by 24 from the R121 numbering. R135 moved the three export bodies'
+// blocking IO into `spawn_blocking` and added their explanatory comments (then
+// rustfmt wrapped the export's result tuple onto four lines), so every pin here
+// moved down by 32 from the R126 numbering.)
+const COMMANDS_SITES = [2847, 2940, 3015, 3105, 3173, 3343, 3902];
 // The B-class upgrade path: one `link_fixture` call per former B site in
 // install.rs, and per former B site plus the `:3536` rebuild rewrite in
 // commands/extensions.rs (which may no longer write through the link).
 // R128 grew the `cannotDeriveCommand` refusal from one line to a four-line
-// `format!` above every one of these, moving each pin down by 2.
+// `format!` above every one of these, moving each pin down by 2. R135's +32
+// (see above) applies here too.
 const INSTALL_LINK_SITES = [3353, 3394, 3974, 4022, 4074, 4110, 4204, 4252, 4390, 4535];
-const COMMANDS_LINK_SITES = [3189, 3542, 3631, 3679, 3768, 3803];
+const COMMANDS_LINK_SITES = [3221, 3574, 3663, 3711, 3800, 3835];
 // The A-class targets: five new fixtures (same bytes, basename-load-bearing)
 // plus the external-tool fixture that replaced the last run-time `fs::write`.
 const SH = "." + "sh";

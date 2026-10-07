@@ -1049,11 +1049,28 @@ pub async fn extensions_export(
         .into_path()
         .map_err(|_| "Extension exports must be saved to a local file".to_string())?;
     let _guard = state.mutation_lock.lock().await;
-    let document = sync::build_export(&state, now)?;
-    sync::write_export(&path, &document)?;
+    // R135 · the export is blocking filesystem work (read the lock file, walk
+    // every entry, then write the document). It stays inside the mutation lock
+    // — the read and the write are one atomic step — but runs on a blocking
+    // thread so the async worker is never parked on the disk. The guard is
+    // deliberately *not* moved into the closure: a lock guard must not cross
+    // into another thread, and the critical section must keep its exact
+    // boundaries. Only the `AppHandle` (the state is re-entered inside) and the
+    // plain `path`/`now` values move in.
+    let (path_label, extension_count) = tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<ExtensionState>();
+        let document = sync::build_export(&state, now)?;
+        sync::write_export(&path, &document)?;
+        Ok::<_, String>((
+            path.to_string_lossy().into_owned(),
+            document.extensions.len(),
+        ))
+    })
+    .await
+    .map_err(|error| format!("Extension export task failed: {error}"))??;
     Ok(Some(ExtensionsExportResult {
-        path: path.to_string_lossy().into_owned(),
-        extension_count: document.extensions.len(),
+        path: path_label,
+        extension_count,
     }))
 }
 
@@ -1182,7 +1199,7 @@ pub async fn extensions_import(
             });
         let approved = receiver
             .await
-            .map_err(|_| "Permission review dialog closed unexpectedly".to_string())?;
+            .map_err(|_| "settings.extensions.pickerClosed.permissionReview".to_string())?;
         if !approved {
             return Ok(None);
         }
@@ -1405,7 +1422,7 @@ pub async fn extensions_pick_local_package(
         });
     let choose_folder = receiver
         .await
-        .map_err(|_| "Local package picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.localPackage".to_string())?;
     let (sender, receiver) = tokio::sync::oneshot::channel();
     if choose_folder {
         app.dialog().file().pick_folder(move |selection| {
@@ -1421,7 +1438,7 @@ pub async fn extensions_pick_local_package(
     }
     let selection = receiver
         .await
-        .map_err(|_| "Local package picker closed unexpectedly".to_string())?;
+        .map_err(|_| "settings.extensions.pickerClosed.localPackage".to_string())?;
     let Some(path) = selection else {
         return Ok(None);
     };
@@ -1519,9 +1536,17 @@ pub async fn extensions_custom_export_script(
     let path = path
         .into_path()
         .map_err(|_| "Scripts must be saved to a local file".to_string())?;
-    std::fs::write(&path, content)
-        .map_err(|error| format!("Cannot write script export: {error}"))?;
-    Ok(Some(path.to_string_lossy().into_owned()))
+    // R135 · the script write is a blocking `fs::write`. No lock guards it, so
+    // only the path and the payload move into the blocking thread; the join is
+    // awaited before the command answers.
+    let path_label = tauri::async_runtime::spawn_blocking(move || {
+        std::fs::write(&path, content)
+            .map_err(|error| format!("Cannot write script export: {error}"))?;
+        Ok::<_, String>(path.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|error| format!("Script export task failed: {error}"))??;
+    Ok(Some(path_label))
 }
 
 /// Read-only probe of the local toolchain for one script language. Answers
@@ -2507,8 +2532,15 @@ pub async fn extensions_config_export(
     let path = path
         .into_path()
         .map_err(|_| "Configuration exports must be saved to a local file".to_string())?;
-    config::write_export(&path, &json)?;
-    Ok(Some(path.to_string_lossy().into_owned()))
+    // R135 · the JSON is already built (`export_json` is async); the atomic
+    // write is the only blocking step left, moved off the async worker.
+    let path_label = tauri::async_runtime::spawn_blocking(move || {
+        config::write_export(&path, &json)?;
+        Ok::<_, String>(path.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|error| format!("Configuration export task failed: {error}"))??;
+    Ok(Some(path_label))
 }
 
 fn reject_bundled_static_configuration(state: &ExtensionState, id: &str) -> Result<(), String> {
