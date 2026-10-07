@@ -299,22 +299,20 @@ impl ProviderManager {
         }
 
         let modified_ms = invocation_modified_ms(invocation)?;
-        let tool_version = if invocation.version_args.is_empty() {
-            invocation.tool_version_hint.clone()
-        } else {
-            provider_version(invocation)
-                .await
-                .or_else(|| invocation.tool_version_hint.clone())
-        };
+        // R144 · decide the cache hit *before* probing `--version`. The cache
+        // entry is keyed by (executable path, executable mtime, package
+        // version); `tool_version` is a pure function of the same executable
+        // bytes plus the same `version_args`, so the first three matching
+        // cannot disagree with the cached `tool_version` without the mtime
+        // itself having been tampered with — which the cache already treats as
+        // its content fingerprint for the description. The probe used to run
+        // unconditionally on every describe, cached or not: a 2 s subprocess
+        // with a 2 s timeout on the hot catalog path.
         if !force {
             if let Some(cache) = cached.as_ref() {
-                let tool_matches = tool_version
-                    .as_ref()
-                    .is_none_or(|version| version == &cache.tool_version);
                 if cache.executable == invocation.executable.to_string_lossy()
                     && cache.modified_ms == modified_ms
                     && cache.package_version == invocation.package_version
-                    && tool_matches
                 {
                     return Ok(ProviderResponse {
                         description: cache.description.clone(),
@@ -325,6 +323,13 @@ impl ProviderManager {
                 }
             }
         }
+        let tool_version = if invocation.version_args.is_empty() {
+            invocation.tool_version_hint.clone()
+        } else {
+            provider_version(invocation)
+                .await
+                .or_else(|| invocation.tool_version_hint.clone())
+        };
 
         match self
             .call::<Value>(

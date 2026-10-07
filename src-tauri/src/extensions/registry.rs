@@ -128,7 +128,24 @@ pub(crate) fn resolve_runtime_target(
 }
 
 pub fn runtime_available(entry: &ExtensionLockEntry) -> bool {
-    provider_invocation(entry).is_ok_and(|invocation| invocation.executable.is_file())
+    let manifest = match ExtensionManifest::load(Path::new(&entry.manifest_path)) {
+        Ok(manifest) => manifest,
+        Err(_) => return false,
+    };
+    runtime_available_with_manifest(entry, &manifest)
+}
+
+/// Same as [`runtime_available`] but reuses an already-parsed manifest so a
+/// caller that needs the manifest for other purposes does not read it again.
+/// A manifest that will not resolve yields `false`, exactly like the loading
+/// variant (whose `provider_invocation` fails and `is_ok_and` turns into
+/// `false`).
+pub(crate) fn runtime_available_with_manifest(
+    entry: &ExtensionLockEntry,
+    manifest: &ExtensionManifest,
+) -> bool {
+    provider_invocation_with_manifest(entry, manifest)
+        .is_ok_and(|invocation| invocation.executable.is_file())
 }
 
 pub fn static_description(

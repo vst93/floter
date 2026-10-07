@@ -609,6 +609,13 @@ pub(crate) async fn load_provider_commands_uncached(
         if !entry.enabled && !already_broken {
             continue;
         }
+        // R144 · read and parse the installed manifest exactly once per entry
+        // per rebuild. Every site below that needs the manifest (the
+        // interpreter language, the refreshed-binding validator, the static
+        // descriptor, `runtime_available`, the provider invocation) is handed
+        // this one parse through the `_with_manifest` family, instead of each
+        // of them re-reading and re-parsing the file.
+        let manifest = entry_manifest(&entry);
         if entry.runtime_ownership == crate::extensions::lock::ExtensionRuntimeOwnership::System {
             // Resolve the binding in one place: a changed fingerprint at the
             // same path is silently re-bound (after the refreshed provider is
@@ -626,8 +633,10 @@ pub(crate) async fn load_provider_commands_uncached(
                 // never invalidates the binding. Every other runtime (a system
                 // tool, a compiled artifact) keeps the frozen path + fingerprint
                 // semantics.
-                let interpreter =
-                    crate::extensions::registry::entry_script_interpreter_language(&entry);
+                let interpreter = manifest
+                    .as_ref()
+                    .ok()
+                    .and_then(crate::extensions::registry::script_interpreter_language);
                 let result = match interpreter {
                     Some(language) => crate::extensions::tool_lock::resolve_interpreter_binding(
                         &mut tool_lock,
@@ -640,7 +649,12 @@ pub(crate) async fn load_provider_commands_uncached(
                         &mut tool_lock,
                         &entry.id,
                         &entry.executable_path,
-                        || validate_refreshed_binding(&entry),
+                        || match manifest.as_ref() {
+                            Ok(manifest) => {
+                                validate_refreshed_binding_with_manifest(&entry, manifest)
+                            }
+                            Err(error) => Err(error.clone()),
+                        },
                     ),
                 };
                 match result {
@@ -737,7 +751,16 @@ pub(crate) async fn load_provider_commands_uncached(
             entry.provider_kind,
             ExtensionProviderKind::StaticDescriptor | ExtensionProviderKind::BundledStatic
         ) {
-            match crate::extensions::registry::static_description(&entry) {
+            let description =
+                manifest
+                    .as_ref()
+                    .map_err(|error| error.clone())
+                    .and_then(|manifest| {
+                        crate::extensions::registry::static_description_with_manifest(
+                            &entry, manifest,
+                        )
+                    });
+            match description {
                 Ok((description, invocation)) => {
                     let namespace = namespace_for(&entry.id);
                     let source_name = description.provider.name.clone();
@@ -747,9 +770,14 @@ pub(crate) async fn load_provider_commands_uncached(
                             invocation: invocation.clone(),
                             namespace: namespace.clone(),
                             source_name: source_name.clone(),
-                            runtime_available: crate::extensions::registry::runtime_available(
-                                &entry,
-                            ),
+                            runtime_available: match manifest.as_ref() {
+                                Ok(manifest) => {
+                                    crate::extensions::registry::runtime_available_with_manifest(
+                                        &entry, manifest,
+                                    )
+                                }
+                                Err(_) => false,
+                            },
                             configured_args: Vec::new(),
                             dynamic_completion_available: false,
                         }
@@ -775,7 +803,13 @@ pub(crate) async fn load_provider_commands_uncached(
             }
             continue;
         }
-        let mut invocation = match crate::extensions::registry::provider_invocation(&entry) {
+        let resolved = manifest
+            .as_ref()
+            .map_err(|error| error.clone())
+            .and_then(|manifest| {
+                crate::extensions::registry::provider_invocation_with_manifest(&entry, manifest)
+            });
+        let mut invocation = match resolved {
             Ok(invocation) => invocation,
             Err(error) => {
                 // Same rule as the static branch: a manifest that will not
@@ -845,6 +879,18 @@ pub(crate) async fn load_provider_commands_uncached(
         }
     }
     Ok(result)
+}
+
+/// Read and parse an installed manifest exactly once.
+///
+/// R144 · the catalog rebuild threads this one parse through the
+/// `_with_manifest` family below; keeping the load itself in a named helper is
+/// what lets the round's guard assert that `load_provider_commands_uncached`
+/// never re-reads a manifest per call site.
+fn entry_manifest(
+    entry: &crate::extensions::lock::ExtensionLockEntry,
+) -> Result<crate::extensions::manifest::ExtensionManifest, String> {
+    crate::extensions::manifest::ExtensionManifest::load(Path::new(&entry.manifest_path))
 }
 
 /// Rebuild the provider description for an entry whose executable fingerprint
@@ -1917,6 +1963,71 @@ mod tests {
         lock.extensions.insert(entry.id.clone(), entry.clone());
         lock.save(&state.paths.repository_file).unwrap();
         (state, entry)
+    }
+
+    /// R144 · a describe cache hit answers from disk without spawning the
+    /// provider's `--version` probe. The probe is a real subprocess with a 2 s
+    /// timeout; before R144 it ran on *every* describe, hit or miss, because
+    /// the version was part of the cache key. The fixture counts probes in a
+    /// file, so the assertion is about the spawn, not about a returned string.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_cached_describe_does_not_spawn_provider_version() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let probes = directory.path().join("version-probes");
+        let executable = directory.path().join("provider.sh");
+        let description = r#"{"protocolVersion":"1.0","provider":{"id":"dev.floter.mock","name":"Mock","version":"1.0.0"},"commands":[]}"#;
+        std::fs::write(
+            &executable,
+            format!(
+                "#!/bin/sh\ncase \"$1\" in\n  --version)\n    printf 'probe\\n' >> '{}'\n    printf '1.0.0\\n'\n    exit 0\n    ;;\nesac\nprintf '%s' '{}'\n",
+                probes.display(),
+                description
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        let invocation = ProviderInvocation {
+            extension_id: "dev.floter.mock".into(),
+            executable,
+            executable_prefix: Vec::new(),
+            runtime_root: None,
+            package_version: "1.0.0".into(),
+            tool_version_hint: None,
+            version_args: vec!["--version".into()],
+            config: crate::extensions::manifest::ProviderConfig {
+                kind: crate::extensions::manifest::ProviderKind::Executable,
+                descriptor: None,
+                args_prefix: Vec::new(),
+                describe_timeout_ms: 5_000,
+                complete_timeout_ms: 5_000,
+                environment: BTreeMap::new(),
+            },
+            permissions: Vec::new(),
+        };
+
+        let first = state.provider.describe(&invocation, false).await.unwrap();
+        assert!(!first.cached);
+        assert_eq!(
+            std::fs::read_to_string(&probes).unwrap().lines().count(),
+            1,
+            "the cold describe probes --version once"
+        );
+
+        let second = state.provider.describe(&invocation, false).await.unwrap();
+        assert!(second.cached, "the second describe answers from the cache");
+        assert_eq!(
+            std::fs::read_to_string(&probes).unwrap().lines().count(),
+            1,
+            "a cache hit must not spawn --version"
+        );
     }
 
     #[cfg(unix)]
