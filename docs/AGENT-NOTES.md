@@ -162,3 +162,15 @@ R140 普查判定 19 个 i18n key 无生产消费，R141 物理删除（`src/i18
 防复活守卫：`tests/r141-export-task-failed-keyed.test.ts`（第 3 条，`src/**` + `src-tauri/src/**`
 去注释后三种引号字面量零出现）。同轮把 export 家族的 join 失败句 keyed 化
 （`settings.extensions.exportTaskFailed.<extension|script|config>`）。
+
+## CHANGELOG 维护约定（R146）
+
+`CHANGELOG.md`（Keep a Changelog 轻量版，无工具链）是面向用户的变更记录，**按周期收官时人工补账**：
+
+- `[Unreleased]` 累积下一版的内容，发版时改名为版本号并落日期；分组按 Changed / Fixed /
+  Performance / Security（必要时 Internal），**按用户可感知的影响归组，不逐条搬运 commit**。
+- **release 工作流不改写本文件**。`.github/workflows/release.yml` 的 `prepare` job 继续从
+  `git log` 自动生成 GitHub release notes（`[Unreleased]` 存在也不影响），发布 commit 因此
+  不会夹带 CHANGELOG 噪声；两者是并行的两条面，人工补账保证归档可读。
+- 版本一致性守卫：`tests/r146-release-hygiene.test.ts`（六处载体相等 + semver 形状 +
+  按 name 定位 `Cargo.lock`；版本无关，bump 后仍绿）。改版本载体时先跑它。
