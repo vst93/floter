@@ -37,6 +37,10 @@ import {
 } from "../terminal/terminal-appearance";
 import { normalizeUiScale, type UiScale } from "../ui-scale";
 import {
+  DEFAULT_APP_ICON,
+  normalizeAppIconAppearance,
+} from "../settings/app-icon";
+import {
   createSerialSettingsWriter,
   createSettingsHydration,
   normalizeSettingsPage,
@@ -104,6 +108,9 @@ const SETTINGS_DEFAULTS: AppSettings = {
   // every earlier build had. The frontend default must match the Rust
   // `default_true` so a pre-hydration frame does not hide the icon.
   show_menubar_icon: true,
+  // R150 · the app icon ships dark (the black mark every earlier build had).
+  // Must equal Rust's `DEFAULT_APP_ICON` so a pre-hydration frame is black.
+  app_icon: DEFAULT_APP_ICON,
   // R7-11: no aliases until the user adds one.
   command_aliases: {},
   // R7-13c: the interface-size step. R47 moved the shipped default from
@@ -286,6 +293,10 @@ export function useSettings(options: {
           last_settings_page: normalizeSettingsPage(loaded.last_settings_page),
           seen_tip: loaded.seen_tip ?? false,
           show_menubar_icon: loaded.show_menubar_icon ?? true,
+          // R150: a pre-round settings file has no `app_icon` key, and a
+          // hand-edited one may name an appearance that does not ship; both
+          // land on the default black mark.
+          app_icon: normalizeAppIconAppearance(loaded.app_icon ?? DEFAULT_APP_ICON),
           // R7-11: an older config has no alias map; an explicit `null` from a
           // hand-edited file must not leak into the search path either.
           command_aliases: loaded.command_aliases ?? {},

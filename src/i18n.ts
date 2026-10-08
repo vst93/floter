@@ -311,6 +311,12 @@ const en = {
   // one string covers macOS's status item and the Windows/Linux tray icon.
   "settings.showMenubarIcon": "Show menu bar icon",
   "settings.showMenubarIconHint": "Show the menu bar / tray icon. The global shortcut keeps working when it is hidden.",
+  // R150 · the app icon's light/dark variants. The label names the icon
+  // surface, not the UI theme — the two are independent choices.
+  "settings.appIcon": "App icon",
+  "settings.appIconHint": "The icon shown in the menu bar / tray and on the taskbar. Dark is the default.",
+  "settings.appIcon.dark": "Dark",
+  "settings.appIcon.light": "Light",
   "settings.theme": "Appearance",
   "settings.themeHint": "Auto follows your system appearance.",
   "settings.uiScale": "Interface size",
@@ -1182,6 +1188,10 @@ const zh: Record<MessageKey, string> = {
   // R7-10c · 菜单栏 / 托盘图标开关（不按平台分支，一句覆盖两边）。
   "settings.showMenubarIcon": "显示菜单栏图标",
   "settings.showMenubarIconHint": "显示菜单栏 / 托盘图标；隐藏后全局快捷键仍然可用。",
+  "settings.appIcon": "应用图标",
+  "settings.appIconHint": "菜单栏 / 托盘以及任务栏上显示的图标。默认为深色。",
+  "settings.appIcon.dark": "深色",
+  "settings.appIcon.light": "浅色",
   "settings.theme": "外观",
   "settings.themeHint": "自动模式跟随系统外观。",
   "settings.uiScale": "界面大小",

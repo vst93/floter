@@ -34,6 +34,11 @@ import {
 } from "./SettingsRows";
 import { TerminalAppearanceSettings } from "./TerminalAppearance";
 import { menubarIconSwitchState, toggleMenubarIcon } from "./menubar-icon";
+import {
+  APP_ICON_APPEARANCES,
+  appIconLabelKey,
+  normalizeAppIconAppearance,
+} from "./app-icon";
 
 // R42 · the terminal's font size — and the rest of its appearance — now live
 // in `terminal/terminal-appearance.ts`, which both this page and the terminal
@@ -495,6 +500,27 @@ export function GeneralPage({
               >
                 <span className="settings-switch__thumb" />
               </button>
+            }
+          />
+          {/* R150 · the app icon's light/dark variants. It sits in the same
+              residency card as the visibility switch because both describe
+              the one icon the user sees (the menu bar / tray image); the
+              segmented control is the shipped selected-state face, so it
+              spends no accent fill. */}
+          <SettingsRow
+            stacked
+            label={t("settings.appIcon")}
+            sublabel={t("settings.appIconHint")}
+            control={
+              <SegmentedChoice
+                label={t("settings.appIcon")}
+                value={normalizeAppIconAppearance(settings.app_icon)}
+                onChange={(value) => onChangeGeneralSetting("app_icon", value)}
+                options={APP_ICON_APPEARANCES.map((appearance) => ({
+                  value: appearance,
+                  label: t(appIconLabelKey(appearance)),
+                }))}
+              />
             }
           />
         </SettingsCard>

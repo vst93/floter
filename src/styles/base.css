@@ -688,6 +688,10 @@
      call site: the whole stylesheet is color-mix-free so WebKitGTK versions
      older than the feature cannot render a control as an empty box. */
   --accent-halo: rgba(143, 183, 255, 0.18);
+  /* The switch knob. macOS paints it white in both appearances, so it is a
+     constant rather than a palette token (the light block deliberately does not
+     restate it). */
+  --switch-thumb: #ffffff;
   /* The scrim a fixed overlay lays over the floater body (drawer, dialogs). */
   --surface-scrim: rgba(0, 0, 0, 0.34);
 
@@ -1106,6 +1110,60 @@ input {
 
 button {
   border: none;
+}
+
+/* ── Desktop conventions (the browser's tells, removed once) ───────────────
+   A WebView follows browser conventions by default, and a few of them read as
+   "this is a website" the moment a desktop user touches the app. They are
+   stated here, once, for the whole surface rather than per control:
+
+   * Interactive chrome shows the arrow cursor, not a hand. No native desktop
+     toolkit (AppKit, WinUI, GTK) turns a button or a list row into a link; the
+     hand is the browser's signal for a *hyperlink*, and this app has none. The
+     `cursor: pointer` declarations were removed from the surface sheets rather
+     than overridden, so no control carries a dead rule. The arrow is stated
+     explicitly because the drag surfaces (the settings card, the terminal
+     header) set `cursor: grab` on a *container*, and without this rule a
+     button inside one would inherit the grab. Native cursors that *are*
+     meaningful stay: `grab`/`grabbing` on the drag band itself, `text` on text
+     surfaces, `wait`/`not-allowed` on a busy or disabled control.
+   * Chrome is not selectable text. Dragging across a toolbar or a settings row
+     must not paint a selection the way a web page does; the text surfaces (the
+     query field, the terminal, command output) opt back in with
+     `user-select: text`. `input`/`textarea` are deliberately not in this list —
+     a text field is a text surface by definition.
+   * Icons are not drag sources. The browser's default image drag shows a ghost
+     of the icon and a copy cursor; a native app icon is not draggable.
+   * The tap highlight is a touch-web artifact with no meaning on a desktop. */
+button,
+[role="button"],
+[role="switch"],
+[role="tab"],
+[role="radio"],
+[role="checkbox"],
+[role="menuitem"],
+[role="option"] {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* Non-text inputs are controls too, and they sit inside the same grab
+   containers. A range/checkbox/radio shows the arrow; a text input keeps the
+   I-beam the sheet that styles it gives it. */
+input[type="range"],
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: default;
+}
+
+img,
+svg {
+  -webkit-user-drag: none;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 input:focus {

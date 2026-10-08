@@ -167,6 +167,14 @@ pub fn default_true() -> bool {
     true
 }
 
+/// R150 · serde default for `app_icon`. Named rather than a bare
+/// `#[serde(default)]` so an absent key lands on the shipped black mark instead
+/// of on `String::default()` (`""`): the same reason `show_menubar_icon` has
+/// `default_true`.
+pub fn default_app_icon() -> String {
+    crate::app_icon::DEFAULT_APP_ICON.to_string()
+}
+
 /// R42 · the terminal's line-height multiple. `#[serde(default = ...)]` keeps a
 /// settings file written before this key existing at the shipped 1.2 rather
 /// than at `f64::default()` (`0.0`, which would collapse every row).
@@ -617,6 +625,19 @@ pub struct AppSettings {
     /// to `bool::default()`.
     #[serde(default = "default_true")]
     pub show_menubar_icon: bool,
+    /// R150 · the application icon's appearance: "dark" | "light".
+    ///
+    /// The icon is the one the user sees in the menu bar / tray and, on
+    /// Windows/Linux, on the taskbar; the packaged bundle icon cannot change at
+    /// runtime, so both variants are embedded in the binary and the save path
+    /// installs the chosen one through [`crate::apply_app_icon`].
+    ///
+    /// The explicit `default_app_icon` (rather than a bare `#[serde(default)]`)
+    /// is what makes a settings file written before this key existed come back
+    /// as the black mark every earlier build shipped, instead of
+    /// `String::default()` (`""`).
+    #[serde(default = "default_app_icon")]
+    pub app_icon: String,
     /// R7-13c · the interface-size step: "tiny" | "small" | "default" |
     /// "large". R47 retired "larger" and made "small" the shipped default.
     ///
@@ -716,6 +737,7 @@ impl Default for AppSettings {
             launch_counts: HashMap::new(),
             last_settings_page: "general".to_string(),
             show_menubar_icon: default_true(),
+            app_icon: default_app_icon(),
             ui_scale: DEFAULT_UI_SCALE.to_string(),
             command_aliases: HashMap::new(),
             browser_plugin: BrowserPluginSettings::default(),
@@ -1064,6 +1086,10 @@ fn normalize_settings(mut settings: AppSettings) -> AppSettings {
         "dark" | "light" | "auto" => settings.theme,
         _ => AppSettings::default().theme,
     };
+    // R150 · the app icon appearance. An unknown or hand-edited value falls
+    // back to the shipped black mark rather than to whichever variant happens
+    // to sort first.
+    settings.app_icon = crate::app_icon::normalize_app_icon(&settings.app_icon).to_string();
     settings.language = match settings.language.as_str() {
         "en" | "zh" => settings.language,
         _ => AppSettings::default().language,
@@ -1492,6 +1518,10 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(),
     // the retitle above so a language change cannot resurrect a hidden icon —
     // `apply_tray_language` only ever writes menu labels.
     crate::apply_tray_visibility(&app, settings.show_menubar_icon);
+    // R150: the icon variant rides the same save. Kept apart from the two
+    // calls above so a language or visibility change cannot reset it, and it
+    // cannot reset either of them.
+    crate::apply_app_icon(&app, &settings.app_icon);
     // Keep the monitor in step with the switch. Both branches are idempotent,
     // so this is safe on every settings save.
     #[cfg(feature = "clipboard-history")]
@@ -2130,6 +2160,31 @@ mod tests {
             serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
         assert!(settings.show_menubar_icon);
         assert!(default_true());
+    }
+
+    #[test]
+    fn older_settings_land_on_the_shipped_app_icon() {
+        // R150 migration: a file written before the key existed has no
+        // `app_icon`; `String::default()` would be `""`, which names no
+        // appearance. The explicit serde default plus the struct default must
+        // both land on the black mark every earlier build shipped.
+        let settings: AppSettings =
+            serde_json::from_str("{\"theme\":\"dark\"}").expect("old settings deserialize");
+        assert_eq!(settings.app_icon, crate::app_icon::DEFAULT_APP_ICON);
+        assert_eq!(AppSettings::default().app_icon, default_app_icon());
+        assert_eq!(default_app_icon(), "dark");
+        // An explicit choice survives normalization; an unknown value falls
+        // back to the default rather than leaking through.
+        let light = normalize_settings(AppSettings {
+            app_icon: "light".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(light.app_icon, "light");
+        let unknown = normalize_settings(AppSettings {
+            app_icon: "midnight".into(),
+            ..AppSettings::default()
+        });
+        assert_eq!(unknown.app_icon, crate::app_icon::DEFAULT_APP_ICON);
     }
 
     /// R7-13c · the interface-size step's migration. A file written before the

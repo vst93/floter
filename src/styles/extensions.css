@@ -83,7 +83,6 @@
   color: var(--text-secondary);
   line-height: 1;
   vertical-align: middle;
-  cursor: pointer;
   transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 
@@ -348,7 +347,6 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
-  cursor: pointer;
   transition: color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
 
@@ -370,7 +368,6 @@
   color: var(--text-strong);
   font-size: var(--text-caption);
   font-weight: 600;
-  cursor: pointer;
   transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
 }
 
@@ -596,7 +593,6 @@
   font-size: var(--text-body);
   font-weight: 600;
   text-align: left;
-  cursor: pointer;
   transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
 }
 
@@ -739,7 +735,6 @@
   align-items: center;
   gap: 12px;
   padding: 8px;
-  cursor: pointer;
   transition: background-color var(--dur-2) var(--ease-out);
 }
 
@@ -1207,7 +1202,6 @@
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-tertiary);
-  cursor: pointer;
   font: inherit;
   font-size: var(--text-caption);
 }
@@ -1338,7 +1332,6 @@
   white-space: nowrap;
   flex: 0 0 auto;
   line-height: 1;
-  cursor: pointer;
   transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 
@@ -1423,7 +1416,6 @@
   font-size: var(--text-body);
   text-align: left;
   white-space: nowrap;
-  cursor: pointer;
 }
 
 @media (hover: hover) {
@@ -1661,7 +1653,6 @@
   background: var(--glass-control);
   color: var(--text-strong);
   text-align: left;
-  cursor: pointer;
 }
 
 .extension-tool-choice-list > button:focus-visible {
@@ -1759,7 +1750,7 @@
 .extension-custom-form__fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
 .extension-custom-form__error { margin: 12px 14px 0; overflow-wrap: anywhere; }
 .extension-custom-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 999px; background: var(--glass-track); box-shadow: var(--elev-track); }
-.extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: 999px; background: transparent; color: var(--text-strong); cursor: pointer; font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
+.extension-custom-mode__item { min-height: var(--extensions-control-height); border-radius: 999px; background: transparent; color: var(--text-strong); font-size: var(--text-body); font-weight: 600; white-space: nowrap; }
 /* R8 readability: a raised selection pane carries the frame's primary text.
    The accent still marks the state through the edge and the rim, but its own
    contrast on the tint it produces is the weakest text on the page at the
@@ -1795,7 +1786,7 @@
 .extension-tool-results { display: flex; flex-direction: column; gap: 2px; min-height: 0; max-height: 160px; overflow-y: auto; margin-top: 8px; padding: 4px; border: 1px solid var(--glass-control-edge); border-radius: var(--radius-md); background: var(--surface-sunken); }
 .extension-tool-results:empty { display: none; }
 .extension-tool-results > span { padding: 8px 10px; color: var(--text-tertiary); font-size: var(--text-body); }
-.extension-tool-results button.extension-tool-result { width: 100%; min-width: 0; padding: 6px 8px; display: flex; align-items: center; gap: 8px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-strong); cursor: pointer; text-align: left; transition: background-color var(--dur-2) var(--ease-out); }
+.extension-tool-results button.extension-tool-result { width: 100%; min-width: 0; padding: 6px 8px; display: flex; align-items: center; gap: 8px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-strong); text-align: left; transition: background-color var(--dur-2) var(--ease-out); }
 .extension-tool-results button.extension-tool-result:last-child { border-bottom: none; }
 @media (hover: hover) and (pointer: fine) { .extension-tool-results button.extension-tool-result:hover { background: var(--glass-control-hover); box-shadow: var(--elev-0); } }
 .extension-tool-results button.extension-tool-result--active { background: var(--glass-raised-quiet); box-shadow: var(--elev-0), inset 0 0 0 1px var(--accent-edge); color: var(--text-primary); }

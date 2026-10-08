@@ -364,7 +364,6 @@
   color: var(--text-tertiary);
   font-family: inherit;
   font-size: var(--text-body);
-  cursor: pointer;
   transition: color var(--dur-2) ease;
 }
 
@@ -523,7 +522,6 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
-  cursor: pointer;
   font-size: var(--text-emphasis);
   line-height: 1;
   transition: transform var(--dur-1) ease, background var(--dur-2) ease, color var(--dur-2) ease;
@@ -690,7 +688,6 @@
 .terminal-setting-range {
   width: 110px;
   accent-color: var(--accent);
-  cursor: pointer;
 }
 
 .terminal-setting-range:focus-visible {

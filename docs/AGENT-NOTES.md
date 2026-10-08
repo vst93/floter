@@ -65,6 +65,18 @@
 5. **浅色主题是「起步」不是完整设计**。真实调色板在 `[data-theme="light"]`（App.tsx 写入）；`@media (prefers-color-scheme: light) { html:not([data-theme]) { … } }` 是首帧兜底（`auto` 为默认，属性落盘前不能闪深色）。两个块的取值由 `tests/light-theme.test.ts` 钉死一致；MUST_COVER 清单（文字/表面/描边/accent/terminal 五组）必须全覆盖，palette-independent 清单（radius/type/duration/elev/step）不得重复。**可读性红线一句话**：light 下 primary/secondary/muted/accent 全部 ≥4.5:1（muted 本轮从 0.74 提到 0.78，复算 4.98:1 on recess、4.57:1 on hover 面，不再是 AA 正文边缘）。**未覆盖**：完整浅色设计、第三方案例、窗台平台阴影的浅色微调。列为后续独立轮。
 6. **`--glass-raised-quiet` 是中性 raised pane**（暗= `--glass-control-hover`，亮同左），用于所有「选中/激活状态」以及同类状态/通知面（`.extension-status--recommended`、`.extension-health__tag`、`.extension-row__progress` 等）。`--glass-raised`（= accent tint）从此只留给真正的 accent pane（launcher 选中行、clipboard 选中行、sidebar 当前页）。旧的 `--glass-raised-quiet-rim` 因全仓零消费已删。
 
+## 桌面手感：浏览器习惯的取舍（2026-10 / R151，参考 Raycast 2.0 技术深潜）
+
+Raycast 那篇「A Technical Deep Dive Into the New Raycast」的 Platform conventions 一节点名了几个让 WebView 应用「一看就是网页」的细节。它是个 macOS 应用，我们三端共用一套 UI，所以：**风格可以整体偏向 macOS**（形状、材质、控件状态、排版），但**不引入 macOS 独有的属性 / 平台专属实现**（独立原生设置窗、原生弹层、traffic lights 那类）。macOS 专属的**行为/架构**不采纳，macOS 的**视觉语言**采纳。守卫 `tests/native-feel.test.ts` 做全表普查。
+
+1. **交互控件不用手型光标**。AppKit / WinUI / GTK 的按钮与列表都是箭头，手型是浏览器给**超链接**的信号，本应用没有超链接。`cursor: pointer` 从各表面表里删除，并在 `base.css` 的控件基线上显式写 `cursor: default`（因为设置卡 / 终端标题栏在**容器**上写了 `cursor: grab`，控件只删 pointer 会继承到 grab）；`grab`/`grabbing`（拖动带本身）、`text`（文本面）、`wait`/`not-allowed`（忙碌/禁用）是原生信号，保留。非文本 input（range/checkbox/radio）也归到箭头。
+2. **chrome 不可选中文字**。`base.css` 的 `button` / `[role="button|switch|tab|radio|checkbox|menuitem|option"]` 统一 `user-select: none`；文本面（查询框、终端、命令输出）用 `user-select: text` 反向开启；`input`/`textarea` 刻意不在基线里。
+3. **图标不是拖拽源**。`img, svg { -webkit-user-drag: none }`，去掉浏览器的图片拖拽幽灵。
+4. **关掉拼写检查与触屏高亮**。`index.html` 的 `<body spellcheck="false" autocorrect="off" autocapitalize="off">`（`spellcheck` 可继承，一处覆盖全应用），`-webkit-tap-highlight-color: transparent`。
+5. **不采纳的部分（有意）**：macOS 的独立设置窗口、原生弹层/提示窗——这些是 macOS 专属的**实现方式**，不是视觉风格，三端各写一套不划算；以及「大多数控件不要 hover 高亮」——本应用是单面板跨平台应用，设置页就是同一个面板，hover 是 Windows/Linux 上唯一的可发现性提示，且 R8-5 已把列表 hover 定为「一层 tint 而非一整块 pane」。新表面沿用既有 hover 语言，不要为「更像 mac」而砍掉它。
+6. **视觉上向 macOS 靠齐（R151）**。开关的「开」态改成 macOS NSSwitch 的写法：accent 填充的轨道 + 白色滑块（`--switch-thumb`，两个主题都是白色）。这是**预算中性**的：accent 原本骑在滑块上，现在骑在轨道上，accent 普查的选择器从 `.settings-switch--active .settings-switch__thumb` 换成 `.settings-switch--active`，计数不变（ledger 已同步）。已 macOS 化的部分保持：设置侧栏是 App Store 式的中性 pill + 图标取 accent，分段控件是选中态中性 raised pane，原生 range/checkbox 走 `accent-color`，标题已带负字距。**形状语言（pill 控件、`--radius-*` 阶梯）是既定决定，不要为「更像 macOS」而回退成方角**——那是用户在 ROUND-PASS 里明确要的圆润。
+7. **程序性聚焦不得画焦点环（R152）**。进入设置页时 surface policy 会把键盘交给当前页的侧栏按钮（让 ↑/↓ 立即生效），但浏览器把这种 `focus()` 当成 `:focus-visible`，会在当前页 pill 旁边多画一个蓝色框（用户的「蓝色选中框很违和」）。约定：**自动的、非用户发起的聚焦要打上 `data-entry-focus` 标记并抑制 outline**，标记在第一次真实交互（`keydown`/`pointerdown`/`focusout`）时清除，所以用户自己 Tab 回侧栏时焦点环照常出现。新增任何“进入某表面就自动聚焦某个控件”的路径都适用此条。
+
 ## 独立窗口（detached plugin window）路线裁决（2026-10，R84-R86）
 
 - R84 `19acc29`：external 插件输出可钉独立窗口（label `plugin-detached`，二次 Pin 替换内容）；R85 `bdddb2b`：几何/位置持久化（拔副屏回退默认位、size 仍恢复）。

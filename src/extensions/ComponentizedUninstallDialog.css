@@ -69,7 +69,6 @@
   border: 1px solid var(--glass-control-edge);
   border-radius: 8px;
   box-shadow: var(--elev-0);
-  cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
 }
 
@@ -96,7 +95,6 @@
   width: 16px;
   height: 16px;
   margin-top: 2px;
-  cursor: pointer;
   accent-color: var(--accent);
 }
 

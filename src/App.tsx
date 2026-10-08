@@ -167,6 +167,7 @@ import {
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import type { BrowserSearchField } from "./browser-page";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
+import type { AppIconAppearance } from "./settings/app-icon";
 // R149 · the uninstall dialog's stylesheet is hoisted into the first-frame CSS
 // on purpose. `ExtensionsPanel` is lazy now, so the dialog's own `import` would
 // otherwise drag this rule set into the panel's chunk and split the stylesheet
@@ -335,6 +336,12 @@ export type AppSettings = {
    * lives in `ui-scale.ts` and is written onto the document root by a layout
    * effect in this file (before `useLauncherHeight` measures the card). */
   ui_scale: UiScale;
+  /** R150: the application icon's appearance (`"dark"` / `"light"`; dark is
+   *  the shipped default). The icon is the menu bar / tray image and, on
+   *  Windows/Linux, the taskbar image; the backend installs the chosen variant
+   *  on every settings save (`apply_app_icon`). The packaged bundle icon cannot
+   *  change at runtime and is not affected. */
+  app_icon: AppIconAppearance;
   /** R26-A: the built-in browser plugin's own settings. `target` is `"auto"`
    * or a browser id from `browser_discover`; `custom_base_dir` adds a
    * non-standard profile directory; `history_days` bounds history search
@@ -1699,9 +1706,30 @@ export default function App() {
    * currently shown. Plain DOM focus — deliberately not a native
    * make-key/reveal command, so the macOS first-responder chain is untouched
    * (see the entry policy in `surface-policy.ts`).
+   *
+   * R152 · the focus is marked as *entry* focus. The browser would otherwise
+   * paint the `:focus-visible` ring on open, as if the user had tabbed to the
+   * sidebar — and the active pill already says where the keyboard is, so the
+   * ring read as a second, blue selection box (「进入设置页面时，左侧菜单栏会有
+   * 一个蓝色选中框」). The mark is dropped the moment the user drives the sidebar
+   * (a key, a pointer press, or focus leaving it), so a genuine Tab back into
+   * the sidebar still shows the ring.
    */
-  const focusCurrentSettingsSidebar = () =>
-    focusSettingsSidebar(settingsSidebarButtons.current, settingsPage);
+  const focusCurrentSettingsSidebar = () => {
+    const landed = focusSettingsSidebar(settingsSidebarButtons.current, settingsPage);
+    if (landed) {
+      const target = settingsSidebarButtons.current.get(settingsPage);
+      if (target) target.dataset.entryFocus = "";
+    }
+    return landed;
+  };
+
+  /** Drop the entry-focus mark from every sidebar item. */
+  const clearSettingsSidebarEntryFocus = () => {
+    for (const button of settingsSidebarButtons.current.values()) {
+      delete button.dataset.entryFocus;
+    }
+  };
 
   /**
    * The app's focus entry points, handed to the surface policy. Every "this
@@ -2864,7 +2892,14 @@ export default function App() {
             </header>
 
             <div className="settings-card__body">
-              <nav className="settings-sidebar" aria-label={t("settings.title")} data-no-drag>
+              <nav
+                className="settings-sidebar"
+                aria-label={t("settings.title")}
+                data-no-drag
+                onKeyDown={clearSettingsSidebarEntryFocus}
+                onPointerDown={clearSettingsSidebarEntryFocus}
+                onBlur={clearSettingsSidebarEntryFocus}
+              >
                 {([
                   ["general", SlidersHorizontal],
                   ["sessions", SquareTerminal],

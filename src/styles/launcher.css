@@ -392,7 +392,6 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-tertiary);
-  cursor: pointer;
   transition: color var(--dur-2) ease, background var(--dur-2) ease, transform var(--dur-1) ease;
 }
 
@@ -586,7 +585,6 @@
   font-weight: 500;
   line-height: 1.4;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
 .launcher-filter__chip:hover {
@@ -739,7 +737,6 @@
   border-radius: var(--radius-xs);
   background: transparent;
   color: inherit;
-  cursor: pointer;
 }
 
 @media (hover: hover) {
@@ -797,7 +794,6 @@
   color: inherit;
   font-size: var(--text-body);
   font-weight: 600;
-  cursor: pointer;
 }
 
 .launcher-system-confirm__execute {
@@ -1123,7 +1119,6 @@
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  cursor: pointer;
 }
 
 .launcher-result--selected {
@@ -1387,7 +1382,6 @@
   display: grid;
   place-items: center;
   color: var(--text-tertiary);
-  cursor: pointer;
   opacity: 0;
   transition: opacity var(--dur-2) ease, color var(--dur-2) ease;
 }
@@ -1561,7 +1555,6 @@
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  cursor: pointer;
   transition: background-color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
@@ -1767,7 +1760,6 @@
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   font-family: inherit;
-  cursor: pointer;
   transition: color var(--dur-2) ease, background var(--dur-2) ease;
 }
 

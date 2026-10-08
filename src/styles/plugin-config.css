@@ -181,7 +181,6 @@
   height: calc(var(--u) * 16);
   margin: 0;
   accent-color: var(--accent);
-  cursor: pointer;
 }
 
 .plugin-config-slider__value {
@@ -212,7 +211,6 @@
   gap: calc(var(--u) * 6);
   font-size: var(--text-caption);
   color: var(--text-muted);
-  cursor: pointer;
 }
 
 /* R38 · a schema `action` field's control: the plugin's one destructive
@@ -244,7 +242,6 @@
   background: var(--glass-control);
   color: var(--text-primary);
   font-size: var(--text-caption);
-  cursor: pointer;
 }
 
 .plugin-config-action__button:hover {

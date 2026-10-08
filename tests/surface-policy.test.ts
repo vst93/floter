@@ -422,3 +422,28 @@ test("a focused sidebar item is visible (existing :focus-visible token rule)", a
   const base = await read("src/styles/base.css");
   assert.match(base, /--focus-ring-width:\s*2px;/, "the shared focus ring must stay 2px");
 });
+
+test("the entry focus does not paint the ring (the pill marks the page)", async () => {
+  // R152 · the surface policy focuses the sidebar on entry so ↑/↓ work
+  // immediately, but the browser treats that programmatic focus as
+  // `:focus-visible` and paints the ring — a second, blue selection box beside
+  // the active pill (「进入设置页面时，左侧菜单栏会有一个蓝色选中框」). The entry
+  // focus is marked, and the mark is dropped on the first real interaction, so
+  // an explicit Tab back into the sidebar still shows the ring (asserted just
+  // above). The pair is the whole point: suppress *entry*, keep *navigation*.
+  const css = await read("src/styles/settings.css");
+  assert.match(
+    css,
+    /\.settings-sidebar__item\[data-entry-focus\]:focus-visible\s*\{[^}]*outline:\s*none/,
+    "the entry-focus ring must be suppressed",
+  );
+  const app = await read("src/App.tsx");
+  assert.match(app, /target\.dataset\.entryFocus\s*=\s*""/, "the entry focus marks the item");
+  assert.match(app, /delete button\.dataset\.entryFocus/, "the mark is dropped on interaction");
+  // The mark is cleared from the nav's own events, not only on a page change:
+  // a pointer press, a key, or focus leaving the sidebar all count as "the
+  // user is driving now".
+  assert.match(app, /onKeyDown=\{clearSettingsSidebarEntryFocus\}/);
+  assert.match(app, /onPointerDown=\{clearSettingsSidebarEntryFocus\}/);
+  assert.match(app, /onBlur=\{clearSettingsSidebarEntryFocus\}/);
+});

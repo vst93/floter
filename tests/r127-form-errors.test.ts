@@ -93,7 +93,7 @@ const P1D_SITES: Array<[string, number, string, string]> = [
   [ACTIONS, 139, N_COMMAND, "Empty command"],
   [ACTIONS, 173, N_PROGRAM, "Empty program"],
   [APPS, 408, N_APPLICATION, "Application not found"],
-  [CONFIG, 1296, N_LOCK, "Settings lock is poisoned"],
+  [CONFIG, 1322, N_LOCK, "Settings lock is poisoned"],
 ];
 
 test("the five picker messages are keyed, not spelled in English", async () => {

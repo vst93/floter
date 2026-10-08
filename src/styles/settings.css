@@ -140,7 +140,6 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
-  cursor: pointer;
   font-size: var(--text-emphasis);
   font-weight: 580;
   text-align: left;
@@ -174,6 +173,18 @@
   color: var(--accent);
 }
 .settings-sidebar__item:focus-visible { outline: var(--focus-ring-width) solid var(--accent-ring); outline-offset: var(--focus-ring-offset); }
+
+/* R152 · the entry focus is *programmatic*: the surface policy hands the
+   sidebar the keyboard when the settings page opens so ↑/↓ work immediately.
+   The browser paints the focus ring as if the user had tabbed there, which
+   reads as a second, blue selection box beside the active pill (「进入设置页面
+   时，左侧菜单栏会有一个蓝色选中框」). The mark is dropped on the first real
+   interaction (`focusout` / `pointerdown` / `keydown`), so a genuine Tab back
+   into the sidebar still shows the ring — the pill marks the current page, the
+   ring marks an explicit keyboard arrival. */
+.settings-sidebar__item[data-entry-focus]:focus-visible {
+  outline: none;
+}
 
 .settings-controls {
   min-width: 0;
@@ -303,7 +314,6 @@
   border-radius: 999px;
   background: var(--glass-control);
   color: var(--text-primary);
-  cursor: pointer;
   font: inherit;
   font-weight: 600;
   box-shadow: var(--elev-0);
@@ -595,7 +605,6 @@
    rows (`overflow: hidden`), so an outer outline on the first or last row
    would be cut off on the card's own edge. */
 .settings-row[role="button"] {
-  cursor: pointer;
   transition: background-color var(--dur-2) ease;
 }
 
@@ -680,7 +689,6 @@
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--accent);
-  cursor: pointer;
   font: inherit;
   font-size: var(--text-body);
   font-weight: 620;
@@ -832,7 +840,6 @@
   height: calc(var(--u) * 16);
   margin: 0;
   accent-color: var(--accent);
-  cursor: pointer;
 }
 
 .opacity-control__range:focus-visible,
@@ -1052,7 +1059,6 @@
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  cursor: pointer;
   transition: background var(--dur-2) ease, box-shadow var(--dur-2) ease, transform var(--dur-1) ease;
 }
 
@@ -1139,7 +1145,6 @@
   border-radius: 999px;
   background: var(--glass-track);
   box-shadow: var(--elev-track);
-  cursor: pointer;
   transition: background-color var(--dur-3) ease-out, box-shadow var(--dur-3) ease-out;
 }
 
@@ -1157,13 +1162,16 @@
   transition: transform var(--dur-4) var(--ease-out-back), background-color var(--dur-3) ease-out;
 }
 
-/* The switch's "on" state is a neutral lit slot with an accent keyline, not a
-   solid accent slab. The fill was the third tinted primary face on this page;
-   the accent now survives as the 1px edge that says *on*, which is the
-   emphasis the HIG budget keeps room for, and the thumb keeps its white bead
-   so the state is still unmistakable at 20px tall. */
+/* The switch's "on" state is the macOS toggle: an accent-filled track with a
+   white thumb. The fill is budget-neutral — the accent used to ride the
+   *thumb*, so moving it to the track keeps the selector count at one (the
+   accent census now counts `.settings-switch--active` instead of the thumb),
+   and it is the shape every macOS user already reads as "on". The thumb keeps
+   its white bead and keycap shadow so the state is unmistakable at 20px tall;
+   `--switch-thumb` is a constant across palettes because a macOS switch knob
+   is white in both. */
 .settings-switch--active {
-  background: var(--glass-control-hover);
+  background: var(--accent);
   box-shadow:
     var(--elev-0),
     inset 0 0 0 1px var(--accent-edge-strong);
@@ -1171,7 +1179,7 @@
 
 .settings-switch--active .settings-switch__thumb {
   transform: translateX(14px);
-  background: var(--accent);
+  background: var(--switch-thumb);
 }
 
 .settings-switch:focus-visible {
@@ -1304,7 +1312,6 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
 /* Accent micro-badge on the resume button: marks running-but-detached
@@ -1337,7 +1344,6 @@
   font-size: var(--text-body);
   font-weight: 620;
   white-space: nowrap;
-  cursor: pointer;
 }
 
 @media (hover: hover) {
@@ -1408,7 +1414,6 @@
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--accent);
-  cursor: pointer;
   font: inherit;
   font-size: var(--text-body);
   font-weight: 620;
@@ -1448,7 +1453,6 @@
   font-size: var(--text-body);
   font-weight: 600;
   white-space: nowrap;
-  cursor: pointer;
   transition: background var(--dur-2) ease, border-color var(--dur-2) ease, color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
@@ -1546,7 +1550,6 @@
   color: var(--accent-contrast);
   font-size: var(--text-emphasis);
   font-weight: 600;
-  cursor: pointer;
   box-shadow: inset 0 1px 0 var(--glass-raised-rim);
   transition: opacity var(--dur-3);
 }

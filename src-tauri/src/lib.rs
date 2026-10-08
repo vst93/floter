@@ -28,6 +28,9 @@ mod terminal;
 // R45 · the tray's Linux identity (SNI id / object path / menu path / icon
 // file), derived once so it cannot collide with another Tauri app's tray.
 mod tray_identity;
+// R150 · the application icon's light/dark variants (embedded PNGs), selected
+// by the `app_icon` setting and installed by [`apply_app_icon`].
+mod app_icon;
 
 use commands::actions::{open_path, open_url, run_silent_command, system_spawn_detached};
 use commands::apps::{
@@ -313,6 +316,37 @@ pub fn apply_tray_visibility(app: &AppHandle, show_icon: bool) {
 /// mistake this round is guarding against, and it fails here.
 pub fn desired_tray_visibility(show_icon: bool) -> bool {
     show_icon
+}
+
+/// R150 · install the application-icon variant named by the `app_icon`
+/// setting.
+///
+/// The tray is the icon the user actually sees (the app is a menu-bar/tray
+/// resident, so macOS runs it as an `Accessory` with no Dock icon); the main
+/// window carries the same image on Windows/Linux, where the window icon is
+/// the taskbar entry. On macOS `Window::set_icon` is a no-op (the Dock icon is
+/// an app-bundle property), which is why the tray call is the one that matters
+/// there.
+///
+/// Both calls are idempotent, so the settings-save path can call this on every
+/// write without tracking the previous value. A decode failure is logged and
+/// leaves the current icon in place rather than failing the save: the embedded
+/// assets are build-time constants, so the only way to reach it is a corrupt
+/// binary, and the user's settings write must still land.
+pub fn apply_app_icon(app: &AppHandle, appearance: &str) {
+    let image = match app_icon::image_for(appearance) {
+        Ok(image) => image,
+        Err(error) => {
+            tracing::warn!("app icon: '{appearance}' could not be decoded: {error}");
+            return;
+        }
+    };
+    if let Some(tray) = app.tray_by_id(tray_identity::TRAY_ICON_ID) {
+        let _ = tray.set_icon(Some(image.clone()));
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_icon(image);
+    }
 }
 
 /// The monitor the user is working on, answered by the first strategy that can.
@@ -1895,6 +1929,11 @@ pub fn run() {
             // (The tray handle is looked up by id — the builder's return value
             // is owned here, but the registry keeps it addressable.)
             apply_tray_visibility(app.handle(), settings.show_menubar_icon);
+
+            // R150: the stored appearance is installed from the first frame,
+            // the same way visibility is — a light-icon user never sees the
+            // black mark flash before the frontend hydrates.
+            apply_app_icon(app.handle(), &settings.app_icon);
 
             // R45: the tray has just written its icon under the id above; read
             // that back so the identity we registered is in the log (and a
