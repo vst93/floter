@@ -1,5 +1,5 @@
 // R128 · the last group of user-visible English sentences the R124 census
-// found: the custom-integration / local-connection form's twelve validation
+// found: the custom-integration / local-connection form's eleven validation
 // sentences (`install.rs`), the launcher's three external-run refusals
 // (`run.rs`) and the open-URL refusal (`actions.rs`).
 //
@@ -36,7 +36,7 @@ const RUN_ERROR = "settings.extensions." + "runError";
 const runKey = (name: string) => RUN_ERROR + name;
 const runLiteral = (name: string) => "run_" + name;
 
-/** The twelve form sentences, keyed by their short name. */
+/** The eleven form sentences, keyed by their short name. */
 const OLD_FORM: Record<string, string> = {
   nameLength: "Custom integration name must " + "contain 1 to 80 characters",
   commandShape:
@@ -48,14 +48,13 @@ const OLD_FORM: Record<string, string> = {
   scriptLanguageInvalid: "Script language is only valid " + "for script integrations",
   discoveredNameLength: "Discovered tool name must " + "contain 1 to 80 characters",
   cannotDeriveCommand: "Cannot derive a Floter command " + "from",
-  singleCommandOnly: "Only single-command custom integrations " + "can be edited visually",
   packageKeywordMissing: "package.json is missing " + "the floter-extension keyword",
   localDistributionRequired: "Local connections must declare " + "distribution.type = local",
   localRuntimeRequired: "Local connection requires a system " + "or script runtime manifest",
 };
 
 /**
- * The twelve sites, pinned by 1-based line. Every replacement is line-neutral
+ * The eleven sites, pinned by 1-based line. Every replacement is line-neutral
  * except the derive refusal, whose longer `format!` rustfmt wraps onto four
  * lines — so the sites after it sit two lines lower than the R124 census.
  */
@@ -68,7 +67,6 @@ const FORM_SITES: Array<[number, string]> = [
   [303, "scriptLanguageInvalid"],
   [1166, "discoveredNameLength"],
   [1175, "cannotDeriveCommand"],
-  [1255, "singleCommandOnly"],
   [2473, "packageKeywordMissing"],
   [2494, "localDistributionRequired"],
   [2500, "localRuntimeRequired"],
@@ -88,7 +86,7 @@ const RUN_SITES: Array<[number, string]> = [
   [709, "task_failed"],
 ];
 
-test("the twelve form sentences are keyed, not spelled in English", async () => {
+test("the eleven form sentences are keyed, not spelled in English", async () => {
   const source = await read(INSTALL);
   const lines = source.split("\n");
   for (const [line, suffix] of FORM_SITES) {
@@ -155,7 +153,7 @@ test("every new key sits in both dictionaries, exactly once each", async () => {
     runKey("IntegrationBroken"),
     runKey("TaskFailed"),
   ];
-  assert.equal(keys.length, 16, "this round adds sixteen keys");
+  assert.equal(keys.length, 15, "this round adds fifteen keys");
   for (const key of keys) {
     assert.equal(count(i18n, `"${key}":`), 2, `${key} must have an English and a Chinese entry`);
   }

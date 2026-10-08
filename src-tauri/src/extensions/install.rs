@@ -1247,13 +1247,13 @@ pub fn custom_integration_definition(
         &std::fs::read(&descriptor_path)
             .map_err(|error| format!("Cannot read custom integration descriptor: {error}"))?,
     )?;
+    // R152 · the root command is `commands[0]`: `derived_descriptor_commands`
+    // pushes it before the per-subcommand entries, so the edit drawer reads the
+    // root back and a multi-command descriptor is no longer refused.
     let command = description
         .commands
         .first()
         .ok_or("Custom integration descriptor has no command")?;
-    if description.commands.len() != 1 {
-        return Err("settings.extensions.form.singleCommandOnly".to_string());
-    }
     let (mode, executable_path, script_language, script_content, version_args) = match &manifest
         .runtime
     {
@@ -7799,5 +7799,123 @@ mod tests {
             assert_eq!(parsed, expected);
         }
         assert!(serde_json::from_str::<ScriptLanguage>("\"brainfuck\"").is_err());
+    }
+
+    /// R152 · the edit drawer's read-back projects the ROOT command, which is
+    /// `commands[0]`. `derived_descriptor_commands` builds the root first and
+    /// appends one entry per subcommand, so this pins the order a future
+    /// sort would silently break. Mutation: move the root push below the
+    /// subcommand loop and the first-command assertion fails.
+    #[test]
+    fn derived_descriptor_commands_keep_the_root_command_first() {
+        let derivation = help_args::HelpDerivation {
+            root_arguments: Vec::new(),
+            subcommands: vec![
+                help_args::DerivedSubcommand {
+                    name: "alpha".into(),
+                    aliases: vec!["al".into()],
+                    description: "First gadget does things".into(),
+                    arguments: Vec::new(),
+                },
+                help_args::DerivedSubcommand {
+                    name: "beta".into(),
+                    aliases: Vec::new(),
+                    description: String::new(),
+                    arguments: Vec::new(),
+                },
+            ],
+        };
+        let commands = derived_descriptor_commands(
+            "subber-test",
+            "Subber Test",
+            "Gadgets under the terminal",
+            &[],
+            &derivation,
+        );
+        assert_eq!(commands.len(), 3, "root plus one command per subcommand");
+        assert_eq!(commands[0]["id"], "subber-test", "commands[0] is the root");
+        assert_eq!(commands[1]["id"], "alpha");
+        assert_eq!(commands[2]["id"], "beta");
+        // The root carries the caller's args_prefix unextended; a derived
+        // subcommand appends its own name.
+        assert_eq!(
+            commands[0]["execution"]["argsPrefix"],
+            serde_json::json!([])
+        );
+        assert_eq!(
+            commands[1]["execution"]["argsPrefix"],
+            serde_json::json!(["alpha"])
+        );
+    }
+
+    /// R152 · a multi-command descriptor is the normal shape for a tool with
+    /// subcommands, and the edit drawer must open for it: the definition
+    /// projection takes the root command instead of refusing anything that
+    /// carries more than one. Mutation: restore the `commands.len() != 1`
+    /// refusal and this test fails at the first read; read `commands.last()`
+    /// instead of `first()` and the root-id assertion fails.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn multi_command_integration_definition_projects_the_root_command() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = {
+            let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/subber-tool.sh");
+            make_executable(&path).unwrap();
+            path
+        };
+        let request = || CustomIntegrationRequest {
+            id: "local.multi-edit".into(),
+            name: "Multi Edit".into(),
+            command: "multi-edit".into(),
+            version: "1.0.0".into(),
+            executable_path: executable.to_string_lossy().into_owned(),
+            mode: "executable".into(),
+            script_language: None,
+            script_content: None,
+            args_prefix: Vec::new(),
+            version_args: Vec::new(),
+            description: None,
+            permissions: vec![Permission::Environment],
+            platforms: current_platforms(),
+            output: OutputMode::default(),
+            params: Vec::new(),
+        };
+        create_custom_integration(&state, request()).await.unwrap();
+
+        // The generated descriptor really is multi-command (root + alpha + beta).
+        let descriptor: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(
+                state
+                    .paths
+                    .data
+                    .join("local.multi-edit")
+                    .join("integration")
+                    .join("provider-description.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let command_ids = descriptor["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|command| command["id"].as_str().unwrap().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(command_ids, ["multi-edit", "alpha", "beta"]);
+
+        // …and the read-back path the edit drawer uses projects the root command.
+        let definition = custom_integration_definition(&state, "local.multi-edit").unwrap();
+        assert_eq!(definition.command, "multi-edit");
+
+        // An update runs the same read-back path: rename, save, read again.
+        let mut update = request();
+        update.name = "Multi Edit Renamed".into();
+        update_custom_integration(&state, "local.multi-edit", update)
+            .await
+            .unwrap();
+        let definition = custom_integration_definition(&state, "local.multi-edit").unwrap();
+        assert_eq!(definition.name, "Multi Edit Renamed");
+        assert_eq!(definition.command, "multi-edit");
     }
 }
