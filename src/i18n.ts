@@ -211,6 +211,13 @@ const en = {
   "settings.group.shortcuts": "Keyboard shortcuts",
   "settings.group.sessions": "Running sessions",
   "settings.group.update": "Updates",
+  // R156 · the About page's engine row. The Windows transparent-window
+  // regression (WebView2Feedback#5481 / #5752) is a *runtime* behaviour, so
+  // the version the machine actually runs is the one fact a retest has to
+  // report; the row is absent wherever there is no Chromium-family engine.
+  "settings.group.runtime": "Runtime",
+  "settings.webViewVersion": "Rendering engine",
+  "settings.webViewVersionHint": "Quote this when reporting a rendering problem on Windows.",
   "settings.scale.small": "Small",
   "settings.scale.large": "Large",
   "settings.language": "Language",
@@ -1098,6 +1105,10 @@ const zh: Record<MessageKey, string> = {
   "settings.group.shortcuts": "键盘快捷键",
   "settings.group.sessions": "运行中的会话",
   "settings.group.update": "更新",
+  // R156 · 同上的引擎版本行（见英文侧的注释）。
+  "settings.group.runtime": "运行环境",
+  "settings.webViewVersion": "渲染引擎",
+  "settings.webViewVersionHint": "在 Windows 上报告渲染问题时请附上这一行。",
   "settings.scale.small": "小",
   "settings.scale.large": "大",
   "settings.language": "语言",

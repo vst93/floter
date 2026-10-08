@@ -1,4 +1,5 @@
 import type { Translate } from "../i18n";
+import { formatWebViewRuntime, parseWebViewRuntime } from "../webview-version";
 import { DeepLinkRow } from "./DeepLinkRow";
 import { SettingsCard, SettingsRow } from "./SettingsRows";
 
@@ -50,6 +51,10 @@ export function AboutPage({
     : updateInfo
       ? `${t("settings.latestVersion")}: v${updateInfo.version}`
       : t("settings.upToDate");
+  // R156 · the engine's own version, for the Windows transparency report. The
+  // parse returns `null` on WKWebView / WebKitGTK, and the row is simply not
+  // drawn there — the probe is cross-platform harmless by being absent.
+  const webViewRuntime = parseWebViewRuntime(navigator.userAgent);
   return (
     <div className="settings-page">
       <header className="settings-page__header">
@@ -106,6 +111,26 @@ export function AboutPage({
           />
         </SettingsCard>
       </section>
+      {/* R156 · the engine's version. It is a *runtime* fact the source tree
+          cannot answer, and it is the one number that decides between the
+          remaining Windows transparency mechanisms, so it lives on the page
+          a user already opens to read a version. */}
+      {webViewRuntime ? (
+        <section className="settings-section">
+          <div className="settings-section__heading">
+            <div className="settings-section__heading-main">
+              <h2 className="settings-section__label">{t("settings.group.runtime")}</h2>
+            </div>
+          </div>
+          <SettingsCard label={t("settings.group.runtime")}>
+            <SettingsRow
+              label={t("settings.webViewVersion")}
+              sublabel={t("settings.webViewVersionHint")}
+              control={<span>{formatWebViewRuntime(webViewRuntime)}</span>}
+            />
+          </SettingsCard>
+        </section>
+      ) : null}
       {/* The scheme is the app's only externally reachable surface, and it is
           silent by design — this row is where a user can find out it exists
           and copy the one form worth copying. */}

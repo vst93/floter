@@ -866,7 +866,53 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
             std::mem::size_of_val(&border_color) as u32,
         );
     }
+    apply_windows_window_material(window)?;
     suppress_alt_space_system_menu(window)
+}
+
+/// The window's own material, for the case where the webview cannot be the
+/// hole it is asked to be.
+///
+/// R156 · R154's Windows fallback (the three shells drop their
+/// `backdrop-filter`) was retested and changed nothing, so the loss was never
+/// the filter's. What is left is the window-level alpha path: tao makes the
+/// window per-pixel transparent (`DwmEnableBlurBehindWindow` with an *empty*
+/// blur region) and wry asks WebView2 for a transparent default background
+/// (`webview2/mod.rs`: `set_background_color(controller, (0, 0, 0, 0))`), and
+/// on the runtimes tracked by WebView2Feedback#5481 / #5752 the webview paints
+/// a base of its own instead — a *theme-derived* one, so close to the frame's
+/// own tint that the card reads as part of it and the transparency slider has
+/// nothing to move. A window material is the one thing this app can still put
+/// behind the webview: DWM paints it, the webview's transparent pixels show
+/// it, and the CSS alpha — the transparency slider's only output — then
+/// composites over a *fixed* base rather than over raw desktop, which is what
+/// makes the slider read again.
+///
+/// The order is acrylic then mica, and it is not the obvious one. Acrylic is
+/// the material every supported Windows has (Windows 10 1809+ through the
+/// composition attribute, Windows 11 through the system backdrop), so it is
+/// laid down first as the floor; mica is applied second and simply *wins* on
+/// the Windows 11 builds that can draw it. Applying mica first and falling
+/// back to acrylic would need the failure detected, and the failure is not
+/// visible to us: `set_effects` reports the dispatch, not the DWM call, and
+/// `DwmSetWindowAttribute` succeeds on a machine that does not know the
+/// attribute at all. Two ordered calls get the same answer without a probe,
+/// because the second one overwrites the first exactly where it can.
+///
+/// The window's corner shape is untouched: DWM rounding stays off
+/// (`DWMWCP_DONOTROUND` above), so the material can only ever show where the
+/// app paints nothing, and the radius is still CSS's. If the material takes,
+/// the transparent gutter the shell leaves around its card is what shows it.
+#[cfg(target_os = "windows")]
+fn apply_windows_window_material(window: &WebviewWindow) -> Result<(), String> {
+    use tauri::window::{Effect, EffectsBuilder};
+
+    for effect in [Effect::Acrylic, Effect::Mica] {
+        window
+            .set_effects(EffectsBuilder::new().effect(effect).build())
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 /// Whether the settings panel is recording a shortcut right now.
