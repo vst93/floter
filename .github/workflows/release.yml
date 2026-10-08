@@ -117,10 +117,13 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev xdg-utils
 
       - run: npm ci
-      - run: npm test
-      - run: npm run build
+      # Cargo gates run first: tauri's build.rs generates src-tauri/gen/schemas/
+      # during compilation, and r133's guard reads that file from `npm test`.
+      # A fresh checkout has no schema until some cargo build/test has run.
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
+      - run: npm test
+      - run: npm run build
 
   # Build every artifact from the same immutable source commit. Version files
   # are changed only inside each runner until the whole matrix passes.
