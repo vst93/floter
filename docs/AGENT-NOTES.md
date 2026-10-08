@@ -174,3 +174,25 @@ R140 普查判定 19 个 i18n key 无生产消费，R141 物理删除（`src/i18
   不会夹带 CHANGELOG 噪声；两者是并行的两条面，人工补账保证归档可读。
 - 版本一致性守卫：`tests/r146-release-hygiene.test.ts`（六处载体相等 + semver 形状 +
   按 name 定位 `Cargo.lock`；版本无关，bump 后仍绿）。改版本载体时先跑它。
+
+## 供应链审计：`cargo-audit` 已可用（R147）
+
+R145 快速面核查时 `cargo audit` 未安装（当时只登记）。R147 补装 **`cargo-audit 0.22.2`**
+（`cargo install cargo-audit --locked`，落在 `~/.cargo/bin`，已在 PATH），并对
+`src-tauri/Cargo.lock` 首跑。**此后每个周期收官例行跑**：
+
+```
+cargo audit --file src-tauri/Cargo.lock
+```
+
+- **只读工具面**：不改 lock、不加依赖；cargo-audit 装在本机、不进仓库、不影响门槛表。
+- **有 advisory 时只登记不修**（依赖升级另派轮——宁可少改），按 reachable / unreachable
+  + 严重度列清；只有出现真漏洞才升级为当轮事项。
+- R147 首跑基线：**0 vulnerability**，4 条 warning，均已定性登记（勿重复 triage）：
+
+| ID | crate | 类型 | 可达性 | 说明 |
+|---|---|---|---|---|
+| RUSTSEC-2024-0370 | `proc-macro-error 1.0.4` | unmaintained | 可达（**仅构建期**） | `glib-macros` → `glib` → `gtk` → `tauri`/`tray-icon`；proc-macro，不产出运行时代码 |
+| RUSTSEC-2017-0008 | `serial 0.4.0` | unmaintained | 可达 | `portable-pty`（default feature）→ `qscreen-daemon`；串口支持路径，floter 未用 |
+| RUSTSEC-2024-0429 | `glib 0.18.5` | unsound | 可达（Linux GTK 栈） | `glib::VariantStrIter` 迭代器实现不健全；floter 无直接 glib 依赖、不调该 API |
+| （yanked） | `chacha20 0.10.1` | yanked | **不可达** | 仅 `quinn-proto` → `rand 0.10.2` 的 lock 孤儿条目；解析树中无 `quinn`/`rand 0.10.2`，不参与构建 |

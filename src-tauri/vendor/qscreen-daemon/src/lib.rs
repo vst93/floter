@@ -13,9 +13,9 @@ use qscreen_protocol::{
 #[cfg(unix)]
 use qscreen_shared::daemon_lock_path;
 use qscreen_shared::pipe_name;
+use session::{Session, SessionEvent, SessionEventQueue, SpawnCommand};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use session::{Session, SessionEvent, SessionEventQueue, SpawnCommand};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::{oneshot, watch};
 
