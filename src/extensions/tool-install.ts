@@ -67,23 +67,27 @@ export type ToolRecipe = {
   package: string;
 };
 
-/** A per-platform table, mirroring the Rust `ProbeCandidates`/`RecipeTable`. */
+/** A per-platform table, mirroring the Rust `RecipeTable`. */
 export type PlatformTable<T> = Record<InstallPlatform, T>;
 
 /** A catalog entry as `extensions_tool_catalog` returns it. `detected` is a
- *  `stat` hit on a probe candidate name — never a version. */
+ *  `stat` hit on a probe candidate name — never a version.
+ *
+ *  R153 · the payload carries only what a consumer reads. The Rust probe table
+ *  (`probeCandidates`) is the backend's own detection input, the publisher
+ *  `homepage` was never read off this payload, and the launch hint's prose
+ *  `description` had no consumer at all (the invoke row renders the argv). All
+ *  three are gone from the wire shape and from this mirror. */
 export type ToolCatalogEntry = {
   id: string;
   displayName: string;
-  homepage: string;
   /** R68 · launcher search vocabulary, a pure data addition to the Rust table
    *  (`tool_catalog.rs`). The row builder matches a needle against the id, the
    *  display name and these; no i18n key exists for them, exactly as none
    *  exists for the rest of the catalog. */
   keywords: string[];
-  probeCandidates: PlatformTable<string[]>;
   recipes: PlatformTable<ToolRecipe[]>;
-  launch: { argv: string[]; description: string; needsTerminal: boolean } | null;
+  launch: { argv: string[]; needsTerminal: boolean } | null;
   detected: boolean;
 };
 

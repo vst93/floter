@@ -48,8 +48,6 @@ const tool = (
   id,
   displayName,
   keywords,
-  homepage: `https://example.test/${id}`,
-  probeCandidates: { macos: [], linux: [], windows: [] },
   recipes: {
     macos: recipes.macos ?? [],
     linux: recipes.linux ?? [],

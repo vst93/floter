@@ -44,6 +44,11 @@ export type ComparableIntegrationForm = {
   name: string;
   command: string;
   version: string;
+  /** R153 · the drawer's description field. `undefined`/`null`/`""` all mean
+   *  "not set", the same folding `optionalText` applies to the other optional
+   *  strings — a definition read back before this field existed arrives
+   *  absent, and an untouched edit must not look dirty. */
+  description?: string | null;
   executablePath: string;
   scriptLanguage: string;
   scriptContent: string;
@@ -65,6 +70,7 @@ type CanonicalForm = {
   name: string;
   command: string;
   version: string;
+  description: string | null;
   executablePath: string;
   scriptLanguage: string;
   scriptContent: string;
@@ -137,6 +143,7 @@ export const normalizeForm = (form: ComparableIntegrationForm): CanonicalForm =>
   name: form.name ?? "",
   command: form.command ?? "",
   version: form.version ?? "",
+  description: optionalText(form.description),
   executablePath: form.executablePath ?? "",
   scriptLanguage: form.scriptLanguage ?? LANGUAGE_FALLBACK,
   scriptContent: form.scriptContent ?? "",

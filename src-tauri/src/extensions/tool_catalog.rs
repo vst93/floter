@@ -105,11 +105,10 @@ impl RecipeTable {
     }
 }
 
-/// How R69 may call the tool out: the argv of the GUI/TUI program to spawn,
-/// and a human-readable description of what the call does. The launcher's
-/// invoke row renders the argv as its subtitle and hands it to the detached
-/// spawn ([`crate::commands::actions::system_spawn_detached`]) — no shell, no
-/// terminal, no provider run path.
+/// How R69 may call the tool out: the argv of the GUI/TUI program to spawn.
+/// The launcher's invoke row renders the argv as its subtitle and hands it to
+/// the detached spawn ([`crate::commands::actions::system_spawn_detached`]) —
+/// no shell, no terminal, no provider run path.
 ///
 /// Only tools with a GUI or TUI action carry a hint. A pure CLI filter — `jq`,
 /// `fd`, `rg` — has nothing sensible to start detached (it reads standard
@@ -129,7 +128,6 @@ impl RecipeTable {
 #[serde(rename_all = "camelCase")]
 pub struct LaunchHint {
     pub argv: &'static [&'static str],
-    pub description: &'static str,
     pub needs_terminal: bool,
 }
 
@@ -141,6 +139,12 @@ pub struct ToolCatalogEntry {
     /// Stable id; the frontend's `TOOL_CATALOG_IDS` mirror is guarded against it.
     pub id: &'static str,
     pub display_name: &'static str,
+    /// R153 · the publisher homepage was never read off the catalog payload
+    /// (the panel's `homepage` is the *lock entry's*, a different field), so it
+    /// stays table data and is no longer serialized. `skip_serializing` keeps
+    /// the compile-time table self-documenting without shipping bytes no
+    /// consumer reads.
+    #[serde(skip_serializing)]
     pub homepage: &'static str,
     /// R68 · words a launcher query may be matched against, beyond the id and
     /// the display name. They are search vocabulary, not metadata: the
@@ -150,6 +154,11 @@ pub struct ToolCatalogEntry {
     /// precedent for names the frontend owns). Two to five per tool, all
     /// untranslated data like the rest of the table.
     pub keywords: &'static [&'static str],
+    /// R153 · the probe table is the backend's own detection input
+    /// ([`detect_tool`] reads it here); the frontend receives the resolved
+    /// `detected` boolean and never the candidate names. Serializing it shipped
+    /// a per-platform path vocabulary no consumer read.
+    #[serde(skip_serializing)]
     pub probe_candidates: ProbeCandidates,
     pub recipes: RecipeTable,
     pub launch: Option<LaunchHint>,
@@ -175,14 +184,9 @@ const fn recipe(manager: &'static str, package: &'static str) -> ToolRecipe {
     ToolRecipe { manager, package }
 }
 
-const fn launch(
-    argv: &'static [&'static str],
-    description: &'static str,
-    needs_terminal: bool,
-) -> LaunchHint {
+const fn launch(argv: &'static [&'static str], needs_terminal: bool) -> LaunchHint {
     LaunchHint {
         argv,
-        description,
         needs_terminal,
     }
 }
@@ -269,7 +273,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             windows: &[recipe("winget", "Flameshot.Flameshot")],
         },
         // A GUI program: it owns its window and needs no terminal.
-        launch: Some(launch(&["flameshot", "gui"], "Take a screenshot", false)),
+        launch: Some(launch(&["flameshot", "gui"], false)),
     },
     ToolCatalogEntry {
         id: "yt-dlp",
@@ -516,7 +520,7 @@ pub const TOOL_CATALOG: &[ToolCatalogEntry] = &[
             windows: &[recipe("winget", "JesseDuffield.lazygit")],
         },
         // A full-screen TUI: it needs a real terminal or it exits at once.
-        launch: Some(launch(&["lazygit"], "Open the lazygit TUI", true)),
+        launch: Some(launch(&["lazygit"], true)),
     },
 ];
 
@@ -793,7 +797,9 @@ mod tests {
         assert!(tool["displayName"].is_string());
         assert_eq!(tool["detected"], false);
         assert!(tool["recipes"]["macos"].is_array());
-        assert!(tool["probeCandidates"]["linux"].is_array());
+        // R153 · the probe table and the homepage are backend-only now.
+        assert!(tool.get("probeCandidates").is_none());
+        assert!(tool.get("homepage").is_none());
         // R68 · the search vocabulary rides the same flattened entry.
         assert!(tool["keywords"].is_array());
         let manager = &value["managers"][0];
@@ -839,7 +845,40 @@ mod tests {
         for entry in TOOL_CATALOG {
             if let Some(hint) = entry.launch {
                 assert!(!hint.argv.is_empty(), "{} has an empty argv", entry.id);
-                assert!(!hint.description.is_empty(), "{}", entry.id);
+            }
+        }
+    }
+
+    /// R153 · the catalog payload carries only what a consumer reads. The
+    /// probe table is the backend's own detection input, the homepage is never
+    /// read off this payload, and the launch hint's prose description had no
+    /// consumer at all (the invoke row renders the argv). All three stay out of
+    /// the wire shape — and the fields the launcher *does* need (`keywords`,
+    /// `launch.argv`, `launch.needsTerminal`) stay in it.
+    /// Mutation: drop `skip_serializing` and the two `is_none` assertions go
+    /// red; add `description` back to `LaunchHint` and the third does.
+    #[test]
+    fn r153_the_catalog_payload_carries_only_consumed_fields() {
+        let temp = tempfile::tempdir().unwrap();
+        let value = serde_json::to_value(build_report(&directories(&temp))).unwrap();
+        let tools = value["tools"].as_array().unwrap();
+        for tool in tools {
+            assert!(
+                tool.get("probeCandidates").is_none(),
+                "the probe table is detection input, not payload"
+            );
+            assert!(
+                tool.get("homepage").is_none(),
+                "no consumer reads the catalog homepage"
+            );
+            assert!(tool["keywords"].is_array(), "the search vocabulary stays");
+            if let Some(launch) = tool["launch"].as_object() {
+                assert!(launch["argv"].is_array());
+                assert!(launch["needsTerminal"].is_boolean());
+                assert!(
+                    launch.get("description").is_none(),
+                    "the launch prose had no consumer"
+                );
             }
         }
     }

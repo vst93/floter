@@ -57,19 +57,24 @@ const OLD_FORM: Record<string, string> = {
  * The eleven sites, pinned by 1-based line. Every replacement is line-neutral
  * except the derive refusal, whose longer `format!` rustfmt wraps onto four
  * lines — so the sites after it sit two lines lower than the R124 census.
+ * R153 added 7 lines to `CustomIntegrationDefinition` (the `description` field
+ * and its doc) and 1 more line to the definition's read-back, so the six sites
+ * before the read-back sit 7 lines lower and the five after it sit 8 lower
+ * than the R128 census. The three run refusals moved 7 lines lower (R153's
+ * comment on the number branch).
  */
 const FORM_SITES: Array<[number, string]> = [
-  [243, "nameLength"],
-  [256, "commandShape"],
-  [261, "platformRequired"],
-  [266, "modeInvalid"],
-  [300, "scriptEmpty"],
-  [303, "scriptLanguageInvalid"],
-  [1166, "discoveredNameLength"],
-  [1175, "cannotDeriveCommand"],
-  [2473, "packageKeywordMissing"],
-  [2494, "localDistributionRequired"],
-  [2500, "localRuntimeRequired"],
+  [250, "nameLength"],
+  [263, "commandShape"],
+  [268, "platformRequired"],
+  [273, "modeInvalid"],
+  [307, "scriptEmpty"],
+  [310, "scriptLanguageInvalid"],
+  [1173, "discoveredNameLength"],
+  [1182, "cannotDeriveCommand"],
+  [2481, "packageKeywordMissing"],
+  [2502, "localDistributionRequired"],
+  [2508, "localRuntimeRequired"],
 ];
 
 /** The three run refusals' English, keyed by their short name. */
@@ -81,9 +86,9 @@ const OLD_RUN: Record<string, string> = {
 
 /** The three run refusals, pinned by 1-based line. */
 const RUN_SITES: Array<[number, string]> = [
-  [430, "integration_disabled"],
-  [433, "integration_broken"],
-  [709, "task_failed"],
+  [437, "integration_disabled"],
+  [440, "integration_broken"],
+  [716, "task_failed"],
 ];
 
 test("the eleven form sentences are keyed, not spelled in English", async () => {

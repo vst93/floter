@@ -48,13 +48,11 @@ const tool = (
   displayName: string,
   keywords: string[],
   detected: boolean,
-  launch: { argv: string[]; description: string; needsTerminal: boolean } | null,
+  launch: { argv: string[]; needsTerminal: boolean } | null,
 ): ToolCatalogEntry => ({
   id,
   displayName,
   keywords,
-  homepage: `https://example.test/${id}`,
-  probeCandidates: { macos: [], linux: [], windows: [] },
   recipes: {
     macos: [],
     linux: [{ manager: "apt", package: id } as ToolRecipe],
@@ -68,7 +66,6 @@ const tool = (
 const flame = (detected = true) =>
   tool("flameshot", "Flameshot", ["截图", "screenshot", "jietu"], detected, {
     argv: ["flameshot", "gui"],
-    description: "Take a screenshot",
     needsTerminal: false,
   });
 
@@ -139,10 +136,10 @@ test("a null report is a soft landing, not an error", () => {
 
 test("rows follow catalog order and share the documented budget", () => {
   const many = report([
-    tool("a1", "Alpha", ["needle"], true, { argv: ["a1"], description: "d", needsTerminal: false }),
-    tool("a2", "Alpha Two", ["needle"], true, { argv: ["a2"], description: "d", needsTerminal: false }),
-    tool("a3", "Alpha Three", ["needle"], true, { argv: ["a3"], description: "d", needsTerminal: false }),
-    tool("a4", "Alpha Four", ["needle"], true, { argv: ["a4"], description: "d", needsTerminal: false }),
+    tool("a1", "Alpha", ["needle"], true, { argv: ["a1"], needsTerminal: false }),
+    tool("a2", "Alpha Two", ["needle"], true, { argv: ["a2"], needsTerminal: false }),
+    tool("a3", "Alpha Three", ["needle"], true, { argv: ["a3"], needsTerminal: false }),
+    tool("a4", "Alpha Four", ["needle"], true, { argv: ["a4"], needsTerminal: false }),
   ]);
   const rows = toolInvokeRows(many, "needle");
   assert.equal(rows.length, TOOL_INVOKE_ROW_LIMIT);

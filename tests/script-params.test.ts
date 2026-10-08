@@ -156,6 +156,26 @@ test("select needs options, and a default must be legal for its kind", () => {
   );
 });
 
+test("a number default is a finite decimal, not just any Number() input", () => {
+  // R153 · `Number()` accepts `0x10`/`0b101`/`0o17` and the non-finite
+  // spellings; the backend's `f64` parser (with the `is_finite` guard) and the
+  // run-time form do not, so the definition check must not either.
+  for (const bad of ["0x10", "0b101", "0o17", "inf", "NaN", "1e", "1.2.3"]) {
+    assert.equal(
+      paramIssues([param({ id: "count", kind: "number", default: bad })])[0]?.key,
+      "settings.extensions.customParamInvalidDefault",
+      `${bad} must be refused as a default`,
+    );
+  }
+  for (const good of ["1e5", "-2.5", ".5", "1.", "+3", "0"]) {
+    assert.deepEqual(
+      paramIssues([param({ id: "count", kind: "number", default: good })]),
+      [],
+      `${good} must be accepted`,
+    );
+  }
+});
+
 test("issues carry the offending row index so the drawer can place them", () => {
   const issues = paramIssues([
     param({ id: "ok" }),
@@ -193,11 +213,25 @@ test("a definition read back from a legacy manifest yields an empty list", () =>
   assert.equal(read_back[0].kind, "text");
 });
 
-test("options parse from and format back to a comma-separated field", () => {
-  assert.deepEqual(parseParamOptions("fast, slow ,, "), ["fast", "slow"]);
+test("options are one per line, so a choice may contain a comma", () => {
+  assert.deepEqual(parseParamOptions("fast\nslow\n"), ["fast", "slow"]);
+  assert.deepEqual(parseParamOptions("1,000\n2,500"), ["1,000", "2,500"]);
+  assert.equal(formatParamOptions(["1,000", "2,500"]), "1,000\n2,500");
+  // Round-trip: a value that contains a comma survives the editor's
+  // string↔array codec. Mutation: split on "," again and this yields four
+  // choices ("1", "000", "2", "500").
+  assert.deepEqual(parseParamOptions(formatParamOptions(["1,000", "2,500"])), [
+    "1,000",
+    "2,500",
+  ]);
+});
+
+test("the options codec trims each line and drops the blanks", () => {
+  assert.deepEqual(parseParamOptions("  fast  \n\n slow \n  \n"), ["fast", "slow"]);
   assert.deepEqual(parseParamOptions(""), []);
-  assert.equal(formatParamOptions(["fast", "slow"]), "fast, slow");
+  assert.deepEqual(parseParamOptions("\n\n"), []);
   assert.equal(formatParamOptions([]), "");
+  assert.equal(formatParamOptions(["only"]), "only");
 });
 
 // ── 4 · the drawer renders the editor inline ───────────────────────────────
@@ -239,6 +273,34 @@ test("the save request sends normalized params and the form holds them", async (
   assert.match(panel, /params: \[\]/, "a fresh form starts with no params");
   const form = await read("src/ExtensionsPanel.tsx");
   assert.match(form, /type CustomIntegrationForm = \{[\s\S]*?params: ScriptParam\[\];/, "the form type must carry params");
+});
+
+test("the save request carries the description the definition reads back", async () => {
+  // R153 · the request always had a `description` (the discovery layer fills
+  // it), but nothing read it back, so an edit that only renamed the entry
+  // overwrote the manifest's description with the generated fallback. The form
+  // type, the request assembly, the read-back normalization and the drawer
+  // field have to move together.
+  const form = await read("src/ExtensionsPanel.tsx");
+  assert.match(
+    form,
+    /type CustomIntegrationForm = \{[\s\S]*?description: string;/,
+    "the form type must carry description",
+  );
+  const panel = stripJsComments(form);
+  assert.match(panel, /description: customIntegration\.description,/, "the request must carry description");
+  assert.match(
+    panel,
+    /description: definition\.description \?\? ""/,
+    "reading a definition must normalize an absent description",
+  );
+  const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
+  assert.match(drawer, /customDescription/, "the drawer must render the description field");
+  assert.match(
+    drawer,
+    /description: event\.target\.value/,
+    "the description input must write the form state",
+  );
 });
 
 // ── 6 · the template explains how a script reads argv ──────────────────────

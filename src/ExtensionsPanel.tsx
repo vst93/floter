@@ -355,6 +355,11 @@ export type CustomIntegrationForm = {
   name: string;
   command: string;
   version: string;
+  /** R153 · the manifest's own description. The request always carried one
+   *  (the discovery layer fills it); the definition read-back now returns it,
+   *  so an edit starts from the real value and a save no longer replaces it
+   *  with the generated fallback. */
+  description: string;
   executablePath: string;
   scriptLanguage: ScriptLanguageId;
   scriptContent: string;
@@ -378,6 +383,7 @@ const DEFAULT_CUSTOM_INTEGRATION: CustomIntegrationForm = {
   name: "Custom Tool",
   command: "custom-tool",
   version: "1.0.0",
+  description: "",
   executablePath: "",
   scriptLanguage: "js",
   scriptContent: "",
@@ -1605,6 +1611,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
         ...definition,
         scriptLanguage: definition.scriptLanguage ?? "shell",
         scriptContent: definition.scriptContent ?? "",
+        // R153 · a definition that predates the read-back field (or one whose
+        // manifest never had a description) arrives absent; the editor's
+        // "not set" is the empty string, the same value the input renders.
+        description: definition.description ?? "",
         argsPrefix: [...definition.argsPrefix],
         versionArgs: [...definition.versionArgs],
         permissions: [...definition.permissions],
@@ -1889,6 +1899,10 @@ export function ExtensionsPanel({ settingsBusy, t, locale, onOpenCommand, onInst
         executablePath: customIntegration.mode === "executable" ? customIntegration.executablePath : "",
         scriptLanguage: customIntegration.mode === "script" ? customIntegration.scriptLanguage : null,
         scriptContent: customIntegration.mode === "script" ? customIntegration.scriptContent : null,
+        // R153 · sent explicitly (the spread above already carries it) so the
+        // read-back/round-trip pair is visible in one place: the definition
+        // returns `description`, the drawer edits it, the request writes it.
+        description: customIntegration.description,
         argsPrefix: customIntegration.argsPrefix,
         versionArgs: customIntegration.versionArgs,
         params: toWireParams(customIntegration.params),

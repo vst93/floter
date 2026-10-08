@@ -17,7 +17,7 @@
 // conversion. That is the injection defence's front edge: a value here is data,
 // never a command fragment.
 
-import type { ScriptParam } from "./script-params";
+import { isFiniteDecimal, type ScriptParam } from "./script-params.ts";
 
 /** Parameter answers keyed by parameter id. Values are always strings on the
  *  wire; the backend converts by kind. */
@@ -83,7 +83,7 @@ export const paramValueIssues = (
       return;
     }
     if (raw.length === 0) return;
-    if (param.kind === "number" && !Number.isFinite(Number(raw.trim()))) {
+    if (param.kind === "number" && !isFiniteDecimal(raw)) {
       issues.push({ index, key: "settings.extensions.customParamInvalidValue", label });
       return;
     }

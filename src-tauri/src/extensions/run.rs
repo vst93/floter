@@ -340,7 +340,14 @@ pub(crate) fn param_arguments(
             },
             ParamKind::Number => {
                 let trimmed = raw.trim();
-                if trimmed.parse::<i64>().is_err() && trimmed.parse::<f64>().is_err() {
+                // R153 · a finite decimal, and nothing else. Rust's `f64`
+                // parser also accepts the non-finite spellings (`inf`, `NaN`,
+                // `infinity`), which no caller meant to pass as an argument;
+                // the frontend's `isFiniteDecimal` refuses the same set (plus
+                // the radix prefixes Rust already refuses). Mutation: drop
+                // `.is_finite()` and the `inf`/`NaN` cases in
+                // `param_arguments_refuses_a_non_finite_number` go green.
+                if !trimmed.parse::<f64>().is_ok_and(f64::is_finite) {
                     return Err(format!("run_param_invalid:{}", param.id));
                 }
                 push_flagged(&mut args, param.flag.as_deref(), trimmed);
@@ -1352,6 +1359,35 @@ mod tests {
             param_arguments(&[path], &values(&[("dest", "$HOME/x ~/y")]), false).unwrap(),
             vec!["$HOME/x ~/y"]
         );
+    }
+
+    /// R153 · the number kind is a *finite decimal* on both sides of the wire.
+    /// Rust's `f64` parser accepts the non-finite spellings (`inf`, `-inf`,
+    /// `NaN`, `infinity`) that no caller meant to pass, and the frontend's
+    /// `isFiniteDecimal` refuses the same set plus the radix-prefixed forms
+    /// (`0x10`) Rust already refuses. Mutation: drop `.is_finite()` from the
+    /// number branch and the non-finite cases below go green.
+    #[test]
+    fn param_arguments_refuses_a_non_finite_number() {
+        let count = param("count", ParamKind::Number);
+        for value in [
+            "inf", "-inf", "NaN", "nan", "infinity", "0x10", "0b101", "0o17", "1e", "1.2.3",
+        ] {
+            assert_eq!(
+                args_for(&count, &[("count", value)], false).unwrap_err(),
+                "run_param_invalid:count",
+                "{value:?} must be refused"
+            );
+        }
+        // The finite decimal spellings — including the exponent and the bare
+        // leading/trailing dot Rust's grammar allows — pass through trimmed.
+        for value in ["1e5", "-2.5", ".5", "1.", "+3", "0", " -2.5 "] {
+            assert_eq!(
+                args_for(&count, &[("count", value)], false).unwrap(),
+                vec![value.trim().to_string()],
+                "{value:?} must be accepted"
+            );
+        }
     }
 
     #[test]

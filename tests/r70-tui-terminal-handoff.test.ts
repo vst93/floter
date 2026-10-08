@@ -40,15 +40,12 @@ const tool = (
   detected: boolean,
   launch: {
     argv: string[];
-    description: string;
     needsTerminal: boolean;
   } | null,
 ): ToolCatalogEntry => ({
   id,
   displayName,
   keywords: [],
-  homepage: `https://example.test/${id}`,
-  probeCandidates: { macos: [], linux: [], windows: [] },
   recipes: { macos: [], linux: [], windows: [] },
   launch,
   detected,
@@ -63,14 +60,12 @@ const report = (tools: ToolCatalogEntry[]): ToolCatalogReport => ({
 const gui = () =>
   tool("flameshot", "Flameshot", true, {
     argv: ["flameshot", "gui"],
-    description: "Take a screenshot",
     needsTerminal: false,
   });
 
 const tui = () =>
   tool("lazygit", "lazygit", true, {
     argv: ["lazygit"],
-    description: "Open the lazygit TUI",
     needsTerminal: true,
   });
 
@@ -152,7 +147,7 @@ test("the TS catalog type mirrors the Rust field as needsTerminal", async () => 
   const source = await read("src/extensions/tool-install.ts");
   assert.match(
     source,
-    /launch: \{ argv: string\[\]; description: string; needsTerminal: boolean \} \| null;/,
+    /launch: \{ argv: string\[\]; needsTerminal: boolean \} \| null;/,
     "the payload type carries the bit",
   );
 });
@@ -175,7 +170,7 @@ test("the Rust LaunchHint declares needs_terminal and serializes it as camelCase
   const rust = await read("src-tauri/src/extensions/tool_catalog.rs");
   assert.match(
     rust,
-    /pub struct LaunchHint \{\s*pub argv: &'static \[&'static str\],\s*pub description: &'static str,\s*pub needs_terminal: bool,\s*\}/,
+    /pub struct LaunchHint \{\s*pub argv: &'static \[&'static str\],\s*pub needs_terminal: bool,\s*\}/,
     "the struct has the field",
   );
   // The serde rename is on the struct, so the field crosses the wire camelCased.
@@ -187,12 +182,12 @@ test("the Rust LaunchHint declares needs_terminal and serializes it as camelCase
   // The two live hints carry the exact values the routing depends on.
   assert.match(
     rust,
-    /launch: Some\(launch\(&\["flameshot", "gui"\], "Take a screenshot", false\)\)/,
+    /launch: Some\(launch\(&\["flameshot", "gui"\], false\)\)/,
     "flameshot is a GUI: detached",
   );
   assert.match(
     rust,
-    /launch: Some\(launch\(&\["lazygit"\], "Open the lazygit TUI", true\)\)/,
+    /launch: Some\(launch\(&\["lazygit"\], true\)\)/,
     "lazygit is a TUI: terminal",
   );
 });
@@ -207,7 +202,7 @@ test("the Rust table has no other launch hint that forgot its bit", async () => 
   for (const block of blocks) {
     const id = /id: "([^"]+)"/.exec(block)?.[1];
     assert.ok(id, "every entry declares an id");
-    const some = /launch:\s*Some\(launch\(&\[[^\]]*\],\s*"[^"]*",\s*(true|false)\)\)/.exec(block);
+    const some = /launch:\s*Some\(launch\(&\[[^\]]*\],\s*(true|false)\)\)/.exec(block);
     const none = /launch:\s*None/.test(block);
     assert.ok(none || some, `${id} must declare a launch hint with its needs_terminal bit`);
   }

@@ -118,6 +118,13 @@ pub struct CustomIntegrationDefinition {
     pub script_content: Option<String>,
     pub args_prefix: Vec<String>,
     pub version_args: Vec<String>,
+    /// R153 · the manifest's own description, projected back so the edit drawer
+    /// opens with what the entry actually says and a save no longer drops it
+    /// (the request has always carried `description`; nothing read it back).
+    /// `skip_serializing_if` keeps a definition that has none byte-identical
+    /// to the pre-R153 payload.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub permissions: Vec<Permission>,
     pub platforms: Vec<PlatformOs>,
     pub output: OutputMode,
@@ -1290,6 +1297,7 @@ pub fn custom_integration_definition(
         script_content,
         args_prefix: command.execution.args_prefix.clone(),
         version_args,
+        description: Some(manifest.description),
         permissions: manifest.permissions,
         platforms: manifest.platforms,
         output: manifest.output,
@@ -7917,5 +7925,82 @@ mod tests {
         let definition = custom_integration_definition(&state, "local.multi-edit").unwrap();
         assert_eq!(definition.name, "Multi Edit Renamed");
         assert_eq!(definition.command, "multi-edit");
+    }
+
+    /// R153 · the description a create/update request carries is read back by
+    /// the definition projection, so opening an integration for edit shows what
+    /// it actually says and the next save no longer overwrites it with the
+    /// generated fallback. Mutation: drop `description` from
+    /// `CustomIntegrationDefinition` (or the manifest fill in
+    /// `custom_integration_definition`) and the round-trip assertion goes red.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn custom_integration_description_round_trips_and_survives_an_edit() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = test_state(directory.path());
+        let executable = {
+            let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/subber-tool.sh");
+            make_executable(&path).unwrap();
+            path
+        };
+        let request = || CustomIntegrationRequest {
+            id: "local.described-tool".into(),
+            name: "Described Tool".into(),
+            command: "described-tool".into(),
+            version: "1.0.0".into(),
+            executable_path: executable.to_string_lossy().into_owned(),
+            mode: "executable".into(),
+            script_language: None,
+            script_content: None,
+            args_prefix: Vec::new(),
+            version_args: Vec::new(),
+            description: Some("Takes a screenshot of the whole screen".into()),
+            permissions: vec![Permission::Environment],
+            platforms: current_platforms(),
+            output: OutputMode::default(),
+            params: Vec::new(),
+        };
+        let created = create_custom_integration(&state, request()).await.unwrap();
+        let id = created.id.clone();
+        assert_eq!(
+            custom_integration_definition(&state, &id)
+                .unwrap()
+                .description
+                .as_deref(),
+            Some("Takes a screenshot of the whole screen"),
+        );
+        // The manifest on disk really carries it…
+        assert_eq!(
+            manifest_of(&state, &id).description,
+            "Takes a screenshot of the whole screen",
+        );
+        // …and an edit that only renames keeps it. This is the regression the
+        // round is about: the request always carried a description, but the
+        // read-back handed the drawer nothing, so the next save replaced the
+        // manifest's description with the generated fallback.
+        let mut update = request();
+        update.name = "Described Tool Renamed".into();
+        update_custom_integration(&state, &id, update)
+            .await
+            .unwrap();
+        let definition = custom_integration_definition(&state, &id).unwrap();
+        assert_eq!(definition.name, "Described Tool Renamed");
+        assert_eq!(
+            definition.description.as_deref(),
+            Some("Takes a screenshot of the whole screen"),
+        );
+
+        // A blank description is "not set": the generated sentence is the
+        // fallback, exactly as on create.
+        let mut blank = request();
+        blank.description = Some("   ".into());
+        update_custom_integration(&state, &id, blank).await.unwrap();
+        assert_eq!(
+            custom_integration_definition(&state, &id)
+                .unwrap()
+                .description
+                .as_deref(),
+            Some("Local integration for subber-tool.sh"),
+        );
     }
 }

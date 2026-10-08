@@ -107,6 +107,26 @@ test("kind rules reject a bad number or an out-of-range select", () => {
   );
 });
 
+// R153 · the number kind is a finite decimal on both sides of the wire. The
+// frontend used to ask `Number.isFinite(Number(raw))`, which accepts the
+// radix-prefixed forms (`0x10`) and whitespace-padded spellings the backend's
+// `parse::<f64>` refuses — so the form allowed a run the backend then rejected.
+// Mutation: put `Number.isFinite(Number(raw.trim()))` back and the `0x10` /
+// `0b101` / `0o17` cases below go green.
+test("a number value must be a finite decimal, not a radix-prefixed literal", () => {
+  const count = param({ id: "count", kind: "number" });
+  for (const bad of ["0x10", "0b101", "0o17", "inf", "-inf", "NaN", "infinity", "1e", "1.2.3"]) {
+    assert.equal(
+      paramValueIssues([count], { count: bad })[0]?.key,
+      "settings.extensions.customParamInvalidValue",
+      `${bad} must be refused`,
+    );
+  }
+  for (const good of ["1e5", "-2.5", ".5", "1.", "+3", "0"]) {
+    assert.deepEqual(paramValueIssues([count], { count: good }), [], `${good} must be accepted`);
+  }
+});
+
 // ── 3 · collection: declared ids only, blanks absent ───────────────────────
 
 test("collected values drop blanks and undeclared keys", () => {

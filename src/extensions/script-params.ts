@@ -52,6 +52,19 @@ export const PARAM_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 /** One token, `-`-led, no shell metacharacter. Mirrors `validate_flag`. */
 export const PARAM_FLAG_PATTERN = /^-[A-Za-z0-9_.-]+$/;
 
+/** The number kind's value grammar, shared by the definition's default check
+ *  (`defaultIsValid`) and the run-time form's value check
+ *  (`run-params.ts`). Deliberately not `Number()`: that also accepts the
+ *  radix-prefixed forms (`0x10`, `0b101`, `0o17`) and whitespace-padded
+ *  spellings, none of which the backend's `parse::<f64>` accepts. The
+ *  non-finite spellings (`inf`/`NaN`) are refused by the backend's
+ *  `is_finite()` guard and by this pattern alike. */
+export const FINITE_DECIMAL_PATTERN = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+/** Whether `value` is a finite decimal literal, whitespace aside. */
+export const isFiniteDecimal = (value: string): boolean =>
+  FINITE_DECIMAL_PATTERN.test(value.trim());
+
 /** A fresh row. A blank id is deliberate: the user names it, and the validator
  *  is what refuses to save until they do. */
 export const emptyParam = (): ScriptParam => ({
@@ -76,17 +89,22 @@ export type ParamIssueKey =
 
 export type ParamIssue = { index: number; key: ParamIssueKey };
 
-/** Parse a comma-separated options field into the wire array. Whitespace is
- *  trimmed and empties dropped, so a trailing comma does not create a blank
- *  choice. */
+/** Parse a newline-separated options field into the wire array. Each line is
+ *  trimmed and blank lines dropped, so a trailing newline does not create a
+ *  blank choice.
+ *
+ *  R153 · the separator is a newline, not a comma: a choice value may itself
+ *  contain a comma (`1,000`), which the old comma codec could not express — it
+ *  split the value in two on the next round-trip. The wire shape is unchanged
+ *  (an array of strings); only the editor's string↔array codec moved. */
 export const parseParamOptions = (value: string): string[] =>
   value
-    .split(",")
+    .split("\n")
     .map((option) => option.trim())
     .filter((option) => option.length > 0);
 
-/** The inverse, for rendering a row's options back into its input. */
-export const formatParamOptions = (options: readonly string[]): string => options.join(", ");
+/** The inverse, for rendering a row's options back into its textarea. */
+export const formatParamOptions = (options: readonly string[]): string => options.join("\n");
 
 /** Whether a default is legal for its kind. `required` plus a default is
  *  *valid* — the default is a pre-fill, not an exemption. */
@@ -94,7 +112,7 @@ const defaultIsValid = (param: ScriptParam): boolean => {
   if (param.default === null) return true;
   switch (param.kind) {
     case "number":
-      return param.default.trim().length > 0 && Number.isFinite(Number(param.default));
+      return param.default.trim().length > 0 && isFiniteDecimal(param.default);
     case "boolean":
       return param.default === "true" || param.default === "false";
     case "select":

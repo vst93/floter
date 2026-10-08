@@ -2465,16 +2465,6 @@ pub async fn extensions_run(
     crate::extensions::run::run(&state, &id, values).await
 }
 
-/// The most recent background-run output for an integration, if any. A pure
-/// read of the session store — never triggers a run.
-#[tauri::command]
-pub fn extensions_run_output(
-    state: State<'_, ExtensionState>,
-    id: String,
-) -> Option<crate::extensions::run::RunOutput> {
-    state.run_output(&id)
-}
-
 #[tauri::command]
 pub async fn extensions_config_get(
     state: State<'_, ExtensionState>,
