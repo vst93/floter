@@ -62,6 +62,13 @@ const OLD_FORM: Record<string, string> = {
  * before the read-back sit 7 lines lower and the five after it sit 8 lower
  * than the R128 census. The three run refusals moved 7 lines lower (R153's
  * comment on the number branch).
+ *
+ * R158 deleted the orphan run-output store: the `MAX_RUN_OUTPUT_BYTES` block
+ * (-5) went above the two launcher refusals while `RunOutput.truncated`'s doc
+ * grew by 2, netting -3 for them; the write call (-1) plus rustfmt collapsing
+ * the now-block-free `Ok(..)` arm (-2) moved `task_failed` to -6. The read-back
+ * became executable-only with a three-line comment, so the five install sites
+ * after it moved 3 lines lower than the R153 numbering.
  */
 const FORM_SITES: Array<[number, string]> = [
   [250, "nameLength"],
@@ -72,9 +79,9 @@ const FORM_SITES: Array<[number, string]> = [
   [310, "scriptLanguageInvalid"],
   [1173, "discoveredNameLength"],
   [1182, "cannotDeriveCommand"],
-  [2481, "packageKeywordMissing"],
-  [2502, "localDistributionRequired"],
-  [2508, "localRuntimeRequired"],
+  [2484, "packageKeywordMissing"],
+  [2505, "localDistributionRequired"],
+  [2511, "localRuntimeRequired"],
 ];
 
 /** The three run refusals' English, keyed by their short name. */
@@ -86,9 +93,9 @@ const OLD_RUN: Record<string, string> = {
 
 /** The three run refusals, pinned by 1-based line. */
 const RUN_SITES: Array<[number, string]> = [
-  [437, "integration_disabled"],
-  [440, "integration_broken"],
-  [716, "task_failed"],
+  [434, "integration_disabled"],
+  [437, "integration_broken"],
+  [710, "task_failed"],
 ];
 
 test("the eleven form sentences are keyed, not spelled in English", async () => {

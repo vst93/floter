@@ -53,13 +53,16 @@
   --u: calc(1px * var(--ui-scale));
   --font-base: calc(13px * var(--ui-scale));
 
-  /* Window corner radius. DWM rounding is disabled on Windows (see
-     `configure_windows_frame` in lib.rs) and macOS never rounds a borderless
-     window, so CSS is the sole source of the corner shape on every platform —
-     and the drop shadow around it belongs to the window server, never to a
-     surface below. A `box-shadow` cast by a card that fills its own window has
-     nowhere to land: it is clipped at the window edge, and what survives reads
-     as a square outline around the rounded corners. */
+  /* Window corner radius. On Windows DWM now draws the window's outer corner
+     again (`DWMWCP_ROUND` ≈ 8px, R157, see
+     `round_windows_window_material_corners` in lib.rs) and the Windows card
+     aligns to that same 8px below, so the two radii are one number rather than
+     a nested pair. macOS never rounds a borderless window, so CSS still carries
+     the corner shape alone there. The drop shadow around it belongs to the
+     window server, never to a surface below: a `box-shadow` cast by a card that
+     fills its own window has nowhere to land — it is clipped at the window
+     edge, and what survives reads as a square outline around the rounded
+     corners. */
   --window-radius: 14px;
 
   /* ── Corner radius ladder (R7-HIG, raised by ROUND-PASS) ────────────────
@@ -1399,9 +1402,9 @@ html:not([data-glass]) {
 /* An undecorated Windows window reaches exactly to these surfaces. Its edge is
    therefore painted inward so no square pixel can survive outside the radius.
    Other platforms retain the border declared above. The radius follows the
-   system's own: Windows 11 rounds an application window at 8px, and floter
-   draws its corners itself there (DWM rounding is off), so it should round to
-   the same figure rather than to macOS' slightly larger one. */
+   system's own: DWM rounds the window at its ~8px preset (`DWMWCP_ROUND`,
+   R157), so the card is pinned to that same figure rather than to macOS'
+   slightly larger one. */
 .platform-windows {
   --window-radius: 8px;
 }
@@ -1436,13 +1439,14 @@ html:not([data-glass]) {
    own, and the shell's own fill — `--glass-tint` / `--launcher-tint` /
    `--glass-tint-terminal`, i.e. the only place the transparency slider is
    visible at all — goes into that layer instead of onto the desktop. Useless,
-   because there is no OS backdrop here to blur: tao makes a transparent window
-   with `DwmEnableBlurBehindWindow` and an *empty* blur region (tao,
-   `platform_impl/windows/window.rs`, "Empty region for the blur effect"), which
-   is the documented per-pixel-alpha trick rather than an acrylic sheet, and the
-   webview above it has nothing behind it to sample. (`configure_windows_frame`
-   in lib.rs leaves the webview's own background transparent for the same
-   reason, so nothing opaque hides the loss.)
+   because the desktop is not what sits behind the webview: tao makes a
+   transparent window with `DwmEnableBlurBehindWindow` and an *empty* blur
+   region (tao, `platform_impl/windows/window.rs`, "Empty region for the blur
+   effect"), the documented per-pixel-alpha trick, and R156 lays a DWM material
+   (acrylic, then mica) over that same path — so there is no raw desktop left
+   for a `backdrop-filter` to soften. (`configure_windows_frame` in lib.rs
+   leaves the webview's own background transparent for the same reason, so
+   nothing opaque hides the loss.)
 
    So the material stays and only the filter goes: the fill is what the user
    sees, the step still drives its haze (`--glass-step-dim`) and the slider

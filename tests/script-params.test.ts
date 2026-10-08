@@ -275,12 +275,19 @@ test("the save request sends normalized params and the form holds them", async (
   assert.match(form, /type CustomIntegrationForm = \{[\s\S]*?params: ScriptParam\[\];/, "the form type must carry params");
 });
 
-test("the save request carries the description the definition reads back", async () => {
+test("the save request carries the description the executable definition reads back", async () => {
   // R153 · the request always had a `description` (the discovery layer fills
   // it), but nothing read it back, so an edit that only renamed the entry
   // overwrote the manifest's description with the generated fallback. The form
   // type, the request assembly, the read-back normalization and the drawer
   // field have to move together.
+  //
+  // R158 · `description` is executable-only, the same rule R153 gave
+  // `versionArgs`: `create_custom_integration_locked` hardcodes the script
+  // manifest's description and never reads `request.description`, so a
+  // script-mode input would be editable, silently dropped, and prefilled with
+  // the internal string. The control is hidden there and the read-back returns
+  // nothing for script mode.
   const form = await read("src/ExtensionsPanel.tsx");
   assert.match(
     form,
@@ -295,11 +302,34 @@ test("the save request carries the description the definition reads back", async
     "reading a definition must normalize an absent description",
   );
   const drawer = stripJsComments(await read("src/extensions/CustomIntegrationDrawer.tsx"));
-  assert.match(drawer, /customDescription/, "the drawer must render the description field");
+  assert.match(
+    drawer,
+    /integration\.mode === "executable" && <label><span>\{t\("settings\.extensions\.customDescription"\)\}/,
+    "the description input must render only in executable mode — script mode has no description to edit",
+  );
   assert.match(
     drawer,
     /description: event\.target\.value/,
     "the description input must write the form state",
+  );
+
+  // Backend: the read-back fills from the manifest only for the executable
+  // runtime; the script manifest's own sentence never reaches the drawer, and
+  // `request.description` stays unread on the script branch.
+  const install = await read("src-tauri/src/extensions/install.rs");
+  assert.match(
+    install,
+    /description: \(mode == "executable"\)\.then_some\(manifest\.description\)/,
+    "the read-back must project the manifest description for executable mode only",
+  );
+  assert.ok(
+    !install.includes("description: Some(manifest.description)"),
+    "the unconditional read-back must be gone",
+  );
+  assert.match(
+    install,
+    /description: if script_mode \{\s*"Local script integration"\.to_string\(\)/,
+    "script mode must still hardcode its own description, so `request.description` stays unread there",
   );
 });
 

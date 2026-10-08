@@ -69,8 +69,10 @@ const COMMANDS_SITES = [2837, 2930, 3005, 3095, 3163, 3333, 3892];
 // `format!` above every one of these, moving each pin down by 2. R135's +32
 // (see above) applies here too. R153 added the `CustomIntegrationDefinition`
 // `description` field (+7) and its manifest fill (+1) above these, so every pin
-// here moved down by 8 from the R135 numbering.
-const INSTALL_LINK_SITES = [3361, 3402, 3982, 4030, 4082, 4118, 4212, 4260, 4398, 4543];
+// here moved down by 8 from the R135 numbering. R158 made that fill
+// executable-only (a three-line comment on the read-back), so every pin here
+// moved down by 3 from the R153 numbering.
+const INSTALL_LINK_SITES = [3364, 3405, 3985, 4033, 4085, 4121, 4215, 4263, 4401, 4546];
 const COMMANDS_LINK_SITES = [3211, 3564, 3653, 3701, 3790, 3825];
 // The A-class targets: five new fixtures (same bytes, basename-load-bearing)
 // plus the external-tool fixture that replaced the last run-time `fs::write`.

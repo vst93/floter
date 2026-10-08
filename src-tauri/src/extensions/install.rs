@@ -1291,13 +1291,16 @@ pub fn custom_integration_definition(
         name: manifest.name,
         command: command.id.clone(),
         version: description.provider.version,
+        // R158 · only the executable runtime has a description to read back:
+        // the script manifest fills its own fixed sentence, so projecting that
+        // would prefill a hidden control with an internal string.
+        description: (mode == "executable").then_some(manifest.description),
         executable_path,
         mode,
         script_language,
         script_content,
         args_prefix: command.execution.args_prefix.clone(),
         version_args,
-        description: Some(manifest.description),
         permissions: manifest.permissions,
         platforms: manifest.platforms,
         output: manifest.output,

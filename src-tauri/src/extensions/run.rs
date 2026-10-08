@@ -41,11 +41,6 @@ use std::process::Stdio;
 use std::time::{Duration, Instant};
 use tokio::task::{AbortHandle, Id};
 
-/// Upper bound on the bytes retained per stream in the "last output" record.
-/// Matches the probe cap (`capability_probe::MAX_PROBE_OUTPUT_BYTES`): a
-/// runaway script must not be able to grow the host's memory without bound.
-pub(crate) const MAX_RUN_OUTPUT_BYTES: usize = 64 * 1024;
-
 /// The prefix of the refusal a second concurrent run of the same integration
 /// receives. The frontend maps it to a localised "a run is already in
 /// progress" notice; it is a stable key plus the id, never a prose string.
@@ -394,7 +389,9 @@ impl From<OutputMode> for RunRoute {
 pub struct RunOutput {
     pub stdout: String,
     pub stderr: String,
-    /// True when either stream hit [`MAX_RUN_OUTPUT_BYTES`] and was cut.
+    /// True when either stream was cut at the retention cap (false today: the
+    /// background capture is returned whole, but the field is on the wire and
+    /// the frontend's output summary reads it).
     pub truncated: bool,
 }
 
@@ -660,18 +657,15 @@ pub async fn run(
             let outcome = execute_background(state, id, plan).await;
             let duration_ms = started.elapsed().as_millis() as u64;
             match outcome {
-                Ok((success, exit_code, output)) => {
-                    state.remember_run_output(id, output.clone());
-                    Ok(RunOutcome {
-                        id: id.to_string(),
-                        route,
-                        plan: None,
-                        exit_code,
-                        success: Some(success),
-                        duration_ms,
-                        output: Some(output),
-                    })
-                }
+                Ok((success, exit_code, output)) => Ok(RunOutcome {
+                    id: id.to_string(),
+                    route,
+                    plan: None,
+                    exit_code,
+                    success: Some(success),
+                    duration_ms,
+                    output: Some(output),
+                }),
                 Err(error) => Err(error),
             }
         }
@@ -760,52 +754,6 @@ async fn run_plan_background(
     ))
 }
 
-/// Truncate one stream to the retained cap, reporting whether it was cut.
-/// Character-boundary safe so a multi-byte sequence is never split.
-pub(crate) fn truncate_stream(value: &str) -> (String, bool) {
-    if value.len() <= MAX_RUN_OUTPUT_BYTES {
-        return (value.to_string(), false);
-    }
-    let mut end = MAX_RUN_OUTPUT_BYTES;
-    while end > 0 && !value.is_char_boundary(end) {
-        end -= 1;
-    }
-    (value[..end].to_string(), true)
-}
-
-/// A session-level store of the most recent background output per integration.
-#[derive(Default)]
-pub(crate) struct RunOutputStore {
-    entries: std::sync::Mutex<BTreeMap<String, RunOutput>>,
-}
-
-impl RunOutputStore {
-    pub(crate) fn remember(&self, id: &str, output: RunOutput) {
-        let (stdout, stdout_cut) = truncate_stream(&output.stdout);
-        let (stderr, stderr_cut) = truncate_stream(&output.stderr);
-        let record = RunOutput {
-            stdout,
-            stderr,
-            truncated: output.truncated || stdout_cut || stderr_cut,
-        };
-        if let Ok(mut entries) = self.entries.lock() {
-            entries.insert(id.to_string(), record);
-        }
-    }
-
-    pub(crate) fn get(&self, id: &str) -> Option<RunOutput> {
-        self.entries.lock().ok()?.get(id).cloned()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn len(&self) -> usize {
-        self.entries
-            .lock()
-            .map(|entries| entries.len())
-            .unwrap_or(0)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -842,70 +790,6 @@ mod tests {
     }
 
     #[test]
-    fn truncate_stream_is_bounded_and_boundary_safe() {
-        let short = "ok";
-        assert_eq!(truncate_stream(short), ("ok".to_string(), false));
-
-        let exact = "a".repeat(MAX_RUN_OUTPUT_BYTES);
-        assert_eq!(truncate_stream(&exact), (exact.clone(), false));
-
-        // A 3-byte character straddling the cap must not be split.
-        let mut value = "a".repeat(MAX_RUN_OUTPUT_BYTES - 1);
-        value.push('€');
-        let (cut, truncated) = truncate_stream(&value);
-        assert!(truncated);
-        assert_eq!(cut.len(), MAX_RUN_OUTPUT_BYTES - 1);
-        assert_eq!(cut, "a".repeat(MAX_RUN_OUTPUT_BYTES - 1));
-    }
-
-    #[test]
-    fn run_output_store_keeps_the_latest_per_id_and_bounds_each_stream() {
-        let store = RunOutputStore::default();
-        assert!(store.get("local.a").is_none());
-        store.remember(
-            "local.a",
-            RunOutput {
-                stdout: "first".into(),
-                stderr: String::new(),
-                truncated: false,
-            },
-        );
-        store.remember(
-            "local.a",
-            RunOutput {
-                stdout: "second".into(),
-                stderr: "warn".into(),
-                truncated: false,
-            },
-        );
-        store.remember(
-            "local.b",
-            RunOutput {
-                stdout: String::new(),
-                stderr: String::new(),
-                truncated: false,
-            },
-        );
-        assert_eq!(store.len(), 2);
-        let record = store.get("local.a").unwrap();
-        assert_eq!(record.stdout, "second");
-        assert_eq!(record.stderr, "warn");
-        assert!(!record.truncated);
-
-        store.remember(
-            "local.big",
-            RunOutput {
-                stdout: "x".repeat(MAX_RUN_OUTPUT_BYTES + 10),
-                stderr: String::new(),
-                truncated: false,
-            },
-        );
-        let record = store.get("local.big").unwrap();
-        assert_eq!(record.stdout.len(), MAX_RUN_OUTPUT_BYTES);
-        assert!(record.truncated);
-    }
-
-    #[test]
     fn route_comes_from_the_manifest_alone() {
         let mut manifest: ExtensionManifest = serde_json::from_str(
             r#"{
@@ -935,7 +819,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn background_run_captures_both_streams_and_records_the_output() {
+    async fn background_run_captures_both_streams() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
         // R117 · exec the committed fixture in place. The test never writes
@@ -982,14 +866,9 @@ mod tests {
         assert!(outcome.plan.is_none());
         assert_eq!(outcome.exit_code, Some(3));
         assert_eq!(outcome.success, Some(false));
-        let output = outcome.output.clone().unwrap();
+        let output = outcome.output.unwrap();
         assert_eq!(output.stdout, "hello from stdout\n");
         assert_eq!(output.stderr, "and stderr\n");
-
-        // …and the same record is readable from the session store.
-        let remembered = state.run_output(id).unwrap();
-        assert_eq!(remembered, output);
-        assert!(state.run_output("local.absent").is_none());
     }
 
     #[cfg(unix)]
