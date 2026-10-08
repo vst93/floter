@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
@@ -65,7 +65,7 @@ import {
   type DeepLinkConnectRequest,
   type DeepLinkRegisterRequest,
 } from "./deep-link";
-import { ExtensionsPanel, type ExtensionExecutionPlan } from "./ExtensionsPanel";
+import type { ExtensionExecutionPlan } from "./ExtensionsPanel";
 import { refreshToolCatalog } from "./extensions/tool-catalog-store";
 import { BUILTIN_BASE_PLUGINS, BROWSER_PLUGIN_ID, CALCULATOR_PLUGIN_ID, CLIPBOARD_PLUGIN_ID } from "./builtin-plugins";
 import {
@@ -80,13 +80,9 @@ import {
 } from "./shortcuts";
 import { type SettingsPage } from "./settings-persistence";
 import { classifyCustomShortcutAction, normalizeCustomShortcuts, type CustomShortcut } from "./custom-shortcuts";
-import { GeneralPage } from "./settings/GeneralPage";
-import { TerminalAppearanceSettings } from "./settings/TerminalAppearance";
 import { normalizeCursorShape, terminalPaddingPx } from "./terminal/terminal-appearance";
+import { TerminalAppearanceSettings } from "./settings/TerminalAppearance";
 import { clampWindowOpacity } from "./glass-material";
-import { ShortcutsPage } from "./settings/ShortcutsPage";
-import { SessionsPage } from "./settings/SessionsPage";
-import { AboutPage } from "./settings/AboutPage";
 import {
   LauncherResults,
   type ActionBar,
@@ -152,6 +148,7 @@ import {
 import {
   calculatorEnterAction,
   evaluateExpression,
+  loadCalculatorEvaluator,
   normalizeCalculatorSettings,
   type CalculatorPluginSettings,
 } from "./calculator";
@@ -170,6 +167,14 @@ import {
 import { INPUT_WINDOW_WIDTH } from "./window-contract";
 import type { BrowserSearchField } from "./browser-page";
 import { applyUiScale, uiScaleFactor, type UiScale } from "./ui-scale";
+// R149 · the uninstall dialog's stylesheet is hoisted into the first-frame CSS
+// on purpose. `ExtensionsPanel` is lazy now, so the dialog's own `import` would
+// otherwise drag this rule set into the panel's chunk and split the stylesheet
+// in two; the gate wants the CSS byte-for-byte as it was. It is a few hundred
+// bytes of CSS, and CSS parse is not the cost this round is paying down — the
+// JavaScript is. The dialog still lives in the lazy panel; only its stylesheet
+// stays in the one CSS file.
+import "./extensions/ComponentizedUninstallDialog.css";
 import "./styles/launcher.css";
 import "./styles/plugin-config.css";
 import "./styles/terminal.css";
@@ -184,6 +189,37 @@ if (IS_WINDOWS) {
 } else if (IS_LINUX) {
   document.documentElement.classList.add("platform-linux");
 }
+
+// R149 · the extension panel and the settings pages are surfaces the launcher's
+// first frame never renders — they exist only behind the Settings sidebar. They
+// are split out of the first-frame bundle (`React.lazy` + `Suspense` below) and
+// pulled on the click that opens them, so the collapsed launcher stops parsing
+// the `app-extensions` + `app-settings` groups R143 measured at ~85 KB. The
+// mount points below are the only places each of them is rendered; nothing on
+// the collapsed/terminal first-frame path imports them.
+const ExtensionsPanel = lazy(() =>
+  import("./ExtensionsPanel").then((module) => ({ default: module.ExtensionsPanel })),
+);
+const GeneralPage = lazy(() =>
+  import("./settings/GeneralPage").then((module) => ({ default: module.GeneralPage })),
+);
+const ShortcutsPage = lazy(() =>
+  import("./settings/ShortcutsPage").then((module) => ({ default: module.ShortcutsPage })),
+);
+const SessionsPage = lazy(() =>
+  import("./settings/SessionsPage").then((module) => ({ default: module.SessionsPage })),
+);
+const AboutPage = lazy(() =>
+  import("./settings/AboutPage").then((module) => ({ default: module.AboutPage })),
+);
+
+/** The `Suspense` fallback for those split surfaces: the app's existing spinner
+ *  in the existing empty region, no new UI dependency. */
+const splitSurfaceFallback = (
+  <div className="settings-empty" role="status" aria-live="polite">
+    <span className="launcher-plugin-footer__spinner" aria-hidden="true" />
+  </div>
+);
 
 /** Any surface a plugin page can be opened over; it replaces the canvas and
  * returns to the remembered one when dismissed. */
@@ -1341,23 +1377,38 @@ export default function App() {
   // the selected history row — `calculatorEnterAction` is the rule, this is the
   // one fact it reads. Leaving the mode forgets it.
   const [calculatorLastEvaluated, setCalculatorLastEvaluated] = useState<string | null>(null);
+  // R149 · opening the calculator is the plugin entry that pulls the evaluator
+  // chunk (see `loadCalculatorEvaluator`): the launcher's first frame no longer
+  // imports `expr-eval-fork`, so the mode warms it the moment it opens. Leaving
+  // the mode still forgets the last expression.
   useEffect(() => {
-    if (launcherScope !== "calculator") setCalculatorLastEvaluated(null);
+    if (launcherScope === "calculator") {
+      void loadCalculatorEvaluator();
+      return;
+    }
+    setCalculatorLastEvaluated(null);
   }, [launcherScope]);
   /** R50 · evaluate the field's expression: on success record it (the catalog
    *  hook owns the stored rows) and return the selection to the top; on failure
-   *  show the reason in the launcher's feedback line and store nothing. */
+   *  show the reason in the launcher's feedback line and store nothing.
+   *
+   *  R149 · the evaluator is a dynamic import now, so the load is awaited first.
+   *  The preload above has almost always already settled; this only covers the
+   *  first keystroke of the very first entry. The callback still returns void —
+   *  the work is a microtask, not a blocking await on the caller. */
   const evaluateCalculator = useCallback(() => {
     const expression = query.trim();
-    const evaluation = evaluateExpression(expression);
-    if (!evaluation.ok) {
-      showLauncherFeedback(evaluation.errorKey);
-      return;
-    }
-    setCalculatorLastEvaluated(expression);
-    recordCalculatorEntry(expression, evaluation.formatted);
-    setSelectedResultIndex(0);
-    setSelectedActionBar(false);
+    void loadCalculatorEvaluator().then(() => {
+      const evaluation = evaluateExpression(expression);
+      if (!evaluation.ok) {
+        showLauncherFeedback(evaluation.errorKey);
+        return;
+      }
+      setCalculatorLastEvaluated(expression);
+      recordCalculatorEntry(expression, evaluation.formatted);
+      setSelectedResultIndex(0);
+      setSelectedActionBar(false);
+    });
   }, [query, recordCalculatorEntry, showLauncherFeedback]);
   const calculatorEnterEvaluates =
     launcherScope === "calculator" &&
@@ -2862,6 +2913,10 @@ export default function App() {
                   </button>
                 </div>
               )}
+              {/* R149 · the settings pages are lazy: this boundary is where the
+                  `app-settings` chunk lands on first open. The alerts above stay
+                  outside it so a load/save failure is never hidden by a spinner. */}
+              <Suspense fallback={splitSurfaceFallback}>
               {settingsPage === "general" && (
               <GeneralPage
                 busy={settingsSaving || settingsLoading}
@@ -2983,6 +3038,7 @@ export default function App() {
                 onCopiedLink={(message) => notify("success", message)}
               />
               )}
+              </Suspense>
               </main>
             </div>
           </div>

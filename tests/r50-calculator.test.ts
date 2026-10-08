@@ -30,6 +30,7 @@ import {
   evaluateExpression,
   formatCalculatorResult,
   hardenedParser,
+  loadCalculatorEvaluator,
   normalizeCalculatorCopyMode,
   normalizeCalculatorEntries,
   normalizeCalculatorRetentionDays,
@@ -56,6 +57,12 @@ import { CALCULATOR_PLUGIN_ID } from "../src/builtin-plugins.ts";
 
 const t = ((key: string) => key) as unknown as (key: never) => string;
 const DAY = 24 * 60 * 60 * 1000;
+
+// R149 · the evaluator is a dynamic import now (see `src/calculator.ts`): the
+// launcher's first frame no longer carries `expr-eval-fork`, so the suite loads
+// it once, here, before any test drives the parser. The tests below stay
+// synchronous; only the load is awaited.
+await loadCalculatorEvaluator();
 
 const entry = (
   id: string,

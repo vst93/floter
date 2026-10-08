@@ -50,7 +50,12 @@
 // shrunk below; the point is that the *policy* is here and testable, not
 // scattered through a renderer.
 
-import { Parser } from "expr-eval-fork";
+// R149 · `expr-eval-fork` is imported for its *type* only. The value is pulled
+// by a dynamic `import()` inside `loadCalculatorEvaluator` below — the
+// calculator plugin's entry — so the launcher's first frame no longer carries
+// the evaluator's ~26.7 KB. A top-level value import here would put it straight
+// back on the critical path; `tests/r149-first-frame-split.test.ts` pins that.
+import type { Parser } from "expr-eval-fork";
 import type { MessageKey } from "./i18n.ts";
 
 // ── the result printing policy ──────────────────────────────────────────────
@@ -102,33 +107,68 @@ export const formatCalculatorResult = (value: number): string => {
 export const CALCULATOR_MAX_EXPRESSION_LENGTH = 256;
 
 /**
- * The hardened parser. Built once (parsing options are fixed) and reused: the
- * instance holds no per-expression state, because every writing operator is
- * off and `evaluate` is called with no scope.
+ * The hardened parser, built once the evaluator chunk has resolved.
  *
- * Exported so `tests/r50-calculator.test.ts` can pin the mitigation directly.
- * Fork 3.0.3 has fixed the upstream advisories, so this configuration is
- * defence in depth rather than the whole of it — but it is pinned, and a
- * refactor that quietly relaxes it must turn a test red.
+ * R149 · the evaluator package is one mode's tool, and the collapsed launcher
+ * paints before any mode is opened, so the value import that used to sit at the
+ * top of this file was ~26.7 KB of first-frame work the first frame never ran.
+ * It is now a dynamic `import()` inside {@link loadCalculatorEvaluator}: the
+ * App calls that the moment the calculator scope opens, and the parser is built
+ * once. Until then this is `null` — {@link evaluateExpression} refuses rather
+ * than throwing, so a caller that somehow beats the load gets an error line, not
+ * a crash.
+ *
+ * Exported so `tests/r50-calculator.test.ts` can pin the mitigation directly
+ * (after awaiting the loader). Fork 3.0.3 has fixed the upstream advisories, so
+ * this configuration is defence in depth rather than the whole of it — but it is
+ * pinned, and a refactor that quietly relaxes it must turn a test red.
  */
-export const hardenedParser = new Parser({
-  allowMemberAccess: false,
-  operators: {
-    assignment: false,
-    fndef: false,
-    in: false,
-    random: false,
-    length: false,
-    concatenate: false,
-    conditional: false,
-    logical: false,
-    comparison: false,
-  },
-});
-// `random` is an enabled-by-default *function* as well as an operator; a hand
-// calculator has no use for it and its output is not reproducible, so it goes
-// too.
-delete (hardenedParser.functions as Record<string, unknown>).random;
+export let hardenedParser: Parser | null = null;
+
+/** The one in-flight (or settled) evaluator load, so re-entering the mode is a
+ *  no-op rather than a second fetch. Never rejects: a failed fetch leaves
+ *  {@link hardenedParser} `null`, which `evaluateExpression` reports as an
+ *  invalid expression. */
+let evaluatorLoad: Promise<void> | null = null;
+
+/**
+ * Pull `expr-eval-fork` and build the hardened parser. This is the calculator
+ * plugin's entry: it is called when the calculator scope opens, never at module
+ * load. Idempotent — the first call starts the dynamic import, every later call
+ * awaits the same promise.
+ */
+export const loadCalculatorEvaluator = (): Promise<void> => {
+  if (hardenedParser) return Promise.resolve();
+  if (!evaluatorLoad) {
+    evaluatorLoad = import("expr-eval-fork")
+      .then(({ Parser: Evaluator }) => {
+        const parser = new Evaluator({
+          allowMemberAccess: false,
+          operators: {
+            assignment: false,
+            fndef: false,
+            in: false,
+            random: false,
+            length: false,
+            concatenate: false,
+            conditional: false,
+            logical: false,
+            comparison: false,
+          },
+        });
+        // `random` is an enabled-by-default *function* as well as an operator; a
+        // hand calculator has no use for it and its output is not reproducible,
+        // so it goes too.
+        delete (parser.functions as Record<string, unknown>).random;
+        hardenedParser = parser;
+      })
+      .catch(() => {
+        // A failed fetch is not fatal: the parser stays null and the next Enter
+        // reports the expression as invalid rather than crashing the launcher.
+      });
+  }
+  return evaluatorLoad;
+};
 
 /** A successful evaluation: the numeric value and its printed form. */
 export type CalculatorEvaluation =
@@ -149,6 +189,8 @@ export const evaluateExpression = (expression: string): CalculatorEvaluation => 
   if (trimmed.length > CALCULATOR_MAX_EXPRESSION_LENGTH) {
     return { ok: false, errorKey: "calculator.error.tooLong" };
   }
+  // The evaluator chunk has not landed (or failed). See `hardenedParser`.
+  if (!hardenedParser) return { ok: false, errorKey: "calculator.error.invalid" };
   let value: unknown;
   try {
     value = hardenedParser.parse(trimmed).evaluate();
