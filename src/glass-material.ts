@@ -12,6 +12,20 @@
 //     it, how much haze (dimming) it lays over bright content, and how much
 //     lens quality the controls on top of it carry.
 //
+// The "native window-alpha path" in that first bullet is still a paper
+// contract, and it stays one: `main_opacity` / `terminal_opacity` are read by
+// the stylesheet and by nothing else, and all three platforms get the same CSS.
+// Windows is the one place where a *base* now sits under that alpha — R156 put
+// an OS-painted material behind the webview (acrylic as the floor, mica over it
+// where Windows 11 can draw it; `apply_windows_window_material` in
+// `src-tauri/src/lib.rs`), and R157 rounds the window's own corner to match the
+// card (`round_windows_window_material_corners`). That base is not a second
+// alpha truth and not a window-alpha path: it does not move with the slider, no
+// value here reads it, and on macOS/Linux there is no such base at all. What it
+// changes is only what the CSS alpha composites *over* — a fixed material
+// instead of raw desktop — which is the R156 fix, not a re-axising of the
+// material model.
+//
 // GLASS-UNIFY spent the stops on the **tint** axis (each stop wrote a
 // `(glass_step, tint)` pair into the two opacity fields). GLASS-REAXIS undid
 // that and pointed the stops at the effect axis. GLASS-3STOP is the user's

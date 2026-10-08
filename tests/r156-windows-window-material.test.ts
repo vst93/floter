@@ -26,8 +26,10 @@
 //      failure probe (the second call overwrites the first exactly where the
 //      machine can draw it, and the mica call is the one that fails on
 //      Windows 10, leaving the acrylic);
-//   3. the material adds no corner shape and no colour/alpha of its own — the
-//      CSS radius and the transparency slider stay the only sources of both;
+//   3. the material itself adds no corner shape and no colour/alpha of its own
+//      — the CSS radius and the transparency slider stay the only sources of
+//      both. (R157 rounds the window's own corner again, but in its own step
+//      beside the material; see tests/r157-windows-window-corners.test.ts.)
 //   4. the shared `tauri.conf.json` carries no `windowEffects`, which is what
 //      keeps the material from reaching macOS through the shared window config.
 //
@@ -123,9 +125,12 @@ test("the material leaves the corner shape and the material axes alone", async (
   const lib = await read("src-tauri/src/lib.rs");
   const material = rustFunction(lib, "apply_windows_window_material");
 
-  // DWM rounding stays off (`configure_windows_frame` owns it) so the CSS
-  // radius remains the only corner shape; the material may only ever show
-  // where the app paints nothing.
+  // The material may only ever show where the app paints nothing, and the
+  // radius it shows around is still CSS's. R157 · the window's own corner is
+  // now rounded again, but in its *own* step right after this one
+  // (`round_windows_window_material_corners`, pinned by
+  // tests/r157-windows-window-corners.test.ts) — so this function stays
+  // shape-free, which is what keeps the two concerns separable.
   for (const forbidden of [
     "DWMWCP_ROUND",
     "DWMWA_WINDOW_CORNER_PREFERENCE",

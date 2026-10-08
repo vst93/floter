@@ -833,32 +833,25 @@ fn hide_macos_panel(window: &WebviewWindow) -> Result<(), String> {
 /// webview's own background is cleared to transparent in `setup` so no opaque
 /// fill can peek around the radius.
 ///
-/// The DWM attributes below stay: the corners keep following the system's own
-/// rounding — floter draws them itself (`DWMWCP_DONOTROUND`) so CSS is the
-/// sole source of the corner shape — and the border colour is pinned to none
-/// so no residual edge can survive the CSS one.
+/// The border colour is pinned to none so no residual edge can survive the CSS
+/// one. The corner shape is deliberately *not* decided here any more: R157
+/// moved it next to the material it belongs to (see
+/// [`round_windows_window_material_corners`]), because the material is what
+/// made the window's own corner visible again.
 #[cfg(target_os = "windows")]
 fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
     use windows::Win32::Graphics::Dwm::{
         DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
-        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
 
     window
         .set_shadow(false)
         .map_err(|error| error.to_string())?;
     let hwnd = window.hwnd().map_err(|error| error.to_string())?;
-    let preference = DWMWCP_DONOTROUND;
     let border_color = DWMWA_COLOR_NONE;
     unsafe {
-        // These attributes were added in Windows 11. Their failure is expected
-        // and harmless on Windows 10, where DWM does not apply rounded corners.
-        let _ = DwmSetWindowAttribute(
-            hwnd,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
-            &preference as *const _ as *const _,
-            std::mem::size_of_val(&preference) as u32,
-        );
+        // This attribute was added in Windows 11. Its failure is expected and
+        // harmless on Windows 10, where DWM paints no such edge.
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_BORDER_COLOR,
@@ -867,6 +860,11 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
         );
     }
     apply_windows_window_material(window)?;
+    // The material fills the gutter the shell leaves around its card, and that
+    // is what turns the window's own corner from "invisible" into "a square
+    // corner next to a round one". Round it in the same step, right after the
+    // material it belongs to.
+    round_windows_window_material_corners(window)?;
     suppress_alt_space_system_menu(window)
 }
 
@@ -899,10 +897,12 @@ fn configure_windows_frame(window: &WebviewWindow) -> Result<(), String> {
 /// attribute at all. Two ordered calls get the same answer without a probe,
 /// because the second one overwrites the first exactly where it can.
 ///
-/// The window's corner shape is untouched: DWM rounding stays off
-/// (`DWMWCP_DONOTROUND` above), so the material can only ever show where the
-/// app paints nothing, and the radius is still CSS's. If the material takes,
-/// the transparent gutter the shell leaves around its card is what shows it.
+/// The material can only ever show where the app paints nothing — the
+/// transparent gutter the shell leaves around its card — so the card's CSS
+/// radius still draws every edge the user sees. That gutter is what made the
+/// window's *own* corner visible again, and R157 gives it a shape right after
+/// this call ([`round_windows_window_material_corners`]); this function itself
+/// stays shape-free.
 #[cfg(target_os = "windows")]
 fn apply_windows_window_material(window: &WebviewWindow) -> Result<(), String> {
     use tauri::window::{Effect, EffectsBuilder};
@@ -911,6 +911,58 @@ fn apply_windows_window_material(window: &WebviewWindow) -> Result<(), String> {
         window
             .set_effects(EffectsBuilder::new().effect(effect).build())
             .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+/// The window's own corner shape, now that the material has made it visible.
+///
+/// R7-HIG pinned DWM's corner preference to *don't round* (commit `8054de8`)
+/// so CSS was the sole source of the corner shape. The reason was a *seam*: the
+/// card filled the window edge, DWM rounded that same boundary at the system's
+/// 8px while the card rounded it at its own figure, and the two radii on one
+/// edge disagreed. That premise is what R156's material changed. The gutter the
+/// shell leaves around its card now shows material, so the window's outer
+/// corner is a visible surface — and a material surface that stops at the raw
+/// square corner, around a rounded card, is exactly the "square outside, round
+/// inside" the user saw.
+///
+/// `DWMWCP_ROUND` is the preset that matches, not `ROUNDSMALL`: it is the
+/// system's ~8px application radius, and the Windows card already rounds to
+/// that same figure (`.platform-windows { --window-radius: 8px }` in base.css,
+/// whose comment names this very 8px). So the two radii are the same number
+/// rather than a nested pair. And the outer round cannot clip the card: DWM
+/// only cuts the 8px band along each edge, so a card the shell insets by 10u
+/// (settings, terminal) sits wholly outside that band, and the thinner 4u
+/// gutter of the collapsed shell keeps the card's own corner arc inside DWM's
+/// because both arcs are 8px. `ROUNDSMALL` (~4px) would leave the outer edge
+/// squarer than the card it surrounds, which is the seam problem in miniature.
+///
+/// Unconditional on purpose. The material cannot be probed — `set_effects`
+/// reports the dispatch, not the DWM call, so "round only if the material took"
+/// has nothing to read (see [`apply_windows_window_material`]) — and rounding
+/// without material is harmless: the card covers the edge either way, which is
+/// exactly what this app did between R7-HIG and R156.
+///
+/// Windows 10 predates the attribute. The call fails there and the corner stays
+/// square, which is the shape that platform already draws — so the failure is
+/// swallowed like every other DWM call here, and it must never reach window
+/// creation.
+#[cfg(target_os = "windows")]
+fn round_windows_window_material_corners(window: &WebviewWindow) -> Result<(), String> {
+    use windows::Win32::Graphics::Dwm::{
+        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+    };
+
+    let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+    let preference = DWMWCP_ROUND;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference as *const _ as *const _,
+            std::mem::size_of_val(&preference) as u32,
+        );
     }
     Ok(())
 }
@@ -2003,6 +2055,16 @@ pub fn run() {
             // native frame gone, that fill would be what shows around the CSS
             // radius instead of the desktop. Clear it so the window's own
             // transparency is the only background there is.
+            //
+            // Redundant on purpose. wry already asks WebView2 for exactly this
+            // twice (wry 0.57.0 `webview2/mod.rs`: once through
+            // `ControllerOptions3::SetDefaultBackgroundColor` before the
+            // controller exists, and again with `set_background_color` right
+            // after it), so this is a third request for the same clear. R154
+            // and R156 both logged the redundancy and both kept it: it is this
+            // app's own statement of the contract, and it is what makes a wry
+            // change that stops honouring `transparent` a one-line problem
+            // here instead of a silent regression.
             #[cfg(target_os = "windows")]
             window
                 .set_background_color(Some(Color(0, 0, 0, 0)))
