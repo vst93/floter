@@ -1423,10 +1423,43 @@ html:not([data-glass]) {
   padding: calc(var(--u) * 10);
 }
 
+/* R154 · the window-filling shells drop their `backdrop-filter` on Windows.
+   Windows is the one platform where the filter is harmful and useless at the
+   same time, and the user's report is the receipt: 「应用的背景整个都是透明的，
+   设置当中的透明度配置完全没有作用」 — the settings card's own fill was gone
+   while every control *inside* it (the sidebar pills, the two buttons, the
+   header's sheen band, which is the 「左上角一个小白框」) still painted. That
+   is exactly the set of surfaces carrying no filter of their own: per the
+   control-material ladder above, no control ever has a `backdrop-filter`.
+
+   Harmful, because WebView2 composites a filtered shell into a layer of its
+   own, and the shell's own fill — `--glass-tint` / `--launcher-tint` /
+   `--glass-tint-terminal`, i.e. the only place the transparency slider is
+   visible at all — goes into that layer instead of onto the desktop. Useless,
+   because there is no OS backdrop here to blur: tao makes a transparent window
+   with `DwmEnableBlurBehindWindow` and an *empty* blur region (tao,
+   `platform_impl/windows/window.rs`, "Empty region for the blur effect"), which
+   is the documented per-pixel-alpha trick rather than an acrylic sheet, and the
+   webview above it has nothing behind it to sample. (`configure_windows_frame`
+   in lib.rs leaves the webview's own background transparent for the same
+   reason, so nothing opaque hides the loss.)
+
+   So the material stays and only the filter goes: the fill is what the user
+   sees, the step still drives its haze (`--glass-step-dim`) and the slider
+   still owns `--glass-frame-alpha`, so 10% is genuinely thin and 100% is
+   near-solid here exactly as on macOS. The Windows fallback deliberately
+   introduces no alpha and no colour of its own — one look at this block must
+   not be able to tell the slider anything — and macOS / Linux keep the filter
+   untouched. */
 .platform-windows .collapsed-card,
 .platform-windows .settings-card,
 .platform-windows .terminal-panel {
   border: 0;
+  /* Both spellings: WebKit treats the prefixed one as a separate property, so
+     `none` has to be said twice or a future WebKit-on-Windows port would keep
+     blurring while this sheet claims it does not. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   box-shadow:
     0 4px 16px var(--window-shadow-ambient),
     0 1px 4px var(--window-shadow-contact),
