@@ -540,6 +540,12 @@ mod tests {
         let before = signature_of(&dirs);
         // Same tree, same signature: the cache is not invalidated by a no-op.
         assert_eq!(before, signature_of(&dirs));
+        // The signature hashes mtimes, and filesystem timestamps come from the
+        // kernel's coarse clock: two writes inside one clock tick (4–16 ms
+        // depending on platform) can land on the same mtime, which a fast CI
+        // runner hit once (v0.3.7 verify). Give the new profile a tick of its
+        // own so the base directory's mtime provably moves.
+        std::thread::sleep(std::time::Duration::from_millis(50));
         write(&base.join("Profile 3").join("Preferences"), "{}");
         assert_ne!(before, signature_of(&dirs));
     }
