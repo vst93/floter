@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant, SystemTime};
 
 // Correctness does NOT depend on this TTL being short: every mutating path
 // (enable/disable, connect, reprobe, custom update, config changes) calls
@@ -1051,17 +1051,97 @@ fn system_command_entries(query: &str) -> Vec<CatalogEntry> {
     result
 }
 
+/// A file-backed catalog input memoized on `(path, mtime)`.
+///
+/// R148 · `search` reads both of these files on every keystroke
+/// (`local-commands.json` through [`local_entries`], `catalog-usage.json`
+/// through [`load_usage`]), yet neither changes between summons. The parse is
+/// kept and validated by one `stat`. Correctness does not depend on a watch
+/// thread: a hit re-stats the file, and any moved mtime — a hand-edit, a second
+/// process, a test rewrite — falls back to a fresh read. The mtime is captured
+/// *before* the read, so a write that lands during the parse leaves a mismatch
+/// behind instead of caching torn bytes under the new file's timestamp.
+///
+/// Lock discipline (the R136 red line): the guard only ever covers the
+/// in-memory compare/swap. The `stat` that validates a hit and the read that
+/// fills a miss both run with no guard held, so the cache lock never spans disk
+/// IO.
+struct CatalogFileSnapshot<T> {
+    path: PathBuf,
+    modified: SystemTime,
+    value: Arc<T>,
+}
+
+/// The file's mtime, or `None` when it cannot be read (missing file, a
+/// transient error, a filesystem without timestamps). `None` is a miss by
+/// construction, so the caller re-reads rather than serving a value it can no
+/// longer vouch for.
+fn catalog_file_mtime(path: &Path) -> Option<SystemTime> {
+    std::fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+}
+
+/// The cached value for `path`, when one is present, keyed on the same path and
+/// still matching the file's mtime. `None` means "read the disk".
+fn cached_catalog_file<T>(
+    slot: &RwLock<Option<CatalogFileSnapshot<T>>>,
+    path: &Path,
+) -> Option<Arc<T>> {
+    let (modified, value) = {
+        let guard = slot.read().ok()?;
+        let snapshot = guard.as_ref()?;
+        if snapshot.path != path {
+            return None;
+        }
+        (snapshot.modified, Arc::clone(&snapshot.value))
+    };
+    if catalog_file_mtime(path) != Some(modified) {
+        return None;
+    }
+    Some(value)
+}
+
+/// Install a freshly parsed value. A `None` mtime (the file vanished between
+/// the read and the stat) is not cached: the next call re-reads rather than
+/// pinning a value to a timestamp that no longer exists.
+fn store_catalog_file<T>(
+    slot: &RwLock<Option<CatalogFileSnapshot<T>>>,
+    path: &Path,
+    modified: Option<SystemTime>,
+    value: Arc<T>,
+) {
+    let Some(modified) = modified else {
+        return;
+    };
+    if let Ok(mut guard) = slot.write() {
+        *guard = Some(CatalogFileSnapshot {
+            path: path.to_path_buf(),
+            modified,
+            value,
+        });
+    }
+}
+
+static LOCAL_ENTRIES_CACHE: RwLock<Option<CatalogFileSnapshot<Vec<CatalogEntry>>>> =
+    RwLock::new(None);
+static USAGE_CACHE: RwLock<Option<CatalogFileSnapshot<HashMap<String, u64>>>> = RwLock::new(None);
+
 fn local_entries(paths: &ExtensionPaths) -> Result<Vec<CatalogEntry>, String> {
     let path = paths.root.join("local-commands.json");
+    if let Some(cached) = cached_catalog_file(&LOCAL_ENTRIES_CACHE, &path) {
+        return Ok((*cached).clone());
+    }
     if !path.exists() {
         return Ok(Vec::new());
     }
+    let modified = catalog_file_mtime(&path);
     let commands: Vec<LocalCommand> = serde_json::from_slice(
         &std::fs::read(&path)
             .map_err(|error| format!("Cannot read {}: {error}", path.display()))?,
     )
     .map_err(|error| format!("Invalid {}: {error}", path.display()))?;
-    Ok(commands
+    let entries = commands
         .into_iter()
         .map(|command| {
             let (program, mut args) = system_execution(Path::new(&command.program));
@@ -1091,7 +1171,14 @@ fn local_entries(paths: &ExtensionPaths) -> Result<Vec<CatalogEntry>, String> {
                 command: command.command,
             }
         })
-        .collect())
+        .collect::<Vec<_>>();
+    store_catalog_file(
+        &LOCAL_ENTRIES_CACHE,
+        &path,
+        modified,
+        Arc::new(entries.clone()),
+    );
+    Ok(entries)
 }
 
 fn path_completions(
@@ -1217,10 +1304,17 @@ fn namespace_for(id: &str) -> String {
 }
 
 fn load_usage(paths: &ExtensionPaths) -> HashMap<String, u64> {
-    std::fs::read(paths.root.join("catalog-usage.json"))
+    let path = paths.root.join("catalog-usage.json");
+    if let Some(cached) = cached_catalog_file(&USAGE_CACHE, &path) {
+        return (*cached).clone();
+    }
+    let modified = catalog_file_mtime(&path);
+    let usage: HashMap<String, u64> = std::fs::read(&path)
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    store_catalog_file(&USAGE_CACHE, &path, modified, Arc::new(usage.clone()));
+    usage
 }
 
 fn executable_command_name(name: &str) -> String {
@@ -1475,6 +1569,17 @@ mod tests {
             ]"#,
         )
         .unwrap();
+        // R148 · `local_entries` is memoized on mtime now. `std::fs::write` can
+        // land inside the same timestamp tick as the first write, so bump the
+        // mtime explicitly: this test measures the re-read, not the
+        // filesystem's timestamp granularity.
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(state.paths.root.join("local-commands.json"))
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
         let ranked = search(
             &state,
             &request("gfm", HashMap::from([("git".into(), "gfm".into())])),
@@ -1485,6 +1590,106 @@ mod tests {
         assert_eq!(ranked.len(), 2);
         assert_eq!(ranked[0].command, "git", "alias exact must rank first");
         assert_eq!(ranked[1].command, "gfm-tool");
+    }
+
+    /// R148 · the `local-commands.json` memo is keyed on `(path, mtime)`. Both
+    /// halves are the contract: a rewrite that lands on the same mtime must
+    /// serve the parse already in hand (otherwise there is no cache), and a
+    /// moved mtime must re-read (otherwise a hand-edit is invisible). The first
+    /// half is what keeps the second from being satisfied by a cache with no
+    /// hit path at all.
+    #[test]
+    fn cached_local_entries_reuses_until_mtime_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = crate::extensions::ExtensionPaths::from_root(directory.path().join("config"));
+        std::fs::create_dir_all(&paths.root).unwrap();
+        let file = paths.root.join("local-commands.json");
+        let write = |command: &str| {
+            std::fs::write(
+                &file,
+                format!(
+                    r#"[{{"id":"{command}","command":"{command}","name":"{command}","program":"{command}"}}]"#
+                ),
+            )
+            .unwrap();
+        };
+
+        write("alpha");
+        let first = local_entries(&paths).unwrap();
+        assert_eq!(first[0].command, "alpha");
+
+        // Same mtime, different bytes: the memo must still serve `alpha`.
+        let stamp = std::fs::metadata(&file).unwrap().modified().unwrap();
+        write("beta");
+        std::fs::File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_modified(stamp)
+            .unwrap();
+        let cached = local_entries(&paths).unwrap();
+        assert_eq!(
+            cached[0].command, "alpha",
+            "an unchanged mtime must reuse the cached parse"
+        );
+
+        // A moved mtime must be noticed and the file re-read.
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
+        let refreshed = local_entries(&paths).unwrap();
+        assert_eq!(
+            refreshed[0].command, "beta",
+            "a moved mtime must re-read the file"
+        );
+    }
+
+    /// R148 · a warm `search` reads neither catalog file: the memo serves both
+    /// parses and only the validating `stat` runs. This is the measurement
+    /// vehicle for the round's read-count table — under a read-counting
+    /// preload it sees 2 read-opens for three searches (the two cold reads)
+    /// where the pre-R148 code saw 6 (both files read once per search) — and a
+    /// behavioural check that repetition does not change the rows.
+    #[tokio::test]
+    async fn repeated_searches_share_the_cached_catalog_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = ExtensionState::from_paths(crate::extensions::ExtensionPaths::from_root(
+            directory.path().join("config"),
+        ))
+        .unwrap();
+        std::fs::write(
+            state.paths.root.join("local-commands.json"),
+            r#"[{"id":"alpha","command":"alpha","name":"Alpha","program":"alpha"}]"#,
+        )
+        .unwrap();
+        std::fs::write(
+            state.paths.root.join("catalog-usage.json"),
+            r#"{"local:alpha":7}"#,
+        )
+        .unwrap();
+
+        let request = CatalogSearchRequest {
+            query: "alpha".into(),
+            tokens: vec!["alpha".into()],
+            environment: BTreeMap::new(),
+            cwd: None,
+            limit: 10,
+            include_system_commands: false,
+            command_aliases: HashMap::new(),
+        };
+        let first = search(&state, &request, &[]).await.unwrap();
+        assert_eq!(first.len(), 1);
+        assert_eq!(first[0].frequency, 7);
+        for _ in 0..2 {
+            let again = search(&state, &request, &[]).await.unwrap();
+            assert_eq!(again.len(), 1);
+            assert_eq!(again[0].command, first[0].command);
+            assert_eq!(again[0].frequency, first[0].frequency);
+        }
     }
 
     #[cfg(unix)]

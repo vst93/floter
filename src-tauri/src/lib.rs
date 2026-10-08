@@ -1360,9 +1360,31 @@ fn detach_plugin_window(app: AppHandle, request: DetachRequest) -> Result<(), St
     if let Some((x, y)) = placement.position {
         builder = builder.position(x, y);
     }
-    let window = builder.build().map_err(|error| error.to_string())?;
+    let window = builder.build().map_err(|error| {
+        // R148 · a build that never produced a window must not leave the
+        // parked pair behind. Both maps are keyed by the freshly allocated
+        // label, so removing exactly that label undoes this call and leaves a
+        // sibling window's entry alone (a map-wide `clear` would not).
+        rollback_pending_plugin_window(&state, &label);
+        error.to_string()
+    })?;
     watch_plugin_window_geometry(&app, &window);
     Ok(())
+}
+
+/// R148 · undo the slot/key pair [`detach_plugin_window`] parked before its
+/// `builder.build()`: the failure branch calls this with the label it had just
+/// allocated. The two maps are taken one at a time and no IO runs under either
+/// guard. An already-gone label is a silent no-op, matching
+/// [`AppState::forget_plugin_window`]'s idempotence — the event handler and a
+/// failed build can both want the same label gone.
+fn rollback_pending_plugin_window(state: &AppState, label: &str) {
+    if let Ok(mut slots) = state.pending_plugin_window_requests.lock() {
+        slots.remove(label);
+    }
+    if let Ok(mut keys) = state.plugin_window_keys.lock() {
+        keys.remove(label);
+    }
 }
 
 /// Every monitor, in the logical space [`plugin_window_geometry`] works in.
@@ -2513,6 +2535,45 @@ mod detach_plugin_window_tests {
         let slots = state.pending_plugin_window_requests.lock().unwrap();
         assert!(!slots.contains_key(PLUGIN_WINDOW_LABEL));
         assert!(slots.contains_key("plugin-detached-2"));
+    }
+
+    /// R148 · a failed `builder.build()` must roll back the slot/key pair the
+    /// detach parked before it. The real failure needs a live Tauri runtime —
+    /// no window can be built in a unit test — so this drives the exact
+    /// rollback the failure branch calls, with the label the branch would pass.
+    /// The pair goes, a sibling window's pair stays (the rollback is scoped to
+    /// the label, not a map-wide clear), and a second call is a no-op.
+    #[test]
+    fn detach_failure_rolls_back_pending_slot() {
+        let state = empty_state();
+        park_label(&state, PLUGIN_WINDOW_LABEL, "local.tool\u{0}run");
+        park_label(&state, "plugin-detached-2", "local.tool\u{0}other");
+
+        super::rollback_pending_plugin_window(&state, "plugin-detached-2");
+
+        assert!(!state
+            .pending_plugin_window_requests
+            .lock()
+            .unwrap()
+            .contains_key("plugin-detached-2"));
+        assert!(!state
+            .plugin_window_keys
+            .lock()
+            .unwrap()
+            .contains_key("plugin-detached-2"));
+        // The sibling is untouched.
+        assert_eq!(
+            state.plugin_window_key(PLUGIN_WINDOW_LABEL).as_deref(),
+            Some("local.tool\u{0}run")
+        );
+        assert!(state
+            .pending_plugin_window_requests
+            .lock()
+            .unwrap()
+            .contains_key(PLUGIN_WINDOW_LABEL));
+        // Idempotent: the event handler and a failed build can both want the
+        // same label gone.
+        super::rollback_pending_plugin_window(&state, "plugin-detached-2");
     }
 
     /// R99 · the on-disk geometry outlives the window. R85's contract is that

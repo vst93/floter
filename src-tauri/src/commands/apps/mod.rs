@@ -226,7 +226,7 @@ pub async fn list_applications(
     let roots = platform::roots();
     let signature_roots = roots.clone();
     let signature =
-        tauri::async_runtime::spawn_blocking(move || platform::source_signature(&signature_roots))
+        tauri::async_runtime::spawn_blocking(move || cached_source_signature(&signature_roots))
             .await
             .map_err(|error| error.to_string())?;
 
@@ -595,6 +595,37 @@ fn stable_hash(bytes: &[u8]) -> u64 {
     bytes.iter().fold(FNV_OFFSET, |hash, byte| {
         (hash ^ u64::from(*byte)).wrapping_mul(FNV_PRIME)
     })
+}
+
+/// R148 · the application source signature walks every `.desktop` root, so the
+/// launcher does not repeat it on every summon. The 30 s cooldown is the same
+/// form `check_applications` already uses — `platform::signature_check_interval`
+/// against a stored `Instant` — and makes the same trade: within the window the
+/// previous value is reused, and only an expired window recomputes.
+///
+/// The lock only guards the in-memory compare/swap: the walk runs with no guard
+/// held (the R136 red line), so a slow filesystem cannot serialize signature
+/// readers behind the cache.
+///
+/// Kept at the foot of the file rather than beside its caller: R127 pins the
+/// missing-application message to `apps/mod.rs:408`, and a helper inserted above
+/// that line would silently move it.
+static SOURCE_SIGNATURE_CACHE: Mutex<Option<(Instant, u64)>> = Mutex::new(None);
+
+fn cached_source_signature(roots: &[PathBuf]) -> u64 {
+    let now = Instant::now();
+    if let Ok(cache) = SOURCE_SIGNATURE_CACHE.lock() {
+        if let Some((computed, signature)) = *cache {
+            if now.duration_since(computed) < platform::signature_check_interval() {
+                return signature;
+            }
+        }
+    }
+    let signature = platform::source_signature(roots);
+    if let Ok(mut cache) = SOURCE_SIGNATURE_CACHE.lock() {
+        *cache = Some((Instant::now(), signature));
+    }
+    signature
 }
 
 #[cfg(test)]
