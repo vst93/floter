@@ -134,8 +134,10 @@ func TestNoResultsShowsTheEmptyMessage(t *testing.T) {
 	a := testApp()
 	a.Query = "zzzz"
 	tt := render(t, a)
-	if !tt.HasText("No results") {
-		t.Errorf("missing the no-results message: %q", tt.Texts())
+	// A query that matches nothing is the shell's: the action bar offers to
+	// run it, which is what Enter runs.
+	if !tt.HasText("Run in terminal") || !tt.HasText("zzzz") {
+		t.Errorf("the shell row is missing: %q", tt.Texts())
 	}
 }
 
@@ -774,11 +776,18 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 		t.Errorf("running the tool recorded %v", testRuns)
 	}
 
-	// With the setting off, the search does not offer them.
+	// With the setting off, the search does not offer them as tools — but the
+	// action bar still offers to run the name the user typed, which is the
+	// shell's.
 	a.SetTools(tools, false, nil)
 	a.Query = "ripgrep"
 	tt.Frame()
-	if tt.HasText("ripgrep") {
+	if !tt.HasText("Run in terminal") {
+		t.Errorf("the shell row is missing: %q", tt.Texts())
+	}
+	// The install row is the one that goes away: its command would come from
+	// the catalog.
+	if tt.HasText("Install ripgrep") {
 		t.Errorf("a tool showed with the setting off: %q", tt.Texts())
 	}
 }
@@ -1646,5 +1655,85 @@ func TestClipboardImageThumbnail(t *testing.T) {
 	}
 	if got := a.clipThumb(text); got != nil {
 		t.Errorf("a text entry produced a thumbnail: %v", got)
+	}
+}
+
+// The action bar: what the field itself is asking for.
+func TestActionBarRows(t *testing.T) {
+	a := testApp()
+	openedURL, openedPath, cdTo, ran := "", "", "", 0
+	a.Actions.OpenURL = func(browserID, target string) { openedURL = target }
+	a.Actions.OpenPath = func(path string) { openedPath = path }
+	a.Actions.OpenInTerminal = func(dir string) { cdTo = dir }
+	a.Actions.Copy = func(text string) { _ = text }
+	a.Actions.RunInTerminal = func([]string) { ran++ }
+
+	tt := render(t, a)
+
+	// A URL opens, and can be copied.
+	tt.Type("https://example.com/docs")
+	tt.Frame()
+	if !tt.HasText("Open in browser") {
+		t.Fatalf("the url row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if openedURL != "https://example.com/docs" {
+		t.Errorf("opened %q", openedURL)
+	}
+
+	// A path opens in the file manager, with a terminal row beside it and a
+	// copy row.
+	dir := t.TempDir()
+	a.ResetQuery()
+	tt.Type(dir)
+	tt.Frame()
+	if !tt.HasText("Open in file manager") || !tt.HasText("Open a terminal in") {
+		t.Fatalf("the path rows are missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if openedPath != dir {
+		t.Errorf("opened %q", openedPath)
+	}
+	a.ResetQuery()
+	tt.Type(dir)
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if cdTo != dir {
+		t.Errorf("cd = %q", cdTo)
+	}
+
+	// A command the user typed runs in the terminal surface, and it is what
+	// Enter runs when nothing else matches.
+	a.ResetQuery()
+	tt.Type("git status")
+	tt.Frame()
+	if !tt.HasText("Run in terminal") {
+		t.Fatalf("the shell row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if ran != 1 {
+		t.Errorf("the shell row ran %d times", ran)
+	}
+
+	// A bare command word defaults to the shell too, even when the catalog
+	// has a match beside it.
+	ran = 0
+	a.ResetQuery()
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true, nil)
+	tt.Type("git")
+	tt.Frame()
+	if !tt.HasText("Run in terminal") {
+		t.Fatalf("the shell row is missing beside a match: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if ran != 1 {
+		t.Errorf("the shell row ran %d times", ran)
 	}
 }

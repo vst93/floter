@@ -98,6 +98,11 @@ type Launcher struct {
 	PowerFailed        string
 	// InstallTool names the row that offers a tool's install command.
 	InstallTool func(name string) string
+	// The action bar: what the field itself is asking for.
+	OpenInBrowser string
+	OpenInFiles   string
+	OpenFile      string
+	RunInShell    string
 	// The files mode's three actions and its folder mark.
 	FileOpen     string
 	FileCd       string

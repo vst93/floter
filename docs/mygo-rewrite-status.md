@@ -132,6 +132,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   Integrations 页的配置表单（按类型渲染、草稿存活、错误上报）；端到端：保存后注入环境正确。
 - 顺带修掉 `Description.Configuration` 为 nil 时的空指针（描述不带 configuration 块的集成）。
 
+**P2-m 操作条**（本轮）
+- 输入 URL/路径/命令直接给对应行（打开、文件管理器、在此打开终端、复制路径、在终端运行）；
+  Enter 落点规则照旧版（命令词/空白/无匹配时落 shell 行）。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

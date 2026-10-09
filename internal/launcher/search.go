@@ -467,8 +467,23 @@ func (a *App) Results() []Item {
 	}
 	var out []Item
 	// A power word claims the query before anything else matches: a user who
-	// types "restart" means the machine.
+	// types "restart" means the machine. The action bar follows, for a URL, a
+	// path or a command the field is holding — and a shell command only lands
+	// there when it would be the thing Enter runs.
+	other := a.otherResults()
 	out = append(out, a.powerItems()...)
+	out = append(out, a.actionBarItemsWith(other)...)
+	if item, ok := a.calculator(); ok {
+		out = append(out, item)
+	}
+	out = append(out, other...)
+	return out
+}
+
+// otherResults is everything but the action bar: the calculator, the built-in
+// commands, the recents, and the ranked catalog.
+func (a *App) otherResults() []Item {
+	var out []Item
 	if item, ok := a.calculator(); ok {
 		out = append(out, item)
 	}
