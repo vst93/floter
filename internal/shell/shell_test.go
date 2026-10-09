@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"testing"
@@ -394,6 +395,14 @@ func TestIntegrationsReachTheLauncher(t *testing.T) {
 		t.Fatalf("launcher commands = %+v", got)
 	}
 
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("recovered: %v\n%s", r, debug.Stack())
+			}
+		}()
+		_ = a.integrationList()
+	}()
 	list := a.integrationList()
 	if len(list) != 1 {
 		t.Fatalf("integrations = %+v", list)
@@ -1984,5 +1993,96 @@ func TestPowerCommands(t *testing.T) {
 	}
 	if _, args, _ := powerCommand("shutdown", "windows"); !strings.Contains(strings.Join(args, " "), "/s") {
 		t.Errorf("windows shutdown = %v", args)
+	}
+}
+
+// An integration whose provider declares a configuration schema gets a form on
+// the settings page, seeded with this machine's values, and a save writes the
+// values back (the password into the secrets file).
+func TestIntegrationConfigurationFormEndToEnd(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(paths.Extensions, "dev.floter.configured")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
+	  "schemaVersion": "2.0", "id": "dev.floter.configured", "name": "Configured",
+	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+	  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\ncat <<'JSONEOF'\n"+
+		`{"protocolVersion":"1.0","provider":{"id":"dev.floter.configured","name":"Configured","version":"1.0.0"},
+		  "configuration":{"configVersion":1,"owner":"host","schema":[
+		    {"key":"endpoint","type":"text","required":true},
+		    {"key":"token","type":"password","required":true},
+		    {"key":"region","type":"select","options":["eu","us"]}]}}`+
+		"\nJSONEOF\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.configured": {"id": "dev.floter.configured", "name": "Configured",
+	    "state": "enabled", "enabled": true, "packageVersion": "1.0.0",
+	    "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "installedAt": 1, "updatedAt": 1}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := settings.NewStore(settings.Default())
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetCommandSwitch("dev.floter.configured", "run", true)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Store:                store,
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+		SaveFileDialog:       func(string) (string, error) { return "", nil },
+		OpenFileDialog:       func() (string, error) { return "", nil },
+		ConfirmPermissions:   func(extensions.PermissionApproval) bool { return true },
+	})
+	a.RefreshIntegrations(context.Background())
+
+	list := a.integrationList()
+	if len(list) != 1 || len(list[0].Config) != 3 {
+		t.Fatalf("config schema = %+v", list[0].Config)
+	}
+	if list[0].Config[1].Type != "password" {
+		t.Errorf("field types = %+v", list[0].Config)
+	}
+
+	// A save through the action writes the values, and the password lands in
+	// the secrets file rather than the values file.
+	if err := a.saveIntegrationConfiguration("dev.floter.configured", map[string]any{
+		"endpoint": "https://example.com", "token": "s3cret", "region": "eu",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(paths.Data, "dev.floter.configured", "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "s3cret") {
+		t.Errorf("the secret is in the values file: %s", data)
+	}
+	stored, err := extensions.LoadStoredConfiguration(paths.Data, "dev.floter.configured")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Values["token"] != "s3cret" || stored.Values["endpoint"] != "https://example.com" {
+		t.Errorf("values = %v", stored.Values)
+	}
+	// The integration declares no commands, so nothing is summonable: the
+	// configuration is the whole surface here.
+	if got := a.Launcher.Commands; len(got) != 0 {
+		t.Errorf("commands = %+v", got)
 	}
 }

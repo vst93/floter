@@ -646,6 +646,19 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **剪贴板图片缩略图**：图片条目的行显示 32×24 缩略图（图片条目只靠「[image] + 时间」很难认），
   首次绘制时解码、按文件路径缓存——一百张图片的历史也只解码屏幕上那几张。
 
+### P3-m 集成配置表单（已做）
+
+- **`extensions.SaveConfiguration`**：按 schema 校验后写盘，密钥的走向与旧版一致——
+  password 字段进一个**新生成的密钥文件**（0600、原子写、旧代清理），values 文件写 `[REDACTED]`
+  占位符，存储的 schema 也一并落盘（password 的默认值打码）；校验规则照搬：未知键拒绝、必填缺省
+  用默认值补、类型必须匹配、select/multiSelect 只收枚举值、number 有范围、text 有长度。
+  之前 Go 侧只能**读**配置用于注入，用户没有办法改一个集成的配置——这是扩展平台的主要 UX 缺口。
+- **设置页表单**：集成行新增「配置」按钮展开表单，按类型渲染控件
+  （text/password/path→输入框，password 遮盖；boolean→复选；select→下拉；multiSelect→逐项勾选；
+  number→数字输入），必填与说明都在；草稿在展开期间存活（重绘不丢）；错误显示在表单上。
+- shell 把 provider 描述里的 schema 与本机已存的值接给表单，保存走 `SaveConfiguration` 并刷新集成。
+- 端到端测试：带 schema 的 fixture → 表单 → 保存 → values 文件无密钥、密钥文件可读回、注入环境正确。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -92,6 +92,9 @@ type Actions struct {
 	ImportIntegrations func()
 	// ConnectRecommended installs one of the shipped tool packages.
 	ConnectRecommended func(id string)
+	// SaveConfiguration validates and stores an integration's configuration
+	// values, moving its password fields into the secrets file.
+	SaveConfiguration func(id string, values map[string]any) error
 	// ResetShortcuts restores the shipped bindings, and
 	// SetShortcutsSuspended releases the global shortcuts while a recorder
 	// waits for a key (so pressing the current one is recorded rather than
@@ -139,6 +142,28 @@ type Integration struct {
 	// Commands are the commands the integration declares, each with the
 	// switch state the launcher reads.
 	Commands []Command
+	// Config is the schema the integration declares for its host-owned
+	// configuration, and ConfigValues the values this machine holds (a
+	// password's real value, which the form hides as it is typed). Both are
+	// empty when the integration declares none.
+	Config       []ConfigField
+	ConfigValues map[string]any
+}
+
+// ConfigField is one field of an integration's host-owned configuration, as
+// the settings form renders it.
+type ConfigField struct {
+	Key         string
+	Label       string
+	Type        string // text, password, path, select, multiSelect, boolean, number
+	Description string
+	Required    bool
+	Default     any
+	Options     []string
+	Minimum     *float64
+	Maximum     *float64
+	MinLength   *int
+	MaxLength   *int
 }
 
 // Command is one of an integration's commands, as the switch list shows it.
@@ -199,8 +224,13 @@ type App struct {
 	// whether an update is waiting to be installed.
 	UpdateStatus string
 	UpdateReady  bool
-	// auditOpen is which integrations have their permission audit unfolded.
-	auditOpen map[string]bool
+	// auditOpen is which integrations have their permission audit unfolded,
+	// configOpen which configuration forms are open, configDrafts their form
+	// state, and configError the last save's error.
+	auditOpen    map[string]bool
+	configOpen   map[string]bool
+	configDrafts map[string]*configDraft
+	configError  map[string]string
 	// shortcutsSuspended is the last state reported to the shell, so the
 	// recorder releases the global keys once and takes them back once.
 	shortcutsSuspended bool
@@ -666,6 +696,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if len(integration.Permissions) > 0 {
 				ui.Text(c, a.permissionLine(integration, copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				a.permissionAudit(c, copy, integration)
+			}
+			if len(integration.Config) > 0 && !integration.Orphan {
+				a.configSection(c, copy, integration)
 			}
 			if integration.Diagnosis != "" {
 				color := t.TextMuted

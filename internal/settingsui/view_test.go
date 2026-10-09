@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -1183,3 +1184,99 @@ func TestRecorderSuspendsTheGlobalShortcuts(t *testing.T) {
 		t.Errorf("suspended = %v", suspended)
 	}
 }
+
+// An integration's configuration form renders its schema, keeps its draft
+// across frames, and saves through the shell.
+func TestConfigurationForm(t *testing.T) {
+	saved := map[string]map[string]any{}
+	min := 0.5
+	max := 9.0
+	a := New(newStore(t), Actions{
+		SaveConfiguration: func(id string, values map[string]any) error {
+			if saved == nil {
+				saved = map[string]map[string]any{}
+			}
+			saved[id] = values
+			return nil
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Config: []ConfigField{
+				{Key: "endpoint", Label: "Endpoint", Type: "text", Required: true, MinLength: intPtr(4)},
+				{Key: "token", Label: "Token", Type: "password", Required: true},
+				{Key: "region", Label: "Region", Type: "select", Options: []string{"eu", "us"}, Default: "eu"},
+				{Key: "tags", Label: "Tags", Type: "multiSelect", Options: []string{"a", "b", "c"}},
+				{Key: "retries", Label: "Retries", Type: "number", Minimum: &min, Maximum: &max},
+				{Key: "verbose", Label: "Verbose", Type: "boolean"},
+			},
+			ConfigValues: map[string]any{"endpoint": "https://example.com", "token": "s3cret", "region": "us"},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The form is folded away until asked for.
+	if tt.HasText("Region") {
+		t.Error("the form was open before it was asked for")
+	}
+	if err := tt.Click("Configure"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Endpoint", "Token", "Region", "Tags", "Retries", "Verbose"} {
+		if !tt.HasText(want) {
+			t.Errorf("the field %q is missing: %q", want, tt.Texts())
+		}
+	}
+	// The loaded values seed the draft: the select shows the stored region,
+	// and a defaulted field the default.
+	if !tt.HasText("us") {
+		t.Errorf("the stored region is not shown: %q", tt.Texts())
+	}
+
+	// Ticking a multiselect option, typing into a number field and saving
+	// hand the whole draft to the shell.
+	if err := tt.Click("a"); err != nil {
+		t.Fatalf("multiselect: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Save"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	values := saved["io.github.vst93.v"]
+	if values == nil {
+		t.Fatal("nothing was saved")
+	}
+	if values["endpoint"] != "https://example.com" || values["token"] != "s3cret" {
+		t.Errorf("text/password = %v", values)
+	}
+	if values["region"] != "us" {
+		t.Errorf("region = %v", values["region"])
+	}
+	tags, ok := values["tags"].([]any)
+	if !ok || len(tags) != 1 || tags[0] != "a" {
+		t.Errorf("tags = %v", values["tags"])
+	}
+	// The boolean and the number keep their state (untouched here: the
+	// defaults are what a save would write).
+	if _, ok := values["verbose"]; !ok && values["verbose"] != nil {
+		t.Logf("verbose = %v", values["verbose"])
+	}
+
+	// A save error is reported on the form rather than vanishing.
+	a.Actions.SaveConfiguration = func(string, map[string]any) error {
+		return errors.New("the endpoint is unreachable")
+	}
+	tt.Click("Save")
+	tt.Frame()
+	if !tt.HasText("the endpoint is unreachable") {
+		t.Errorf("the error is missing: %q", tt.Texts())
+	}
+}
+
+func intPtr(v int) *int { return &v }

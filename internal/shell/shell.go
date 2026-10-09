@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -507,6 +508,7 @@ func New(opts Options) *App {
 		CheckForUpdates:       a.checkForUpdates,
 		InstallUpdate:         a.installUpdate,
 		ConnectRecommended:    a.connectRecommended,
+		SaveConfiguration:     a.saveIntegrationConfiguration,
 		ResetShortcuts:        a.resetShortcuts,
 		SetShortcutsSuspended: a.setShortcutsSuspended,
 		ExportIntegrations:    a.exportIntegrations,
@@ -916,6 +918,7 @@ func (a *App) integrationList() []settingsui.Integration {
 	switches := settings.CommandSwitchesOf(a.Store.Snapshot())
 	commands := map[string][]settingsui.Command{}
 	for _, info := range a.Integrations.CommandRegistry() {
+		log.Printf("floter: dbg registry %s ok", info.CommandID)
 		commands[info.ExtensionID] = append(commands[info.ExtensionID], settingsui.Command{
 			ID:          info.CommandID,
 			Name:        info.Name,
@@ -953,6 +956,10 @@ func (a *App) integrationList() []settingsui.Integration {
 			}
 		}
 		item.Commands = commands[item.ID]
+		if a.Integrations == nil {
+			log.Printf("floter: the extension store is nil in integrationList")
+		}
+		applyIntegrationConfig(a.Integrations, a.Paths, &item, integration)
 		a.diagnosisMu.Lock()
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
 			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
@@ -1147,6 +1154,82 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 		}
 	}
 	a.ApplyCustomShortcuts()
+}
+
+// saveIntegrationConfiguration validates and stores one integration's
+// configuration: the values go through the same validation the old build ran,
+// and the password fields land in a new secrets generation rather than in the
+// values file.
+func (a *App) saveIntegrationConfiguration(id string, values map[string]any) error {
+	description, ok := a.Integrations.Description(id)
+	if !ok {
+		return errors.New("extensions: no such integration")
+	}
+	if err := extensions.SaveConfiguration(a.Paths, id, description.Configuration.Schema, values); err != nil {
+		return err
+	}
+	// The provider sees the new values the next time it is asked.
+	go a.RefreshIntegrations(context.Background())
+	return nil
+}
+
+// applyIntegrationConfig copies an integration's configuration schema and its
+// stored values onto the settings row. The whole thing is guarded: a schema
+// this build cannot render must not take the list down.
+func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, item *settingsui.Integration, integration extensions.Integration) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("floter: could not read the configuration of %s: %v", item.ID, r)
+		}
+	}()
+	// The schema comes from the provider's description, whose configuration
+	// block is optional: an integration without one has nothing to render.
+	description, ok := store.Description(item.ID)
+	if !ok || description.Configuration == nil || len(description.Configuration.Schema) == 0 {
+		return
+	}
+	configuration := description.Configuration
+	for _, field := range configuration.Schema {
+		item.Config = append(item.Config, settingsui.ConfigField{
+			Key:         field.Key,
+			Label:       field.Label,
+			Type:        field.Type,
+			Description: field.Description,
+			Required:    field.Required,
+			Default:     field.Default,
+			Options:     optionsAsStrings(field.Options),
+			Minimum:     field.Minimum,
+			Maximum:     field.Maximum,
+			MinLength:   field.MinLength,
+			MaxLength:   field.MaxLength,
+		})
+	}
+	stored, err := extensions.LoadStoredConfiguration(paths.Data, item.ID)
+	if err != nil {
+		return
+	}
+	item.ConfigValues = stored.Values
+}
+
+// optionsAsStrings renders a field's options for the form: a select's options
+// are text values in the schema, and anything else is shown as its text.
+func optionsAsStrings(options []any) []string {
+	out := make([]string, 0, len(options))
+	for _, option := range options {
+		switch value := option.(type) {
+		case string:
+			out = append(out, value)
+		case float64:
+			out = append(out, strconv.FormatFloat(value, 'f', -1, 64))
+		case bool:
+			out = append(out, strconv.FormatBool(value))
+		default:
+			if text, err := json.Marshal(option); err == nil {
+				out = append(out, string(text))
+			}
+		}
+	}
+	return out
 }
 
 // recommendedTools is the shipped packages and whether the inventory has

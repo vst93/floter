@@ -232,6 +232,12 @@ type Settings struct {
 	IntegrationsRecommended     string
 	IntegrationsRecommendedHint string
 	IntegrationsConnect         string
+	// The configuration form.
+	ConfigOpen     string
+	ConfigSave     string
+	ConfigSaved    string
+	ConfigRequired string
+	ConfigNumber   string
 	// The export and import of the integration list.
 	IntegrationsExport       string
 	IntegrationsImport       string
